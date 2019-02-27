@@ -1,0 +1,6 @@
+[run]
+omit = awswrangler/__version__.py
+
+[paths]
+source =
+    awswrangler
