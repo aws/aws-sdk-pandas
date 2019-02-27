@@ -8,7 +8,7 @@ AWS Data Wrangler aims to fill a gap between AWS Big Data Services (Glue, Athena
 
 ---
 
-*Contents:* **[Installation](##Installation)** | **[Usage](##Usage)** | **[Known Limitations](##Known-Limitations)** | **[Contributing](##Contributing)** | **[Dependencies](##Dependencies)** | **[License](##License)**
+*Contents:* **[Installation](#Installation)** | **[Usage](#Usage)** | **[Known Limitations](#Known-Limitations)** | **[Contributing](#Contributing)** | **[Dependencies](#Dependencies)** | **[License](#License)**
 
 ---
 
@@ -45,10 +45,10 @@ df = awswrangler.athena.read("database", "select * from table")
 ## Dependencies
 
 AWS Data Wrangler project relies on others great initiatives:
-* **[Boto3](##https://github.com/boto/boto3)**
-* **[Pandas](##https://github.com/pandas-dev/pandas)**
-* **[Apache Arrow](##https://github.com/apache/arrow)**
-* **[Dask s3fs](##https://github.com/dask/s3fs)**
+* **[Boto3](https://github.com/boto/boto3)**
+* **[Pandas](https://github.com/pandas-dev/pandas)**
+* **[Apache Arrow](https://github.com/apache/arrow)**
+* **[Dask s3fs](https://github.com/dask/s3fs)**
 
 ## Known Limitations
 
