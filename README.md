@@ -1,8 +1,10 @@
-# AWS Data Wrangler
+# AWS Data Wrangler (BETA)
 
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 
 > The missing link between AWS services and the most popular Python data libraries
+
+# CAUTION: This project is in BETA version. And was not tested in battle yet.
 
 AWS Data Wrangler aims to fill a gap between AWS Big Data Services (Glue, Athena, EMR, Redshift) and the most popular Python libraries for lightweight workloads.
 
