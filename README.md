@@ -2,13 +2,15 @@
 
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 
-> The missing link between AWS services and the most popular Python data libraries
+> The missing link between AWS services and the most popular Python data libraries.
+
+> The right tool for each job.
 
 # CAUTION: This project is in BETA version. And was not tested in battle yet.
 
 AWS Data Wrangler aims to fill a gap between AWS Analytics Services (Glue, Athena, EMR, Redshift) and the most popular Python libraries for ***lightweight*** workloads.
 
-The rationale behind AWS Data Wrangler is to use the right tool for each job. That is never so clear and depends of a lot of different factors, but a good rule of thumb that we discoverd during the tests is that if your workload something around 5 GB in plan text or less, so you should go with AWS Data Wrangler instead of the consagrated big data tools.
+The rationale behind AWS Data Wrangler is to use ***the right tool for each job***. That is never so clear and depends of a lot of different factors, but a good rule of thumb that we discoverd during the tests is that if your workload is something around 5 GB in plan text or less, so you should go with AWS Data Wrangler instead of the consagrated big data tools.
 
 **[AWS Glue](https://aws.amazon.com/glue/)** is perfect to help illustrate the rationale. There are two different types of Job, distributed with **[Apache Spark](https://spark.apache.org/)** or single node with Python Shell.
 
@@ -56,11 +58,11 @@ df = awswrangler.athena.read("database", "select * from table")
 import pandas
 import awswrangler
 
-df = pandas.read_csv("s3//your_bucket/your_object.csv")
-...
-TRANSFORMATIONS
-...
-awswrangler.s3.write(
+df = pandas.read_csv("s3//your_bucket/your_object.csv")  # Read from anywhere
+
+# Typical Pandas, Numpy or Pyarrow transformation HERE!
+
+awswrangler.s3.write(  # Storing the data and metadata to Data Lake
         df=df,
         database="database",
         path="s3://...",
