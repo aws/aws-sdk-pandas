@@ -6,7 +6,13 @@
 
 # CAUTION: This project is in BETA version. And was not tested in battle yet.
 
-AWS Data Wrangler aims to fill a gap between AWS Analytics Services (Glue, Athena, EMR, Redshift) and the most popular Python libraries for lightweight workloads.
+AWS Data Wrangler aims to fill a gap between AWS Analytics Services (Glue, Athena, EMR, Redshift) and the most popular Python libraries for ***lightweight*** workloads.
+
+The rationale behind AWS Data Wrangler is to use the right tool for each job. That is never so clear and depends of a lot of different factors, but a good rule of thumb that we discoverd during the tests is that if your workload something around 5 GB in plan text or less, so you should go with AWS Data Wrangler instead of the consagrated big data tools.
+
+**[AWS Glue](https://aws.amazon.com/glue/)** is perfect to help illustrate the rationale. There are two different types of Job, distributed with **[Apache Spark](https://spark.apache.org/)** or single node with Python Shell.
+
+![Rationale Image](docs/_static/rationale.png?raw=true "Rationale")
 
 ---
 
@@ -42,6 +48,27 @@ If a Glue Database name is passed, all the metadata will be created in the Glue 
 
 ```py3
 df = awswrangler.athena.read("database", "select * from table")
+```
+
+### Typical ETL:
+
+```py3
+import pandas
+import awswrangler
+
+df = pandas.read_csv("s3//your_bucket/your_object.csv")
+...
+TRANSFORMATIONS
+...
+awswrangler.s3.write(
+        df=df,
+        database="database",
+        path="s3://...",
+        file_format="parquet",
+        preserve_index=True,
+        mode="overwrite",
+        partition_cols=["col"],
+    )
 ```
 
 ## Dependencies
