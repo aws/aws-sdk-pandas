@@ -27,6 +27,9 @@ The rationale behind AWS Data Wrangler is to use ***the right tool for each job*
 `pip install awswrangler`
 
 AWS Data Wrangler runs on Python 2 and 3.
+And runs on AWS Lambda, AWS Glue, EC2, on-premises and local.
+
+**P.S.** The Lambda Layer bundle and the Glue egg are available to [download](https://github.com/awslabs/aws-data-wrangler/releases). It's just upload to your account and run! :rocket:
 
 ## Usage
 
@@ -87,6 +90,7 @@ AWS Data Wrangler project relies on others great initiatives:
 * By now only reads through AWS Athena
 * By now there are not compression support
 * By now there are not nested type support
+* By now AWS Lambda don't support write in overwrite mode
 
 ## Contributing
 
