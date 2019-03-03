@@ -1,10 +1,10 @@
-from . import write as _write
+from .write.write import write as _write
 
 
 def write(
     df,
-    database,
     path,
+    database=None,
     table=None,
     partition_cols=[],
     preserve_index=False,
@@ -14,5 +14,6 @@ def write(
     key=None,
     secret=None,
     profile=None,
+    num_procs=None,
 ):
-    return _write.write(**locals())
+    return _write(**locals())

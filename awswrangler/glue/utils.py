@@ -57,7 +57,13 @@ def add_partitions(
 
 
 def create_table(
-    database, table, schema, partition_cols, path, file_format, session_primitives=None
+    database,
+    table,
+    schema,
+    path,
+    file_format,
+    partition_cols=None,
+    session_primitives=None,
 ):
     """
     Create Glue table
