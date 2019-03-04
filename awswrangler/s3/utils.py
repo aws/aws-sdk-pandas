@@ -2,11 +2,7 @@ import multiprocessing as mp
 
 import s3fs
 
-from ..common import get_session
-
-
-def del_objs_batch_wrapper(args):
-    return del_objs_batch(*args)
+from ..common import get_session, calculate_bounders
 
 
 def del_objs_batch(bucket, batch, session_primitives=None):
@@ -19,27 +15,27 @@ def delete_objects(path, session_primitives=None, batch_size=1000):
     if path[-1] != "/":
         path += "/"
     client = get_session(session_primitives=session_primitives).client("s3")
-    pool = mp.Pool(mp.cpu_count())
     procs = []
     args = {"Bucket": bucket, "MaxKeys": batch_size, "Prefix": path}
-    NextContinuationToken = True
-    while NextContinuationToken:
+    next_continuation_token = True
+    while next_continuation_token:
         res = client.list_objects_v2(**args)
         if not res.get("Contents"):
             break
         keys = [{"Key": x.get("Key")} for x in res.get("Contents")]
-        NextContinuationToken = res.get("NextContinuationToken")
-        if NextContinuationToken:
-            args["ContinuationToken"] = NextContinuationToken
-            procs.append(
-                pool.apply_async(
-                    del_objs_batch_wrapper, ((bucket, keys, session_primitives),)
-                )
+        next_continuation_token = res.get("NextContinuationToken")
+        if next_continuation_token:
+            args["ContinuationToken"] = next_continuation_token
+            proc = mp.Process(
+                target=del_objs_batch, args=(bucket, keys, session_primitives)
             )
+            proc.daemon = True
+            proc.start()
+            procs.append(proc)
         else:
             del_objs_batch(bucket, keys, session_primitives)
     for proc in procs:
-        proc.get()
+        proc.join()
 
 
 def list_objects(path, session_primitives=None, batch_size=1000):
@@ -48,45 +44,34 @@ def list_objects(path, session_primitives=None, batch_size=1000):
         path += "/"
     client = get_session(session_primitives=session_primitives).client("s3")
     args = {"Bucket": bucket, "MaxKeys": batch_size, "Prefix": path}
-    NextContinuationToken = True
+    next_continuation_token = True
     keys = []
-    while NextContinuationToken:
+    while next_continuation_token:
         res = client.list_objects_v2(**args)
         if not res.get("Contents"):
             break
         keys += [{"Key": x.get("Key")} for x in res.get("Contents")]
-        NextContinuationToken = res.get("NextContinuationToken")
-        if NextContinuationToken:
-            args["ContinuationToken"] = NextContinuationToken
+        next_continuation_token = res.get("NextContinuationToken")
+        if next_continuation_token:
+            args["ContinuationToken"] = next_continuation_token
     return keys
-
-
-def calc_bounders(num, cpus):
-    cpus = num if num < cpus else cpus
-    size = int(num / cpus)
-    rest = num % cpus
-    bounders = []
-    start = 0
-    end = -1
-    for _ in range(cpus):
-        start = end + 1
-        end += size
-        if rest:
-            end += 1
-            rest -= 1
-        bounders.append((start, end))
-    return bounders
 
 
 def delete_listed_objects(bucket, batch, session_primitives=None, batch_size=1000):
     if len(batch) > batch_size:
-        cpus = mp.cpu_count()
-        bounders = calc_bounders(len(batch), cpus)
-        args = []
-        for item in bounders:
-            args.append((bucket, batch[item[0] : item[1] + 1], session_primitives))
-        pool = mp.Pool(cpus)
-        pool.map(del_objs_batch_wrapper, args)
+        num_procs = mp.cpu_count()
+        bounders = calculate_bounders(len(batch), num_procs)
+        procs = []
+        for bounder in bounders:
+            proc = mp.Process(
+                target=del_objs_batch,
+                args=(bucket, batch[bounder[0] : bounder[1]], session_primitives),
+            )
+            proc.daemon = True
+            proc.start()
+            procs.append(proc)
+        for proc in procs:
+            proc.join()
     else:
         del_objs_batch(bucket, batch, session_primitives)
 

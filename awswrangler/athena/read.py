@@ -22,10 +22,10 @@ def read(
     athena_client = session.client("athena")
     qe = run_query(athena_client, query, database, s3_output)
     validation = query_validation(athena_client, qe)
-    if validation["QueryExecution"]["Status"]["State"] == "FAILED":
+    if validation.get("QueryExecution").get("Status").get("State") == "FAILED":
         message_error = (
             "Your query is not valid: "
-            + validation["QueryExecution"]["Status"]["StateChangeReason"]
+            + validation.get("QueryExecution").get("Status").get("StateChangeReason")
         )
         raise Exception(message_error)
     else:

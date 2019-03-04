@@ -35,9 +35,9 @@ def calculate_bounders(num_items, num_groups):
     size = int(num_items / num_groups)
     rest = num_items % num_groups
     bounders = []
-    end = -1
+    end = 0
     for _ in range(num_groups):
-        start = end + 1
+        start = end
         end += size
         if rest:
             end += 1

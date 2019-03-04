@@ -1,3 +1,4 @@
+import sys
 import multiprocessing as mp
 
 from pyarrow.compat import guid
@@ -12,6 +13,9 @@ from awswrangler.s3.utils import (
 )
 from awswrangler.s3.write.parquet import write_parquet_dataframe
 from awswrangler.s3.write.csv import write_csv_dataframe
+
+if sys.version_info.major > 2:
+    xrange = range
 
 
 def _get_bounders(df, num_procs):
@@ -40,24 +44,23 @@ def write_file(df, path, preserve_index, session_primitives, file_format):
 def write_file_manager(
     df, path, preserve_index, session_primitives, file_format, num_procs
 ):
-    bounders = _get_bounders(df=df, num_procs=num_procs)
-    partition_paths = []
-    procs = []
-    for bounder in bounders[1:]:
-        proc = mp.Process(
-            target=write_file,
-            args=(
-                df.iloc[bounder[0] : bounder[1], :],
-                path,
-                preserve_index,
-                session_primitives,
-                file_format,
-            ),
-        )
-        proc.daemon = True
-        proc.start()
-        procs.append(proc)
-    partition_paths.append(
+    if num_procs > 1:
+        bounders = _get_bounders(df=df, num_procs=num_procs)
+        procs = []
+        for bounder in bounders[1:]:
+            proc = mp.Process(
+                target=write_file,
+                args=(
+                    df.iloc[bounder[0] : bounder[1], :],
+                    path,
+                    preserve_index,
+                    session_primitives,
+                    file_format,
+                ),
+            )
+            proc.daemon = True
+            proc.start()
+            procs.append(proc)
         write_file(
             df=df.iloc[bounders[0][0] : bounders[0][1], :],
             path=path,
@@ -65,9 +68,16 @@ def write_file_manager(
             session_primitives=session_primitives,
             file_format=file_format,
         )
-    )
-    for i in range(len(procs)):
-        procs[i].join()
+        for i in range(len(procs)):
+            procs[i].join()
+    else:
+        write_file(
+            df=df,
+            path=path,
+            preserve_index=preserve_index,
+            session_primitives=session_primitives,
+            file_format=file_format,
+        )
 
 
 def write_dataset(
@@ -141,33 +151,32 @@ def write_dataset_manager(
     mode,
     num_procs,
 ):
-    bounders = _get_bounders(df=df, num_procs=num_procs)
-    print(f"bounders: {bounders}")
     partition_paths = []
-    procs = []
-    receive_pipes = []
-    for bounder in bounders[1:]:
-        receive_pipe, send_pipe = mp.Pipe(duplex=False)
-        proc = mp.Process(
-            target=write_dataset_remote,
-            args=(
-                send_pipe,
-                df.iloc[bounder[0] : bounder[1], :],
-                path,
-                partition_cols,
-                preserve_index,
-                session_primitives,
-                file_format,
-                mode,
-            ),
-        )
-        proc.daemon = True
-        proc.start()
-        send_pipe.close()
-        procs.append(proc)
-        receive_pipes.append(receive_pipe)
-    partition_paths.append(
-        write_dataset(
+    if num_procs > 1:
+        bounders = _get_bounders(df=df, num_procs=num_procs)
+        procs = []
+        receive_pipes = []
+        for bounder in bounders[1:]:
+            receive_pipe, send_pipe = mp.Pipe(duplex=False)
+            proc = mp.Process(
+                target=write_dataset_remote,
+                args=(
+                    send_pipe,
+                    df.iloc[bounder[0] : bounder[1], :],
+                    path,
+                    partition_cols,
+                    preserve_index,
+                    session_primitives,
+                    file_format,
+                    mode,
+                ),
+            )
+            proc.daemon = True
+            proc.start()
+            send_pipe.close()
+            procs.append(proc)
+            receive_pipes.append(receive_pipe)
+        partition_paths += write_dataset(
             df=df.iloc[bounders[0][0] : bounders[0][1], :],
             path=path,
             partition_cols=partition_cols,
@@ -176,9 +185,18 @@ def write_dataset_manager(
             file_format=file_format,
             mode=mode,
         )
-    )
-    for i in range(len(procs)):
-        procs[i].join()
-        partition_paths.append(receive_pipes[i].recv())
-        receive_pipes[i].close()
+        for i in range(len(procs)):
+            procs[i].join()
+            partition_paths += receive_pipes[i].recv()
+            receive_pipes[i].close()
+    else:
+        partition_paths += write_dataset(
+            df=df,
+            path=path,
+            partition_cols=partition_cols,
+            preserve_index=preserve_index,
+            session_primitives=session_primitives,
+            file_format=file_format,
+            mode=mode,
+        )
     return partition_paths
