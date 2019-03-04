@@ -23,10 +23,9 @@ def read(
     qe = run_query(athena_client, query, database, s3_output)
     validation = query_validation(athena_client, qe)
     if validation.get("QueryExecution").get("Status").get("State") == "FAILED":
-        message_error = (
-            "Your query is not valid: "
-            + validation.get("QueryExecution").get("Status").get("StateChangeReason")
-        )
+        message_error = "Your query is not valid: " + validation.get(
+            "QueryExecution"
+        ).get("Status").get("StateChangeReason")
         raise Exception(message_error)
     else:
         file = s3_output + qe + ".csv"
