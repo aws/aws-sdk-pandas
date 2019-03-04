@@ -12,7 +12,6 @@ def calc_bounders(num, cpus):
     size = int(num / cpus)
     rest = num % cpus
     bounders = []
-    start = 0
     end = -1
     for _ in range(cpus):
         start = end + 1
