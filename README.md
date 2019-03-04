@@ -87,10 +87,8 @@ AWS Data Wrangler project relies on others great initiatives:
 ## Known Limitations
 
 * By now only writes in Parquet and CSV file formats
-* By now only reads through AWS Athena
 * By now there are not compression support
 * By now there are not nested type support
-* By now AWS Lambda don't support write in overwrite mode
 
 ## Contributing
 
