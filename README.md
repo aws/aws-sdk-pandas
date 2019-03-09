@@ -14,7 +14,7 @@ Usually there are two different types of use cases when dealing with data, heavy
 
 For example, in **[AWS Glue](https://aws.amazon.com/glue/)** you can choose between two different types of Job, distributed with Apache Spark or single node with Python Shell. In this case data wrangler would use the single node with Python Shell job option (Or even AWS Lambda), resulting in less cost and less warm-up time.
 
-![Rationale Image](docs/_static/rationale.png?raw=true "Rationale")
+![Rationale Image](docs/source/_static/rationale.png?raw=true "Rationale")
 
 ---
 
