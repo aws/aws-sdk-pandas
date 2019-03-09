@@ -52,4 +52,5 @@ Table Of Contents
    usage/index
    dependencies
    limitations
+   contributing
    license
