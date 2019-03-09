@@ -6,7 +6,7 @@
 
 # CAUTION: This project is in BETA version. And was not tested in battle yet.
 
-**[Read the docs!](https://aws-data-wrangler.readthedocs.io)
+**[Read the docs!](https://aws-data-wrangler.readthedocs.io)**
 
 AWS Data Wrangler aims to fill a gap between AWS Analytics Services (Glue, Athena, EMR, Redshift) and the most popular Python libraries for ***lightweight*** workloads.
 
