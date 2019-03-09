@@ -1,0 +1,8 @@
+================
+Usage
+================
+
+.. toctree::
+
+   reading
+   writing

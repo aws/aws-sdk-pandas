@@ -9,21 +9,25 @@
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-#
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
 
+import os
+import sys
+
+# Insert awswrangler' path into the system.
+sys.path.insert(0, os.path.abspath("../.."))
+
+import awswrangler
 
 # -- Project information -----------------------------------------------------
 
 project = 'AWS Data Wrangler'
-copyright = '2019, Igor Tavares'
 author = 'Igor Tavares'
 
-# The full version, including alpha/beta/rc tags
-release = '0.0b0'
+master_doc = 'index'
 
+# The full version, including alpha/beta/rc tags
+release = awswrangler.__version__
+version = awswrangler.__version__
 
 # -- General configuration ---------------------------------------------------
 
@@ -31,7 +35,11 @@ release = '0.0b0'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    "sphinx.ext.autodoc",
+    "sphinx.ext.viewcode"
 ]
+
+language = None
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -41,13 +49,22 @@ templates_path = ['_templates']
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = []
 
-
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
 html_theme = 'alabaster'
+html_show_copyright = False
+html_theme_options = {
+    "show_powered_by": False,
+    "show_related": False,
+    "github_user": "awslabs",
+    "github_repo": "aws-data-wrangler",
+    "github_banner": True,
+    "github_button": True,
+    "github_type": "star"
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
