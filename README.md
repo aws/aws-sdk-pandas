@@ -6,6 +6,8 @@
 
 # CAUTION: This project is in BETA version. And was not tested in battle yet.
 
+**[Read the docs!](https://aws-data-wrangler.readthedocs.io)**
+
 AWS Data Wrangler aims to fill a gap between AWS Analytics Services (Glue, Athena, EMR, Redshift) and the most popular Python libraries for ***lightweight*** workloads.
 
 The rationale behind AWS Data Wrangler is to use the right tool for each job. And this project was developed with the lightweight jobs in mind. That is never so clear and depends of a lot of different factors, but a good rule of thumb that we discoverd during the tests is that if your workload is something around 5 GB in plan text or less, so you should go with AWS Data Wrangler instead of the consagrated big data tools.
