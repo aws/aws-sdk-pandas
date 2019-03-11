@@ -1,4 +1,5 @@
 from .write.write import write as _write
+from .read.read import read as _read
 
 
 def write(
@@ -17,3 +18,26 @@ def write(
     num_procs=None,
 ):
     return _write(**locals())
+
+
+def read(
+    path,
+    file_format="csv",
+    header="infer",
+    names=None,
+    dtype=None,
+    sep=",",
+    lineterminator="\n",
+    quotechar='"',
+    quoting=0,
+    escapechar=None,
+    parse_dates=False,
+    infer_datetime_format=False,
+    encoding="utf-8",
+    max_size=None,
+    region=None,
+    key=None,
+    secret=None,
+    profile=None,
+):
+    return _read(**locals())

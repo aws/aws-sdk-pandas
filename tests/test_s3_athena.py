@@ -138,3 +138,28 @@ def test_s3_write_append(bucket, database, file_format):
         database, "select * from test", "s3://{}/athena/".format(bucket)
     )
     assert 2 * len(df.index) == len(df2.index)
+
+
+def test_s3_read(bucket):
+    df = pd.read_csv("data_samples/small.csv")
+    awswrangler.s3.write(
+        df=df,
+        table="test",
+        path="s3://{}/test/".format(bucket),
+        file_format="csv",
+        mode="overwrite",
+    )
+    awswrangler.s3.write(
+        df=df,
+        table="test",
+        path="s3://{}/test/".format(bucket),
+        file_format="csv",
+        mode="append",
+    )
+    count = 0
+    generator = awswrangler.s3.read(
+        path="s3://{}/test/".format(bucket), header=None, max_size=50000
+    )
+    for df_chunk in generator:
+        count += len(df_chunk)
+    assert 2 * len(df.index) == count
