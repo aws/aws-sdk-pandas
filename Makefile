@@ -19,7 +19,10 @@ format:
 lint:
 	flake8 awswrangler tests
 
-artifacts: format test generate-glue-egg generate-layers-3.7 generate-layers-3.6 generate-layers-2.7
+doc:
+	sphinx-apidoc -f -H "API Reference" -o docs/source/api awswrangler/
+
+artifacts: format test doc generate-glue-egg generate-layers-3.7 generate-layers-3.6 generate-layers-2.7
 
 generate-glue-egg:
 	python2.7 setup.py bdist_egg
@@ -45,7 +48,7 @@ generate-layers-2.7:
 	mv awswrangler_layer_2.7.zip dist/
 	rm -rf python
 
-build: format test
+build: format test doc
 	rm -fr build dist .egg requests.egg-info
 	python setup.py sdist bdist_wheel
 
