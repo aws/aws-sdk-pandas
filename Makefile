@@ -26,21 +26,21 @@ generate-glue-egg:
 
 generate-layers-3.7:
 	mkdir -p dist
-	docker run -v $(PWD):/var/task -it lambci/lambda:build-python3.7 /bin/bash -c "pip install awswrangler -t ./python"
+	docker run -v $(PWD):/var/task -it lambci/lambda:build-python3.7 /bin/bash -c "pip install . -t ./python"
 	zip -r awswrangler_layer_3.7.zip ./python
 	mv awswrangler_layer_3.7.zip dist/
 	rm -rf python
 
 generate-layers-3.6:
 	mkdir -p dist
-	docker run -v $(PWD):/var/task -it lambci/lambda:build-python3.6 /bin/bash -c "pip install awswrangler -t ./python"
+	docker run -v $(PWD):/var/task -it lambci/lambda:build-python3.6 /bin/bash -c "pip install . -t ./python"
 	zip -r awswrangler_layer_3.6.zip ./python
 	mv awswrangler_layer_3.6.zip dist/
 	rm -rf python
 
 generate-layers-2.7:
 	mkdir -p dist
-	docker run -v $(PWD):/var/task -it lambci/lambda:build-python2.7 /bin/bash -c "pip install awswrangler -t ./python"
+	docker run -v $(PWD):/var/task -it lambci/lambda:build-python2.7 /bin/bash -c "pip install . -t ./python"
 	zip -r awswrangler_layer_2.7.zip ./python
 	mv awswrangler_layer_2.7.zip dist/
 	rm -rf python
