@@ -8,3 +8,7 @@ class UnsupportedFileFormat(Exception):
 
 class UnsupportedWriteMode(Exception):
     pass
+
+
+class InvalidArguments(Exception):
+    pass
