@@ -57,6 +57,13 @@ If a Glue Database name is passed, all the metadata will be created in the Glue 
 df = awswrangler.athena.read("database", "select * from table")
 ```
 
+### Reading from "infinite" S3 source to Pandas Dataframe through generators. That can set a maximum chunk size in bytes to fit in any memory size:
+
+```py3
+for df in awswrangler.s3.read(path="s3://...", max_size=500):
+    print(df)
+```
+
 ### Typical ETL:
 
 ```py3
