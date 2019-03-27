@@ -16,6 +16,7 @@ def _write_data(
     file_format="parquet",
     mode="append",
     num_procs=None,
+    num_files=2,
 ):
     """
     Write the parquet files to s3
@@ -39,6 +40,7 @@ def _write_data(
             file_format=file_format,
             mode=mode,
             num_procs=num_procs,
+            num_files=num_files,
         )
     else:
         write_file_manager(
@@ -67,6 +69,7 @@ def write(
     secret=None,
     profile=None,
     num_procs=None,
+    num_files=2,
 ):
     """
     Convert a given Pandas Dataframe to a Glue Parquet table
@@ -87,6 +90,7 @@ def write(
         mode=mode,
         session_primitives=session_primitives,
         num_procs=num_procs,
+        num_files=num_files,
     )
     if database:
         write_metadata(

@@ -14,18 +14,20 @@ coverage-html:
 	coverage html
 
 format:
-	black awswrangler tests
+	black awswrangler tests benchmarks
 
 lint:
-	flake8 awswrangler tests
+	flake8 awswrangler tests benchmarks
 
 doc:
 	sphinx-apidoc -f -H "API Reference" -o docs/source/api awswrangler/
 
-artifacts: format test doc generate-glue-egg generate-layers-3.7 generate-layers-3.6 generate-layers-2.7
+artifacts: format generate-glue-eggs generate-layers-3.7 generate-layers-3.6 generate-layers-2.7
 
-generate-glue-egg:
+generate-glue-eggs:
 	python2.7 setup.py bdist_egg
+	python3.6 setup.py bdist_egg
+	python3.7 setup.py bdist_egg
 
 generate-layers-3.7:
 	mkdir -p dist

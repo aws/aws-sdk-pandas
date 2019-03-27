@@ -16,6 +16,7 @@ def write(
     secret=None,
     profile=None,
     num_procs=None,
+    num_files=2,
 ):
     return _write(**locals())
 
@@ -33,8 +34,7 @@ def read(
     escapechar=None,
     parse_dates=False,
     infer_datetime_format=False,
-    encoding="utf-8",
-    max_size=None,
+    encoding=None,
     region=None,
     key=None,
     secret=None,

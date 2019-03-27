@@ -150,45 +150,39 @@ def write_dataset_manager(
     file_format,
     mode,
     num_procs,
+    num_files=2,
 ):
     partition_paths = []
     if num_procs > 1:
-        bounders = _get_bounders(df=df, num_procs=num_procs)
-        procs = []
-        receive_pipes = []
-        for bounder in bounders[1:]:
-            receive_pipe, send_pipe = mp.Pipe(duplex=False)
-            proc = mp.Process(
-                target=write_dataset_remote,
-                args=(
-                    send_pipe,
-                    df.iloc[bounder[0] : bounder[1], :],
-                    path,
-                    partition_cols,
-                    preserve_index,
-                    session_primitives,
-                    file_format,
-                    mode,
-                ),
-            )
-            proc.daemon = True
-            proc.start()
-            send_pipe.close()
-            procs.append(proc)
-            receive_pipes.append(receive_pipe)
-        partition_paths += write_dataset(
-            df=df.iloc[bounders[0][0] : bounders[0][1], :],
-            path=path,
-            partition_cols=partition_cols,
-            preserve_index=preserve_index,
-            session_primitives=session_primitives,
-            file_format=file_format,
-            mode=mode,
-        )
-        for i in range(len(procs)):
-            procs[i].join()
-            partition_paths += receive_pipes[i].recv()
-            receive_pipes[i].close()
+        bounders = _get_bounders(df=df, num_procs=num_procs * num_files)
+        for counter in range(num_files):
+            procs = []
+            receive_pipes = []
+            for bounder in bounders[
+                counter * num_procs : (counter * num_procs) + num_procs
+            ]:
+                receive_pipe, send_pipe = mp.Pipe()
+                proc = mp.Process(
+                    target=write_dataset_remote,
+                    args=(
+                        send_pipe,
+                        df.iloc[bounder[0] : bounder[1], :],
+                        path,
+                        partition_cols,
+                        preserve_index,
+                        session_primitives,
+                        file_format,
+                        mode,
+                    ),
+                )
+                proc.daemon = True
+                proc.start()
+                procs.append(proc)
+                receive_pipes.append(receive_pipe)
+            for i in range(len(procs)):
+                partition_paths += receive_pipes[i].recv()
+                procs[i].join()
+                receive_pipes[i].close()
     else:
         partition_paths += write_dataset(
             df=df,

@@ -1,7 +1,6 @@
-import pandas as pd
-
-from ..common import get_session
-from ..athena.utils import run_query, query_validation
+from awswrangler.common import get_session
+from awswrangler.athena.utils import run_query, query_validation
+from awswrangler.s3 import read as s3_read
 
 
 def read(
@@ -29,5 +28,5 @@ def read(
         raise Exception(message_error)
     else:
         file = s3_output + qe + ".csv"
-        df = pd.read_csv(file)
+        df = s3_read(file, key=key, secret=secret, profile=profile, region=region)
     return df
