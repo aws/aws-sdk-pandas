@@ -9,9 +9,9 @@ Reading from Data Lake to Pandas Dataframe:
 
     df = awswrangler.athena.read("database", "select * from table")
 
-Reading from "infinite" S3 source to Pandas Dataframe through generators. That can set a maximum chunk size in bytes to fit in any memory size:
+S3 object to Pandas Dataframe:
 
 .. code-block:: python
 
-    for df in awswrangler.s3.read(path="s3://...", max_size=500):
+    for df in awswrangler.s3.read(path="s3://..."):
         print(df)

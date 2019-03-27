@@ -1,6 +1,7 @@
 import os
 import pytest
 import pandas as pd
+import boto3
 import awswrangler
 
 
@@ -99,6 +100,7 @@ def test_s3_write_multi_partitioned(bucket, database, file_format):
         preserve_index=True,
         partition_cols=["name", "date"],
         mode="overwrite",
+        num_procs=4,
     )
     df2 = awswrangler.athena.read(database, "select * from test")
     assert len(df.index) == len(df2.index)
@@ -141,25 +143,8 @@ def test_s3_write_append(bucket, database, file_format):
 
 
 def test_s3_read(bucket):
-    df = pd.read_csv("data_samples/small.csv")
-    awswrangler.s3.write(
-        df=df,
-        table="test",
-        path="s3://{}/test/".format(bucket),
-        file_format="csv",
-        mode="overwrite",
+    boto3.client("s3").upload_file(
+        "data_samples/small.csv", bucket, "data_samples/small.csv"
     )
-    awswrangler.s3.write(
-        df=df,
-        table="test",
-        path="s3://{}/test/".format(bucket),
-        file_format="csv",
-        mode="append",
-    )
-    count = 0
-    generator = awswrangler.s3.read(
-        path="s3://{}/test/".format(bucket), header=None, max_size=50000
-    )
-    for df_chunk in generator:
-        count += len(df_chunk)
-    assert 2 * len(df.index) == count
+    df = awswrangler.s3.read(path="s3://{}/data_samples/small.csv".format(bucket))
+    assert len(df.index) == 100
