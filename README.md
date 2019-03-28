@@ -8,6 +8,8 @@
 
 **[Read the docs!](https://aws-data-wrangler.readthedocs.io)**
 
+**[Check how AWS Wrangler can process small data more than 10x cheaper and 10x faster than Spark!](https://aws-data-wrangler.readthedocs.io/en/latest/benchmarks.html)**
+
 AWS Data Wrangler aims to fill a gap between AWS Analytics Services (Glue, Athena, EMR, Redshift) and the most popular Python libraries for ***lightweight*** workloads.
 
 The rationale behind AWS Data Wrangler is to use the right tool for each job. And this project was developed with the lightweight jobs in mind. That is never so clear and depends of a lot of different factors, but a good rule of thumb that we discoverd during the tests is that if your workload is something around 5 GB in plan text or less, so you should go with AWS Data Wrangler instead of the consagrated big data tools.
@@ -57,11 +59,11 @@ If a Glue Database name is passed, all the metadata will be created in the Glue 
 df = awswrangler.athena.read("database", "select * from table")
 ```
 
-### Reading from "infinite" S3 source to Pandas Dataframe through generators. That can set a maximum chunk size in bytes to fit in any memory size:
+### Reading from S3 file to Pandas Dataframe:
 
 ```py3
-for df in awswrangler.s3.read(path="s3://...", max_size=500):
-    print(df)
+df = awswrangler.s3.read(path="s3://..."):
+print(df)
 ```
 
 ### Typical ETL:

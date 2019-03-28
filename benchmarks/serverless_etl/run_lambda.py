@@ -42,7 +42,7 @@ def main():
     configs = json.load(open(f"{current_path}/config.json"))
     bucket = configs.get("bucket")
     name = configs.get("lambda-name")
-    workloads = configs.get("workloads")
+    workloads = [wl for wl in configs.get("workloads") if wl < 1024]
     metrics = {}
     for wl in workloads:
         clean_output(bucket)

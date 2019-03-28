@@ -11,6 +11,9 @@ pytest = "*"
 pytest-cov = "*"
 twine = "*"
 sphinx = "*"
+seaborn = "*"
+matplotlib = "*"
+pyqt5 = "*"
 
 [packages]
 boto3 = "*"

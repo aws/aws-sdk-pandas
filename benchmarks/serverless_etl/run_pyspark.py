@@ -23,7 +23,7 @@ def run_job(name, workload, bucket):
     )
     run_id = response.get("JobRunId")
     while True:
-        sleep(1)
+        sleep(2)
         response = client.get_job_run(JobName=name, RunId=run_id)
         state = response.get("JobRun").get("JobRunState")
         if state == "SUCCEEDED":
