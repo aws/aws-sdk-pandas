@@ -48,6 +48,7 @@ Table Of Contents
    :maxdepth: 3
 
    rationale
+   benchmarks
    installation
    usage/index
    dependencies
