@@ -16,9 +16,9 @@ Methodology
 
 We will compare three different ETL **serverless** approaches.
 
-- AWS Glue (2 DPU, minimal configuration) + Pyspark
-- AWS Glue (1 DPU, maximum configuration) + AWS Wrangler
-- AWS Lambda (3 GB,, maximum configuration) + AWS Wrangler
+- AWS Glue + Pyspark (2 DPU, minimal configuration)
+- AWS Glue + AWS Wrangler (1 DPU, maximum configuration)
+- AWS Lambda + AWS Wrangler (3 GB of RAM, maximum configuration)
 
 The tested ETL consist in read a aleatory generated CSV file (With sizes between 16 to 4096 MB) in S3 and then write it back as partitioned Parquet.
 
