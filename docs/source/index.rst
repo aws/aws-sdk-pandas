@@ -25,7 +25,7 @@ Typical ETL
    import awswrangler
 
    # Read from anywhere
-   df = pandas.read_csv("s3//your_bucket/your_object.csv")
+   df = pandas.read_...
 
    # Typical Pandas, Numpy or Pyarrow transformation HERE!
 
@@ -37,7 +37,7 @@ Typical ETL
            file_format="parquet",
            preserve_index=True,
            mode="overwrite",
-           partition_cols=["col"],
+           partition_cols=["col_name"],
        )
 
 

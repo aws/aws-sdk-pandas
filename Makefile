@@ -21,6 +21,7 @@ lint:
 
 doc:
 	sphinx-apidoc -f -H "API Reference" -o docs/source/api awswrangler/
+	make -C docs/ html
 
 artifacts: format generate-glue-eggs generate-layers-3.7 generate-layers-3.6 generate-layers-2.7
 

@@ -1,7 +1,7 @@
 .. _doc_benchmarks:
 
-Benchmark
-============
+Serverless Benchmark
+====================
 
 **AWS Data Wrangler** and **Apache Spark** can be used to execute data transformations, but they have different targets.
 
@@ -16,15 +16,18 @@ Methodology
 
 We will compare three different ETL **serverless** approaches.
 
-- AWS Glue (2 DPU) + Pyspark
-- AWS Glue (1 DPU) + AWS Wrangler
-- AWS Lambda (3 GB) + AWS Wrangler
+- AWS Glue (2 DPU, minimal configuration) + Pyspark
+- AWS Glue (1 DPU, maximum configuration) + AWS Wrangler
+- AWS Lambda (3 GB,, maximum configuration) + AWS Wrangler
 
 The tested ETL consist in read a aleatory generated CSV file (With sizes between 16 to 4096 MB) in S3 and then write it back as partitioned Parquet.
 
 `SOURCE <https://github.com/awslabs/aws-data-wrangler/tree/master/benchmarks/serverless_etl>`_
 
-P.S: The AWS Lambda approach can't handle the workloads bigger tem 1 GB.
+*P.S: The AWS Lambda approach can't handle the workloads bigger than 700 MB.*
+
+Metrics
+-------
 
 .. figure:: _static/report_cost.png
     :align: center
@@ -33,6 +36,8 @@ P.S: The AWS Lambda approach can't handle the workloads bigger tem 1 GB.
 
     Cost (Less is better)
 
+    *P.S: The AWS Lambda approach can't handle the workloads bigger than 700 MB.*
+
 .. figure:: _static/report_execution_time.png
     :align: center
     :alt: alternate text
@@ -40,9 +45,19 @@ P.S: The AWS Lambda approach can't handle the workloads bigger tem 1 GB.
 
     Execution Time (Less is better)
 
+    *P.S: The AWS Lambda approach can't handle the workloads bigger than 700 MB.*
+
 .. figure:: _static/report_total_time.png
     :align: center
     :alt: alternate text
     :figclass: align-center
 
     Warm Up + Execution Time (Less is better)
+
+    *P.S: The AWS Lambda approach can't handle the workloads bigger than 700 MB.*
+
+Conclusion
+----------
+
+- As long as your data fits in memory, you should use AWS Wrangler
+- If your data doesn't fit in memory, you should use Apache Spark
