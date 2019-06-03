@@ -4,22 +4,25 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
-black = "*"
-flake8 = "*"
-tox = "*"
-pytest = "*"
-pytest-cov = "*"
-twine = "*"
-sphinx = "*"
-seaborn = "*"
-matplotlib = "*"
-pyqt5 = "*"
+black = "==19.3b0"
+flake8 = "==3.7.7"
+tox = "==3.8.0"
+pytest = "==4.3.1"
+pytest-cov = "==2.6.1"
+twine = "==1.13.0"
+sphinx = "==2.0.0b2"
+seaborn = "==0.9.0"
+matplotlib = "==3.0.3"
+pyqt5 = "==5.12.1"
 
 [packages]
-boto3 = "*"
-s3fs = "*"
-pandas = "*"
-pyarrow = "*"
+boto3 = "==1.9.123"
+s3fs = "==0.2.0"
+pandas = "==0.24.2"
+pyarrow = "==0.12.1"
+
+[requires]
+python_version = "3.7"
 
 [pipenv]
 allow_prereleases = true
