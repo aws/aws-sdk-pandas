@@ -1,6 +1,8 @@
-.PHONY: test
+.PHONY: clean
+.DEFAULT_GOAL := build
 
 init:
+	pip install --upgrade pip
 	pip install pipenv --upgrade
 	pipenv install --dev
 
