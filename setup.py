@@ -21,12 +21,12 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     license=about["__license__"],
-    packages=find_packages(include=['awswrangler', 'awswrangler.*']),
+    packages=find_packages(include=['awswrangler', 'awswrangler.*'], exclude=["tests"]),
     python_requires=">=2.7",
     install_requires=[
-        "pyarrow",
-        "pandas",
-        "boto3",
-        "s3fs",
+        "pyarrow>=0.12.1",
+        "pandas>=0.24.2",
+        "boto3>=1.9.123",
+        "s3fs>=0.2.0",
     ],
 )
