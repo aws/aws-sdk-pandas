@@ -8,6 +8,7 @@ Subpackages
 
     awswrangler.athena
     awswrangler.glue
+    awswrangler.redshift
     awswrangler.s3
 
 Submodules

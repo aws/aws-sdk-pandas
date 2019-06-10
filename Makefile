@@ -1,4 +1,4 @@
-.PHONY: init format lint
+.PHONY: init format lint build
 .DEFAULT_GOAL := build
 
 init:
@@ -49,11 +49,11 @@ generate-layers-3.6:
 	mv awswrangler_layer_3.6.zip dist/
 	rm -rf python
 
-build: format test doc
+build: format lint test doc
 	rm -fr build dist .egg requests.egg-info
 	python setup.py sdist bdist_wheel
 
-publish: build
+publish:
 	twine upload dist/*
 	rm -fr build dist .egg requests.egg-info
 
