@@ -1,10 +1,5 @@
-import sys
 import multiprocessing as mp
 import boto3
-
-
-if sys.version_info.major > 2:
-    xrange = range
 
 
 def calc_bounders(num, cpus):
@@ -30,9 +25,7 @@ def wrt_fake_objs_batch_wrapper(args):
 def wrt_fake_objs_batch(bucket, path, start, end):
     s3 = boto3.resource("s3")
     for obj_id in range(start, end + 1):
-        s3.Object(bucket, "{}{}.txt".format(path, obj_id)).put(
-            Body=str(obj_id).zfill(10)
-        )
+        s3.Object(bucket, f"{path}{obj_id}.txt").put(Body=str(obj_id).zfill(10))
 
 
 def write_fake_objects(bucket, path, num):

@@ -12,3 +12,7 @@ class UnsupportedWriteMode(Exception):
 
 class InvalidArguments(Exception):
     pass
+
+
+class RedshiftLoadError(Exception):
+    pass

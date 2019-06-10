@@ -31,7 +31,7 @@ def test_s3_write(bucket, database, file_format):
     awswrangler.s3.write(
         df=df,
         database=database,
-        path="s3://{}/test/".format(bucket),
+        path=f"s3://{bucket}/test/",
         file_format=file_format,
         preserve_index=True,
         mode="overwrite",
@@ -46,7 +46,7 @@ def test_s3_write_single(bucket, database, file_format):
     awswrangler.s3.write(
         df=df,
         database=database,
-        path="s3://{}/test/".format(bucket),
+        path=f"s3://{bucket}/test/",
         file_format=file_format,
         preserve_index=False,
         mode="overwrite",
@@ -62,7 +62,7 @@ def test_s3_write_partitioned(bucket, database, file_format):
     awswrangler.s3.write(
         df=df,
         database=database,
-        path="s3://{}/test/".format(bucket),
+        path=f"s3://{bucket}/test/",
         file_format=file_format,
         preserve_index=True,
         partition_cols=["date"],
@@ -78,7 +78,7 @@ def test_s3_write_partitioned_single(bucket, database, file_format):
     awswrangler.s3.write(
         df=df,
         database=database,
-        path="s3://{}/test/".format(bucket),
+        path=f"s3://{bucket}/test/",
         file_format=file_format,
         preserve_index=False,
         partition_cols=["date"],
@@ -95,7 +95,7 @@ def test_s3_write_multi_partitioned(bucket, database, file_format):
     awswrangler.s3.write(
         df=df,
         database=database,
-        path="s3://{}/test/".format(bucket),
+        path=f"s3://{bucket}/test/",
         file_format=file_format,
         preserve_index=True,
         partition_cols=["name", "date"],
@@ -113,7 +113,7 @@ def test_s3_write_append(bucket, database, file_format):
         df=df,
         database=database,
         table="test",
-        path="s3://{}/test/".format(bucket),
+        path=f"s3://{bucket}/test/",
         file_format=file_format,
         partition_cols=["name", "date"],
         mode="overwrite",
@@ -122,7 +122,7 @@ def test_s3_write_append(bucket, database, file_format):
         df=df,
         database=database,
         table="test",
-        path="s3://{}/test/".format(bucket),
+        path=f"s3://{bucket}/test/",
         file_format=file_format,
         partition_cols=["name", "date"],
         mode="overwrite_partitions",
@@ -131,13 +131,13 @@ def test_s3_write_append(bucket, database, file_format):
         df=df,
         database=database,
         table="test",
-        path="s3://{}/test/".format(bucket),
+        path=f"s3://{bucket}/test/",
         file_format=file_format,
         partition_cols=["name", "date"],
         mode="append",
     )
     df2 = awswrangler.athena.read(
-        database, "select * from test", "s3://{}/athena/".format(bucket)
+        database, "select * from test", f"s3://{bucket}/athena/"
     )
     assert 2 * len(df.index) == len(df2.index)
 
@@ -146,5 +146,5 @@ def test_s3_read(bucket):
     boto3.client("s3").upload_file(
         "data_samples/small.csv", bucket, "data_samples/small.csv"
     )
-    df = awswrangler.s3.read(path="s3://{}/data_samples/small.csv".format(bucket))
+    df = awswrangler.s3.read(path=f"s3://{bucket}/data_samples/small.csv")
     assert len(df.index) == 100

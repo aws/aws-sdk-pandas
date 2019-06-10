@@ -1,20 +1,15 @@
-import sys
 from math import ceil
 
-from ..common import get_session
-from ..exceptions import UnsupportedFileFormat
-from .parquet import (
+from awswrangler.common import get_session
+from awswrangler.exceptions import UnsupportedFileFormat
+from awswrangler.glue.parquet import (
     get_partition_definition as p_get_partition_definition,
     get_table_definition as p_get_table_definition,
 )
-from .csv import (
+from awswrangler.glue.csv import (
     get_partition_definition as c_get_partition_definition,
     get_table_definition as c_get_table_definition,
 )
-
-
-if sys.version_info.major > 2:
-    xrange = range
 
 
 def table_exists(database, table, session_primitives=None):
@@ -84,3 +79,8 @@ def delete_table_if_exists(database, table, session_primitives=None):
         client.delete_table(DatabaseName=database, Name=table)
     except client.exceptions.EntityNotFoundException:
         pass
+
+
+def get_connection_details(name, session_primitives=None):
+    client = get_session(session_primitives=session_primitives).client("glue")
+    return client.get_connection(Name=name, HidePassword=False)["Connection"]

@@ -1,5 +1,3 @@
-import sys
-
 from awswrangler.exceptions import UnsupportedType
 from awswrangler.glue.utils import (
     delete_table_if_exists,
@@ -7,13 +5,6 @@ from awswrangler.glue.utils import (
     add_partitions,
     table_exists,
 )
-
-
-if sys.version_info.major > 2:
-    string_types = str  # noqa
-else:
-    # noinspection PyUnresolvedReferences
-    string_types = basestring  # noqa
 
 
 def _type_pandas2athena(dtype):
@@ -28,7 +19,7 @@ def _type_pandas2athena(dtype):
         return "double"
     elif dtype == "bool":
         return "boolean"
-    elif dtype == "object" and isinstance(dtype, string_types):
+    elif dtype == "object" and isinstance(dtype, str):
         return "string"
     elif dtype[:10] == "datetime64":
         return "string"

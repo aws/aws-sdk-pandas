@@ -1,4 +1,5 @@
-import math
+from math import ceil
+from math import gcd
 
 import boto3
 
@@ -37,7 +38,7 @@ class SessionPrimitives:
 def calculate_bounders(num_items, num_groups=None, max_size=None):
     if num_groups or max_size:
         if max_size:
-            num_groups = int(math.ceil(float(num_items) / float(max_size)))
+            num_groups = int(ceil(float(num_items) / float(max_size)))
         else:
             num_groups = num_items if num_items < num_groups else num_groups
         size = int(num_items / num_groups)
@@ -54,3 +55,10 @@ def calculate_bounders(num_items, num_groups=None, max_size=None):
         return bounders
     else:
         raise InvalidArguments("You must give num_groups or max_size!")
+
+
+def lcm(a, b):
+    """
+    Least Common Multiple
+    """
+    return abs(a * b) // gcd(a, b)

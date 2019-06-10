@@ -1,14 +1,9 @@
-import sys
+from io import BytesIO
 
 import pandas
 
 from awswrangler.common import SessionPrimitives, get_session
 from awswrangler.exceptions import UnsupportedFileFormat
-
-if sys.version_info.major > 2:
-    from io import BytesIO
-else:
-    from cStringIO import StringIO as BytesIO  # noqa
 
 
 def parse_path(path):
@@ -37,7 +32,7 @@ def read(
     profile=None,
 ):
     file_format = file_format.lower()
-    if file_format not in ["parquet", "csv"]:
+    if file_format not in ["csv"]:
         raise UnsupportedFileFormat(file_format)
     session_primitives = SessionPrimitives(
         region=region, key=key, secret=secret, profile=profile

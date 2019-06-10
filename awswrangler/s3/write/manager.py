@@ -1,4 +1,3 @@
-import sys
 import multiprocessing as mp
 
 from pyarrow.compat import guid
@@ -14,16 +13,13 @@ from awswrangler.s3.utils import (
 from awswrangler.s3.write.parquet import write_parquet_dataframe
 from awswrangler.s3.write.csv import write_csv_dataframe
 
-if sys.version_info.major > 2:
-    xrange = range
 
-
-def _get_bounders(df, num_procs):
+def _get_bounders(df, num_partitions):
     num_rows = len(df.index)
-    return calculate_bounders(num_items=num_rows, num_groups=num_procs)
+    return calculate_bounders(num_items=num_rows, num_groups=num_partitions)
 
 
-def write_file(df, path, preserve_index, session_primitives, file_format):
+def write_files(df, path, preserve_index, session_primitives, file_format):
     fs = get_fs(session_primitives=session_primitives)
     fs = _ensure_filesystem(fs)
     mkdir_if_not_exists(fs, path)
@@ -41,37 +37,33 @@ def write_file(df, path, preserve_index, session_primitives, file_format):
     return full_path
 
 
-def write_file_manager(
-    df, path, preserve_index, session_primitives, file_format, num_procs
+def write_files_manager(
+    df, path, preserve_index, session_primitives, file_format, num_procs, num_files=2
 ):
     if num_procs > 1:
-        bounders = _get_bounders(df=df, num_procs=num_procs)
-        procs = []
-        for bounder in bounders[1:]:
-            proc = mp.Process(
-                target=write_file,
-                args=(
-                    df.iloc[bounder[0] : bounder[1], :],
-                    path,
-                    preserve_index,
-                    session_primitives,
-                    file_format,
-                ),
-            )
-            proc.daemon = True
-            proc.start()
-            procs.append(proc)
-        write_file(
-            df=df.iloc[bounders[0][0] : bounders[0][1], :],
-            path=path,
-            preserve_index=preserve_index,
-            session_primitives=session_primitives,
-            file_format=file_format,
-        )
+        bounders = _get_bounders(df=df, num_partitions=num_procs * num_files)
+        for counter in range(num_files):
+            procs = []
+            for bounder in bounders[
+                counter * num_procs : (counter * num_procs) + num_procs
+            ]:
+                proc = mp.Process(
+                    target=write_files,
+                    args=(
+                        df.iloc[bounder[0] : bounder[1], :],
+                        path,
+                        preserve_index,
+                        session_primitives,
+                        file_format,
+                    ),
+                )
+                proc.daemon = True
+                proc.start()
+                procs.append(proc)
         for i in range(len(procs)):
             procs[i].join()
     else:
-        write_file(
+        write_files(
             df=df,
             path=path,
             preserve_index=preserve_index,
@@ -92,16 +84,11 @@ def write_dataset(
         subgroup = subgroup.drop(partition_cols, axis="columns")
         if not isinstance(keys, tuple):
             keys = (keys,)
-        subdir = "/".join(
-            [
-                "{colname}={value}".format(colname=name, value=val)
-                for name, val in zip(partition_cols, keys)
-            ]
-        )
+        subdir = "/".join([f"{name}={val}" for name, val in zip(partition_cols, keys)])
         prefix = "/".join([path, subdir])
         if mode == "overwrite_partitions":
             dead_keys += list_objects(prefix, session_primitives=session_primitives)
-        full_path = write_file(
+        full_path = write_files(
             df=subgroup,
             path=prefix,
             preserve_index=preserve_index,
@@ -154,7 +141,7 @@ def write_dataset_manager(
 ):
     partition_paths = []
     if num_procs > 1:
-        bounders = _get_bounders(df=df, num_procs=num_procs * num_files)
+        bounders = _get_bounders(df=df, num_partitions=num_procs * num_files)
         for counter in range(num_files):
             procs = []
             receive_pipes = []
