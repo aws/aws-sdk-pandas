@@ -2,7 +2,7 @@ import multiprocessing as mp
 
 import s3fs
 
-from ..common import get_session, calculate_bounders
+from awswrangler.common import get_session, calculate_bounders
 
 
 def del_objs_batch(bucket, batch, session_primitives=None):

@@ -1,10 +1,11 @@
-.PHONY: init clean format lint
+.PHONY: init format lint
 .DEFAULT_GOAL := build
 
 init:
 	pip install --upgrade pip
 	pip install pipenv --upgrade
 	pipenv install --dev
+	pipenv update
 
 format:
 	black awswrangler tests benchmarks
@@ -24,10 +25,9 @@ coverage-report:
 coverage-report-html:
 	coverage html
 
-artifacts: format lint generate-glue-eggs generate-layers-3.7 generate-layers-3.6 generate-layers-2.7
+artifacts: format lint generate-glue-eggs generate-layers-3.7 generate-layers-3.6
 
 generate-glue-eggs:
-	python2.7 setup.py bdist_egg
 	python3.6 setup.py bdist_egg
 	python3.7 setup.py bdist_egg
 
@@ -47,15 +47,6 @@ generate-layers-3.6:
 	rm -f awswrangler_layer_3.6.zip
 	zip -r awswrangler_layer_3.6.zip ./python
 	mv awswrangler_layer_3.6.zip dist/
-	rm -rf python
-
-generate-layers-2.7:
-	mkdir -p dist
-	rm -rf python
-	docker run -v $(PWD):/var/task -it lambci/lambda:build-python2.7 /bin/bash -c "pip install . -t ./python"
-	rm -f awswrangler_layer_2.7.zip
-	zip -r awswrangler_layer_2.7.zip ./python
-	mv awswrangler_layer_2.7.zip dist/
 	rm -rf python
 
 build: format test doc

@@ -16,10 +16,11 @@ matplotlib = "==3.0.3"
 pyqt5 = "==5.12.1"
 
 [packages]
-boto3 = "==1.9.123"
-s3fs = "==0.2.0"
+boto3 = "==1.9.164"
+s3fs = "==0.2.1"
 pandas = "==0.24.2"
-pyarrow = "==0.12.1"
+pyarrow = "==0.13.0"
+PyGreSQL = "==5.1"
 
 [requires]
 python_version = "3.7"

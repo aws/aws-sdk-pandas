@@ -3,7 +3,7 @@ import multiprocessing as mp
 from awswrangler.exceptions import UnsupportedFileFormat, UnsupportedWriteMode
 from awswrangler.common import SessionPrimitives
 from awswrangler.s3.utils import delete_objects
-from awswrangler.s3.write.manager import write_dataset_manager, write_file_manager
+from awswrangler.s3.write.manager import write_dataset_manager, write_files_manager
 from awswrangler.s3.write.metadata import write_metadata
 
 
@@ -43,13 +43,14 @@ def _write_data(
             num_files=num_files,
         )
     else:
-        write_file_manager(
+        write_files_manager(
             df=df,
             path=path,
             preserve_index=preserve_index,
             session_primitives=session_primitives,
             file_format=file_format,
             num_procs=num_procs,
+            num_files=num_files,
         )
 
     return partition_paths
@@ -72,7 +73,7 @@ def write(
     num_files=2,
 ):
     """
-    Convert a given Pandas Dataframe to a Glue Parquet table
+    Store a given Pandas Dataframe in S3
     """
     session_primitives = SessionPrimitives(
         region=region, key=key, secret=secret, profile=profile
