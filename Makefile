@@ -43,7 +43,7 @@ docs:
 	sphinx-apidoc -f -H "API Reference" -o docs/source/api awswrangler/
 	make -C docs/ html
 
-build: clean format lint tox test coverage-html docs artifacts
+build:
 	rm -fr build dist .egg requests.egg-info
 	python setup.py sdist bdist_wheel
 
