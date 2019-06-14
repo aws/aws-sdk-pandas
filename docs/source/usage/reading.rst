@@ -7,11 +7,15 @@ Reading from Data Lake to Pandas Dataframe:
 
 .. code-block:: python
 
-    df = awswrangler.athena.read("database", "select * from table")
+    session = awswrangler.Session()
+    dataframe = session.pandas.read_sql_athena(
+        sql="select * from table",
+        database="database"
+    )
 
 S3 object to Pandas Dataframe:
 
 .. code-block:: python
 
-    for df in awswrangler.s3.read(path="s3://..."):
-        print(df)
+    session = awswrangler.Session()
+    dataframe = session.pandas.read_csv(path="s3://...")

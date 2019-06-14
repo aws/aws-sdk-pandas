@@ -1,4 +1,4 @@
-.PHONY: init clean format lint build
+.PHONY: init clean format lint build docs
 .DEFAULT_GOAL := build
 
 init:
@@ -8,7 +8,7 @@ init:
 	pipenv update
 
 clean:
-	rm -rf .tox *.egg-info .pytest_cache build dist htmlcov .coverage
+	rm -rf .tox *.egg-info .pytest_cache build dist htmlcov .coverage docs/build
 
 format:
 	black awswrangler tests benchmarks
@@ -39,11 +39,11 @@ generate-layer-3.6:
 generate-layer-3.7:
 	docker run -v $(PWD):/var/task -it lambci/lambda:build-python3.6 /bin/bash ./build-lambda-layer.sh 3.7
 
-doc:
+docs:
 	sphinx-apidoc -f -H "API Reference" -o docs/source/api awswrangler/
 	make -C docs/ html
 
-build: clean format lint tox test coverage-html doc artifacts
+build: clean format lint tox test coverage-html docs artifacts
 	rm -fr build dist .egg requests.egg-info
 	python setup.py sdist bdist_wheel
 
