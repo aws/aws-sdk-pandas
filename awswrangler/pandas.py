@@ -1,12 +1,13 @@
 from io import BytesIO
 import multiprocessing as mp
+from time import sleep
 
 import pandas
 import pyarrow
 from pyarrow import parquet
 
 from awswrangler.exceptions import UnsupportedWriteMode, UnsupportedFileFormat
-from awswrangler.utils import calculate_bounders
+from awswrangler.utils import calculate_bounders, lcm
 from awswrangler import s3
 
 
@@ -247,7 +248,7 @@ class Pandas:
                             file_format,
                         ),
                     )
-                    proc.daemon = True
+                    proc.daemon = False
                     proc.start()
                     procs.append(proc)
                     procs = []
@@ -298,7 +299,7 @@ class Pandas:
                             mode,
                         ),
                     )
-                    proc.daemon = True
+                    proc.daemon = False
                     proc.start()
                     procs.append(proc)
                     receive_pipes.append(receive_pipe)
@@ -425,3 +426,45 @@ class Pandas:
         )
         with fs.open(path, "wb") as f:
             parquet.write_table(table, f, coerce_timestamps="ms")
+
+    def to_redshift(
+        self,
+        dataframe,
+        path,
+        glue_connection,
+        schema,
+        table,
+        iam_role,
+        preserve_index=False,
+        mode="append",
+        num_procs=None,
+    ):
+        if not num_procs:
+            num_procs = self._session.cpu_count
+        conn = self._session.redshift.get_redshift_connection(
+            glue_connection=glue_connection
+        )
+        num_slices = self._session.redshift.get_number_of_slices(redshift_conn=conn)
+        num_files_per_core = int(lcm(num_procs, num_slices) / num_procs)
+        self.to_parquet(
+            dataframe=dataframe,
+            path=path,
+            preserve_index=preserve_index,
+            mode="overwrite",
+            num_procs=num_procs,
+            num_files=num_files_per_core,
+        )
+        num_files_total = num_files_per_core * num_procs
+        sleep(10)
+        self._session.redshift.load_table(
+            dataframe=dataframe,
+            path=path,
+            schema_name=schema,
+            table_name=table,
+            redshift_conn=conn,
+            preserve_index=False,
+            num_files=num_files_total,
+            iam_role=iam_role,
+            mode=mode,
+        )
+        self._session.s3.delete_objects(path=path)

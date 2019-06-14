@@ -61,7 +61,7 @@ class S3:
                     target=self.del_objs_batch,
                     args=(self._session.primitives, bucket, keys),
                 )
-                proc.daemon = True
+                proc.daemon = False
                 proc.start()
                 procs.append(proc)
             else:
@@ -83,7 +83,7 @@ class S3:
                         batch[bounder[0] : bounder[1]],
                     ),
                 )
-                proc.daemon = True
+                proc.daemon = False
                 proc.start()
                 procs.append(proc)
             for proc in procs:
