@@ -1,5 +1,10 @@
+import os
 import multiprocessing as mp
+
+import pytest
 import boto3
+
+from awswrangler import Session
 
 
 def calc_bounders(num, cpus):
@@ -41,3 +46,31 @@ def write_fake_objects(bucket, path, num):
         args.append((bucket, path, item[0], item[1]))
     pool = mp.Pool(cpus)
     pool.map(wrt_fake_objs_batch_wrapper, args)
+
+
+@pytest.fixture(scope="module")
+def session():
+    yield Session()
+
+
+@pytest.fixture(scope="module")
+def bucket():
+    if "AWSWRANGLER_TEST_BUCKET" in os.environ:
+        bucket = os.environ.get("AWSWRANGLER_TEST_BUCKET")
+    else:
+        raise Exception("You must provide AWSWRANGLER_TEST_BUCKET environment variable")
+    yield bucket
+
+
+def test_delete_objects(session, bucket):
+    write_fake_objects(bucket, "objs/", 30)
+    session.s3.delete_objects("s3://" + bucket + "/objs/", batch_size=10)
+
+
+def test_delete_listed_objects(session, bucket):
+    write_fake_objects(bucket, "objs/", 30)
+    keys = session.s3.list_objects("s3://" + bucket + "/objs/", batch_size=10)
+    assert len(keys) == 30
+    session.s3.delete_listed_objects(bucket, keys, batch_size=10)
+    keys = session.s3.list_objects("s3://" + bucket + "/objs/", batch_size=10)
+    assert len(keys) == 0
