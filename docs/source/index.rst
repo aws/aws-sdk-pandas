@@ -24,21 +24,17 @@ Typical ETL
    import pandas
    import awswrangler
 
-   # Read from anywhere
-   df = pandas.read_...
+   df = pandas.read_...  # Read from anywhere
 
    # Typical Pandas, Numpy or Pyarrow transformation HERE!
 
-   # Storing the data and metadata to Data Lake
-   awswrangler.s3.write(
-           df=df,
-           database="database",
-           path="s3://...",
-           file_format="parquet",
-           preserve_index=True,
-           mode="overwrite",
-           partition_cols=["col_name"],
-       )
+   session = awswrangler.Session()
+   session.pandas.to_parquet(  # Storing the data and metadata to Data Lake
+       dataframe=dataframe,
+       database="database",
+       path="s3://...",
+       partition_cols=["col_name"],
+   )
 
 
 Table Of Contents

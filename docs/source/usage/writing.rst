@@ -7,12 +7,8 @@ Writing Pandas Dataframe to Data Lake:
 
 .. code-block:: python
 
-    awswrangler.s3.write(
-            df=df,
-            database="database",
-            path="s3://...",
-            file_format="parquet",
-            preserve_index=True,
-            mode="overwrite",
-            partition_cols=["col"],
-        )
+    session = awswrangler.Session()
+    dataframe = session.pandas.read_sql_athena(
+        sql="select * from table",
+        database="database"
+    )

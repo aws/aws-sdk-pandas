@@ -31,7 +31,7 @@ For example, in **[AWS Glue](https://aws.amazon.com/glue/)** you can choose betw
 
 `pip install awswrangler`
 
-AWS Data Wrangler runs on Python 2 and 3.
+AWS Data Wrangler runs only Python 3.6 and beyond.
 And runs on AWS Lambda, AWS Glue, EC2, on-premises and local.
 
 **P.S.** The Lambda Layer bundle and the Glue egg are available to [download](https://github.com/awslabs/aws-data-wrangler/releases). It's just upload to your account and run! :rocket:
@@ -41,15 +41,13 @@ And runs on AWS Lambda, AWS Glue, EC2, on-premises and local.
 ### Writing Pandas Dataframe to Data Lake:
 
 ```py3
-awswrangler.s3.write(
-        df=df,
-        database="database",
-        path="s3://...",
-        file_format="parquet",
-        preserve_index=True,
-        mode="overwrite",
-        partition_cols=["col_name"],
-    )
+session = awswrangler.Session()
+session.pandas.to_parquet(
+    dataframe=dataframe,
+    database="database",
+    path="s3://...",
+    partition_cols=["col_name"],
+)
 ```
 
 If a Glue Database name is passed, all the metadata will be created in the Glue Catalog. If not, only the s3 data write will be done.
@@ -57,13 +55,18 @@ If a Glue Database name is passed, all the metadata will be created in the Glue 
 ### Reading from Data Lake to Pandas Dataframe:
 
 ```py3
-df = awswrangler.athena.read("database", "select * from table")
+session = awswrangler.Session()
+dataframe = session.pandas.read_sql_athena(
+    sql="select * from table",
+    database="database"
+)
 ```
 
 ### Reading from S3 file to Pandas Dataframe:
 
 ```py3
-df = awswrangler.s3.read(path="s3://..."):
+session = awswrangler.Session()
+dataframe = session.pandas.read_csv(path="s3://...")
 ```
 
 ### Typical ETL:
@@ -76,15 +79,13 @@ df = pandas.read_...  # Read from anywhere
 
 # Typical Pandas, Numpy or Pyarrow transformation HERE!
 
-awswrangler.s3.write(  # Storing the data and metadata to Data Lake
-        df=df,
-        database="database",
-        path="s3://...",
-        file_format="parquet",
-        preserve_index=True,
-        mode="overwrite",
-        partition_cols=["col_name"],
-    )
+session = awswrangler.Session()
+session.pandas.to_parquet(  # Storing the data and metadata to Data Lake
+    dataframe=dataframe,
+    database="database",
+    path="s3://...",
+    partition_cols=["col_name"],
+)
 ```
 
 ## Dependencies
@@ -94,6 +95,7 @@ AWS Data Wrangler project relies on others great initiatives:
 * **[Pandas](https://github.com/pandas-dev/pandas)**
 * **[Apache Arrow](https://github.com/apache/arrow)**
 * **[Dask s3fs](https://github.com/dask/s3fs)**
+* **[PyGreSQL](http://www.pygresql.org/)**
 
 ## Known Limitations
 
