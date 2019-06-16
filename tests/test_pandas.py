@@ -1,4 +1,5 @@
 import os
+from time import sleep
 
 import pytest
 import boto3
@@ -41,25 +42,83 @@ def test_read_csv(session, bucket):
 
 
 @pytest.mark.parametrize(
-    "mode, file_format, preserve_index, partition_cols, num_procs, num_files, factor",
+    "mode, file_format, preserve_index, partition_cols, num_procs, factor",
     [
-        ("overwrite", "csv", True, [], 1, 1, 1),
-        ("append", "csv", True, [], 1, 1, 2),
-        ("append", "csv", True, [], 16, 16, 3),
-        ("overwrite", "csv", False, ["date"], 4, 4, 1),
-        ("overwrite", "csv", True, ["name", "date"], 4, 4, 1),
-        ("overwrite_partitions", "csv", True, ["name", "date"], 4, 4, 1),
-        ("append", "csv", True, ["name", "date"], 10, 10, 2),
-        ("overwrite", "parquet", True, [], 1, 1, 1),
-        ("append", "parquet", True, [], 1, 1, 2),
-        ("append", "parquet", True, [], 16, 16, 3),
-        ("overwrite", "parquet", False, ["date"], 4, 4, 1),
-        ("overwrite", "parquet", True, ["name", "date"], 4, 4, 1),
-        ("overwrite_partitions", "parquet", True, ["name", "date"], 4, 4, 1),
-        ("append", "parquet", True, ["name", "date"], 10, 10, 2),
+        ("overwrite", "csv", False, [], 1, 1),
+        ("append", "csv", False, [], 1, 2),
+        ("overwrite_partitions", "csv", False, [], 1, 1),
+        ("overwrite", "csv", True, [], 1, 1),
+        ("append", "csv", True, [], 1, 2),
+        ("overwrite_partitions", "csv", True, [], 1, 1),
+        ("overwrite", "csv", False, [], 10, 1),
+        ("append", "csv", False, [], 10, 2),
+        ("overwrite_partitions", "csv", False, [], 10, 1),
+        ("overwrite", "csv", True, [], 10, 1),
+        ("append", "csv", True, [], 10, 2),
+        ("overwrite_partitions", "csv", True, [], 10, 1),
+        ("overwrite", "csv", False, ["date"], 1, 1),
+        ("append", "csv", False, ["date"], 1, 2),
+        ("overwrite_partitions", "csv", False, ["date"], 1, 1),
+        ("overwrite", "csv", True, ["date"], 1, 1),
+        ("append", "csv", True, ["date"], 1, 2),
+        ("overwrite_partitions", "csv", True, ["date"], 1, 1),
+        ("overwrite", "csv", False, ["date"], 10, 1),
+        ("append", "csv", False, ["date"], 10, 2),
+        ("overwrite_partitions", "csv", False, ["date"], 10, 1),
+        ("overwrite", "csv", True, ["date"], 10, 1),
+        ("append", "csv", True, ["date"], 10, 2),
+        ("overwrite_partitions", "csv", True, ["date"], 10, 1),
+        ("overwrite", "csv", False, ["name", "date"], 1, 1),
+        ("append", "csv", False, ["name", "date"], 1, 2),
+        ("overwrite_partitions", "csv", False, ["name", "date"], 1, 1),
+        ("overwrite", "csv", True, ["name", "date"], 1, 1),
+        ("append", "csv", True, ["name", "date"], 1, 2),
+        ("overwrite_partitions", "csv", True, ["name", "date"], 1, 1),
+        ("overwrite", "csv", False, ["name", "date"], 10, 1),
+        ("append", "csv", False, ["name", "date"], 10, 2),
+        ("overwrite_partitions", "csv", False, ["name", "date"], 10, 1),
+        ("overwrite", "csv", True, ["name", "date"], 10, 1),
+        ("append", "csv", True, ["name", "date"], 10, 2),
+        ("overwrite_partitions", "csv", True, ["name", "date"], 2, 1),
+        ("overwrite", "parquet", False, [], 1, 1),
+        ("append", "parquet", False, [], 1, 2),
+        ("overwrite_partitions", "parquet", False, [], 1, 1),
+        ("overwrite", "parquet", True, [], 1, 1),
+        ("append", "parquet", True, [], 1, 2),
+        ("overwrite_partitions", "parquet", True, [], 1, 1),
+        ("overwrite", "parquet", False, [], 10, 1),
+        ("append", "parquet", False, [], 10, 2),
+        ("overwrite_partitions", "parquet", False, [], 10, 1),
+        ("overwrite", "parquet", True, [], 10, 1),
+        ("append", "parquet", True, [], 10, 2),
+        ("overwrite_partitions", "parquet", True, [], 10, 1),
+        ("overwrite", "parquet", False, ["date"], 1, 1),
+        ("append", "parquet", False, ["date"], 1, 2),
+        ("overwrite_partitions", "parquet", False, ["date"], 1, 1),
+        ("overwrite", "parquet", True, ["date"], 1, 1),
+        ("append", "parquet", True, ["date"], 1, 2),
+        ("overwrite_partitions", "parquet", True, ["date"], 1, 1),
+        ("overwrite", "parquet", False, ["date"], 10, 1),
+        ("append", "parquet", False, ["date"], 10, 2),
+        ("overwrite_partitions", "parquet", False, ["date"], 10, 1),
+        ("overwrite", "parquet", True, ["date"], 10, 1),
+        ("append", "parquet", True, ["date"], 10, 2),
+        ("overwrite_partitions", "parquet", True, ["date"], 10, 1),
+        ("overwrite", "parquet", False, ["name", "date"], 1, 1),
+        ("append", "parquet", False, ["name", "date"], 1, 2),
+        ("overwrite_partitions", "parquet", False, ["name", "date"], 1, 1),
+        ("overwrite", "parquet", True, ["name", "date"], 1, 1),
+        ("append", "parquet", True, ["name", "date"], 1, 2),
+        ("overwrite_partitions", "parquet", True, ["name", "date"], 1, 1),
+        ("overwrite", "parquet", False, ["name", "date"], 10, 1),
+        ("append", "parquet", False, ["name", "date"], 10, 2),
+        ("overwrite_partitions", "parquet", False, ["name", "date"], 10, 1),
+        ("overwrite", "parquet", True, ["name", "date"], 10, 1),
+        ("append", "parquet", True, ["name", "date"], 10, 2),
+        ("overwrite_partitions", "parquet", True, ["name", "date"], 10, 1),
     ],
 )
-def test_to_s3_overwrite(
+def test_to_s3(
     session,
     bucket,
     database,
@@ -68,12 +127,11 @@ def test_to_s3_overwrite(
     preserve_index,
     partition_cols,
     num_procs,
-    num_files,
     factor,
 ):
     dataframe = pandas.read_csv("data_samples/micro.csv")
     func = session.pandas.to_csv if file_format == "csv" else session.pandas.to_parquet
-    func(
+    objects_paths = func(
         dataframe=dataframe,
         database=database,
         path=f"s3://{bucket}/test/",
@@ -81,9 +139,19 @@ def test_to_s3_overwrite(
         mode=mode,
         partition_cols=partition_cols,
         num_procs=num_procs,
-        num_files=num_files,
     )
-    dataframe2 = session.pandas.read_sql_athena(
-        sql="select * from test", database=database
+    num_partitions = (
+        len([keys for keys in dataframe.groupby(partition_cols)])
+        if partition_cols
+        else 1
     )
+    assert len(objects_paths) >= num_partitions
+    dataframe2 = None
+    for counter in range(10):
+        dataframe2 = session.pandas.read_sql_athena(
+            sql="select * from test", database=database
+        )
+        if factor * len(dataframe.index) == len(dataframe2.index):
+            break
+        sleep(1)
     assert factor * len(dataframe.index) == len(dataframe2.index)

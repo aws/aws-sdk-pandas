@@ -1,5 +1,6 @@
 import os
 import multiprocessing as mp
+from time import sleep
 
 import pytest
 import boto3
@@ -30,7 +31,7 @@ def wrt_fake_objs_batch_wrapper(args):
 def wrt_fake_objs_batch(bucket, path, start, end):
     s3 = boto3.resource("s3")
     for obj_id in range(start, end + 1):
-        s3.Object(bucket, f"{path}{obj_id}.txt").put(Body=str(obj_id).zfill(10))
+        s3.Object(bucket, f"{path}{obj_id}").put(Body=str(obj_id).zfill(10))
 
 
 def write_fake_objects(bucket, path, num):
@@ -39,7 +40,7 @@ def write_fake_objects(bucket, path, num):
     if num < 10:
         wrt_fake_objs_batch(bucket, path, 0, num - 1)
         return
-    cpus = mp.cpu_count()
+    cpus = mp.cpu_count() * 4
     bounders = calc_bounders(num, cpus)
     args = []
     for item in bounders:
@@ -62,15 +63,34 @@ def bucket():
     yield bucket
 
 
-def test_delete_objects(session, bucket):
-    write_fake_objects(bucket, "objs/", 30)
-    session.s3.delete_objects("s3://" + bucket + "/objs/", batch_size=10)
+@pytest.mark.parametrize("objects_num", [1, 10, 1001])
+def test_delete_objects(session, bucket, objects_num):
+    write_fake_objects(bucket, f"objs-{objects_num}/", objects_num)
+    session.s3.delete_objects(path=f"s3://{bucket}/objs-{objects_num}/")
 
 
-def test_delete_listed_objects(session, bucket):
-    write_fake_objects(bucket, "objs/", 30)
-    keys = session.s3.list_objects("s3://" + bucket + "/objs/", batch_size=10)
-    assert len(keys) == 30
-    session.s3.delete_listed_objects(bucket, keys, batch_size=10)
-    keys = session.s3.list_objects("s3://" + bucket + "/objs/", batch_size=10)
+@pytest.mark.parametrize("objects_num", [1, 10, 1001])
+def test_delete_listed_objects(session, bucket, objects_num):
+    path = f"s3://{bucket}/objs-listed-{objects_num}/"
+    write_fake_objects(bucket, f"objs-listed-{objects_num}/", objects_num)
+    keys = session.s3.list_objects(path=path)
+    assert len(keys) == objects_num
+    session.s3.delete_listed_objects(objects_paths=keys)
+    keys = session.s3.list_objects(path=path)
     assert len(keys) == 0
+
+
+def check_list_with_retry(session, path, length):
+    for counter in range(10):
+        if len(session.s3.list_objects(path=path)) == length:
+            return True
+        sleep(1)
+    return False
+
+
+@pytest.mark.parametrize("objects_num", [1, 10, 1001])
+def test_delete_not_listed_objects(session, bucket, objects_num):
+    path = f"s3://{bucket}/objs-not-listed-{objects_num}/"
+    write_fake_objects(bucket, f"objs-not-listed-{objects_num}/", objects_num)
+    session.s3.delete_not_listed_objects(objects_paths=[f"{path}0"])
+    assert check_list_with_retry(session=session, path=path, length=1)
