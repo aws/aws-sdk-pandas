@@ -1,5 +1,6 @@
 from io import BytesIO
 import multiprocessing as mp
+from time import sleep
 
 import pandas
 import pyarrow
@@ -100,9 +101,8 @@ class Pandas:
         preserve_index=True,
         mode="append",
         num_procs=None,
-        num_files=1,
     ):
-        self.to_s3(
+        return self.to_s3(
             dataframe=dataframe,
             path=path,
             file_format="csv",
@@ -112,7 +112,6 @@ class Pandas:
             preserve_index=preserve_index,
             mode=mode,
             num_procs=num_procs,
-            num_files=num_files,
         )
 
     def to_parquet(
@@ -125,9 +124,8 @@ class Pandas:
         preserve_index=True,
         mode="append",
         num_procs=None,
-        num_files=1,
     ):
-        self.to_s3(
+        return self.to_s3(
             dataframe=dataframe,
             path=path,
             file_format="parquet",
@@ -137,7 +135,6 @@ class Pandas:
             preserve_index=preserve_index,
             mode=mode,
             num_procs=num_procs,
-            num_files=num_files,
         )
 
     def to_s3(
@@ -151,7 +148,6 @@ class Pandas:
         preserve_index=True,
         mode="append",
         num_procs=None,
-        num_files=1,
     ):
         if not partition_cols:
             partition_cols = []
@@ -161,7 +157,7 @@ class Pandas:
             self._session.s3.delete_objects(path)
         elif mode not in ["overwrite_partitions", "append"]:
             raise UnsupportedWriteMode(mode)
-        partition_paths = self.data_to_s3(
+        objects_paths = self.data_to_s3(
             dataframe=dataframe,
             path=path,
             partition_cols=partition_cols,
@@ -169,13 +165,12 @@ class Pandas:
             file_format=file_format,
             mode=mode,
             num_procs=num_procs,
-            num_files=num_files,
         )
         if database:
             self._session.glue.metadata_to_glue(
                 dataframe=dataframe,
                 path=path,
-                partition_paths=partition_paths,
+                objects_paths=objects_paths,
                 database=database,
                 table=table,
                 partition_cols=partition_cols,
@@ -183,6 +178,7 @@ class Pandas:
                 file_format=file_format,
                 mode=mode,
             )
+        return objects_paths
 
     def data_to_s3(
         self,
@@ -193,7 +189,6 @@ class Pandas:
         preserve_index=True,
         mode="append",
         num_procs=None,
-        num_files=1,
     ):
         if not num_procs:
             num_procs = self._session.cpu_count
@@ -202,159 +197,78 @@ class Pandas:
         file_format = file_format.lower()
         if file_format not in ["parquet", "csv"]:
             raise UnsupportedFileFormat(file_format)
-        partition_paths = None
-        if partition_cols is not None and len(partition_cols) > 0:
-            partition_paths = self._data_to_s3_dataset_manager(
-                dataframe=dataframe,
-                path=path,
-                partition_cols=partition_cols,
-                preserve_index=preserve_index,
-                file_format=file_format,
-                mode=mode,
-                num_procs=num_procs,
-                num_files=num_files,
-            )
-        else:
-            self._data_to_s3_files_manager(
-                dataframe=dataframe,
-                path=path,
-                preserve_index=preserve_index,
-                file_format=file_format,
-                num_procs=num_procs,
-                num_files=num_files,
-            )
-        return partition_paths
-
-    def _data_to_s3_files_manager(
-        self, dataframe, path, preserve_index, file_format, num_procs, num_files=2
-    ):
+        objects_paths = []
         if num_procs > 1:
-            bounders = _get_bounders(
-                dataframe=dataframe, num_partitions=num_procs * num_files
-            )
+            bounders = _get_bounders(dataframe=dataframe, num_partitions=num_procs)
             procs = []
-            for counter in range(num_files):
-                for bounder in bounders[
-                    counter * num_procs : (counter * num_procs) + num_procs
-                ]:
-                    proc = mp.Process(
-                        target=Pandas._data_to_s3_files_writer,
-                        args=(
-                            dataframe.iloc[bounder[0] : bounder[1], :],
-                            path,
-                            preserve_index,
-                            self._session.primitives,
-                            file_format,
-                        ),
-                    )
-                    proc.daemon = True
-                    proc.start()
-                    procs.append(proc)
-                    procs = []
+            receive_pipes = []
+            for bounder in bounders:
+                receive_pipe, send_pipe = mp.Pipe()
+                proc = mp.Process(
+                    target=self._data_to_s3_dataset_writer_remote,
+                    args=(
+                        send_pipe,
+                        dataframe.iloc[bounder[0] : bounder[1], :],
+                        path,
+                        partition_cols,
+                        preserve_index,
+                        self._session.primitives,
+                        file_format,
+                    ),
+                )
+                proc.daemon = False
+                proc.start()
+                procs.append(proc)
+                receive_pipes.append(receive_pipe)
             for i in range(len(procs)):
+                objects_paths += receive_pipes[i].recv()
                 procs[i].join()
+                receive_pipes[i].close()
         else:
-            Pandas._data_to_s3_files_writer(
-                dataframe=dataframe,
-                path=path,
-                preserve_index=preserve_index,
-                session_primitives=self._session.primitives,
-                file_format=file_format,
-            )
-
-    def _data_to_s3_dataset_manager(
-        self,
-        dataframe,
-        path,
-        partition_cols,
-        preserve_index,
-        file_format,
-        mode,
-        num_procs,
-        num_files=1,
-    ):
-        partition_paths = []
-        if num_procs > 1:
-            bounders = _get_bounders(
-                dataframe=dataframe, num_partitions=num_procs * num_files
-            )
-            for counter in range(num_files):
-                procs = []
-                receive_pipes = []
-                for bounder in bounders[
-                    counter * num_procs : (counter * num_procs) + num_procs
-                ]:
-                    receive_pipe, send_pipe = mp.Pipe()
-                    proc = mp.Process(
-                        target=self._data_to_s3_dataset_writer_remote,
-                        args=(
-                            send_pipe,
-                            dataframe.iloc[bounder[0] : bounder[1], :],
-                            path,
-                            partition_cols,
-                            preserve_index,
-                            self._session.primitives,
-                            file_format,
-                            mode,
-                        ),
-                    )
-                    proc.daemon = True
-                    proc.start()
-                    procs.append(proc)
-                    receive_pipes.append(receive_pipe)
-                for i in range(len(procs)):
-                    partition_paths += receive_pipes[i].recv()
-                    procs[i].join()
-                    receive_pipes[i].close()
-        else:
-            partition_paths += self._data_to_s3_dataset_writer(
+            objects_paths += self._data_to_s3_dataset_writer(
                 dataframe=dataframe,
                 path=path,
                 partition_cols=partition_cols,
                 preserve_index=preserve_index,
                 session_primitives=self._session.primitives,
                 file_format=file_format,
-                mode=mode,
             )
-        return partition_paths
+        if mode == "overwrite_partitions" and partition_cols:
+            self._session.s3.delete_not_listed_objects(objects_paths)
+        return objects_paths
 
     @staticmethod
     def _data_to_s3_dataset_writer(
-        dataframe,
-        path,
-        partition_cols,
-        preserve_index,
-        session_primitives,
-        file_format,
-        mode,
+        dataframe, path, partition_cols, preserve_index, session_primitives, file_format
     ):
-        session = session_primitives.session
-        partition_paths = []
-        dead_keys = []
-        for keys, subgroup in dataframe.groupby(partition_cols):
-            subgroup = subgroup.drop(partition_cols, axis="columns")
-            if not isinstance(keys, tuple):
-                keys = (keys,)
-            subdir = "/".join(
-                [f"{name}={val}" for name, val in zip(partition_cols, keys)]
-            )
-            prefix = "/".join([path, subdir])
-            if mode == "overwrite_partitions":
-                dead_keys += session.s3.list_objects(path=prefix)
-            full_path = Pandas._data_to_s3_files_writer(
-                dataframe=subgroup,
-                path=prefix,
+        objects_paths = []
+        if not partition_cols:
+            object_path = Pandas._data_to_s3_object_writer(
+                dataframe=dataframe,
+                path=path,
                 preserve_index=preserve_index,
                 session_primitives=session_primitives,
                 file_format=file_format,
             )
-            partition_path = full_path.rpartition("/")[0] + "/"
-            keys_str = [str(x) for x in keys]
-            partition_paths.append((partition_path, keys_str))
-        if mode == "overwrite_partitions" and dead_keys:
-            bucket = path.replace("s3://", "").split("/", 1)[0]
-            session.s3.delete_listed_objects(bucket=bucket, batch=dead_keys)
-        return partition_paths
+            objects_paths.append(object_path)
+        else:
+            for keys, subgroup in dataframe.groupby(partition_cols):
+                subgroup = subgroup.drop(partition_cols, axis="columns")
+                if not isinstance(keys, tuple):
+                    keys = (keys,)
+                subdir = "/".join(
+                    [f"{name}={val}" for name, val in zip(partition_cols, keys)]
+                )
+                prefix = "/".join([path, subdir])
+                object_path = Pandas._data_to_s3_object_writer(
+                    dataframe=subgroup,
+                    path=prefix,
+                    preserve_index=preserve_index,
+                    session_primitives=session_primitives,
+                    file_format=file_format,
+                )
+                objects_paths.append(object_path)
+        return objects_paths
 
     @staticmethod
     def _data_to_s3_dataset_writer_remote(
@@ -365,7 +279,6 @@ class Pandas:
         preserve_index,
         session_primitives,
         file_format,
-        mode,
     ):
         send_pipe.send(
             Pandas._data_to_s3_dataset_writer(
@@ -375,13 +288,12 @@ class Pandas:
                 preserve_index=preserve_index,
                 session_primitives=session_primitives,
                 file_format=file_format,
-                mode=mode,
             )
         )
         send_pipe.close()
 
     @staticmethod
-    def _data_to_s3_files_writer(
+    def _data_to_s3_object_writer(
         dataframe, path, preserve_index, session_primitives, file_format
     ):
         fs = s3.get_fs(session_primitives=session_primitives)
@@ -393,22 +305,22 @@ class Pandas:
             outfile = pyarrow.compat.guid() + ".csv"
         else:
             raise UnsupportedFileFormat(file_format)
-        full_path = "/".join([path, outfile])
+        object_path = "/".join([path, outfile])
         if file_format == "parquet":
             Pandas.write_parquet_dataframe(
                 dataframe=dataframe,
-                path=full_path,
+                path=object_path,
                 preserve_index=preserve_index,
                 fs=fs,
             )
         elif file_format == "csv":
             Pandas.write_csv_dataframe(
                 dataframe=dataframe,
-                path=full_path,
+                path=object_path,
                 preserve_index=preserve_index,
                 fs=fs,
             )
-        return full_path
+        return object_path
 
     @staticmethod
     def write_csv_dataframe(dataframe, path, preserve_index, fs):
@@ -421,7 +333,43 @@ class Pandas:
     @staticmethod
     def write_parquet_dataframe(dataframe, path, preserve_index, fs):
         table = pyarrow.Table.from_pandas(
-            dataframe, preserve_index=preserve_index, safe=False
+            df=dataframe, preserve_index=preserve_index, safe=False
         )
         with fs.open(path, "wb") as f:
             parquet.write_table(table, f, coerce_timestamps="ms")
+
+    def to_redshift(
+        self,
+        dataframe,
+        path,
+        glue_connection,
+        schema,
+        table,
+        iam_role,
+        preserve_index=False,
+        mode="append",
+    ):
+        conn = self._session.redshift.get_redshift_connection(
+            glue_connection=glue_connection
+        )
+        num_slices = self._session.redshift.get_number_of_slices(redshift_conn=conn)
+        self.to_parquet(
+            dataframe=dataframe,
+            path=path,
+            preserve_index=preserve_index,
+            mode="append",
+            num_procs=num_slices,
+        )
+        sleep(10)
+        self._session.redshift.load_table(
+            dataframe=dataframe,
+            path=path,
+            schema_name=schema,
+            table_name=table,
+            redshift_conn=conn,
+            preserve_index=False,
+            num_files=num_slices,
+            iam_role=iam_role,
+            mode=mode,
+        )
+        self._session.s3.delete_objects(path=path)

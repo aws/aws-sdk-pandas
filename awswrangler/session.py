@@ -61,16 +61,17 @@ class Session:
         self._spark_context = spark_context
         self._spark_session = spark_session
         self._cpu_count = cpu_count
+        self._primitives = None
+        self._load_new_primitives()
         if boto3_session:
             self._boto3_session = boto3_session
         else:
             self._load_new_boto3_session()
-        self._primitives = None
-        self._load_new_primitives()
         self._s3 = None
         self._athena = None
         self._pandas = None
         self._glue = None
+        self._redshift = None
 
     def _load_new_boto3_session(self):
         """

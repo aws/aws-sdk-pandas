@@ -1,4 +1,5 @@
 from math import ceil
+import re
 
 from awswrangler.exceptions import UnsupportedType, UnsupportedFileFormat
 
@@ -11,7 +12,7 @@ class Glue:
         self,
         dataframe,
         path,
-        partition_paths,
+        objects_paths,
         file_format,
         database=None,
         table=None,
@@ -27,7 +28,7 @@ class Glue:
         table = table if table else Glue._parse_table_name(path)
         if mode == "overwrite":
             self.delete_table_if_exists(database=database, table=table)
-        exists = self.table_exists(database=database, table=table)
+        exists = self.does_table_exists(database=database, table=table)
         if not exists:
             self.create_table(
                 database=database,
@@ -37,12 +38,16 @@ class Glue:
                 path=path,
                 file_format=file_format,
             )
-        self.add_partitions(
-            database=database,
-            table=table,
-            partition_paths=partition_paths,
-            file_format=file_format,
-        )
+        if partition_cols:
+            partitions_tuples = Glue._parse_partitions_tuples(
+                objects_paths=objects_paths, partition_cols=partition_cols
+            )
+            self.add_partitions(
+                database=database,
+                table=table,
+                partition_paths=partitions_tuples,
+                file_format=file_format,
+            )
 
     def delete_table_if_exists(self, database, table):
         client = self._session.boto3_session.client("glue")
@@ -51,7 +56,7 @@ class Glue:
         except client.exceptions.EntityNotFoundException:
             pass
 
-    def table_exists(self, database, table):
+    def does_table_exists(self, database, table):
         client = self._session.boto3_session.client("glue")
         try:
             client.get_table(DatabaseName=database, Name=table)
@@ -187,16 +192,16 @@ class Glue:
     @staticmethod
     def csv_partition_definition(partition):
         return {
-            u"StorageDescriptor": {
-                u"InputFormat": u"org.apache.hadoop.mapred.TextInputFormat",
-                u"Location": partition[0],
-                u"SerdeInfo": {
-                    u"Parameters": {u"field.delim": ","},
-                    u"SerializationLibrary": u"org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
+            "StorageDescriptor": {
+                "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
+                "Location": partition[0],
+                "SerdeInfo": {
+                    "Parameters": {"field.delim": ","},
+                    "SerializationLibrary": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
                 },
-                u"StoredAsSubDirectories": False,
+                "StoredAsSubDirectories": False,
             },
-            u"Values": partition[1],
+            "Values": partition[1],
         }
 
     @staticmethod
@@ -237,14 +242,29 @@ class Glue:
     @staticmethod
     def parquet_partition_definition(partition):
         return {
-            u"StorageDescriptor": {
-                u"InputFormat": u"org.apache.hadoop.mapred.TextInputFormat",
-                u"Location": partition[0],
-                u"SerdeInfo": {
-                    u"Parameters": {u"serialization.format": u"1"},
-                    u"SerializationLibrary": u"org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe",
+            "StorageDescriptor": {
+                "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
+                "Location": partition[0],
+                "SerdeInfo": {
+                    "Parameters": {"serialization.format": "1"},
+                    "SerializationLibrary": "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe",
                 },
-                u"StoredAsSubDirectories": False,
+                "StoredAsSubDirectories": False,
             },
-            u"Values": partition[1],
+            "Values": partition[1],
         }
+
+    @staticmethod
+    def _parse_partitions_tuples(objects_paths, partition_cols):
+        paths = {f"{path.rpartition('/')[0]}/" for path in objects_paths}
+        return [
+            (
+                path,
+                Glue._parse_partition_values(path=path, partition_cols=partition_cols),
+            )
+            for path in paths
+        ]
+
+    @staticmethod
+    def _parse_partition_values(path, partition_cols):
+        return [re.search(f"/{col}=(.*?)/", path).group(1) for col in partition_cols]

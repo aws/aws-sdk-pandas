@@ -1,51 +1,11 @@
 import pg
 
-from awswrangler.utils import lcm
 from awswrangler.exceptions import RedshiftLoadError, UnsupportedType
 
 
 class Redshift:
     def __init__(self, session):
         self._session = session
-
-    def to_redshift(
-        self,
-        dataframe,
-        path,
-        glue_connection,
-        schema,
-        table,
-        iam_role,
-        preserve_index=False,
-        mode="append",
-        num_procs=None,
-    ):
-        if not num_procs:
-            num_procs = self._session.cpu_count
-        conn = self.get_redshift_connection(glue_connection=glue_connection)
-        num_slices = self.get_number_of_slices(redshift_conn=conn)
-        num_files_per_core = int(lcm(num_procs, num_slices) / num_procs)
-        self._session.pandas.to_parquet(
-            dataframe=dataframe,
-            path=path,
-            preserve_index=preserve_index,
-            mode="overwrite",
-            num_procs=num_procs,
-            num_files=num_files_per_core,
-        )
-        num_files_total = num_files_per_core * num_procs
-        self.load_table(
-            dataframe=dataframe,
-            path=path,
-            schema_name=schema,
-            table_name=table,
-            redshift_conn=conn,
-            preserve_index=False,
-            num_files=num_files_total,
-            iam_role=iam_role,
-            mode=mode,
-        )
-        self._session.s3.delete_objects(path=path)
 
     def get_redshift_connection(self, glue_connection):
         conn_details = self._session.glue.get_connection_details(name=glue_connection)
