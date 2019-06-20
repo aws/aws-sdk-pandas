@@ -44,16 +44,23 @@ class S3:
     def __init__(self, session):
         self._session = session
 
-    def delete_objects(self, path):
+    @staticmethod
+    def _parse_path(path):
         bucket, path = path.replace("s3://", "").split("/", 1)
         if not path:
-            path = "/"
+            path = ""
         elif len(path) == 1:
             if path[0] != "/":
                 path += "/"
+            else:
+                path = ""
         else:
             if path[-1] != "/":
                 path += "/"
+        return bucket, path
+
+    def delete_objects(self, path):
+        bucket, path = self._parse_path(path=path)
         client = self._session.boto3_session.client(
             service_name="s3", config=self._session.botocore_config
         )

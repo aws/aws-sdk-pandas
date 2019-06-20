@@ -41,7 +41,6 @@ def test_read_csv(session, bucket):
     path = f"s3://{bucket}/data_samples/small.csv"
     dataframe = session.pandas.read_csv(path=path)
     session.s3.delete_objects(path=f"s3://{bucket}/data_samples/")
-    session.s3.delete_objects(path=path)
     assert len(dataframe.index) == 100
 
 
