@@ -28,6 +28,7 @@ setup(
         "pandas>=0.24.2",
         "boto3>=1.9.130",
         "s3fs>=0.2.1",
-        "PyGreSQL>=5.0.6"
+        "PyGreSQL>=5.0.6",
+        "tenacity>=5.0.4"
     ],
 )

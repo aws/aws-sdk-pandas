@@ -27,7 +27,7 @@ class Session:
         aws_secret_access_key=None,
         aws_session_token=None,
         region_name="us-east-1",
-        botocore_max_retries=12,
+        botocore_max_retries=40,
         spark_context=None,
         spark_session=None,
         procs_cpu_bound=os.cpu_count(),

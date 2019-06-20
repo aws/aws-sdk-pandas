@@ -1,7 +1,9 @@
 import multiprocessing as mp
 from math import ceil
 
+from botocore.exceptions import ClientError
 import s3fs
+import tenacity
 
 from awswrangler.utils import calculate_bounders
 
@@ -44,8 +46,14 @@ class S3:
 
     def delete_objects(self, path):
         bucket, path = path.replace("s3://", "").split("/", 1)
-        if path[-1] != "/":
-            path += "/"
+        if not path:
+            path = "/"
+        elif len(path) == 1:
+            if path[0] != "/":
+                path += "/"
+        else:
+            if path[-1] != "/":
+                path += "/"
         client = self._session.boto3_session.client(
             service_name="s3", config=self._session.botocore_config
         )
@@ -164,6 +172,16 @@ class S3:
         return keys
 
     @staticmethod
+    @tenacity.retry(
+        retry=tenacity.retry_if_exception_type(exception_types=ClientError),
+        wait=tenacity.wait_random_exponential(multiplier=0.5, max=5),
+        stop=tenacity.stop_after_attempt(max_attempt_number=10),
+        reraise=True,
+    )
+    def _head_object_with_retry(client, bucket, key):
+        return client.head_object(Bucket=bucket, Key=key)
+
+    @staticmethod
     def _get_objects_head_remote(send_pipe, session_primitives, objects_paths):
         session = session_primitives.session
         client = session.boto3_session.client(
@@ -172,7 +190,8 @@ class S3:
         objects_sizes = {}
         for object_path in objects_paths:
             bucket, key = object_path.replace("s3://", "").split("/", 1)
-            size = client.head_object(Bucket=bucket, Key=key).get("ContentLength")
+            res = S3._head_object_with_retry(client=client, bucket=bucket, key=key)
+            size = res.get("ContentLength")
             objects_sizes[object_path] = size
         send_pipe.send(objects_sizes)
         send_pipe.close()

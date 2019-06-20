@@ -95,6 +95,7 @@ def test_delete_not_listed_objects(session, bucket, objects_num):
     write_fake_objects(bucket, f"objs-not-listed-{objects_num}/", objects_num)
     session.s3.delete_not_listed_objects(objects_paths=[f"{path}0"])
     assert check_list_with_retry(session=session, path=path, length=1)
+    session.s3.delete_objects(path=path)
 
 
 @pytest.mark.parametrize("objects_num", [1, 10, 1001])

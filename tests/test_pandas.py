@@ -14,12 +14,13 @@ def session():
 
 
 @pytest.fixture(scope="module")
-def bucket():
+def bucket(session):
     if "AWSWRANGLER_TEST_BUCKET" in os.environ:
         bucket = os.environ.get("AWSWRANGLER_TEST_BUCKET")
     else:
         raise Exception("You must provide AWSWRANGLER_TEST_BUCKET environment variable")
     yield bucket
+    session.s3.delete_objects(path=f"s3://{bucket}/")
 
 
 @pytest.fixture(scope="module")
@@ -37,7 +38,10 @@ def test_read_csv(session, bucket):
     boto3.client("s3").upload_file(
         "data_samples/small.csv", bucket, "data_samples/small.csv"
     )
-    dataframe = session.pandas.read_csv(path=f"s3://{bucket}/data_samples/small.csv")
+    path = f"s3://{bucket}/data_samples/small.csv"
+    dataframe = session.pandas.read_csv(path=path)
+    session.s3.delete_objects(path=f"s3://{bucket}/data_samples/")
+    session.s3.delete_objects(path=path)
     assert len(dataframe.index) == 100
 
 

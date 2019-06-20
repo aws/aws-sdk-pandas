@@ -21,6 +21,7 @@ s3fs = "==0.2.1"
 pandas = "==0.24.2"
 pyarrow = "==0.13.0"
 PyGreSQL = "==5.1"
+tenacity = "==5.0.4"
 
 [requires]
 python_version = "3.7"
