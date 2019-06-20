@@ -43,7 +43,9 @@ def test_from_boto3_region_name(default_session):
 
 
 def test_cpu_count():
-    assert_account_id(Session(cpu_count=1))
+    assert_account_id(
+        Session(procs_cpu_bound=1, procs_io_bound=1, botocore_max_retries=1)
+    )
 
 
 def get_account_id_remote(primitives, account_id):

@@ -42,7 +42,7 @@ def test_read_csv(session, bucket):
 
 
 @pytest.mark.parametrize(
-    "mode, file_format, preserve_index, partition_cols, num_procs, factor",
+    "mode, file_format, preserve_index, partition_cols, procs_cpu_bound, factor",
     [
         ("overwrite", "csv", False, [], 1, 1),
         ("append", "csv", False, [], 1, 2),
@@ -126,7 +126,7 @@ def test_to_s3(
     file_format,
     preserve_index,
     partition_cols,
-    num_procs,
+    procs_cpu_bound,
     factor,
 ):
     dataframe = pandas.read_csv("data_samples/micro.csv")
@@ -138,7 +138,7 @@ def test_to_s3(
         preserve_index=preserve_index,
         mode=mode,
         partition_cols=partition_cols,
-        num_procs=num_procs,
+        procs_cpu_bound=procs_cpu_bound,
     )
     num_partitions = (
         len([keys for keys in dataframe.groupby(partition_cols)])

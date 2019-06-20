@@ -20,6 +20,9 @@ class Redshift:
         conn.query("set statement_timeout = 1200000")
         return conn
 
+    def write_load_manifest(self, manifest_path, objects_paths):
+        pass
+
     @staticmethod
     def get_number_of_slices(redshift_conn):
         res = redshift_conn.query(

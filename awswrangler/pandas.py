@@ -42,7 +42,9 @@ class Pandas:
         encoding=None,
     ):
         bucket_name, key_path = self._parse_path(path)
-        s3_client = self._session.boto3_session.client("s3", use_ssl=True)
+        s3_client = self._session.boto3_session.client(
+            service_name="s3", use_ssl=True, config=self._session.botocore_config
+        )
         buff = BytesIO()
         s3_client.download_fileobj(bucket_name, key_path, buff)
         buff.seek(0),
@@ -66,7 +68,9 @@ class Pandas:
     def read_sql_athena(self, sql, database, s3_output=None):
         if not s3_output:
             account_id = (
-                self._session.boto3_session.client("sts")
+                self._session.boto3_session.client(
+                    service_name="sts", config=self._session.botocore_config
+                )
                 .get_caller_identity()
                 .get("Account")
             )
@@ -100,7 +104,7 @@ class Pandas:
         partition_cols=None,
         preserve_index=True,
         mode="append",
-        num_procs=None,
+        procs_cpu_bound=None,
     ):
         return self.to_s3(
             dataframe=dataframe,
@@ -111,7 +115,7 @@ class Pandas:
             partition_cols=partition_cols,
             preserve_index=preserve_index,
             mode=mode,
-            num_procs=num_procs,
+            procs_cpu_bound=procs_cpu_bound,
         )
 
     def to_parquet(
@@ -123,7 +127,7 @@ class Pandas:
         partition_cols=None,
         preserve_index=True,
         mode="append",
-        num_procs=None,
+        procs_cpu_bound=None,
     ):
         return self.to_s3(
             dataframe=dataframe,
@@ -134,7 +138,7 @@ class Pandas:
             partition_cols=partition_cols,
             preserve_index=preserve_index,
             mode=mode,
-            num_procs=num_procs,
+            procs_cpu_bound=procs_cpu_bound,
         )
 
     def to_s3(
@@ -147,14 +151,14 @@ class Pandas:
         partition_cols=None,
         preserve_index=True,
         mode="append",
-        num_procs=None,
+        procs_cpu_bound=None,
     ):
         if not partition_cols:
             partition_cols = []
         if mode == "overwrite" or (
             mode == "overwrite_partitions" and not partition_cols
         ):
-            self._session.s3.delete_objects(path)
+            self._session.s3.delete_objects(path=path)
         elif mode not in ["overwrite_partitions", "append"]:
             raise UnsupportedWriteMode(mode)
         objects_paths = self.data_to_s3(
@@ -164,7 +168,7 @@ class Pandas:
             preserve_index=preserve_index,
             file_format=file_format,
             mode=mode,
-            num_procs=num_procs,
+            procs_cpu_bound=procs_cpu_bound,
         )
         if database:
             self._session.glue.metadata_to_glue(
@@ -188,18 +192,20 @@ class Pandas:
         partition_cols=None,
         preserve_index=True,
         mode="append",
-        num_procs=None,
+        procs_cpu_bound=None,
     ):
-        if not num_procs:
-            num_procs = self._session.cpu_count
+        if not procs_cpu_bound:
+            procs_cpu_bound = self._session.procs_cpu_bound
         if path[-1] == "/":
             path = path[:-1]
         file_format = file_format.lower()
         if file_format not in ["parquet", "csv"]:
             raise UnsupportedFileFormat(file_format)
         objects_paths = []
-        if num_procs > 1:
-            bounders = _get_bounders(dataframe=dataframe, num_partitions=num_procs)
+        if procs_cpu_bound > 1:
+            bounders = _get_bounders(
+                dataframe=dataframe, num_partitions=procs_cpu_bound
+            )
             procs = []
             receive_pipes = []
             for bounder in bounders:
@@ -234,7 +240,7 @@ class Pandas:
                 file_format=file_format,
             )
         if mode == "overwrite_partitions" and partition_cols:
-            self._session.s3.delete_not_listed_objects(objects_paths)
+            self._session.s3.delete_not_listed_objects(objects_paths=objects_paths)
         return objects_paths
 
     @staticmethod
@@ -358,7 +364,7 @@ class Pandas:
             path=path,
             preserve_index=preserve_index,
             mode="append",
-            num_procs=num_slices,
+            procs_cpu_bound=num_slices,
         )
         sleep(10)
         self._session.redshift.load_table(

@@ -50,14 +50,18 @@ class Glue:
             )
 
     def delete_table_if_exists(self, database, table):
-        client = self._session.boto3_session.client("glue")
+        client = self._session.boto3_session.client(
+            service_name="glue", config=self._session.botocore_config
+        )
         try:
             client.delete_table(DatabaseName=database, Name=table)
         except client.exceptions.EntityNotFoundException:
             pass
 
     def does_table_exists(self, database, table):
-        client = self._session.boto3_session.client("glue")
+        client = self._session.boto3_session.client(
+            service_name="glue", config=self._session.botocore_config
+        )
         try:
             client.get_table(DatabaseName=database, Name=table)
             return True
@@ -67,7 +71,9 @@ class Glue:
     def create_table(
         self, database, table, schema, path, file_format, partition_cols=None
     ):
-        client = self._session.boto3_session.client("glue")
+        client = self._session.boto3_session.client(
+            service_name="glue", config=self._session.botocore_config
+        )
         if file_format == "parquet":
             table_input = Glue.parquet_table_definition(
                 table, partition_cols, schema, path
@@ -79,7 +85,9 @@ class Glue:
         client.create_table(DatabaseName=database, TableInput=table_input)
 
     def add_partitions(self, database, table, partition_paths, file_format):
-        client = self._session.boto3_session.client("glue")
+        client = self._session.boto3_session.client(
+            service_name="glue", config=self._session.botocore_config
+        )
         if not partition_paths:
             return None
         partitions = list()
@@ -100,7 +108,9 @@ class Glue:
             )
 
     def get_connection_details(self, name):
-        client = self._session.boto3_session.client("glue")
+        client = self._session.boto3_session.client(
+            service_name="glue", config=self._session.botocore_config
+        )
         return client.get_connection(Name=name, HidePassword=False)["Connection"]
 
     @staticmethod
