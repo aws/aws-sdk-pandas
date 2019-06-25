@@ -11,9 +11,7 @@ class Redshift:
 
     @staticmethod
     def generate_connection(dbname, host, port, user, passwd):
-        return pg.DB(
-            dbname=dbname, host=host, port=int(port), user=user, passwd=passwd
-        )
+        return pg.DB(dbname=dbname, host=host, port=int(port), user=user, passwd=passwd)
 
     def get_connection(self, glue_connection):
         conn_details = self._session.glue.get_connection_details(name=glue_connection)

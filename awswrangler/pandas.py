@@ -1,6 +1,5 @@
 from io import BytesIO
 import multiprocessing as mp
-from time import sleep
 
 import pandas
 import pyarrow
@@ -356,7 +355,9 @@ class Pandas:
         mode="append",
     ):
         self._session.s3.delete_objects(path=path)
-        num_slices = self._session.redshift.get_number_of_slices(redshift_conn=connection)
+        num_slices = self._session.redshift.get_number_of_slices(
+            redshift_conn=connection
+        )
         objects_paths = self.to_parquet(
             dataframe=dataframe,
             path=path,

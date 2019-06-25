@@ -38,11 +38,15 @@ def bucket(session, cloudformation_outputs):
 def redshift_parameters(cloudformation_outputs):
     redshift_parameters = {}
     if "RedshiftAddress" in cloudformation_outputs:
-        redshift_parameters["RedshiftAddress"] = cloudformation_outputs.get("RedshiftAddress")
+        redshift_parameters["RedshiftAddress"] = cloudformation_outputs.get(
+            "RedshiftAddress"
+        )
     else:
         raise Exception("You must deploy the test infrastructure using SAM!")
     if "RedshiftPassword" in cloudformation_outputs:
-        redshift_parameters["RedshiftPassword"] = cloudformation_outputs.get("RedshiftPassword")
+        redshift_parameters["RedshiftPassword"] = cloudformation_outputs.get(
+            "RedshiftPassword"
+        )
     else:
         raise Exception("You must deploy the test infrastructure using SAM!")
     if "RedshiftPort" in cloudformation_outputs:
@@ -57,16 +61,21 @@ def redshift_parameters(cloudformation_outputs):
 
 
 @pytest.mark.parametrize(
-    "sample_name",
-    ["micro", "small"]
+    "sample_name,mode,factor",
+    [
+        ("micro", "overwrite", 1),
+        ("micro", "append", 2),
+        ("small", "overwrite", 1),
+        ("small", "append", 2),
+    ],
 )
-def test_load_table(session, bucket, redshift_parameters, sample_name):
+def test_to_redshiftc(session, bucket, redshift_parameters, sample_name, mode, factor):
     conn = Redshift.generate_connection(
         dbname="test",
         host=redshift_parameters.get("RedshiftAddress"),
         port=redshift_parameters.get("RedshiftPort"),
         user="test",
-        passwd=redshift_parameters.get("RedshiftPassword")
+        passwd=redshift_parameters.get("RedshiftPassword"),
     )
     dataframe = pandas.read_csv(f"data_samples/{sample_name}.csv")
     path = f"s3://{bucket}/redshift-load/"
@@ -77,14 +86,12 @@ def test_load_table(session, bucket, redshift_parameters, sample_name):
         table="test",
         connection=conn,
         iam_role=redshift_parameters.get("RedshiftRole"),
-        mode="overwrite",
+        mode=mode,
         preserve_index=False,
     )
-    res = conn.query(
-        "SELECT COUNT(*) as counter from public.test"
-    )
+    res = conn.query("SELECT COUNT(*) as counter from public.test")
     counter = res.dictresult()[0]["counter"]
-    assert len(dataframe.index) == counter
+    assert len(dataframe.index) * factor == counter
 
 
 def test_write_load_manifest(session, bucket):
