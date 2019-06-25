@@ -348,31 +348,34 @@ class Pandas:
         self,
         dataframe,
         path,
-        glue_connection,
+        connection,
         schema,
         table,
         iam_role,
         preserve_index=False,
         mode="append",
     ):
-        conn = self._session.redshift.get_redshift_connection(
-            glue_connection=glue_connection
-        )
-        num_slices = self._session.redshift.get_number_of_slices(redshift_conn=conn)
-        self.to_parquet(
+        self._session.s3.delete_objects(path=path)
+        num_slices = self._session.redshift.get_number_of_slices(redshift_conn=connection)
+        objects_paths = self.to_parquet(
             dataframe=dataframe,
             path=path,
             preserve_index=preserve_index,
             mode="append",
             procs_cpu_bound=num_slices,
         )
-        sleep(10)
+        if path[-1] != "/":
+            path += "/"
+        manifest_path = f"{path}manifest.json"
+        self._session.redshift.write_load_manifest(
+            manifest_path=manifest_path, objects_paths=objects_paths
+        )
         self._session.redshift.load_table(
             dataframe=dataframe,
-            path=path,
+            manifest_path=manifest_path,
             schema_name=schema,
             table_name=table,
-            redshift_conn=conn,
+            redshift_conn=connection,
             preserve_index=False,
             num_files=num_slices,
             iam_role=iam_role,

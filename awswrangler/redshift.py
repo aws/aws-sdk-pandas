@@ -9,7 +9,13 @@ class Redshift:
     def __init__(self, session):
         self._session = session
 
-    def get_redshift_connection(self, glue_connection):
+    @staticmethod
+    def generate_connection(dbname, host, port, user, passwd):
+        return pg.DB(
+            dbname=dbname, host=host, port=int(port), user=user, passwd=passwd
+        )
+
+    def get_connection(self, glue_connection):
         conn_details = self._session.glue.get_connection_details(name=glue_connection)
         props = conn_details["ConnectionProperties"]
         host = props["JDBC_CONNECTION_URL"].split(":")[2].replace("/", "")
@@ -45,7 +51,7 @@ class Redshift:
     @staticmethod
     def load_table(
         dataframe,
-        path,
+        manifest_path,
         schema_name,
         table_name,
         redshift_conn,
@@ -70,12 +76,11 @@ class Redshift:
             ") DISTSTYLE AUTO"
         )
         redshift_conn.query(sql)
-        if path[-1] != "/":
-            path += "/"
         sql = (
             "-- AWS DATA WRANGLER\n"
-            f"COPY {schema_name}.{table_name} FROM '{path}'\n"
+            f"COPY {schema_name}.{table_name} FROM '{manifest_path}'\n"
             f"IAM_ROLE '{iam_role}'\n"
+            "MANIFEST\n"
             "FORMAT AS PARQUET"
         )
         redshift_conn.query(sql)

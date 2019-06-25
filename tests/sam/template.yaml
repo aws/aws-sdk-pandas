@@ -49,7 +49,9 @@ Resources:
                 Action:
                   - "s3:Get*"
                   - "s3:List*"
-                Resource: !GetAtt [Bucket, Arn]
+                Resource:
+                  - !Join ['', ['arn:aws:s3:::', !Ref Bucket]]
+                  - !Join ['', ['arn:aws:s3:::', !Ref Bucket, /*]]
 
   RedshiftSubnetGroup:
     Type: AWS::Redshift::ClusterSubnetGroup
@@ -104,6 +106,9 @@ Outputs:
   RedshiftPassword:
     Value: !Ref Password
     Description: Redshift Password.
+  RedshiftRole:
+    Value: !GetAtt RedshiftRole.Arn
+    Description: Redshift IAM role.
   GlueDatabaseName:
     Value: !Ref GlueDatabase
     Description: Glue Database Name.
