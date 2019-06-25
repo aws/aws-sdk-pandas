@@ -131,3 +131,7 @@ output/
 dev/
 metrics/
 notes.txt
+
+# SAM
+.aws-sam
+parameters.txt

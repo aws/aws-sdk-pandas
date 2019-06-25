@@ -1,4 +1,3 @@
-import os
 from time import sleep
 
 import pytest
@@ -9,28 +8,38 @@ from awswrangler import Session
 
 
 @pytest.fixture(scope="module")
+def cloudformation_outputs():
+    response = boto3.client("cloudformation").describe_stacks(
+        StackName="aws-data-wrangler-test-arena"
+    )
+    outputs = {}
+    for output in response.get("Stacks")[0].get("Outputs"):
+        outputs[output.get("OutputKey")] = output.get("OutputValue")
+    yield outputs
+
+
+@pytest.fixture(scope="module")
 def session():
     yield Session()
 
 
 @pytest.fixture(scope="module")
-def bucket(session):
-    if "AWSWRANGLER_TEST_BUCKET" in os.environ:
-        bucket = os.environ.get("AWSWRANGLER_TEST_BUCKET")
+def bucket(session, cloudformation_outputs):
+    if "BucketName" in cloudformation_outputs:
+        bucket = cloudformation_outputs.get("BucketName")
+        session.s3.delete_objects(path=f"s3://{bucket}/")
     else:
-        raise Exception("You must provide AWSWRANGLER_TEST_BUCKET environment variable")
+        raise Exception("You must deploy the test infrastructure using SAM!")
     yield bucket
     session.s3.delete_objects(path=f"s3://{bucket}/")
 
 
 @pytest.fixture(scope="module")
-def database():
-    if "AWSWRANGLER_TEST_DATABASE" in os.environ:
-        database = os.environ.get("AWSWRANGLER_TEST_DATABASE")
+def database(cloudformation_outputs):
+    if "GlueDatabaseName" in cloudformation_outputs:
+        database = cloudformation_outputs.get("GlueDatabaseName")
     else:
-        raise Exception(
-            "You must provide AWSWRANGLER_TEST_DATABASE environment variable"
-        )
+        raise Exception("You must deploy the test infrastructure using SAM!")
     yield database
 
 

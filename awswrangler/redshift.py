@@ -1,3 +1,5 @@
+import json
+
 import pg
 
 from awswrangler.exceptions import RedshiftLoadError, UnsupportedType
@@ -21,7 +23,16 @@ class Redshift:
         return conn
 
     def write_load_manifest(self, manifest_path, objects_paths):
-        pass
+        objects_sizes = self._session.s3.get_objects_sizes(objects_paths=objects_paths)
+        manifest = {"entries": []}
+        for path, size in objects_sizes.items():
+            entry = {"url": path, "mandatory": True, "meta": {"content_length": size}}
+            manifest.get("entries").append(entry)
+        payload = json.dumps(manifest)
+        client_s3 = self._session.boto3_session.client("s3")
+        bucket, path = manifest_path.replace("s3://", "").split("/", 1)
+        client_s3.put_object(Body=payload, Bucket=bucket, Key=path)
+        return manifest
 
     @staticmethod
     def get_number_of_slices(redshift_conn):

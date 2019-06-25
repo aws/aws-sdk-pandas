@@ -1,5 +1,12 @@
-.PHONY: init clean format lint build docs
+.PHONY: sam-deploy init clean format lint build docs
 .DEFAULT_GOAL := build
+
+# Input variables for deploy the SAM infrastructure used to test (sam-deploy)
+# Also can be passed as parameters on the make command
+Bucket := BUCKET_FOR_ARTIFACTS
+VpcId := VPC_ID_FOR REDSHIFT
+SubnetId := SUBNET_ID_FOR REDSHIFT
+Password := PASSWORD_FOR_REDSHIFT
 
 init:
 	pip install --upgrade pip
@@ -50,3 +57,11 @@ build:
 publish:
 	twine upload dist/*
 	rm -fr build dist .egg requests.egg-info
+
+sam-deploy:
+	rm -rf .aws-sam
+	sam build --template tests/sam/template.yaml
+	sam package --output-template-file .aws-sam/packaged.yaml --s3-bucket $(Bucket)
+	sam deploy --template-file .aws-sam/packaged.yaml --stack-name aws-data-wrangler-test-arena \
+	--capabilities CAPABILITY_IAM \
+	--parameter-overrides VpcId=$(VpcId) SubnetId=$(SubnetId) Password=$(Password)
