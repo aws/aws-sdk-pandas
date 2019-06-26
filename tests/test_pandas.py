@@ -1,4 +1,3 @@
-import os
 from time import sleep
 
 import pytest
@@ -9,27 +8,38 @@ from awswrangler import Session
 
 
 @pytest.fixture(scope="module")
+def cloudformation_outputs():
+    response = boto3.client("cloudformation").describe_stacks(
+        StackName="aws-data-wrangler-test-arena"
+    )
+    outputs = {}
+    for output in response.get("Stacks")[0].get("Outputs"):
+        outputs[output.get("OutputKey")] = output.get("OutputValue")
+    yield outputs
+
+
+@pytest.fixture(scope="module")
 def session():
     yield Session()
 
 
 @pytest.fixture(scope="module")
-def bucket():
-    if "AWSWRANGLER_TEST_BUCKET" in os.environ:
-        bucket = os.environ.get("AWSWRANGLER_TEST_BUCKET")
+def bucket(session, cloudformation_outputs):
+    if "BucketName" in cloudformation_outputs:
+        bucket = cloudformation_outputs.get("BucketName")
+        session.s3.delete_objects(path=f"s3://{bucket}/")
     else:
-        raise Exception("You must provide AWSWRANGLER_TEST_BUCKET environment variable")
+        raise Exception("You must deploy the test infrastructure using SAM!")
     yield bucket
+    session.s3.delete_objects(path=f"s3://{bucket}/")
 
 
 @pytest.fixture(scope="module")
-def database():
-    if "AWSWRANGLER_TEST_DATABASE" in os.environ:
-        database = os.environ.get("AWSWRANGLER_TEST_DATABASE")
+def database(cloudformation_outputs):
+    if "GlueDatabaseName" in cloudformation_outputs:
+        database = cloudformation_outputs.get("GlueDatabaseName")
     else:
-        raise Exception(
-            "You must provide AWSWRANGLER_TEST_DATABASE environment variable"
-        )
+        raise Exception("You must deploy the test infrastructure using SAM!")
     yield database
 
 
@@ -37,12 +47,14 @@ def test_read_csv(session, bucket):
     boto3.client("s3").upload_file(
         "data_samples/small.csv", bucket, "data_samples/small.csv"
     )
-    dataframe = session.pandas.read_csv(path=f"s3://{bucket}/data_samples/small.csv")
+    path = f"s3://{bucket}/data_samples/small.csv"
+    dataframe = session.pandas.read_csv(path=path)
+    session.s3.delete_objects(path=f"s3://{bucket}/data_samples/")
     assert len(dataframe.index) == 100
 
 
 @pytest.mark.parametrize(
-    "mode, file_format, preserve_index, partition_cols, num_procs, factor",
+    "mode, file_format, preserve_index, partition_cols, procs_cpu_bound, factor",
     [
         ("overwrite", "csv", False, [], 1, 1),
         ("append", "csv", False, [], 1, 2),
@@ -126,7 +138,7 @@ def test_to_s3(
     file_format,
     preserve_index,
     partition_cols,
-    num_procs,
+    procs_cpu_bound,
     factor,
 ):
     dataframe = pandas.read_csv("data_samples/micro.csv")
@@ -138,7 +150,7 @@ def test_to_s3(
         preserve_index=preserve_index,
         mode=mode,
         partition_cols=partition_cols,
-        num_procs=num_procs,
+        procs_cpu_bound=procs_cpu_bound,
     )
     num_partitions = (
         len([keys for keys in dataframe.groupby(partition_cols)])

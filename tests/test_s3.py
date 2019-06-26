@@ -1,4 +1,3 @@
-import os
 import multiprocessing as mp
 from time import sleep
 
@@ -45,8 +44,19 @@ def write_fake_objects(bucket, path, num):
     args = []
     for item in bounders:
         args.append((bucket, path, item[0], item[1]))
-    pool = mp.Pool(cpus)
+    pool = mp.Pool(processes=cpus)
     pool.map(wrt_fake_objs_batch_wrapper, args)
+
+
+@pytest.fixture(scope="module")
+def cloudformation_outputs():
+    response = boto3.client("cloudformation").describe_stacks(
+        StackName="aws-data-wrangler-test-arena"
+    )
+    outputs = {}
+    for output in response.get("Stacks")[0].get("Outputs"):
+        outputs[output.get("OutputKey")] = output.get("OutputValue")
+    yield outputs
 
 
 @pytest.fixture(scope="module")
@@ -55,12 +65,14 @@ def session():
 
 
 @pytest.fixture(scope="module")
-def bucket():
-    if "AWSWRANGLER_TEST_BUCKET" in os.environ:
-        bucket = os.environ.get("AWSWRANGLER_TEST_BUCKET")
+def bucket(session, cloudformation_outputs):
+    if "BucketName" in cloudformation_outputs:
+        bucket = cloudformation_outputs.get("BucketName")
+        session.s3.delete_objects(path=f"s3://{bucket}/")
     else:
-        raise Exception("You must provide AWSWRANGLER_TEST_BUCKET environment variable")
+        raise Exception("You must deploy the test infrastructure using SAM!")
     yield bucket
+    session.s3.delete_objects(path=f"s3://{bucket}/")
 
 
 @pytest.mark.parametrize("objects_num", [1, 10, 1001])
@@ -72,12 +84,13 @@ def test_delete_objects(session, bucket, objects_num):
 @pytest.mark.parametrize("objects_num", [1, 10, 1001])
 def test_delete_listed_objects(session, bucket, objects_num):
     path = f"s3://{bucket}/objs-listed-{objects_num}/"
+    session.s3.delete_objects(path=path)
     write_fake_objects(bucket, f"objs-listed-{objects_num}/", objects_num)
-    keys = session.s3.list_objects(path=path)
-    assert len(keys) == objects_num
-    session.s3.delete_listed_objects(objects_paths=keys)
-    keys = session.s3.list_objects(path=path)
-    assert len(keys) == 0
+    objects_paths = session.s3.list_objects(path=path)
+    assert len(objects_paths) == objects_num
+    session.s3.delete_listed_objects(objects_paths=objects_paths)
+    objects_paths = session.s3.list_objects(path=path)
+    assert len(objects_paths) == 0
 
 
 def check_list_with_retry(session, path, length):
@@ -94,3 +107,19 @@ def test_delete_not_listed_objects(session, bucket, objects_num):
     write_fake_objects(bucket, f"objs-not-listed-{objects_num}/", objects_num)
     session.s3.delete_not_listed_objects(objects_paths=[f"{path}0"])
     assert check_list_with_retry(session=session, path=path, length=1)
+    session.s3.delete_objects(path=path)
+
+
+@pytest.mark.parametrize("objects_num", [1, 10, 1001])
+def test_get_objects_sizes(session, bucket, objects_num):
+    path = f"s3://{bucket}/objs-get-objects-sizes-{objects_num}/"
+    session.s3.delete_objects(path=path)
+    write_fake_objects(bucket, f"objs-get-objects-sizes-{objects_num}/", objects_num)
+    objects_paths = [
+        f"s3://{bucket}/objs-get-objects-sizes-{objects_num}/{i}"
+        for i in range(objects_num)
+    ]
+    objects_sizes = session.s3.get_objects_sizes(objects_paths=objects_paths)
+    session.s3.delete_objects(path=path)
+    for _, object_size in objects_sizes.items():
+        assert object_size == 10

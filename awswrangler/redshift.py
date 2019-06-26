@@ -1,3 +1,5 @@
+import json
+
 import pg
 
 from awswrangler.exceptions import RedshiftLoadError, UnsupportedType
@@ -7,7 +9,11 @@ class Redshift:
     def __init__(self, session):
         self._session = session
 
-    def get_redshift_connection(self, glue_connection):
+    @staticmethod
+    def generate_connection(dbname, host, port, user, passwd):
+        return pg.DB(dbname=dbname, host=host, port=int(port), user=user, passwd=passwd)
+
+    def get_connection(self, glue_connection):
         conn_details = self._session.glue.get_connection_details(name=glue_connection)
         props = conn_details["ConnectionProperties"]
         host = props["JDBC_CONNECTION_URL"].split(":")[2].replace("/", "")
@@ -20,6 +26,18 @@ class Redshift:
         conn.query("set statement_timeout = 1200000")
         return conn
 
+    def write_load_manifest(self, manifest_path, objects_paths):
+        objects_sizes = self._session.s3.get_objects_sizes(objects_paths=objects_paths)
+        manifest = {"entries": []}
+        for path, size in objects_sizes.items():
+            entry = {"url": path, "mandatory": True, "meta": {"content_length": size}}
+            manifest.get("entries").append(entry)
+        payload = json.dumps(manifest)
+        client_s3 = self._session.boto3_session.client("s3")
+        bucket, path = manifest_path.replace("s3://", "").split("/", 1)
+        client_s3.put_object(Body=payload, Bucket=bucket, Key=path)
+        return manifest
+
     @staticmethod
     def get_number_of_slices(redshift_conn):
         res = redshift_conn.query(
@@ -31,7 +49,7 @@ class Redshift:
     @staticmethod
     def load_table(
         dataframe,
-        path,
+        manifest_path,
         schema_name,
         table_name,
         redshift_conn,
@@ -56,12 +74,11 @@ class Redshift:
             ") DISTSTYLE AUTO"
         )
         redshift_conn.query(sql)
-        if path[-1] != "/":
-            path += "/"
         sql = (
             "-- AWS DATA WRANGLER\n"
-            f"COPY {schema_name}.{table_name} FROM '{path}'\n"
+            f"COPY {schema_name}.{table_name} FROM '{manifest_path}'\n"
             f"IAM_ROLE '{iam_role}'\n"
+            "MANIFEST\n"
             "FORMAT AS PARQUET"
         )
         redshift_conn.query(sql)

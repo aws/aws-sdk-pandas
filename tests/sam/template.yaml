@@ -1,0 +1,114 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  AWS Data Wrangler
+  Test Arena
+
+Parameters:
+  VpcId:
+    Type: String
+    Description: Redshift VPC ID
+  SubnetId:
+    Type: String
+    Description: Redshift Subnet ID
+  Password:
+    Type: String
+    Description: Redshift Password
+
+Resources:
+  Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      VersioningConfiguration:
+        Status: Suspended
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  RedshiftRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - redshift.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: "/"
+      Policies:
+        - PolicyName: S3GetAndList
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "s3:Get*"
+                  - "s3:List*"
+                Resource:
+                  - !Join ['', ['arn:aws:s3:::', !Ref Bucket]]
+                  - !Join ['', ['arn:aws:s3:::', !Ref Bucket, /*]]
+
+  RedshiftSubnetGroup:
+    Type: AWS::Redshift::ClusterSubnetGroup
+    Properties:
+      Description: AWS Data Wrangler Test Arena - Redshift Subnet Group
+      SubnetIds:
+        - Ref: SubnetId
+
+  RedshiftSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VpcId
+      GroupDescription: AWS Data Wrangler Test Arena - Redshift security group
+
+  Redshift:
+    Type: AWS::Redshift::Cluster
+    DependsOn:
+      - RedshiftSecurityGroup
+      - RedshiftSubnetGroup
+      - RedshiftRole
+    Properties:
+      DBName: test
+      MasterUsername: test
+      MasterUserPassword: !Ref Password
+      NodeType: dc2.large
+      ClusterType: single-node
+      VpcSecurityGroupIds:
+        - !Ref RedshiftSecurityGroup
+      ClusterSubnetGroupName: !Ref RedshiftSubnetGroup
+      PubliclyAccessible: true
+      Port: 5439
+      IamRoles:
+        - !GetAtt RedshiftRole.Arn
+
+  GlueDatabase:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Description: AWS Data Wrangler Test Arena - Glue Database
+
+Outputs:
+  BucketName:
+    Value: !Ref Bucket
+    Description: Name of the S3 Bucket used for tests.
+  RedshiftAddress:
+    Value: !GetAtt Redshift.Endpoint.Address
+    Description: Redshift Password.
+  RedshiftPort:
+    Value: !GetAtt Redshift.Endpoint.Port
+    Description: Redshift Endpoint Port.
+  RedshiftPassword:
+    Value: !Ref Password
+    Description: Redshift Password.
+  RedshiftRole:
+    Value: !GetAtt RedshiftRole.Arn
+    Description: Redshift IAM role.
+  GlueDatabaseName:
+    Value: !Ref GlueDatabase
+    Description: Glue Database Name.

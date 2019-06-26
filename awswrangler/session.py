@@ -1,6 +1,7 @@
 import os
 
 import boto3
+from botocore.config import Config
 
 from awswrangler.s3 import S3
 from awswrangler.athena import Athena
@@ -16,6 +17,8 @@ class Session:
     AWS Glue Connections attributes, number of cpu cores that can be used, etc)
     """
 
+    PROCS_IO_BOUND_FACTOR = 4
+
     def __init__(
         self,
         boto3_session=None,
@@ -24,9 +27,11 @@ class Session:
         aws_secret_access_key=None,
         aws_session_token=None,
         region_name="us-east-1",
+        botocore_max_retries=40,
         spark_context=None,
         spark_session=None,
-        cpu_count=os.cpu_count(),
+        procs_cpu_bound=os.cpu_count(),
+        procs_io_bound=os.cpu_count() * PROCS_IO_BOUND_FACTOR,
     ):
         """
         Most parameters inherit from Boto3 ou Pyspark.
@@ -39,9 +44,13 @@ class Session:
         :param aws_secret_access_key: Boto3 aws_secret_access_key
         :param aws_session_token: Boto3 aws_session_token
         :param region_name: Boto3 region_name (Default: us-east-1)
+        :param botocore_max_retries: Botocore max retries
         :param spark_context: Spark Context (pyspark.SparkContext)
         :param spark_session: Spark Session (pyspark.sql.SparkSession)
-        :param cpu_count: number of cpu cores that can be used in single node applications (Default: os.cpu_count())
+        :param procs_cpu_bound: number of processes that can be used in single
+        node applications for CPU bound case (Default: os.cpu_count())
+        :param procs_io_bound: number of processes that can be used in single
+        node applications for I/O bound cases (Default: os.cpu_count() * PROCS_IO_BOUND_FACTOR)
         """
         self._profile_name = (
             boto3_session.profile_name if boto3_session else profile_name
@@ -56,11 +65,16 @@ class Session:
             if boto3_session
             else aws_secret_access_key
         )
+        self._botocore_max_retries = botocore_max_retries
+        self._botocore_config = Config(
+            retries={"max_attempts": self._botocore_max_retries}
+        )
         self._aws_session_token = aws_session_token
         self._region_name = boto3_session.region_name if boto3_session else region_name
         self._spark_context = spark_context
         self._spark_session = spark_session
-        self._cpu_count = cpu_count
+        self._procs_cpu_bound = procs_cpu_bound
+        self._procs_io_bound = procs_io_bound
         self._primitives = None
         self._load_new_primitives()
         if boto3_session:
@@ -106,7 +120,10 @@ class Session:
             aws_secret_access_key=self._aws_secret_access_key,
             aws_session_token=self._aws_session_token,
             region_name=self._region_name,
-            cpu_count=self._cpu_count,
+            botocore_max_retries=self._botocore_max_retries,
+            botocore_config=self._botocore_config,
+            procs_cpu_bound=self._procs_cpu_bound,
+            procs_io_bound=self._procs_io_bound,
         )
 
     @property
@@ -130,6 +147,14 @@ class Session:
         return self._region_name
 
     @property
+    def botocore_max_retries(self):
+        return self._botocore_max_retries
+
+    @property
+    def botocore_config(self):
+        return self._botocore_config
+
+    @property
     def spark_context(self):
         return self._spark_context
 
@@ -138,8 +163,12 @@ class Session:
         return self._spark_session
 
     @property
-    def cpu_count(self):
-        return self._cpu_count
+    def procs_cpu_bound(self):
+        return self._procs_cpu_bound
+
+    @property
+    def procs_io_bound(self):
+        return self._procs_io_bound
 
     @property
     def boto3_session(self):
@@ -194,7 +223,10 @@ class SessionPrimitives:
         aws_secret_access_key=None,
         aws_session_token=None,
         region_name=None,
-        cpu_count=None,
+        botocore_max_retries=None,
+        botocore_config=None,
+        procs_cpu_bound=None,
+        procs_io_bound=None,
     ):
         """
         Most parameters inherit from Boto3.
@@ -205,14 +237,22 @@ class SessionPrimitives:
         :param aws_secret_access_key: Boto3 aws_secret_access_key
         :param aws_session_token: Boto3 aws_session_token
         :param region_name: Boto3 region_name
-        :param cpu_count: number of cpu cores that can be used in single node applications
+        :param botocore_max_retries: Botocore max retries
+        :param botocore_config: Botocore configurations
+        :param procs_cpu_bound: number of processes that can be used in single
+        node applications for CPU bound case (Default: os.cpu_count())
+        :param procs_io_bound: number of processes that can be used in single
+        node applications for I/O bound cases (Default: os.cpu_count() * PROCS_IO_BOUND_FACTOR)
         """
         self._profile_name = profile_name
         self._aws_access_key_id = aws_access_key_id
         self._aws_secret_access_key = aws_secret_access_key
         self._aws_session_token = aws_session_token
         self._region_name = region_name
-        self._cpu_count = cpu_count
+        self._botocore_max_retries = botocore_max_retries
+        self._botocore_config = botocore_config
+        self._procs_cpu_bound = procs_cpu_bound
+        self._procs_io_bound = procs_io_bound
 
     @property
     def profile_name(self):
@@ -235,8 +275,20 @@ class SessionPrimitives:
         return self._region_name
 
     @property
-    def cpu_count(self):
-        return self._cpu_count
+    def botocore_max_retries(self):
+        return self._botocore_max_retries
+
+    @property
+    def botocore_config(self):
+        return self._botocore_config
+
+    @property
+    def procs_cpu_bound(self):
+        return self._procs_cpu_bound
+
+    @property
+    def procs_io_bound(self):
+        return self._procs_io_bound
 
     @property
     def session(self):
@@ -250,5 +302,7 @@ class SessionPrimitives:
             aws_secret_access_key=self._aws_secret_access_key,
             aws_session_token=self._aws_session_token,
             region_name=self._region_name,
-            cpu_count=self._cpu_count,
+            botocore_max_retries=self._botocore_max_retries,
+            procs_cpu_bound=self._procs_cpu_bound,
+            procs_io_bound=self._procs_io_bound,
         )

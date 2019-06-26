@@ -8,7 +8,9 @@ class Athena:
         self._session = session
 
     def run_query(self, query, database, s3_output):
-        client = self._session.boto3_session.client("athena")
+        client = self._session.boto3_session.client(
+            service_name="athena", config=self._session.botocore_config
+        )
         response = client.start_query_execution(
             QueryString=query,
             QueryExecutionContext={"Database": database},
@@ -17,7 +19,9 @@ class Athena:
         return response["QueryExecutionId"]
 
     def wait_query(self, query_execution_id):
-        client = self._session.boto3_session.client("athena")
+        client = self._session.boto3_session.client(
+            service_name="athena", config=self._session.botocore_config
+        )
         final_states = ["FAILED", "SUCCEEDED", "CANCELLED"]
         response = client.get_query_execution(QueryExecutionId=query_execution_id)
         while (
