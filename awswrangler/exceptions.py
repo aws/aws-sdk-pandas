@@ -14,5 +14,9 @@ class InvalidArguments(Exception):
     pass
 
 
+class InvalidDataframeType(Exception):
+    pass
+
+
 class RedshiftLoadError(Exception):
     pass

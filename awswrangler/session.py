@@ -8,6 +8,7 @@ from awswrangler.athena import Athena
 from awswrangler.pandas import Pandas
 from awswrangler.glue import Glue
 from awswrangler.redshift import Redshift
+from awswrangler.spark import Spark
 
 
 class Session:
@@ -86,6 +87,7 @@ class Session:
         self._pandas = None
         self._glue = None
         self._redshift = None
+        self._spark = None
 
     def _load_new_boto3_session(self):
         """
@@ -207,6 +209,12 @@ class Session:
         if not self._redshift:
             self._redshift = Redshift(session=self)
         return self._redshift
+
+    @property
+    def spark(self):
+        if not self._spark:
+            self._spark = Spark(session=self)
+        return self._spark
 
 
 class SessionPrimitives:

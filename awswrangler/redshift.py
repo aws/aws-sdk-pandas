@@ -2,7 +2,7 @@ import json
 
 import pg
 
-from awswrangler.exceptions import RedshiftLoadError, UnsupportedType
+from awswrangler.exceptions import RedshiftLoadError, UnsupportedType, InvalidDataframeType
 
 
 class Redshift:
@@ -49,6 +49,7 @@ class Redshift:
     @staticmethod
     def load_table(
         dataframe,
+        dataframe_type,
         manifest_path,
         schema_name,
         table_name,
@@ -65,7 +66,7 @@ class Redshift:
                 f"DROP TABLE IF EXISTS {schema_name}.{table_name}"
             )
         schema = Redshift._get_redshift_schema(
-            dataframe=dataframe, preserve_index=preserve_index
+            dataframe=dataframe, dataframe_type=dataframe_type, preserve_index=preserve_index
         )
         cols_str = "".join([f"{col[0]} {col[1]},\n" for col in schema])[:-2]
         sql = (
@@ -100,19 +101,26 @@ class Redshift:
         redshift_conn.commit()
 
     @staticmethod
-    def _get_redshift_schema(dataframe, preserve_index=False):
+    def _get_redshift_schema(dataframe, dataframe_type, preserve_index=False):
         schema_built = []
-        if preserve_index:
-            name = str(dataframe.index.name) if dataframe.index.name else "index"
-            dataframe.index.name = "index"
-            dtype = str(dataframe.index.dtype)
-            redshift_type = Redshift._type_pandas2redshift(dtype)
-            schema_built.append((name, redshift_type))
-        for col in dataframe.columns:
-            name = str(col)
-            dtype = str(dataframe[name].dtype)
-            redshift_type = Redshift._type_pandas2redshift(dtype)
-            schema_built.append((name, redshift_type))
+        if dataframe_type == "pandas":
+            if preserve_index:
+                name = str(dataframe.index.name) if dataframe.index.name else "index"
+                dataframe.index.name = "index"
+                dtype = str(dataframe.index.dtype)
+                redshift_type = Redshift._type_pandas2redshift(dtype)
+                schema_built.append((name, redshift_type))
+            for col in dataframe.columns:
+                name = str(col)
+                dtype = str(dataframe[name].dtype)
+                redshift_type = Redshift._type_pandas2redshift(dtype)
+                schema_built.append((name, redshift_type))
+        elif dataframe_type == "spark":
+            for name, dtype in dataframe.dtypes:
+                redshift_type = Redshift._type_spark2redshift(dtype)
+                schema_built.append((name, redshift_type))
+        else:
+            raise InvalidDataframeType(dataframe_type)
         return schema_built
 
     @staticmethod
@@ -134,3 +142,21 @@ class Redshift:
             return "TIMESTAMP"
         else:
             raise UnsupportedType("Unsupported Pandas type: " + dtype)
+
+    @staticmethod
+    def _type_spark2redshift(dtype):
+        dtype = dtype.lower()
+        if dtype == "int":
+            return "INTEGER"
+        elif dtype == "long":
+            return "BIGINT"
+        elif dtype == "float":
+            return "FLOAT8"
+        elif dtype == "bool":
+            return "BOOLEAN"
+        elif dtype == "string":
+            return "VARCHAR(256)"
+        elif dtype[:10] == "datetime.datetime":
+            return "TIMESTAMP"
+        else:
+            raise UnsupportedType("Unsupported Spark type: " + dtype)

@@ -134,4 +134,4 @@ notes.txt
 
 # SAM
 .aws-sam
-parameters.txt
+*parameters.json
