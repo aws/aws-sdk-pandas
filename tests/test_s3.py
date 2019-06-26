@@ -44,7 +44,7 @@ def write_fake_objects(bucket, path, num):
     args = []
     for item in bounders:
         args.append((bucket, path, item[0], item[1]))
-    pool = mp.Pool(cpus)
+    pool = mp.Pool(processes=cpus)
     pool.map(wrt_fake_objs_batch_wrapper, args)
 
 

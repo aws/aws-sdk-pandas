@@ -181,8 +181,8 @@ class S3:
     @staticmethod
     @tenacity.retry(
         retry=tenacity.retry_if_exception_type(exception_types=ClientError),
-        wait=tenacity.wait_random_exponential(multiplier=0.5, max=5),
-        stop=tenacity.stop_after_attempt(max_attempt_number=10),
+        wait=tenacity.wait_random_exponential(multiplier=0.5, max=10),
+        stop=tenacity.stop_after_attempt(max_attempt_number=15),
         reraise=True,
     )
     def _head_object_with_retry(client, bucket, key):
