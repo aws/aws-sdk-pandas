@@ -1,3 +1,5 @@
+import math
+
 import pandas
 
 from pyspark.sql.functions import pandas_udf, PandasUDFType
@@ -20,6 +22,10 @@ class Spark:
         num_slices = self._session.redshift.get_number_of_slices(
             redshift_conn=connection
         )
+        num_rows = dataframe.count()
+        if num_rows / num_slices >= 10000:
+            num_slices = math.ceil(float(num_rows) / 10000.0)
+
         spark.conf.set("spark.sql.execution.arrow.enabled", "true")
         session_primitives = self._session.primitives
         if path[-1] != "/":
