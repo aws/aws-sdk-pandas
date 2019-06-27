@@ -3,6 +3,7 @@ import json
 import pytest
 import boto3
 import pandas
+from pyspark.sql import SparkSession
 
 from awswrangler import Session, Redshift
 
@@ -20,7 +21,9 @@ def cloudformation_outputs():
 
 @pytest.fixture(scope="module")
 def session():
-    yield Session()
+    yield Session(
+        spark_session=SparkSession.builder.appName("AWS Wrangler Test").getOrCreate()
+    )
 
 
 @pytest.fixture(scope="module")
@@ -69,13 +72,15 @@ def redshift_parameters(cloudformation_outputs):
         ("small", "append", 2),
     ],
 )
-def test_to_redshiftc(session, bucket, redshift_parameters, sample_name, mode, factor):
-    conn = Redshift.generate_connection(
-        dbname="test",
+def test_to_redshift_pandas(
+    session, bucket, redshift_parameters, sample_name, mode, factor
+):
+    con = Redshift.generate_connection(
+        database="test",
         host=redshift_parameters.get("RedshiftAddress"),
         port=redshift_parameters.get("RedshiftPort"),
         user="test",
-        passwd=redshift_parameters.get("RedshiftPassword"),
+        password=redshift_parameters.get("RedshiftPassword"),
     )
     dataframe = pandas.read_csv(f"data_samples/{sample_name}.csv")
     path = f"s3://{bucket}/redshift-load/"
@@ -84,14 +89,55 @@ def test_to_redshiftc(session, bucket, redshift_parameters, sample_name, mode, f
         path=path,
         schema="public",
         table="test",
-        connection=conn,
+        connection=con,
         iam_role=redshift_parameters.get("RedshiftRole"),
         mode=mode,
         preserve_index=False,
     )
-    res = conn.query("SELECT COUNT(*) as counter from public.test")
-    counter = res.dictresult()[0]["counter"]
+    cursor = con.cursor()
+    cursor.execute("SELECT COUNT(*) as counter from public.test")
+    counter = cursor.fetchall()[0][0]
+    cursor.close()
+    con.close()
     assert len(dataframe.index) * factor == counter
+
+
+@pytest.mark.parametrize(
+    "sample_name,mode,factor",
+    [
+        ("micro", "overwrite", 1),
+        ("micro", "append", 2),
+        ("small", "overwrite", 1),
+        ("small", "append", 2),
+    ],
+)
+def test_to_redshift_spark(
+    session, bucket, redshift_parameters, sample_name, mode, factor
+):
+    path = f"data_samples/{sample_name}.csv"
+    dataframe = session.spark.read_csv(path=path)
+    con = Redshift.generate_connection(
+        database="test",
+        host=redshift_parameters.get("RedshiftAddress"),
+        port=redshift_parameters.get("RedshiftPort"),
+        user="test",
+        password=redshift_parameters.get("RedshiftPassword"),
+    )
+    session.spark.to_redshift(
+        dataframe=dataframe,
+        path=f"s3://{bucket}/redshift-load/",
+        connection=con,
+        schema="public",
+        table="test",
+        iam_role=redshift_parameters.get("RedshiftRole"),
+        mode=mode,
+    )
+    cursor = con.cursor()
+    cursor.execute("SELECT COUNT(*) as counter from public.test")
+    counter = cursor.fetchall()[0][0]
+    cursor.close()
+    con.close()
+    assert dataframe.count() * factor == counter
 
 
 def test_write_load_manifest(session, bucket):

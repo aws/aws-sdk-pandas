@@ -373,6 +373,7 @@ class Pandas:
         )
         self._session.redshift.load_table(
             dataframe=dataframe,
+            dataframe_type="pandas",
             manifest_path=manifest_path,
             schema_name=schema,
             table_name=table,

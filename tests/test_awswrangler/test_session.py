@@ -34,10 +34,6 @@ def test_from_boto3_keys(default_session):
     )
 
 
-def test_from_boto3_profile_name(default_session):
-    assert_account_id(Session(profile_name=default_session.profile_name))
-
-
 def test_from_boto3_region_name(default_session):
     assert_account_id(Session(region_name=default_session.region_name))
 
