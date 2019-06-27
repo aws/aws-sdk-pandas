@@ -13,14 +13,7 @@ class Spark:
         return spark.read.csv(path=path, header=True)
 
     def to_redshift(
-        self,
-        dataframe,
-        path,
-        connection,
-        schema,
-        table,
-        iam_role,
-        mode="append",
+        self, dataframe, path, connection, schema, table, iam_role, mode="append"
     ):
         spark = self._session.spark_session
         self._session.s3.delete_objects(path=path)
@@ -32,7 +25,9 @@ class Spark:
         if path[-1] != "/":
             path += "/"
 
-        @pandas_udf(returnType="objects_paths string", functionType=PandasUDFType.GROUPED_MAP)
+        @pandas_udf(
+            returnType="objects_paths string", functionType=PandasUDFType.GROUPED_MAP
+        )
         def write(pandas_dataframe):
             del pandas_dataframe["partition_index"]
             paths = session_primitives.session.pandas.to_parquet(
@@ -44,9 +39,11 @@ class Spark:
             )
             return pandas.DataFrame.from_dict({"objects_paths": paths})
 
-        df_objects_paths = dataframe.withColumn("partition_index", floor(rand() * num_slices))\
-            .groupby("partition_index")\
+        df_objects_paths = (
+            dataframe.withColumn("partition_index", floor(rand() * num_slices))
+            .groupby("partition_index")
             .apply(write)
+        )
         objects_paths = list(df_objects_paths.toPandas()["objects_paths"])
         manifest_path = f"{path}manifest.json"
         self._session.redshift.write_load_manifest(

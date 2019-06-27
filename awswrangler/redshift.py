@@ -1,8 +1,12 @@
 import json
 
-import pg
+import pg8000
 
-from awswrangler.exceptions import RedshiftLoadError, UnsupportedType, InvalidDataframeType
+from awswrangler.exceptions import (
+    RedshiftLoadError,
+    UnsupportedType,
+    InvalidDataframeType,
+)
 
 
 class Redshift:
@@ -10,20 +14,31 @@ class Redshift:
         self._session = session
 
     @staticmethod
-    def generate_connection(dbname, host, port, user, passwd):
-        return pg.DB(dbname=dbname, host=host, port=int(port), user=user, passwd=passwd)
+    def generate_connection(database, host, port, user, password):
+        conn = pg8000.connect(
+            database=database,
+            host=host,
+            port=int(port),
+            user=user,
+            password=password,
+            ssl=False,
+        )
+        cursor = conn.cursor()
+        cursor.execute("set statement_timeout = 1200000")
+        conn.commit()
+        cursor.close()
+        return conn
 
     def get_connection(self, glue_connection):
         conn_details = self._session.glue.get_connection_details(name=glue_connection)
         props = conn_details["ConnectionProperties"]
         host = props["JDBC_CONNECTION_URL"].split(":")[2].replace("/", "")
-        port, dbname = props["JDBC_CONNECTION_URL"].split(":")[3].split("/")
+        port, database = props["JDBC_CONNECTION_URL"].split(":")[3].split("/")
         user = props["USERNAME"]
         password = props["PASSWORD"]
-        conn = pg.DB(
-            dbname=dbname, host=host, port=int(port), user=user, passwd=password
+        conn = self.generate_connection(
+            database=database, host=host, port=int(port), user=user, password=password
         )
-        conn.query("set statement_timeout = 1200000")
         return conn
 
     def write_load_manifest(self, manifest_path, objects_paths):
@@ -40,10 +55,12 @@ class Redshift:
 
     @staticmethod
     def get_number_of_slices(redshift_conn):
-        res = redshift_conn.query(
+        cursor = redshift_conn.cursor()
+        cursor.execute(
             "SELECT COUNT(*) as count_slices FROM (SELECT DISTINCT node, slice from STV_SLICES)"
         )
-        count_slices = res.dictresult()[0]["count_slices"]
+        count_slices = cursor.fetchall()[0][0]
+        cursor.close()
         return count_slices
 
     @staticmethod
@@ -59,14 +76,16 @@ class Redshift:
         mode="append",
         preserve_index=False,
     ):
-        redshift_conn.begin()
+        cursor = redshift_conn.cursor()
         if mode == "overwrite":
-            redshift_conn.query(
+            cursor.execute(
                 "-- AWS DATA WRANGLER\n"
                 f"DROP TABLE IF EXISTS {schema_name}.{table_name}"
             )
         schema = Redshift._get_redshift_schema(
-            dataframe=dataframe, dataframe_type=dataframe_type, preserve_index=preserve_index
+            dataframe=dataframe,
+            dataframe_type=dataframe_type,
+            preserve_index=preserve_index,
         )
         cols_str = "".join([f"{col[0]} {col[1]},\n" for col in schema])[:-2]
         sql = (
@@ -74,7 +93,7 @@ class Redshift:
             f"CREATE TABLE IF NOT EXISTS {schema_name}.{table_name} (\n{cols_str}"
             ") DISTSTYLE AUTO"
         )
-        redshift_conn.query(sql)
+        cursor.execute(sql)
         sql = (
             "-- AWS DATA WRANGLER\n"
             f"COPY {schema_name}.{table_name} FROM '{manifest_path}'\n"
@@ -82,23 +101,23 @@ class Redshift:
             "MANIFEST\n"
             "FORMAT AS PARQUET"
         )
-        redshift_conn.query(sql)
-        res = redshift_conn.query(
-            "-- AWS DATA WRANGLER\n SELECT pg_last_copy_id() AS query_id"
-        )
-        query_id = res.dictresult()[0]["query_id"]
+        cursor.execute(sql)
+        cursor.execute("-- AWS DATA WRANGLER\n SELECT pg_last_copy_id() AS query_id")
+        query_id = cursor.fetchall()[0][0]
         sql = (
             "-- AWS DATA WRANGLER\n"
             f"SELECT COUNT(*) as num_files_loaded FROM STL_LOAD_COMMITS WHERE query = {query_id}"
         )
-        res = redshift_conn.query(sql)
-        num_files_loaded = res.dictresult()[0]["num_files_loaded"]
+        cursor.execute(sql)
+        num_files_loaded = cursor.fetchall()[0][0]
         if num_files_loaded != num_files:
             redshift_conn.rollback()
+            cursor.close()
             raise RedshiftLoadError(
                 f"Redshift load rollbacked. {num_files_loaded} files counted. {num_files} expected."
             )
         redshift_conn.commit()
+        cursor.close()
 
     @staticmethod
     def _get_redshift_schema(dataframe, dataframe_type, preserve_index=False):
