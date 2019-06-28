@@ -6,6 +6,9 @@ from pyspark.sql.functions import pandas_udf, PandasUDFType
 from pyspark.sql.functions import floor, rand
 
 
+SPARK_ARROW_MAX_RECORDS_PER_BATCH = 10000000
+
+
 class Spark:
     def __init__(self, session):
         self._session = session
@@ -23,9 +26,14 @@ class Spark:
             redshift_conn=connection
         )
         num_rows = dataframe.count()
-        if num_rows / num_slices >= 10000:
-            num_slices = math.ceil(float(num_rows) / 10000.0)
-
+        if num_rows / num_slices >= SPARK_ARROW_MAX_RECORDS_PER_BATCH:
+            num_slices = math.ceil(
+                float(num_rows) / float(SPARK_ARROW_MAX_RECORDS_PER_BATCH)
+            )
+        spark.conf.set(
+            "spark.sql.execution.arrow.maxRecordsPerBatch",
+            str(SPARK_ARROW_MAX_RECORDS_PER_BATCH),
+        )
         spark.conf.set("spark.sql.execution.arrow.enabled", "true")
         session_primitives = self._session.primitives
         if path[-1] != "/":
