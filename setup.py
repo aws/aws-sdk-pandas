@@ -21,7 +21,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     license=about["__license__"],
-    packages=find_packages(include=['awswrangler', 'awswrangler.*'], exclude=["tests"]),
+    packages=find_packages(include=["awswrangler", "awswrangler.*"], exclude=["tests"]),
     python_requires=">=3.6",
     install_requires=[
         "pyarrow>=0.13.0",
@@ -29,9 +29,7 @@ setup(
         "boto3>=1.9.130",
         "s3fs>=0.2.1",
         "tenacity>=5.0.4",
-        "pg8000>=1.13.1"
+        "pg8000>=1.13.1",
     ],
-    extras_require={
-        'pyspark': ["pyspark>=2.4.3"]
-    }
+    extras_require={"pyspark": ["pyspark>=2.4.3"]},
 )

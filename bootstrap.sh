@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 pip install --upgrade pip
 pip install pipenv --upgrade

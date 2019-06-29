@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 BUCKET=$(jq -r '.Bucket' parameters.json)
 VPC_ID=$(jq -r '.VpcId as $k | "VpcId=\($k)"' parameters.json)

@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 cd ..
 rm -fr build dist .egg requests.egg-info
