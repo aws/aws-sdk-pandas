@@ -8,7 +8,7 @@ AWS Data Wrangler aims to fill a gap between AWS Analytics Services (Glue, Athen
 
 ---
 
-*Contents:* **[Use Cases](#Use-Cases)** | **[Installation](#Installation)** | **[Usage](#Usage)** | **[Dependencies](#Dependencies)** | **[Known Limitations](#Known-Limitations)** | **[Contributing](#Contributing)** | **[License](#License)**
+*Contents:* **[Use Cases](#Use-Cases)** | **[Installation](#Installation)** | **[Usage](#Usage)** | **[License](#License)**
 
 ---
 
@@ -96,28 +96,6 @@ session.spark.to_redshift(
     mode="append",
 )
 ```
-
-## Dependencies
-
-AWS Data Wrangler project relies on others great initiatives:
-
-* **[Boto3](https://github.com/boto/boto3)**
-* **[Pandas](https://github.com/pandas-dev/pandas)**
-* **[Apache Arrow](https://github.com/apache/arrow)**
-* **[Dask s3fs](https://github.com/dask/s3fs)**
-* **[Pg8000](https://github.com/tlocke/pg8000)**
-* **[Apache Spark](https://github.com/apache/spark)**
-* **[Tenacity](https://github.com/jd/tenacity)**
-
-## Known Limitations
-
-* By now only writes in Parquet and CSV file formats
-* By now there are not compression support
-* By now there are not nested type support
-
-## Contributing
-
-For almost all features we need rely on AWS Services that didn't have mock tools in the community yet (AWS Glue, AWS Athena). So we are focusing on integration (end-to-end) tests instead unit tests.
 
 ## License
 
