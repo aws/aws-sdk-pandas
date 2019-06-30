@@ -1,4 +1,5 @@
 import json
+import logging
 
 import pg8000
 
@@ -7,6 +8,9 @@ from awswrangler.exceptions import (
     UnsupportedType,
     InvalidDataframeType,
 )
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class Redshift:

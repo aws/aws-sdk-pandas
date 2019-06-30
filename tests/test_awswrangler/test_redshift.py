@@ -1,4 +1,5 @@
 import json
+import logging
 
 import pytest
 import boto3
@@ -6,6 +7,10 @@ import pandas
 from pyspark.sql import SparkSession
 
 from awswrangler import Session, Redshift
+
+
+logging.basicConfig(level=logging.INFO)
+logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
 @pytest.fixture(scope="module")
@@ -131,6 +136,7 @@ def test_to_redshift_spark(
         table="test",
         iam_role=redshift_parameters.get("RedshiftRole"),
         mode=mode,
+        min_num_partitions=2,
     )
     cursor = con.cursor()
     cursor.execute("SELECT COUNT(*) as counter from public.test")

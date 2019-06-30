@@ -1,8 +1,14 @@
+import logging
+
 import pytest
 import boto3
 from pyspark.sql import SparkSession
 
 from awswrangler import Session
+
+
+logging.basicConfig(level=logging.INFO)
+logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
 @pytest.fixture(scope="module")

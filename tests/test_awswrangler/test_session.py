@@ -1,8 +1,13 @@
 import multiprocessing as mp
+import logging
 
 import pytest
 
 from awswrangler import Session
+
+
+logging.basicConfig(level=logging.INFO)
+logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
 def assert_account_id(session):

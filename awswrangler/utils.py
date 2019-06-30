@@ -1,8 +1,12 @@
 from math import ceil
 from math import gcd
+import logging
 
 
 from awswrangler.exceptions import InvalidArguments
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 def calculate_bounders(num_items, num_groups=None, max_size=None):

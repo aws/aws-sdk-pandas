@@ -1,4 +1,5 @@
 import os
+import logging
 
 import boto3
 from botocore.config import Config
@@ -9,6 +10,9 @@ from awswrangler.pandas import Pandas
 from awswrangler.glue import Glue
 from awswrangler.redshift import Redshift
 from awswrangler.spark import Spark
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class Session:

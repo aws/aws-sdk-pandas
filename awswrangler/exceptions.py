@@ -20,3 +20,7 @@ class InvalidDataframeType(Exception):
 
 class RedshiftLoadError(Exception):
     pass
+
+
+class MissingBatchDetected(Exception):
+    pass

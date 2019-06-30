@@ -1,10 +1,15 @@
 from time import sleep
+import logging
 
 import pytest
 import boto3
 import pandas
 
 from awswrangler import Session
+
+
+logging.basicConfig(level=logging.INFO)
+logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
 @pytest.fixture(scope="module")

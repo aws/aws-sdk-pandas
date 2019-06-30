@@ -1,11 +1,15 @@
 import multiprocessing as mp
 from math import ceil
+import logging
 
 from botocore.exceptions import ClientError
 import s3fs
 import tenacity
 
 from awswrangler.utils import calculate_bounders
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 def mkdir_if_not_exists(fs, path):

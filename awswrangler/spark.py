@@ -1,9 +1,17 @@
-import math
+import logging
 
 import pandas
 
 from pyspark.sql.functions import pandas_udf, PandasUDFType
 from pyspark.sql.functions import floor, rand
+
+from awswrangler.exceptions import MissingBatchDetected
+
+
+LOGGER = logging.getLogger(__name__)
+
+MIN_NUMBER_OF_ROWS_TO_DISTRIBUTE = 1000
+
 
 class Spark:
     def __init__(self, session):
@@ -14,30 +22,38 @@ class Spark:
         return spark.read.csv(path=path, header=True)
 
     def to_redshift(
-        self, dataframe, path, connection, schema, table, iam_role, max_rows_per_file=10_000_000, mode="append"
+        self,
+        dataframe,
+        path,
+        connection,
+        schema,
+        table,
+        iam_role,
+        min_num_partitions=200,
+        mode="append",
     ):
-        spark = self._session.spark_session
+        LOGGER.debug(f"Minimum number of partitions : {min_num_partitions}")
         self._session.s3.delete_objects(path=path)
         num_slices = self._session.redshift.get_number_of_slices(
             redshift_conn=connection
         )
+        LOGGER.debug(f"Number of slices on Redshift: {num_slices}")
+        spark = self._session.spark_session
         dataframe.cache()
         num_rows = dataframe.count()
-
-        min_num_partitions = math.ceil( float(num_rows) / float(max_rows_per_file) )
-        num_partitions = num_slices
-        while num_partitions < min_num_partitions:
-            num_partitions += num_slices
-
-        print(f"num_slices: {num_slices}")
-        print(f"max_rows_per_file: {max_rows_per_file}")
-        print(f"min_num_partitions: {min_num_partitions}")
-        print(f"num_partitions: {num_partitions}")
-        
+        LOGGER.info(f"Number of rows: {num_rows}")
+        if num_rows < MIN_NUMBER_OF_ROWS_TO_DISTRIBUTE:
+            num_partitions = 1
+        else:
+            num_partitions = num_slices
+            while num_partitions < min_num_partitions:
+                num_partitions += num_slices
+        LOGGER.debug(f"Number of partitions calculated: {num_partitions}")
         if path[-1] != "/":
             path += "/"
         spark.conf.set("spark.sql.execution.arrow.enabled", "true")
         session_primitives = self._session.primitives
+
         @pandas_udf(
             returnType="objects_paths string", functionType=PandasUDFType.GROUPED_MAP
         )
@@ -51,17 +67,21 @@ class Spark:
                 procs_cpu_bound=1,
             )
             return pandas.DataFrame.from_dict({"objects_paths": paths})
-        dataframe.unpersist()
+
         df_objects_paths = (
             dataframe.withColumn("partition_index", floor(rand() * num_partitions))
+            .repartition("partition_index")
             .groupby("partition_index")
             .apply(write)
         )
         objects_paths = list(df_objects_paths.toPandas()["objects_paths"])
-        
-        print(f"objects_paths: {objects_paths}")
-        print(f"len(objects_paths): {len(objects_paths)}")
-
+        num_files_returned = len(objects_paths)
+        if num_files_returned != num_partitions:
+            raise MissingBatchDetected(
+                f"{num_files_returned} files returned. {num_partitions} expected."
+            )
+        LOGGER.debug(f"List of objects returned: {objects_paths}")
+        LOGGER.debug(f"Number of objects returned from UDF: {num_files_returned}")
         manifest_path = f"{path}manifest.json"
         self._session.redshift.write_load_manifest(
             manifest_path=manifest_path, objects_paths=objects_paths
@@ -78,4 +98,5 @@ class Spark:
             iam_role=iam_role,
             mode=mode,
         )
+        dataframe.unpersist()
         self._session.s3.delete_objects(path=path)

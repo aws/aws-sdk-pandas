@@ -1,5 +1,6 @@
 from io import BytesIO
 import multiprocessing as mp
+import logging
 
 import pandas
 import pyarrow
@@ -8,6 +9,11 @@ from pyarrow import parquet
 from awswrangler.exceptions import UnsupportedWriteMode, UnsupportedFileFormat
 from awswrangler.utils import calculate_bounders
 from awswrangler import s3
+
+
+LOGGER = logging.getLogger(__name__)
+
+MIN_NUMBER_OF_ROWS_TO_DISTRIBUTE = 1000
 
 
 def _get_bounders(dataframe, num_partitions):
@@ -358,12 +364,20 @@ class Pandas:
         num_slices = self._session.redshift.get_number_of_slices(
             redshift_conn=connection
         )
+        LOGGER.debug(f"Number of slices on Redshift: {num_slices}")
+        num_rows = len(dataframe.index)
+        LOGGER.info(f"Number of rows: {num_rows}")
+        if num_rows < MIN_NUMBER_OF_ROWS_TO_DISTRIBUTE:
+            num_partitions = 1
+        else:
+            num_partitions = num_slices
+        LOGGER.debug(f"Number of partitions calculated: {num_partitions}")
         objects_paths = self.to_parquet(
             dataframe=dataframe,
             path=path,
             preserve_index=preserve_index,
             mode="append",
-            procs_cpu_bound=num_slices,
+            procs_cpu_bound=num_partitions,
         )
         if path[-1] != "/":
             path += "/"
@@ -379,7 +393,7 @@ class Pandas:
             table_name=table,
             redshift_conn=connection,
             preserve_index=False,
-            num_files=num_slices,
+            num_files=num_partitions,
             iam_role=iam_role,
             mode=mode,
         )

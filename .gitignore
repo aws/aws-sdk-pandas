@@ -130,7 +130,6 @@ output/
 # Development
 dev/
 metrics/
-notes.txt
 
 # SAM
 .aws-sam

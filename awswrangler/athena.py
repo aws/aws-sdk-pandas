@@ -1,4 +1,8 @@
 from time import sleep
+import logging
+
+
+LOGGER = logging.getLogger(__name__)
 
 QUERY_WAIT_POLLING_DELAY = 0.2  # MILLISECONDS
 

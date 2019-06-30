@@ -1,7 +1,11 @@
 from math import ceil
 import re
+import logging
 
 from awswrangler.exceptions import UnsupportedType, UnsupportedFileFormat
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class Glue:

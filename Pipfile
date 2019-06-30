@@ -7,7 +7,6 @@ verify_ssl = true
 black = "==19.3b0"
 flake8 = "==3.7.7"
 pytest = "==4.3.1"
-pytest-cov = "==2.6.1"
 twine = "==1.13.0"
 
 [packages]

@@ -1,5 +1,5 @@
 #!/bin/bash
 
 cd ..
-rm -rf .tox .pytest_cache .coverage .coverage.*
+rm -rf .pytest_cache
 cd tests

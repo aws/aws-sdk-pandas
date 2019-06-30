@@ -1,10 +1,15 @@
 import multiprocessing as mp
 from time import sleep
+import logging
 
 import pytest
 import boto3
 
 from awswrangler import Session
+
+
+logging.basicConfig(level=logging.INFO)
+logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
 def calc_bounders(num, cpus):
