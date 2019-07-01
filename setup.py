@@ -31,5 +31,4 @@ setup(
         "tenacity>=5.0.4",
         "pg8000>=1.13.1",
     ],
-    extras_require={"pyspark": ["pyspark>=2.4.3"]},
 )

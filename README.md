@@ -8,7 +8,7 @@ AWS Data Wrangler aims to fill a gap between AWS Analytics Services (Glue, Athen
 
 ---
 
-*Contents:* **[Use Cases](#Use-Cases)** | **[Installation](#Installation)** | **[Usage](#Usage)** | **[License](#License)**
+*Contents:* **[Use Cases](#Use-Cases)** | **[Installation](#Installation)** | **[Examples](#Examples)** | **[License](#License)**
 
 ---
 
@@ -30,7 +30,7 @@ AWS Data Wrangler aims to fill a gap between AWS Analytics Services (Glue, Athen
 AWS Data Wrangler runs only Python 3.6 and beyond.
 And runs on AWS Lambda, AWS Glue, EC2, on-premises, local, etc.
 
-## Usage
+## Examples
 
 ### Writing Pandas Dataframe to Data Lake
 

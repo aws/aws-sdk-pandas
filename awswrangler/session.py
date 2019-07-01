@@ -1,5 +1,6 @@
 import os
 import logging
+import importlib
 
 import boto3
 from botocore.config import Config
@@ -9,7 +10,11 @@ from awswrangler.athena import Athena
 from awswrangler.pandas import Pandas
 from awswrangler.glue import Glue
 from awswrangler.redshift import Redshift
-from awswrangler.spark import Spark
+
+PYSPARK_INSTALLED = False
+if importlib.util.find_spec("pyspark"):
+    PYSPARK_INSTALLED = True
+    from awswrangler.spark import Spark
 
 
 LOGGER = logging.getLogger(__name__)
@@ -216,7 +221,9 @@ class Session:
 
     @property
     def spark(self):
-        if not self._spark:
+        if not PYSPARK_INSTALLED:
+            self._spark = None
+        elif not self._spark:
             self._spark = Spark(session=self)
         return self._spark
 
