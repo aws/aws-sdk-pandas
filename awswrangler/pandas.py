@@ -10,7 +10,6 @@ from awswrangler.exceptions import UnsupportedWriteMode, UnsupportedFileFormat
 from awswrangler.utils import calculate_bounders
 from awswrangler import s3
 
-
 LOGGER = logging.getLogger(__name__)
 
 MIN_NUMBER_OF_ROWS_TO_DISTRIBUTE = 1000
@@ -32,24 +31,25 @@ class Pandas:
         return parts[0], parts[2]
 
     def read_csv(
-        self,
-        path,
-        header="infer",
-        names=None,
-        dtype=None,
-        sep=",",
-        lineterminator="\n",
-        quotechar='"',
-        quoting=0,
-        escapechar=None,
-        parse_dates=False,
-        infer_datetime_format=False,
-        encoding=None,
+            self,
+            path,
+            header="infer",
+            names=None,
+            dtype=None,
+            sep=",",
+            lineterminator="\n",
+            quotechar='"',
+            quoting=0,
+            escapechar=None,
+            parse_dates=False,
+            infer_datetime_format=False,
+            encoding=None,
     ):
         bucket_name, key_path = self._parse_path(path)
         s3_client = self._session.boto3_session.client(
-            service_name="s3", use_ssl=True, config=self._session.botocore_config
-        )
+            service_name="s3",
+            use_ssl=True,
+            config=self._session.botocore_config)
         buff = BytesIO()
         s3_client.download_fileobj(bucket_name, key_path, buff)
         buff.seek(0),
@@ -72,27 +72,21 @@ class Pandas:
 
     def read_sql_athena(self, sql, database, s3_output=None):
         if not s3_output:
-            account_id = (
-                self._session.boto3_session.client(
-                    service_name="sts", config=self._session.botocore_config
-                )
-                .get_caller_identity()
-                .get("Account")
-            )
+            account_id = (self._session.boto3_session.client(
+                service_name="sts", config=self._session.botocore_config).
+                          get_caller_identity().get("Account"))
             session_region = self._session.boto3_session.region_name
             s3_output = f"s3://aws-athena-query-results-{account_id}-{session_region}/"
             s3_resource = self._session.boto3_session.resource("s3")
             s3_resource.Bucket(s3_output)
-        query_execution_id = self._session.athena.run_query(sql, database, s3_output)
+        query_execution_id = self._session.athena.run_query(
+            sql, database, s3_output)
         query_response = self._session.athena.wait_query(
-            query_execution_id=query_execution_id
-        )
-        if query_response.get("QueryExecution").get("Status").get("State") == "FAILED":
-            reason = (
-                query_response.get("QueryExecution")
-                .get("Status")
-                .get("StateChangeReason")
-            )
+            query_execution_id=query_execution_id)
+        if query_response.get("QueryExecution").get("Status").get(
+                "State") == "FAILED":
+            reason = (query_response.get("QueryExecution").get("Status").get(
+                "StateChangeReason"))
             message_error = f"Query error: {reason}"
             raise Exception(message_error)
         else:
@@ -101,15 +95,15 @@ class Pandas:
         return dataframe
 
     def to_csv(
-        self,
-        dataframe,
-        path,
-        database=None,
-        table=None,
-        partition_cols=None,
-        preserve_index=True,
-        mode="append",
-        procs_cpu_bound=None,
+            self,
+            dataframe,
+            path,
+            database=None,
+            table=None,
+            partition_cols=None,
+            preserve_index=True,
+            mode="append",
+            procs_cpu_bound=None,
     ):
         return self.to_s3(
             dataframe=dataframe,
@@ -124,15 +118,15 @@ class Pandas:
         )
 
     def to_parquet(
-        self,
-        dataframe,
-        path,
-        database=None,
-        table=None,
-        partition_cols=None,
-        preserve_index=True,
-        mode="append",
-        procs_cpu_bound=None,
+            self,
+            dataframe,
+            path,
+            database=None,
+            table=None,
+            partition_cols=None,
+            preserve_index=True,
+            mode="append",
+            procs_cpu_bound=None,
     ):
         return self.to_s3(
             dataframe=dataframe,
@@ -147,22 +141,21 @@ class Pandas:
         )
 
     def to_s3(
-        self,
-        dataframe,
-        path,
-        file_format,
-        database=None,
-        table=None,
-        partition_cols=None,
-        preserve_index=True,
-        mode="append",
-        procs_cpu_bound=None,
+            self,
+            dataframe,
+            path,
+            file_format,
+            database=None,
+            table=None,
+            partition_cols=None,
+            preserve_index=True,
+            mode="append",
+            procs_cpu_bound=None,
     ):
         if not partition_cols:
             partition_cols = []
-        if mode == "overwrite" or (
-            mode == "overwrite_partitions" and not partition_cols
-        ):
+        if mode == "overwrite" or (mode == "overwrite_partitions"
+                                   and not partition_cols):
             self._session.s3.delete_objects(path=path)
         elif mode not in ["overwrite_partitions", "append"]:
             raise UnsupportedWriteMode(mode)
@@ -190,14 +183,14 @@ class Pandas:
         return objects_paths
 
     def data_to_s3(
-        self,
-        dataframe,
-        path,
-        file_format,
-        partition_cols=None,
-        preserve_index=True,
-        mode="append",
-        procs_cpu_bound=None,
+            self,
+            dataframe,
+            path,
+            file_format,
+            partition_cols=None,
+            preserve_index=True,
+            mode="append",
+            procs_cpu_bound=None,
     ):
         if not procs_cpu_bound:
             procs_cpu_bound = self._session.procs_cpu_bound
@@ -208,9 +201,8 @@ class Pandas:
             raise UnsupportedFileFormat(file_format)
         objects_paths = []
         if procs_cpu_bound > 1:
-            bounders = _get_bounders(
-                dataframe=dataframe, num_partitions=procs_cpu_bound
-            )
+            bounders = _get_bounders(dataframe=dataframe,
+                                     num_partitions=procs_cpu_bound)
             procs = []
             receive_pipes = []
             for bounder in bounders:
@@ -219,7 +211,7 @@ class Pandas:
                     target=self._data_to_s3_dataset_writer_remote,
                     args=(
                         send_pipe,
-                        dataframe.iloc[bounder[0] : bounder[1], :],
+                        dataframe.iloc[bounder[0]:bounder[1], :],
                         path,
                         partition_cols,
                         preserve_index,
@@ -245,13 +237,14 @@ class Pandas:
                 file_format=file_format,
             )
         if mode == "overwrite_partitions" and partition_cols:
-            self._session.s3.delete_not_listed_objects(objects_paths=objects_paths)
+            self._session.s3.delete_not_listed_objects(
+                objects_paths=objects_paths)
         return objects_paths
 
     @staticmethod
-    def _data_to_s3_dataset_writer(
-        dataframe, path, partition_cols, preserve_index, session_primitives, file_format
-    ):
+    def _data_to_s3_dataset_writer(dataframe, path, partition_cols,
+                                   preserve_index, session_primitives,
+                                   file_format):
         objects_paths = []
         if not partition_cols:
             object_path = Pandas._data_to_s3_object_writer(
@@ -266,10 +259,10 @@ class Pandas:
             for keys, subgroup in dataframe.groupby(partition_cols):
                 subgroup = subgroup.drop(partition_cols, axis="columns")
                 if not isinstance(keys, tuple):
-                    keys = (keys,)
-                subdir = "/".join(
-                    [f"{name}={val}" for name, val in zip(partition_cols, keys)]
-                )
+                    keys = (keys, )
+                subdir = "/".join([
+                    f"{name}={val}" for name, val in zip(partition_cols, keys)
+                ])
                 prefix = "/".join([path, subdir])
                 object_path = Pandas._data_to_s3_object_writer(
                     dataframe=subgroup,
@@ -283,13 +276,13 @@ class Pandas:
 
     @staticmethod
     def _data_to_s3_dataset_writer_remote(
-        send_pipe,
-        dataframe,
-        path,
-        partition_cols,
-        preserve_index,
-        session_primitives,
-        file_format,
+            send_pipe,
+            dataframe,
+            path,
+            partition_cols,
+            preserve_index,
+            session_primitives,
+            file_format,
     ):
         send_pipe.send(
             Pandas._data_to_s3_dataset_writer(
@@ -299,14 +292,12 @@ class Pandas:
                 preserve_index=preserve_index,
                 session_primitives=session_primitives,
                 file_format=file_format,
-            )
-        )
+            ))
         send_pipe.close()
 
     @staticmethod
-    def _data_to_s3_object_writer(
-        dataframe, path, preserve_index, session_primitives, file_format
-    ):
+    def _data_to_s3_object_writer(dataframe, path, preserve_index,
+                                  session_primitives, file_format):
         fs = s3.get_fs(session_primitives=session_primitives)
         fs = pyarrow.filesystem._ensure_filesystem(fs)
         s3.mkdir_if_not_exists(fs, path)
@@ -336,34 +327,33 @@ class Pandas:
     @staticmethod
     def write_csv_dataframe(dataframe, path, preserve_index, fs):
         csv_buffer = bytes(
-            dataframe.to_csv(None, header=False, index=preserve_index), "utf-8"
-        )
+            dataframe.to_csv(None, header=False, index=preserve_index),
+            "utf-8")
         with fs.open(path, "wb") as f:
             f.write(csv_buffer)
 
     @staticmethod
     def write_parquet_dataframe(dataframe, path, preserve_index, fs):
-        table = pyarrow.Table.from_pandas(
-            df=dataframe, preserve_index=preserve_index, safe=False
-        )
+        table = pyarrow.Table.from_pandas(df=dataframe,
+                                          preserve_index=preserve_index,
+                                          safe=False)
         with fs.open(path, "wb") as f:
             parquet.write_table(table, f, coerce_timestamps="ms")
 
     def to_redshift(
-        self,
-        dataframe,
-        path,
-        connection,
-        schema,
-        table,
-        iam_role,
-        preserve_index=False,
-        mode="append",
+            self,
+            dataframe,
+            path,
+            connection,
+            schema,
+            table,
+            iam_role,
+            preserve_index=False,
+            mode="append",
     ):
         self._session.s3.delete_objects(path=path)
         num_slices = self._session.redshift.get_number_of_slices(
-            redshift_conn=connection
-        )
+            redshift_conn=connection)
         LOGGER.debug(f"Number of slices on Redshift: {num_slices}")
         num_rows = len(dataframe.index)
         LOGGER.info(f"Number of rows: {num_rows}")
@@ -382,9 +372,8 @@ class Pandas:
         if path[-1] != "/":
             path += "/"
         manifest_path = f"{path}manifest.json"
-        self._session.redshift.write_load_manifest(
-            manifest_path=manifest_path, objects_paths=objects_paths
-        )
+        self._session.redshift.write_load_manifest(manifest_path=manifest_path,
+                                                   objects_paths=objects_paths)
         self._session.redshift.load_table(
             dataframe=dataframe,
             dataframe_type="pandas",

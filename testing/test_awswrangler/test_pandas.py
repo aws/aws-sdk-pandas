@@ -7,7 +7,6 @@ import pandas
 
 from awswrangler import Session
 
-
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -15,8 +14,7 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 @pytest.fixture(scope="module")
 def cloudformation_outputs():
     response = boto3.client("cloudformation").describe_stacks(
-        StackName="aws-data-wrangler-test-arena"
-    )
+        StackName="aws-data-wrangler-test-arena")
     outputs = {}
     for output in response.get("Stacks")[0].get("Outputs"):
         outputs[output.get("OutputKey")] = output.get("OutputValue")
@@ -49,9 +47,8 @@ def database(cloudformation_outputs):
 
 
 def test_read_csv(session, bucket):
-    boto3.client("s3").upload_file(
-        "data_samples/small.csv", bucket, "data_samples/small.csv"
-    )
+    boto3.client("s3").upload_file("data_samples/small.csv", bucket,
+                                   "data_samples/small.csv")
     path = f"s3://{bucket}/data_samples/small.csv"
     dataframe = session.pandas.read_csv(path=path)
     session.s3.delete_objects(path=f"s3://{bucket}/data_samples/")
@@ -136,15 +133,15 @@ def test_read_csv(session, bucket):
     ],
 )
 def test_to_s3(
-    session,
-    bucket,
-    database,
-    mode,
-    file_format,
-    preserve_index,
-    partition_cols,
-    procs_cpu_bound,
-    factor,
+        session,
+        bucket,
+        database,
+        mode,
+        file_format,
+        preserve_index,
+        partition_cols,
+        procs_cpu_bound,
+        factor,
 ):
     dataframe = pandas.read_csv("data_samples/micro.csv")
     func = session.pandas.to_csv if file_format == "csv" else session.pandas.to_parquet
@@ -157,17 +154,13 @@ def test_to_s3(
         partition_cols=partition_cols,
         procs_cpu_bound=procs_cpu_bound,
     )
-    num_partitions = (
-        len([keys for keys in dataframe.groupby(partition_cols)])
-        if partition_cols
-        else 1
-    )
+    num_partitions = (len([keys for keys in dataframe.groupby(partition_cols)])
+                      if partition_cols else 1)
     assert len(objects_paths) >= num_partitions
     dataframe2 = None
     for counter in range(10):
-        dataframe2 = session.pandas.read_sql_athena(
-            sql="select * from test", database=database
-        )
+        dataframe2 = session.pandas.read_sql_athena(sql="select * from test",
+                                                    database=database)
         if factor * len(dataframe.index) == len(dataframe2.index):
             break
         sleep(1)

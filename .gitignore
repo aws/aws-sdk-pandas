@@ -130,8 +130,11 @@ output/
 # Development
 dev/
 metrics/
+python/
 
 # SAM
 .aws-sam
-*parameters.json
-*requirements*.txt
+testing/*parameters.json
+testing/*requirements*.txt
+building/*parameters.json
+building/*requirements*.txt

@@ -11,3 +11,4 @@ sam package --output-template-file .aws-sam/packaged.yaml --s3-bucket ${BUCKET}
 sam deploy --template-file .aws-sam/packaged.yaml --stack-name aws-data-wrangler-test-arena \
 --capabilities CAPABILITY_IAM \
 --parameter-overrides ${VPC_ID} ${SUBNET_ID} ${PASSWORD}
+rm -rf .aws-sam

@@ -16,7 +16,6 @@ if importlib.util.find_spec("pyspark"):
     PYSPARK_INSTALLED = True
     from awswrangler.spark import Spark
 
-
 LOGGER = logging.getLogger(__name__)
 
 
@@ -30,18 +29,18 @@ class Session:
     PROCS_IO_BOUND_FACTOR = 4
 
     def __init__(
-        self,
-        boto3_session=None,
-        profile_name=None,
-        aws_access_key_id=None,
-        aws_secret_access_key=None,
-        aws_session_token=None,
-        region_name="us-east-1",
-        botocore_max_retries=40,
-        spark_context=None,
-        spark_session=None,
-        procs_cpu_bound=os.cpu_count(),
-        procs_io_bound=os.cpu_count() * PROCS_IO_BOUND_FACTOR,
+            self,
+            boto3_session=None,
+            profile_name=None,
+            aws_access_key_id=None,
+            aws_secret_access_key=None,
+            aws_session_token=None,
+            region_name="us-east-1",
+            botocore_max_retries=40,
+            spark_context=None,
+            spark_session=None,
+            procs_cpu_bound=os.cpu_count(),
+            procs_io_bound=os.cpu_count() * PROCS_IO_BOUND_FACTOR,
     ):
         """
         Most parameters inherit from Boto3 ou Pyspark.
@@ -62,23 +61,16 @@ class Session:
         :param procs_io_bound: number of processes that can be used in single
         node applications for I/O bound cases (Default: os.cpu_count() * PROCS_IO_BOUND_FACTOR)
         """
-        self._profile_name = (
-            boto3_session.profile_name if boto3_session else profile_name
-        )
-        self._aws_access_key_id = (
-            boto3_session.get_credentials().access_key
-            if boto3_session
-            else aws_access_key_id
-        )
+        self._profile_name = (boto3_session.profile_name
+                              if boto3_session else profile_name)
+        self._aws_access_key_id = (boto3_session.get_credentials().access_key
+                                   if boto3_session else aws_access_key_id)
         self._aws_secret_access_key = (
             boto3_session.get_credentials().secret_key
-            if boto3_session
-            else aws_secret_access_key
-        )
+            if boto3_session else aws_secret_access_key)
         self._botocore_max_retries = botocore_max_retries
         self._botocore_config = Config(
-            retries={"max_attempts": self._botocore_max_retries}
-        )
+            retries={"max_attempts": self._botocore_max_retries})
         self._aws_session_token = aws_session_token
         self._region_name = boto3_session.region_name if boto3_session else region_name
         self._spark_context = spark_context
@@ -104,9 +96,8 @@ class Session:
         :return: None
         """
         if self.profile_name:
-            self._boto3_session = boto3.Session(
-                region_name=self.region_name, profile_name=self.profile_name
-            )
+            self._boto3_session = boto3.Session(region_name=self.region_name,
+                                                profile_name=self.profile_name)
         elif self.aws_access_key_id and self.aws_secret_access_key:
             self._boto3_session = boto3.Session(
                 region_name=self.region_name,
@@ -116,8 +107,10 @@ class Session:
         else:
             self._boto3_session = boto3.Session(region_name=self.region_name)
         self._profile_name = self._boto3_session.profile_name
-        self._aws_access_key_id = self._boto3_session.get_credentials().access_key
-        self._aws_secret_access_key = self._boto3_session.get_credentials().secret_key
+        self._aws_access_key_id = self._boto3_session.get_credentials(
+        ).access_key
+        self._aws_secret_access_key = self._boto3_session.get_credentials(
+        ).secret_key
         self._region_name = self._boto3_session.region_name
 
     def _load_new_primitives(self):
@@ -236,16 +229,16 @@ class SessionPrimitives:
     """
 
     def __init__(
-        self,
-        profile_name=None,
-        aws_access_key_id=None,
-        aws_secret_access_key=None,
-        aws_session_token=None,
-        region_name=None,
-        botocore_max_retries=None,
-        botocore_config=None,
-        procs_cpu_bound=None,
-        procs_io_bound=None,
+            self,
+            profile_name=None,
+            aws_access_key_id=None,
+            aws_secret_access_key=None,
+            aws_session_token=None,
+            region_name=None,
+            botocore_max_retries=None,
+            botocore_config=None,
+            procs_cpu_bound=None,
+            procs_io_bound=None,
     ):
         """
         Most parameters inherit from Boto3.

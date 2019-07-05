@@ -9,7 +9,6 @@ from awswrangler.exceptions import (
     InvalidDataframeType,
 )
 
-
 LOGGER = logging.getLogger(__name__)
 
 
@@ -34,22 +33,32 @@ class Redshift:
         return conn
 
     def get_connection(self, glue_connection):
-        conn_details = self._session.glue.get_connection_details(name=glue_connection)
+        conn_details = self._session.glue.get_connection_details(
+            name=glue_connection)
         props = conn_details["ConnectionProperties"]
         host = props["JDBC_CONNECTION_URL"].split(":")[2].replace("/", "")
         port, database = props["JDBC_CONNECTION_URL"].split(":")[3].split("/")
         user = props["USERNAME"]
         password = props["PASSWORD"]
-        conn = self.generate_connection(
-            database=database, host=host, port=int(port), user=user, password=password
-        )
+        conn = self.generate_connection(database=database,
+                                        host=host,
+                                        port=int(port),
+                                        user=user,
+                                        password=password)
         return conn
 
     def write_load_manifest(self, manifest_path, objects_paths):
-        objects_sizes = self._session.s3.get_objects_sizes(objects_paths=objects_paths)
+        objects_sizes = self._session.s3.get_objects_sizes(
+            objects_paths=objects_paths)
         manifest = {"entries": []}
         for path, size in objects_sizes.items():
-            entry = {"url": path, "mandatory": True, "meta": {"content_length": size}}
+            entry = {
+                "url": path,
+                "mandatory": True,
+                "meta": {
+                    "content_length": size
+                }
+            }
             manifest.get("entries").append(entry)
         payload = json.dumps(manifest)
         client_s3 = self._session.boto3_session.client("s3")
@@ -69,23 +78,21 @@ class Redshift:
 
     @staticmethod
     def load_table(
-        dataframe,
-        dataframe_type,
-        manifest_path,
-        schema_name,
-        table_name,
-        redshift_conn,
-        num_files,
-        iam_role,
-        mode="append",
-        preserve_index=False,
+            dataframe,
+            dataframe_type,
+            manifest_path,
+            schema_name,
+            table_name,
+            redshift_conn,
+            num_files,
+            iam_role,
+            mode="append",
+            preserve_index=False,
     ):
         cursor = redshift_conn.cursor()
         if mode == "overwrite":
-            cursor.execute(
-                "-- AWS DATA WRANGLER\n"
-                f"DROP TABLE IF EXISTS {schema_name}.{table_name}"
-            )
+            cursor.execute("-- AWS DATA WRANGLER\n"
+                           f"DROP TABLE IF EXISTS {schema_name}.{table_name}")
         schema = Redshift._get_redshift_schema(
             dataframe=dataframe,
             dataframe_type=dataframe_type,
@@ -95,18 +102,16 @@ class Redshift:
         sql = (
             "-- AWS DATA WRANGLER\n"
             f"CREATE TABLE IF NOT EXISTS {schema_name}.{table_name} (\n{cols_str}"
-            ") DISTSTYLE AUTO"
-        )
+            ") DISTSTYLE AUTO")
         cursor.execute(sql)
-        sql = (
-            "-- AWS DATA WRANGLER\n"
-            f"COPY {schema_name}.{table_name} FROM '{manifest_path}'\n"
-            f"IAM_ROLE '{iam_role}'\n"
-            "MANIFEST\n"
-            "FORMAT AS PARQUET"
-        )
+        sql = ("-- AWS DATA WRANGLER\n"
+               f"COPY {schema_name}.{table_name} FROM '{manifest_path}'\n"
+               f"IAM_ROLE '{iam_role}'\n"
+               "MANIFEST\n"
+               "FORMAT AS PARQUET")
         cursor.execute(sql)
-        cursor.execute("-- AWS DATA WRANGLER\n SELECT pg_last_copy_id() AS query_id")
+        cursor.execute(
+            "-- AWS DATA WRANGLER\n SELECT pg_last_copy_id() AS query_id")
         query_id = cursor.fetchall()[0][0]
         sql = (
             "-- AWS DATA WRANGLER\n"
@@ -128,7 +133,8 @@ class Redshift:
         schema_built = []
         if dataframe_type == "pandas":
             if preserve_index:
-                name = str(dataframe.index.name) if dataframe.index.name else "index"
+                name = str(
+                    dataframe.index.name) if dataframe.index.name else "index"
                 dataframe.index.name = "index"
                 dtype = str(dataframe.index.dtype)
                 redshift_type = Redshift._type_pandas2redshift(dtype)

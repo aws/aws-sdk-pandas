@@ -1,6 +1,5 @@
 FROM lambci/lambda:build-python3.7
 
-RUN yum install postgresql-devel -y
 RUN pip install --upgrade pip
 
 ADD requirements.txt /root/

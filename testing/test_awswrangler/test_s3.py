@@ -7,7 +7,6 @@ import boto3
 
 from awswrangler import Session
 
-
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -56,8 +55,7 @@ def write_fake_objects(bucket, path, num):
 @pytest.fixture(scope="module")
 def cloudformation_outputs():
     response = boto3.client("cloudformation").describe_stacks(
-        StackName="aws-data-wrangler-test-arena"
-    )
+        StackName="aws-data-wrangler-test-arena")
     outputs = {}
     for output in response.get("Stacks")[0].get("Outputs"):
         outputs[output.get("OutputKey")] = output.get("OutputValue")
@@ -119,7 +117,8 @@ def test_delete_not_listed_objects(session, bucket, objects_num):
 def test_get_objects_sizes(session, bucket, objects_num):
     path = f"s3://{bucket}/objs-get-objects-sizes-{objects_num}/"
     session.s3.delete_objects(path=path)
-    write_fake_objects(bucket, f"objs-get-objects-sizes-{objects_num}/", objects_num)
+    write_fake_objects(bucket, f"objs-get-objects-sizes-{objects_num}/",
+                       objects_num)
     objects_paths = [
         f"s3://{bucket}/objs-get-objects-sizes-{objects_num}/{i}"
         for i in range(objects_num)

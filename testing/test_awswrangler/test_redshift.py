@@ -8,7 +8,6 @@ from pyspark.sql import SparkSession
 
 from awswrangler import Session, Redshift
 
-
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -16,8 +15,7 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 @pytest.fixture(scope="module")
 def cloudformation_outputs():
     response = boto3.client("cloudformation").describe_stacks(
-        StackName="aws-data-wrangler-test-arena"
-    )
+        StackName="aws-data-wrangler-test-arena")
     outputs = {}
     for output in response.get("Stacks")[0].get("Outputs"):
         outputs[output.get("OutputKey")] = output.get("OutputValue")
@@ -26,9 +24,8 @@ def cloudformation_outputs():
 
 @pytest.fixture(scope="module")
 def session():
-    yield Session(
-        spark_session=SparkSession.builder.appName("AWS Wrangler Test").getOrCreate()
-    )
+    yield Session(spark_session=SparkSession.builder.appName(
+        "AWS Wrangler Test").getOrCreate())
 
 
 @pytest.fixture(scope="module")
@@ -47,22 +44,22 @@ def redshift_parameters(cloudformation_outputs):
     redshift_parameters = {}
     if "RedshiftAddress" in cloudformation_outputs:
         redshift_parameters["RedshiftAddress"] = cloudformation_outputs.get(
-            "RedshiftAddress"
-        )
+            "RedshiftAddress")
     else:
         raise Exception("You must deploy the test infrastructure using SAM!")
     if "RedshiftPassword" in cloudformation_outputs:
         redshift_parameters["RedshiftPassword"] = cloudformation_outputs.get(
-            "RedshiftPassword"
-        )
+            "RedshiftPassword")
     else:
         raise Exception("You must deploy the test infrastructure using SAM!")
     if "RedshiftPort" in cloudformation_outputs:
-        redshift_parameters["RedshiftPort"] = cloudformation_outputs.get("RedshiftPort")
+        redshift_parameters["RedshiftPort"] = cloudformation_outputs.get(
+            "RedshiftPort")
     else:
         raise Exception("You must deploy the test infrastructure using SAM!")
     if "RedshiftRole" in cloudformation_outputs:
-        redshift_parameters["RedshiftRole"] = cloudformation_outputs.get("RedshiftRole")
+        redshift_parameters["RedshiftRole"] = cloudformation_outputs.get(
+            "RedshiftRole")
     else:
         raise Exception("You must deploy the test infrastructure using SAM!")
     yield redshift_parameters
@@ -77,9 +74,8 @@ def redshift_parameters(cloudformation_outputs):
         ("small", "append", 2),
     ],
 )
-def test_to_redshift_pandas(
-    session, bucket, redshift_parameters, sample_name, mode, factor
-):
+def test_to_redshift_pandas(session, bucket, redshift_parameters, sample_name,
+                            mode, factor):
     con = Redshift.generate_connection(
         database="test",
         host=redshift_parameters.get("RedshiftAddress"),
@@ -116,9 +112,8 @@ def test_to_redshift_pandas(
         ("small", "append", 2),
     ],
 )
-def test_to_redshift_spark(
-    session, bucket, redshift_parameters, sample_name, mode, factor
-):
+def test_to_redshift_spark(session, bucket, redshift_parameters, sample_name,
+                           mode, factor):
     path = f"data_samples/{sample_name}.csv"
     dataframe = session.spark.read_csv(path=path)
     con = Redshift.generate_connection(
@@ -147,20 +142,14 @@ def test_to_redshift_spark(
 
 
 def test_write_load_manifest(session, bucket):
-    boto3.client("s3").upload_file(
-        "data_samples/small.csv", bucket, "data_samples/small.csv"
-    )
+    boto3.client("s3").upload_file("data_samples/small.csv", bucket,
+                                   "data_samples/small.csv")
     object_path = f"s3://{bucket}/data_samples/small.csv"
     manifest_path = f"s3://{bucket}/manifest.json"
-    session.redshift.write_load_manifest(
-        manifest_path=manifest_path, objects_paths=[object_path]
-    )
-    manifest_json = (
-        boto3.client("s3")
-        .get_object(Bucket=bucket, Key="manifest.json")
-        .get("Body")
-        .read()
-    )
+    session.redshift.write_load_manifest(manifest_path=manifest_path,
+                                         objects_paths=[object_path])
+    manifest_json = (boto3.client("s3").get_object(
+        Bucket=bucket, Key="manifest.json").get("Body").read())
     manifest = json.loads(manifest_json)
     assert manifest.get("entries")[0].get("url") == object_path
     assert manifest.get("entries")[0].get("mandatory")

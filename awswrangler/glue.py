@@ -4,7 +4,6 @@ import logging
 
 from awswrangler.exceptions import UnsupportedType, UnsupportedFileFormat
 
-
 LOGGER = logging.getLogger(__name__)
 
 
@@ -13,16 +12,16 @@ class Glue:
         self._session = session
 
     def metadata_to_glue(
-        self,
-        dataframe,
-        path,
-        objects_paths,
-        file_format,
-        database=None,
-        table=None,
-        partition_cols=None,
-        preserve_index=True,
-        mode="append",
+            self,
+            dataframe,
+            path,
+            objects_paths,
+            file_format,
+            database=None,
+            table=None,
+            partition_cols=None,
+            preserve_index=True,
+            mode="append",
     ):
         schema = Glue._build_schema(
             dataframe=dataframe,
@@ -44,8 +43,7 @@ class Glue:
             )
         if partition_cols:
             partitions_tuples = Glue._parse_partitions_tuples(
-                objects_paths=objects_paths, partition_cols=partition_cols
-            )
+                objects_paths=objects_paths, partition_cols=partition_cols)
             self.add_partitions(
                 database=database,
                 table=table,
@@ -55,8 +53,7 @@ class Glue:
 
     def delete_table_if_exists(self, database, table):
         client = self._session.boto3_session.client(
-            service_name="glue", config=self._session.botocore_config
-        )
+            service_name="glue", config=self._session.botocore_config)
         try:
             client.delete_table(DatabaseName=database, Name=table)
         except client.exceptions.EntityNotFoundException:
@@ -64,34 +61,35 @@ class Glue:
 
     def does_table_exists(self, database, table):
         client = self._session.boto3_session.client(
-            service_name="glue", config=self._session.botocore_config
-        )
+            service_name="glue", config=self._session.botocore_config)
         try:
             client.get_table(DatabaseName=database, Name=table)
             return True
         except client.exceptions.EntityNotFoundException:
             return False
 
-    def create_table(
-        self, database, table, schema, path, file_format, partition_cols=None
-    ):
+    def create_table(self,
+                     database,
+                     table,
+                     schema,
+                     path,
+                     file_format,
+                     partition_cols=None):
         client = self._session.boto3_session.client(
-            service_name="glue", config=self._session.botocore_config
-        )
+            service_name="glue", config=self._session.botocore_config)
         if file_format == "parquet":
             table_input = Glue.parquet_table_definition(
-                table, partition_cols, schema, path
-            )
+                table, partition_cols, schema, path)
         elif file_format == "csv":
-            table_input = Glue.csv_table_definition(table, partition_cols, schema, path)
+            table_input = Glue.csv_table_definition(table, partition_cols,
+                                                    schema, path)
         else:
             raise UnsupportedFileFormat(file_format)
         client.create_table(DatabaseName=database, TableInput=table_input)
 
     def add_partitions(self, database, table, partition_paths, file_format):
         client = self._session.boto3_session.client(
-            service_name="glue", config=self._session.botocore_config
-        )
+            service_name="glue", config=self._session.botocore_config)
         if not partition_paths:
             return None
         partitions = list()
@@ -107,15 +105,15 @@ class Glue:
         for _ in range(pages_num):
             page = partitions[:100]
             del partitions[:100]
-            client.batch_create_partition(
-                DatabaseName=database, TableName=table, PartitionInputList=page
-            )
+            client.batch_create_partition(DatabaseName=database,
+                                          TableName=table,
+                                          PartitionInputList=page)
 
     def get_connection_details(self, name):
         client = self._session.boto3_session.client(
-            service_name="glue", config=self._session.botocore_config
-        )
-        return client.get_connection(Name=name, HidePassword=False)["Connection"]
+            service_name="glue", config=self._session.botocore_config)
+        return client.get_connection(Name=name,
+                                     HidePassword=False)["Connection"]
 
     @staticmethod
     def _build_schema(dataframe, partition_cols, preserve_index):
@@ -123,7 +121,8 @@ class Glue:
             partition_cols = []
         schema_built = []
         if preserve_index:
-            name = str(dataframe.index.name) if dataframe.index.name else "index"
+            name = str(
+                dataframe.index.name) if dataframe.index.name else "index"
             dataframe.index.name = "index"
             dtype = str(dataframe.index.dtype)
             if name not in partition_cols:
@@ -168,9 +167,14 @@ class Glue:
         if not partition_cols:
             partition_cols = []
         return {
-            "Name": table,
-            "PartitionKeys": [{"Name": x, "Type": "string"} for x in partition_cols],
-            "TableType": "EXTERNAL_TABLE",
+            "Name":
+            table,
+            "PartitionKeys": [{
+                "Name": x,
+                "Type": "string"
+            } for x in partition_cols],
+            "TableType":
+            "EXTERNAL_TABLE",
             "Parameters": {
                 "classification": "csv",
                 "compressionType": "none",
@@ -180,15 +184,22 @@ class Glue:
                 "areColumnsQuoted": "false",
             },
             "StorageDescriptor": {
-                "Columns": [{"Name": x[0], "Type": x[1]} for x in schema],
+                "Columns": [{
+                    "Name": x[0],
+                    "Type": x[1]
+                } for x in schema],
                 "Location": path,
                 "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
-                "OutputFormat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+                "OutputFormat":
+                "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
                 "Compressed": False,
                 "NumberOfBuckets": -1,
                 "SerdeInfo": {
-                    "Parameters": {"field.delim": ","},
-                    "SerializationLibrary": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
+                    "Parameters": {
+                        "field.delim": ","
+                    },
+                    "SerializationLibrary":
+                    "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
                 },
                 "StoredAsSubDirectories": False,
                 "SortColumns": [],
@@ -210,8 +221,11 @@ class Glue:
                 "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
                 "Location": partition[0],
                 "SerdeInfo": {
-                    "Parameters": {"field.delim": ","},
-                    "SerializationLibrary": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
+                    "Parameters": {
+                        "field.delim": ","
+                    },
+                    "SerializationLibrary":
+                    "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
                 },
                 "StoredAsSubDirectories": False,
             },
@@ -223,24 +237,37 @@ class Glue:
         if not partition_cols:
             partition_cols = []
         return {
-            "Name": table,
-            "PartitionKeys": [{"Name": x, "Type": "string"} for x in partition_cols],
-            "TableType": "EXTERNAL_TABLE",
+            "Name":
+            table,
+            "PartitionKeys": [{
+                "Name": x,
+                "Type": "string"
+            } for x in partition_cols],
+            "TableType":
+            "EXTERNAL_TABLE",
             "Parameters": {
                 "classification": "parquet",
                 "compressionType": "none",
                 "typeOfData": "file",
             },
             "StorageDescriptor": {
-                "Columns": [{"Name": x[0], "Type": x[1]} for x in schema],
+                "Columns": [{
+                    "Name": x[0],
+                    "Type": x[1]
+                } for x in schema],
                 "Location": path,
-                "InputFormat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
-                "OutputFormat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat",
+                "InputFormat":
+                "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+                "OutputFormat":
+                "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat",
                 "Compressed": False,
                 "NumberOfBuckets": -1,
                 "SerdeInfo": {
-                    "SerializationLibrary": "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe",
-                    "Parameters": {"serialization.format": "1"},
+                    "SerializationLibrary":
+                    "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe",
+                    "Parameters": {
+                        "serialization.format": "1"
+                    },
                 },
                 "StoredAsSubDirectories": False,
                 "SortColumns": [],
@@ -260,8 +287,11 @@ class Glue:
                 "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
                 "Location": partition[0],
                 "SerdeInfo": {
-                    "Parameters": {"serialization.format": "1"},
-                    "SerializationLibrary": "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe",
+                    "Parameters": {
+                        "serialization.format": "1"
+                    },
+                    "SerializationLibrary":
+                    "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe",
                 },
                 "StoredAsSubDirectories": False,
             },
@@ -271,14 +301,15 @@ class Glue:
     @staticmethod
     def _parse_partitions_tuples(objects_paths, partition_cols):
         paths = {f"{path.rpartition('/')[0]}/" for path in objects_paths}
-        return [
-            (
-                path,
-                Glue._parse_partition_values(path=path, partition_cols=partition_cols),
-            )
-            for path in paths
-        ]
+        return [(
+            path,
+            Glue._parse_partition_values(path=path,
+                                         partition_cols=partition_cols),
+        ) for path in paths]
 
     @staticmethod
     def _parse_partition_values(path, partition_cols):
-        return [re.search(f"/{col}=(.*?)/", path).group(1) for col in partition_cols]
+        return [
+            re.search(f"/{col}=(.*?)/", path).group(1)
+            for col in partition_cols
+        ]

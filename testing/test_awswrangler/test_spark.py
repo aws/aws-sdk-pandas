@@ -6,7 +6,6 @@ from pyspark.sql import SparkSession
 
 from awswrangler import Session
 
-
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -14,8 +13,7 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 @pytest.fixture(scope="module")
 def cloudformation_outputs():
     response = boto3.client("cloudformation").describe_stacks(
-        StackName="aws-data-wrangler-test-arena"
-    )
+        StackName="aws-data-wrangler-test-arena")
     outputs = {}
     for output in response.get("Stacks")[0].get("Outputs"):
         outputs[output.get("OutputKey")] = output.get("OutputValue")
@@ -24,9 +22,8 @@ def cloudformation_outputs():
 
 @pytest.fixture(scope="module")
 def session():
-    yield Session(
-        spark_session=SparkSession.builder.appName("AWS Wrangler Test").getOrCreate()
-    )
+    yield Session(spark_session=SparkSession.builder.appName(
+        "AWS Wrangler Test").getOrCreate())
 
 
 @pytest.fixture(scope="module")
@@ -41,9 +38,8 @@ def bucket(session, cloudformation_outputs):
 
 
 def test_read_csv(session, bucket):
-    boto3.client("s3").upload_file(
-        "data_samples/small.csv", bucket, "data_samples/small.csv"
-    )
+    boto3.client("s3").upload_file("data_samples/small.csv", bucket,
+                                   "data_samples/small.csv")
     path = f"s3://{bucket}/data_samples/small.csv"
     dataframe = session.spark.read_csv(path=path)
     assert dataframe.count() == 100

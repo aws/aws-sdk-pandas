@@ -2,9 +2,7 @@ from math import ceil
 from math import gcd
 import logging
 
-
 from awswrangler.exceptions import InvalidArguments
-
 
 LOGGER = logging.getLogger(__name__)
 
