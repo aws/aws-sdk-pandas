@@ -1,38 +1,37 @@
-# AWS Data Wrangler (BETA)
+# AWS Data Wrangler (beta)
 
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
-
-> Utilities for Pandas and Apache Spark on AWS
-
-AWS Data Wrangler aims to fill a gap between AWS Analytics Services (Glue, Athena, EMR, Redshift, S3) and the most popular Python data libraries ([Pandas](https://pandas.pydata.org/), [Apache Spark](https://spark.apache.org/)).
+> Utility belt to handle data on AWS.
 
 ---
 
-*Contents:* **[Use Cases](#Use-Cases)** | **[Installation](#Installation)** | **[Examples](#Examples)** | **[License](#License)**
+*Contents:* **[Use Cases](#Use-Cases)** | **[Installation](#Installation)** | **[Examples](#Examples)**
 
 ---
 
 ## Use Cases
 
-* Pandas Dataframe -> Parquet (S3)
-* Pandas Dataframe -> CSV (S3)
-* Pandas Dataframe -> Glue Catalog
-* Pandas Dataframe -> Redshift
-* Pandas Dataframe -> Athena
-* CSV (S3) -> Pandas Dataframe
-* Athena -> Pandas Dataframe
-* Spark Dataframe -> Redshift
+* Pandas -> Parquet (S3)
+* Pandas -> CSV (S3)
+* Pandas -> Glue Catalog
+* Pandas -> Athena
+* Pandas -> Redshift
+* CSV (S3) -> Pandas
+* Athena -> Pandas
+* PySpark -> Redshift
 
 ## Installation
 
 `pip install awswrangler`
 
-AWS Data Wrangler runs only Python 3.6 and beyond.
-And runs on AWS Lambda, AWS Glue, EC2, on-premises, local, etc.
+Runs only with Python 3.6 and beyond.
+
+Runs anywhere (AWS Lambda, AWS Glue, EMR, EC2, on-premises, local, etc).
+
+*P.S.* Lambda Layer bundle and Glue egg are available to [download](https://github.com/awslabs/aws-data-wrangler/releases). It's just upload to your account and run! :rocket:
 
 ## Examples
 
-### Writing Pandas Dataframe to Data Lake
+### Writing Pandas Dataframe to S3 + Glue Catalog
 
 ```py3
 session = awswrangler.Session()
@@ -46,7 +45,7 @@ session.pandas.to_parquet(
 
 If a Glue Database name is passed, all the metadata will be created in the Glue Catalog. If not, only the s3 data write will be done.
 
-### Reading from Data Lake to Pandas Dataframe
+### Reading from AWS Athena to Pandas
 
 ```py3
 session = awswrangler.Session()
@@ -56,7 +55,7 @@ dataframe = session.pandas.read_sql_athena(
 )
 ```
 
-### Reading from S3 file to Pandas Dataframe
+### Reading from S3 (CSV) to Pandas
 
 ```py3
 session = awswrangler.Session()
@@ -82,7 +81,7 @@ session.pandas.to_parquet(  # Storing the data and metadata to Data Lake
 )
 ```
 
-### Loading Spark Dataframe to Redshift
+### Loading Pyspark Dataframe to Redshift
 
 ```py3
 session = awswrangler.Session(spark_session=spark)
@@ -96,7 +95,3 @@ session.spark.to_redshift(
     mode="append",
 )
 ```
-
-## License
-
-This library is licensed under the Apache 2.0 License.

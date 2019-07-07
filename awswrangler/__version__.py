@@ -1,4 +1,4 @@
 __title__ = "awswrangler"
-__description__ = "Utilities for Pandas and Apache Spark on AWS."
+__description__ = "Utility belt to handle data on AWS."
 __version__ = "0.0b16"
 __license__ = "Apache License 2.0"
