@@ -152,7 +152,7 @@ class Glue:
         elif dtype == "object" and isinstance(dtype, str):
             return "string"
         elif dtype[:10] == "datetime64":
-            return "string"
+            return "timestamp"
         else:
             raise UnsupportedType("Unsupported Pandas type: " + dtype)
 
