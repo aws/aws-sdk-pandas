@@ -4,3 +4,4 @@ pytest>=4.3.1
 cfn-lint>=0.22.0
 twine>=1.13.0
 pyspark>=2.4.3
+wheel>=0.33.4
