@@ -57,6 +57,10 @@ class S3:
                 path += "/"
         return bucket, path
 
+    @staticmethod
+    def parse_object_path(path):
+        return path.replace("s3://", "").split("/", 1)
+
     def delete_objects(self, path):
         bucket, path = self.parse_path(path=path)
         client = self._session.boto3_session.client(
@@ -127,11 +131,13 @@ class S3:
                     proc.daemon = False
                     proc.start()
                     procs.append(proc)
+                for proc in procs:
+                    proc.join()
             else:
-                self.delete_objects_batch(self._session.primitives, bucket,
-                                          batch)
-            for proc in procs:
-                proc.join()
+                self.delete_objects_batch(
+                    session_primitives=self._session.primitives,
+                    bucket=bucket,
+                    batch=batch)
 
     def delete_not_listed_objects(self, objects_paths, procs_io_bound=None):
         if not procs_io_bound:
@@ -274,3 +280,75 @@ class S3:
             LOGGER.debug(f"Closing proc number: {i}")
             receive_pipes[i].close()
         return objects_sizes
+
+    def copy_listed_objects(self,
+                            objects_paths,
+                            source_path,
+                            target_path,
+                            mode="append",
+                            procs_io_bound=None):
+        if not procs_io_bound:
+            procs_io_bound = self._session.procs_io_bound
+        LOGGER.debug(f"procs_io_bound: {procs_io_bound}")
+        LOGGER.debug(f"len(objects_paths): {len(objects_paths)}")
+        if source_path[-1] == "/":
+            source_path = source_path[:-1]
+        if target_path[-1] == "/":
+            target_path = target_path[:-1]
+
+        if mode == "overwrite":
+            LOGGER.debug(f"Deleting to overwrite: {target_path}")
+            self._session.s3.delete_objects(path=target_path)
+        elif mode == "overwrite_partitions":
+            objects_wo_prefix = [
+                o.replace(f"{source_path}/", "") for o in objects_paths
+            ]
+            objects_wo_filename = [
+                f"{o.rpartition('/')[0]}/" for o in objects_wo_prefix
+            ]
+            partitions_paths = list(set(objects_wo_filename))
+            target_partitions_paths = [
+                f"{target_path}/{p}" for p in partitions_paths
+            ]
+            for path in target_partitions_paths:
+                LOGGER.debug(f"Deleting to overwrite_partitions: {path}")
+                self._session.s3.delete_objects(path=path)
+
+        batch = []
+        for obj in objects_paths:
+            object_wo_prefix = obj.replace(f"{source_path}/", "")
+            target_object = f"{target_path}/{object_wo_prefix}"
+            batch.append((obj, target_object))
+
+        if procs_io_bound > 1:
+            bounders = calculate_bounders(len(objects_paths), procs_io_bound)
+            LOGGER.debug(f"bounders: {bounders}")
+            procs = []
+            for bounder in bounders:
+                proc = mp.Process(
+                    target=self.copy_objects_batch,
+                    args=(
+                        self._session.primitives,
+                        batch[bounder[0]:bounder[1]],
+                    ),
+                )
+                proc.daemon = False
+                proc.start()
+                procs.append(proc)
+            for proc in procs:
+                proc.join()
+        else:
+            self.copy_objects_batch(
+                session_primitives=self._session.primitives, batch=batch)
+
+    @staticmethod
+    def copy_objects_batch(session_primitives, batch):
+        session = session_primitives.session
+        resource = session.boto3_session.resource(
+            service_name="s3", config=session.botocore_config)
+        LOGGER.debug(f"len(batch): {len(batch)}")
+        for source_obj, target_obj in batch:
+            source_bucket, source_key = S3.parse_object_path(path=source_obj)
+            copy_source = {"Bucket": source_bucket, "Key": source_key}
+            target_bucket, target_key = S3.parse_object_path(path=target_obj)
+            resource.meta.client.copy(copy_source, target_bucket, target_key)

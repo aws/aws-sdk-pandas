@@ -4,6 +4,7 @@ import logging
 
 import pytest
 import boto3
+import pandas
 
 from awswrangler import Session
 
@@ -81,6 +82,15 @@ def bucket(session, cloudformation_outputs):
     session.s3.delete_objects(path=f"s3://{bucket}/")
 
 
+@pytest.fixture(scope="module")
+def database(cloudformation_outputs):
+    if "GlueDatabaseName" in cloudformation_outputs:
+        database = cloudformation_outputs.get("GlueDatabaseName")
+    else:
+        raise Exception("You must deploy the test infrastructure using SAM!")
+    yield database
+
+
 @pytest.mark.parametrize("objects_num", [1, 10, 1001, 2001, 3001])
 def test_delete_objects(session, bucket, objects_num):
     print("Starting writes...")
@@ -147,3 +157,53 @@ def test_get_objects_sizes(session, bucket, objects_num):
     session.s3.delete_objects(path=path)
     for _, object_size in objects_sizes.items():
         assert object_size == 10
+
+
+@pytest.mark.parametrize("mode, procs_io_bound", [
+    ("append", 1),
+    ("overwrite", 1),
+    ("overwrite_partitions", 1),
+    ("append", 8),
+    ("overwrite", 8),
+    ("overwrite_partitions", 8),
+])
+def test_copy_listed_objects(session, bucket, database, mode, procs_io_bound):
+    path0 = f"s3://{bucket}/test_move_objects_0/"
+    path1 = f"s3://{bucket}/test_move_objects_1/"
+    print("Starting deletes...")
+    session.s3.delete_objects(path=path0)
+    session.s3.delete_objects(path=path1)
+    dataframe = pandas.read_csv("data_samples/micro.csv")
+    print("Starting writing path0...")
+    session.pandas.to_parquet(
+        dataframe=dataframe,
+        database=database,
+        path=path0,
+        preserve_index=False,
+        mode="overwrite",
+        partition_cols=["name", "date"],
+    )
+    print("Starting writing path0...")
+    objects_paths = session.pandas.to_parquet(
+        dataframe=dataframe,
+        path=path1,
+        preserve_index=False,
+        mode="overwrite",
+        partition_cols=["name", "date"],
+    )
+    print("Starting move...")
+    session.s3.copy_listed_objects(
+        objects_paths=objects_paths,
+        source_path=path1,
+        target_path=path0,
+        mode=mode,
+        procs_io_bound=procs_io_bound,
+    )
+    print("Asserting...")
+    sleep(1)
+    dataframe2 = session.pandas.read_sql_athena(
+        sql="select * from test_move_objects_0", database=database)
+    if mode == "append":
+        assert 2 * len(dataframe.index) == len(dataframe2.index)
+    else:
+        assert len(dataframe.index) == len(dataframe2.index)
