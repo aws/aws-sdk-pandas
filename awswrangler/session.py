@@ -26,7 +26,7 @@ class Session:
     AWS Glue Connections attributes, number of cpu cores that can be used, etc)
     """
 
-    PROCS_IO_BOUND_FACTOR = 4
+    PROCS_IO_BOUND_FACTOR = 2
 
     def __init__(
             self,
@@ -35,7 +35,7 @@ class Session:
             aws_access_key_id=None,
             aws_secret_access_key=None,
             aws_session_token=None,
-            region_name="us-east-1",
+            region_name=None,
             botocore_max_retries=40,
             spark_context=None,
             spark_session=None,
@@ -52,7 +52,7 @@ class Session:
         :param aws_access_key_id: Boto3 aws_access_key_id
         :param aws_secret_access_key: Boto3 aws_secret_access_key
         :param aws_session_token: Boto3 aws_session_token
-        :param region_name: Boto3 region_name (Default: us-east-1)
+        :param region_name: Boto3 region_name
         :param botocore_max_retries: Botocore max retries
         :param spark_context: Spark Context (pyspark.SparkContext)
         :param spark_session: Spark Session (pyspark.sql.SparkSession)
@@ -95,17 +95,17 @@ class Session:
         Load or reload a new Boto3 Session for the AWS Wrangler Session
         :return: None
         """
+        args = {}
         if self.profile_name:
-            self._boto3_session = boto3.Session(region_name=self.region_name,
-                                                profile_name=self.profile_name)
-        elif self.aws_access_key_id and self.aws_secret_access_key:
-            self._boto3_session = boto3.Session(
-                region_name=self.region_name,
-                aws_access_key_id=self.aws_access_key_id,
-                aws_secret_access_key=self.aws_secret_access_key,
-            )
-        else:
-            self._boto3_session = boto3.Session(region_name=self.region_name)
+            args["profile_name"] = self.profile_name
+        if self.region_name:
+            args["region_name"] = self.region_name
+        if self.aws_access_key_id and self.aws_secret_access_key:
+            args["aws_access_key_id"] = self.aws_access_key_id
+            args["aws_secret_access_key"] = self.aws_secret_access_key
+
+        self._boto3_session = boto3.Session(**args)
+
         self._profile_name = self._boto3_session.profile_name
         self._aws_access_key_id = self._boto3_session.get_credentials(
         ).access_key
