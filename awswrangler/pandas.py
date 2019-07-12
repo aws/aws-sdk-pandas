@@ -1,6 +1,7 @@
 from io import BytesIO
 import multiprocessing as mp
 import logging
+from math import floor
 
 import pandas
 import pyarrow
@@ -104,6 +105,7 @@ class Pandas:
             preserve_index=True,
             mode="append",
             procs_cpu_bound=None,
+            procs_io_bound=None,
     ):
         return self.to_s3(
             dataframe=dataframe,
@@ -115,6 +117,7 @@ class Pandas:
             preserve_index=preserve_index,
             mode=mode,
             procs_cpu_bound=procs_cpu_bound,
+            procs_io_bound=procs_io_bound,
         )
 
     def to_parquet(
@@ -127,6 +130,7 @@ class Pandas:
             preserve_index=True,
             mode="append",
             procs_cpu_bound=None,
+            procs_io_bound=None,
     ):
         return self.to_s3(
             dataframe=dataframe,
@@ -138,6 +142,7 @@ class Pandas:
             preserve_index=preserve_index,
             mode=mode,
             procs_cpu_bound=procs_cpu_bound,
+            procs_io_bound=procs_io_bound,
         )
 
     def to_s3(
@@ -151,6 +156,7 @@ class Pandas:
             preserve_index=True,
             mode="append",
             procs_cpu_bound=None,
+            procs_io_bound=None,
     ):
         if not partition_cols:
             partition_cols = []
@@ -167,6 +173,7 @@ class Pandas:
             file_format=file_format,
             mode=mode,
             procs_cpu_bound=procs_cpu_bound,
+            procs_io_bound=procs_io_bound,
         )
         if database:
             self._session.glue.metadata_to_glue(
@@ -191,9 +198,14 @@ class Pandas:
             preserve_index=True,
             mode="append",
             procs_cpu_bound=None,
+            procs_io_bound=None,
     ):
         if not procs_cpu_bound:
             procs_cpu_bound = self._session.procs_cpu_bound
+        if not procs_io_bound:
+            procs_io_bound = self._session.procs_io_bound
+        LOGGER.debug(f"procs_cpu_bound: {procs_cpu_bound}")
+        LOGGER.debug(f"procs_io_bound: {procs_io_bound}")
         if path[-1] == "/":
             path = path[:-1]
         file_format = file_format.lower()
@@ -237,8 +249,15 @@ class Pandas:
                 file_format=file_format,
             )
         if mode == "overwrite_partitions" and partition_cols:
+            if procs_io_bound > procs_cpu_bound:
+                num_procs = floor(
+                    float(procs_io_bound) / float(procs_cpu_bound))
+            else:
+                num_procs = 1
+            LOGGER.debug(
+                f"num_procs for delete_not_listed_objects: {num_procs}")
             self._session.s3.delete_not_listed_objects(
-                objects_paths=objects_paths)
+                objects_paths=objects_paths, procs_io_bound=num_procs)
         return objects_paths
 
     @staticmethod

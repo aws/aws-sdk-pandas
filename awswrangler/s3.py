@@ -63,12 +63,14 @@ class S3:
             service_name="s3", config=self._session.botocore_config)
         procs = []
         args = {"Bucket": bucket, "MaxKeys": 1000, "Prefix": path}
+        LOGGER.debug(f"Arguments: \n{args}")
         next_continuation_token = True
         while next_continuation_token:
             res = client.list_objects_v2(**args)
             if not res.get("Contents"):
                 break
             keys = [{"Key": x.get("Key")} for x in res.get("Contents")]
+            LOGGER.debug(f"Number of listed keys: {len(keys)}")
             next_continuation_token = res.get("NextContinuationToken")
             if next_continuation_token:
                 args["ContinuationToken"] = next_continuation_token
@@ -79,15 +81,25 @@ class S3:
                 proc.daemon = False
                 proc.start()
                 procs.append(proc)
+                while len(procs) >= self._session.procs_io_bound:
+                    LOGGER.debug(
+                        f"len(procs) ({len(procs)}) >= self._session.procs_io_bound ({self._session.procs_io_bound})"
+                    )
+                    procs[0].join()
+                    del procs[0]
+                    LOGGER.debug(f"Processes deleted from list.")
             else:
+                LOGGER.debug(f"Starting last delete call...")
                 self.delete_objects_batch(self._session.primitives, bucket,
                                           keys)
+        LOGGER.debug(f"Waiting final processes...")
         for proc in procs:
             proc.join()
 
     def delete_listed_objects(self, objects_paths, procs_io_bound=None):
         if not procs_io_bound:
             procs_io_bound = self._session.procs_io_bound
+        LOGGER.debug(f"procs_io_bound: {procs_io_bound}")
         buckets = {}
         for path in objects_paths:
             path_cleaned = path.replace("s3://", "")
@@ -98,8 +110,11 @@ class S3:
 
         for bucket, batch in buckets.items():
             procs = []
+            LOGGER.debug(f"bucket: {bucket}")
             if procs_io_bound > 1:
+                LOGGER.debug(f"len(batch): {len(batch)}")
                 bounders = calculate_bounders(len(batch), procs_io_bound)
+                LOGGER.debug(f"bounders: {bounders}")
                 for bounder in bounders:
                     proc = mp.Process(
                         target=self.delete_objects_batch,
@@ -118,7 +133,11 @@ class S3:
             for proc in procs:
                 proc.join()
 
-    def delete_not_listed_objects(self, objects_paths):
+    def delete_not_listed_objects(self, objects_paths, procs_io_bound=None):
+        if not procs_io_bound:
+            procs_io_bound = self._session.procs_io_bound
+        LOGGER.debug(f"procs_io_bound: {procs_io_bound}")
+
         partitions = {}
         for object_path in objects_paths:
             partition_path = f"{object_path.rsplit('/', 1)[0]}/"
@@ -129,20 +148,35 @@ class S3:
         for partition_path, batch in partitions.items():
             proc = mp.Process(
                 target=self.delete_not_listed_batch,
-                args=(self._session.primitives, partition_path, batch),
+                args=(self._session.primitives, partition_path, batch, 1),
             )
             proc.daemon = False
             proc.start()
             procs.append(proc)
+            while len(procs) >= procs_io_bound:
+                LOGGER.debug(
+                    f"len(procs) ({len(procs)}) >= procs_io_bound ({procs_io_bound})"
+                )
+                procs[0].join()
+                del procs[0]
+                LOGGER.debug(f"Processes deleted from list.")
+        LOGGER.debug(f"Waiting final processes...")
         for proc in procs:
             proc.join()
 
     @staticmethod
-    def delete_not_listed_batch(session_primitives, partition_path, batch):
+    def delete_not_listed_batch(session_primitives,
+                                partition_path,
+                                batch,
+                                procs_io_bound=None):
         session = session_primitives.session
+        if not procs_io_bound:
+            procs_io_bound = session.procs_io_bound
+        LOGGER.debug(f"procs_io_bound: {procs_io_bound}")
         keys = session.s3.list_objects(path=partition_path)
         dead_keys = [key for key in keys if key not in batch]
-        session.s3.delete_listed_objects(objects_paths=dead_keys)
+        session.s3.delete_listed_objects(objects_paths=dead_keys,
+                                         procs_io_bound=1)
 
     @staticmethod
     def delete_objects_batch(session_primitives, bucket, batch):
@@ -151,6 +185,7 @@ class S3:
                                               config=session.botocore_config)
         num_requests = int(ceil((float(len(batch)) / 1000.0)))
         bounders = calculate_bounders(len(batch), num_requests)
+        LOGGER.debug(f"Bounders: {bounders}")
         for bounder in bounders:
             client.delete_objects(
                 Bucket=bucket,
@@ -193,6 +228,7 @@ class S3:
         client = session.boto3_session.client(service_name="s3",
                                               config=session.botocore_config)
         objects_sizes = {}
+        LOGGER.debug(f"len(objects_paths): {len(objects_paths)}")
         for object_path in objects_paths:
             bucket, key = object_path.replace("s3://", "").split("/", 1)
             res = S3._head_object_with_retry(client=client,
@@ -200,18 +236,22 @@ class S3:
                                              key=key)
             size = res.get("ContentLength")
             objects_sizes[object_path] = size
+        LOGGER.debug(f"len(objects_sizes): {len(objects_sizes)}")
         send_pipe.send(objects_sizes)
         send_pipe.close()
 
     def get_objects_sizes(self, objects_paths, procs_io_bound=None):
         if not procs_io_bound:
             procs_io_bound = self._session.procs_io_bound
+        LOGGER.debug(f"procs_io_bound: {procs_io_bound}")
         objects_sizes = {}
         procs = []
         receive_pipes = []
         bounders = calculate_bounders(len(objects_paths), procs_io_bound)
+        LOGGER.debug(f"len(bounders): {len(bounders)}")
         for bounder in bounders:
             receive_pipe, send_pipe = mp.Pipe()
+            LOGGER.debug(f"bounder: {bounder}")
             proc = mp.Process(
                 target=self._get_objects_head_remote,
                 args=(
@@ -224,8 +264,13 @@ class S3:
             proc.start()
             procs.append(proc)
             receive_pipes.append(receive_pipe)
+        LOGGER.debug(f"len(procs): {len(bounders)}")
         for i in range(len(procs)):
-            objects_sizes.update(receive_pipes[i].recv())
+            LOGGER.debug(f"Waiting pipe number: {i}")
+            receved = receive_pipes[i].recv()
+            objects_sizes.update(receved)
+            LOGGER.debug(f"Waiting proc number: {i}")
             procs[i].join()
+            LOGGER.debug(f"Closing proc number: {i}")
             receive_pipes[i].close()
         return objects_sizes
