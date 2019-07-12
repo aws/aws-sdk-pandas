@@ -7,7 +7,9 @@ import boto3
 
 from awswrangler import Session
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
@@ -43,12 +45,13 @@ def write_fake_objects(bucket, path, num):
     if num < 10:
         wrt_fake_objs_batch(bucket, path, 0, num - 1)
         return
-    cpus = mp.cpu_count() * 4
+    cpus = mp.cpu_count()
     bounders = calc_bounders(num, cpus)
     args = []
     for item in bounders:
         args.append((bucket, path, item[0], item[1]))
     pool = mp.Pool(processes=cpus)
+    print("Starting parallel writes...")
     pool.map(wrt_fake_objs_batch_wrapper, args)
 
 
@@ -78,20 +81,27 @@ def bucket(session, cloudformation_outputs):
     session.s3.delete_objects(path=f"s3://{bucket}/")
 
 
-@pytest.mark.parametrize("objects_num", [1, 10, 1001])
+@pytest.mark.parametrize("objects_num", [1, 10, 1001, 2001, 3001])
 def test_delete_objects(session, bucket, objects_num):
+    print("Starting writes...")
     write_fake_objects(bucket, f"objs-{objects_num}/", objects_num)
+    print("Starting deletes...")
     session.s3.delete_objects(path=f"s3://{bucket}/objs-{objects_num}/")
 
 
-@pytest.mark.parametrize("objects_num", [1, 10, 1001])
+@pytest.mark.parametrize("objects_num", [1, 10, 1001, 2001, 3001])
 def test_delete_listed_objects(session, bucket, objects_num):
     path = f"s3://{bucket}/objs-listed-{objects_num}/"
+    print("Starting deletes...")
     session.s3.delete_objects(path=path)
+    print("Starting writes...")
     write_fake_objects(bucket, f"objs-listed-{objects_num}/", objects_num)
+    print("Starting list...")
     objects_paths = session.s3.list_objects(path=path)
     assert len(objects_paths) == objects_num
+    print("Starting listed deletes...")
     session.s3.delete_listed_objects(objects_paths=objects_paths)
+    print("Starting list...")
     objects_paths = session.s3.list_objects(path=path)
     assert len(objects_paths) == 0
 
@@ -104,26 +114,36 @@ def check_list_with_retry(session, path, length):
     return False
 
 
-@pytest.mark.parametrize("objects_num", [1, 10, 1001])
+@pytest.mark.parametrize("objects_num", [1, 10, 1001, 2001, 3001])
 def test_delete_not_listed_objects(session, bucket, objects_num):
     path = f"s3://{bucket}/objs-not-listed-{objects_num}/"
+    print("Starting deletes...")
+    session.s3.delete_objects(path=path)
+    print("Starting writes...")
     write_fake_objects(bucket, f"objs-not-listed-{objects_num}/", objects_num)
+    print("Starting not listed deletes...")
     session.s3.delete_not_listed_objects(objects_paths=[f"{path}0"])
+    print("Starting checks...")
     assert check_list_with_retry(session=session, path=path, length=1)
+    print("Starting deletes...")
     session.s3.delete_objects(path=path)
 
 
-@pytest.mark.parametrize("objects_num", [1, 10, 1001])
+@pytest.mark.parametrize("objects_num", [1, 10, 1001, 2001, 3001])
 def test_get_objects_sizes(session, bucket, objects_num):
     path = f"s3://{bucket}/objs-get-objects-sizes-{objects_num}/"
+    print("Starting deletes...")
     session.s3.delete_objects(path=path)
+    print("Starting writes...")
     write_fake_objects(bucket, f"objs-get-objects-sizes-{objects_num}/",
                        objects_num)
     objects_paths = [
         f"s3://{bucket}/objs-get-objects-sizes-{objects_num}/{i}"
         for i in range(objects_num)
     ]
+    print("Starting gets...")
     objects_sizes = session.s3.get_objects_sizes(objects_paths=objects_paths)
+    print("Starting deletes...")
     session.s3.delete_objects(path=path)
     for _, object_size in objects_sizes.items():
         assert object_size == 10

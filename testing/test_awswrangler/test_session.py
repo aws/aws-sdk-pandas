@@ -5,7 +5,9 @@ import pytest
 
 from awswrangler import Session
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
@@ -22,6 +24,10 @@ def default_session():
 
 def test_session(default_session):
     assert_account_id(default_session)
+
+
+def test_session_region():
+    assert_account_id(Session(region_name="us-east-1"))
 
 
 def test_from_boto3_session(default_session):
