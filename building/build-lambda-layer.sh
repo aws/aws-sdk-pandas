@@ -63,15 +63,15 @@ cd /aws-data-wrangler/
 # Preparing directories
 mkdir -p dist
 rm -rf python
-rm -f "awswrangler_layer.zip"
-rm -f "dist/awswrangler_layer.zip"
+rm -f "awswrangler-layer.zip"
+rm -f "dist/awswrangler-layer.zip"
 
 # Building
 pip install . -t ./python
 rm -rf python/pyarrow*
 cp -r ~/pyarrow_files/pyarrow* python/
-zip -r "awswrangler_layer.zip" ./python
-mv "awswrangler_layer.zip" dist/
+zip -r "awswrangler-layer.zip" ./python
+mv "awswrangler-layer.zip" dist/
 
 # # Cleaning up the directory again
 rm -rf python
