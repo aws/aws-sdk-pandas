@@ -1,0 +1,6 @@
+{
+    "Bucket": "BUCKET_NAME",
+    "VpcId": "VPC_ID",
+    "SubnetId": "SUBNET_ID",
+    "Password": "REDSHIFT_PASSWORD"
+}

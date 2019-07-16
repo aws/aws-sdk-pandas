@@ -134,7 +134,6 @@ python/
 
 # SAM
 .aws-sam
-testing/*parameters.json
+testing/*parameters-*.json
 testing/*requirements*.txt
-building/*parameters.json
 building/*requirements*.txt
