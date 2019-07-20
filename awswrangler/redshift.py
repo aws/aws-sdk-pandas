@@ -61,7 +61,8 @@ class Redshift:
             }
             manifest.get("entries").append(entry)
         payload = json.dumps(manifest)
-        client_s3 = self._session.boto3_session.client(service_name="s3", config=self._session.botocore_config)
+        client_s3 = self._session.boto3_session.client(
+            service_name="s3", config=self._session.botocore_config)
         bucket, path = manifest_path.replace("s3://", "").split("/", 1)
         client_s3.put_object(Body=payload, Bucket=bucket, Key=path)
         return manifest
