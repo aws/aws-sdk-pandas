@@ -16,7 +16,7 @@ if importlib.util.find_spec("pyspark"):
     PYSPARK_INSTALLED = True
     from awswrangler.spark import Spark
 
-LOGGER = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class Session:

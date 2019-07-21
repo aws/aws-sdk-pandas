@@ -11,7 +11,7 @@ from awswrangler.exceptions import UnsupportedWriteMode, UnsupportedFileFormat
 from awswrangler.utils import calculate_bounders
 from awswrangler import s3
 
-LOGGER = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 MIN_NUMBER_OF_ROWS_TO_DISTRIBUTE = 1000
 
@@ -204,8 +204,8 @@ class Pandas:
             procs_cpu_bound = self._session.procs_cpu_bound
         if not procs_io_bound:
             procs_io_bound = self._session.procs_io_bound
-        LOGGER.debug(f"procs_cpu_bound: {procs_cpu_bound}")
-        LOGGER.debug(f"procs_io_bound: {procs_io_bound}")
+        logger.debug(f"procs_cpu_bound: {procs_cpu_bound}")
+        logger.debug(f"procs_io_bound: {procs_io_bound}")
         if path[-1] == "/":
             path = path[:-1]
         file_format = file_format.lower()
@@ -254,7 +254,7 @@ class Pandas:
                     float(procs_io_bound) / float(procs_cpu_bound))
             else:
                 num_procs = 1
-            LOGGER.debug(
+            logger.debug(
                 f"num_procs for delete_not_listed_objects: {num_procs}")
             self._session.s3.delete_not_listed_objects(
                 objects_paths=objects_paths, procs_io_bound=num_procs)
@@ -373,14 +373,14 @@ class Pandas:
         self._session.s3.delete_objects(path=path)
         num_slices = self._session.redshift.get_number_of_slices(
             redshift_conn=connection)
-        LOGGER.debug(f"Number of slices on Redshift: {num_slices}")
+        logger.debug(f"Number of slices on Redshift: {num_slices}")
         num_rows = len(dataframe.index)
-        LOGGER.info(f"Number of rows: {num_rows}")
+        logger.info(f"Number of rows: {num_rows}")
         if num_rows < MIN_NUMBER_OF_ROWS_TO_DISTRIBUTE:
             num_partitions = 1
         else:
             num_partitions = num_slices
-        LOGGER.debug(f"Number of partitions calculated: {num_partitions}")
+        logger.debug(f"Number of partitions calculated: {num_partitions}")
         objects_paths = self.to_parquet(
             dataframe=dataframe,
             path=path,
