@@ -29,6 +29,7 @@ class Glue:
             preserve_index=preserve_index,
         )
         table = table if table else Glue._parse_table_name(path)
+        table = table.lower().replace(".", "_")
         if mode == "overwrite":
             self.delete_table_if_exists(database=database, table=table)
         exists = self.does_table_exists(database=database, table=table)
