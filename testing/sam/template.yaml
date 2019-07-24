@@ -19,8 +19,6 @@ Resources:
   Bucket:
     Type: AWS::S3::Bucket
     Properties:
-      VersioningConfiguration:
-        Status: Suspended
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true

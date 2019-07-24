@@ -81,7 +81,7 @@ class Pandas:
             s3_resource = self._session.boto3_session.resource("s3")
             s3_resource.Bucket(s3_output)
         query_execution_id = self._session.athena.run_query(
-            sql, database, s3_output)
+            query=sql, database=database, s3_output=s3_output)
         query_response = self._session.athena.wait_query(
             query_execution_id=query_execution_id)
         if query_response.get("QueryExecution").get("Status").get(
