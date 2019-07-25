@@ -85,7 +85,7 @@ class Pandas:
         query_response = self._session.athena.wait_query(
             query_execution_id=query_execution_id)
         if query_response.get("QueryExecution").get("Status").get(
-                "State") == "FAILED":
+                "State") in ["FAILED", "CANCELLED"]:
             reason = (query_response.get("QueryExecution").get("Status").get(
                 "StateChangeReason"))
             message_error = f"Query error: {reason}"
