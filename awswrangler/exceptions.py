@@ -26,5 +26,9 @@ class AthenaQueryError(Exception):
     pass
 
 
+class EmptyS3Object(Exception):
+    pass
+
+
 class MissingBatchDetected(Exception):
     pass

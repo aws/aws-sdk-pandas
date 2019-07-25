@@ -1,4 +1,4 @@
-from io import BytesIO
+from io import BytesIO, StringIO
 import multiprocessing as mp
 import logging
 from math import floor
@@ -7,7 +7,7 @@ import pandas
 import pyarrow
 from pyarrow import parquet
 
-from awswrangler.exceptions import UnsupportedWriteMode, UnsupportedFileFormat, AthenaQueryError
+from awswrangler.exceptions import UnsupportedWriteMode, UnsupportedFileFormat, AthenaQueryError, EmptyS3Object
 from awswrangler.utils import calculate_bounders
 from awswrangler import s3
 
@@ -34,6 +34,186 @@ class Pandas:
     def read_csv(
             self,
             path,
+            max_result_size=None,
+            header="infer",
+            names=None,
+            dtype=None,
+            sep=",",
+            lineterminator="\n",
+            quotechar='"',
+            quoting=0,
+            escapechar=None,
+            parse_dates=False,
+            infer_datetime_format=False,
+            encoding="utf-8",
+    ):
+        """
+        Read CSV file from AWS S3 using optimized strategies.
+        Try to mimic as most as possible pandas.read_csv()
+        https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
+        P.S. max_result_size != None tries to mimic the chunksize behaviour in pandas.read_sql()
+        :param path: AWS S3 path (E.g. S3://BUCKET_NAME/KEY_NAME)
+        :param max_result_size: Max number of bytes on each request to S3
+        :param header: Same as pandas.read_csv()
+        :param names: Same as pandas.read_csv()
+        :param dtype: Same as pandas.read_csv()
+        :param sep: Same as pandas.read_csv()
+        :param lineterminator: Same as pandas.read_csv()
+        :param quotechar: Same as pandas.read_csv()
+        :param quoting: Same as pandas.read_csv()
+        :param escapechar: Same as pandas.read_csv()
+        :param parse_dates: Same as pandas.read_csv()
+        :param infer_datetime_format: Same as pandas.read_csv()
+        :param encoding: Same as pandas.read_csv()
+        :return: Pandas Dataframe or Iterator of Pandas Dataframes if max_result_size != None
+        """
+        bucket_name, key_path = self._parse_path(path)
+        client_s3 = self._session.boto3_session.client(
+            service_name="s3",
+            use_ssl=True,
+            config=self._session.botocore_config)
+        if max_result_size:
+            ret = Pandas._read_csv_iterator(
+                client_s3=client_s3,
+                bucket_name=bucket_name,
+                key_path=key_path,
+                max_result_size=max_result_size,
+                header=header,
+                names=names,
+                dtype=dtype,
+                sep=sep,
+                lineterminator=lineterminator,
+                quotechar=quotechar,
+                quoting=quoting,
+                escapechar=escapechar,
+                parse_dates=parse_dates,
+                infer_datetime_format=infer_datetime_format,
+                encoding=encoding)
+        else:
+            ret = Pandas._read_csv_once(
+                client_s3=client_s3,
+                bucket_name=bucket_name,
+                key_path=key_path,
+                header=header,
+                names=names,
+                dtype=dtype,
+                sep=sep,
+                lineterminator=lineterminator,
+                quotechar=quotechar,
+                quoting=quoting,
+                escapechar=escapechar,
+                parse_dates=parse_dates,
+                infer_datetime_format=infer_datetime_format,
+                encoding=encoding)
+        return ret
+
+    @staticmethod
+    def _read_csv_iterator(
+            client_s3,
+            bucket_name,
+            key_path,
+            max_result_size=200_000_000,  # 200 MB
+            header="infer",
+            names=None,
+            dtype=None,
+            sep=",",
+            lineterminator="\n",
+            quotechar='"',
+            quoting=0,
+            escapechar=None,
+            parse_dates=False,
+            infer_datetime_format=False,
+            encoding="utf-8",
+    ):
+        """
+        Read CSV file from AWS S3 using optimized strategies.
+        Try to mimic as most as possible pandas.read_csv()
+        https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
+        :param client_s3: Boto3 S3 client object
+        :param bucket_name: S3 bucket name
+        :param key_path: S3 key path (W/o bucket)
+        :param max_result_size: Max number of bytes on each request to S3
+        :param header: Same as pandas.read_csv()
+        :param names: Same as pandas.read_csv()
+        :param dtype: Same as pandas.read_csv()
+        :param sep: Same as pandas.read_csv()
+        :param lineterminator: Same as pandas.read_csv()
+        :param quotechar: Same as pandas.read_csv()
+        :param quoting: Same as pandas.read_csv()
+        :param escapechar: Same as pandas.read_csv()
+        :param parse_dates: Same as pandas.read_csv()
+        :param infer_datetime_format: Same as pandas.read_csv()
+        :param encoding: Same as pandas.read_csv()
+        :return: Pandas Dataframe
+        """
+        metadata = s3.S3.head_object_with_retry(client=client_s3,
+                                                bucket=bucket_name,
+                                                key=key_path)
+        logger.debug(f"metadata: {metadata}")
+        total_size = metadata["ContentLength"]
+        logger.debug(f"total_size: {total_size}")
+        if total_size <= 0:
+            raise EmptyS3Object(metadata)
+        else:
+            bounders = calculate_bounders(num_items=total_size,
+                                          max_size=max_result_size)
+            logger.debug(f"bounders: {bounders}")
+            bounders_len = len(bounders)
+            count = 0
+            forgotten_bytes = 0
+            cols_names = None
+            for ini, end in bounders:
+                count += 1
+                ini -= forgotten_bytes
+                end -= 1  # Range is inclusive, contrary to Python's List
+                bytes_range = "bytes={}-{}".format(ini, end)
+                logger.debug(f"bytes_range: {bytes_range}")
+                body = client_s3.get_object(Bucket=bucket_name, Key=key_path, Range=bytes_range)["Body"]\
+                    .read()\
+                    .decode(encoding, errors="ignore")
+                chunk_size = len(body)
+                logger.debug(f"chunk_size: {chunk_size}")
+                if body[0] == lineterminator:
+                    first_char = 1
+                else:
+                    first_char = 0
+                if (count == 1) and (count == bounders_len):
+                    last_break_line_idx = chunk_size
+                elif count == 1:  # first chunk
+                    last_break_line_idx = body.rindex(lineterminator)
+                    forgotten_bytes = chunk_size - last_break_line_idx
+                elif count == bounders_len:  # Last chunk
+                    header = None
+                    names = cols_names
+                    last_break_line_idx = chunk_size
+                else:
+                    header = None
+                    names = cols_names
+                    last_break_line_idx = body.rindex(lineterminator)
+                    forgotten_bytes = chunk_size - last_break_line_idx
+                df = pandas.read_csv(
+                    StringIO(body[first_char:last_break_line_idx]),
+                    header=header,
+                    names=names,
+                    sep=sep,
+                    quotechar=quotechar,
+                    quoting=quoting,
+                    escapechar=escapechar,
+                    parse_dates=parse_dates,
+                    infer_datetime_format=infer_datetime_format,
+                    lineterminator=lineterminator,
+                    dtype=dtype,
+                    encoding=encoding,
+                )
+                yield df
+                if count == 1:  # first chunk
+                    cols_names = df.columns
+
+    @staticmethod
+    def _read_csv_once(
+            client_s3,
+            bucket_name,
+            key_path,
             header="infer",
             names=None,
             dtype=None,
@@ -46,13 +226,30 @@ class Pandas:
             infer_datetime_format=False,
             encoding=None,
     ):
-        bucket_name, key_path = self._parse_path(path)
-        s3_client = self._session.boto3_session.client(
-            service_name="s3",
-            use_ssl=True,
-            config=self._session.botocore_config)
+        """
+        Read CSV file from AWS S3 using optimized strategies.
+        Try to mimic as most as possible pandas.read_csv()
+        https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
+        :param client_s3: Boto3 S3 client object
+        :param bucket_name: S3 bucket name
+        :param key_path: S3 key path (W/o bucket)
+        :param header: Same as pandas.read_csv()
+        :param names: Same as pandas.read_csv()
+        :param dtype: Same as pandas.read_csv()
+        :param sep: Same as pandas.read_csv()
+        :param lineterminator: Same as pandas.read_csv()
+        :param quotechar: Same as pandas.read_csv()
+        :param quoting: Same as pandas.read_csv()
+        :param escapechar: Same as pandas.read_csv()
+        :param parse_dates: Same as pandas.read_csv()
+        :param infer_datetime_format: Same as pandas.read_csv()
+        :param encoding: Same as pandas.read_csv()
+        :return: Pandas Dataframe
+        """
         buff = BytesIO()
-        s3_client.download_fileobj(bucket_name, key_path, buff)
+        client_s3.download_fileobj(Bucket=bucket_name,
+                                   Key=key_path,
+                                   Fileobj=buff)
         buff.seek(0),
         dataframe = pandas.read_csv(
             buff,
@@ -84,8 +281,9 @@ class Pandas:
             query=sql, database=database, s3_output=s3_output)
         query_response = self._session.athena.wait_query(
             query_execution_id=query_execution_id)
-        if query_response.get("QueryExecution").get("Status").get(
-                "State") in ["FAILED", "CANCELLED"]:
+        if query_response.get("QueryExecution").get("Status").get("State") in [
+                "FAILED", "CANCELLED"
+        ]:
             reason = (query_response.get("QueryExecution").get("Status").get(
                 "StateChangeReason"))
             message_error = f"Query error: {reason}"

@@ -48,13 +48,27 @@ def database(cloudformation_outputs):
     yield database
 
 
-def test_read_csv(session, bucket):
-    boto3.client("s3").upload_file("data_samples/small.csv", bucket,
-                                   "data_samples/small.csv")
-    path = f"s3://{bucket}/data_samples/small.csv"
+@pytest.mark.parametrize("sample, row_num", [("data_samples/micro.csv", 30),
+                                             ("data_samples/small.csv", 100)])
+def test_read_csv(session, bucket, sample, row_num):
+    boto3.client("s3").upload_file(sample, bucket, sample)
+    path = f"s3://{bucket}/{sample}"
     dataframe = session.pandas.read_csv(path=path)
-    session.s3.delete_objects(path=f"s3://{bucket}/data_samples/")
-    assert len(dataframe.index) == 100
+    session.s3.delete_objects(path=path)
+    assert len(dataframe.index) == row_num
+
+
+@pytest.mark.parametrize("sample, row_num", [("data_samples/micro.csv", 30),
+                                             ("data_samples/small.csv", 100)])
+def test_read_csv_iterator(session, bucket, sample, row_num):
+    boto3.client("s3").upload_file(sample, bucket, sample)
+    path = f"s3://{bucket}/{sample}"
+    dataframe_iter = session.pandas.read_csv(path=path, max_result_size=200)
+    total_count = 0
+    for dataframe in dataframe_iter:
+        total_count += len(dataframe.index)
+    session.s3.delete_objects(path=path)
+    assert total_count == row_num
 
 
 @pytest.mark.parametrize(

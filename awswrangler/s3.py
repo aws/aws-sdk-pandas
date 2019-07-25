@@ -225,7 +225,7 @@ class S3:
         stop=tenacity.stop_after_attempt(max_attempt_number=15),
         reraise=True,
     )
-    def _head_object_with_retry(client, bucket, key):
+    def head_object_with_retry(client, bucket, key):
         return client.head_object(Bucket=bucket, Key=key)
 
     @staticmethod
@@ -237,10 +237,10 @@ class S3:
         logger.debug(f"len(objects_paths): {len(objects_paths)}")
         for object_path in objects_paths:
             bucket, key = object_path.replace("s3://", "").split("/", 1)
-            res = S3._head_object_with_retry(client=client,
-                                             bucket=bucket,
-                                             key=key)
-            size = res.get("ContentLength")
+            res = S3.head_object_with_retry(client=client,
+                                            bucket=bucket,
+                                            key=key)
+            size = res["ContentLength"]
             objects_sizes[object_path] = size
         logger.debug(f"len(objects_sizes): {len(objects_sizes)}")
         send_pipe.send(objects_sizes)
