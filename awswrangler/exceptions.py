@@ -22,5 +22,9 @@ class RedshiftLoadError(Exception):
     pass
 
 
+class AthenaQueryError(Exception):
+    pass
+
+
 class MissingBatchDetected(Exception):
     pass

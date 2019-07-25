@@ -7,7 +7,7 @@ import pandas
 import pyarrow
 from pyarrow import parquet
 
-from awswrangler.exceptions import UnsupportedWriteMode, UnsupportedFileFormat
+from awswrangler.exceptions import UnsupportedWriteMode, UnsupportedFileFormat, AthenaQueryError
 from awswrangler.utils import calculate_bounders
 from awswrangler import s3
 
@@ -89,7 +89,7 @@ class Pandas:
             reason = (query_response.get("QueryExecution").get("Status").get(
                 "StateChangeReason"))
             message_error = f"Query error: {reason}"
-            raise Exception(message_error)
+            raise AthenaQueryError(message_error)
         else:
             path = f"{s3_output}{query_execution_id}.csv"
             dataframe = self.read_csv(path=path)
