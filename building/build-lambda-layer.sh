@@ -6,7 +6,7 @@ cd ~
 # Clone desired Arrow version
 rm -rf arrow dist pyarrow*
 git clone \
-    --branch apache-arrow-0.14.0 \
+    --branch apache-arrow-0.14.1 \
     --single-branch \
     https://github.com/apache/arrow.git
 
@@ -18,7 +18,7 @@ yum install -y \
     flex \
     autoconf \
     python36-devel
-pip install six numpy pandas cython pytest cmake wheel
+pip install --upgrade six numpy pandas cython pytest cmake wheel
 
 # Build Arrow
 export ARROW_HOME=$(pwd)/dist
@@ -55,7 +55,7 @@ cp dist/pyarrow-*.whl ~
 popd
 
 # Extracting files
-pip install pyarrow-*whl  -t pyarrow_files
+pip install pyarrow-*whl -t pyarrow_files
 
 # Go back to AWSWRANGLER directory
 cd /aws-data-wrangler/

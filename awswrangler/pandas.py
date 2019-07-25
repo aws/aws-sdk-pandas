@@ -154,6 +154,22 @@ class Pandas:
         logger.debug(f"total_size: {total_size}")
         if total_size <= 0:
             raise EmptyS3Object(metadata)
+        elif total_size <= max_result_size:
+            yield Pandas._read_csv_once(
+                client_s3=client_s3,
+                bucket_name=bucket_name,
+                key_path=key_path,
+                header=header,
+                names=names,
+                dtype=dtype,
+                sep=sep,
+                lineterminator=lineterminator,
+                quotechar=quotechar,
+                quoting=quoting,
+                escapechar=escapechar,
+                parse_dates=parse_dates,
+                infer_datetime_format=infer_datetime_format,
+                encoding=encoding)
         else:
             bounders = calculate_bounders(num_items=total_size,
                                           max_size=max_result_size)

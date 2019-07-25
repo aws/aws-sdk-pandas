@@ -183,9 +183,15 @@ def test_to_s3(
     assert factor * len(dataframe.index) == len(dataframe2.index)
 
 
-@pytest.mark.parametrize("sample, row_num", [("data_samples/micro.csv", 30),
-                                             ("data_samples/small.csv", 100)])
-def test_read_sql_athena_iterator(session, bucket, database, sample, row_num):
+@pytest.mark.parametrize("sample, row_num, max_result_size",
+                         [("data_samples/micro.csv", 30, 100),
+                          ("data_samples/small.csv", 100, 100),
+                          ("data_samples/micro.csv", 30, 500),
+                          ("data_samples/small.csv", 100, 500),
+                          ("data_samples/micro.csv", 30, 3000),
+                          ("data_samples/small.csv", 100, 3000)])
+def test_read_sql_athena_iterator(session, bucket, database, sample, row_num,
+                                  max_result_size):
     dataframe_sample = pandas.read_csv(sample)
     path = f"s3://{bucket}/test/"
     session.pandas.to_parquet(dataframe=dataframe_sample,
@@ -196,7 +202,9 @@ def test_read_sql_athena_iterator(session, bucket, database, sample, row_num):
     total_count = 0
     for counter in range(10):
         dataframe_iter = session.pandas.read_sql_athena(
-            sql="select * from test", database=database, max_result_size=200)
+            sql="select * from test",
+            database=database,
+            max_result_size=max_result_size)
         total_count = 0
         for dataframe in dataframe_iter:
             total_count += len(dataframe.index)
