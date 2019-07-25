@@ -268,7 +268,20 @@ class Pandas:
         buff.close()
         return dataframe
 
-    def read_sql_athena(self, sql, database, s3_output=None):
+    def read_sql_athena(self,
+                        sql,
+                        database,
+                        s3_output=None,
+                        max_result_size=None):
+        """
+        Executes any SQL query on AWS Athena and return a Dataframe of the result.
+        P.S. If max_result_size is passed, then a iterator of Dataframes is returned.
+        :param sql: SQL Query
+        :param database: Glue/Athena Databease
+        :param s3_output: AWS S3 path
+        :param max_result_size: Max number of bytes on each request to S3
+        :return: Pandas Dataframe or Iterator of Pandas Dataframes if max_result_size != None
+        """
         if not s3_output:
             account_id = (self._session.boto3_session.client(
                 service_name="sts", config=self._session.botocore_config).
@@ -290,8 +303,8 @@ class Pandas:
             raise AthenaQueryError(message_error)
         else:
             path = f"{s3_output}{query_execution_id}.csv"
-            dataframe = self.read_csv(path=path)
-        return dataframe
+            ret = self.read_csv(path=path, max_result_size=max_result_size)
+        return ret
 
     def to_csv(
             self,

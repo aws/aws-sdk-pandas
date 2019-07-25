@@ -227,6 +227,7 @@ class SessionPrimitives:
     It is required to "share" the session attributes to other processes.
     That must be "pickable"!
     """
+
     def __init__(
             self,
             profile_name=None,
