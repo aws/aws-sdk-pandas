@@ -23,8 +23,8 @@ setup(
     python_requires=">=3.6",
     install_requires=[
         "pyarrow>=0.14.1",
-        "pandas>=0.25.0",
-        "boto3>=1.9.196",
+        "pandas>=0.24.2",
+        "boto3>=1.9.130",
         "s3fs>=0.3.1",
         "tenacity>=5.0.4",
         "pg8000>=1.13.2",
