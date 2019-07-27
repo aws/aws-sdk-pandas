@@ -10,6 +10,53 @@ logger = logging.getLogger(__name__)
 class Glue:
     def __init__(self, session):
         self._session = session
+        self._client_glue = session.boto3_session.client(
+            service_name="glue", config=session.botocore_config)
+
+    def get_table_dtypes(self, database, table):
+        """
+        Get all columns names and the related data types
+        :param database: Glue database's name
+        :param table: Glue table's name
+        :return: A dictionary as {"col name": "col dtype"}
+        """
+        response = self._client_glue.get_table(DatabaseName=database,
+                                               Name=table)
+        logger.debug(f"get_table response:\n{response}")
+        dtypes = {}
+        for col in response["Table"]["StorageDescriptor"]["Columns"]:
+            dtypes[col["Name"]] = col["Type"]
+        for par in response["Table"]["PartitionKeys"]:
+            dtypes[par["Name"]] = par["Type"]
+        return dtypes
+
+    def get_table_python_types(self, database, table):
+        """
+        Get all columns names and the related python types
+        :param database: Glue database's name
+        :param table: Glue table's name
+        :return: A dictionary as {"col name": "col python type"}
+        """
+        dtypes = self.get_table_dtypes(database=database, table=table)
+        return {k: Glue._type_athena2python(v) for k, v in dtypes.items()}
+
+    @staticmethod
+    def _type_athena2python(dtype):
+        dtype = dtype.lower()
+        if dtype == "int":
+            return int
+        elif dtype == "bigint":
+            return int
+        elif dtype == "float":
+            return float
+        elif dtype == "double":
+            return float
+        elif dtype == "boolean":
+            return bool
+        elif dtype == "string":
+            return str
+        else:
+            raise UnsupportedType(f"Unsupported Athena type: {dtype}")
 
     def metadata_to_glue(
             self,
@@ -53,20 +100,16 @@ class Glue:
             )
 
     def delete_table_if_exists(self, database, table):
-        client = self._session.boto3_session.client(
-            service_name="glue", config=self._session.botocore_config)
         try:
-            client.delete_table(DatabaseName=database, Name=table)
-        except client.exceptions.EntityNotFoundException:
+            self._client_glue.delete_table(DatabaseName=database, Name=table)
+        except self._client_glue.exceptions.EntityNotFoundException:
             pass
 
     def does_table_exists(self, database, table):
-        client = self._session.boto3_session.client(
-            service_name="glue", config=self._session.botocore_config)
         try:
-            client.get_table(DatabaseName=database, Name=table)
+            self._client_glue.get_table(DatabaseName=database, Name=table)
             return True
-        except client.exceptions.EntityNotFoundException:
+        except self._client_glue.exceptions.EntityNotFoundException:
             return False
 
     def create_table(self,
@@ -76,8 +119,6 @@ class Glue:
                      path,
                      file_format,
                      partition_cols=None):
-        client = self._session.boto3_session.client(
-            service_name="glue", config=self._session.botocore_config)
         if file_format == "parquet":
             table_input = Glue.parquet_table_definition(
                 table, partition_cols, schema, path)
@@ -86,11 +127,10 @@ class Glue:
                                                     schema, path)
         else:
             raise UnsupportedFileFormat(file_format)
-        client.create_table(DatabaseName=database, TableInput=table_input)
+        self._client_glue.create_table(DatabaseName=database,
+                                       TableInput=table_input)
 
     def add_partitions(self, database, table, partition_paths, file_format):
-        client = self._session.boto3_session.client(
-            service_name="glue", config=self._session.botocore_config)
         if not partition_paths:
             return None
         partitions = list()
@@ -106,15 +146,13 @@ class Glue:
         for _ in range(pages_num):
             page = partitions[:100]
             del partitions[:100]
-            client.batch_create_partition(DatabaseName=database,
-                                          TableName=table,
-                                          PartitionInputList=page)
+            self._client_glue.batch_create_partition(DatabaseName=database,
+                                                     TableName=table,
+                                                     PartitionInputList=page)
 
     def get_connection_details(self, name):
-        client = self._session.boto3_session.client(
-            service_name="glue", config=self._session.botocore_config)
-        return client.get_connection(Name=name,
-                                     HidePassword=False)["Connection"]
+        return self._client_glue.get_connection(
+            Name=name, HidePassword=False)["Connection"]
 
     @staticmethod
     def _build_schema(dataframe, partition_cols, preserve_index):
@@ -155,7 +193,7 @@ class Glue:
         elif dtype[:10] == "datetime64":
             return "timestamp"
         else:
-            raise UnsupportedType("Unsupported Pandas type: " + dtype)
+            raise UnsupportedType(f"Unsupported Pandas type: {dtype}")
 
     @staticmethod
     def _parse_table_name(path):
