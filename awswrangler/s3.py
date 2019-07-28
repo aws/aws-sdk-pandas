@@ -20,7 +20,7 @@ def mkdir_if_not_exists(fs, path):
 
 
 def get_fs(session_primitives):
-    aws_access_key_id, aws_secret_access_key, profile_name = None, None, None
+    aws_access_key_id, aws_secret_access_key, profile_name, config = None, None, None, None
     if session_primitives:
         aws_access_key_id = (session_primitives.aws_access_key_id
                              if session_primitives.aws_access_key_id else None)
@@ -29,13 +29,20 @@ def get_fs(session_primitives):
                                  else None)
         profile_name = (session_primitives.profile_name
                         if session_primitives.profile_name else None)
+        config = {
+            "retries": {
+                "max_attempts": session_primitives.botocore_max_retries
+            }
+        }
     if profile_name:
-        return s3fs.S3FileSystem(profile_name=profile_name)
+        return s3fs.S3FileSystem(profile_name=profile_name,
+                                 config_kwargs=config)
     elif aws_access_key_id and aws_secret_access_key:
         return s3fs.S3FileSystem(key=aws_access_key_id,
-                                 secret=aws_secret_access_key)
+                                 secret=aws_secret_access_key,
+                                 config_kwargs=config)
     else:
-        return s3fs.S3FileSystem()
+        return s3fs.S3FileSystem(config_kwargs=config)
 
 
 class S3:

@@ -58,23 +58,21 @@ class Glue:
         else:
             raise UnsupportedType(f"Unsupported Athena type: {dtype}")
 
-    def metadata_to_glue(
-            self,
-            dataframe,
-            path,
-            objects_paths,
-            file_format,
-            database=None,
-            table=None,
-            partition_cols=None,
-            preserve_index=True,
-            mode="append",
-    ):
-        schema = Glue._build_schema(
-            dataframe=dataframe,
-            partition_cols=partition_cols,
-            preserve_index=preserve_index,
-        )
+    def metadata_to_glue(self,
+                         dataframe,
+                         path,
+                         objects_paths,
+                         file_format,
+                         database=None,
+                         table=None,
+                         partition_cols=None,
+                         preserve_index=True,
+                         mode="append",
+                         cast_columns=None):
+        schema = Glue._build_schema(dataframe=dataframe,
+                                    partition_cols=partition_cols,
+                                    preserve_index=preserve_index,
+                                    cast_columns=cast_columns)
         table = table if table else Glue._parse_table_name(path)
         table = table.lower().replace(".", "_")
         if mode == "overwrite":
@@ -155,7 +153,10 @@ class Glue:
             Name=name, HidePassword=False)["Connection"]
 
     @staticmethod
-    def _build_schema(dataframe, partition_cols, preserve_index):
+    def _build_schema(dataframe,
+                      partition_cols,
+                      preserve_index,
+                      cast_columns=None):
         if not partition_cols:
             partition_cols = []
         schema_built = []
@@ -169,10 +170,14 @@ class Glue:
                 schema_built.append((name, athena_type))
         for col in dataframe.columns:
             name = str(col)
-            dtype = str(dataframe[name].dtype)
+            if cast_columns and name in cast_columns:
+                dtype = cast_columns[name]
+            else:
+                dtype = str(dataframe[name].dtype)
             if name not in partition_cols:
                 athena_type = Glue._type_pandas2athena(dtype)
                 schema_built.append((name, athena_type))
+        logger.debug(f"schema_built:\n{schema_built}")
         return schema_built
 
     @staticmethod

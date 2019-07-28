@@ -183,6 +183,29 @@ def test_to_s3(
     assert factor * len(dataframe.index) == len(dataframe2.index)
 
 
+def test_to_parquet_with_cast(
+        session,
+        bucket,
+        database,
+):
+    dataframe = pandas.read_csv("data_samples/micro.csv")
+    session.pandas.to_parquet(dataframe=dataframe,
+                              database=database,
+                              path=f"s3://{bucket}/test/",
+                              preserve_index=False,
+                              mode="overwrite",
+                              procs_cpu_bound=1,
+                              cast_columns={"value": "int64"})
+    dataframe2 = None
+    for counter in range(10):
+        dataframe2 = session.pandas.read_sql_athena(sql="select * from test",
+                                                    database=database)
+        if len(dataframe.index) == len(dataframe2.index):
+            break
+        sleep(1)
+    assert len(dataframe.index) == len(dataframe2.index)
+
+
 @pytest.mark.parametrize("sample, row_num, max_result_size",
                          [("data_samples/micro.csv", 30, 100),
                           ("data_samples/small.csv", 100, 100),

@@ -334,6 +334,20 @@ class Pandas:
             procs_cpu_bound=None,
             procs_io_bound=None,
     ):
+        """
+        Write a Pandas Dataframe as CSV files on S3
+        Optionally writes metadata on AWS Glue.
+        :param dataframe: Pandas Dataframe
+        :param path: AWS S3 path (E.g. s3://bucket-name/folder_name/
+        :param database: AWS Glue Database name
+        :param table: AWS Glue table name
+        :param partition_cols: List of columns names that will be partitions on S3
+        :param preserve_index: Should preserve index on S3?
+        :param mode: "append", "overwrite", "overwrite_partitions"
+        :param procs_cpu_bound: Number of cores used for CPU bound tasks
+        :param procs_io_bound: Number of cores used for I/O bound tasks
+        :return: List of objects written on S3
+        """
         return self.to_s3(
             dataframe=dataframe,
             path=path,
@@ -347,44 +361,75 @@ class Pandas:
             procs_io_bound=procs_io_bound,
         )
 
-    def to_parquet(
-            self,
-            dataframe,
-            path,
-            database=None,
-            table=None,
-            partition_cols=None,
-            preserve_index=True,
-            mode="append",
-            procs_cpu_bound=None,
-            procs_io_bound=None,
-    ):
-        return self.to_s3(
-            dataframe=dataframe,
-            path=path,
-            file_format="parquet",
-            database=database,
-            table=table,
-            partition_cols=partition_cols,
-            preserve_index=preserve_index,
-            mode=mode,
-            procs_cpu_bound=procs_cpu_bound,
-            procs_io_bound=procs_io_bound,
-        )
+    def to_parquet(self,
+                   dataframe,
+                   path,
+                   database=None,
+                   table=None,
+                   partition_cols=None,
+                   preserve_index=True,
+                   mode="append",
+                   procs_cpu_bound=None,
+                   procs_io_bound=None,
+                   cast_columns=None):
+        """
+        Write a Pandas Dataframe as parquet files on S3
+        Optionally writes metadata on AWS Glue.
+        :param dataframe: Pandas Dataframe
+        :param path: AWS S3 path (E.g. s3://bucket-name/folder_name/
+        :param database: AWS Glue Database name
+        :param table: AWS Glue table name
+        :param partition_cols: List of columns names that will be partitions on S3
+        :param preserve_index: Should preserve index on S3?
+        :param mode: "append", "overwrite", "overwrite_partitions"
+        :param procs_cpu_bound: Number of cores used for CPU bound tasks
+        :param procs_io_bound: Number of cores used for I/O bound tasks
+        :param cast_columns: Dictionary of columns names and Arrow types to be casted.
+               E.g. {"col name": "int64", "col2 name": "int32"}
+        :return: List of objects written on S3
+        """
+        return self.to_s3(dataframe=dataframe,
+                          path=path,
+                          file_format="parquet",
+                          database=database,
+                          table=table,
+                          partition_cols=partition_cols,
+                          preserve_index=preserve_index,
+                          mode=mode,
+                          procs_cpu_bound=procs_cpu_bound,
+                          procs_io_bound=procs_io_bound,
+                          cast_columns=cast_columns)
 
-    def to_s3(
-            self,
-            dataframe,
-            path,
-            file_format,
-            database=None,
-            table=None,
-            partition_cols=None,
-            preserve_index=True,
-            mode="append",
-            procs_cpu_bound=None,
-            procs_io_bound=None,
-    ):
+    def to_s3(self,
+              dataframe,
+              path,
+              file_format,
+              database=None,
+              table=None,
+              partition_cols=None,
+              preserve_index=True,
+              mode="append",
+              procs_cpu_bound=None,
+              procs_io_bound=None,
+              cast_columns=None):
+        """
+        Write a Pandas Dataframe on S3
+        Optionally writes metadata on AWS Glue.
+        :param dataframe: Pandas Dataframe
+        :param path: AWS S3 path (E.g. s3://bucket-name/folder_name/
+        :param file_format: "csv" or "parquet"
+        :param database: AWS Glue Database name
+        :param table: AWS Glue table name
+        :param partition_cols: List of columns names that will be partitions on S3
+        :param preserve_index: Should preserve index on S3?
+        :param mode: "append", "overwrite", "overwrite_partitions"
+        :param procs_cpu_bound: Number of cores used for CPU bound tasks
+        :param procs_io_bound: Number of cores used for I/O bound tasks
+        :param cast_columns: Dictionary of columns indexes and Arrow types to be casted.
+               E.g. {2: "int64", 5: "int32"}
+               Only for "parquet" file_format
+        :return: List of objects written on S3
+        """
         if not partition_cols:
             partition_cols = []
         if mode == "overwrite" or (mode == "overwrite_partitions"
@@ -392,41 +437,38 @@ class Pandas:
             self._session.s3.delete_objects(path=path)
         elif mode not in ["overwrite_partitions", "append"]:
             raise UnsupportedWriteMode(mode)
-        objects_paths = self.data_to_s3(
-            dataframe=dataframe,
-            path=path,
-            partition_cols=partition_cols,
-            preserve_index=preserve_index,
-            file_format=file_format,
-            mode=mode,
-            procs_cpu_bound=procs_cpu_bound,
-            procs_io_bound=procs_io_bound,
-        )
+        objects_paths = self.data_to_s3(dataframe=dataframe,
+                                        path=path,
+                                        partition_cols=partition_cols,
+                                        preserve_index=preserve_index,
+                                        file_format=file_format,
+                                        mode=mode,
+                                        procs_cpu_bound=procs_cpu_bound,
+                                        procs_io_bound=procs_io_bound,
+                                        cast_columns=cast_columns)
         if database:
-            self._session.glue.metadata_to_glue(
-                dataframe=dataframe,
-                path=path,
-                objects_paths=objects_paths,
-                database=database,
-                table=table,
-                partition_cols=partition_cols,
-                preserve_index=preserve_index,
-                file_format=file_format,
-                mode=mode,
-            )
+            self._session.glue.metadata_to_glue(dataframe=dataframe,
+                                                path=path,
+                                                objects_paths=objects_paths,
+                                                database=database,
+                                                table=table,
+                                                partition_cols=partition_cols,
+                                                preserve_index=preserve_index,
+                                                file_format=file_format,
+                                                mode=mode,
+                                                cast_columns=cast_columns)
         return objects_paths
 
-    def data_to_s3(
-            self,
-            dataframe,
-            path,
-            file_format,
-            partition_cols=None,
-            preserve_index=True,
-            mode="append",
-            procs_cpu_bound=None,
-            procs_io_bound=None,
-    ):
+    def data_to_s3(self,
+                   dataframe,
+                   path,
+                   file_format,
+                   partition_cols=None,
+                   preserve_index=True,
+                   mode="append",
+                   procs_cpu_bound=None,
+                   procs_io_bound=None,
+                   cast_columns=None):
         if not procs_cpu_bound:
             procs_cpu_bound = self._session.procs_cpu_bound
         if not procs_io_bound:
@@ -448,15 +490,9 @@ class Pandas:
                 receive_pipe, send_pipe = mp.Pipe()
                 proc = mp.Process(
                     target=self._data_to_s3_dataset_writer_remote,
-                    args=(
-                        send_pipe,
-                        dataframe.iloc[bounder[0]:bounder[1], :],
-                        path,
-                        partition_cols,
-                        preserve_index,
-                        self._session.primitives,
-                        file_format,
-                    ),
+                    args=(send_pipe, dataframe.iloc[bounder[0]:bounder[1], :],
+                          path, partition_cols, preserve_index,
+                          self._session.primitives, file_format, cast_columns),
                 )
                 proc.daemon = False
                 proc.start()
@@ -474,7 +510,7 @@ class Pandas:
                 preserve_index=preserve_index,
                 session_primitives=self._session.primitives,
                 file_format=file_format,
-            )
+                cast_columns=cast_columns)
         if mode == "overwrite_partitions" and partition_cols:
             if procs_io_bound > procs_cpu_bound:
                 num_procs = floor(
@@ -488,9 +524,13 @@ class Pandas:
         return objects_paths
 
     @staticmethod
-    def _data_to_s3_dataset_writer(dataframe, path, partition_cols,
-                                   preserve_index, session_primitives,
-                                   file_format):
+    def _data_to_s3_dataset_writer(dataframe,
+                                   path,
+                                   partition_cols,
+                                   preserve_index,
+                                   session_primitives,
+                                   file_format,
+                                   cast_columns=None):
         objects_paths = []
         if not partition_cols:
             object_path = Pandas._data_to_s3_object_writer(
@@ -499,7 +539,7 @@ class Pandas:
                 preserve_index=preserve_index,
                 session_primitives=session_primitives,
                 file_format=file_format,
-            )
+                cast_columns=cast_columns)
             objects_paths.append(object_path)
         else:
             for keys, subgroup in dataframe.groupby(partition_cols):
@@ -516,7 +556,7 @@ class Pandas:
                     preserve_index=preserve_index,
                     session_primitives=session_primitives,
                     file_format=file_format,
-                )
+                    cast_columns=cast_columns)
                 objects_paths.append(object_path)
         return objects_paths
 
@@ -529,6 +569,7 @@ class Pandas:
             preserve_index,
             session_primitives,
             file_format,
+            cast_columns=None,
     ):
         send_pipe.send(
             Pandas._data_to_s3_dataset_writer(
@@ -538,12 +579,16 @@ class Pandas:
                 preserve_index=preserve_index,
                 session_primitives=session_primitives,
                 file_format=file_format,
-            ))
+                cast_columns=cast_columns))
         send_pipe.close()
 
     @staticmethod
-    def _data_to_s3_object_writer(dataframe, path, preserve_index,
-                                  session_primitives, file_format):
+    def _data_to_s3_object_writer(dataframe,
+                                  path,
+                                  preserve_index,
+                                  session_primitives,
+                                  file_format,
+                                  cast_columns=None):
         fs = s3.get_fs(session_primitives=session_primitives)
         fs = pyarrow.filesystem._ensure_filesystem(fs)
         s3.mkdir_if_not_exists(fs, path)
@@ -555,12 +600,11 @@ class Pandas:
             raise UnsupportedFileFormat(file_format)
         object_path = "/".join([path, outfile])
         if file_format == "parquet":
-            Pandas.write_parquet_dataframe(
-                dataframe=dataframe,
-                path=object_path,
-                preserve_index=preserve_index,
-                fs=fs,
-            )
+            Pandas.write_parquet_dataframe(dataframe=dataframe,
+                                           path=object_path,
+                                           preserve_index=preserve_index,
+                                           fs=fs,
+                                           cast_columns=cast_columns)
         elif file_format == "csv":
             Pandas.write_csv_dataframe(
                 dataframe=dataframe,
@@ -579,12 +623,26 @@ class Pandas:
             f.write(csv_buffer)
 
     @staticmethod
-    def write_parquet_dataframe(dataframe, path, preserve_index, fs):
+    def write_parquet_dataframe(dataframe,
+                                path,
+                                preserve_index,
+                                fs,
+                                cast_columns=None):
         table = pyarrow.Table.from_pandas(df=dataframe,
                                           preserve_index=preserve_index,
                                           safe=False)
+        if cast_columns:
+            for col_name, dtype in cast_columns.items():
+                col_index = table.column_names.index(col_name)
+                table = table.set_column(col_index,
+                                         table.column(col_name).cast(dtype))
+                logger.debug(f"{col_name} - {col_index} - {dtype}")
+        logger.debug(f"table.schema:\n{table.schema}")
         with fs.open(path, "wb") as f:
-            parquet.write_table(table, f, coerce_timestamps="ms")
+            parquet.write_table(table,
+                                f,
+                                coerce_timestamps="ms",
+                                flavor="spark")
 
     def to_redshift(
             self,
