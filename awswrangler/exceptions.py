@@ -30,5 +30,9 @@ class EmptyS3Object(Exception):
     pass
 
 
+class LineTerminatorNotFound(Exception):
+    pass
+
+
 class MissingBatchDetected(Exception):
     pass

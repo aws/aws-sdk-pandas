@@ -69,8 +69,9 @@ def table(
     session.s3.delete_objects(path=path)
 
 
-def test_get_table_dtypes(session, database, table):
-    dtypes = session.glue.get_table_dtypes(database=database, table=table)
+def test_get_athena_types(session, database, table):
+    dtypes = session.glue.get_table_athena_types(database=database,
+                                                 table=table)
     assert dtypes["id"] == "bigint"
     assert dtypes["value"] == "double"
     assert dtypes["name"] == "string"

@@ -2,12 +2,14 @@ from io import BytesIO, StringIO
 import multiprocessing as mp
 import logging
 from math import floor
+import copy
+import csv
 
 import pandas
 import pyarrow
 from pyarrow import parquet
 
-from awswrangler.exceptions import UnsupportedWriteMode, UnsupportedFileFormat, AthenaQueryError, EmptyS3Object
+from awswrangler.exceptions import UnsupportedWriteMode, UnsupportedFileFormat, AthenaQueryError, EmptyS3Object, LineTerminatorNotFound
 from awswrangler.utils import calculate_bounders
 from awswrangler import s3
 
@@ -41,7 +43,7 @@ class Pandas:
             sep=",",
             lineterminator="\n",
             quotechar='"',
-            quoting=0,
+            quoting=csv.QUOTE_MINIMAL,
             escapechar=None,
             parse_dates=False,
             infer_datetime_format=False,
@@ -119,7 +121,7 @@ class Pandas:
             sep=",",
             lineterminator="\n",
             quotechar='"',
-            quoting=0,
+            quoting=csv.QUOTE_MINIMAL,
             escapechar=None,
             parse_dates=False,
             infer_datetime_format=False,
@@ -177,38 +179,38 @@ class Pandas:
             bounders_len = len(bounders)
             count = 0
             forgotten_bytes = 0
-            cols_names = None
             for ini, end in bounders:
                 count += 1
+
                 ini -= forgotten_bytes
                 end -= 1  # Range is inclusive, contrary to Python's List
                 bytes_range = "bytes={}-{}".format(ini, end)
                 logger.debug(f"bytes_range: {bytes_range}")
                 body = client_s3.get_object(Bucket=bucket_name, Key=key_path, Range=bytes_range)["Body"]\
                     .read()\
-                    .decode(encoding, errors="ignore")
+                    .decode("utf-8")
                 chunk_size = len(body)
                 logger.debug(f"chunk_size: {chunk_size}")
-                if body[0] == lineterminator:
-                    first_char = 1
-                else:
-                    first_char = 0
-                if (count == 1) and (count == bounders_len):
-                    last_break_line_idx = chunk_size
-                elif count == 1:  # first chunk
-                    last_break_line_idx = body.rindex(lineterminator)
-                    forgotten_bytes = chunk_size - last_break_line_idx
+
+                if count == 1:  # first chunk
+                    last_char = Pandas._find_terminator(
+                        body=body,
+                        quoting=quoting,
+                        quotechar=quotechar,
+                        lineterminator=lineterminator)
+                    forgotten_bytes = len(body[last_char:].encode("utf-8"))
                 elif count == bounders_len:  # Last chunk
-                    header = None
-                    names = cols_names
-                    last_break_line_idx = chunk_size
+                    last_char = chunk_size
                 else:
-                    header = None
-                    names = cols_names
-                    last_break_line_idx = body.rindex(lineterminator)
-                    forgotten_bytes = chunk_size - last_break_line_idx
+                    last_char = Pandas._find_terminator(
+                        body=body,
+                        quoting=quoting,
+                        quotechar=quotechar,
+                        lineterminator=lineterminator)
+                    forgotten_bytes = len(body[last_char:].encode("utf-8"))
+
                 df = pandas.read_csv(
-                    StringIO(body[first_char:last_break_line_idx]),
+                    StringIO(body[:last_char]),
                     header=header,
                     names=names,
                     sep=sep,
@@ -223,7 +225,64 @@ class Pandas:
                 )
                 yield df
                 if count == 1:  # first chunk
-                    cols_names = df.columns
+                    names = df.columns
+                    header = None
+
+    @staticmethod
+    def _find_terminator(body, quoting, quotechar, lineterminator):
+        """
+        Find for any suspicious of line terminator (From end to start)
+        :param body: String
+        :param quoting: Same as pandas.read_csv()
+        :param quotechar: Same as pandas.read_csv()
+        :param lineterminator: Same as pandas.read_csv()
+        :return: The index of the suspect line terminator
+        """
+        try:
+            if quoting == csv.QUOTE_ALL:
+                index = body.rindex(lineterminator)
+                while True:
+                    i = 0
+                    while True:
+                        i += 1
+                        if index + i <= len(body) - 1:
+                            c = body[index + i]
+                            if c == ",":
+                                pass
+                            elif c == quotechar:
+                                right = True
+                                break
+                            else:
+                                right = False
+                                break
+                        else:
+                            right = True
+                            break
+                    i = 0
+                    while True:
+                        i += 1
+                        if index - i >= 0:
+                            c = body[index - i]
+                            if c == ",":
+                                pass
+                            elif c == quotechar:
+                                left = True
+                                break
+                            else:
+                                left = False
+                                break
+                        else:
+                            left = True
+                            break
+
+                    if right and left:
+                        break
+                    index = body[:index].rindex(lineterminator)
+            else:
+                index = body.rindex(lineterminator)
+        except ValueError:
+            raise LineTerminatorNotFound()
+        return index
 
     @staticmethod
     def _read_csv_once(
@@ -293,7 +352,7 @@ class Pandas:
         Executes any SQL query on AWS Athena and return a Dataframe of the result.
         P.S. If max_result_size is passed, then a iterator of Dataframes is returned.
         :param sql: SQL Query
-        :param database: Glue/Athena Databease
+        :param database: Glue/Athena Database
         :param s3_output: AWS S3 path
         :param max_result_size: Max number of bytes on each request to S3
         :return: Pandas Dataframe or Iterator of Pandas Dataframes if max_result_size != None
@@ -318,8 +377,14 @@ class Pandas:
             message_error = f"Query error: {reason}"
             raise AthenaQueryError(message_error)
         else:
+            dtype, parse_dates = self._session.athena.get_query_dtype(
+                query_execution_id=query_execution_id)
             path = f"{s3_output}{query_execution_id}.csv"
-            ret = self.read_csv(path=path, max_result_size=max_result_size)
+            ret = self.read_csv(path=path,
+                                dtype=dtype,
+                                parse_dates=parse_dates,
+                                quoting=csv.QUOTE_ALL,
+                                max_result_size=max_result_size)
         return ret
 
     def to_csv(
@@ -623,11 +688,18 @@ class Pandas:
             f.write(csv_buffer)
 
     @staticmethod
-    def write_parquet_dataframe(dataframe,
-                                path,
-                                preserve_index,
-                                fs,
-                                cast_columns=None):
+    def write_parquet_dataframe(dataframe, path, preserve_index, fs,
+                                cast_columns):
+        if not cast_columns:
+            cast_columns = {}
+        casted_in_pandas = []
+        dtypes = copy.deepcopy(dataframe.dtypes.to_dict())
+        for name, dtype in dtypes.items():
+            if str(dtype) == "Int64":
+                dataframe[name] = dataframe[name].astype("float64")
+                casted_in_pandas.append(name)
+                cast_columns[name] = "int64"
+                logger.debug(f"Casting column {name} Int64 to float64")
         table = pyarrow.Table.from_pandas(df=dataframe,
                                           preserve_index=preserve_index,
                                           safe=False)
@@ -636,13 +708,15 @@ class Pandas:
                 col_index = table.column_names.index(col_name)
                 table = table.set_column(col_index,
                                          table.column(col_name).cast(dtype))
-                logger.debug(f"{col_name} - {col_index} - {dtype}")
-        logger.debug(f"table.schema:\n{table.schema}")
+                logger.debug(
+                    f"Casting column {col_name} ({col_index}) to {dtype}")
         with fs.open(path, "wb") as f:
             parquet.write_table(table,
                                 f,
                                 coerce_timestamps="ms",
                                 flavor="spark")
+        for col in casted_in_pandas:
+            dataframe[col] = dataframe[col].astype("Int64")
 
     def to_redshift(
             self,

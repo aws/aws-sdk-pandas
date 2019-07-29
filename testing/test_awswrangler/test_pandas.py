@@ -1,11 +1,15 @@
 from time import sleep
 import logging
+import csv
+import datetime
 
 import pytest
 import boto3
 import pandas
+import numpy
 
-from awswrangler import Session
+from awswrangler import Session, Pandas
+from awswrangler.exceptions import LineTerminatorNotFound
 
 logging.basicConfig(
     level=logging.INFO,
@@ -188,7 +192,10 @@ def test_to_parquet_with_cast(
         bucket,
         database,
 ):
-    dataframe = pandas.read_csv("data_samples/micro.csv")
+    dataframe = pandas.read_csv("data_samples/nano.csv",
+                                dtype={"id": "Int64"},
+                                parse_dates=["date", "time"])
+    print(dataframe.dtypes)
     session.pandas.to_parquet(dataframe=dataframe,
                               database=database,
                               path=f"s3://{bucket}/test/",
@@ -204,18 +211,27 @@ def test_to_parquet_with_cast(
             break
         sleep(1)
     assert len(dataframe.index) == len(dataframe2.index)
+    print(dataframe2)
+    print(dataframe2.dtypes)
 
 
-@pytest.mark.parametrize("sample, row_num, max_result_size",
-                         [("data_samples/micro.csv", 30, 100),
-                          ("data_samples/small.csv", 100, 100),
-                          ("data_samples/micro.csv", 30, 500),
-                          ("data_samples/small.csv", 100, 500),
-                          ("data_samples/micro.csv", 30, 3000),
-                          ("data_samples/small.csv", 100, 3000)])
+@pytest.mark.parametrize("sample, row_num, max_result_size", [
+    ("data_samples/nano.csv", 5, 5000),
+    ("data_samples/micro.csv", 30, 100),
+    ("data_samples/small.csv", 100, 100),
+    ("data_samples/micro.csv", 30, 500),
+    ("data_samples/small.csv", 100, 500),
+    ("data_samples/micro.csv", 30, 3000),
+    ("data_samples/small.csv", 100, 3000),
+    ("data_samples/micro.csv", 30, 700),
+])
 def test_read_sql_athena_iterator(session, bucket, database, sample, row_num,
                                   max_result_size):
-    dataframe_sample = pandas.read_csv(sample)
+    parse_dates = []
+    if sample == "data_samples/nano.csv":
+        parse_dates.append("time")
+        parse_dates.append("date")
+    dataframe_sample = pandas.read_csv(sample, parse_dates=parse_dates)
     path = f"s3://{bucket}/test/"
     session.pandas.to_parquet(dataframe=dataframe_sample,
                               database=database,
@@ -231,8 +247,73 @@ def test_read_sql_athena_iterator(session, bucket, database, sample, row_num,
         total_count = 0
         for dataframe in dataframe_iter:
             total_count += len(dataframe.index)
+            print(dataframe)
         if total_count == row_num:
             break
         sleep(1)
     session.s3.delete_objects(path=path)
     assert total_count == row_num
+
+
+@pytest.mark.parametrize(
+    "body, quoting, quotechar, lineterminator, ret",
+    [("012\njawdnkjawnd", csv.QUOTE_MINIMAL, '"', "\n", 3),
+     ("012\n456\njawdnkjawnd", csv.QUOTE_MINIMAL, '"', "\n", 7),
+     ('012",\n"foo', csv.QUOTE_ALL, '"', "\n", 5),
+     ('012",\n', csv.QUOTE_ALL, '"', "\n", 5),
+     ('012",\n"012,\n', csv.QUOTE_ALL, '"', "\n", 5),
+     ('012",\n,,,,,,,,"012,\n', csv.QUOTE_ALL, '"', "\n", 5),
+     ('012",,,,\n"012,\n', csv.QUOTE_ALL, '"', "\n", 8),
+     ('012",,,,\n,,,,,,""012,\n', csv.QUOTE_ALL, '"', "\n", 8),
+     ('012",,,,\n,,,,,,""012"\n,', csv.QUOTE_ALL, '"', "\n", 21),
+     ('012",,,,\n,,,,,,""012"\n,a', csv.QUOTE_ALL, '"', "\n", 8)])
+def test_find_terminator(body, quoting, quotechar, lineterminator, ret):
+    assert Pandas._find_terminator(body, quoting, quotechar,
+                                   lineterminator) == ret
+
+
+@pytest.mark.parametrize(
+    "body, quoting, quotechar, lineterminator",
+    [("jawdnkjawnd", csv.QUOTE_MINIMAL, '"', "\n"),
+     ("jawdnkjawnd", csv.QUOTE_ALL, '"', "\n"),
+     ("jawdnkj\nawnd", csv.QUOTE_ALL, '"', "\n"),
+     ('jawdnkj"\n\n"awnd', csv.QUOTE_ALL, '"', "\n"),
+     ('jawdnkj"\n,,,,,,,,,,awnd', csv.QUOTE_ALL, '"', "\n"),
+     ('jawdnkj,"\nawnd', csv.QUOTE_ALL, '"', "\n")])
+def test_find_terminator_exception(body, quoting, quotechar, lineterminator):
+    with pytest.raises(LineTerminatorNotFound):
+        assert Pandas._find_terminator(body, quoting, quotechar,
+                                       lineterminator)
+
+
+@pytest.mark.parametrize("max_result_size", [300, 500, 1000, 10000])
+def test_etl_complex(session, bucket, database, max_result_size):
+    dataframe = pandas.read_csv("data_samples/complex.csv",
+                                dtype={"my_int_with_null": "Int64"},
+                                parse_dates=["my_timestamp", "my_date"])
+    session.pandas.to_parquet(dataframe=dataframe,
+                              database=database,
+                              path=f"s3://{bucket}/test/",
+                              preserve_index=False,
+                              mode="overwrite",
+                              procs_cpu_bound=1)
+    sleep(1)
+    df_iter = session.pandas.read_sql_athena(sql="select * from test",
+                                             database=database,
+                                             max_result_size=max_result_size)
+    count = 0
+    for df in df_iter:
+        count += len(df.index)
+        for row in df.itertuples():
+            assert isinstance(row.my_timestamp, datetime.datetime)
+            assert isinstance(row.my_date, datetime.date)
+            assert isinstance(row.my_float, float)
+            assert isinstance(row.my_int, numpy.int64)
+            assert isinstance(row.my_string, str)
+            assert str(row.my_timestamp) == "2018-01-01 04:03:02.001000"
+            assert str(row.my_date) == "2019-02-02 00:00:00"
+            assert str(row.my_float) == "12345.6789"
+            assert str(row.my_int) == "123456789"
+            assert str(row.my_string
+                       ) == "foo\nboo\nbar\nFOO\nBOO\nBAR\nxxxxx\nÁÃÀÂÇ\nzzzzz"
+    assert count == len(dataframe.index)

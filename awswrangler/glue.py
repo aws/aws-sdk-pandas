@@ -1,6 +1,7 @@
 from math import ceil
 import re
 import logging
+from datetime import datetime, date
 
 from awswrangler.exceptions import UnsupportedType, UnsupportedFileFormat
 
@@ -13,7 +14,7 @@ class Glue:
         self._client_glue = session.boto3_session.client(
             service_name="glue", config=session.botocore_config)
 
-    def get_table_dtypes(self, database, table):
+    def get_table_athena_types(self, database, table):
         """
         Get all columns names and the related data types
         :param database: Glue database's name
@@ -37,24 +38,44 @@ class Glue:
         :param table: Glue table's name
         :return: A dictionary as {"col name": "col python type"}
         """
-        dtypes = self.get_table_dtypes(database=database, table=table)
+        dtypes = self.get_table_athena_types(database=database, table=table)
         return {k: Glue._type_athena2python(v) for k, v in dtypes.items()}
+
+    @staticmethod
+    def _type_pandas2athena(dtype):
+        dtype = dtype.lower()
+        if dtype == "int32":
+            return "int"
+        elif dtype in ["int64", "Int64"]:
+            return "bigint"
+        elif dtype == "float32":
+            return "float"
+        elif dtype == "float64":
+            return "double"
+        elif dtype == "bool":
+            return "boolean"
+        elif dtype == "object" and isinstance(dtype, str):
+            return "string"
+        elif dtype[:10] == "datetime64":
+            return "timestamp"
+        else:
+            raise UnsupportedType(f"Unsupported Pandas type: {dtype}")
 
     @staticmethod
     def _type_athena2python(dtype):
         dtype = dtype.lower()
-        if dtype == "int":
+        if dtype in ["int", "integer", "bigint", "smallint", "tinyint"]:
             return int
-        elif dtype == "bigint":
-            return int
-        elif dtype == "float":
-            return float
-        elif dtype == "double":
+        elif dtype in ["float", "double", "real"]:
             return float
         elif dtype == "boolean":
             return bool
-        elif dtype == "string":
+        elif dtype in ["string", "char", "varchar", "array", "row", "map"]:
             return str
+        elif dtype == "timestamp":
+            return datetime
+        elif dtype == "date":
+            return date
         else:
             raise UnsupportedType(f"Unsupported Athena type: {dtype}")
 
@@ -157,6 +178,7 @@ class Glue:
                       partition_cols,
                       preserve_index,
                       cast_columns=None):
+        print(f"dataframe.dtypes:\n{dataframe.dtypes}")
         if not partition_cols:
             partition_cols = []
         schema_built = []
@@ -179,26 +201,6 @@ class Glue:
                 schema_built.append((name, athena_type))
         logger.debug(f"schema_built:\n{schema_built}")
         return schema_built
-
-    @staticmethod
-    def _type_pandas2athena(dtype):
-        dtype = dtype.lower()
-        if dtype == "int32":
-            return "int"
-        elif dtype == "int64":
-            return "bigint"
-        elif dtype == "float32":
-            return "float"
-        elif dtype == "float64":
-            return "double"
-        elif dtype == "bool":
-            return "boolean"
-        elif dtype == "object" and isinstance(dtype, str):
-            return "string"
-        elif dtype[:10] == "datetime64":
-            return "timestamp"
-        else:
-            raise UnsupportedType(f"Unsupported Pandas type: {dtype}")
 
     @staticmethod
     def _parse_table_name(path):
