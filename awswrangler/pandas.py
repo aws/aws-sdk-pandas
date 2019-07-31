@@ -186,31 +186,33 @@ class Pandas:
                 end -= 1  # Range is inclusive, contrary to Python's List
                 bytes_range = "bytes={}-{}".format(ini, end)
                 logger.debug(f"bytes_range: {bytes_range}")
-                body = client_s3.get_object(Bucket=bucket_name, Key=key_path, Range=bytes_range)["Body"]\
-                    .read()\
-                    .decode("utf-8")
+                body = client_s3.get_object(Bucket=bucket_name,
+                                            Key=key_path,
+                                            Range=bytes_range)["Body"].read()
                 chunk_size = len(body)
-                logger.debug(f"chunk_size: {chunk_size}")
+                logger.debug(f"chunk_size (bytes): {chunk_size}")
 
                 if count == 1:  # first chunk
                     last_char = Pandas._find_terminator(
                         body=body,
+                        sep=sep,
                         quoting=quoting,
                         quotechar=quotechar,
                         lineterminator=lineterminator)
-                    forgotten_bytes = len(body[last_char:].encode("utf-8"))
+                    forgotten_bytes = len(body[last_char:])
                 elif count == bounders_len:  # Last chunk
                     last_char = chunk_size
                 else:
                     last_char = Pandas._find_terminator(
                         body=body,
+                        sep=sep,
                         quoting=quoting,
                         quotechar=quotechar,
                         lineterminator=lineterminator)
-                    forgotten_bytes = len(body[last_char:].encode("utf-8"))
+                    forgotten_bytes = len(body[last_char:])
 
                 df = pandas.read_csv(
-                    StringIO(body[:last_char]),
+                    StringIO(body[:last_char].decode("utf-8")),
                     header=header,
                     names=names,
                     sep=sep,
@@ -229,57 +231,95 @@ class Pandas:
                     header = None
 
     @staticmethod
-    def _find_terminator(body, quoting, quotechar, lineterminator):
+    def _extract_terminator_profile(body, sep, quotechar, lineterminator,
+                                    last_index):
+        """
+        Backward parser for quoted CSV lines
+        :param body: String
+        :param sep: Same as pandas.read_csv()
+        :param quotechar: Same as pandas.read_csv()
+        :param lineterminator: Same as pandas.read_csv()
+        :return: Dict with the profile
+        """
+        sep_int = int.from_bytes(bytes=sep.encode(encoding="utf-8"),
+                                 byteorder="big")  # b"," -> 44
+        quote_int = int.from_bytes(bytes=quotechar.encode(encoding="utf-8"),
+                                   byteorder="big")  # b'"' -> 34
+        terminator_int = int.from_bytes(
+            bytes=lineterminator.encode(encoding="utf-8"),
+            byteorder="big")  # b"\n" -> 10
+        logger.debug(f"sep_int: {sep_int}")
+        logger.debug(f"quote_int: {quote_int}")
+        logger.debug(f"terminator_int: {terminator_int}")
+        last_terminator_suspect_index = None
+        first_non_special_byte_index = None
+        sep_counter = 0
+        quote_counter = 0
+        for i in range((len(body[:last_index]) - 1), -1, -1):
+            b = body[i]
+            if last_terminator_suspect_index:
+                if b == quote_int:
+                    quote_counter += 1
+                elif b == sep_int:
+                    sep_counter += 1
+                elif b == terminator_int:
+                    pass
+                else:
+                    first_non_special_byte_index = i
+                    break
+            if b == terminator_int:
+                if not last_terminator_suspect_index:
+                    last_terminator_suspect_index = i
+                elif last_terminator_suspect_index - 1 == i:
+                    first_non_special_byte_index = i
+                    break
+        logger.debug(
+            f"last_terminator_suspect_index: {last_terminator_suspect_index}")
+        logger.debug(
+            f"first_non_special_byte_index: {first_non_special_byte_index}")
+        logger.debug(f"sep_counter: {sep_counter}")
+        logger.debug(f"quote_counter: {quote_counter}")
+        return {
+            "last_terminator_suspect_index": last_terminator_suspect_index,
+            "first_non_special_byte_index": first_non_special_byte_index,
+            "sep_counter": sep_counter,
+            "quote_counter": quote_counter
+        }
+
+    @staticmethod
+    def _find_terminator(body, sep, quoting, quotechar, lineterminator):
         """
         Find for any suspicious of line terminator (From end to start)
         :param body: String
+        :param sep: Same as pandas.read_csv()
         :param quoting: Same as pandas.read_csv()
         :param quotechar: Same as pandas.read_csv()
         :param lineterminator: Same as pandas.read_csv()
         :return: The index of the suspect line terminator
         """
         try:
+            last_index = None
             if quoting == csv.QUOTE_ALL:
-                index = body.rindex(lineterminator)
                 while True:
-                    i = 0
-                    while True:
-                        i += 1
-                        if index + i <= len(body) - 1:
-                            c = body[index + i]
-                            if c == ",":
-                                pass
-                            elif c == quotechar:
-                                right = True
-                                break
-                            else:
-                                right = False
-                                break
+                    profile = Pandas._extract_terminator_profile(
+                        body=body,
+                        sep=sep,
+                        quotechar=quotechar,
+                        lineterminator=lineterminator,
+                        last_index=last_index)
+                    if profile["last_terminator_suspect_index"] and profile[
+                            "first_non_special_byte_index"]:
+                        if profile["quote_counter"] % 2 == 0 or profile[
+                                "quote_counter"] == 0:
+                            last_index = profile[
+                                "last_terminator_suspect_index"]
                         else:
-                            right = True
+                            index = profile["last_terminator_suspect_index"]
                             break
-                    i = 0
-                    while True:
-                        i += 1
-                        if index - i >= 0:
-                            c = body[index - i]
-                            if c == ",":
-                                pass
-                            elif c == quotechar:
-                                left = True
-                                break
-                            else:
-                                left = False
-                                break
-                        else:
-                            left = True
-                            break
-
-                    if right and left:
-                        break
-                    index = body[:index].rindex(lineterminator)
+                    else:
+                        raise LineTerminatorNotFound()
             else:
-                index = body.rindex(lineterminator)
+                index = body.rindex(lineterminator.encode(encoding="utf-8"))
         except ValueError:
             raise LineTerminatorNotFound()
         return index

@@ -256,37 +256,74 @@ def test_read_sql_athena_iterator(session, bucket, database, sample, row_num,
 
 
 @pytest.mark.parametrize(
-    "body, quoting, quotechar, lineterminator, ret",
-    [("012\njawdnkjawnd", csv.QUOTE_MINIMAL, '"', "\n", 3),
-     ("012\n456\njawdnkjawnd", csv.QUOTE_MINIMAL, '"', "\n", 7),
-     ('012",\n"foo', csv.QUOTE_ALL, '"', "\n", 5),
-     ('012",\n', csv.QUOTE_ALL, '"', "\n", 5),
-     ('012",\n"012,\n', csv.QUOTE_ALL, '"', "\n", 5),
-     ('012",\n,,,,,,,,"012,\n', csv.QUOTE_ALL, '"', "\n", 5),
-     ('012",,,,\n"012,\n', csv.QUOTE_ALL, '"', "\n", 8),
-     ('012",,,,\n,,,,,,""012,\n', csv.QUOTE_ALL, '"', "\n", 8),
-     ('012",,,,\n,,,,,,""012"\n,', csv.QUOTE_ALL, '"', "\n", 21),
-     ('012",,,,\n,,,,,,""012"\n,a', csv.QUOTE_ALL, '"', "\n", 8)])
-def test_find_terminator(body, quoting, quotechar, lineterminator, ret):
-    assert Pandas._find_terminator(body, quoting, quotechar,
-                                   lineterminator) == ret
+    "body, sep, quotechar, lineterminator, last_index, last_terminator_suspect_index,"
+    "first_non_special_byte_index, sep_counter, quote_counter", [
+        (b'"foo","boo"\n', ",", '"', "\n", None, 11, 9, 0, 1),
+        (b'"foo","boo"\n"bar', ",", '"', "\n", None, 11, 9, 0, 1),
+        (b'!foo!;!boo!@', ";", '!', "@", None, 11, 9, 0, 1),
+        (b'"foo","boo"\n"bar\n', ",", '"', "\n", 16, 11, 9, 0, 1),
+    ])
+def test_extract_terminator_profile(body, sep, quotechar, lineterminator,
+                                    last_index, last_terminator_suspect_index,
+                                    first_non_special_byte_index, sep_counter,
+                                    quote_counter):
+    profile = Pandas._extract_terminator_profile(body=body,
+                                                 sep=sep,
+                                                 quotechar=quotechar,
+                                                 lineterminator=lineterminator,
+                                                 last_index=last_index)
+    assert profile[
+        "last_terminator_suspect_index"] == last_terminator_suspect_index
+    assert profile[
+        "first_non_special_byte_index"] == first_non_special_byte_index
+    assert profile["sep_counter"] == sep_counter
+    assert profile["quote_counter"] == quote_counter
 
 
 @pytest.mark.parametrize(
-    "body, quoting, quotechar, lineterminator",
-    [("jawdnkjawnd", csv.QUOTE_MINIMAL, '"', "\n"),
-     ("jawdnkjawnd", csv.QUOTE_ALL, '"', "\n"),
-     ("jawdnkj\nawnd", csv.QUOTE_ALL, '"', "\n"),
-     ('jawdnkj"\n\n"awnd', csv.QUOTE_ALL, '"', "\n"),
-     ('jawdnkj"\n,,,,,,,,,,awnd', csv.QUOTE_ALL, '"', "\n"),
-     ('jawdnkj,"\nawnd', csv.QUOTE_ALL, '"', "\n")])
-def test_find_terminator_exception(body, quoting, quotechar, lineterminator):
+    "body, sep, quoting, quotechar, lineterminator, ret", [
+        (b"012\njawdnkjawnd", ",", csv.QUOTE_MINIMAL, '"', "\n", 3),
+        (b"012\n456\njawdnkjawnd", ",", csv.QUOTE_MINIMAL, '"', "\n", 7),
+        (b'012",\n"foo', ",", csv.QUOTE_ALL, '"', "\n", 5),
+        (b'012",\n', ",", csv.QUOTE_ALL, '"', "\n", 5),
+        (b'012",\n"012,\n', ",", csv.QUOTE_ALL, '"', "\n", 5),
+        (b'012",\n,,,,,,,,"012,\n', ",", csv.QUOTE_ALL, '"', "\n", 5),
+        (b'012",,,,\n"012,\n', ",", csv.QUOTE_ALL, '"', "\n", 8),
+        (b'012",,,,\n,,,,,,""012,\n', ",", csv.QUOTE_ALL, '"', "\n", 8),
+        (b'012",,,,\n,,,,,,""012"\n,', ",", csv.QUOTE_ALL, '"', "\n", 21),
+        (b'012",,,,\n,,,,,,""01"2""\n,"a', ",", csv.QUOTE_ALL, '"', "\n", 8),
+        (b'"foo","boo"\n"\n","bar"', ",", csv.QUOTE_ALL, '"', "\n", 11),
+        (b'"foo"\n"boo","\n","\n","\n","\n","\n",,,,,,"\n",,,,', ",",
+         csv.QUOTE_ALL, '"', "\n", 5),
+        (b'012",\n"foo","\n\n\n\n","\n', ",", csv.QUOTE_ALL, '"', "\n", 5),
+    ])
+def test_find_terminator(body, sep, quoting, quotechar, lineterminator, ret):
+    assert Pandas._find_terminator(body=body,
+                                   sep=sep,
+                                   quoting=quoting,
+                                   quotechar=quotechar,
+                                   lineterminator=lineterminator) == ret
+
+
+@pytest.mark.parametrize(
+    "body, sep, quoting, quotechar, lineterminator",
+    [(b"jawdnkjawnd", ",", csv.QUOTE_MINIMAL, '"', "\n"),
+     (b"jawdnkjawnd", ",", csv.QUOTE_ALL, '"', "\n"),
+     (b"jawdnkj\nawnd", ",", csv.QUOTE_ALL, '"', "\n"),
+     (b'jawdnkj"x\n\n"awnd', ",", csv.QUOTE_ALL, '"', "\n"),
+     (b'jawdnkj""\n,,,,,,,,,,awnd', ",", csv.QUOTE_ALL, '"', "\n"),
+     (b'jawdnkj,""""""\nawnd', ",", csv.QUOTE_ALL, '"', "\n")])
+def test_find_terminator_exception(body, sep, quoting, quotechar,
+                                   lineterminator):
     with pytest.raises(LineTerminatorNotFound):
-        assert Pandas._find_terminator(body, quoting, quotechar,
-                                       lineterminator)
+        assert Pandas._find_terminator(body=body,
+                                       sep=sep,
+                                       quoting=quoting,
+                                       quotechar=quotechar,
+                                       lineterminator=lineterminator)
 
 
-@pytest.mark.parametrize("max_result_size", [300, 500, 1000, 10000])
+@pytest.mark.parametrize("max_result_size", [400, 700, 1000, 10000])
 def test_etl_complex(session, bucket, database, max_result_size):
     dataframe = pandas.read_csv("data_samples/complex.csv",
                                 dtype={"my_int_with_null": "Int64"},
@@ -314,6 +351,7 @@ def test_etl_complex(session, bucket, database, max_result_size):
             assert str(row.my_date) == "2019-02-02 00:00:00"
             assert str(row.my_float) == "12345.6789"
             assert str(row.my_int) == "123456789"
-            assert str(row.my_string
-                       ) == "foo\nboo\nbar\nFOO\nBOO\nBAR\nxxxxx\nÁÃÀÂÇ\nzzzzz"
+            assert str(
+                row.my_string
+            ) == "foo\nboo\nbar\nFOO\nBOO\nBAR\nxxxxx\nÁÃÀÂÇ\n汉字汉字汉字汉字汉字汉字汉字æøåæøåæøåæøåæøåæøåæøåæøåæøåæøå汉字汉字汉字汉字汉字汉字汉字æøåæøåæøåæøåæøåæøåæøåæøåæøåæøå"
     assert count == len(dataframe.index)
