@@ -51,7 +51,31 @@ class Athena:
         logger.debug(f"parse_dates: {parse_dates}")
         return dtype, parse_dates
 
-    def run_query(self, query, database, s3_output):
+    def create_athena_bucket(self):
+        """
+        Creates the default Athena bucket if not exists
+        :return: Bucket s3 path (E.g. s3://aws-athena-query-results-ACCOUNT-REGION/)
+        """
+        account_id = (self._session.boto3_session.client(
+            service_name="sts",
+            config=self._session.botocore_config).get_caller_identity().get(
+                "Account"))
+        session_region = self._session.boto3_session.region_name
+        s3_output = f"s3://aws-athena-query-results-{account_id}-{session_region}/"
+        s3_resource = self._session.boto3_session.resource("s3")
+        s3_resource.Bucket(s3_output)
+        return s3_output
+
+    def run_query(self, query, database, s3_output=None):
+        """
+        Run a SQL Query against AWS Athena
+        :param query: SQL query
+        :param database: AWS Glue/Athena database name
+        :param s3_output: AWS S3 path
+        :return: Query execution ID
+        """
+        if not s3_output:
+            s3_output = self.create_athena_bucket()
         response = self._client_athena.start_query_execution(
             QueryString=query,
             QueryExecutionContext={"Database": database},

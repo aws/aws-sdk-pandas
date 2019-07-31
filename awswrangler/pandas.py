@@ -398,13 +398,7 @@ class Pandas:
         :return: Pandas Dataframe or Iterator of Pandas Dataframes if max_result_size != None
         """
         if not s3_output:
-            account_id = (self._session.boto3_session.client(
-                service_name="sts", config=self._session.botocore_config).
-                          get_caller_identity().get("Account"))
-            session_region = self._session.boto3_session.region_name
-            s3_output = f"s3://aws-athena-query-results-{account_id}-{session_region}/"
-            s3_resource = self._session.boto3_session.resource("s3")
-            s3_resource.Bucket(s3_output)
+            s3_output = self._session.athena.create_athena_bucket()
         query_execution_id = self._session.athena.run_query(
             query=sql, database=database, s3_output=s3_output)
         query_response = self._session.athena.wait_query(
