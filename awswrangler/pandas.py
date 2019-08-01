@@ -183,7 +183,7 @@ class Pandas:
                 count += 1
 
                 ini -= forgotten_bytes
-                end -= 1  # Range is inclusive, contrary to Python's List
+                end -= 1  # Range is inclusive, contrary from Python's List
                 bytes_range = "bytes={}-{}".format(ini, end)
                 logger.debug(f"bytes_range: {bytes_range}")
                 body = client_s3.get_object(Bucket=bucket_name,
@@ -403,11 +403,11 @@ class Pandas:
             query=sql, database=database, s3_output=s3_output)
         query_response = self._session.athena.wait_query(
             query_execution_id=query_execution_id)
-        if query_response.get("QueryExecution").get("Status").get("State") in [
+        if query_response["QueryExecution"]["Status"]["State"] in [
                 "FAILED", "CANCELLED"
         ]:
-            reason = (query_response.get("QueryExecution").get("Status").get(
-                "StateChangeReason"))
+            reason = query_response["QueryExecution"]["Status"][
+                "StateChangeReason"]
             message_error = f"Query error: {reason}"
             raise AthenaQueryError(message_error)
         else:
