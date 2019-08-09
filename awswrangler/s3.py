@@ -6,7 +6,7 @@ from botocore.exceptions import ClientError
 import s3fs
 import tenacity
 
-from awswrangler.utils import calculate_bounders
+from awswrangler.utils import calculate_bounders, wait_process_release
 
 logger = logging.getLogger(__name__)
 
@@ -92,13 +92,8 @@ class S3:
                 proc.daemon = False
                 proc.start()
                 procs.append(proc)
-                while len(procs) >= self._session.procs_io_bound:
-                    logger.debug(
-                        f"len(procs) ({len(procs)}) >= self._session.procs_io_bound ({self._session.procs_io_bound})"
-                    )
-                    procs[0].join()
-                    del procs[0]
-                    logger.debug(f"Processes deleted from list.")
+                if len(procs) == self._session.procs_io_bound:
+                    wait_process_release(procs)
             else:
                 logger.debug(f"Starting last delete call...")
                 self.delete_objects_batch(self._session.primitives, bucket,
@@ -166,13 +161,8 @@ class S3:
             proc.daemon = False
             proc.start()
             procs.append(proc)
-            while len(procs) >= procs_io_bound:
-                logger.debug(
-                    f"len(procs) ({len(procs)}) >= procs_io_bound ({procs_io_bound})"
-                )
-                procs[0].join()
-                del procs[0]
-                logger.debug(f"Processes deleted from list.")
+            if len(procs) == self._session.procs_io_bound:
+                wait_process_release(procs)
         logger.debug(f"Waiting final processes...")
         for proc in procs:
             proc.join()
@@ -280,8 +270,8 @@ class S3:
         logger.debug(f"len(procs): {len(bounders)}")
         for i in range(len(procs)):
             logger.debug(f"Waiting pipe number: {i}")
-            receved = receive_pipes[i].recv()
-            objects_sizes.update(receved)
+            received = receive_pipes[i].recv()
+            objects_sizes.update(received)
             logger.debug(f"Waiting proc number: {i}")
             procs[i].join()
             logger.debug(f"Closing proc number: {i}")

@@ -1,5 +1,5 @@
-from math import ceil
-from math import gcd
+from math import ceil, gcd
+from time import sleep
 import logging
 
 from awswrangler.exceptions import InvalidArguments
@@ -27,6 +27,24 @@ def calculate_bounders(num_items, num_groups=None, max_size=None):
         return bounders
     else:
         raise InvalidArguments("You must give num_groups or max_size!")
+
+
+def wait_process_release(processes):
+    """
+    Wait one of the processes releases
+    :param processes: List of processes
+    :return: None
+    """
+    n = len(processes)
+    i = 0
+    while True:
+        if not processes[i].is_alive():
+            del processes[i]
+            return None
+        i += 1
+        if i == n:
+            i = 0
+        sleep(0.1)
 
 
 def lcm(a, b):
