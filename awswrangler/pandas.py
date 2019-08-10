@@ -763,15 +763,29 @@ class Pandas:
             preserve_index=False,
             mode="append",
     ):
+        """
+        Load Pandas Dataframe as a Table on Amazon Redshift
+        :param dataframe: Pandas Dataframe
+        :param path: S3 path to write temporary files (E.g. s3://BUCKET_NAME/ANY_NAME/)
+        :param connection: A PEP 249 compatible connection (Can be generated with Redshift.generate_connection())
+        :param schema: The Redshift Schema for the table
+        :param table: The name of the desired Redshift table
+        :param iam_role: AWS IAM role with the related permissions
+        :param preserve_index: Should we preserve the Dataframe index?
+        :param mode: append or overwrite
+        :return: None
+        """
+        if path[-1] != "/":
+            path += "/"
         self._session.s3.delete_objects(path=path)
-        num_slices = self._session.redshift.get_number_of_slices(
-            redshift_conn=connection)
-        logger.debug(f"Number of slices on Redshift: {num_slices}")
         num_rows = len(dataframe.index)
         logger.info(f"Number of rows: {num_rows}")
         if num_rows < MIN_NUMBER_OF_ROWS_TO_DISTRIBUTE:
             num_partitions = 1
         else:
+            num_slices = self._session.redshift.get_number_of_slices(
+                redshift_conn=connection)
+            logger.debug(f"Number of slices on Redshift: {num_slices}")
             num_partitions = num_slices
         logger.debug(f"Number of partitions calculated: {num_partitions}")
         objects_paths = self.to_parquet(
@@ -781,8 +795,6 @@ class Pandas:
             mode="append",
             procs_cpu_bound=num_partitions,
         )
-        if path[-1] != "/":
-            path += "/"
         manifest_path = f"{path}manifest.json"
         self._session.redshift.write_load_manifest(manifest_path=manifest_path,
                                                    objects_paths=objects_paths)

@@ -94,17 +94,17 @@ class Redshift:
         if mode == "overwrite":
             cursor.execute("-- AWS DATA WRANGLER\n"
                            f"DROP TABLE IF EXISTS {schema_name}.{table_name}")
-        schema = Redshift._get_redshift_schema(
-            dataframe=dataframe,
-            dataframe_type=dataframe_type,
-            preserve_index=preserve_index,
-        )
-        cols_str = "".join([f"{col[0]} {col[1]},\n" for col in schema])[:-2]
-        sql = (
-            "-- AWS DATA WRANGLER\n"
-            f"CREATE TABLE IF NOT EXISTS {schema_name}.{table_name} (\n{cols_str}"
-            ") DISTSTYLE AUTO")
-        cursor.execute(sql)
+            schema = Redshift._get_redshift_schema(
+                dataframe=dataframe,
+                dataframe_type=dataframe_type,
+                preserve_index=preserve_index,
+            )
+            cols_str = "".join([f"{col[0]} {col[1]},\n" for col in schema])[:-2]
+            sql = (
+                "-- AWS DATA WRANGLER\n"
+                f"CREATE TABLE IF NOT EXISTS {schema_name}.{table_name} (\n{cols_str}"
+                ") DISTSTYLE AUTO")
+            cursor.execute(sql)
         sql = ("-- AWS DATA WRANGLER\n"
                f"COPY {schema_name}.{table_name} FROM '{manifest_path}'\n"
                f"IAM_ROLE '{iam_role}'\n"

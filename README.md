@@ -4,7 +4,7 @@
 
 ---
 
-*Contents:* **[Use Cases](#Use-Cases)** | **[Installation](#Installation)** | **[Examples](#Examples)**
+*Contents:* **[Use Cases](#Use-Cases)** | **[Installation](#Installation)** | **[Examples](#Examples)** | **[Diving Deep](#Diving Deep)**
 
 ---
 
@@ -95,3 +95,9 @@ session.spark.to_redshift(
     mode="append",
 )
 ```
+
+##Diving Deep
+
+### Pandas to Redshift Flow
+
+![Pandas to Redshift Flow](docs/pandas_to_redshift/pandas-to-redshift-flow.jpg?raw=true "Pandas to Redshift Flow")
