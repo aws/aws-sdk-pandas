@@ -28,9 +28,31 @@ class Spark:
             schema,
             table,
             iam_role,
+            diststyle="AUTO",
+            distkey=None,
+            sortstyle="COMPOUND",
+            sortkey=None,
             min_num_partitions=200,
             mode="append",
     ):
+        """
+        Load Spark Dataframe as a Table on Amazon Redshift
+        :param dataframe: Pandas Dataframe
+        :param path: S3 path to write temporary files (E.g. s3://BUCKET_NAME/ANY_NAME/)
+        :param connection: A PEP 249 compatible connection (Can be generated with Redshift.generate_connection())
+        :param schema: The Redshift Schema for the table
+        :param table: The name of the desired Redshift table
+        :param iam_role: AWS IAM role with the related permissions
+        :param diststyle: Redshift distribution styles. Must be in ["AUTO", "EVEN", "ALL", "KEY"]
+               https://docs.aws.amazon.com/redshift/latest/dg/t_Distributing_data.html
+        :param distkey: Specifies a column name or positional number for the distribution key
+        :param sortstyle: Sorting can be "COMPOUND" or "INTERLEAVED"
+               https://docs.aws.amazon.com/redshift/latest/dg/t_Sorting_data.html
+        :param sortkey: List of columns to be sorted
+        :param min_num_partitions: Minimal number of partitions
+        :param mode: append or overwrite
+        :return: None
+        """
         logger.debug(f"Minimum number of partitions : {min_num_partitions}")
         self._session.s3.delete_objects(path=path)
         num_slices = self._session.redshift.get_number_of_slices(
@@ -90,6 +112,10 @@ class Spark:
             preserve_index=False,
             num_files=num_partitions,
             iam_role=iam_role,
+            diststyle=diststyle,
+            distkey=distkey,
+            sortstyle=sortstyle,
+            sortkey=sortkey,
             mode=mode,
         )
         dataframe.unpersist()

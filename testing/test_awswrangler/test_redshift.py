@@ -7,6 +7,7 @@ import pandas
 from pyspark.sql import SparkSession
 
 from awswrangler import Session, Redshift
+from awswrangler.exceptions import InvalidRedshiftDiststyle, InvalidRedshiftDistkey, InvalidRedshiftSortstyle, InvalidRedshiftSortkey
 
 logging.basicConfig(
     level=logging.INFO,
@@ -68,16 +69,22 @@ def redshift_parameters(cloudformation_outputs):
 
 
 @pytest.mark.parametrize(
-    "sample_name,mode,factor",
+    "sample_name,mode,factor,diststyle,distkey,sortstyle,sortkey",
     [
-        ("micro", "overwrite", 1),
-        ("micro", "append", 2),
-        ("small", "overwrite", 1),
-        ("small", "append", 2),
+        ("micro", "overwrite", 1, "AUTO", "name", None, ["id"]),
+        ("micro", "append", 2, None, None, "INTERLEAVED", ["id", "value"]),
+        ("small", "overwrite", 1, "KEY", "name", "INTERLEAVED", ["id", "name"
+                                                                 ]),
+        ("small", "append", 2, None, None, "INTERLEAVED",
+         ["id", "name", "date"]),
+        ("nano", "overwrite", 1, "ALL", None, "compound",
+         ["id", "name", "date"]),
+        ("nano", "append", 2, "ALL", "name", "INTERLEAVED", ["id"]),
     ],
 )
 def test_to_redshift_pandas(session, bucket, redshift_parameters, sample_name,
-                            mode, factor):
+                            mode, factor, diststyle, distkey, sortstyle,
+                            sortkey):
     con = Redshift.generate_connection(
         database="test",
         host=redshift_parameters.get("RedshiftAddress"),
@@ -94,6 +101,10 @@ def test_to_redshift_pandas(session, bucket, redshift_parameters, sample_name,
         table="test",
         connection=con,
         iam_role=redshift_parameters.get("RedshiftRole"),
+        diststyle=diststyle,
+        distkey=distkey,
+        sortstyle=sortstyle,
+        sortkey=sortkey,
         mode=mode,
         preserve_index=False,
     )
@@ -106,16 +117,67 @@ def test_to_redshift_pandas(session, bucket, redshift_parameters, sample_name,
 
 
 @pytest.mark.parametrize(
-    "sample_name,mode,factor",
+    "sample_name,mode,factor,diststyle,distkey,exc,sortstyle,sortkey",
     [
-        ("micro", "overwrite", 1),
-        ("micro", "append", 2),
-        ("small", "overwrite", 1),
-        ("small", "append", 2),
+        ("micro", "overwrite", 1, "FOO", "name", InvalidRedshiftDiststyle,
+         None, None),
+        ("micro", "overwrite", 2, "KEY", "FOO", InvalidRedshiftDistkey, None,
+         None),
+        ("small", "overwrite", 1, "KEY", None, InvalidRedshiftDistkey, None,
+         None),
+        ("small", "overwrite", 1, None, None, InvalidRedshiftSortkey, None,
+         ["foo"]),
+        ("small", "overwrite", 1, None, None, InvalidRedshiftSortstyle, "foo",
+         ["id"]),
+    ],
+)
+def test_to_redshift_pandas_exceptions(session, bucket, redshift_parameters,
+                                       sample_name, mode, factor, diststyle,
+                                       distkey, sortstyle, sortkey, exc):
+    con = Redshift.generate_connection(
+        database="test",
+        host=redshift_parameters.get("RedshiftAddress"),
+        port=redshift_parameters.get("RedshiftPort"),
+        user="test",
+        password=redshift_parameters.get("RedshiftPassword"),
+    )
+    dataframe = pandas.read_csv(f"data_samples/{sample_name}.csv")
+    path = f"s3://{bucket}/redshift-load/"
+    with pytest.raises(exc):
+        assert session.pandas.to_redshift(
+            dataframe=dataframe,
+            path=path,
+            schema="public",
+            table="test",
+            connection=con,
+            iam_role=redshift_parameters.get("RedshiftRole"),
+            diststyle=diststyle,
+            distkey=distkey,
+            sortstyle=sortstyle,
+            sortkey=sortkey,
+            mode=mode,
+            preserve_index=False,
+        )
+    con.close()
+
+
+@pytest.mark.parametrize(
+    "sample_name,mode,factor,diststyle,distkey,sortstyle,sortkey",
+    [
+        ("micro", "overwrite", 1, "AUTO", "name", None, ["id"]),
+        ("micro", "append", 2, None, None, "INTERLEAVED", ["id", "value"]),
+        ("small", "overwrite", 1, "KEY", "name", "INTERLEAVED", ["id", "name"
+                                                                 ]),
+        ("small", "append", 2, None, None, "INTERLEAVED",
+         ["id", "name", "date"]),
+        ("nano", "overwrite", 1, "ALL", None, "compound",
+         ["id", "name", "date"]),
+        ("nano", "append", 2, "ALL", "name", "INTERLEAVED", ["id"]),
     ],
 )
 def test_to_redshift_spark(session, bucket, redshift_parameters, sample_name,
-                           mode, factor):
+                           mode, factor, diststyle, distkey, sortstyle,
+                           sortkey):
     path = f"data_samples/{sample_name}.csv"
     dataframe = session.spark.read_csv(path=path)
     con = Redshift.generate_connection(
@@ -132,6 +194,10 @@ def test_to_redshift_spark(session, bucket, redshift_parameters, sample_name,
         schema="public",
         table="test",
         iam_role=redshift_parameters.get("RedshiftRole"),
+        diststyle=diststyle,
+        distkey=distkey,
+        sortstyle=sortstyle,
+        sortkey=sortkey,
         mode=mode,
         min_num_partitions=2,
     )
@@ -141,6 +207,51 @@ def test_to_redshift_spark(session, bucket, redshift_parameters, sample_name,
     cursor.close()
     con.close()
     assert dataframe.count() * factor == counter
+
+
+@pytest.mark.parametrize(
+    "sample_name,mode,factor,diststyle,distkey,exc,sortstyle,sortkey",
+    [
+        ("micro", "overwrite", 1, "FOO", "name", InvalidRedshiftDiststyle,
+         None, None),
+        ("micro", "overwrite", 2, "KEY", "FOO", InvalidRedshiftDistkey, None,
+         None),
+        ("small", "overwrite", 1, "KEY", None, InvalidRedshiftDistkey, None,
+         None),
+        ("small", "overwrite", 1, None, None, InvalidRedshiftSortkey, None,
+         ["foo"]),
+        ("small", "overwrite", 1, None, None, InvalidRedshiftSortstyle, "foo",
+         ["id"]),
+    ],
+)
+def test_to_redshift_spark_exceptions(session, bucket, redshift_parameters,
+                                      sample_name, mode, factor, diststyle,
+                                      distkey, sortstyle, sortkey, exc):
+    path = f"data_samples/{sample_name}.csv"
+    dataframe = session.spark.read_csv(path=path)
+    con = Redshift.generate_connection(
+        database="test",
+        host=redshift_parameters.get("RedshiftAddress"),
+        port=redshift_parameters.get("RedshiftPort"),
+        user="test",
+        password=redshift_parameters.get("RedshiftPassword"),
+    )
+    with pytest.raises(exc):
+        assert session.spark.to_redshift(
+            dataframe=dataframe,
+            path=f"s3://{bucket}/redshift-load/",
+            connection=con,
+            schema="public",
+            table="test",
+            iam_role=redshift_parameters.get("RedshiftRole"),
+            diststyle=diststyle,
+            distkey=distkey,
+            sortstyle=sortstyle,
+            sortkey=sortkey,
+            mode=mode,
+            min_num_partitions=2,
+        )
+    con.close()
 
 
 def test_write_load_manifest(session, bucket):

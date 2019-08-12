@@ -7,9 +7,25 @@ from awswrangler.exceptions import (
     RedshiftLoadError,
     UnsupportedType,
     InvalidDataframeType,
+    InvalidRedshiftDiststyle,
+    InvalidRedshiftDistkey,
+    InvalidRedshiftSortstyle,
+    InvalidRedshiftSortkey,
 )
 
 logger = logging.getLogger(__name__)
+
+DISTSTYLES = [
+    "AUTO",
+    "EVEN",
+    "ALL",
+    "KEY",
+]
+
+SORTSTYLES = [
+    "COMPOUND",
+    "INTERLEAVED",
+]
 
 
 class Redshift:
@@ -87,24 +103,48 @@ class Redshift:
             redshift_conn,
             num_files,
             iam_role,
+            diststyle="AUTO",
+            distkey=None,
+            sortstyle="COMPOUND",
+            sortkey=None,
             mode="append",
             preserve_index=False,
     ):
+        """
+        Load Parquet files into a Redshift table using a manifest file.
+        Creates the table if necessary.
+        :param dataframe: Pandas or Spark Dataframe
+        :param dataframe_type: "pandas" or "spark"
+        :param manifest_path: S3 path for manifest file (E.g. S3://...)
+        :param schema_name: Redshift schema
+        :param table_name: Redshift table name
+        :param redshift_conn: A PEP 249 compatible connection (Can be generated with Redshift.generate_connection())
+        :param num_files: Number of files to be loaded
+        :param iam_role: AWS IAM role with the related permissions
+        :param diststyle: Redshift distribution styles. Must be in ["AUTO", "EVEN", "ALL", "KEY"]
+               https://docs.aws.amazon.com/redshift/latest/dg/t_Distributing_data.html
+        :param distkey: Specifies a column name or positional number for the distribution key
+        :param sortstyle: Sorting can be "COMPOUND" or "INTERLEAVED"
+               https://docs.aws.amazon.com/redshift/latest/dg/t_Sorting_data.html
+        :param sortkey: List of columns to be sorted
+        :param mode: append or overwrite
+        :param preserve_index: Should we preserve the Dataframe index? (ONLY for Pandas Dataframe)
+        :return: None
+        """
         cursor = redshift_conn.cursor()
         if mode == "overwrite":
-            cursor.execute("-- AWS DATA WRANGLER\n"
-                           f"DROP TABLE IF EXISTS {schema_name}.{table_name}")
-            schema = Redshift._get_redshift_schema(
+            Redshift._create_table(
+                cursor=cursor,
                 dataframe=dataframe,
                 dataframe_type=dataframe_type,
+                schema_name=schema_name,
+                table_name=table_name,
+                diststyle=diststyle,
+                distkey=distkey,
+                sortstyle=sortstyle,
+                sortkey=sortkey,
                 preserve_index=preserve_index,
             )
-            cols_str = "".join([f"{col[0]} {col[1]},\n" for col in schema])[:-2]
-            sql = (
-                "-- AWS DATA WRANGLER\n"
-                f"CREATE TABLE IF NOT EXISTS {schema_name}.{table_name} (\n{cols_str}"
-                ") DISTSTYLE AUTO")
-            cursor.execute(sql)
         sql = ("-- AWS DATA WRANGLER\n"
                f"COPY {schema_name}.{table_name} FROM '{manifest_path}'\n"
                f"IAM_ROLE '{iam_role}'\n"
@@ -128,6 +168,111 @@ class Redshift:
             )
         redshift_conn.commit()
         cursor.close()
+
+    @staticmethod
+    def _create_table(
+            cursor,
+            dataframe,
+            dataframe_type,
+            schema_name,
+            table_name,
+            diststyle="AUTO",
+            distkey=None,
+            sortstyle="COMPOUND",
+            sortkey=None,
+            preserve_index=False,
+    ):
+        """
+        Creates Redshift table.
+        :param cursor: A PEP 249 compatible cursor
+        :param dataframe: Pandas or Spark Dataframe
+        :param dataframe_type: "pandas" or "spark"
+        :param schema_name: Redshift schema
+        :param table_name: Redshift table name
+        :param diststyle: Redshift distribution styles. Must be in ["AUTO", "EVEN", "ALL", "KEY"]
+               https://docs.aws.amazon.com/redshift/latest/dg/t_Distributing_data.html
+        :param distkey: Specifies a column name or positional number for the distribution key
+        :param sortstyle: Sorting can be "COMPOUND" or "INTERLEAVED"
+               https://docs.aws.amazon.com/redshift/latest/dg/t_Sorting_data.html
+        :param sortkey: List of columns to be sorted
+        :param preserve_index: Should we preserve the Dataframe index? (ONLY for Pandas Dataframe)
+        :return: None
+        """
+        sql = f"-- AWS DATA WRANGLER\n" \
+              f"DROP TABLE IF EXISTS {schema_name}.{table_name}"
+        logger.debug(f"Drop table query:\n{sql}")
+        cursor.execute(sql)
+        schema = Redshift._get_redshift_schema(
+            dataframe=dataframe,
+            dataframe_type=dataframe_type,
+            preserve_index=preserve_index,
+        )
+        if diststyle:
+            diststyle = diststyle.upper()
+        else:
+            diststyle = "AUTO"
+        if sortstyle:
+            sortstyle = sortstyle.upper()
+        else:
+            sortstyle = "COMPOUND"
+        Redshift._validate_parameters(schema=schema,
+                                      diststyle=diststyle,
+                                      distkey=distkey,
+                                      sortstyle=sortstyle,
+                                      sortkey=sortkey)
+        cols_str = "".join([f"{col[0]} {col[1]},\n" for col in schema])[:-2]
+        distkey_str = ""
+        if distkey and diststyle == "KEY":
+            distkey_str = f"\nDISTKEY({distkey})"
+        sortkey_str = ""
+        if sortkey:
+            sortkey_str = f"\n{sortstyle} SORTKEY({','.join(sortkey)})"
+        sql = (f"-- AWS DATA WRANGLER\n"
+               f"CREATE TABLE IF NOT EXISTS {schema_name}.{table_name} (\n"
+               f"{cols_str}"
+               f")\nDISTSTYLE {diststyle}"
+               f"{distkey_str}"
+               f"{sortkey_str}")
+        logger.debug(f"Create table query:\n{sql}")
+        cursor.execute(sql)
+
+    @staticmethod
+    def _validate_parameters(schema, diststyle, distkey, sortstyle, sortkey):
+        """
+        Validates the sanity of Redshift's parameters
+        :param schema: List of tuples (column name, column type)
+        :param diststyle: Redshift distribution styles. Must be in ["AUTO", "EVEN", "ALL", "KEY"]
+               https://docs.aws.amazon.com/redshift/latest/dg/t_Distributing_data.html
+        :param distkey: Specifies a column name or positional number for the distribution key
+        :param sortstyle: Sorting can be "COMPOUND" or "INTERLEAVED"
+               https://docs.aws.amazon.com/redshift/latest/dg/t_Sorting_data.html
+        :param sortkey: List of columns to be sorted
+        :return: None
+        """
+        if diststyle not in DISTSTYLES:
+            raise InvalidRedshiftDiststyle(
+                f"diststyle must be in {DISTSTYLES}")
+        cols = [x[0] for x in schema]
+        logger.debug(f"Redshift columns: {cols}")
+        if (diststyle == "KEY") and (not distkey):
+            raise InvalidRedshiftDistkey(
+                "You must pass a distkey if you intend to use KEY diststyle")
+        if distkey and distkey not in cols:
+            raise InvalidRedshiftDistkey(
+                f"distkey ({distkey}) must be in the columns list: {cols})")
+        if sortstyle and sortstyle not in SORTSTYLES:
+            raise InvalidRedshiftSortstyle(
+                f"sortstyle must be in {SORTSTYLES}")
+        if sortkey:
+            if type(sortkey) != list:
+                raise InvalidRedshiftSortkey(
+                    f"sortkey must be a List of items in the columns list: {cols}. "
+                    f"Currently value: {sortkey}")
+            for key in sortkey:
+                if key not in cols:
+                    raise InvalidRedshiftSortkey(
+                        f"sortkey must be a List of items in the columns list: {cols}. "
+                        f"Currently value: {key}")
 
     @staticmethod
     def _get_redshift_schema(dataframe, dataframe_type, preserve_index=False):

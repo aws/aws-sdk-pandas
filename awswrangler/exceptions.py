@@ -36,3 +36,19 @@ class LineTerminatorNotFound(Exception):
 
 class MissingBatchDetected(Exception):
     pass
+
+
+class InvalidRedshiftDiststyle(Exception):
+    pass
+
+
+class InvalidRedshiftDistkey(Exception):
+    pass
+
+
+class InvalidRedshiftSortstyle(Exception):
+    pass
+
+
+class InvalidRedshiftSortkey(Exception):
+    pass

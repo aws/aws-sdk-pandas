@@ -760,6 +760,10 @@ class Pandas:
             schema,
             table,
             iam_role,
+            diststyle="AUTO",
+            distkey=None,
+            sortstyle="COMPOUND",
+            sortkey=None,
             preserve_index=False,
             mode="append",
     ):
@@ -771,6 +775,12 @@ class Pandas:
         :param schema: The Redshift Schema for the table
         :param table: The name of the desired Redshift table
         :param iam_role: AWS IAM role with the related permissions
+        :param diststyle: Redshift distribution styles. Must be in ["AUTO", "EVEN", "ALL", "KEY"]
+               https://docs.aws.amazon.com/redshift/latest/dg/t_Distributing_data.html
+        :param distkey: Specifies a column name or positional number for the distribution key
+        :param sortstyle: Sorting can be "COMPOUND" or "INTERLEAVED"
+               https://docs.aws.amazon.com/redshift/latest/dg/t_Sorting_data.html
+        :param sortkey: List of columns to be sorted
         :param preserve_index: Should we preserve the Dataframe index?
         :param mode: append or overwrite
         :return: None
@@ -779,7 +789,7 @@ class Pandas:
             path += "/"
         self._session.s3.delete_objects(path=path)
         num_rows = len(dataframe.index)
-        logger.info(f"Number of rows: {num_rows}")
+        logger.debug(f"Number of rows: {num_rows}")
         if num_rows < MIN_NUMBER_OF_ROWS_TO_DISTRIBUTE:
             num_partitions = 1
         else:
@@ -808,6 +818,10 @@ class Pandas:
             preserve_index=False,
             num_files=num_partitions,
             iam_role=iam_role,
+            diststyle=diststyle,
+            distkey=distkey,
+            sortstyle=sortstyle,
+            sortkey=sortkey,
             mode=mode,
         )
         self._session.s3.delete_objects(path=path)
