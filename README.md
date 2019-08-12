@@ -4,7 +4,7 @@
 
 ---
 
-*Contents:* **[Use Cases](#Use-Cases)** | **[Installation](#Installation)** | **[Examples](#Examples)** | **[Diving Deep](#Diving Deep)**
+*Contents:* **[Use Cases](#Use-Cases)** | **[Installation](#Installation)** | **[Examples](#Examples)** | **[Diving Deep](#Diving-Deep)**
 
 ---
 
@@ -96,7 +96,7 @@ session.spark.to_redshift(
 )
 ```
 
-##Diving Deep
+## Diving Deep
 
 ### Pandas to Redshift Flow
 
