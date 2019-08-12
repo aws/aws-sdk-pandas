@@ -100,4 +100,4 @@ session.spark.to_redshift(
 
 ### Pandas to Redshift Flow
 
-![Pandas to Redshift Flow](docs/pandas_to_redshift/pandas-to-redshift-flow.jpg?raw=true "Pandas to Redshift Flow")
+![Pandas to Redshift Flow](docs/pandas-to-redshift/pandas-to-redshift-flow.jpg?raw=true "Pandas to Redshift Flow")
