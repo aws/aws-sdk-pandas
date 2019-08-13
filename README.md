@@ -15,8 +15,8 @@
 * Pandas -> Glue Catalog
 * Pandas -> Athena
 * Pandas -> Redshift
-* CSV (S3) -> Pandas
-* Athena -> Pandas
+* CSV (S3) -> Pandas (One shot or Batching)
+* Athena -> Pandas (One shot or Batching)
 * PySpark -> Redshift
 * Delete S3 objects (parallel :rocket:)
 
