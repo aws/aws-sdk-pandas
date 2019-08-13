@@ -18,6 +18,7 @@
 * CSV (S3) -> Pandas
 * Athena -> Pandas
 * PySpark -> Redshift
+* Delete S3 objects (parallel :rocket:)
 
 ## Installation
 
@@ -55,11 +56,36 @@ dataframe = session.pandas.read_sql_athena(
 )
 ```
 
+### Reading from AWS Athena to Pandas in chunks (For memory restrictions)
+
+```py3
+session = awswrangler.Session()
+dataframe_iter = session.pandas.read_sql_athena(
+    sql="select * from table",
+    database="database",
+    max_result_size=512_000_000  # 512 MB
+)
+for dataframe in dataframe_iter:
+    print(dataframe)  # Do whatever you want
+```
+
 ### Reading from S3 (CSV) to Pandas
 
 ```py3
 session = awswrangler.Session()
 dataframe = session.pandas.read_csv(path="s3://...")
+```
+
+### Reading from S3 (CSV) to Pandas in chunks (For memory restrictions)
+
+```py3
+session = awswrangler.Session()
+dataframe_iter = session.pandas.read_csv(
+    path="s3://...",
+    max_result_size=512_000_000  # 512 MB
+)
+for dataframe in dataframe_iter:
+    print(dataframe)  # Do whatever you want
 ```
 
 ### Typical Pandas ETL
@@ -96,8 +122,19 @@ session.spark.to_redshift(
 )
 ```
 
+### Deleting a bunch of S3 objects
+
+```py3
+session = awswrangler.Session()
+session.s3.delete_objects(path="s3://...")
+```
+
 ## Diving Deep
 
 ### Pandas to Redshift Flow
 
 ![Pandas to Redshift Flow](docs/pandas-to-redshift/pandas-to-redshift-flow.jpg?raw=true "Pandas to Redshift Flow")
+
+### Spark to Redshift Flow
+
+![Spark to Redshift Flow](docs/spark-to-redshift/spark-to-redshift-flow.jpg?raw=true "Spark to Redshift Flow")

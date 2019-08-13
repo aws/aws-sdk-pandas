@@ -54,10 +54,9 @@ class Spark:
         :return: None
         """
         logger.debug(f"Minimum number of partitions : {min_num_partitions}")
+        if path[-1] != "/":
+            path += "/"
         self._session.s3.delete_objects(path=path)
-        num_slices = self._session.redshift.get_number_of_slices(
-            redshift_conn=connection)
-        logger.debug(f"Number of slices on Redshift: {num_slices}")
         spark = self._session.spark_session
         dataframe.cache()
         num_rows = dataframe.count()
@@ -65,12 +64,13 @@ class Spark:
         if num_rows < MIN_NUMBER_OF_ROWS_TO_DISTRIBUTE:
             num_partitions = 1
         else:
+            num_slices = self._session.redshift.get_number_of_slices(
+                redshift_conn=connection)
+            logger.debug(f"Number of slices on Redshift: {num_slices}")
             num_partitions = num_slices
             while num_partitions < min_num_partitions:
                 num_partitions += num_slices
         logger.debug(f"Number of partitions calculated: {num_partitions}")
-        if path[-1] != "/":
-            path += "/"
         spark.conf.set("spark.sql.execution.arrow.enabled", "true")
         session_primitives = self._session.primitives
 
