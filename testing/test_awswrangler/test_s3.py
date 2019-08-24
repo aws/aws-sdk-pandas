@@ -91,7 +91,7 @@ def database(cloudformation_outputs):
     yield database
 
 
-@pytest.mark.parametrize("objects_num", [1, 10, 1001, 2001, 3001])
+@pytest.mark.parametrize("objects_num", [1, 10, 1001])
 def test_delete_objects(session, bucket, objects_num):
     print("Starting writes...")
     write_fake_objects(bucket, f"objs-{objects_num}/", objects_num)
@@ -99,7 +99,7 @@ def test_delete_objects(session, bucket, objects_num):
     session.s3.delete_objects(path=f"s3://{bucket}/objs-{objects_num}/")
 
 
-@pytest.mark.parametrize("objects_num", [1, 10, 1001, 2001, 3001])
+@pytest.mark.parametrize("objects_num", [1, 10, 1001])
 def test_delete_listed_objects(session, bucket, objects_num):
     path = f"s3://{bucket}/objs-listed-{objects_num}/"
     print("Starting deletes...")
@@ -124,7 +124,7 @@ def check_list_with_retry(session, path, length):
     return False
 
 
-@pytest.mark.parametrize("objects_num", [1, 10, 1001, 2001, 3001])
+@pytest.mark.parametrize("objects_num", [1, 10, 1001])
 def test_delete_not_listed_objects(session, bucket, objects_num):
     path = f"s3://{bucket}/objs-not-listed-{objects_num}/"
     print("Starting deletes...")
@@ -139,7 +139,7 @@ def test_delete_not_listed_objects(session, bucket, objects_num):
     session.s3.delete_objects(path=path)
 
 
-@pytest.mark.parametrize("objects_num", [1, 10, 1001, 2001, 3001])
+@pytest.mark.parametrize("objects_num", [1, 10, 1001])
 def test_get_objects_sizes(session, bucket, objects_num):
     path = f"s3://{bucket}/objs-get-objects-sizes-{objects_num}/"
     print("Starting deletes...")

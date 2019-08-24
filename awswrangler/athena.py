@@ -54,6 +54,7 @@ class Athena:
     def create_athena_bucket(self):
         """
         Creates the default Athena bucket if not exists
+
         :return: Bucket s3 path (E.g. s3://aws-athena-query-results-ACCOUNT-REGION/)
         """
         account_id = (self._session.boto3_session.client(
@@ -69,6 +70,7 @@ class Athena:
     def run_query(self, query, database, s3_output=None):
         """
         Run a SQL Query against AWS Athena
+
         :param query: SQL query
         :param database: AWS Glue/Athena database name
         :param s3_output: AWS S3 path

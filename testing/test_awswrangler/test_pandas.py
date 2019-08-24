@@ -35,10 +35,11 @@ def session():
 @pytest.fixture(scope="module")
 def bucket(session, cloudformation_outputs):
     if "BucketName" in cloudformation_outputs:
-        bucket = cloudformation_outputs.get("BucketName")
+        bucket = cloudformation_outputs["BucketName"]
         session.s3.delete_objects(path=f"s3://{bucket}/")
     else:
-        raise Exception("You must deploy the test infrastructure using SAM!")
+        raise Exception(
+            "You must deploy the test infrastructure using Cloudformation!")
     yield bucket
     session.s3.delete_objects(path=f"s3://{bucket}/")
 
@@ -46,9 +47,20 @@ def bucket(session, cloudformation_outputs):
 @pytest.fixture(scope="module")
 def database(cloudformation_outputs):
     if "GlueDatabaseName" in cloudformation_outputs:
-        database = cloudformation_outputs.get("GlueDatabaseName")
+        database = cloudformation_outputs["GlueDatabaseName"]
     else:
-        raise Exception("You must deploy the test infrastructure using SAM!")
+        raise Exception(
+            "You must deploy the test infrastructure using Cloudformation!")
+    yield database
+
+
+@pytest.fixture(scope="module")
+def kms_key(cloudformation_outputs):
+    if "KmsKeyArn" in cloudformation_outputs:
+        database = cloudformation_outputs["KmsKeyArn"]
+    else:
+        raise Exception(
+            "You must deploy the test infrastructure using Cloudformation!")
     yield database
 
 
@@ -355,3 +367,27 @@ def test_etl_complex(session, bucket, database, max_result_size):
                 row.my_string
             ) == "foo\nboo\nbar\nFOO\nBOO\nBAR\nxxxxx\nÁÃÀÂÇ\n汉字汉字汉字汉字汉字汉字汉字æøåæøåæøåæøåæøåæøåæøåæøåæøåæøå汉字汉字汉字汉字汉字汉字汉字æøåæøåæøåæøåæøåæøåæøåæøåæøåæøå"
     assert count == len(dataframe.index)
+
+
+def test_to_parquet_with_kms(
+        bucket,
+        database,
+        kms_key,
+):
+    extra_args = {"ServerSideEncryption": "aws:kms", "SSEKMSKeyId": kms_key}
+    session_inner = Session(s3_additional_kwargs=extra_args)
+    dataframe = pandas.read_csv("data_samples/nano.csv")
+    session_inner.pandas.to_parquet(dataframe=dataframe,
+                                    database=database,
+                                    path=f"s3://{bucket}/test/",
+                                    preserve_index=False,
+                                    mode="overwrite",
+                                    procs_cpu_bound=1)
+    dataframe2 = None
+    for counter in range(10):
+        dataframe2 = session_inner.pandas.read_sql_athena(
+            sql="select * from test", database=database)
+        if len(dataframe.index) == len(dataframe2.index):
+            break
+        sleep(1)
+    assert len(dataframe.index) == len(dataframe2.index)

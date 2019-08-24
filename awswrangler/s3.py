@@ -19,30 +19,36 @@ def mkdir_if_not_exists(fs, path):
             assert fs.exists(path)
 
 
-def get_fs(session_primitives):
-    aws_access_key_id, aws_secret_access_key, profile_name, config = None, None, None, None
+def get_fs(session_primitives=None):
+    aws_access_key_id, aws_secret_access_key, profile_name, config, s3_additional_kwargs = None, None, None, None, None
     if session_primitives:
-        aws_access_key_id = (session_primitives.aws_access_key_id
-                             if session_primitives.aws_access_key_id else None)
-        aws_secret_access_key = (session_primitives.aws_secret_access_key
-                                 if session_primitives.aws_secret_access_key
-                                 else None)
-        profile_name = (session_primitives.profile_name
-                        if session_primitives.profile_name else None)
-        config = {
-            "retries": {
-                "max_attempts": session_primitives.botocore_max_retries
+        if session_primitives.aws_access_key_id:
+            aws_access_key_id = session_primitives.aws_access_key_id
+        if session_primitives.aws_secret_access_key:
+            aws_secret_access_key = session_primitives.aws_secret_access_key
+        if session_primitives.profile_name:
+            profile_name = session_primitives.profile_name
+        if session_primitives.botocore_max_retries:
+            config = {
+                "retries": {
+                    "max_attempts": session_primitives.botocore_max_retries
+                }
             }
-        }
+        if session_primitives.s3_additional_kwargs:
+            s3_additional_kwargs = session_primitives.s3_additional_kwargs
     if profile_name:
-        return s3fs.S3FileSystem(profile_name=profile_name,
-                                 config_kwargs=config)
+        fs = s3fs.S3FileSystem(profile_name=profile_name,
+                               config_kwargs=config,
+                               s3_additional_kwargs=s3_additional_kwargs)
     elif aws_access_key_id and aws_secret_access_key:
-        return s3fs.S3FileSystem(key=aws_access_key_id,
-                                 secret=aws_secret_access_key,
-                                 config_kwargs=config)
+        fs = s3fs.S3FileSystem(key=aws_access_key_id,
+                               secret=aws_secret_access_key,
+                               config_kwargs=config,
+                               s3_additional_kwargs=s3_additional_kwargs)
     else:
-        return s3fs.S3FileSystem(config_kwargs=config)
+        fs = s3fs.S3FileSystem(config_kwargs=config,
+                               s3_additional_kwargs=s3_additional_kwargs)
+    return fs
 
 
 class S3:

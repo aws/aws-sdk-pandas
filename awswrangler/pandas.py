@@ -54,6 +54,7 @@ class Pandas:
         Try to mimic as most as possible pandas.read_csv()
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
         P.S. max_result_size != None tries to mimic the chunksize behaviour in pandas.read_sql()
+
         :param path: AWS S3 path (E.g. S3://BUCKET_NAME/KEY_NAME)
         :param max_result_size: Max number of bytes on each request to S3
         :param header: Same as pandas.read_csv()
@@ -131,6 +132,7 @@ class Pandas:
         Read CSV file from AWS S3 using optimized strategies.
         Try to mimic as most as possible pandas.read_csv()
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
+
         :param client_s3: Boto3 S3 client object
         :param bucket_name: S3 bucket name
         :param key_path: S3 key path (W/o bucket)
@@ -235,6 +237,7 @@ class Pandas:
                                     last_index):
         """
         Backward parser for quoted CSV lines
+
         :param body: String
         :param sep: Same as pandas.read_csv()
         :param quotechar: Same as pandas.read_csv()
@@ -290,6 +293,7 @@ class Pandas:
     def _find_terminator(body, sep, quoting, quotechar, lineterminator):
         """
         Find for any suspicious of line terminator (From end to start)
+
         :param body: String
         :param sep: Same as pandas.read_csv()
         :param quoting: Same as pandas.read_csv()
@@ -345,6 +349,7 @@ class Pandas:
         Read CSV file from AWS S3 using optimized strategies.
         Try to mimic as most as possible pandas.read_csv()
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
+
         :param client_s3: Boto3 S3 client object
         :param bucket_name: S3 bucket name
         :param key_path: S3 key path (W/o bucket)
@@ -391,6 +396,7 @@ class Pandas:
         """
         Executes any SQL query on AWS Athena and return a Dataframe of the result.
         P.S. If max_result_size is passed, then a iterator of Dataframes is returned.
+
         :param sql: SQL Query
         :param database: Glue/Athena Database
         :param s3_output: AWS S3 path
@@ -436,6 +442,7 @@ class Pandas:
         """
         Write a Pandas Dataframe as CSV files on S3
         Optionally writes metadata on AWS Glue.
+
         :param dataframe: Pandas Dataframe
         :param path: AWS S3 path (E.g. s3://bucket-name/folder_name/
         :param database: AWS Glue Database name
@@ -474,6 +481,7 @@ class Pandas:
         """
         Write a Pandas Dataframe as parquet files on S3
         Optionally writes metadata on AWS Glue.
+
         :param dataframe: Pandas Dataframe
         :param path: AWS S3 path (E.g. s3://bucket-name/folder_name/
         :param database: AWS Glue Database name
@@ -483,8 +491,7 @@ class Pandas:
         :param mode: "append", "overwrite", "overwrite_partitions"
         :param procs_cpu_bound: Number of cores used for CPU bound tasks
         :param procs_io_bound: Number of cores used for I/O bound tasks
-        :param cast_columns: Dictionary of columns names and Arrow types to be casted.
-               E.g. {"col name": "int64", "col2 name": "int32"}
+        :param cast_columns: Dictionary of columns names and Arrow types to be casted. (E.g. {"col name": "int64", "col2 name": "int32"})
         :return: List of objects written on S3
         """
         return self.to_s3(dataframe=dataframe,
@@ -514,6 +521,7 @@ class Pandas:
         """
         Write a Pandas Dataframe on S3
         Optionally writes metadata on AWS Glue.
+
         :param dataframe: Pandas Dataframe
         :param path: AWS S3 path (E.g. s3://bucket-name/folder_name/
         :param file_format: "csv" or "parquet"
@@ -524,9 +532,7 @@ class Pandas:
         :param mode: "append", "overwrite", "overwrite_partitions"
         :param procs_cpu_bound: Number of cores used for CPU bound tasks
         :param procs_io_bound: Number of cores used for I/O bound tasks
-        :param cast_columns: Dictionary of columns indexes and Arrow types to be casted.
-               E.g. {2: "int64", 5: "int32"}
-               Only for "parquet" file_format
+        :param cast_columns: Dictionary of columns indexes and Arrow types to be casted. (E.g. {2: "int64", 5: "int32"}) (Only for "parquet" file_format)
         :return: List of objects written on S3
         """
         if not partition_cols:
@@ -769,17 +775,16 @@ class Pandas:
     ):
         """
         Load Pandas Dataframe as a Table on Amazon Redshift
+
         :param dataframe: Pandas Dataframe
         :param path: S3 path to write temporary files (E.g. s3://BUCKET_NAME/ANY_NAME/)
         :param connection: A PEP 249 compatible connection (Can be generated with Redshift.generate_connection())
         :param schema: The Redshift Schema for the table
         :param table: The name of the desired Redshift table
         :param iam_role: AWS IAM role with the related permissions
-        :param diststyle: Redshift distribution styles. Must be in ["AUTO", "EVEN", "ALL", "KEY"]
-               https://docs.aws.amazon.com/redshift/latest/dg/t_Distributing_data.html
+        :param diststyle: Redshift distribution styles. Must be in ["AUTO", "EVEN", "ALL", "KEY"] (https://docs.aws.amazon.com/redshift/latest/dg/t_Distributing_data.html)
         :param distkey: Specifies a column name or positional number for the distribution key
-        :param sortstyle: Sorting can be "COMPOUND" or "INTERLEAVED"
-               https://docs.aws.amazon.com/redshift/latest/dg/t_Sorting_data.html
+        :param sortstyle: Sorting can be "COMPOUND" or "INTERLEAVED" (https://docs.aws.amazon.com/redshift/latest/dg/t_Sorting_data.html)
         :param sortkey: List of columns to be sorted
         :param preserve_index: Should we preserve the Dataframe index?
         :param mode: append or overwrite

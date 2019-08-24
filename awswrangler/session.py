@@ -37,23 +37,25 @@ class Session:
             aws_session_token=None,
             region_name=None,
             botocore_max_retries=40,
+            s3_additional_kwargs=None,
             spark_context=None,
             spark_session=None,
             procs_cpu_bound=os.cpu_count(),
             procs_io_bound=os.cpu_count() * PROCS_IO_BOUND_FACTOR,
     ):
         """
-        Most parameters inherit from Boto3 ou Pyspark.
+        Most parameters inherit from Boto3 or Pyspark.
         https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
         https://spark.apache.org/docs/latest/api/python/index.html
 
-        :param boto3_session: Boto3.Session (Overwrite the others Boto3 parameters)
+        :param boto3_session: Boto3.Session (Overwrite others Boto3 parameters)
         :param profile_name: Boto3 profile_name
         :param aws_access_key_id: Boto3 aws_access_key_id
         :param aws_secret_access_key: Boto3 aws_secret_access_key
         :param aws_session_token: Boto3 aws_session_token
         :param region_name: Boto3 region_name
         :param botocore_max_retries: Botocore max retries
+        :param s3_additional_kwargs: Passed on to s3fs (https://s3fs.readthedocs.io/en/latest/#serverside-encryption)
         :param spark_context: Spark Context (pyspark.SparkContext)
         :param spark_session: Spark Session (pyspark.sql.SparkSession)
         :param procs_cpu_bound: number of processes that can be used in single
@@ -73,6 +75,7 @@ class Session:
             retries={"max_attempts": self._botocore_max_retries})
         self._aws_session_token = aws_session_token
         self._region_name = boto3_session.region_name if boto3_session else region_name
+        self._s3_additional_kwargs = s3_additional_kwargs
         self._spark_context = spark_context
         self._spark_session = spark_session
         self._procs_cpu_bound = procs_cpu_bound
@@ -125,6 +128,7 @@ class Session:
             aws_session_token=self._aws_session_token,
             region_name=self._region_name,
             botocore_max_retries=self._botocore_max_retries,
+            s3_additional_kwargs=self._s3_additional_kwargs,
             botocore_config=self._botocore_config,
             procs_cpu_bound=self._procs_cpu_bound,
             procs_io_bound=self._procs_io_bound,
@@ -157,6 +161,10 @@ class Session:
     @property
     def botocore_config(self):
         return self._botocore_config
+
+    @property
+    def s3_additional_kwargs(self):
+        return self._s3_additional_kwargs
 
     @property
     def spark_context(self):
@@ -235,6 +243,7 @@ class SessionPrimitives:
             aws_session_token=None,
             region_name=None,
             botocore_max_retries=None,
+            s3_additional_kwargs=None,
             botocore_config=None,
             procs_cpu_bound=None,
             procs_io_bound=None,
@@ -249,6 +258,7 @@ class SessionPrimitives:
         :param aws_session_token: Boto3 aws_session_token
         :param region_name: Boto3 region_name
         :param botocore_max_retries: Botocore max retries
+        :param s3_additional_kwargs: Passed on to s3fs (https://s3fs.readthedocs.io/en/latest/#serverside-encryption)
         :param botocore_config: Botocore configurations
         :param procs_cpu_bound: number of processes that can be used in single
         node applications for CPU bound case (Default: os.cpu_count())
@@ -261,6 +271,7 @@ class SessionPrimitives:
         self._aws_session_token = aws_session_token
         self._region_name = region_name
         self._botocore_max_retries = botocore_max_retries
+        self._s3_additional_kwargs = s3_additional_kwargs
         self._botocore_config = botocore_config
         self._procs_cpu_bound = procs_cpu_bound
         self._procs_io_bound = procs_io_bound
@@ -294,6 +305,10 @@ class SessionPrimitives:
         return self._botocore_config
 
     @property
+    def s3_additional_kwargs(self):
+        return self._s3_additional_kwargs
+
+    @property
     def procs_cpu_bound(self):
         return self._procs_cpu_bound
 
@@ -314,6 +329,7 @@ class SessionPrimitives:
             aws_session_token=self._aws_session_token,
             region_name=self._region_name,
             botocore_max_retries=self._botocore_max_retries,
+            s3_additional_kwargs=self._s3_additional_kwargs,
             procs_cpu_bound=self._procs_cpu_bound,
             procs_io_bound=self._procs_io_bound,
         )

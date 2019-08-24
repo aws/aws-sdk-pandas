@@ -46,6 +46,19 @@ session.pandas.to_parquet(
 
 If a Glue Database name is passed, all the metadata will be created in the Glue Catalog. If not, only the s3 data write will be done.
 
+### Writing Pandas Dataframe to S3 as Parquet encrypting with a KMS key
+
+```py3
+extra_args = {
+    "ServerSideEncryption": "aws:kms",
+    "SSEKMSKeyId": "YOUR_KMY_KEY_ARN"
+}
+session = awswrangler.Session(s3_additional_kwargs=extra_args)
+session.pandas.to_parquet(
+    path="s3://..."
+)
+```
+
 ### Reading from AWS Athena to Pandas
 
 ```py3

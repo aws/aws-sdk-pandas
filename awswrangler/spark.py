@@ -37,17 +37,16 @@ class Spark:
     ):
         """
         Load Spark Dataframe as a Table on Amazon Redshift
+
         :param dataframe: Pandas Dataframe
         :param path: S3 path to write temporary files (E.g. s3://BUCKET_NAME/ANY_NAME/)
         :param connection: A PEP 249 compatible connection (Can be generated with Redshift.generate_connection())
         :param schema: The Redshift Schema for the table
         :param table: The name of the desired Redshift table
         :param iam_role: AWS IAM role with the related permissions
-        :param diststyle: Redshift distribution styles. Must be in ["AUTO", "EVEN", "ALL", "KEY"]
-               https://docs.aws.amazon.com/redshift/latest/dg/t_Distributing_data.html
+        :param diststyle: Redshift distribution styles. Must be in ["AUTO", "EVEN", "ALL", "KEY"] (https://docs.aws.amazon.com/redshift/latest/dg/t_Distributing_data.html)
         :param distkey: Specifies a column name or positional number for the distribution key
-        :param sortstyle: Sorting can be "COMPOUND" or "INTERLEAVED"
-               https://docs.aws.amazon.com/redshift/latest/dg/t_Sorting_data.html
+        :param sortstyle: Sorting can be "COMPOUND" or "INTERLEAVED" (https://docs.aws.amazon.com/redshift/latest/dg/t_Sorting_data.html)
         :param sortkey: List of columns to be sorted
         :param min_num_partitions: Minimal number of partitions
         :param mode: append or overwrite

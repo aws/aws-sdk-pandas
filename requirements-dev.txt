@@ -1,7 +1,8 @@
 yapf>=0.28.0
 flake8>=3.7.8
-pytest>=5.0.1
-cfn-lint>=0.22.4
+pytest>=5.1.0
+cfn-lint>=0.23.3
 twine>=1.13.0
 pyspark>=2.4.3
-wheel>=0.33.4
+wheel>=0.33.6
+sphinx>=2.1.2

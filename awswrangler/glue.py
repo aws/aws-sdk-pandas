@@ -17,6 +17,7 @@ class Glue:
     def get_table_athena_types(self, database, table):
         """
         Get all columns names and the related data types
+
         :param database: Glue database's name
         :param table: Glue table's name
         :return: A dictionary as {"col name": "col dtype"}
@@ -34,6 +35,7 @@ class Glue:
     def get_table_python_types(self, database, table):
         """
         Get all columns names and the related python types
+
         :param database: Glue database's name
         :param table: Glue table's name
         :return: A dictionary as {"col name": "col python type"}
@@ -178,7 +180,7 @@ class Glue:
                       partition_cols,
                       preserve_index,
                       cast_columns=None):
-        print(f"dataframe.dtypes:\n{dataframe.dtypes}")
+        logger.debug(f"dataframe.dtypes:\n{dataframe.dtypes}")
         if not partition_cols:
             partition_cols = []
         schema_built = []

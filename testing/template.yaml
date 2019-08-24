@@ -1,5 +1,4 @@
 AWSTemplateFormatVersion: 2010-09-09
-Transform: AWS::Serverless-2016-10-31
 Description: >
   AWS Data Wrangler
   Test Arena
@@ -14,8 +13,51 @@ Parameters:
   Password:
     Type: String
     Description: Redshift Password
+  TestUser:
+    Type: String
+    Description: AWS User that will running the tests on the CLI
 
 Resources:
+
+  KmsKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/aws-data-wrangler-test-key
+      TargetKeyId:
+        Ref: KmsKey
+
+  KmsKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: "Aws Data Wrangler Test Key."
+      KeyPolicy:
+        Version: "2012-10-17"
+        Id: "aws-data-wrangler-test-key"
+        Statement:
+          - Sid: "Enable IAM User Permissions"
+            Effect: "Allow"
+            Principal:
+              AWS: !Join ["", ["arn:aws:iam::", !Ref "AWS::AccountId", ":root"]]
+            Action: "kms:*"
+            Resource: "*"
+          - Sid: "Allow administration of the key"
+            Effect: "Allow"
+            Principal:
+              AWS: !Join ["", ["arn:aws:iam::", !Ref "AWS::AccountId", ":user/", !Ref TestUser]]
+            Action:
+              - "kms:Create*"
+              - "kms:Describe*"
+              - "kms:Enable*"
+              - "kms:List*"
+              - "kms:Put*"
+              - "kms:Update*"
+              - "kms:Revoke*"
+              - "kms:Disable*"
+              - "kms:Get*"
+              - "kms:Delete*"
+              - "kms:ScheduleKeyDeletion"
+              - "kms:CancelKeyDeletion"
+
   Bucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -110,3 +152,6 @@ Outputs:
   GlueDatabaseName:
     Value: !Ref GlueDatabase
     Description: Glue Database Name.
+  KmsKeyArn:
+    Value: !GetAtt KmsKey.Arn
+    Description: KMS Key ARN.

@@ -113,6 +113,7 @@ class Redshift:
         """
         Load Parquet files into a Redshift table using a manifest file.
         Creates the table if necessary.
+
         :param dataframe: Pandas or Spark Dataframe
         :param dataframe_type: "pandas" or "spark"
         :param manifest_path: S3 path for manifest file (E.g. S3://...)
@@ -121,11 +122,9 @@ class Redshift:
         :param redshift_conn: A PEP 249 compatible connection (Can be generated with Redshift.generate_connection())
         :param num_files: Number of files to be loaded
         :param iam_role: AWS IAM role with the related permissions
-        :param diststyle: Redshift distribution styles. Must be in ["AUTO", "EVEN", "ALL", "KEY"]
-               https://docs.aws.amazon.com/redshift/latest/dg/t_Distributing_data.html
+        :param diststyle: Redshift distribution styles. Must be in ["AUTO", "EVEN", "ALL", "KEY"] (https://docs.aws.amazon.com/redshift/latest/dg/t_Distributing_data.html)
         :param distkey: Specifies a column name or positional number for the distribution key
-        :param sortstyle: Sorting can be "COMPOUND" or "INTERLEAVED"
-               https://docs.aws.amazon.com/redshift/latest/dg/t_Sorting_data.html
+        :param sortstyle: Sorting can be "COMPOUND" or "INTERLEAVED" (https://docs.aws.amazon.com/redshift/latest/dg/t_Sorting_data.html)
         :param sortkey: List of columns to be sorted
         :param mode: append or overwrite
         :param preserve_index: Should we preserve the Dataframe index? (ONLY for Pandas Dataframe)
@@ -184,16 +183,15 @@ class Redshift:
     ):
         """
         Creates Redshift table.
+
         :param cursor: A PEP 249 compatible cursor
         :param dataframe: Pandas or Spark Dataframe
         :param dataframe_type: "pandas" or "spark"
         :param schema_name: Redshift schema
         :param table_name: Redshift table name
-        :param diststyle: Redshift distribution styles. Must be in ["AUTO", "EVEN", "ALL", "KEY"]
-               https://docs.aws.amazon.com/redshift/latest/dg/t_Distributing_data.html
+        :param diststyle: Redshift distribution styles. Must be in ["AUTO", "EVEN", "ALL", "KEY"] (https://docs.aws.amazon.com/redshift/latest/dg/t_Distributing_data.html)
         :param distkey: Specifies a column name or positional number for the distribution key
-        :param sortstyle: Sorting can be "COMPOUND" or "INTERLEAVED"
-               https://docs.aws.amazon.com/redshift/latest/dg/t_Sorting_data.html
+        :param sortstyle: Sorting can be "COMPOUND" or "INTERLEAVED" (https://docs.aws.amazon.com/redshift/latest/dg/t_Sorting_data.html)
         :param sortkey: List of columns to be sorted
         :param preserve_index: Should we preserve the Dataframe index? (ONLY for Pandas Dataframe)
         :return: None
