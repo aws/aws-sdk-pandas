@@ -19,6 +19,7 @@
 * Athena -> Pandas (One shot or Batching)
 * PySpark -> Redshift
 * Delete S3 objects (parallel :rocket:)
+* Encrypt S3 data with KMS keys
 
 ## Installation
 
@@ -146,8 +147,8 @@ session.s3.delete_objects(path="s3://...")
 
 ### Pandas to Redshift Flow
 
-![Pandas to Redshift Flow](docs/pandas-to-redshift/pandas-to-redshift-flow.jpg?raw=true "Pandas to Redshift Flow")
+![Pandas to Redshift Flow](docs/source/_static/pandas-to-redshift-flow.jpg?raw=true "Pandas to Redshift Flow")
 
 ### Spark to Redshift Flow
 
-![Spark to Redshift Flow](docs/spark-to-redshift/spark-to-redshift-flow.jpg?raw=true "Spark to Redshift Flow")
+![Spark to Redshift Flow](docs/source/_static/spark-to-redshift-flow.jpg?raw=true "Spark to Redshift Flow")
