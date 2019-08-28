@@ -2,6 +2,10 @@
 
 > Utility belt to handle data on AWS.
 
+[![Documentation Status](https://readthedocs.org/projects/aws-data-wrangler/badge/?version=latest)](https://aws-data-wrangler.readthedocs.io/en/latest/?badge=latest)
+
+**[Read the documentation](https://aws-data-wrangler.readthedocs.io)**
+
 ---
 
 *Contents:* **[Use Cases](#Use-Cases)** | **[Installation](#Installation)** | **[Examples](#Examples)** | **[Diving Deep](#Diving-Deep)**
