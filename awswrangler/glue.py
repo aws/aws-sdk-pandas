@@ -41,10 +41,10 @@ class Glue:
         :return: A dictionary as {"col name": "col python type"}
         """
         dtypes = self.get_table_athena_types(database=database, table=table)
-        return {k: Glue._type_athena2python(v) for k, v in dtypes.items()}
+        return {k: Glue.type_athena2python(v) for k, v in dtypes.items()}
 
     @staticmethod
-    def _type_pandas2athena(dtype):
+    def type_pandas2athena(dtype):
         dtype = dtype.lower()
         if dtype == "int32":
             return "int"
@@ -64,7 +64,7 @@ class Glue:
             raise UnsupportedType(f"Unsupported Pandas type: {dtype}")
 
     @staticmethod
-    def _type_athena2python(dtype):
+    def type_athena2python(dtype):
         dtype = dtype.lower()
         if dtype in ["int", "integer", "bigint", "smallint", "tinyint"]:
             return int
@@ -80,6 +80,24 @@ class Glue:
             return date
         else:
             raise UnsupportedType(f"Unsupported Athena type: {dtype}")
+
+    @staticmethod
+    def type_python2athena(python_type):
+        python_type = str(python_type)
+        if python_type == "<class 'int'>":
+            return "bigint"
+        elif python_type == "<class 'float'>":
+            return "double"
+        elif python_type == "<class 'boll'>":
+            return "boolean"
+        elif python_type == "<class 'str'>":
+            return "string"
+        elif python_type == "<class 'datetime.datetime'>":
+            return "timestamp"
+        elif python_type == "<class 'datetime.date'>":
+            return "date"
+        else:
+            raise UnsupportedType(f"Unsupported Python type: {python_type}")
 
     def metadata_to_glue(self,
                          dataframe,
@@ -190,7 +208,7 @@ class Glue:
             dataframe.index.name = "index"
             dtype = str(dataframe.index.dtype)
             if name not in partition_cols:
-                athena_type = Glue._type_pandas2athena(dtype)
+                athena_type = Glue.type_pandas2athena(dtype)
                 schema_built.append((name, athena_type))
         for col in dataframe.columns:
             name = str(col)
@@ -199,7 +217,7 @@ class Glue:
             else:
                 dtype = str(dataframe[name].dtype)
             if name not in partition_cols:
-                athena_type = Glue._type_pandas2athena(dtype)
+                athena_type = Glue.type_pandas2athena(dtype)
                 schema_built.append((name, athena_type))
         logger.debug(f"schema_built:\n{schema_built}")
         return schema_built
