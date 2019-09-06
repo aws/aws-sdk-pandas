@@ -52,3 +52,7 @@ class InvalidRedshiftSortstyle(Exception):
 
 class InvalidRedshiftSortkey(Exception):
     pass
+
+
+class EmptyDataframe(Exception):
+    pass

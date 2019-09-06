@@ -9,7 +9,7 @@ import pandas
 import numpy
 
 from awswrangler import Session, Pandas
-from awswrangler.exceptions import LineTerminatorNotFound
+from awswrangler.exceptions import LineTerminatorNotFound, EmptyDataframe
 
 logging.basicConfig(
     level=logging.INFO,
@@ -391,3 +391,14 @@ def test_to_parquet_with_kms(
             break
         sleep(1)
     assert len(dataframe.index) == len(dataframe2.index)
+
+
+def test_to_parquet_with_empty_dataframe(session, bucket, database):
+    dataframe = pandas.DataFrame()
+    with pytest.raises(EmptyDataframe):
+        assert session.pandas.to_parquet(dataframe=dataframe,
+                                         database=database,
+                                         path=f"s3://{bucket}/test/",
+                                         preserve_index=False,
+                                         mode="overwrite",
+                                         procs_cpu_bound=1)

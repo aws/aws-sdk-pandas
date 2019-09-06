@@ -9,7 +9,8 @@ import pandas
 import pyarrow
 from pyarrow import parquet
 
-from awswrangler.exceptions import UnsupportedWriteMode, UnsupportedFileFormat, AthenaQueryError, EmptyS3Object, LineTerminatorNotFound
+from awswrangler.exceptions import UnsupportedWriteMode, UnsupportedFileFormat,\
+    AthenaQueryError, EmptyS3Object, LineTerminatorNotFound, EmptyDataframe
 from awswrangler.utils import calculate_bounders
 from awswrangler import s3
 
@@ -535,6 +536,8 @@ class Pandas:
         :param cast_columns: Dictionary of columns indexes and Arrow types to be casted. (E.g. {2: "int64", 5: "int32"}) (Only for "parquet" file_format)
         :return: List of objects written on S3
         """
+        if dataframe.empty:
+            raise EmptyDataframe()
         if not partition_cols:
             partition_cols = []
         if mode == "overwrite" or (mode == "overwrite_partitions"
