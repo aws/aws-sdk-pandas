@@ -22,11 +22,12 @@ setup(
                            exclude=["tests"]),
     python_requires=">=3.6",
     install_requires=[
-        "pyarrow>=0.14.0",
-        "pandas>=0.24.2",
-        "boto3>=1.9.130",
-        "s3fs>=0.3.1",
-        "tenacity>=5.0.4",
+        "pyarrow>=0.14.1",
+        "pandas>=0.25.1",
+        "botocore>=1.12.224",
+        "boto3>=1.9.224",
+        "s3fs>=0.3.4",
+        "tenacity>=5.1.1",
         "pg8000>=1.13.2",
     ],
 )

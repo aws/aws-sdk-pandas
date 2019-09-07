@@ -133,6 +133,16 @@ Resources:
       DatabaseInput:
         Description: AWS Data Wrangler Test Arena - Glue Database
 
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 1
+
+  LogStream:
+    Type: AWS::Logs::LogStream
+    Properties:
+      LogGroupName: !Ref LogGroup
+
 Outputs:
   BucketName:
     Value: !Ref Bucket
@@ -155,3 +165,9 @@ Outputs:
   KmsKeyArn:
     Value: !GetAtt KmsKey.Arn
     Description: KMS Key ARN.
+  LogGroupName:
+    Value: !Ref LogGroup
+    Description: LogGroup name.
+  LogStream:
+    Value: !Ref LogStream
+    Description: LogStream name.

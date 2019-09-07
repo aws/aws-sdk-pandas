@@ -7,6 +7,7 @@ from botocore.config import Config
 
 from awswrangler.s3 import S3
 from awswrangler.athena import Athena
+from awswrangler.cloudwatchlogs import CloudWatchLogs
 from awswrangler.pandas import Pandas
 from awswrangler.glue import Glue
 from awswrangler.redshift import Redshift
@@ -88,6 +89,7 @@ class Session:
             self._load_new_boto3_session()
         self._s3 = None
         self._athena = None
+        self._cloudwatchlogs = None
         self._pandas = None
         self._glue = None
         self._redshift = None
@@ -201,6 +203,12 @@ class Session:
         if not self._athena:
             self._athena = Athena(session=self)
         return self._athena
+
+    @property
+    def cloudwatchlogs(self):
+        if not self._cloudwatchlogs:
+            self._cloudwatchlogs = CloudWatchLogs(session=self)
+        return self._cloudwatchlogs
 
     @property
     def pandas(self):

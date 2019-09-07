@@ -4,6 +4,7 @@ import logging
 from math import floor
 import copy
 import csv
+from datetime import datetime
 
 import pandas
 import pyarrow
@@ -833,3 +834,37 @@ class Pandas:
             mode=mode,
         )
         self._session.s3.delete_objects(path=path)
+
+    def read_log_query(self,
+                       query,
+                       log_group_names,
+                       start_time=datetime(year=1970, month=1, day=1),
+                       end_time=datetime.utcnow(),
+                       limit=None):
+        """
+        Run a query against AWS CloudWatchLogs Insights and convert the results to Pandas DataFrame
+
+        :param query: The query string to use. https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CWL_QuerySyntax.html
+        :param log_group_names: The list of log groups to be queried. You can include up to 20 log groups.
+        :param start_time: The beginning of the time range to query (datetime.datetime object)
+        :param end_time: The end of the time range to query (datetime.datetime object)
+        :param limit: The maximum number of log events to return in the query. If the query string uses the fields command, only the specified fields and their values are returned.
+        :return: Results as a Pandas DataFrame
+        """
+        results = self._session.cloudwatchlogs.query(
+            query=query,
+            log_group_names=log_group_names,
+            start_time=start_time,
+            end_time=end_time,
+            limit=limit)
+        pre_df = []
+        for row in results:
+            new_row = {}
+            for col in row:
+                if col["field"].startswith("@"):
+                    col_name = col["field"].replace("@", "", 1)
+                else:
+                    col_name = col["field"]
+                new_row[col_name] = col["value"]
+            pre_df.append(new_row)
+        return pandas.DataFrame(pre_df)

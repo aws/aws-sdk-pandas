@@ -11,16 +11,31 @@ AWS Data Wrangler
 Use Cases
 ---------
 
-* Pandas -> Parquet (S3)
-* Pandas -> CSV (S3)
+Pandas
+``````
+* Pandas -> Parquet (S3) (Parallel)
+* Pandas -> CSV (S3) (Parallel)
 * Pandas -> Glue Catalog
-* Pandas -> Athena
-* Pandas -> Redshift
+* Pandas -> Athena (Parallel)
+* Pandas -> Redshift (Parallel)
 * CSV (S3) -> Pandas (One shot or Batching)
 * Athena -> Pandas (One shot or Batching)
-* PySpark -> Redshift
-* Delete S3 objects (parallel :rocket:)
-* Encrypt S3 data with KMS keys
+* CloudWatch Logs Insights -> Pandas (NEW)
+* Encrypt Pandas Dataframes on S3 with KMS keys (NEW)
+
+PySpark
+```````
+* PySpark -> Redshift (Parallel) (NEW)
+
+General
+```````
+* List S3 objects (Parallel)
+* Delete S3 objects (Parallel)
+* Delete listed S3 objects (Parallel)
+* Delete NOT listed S3 objects (Parallel)
+* Copy listed S3 objects (Parallel)
+* Get the size of S3 objects (Parallel)
+* Get CloudWatch Logs Insights query results (NEW)
 
 
 Table Of Contents

@@ -56,3 +56,11 @@ class InvalidRedshiftSortkey(Exception):
 
 class EmptyDataframe(Exception):
     pass
+
+
+class QueryCancelled(Exception):
+    pass
+
+
+class QueryFailed(Exception):
+    pass
