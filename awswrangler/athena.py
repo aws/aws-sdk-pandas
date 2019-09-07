@@ -1,7 +1,7 @@
 from time import sleep
 import logging
 
-from awswrangler.exceptions import UnsupportedType
+from awswrangler.exceptions import UnsupportedType, QueryFailed, QueryCancelled
 
 logger = logging.getLogger(__name__)
 
@@ -86,12 +86,29 @@ class Athena:
         return response["QueryExecutionId"]
 
     def wait_query(self, query_execution_id):
+        """
+        Wait query ends
+
+        :param query_execution_id: Query execution ID
+        :return: Query response
+        """
         final_states = ["FAILED", "SUCCEEDED", "CANCELLED"]
         response = self._client_athena.get_query_execution(
             QueryExecutionId=query_execution_id)
-        while (response.get("QueryExecution").get("Status").get("State") not in
-               final_states):
+        state = response["QueryExecution"]["Status"]["State"]
+        while state not in final_states:
             sleep(QUERY_WAIT_POLLING_DELAY)
             response = self._client_athena.get_query_execution(
                 QueryExecutionId=query_execution_id)
+            state = response["QueryExecution"]["Status"]["State"]
+        logger.debug(f"state: {state}")
+        logger.debug(
+            f"StateChangeReason: {response['QueryExecution']['Status'].get('StateChangeReason')}"
+        )
+        if state == "FAILED":
+            raise QueryFailed(
+                response["QueryExecution"]["Status"].get("StateChangeReason"))
+        elif state == "CANCELLED":
+            raise QueryCancelled(
+                response["QueryExecution"]["Status"].get("StateChangeReason"))
         return response

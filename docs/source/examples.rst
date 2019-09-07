@@ -1,10 +1,13 @@
 .. _doc_examples:
 
 Examples
-============
+========
+
+Pandas
+------
 
 Writing Pandas Dataframe to S3 + Glue Catalog
----------------------------------------------
+`````````````````````````````````````````````
 
 .. code-block:: python
 
@@ -20,7 +23,7 @@ Writing Pandas Dataframe to S3 + Glue Catalog
 **P.S.** If a Glue Database name is passed, all the metadata will be created in the Glue Catalog. If not, only the s3 data write will be done.
 
 Writing Pandas Dataframe to S3 as Parquet encrypting with a KMS key
--------------------------------------------------------------------
+```````````````````````````````````````````````````````````````````
 
 .. code-block:: python
 
@@ -35,7 +38,7 @@ Writing Pandas Dataframe to S3 as Parquet encrypting with a KMS key
 
 
 Reading from AWS Athena to Pandas
----------------------------------
+`````````````````````````````````
 
 .. code-block:: python
 
@@ -47,7 +50,7 @@ Reading from AWS Athena to Pandas
 
 
 Reading from AWS Athena to Pandas in chunks (For memory restrictions)
----------------------------------------------------------------------
+`````````````````````````````````````````````````````````````````````
 
 .. code-block:: python
 
@@ -62,7 +65,7 @@ Reading from AWS Athena to Pandas in chunks (For memory restrictions)
 
 
 Reading from S3 (CSV) to Pandas
--------------------------------
+```````````````````````````````
 
 .. code-block:: python
 
@@ -71,7 +74,7 @@ Reading from S3 (CSV) to Pandas
 
 
 Reading from S3 (CSV) to Pandas in chunks (For memory restrictions)
--------------------------------------------------------------------
+```````````````````````````````````````````````````````````````````
 
 .. code-block:: python
 
@@ -83,9 +86,21 @@ Reading from S3 (CSV) to Pandas in chunks (For memory restrictions)
     for dataframe in dataframe_iter:
         print(dataframe)  # Do whatever you want
 
+Reading from CloudWatch Logs Insights to Pandas
+```````````````````````````````````````````````
+
+.. code-block:: python
+
+    session = awswrangler.Session()
+    dataframe = session.pandas.read_log_query(
+        log_group_names=[LOG_GROUP_NAME],
+        query="fields @timestamp, @message | sort @timestamp desc | limit 5",
+    )
+
+
 
 Typical Pandas ETL
-------------------
+``````````````````
 
 .. code-block:: python
 
@@ -105,8 +120,11 @@ Typical Pandas ETL
     )
 
 
+PySpark
+-------
+
 Loading Pyspark Dataframe to Redshift
--------------------------------------
+`````````````````````````````````````
 
 .. code-block:: python
 
@@ -121,11 +139,24 @@ Loading Pyspark Dataframe to Redshift
         mode="append",
     )
 
+General
+-------
 
 Deleting a bunch of S3 objects
-------------------------------
+``````````````````````````````
 
 .. code-block:: python
 
     session = awswrangler.Session()
     session.s3.delete_objects(path="s3://...")
+
+Get CloudWatch Logs Insights query results
+``````````````````````````````````````````
+
+.. code-block:: python
+
+    session = awswrangler.Session()
+    results = session.cloudwatchlogs.query(
+        log_group_names=[LOG_GROUP_NAME],
+        query="fields @timestamp, @message | sort @timestamp desc | limit 5",
+    )

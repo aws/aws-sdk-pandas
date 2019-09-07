@@ -1,7 +1,7 @@
 from time import sleep
 import logging
 import csv
-import datetime
+from datetime import datetime, date
 
 import pytest
 import boto3
@@ -62,6 +62,44 @@ def kms_key(cloudformation_outputs):
         raise Exception(
             "You must deploy the test infrastructure using Cloudformation!")
     yield database
+
+
+@pytest.fixture(scope="module")
+def loggroup(cloudformation_outputs):
+    if "LogGroupName" in cloudformation_outputs:
+        database = cloudformation_outputs["LogGroupName"]
+    else:
+        raise Exception(
+            "You must deploy the test infrastructure using Cloudformation!")
+    yield database
+
+
+@pytest.fixture(scope="module")
+def logstream(cloudformation_outputs, loggroup):
+    if "LogStream" in cloudformation_outputs:
+        logstream = cloudformation_outputs["LogStream"]
+    else:
+        raise Exception(
+            "You must deploy the test infrastructure using Cloudformation!")
+    client = boto3.client("logs")
+    response = client.describe_log_streams(logGroupName=loggroup,
+                                           logStreamNamePrefix=logstream)
+    token = response["logStreams"][0].get("uploadSequenceToken")
+    events = []
+    for i in range(5):
+        events.append({
+            "timestamp": int(1000 * datetime.utcnow().timestamp()),
+            "message": str(i)
+        })
+    args = {
+        "logGroupName": loggroup,
+        "logStreamName": logstream,
+        "logEvents": events
+    }
+    if token:
+        args["sequenceToken"] = token
+    client.put_log_events(**args)
+    yield logstream
 
 
 @pytest.mark.parametrize("sample, row_num", [("data_samples/micro.csv", 30),
@@ -354,8 +392,8 @@ def test_etl_complex(session, bucket, database, max_result_size):
     for df in df_iter:
         count += len(df.index)
         for row in df.itertuples():
-            assert isinstance(row.my_timestamp, datetime.datetime)
-            assert isinstance(row.my_date, datetime.date)
+            assert isinstance(row.my_timestamp, datetime)
+            assert isinstance(row.my_date, date)
             assert isinstance(row.my_float, float)
             assert isinstance(row.my_int, numpy.int64)
             assert isinstance(row.my_string, str)
@@ -402,3 +440,12 @@ def test_to_parquet_with_empty_dataframe(session, bucket, database):
                                          preserve_index=False,
                                          mode="overwrite",
                                          procs_cpu_bound=1)
+
+
+def test_read_log_query(session, loggroup, logstream):
+    dataframe = session.pandas.read_log_query(
+        log_group_names=[loggroup],
+        query="fields @timestamp, @message | sort @timestamp desc | limit 5",
+    )
+    assert len(dataframe.index) == 5
+    assert len(dataframe.columns) == 3

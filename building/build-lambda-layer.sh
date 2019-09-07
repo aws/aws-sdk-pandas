@@ -56,6 +56,7 @@ popd
 
 # Extracting files
 pip install pyarrow-*whl -t pyarrow_files
+rm -rf arrow dist
 
 # Go back to AWSWRANGLER directory
 cd /aws-data-wrangler/

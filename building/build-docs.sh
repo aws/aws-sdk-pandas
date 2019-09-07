@@ -3,5 +3,5 @@
 cd ..
 sphinx-apidoc --separate -f -H "API Reference" -o docs/source/api awswrangler/
 make -C docs/ html
-cd build
+cd building
 echo DONE!

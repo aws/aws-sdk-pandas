@@ -6,6 +6,7 @@ from awswrangler.session import Session  # noqa
 from awswrangler.pandas import Pandas  # noqa
 from awswrangler.s3 import S3  # noqa
 from awswrangler.athena import Athena  # noqa
+from awswrangler.cloudwatchlogs import CloudWatchLogs  # noqa
 from awswrangler.glue import Glue  # noqa
 from awswrangler.redshift import Redshift  # noqa
 import awswrangler.utils  # noqa

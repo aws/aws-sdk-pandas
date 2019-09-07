@@ -106,6 +106,7 @@ def test_delete_listed_objects(session, bucket, objects_num):
     session.s3.delete_objects(path=path)
     print("Starting writes...")
     write_fake_objects(bucket, f"objs-listed-{objects_num}/", objects_num)
+    sleep(3)  # Waiting for eventual consistency
     print("Starting list...")
     objects_paths = session.s3.list_objects(path=path)
     assert len(objects_paths) == objects_num
@@ -131,6 +132,7 @@ def test_delete_not_listed_objects(session, bucket, objects_num):
     session.s3.delete_objects(path=path)
     print("Starting writes...")
     write_fake_objects(bucket, f"objs-not-listed-{objects_num}/", objects_num)
+    sleep(3)  # Waiting for eventual consistency
     print("Starting not listed deletes...")
     session.s3.delete_not_listed_objects(objects_paths=[f"{path}0"])
     print("Starting checks...")

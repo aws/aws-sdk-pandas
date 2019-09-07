@@ -7,6 +7,7 @@ Submodules
 .. toctree::
 
    awswrangler.athena
+   awswrangler.cloudwatchlogs
    awswrangler.exceptions
    awswrangler.glue
    awswrangler.pandas
