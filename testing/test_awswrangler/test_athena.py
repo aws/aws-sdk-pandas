@@ -40,7 +40,7 @@ def database(cloudformation_outputs):
 def test_query_cancelled(session, database):
     client_athena = boto3.client("athena")
     query_execution_id = session.athena.run_query(query="""
-SELECT 
+SELECT
 rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(),
 rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(),
 rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(),

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 cd ..
 rm -rf *.pytest_cache
 yapf --in-place --recursive setup.py awswrangler testing/test_awswrangler

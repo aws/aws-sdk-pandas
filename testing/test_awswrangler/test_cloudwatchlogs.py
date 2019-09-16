@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from time import sleep
 
 import pytest
 import boto3
@@ -63,6 +64,7 @@ def logstream(cloudformation_outputs, loggroup):
     if token:
         args["sequenceToken"] = token
     client.put_log_events(**args)
+    sleep(120)
     yield logstream
 
 

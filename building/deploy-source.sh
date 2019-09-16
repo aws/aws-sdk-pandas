@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 cd ..
 rm -rf *.egg-info dist/*.tar.gz

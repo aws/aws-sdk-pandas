@@ -32,6 +32,7 @@ class CloudWatchLogs:
         :param limit: The maximum number of log events to return in the query.
         :return: Query ID
         """
+        logger.debug(f"log_group_names: {log_group_names}")
         start_timestamp = int(1000 * start_time.timestamp())
         end_timestamp = int(1000 * end_time.timestamp())
         logger.debug(f"start_timestamp: {start_timestamp}")

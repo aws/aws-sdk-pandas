@@ -109,7 +109,8 @@ class Glue:
                          partition_cols=None,
                          preserve_index=True,
                          mode="append",
-                         cast_columns=None):
+                         cast_columns=None,
+                         extra_args=None):
         schema = Glue._build_schema(dataframe=dataframe,
                                     partition_cols=partition_cols,
                                     preserve_index=preserve_index,
@@ -120,14 +121,13 @@ class Glue:
             self.delete_table_if_exists(database=database, table=table)
         exists = self.does_table_exists(database=database, table=table)
         if not exists:
-            self.create_table(
-                database=database,
-                table=table,
-                schema=schema,
-                partition_cols=partition_cols,
-                path=path,
-                file_format=file_format,
-            )
+            self.create_table(database=database,
+                              table=table,
+                              schema=schema,
+                              partition_cols=partition_cols,
+                              path=path,
+                              file_format=file_format,
+                              extra_args=extra_args)
         if partition_cols:
             partitions_tuples = Glue._parse_partitions_tuples(
                 objects_paths=objects_paths, partition_cols=partition_cols)
@@ -157,13 +157,17 @@ class Glue:
                      schema,
                      path,
                      file_format,
-                     partition_cols=None):
+                     partition_cols=None,
+                     extra_args=None):
         if file_format == "parquet":
             table_input = Glue.parquet_table_definition(
                 table, partition_cols, schema, path)
         elif file_format == "csv":
-            table_input = Glue.csv_table_definition(table, partition_cols,
-                                                    schema, path)
+            table_input = Glue.csv_table_definition(table,
+                                                    partition_cols,
+                                                    schema,
+                                                    path,
+                                                    extra_args=extra_args)
         else:
             raise UnsupportedFileFormat(file_format)
         self._client_glue.create_table(DatabaseName=database,
@@ -229,7 +233,8 @@ class Glue:
         return path.rpartition("/")[2]
 
     @staticmethod
-    def csv_table_definition(table, partition_cols, schema, path):
+    def csv_table_definition(table, partition_cols, schema, path, extra_args):
+        sep = extra_args["sep"] if "sep" in extra_args else ","
         if not partition_cols:
             partition_cols = []
         return {
@@ -245,7 +250,7 @@ class Glue:
                 "classification": "csv",
                 "compressionType": "none",
                 "typeOfData": "file",
-                "delimiter": ",",
+                "delimiter": sep,
                 "columnsOrdered": "true",
                 "areColumnsQuoted": "false",
             },
@@ -262,7 +267,7 @@ class Glue:
                 "NumberOfBuckets": -1,
                 "SerdeInfo": {
                     "Parameters": {
-                        "field.delim": ","
+                        "field.delim": sep
                     },
                     "SerializationLibrary":
                     "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
