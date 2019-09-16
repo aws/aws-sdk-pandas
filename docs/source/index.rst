@@ -47,5 +47,6 @@ Table Of Contents
    installation
    examples
    divingdeep
+   contributing
    api/modules
    license

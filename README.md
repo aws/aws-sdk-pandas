@@ -8,18 +8,18 @@
 
 ---
 
-*Contents:* **[Use Cases](#Use-Cases)** | **[Installation](#Installation)** | **[Examples](#Examples)** | **[Diving Deep](#Diving-Deep)**
+*Contents:* **[Use Cases](#Use-Cases)** | **[Installation](#Installation)** | **[Examples](#Examples)** | **[Diving Deep](#Diving-Deep)** | **[Contributing](#Contributing)**
 
 ---
 
 ## Use Cases
 
 ### Pandas
-* Pandas -> Parquet (S3) (Parallel :rocket:)
-* Pandas -> CSV (S3) (Parallel :rocket:)
+* Pandas -> Parquet (S3) (Parallel)
+* Pandas -> CSV (S3) (Parallel)
 * Pandas -> Glue Catalog
-* Pandas -> Athena (Parallel :rocket:)
-* Pandas -> Redshift (Parallel :rocket:)
+* Pandas -> Athena (Parallel)
+* Pandas -> Redshift (Parallel)
 * CSV (S3) -> Pandas (One shot or Batching)
 * Athena -> Pandas (One shot or Batching)
 * CloudWatch Logs Insights -> Pandas (NEW :star:)
@@ -29,10 +29,10 @@
 * PySpark -> Redshift (Parallel :rocket:) (NEW :star:)
 
 ### General
-* List S3 objects (Parallel :rocket:)
-* Delete S3 objects (Parallel :rocket:)
-* Delete listed S3 objects (Parallel :rocket:)
-* Delete NOT listed S3 objects (Parallel :rocket:)
+* List S3 objects (Parallel)
+* Delete S3 objects (Parallel)
+* Delete listed S3 objects (Parallel)
+* Delete NOT listed S3 objects (Parallel)
 * Copy listed S3 objects (Parallel :rocket:)
 * Get the size of S3 objects (Parallel :rocket:)
 * Get CloudWatch Logs Insights query results (NEW :star:)
@@ -194,3 +194,39 @@ results = session.cloudwatchlogs.query(
 ### Spark to Redshift Flow
 
 ![Spark to Redshift Flow](docs/source/_static/spark-to-redshift-flow.jpg?raw=true "Spark to Redshift Flow")
+
+## Contributing
+
+* AWS Data Wrangler practically only makes integrations. So we prefer to dedicate our energy / time writing integration tests instead of unit tests. We really like an end-to-end approach for all features.
+
+* All integration tests are between a local Docker container and a remote/real AWS service.
+
+* We have a Docker recipe to set up the local end (testing/Dockerfile).
+
+* We have a Cloudformation to set up the AWS end (testing/template.yaml).
+
+### Step-by-step
+
+**DISCLAIMER**: Make sure to know what you are doing. This steps will charge some services on your AWS account. And requires a minimum security skills to keep your environment safe.
+
+* Pick up a Linux or MacOS.
+
+* Install Python 3.6+
+
+* Install Docker and configure at least 4 cores and 8 GB of memory
+
+* Fork the AWS Data Wrangler repository and clone that into your development environment
+
+* Go to the project's directory create a Python's virtual environment for the project **python -m venv venv && source source venv/bin/activate**
+
+* Run **./install-dev.sh**
+
+* Go to the *testing* directory
+
+* Configure the parameters.json file with your AWS environment infos (Make sure that your Redshift will not be open for the World!)
+
+* Deploy the Cloudformation stack **./deploy-cloudformation.sh**
+
+* Open the docker image **./open-image.sh**
+
+* Inside the image you finally can run **./run-tests.sh**
