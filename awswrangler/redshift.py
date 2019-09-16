@@ -33,17 +33,75 @@ class Redshift:
         self._session = session
 
     @staticmethod
-    def generate_connection(database, host, port, user, password):
-        conn = pg8000.connect(
-            database=database,
-            host=host,
-            port=int(port),
-            user=user,
-            password=password,
-            ssl=False,
-        )
+    def _validate_connection(database,
+                             host,
+                             port,
+                             user,
+                             password,
+                             tcp_keepalive=True,
+                             application_name="aws-data-wrangler-validation",
+                             validation_timeout=5):
+        try:
+            conn = pg8000.connect(database=database,
+                                  host=host,
+                                  port=int(port),
+                                  user=user,
+                                  password=password,
+                                  ssl=True,
+                                  application_name=application_name,
+                                  tcp_keepalive=tcp_keepalive,
+                                  timeout=validation_timeout)
+            conn.close()
+        except pg8000.core.InterfaceError as e:
+            raise e
+
+    @staticmethod
+    def generate_connection(database,
+                            host,
+                            port,
+                            user,
+                            password,
+                            tcp_keepalive=True,
+                            application_name="aws-data-wrangler",
+                            connection_timeout=1_200_000,
+                            statement_timeout=1_200_000,
+                            validation_timeout=5):
+        """
+        Generates a valid connection object to be passed to the load_table method
+
+        :param database: The name of the database instance to connect with.
+        :param host: The hostname of the Redshift server to connect with.
+        :param port: The TCP/IP port of the Redshift server instance.
+        :param user: The username to connect to the Redshift server with.
+        :param password: The user password to connect to the server with.
+        :param tcp_keepalive: If True then use TCP keepalive
+        :param application_name: Application name
+        :param connection_timeout: Connection Timeout
+        :param statement_timeout: Redshift statements timeout
+        :param validation_timeout: Timeout to try to validate the connection
+        :return: pg8000 connection
+        """
+        Redshift._validate_connection(database=database,
+                                      host=host,
+                                      port=port,
+                                      user=user,
+                                      password=password,
+                                      tcp_keepalive=tcp_keepalive,
+                                      application_name=application_name,
+                                      validation_timeout=validation_timeout)
+        if isinstance(type(port), str) or isinstance(type(port), float):
+            port = int(port)
+        conn = pg8000.connect(database=database,
+                              host=host,
+                              port=int(port),
+                              user=user,
+                              password=password,
+                              ssl=True,
+                              application_name=application_name,
+                              tcp_keepalive=tcp_keepalive,
+                              timeout=connection_timeout)
         cursor = conn.cursor()
-        cursor.execute("set statement_timeout = 1200000")
+        cursor.execute(f"set statement_timeout = {statement_timeout}")
         conn.commit()
         cursor.close()
         return conn

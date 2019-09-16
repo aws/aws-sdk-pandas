@@ -5,6 +5,7 @@ import pytest
 import boto3
 import pandas
 from pyspark.sql import SparkSession
+import pg8000
 
 from awswrangler import Session, Redshift
 from awswrangler.exceptions import InvalidRedshiftDiststyle, InvalidRedshiftDistkey, InvalidRedshiftSortstyle, InvalidRedshiftSortkey
@@ -267,3 +268,33 @@ def test_write_load_manifest(session, bucket):
     assert manifest.get("entries")[0].get("url") == object_path
     assert manifest.get("entries")[0].get("mandatory")
     assert manifest.get("entries")[0].get("meta").get("content_length") == 2247
+
+
+def test_connection_timeout(redshift_parameters):
+    with pytest.raises(pg8000.core.InterfaceError):
+        Redshift.generate_connection(
+            database="test",
+            host=redshift_parameters.get("RedshiftAddress"),
+            port=12345,
+            user="test",
+            password=redshift_parameters.get("RedshiftPassword"),
+        )
+
+
+def test_connection_with_different_port_types(redshift_parameters):
+    conn = Redshift.generate_connection(
+        database="test",
+        host=redshift_parameters.get("RedshiftAddress"),
+        port=str(redshift_parameters.get("RedshiftPort")),
+        user="test",
+        password=redshift_parameters.get("RedshiftPassword"),
+    )
+    conn.close()
+    conn = Redshift.generate_connection(
+        database="test",
+        host=redshift_parameters.get("RedshiftAddress"),
+        port=float(redshift_parameters.get("RedshiftPort")),
+        user="test",
+        password=redshift_parameters.get("RedshiftPassword"),
+    )
+    conn.close()
