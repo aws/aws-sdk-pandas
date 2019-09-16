@@ -24,7 +24,7 @@ Step-by-step
 
 * Fork the AWS Data Wrangler repository and clone that into your development environment
 
-* Go to the project's directory create a Python's virtual environment for the project **python -m venv venv && source source venv/bin/activate**
+* Go to the project's directory create a Python's virtual environment for the project (**python -m venv venv && source source venv/bin/activate**)
 
 * Run **./install-dev.sh**
 

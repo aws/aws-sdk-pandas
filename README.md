@@ -26,15 +26,15 @@
 * Encrypt Pandas Dataframes on S3 with KMS keys (NEW :star:)
 
 ### PySpark
-* PySpark -> Redshift (Parallel :rocket:) (NEW :star:)
+* PySpark -> Redshift (Parallel) (NEW :star:)
 
 ### General
 * List S3 objects (Parallel)
 * Delete S3 objects (Parallel)
 * Delete listed S3 objects (Parallel)
 * Delete NOT listed S3 objects (Parallel)
-* Copy listed S3 objects (Parallel :rocket:)
-* Get the size of S3 objects (Parallel :rocket:)
+* Copy listed S3 objects (Parallel)
+* Get the size of S3 objects (Parallel)
 * Get CloudWatch Logs Insights query results (NEW :star:)
 
 ## Installation
@@ -217,7 +217,7 @@ results = session.cloudwatchlogs.query(
 
 * Fork the AWS Data Wrangler repository and clone that into your development environment
 
-* Go to the project's directory create a Python's virtual environment for the project **python -m venv venv && source source venv/bin/activate**
+* Go to the project's directory create a Python's virtual environment for the project (**python -m venv venv && source source venv/bin/activate**)
 
 * Run **./install-dev.sh**
 
