@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 cd ..
 sphinx-apidoc --separate -f -H "API Reference" -o docs/source/api awswrangler/

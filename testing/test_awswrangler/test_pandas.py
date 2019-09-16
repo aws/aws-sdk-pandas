@@ -99,6 +99,7 @@ def logstream(cloudformation_outputs, loggroup):
     if token:
         args["sequenceToken"] = token
     client.put_log_events(**args)
+    sleep(120)
     yield logstream
 
 
@@ -235,6 +236,13 @@ def test_to_s3(
             break
         sleep(1)
     assert factor * len(dataframe.index) == len(dataframe2.index)
+    if preserve_index:
+        assert (len(list(dataframe.columns)) + 1) == len(
+            list(dataframe2.columns))
+    else:
+        assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
+    assert dataframe[dataframe["id"] == 0].iloc[0]["name"] == dataframe2[
+        dataframe2["id"] == 0].iloc[0]["name"]
 
 
 def test_to_parquet_with_cast(
@@ -261,8 +269,9 @@ def test_to_parquet_with_cast(
             break
         sleep(1)
     assert len(dataframe.index) == len(dataframe2.index)
-    print(dataframe2)
-    print(dataframe2.dtypes)
+    assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
+    assert dataframe[dataframe["id"] == 0].iloc[0]["name"] == dataframe2[
+        dataframe2["id"] == 0].iloc[0]["name"]
 
 
 @pytest.mark.parametrize("sample, row_num, max_result_size", [
@@ -297,6 +306,8 @@ def test_read_sql_athena_iterator(session, bucket, database, sample, row_num,
         total_count = 0
         for dataframe in dataframe_iter:
             total_count += len(dataframe.index)
+            assert len(list(dataframe.columns)) == len(
+                list(dataframe_sample.columns))
             print(dataframe)
         if total_count == row_num:
             break
@@ -392,6 +403,7 @@ def test_etl_complex(session, bucket, database, max_result_size):
     for df in df_iter:
         count += len(df.index)
         for row in df.itertuples():
+            assert len(list(dataframe.columns)) == len(list(df.columns))
             assert isinstance(row.my_timestamp, datetime)
             assert isinstance(row.my_date, date)
             assert isinstance(row.my_float, float)
@@ -429,6 +441,9 @@ def test_to_parquet_with_kms(
             break
         sleep(1)
     assert len(dataframe.index) == len(dataframe2.index)
+    assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
+    assert dataframe[dataframe["id"] == 0].iloc[0]["name"] == dataframe2[
+        dataframe2["id"] == 0].iloc[0]["name"]
 
 
 def test_to_parquet_with_empty_dataframe(session, bucket, database):
@@ -449,3 +464,28 @@ def test_read_log_query(session, loggroup, logstream):
     )
     assert len(dataframe.index) == 5
     assert len(dataframe.columns) == 3
+
+
+def test_to_csv_with_sep(
+        session,
+        bucket,
+        database,
+):
+    dataframe = pandas.read_csv("data_samples/nano.csv")
+    session.pandas.to_csv(dataframe=dataframe,
+                          database=database,
+                          path=f"s3://{bucket}/test/",
+                          preserve_index=False,
+                          mode="overwrite",
+                          sep="|")
+    dataframe2 = None
+    for counter in range(10):
+        dataframe2 = session.pandas.read_sql_athena(sql="select * from test",
+                                                    database=database)
+        if len(dataframe.index) == len(dataframe2.index):
+            break
+        sleep(1)
+    assert len(dataframe.index) == len(dataframe2.index)
+    assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
+    assert dataframe[dataframe["id"] == 0].iloc[0]["name"] == dataframe2[
+        dataframe2["id"] == 0].iloc[0]["name"]

@@ -433,6 +433,7 @@ class Pandas:
             self,
             dataframe,
             path,
+            sep=",",
             database=None,
             table=None,
             partition_cols=None,
@@ -447,6 +448,7 @@ class Pandas:
 
         :param dataframe: Pandas Dataframe
         :param path: AWS S3 path (E.g. s3://bucket-name/folder_name/
+        :param sep: Same as pandas.to_csv()
         :param database: AWS Glue Database name
         :param table: AWS Glue table name
         :param partition_cols: List of columns names that will be partitions on S3
@@ -456,18 +458,18 @@ class Pandas:
         :param procs_io_bound: Number of cores used for I/O bound tasks
         :return: List of objects written on S3
         """
-        return self.to_s3(
-            dataframe=dataframe,
-            path=path,
-            file_format="csv",
-            database=database,
-            table=table,
-            partition_cols=partition_cols,
-            preserve_index=preserve_index,
-            mode=mode,
-            procs_cpu_bound=procs_cpu_bound,
-            procs_io_bound=procs_io_bound,
-        )
+        extra_args = {"sep": sep}
+        return self.to_s3(dataframe=dataframe,
+                          path=path,
+                          file_format="csv",
+                          database=database,
+                          table=table,
+                          partition_cols=partition_cols,
+                          preserve_index=preserve_index,
+                          mode=mode,
+                          procs_cpu_bound=procs_cpu_bound,
+                          procs_io_bound=procs_io_bound,
+                          extra_args=extra_args)
 
     def to_parquet(self,
                    dataframe,
@@ -519,7 +521,8 @@ class Pandas:
               mode="append",
               procs_cpu_bound=None,
               procs_io_bound=None,
-              cast_columns=None):
+              cast_columns=None,
+              extra_args=None):
         """
         Write a Pandas Dataframe on S3
         Optionally writes metadata on AWS Glue.
@@ -535,6 +538,7 @@ class Pandas:
         :param procs_cpu_bound: Number of cores used for CPU bound tasks
         :param procs_io_bound: Number of cores used for I/O bound tasks
         :param cast_columns: Dictionary of columns indexes and Arrow types to be casted. (E.g. {2: "int64", 5: "int32"}) (Only for "parquet" file_format)
+        :param extra_args: Extra arguments specific for each file formats (E.g. "sep" for CSV)
         :return: List of objects written on S3
         """
         if dataframe.empty:
@@ -554,7 +558,8 @@ class Pandas:
                                         mode=mode,
                                         procs_cpu_bound=procs_cpu_bound,
                                         procs_io_bound=procs_io_bound,
-                                        cast_columns=cast_columns)
+                                        cast_columns=cast_columns,
+                                        extra_args=extra_args)
         if database:
             self._session.glue.metadata_to_glue(dataframe=dataframe,
                                                 path=path,
@@ -565,7 +570,8 @@ class Pandas:
                                                 preserve_index=preserve_index,
                                                 file_format=file_format,
                                                 mode=mode,
-                                                cast_columns=cast_columns)
+                                                cast_columns=cast_columns,
+                                                extra_args=extra_args)
         return objects_paths
 
     def data_to_s3(self,
@@ -577,7 +583,8 @@ class Pandas:
                    mode="append",
                    procs_cpu_bound=None,
                    procs_io_bound=None,
-                   cast_columns=None):
+                   cast_columns=None,
+                   extra_args=None):
         if not procs_cpu_bound:
             procs_cpu_bound = self._session.procs_cpu_bound
         if not procs_io_bound:
@@ -601,7 +608,8 @@ class Pandas:
                     target=self._data_to_s3_dataset_writer_remote,
                     args=(send_pipe, dataframe.iloc[bounder[0]:bounder[1], :],
                           path, partition_cols, preserve_index,
-                          self._session.primitives, file_format, cast_columns),
+                          self._session.primitives, file_format, cast_columns,
+                          extra_args),
                 )
                 proc.daemon = False
                 proc.start()
@@ -619,7 +627,8 @@ class Pandas:
                 preserve_index=preserve_index,
                 session_primitives=self._session.primitives,
                 file_format=file_format,
-                cast_columns=cast_columns)
+                cast_columns=cast_columns,
+                extra_args=extra_args)
         if mode == "overwrite_partitions" and partition_cols:
             if procs_io_bound > procs_cpu_bound:
                 num_procs = floor(
@@ -639,7 +648,8 @@ class Pandas:
                                    preserve_index,
                                    session_primitives,
                                    file_format,
-                                   cast_columns=None):
+                                   cast_columns=None,
+                                   extra_args=None):
         objects_paths = []
         if not partition_cols:
             object_path = Pandas._data_to_s3_object_writer(
@@ -648,7 +658,8 @@ class Pandas:
                 preserve_index=preserve_index,
                 session_primitives=session_primitives,
                 file_format=file_format,
-                cast_columns=cast_columns)
+                cast_columns=cast_columns,
+                extra_args=extra_args)
             objects_paths.append(object_path)
         else:
             for keys, subgroup in dataframe.groupby(partition_cols):
@@ -665,21 +676,21 @@ class Pandas:
                     preserve_index=preserve_index,
                     session_primitives=session_primitives,
                     file_format=file_format,
-                    cast_columns=cast_columns)
+                    cast_columns=cast_columns,
+                    extra_args=extra_args)
                 objects_paths.append(object_path)
         return objects_paths
 
     @staticmethod
-    def _data_to_s3_dataset_writer_remote(
-            send_pipe,
-            dataframe,
-            path,
-            partition_cols,
-            preserve_index,
-            session_primitives,
-            file_format,
-            cast_columns=None,
-    ):
+    def _data_to_s3_dataset_writer_remote(send_pipe,
+                                          dataframe,
+                                          path,
+                                          partition_cols,
+                                          preserve_index,
+                                          session_primitives,
+                                          file_format,
+                                          cast_columns=None,
+                                          extra_args=None):
         send_pipe.send(
             Pandas._data_to_s3_dataset_writer(
                 dataframe=dataframe,
@@ -688,7 +699,8 @@ class Pandas:
                 preserve_index=preserve_index,
                 session_primitives=session_primitives,
                 file_format=file_format,
-                cast_columns=cast_columns))
+                cast_columns=cast_columns,
+                extra_args=extra_args))
         send_pipe.close()
 
     @staticmethod
@@ -697,7 +709,8 @@ class Pandas:
                                   preserve_index,
                                   session_primitives,
                                   file_format,
-                                  cast_columns=None):
+                                  cast_columns=None,
+                                  extra_args=None):
         fs = s3.get_fs(session_primitives=session_primitives)
         fs = pyarrow.filesystem._ensure_filesystem(fs)
         s3.mkdir_if_not_exists(fs, path)
@@ -713,27 +726,40 @@ class Pandas:
                                            path=object_path,
                                            preserve_index=preserve_index,
                                            fs=fs,
-                                           cast_columns=cast_columns)
+                                           cast_columns=cast_columns,
+                                           extra_args=extra_args)
         elif file_format == "csv":
-            Pandas.write_csv_dataframe(
-                dataframe=dataframe,
-                path=object_path,
-                preserve_index=preserve_index,
-                fs=fs,
-            )
+            Pandas.write_csv_dataframe(dataframe=dataframe,
+                                       path=object_path,
+                                       preserve_index=preserve_index,
+                                       fs=fs,
+                                       extra_args=extra_args)
         return object_path
 
     @staticmethod
-    def write_csv_dataframe(dataframe, path, preserve_index, fs):
+    def write_csv_dataframe(dataframe,
+                            path,
+                            preserve_index,
+                            fs,
+                            extra_args=None):
+        csv_extra_args = {}
+        if "sep" in extra_args:
+            csv_extra_args["sep"] = extra_args["sep"]
         csv_buffer = bytes(
-            dataframe.to_csv(None, header=False, index=preserve_index),
-            "utf-8")
+            dataframe.to_csv(None,
+                             header=False,
+                             index=preserve_index,
+                             **csv_extra_args), "utf-8")
         with fs.open(path, "wb") as f:
             f.write(csv_buffer)
 
     @staticmethod
-    def write_parquet_dataframe(dataframe, path, preserve_index, fs,
-                                cast_columns):
+    def write_parquet_dataframe(dataframe,
+                                path,
+                                preserve_index,
+                                fs,
+                                cast_columns,
+                                extra_args=None):
         if not cast_columns:
             cast_columns = {}
         casted_in_pandas = []

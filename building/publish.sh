@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 cd ..
 rm -fr build dist .egg awswrangler.egg-info
