@@ -4,6 +4,7 @@ import pandas
 
 from pyspark.sql.functions import pandas_udf, PandasUDFType
 from pyspark.sql.functions import floor, rand
+from pyspark.sql.types import TimestampType
 
 from awswrangler.exceptions import MissingBatchDetected
 
@@ -16,9 +17,29 @@ class Spark:
     def __init__(self, session):
         self._session = session
 
-    def read_csv(self, path):
+    def read_csv(self, **args):
         spark = self._session.spark_session
-        return spark.read.csv(path=path, header=True)
+        return spark.read.csv(**args)
+
+    @staticmethod
+    def _extract_casts(dtypes):
+        casts = {}
+        for col, dtype in dtypes:
+            if dtype in ["smallint", "int", "bigint"]:
+                casts[col] = "Int64"
+            elif dtype == "object":
+                casts[col] = "str"
+        logger.debug(f"casts: {casts}")
+        return casts
+
+    @staticmethod
+    def date2timestamp(dataframe):
+        for col, dtype in dataframe.dtypes:
+            if dtype == "date":
+                dataframe = dataframe.withColumn(
+                    col, dataframe[col].cast(TimestampType()))
+                logger.warning(f"Casting column {col} from date to timestamp!")
+        return dataframe
 
     def to_redshift(
             self,
@@ -57,6 +78,7 @@ class Spark:
             path += "/"
         self._session.s3.delete_objects(path=path)
         spark = self._session.spark_session
+        dataframe = Spark.date2timestamp(dataframe)
         dataframe.cache()
         num_rows = dataframe.count()
         logger.info(f"Number of rows: {num_rows}")
@@ -72,6 +94,7 @@ class Spark:
         logger.debug(f"Number of partitions calculated: {num_partitions}")
         spark.conf.set("spark.sql.execution.arrow.enabled", "true")
         session_primitives = self._session.primitives
+        casts = Spark._extract_casts(dataframe.dtypes)
 
         @pandas_udf(returnType="objects_paths string",
                     functionType=PandasUDFType.GROUPED_MAP)
@@ -83,7 +106,7 @@ class Spark:
                 preserve_index=False,
                 mode="append",
                 procs_cpu_bound=1,
-            )
+                cast_columns=casts)
             return pandas.DataFrame.from_dict({"objects_paths": paths})
 
         df_objects_paths = (dataframe.withColumn(

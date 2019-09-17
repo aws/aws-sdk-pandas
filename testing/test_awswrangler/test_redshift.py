@@ -86,6 +86,15 @@ def redshift_parameters(cloudformation_outputs):
 def test_to_redshift_pandas(session, bucket, redshift_parameters, sample_name,
                             mode, factor, diststyle, distkey, sortstyle,
                             sortkey):
+    if sample_name == "micro":
+        dates = ["date"]
+    if sample_name == "small":
+        dates = ["date"]
+    if sample_name == "nano":
+        dates = ["date", "time"]
+    dataframe = pandas.read_csv(f"data_samples/{sample_name}.csv",
+                                parse_dates=dates,
+                                infer_datetime_format=True)
     con = Redshift.generate_connection(
         database="test",
         host=redshift_parameters.get("RedshiftAddress"),
@@ -93,7 +102,6 @@ def test_to_redshift_pandas(session, bucket, redshift_parameters, sample_name,
         user="test",
         password=redshift_parameters.get("RedshiftPassword"),
     )
-    dataframe = pandas.read_csv(f"data_samples/{sample_name}.csv")
     path = f"s3://{bucket}/redshift-load/"
     session.pandas.to_redshift(
         dataframe=dataframe,
@@ -110,11 +118,12 @@ def test_to_redshift_pandas(session, bucket, redshift_parameters, sample_name,
         preserve_index=False,
     )
     cursor = con.cursor()
-    cursor.execute("SELECT COUNT(*) as counter from public.test")
-    counter = cursor.fetchall()[0][0]
+    cursor.execute("SELECT * from public.test")
+    rows = cursor.fetchall()
     cursor.close()
     con.close()
-    assert len(dataframe.index) * factor == counter
+    assert len(dataframe.index) * factor == len(rows)
+    assert len(list(dataframe.columns)) == len(list(rows[0]))
 
 
 @pytest.mark.parametrize(
@@ -135,6 +144,7 @@ def test_to_redshift_pandas(session, bucket, redshift_parameters, sample_name,
 def test_to_redshift_pandas_exceptions(session, bucket, redshift_parameters,
                                        sample_name, mode, factor, diststyle,
                                        distkey, sortstyle, sortkey, exc):
+    dataframe = pandas.read_csv(f"data_samples/{sample_name}.csv")
     con = Redshift.generate_connection(
         database="test",
         host=redshift_parameters.get("RedshiftAddress"),
@@ -142,7 +152,6 @@ def test_to_redshift_pandas_exceptions(session, bucket, redshift_parameters,
         user="test",
         password=redshift_parameters.get("RedshiftPassword"),
     )
-    dataframe = pandas.read_csv(f"data_samples/{sample_name}.csv")
     path = f"s3://{bucket}/redshift-load/"
     with pytest.raises(exc):
         assert session.pandas.to_redshift(
@@ -180,7 +189,20 @@ def test_to_redshift_spark(session, bucket, redshift_parameters, sample_name,
                            mode, factor, diststyle, distkey, sortstyle,
                            sortkey):
     path = f"data_samples/{sample_name}.csv"
-    dataframe = session.spark.read_csv(path=path)
+    if sample_name == "micro":
+        schema = "id SMALLINT, name STRING, value FLOAT, date TIMESTAMP"
+        timestamp_format = "yyyy-MM-dd"
+    elif sample_name == "small":
+        schema = "id BIGINT, name STRING, date DATE"
+        timestamp_format = "dd-MM-yy"
+    elif sample_name == "nano":
+        schema = "id INTEGER, name STRING, value DOUBLE, date TIMESTAMP, time TIMESTAMP"
+        timestamp_format = "yyyy-MM-dd"
+    dataframe = session.spark.read_csv(path=path,
+                                       schema=schema,
+                                       timestampFormat=timestamp_format,
+                                       dateFormat=timestamp_format,
+                                       header=True)
     con = Redshift.generate_connection(
         database="test",
         host=redshift_parameters.get("RedshiftAddress"),
@@ -203,11 +225,12 @@ def test_to_redshift_spark(session, bucket, redshift_parameters, sample_name,
         min_num_partitions=2,
     )
     cursor = con.cursor()
-    cursor.execute("SELECT COUNT(*) as counter from public.test")
-    counter = cursor.fetchall()[0][0]
+    cursor.execute("SELECT * from public.test")
+    rows = cursor.fetchall()
     cursor.close()
     con.close()
-    assert dataframe.count() * factor == counter
+    assert (dataframe.count() * factor) == len(rows)
+    assert len(list(dataframe.columns)) == len(list(rows[0]))
 
 
 @pytest.mark.parametrize(

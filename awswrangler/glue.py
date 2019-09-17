@@ -56,7 +56,7 @@ class Glue:
             return "double"
         elif dtype == "bool":
             return "boolean"
-        elif dtype == "object" and isinstance(dtype, str):
+        elif dtype == "object":
             return "string"
         elif dtype[:10] == "datetime64":
             return "timestamp"

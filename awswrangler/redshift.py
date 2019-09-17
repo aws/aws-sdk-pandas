@@ -341,11 +341,9 @@ class Redshift:
                 dtype = str(dataframe.index.dtype)
                 redshift_type = Redshift._type_pandas2redshift(dtype)
                 schema_built.append((name, redshift_type))
-            for col in dataframe.columns:
-                name = str(col)
-                dtype = str(dataframe[name].dtype)
+            for col, dtype in dataframe.dtypes:
                 redshift_type = Redshift._type_pandas2redshift(dtype)
-                schema_built.append((name, redshift_type))
+                schema_built.append((col, redshift_type))
         elif dataframe_type == "spark":
             for name, dtype in dataframe.dtypes:
                 redshift_type = Redshift._type_spark2redshift(dtype)
@@ -377,17 +375,17 @@ class Redshift:
     @staticmethod
     def _type_spark2redshift(dtype):
         dtype = dtype.lower()
-        if dtype == "int":
-            return "INTEGER"
-        elif dtype == "long":
+        if dtype in ["smallint", "int", "bigint"]:
             return "BIGINT"
         elif dtype == "float":
+            return "FLOAT4"
+        elif dtype == "double":
             return "FLOAT8"
         elif dtype == "bool":
             return "BOOLEAN"
+        elif dtype == "timestamp":
+            return "TIMESTAMP"
         elif dtype == "string":
             return "VARCHAR(256)"
-        elif dtype[:10] == "datetime.datetime":
-            return "TIMESTAMP"
         else:
             raise UnsupportedType("Unsupported Spark type: " + dtype)
