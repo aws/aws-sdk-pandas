@@ -39,9 +39,33 @@ def bucket(session, cloudformation_outputs):
     session.s3.delete_objects(path=f"s3://{bucket}/")
 
 
-def test_read_csv(session, bucket):
-    boto3.client("s3").upload_file("data_samples/small.csv", bucket,
-                                   "data_samples/small.csv")
-    path = f"s3://{bucket}/data_samples/small.csv"
-    dataframe = session.spark.read_csv(path=path)
-    assert dataframe.count() == 100
+@pytest.mark.parametrize(
+    "sample_name",
+    ["nano", "micro", "small"],
+)
+def test_read_csv(session, bucket, sample_name):
+    path = f"data_samples/{sample_name}.csv"
+    if sample_name == "micro":
+        schema = "id SMALLINT, name STRING, value FLOAT, date TIMESTAMP"
+        timestamp_format = "yyyy-MM-dd"
+    elif sample_name == "small":
+        schema = "id BIGINT, name STRING, date DATE"
+        timestamp_format = "dd-MM-yy"
+    elif sample_name == "nano":
+        schema = "id INTEGER, name STRING, value DOUBLE, date TIMESTAMP, time TIMESTAMP"
+        timestamp_format = "yyyy-MM-dd"
+    dataframe = session.spark.read_csv(path=path,
+                                       schema=schema,
+                                       timestampFormat=timestamp_format,
+                                       dateFormat=timestamp_format,
+                                       header=True)
+
+    boto3.client("s3").upload_file(path, bucket, path)
+    path2 = f"s3://{bucket}/{path}"
+    dataframe2 = session.spark.read_csv(path=path2,
+                                        schema=schema,
+                                        timestampFormat=timestamp_format,
+                                        dateFormat=timestamp_format,
+                                        header=True)
+    assert dataframe.count() == dataframe2.count()
+    assert len(list(dataframe.columns)) == len(list(dataframe2.columns))

@@ -341,9 +341,11 @@ class Redshift:
                 dtype = str(dataframe.index.dtype)
                 redshift_type = Redshift._type_pandas2redshift(dtype)
                 schema_built.append((name, redshift_type))
-            for col, dtype in dataframe.dtypes:
+            for col in dataframe.columns:
+                name = str(col)
+                dtype = str(dataframe[name].dtype)
                 redshift_type = Redshift._type_pandas2redshift(dtype)
-                schema_built.append((col, redshift_type))
+                schema_built.append((name, redshift_type))
         elif dataframe_type == "spark":
             for name, dtype in dataframe.dtypes:
                 redshift_type = Redshift._type_spark2redshift(dtype)
