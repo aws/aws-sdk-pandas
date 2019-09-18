@@ -31,8 +31,10 @@ class Athena:
             return "bool"
         elif dtype in ["string", "char", "varchar", "array", "row", "map"]:
             return "object"
-        elif dtype in ["timestamp", "date"]:
+        elif dtype == "timestamp":
             return "datetime64"
+        elif dtype == "date":
+            return "date"
         else:
             raise UnsupportedType(f"Unsupported Athena type: {dtype}")
 
@@ -40,16 +42,19 @@ class Athena:
         cols_metadata = self.get_query_columns_metadata(
             query_execution_id=query_execution_id)
         dtype = {}
+        parse_timestamps = []
         parse_dates = []
         for col_name, col_type in cols_metadata.items():
             ptype = Athena._type_athena2pandas(dtype=col_type)
-            if ptype == "datetime64":
-                parse_dates.append(col_name)
+            if ptype in ["datetime64", "date"]:
+                parse_timestamps.append(col_name)
+                if ptype == "date":
+                    parse_dates.append(col_name)
             else:
                 dtype[col_name] = ptype
         logger.debug(f"dtype: {dtype}")
         logger.debug(f"parse_dates: {parse_dates}")
-        return dtype, parse_dates
+        return dtype, parse_timestamps, parse_dates
 
     def create_athena_bucket(self):
         """
