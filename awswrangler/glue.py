@@ -3,7 +3,7 @@ import re
 import logging
 from datetime import datetime, date
 
-from awswrangler.exceptions import UnsupportedType, UnsupportedFileFormat
+from awswrangler.exceptions import UnsupportedType, UnsupportedFileFormat, PartitionColumnTypeNotFound
 
 logger = logging.getLogger(__name__)
 
@@ -111,10 +111,11 @@ class Glue:
                          mode="append",
                          cast_columns=None,
                          extra_args=None):
-        schema = Glue._build_schema(dataframe=dataframe,
-                                    partition_cols=partition_cols,
-                                    preserve_index=preserve_index,
-                                    cast_columns=cast_columns)
+        schema, partition_cols_schema = Glue._build_schema(
+            dataframe=dataframe,
+            partition_cols=partition_cols,
+            preserve_index=preserve_index,
+            cast_columns=cast_columns)
         table = table if table else Glue._parse_table_name(path)
         table = table.lower().replace(".", "_")
         if mode == "overwrite":
@@ -124,13 +125,14 @@ class Glue:
             self.create_table(database=database,
                               table=table,
                               schema=schema,
-                              partition_cols=partition_cols,
+                              partition_cols_schema=partition_cols_schema,
                               path=path,
                               file_format=file_format,
                               extra_args=extra_args)
         if partition_cols:
             partitions_tuples = Glue._parse_partitions_tuples(
                 objects_paths=objects_paths, partition_cols=partition_cols)
+            print(partitions_tuples)
             self.add_partitions(
                 database=database,
                 table=table,
@@ -157,14 +159,13 @@ class Glue:
                      schema,
                      path,
                      file_format,
-                     partition_cols=None,
+                     partition_cols_schema=None,
                      extra_args=None):
         if file_format == "parquet":
-            table_input = Glue.parquet_table_definition(
-                table, partition_cols, schema, path)
+            table_input = Glue.parquet_table_definition(table, partition_cols_schema, schema, path)
         elif file_format == "csv":
             table_input = Glue.csv_table_definition(table,
-                                                    partition_cols,
+                                                    partition_cols_schema,
                                                     schema,
                                                     path,
                                                     extra_args=extra_args)
@@ -189,6 +190,9 @@ class Glue:
         for _ in range(pages_num):
             page = partitions[:100]
             del partitions[:100]
+            print(database)
+            print(table)
+            print(page)
             self._client_glue.batch_create_partition(DatabaseName=database,
                                                      TableName=table,
                                                      PartitionInputList=page)
@@ -206,25 +210,32 @@ class Glue:
         if not partition_cols:
             partition_cols = []
         schema_built = []
+        partition_cols_schema_built = []
         if preserve_index:
             name = str(
                 dataframe.index.name) if dataframe.index.name else "index"
             dataframe.index.name = "index"
             dtype = str(dataframe.index.dtype)
+            athena_type = Glue.type_pandas2athena(dtype)
             if name not in partition_cols:
-                athena_type = Glue.type_pandas2athena(dtype)
                 schema_built.append((name, athena_type))
+            else:
+                partition_cols_schema_built.append((name, athena_type))
         for col in dataframe.columns:
             name = str(col)
             if cast_columns and name in cast_columns:
                 dtype = cast_columns[name]
             else:
                 dtype = str(dataframe[name].dtype)
+            athena_type = Glue.type_pandas2athena(dtype)
             if name not in partition_cols:
-                athena_type = Glue.type_pandas2athena(dtype)
                 schema_built.append((name, athena_type))
+            else:
+                partition_cols_schema_built.append((name, athena_type))
         logger.debug(f"schema_built:\n{schema_built}")
-        return schema_built
+        logger.debug(
+            f"partition_cols_schema_built:\n{partition_cols_schema_built}")
+        return schema_built, partition_cols_schema_built
 
     @staticmethod
     def _parse_table_name(path):
@@ -233,17 +244,17 @@ class Glue:
         return path.rpartition("/")[2]
 
     @staticmethod
-    def csv_table_definition(table, partition_cols, schema, path, extra_args):
+    def csv_table_definition(table, partition_cols_schema, schema, path, extra_args):
         sep = extra_args["sep"] if "sep" in extra_args else ","
-        if not partition_cols:
-            partition_cols = []
+        if not partition_cols_schema:
+            partition_cols_schema = []
         return {
             "Name":
             table,
             "PartitionKeys": [{
-                "Name": x,
-                "Type": "string"
-            } for x in partition_cols],
+                "Name": x[0],
+                "Type": x[1]
+            } for x in partition_cols_schema],
             "TableType":
             "EXTERNAL_TABLE",
             "Parameters": {
@@ -304,16 +315,17 @@ class Glue:
         }
 
     @staticmethod
-    def parquet_table_definition(table, partition_cols, schema, path):
-        if not partition_cols:
-            partition_cols = []
+    def parquet_table_definition(table, partition_cols_schema,
+                                 schema, path):
+        if not partition_cols_schema:
+            partition_cols_schema = []
         return {
             "Name":
             table,
             "PartitionKeys": [{
-                "Name": x,
-                "Type": "string"
-            } for x in partition_cols],
+                "Name": x[0],
+                "Type": x[1]
+            } for x in partition_cols_schema],
             "TableType":
             "EXTERNAL_TABLE",
             "Parameters": {

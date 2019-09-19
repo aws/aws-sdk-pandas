@@ -64,3 +64,7 @@ class QueryCancelled(Exception):
 
 class QueryFailed(Exception):
     pass
+
+
+class PartitionColumnTypeNotFound(Exception):
+    pass
