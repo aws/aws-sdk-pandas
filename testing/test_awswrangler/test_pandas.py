@@ -489,3 +489,56 @@ def test_to_csv_with_sep(
     assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
     assert dataframe[dataframe["id"] == 0].iloc[0]["name"] == dataframe2[
         dataframe2["id"] == 0].iloc[0]["name"]
+
+
+@pytest.mark.parametrize("index", [None, "default", "my_date", "my_timestamp"])
+def test_to_parquet_types(session, bucket, database, index):
+    dataframe = pandas.read_csv("data_samples/complex.csv",
+                                dtype={"my_int_with_null": "Int64"},
+                                parse_dates=["my_timestamp", "my_date"])
+    dataframe["my_date"] = dataframe["my_date"].dt.date
+    dataframe["my_bool"] = True
+
+    preserve_index = True
+    if not index:
+        preserve_index = False
+    elif index != "default":
+        dataframe["new_index"] = dataframe[index]
+        dataframe = dataframe.set_index("new_index")
+
+    session.pandas.to_parquet(dataframe=dataframe,
+                              database=database,
+                              path=f"s3://{bucket}/test/",
+                              preserve_index=preserve_index,
+                              mode="overwrite",
+                              procs_cpu_bound=1)
+    sleep(1)
+    dataframe2 = session.pandas.read_sql_athena(sql="select * from test",
+                                                database=database)
+    for row in dataframe2.itertuples():
+        if index:
+            if index == "default":
+                assert isinstance(row[8], numpy.int64)
+            elif index == "my_date":
+                assert isinstance(row.new_index, date)
+            elif index == "my_timestamp":
+                assert isinstance(row.new_index, datetime)
+        assert isinstance(row.my_timestamp, datetime)
+        assert type(row.my_date) == date
+        assert isinstance(row.my_float, float)
+        assert isinstance(row.my_int, numpy.int64)
+        assert isinstance(row.my_string, str)
+        assert isinstance(row.my_bool, bool)
+        assert str(row.my_timestamp) == "2018-01-01 04:03:02.001000"
+        assert str(row.my_date) == "2019-02-02"
+        assert str(row.my_float) == "12345.6789"
+        assert str(row.my_int) == "123456789"
+        assert str(row.my_bool) == "True"
+        assert str(
+            row.my_string
+        ) == "foo\nboo\nbar\nFOO\nBOO\nBAR\nxxxxx\nÁÃÀÂÇ\n汉字汉字汉字汉字汉字汉字汉字æøåæøåæøåæøåæøåæøåæøåæøåæøåæøå汉字汉字汉字汉字汉字汉字汉字æøåæøåæøåæøåæøåæøåæøåæøåæøåæøå"
+    assert len(dataframe.index) == len(dataframe2.index)
+    if index:
+        assert (len(list(dataframe.columns)) + 1) == len(list(dataframe2.columns))
+    else:
+        assert len(list(dataframe.columns)) == len(list(dataframe2.columns))

@@ -419,14 +419,16 @@ class Pandas:
             message_error = f"Query error: {reason}"
             raise AthenaQueryError(message_error)
         else:
-            dtype, parse_dates = self._session.athena.get_query_dtype(
+            dtype, parse_timestamps, parse_dates = self._session.athena.get_query_dtype(
                 query_execution_id=query_execution_id)
             path = f"{s3_output}{query_execution_id}.csv"
             ret = self.read_csv(path=path,
                                 dtype=dtype,
-                                parse_dates=parse_dates,
+                                parse_dates=parse_timestamps,
                                 quoting=csv.QUOTE_ALL,
                                 max_result_size=max_result_size)
+            for col in parse_dates:
+                ret[col] = ret[col].dt.date
         return ret
 
     def to_csv(
