@@ -611,3 +611,26 @@ def test_to_csv_serde_exception(
                                      preserve_index=False,
                                      mode="overwrite",
                                      serde="foo")
+
+
+@pytest.mark.parametrize("compression", [None, "snappy", "gzip"])
+def test_to_parquet_compressed(session, bucket, database, compression):
+    dataframe = pandas.read_csv("data_samples/small.csv")
+    session.pandas.to_parquet(dataframe=dataframe,
+                              database=database,
+                              path=f"s3://{bucket}/test/",
+                              preserve_index=False,
+                              mode="overwrite",
+                              compression=compression,
+                              procs_cpu_bound=1)
+    dataframe2 = None
+    for counter in range(10):
+        dataframe2 = session.pandas.read_sql_athena(sql="select * from test",
+                                                    database=database)
+        if len(dataframe.index) == len(dataframe2.index):
+            break
+        sleep(2)
+    assert len(dataframe.index) == len(dataframe2.index)
+    assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
+    assert dataframe[dataframe["id"] == 1].iloc[0]["name"] == dataframe2[
+        dataframe2["id"] == 1].iloc[0]["name"]

@@ -72,3 +72,7 @@ class InvalidSerDe(Exception):
 
 class ApiError(Exception):
     pass
+
+
+class InvalidCompression(Exception):
+    pass

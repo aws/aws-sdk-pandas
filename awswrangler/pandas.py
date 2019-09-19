@@ -11,7 +11,8 @@ import pyarrow
 from pyarrow import parquet
 
 from awswrangler.exceptions import UnsupportedWriteMode, UnsupportedFileFormat,\
-    AthenaQueryError, EmptyS3Object, LineTerminatorNotFound, EmptyDataframe, InvalidSerDe
+    AthenaQueryError, EmptyS3Object, LineTerminatorNotFound, EmptyDataframe, \
+    InvalidSerDe, InvalidCompression
 from awswrangler.utils import calculate_bounders
 from awswrangler import s3
 
@@ -28,6 +29,8 @@ def _get_bounders(dataframe, num_partitions):
 class Pandas:
 
     VALID_CSV_SERDES = ["OpenCSVSerDe", "LazySimpleSerDe"]
+    VALID_CSV_COMPRESSIONS = [None]
+    VALID_PARQUET_COMPRESSIONS = [None, "snappy", "gzip"]
 
     def __init__(self, session):
         self._session = session
@@ -479,6 +482,7 @@ class Pandas:
                           partition_cols=partition_cols,
                           preserve_index=preserve_index,
                           mode=mode,
+                          compression=None,
                           procs_cpu_bound=procs_cpu_bound,
                           procs_io_bound=procs_io_bound,
                           extra_args=extra_args)
@@ -491,6 +495,7 @@ class Pandas:
                    partition_cols=None,
                    preserve_index=True,
                    mode="append",
+                   compression="snappy",
                    procs_cpu_bound=None,
                    procs_io_bound=None,
                    cast_columns=None):
@@ -505,6 +510,7 @@ class Pandas:
         :param partition_cols: List of columns names that will be partitions on S3
         :param preserve_index: Should preserve index on S3?
         :param mode: "append", "overwrite", "overwrite_partitions"
+        :param compression: None, snappy, gzip, lzo
         :param procs_cpu_bound: Number of cores used for CPU bound tasks
         :param procs_io_bound: Number of cores used for I/O bound tasks
         :param cast_columns: Dictionary of columns names and Arrow types to be casted. (E.g. {"col name": "int64", "col2 name": "int32"})
@@ -518,6 +524,7 @@ class Pandas:
                           partition_cols=partition_cols,
                           preserve_index=preserve_index,
                           mode=mode,
+                          compression=compression,
                           procs_cpu_bound=procs_cpu_bound,
                           procs_io_bound=procs_io_bound,
                           cast_columns=cast_columns)
@@ -531,6 +538,7 @@ class Pandas:
               partition_cols=None,
               preserve_index=True,
               mode="append",
+              compression=None,
               procs_cpu_bound=None,
               procs_io_bound=None,
               cast_columns=None,
@@ -547,12 +555,25 @@ class Pandas:
         :param partition_cols: List of columns names that will be partitions on S3
         :param preserve_index: Should preserve index on S3?
         :param mode: "append", "overwrite", "overwrite_partitions"
+        :param compression: None, gzip, snappy, etc
         :param procs_cpu_bound: Number of cores used for CPU bound tasks
         :param procs_io_bound: Number of cores used for I/O bound tasks
         :param cast_columns: Dictionary of columns indexes and Arrow types to be casted. (E.g. {2: "int64", 5: "int32"}) (Only for "parquet" file_format)
         :param extra_args: Extra arguments specific for each file formats (E.g. "sep" for CSV)
         :return: List of objects written on S3
         """
+        if compression is not None:
+            compression = compression.lower()
+        if file_format == "csv":
+            if compression not in Pandas.VALID_CSV_COMPRESSIONS:
+                raise InvalidCompression(
+                    f"{compression} isn't a valid CSV compression. Try: {Pandas.VALID_CSV_COMPRESSIONS}"
+                )
+        if file_format == "parquet":
+            if compression not in Pandas.VALID_PARQUET_COMPRESSIONS:
+                raise InvalidCompression(
+                    f"{compression} isn't a valid PARQUET compression. Try: {Pandas.VALID_PARQUET_COMPRESSIONS}"
+                )
         if dataframe.empty:
             raise EmptyDataframe()
         if not partition_cols:
@@ -568,6 +589,7 @@ class Pandas:
                                         preserve_index=preserve_index,
                                         file_format=file_format,
                                         mode=mode,
+                                        compression=compression,
                                         procs_cpu_bound=procs_cpu_bound,
                                         procs_io_bound=procs_io_bound,
                                         cast_columns=cast_columns,
@@ -582,6 +604,7 @@ class Pandas:
                                                 preserve_index=preserve_index,
                                                 file_format=file_format,
                                                 mode=mode,
+                                                compression=compression,
                                                 cast_columns=cast_columns,
                                                 extra_args=extra_args)
         return objects_paths
@@ -593,6 +616,7 @@ class Pandas:
                    partition_cols=None,
                    preserve_index=True,
                    mode="append",
+                   compression=None,
                    procs_cpu_bound=None,
                    procs_io_bound=None,
                    cast_columns=None,
@@ -619,7 +643,7 @@ class Pandas:
                 proc = mp.Process(
                     target=self._data_to_s3_dataset_writer_remote,
                     args=(send_pipe, dataframe.iloc[bounder[0]:bounder[1], :],
-                          path, partition_cols, preserve_index,
+                          path, partition_cols, preserve_index, compression,
                           self._session.primitives, file_format, cast_columns,
                           extra_args),
                 )
@@ -637,6 +661,7 @@ class Pandas:
                 path=path,
                 partition_cols=partition_cols,
                 preserve_index=preserve_index,
+                compression=compression,
                 session_primitives=self._session.primitives,
                 file_format=file_format,
                 cast_columns=cast_columns,
@@ -658,6 +683,7 @@ class Pandas:
                                    path,
                                    partition_cols,
                                    preserve_index,
+                                   compression,
                                    session_primitives,
                                    file_format,
                                    cast_columns=None,
@@ -668,6 +694,7 @@ class Pandas:
                 dataframe=dataframe,
                 path=path,
                 preserve_index=preserve_index,
+                compression=compression,
                 session_primitives=session_primitives,
                 file_format=file_format,
                 cast_columns=cast_columns,
@@ -686,6 +713,7 @@ class Pandas:
                     dataframe=subgroup,
                     path=prefix,
                     preserve_index=preserve_index,
+                    compression=compression,
                     session_primitives=session_primitives,
                     file_format=file_format,
                     cast_columns=cast_columns,
@@ -699,6 +727,7 @@ class Pandas:
                                           path,
                                           partition_cols,
                                           preserve_index,
+                                          compression,
                                           session_primitives,
                                           file_format,
                                           cast_columns=None,
@@ -709,6 +738,7 @@ class Pandas:
                 path=path,
                 partition_cols=partition_cols,
                 preserve_index=preserve_index,
+                compression=compression,
                 session_primitives=session_primitives,
                 file_format=file_format,
                 cast_columns=cast_columns,
@@ -719,6 +749,7 @@ class Pandas:
     def _data_to_s3_object_writer(dataframe,
                                   path,
                                   preserve_index,
+                                  compression,
                                   session_primitives,
                                   file_format,
                                   cast_columns=None,
@@ -726,10 +757,21 @@ class Pandas:
         fs = s3.get_fs(session_primitives=session_primitives)
         fs = pyarrow.filesystem._ensure_filesystem(fs)
         s3.mkdir_if_not_exists(fs, path)
+
+        if compression is None:
+            compression_end = ""
+        elif compression == "snappy":
+            compression_end = ".snappy"
+        elif compression == "gzip":
+            compression_end = ".gz"
+        else:
+            raise InvalidCompression(compression)
+
+        guid = pyarrow.compat.guid()
         if file_format == "parquet":
-            outfile = pyarrow.compat.guid() + ".parquet"
+            outfile = f"{guid}.parquet{compression_end}"
         elif file_format == "csv":
-            outfile = pyarrow.compat.guid() + ".csv"
+            outfile = f"{guid}.csv{compression_end}"
         else:
             raise UnsupportedFileFormat(file_format)
         object_path = "/".join([path, outfile])
@@ -737,6 +779,7 @@ class Pandas:
             Pandas.write_parquet_dataframe(dataframe=dataframe,
                                            path=object_path,
                                            preserve_index=preserve_index,
+                                           compression=compression,
                                            fs=fs,
                                            cast_columns=cast_columns,
                                            extra_args=extra_args)
@@ -744,6 +787,7 @@ class Pandas:
             Pandas.write_csv_dataframe(dataframe=dataframe,
                                        path=object_path,
                                        preserve_index=preserve_index,
+                                       compression=compression,
                                        fs=fs,
                                        extra_args=extra_args)
         return object_path
@@ -752,6 +796,7 @@ class Pandas:
     def write_csv_dataframe(dataframe,
                             path,
                             preserve_index,
+                            compression,
                             fs,
                             extra_args=None):
         csv_extra_args = {}
@@ -770,6 +815,7 @@ class Pandas:
             dataframe.to_csv(None,
                              header=False,
                              index=preserve_index,
+                             compression=compression,
                              **csv_extra_args), "utf-8")
         with fs.open(path, "wb") as f:
             f.write(csv_buffer)
@@ -778,6 +824,7 @@ class Pandas:
     def write_parquet_dataframe(dataframe,
                                 path,
                                 preserve_index,
+                                compression,
                                 fs,
                                 cast_columns,
                                 extra_args=None):
@@ -804,6 +851,7 @@ class Pandas:
         with fs.open(path, "wb") as f:
             parquet.write_table(table,
                                 f,
+                                compression=compression,
                                 coerce_timestamps="ms",
                                 flavor="spark")
         for col in casted_in_pandas:
