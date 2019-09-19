@@ -29,8 +29,8 @@ class Athena:
             return "float64"
         elif dtype == "boolean":
             return "bool"
-        elif dtype in ["string", "char", "varchar", "array", "row", "map"]:
-            return "object"
+        elif dtype in ["string", "char", "varchar"]:
+            return "str"
         elif dtype == "timestamp":
             return "datetime64"
         elif dtype == "date":
@@ -53,6 +53,7 @@ class Athena:
             else:
                 dtype[col_name] = ptype
         logger.debug(f"dtype: {dtype}")
+        logger.debug(f"parse_timestamps: {parse_timestamps}")
         logger.debug(f"parse_dates: {parse_dates}")
         return dtype, parse_timestamps, parse_dates
 

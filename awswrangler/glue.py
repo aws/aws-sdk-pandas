@@ -5,7 +5,7 @@ from datetime import datetime, date
 
 import pyarrow
 
-from awswrangler.exceptions import UnsupportedType, UnsupportedFileFormat
+from awswrangler.exceptions import UnsupportedType, UnsupportedFileFormat, InvalidSerDe, ApiError
 
 logger = logging.getLogger(__name__)
 
@@ -155,12 +155,11 @@ class Glue:
         if partition_cols:
             partitions_tuples = Glue._parse_partitions_tuples(
                 objects_paths=objects_paths, partition_cols=partition_cols)
-            self.add_partitions(
-                database=database,
-                table=table,
-                partition_paths=partitions_tuples,
-                file_format=file_format,
-            )
+            self.add_partitions(database=database,
+                                table=table,
+                                partition_paths=partitions_tuples,
+                                file_format=file_format,
+                                extra_args=extra_args)
 
     def delete_table_if_exists(self, database, table):
         try:
@@ -184,7 +183,8 @@ class Glue:
                      partition_cols_schema=None,
                      extra_args=None):
         if file_format == "parquet":
-            table_input = Glue.parquet_table_definition(table, partition_cols_schema, schema, path)
+            table_input = Glue.parquet_table_definition(
+                table, partition_cols_schema, schema, path)
         elif file_format == "csv":
             table_input = Glue.csv_table_definition(table,
                                                     partition_cols_schema,
@@ -196,15 +196,18 @@ class Glue:
         self._client_glue.create_table(DatabaseName=database,
                                        TableInput=table_input)
 
-    def add_partitions(self, database, table, partition_paths, file_format):
+    def add_partitions(self, database, table, partition_paths, file_format,
+                       extra_args):
         if not partition_paths:
             return None
         partitions = list()
         for partition in partition_paths:
             if file_format == "parquet":
-                partition_def = Glue.parquet_partition_definition(partition)
+                partition_def = Glue.parquet_partition_definition(
+                    partition=partition)
             elif file_format == "csv":
-                partition_def = Glue.csv_partition_definition(partition)
+                partition_def = Glue.csv_partition_definition(
+                    partition=partition, extra_args=extra_args)
             else:
                 raise UnsupportedFileFormat(file_format)
             partitions.append(partition_def)
@@ -212,9 +215,12 @@ class Glue:
         for _ in range(pages_num):
             page = partitions[:100]
             del partitions[:100]
-            self._client_glue.batch_create_partition(DatabaseName=database,
-                                                     TableName=table,
-                                                     PartitionInputList=page)
+            res = self._client_glue.batch_create_partition(
+                DatabaseName=database,
+                TableName=table,
+                PartitionInputList=page)
+            if len(res["Errors"]) > 0:
+                raise ApiError(f"{res['Errors'][0]}")
 
     def get_connection_details(self, name):
         return self._client_glue.get_connection(
@@ -223,18 +229,25 @@ class Glue:
     @staticmethod
     def _extract_pyarrow_schema(dataframe, preserve_index):
         cols = []
+        cols_dtypes = {}
         schema = []
+
         for name, dtype in dataframe.dtypes.to_dict().items():
             dtype = str(dtype)
             if str(dtype) == "Int64":
-                schema.append((name, "int64"))
+                cols_dtypes[name] = "int64"
             else:
                 cols.append(name)
 
-        # Convert pyarrow.Schema to list of tuples (e.g. [(name1, type1), (name2, type2)...])
-        schema += [(str(x.name), str(x.type))
-                   for x in pyarrow.Schema.from_pandas(
-                       df=dataframe[cols], preserve_index=preserve_index)]
+        for field in pyarrow.Schema.from_pandas(df=dataframe[cols],
+                                                preserve_index=preserve_index):
+            name = str(field.name)
+            dtype = str(field.type)
+            cols_dtypes[name] = dtype
+            if name not in dataframe.columns:
+                schema.append((name, dtype))
+
+        schema += [(name, cols_dtypes[name]) for name in dataframe.columns]
         logger.debug(f"schema: {schema}")
         return schema
 
@@ -256,7 +269,8 @@ class Glue:
             else:
                 schema_built.append((name, athena_type))
 
-        partition_cols_schema_built = [(name, partition_cols_types[name]) for name in partition_cols]
+        partition_cols_schema_built = [(name, partition_cols_types[name])
+                                       for name in partition_cols]
 
         logger.debug(f"schema_built:\n{schema_built}")
         logger.debug(
@@ -270,17 +284,40 @@ class Glue:
         return path.rpartition("/")[2]
 
     @staticmethod
-    def csv_table_definition(table, partition_cols_schema, schema, path, extra_args):
-        sep = extra_args["sep"] if "sep" in extra_args else ","
+    def csv_table_definition(table, partition_cols_schema, schema, path,
+                             extra_args):
         if not partition_cols_schema:
             partition_cols_schema = []
+        sep = extra_args["sep"] if "sep" in extra_args else ","
+        serde = extra_args.get("serde")
+        if serde == "OpenCSVSerDe":
+            serde_fullname = "org.apache.hadoop.hive.serde2.OpenCSVSerde"
+            param = {
+                "separatorChar": sep,
+                "quoteChar": "\"",
+                "escapeChar": "\\",
+            }
+            refined_par_schema = [(name, "string")
+                                  for name, dtype in partition_cols_schema]
+            refined_schema = [(name, "string") for name, dtype in schema]
+        elif serde == "LazySimpleSerDe":
+            serde_fullname = "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"
+            param = {"field.delim": sep, "escape.delim": "\\"}
+            dtypes_allowed = ["int", "bigint", "float", "double"]
+            refined_par_schema = [(name, dtype) if dtype in dtypes_allowed else
+                                  (name, "string")
+                                  for name, dtype in partition_cols_schema]
+            refined_schema = [(name, dtype) if dtype in dtypes_allowed else
+                              (name, "string") for name, dtype in schema]
+        else:
+            raise InvalidSerDe(f"{serde} in not in the valid SerDe list.")
         return {
             "Name":
             table,
             "PartitionKeys": [{
                 "Name": x[0],
                 "Type": x[1]
-            } for x in partition_cols_schema],
+            } for x in refined_par_schema],
             "TableType":
             "EXTERNAL_TABLE",
             "Parameters": {
@@ -295,7 +332,7 @@ class Glue:
                 "Columns": [{
                     "Name": x[0],
                     "Type": x[1]
-                } for x in schema],
+                } for x in refined_schema],
                 "Location": path,
                 "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
                 "OutputFormat":
@@ -303,11 +340,8 @@ class Glue:
                 "Compressed": False,
                 "NumberOfBuckets": -1,
                 "SerdeInfo": {
-                    "Parameters": {
-                        "field.delim": sep
-                    },
-                    "SerializationLibrary":
-                    "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
+                    "Parameters": param,
+                    "SerializationLibrary": serde_fullname,
                 },
                 "StoredAsSubDirectories": False,
                 "SortColumns": [],
@@ -315,7 +349,7 @@ class Glue:
                     "classification": "csv",
                     "compressionType": "none",
                     "typeOfData": "file",
-                    "delimiter": ",",
+                    "delimiter": sep,
                     "columnsOrdered": "true",
                     "areColumnsQuoted": "false",
                 },
@@ -323,17 +357,28 @@ class Glue:
         }
 
     @staticmethod
-    def csv_partition_definition(partition):
+    def csv_partition_definition(partition, extra_args):
+        sep = extra_args["sep"] if "sep" in extra_args else ","
+        serde = extra_args.get("serde")
+        if serde == "OpenCSVSerDe":
+            serde_fullname = "org.apache.hadoop.hive.serde2.OpenCSVSerde"
+            param = {
+                "separatorChar": sep,
+                "quoteChar": "\"",
+                "escapeChar": "\\",
+            }
+        elif serde == "LazySimpleSerDe":
+            serde_fullname = "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"
+            param = {"field.delim": sep, "escape.delim": "\\"}
+        else:
+            raise InvalidSerDe(f"{serde} in not in the valid SerDe list.")
         return {
             "StorageDescriptor": {
                 "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
                 "Location": partition[0],
                 "SerdeInfo": {
-                    "Parameters": {
-                        "field.delim": ","
-                    },
-                    "SerializationLibrary":
-                    "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
+                    "Parameters": param,
+                    "SerializationLibrary": serde_fullname,
                 },
                 "StoredAsSubDirectories": False,
             },
@@ -341,8 +386,7 @@ class Glue:
         }
 
     @staticmethod
-    def parquet_table_definition(table, partition_cols_schema,
-                                 schema, path):
+    def parquet_table_definition(table, partition_cols_schema, schema, path):
         if not partition_cols_schema:
             partition_cols_schema = []
         return {

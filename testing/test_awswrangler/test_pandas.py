@@ -9,7 +9,7 @@ import pandas
 import numpy
 
 from awswrangler import Session, Pandas
-from awswrangler.exceptions import LineTerminatorNotFound, EmptyDataframe
+from awswrangler.exceptions import LineTerminatorNotFound, EmptyDataframe, InvalidSerDe
 
 logging.basicConfig(
     level=logging.INFO,
@@ -267,7 +267,7 @@ def test_to_parquet_with_cast(
                                                     database=database)
         if len(dataframe.index) == len(dataframe2.index):
             break
-        sleep(1)
+        sleep(2)
     assert len(dataframe.index) == len(dataframe2.index)
     assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
     assert dataframe[dataframe["id"] == 0].iloc[0]["name"] == dataframe2[
@@ -466,6 +466,113 @@ def test_read_log_query(session, loggroup, logstream):
     assert len(dataframe.columns) == 3
 
 
+@pytest.mark.parametrize(
+    "file_format, serde, index, partition_cols",
+    [("csv", "OpenCSVSerDe", None, []), ("csv", "OpenCSVSerDe", "default", []),
+     ("csv", "OpenCSVSerDe", "my_date", []),
+     ("csv", "OpenCSVSerDe", "my_timestamp", []),
+     ("csv", "OpenCSVSerDe", "my_timestamp", []),
+     ("csv", "LazySimpleSerDe", "my_date", ["my_timestamp", "my_float"]),
+     ("csv", "LazySimpleSerDe", None, []),
+     ("csv", "LazySimpleSerDe", "default", []),
+     ("csv", "LazySimpleSerDe", "my_date", []),
+     ("csv", "LazySimpleSerDe", "my_timestamp", []),
+     ("csv", "LazySimpleSerDe", "my_timestamp", ["my_date", "my_int"]),
+     ("parquet", None, None, []), ("parquet", None, "default", []),
+     ("parquet", None, "my_date", []), ("parquet", None, "my_timestamp", []),
+     ("parquet", None, None, ["my_int"]),
+     ("parquet", None, "default", ["my_int"]),
+     ("parquet", None, "my_date", ["my_int"]),
+     ("parquet", None, "my_timestamp", ["my_int"]),
+     ("parquet", None, None, ["my_float"]),
+     ("parquet", None, "default", ["my_float"]),
+     ("parquet", None, "my_date", ["my_float"]),
+     ("parquet", None, "my_timestamp", ["my_float"]),
+     ("parquet", None, None, ["my_date"]),
+     ("parquet", None, "default", ["my_date"]),
+     ("parquet", None, "my_date", ["my_date"]),
+     ("parquet", None, "my_timestamp", ["my_date"]),
+     ("parquet", None, None, ["my_timestamp"]),
+     ("parquet", None, "default", ["my_timestamp"]),
+     ("parquet", None, "my_date", ["my_timestamp"]),
+     ("parquet", None, "my_timestamp", ["my_timestamp"]),
+     ("parquet", None, None, ["my_timestamp", "my_date"]),
+     ("parquet", None, "default", ["my_date", "my_timestamp"]),
+     ("parquet", None, "my_date", ["my_timestamp", "my_date"]),
+     ("parquet", None, "my_timestamp", ["my_date", "my_timestamp"]),
+     ("parquet", None, "default", ["my_date", "my_timestamp", "my_int"]),
+     ("parquet", None, "my_date", ["my_timestamp", "my_float", "my_date"])])
+def test_to_s3_types(session, bucket, database, file_format, serde, index,
+                     partition_cols):
+    dataframe = pandas.read_csv("data_samples/complex.csv",
+                                dtype={"my_int_with_null": "Int64"},
+                                parse_dates=["my_timestamp", "my_date"])
+    dataframe["my_date"] = dataframe["my_date"].dt.date
+    dataframe["my_bool"] = True
+
+    preserve_index = True
+    if not index:
+        preserve_index = False
+    elif index != "default":
+        dataframe["new_index"] = dataframe[index]
+        dataframe = dataframe.set_index("new_index")
+
+    args = {
+        "dataframe": dataframe,
+        "database": database,
+        "path": f"s3://{bucket}/test/",
+        "preserve_index": preserve_index,
+        "mode": "overwrite",
+        "procs_cpu_bound": 1,
+        "partition_cols": partition_cols
+    }
+
+    if file_format == "csv":
+        func = session.pandas.to_csv
+        args["serde"] = serde
+        del dataframe["my_string"]
+    else:
+        func = session.pandas.to_parquet
+    objects_paths = func(**args)
+    assert len(objects_paths) == 1
+    sleep(2)
+    dataframe2 = session.pandas.read_sql_athena(sql="select * from test",
+                                                database=database)
+    for row in dataframe2.itertuples():
+
+        if file_format == "parquet":
+            if index:
+                if index == "my_date":
+                    assert isinstance(row.new_index, date)
+                elif index == "my_timestamp":
+                    assert isinstance(row.new_index, datetime)
+            assert isinstance(row.my_timestamp, datetime)
+            assert type(row.my_date) == date
+            assert isinstance(row.my_float, float)
+            assert isinstance(row.my_int, numpy.int64)
+            assert isinstance(row.my_string, str)
+            assert isinstance(row.my_bool, bool)
+            assert str(
+                row.my_string
+            ) == "foo\nboo\nbar\nFOO\nBOO\nBAR\nxxxxx\nÁÃÀÂÇ\n汉字汉字汉字汉字汉字汉字汉字æøåæøåæøåæøåæøåæøåæøåæøåæøåæøå汉字汉字汉字汉字汉字汉字汉字æøåæøåæøåæøåæøåæøåæøåæøåæøåæøå"
+        elif file_format == "csv":
+            if serde == "LazySimpleSerDe":
+                assert isinstance(row.my_float, float)
+                assert isinstance(row.my_int, numpy.int64)
+        assert str(row.my_timestamp).startswith("2018-01-01 04:03:02.001")
+        assert str(row.my_date) == "2019-02-02"
+        assert str(row.my_float) == "12345.6789"
+        assert str(row.my_int) == "123456789"
+        assert str(row.my_bool) == "True"
+
+    assert len(dataframe.index) == len(dataframe2.index)
+    if index:
+        assert (len(list(dataframe.columns)) + 1) == len(
+            list(dataframe2.columns))
+    else:
+        assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
+
+
 def test_to_csv_with_sep(
         session,
         bucket,
@@ -484,96 +591,23 @@ def test_to_csv_with_sep(
                                                     database=database)
         if len(dataframe.index) == len(dataframe2.index):
             break
-        sleep(1)
+        sleep(2)
     assert len(dataframe.index) == len(dataframe2.index)
     assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
     assert dataframe[dataframe["id"] == 0].iloc[0]["name"] == dataframe2[
         dataframe2["id"] == 0].iloc[0]["name"]
 
 
-@pytest.mark.parametrize("index, partition_cols", [
-    (None, []),
-    ("default", []),
-    ("my_date", []),
-    ("my_timestamp", []),
-    (None, ["my_int"]),
-    ("default", ["my_int"]),
-    ("my_date", ["my_int"]),
-    ("my_timestamp", ["my_int"]),
-    (None, ["my_float"]),
-    ("default", ["my_float"]),
-    ("my_date", ["my_float"]),
-    ("my_timestamp", ["my_float"]),
-    (None, ["my_bool"]),
-    ("default", ["my_bool"]),
-    ("my_date", ["my_bool"]),
-    ("my_timestamp", ["my_bool"]),
-    (None, ["my_date"]),
-    ("default", ["my_date"]),
-    ("my_date", ["my_date"]),
-    ("my_timestamp", ["my_date"]),
-    (None, ["my_timestamp"]),
-    ("default", ["my_timestamp"]),
-    ("my_date", ["my_timestamp"]),
-    ("my_timestamp", ["my_timestamp"]),
-    (None, ["my_timestamp", "my_date"]),
-    ("default", ["my_date", "my_timestamp"]),
-    ("my_date", ["my_timestamp", "my_date"]),
-    ("my_timestamp", ["my_date", "my_timestamp"]),
-    (None, ["my_bool", "my_timestamp", "my_date"]),
-    ("default", ["my_date", "my_timestamp", "my_int"]),
-    ("my_date", ["my_timestamp", "my_float", "my_date"]),
-    ("my_timestamp", ["my_int", "my_float", "my_bool", "my_date", "my_timestamp"]),
-])
-def test_to_parquet_types(session, bucket, database, index, partition_cols):
-    dataframe = pandas.read_csv("data_samples/complex.csv",
-                                dtype={"my_int_with_null": "Int64"},
-                                parse_dates=["my_timestamp", "my_date"])
-    dataframe["my_date"] = dataframe["my_date"].dt.date
-    dataframe["my_bool"] = True
-
-    preserve_index = True
-    if not index:
-        preserve_index = False
-    elif index != "default":
-        dataframe["new_index"] = dataframe[index]
-        dataframe = dataframe.set_index("new_index")
-
-    session.pandas.to_parquet(dataframe=dataframe,
-                              database=database,
-                              path=f"s3://{bucket}/test/",
-                              preserve_index=preserve_index,
-                              partition_cols=partition_cols,
-                              mode="overwrite",
-                              procs_cpu_bound=1)
-    sleep(1)
-    dataframe2 = session.pandas.read_sql_athena(sql="select * from test",
-                                                database=database)
-    for row in dataframe2.itertuples():
-        if index:
-            if index == "default":
-                ex_index_col = 8 - len(partition_cols)
-                assert isinstance(row[ex_index_col], numpy.int64)
-            elif index == "my_date":
-                assert isinstance(row.new_index, date)
-            elif index == "my_timestamp":
-                assert isinstance(row.new_index, datetime)
-        assert isinstance(row.my_timestamp, datetime)
-        assert type(row.my_date) == date
-        assert isinstance(row.my_float, float)
-        assert isinstance(row.my_int, numpy.int64)
-        assert isinstance(row.my_string, str)
-        assert isinstance(row.my_bool, bool)
-        assert str(row.my_timestamp) == "2018-01-01 04:03:02.001000"
-        assert str(row.my_date) == "2019-02-02"
-        assert str(row.my_float) == "12345.6789"
-        assert str(row.my_int) == "123456789"
-        assert str(row.my_bool) == "True"
-        assert str(
-            row.my_string
-        ) == "foo\nboo\nbar\nFOO\nBOO\nBAR\nxxxxx\nÁÃÀÂÇ\n汉字汉字汉字汉字汉字汉字汉字æøåæøåæøåæøåæøåæøåæøåæøåæøåæøå汉字汉字汉字汉字汉字汉字汉字æøåæøåæøåæøåæøåæøåæøåæøåæøåæøå"
-    assert len(dataframe.index) == len(dataframe2.index)
-    if index:
-        assert (len(list(dataframe.columns)) + 1) == len(list(dataframe2.columns))
-    else:
-        assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
+def test_to_csv_serde_exception(
+        session,
+        bucket,
+        database,
+):
+    dataframe = pandas.read_csv("data_samples/nano.csv")
+    with pytest.raises(InvalidSerDe):
+        assert session.pandas.to_csv(dataframe=dataframe,
+                                     database=database,
+                                     path=f"s3://{bucket}/test/",
+                                     preserve_index=False,
+                                     mode="overwrite",
+                                     serde="foo")

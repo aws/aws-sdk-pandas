@@ -11,7 +11,7 @@ import pyarrow
 from pyarrow import parquet
 
 from awswrangler.exceptions import UnsupportedWriteMode, UnsupportedFileFormat,\
-    AthenaQueryError, EmptyS3Object, LineTerminatorNotFound, EmptyDataframe
+    AthenaQueryError, EmptyS3Object, LineTerminatorNotFound, EmptyDataframe, InvalidSerDe
 from awswrangler.utils import calculate_bounders
 from awswrangler import s3
 
@@ -26,6 +26,9 @@ def _get_bounders(dataframe, num_partitions):
 
 
 class Pandas:
+
+    VALID_CSV_SERDES = ["OpenCSVSerDe", "LazySimpleSerDe"]
+
     def __init__(self, session):
         self._session = session
 
@@ -427,8 +430,9 @@ class Pandas:
                                 parse_dates=parse_timestamps,
                                 quoting=csv.QUOTE_ALL,
                                 max_result_size=max_result_size)
-            for col in parse_dates:
-                ret[col] = ret[col].dt.date
+            if len(ret.index) > 0:
+                for col in parse_dates:
+                    ret[col] = ret[col].dt.date
         return ret
 
     def to_csv(
@@ -436,6 +440,7 @@ class Pandas:
             dataframe,
             path,
             sep=",",
+            serde="OpenCSVSerDe",
             database=None,
             table=None,
             partition_cols=None,
@@ -451,6 +456,7 @@ class Pandas:
         :param dataframe: Pandas Dataframe
         :param path: AWS S3 path (E.g. s3://bucket-name/folder_name/
         :param sep: Same as pandas.to_csv()
+        :param serde: SerDe library name (e.g. OpenCSVSerDe, LazySimpleSerDe)
         :param database: AWS Glue Database name
         :param table: AWS Glue table name
         :param partition_cols: List of columns names that will be partitions on S3
@@ -460,7 +466,11 @@ class Pandas:
         :param procs_io_bound: Number of cores used for I/O bound tasks
         :return: List of objects written on S3
         """
-        extra_args = {"sep": sep}
+        if serde not in Pandas.VALID_CSV_SERDES:
+            raise InvalidSerDe(
+                f"{serde} in not in the valid SerDe list ({Pandas.VALID_CSV_SERDES})"
+            )
+        extra_args = {"sep": sep, "serde": serde}
         return self.to_s3(dataframe=dataframe,
                           path=path,
                           file_format="csv",
@@ -745,8 +755,17 @@ class Pandas:
                             fs,
                             extra_args=None):
         csv_extra_args = {}
-        if "sep" in extra_args:
-            csv_extra_args["sep"] = extra_args["sep"]
+        sep = extra_args.get("sep")
+        if sep is not None:
+            csv_extra_args["sep"] = sep
+        serde = extra_args.get("serde")
+        if serde is not None:
+            if serde == "OpenCSVSerDe":
+                csv_extra_args["quoting"] = csv.QUOTE_ALL
+                csv_extra_args["escapechar"] = "\\"
+            elif serde == "LazySimpleSerDe":
+                csv_extra_args["quoting"] = csv.QUOTE_NONE
+                csv_extra_args["escapechar"] = "\\"
         csv_buffer = bytes(
             dataframe.to_csv(None,
                              header=False,

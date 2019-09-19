@@ -64,3 +64,11 @@ class QueryCancelled(Exception):
 
 class QueryFailed(Exception):
     pass
+
+
+class InvalidSerDe(Exception):
+    pass
+
+
+class ApiError(Exception):
+    pass
