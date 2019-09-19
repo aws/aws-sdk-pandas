@@ -491,8 +491,41 @@ def test_to_csv_with_sep(
         dataframe2["id"] == 0].iloc[0]["name"]
 
 
-@pytest.mark.parametrize("index", [None, "default", "my_date", "my_timestamp"])
-def test_to_parquet_types(session, bucket, database, index):
+@pytest.mark.parametrize("index, partition_cols", [
+    (None, []),
+    ("default", []),
+    ("my_date", []),
+    ("my_timestamp", []),
+    (None, ["my_int"]),
+    ("default", ["my_int"]),
+    ("my_date", ["my_int"]),
+    ("my_timestamp", ["my_int"]),
+    (None, ["my_float"]),
+    ("default", ["my_float"]),
+    ("my_date", ["my_float"]),
+    ("my_timestamp", ["my_float"]),
+    (None, ["my_bool"]),
+    ("default", ["my_bool"]),
+    ("my_date", ["my_bool"]),
+    ("my_timestamp", ["my_bool"]),
+    (None, ["my_date"]),
+    ("default", ["my_date"]),
+    ("my_date", ["my_date"]),
+    ("my_timestamp", ["my_date"]),
+    (None, ["my_timestamp"]),
+    ("default", ["my_timestamp"]),
+    ("my_date", ["my_timestamp"]),
+    ("my_timestamp", ["my_timestamp"]),
+    (None, ["my_timestamp", "my_date"]),
+    ("default", ["my_date", "my_timestamp"]),
+    ("my_date", ["my_timestamp", "my_date"]),
+    ("my_timestamp", ["my_date", "my_timestamp"]),
+    (None, ["my_bool", "my_timestamp", "my_date"]),
+    ("default", ["my_date", "my_timestamp", "my_int"]),
+    ("my_date", ["my_timestamp", "my_float", "my_date"]),
+    ("my_timestamp", ["my_int", "my_float", "my_bool", "my_date", "my_timestamp"]),
+])
+def test_to_parquet_types(session, bucket, database, index, partition_cols):
     dataframe = pandas.read_csv("data_samples/complex.csv",
                                 dtype={"my_int_with_null": "Int64"},
                                 parse_dates=["my_timestamp", "my_date"])
@@ -510,6 +543,7 @@ def test_to_parquet_types(session, bucket, database, index):
                               database=database,
                               path=f"s3://{bucket}/test/",
                               preserve_index=preserve_index,
+                              partition_cols=partition_cols,
                               mode="overwrite",
                               procs_cpu_bound=1)
     sleep(1)
@@ -518,7 +552,8 @@ def test_to_parquet_types(session, bucket, database, index):
     for row in dataframe2.itertuples():
         if index:
             if index == "default":
-                assert isinstance(row[8], numpy.int64)
+                ex_index_col = 8 - len(partition_cols)
+                assert isinstance(row[ex_index_col], numpy.int64)
             elif index == "my_date":
                 assert isinstance(row.new_index, date)
             elif index == "my_timestamp":

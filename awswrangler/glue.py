@@ -135,9 +135,10 @@ class Glue:
                          mode="append",
                          cast_columns=None,
                          extra_args=None):
-        schema = Glue._build_schema(dataframe=dataframe,
-                                    partition_cols=partition_cols,
-                                    preserve_index=preserve_index)
+        schema, partition_cols_schema = Glue._build_schema(
+            dataframe=dataframe,
+            partition_cols=partition_cols,
+            preserve_index=preserve_index)
         table = table if table else Glue._parse_table_name(path)
         table = table.lower().replace(".", "_")
         if mode == "overwrite":
@@ -147,7 +148,7 @@ class Glue:
             self.create_table(database=database,
                               table=table,
                               schema=schema,
-                              partition_cols=partition_cols,
+                              partition_cols_schema=partition_cols_schema,
                               path=path,
                               file_format=file_format,
                               extra_args=extra_args)
@@ -180,14 +181,13 @@ class Glue:
                      schema,
                      path,
                      file_format,
-                     partition_cols=None,
+                     partition_cols_schema=None,
                      extra_args=None):
         if file_format == "parquet":
-            table_input = Glue.parquet_table_definition(
-                table, partition_cols, schema, path)
+            table_input = Glue.parquet_table_definition(table, partition_cols_schema, schema, path)
         elif file_format == "csv":
             table_input = Glue.csv_table_definition(table,
-                                                    partition_cols,
+                                                    partition_cols_schema,
                                                     schema,
                                                     path,
                                                     extra_args=extra_args)
@@ -248,13 +248,20 @@ class Glue:
             dataframe=dataframe, preserve_index=preserve_index)
 
         schema_built = []
+        partition_cols_types = {}
         for name, dtype in pyarrow_schema:
-            if name not in partition_cols:
-                athena_type = Glue.type_pyarrow2athena(dtype)
+            athena_type = Glue.type_pyarrow2athena(dtype)
+            if name in partition_cols:
+                partition_cols_types[name] = athena_type
+            else:
                 schema_built.append((name, athena_type))
 
+        partition_cols_schema_built = [(name, partition_cols_types[name]) for name in partition_cols]
+
         logger.debug(f"schema_built:\n{schema_built}")
-        return schema_built
+        logger.debug(
+            f"partition_cols_schema_built:\n{partition_cols_schema_built}")
+        return schema_built, partition_cols_schema_built
 
     @staticmethod
     def _parse_table_name(path):
@@ -263,17 +270,17 @@ class Glue:
         return path.rpartition("/")[2]
 
     @staticmethod
-    def csv_table_definition(table, partition_cols, schema, path, extra_args):
+    def csv_table_definition(table, partition_cols_schema, schema, path, extra_args):
         sep = extra_args["sep"] if "sep" in extra_args else ","
-        if not partition_cols:
-            partition_cols = []
+        if not partition_cols_schema:
+            partition_cols_schema = []
         return {
             "Name":
             table,
             "PartitionKeys": [{
-                "Name": x,
-                "Type": "string"
-            } for x in partition_cols],
+                "Name": x[0],
+                "Type": x[1]
+            } for x in partition_cols_schema],
             "TableType":
             "EXTERNAL_TABLE",
             "Parameters": {
@@ -334,16 +341,17 @@ class Glue:
         }
 
     @staticmethod
-    def parquet_table_definition(table, partition_cols, schema, path):
-        if not partition_cols:
-            partition_cols = []
+    def parquet_table_definition(table, partition_cols_schema,
+                                 schema, path):
+        if not partition_cols_schema:
+            partition_cols_schema = []
         return {
             "Name":
             table,
             "PartitionKeys": [{
-                "Name": x,
-                "Type": "string"
-            } for x in partition_cols],
+                "Name": x[0],
+                "Type": x[1]
+            } for x in partition_cols_schema],
             "TableType":
             "EXTERNAL_TABLE",
             "Parameters": {
