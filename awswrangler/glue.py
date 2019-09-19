@@ -133,12 +133,14 @@ class Glue:
                          partition_cols=None,
                          preserve_index=True,
                          mode="append",
+                         compression=None,
                          cast_columns=None,
                          extra_args=None):
         schema, partition_cols_schema = Glue._build_schema(
             dataframe=dataframe,
             partition_cols=partition_cols,
-            preserve_index=preserve_index)
+            preserve_index=preserve_index,
+            cast_columns=cast_columns)
         table = table if table else Glue._parse_table_name(path)
         table = table.lower().replace(".", "_")
         if mode == "overwrite":
@@ -151,6 +153,7 @@ class Glue:
                               partition_cols_schema=partition_cols_schema,
                               path=path,
                               file_format=file_format,
+                              compression=compression,
                               extra_args=extra_args)
         if partition_cols:
             partitions_tuples = Glue._parse_partitions_tuples(
@@ -159,6 +162,7 @@ class Glue:
                                 table=table,
                                 partition_paths=partitions_tuples,
                                 file_format=file_format,
+                                compression=compression,
                                 extra_args=extra_args)
 
     def delete_table_if_exists(self, database, table):
@@ -180,16 +184,18 @@ class Glue:
                      schema,
                      path,
                      file_format,
+                     compression,
                      partition_cols_schema=None,
                      extra_args=None):
         if file_format == "parquet":
             table_input = Glue.parquet_table_definition(
-                table, partition_cols_schema, schema, path)
+                table, partition_cols_schema, schema, path, compression)
         elif file_format == "csv":
             table_input = Glue.csv_table_definition(table,
                                                     partition_cols_schema,
                                                     schema,
                                                     path,
+                                                    compression,
                                                     extra_args=extra_args)
         else:
             raise UnsupportedFileFormat(file_format)
@@ -227,15 +233,21 @@ class Glue:
             Name=name, HidePassword=False)["Connection"]
 
     @staticmethod
-    def _extract_pyarrow_schema(dataframe, preserve_index):
+    def _extract_pyarrow_schema(dataframe, preserve_index, cast_columns=None):
         cols = []
         cols_dtypes = {}
         schema = []
 
+        casted = []
+        if cast_columns is not None:
+            casted = cast_columns.keys()
+
         for name, dtype in dataframe.dtypes.to_dict().items():
             dtype = str(dtype)
-            if str(dtype) == "Int64":
+            if dtype == "Int64":
                 cols_dtypes[name] = "int64"
+            elif name in casted:
+                cols_dtypes[name] = cast_columns[name]
             else:
                 cols.append(name)
 
@@ -252,13 +264,18 @@ class Glue:
         return schema
 
     @staticmethod
-    def _build_schema(dataframe, partition_cols, preserve_index):
+    def _build_schema(dataframe,
+                      partition_cols,
+                      preserve_index,
+                      cast_columns={}):
         logger.debug(f"dataframe.dtypes:\n{dataframe.dtypes}")
         if not partition_cols:
             partition_cols = []
 
         pyarrow_schema = Glue._extract_pyarrow_schema(
-            dataframe=dataframe, preserve_index=preserve_index)
+            dataframe=dataframe,
+            preserve_index=preserve_index,
+            cast_columns=cast_columns)
 
         schema_built = []
         partition_cols_types = {}
@@ -285,9 +302,10 @@ class Glue:
 
     @staticmethod
     def csv_table_definition(table, partition_cols_schema, schema, path,
-                             extra_args):
+                             compression, extra_args):
         if not partition_cols_schema:
             partition_cols_schema = []
+        compressed = False if compression is None else True
         sep = extra_args["sep"] if "sep" in extra_args else ","
         serde = extra_args.get("serde")
         if serde == "OpenCSVSerDe":
@@ -322,7 +340,7 @@ class Glue:
             "EXTERNAL_TABLE",
             "Parameters": {
                 "classification": "csv",
-                "compressionType": "none",
+                "compressionType": str(compression).lower(),
                 "typeOfData": "file",
                 "delimiter": sep,
                 "columnsOrdered": "true",
@@ -337,7 +355,7 @@ class Glue:
                 "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
                 "OutputFormat":
                 "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
-                "Compressed": False,
+                "Compressed": True,
                 "NumberOfBuckets": -1,
                 "SerdeInfo": {
                     "Parameters": param,
@@ -347,7 +365,7 @@ class Glue:
                 "SortColumns": [],
                 "Parameters": {
                     "classification": "csv",
-                    "compressionType": "none",
+                    "compressionType": str(compression).lower(),
                     "typeOfData": "file",
                     "delimiter": sep,
                     "columnsOrdered": "true",
@@ -386,9 +404,11 @@ class Glue:
         }
 
     @staticmethod
-    def parquet_table_definition(table, partition_cols_schema, schema, path):
+    def parquet_table_definition(table, partition_cols_schema, schema, path,
+                                 compression):
         if not partition_cols_schema:
             partition_cols_schema = []
+        compressed = False if compression is None else True
         return {
             "Name":
             table,
@@ -400,7 +420,7 @@ class Glue:
             "EXTERNAL_TABLE",
             "Parameters": {
                 "classification": "parquet",
-                "compressionType": "none",
+                "compressionType": str(compression).lower(),
                 "typeOfData": "file",
             },
             "StorageDescriptor": {
@@ -413,7 +433,7 @@ class Glue:
                 "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
                 "OutputFormat":
                 "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat",
-                "Compressed": False,
+                "Compressed": compressed,
                 "NumberOfBuckets": -1,
                 "SerdeInfo": {
                     "SerializationLibrary":
@@ -427,7 +447,7 @@ class Glue:
                 "Parameters": {
                     "CrawlerSchemaDeserializerVersion": "1.0",
                     "classification": "parquet",
-                    "compressionType": "none",
+                    "compressionType": str(compression).lower(),
                     "typeOfData": "file",
                 },
             },
