@@ -3,7 +3,9 @@ import re
 import logging
 from datetime import datetime, date
 
-from awswrangler.exceptions import UnsupportedType, UnsupportedFileFormat, PartitionColumnTypeNotFound
+import pyarrow
+
+from awswrangler.exceptions import UnsupportedType, UnsupportedFileFormat
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +46,28 @@ class Glue:
         return {k: Glue.type_athena2python(v) for k, v in dtypes.items()}
 
     @staticmethod
+    def type_pyarrow2athena(dtype):
+        dtype = str(dtype).lower()
+        if dtype == "int32":
+            return "int"
+        elif dtype == "int64":
+            return "bigint"
+        elif dtype == "float":
+            return "float"
+        elif dtype == "double":
+            return "double"
+        elif dtype == "bool":
+            return "boolean"
+        elif dtype == "string":
+            return "string"
+        elif dtype.startswith("timestamp"):
+            return "timestamp"
+        elif dtype.startswith("date"):
+            return "date"
+        else:
+            raise UnsupportedType(f"Unsupported Pyarrow type: {dtype}")
+
+    @staticmethod
     def type_pandas2athena(dtype):
         dtype = dtype.lower()
         if dtype == "int32":
@@ -58,7 +82,7 @@ class Glue:
             return "boolean"
         elif dtype == "object":
             return "string"
-        elif dtype[:10] == "datetime64":
+        elif dtype.startswith("datetime64"):
             return "timestamp"
         else:
             raise UnsupportedType(f"Unsupported Pandas type: {dtype}")
@@ -114,8 +138,7 @@ class Glue:
         schema, partition_cols_schema = Glue._build_schema(
             dataframe=dataframe,
             partition_cols=partition_cols,
-            preserve_index=preserve_index,
-            cast_columns=cast_columns)
+            preserve_index=preserve_index)
         table = table if table else Glue._parse_table_name(path)
         table = table.lower().replace(".", "_")
         if mode == "overwrite":
@@ -132,7 +155,6 @@ class Glue:
         if partition_cols:
             partitions_tuples = Glue._parse_partitions_tuples(
                 objects_paths=objects_paths, partition_cols=partition_cols)
-            print(partitions_tuples)
             self.add_partitions(
                 database=database,
                 table=table,
@@ -190,9 +212,6 @@ class Glue:
         for _ in range(pages_num):
             page = partitions[:100]
             del partitions[:100]
-            print(database)
-            print(table)
-            print(page)
             self._client_glue.batch_create_partition(DatabaseName=database,
                                                      TableName=table,
                                                      PartitionInputList=page)
@@ -202,36 +221,43 @@ class Glue:
             Name=name, HidePassword=False)["Connection"]
 
     @staticmethod
-    def _build_schema(dataframe,
-                      partition_cols,
-                      preserve_index,
-                      cast_columns=None):
+    def _extract_pyarrow_schema(dataframe, preserve_index):
+        cols = []
+        schema = []
+        for name, dtype in dataframe.dtypes.to_dict().items():
+            dtype = str(dtype)
+            if str(dtype) == "Int64":
+                schema.append((name, "int64"))
+            else:
+                cols.append(name)
+
+        # Convert pyarrow.Schema to list of tuples (e.g. [(name1, type1), (name2, type2)...])
+        schema += [(str(x.name), str(x.type))
+                   for x in pyarrow.Schema.from_pandas(
+                       df=dataframe[cols], preserve_index=preserve_index)]
+        logger.debug(f"schema: {schema}")
+        return schema
+
+    @staticmethod
+    def _build_schema(dataframe, partition_cols, preserve_index):
         logger.debug(f"dataframe.dtypes:\n{dataframe.dtypes}")
         if not partition_cols:
             partition_cols = []
+
+        pyarrow_schema = Glue._extract_pyarrow_schema(
+            dataframe=dataframe, preserve_index=preserve_index)
+
         schema_built = []
-        partition_cols_schema_built = []
-        if preserve_index:
-            name = str(
-                dataframe.index.name) if dataframe.index.name else "index"
-            dataframe.index.name = "index"
-            dtype = str(dataframe.index.dtype)
-            athena_type = Glue.type_pandas2athena(dtype)
-            if name not in partition_cols:
+        partition_cols_types = {}
+        for name, dtype in pyarrow_schema:
+            athena_type = Glue.type_pyarrow2athena(dtype)
+            if name in partition_cols:
+                partition_cols_types[name] = athena_type
+            else:
                 schema_built.append((name, athena_type))
-            else:
-                partition_cols_schema_built.append((name, athena_type))
-        for col in dataframe.columns:
-            name = str(col)
-            if cast_columns and name in cast_columns:
-                dtype = cast_columns[name]
-            else:
-                dtype = str(dataframe[name].dtype)
-            athena_type = Glue.type_pandas2athena(dtype)
-            if name not in partition_cols:
-                schema_built.append((name, athena_type))
-            else:
-                partition_cols_schema_built.append((name, athena_type))
+
+        partition_cols_schema_built = [(name, partition_cols_types[name]) for name in partition_cols]
+
         logger.debug(f"schema_built:\n{schema_built}")
         logger.debug(
             f"partition_cols_schema_built:\n{partition_cols_schema_built}")
