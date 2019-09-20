@@ -203,17 +203,19 @@ class Glue:
                                        TableInput=table_input)
 
     def add_partitions(self, database, table, partition_paths, file_format,
-                       extra_args):
+                       compression, extra_args):
         if not partition_paths:
             return None
         partitions = list()
         for partition in partition_paths:
             if file_format == "parquet":
                 partition_def = Glue.parquet_partition_definition(
-                    partition=partition)
+                    partition=partition, compression=compression)
             elif file_format == "csv":
                 partition_def = Glue.csv_partition_definition(
-                    partition=partition, extra_args=extra_args)
+                    partition=partition,
+                    compression=compression,
+                    extra_args=extra_args)
             else:
                 raise UnsupportedFileFormat(file_format)
             partitions.append(partition_def)
@@ -225,8 +227,12 @@ class Glue:
                 DatabaseName=database,
                 TableName=table,
                 PartitionInputList=page)
-            if len(res["Errors"]) > 0:
-                raise ApiError(f"{res['Errors'][0]}")
+            for error in res["Errors"]:
+                if "ErrorDetail" in error:
+                    if "ErrorCode" in error["ErrorDetail"]:
+                        if error["ErrorDetail"][
+                                "ErrorCode"] != "AlreadyExistsException":
+                            raise ApiError(f"{error}")
 
     def get_connection_details(self, name):
         return self._client_glue.get_connection(
@@ -355,7 +361,7 @@ class Glue:
                 "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
                 "OutputFormat":
                 "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
-                "Compressed": True,
+                "Compressed": compressed,
                 "NumberOfBuckets": -1,
                 "SerdeInfo": {
                     "Parameters": param,
@@ -375,7 +381,8 @@ class Glue:
         }
 
     @staticmethod
-    def csv_partition_definition(partition, extra_args):
+    def csv_partition_definition(partition, compression, extra_args):
+        compressed = False if compression is None else True
         sep = extra_args["sep"] if "sep" in extra_args else ","
         serde = extra_args.get("serde")
         if serde == "OpenCSVSerDe":
@@ -394,6 +401,7 @@ class Glue:
             "StorageDescriptor": {
                 "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
                 "Location": partition[0],
+                "Compressed": compressed,
                 "SerdeInfo": {
                     "Parameters": param,
                     "SerializationLibrary": serde_fullname,
@@ -454,11 +462,13 @@ class Glue:
         }
 
     @staticmethod
-    def parquet_partition_definition(partition):
+    def parquet_partition_definition(partition, compression):
+        compressed = False if compression is None else True
         return {
             "StorageDescriptor": {
                 "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
                 "Location": partition[0],
+                "Compressed": compressed,
                 "SerdeInfo": {
                     "Parameters": {
                         "serialization.format": "1"

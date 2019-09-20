@@ -433,10 +433,22 @@ class Pandas:
                                 parse_dates=parse_timestamps,
                                 quoting=csv.QUOTE_ALL,
                                 max_result_size=max_result_size)
-            if len(ret.index) > 0:
+            if max_result_size is None:
+                if len(ret.index) > 0:
+                    for col in parse_dates:
+                        ret[col] = ret[col].dt.date
+                return ret
+            else:
+                return Pandas._apply_dates_to_generator(
+                    generator=ret, parse_dates=parse_dates)
+
+    @staticmethod
+    def _apply_dates_to_generator(generator, parse_dates):
+        for df in generator:
+            if len(df.index) > 0:
                 for col in parse_dates:
-                    ret[col] = ret[col].dt.date
-        return ret
+                    df[col] = df[col].dt.date
+            yield df
 
     def to_csv(
             self,

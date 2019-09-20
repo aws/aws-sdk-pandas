@@ -241,8 +241,6 @@ def test_to_s3(
             list(dataframe2.columns))
     else:
         assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
-    assert dataframe[dataframe["id"] == 0].iloc[0]["name"] == dataframe2[
-        dataframe2["id"] == 0].iloc[0]["name"]
 
 
 def test_to_parquet_with_cast(
@@ -594,8 +592,6 @@ def test_to_csv_with_sep(
         sleep(2)
     assert len(dataframe.index) == len(dataframe2.index)
     assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
-    assert dataframe[dataframe["id"] == 0].iloc[0]["name"] == dataframe2[
-        dataframe2["id"] == 0].iloc[0]["name"]
 
 
 def test_to_csv_serde_exception(
