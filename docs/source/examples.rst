@@ -139,6 +139,24 @@ Loading Pyspark Dataframe to Redshift
         mode="append",
     )
 
+Register Glue table from Dataframe stored on S3
+```````````````````````````````````````````````
+
+.. code-block:: python
+
+    dataframe.write \
+            .mode("overwrite") \
+            .format("parquet") \
+            .partitionBy(["year", "month"]) \
+            .save(compression="gzip", path="s3://...")
+    session = awswrangler.Session(spark_session=spark)
+    session.spark.create_glue_table(dataframe=dataframe,
+                                    file_format="parquet",
+                                    partition_by=["year", "month"],
+                                    path="s3://...",
+                                    compression="gzip",
+                                    database="my_database")
+
 General
 -------
 
@@ -160,3 +178,11 @@ Get CloudWatch Logs Insights query results
         log_group_names=[LOG_GROUP_NAME],
         query="fields @timestamp, @message | sort @timestamp desc | limit 5",
     )
+
+Load partitions on Athena/Glue table (repair table)
+```````````````````````````````````````````````````
+
+.. code-block:: python
+
+    session = awswrangler.Session()
+    session.athena.repair_table(database="db_name", table="tbl_name")

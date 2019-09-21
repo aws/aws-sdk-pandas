@@ -6,7 +6,7 @@ from pyspark.sql.functions import pandas_udf, PandasUDFType
 from pyspark.sql.functions import floor, rand
 from pyspark.sql.types import TimestampType
 
-from awswrangler.exceptions import MissingBatchDetected
+from awswrangler.exceptions import MissingBatchDetected, UnsupportedFileFormat
 
 logger = logging.getLogger(__name__)
 
@@ -142,3 +142,70 @@ class Spark:
         )
         dataframe.unpersist()
         self._session.s3.delete_objects(path=path)
+
+    def create_glue_table(self,
+                          database,
+                          path,
+                          dataframe,
+                          file_format,
+                          compression,
+                          table=None,
+                          serde=None,
+                          sep=",",
+                          partition_by=None,
+                          load_partitions=True,
+                          replace_if_exists=True):
+        """
+        Create a Glue metadata table pointing for some dataset stored on AWS S3.
+
+        :param dataframe: PySpark Dataframe
+        :param file_format: File format (E.g. "parquet", "csv")
+        :param partition_by: Columns used for partitioning
+        :param path: AWS S3 path
+        :param compression: Compression (e.g. gzip, snappy, lzo, etc)
+        :param sep: Separator token for CSV formats (e.g. ",", ";", "|")
+        :param serde: Serializer/Deserializer (e.g. "OpenCSVSerDe", "LazySimpleSerDe")
+        :param database: Glue database name
+        :param table: Glue table name. If not passed, extracted from the path
+        :param load_partitions: Load partitions after the table creation
+        :param replace_if_exists: Drop table and recreates that if already exists
+        :return: None
+        """
+        file_format = file_format.lower()
+        if file_format not in ["parquet", "csv"]:
+            raise UnsupportedFileFormat(file_format)
+        table = table if table else self._session.glue.parse_table_name(path)
+        table = table.lower().replace(".", "_")
+        logger.debug(f"table: {table}")
+        full_schema = dataframe.dtypes
+        if partition_by is None:
+            partition_by = []
+        schema = [x for x in full_schema if x[0] not in partition_by]
+        partitions_schema_tmp = {
+            x[0]: x[1]
+            for x in full_schema if x[0] in partition_by
+        }
+        partitions_schema = [(x, partitions_schema_tmp[x])
+                             for x in partition_by]
+        logger.debug(f"schema: {schema}")
+        logger.debug(f"partitions_schema: {partitions_schema}")
+        if replace_if_exists is not None:
+            self._session.glue.delete_table_if_exists(database=database,
+                                                      table=table)
+        extra_args = {}
+        if file_format == "csv":
+            extra_args["sep"] = sep
+            if serde is None:
+                serde = "OpenCSVSerDe"
+            extra_args["serde"] = serde
+        self._session.glue.create_table(
+            database=database,
+            table=table,
+            schema=schema,
+            partition_cols_schema=partitions_schema,
+            path=path,
+            file_format=file_format,
+            compression=compression,
+            extra_args=extra_args)
+        if load_partitions:
+            self._session.athena.repair_table(database=database, table=table)

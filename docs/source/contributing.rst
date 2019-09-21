@@ -24,13 +24,13 @@ Step-by-step
 
 * Fork the AWS Data Wrangler repository and clone that into your development environment
 
-* Go to the project's directory create a Python's virtual environment for the project (**python -m venv venv && source source venv/bin/activate**)
+* Go to the project's directory create a Python's virtual environment for the project (**python -m venv venv && source venv/bin/activate**)
 
 * Run **./install-dev.sh**
 
 * Go to the *testing* directory
 
-* Configure the parameters.json file with your AWS environment infos (Make sure that your Redshift will not be open for the World!)
+* Configure the parameters.json file with your AWS environment infos (Make sure that your Redshift will not be open for the World! Configure your security group to only give access for your IP.)
 
 * Deploy the Cloudformation stack **./deploy-cloudformation.sh**
 

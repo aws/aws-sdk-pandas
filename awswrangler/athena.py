@@ -118,3 +118,25 @@ class Athena:
             raise QueryCancelled(
                 response["QueryExecution"]["Status"].get("StateChangeReason"))
         return response
+
+    def repair_table(self, database, table, s3_output=None):
+        """
+        Hive's metastore consistency check
+        "MSCK REPAIR TABLE table;"
+        Recovers partitions and data associated with partitions.
+        Use this statement when you add partitions to the catalog.
+        It is possible it will take some time to add all partitions.
+        If this operation times out, it will be in an incomplete state
+        where only a few partitions are added to the catalog.
+
+        :param database: Glue database name
+        :param table: Glue table name
+        :param s3_output: AWS S3 path
+        :return: Query execution ID
+        """
+        query = f"MSCK REPAIR TABLE {table};"
+        query_id = self.run_query(query=query,
+                                  database=database,
+                                  s3_output=s3_output)
+        self.wait_query(query_execution_id=query_id)
+        return query_id
