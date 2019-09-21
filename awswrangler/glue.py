@@ -141,7 +141,7 @@ class Glue:
             partition_cols=partition_cols,
             preserve_index=preserve_index,
             cast_columns=cast_columns)
-        table = table if table else Glue._parse_table_name(path)
+        table = table if table else Glue.parse_table_name(path)
         table = table.lower().replace(".", "_")
         if mode == "overwrite":
             self.delete_table_if_exists(database=database, table=table)
@@ -301,7 +301,7 @@ class Glue:
         return schema_built, partition_cols_schema_built
 
     @staticmethod
-    def _parse_table_name(path):
+    def parse_table_name(path):
         if path[-1] == "/":
             path = path[:-1]
         return path.rpartition("/")[2]

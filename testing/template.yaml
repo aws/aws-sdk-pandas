@@ -131,6 +131,7 @@ Resources:
     Properties:
       CatalogId: !Ref AWS::AccountId
       DatabaseInput:
+        Name: awswrangler_test
         Description: AWS Data Wrangler Test Arena - Glue Database
 
   LogGroup:

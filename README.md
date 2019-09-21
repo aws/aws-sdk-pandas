@@ -22,11 +22,12 @@
 * Pandas -> Redshift (Parallel)
 * CSV (S3) -> Pandas (One shot or Batching)
 * Athena -> Pandas (One shot or Batching)
-* CloudWatch Logs Insights -> Pandas (NEW :star:)
-* Encrypt Pandas Dataframes on S3 with KMS keys (NEW :star:)
+* CloudWatch Logs Insights -> Pandas
+* Encrypt Pandas Dataframes on S3 with KMS keys
 
 ### PySpark
-* PySpark -> Redshift (Parallel) (NEW :star:)
+* PySpark -> Redshift (Parallel)
+* Register Glue table from Dataframe stored on S3 (NEW :star:)
 
 ### General
 * List S3 objects (Parallel)
@@ -35,7 +36,8 @@
 * Delete NOT listed S3 objects (Parallel)
 * Copy listed S3 objects (Parallel)
 * Get the size of S3 objects (Parallel)
-* Get CloudWatch Logs Insights query results (NEW :star:)
+* Get CloudWatch Logs Insights query results
+* Load partitions on Athena/Glue table (repair table) (NEW :star:)
 
 ## Installation
 
@@ -166,6 +168,23 @@ session.spark.to_redshift(
 )
 ```
 
+#### Register Glue table from Dataframe stored on S3
+
+```py3
+dataframe.write \
+        .mode("overwrite") \
+        .format("parquet") \
+        .partitionBy(["year", "month"]) \
+        .save(compression="gzip", path="s3://...")
+session = awswrangler.Session(spark_session=spark)
+session.spark.create_glue_table(dataframe=dataframe,
+                                file_format="parquet",
+                                partition_by=["year", "month"],
+                                path="s3://...",
+                                compression="gzip",
+                                database="my_database")
+```
+
 ### General
 
 #### Deleting a bunch of S3 objects (parallel :rocket:)
@@ -183,6 +202,13 @@ results = session.cloudwatchlogs.query(
     log_group_names=[LOG_GROUP_NAME],
     query="fields @timestamp, @message | sort @timestamp desc | limit 5",
 )
+```
+
+#### Load partitions on Athena/Glue table (repair table)
+
+```py3
+session = awswrangler.Session()
+session.athena.repair_table(database="db_name", table="tbl_name")
 ```
 
 ## Diving Deep
@@ -217,13 +243,13 @@ results = session.cloudwatchlogs.query(
 
 * Fork the AWS Data Wrangler repository and clone that into your development environment
 
-* Go to the project's directory create a Python's virtual environment for the project (**python -m venv venv && source source venv/bin/activate**)
+* Go to the project's directory create a Python's virtual environment for the project (**python -m venv venv && source venv/bin/activate**)
 
 * Run **./install-dev.sh**
 
 * Go to the *testing* directory
 
-* Configure the parameters.json file with your AWS environment infos (Make sure that your Redshift will not be open for the World!)
+* Configure the parameters.json file with your AWS environment infos (Make sure that your Redshift will not be open for the World! Configure your security group to only give access for your IP.)
 
 * Deploy the Cloudformation stack **./deploy-cloudformation.sh**
 

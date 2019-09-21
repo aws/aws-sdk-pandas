@@ -576,12 +576,15 @@ class Pandas:
         """
         if compression is not None:
             compression = compression.lower()
+        file_format = file_format.lower()
+        if file_format not in ["parquet", "csv"]:
+            raise UnsupportedFileFormat(file_format)
         if file_format == "csv":
             if compression not in Pandas.VALID_CSV_COMPRESSIONS:
                 raise InvalidCompression(
                     f"{compression} isn't a valid CSV compression. Try: {Pandas.VALID_CSV_COMPRESSIONS}"
                 )
-        if file_format == "parquet":
+        elif file_format == "parquet":
             if compression not in Pandas.VALID_PARQUET_COMPRESSIONS:
                 raise InvalidCompression(
                     f"{compression} isn't a valid PARQUET compression. Try: {Pandas.VALID_PARQUET_COMPRESSIONS}"
@@ -641,9 +644,6 @@ class Pandas:
         logger.debug(f"procs_io_bound: {procs_io_bound}")
         if path[-1] == "/":
             path = path[:-1]
-        file_format = file_format.lower()
-        if file_format not in ["parquet", "csv"]:
-            raise UnsupportedFileFormat(file_format)
         objects_paths = []
         if procs_cpu_bound > 1:
             bounders = _get_bounders(dataframe=dataframe,
