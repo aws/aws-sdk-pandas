@@ -2,8 +2,7 @@ import logging
 
 import pandas
 
-from pyspark.sql.functions import pandas_udf, PandasUDFType
-from pyspark.sql.functions import floor, rand
+from pyspark.sql.functions import pandas_udf, PandasUDFType, spark_partition_id
 from pyspark.sql.types import TimestampType
 
 from awswrangler.exceptions import MissingBatchDetected, UnsupportedFileFormat
@@ -99,7 +98,7 @@ class Spark:
         @pandas_udf(returnType="objects_paths string",
                     functionType=PandasUDFType.GROUPED_MAP)
         def write(pandas_dataframe):
-            del pandas_dataframe["partition_index"]
+            del pandas_dataframe["aws_data_wrangler_internal_partition_id"]
             paths = session_primitives.session.pandas.to_parquet(
                 dataframe=pandas_dataframe,
                 path=path,
@@ -109,10 +108,13 @@ class Spark:
                 cast_columns=casts)
             return pandas.DataFrame.from_dict({"objects_paths": paths})
 
-        df_objects_paths = (dataframe.withColumn(
-            "partition_index", floor(rand() * num_partitions)).repartition(
-                "partition_index").groupby("partition_index").apply(write))
+        df_objects_paths = dataframe.repartition(numPartitions=num_partitions) \
+            .withColumn("aws_data_wrangler_internal_partition_id", spark_partition_id()) \
+            .groupby("aws_data_wrangler_internal_partition_id") \
+            .apply(write)
+
         objects_paths = list(df_objects_paths.toPandas()["objects_paths"])
+        dataframe.unpersist()
         num_files_returned = len(objects_paths)
         if num_files_returned != num_partitions:
             raise MissingBatchDetected(
@@ -140,7 +142,6 @@ class Spark:
             sortkey=sortkey,
             mode=mode,
         )
-        dataframe.unpersist()
         self._session.s3.delete_objects(path=path)
 
     def create_glue_table(self,
