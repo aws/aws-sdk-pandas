@@ -47,23 +47,25 @@ class Glue:
 
     @staticmethod
     def type_pyarrow2athena(dtype):
-        dtype = str(dtype).lower()
-        if dtype == "int32":
+        dtype_str = str(dtype).lower()
+        if dtype_str == "int32":
             return "int"
-        elif dtype == "int64":
+        elif dtype_str == "int64":
             return "bigint"
-        elif dtype == "float":
+        elif dtype_str == "float":
             return "float"
-        elif dtype == "double":
+        elif dtype_str == "double":
             return "double"
-        elif dtype == "bool":
+        elif dtype_str == "bool":
             return "boolean"
-        elif dtype == "string":
+        elif dtype_str == "string":
             return "string"
-        elif dtype.startswith("timestamp"):
+        elif dtype_str.startswith("timestamp"):
             return "timestamp"
-        elif dtype.startswith("date"):
+        elif dtype_str.startswith("date"):
             return "date"
+        elif dtype_str.startswith("list"):
+            return f"array<{Glue.type_pyarrow2athena(dtype.value_type)}>"
         else:
             raise UnsupportedType(f"Unsupported Pyarrow type: {dtype}")
 
@@ -260,7 +262,7 @@ class Glue:
         for field in pyarrow.Schema.from_pandas(df=dataframe[cols],
                                                 preserve_index=preserve_index):
             name = str(field.name)
-            dtype = str(field.type)
+            dtype = field.type
             cols_dtypes[name] = dtype
             if name not in dataframe.columns:
                 schema.append((name, dtype))

@@ -630,3 +630,37 @@ def test_to_parquet_compressed(session, bucket, database, compression):
     assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
     assert dataframe[dataframe["id"] == 1].iloc[0]["name"] == dataframe2[
         dataframe2["id"] == 1].iloc[0]["name"]
+
+
+def test_to_parquet_lists(session, bucket, database):
+    dataframe = pandas.DataFrame({
+        "id": [0, 1],
+        "col_int": [[1, 2], [3, 4, 5]],
+        "col_float": [[1.0, 2.0, 3.0], [4.0, 5.0]],
+        "col_string": [["foo"], ["boo", "bar"]],
+        "col_timestamp": [[datetime(2019, 1, 1),
+                           datetime(2019, 1, 2)], [datetime(2019, 1, 3)]],
+        "col_date": [[date(2019, 1, 1), date(2019, 1, 2)], [date(2019, 1, 3)]],
+        "col_list_int": [[[1]], [[2, 3], [4, 5, 6]]],
+        "col_list_list_string": [[[["foo"]]], [[["boo", "bar"]]]],
+    })
+    paths = session.pandas.to_parquet(dataframe=dataframe,
+                                      database=database,
+                                      path=f"s3://{bucket}/test/",
+                                      preserve_index=False,
+                                      mode="overwrite",
+                                      procs_cpu_bound=1)
+    assert len(paths) == 1
+    dataframe2 = None
+    for counter in range(10):
+        dataframe2 = session.pandas.read_sql_athena(
+            sql="select id, col_int, col_float, col_list_int from test",
+            database=database)
+        if len(dataframe.index) == len(dataframe2.index):
+            break
+        sleep(2)
+    assert len(dataframe.index) == len(dataframe2.index)
+    assert 4 == len(list(dataframe2.columns))
+    val = dataframe[dataframe["id"] == 0].iloc[0]["col_list_int"]
+    val2 = dataframe2[dataframe2["id"] == 0].iloc[0]["col_list_int"]
+    assert val == val2
