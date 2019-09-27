@@ -14,7 +14,7 @@ from awswrangler.exceptions import UnsupportedWriteMode, UnsupportedFileFormat,\
     AthenaQueryError, EmptyS3Object, LineTerminatorNotFound, EmptyDataframe, \
     InvalidSerDe, InvalidCompression
 from awswrangler.utils import calculate_bounders
-from awswrangler import s3
+from awswrangler import s3, glue
 
 logger = logging.getLogger(__name__)
 
@@ -859,7 +859,7 @@ class Pandas:
             if str(dtype) == "Int64":
                 dataframe[name] = dataframe[name].astype("float64")
                 casted_in_pandas.append(name)
-                cast_columns[name] = "int64"
+                cast_columns[name] = "bigint"
                 logger.debug(f"Casting column {name} Int64 to float64")
         table = pyarrow.Table.from_pandas(df=dataframe,
                                           preserve_index=preserve_index,
@@ -867,10 +867,13 @@ class Pandas:
         if cast_columns:
             for col_name, dtype in cast_columns.items():
                 col_index = table.column_names.index(col_name)
-                table = table.set_column(col_index,
-                                         table.column(col_name).cast(dtype))
+                pyarrow_dtype = glue.Glue.type_athena2pyarrow(dtype)
+                table = table.set_column(
+                    col_index,
+                    table.column(col_name).cast(pyarrow_dtype))
                 logger.debug(
-                    f"Casting column {col_name} ({col_index}) to {dtype}")
+                    f"Casting column {col_name} ({col_index}) to {dtype} ({pyarrow_dtype})"
+                )
         with fs.open(path, "wb") as f:
             parquet.write_table(table,
                                 f,

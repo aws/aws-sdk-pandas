@@ -46,6 +46,32 @@ class Glue:
         return {k: Glue.type_athena2python(v) for k, v in dtypes.items()}
 
     @staticmethod
+    def type_athena2pyarrow(dtype):
+        dtype = dtype.lower()
+        if dtype == "tinyint":
+            return "int8"
+        if dtype == "smallint":
+            return "int16"
+        elif dtype in ["int", "integer"]:
+            return "int32"
+        elif dtype == "bigint":
+            return "int64"
+        elif dtype == "float":
+            return "float32"
+        elif dtype == "double":
+            return "float64"
+        elif dtype in ["boolean", "bool"]:
+            return "bool"
+        elif dtype in ["string", "char", "varchar", "array", "row", "map"]:
+            return "string"
+        elif dtype == "timestamp":
+            return "timestamp[ns]"
+        elif dtype == "date":
+            return "date32"
+        else:
+            raise UnsupportedType(f"Unsupported Athena type: {dtype}")
+
+    @staticmethod
     def type_pyarrow2athena(dtype):
         dtype_str = str(dtype).lower()
         if dtype_str == "int32":
@@ -241,21 +267,15 @@ class Glue:
             Name=name, HidePassword=False)["Connection"]
 
     @staticmethod
-    def _extract_pyarrow_schema(dataframe, preserve_index, cast_columns=None):
+    def _extract_pyarrow_schema(dataframe, preserve_index):
         cols = []
         cols_dtypes = {}
         schema = []
-
-        casted = []
-        if cast_columns is not None:
-            casted = cast_columns.keys()
 
         for name, dtype in dataframe.dtypes.to_dict().items():
             dtype = str(dtype)
             if dtype == "Int64":
                 cols_dtypes[name] = "int64"
-            elif name in casted:
-                cols_dtypes[name] = cast_columns[name]
             else:
                 cols.append(name)
 
@@ -281,18 +301,22 @@ class Glue:
             partition_cols = []
 
         pyarrow_schema = Glue._extract_pyarrow_schema(
-            dataframe=dataframe,
-            preserve_index=preserve_index,
-            cast_columns=cast_columns)
+            dataframe=dataframe, preserve_index=preserve_index)
 
         schema_built = []
         partition_cols_types = {}
         for name, dtype in pyarrow_schema:
-            athena_type = Glue.type_pyarrow2athena(dtype)
-            if name in partition_cols:
-                partition_cols_types[name] = athena_type
+            if (cast_columns is not None) and (name in cast_columns.keys()):
+                if name in partition_cols:
+                    partition_cols_types[name] = cast_columns[name]
+                else:
+                    schema_built.append((name, cast_columns[name]))
             else:
-                schema_built.append((name, athena_type))
+                athena_type = Glue.type_pyarrow2athena(dtype)
+                if name in partition_cols:
+                    partition_cols_types[name] = athena_type
+                else:
+                    schema_built.append((name, athena_type))
 
         partition_cols_schema_built = [(name, partition_cols_types[name])
                                        for name in partition_cols]

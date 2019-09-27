@@ -99,7 +99,7 @@ def logstream(cloudformation_outputs, loggroup):
     if token:
         args["sequenceToken"] = token
     client.put_log_events(**args)
-    sleep(180)
+    sleep(300)
     yield logstream
 
 
@@ -243,7 +243,7 @@ def test_to_s3(
         assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
 
 
-def test_to_parquet_with_cast(
+def test_to_parquet_with_cast_int(
         session,
         bucket,
         database,
@@ -251,14 +251,13 @@ def test_to_parquet_with_cast(
     dataframe = pandas.read_csv("data_samples/nano.csv",
                                 dtype={"id": "Int64"},
                                 parse_dates=["date", "time"])
-    print(dataframe.dtypes)
     session.pandas.to_parquet(dataframe=dataframe,
                               database=database,
                               path=f"s3://{bucket}/test/",
                               preserve_index=False,
                               mode="overwrite",
                               procs_cpu_bound=1,
-                              cast_columns={"value": "int64"})
+                              cast_columns={"value": "int"})
     dataframe2 = None
     for counter in range(10):
         dataframe2 = session.pandas.read_sql_athena(sql="select * from test",
@@ -664,3 +663,82 @@ def test_to_parquet_lists(session, bucket, database):
     val = dataframe[dataframe["id"] == 0].iloc[0]["col_list_int"]
     val2 = dataframe2[dataframe2["id"] == 0].iloc[0]["col_list_int"]
     assert val == val2
+
+
+def test_to_parquet_cast(session, bucket, database):
+    dataframe = pandas.DataFrame({
+        "id": [0, 1],
+        "col_int": [[1, 2], [3, 4, 5]],
+        "col_float": [[1.0, 2.0, 3.0], [4.0, 5.0]],
+        "col_string": [["foo"], ["boo", "bar"]],
+        "col_timestamp": [[datetime(2019, 1, 1),
+                           datetime(2019, 1, 2)], [datetime(2019, 1, 3)]],
+        "col_date": [[date(2019, 1, 1), date(2019, 1, 2)], [date(2019, 1, 3)]],
+        "col_list_int": [[[1]], [[2, 3], [4, 5, 6]]],
+        "col_list_list_string": [[[["foo"]]], [[["boo", "bar"]]]],
+    })
+    paths = session.pandas.to_parquet(dataframe=dataframe,
+                                      database=database,
+                                      path=f"s3://{bucket}/test/",
+                                      preserve_index=False,
+                                      mode="overwrite",
+                                      procs_cpu_bound=1)
+    assert len(paths) == 1
+    dataframe2 = None
+    for counter in range(10):
+        dataframe2 = session.pandas.read_sql_athena(
+            sql="select id, col_int, col_float, col_list_int from test",
+            database=database)
+        if len(dataframe.index) == len(dataframe2.index):
+            break
+        sleep(2)
+    assert len(dataframe.index) == len(dataframe2.index)
+    assert 4 == len(list(dataframe2.columns))
+    val = dataframe[dataframe["id"] == 0].iloc[0]["col_list_int"]
+    val2 = dataframe2[dataframe2["id"] == 0].iloc[0]["col_list_int"]
+    assert val == val2
+
+
+def test_to_parquet_with_cast_null(
+        session,
+        bucket,
+        database,
+):
+    dataframe = pandas.DataFrame({
+        "id": [0, 1],
+        "col_null_tinyint": [None, None],
+        "col_null_smallint": [None, None],
+        "col_null_int": [None, None],
+        "col_null_bigint": [None, None],
+        "col_null_float": [None, None],
+        "col_null_double": [None, None],
+        "col_null_string": [None, None],
+        "col_null_date": [None, None],
+        "col_null_timestamp": [None, None],
+    })
+    session.pandas.to_parquet(dataframe=dataframe,
+                              database=database,
+                              path=f"s3://{bucket}/test/",
+                              preserve_index=False,
+                              mode="overwrite",
+                              procs_cpu_bound=1,
+                              cast_columns={
+                                  "col_null_tinyint": "tinyint",
+                                  "col_null_smallint": "smallint",
+                                  "col_null_int": "int",
+                                  "col_null_bigint": "bigint",
+                                  "col_null_float": "float",
+                                  "col_null_double": "double",
+                                  "col_null_string": "string",
+                                  "col_null_date": "date",
+                                  "col_null_timestamp": "timestamp",
+                              })
+    dataframe2 = None
+    for counter in range(10):
+        dataframe2 = session.pandas.read_sql_athena(sql="select * from test",
+                                                    database=database)
+        if len(dataframe.index) == len(dataframe2.index):
+            break
+        sleep(2)
+    assert len(dataframe.index) == len(dataframe2.index)
+    assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
