@@ -1,5 +1,6 @@
 from time import sleep
 import logging
+import ast
 
 from awswrangler.exceptions import UnsupportedType, QueryFailed, QueryCancelled
 
@@ -35,6 +36,8 @@ class Athena:
             return "datetime64"
         elif dtype == "date":
             return "date"
+        elif dtype == "array":
+            return "literal_eval"
         else:
             raise UnsupportedType(f"Unsupported Athena type: {dtype}")
 
@@ -44,18 +47,21 @@ class Athena:
         dtype = {}
         parse_timestamps = []
         parse_dates = []
+        converters = {}
         for col_name, col_type in cols_metadata.items():
             ptype = Athena._type_athena2pandas(dtype=col_type)
             if ptype in ["datetime64", "date"]:
                 parse_timestamps.append(col_name)
                 if ptype == "date":
                     parse_dates.append(col_name)
+            elif ptype == "literal_eval":
+                converters[col_name] = ast.literal_eval
             else:
                 dtype[col_name] = ptype
         logger.debug(f"dtype: {dtype}")
         logger.debug(f"parse_timestamps: {parse_timestamps}")
         logger.debug(f"parse_dates: {parse_dates}")
-        return dtype, parse_timestamps, parse_dates
+        return dtype, parse_timestamps, parse_dates, converters
 
     def create_athena_bucket(self):
         """

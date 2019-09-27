@@ -14,7 +14,7 @@ from awswrangler.exceptions import UnsupportedWriteMode, UnsupportedFileFormat,\
     AthenaQueryError, EmptyS3Object, LineTerminatorNotFound, EmptyDataframe, \
     InvalidSerDe, InvalidCompression
 from awswrangler.utils import calculate_bounders
-from awswrangler import s3
+from awswrangler import s3, glue
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +56,7 @@ class Pandas:
             parse_dates=False,
             infer_datetime_format=False,
             encoding="utf-8",
+            converters=None,
     ):
         """
         Read CSV file from AWS S3 using optimized strategies.
@@ -76,6 +77,7 @@ class Pandas:
         :param parse_dates: Same as pandas.read_csv()
         :param infer_datetime_format: Same as pandas.read_csv()
         :param encoding: Same as pandas.read_csv()
+        :param converters: Same as pandas.read_csv()
         :return: Pandas Dataframe or Iterator of Pandas Dataframes if max_result_size != None
         """
         bucket_name, key_path = self._parse_path(path)
@@ -99,7 +101,8 @@ class Pandas:
                 escapechar=escapechar,
                 parse_dates=parse_dates,
                 infer_datetime_format=infer_datetime_format,
-                encoding=encoding)
+                encoding=encoding,
+                converters=converters)
         else:
             ret = Pandas._read_csv_once(
                 client_s3=client_s3,
@@ -115,7 +118,8 @@ class Pandas:
                 escapechar=escapechar,
                 parse_dates=parse_dates,
                 infer_datetime_format=infer_datetime_format,
-                encoding=encoding)
+                encoding=encoding,
+                converters=converters)
         return ret
 
     @staticmethod
@@ -135,6 +139,7 @@ class Pandas:
             parse_dates=False,
             infer_datetime_format=False,
             encoding="utf-8",
+            converters=None,
     ):
         """
         Read CSV file from AWS S3 using optimized strategies.
@@ -156,6 +161,7 @@ class Pandas:
         :param parse_dates: Same as pandas.read_csv()
         :param infer_datetime_format: Same as pandas.read_csv()
         :param encoding: Same as pandas.read_csv()
+        :param converters: Same as pandas.read_csv()
         :return: Pandas Dataframe
         """
         metadata = s3.S3.head_object_with_retry(client=client_s3,
@@ -181,7 +187,8 @@ class Pandas:
                 escapechar=escapechar,
                 parse_dates=parse_dates,
                 infer_datetime_format=infer_datetime_format,
-                encoding=encoding)
+                encoding=encoding,
+                converters=converters)
         else:
             bounders = calculate_bounders(num_items=total_size,
                                           max_size=max_result_size)
@@ -234,7 +241,7 @@ class Pandas:
                     lineterminator=lineterminator,
                     dtype=dtype,
                     encoding=encoding,
-                )
+                    converters=converters)
                 yield df
                 if count == 1:  # first chunk
                     names = df.columns
@@ -352,6 +359,7 @@ class Pandas:
             parse_dates=False,
             infer_datetime_format=False,
             encoding=None,
+            converters=None,
     ):
         """
         Read CSV file from AWS S3 using optimized strategies.
@@ -372,6 +380,7 @@ class Pandas:
         :param parse_dates: Same as pandas.read_csv()
         :param infer_datetime_format: Same as pandas.read_csv()
         :param encoding: Same as pandas.read_csv()
+        :param converters: Same as pandas.read_csv()
         :return: Pandas Dataframe
         """
         buff = BytesIO()
@@ -392,6 +401,7 @@ class Pandas:
             lineterminator=lineterminator,
             dtype=dtype,
             encoding=encoding,
+            converters=converters,
         )
         buff.close()
         return dataframe
@@ -425,12 +435,13 @@ class Pandas:
             message_error = f"Query error: {reason}"
             raise AthenaQueryError(message_error)
         else:
-            dtype, parse_timestamps, parse_dates = self._session.athena.get_query_dtype(
+            dtype, parse_timestamps, parse_dates, converters = self._session.athena.get_query_dtype(
                 query_execution_id=query_execution_id)
             path = f"{s3_output}{query_execution_id}.csv"
             ret = self.read_csv(path=path,
                                 dtype=dtype,
                                 parse_dates=parse_timestamps,
+                                converters=converters,
                                 quoting=csv.QUOTE_ALL,
                                 max_result_size=max_result_size)
             if max_result_size is None:
@@ -848,7 +859,7 @@ class Pandas:
             if str(dtype) == "Int64":
                 dataframe[name] = dataframe[name].astype("float64")
                 casted_in_pandas.append(name)
-                cast_columns[name] = "int64"
+                cast_columns[name] = "bigint"
                 logger.debug(f"Casting column {name} Int64 to float64")
         table = pyarrow.Table.from_pandas(df=dataframe,
                                           preserve_index=preserve_index,
@@ -856,10 +867,13 @@ class Pandas:
         if cast_columns:
             for col_name, dtype in cast_columns.items():
                 col_index = table.column_names.index(col_name)
-                table = table.set_column(col_index,
-                                         table.column(col_name).cast(dtype))
+                pyarrow_dtype = glue.Glue.type_athena2pyarrow(dtype)
+                table = table.set_column(
+                    col_index,
+                    table.column(col_name).cast(pyarrow_dtype))
                 logger.debug(
-                    f"Casting column {col_name} ({col_index}) to {dtype}")
+                    f"Casting column {col_name} ({col_index}) to {dtype} ({pyarrow_dtype})"
+                )
         with fs.open(path, "wb") as f:
             parquet.write_table(table,
                                 f,
