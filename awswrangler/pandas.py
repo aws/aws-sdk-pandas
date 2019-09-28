@@ -10,11 +10,14 @@ import pandas
 import pyarrow
 from pyarrow import parquet
 
-from awswrangler.exceptions import UnsupportedWriteMode, UnsupportedFileFormat,\
-    AthenaQueryError, EmptyS3Object, LineTerminatorNotFound, EmptyDataframe, \
-    InvalidSerDe, InvalidCompression
+from awswrangler import data_types
+from awswrangler.exceptions import (UnsupportedWriteMode,
+                                    UnsupportedFileFormat, AthenaQueryError,
+                                    EmptyS3Object, LineTerminatorNotFound,
+                                    EmptyDataframe, InvalidSerDe,
+                                    InvalidCompression)
 from awswrangler.utils import calculate_bounders
-from awswrangler import s3, glue
+from awswrangler import s3
 
 logger = logging.getLogger(__name__)
 
@@ -536,7 +539,7 @@ class Pandas:
         :param compression: None, snappy, gzip, lzo
         :param procs_cpu_bound: Number of cores used for CPU bound tasks
         :param procs_io_bound: Number of cores used for I/O bound tasks
-        :param cast_columns: Dictionary of columns names and Arrow types to be casted. (E.g. {"col name": "int64", "col2 name": "int32"})
+        :param cast_columns: Dictionary of columns names and Athena/Glue types to be casted. (E.g. {"col name": "bigint", "col2 name": "int"})
         :return: List of objects written on S3
         """
         return self.to_s3(dataframe=dataframe,
@@ -581,15 +584,13 @@ class Pandas:
         :param compression: None, gzip, snappy, etc
         :param procs_cpu_bound: Number of cores used for CPU bound tasks
         :param procs_io_bound: Number of cores used for I/O bound tasks
-        :param cast_columns: Dictionary of columns indexes and Arrow types to be casted. (E.g. {2: "int64", 5: "int32"}) (Only for "parquet" file_format)
+        :param cast_columns: Dictionary of columns names and Athena/Glue types to be casted. (E.g. {"col name": "bigint", "col2 name": "int"}) (Only for "parquet" file_format)
         :param extra_args: Extra arguments specific for each file formats (E.g. "sep" for CSV)
         :return: List of objects written on S3
         """
         if compression is not None:
             compression = compression.lower()
         file_format = file_format.lower()
-        if file_format not in ["parquet", "csv"]:
-            raise UnsupportedFileFormat(file_format)
         if file_format == "csv":
             if compression not in Pandas.VALID_CSV_COMPRESSIONS:
                 raise InvalidCompression(
@@ -600,12 +601,15 @@ class Pandas:
                 raise InvalidCompression(
                     f"{compression} isn't a valid PARQUET compression. Try: {Pandas.VALID_PARQUET_COMPRESSIONS}"
                 )
+        else:
+            raise UnsupportedFileFormat(file_format)
         if dataframe.empty:
             raise EmptyDataframe()
         if not partition_cols:
             partition_cols = []
-        if mode == "overwrite" or (mode == "overwrite_partitions"
-                                   and not partition_cols):
+        if ((mode == "overwrite")
+                or ((mode == "overwrite_partitions") and  # noqa
+                    (not partition_cols))):
             self._session.s3.delete_objects(path=path)
         elif mode not in ["overwrite_partitions", "append"]:
             raise UnsupportedWriteMode(mode)
@@ -804,8 +808,7 @@ class Pandas:
                                            preserve_index=preserve_index,
                                            compression=compression,
                                            fs=fs,
-                                           cast_columns=cast_columns,
-                                           extra_args=extra_args)
+                                           cast_columns=cast_columns)
         elif file_format == "csv":
             Pandas.write_csv_dataframe(dataframe=dataframe,
                                        path=object_path,
@@ -844,44 +847,43 @@ class Pandas:
             f.write(csv_buffer)
 
     @staticmethod
-    def write_parquet_dataframe(dataframe,
-                                path,
-                                preserve_index,
-                                compression,
-                                fs,
-                                cast_columns,
-                                extra_args=None):
+    def write_parquet_dataframe(dataframe, path, preserve_index, compression,
+                                fs, cast_columns):
         if not cast_columns:
             cast_columns = {}
-        casted_in_pandas = []
+
+        # Casting on Pandas
         dtypes = copy.deepcopy(dataframe.dtypes.to_dict())
         for name, dtype in dtypes.items():
             if str(dtype) == "Int64":
                 dataframe[name] = dataframe[name].astype("float64")
-                casted_in_pandas.append(name)
                 cast_columns[name] = "bigint"
                 logger.debug(f"Casting column {name} Int64 to float64")
+
+        # Converting Pandas Dataframe to Pyarrow's Table
         table = pyarrow.Table.from_pandas(df=dataframe,
                                           preserve_index=preserve_index,
                                           safe=False)
+
+        # Casting on Pyarrow
         if cast_columns:
             for col_name, dtype in cast_columns.items():
                 col_index = table.column_names.index(col_name)
-                pyarrow_dtype = glue.Glue.type_athena2pyarrow(dtype)
+                pyarrow_dtype = data_types.athena2pyarrow(dtype)
                 table = table.set_column(
                     col_index,
                     table.column(col_name).cast(pyarrow_dtype))
                 logger.debug(
                     f"Casting column {col_name} ({col_index}) to {dtype} ({pyarrow_dtype})"
                 )
+
+        # Persisting on S3
         with fs.open(path, "wb") as f:
             parquet.write_table(table,
                                 f,
                                 compression=compression,
                                 coerce_timestamps="ms",
                                 flavor="spark")
-        for col in casted_in_pandas:
-            dataframe[col] = dataframe[col].astype("Int64")
 
     def to_redshift(
             self,
@@ -897,6 +899,7 @@ class Pandas:
             sortkey=None,
             preserve_index=False,
             mode="append",
+            cast_columns=None,
     ):
         """
         Load Pandas Dataframe as a Table on Amazon Redshift
@@ -913,8 +916,15 @@ class Pandas:
         :param sortkey: List of columns to be sorted
         :param preserve_index: Should we preserve the Dataframe index?
         :param mode: append or overwrite
+        :param cast_columns: Dictionary of columns names and Redshift types to be casted. (E.g. {"col name": "SMALLINT", "col2 name": "FLOAT4"})
         :return: None
         """
+        if cast_columns is None:
+            cast_columns = {}
+            cast_columns_parquet = {}
+        else:
+            cast_columns_parquet = data_types.convert_schema(
+                func=data_types.redshift2athena, schema=cast_columns)
         if path[-1] != "/":
             path += "/"
         self._session.s3.delete_objects(path=path)
@@ -928,13 +938,12 @@ class Pandas:
             logger.debug(f"Number of slices on Redshift: {num_slices}")
             num_partitions = num_slices
         logger.debug(f"Number of partitions calculated: {num_partitions}")
-        objects_paths = self.to_parquet(
-            dataframe=dataframe,
-            path=path,
-            preserve_index=preserve_index,
-            mode="append",
-            procs_cpu_bound=num_partitions,
-        )
+        objects_paths = self.to_parquet(dataframe=dataframe,
+                                        path=path,
+                                        preserve_index=preserve_index,
+                                        mode="append",
+                                        procs_cpu_bound=num_partitions,
+                                        cast_columns=cast_columns_parquet)
         manifest_path = f"{path}manifest.json"
         self._session.redshift.write_load_manifest(manifest_path=manifest_path,
                                                    objects_paths=objects_paths)
@@ -945,7 +954,7 @@ class Pandas:
             schema_name=schema,
             table_name=table,
             redshift_conn=connection,
-            preserve_index=False,
+            preserve_index=preserve_index,
             num_files=num_partitions,
             iam_role=iam_role,
             diststyle=diststyle,
@@ -953,6 +962,7 @@ class Pandas:
             sortstyle=sortstyle,
             sortkey=sortkey,
             mode=mode,
+            cast_columns=cast_columns,
         )
         self._session.s3.delete_objects(path=path)
 

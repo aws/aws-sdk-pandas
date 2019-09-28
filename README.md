@@ -187,7 +187,7 @@ session.spark.create_glue_table(dataframe=dataframe,
 
 ### General
 
-#### Deleting a bunch of S3 objects (parallel :rocket:)
+#### Deleting a bunch of S3 objects (parallel)
 
 ```py3
 session = awswrangler.Session()

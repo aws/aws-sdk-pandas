@@ -23,21 +23,22 @@ class Spark:
     @staticmethod
     def _extract_casts(dtypes):
         casts = {}
-        for col, dtype in dtypes:
+        for name, dtype in dtypes:
             if dtype in ["smallint", "int", "bigint"]:
-                casts[col] = "Int64"
-            elif dtype == "object":
-                casts[col] = "str"
+                casts[name] = "bigint"
+            elif dtype == "date":
+                casts[name] = "date"
         logger.debug(f"casts: {casts}")
         return casts
 
     @staticmethod
     def date2timestamp(dataframe):
-        for col, dtype in dataframe.dtypes:
+        for name, dtype in dataframe.dtypes:
             if dtype == "date":
                 dataframe = dataframe.withColumn(
-                    col, dataframe[col].cast(TimestampType()))
-                logger.warning(f"Casting column {col} from date to timestamp!")
+                    name, dataframe[name].cast(TimestampType()))
+                logger.warning(
+                    f"Casting column {name} from date to timestamp!")
         return dataframe
 
     def to_redshift(
@@ -77,6 +78,7 @@ class Spark:
             path += "/"
         self._session.s3.delete_objects(path=path)
         spark = self._session.spark_session
+        casts = Spark._extract_casts(dataframe.dtypes)
         dataframe = Spark.date2timestamp(dataframe)
         dataframe.cache()
         num_rows = dataframe.count()
@@ -93,7 +95,6 @@ class Spark:
         logger.debug(f"Number of partitions calculated: {num_partitions}")
         spark.conf.set("spark.sql.execution.arrow.enabled", "true")
         session_primitives = self._session.primitives
-        casts = Spark._extract_casts(dataframe.dtypes)
 
         @pandas_udf(returnType="objects_paths string",
                     functionType=PandasUDFType.GROUPED_MAP)
@@ -126,22 +127,21 @@ class Spark:
         manifest_path = f"{path}manifest.json"
         self._session.redshift.write_load_manifest(manifest_path=manifest_path,
                                                    objects_paths=objects_paths)
-        self._session.redshift.load_table(
-            dataframe=dataframe,
-            dataframe_type="spark",
-            manifest_path=manifest_path,
-            schema_name=schema,
-            table_name=table,
-            redshift_conn=connection,
-            preserve_index=False,
-            num_files=num_partitions,
-            iam_role=iam_role,
-            diststyle=diststyle,
-            distkey=distkey,
-            sortstyle=sortstyle,
-            sortkey=sortkey,
-            mode=mode,
-        )
+        self._session.redshift.load_table(dataframe=dataframe,
+                                          dataframe_type="spark",
+                                          manifest_path=manifest_path,
+                                          schema_name=schema,
+                                          table_name=table,
+                                          redshift_conn=connection,
+                                          preserve_index=False,
+                                          num_files=num_partitions,
+                                          iam_role=iam_role,
+                                          diststyle=diststyle,
+                                          distkey=distkey,
+                                          sortstyle=sortstyle,
+                                          sortkey=sortkey,
+                                          mode=mode,
+                                          cast_columns=casts)
         self._session.s3.delete_objects(path=path)
 
     def create_glue_table(self,

@@ -1,11 +1,9 @@
 from math import ceil
 import re
 import logging
-from datetime import datetime, date
 
-import pyarrow
-
-from awswrangler.exceptions import UnsupportedType, UnsupportedFileFormat, InvalidSerDe, ApiError
+from awswrangler import data_types
+from awswrangler.exceptions import UnsupportedFileFormat, InvalidSerDe, ApiError
 
 logger = logging.getLogger(__name__)
 
@@ -43,113 +41,7 @@ class Glue:
         :return: A dictionary as {"col name": "col python type"}
         """
         dtypes = self.get_table_athena_types(database=database, table=table)
-        return {k: Glue.type_athena2python(v) for k, v in dtypes.items()}
-
-    @staticmethod
-    def type_athena2pyarrow(dtype):
-        dtype = dtype.lower()
-        if dtype == "tinyint":
-            return "int8"
-        if dtype == "smallint":
-            return "int16"
-        elif dtype in ["int", "integer"]:
-            return "int32"
-        elif dtype == "bigint":
-            return "int64"
-        elif dtype == "float":
-            return "float32"
-        elif dtype == "double":
-            return "float64"
-        elif dtype in ["boolean", "bool"]:
-            return "bool"
-        elif dtype in ["string", "char", "varchar", "array", "row", "map"]:
-            return "string"
-        elif dtype == "timestamp":
-            return "timestamp[ns]"
-        elif dtype == "date":
-            return "date32"
-        else:
-            raise UnsupportedType(f"Unsupported Athena type: {dtype}")
-
-    @staticmethod
-    def type_pyarrow2athena(dtype):
-        dtype_str = str(dtype).lower()
-        if dtype_str == "int32":
-            return "int"
-        elif dtype_str == "int64":
-            return "bigint"
-        elif dtype_str == "float":
-            return "float"
-        elif dtype_str == "double":
-            return "double"
-        elif dtype_str == "bool":
-            return "boolean"
-        elif dtype_str == "string":
-            return "string"
-        elif dtype_str.startswith("timestamp"):
-            return "timestamp"
-        elif dtype_str.startswith("date"):
-            return "date"
-        elif dtype_str.startswith("list"):
-            return f"array<{Glue.type_pyarrow2athena(dtype.value_type)}>"
-        else:
-            raise UnsupportedType(f"Unsupported Pyarrow type: {dtype}")
-
-    @staticmethod
-    def type_pandas2athena(dtype):
-        dtype = dtype.lower()
-        if dtype == "int32":
-            return "int"
-        elif dtype in ["int64", "Int64"]:
-            return "bigint"
-        elif dtype == "float32":
-            return "float"
-        elif dtype == "float64":
-            return "double"
-        elif dtype == "bool":
-            return "boolean"
-        elif dtype == "object":
-            return "string"
-        elif dtype.startswith("datetime64"):
-            return "timestamp"
-        else:
-            raise UnsupportedType(f"Unsupported Pandas type: {dtype}")
-
-    @staticmethod
-    def type_athena2python(dtype):
-        dtype = dtype.lower()
-        if dtype in ["int", "integer", "bigint", "smallint", "tinyint"]:
-            return int
-        elif dtype in ["float", "double", "real"]:
-            return float
-        elif dtype == "boolean":
-            return bool
-        elif dtype in ["string", "char", "varchar", "array", "row", "map"]:
-            return str
-        elif dtype == "timestamp":
-            return datetime
-        elif dtype == "date":
-            return date
-        else:
-            raise UnsupportedType(f"Unsupported Athena type: {dtype}")
-
-    @staticmethod
-    def type_python2athena(python_type):
-        python_type = str(python_type)
-        if python_type == "<class 'int'>":
-            return "bigint"
-        elif python_type == "<class 'float'>":
-            return "double"
-        elif python_type == "<class 'boll'>":
-            return "boolean"
-        elif python_type == "<class 'str'>":
-            return "string"
-        elif python_type == "<class 'datetime.datetime'>":
-            return "timestamp"
-        elif python_type == "<class 'datetime.date'>":
-            return "date"
-        else:
-            raise UnsupportedType(f"Unsupported Python type: {python_type}")
+        return {k: data_types.athena2python(v) for k, v in dtypes.items()}
 
     def metadata_to_glue(self,
                          dataframe,
@@ -164,10 +56,12 @@ class Glue:
                          compression=None,
                          cast_columns=None,
                          extra_args=None):
+        indexes_position = "left" if file_format == "csv" else "right"
         schema, partition_cols_schema = Glue._build_schema(
             dataframe=dataframe,
             partition_cols=partition_cols,
             preserve_index=preserve_index,
+            indexes_position=indexes_position,
             cast_columns=cast_columns)
         table = table if table else Glue.parse_table_name(path)
         table = table.lower().replace(".", "_")
@@ -267,41 +161,21 @@ class Glue:
             Name=name, HidePassword=False)["Connection"]
 
     @staticmethod
-    def _extract_pyarrow_schema(dataframe, preserve_index):
-        cols = []
-        cols_dtypes = {}
-        schema = []
-
-        for name, dtype in dataframe.dtypes.to_dict().items():
-            dtype = str(dtype)
-            if dtype == "Int64":
-                cols_dtypes[name] = "int64"
-            else:
-                cols.append(name)
-
-        for field in pyarrow.Schema.from_pandas(df=dataframe[cols],
-                                                preserve_index=preserve_index):
-            name = str(field.name)
-            dtype = field.type
-            cols_dtypes[name] = dtype
-            if name not in dataframe.columns:
-                schema.append((name, dtype))
-
-        schema += [(name, cols_dtypes[name]) for name in dataframe.columns]
-        logger.debug(f"schema: {schema}")
-        return schema
-
-    @staticmethod
     def _build_schema(dataframe,
                       partition_cols,
                       preserve_index,
-                      cast_columns={}):
+                      indexes_position,
+                      cast_columns=None):
+        if cast_columns is None:
+            cast_columns = {}
         logger.debug(f"dataframe.dtypes:\n{dataframe.dtypes}")
         if not partition_cols:
             partition_cols = []
 
-        pyarrow_schema = Glue._extract_pyarrow_schema(
-            dataframe=dataframe, preserve_index=preserve_index)
+        pyarrow_schema = data_types.extract_pyarrow_schema_from_pandas(
+            dataframe=dataframe,
+            preserve_index=preserve_index,
+            indexes_position=indexes_position)
 
         schema_built = []
         partition_cols_types = {}
@@ -312,7 +186,7 @@ class Glue:
                 else:
                     schema_built.append((name, cast_columns[name]))
             else:
-                athena_type = Glue.type_pyarrow2athena(dtype)
+                athena_type = data_types.pyarrow2athena(dtype)
                 if name in partition_cols:
                     partition_cols_types[name] = athena_type
                 else:

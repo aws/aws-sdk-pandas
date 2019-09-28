@@ -95,6 +95,7 @@ def test_to_redshift_pandas(session, bucket, redshift_parameters, sample_name,
     dataframe = pandas.read_csv(f"data_samples/{sample_name}.csv",
                                 parse_dates=dates,
                                 infer_datetime_format=True)
+    dataframe["date"] = dataframe["date"].dt.date
     con = Redshift.generate_connection(
         database="test",
         host=redshift_parameters.get("RedshiftAddress"),
@@ -115,7 +116,7 @@ def test_to_redshift_pandas(session, bucket, redshift_parameters, sample_name,
         sortstyle=sortstyle,
         sortkey=sortkey,
         mode=mode,
-        preserve_index=False,
+        preserve_index=True,
     )
     cursor = con.cursor()
     cursor.execute("SELECT * from public.test")
@@ -123,7 +124,7 @@ def test_to_redshift_pandas(session, bucket, redshift_parameters, sample_name,
     cursor.close()
     con.close()
     assert len(dataframe.index) * factor == len(rows)
-    assert len(list(dataframe.columns)) == len(list(rows[0]))
+    assert len(list(dataframe.columns)) + 1 == len(list(rows[0]))
 
 
 @pytest.mark.parametrize(
@@ -190,13 +191,13 @@ def test_to_redshift_spark(session, bucket, redshift_parameters, sample_name,
                            sortkey):
     path = f"data_samples/{sample_name}.csv"
     if sample_name == "micro":
-        schema = "id SMALLINT, name STRING, value FLOAT, date TIMESTAMP"
+        schema = "id SMALLINT, name STRING, value FLOAT, date DATE"
         timestamp_format = "yyyy-MM-dd"
     elif sample_name == "small":
         schema = "id BIGINT, name STRING, date DATE"
         timestamp_format = "dd-MM-yy"
     elif sample_name == "nano":
-        schema = "id INTEGER, name STRING, value DOUBLE, date TIMESTAMP, time TIMESTAMP"
+        schema = "id INTEGER, name STRING, value DOUBLE, date DATE, time TIMESTAMP"
         timestamp_format = "yyyy-MM-dd"
     dataframe = session.spark.read_csv(path=path,
                                        schema=schema,
