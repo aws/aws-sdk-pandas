@@ -18,7 +18,7 @@ def athena2pandas(dtype):
         return "bool"
     elif dtype in ["string", "char", "varchar"]:
         return "str"
-    elif dtype == "timestamp":
+    elif dtype in ["timestamp", "timestamp with time zone"]:
         return "datetime64"
     elif dtype == "date":
         return "date"
