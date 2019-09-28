@@ -25,6 +25,7 @@ class Athena:
     def get_query_dtype(self, query_execution_id):
         cols_metadata = self.get_query_columns_metadata(
             query_execution_id=query_execution_id)
+        logger.debug(f"cols_metadata: {cols_metadata}")
         dtype = {}
         parse_timestamps = []
         parse_dates = []

@@ -742,3 +742,14 @@ def test_to_parquet_with_cast_null(
         sleep(2)
     assert len(dataframe.index) == len(dataframe2.index)
     assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
+
+
+def test_read_sql_athena_with_time_zone(session, bucket, database):
+    dataframe = session.pandas.read_sql_athena(
+        sql=
+        "select current_timestamp as value, typeof(current_timestamp) as type",
+        database=database)
+    assert len(dataframe.index) == 1
+    assert len(dataframe.columns) == 2
+    assert dataframe["type"][0] == "timestamp with time zone"
+    assert dataframe["value"][0].year == datetime.utcnow().year
