@@ -8,6 +8,7 @@ Submodules
 
    awswrangler.athena
    awswrangler.cloudwatchlogs
+   awswrangler.data_types
    awswrangler.exceptions
    awswrangler.glue
    awswrangler.pandas

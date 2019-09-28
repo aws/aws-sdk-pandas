@@ -126,6 +126,33 @@ def test_read_csv_iterator(session, bucket, sample, row_num):
     assert total_count == row_num
 
 
+@pytest.mark.parametrize("sample, row_num", [("data_samples/micro.csv", 30),
+                                             ("data_samples/small.csv", 100)])
+def test_read_csv_usecols(session, bucket, sample, row_num):
+    boto3.client("s3").upload_file(sample, bucket, sample)
+    path = f"s3://{bucket}/{sample}"
+    dataframe = session.pandas.read_csv(path=path, usecols=["id", "name"])
+    session.s3.delete_objects(path=path)
+    assert len(dataframe.index) == row_num
+    assert len(dataframe.columns) == 2
+
+
+@pytest.mark.parametrize("sample, row_num", [("data_samples/micro.csv", 30),
+                                             ("data_samples/small.csv", 100)])
+def test_read_csv_iterator_usecols(session, bucket, sample, row_num):
+    boto3.client("s3").upload_file(sample, bucket, sample)
+    path = f"s3://{bucket}/{sample}"
+    dataframe_iter = session.pandas.read_csv(path=path,
+                                             usecols=[0, 1],
+                                             max_result_size=200)
+    total_count = 0
+    for dataframe in dataframe_iter:
+        total_count += len(dataframe.index)
+        assert len(dataframe.columns) == 2
+    session.s3.delete_objects(path=path)
+    assert total_count == row_num
+
+
 @pytest.mark.parametrize(
     "mode, file_format, preserve_index, partition_cols, procs_cpu_bound, factor",
     [
@@ -745,10 +772,8 @@ def test_to_parquet_with_cast_null(
 
 
 def test_read_sql_athena_with_time_zone(session, bucket, database):
-    dataframe = session.pandas.read_sql_athena(
-        sql=
-        "select current_timestamp as value, typeof(current_timestamp) as type",
-        database=database)
+    query = "select current_timestamp as value, typeof(current_timestamp) as type"
+    dataframe = session.pandas.read_sql_athena(sql=query, database=database)
     assert len(dataframe.index) == 1
     assert len(dataframe.columns) == 2
     assert dataframe["type"][0] == "timestamp with time zone"

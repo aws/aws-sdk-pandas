@@ -50,6 +50,7 @@ class Pandas:
             max_result_size=None,
             header="infer",
             names=None,
+            usecols=None,
             dtype=None,
             sep=",",
             lineterminator="\n",
@@ -71,6 +72,7 @@ class Pandas:
         :param max_result_size: Max number of bytes on each request to S3
         :param header: Same as pandas.read_csv()
         :param names: Same as pandas.read_csv()
+        :param usecols: Same as pandas.read_csv()
         :param dtype: Same as pandas.read_csv()
         :param sep: Same as pandas.read_csv()
         :param lineterminator: Same as pandas.read_csv()
@@ -96,6 +98,7 @@ class Pandas:
                 max_result_size=max_result_size,
                 header=header,
                 names=names,
+                usecols=usecols,
                 dtype=dtype,
                 sep=sep,
                 lineterminator=lineterminator,
@@ -113,6 +116,7 @@ class Pandas:
                 key_path=key_path,
                 header=header,
                 names=names,
+                usecols=usecols,
                 dtype=dtype,
                 sep=sep,
                 lineterminator=lineterminator,
@@ -133,6 +137,7 @@ class Pandas:
             max_result_size=200_000_000,  # 200 MB
             header="infer",
             names=None,
+            usecols=None,
             dtype=None,
             sep=",",
             lineterminator="\n",
@@ -155,6 +160,7 @@ class Pandas:
         :param max_result_size: Max number of bytes on each request to S3
         :param header: Same as pandas.read_csv()
         :param names: Same as pandas.read_csv()
+        :param usecols: Same as pandas.read_csv()
         :param dtype: Same as pandas.read_csv()
         :param sep: Same as pandas.read_csv()
         :param lineterminator: Same as pandas.read_csv()
@@ -182,6 +188,7 @@ class Pandas:
                 key_path=key_path,
                 header=header,
                 names=names,
+                usecols=usecols,
                 dtype=dtype,
                 sep=sep,
                 lineterminator=lineterminator,
@@ -235,6 +242,7 @@ class Pandas:
                     StringIO(body[:last_char].decode("utf-8")),
                     header=header,
                     names=names,
+                    usecols=usecols,
                     sep=sep,
                     quotechar=quotechar,
                     quoting=quoting,
@@ -353,6 +361,7 @@ class Pandas:
             key_path,
             header="infer",
             names=None,
+            usecols=None,
             dtype=None,
             sep=",",
             lineterminator="\n",
@@ -374,6 +383,7 @@ class Pandas:
         :param key_path: S3 key path (W/o bucket)
         :param header: Same as pandas.read_csv()
         :param names: Same as pandas.read_csv()
+        :param usecols: Same as pandas.read_csv()
         :param dtype: Same as pandas.read_csv()
         :param sep: Same as pandas.read_csv()
         :param lineterminator: Same as pandas.read_csv()
@@ -395,6 +405,7 @@ class Pandas:
             buff,
             header=header,
             names=names,
+            usecols=usecols,
             sep=sep,
             quotechar=quotechar,
             quoting=quoting,
@@ -714,7 +725,8 @@ class Pandas:
                                    session_primitives,
                                    file_format,
                                    cast_columns=None,
-                                   extra_args=None):
+                                   extra_args=None,
+                                   isolated_dataframe=False):
         objects_paths = []
         if not partition_cols:
             object_path = Pandas._data_to_s3_object_writer(
@@ -725,7 +737,8 @@ class Pandas:
                 session_primitives=session_primitives,
                 file_format=file_format,
                 cast_columns=cast_columns,
-                extra_args=extra_args)
+                extra_args=extra_args,
+                isolated_dataframe=isolated_dataframe)
             objects_paths.append(object_path)
         else:
             for keys, subgroup in dataframe.groupby(partition_cols):
@@ -744,7 +757,8 @@ class Pandas:
                     session_primitives=session_primitives,
                     file_format=file_format,
                     cast_columns=cast_columns,
-                    extra_args=extra_args)
+                    extra_args=extra_args,
+                    isolated_dataframe=True)
                 objects_paths.append(object_path)
         return objects_paths
 
@@ -769,7 +783,8 @@ class Pandas:
                 session_primitives=session_primitives,
                 file_format=file_format,
                 cast_columns=cast_columns,
-                extra_args=extra_args))
+                extra_args=extra_args,
+                isolated_dataframe=True))
         send_pipe.close()
 
     @staticmethod
@@ -780,7 +795,8 @@ class Pandas:
                                   session_primitives,
                                   file_format,
                                   cast_columns=None,
-                                  extra_args=None):
+                                  extra_args=None,
+                                  isolated_dataframe=False):
         fs = s3.get_fs(session_primitives=session_primitives)
         fs = pyarrow.filesystem._ensure_filesystem(fs)
         s3.mkdir_if_not_exists(fs, path)
@@ -803,12 +819,14 @@ class Pandas:
             raise UnsupportedFileFormat(file_format)
         object_path = "/".join([path, outfile])
         if file_format == "parquet":
-            Pandas.write_parquet_dataframe(dataframe=dataframe,
-                                           path=object_path,
-                                           preserve_index=preserve_index,
-                                           compression=compression,
-                                           fs=fs,
-                                           cast_columns=cast_columns)
+            Pandas.write_parquet_dataframe(
+                dataframe=dataframe,
+                path=object_path,
+                preserve_index=preserve_index,
+                compression=compression,
+                fs=fs,
+                cast_columns=cast_columns,
+                isolated_dataframe=isolated_dataframe)
         elif file_format == "csv":
             Pandas.write_csv_dataframe(dataframe=dataframe,
                                        path=object_path,
@@ -848,15 +866,17 @@ class Pandas:
 
     @staticmethod
     def write_parquet_dataframe(dataframe, path, preserve_index, compression,
-                                fs, cast_columns):
+                                fs, cast_columns, isolated_dataframe):
         if not cast_columns:
             cast_columns = {}
 
         # Casting on Pandas
+        casted_in_pandas = []
         dtypes = copy.deepcopy(dataframe.dtypes.to_dict())
         for name, dtype in dtypes.items():
             if str(dtype) == "Int64":
                 dataframe[name] = dataframe[name].astype("float64")
+                casted_in_pandas.append(name)
                 cast_columns[name] = "bigint"
                 logger.debug(f"Casting column {name} Int64 to float64")
 
@@ -884,6 +904,11 @@ class Pandas:
                                 compression=compression,
                                 coerce_timestamps="ms",
                                 flavor="spark")
+
+        # Casting back on Pandas if necessary
+        if isolated_dataframe is False:
+            for col in casted_in_pandas:
+                dataframe[col] = dataframe[col].astype("Int64")
 
     def to_redshift(
             self,
