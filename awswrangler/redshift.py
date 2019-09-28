@@ -3,9 +3,9 @@ import logging
 
 import pg8000
 
+from awswrangler import data_types
 from awswrangler.exceptions import (
     RedshiftLoadError,
-    UnsupportedType,
     InvalidDataframeType,
     InvalidRedshiftDiststyle,
     InvalidRedshiftDistkey,
@@ -152,22 +152,21 @@ class Redshift:
         return count_slices
 
     @staticmethod
-    def load_table(
-            dataframe,
-            dataframe_type,
-            manifest_path,
-            schema_name,
-            table_name,
-            redshift_conn,
-            num_files,
-            iam_role,
-            diststyle="AUTO",
-            distkey=None,
-            sortstyle="COMPOUND",
-            sortkey=None,
-            mode="append",
-            preserve_index=False,
-    ):
+    def load_table(dataframe,
+                   dataframe_type,
+                   manifest_path,
+                   schema_name,
+                   table_name,
+                   redshift_conn,
+                   num_files,
+                   iam_role,
+                   diststyle="AUTO",
+                   distkey=None,
+                   sortstyle="COMPOUND",
+                   sortkey=None,
+                   mode="append",
+                   preserve_index=False,
+                   cast_columns=None):
         """
         Load Parquet files into a Redshift table using a manifest file.
         Creates the table if necessary.
@@ -186,22 +185,22 @@ class Redshift:
         :param sortkey: List of columns to be sorted
         :param mode: append or overwrite
         :param preserve_index: Should we preserve the Dataframe index? (ONLY for Pandas Dataframe)
+        :param cast_columns: Dictionary of columns names and Redshift types to be casted. (E.g. {"col name": "INT", "col2 name": "FLOAT"})
         :return: None
         """
         cursor = redshift_conn.cursor()
         if mode == "overwrite":
-            Redshift._create_table(
-                cursor=cursor,
-                dataframe=dataframe,
-                dataframe_type=dataframe_type,
-                schema_name=schema_name,
-                table_name=table_name,
-                diststyle=diststyle,
-                distkey=distkey,
-                sortstyle=sortstyle,
-                sortkey=sortkey,
-                preserve_index=preserve_index,
-            )
+            Redshift._create_table(cursor=cursor,
+                                   dataframe=dataframe,
+                                   dataframe_type=dataframe_type,
+                                   schema_name=schema_name,
+                                   table_name=table_name,
+                                   diststyle=diststyle,
+                                   distkey=distkey,
+                                   sortstyle=sortstyle,
+                                   sortkey=sortkey,
+                                   preserve_index=preserve_index,
+                                   cast_columns=cast_columns)
         sql = ("-- AWS DATA WRANGLER\n"
                f"COPY {schema_name}.{table_name} FROM '{manifest_path}'\n"
                f"IAM_ROLE '{iam_role}'\n"
@@ -227,18 +226,17 @@ class Redshift:
         cursor.close()
 
     @staticmethod
-    def _create_table(
-            cursor,
-            dataframe,
-            dataframe_type,
-            schema_name,
-            table_name,
-            diststyle="AUTO",
-            distkey=None,
-            sortstyle="COMPOUND",
-            sortkey=None,
-            preserve_index=False,
-    ):
+    def _create_table(cursor,
+                      dataframe,
+                      dataframe_type,
+                      schema_name,
+                      table_name,
+                      diststyle="AUTO",
+                      distkey=None,
+                      sortstyle="COMPOUND",
+                      sortkey=None,
+                      preserve_index=False,
+                      cast_columns=None):
         """
         Creates Redshift table.
 
@@ -252,6 +250,7 @@ class Redshift:
         :param sortstyle: Sorting can be "COMPOUND" or "INTERLEAVED" (https://docs.aws.amazon.com/redshift/latest/dg/t_Sorting_data.html)
         :param sortkey: List of columns to be sorted
         :param preserve_index: Should we preserve the Dataframe index? (ONLY for Pandas Dataframe)
+        :param cast_columns: Dictionary of columns names and Redshift types to be casted. (E.g. {"col name": "INT", "col2 name": "FLOAT"})
         :return: None
         """
         sql = f"-- AWS DATA WRANGLER\n" \
@@ -262,6 +261,7 @@ class Redshift:
             dataframe=dataframe,
             dataframe_type=dataframe_type,
             preserve_index=preserve_index,
+            cast_columns=cast_columns,
         )
         if diststyle:
             diststyle = diststyle.upper()
@@ -331,63 +331,33 @@ class Redshift:
                         f"Currently value: {key}")
 
     @staticmethod
-    def _get_redshift_schema(dataframe, dataframe_type, preserve_index=False):
+    def _get_redshift_schema(dataframe,
+                             dataframe_type,
+                             preserve_index=False,
+                             cast_columns=None):
+        if cast_columns is None:
+            cast_columns = {}
         schema_built = []
         if dataframe_type == "pandas":
-            if preserve_index:
-                name = str(
-                    dataframe.index.name) if dataframe.index.name else "index"
-                dataframe.index.name = "index"
-                dtype = str(dataframe.index.dtype)
-                redshift_type = Redshift._type_pandas2redshift(dtype)
-                schema_built.append((name, redshift_type))
-            for col in dataframe.columns:
-                name = str(col)
-                dtype = str(dataframe[name].dtype)
-                redshift_type = Redshift._type_pandas2redshift(dtype)
-                schema_built.append((name, redshift_type))
+            pyarrow_schema = data_types.extract_pyarrow_schema_from_pandas(
+                dataframe=dataframe,
+                preserve_index=preserve_index,
+                indexes_position="right")
+            for name, dtype in pyarrow_schema:
+                if (cast_columns is
+                        not None) and (name in cast_columns.keys()):
+                    schema_built.append((name, cast_columns[name]))
+                else:
+                    redshift_type = data_types.pyarrow2redshift(dtype)
+                    schema_built.append((name, redshift_type))
         elif dataframe_type == "spark":
             for name, dtype in dataframe.dtypes:
-                redshift_type = Redshift._type_spark2redshift(dtype)
+                if name in cast_columns.keys():
+                    redshift_type = data_types.athena2redshift(
+                        cast_columns[name])
+                else:
+                    redshift_type = data_types.spark2redshift(dtype)
                 schema_built.append((name, redshift_type))
         else:
             raise InvalidDataframeType(dataframe_type)
         return schema_built
-
-    @staticmethod
-    def _type_pandas2redshift(dtype):
-        dtype = dtype.lower()
-        if dtype == "int32":
-            return "INTEGER"
-        elif dtype == "int64":
-            return "BIGINT"
-        elif dtype == "float32":
-            return "FLOAT4"
-        elif dtype == "float64":
-            return "FLOAT8"
-        elif dtype == "bool":
-            return "BOOLEAN"
-        elif dtype == "object" and isinstance(dtype, str):
-            return "VARCHAR(256)"
-        elif dtype[:10] == "datetime64":
-            return "TIMESTAMP"
-        else:
-            raise UnsupportedType("Unsupported Pandas type: " + dtype)
-
-    @staticmethod
-    def _type_spark2redshift(dtype):
-        dtype = dtype.lower()
-        if dtype in ["smallint", "int", "bigint"]:
-            return "BIGINT"
-        elif dtype == "float":
-            return "FLOAT4"
-        elif dtype == "double":
-            return "FLOAT8"
-        elif dtype == "bool":
-            return "BOOLEAN"
-        elif dtype == "timestamp":
-            return "TIMESTAMP"
-        elif dtype == "string":
-            return "VARCHAR(256)"
-        else:
-            raise UnsupportedType("Unsupported Spark type: " + dtype)

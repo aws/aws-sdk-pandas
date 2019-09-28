@@ -2,7 +2,8 @@ from time import sleep
 import logging
 import ast
 
-from awswrangler.exceptions import UnsupportedType, QueryFailed, QueryCancelled
+from awswrangler import data_types
+from awswrangler.exceptions import QueryFailed, QueryCancelled
 
 logger = logging.getLogger(__name__)
 
@@ -21,26 +22,6 @@ class Athena:
         col_info = response["ResultSet"]["ResultSetMetadata"]["ColumnInfo"]
         return {x["Name"]: x["Type"] for x in col_info}
 
-    @staticmethod
-    def _type_athena2pandas(dtype):
-        dtype = dtype.lower()
-        if dtype in ["int", "integer", "bigint", "smallint", "tinyint"]:
-            return "Int64"
-        elif dtype in ["float", "double", "real"]:
-            return "float64"
-        elif dtype == "boolean":
-            return "bool"
-        elif dtype in ["string", "char", "varchar"]:
-            return "str"
-        elif dtype == "timestamp":
-            return "datetime64"
-        elif dtype == "date":
-            return "date"
-        elif dtype == "array":
-            return "literal_eval"
-        else:
-            raise UnsupportedType(f"Unsupported Athena type: {dtype}")
-
     def get_query_dtype(self, query_execution_id):
         cols_metadata = self.get_query_columns_metadata(
             query_execution_id=query_execution_id)
@@ -49,15 +30,15 @@ class Athena:
         parse_dates = []
         converters = {}
         for col_name, col_type in cols_metadata.items():
-            ptype = Athena._type_athena2pandas(dtype=col_type)
-            if ptype in ["datetime64", "date"]:
+            pandas_type = data_types.athena2pandas(dtype=col_type)
+            if pandas_type in ["datetime64", "date"]:
                 parse_timestamps.append(col_name)
-                if ptype == "date":
+                if pandas_type == "date":
                     parse_dates.append(col_name)
-            elif ptype == "literal_eval":
+            elif pandas_type == "literal_eval":
                 converters[col_name] = ast.literal_eval
             else:
-                dtype[col_name] = ptype
+                dtype[col_name] = pandas_type
         logger.debug(f"dtype: {dtype}")
         logger.debug(f"parse_timestamps: {parse_timestamps}")
         logger.debug(f"parse_dates: {parse_dates}")

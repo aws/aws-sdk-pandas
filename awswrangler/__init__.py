@@ -10,6 +10,7 @@ from awswrangler.cloudwatchlogs import CloudWatchLogs  # noqa
 from awswrangler.glue import Glue  # noqa
 from awswrangler.redshift import Redshift  # noqa
 import awswrangler.utils  # noqa
+import awswrangler.data_types  # noqa
 
 if importlib.util.find_spec("pyspark"):
     from awswrangler.spark import Spark  # noqa
