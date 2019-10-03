@@ -488,6 +488,7 @@ class Pandas:
             mode="append",
             procs_cpu_bound=None,
             procs_io_bound=None,
+            inplace=True,
     ):
         """
         Write a Pandas Dataframe as CSV files on S3
@@ -504,6 +505,7 @@ class Pandas:
         :param mode: "append", "overwrite", "overwrite_partitions"
         :param procs_cpu_bound: Number of cores used for CPU bound tasks
         :param procs_io_bound: Number of cores used for I/O bound tasks
+        :param inplace: True is cheapest (CPU and Memory) but False leaves your DataFrame intact
         :return: List of objects written on S3
         """
         if serde not in Pandas.VALID_CSV_SERDES:
@@ -522,7 +524,8 @@ class Pandas:
                           compression=None,
                           procs_cpu_bound=procs_cpu_bound,
                           procs_io_bound=procs_io_bound,
-                          extra_args=extra_args)
+                          extra_args=extra_args,
+                          inplace=inplace)
 
     def to_parquet(self,
                    dataframe,
@@ -535,7 +538,8 @@ class Pandas:
                    compression="snappy",
                    procs_cpu_bound=None,
                    procs_io_bound=None,
-                   cast_columns=None):
+                   cast_columns=None,
+                   inplace=True):
         """
         Write a Pandas Dataframe as parquet files on S3
         Optionally writes metadata on AWS Glue.
@@ -550,7 +554,8 @@ class Pandas:
         :param compression: None, snappy, gzip, lzo
         :param procs_cpu_bound: Number of cores used for CPU bound tasks
         :param procs_io_bound: Number of cores used for I/O bound tasks
-        :param cast_columns: Dictionary of columns names and Athena/Glue types to be casted. (E.g. {"col name": "bigint", "col2 name": "int"})
+        :param cast_columns: Dictionary of columns names and Athena/Glue types to be casted (E.g. {"col name": "bigint", "col2 name": "int"})
+        :param inplace: True is cheapest (CPU and Memory) but False leaves your DataFrame intact
         :return: List of objects written on S3
         """
         return self.to_s3(dataframe=dataframe,
@@ -564,7 +569,8 @@ class Pandas:
                           compression=compression,
                           procs_cpu_bound=procs_cpu_bound,
                           procs_io_bound=procs_io_bound,
-                          cast_columns=cast_columns)
+                          cast_columns=cast_columns,
+                          inplace=inplace)
 
     def to_s3(self,
               dataframe,
@@ -579,7 +585,8 @@ class Pandas:
               procs_cpu_bound=None,
               procs_io_bound=None,
               cast_columns=None,
-              extra_args=None):
+              extra_args=None,
+              inplace=True):
         """
         Write a Pandas Dataframe on S3
         Optionally writes metadata on AWS Glue.
@@ -597,9 +604,13 @@ class Pandas:
         :param procs_io_bound: Number of cores used for I/O bound tasks
         :param cast_columns: Dictionary of columns names and Athena/Glue types to be casted. (E.g. {"col name": "bigint", "col2 name": "int"}) (Only for "parquet" file_format)
         :param extra_args: Extra arguments specific for each file formats (E.g. "sep" for CSV)
+        :param inplace: True is cheapest (CPU and Memory) but False leaves your DataFrame intact
         :return: List of objects written on S3
         """
-        Pandas.normalize_columns_names_athena(dataframe, inplace=True)
+        dataframe = Pandas.normalize_columns_names_athena(dataframe,
+                                                          inplace=inplace)
+        dataframe = Pandas.drop_duplicated_columns(dataframe=dataframe,
+                                                   inplace=inplace)
         if compression is not None:
             compression = compression.lower()
         file_format = file_format.lower()
@@ -635,7 +646,8 @@ class Pandas:
                                         procs_cpu_bound=procs_cpu_bound,
                                         procs_io_bound=procs_io_bound,
                                         cast_columns=cast_columns,
-                                        extra_args=extra_args)
+                                        extra_args=extra_args,
+                                        inplace=inplace)
         if database:
             self._session.glue.metadata_to_glue(dataframe=dataframe,
                                                 path=path,
@@ -662,7 +674,8 @@ class Pandas:
                    procs_cpu_bound=None,
                    procs_io_bound=None,
                    cast_columns=None,
-                   extra_args=None):
+                   extra_args=None,
+                   inplace=True):
         if not procs_cpu_bound:
             procs_cpu_bound = self._session.procs_cpu_bound
         if not procs_io_bound:
@@ -704,7 +717,8 @@ class Pandas:
                 session_primitives=self._session.primitives,
                 file_format=file_format,
                 cast_columns=cast_columns,
-                extra_args=extra_args)
+                extra_args=extra_args,
+                isolated_dataframe=inplace)
         if mode == "overwrite_partitions" and partition_cols:
             if procs_io_bound > procs_cpu_bound:
                 num_procs = floor(
@@ -1034,3 +1048,11 @@ class Pandas:
             athena.Athena.normalize_column_name(x) for x in dataframe.columns
         ]
         return dataframe
+
+    @staticmethod
+    def drop_duplicated_columns(dataframe, inplace=True):
+        if inplace is False:
+            dataframe = dataframe.copy(deep=True)
+        duplicated_cols = dataframe.columns.duplicated()
+        logger.warning(f"Dropping repeated columns: {duplicated_cols}")
+        return dataframe.loc[:, ~duplicated_cols]
