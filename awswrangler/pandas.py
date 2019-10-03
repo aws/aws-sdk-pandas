@@ -17,7 +17,8 @@ from awswrangler.exceptions import (UnsupportedWriteMode,
                                     EmptyDataframe, InvalidSerDe,
                                     InvalidCompression)
 from awswrangler.utils import calculate_bounders
-from awswrangler import s3, athena
+from awswrangler import s3
+from awswrangler.athena import Athena
 
 logger = logging.getLogger(__name__)
 
@@ -607,8 +608,21 @@ class Pandas:
         :param inplace: True is cheapest (CPU and Memory) but False leaves your DataFrame intact
         :return: List of objects written on S3
         """
+        if not partition_cols:
+            partition_cols = []
+        if not cast_columns:
+            cast_columns = {}
         dataframe = Pandas.normalize_columns_names_athena(dataframe,
                                                           inplace=inplace)
+        cast_columns = {
+            Athena.normalize_column_name(k): v
+            for k, v in cast_columns.items()
+        }
+        logger.debug(f"cast_columns: {cast_columns}")
+        partition_cols = [
+            Athena.normalize_column_name(x) for x in partition_cols
+        ]
+        logger.debug(f"partition_cols: {partition_cols}")
         dataframe = Pandas.drop_duplicated_columns(dataframe=dataframe,
                                                    inplace=inplace)
         if compression is not None:
@@ -628,8 +642,6 @@ class Pandas:
             raise UnsupportedFileFormat(file_format)
         if dataframe.empty:
             raise EmptyDataframe()
-        if not partition_cols:
-            partition_cols = []
         if ((mode == "overwrite")
                 or ((mode == "overwrite_partitions") and  # noqa
                     (not partition_cols))):
@@ -1042,7 +1054,7 @@ class Pandas:
         if inplace is False:
             dataframe = dataframe.copy(deep=True)
         dataframe.columns = [
-            athena.Athena.normalize_column_name(x) for x in dataframe.columns
+            Athena.normalize_column_name(x) for x in dataframe.columns
         ]
         return dataframe
 
