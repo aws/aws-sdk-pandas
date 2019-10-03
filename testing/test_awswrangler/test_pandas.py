@@ -99,7 +99,6 @@ def logstream(cloudformation_outputs, loggroup):
     if token:
         args["sequenceToken"] = token
     client.put_log_events(**args)
-    sleep(300)
     yield logstream
 
 

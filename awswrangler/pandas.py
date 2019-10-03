@@ -646,8 +646,7 @@ class Pandas:
                                         procs_cpu_bound=procs_cpu_bound,
                                         procs_io_bound=procs_io_bound,
                                         cast_columns=cast_columns,
-                                        extra_args=extra_args,
-                                        inplace=inplace)
+                                        extra_args=extra_args)
         if database:
             self._session.glue.metadata_to_glue(dataframe=dataframe,
                                                 path=path,
@@ -674,8 +673,7 @@ class Pandas:
                    procs_cpu_bound=None,
                    procs_io_bound=None,
                    cast_columns=None,
-                   extra_args=None,
-                   inplace=True):
+                   extra_args=None):
         if not procs_cpu_bound:
             procs_cpu_bound = self._session.procs_cpu_bound
         if not procs_io_bound:
@@ -717,8 +715,7 @@ class Pandas:
                 session_primitives=self._session.primitives,
                 file_format=file_format,
                 cast_columns=cast_columns,
-                extra_args=extra_args,
-                isolated_dataframe=inplace)
+                extra_args=extra_args)
         if mode == "overwrite_partitions" and partition_cols:
             if procs_io_bound > procs_cpu_bound:
                 num_procs = floor(
@@ -890,7 +887,7 @@ class Pandas:
         dtypes = copy.deepcopy(dataframe.dtypes.to_dict())
         for name, dtype in dtypes.items():
             if str(dtype) == "Int64":
-                dataframe[name] = dataframe[name].astype("float64")
+                dataframe.loc[:, name] = dataframe[name].astype("float64")
                 casted_in_pandas.append(name)
                 cast_columns[name] = "bigint"
                 logger.debug(f"Casting column {name} Int64 to float64")
