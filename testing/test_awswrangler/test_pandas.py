@@ -781,16 +781,22 @@ def test_read_sql_athena_with_time_zone(session, bucket, database):
 
 def test_normalize_columns_names_athena():
     dataframe = pandas.DataFrame({
-        "CammelCase": [1, 2, 3],
+        "CamelCase": [1, 2, 3],
         "With Spaces": [4, 5, 6],
         "With-Dash": [7, 8, 9],
         "Ãccént": [10, 11, 12],
+        "with.dot": [10, 11, 12],
+        "Camel_Case2": [13, 14, 15],
+        "Camel___Case3": [16, 17, 18]
     })
     Pandas.normalize_columns_names_athena(dataframe=dataframe, inplace=True)
-    assert dataframe.columns[0] == "cammel_case"
+    assert dataframe.columns[0] == "camel_case"
     assert dataframe.columns[1] == "with_spaces"
     assert dataframe.columns[2] == "with_dash"
     assert dataframe.columns[3] == "accent"
+    assert dataframe.columns[4] == "with_dot"
+    assert dataframe.columns[5] == "camel_case2"
+    assert dataframe.columns[6] == "camel_case3"
 
 
 def test_to_parquet_with_normalize(
@@ -799,11 +805,13 @@ def test_to_parquet_with_normalize(
         database,
 ):
     dataframe = pandas.DataFrame({
-        "CammelCase": [1, 2, 3],
+        "CamelCase": [1, 2, 3],
         "With Spaces": [4, 5, 6],
         "With-Dash": [7, 8, 9],
         "Ãccént": [10, 11, 12],
         "with.dot": [10, 11, 12],
+        "Camel_Case2": [13, 14, 15],
+        "Camel___Case3": [16, 17, 18]
     })
     session.pandas.to_parquet(dataframe=dataframe,
                               database=database,
@@ -818,11 +826,57 @@ def test_to_parquet_with_normalize(
         sleep(2)
     assert len(dataframe.index) == len(dataframe2.index)
     assert (len(list(dataframe.columns)) + 1) == len(list(dataframe2.columns))
-    assert dataframe2.columns[0] == "cammel_case"
+    assert dataframe2.columns[0] == "camel_case"
     assert dataframe2.columns[1] == "with_spaces"
     assert dataframe2.columns[2] == "with_dash"
     assert dataframe2.columns[3] == "accent"
     assert dataframe2.columns[4] == "with_dot"
+    assert dataframe2.columns[5] == "camel_case2"
+    assert dataframe2.columns[6] == "camel_case3"
+
+
+def test_to_parquet_with_normalize_and_cast(
+        session,
+        bucket,
+        database,
+):
+    dataframe = pandas.DataFrame({
+        "CamelCase": [1, 2, 3],
+        "With Spaces": [4, 5, 6],
+        "With-Dash": [7, 8, 9],
+        "Ãccént": [10, 11, 12],
+        "with.dot": [10, 11, 12],
+        "Camel_Case2": [13, 14, 15],
+        "Camel___Case3": [16, 17, 18]
+    })
+    session.pandas.to_parquet(dataframe=dataframe,
+                              database=database,
+                              path=f"s3://{bucket}/TestTable-with.dot/",
+                              mode="overwrite",
+                              partition_cols=["CamelCase"],
+                              cast_columns={
+                                  "Camel_Case2": "double",
+                                  "Camel___Case3": "float"
+                              })
+    dataframe2 = None
+    for counter in range(10):
+        dataframe2 = session.pandas.read_sql_athena(
+            sql="select * from test_table_with_dot", database=database)
+        if len(dataframe.index) == len(dataframe2.index):
+            break
+        sleep(2)
+    assert len(dataframe.index) == len(dataframe2.index)
+    assert (len(list(dataframe.columns)) + 1) == len(list(dataframe2.columns))
+    assert dataframe2.columns[0] == "with_spaces"
+    assert dataframe2.columns[1] == "with_dash"
+    assert dataframe2.columns[2] == "accent"
+    assert dataframe2.columns[3] == "with_dot"
+    assert dataframe2.columns[4] == "camel_case2"
+    assert dataframe2.columns[5] == "camel_case3"
+    assert dataframe2.columns[6] == "__index_level_0__"
+    assert dataframe2.columns[7] == "camel_case"
+    assert dataframe2[dataframe2.columns[4]].dtype == "float64"
+    assert dataframe2[dataframe2.columns[5]].dtype == "float64"
 
 
 def test_drop_duplicated_columns():
