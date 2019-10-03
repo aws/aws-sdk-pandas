@@ -43,6 +43,7 @@ class Session:
             spark_session=None,
             procs_cpu_bound=os.cpu_count(),
             procs_io_bound=os.cpu_count() * PROCS_IO_BOUND_FACTOR,
+            athena_workgroup="primary",
     ):
         """
         Most parameters inherit from Boto3 or Pyspark.
@@ -59,10 +60,9 @@ class Session:
         :param s3_additional_kwargs: Passed on to s3fs (https://s3fs.readthedocs.io/en/latest/#serverside-encryption)
         :param spark_context: Spark Context (pyspark.SparkContext)
         :param spark_session: Spark Session (pyspark.sql.SparkSession)
-        :param procs_cpu_bound: number of processes that can be used in single
-        node applications for CPU bound case (Default: os.cpu_count())
-        :param procs_io_bound: number of processes that can be used in single
-        node applications for I/O bound cases (Default: os.cpu_count() * PROCS_IO_BOUND_FACTOR)
+        :param procs_cpu_bound: number of processes that can be used in single node applications for CPU bound case (Default: os.cpu_count())
+        :param procs_io_bound: number of processes that can be used in single node applications for I/O bound cases (Default: os.cpu_count() * PROCS_IO_BOUND_FACTOR)
+        :param athena_workgroup: Default AWS Athena Workgroup (str)
         """
         self._profile_name = (boto3_session.profile_name
                               if boto3_session else profile_name)
@@ -81,6 +81,7 @@ class Session:
         self._spark_session = spark_session
         self._procs_cpu_bound = procs_cpu_bound
         self._procs_io_bound = procs_io_bound
+        self._athena_workgroup = athena_workgroup
         self._primitives = None
         self._load_new_primitives()
         if boto3_session:
@@ -134,6 +135,7 @@ class Session:
             botocore_config=self._botocore_config,
             procs_cpu_bound=self._procs_cpu_bound,
             procs_io_bound=self._procs_io_bound,
+            athena_workgroup=self._athena_workgroup,
         )
 
     @property
@@ -183,6 +185,10 @@ class Session:
     @property
     def procs_io_bound(self):
         return self._procs_io_bound
+
+    @property
+    def athena_workgroup(self):
+        return self._athena_workgroup
 
     @property
     def boto3_session(self):
@@ -255,6 +261,7 @@ class SessionPrimitives:
             botocore_config=None,
             procs_cpu_bound=None,
             procs_io_bound=None,
+            athena_workgroup=None,
     ):
         """
         Most parameters inherit from Boto3.
@@ -268,10 +275,9 @@ class SessionPrimitives:
         :param botocore_max_retries: Botocore max retries
         :param s3_additional_kwargs: Passed on to s3fs (https://s3fs.readthedocs.io/en/latest/#serverside-encryption)
         :param botocore_config: Botocore configurations
-        :param procs_cpu_bound: number of processes that can be used in single
-        node applications for CPU bound case (Default: os.cpu_count())
-        :param procs_io_bound: number of processes that can be used in single
-        node applications for I/O bound cases (Default: os.cpu_count() * PROCS_IO_BOUND_FACTOR)
+        :param procs_cpu_bound: number of processes that can be used in single node applications for CPU bound case (Default: os.cpu_count())
+        :param procs_io_bound: number of processes that can be used in single node applications for I/O bound cases (Default: os.cpu_count() * PROCS_IO_BOUND_FACTOR)
+        :param athena_workgroup: Default AWS Athena Workgroup (str)
         """
         self._profile_name = profile_name
         self._aws_access_key_id = aws_access_key_id
@@ -283,6 +289,7 @@ class SessionPrimitives:
         self._botocore_config = botocore_config
         self._procs_cpu_bound = procs_cpu_bound
         self._procs_io_bound = procs_io_bound
+        self._athena_workgroup = athena_workgroup
 
     @property
     def profile_name(self):
@@ -325,19 +332,22 @@ class SessionPrimitives:
         return self._procs_io_bound
 
     @property
+    def athena_workgroup(self):
+        return self._athena_workgroup
+
+    @property
     def session(self):
         """
         Reconstruct the session from primitives
         :return: awswrangler.session.Session
         """
-        return Session(
-            profile_name=self._profile_name,
-            aws_access_key_id=self._aws_access_key_id,
-            aws_secret_access_key=self._aws_secret_access_key,
-            aws_session_token=self._aws_session_token,
-            region_name=self._region_name,
-            botocore_max_retries=self._botocore_max_retries,
-            s3_additional_kwargs=self._s3_additional_kwargs,
-            procs_cpu_bound=self._procs_cpu_bound,
-            procs_io_bound=self._procs_io_bound,
-        )
+        return Session(profile_name=self._profile_name,
+                       aws_access_key_id=self._aws_access_key_id,
+                       aws_secret_access_key=self._aws_secret_access_key,
+                       aws_session_token=self._aws_session_token,
+                       region_name=self._region_name,
+                       botocore_max_retries=self._botocore_max_retries,
+                       s3_additional_kwargs=self._s3_additional_kwargs,
+                       procs_cpu_bound=self._procs_cpu_bound,
+                       procs_io_bound=self._procs_io_bound,
+                       athena_workgroup=self._athena_workgroup)

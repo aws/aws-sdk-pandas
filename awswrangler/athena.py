@@ -63,22 +63,26 @@ class Athena:
         s3_resource.Bucket(s3_output)
         return s3_output
 
-    def run_query(self, query, database, s3_output=None):
+    def run_query(self, query, database, s3_output=None, workgroup=None):
         """
         Run a SQL Query against AWS Athena
 
         :param query: SQL query
         :param database: AWS Glue/Athena database name
         :param s3_output: AWS S3 path
+        :param workgroup: Athena workgroup (By default uses de Session() workgroup)
         :return: Query execution ID
         """
-        if not s3_output:
+        if s3_output is None:
             s3_output = self.create_athena_bucket()
+        if workgroup is None:
+            workgroup = self._session.athena_workgroup
+        logger.debug(f"Workgroup: {workgroup}")
         response = self._client_athena.start_query_execution(
             QueryString=query,
             QueryExecutionContext={"Database": database},
             ResultConfiguration={"OutputLocation": s3_output},
-        )
+            WorkGroup=workgroup)
         return response["QueryExecutionId"]
 
     def wait_query(self, query_execution_id):
@@ -109,7 +113,7 @@ class Athena:
                 response["QueryExecution"]["Status"].get("StateChangeReason"))
         return response
 
-    def repair_table(self, database, table, s3_output=None):
+    def repair_table(self, database, table, s3_output=None, workgroup=None):
         """
         Hive's metastore consistency check
         "MSCK REPAIR TABLE table;"
@@ -122,12 +126,14 @@ class Athena:
         :param database: Glue database name
         :param table: Glue table name
         :param s3_output: AWS S3 path
+        :param workgroup: Athena workgroup (By default uses de Session() workgroup)
         :return: Query execution ID
         """
         query = f"MSCK REPAIR TABLE {table};"
         query_id = self.run_query(query=query,
                                   database=database,
-                                  s3_output=s3_output)
+                                  s3_output=s3_output,
+                                  workgroup=workgroup)
         self.wait_query(query_execution_id=query_id)
         return query_id
 
