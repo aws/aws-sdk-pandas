@@ -195,7 +195,8 @@ class Glue:
                 try:
                     athena_type = data_types.pyarrow2athena(dtype)
                 except UnsupportedType:
-                    raise UnsupportedType(f"Unsupported Pyarrow type for column {name}: {dtype}")
+                    raise UnsupportedType(
+                        f"Unsupported Pyarrow type for column {name}: {dtype}")
                 if name in partition_cols:
                     partition_cols_types[name] = athena_type
                 else:

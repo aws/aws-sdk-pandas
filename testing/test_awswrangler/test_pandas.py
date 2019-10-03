@@ -879,6 +879,33 @@ def test_to_parquet_with_pyarrow_null_type(
     })
     with pytest.raises(UnsupportedType):
         assert session.pandas.to_parquet(dataframe=dataframe,
-                                  database=database,
-                                  path=f"s3://{bucket}/test/",
-                                  mode="overwrite")
+                                         database=database,
+                                         path=f"s3://{bucket}/test/",
+                                         mode="overwrite")
+
+
+def test_to_parquet_casting_to_string(
+        session,
+        bucket,
+        database,
+):
+    dataframe = pandas.DataFrame({
+        "a": [1, 2, 3],
+        "col_string_null": [None, None, None],
+        "c": [7, 8, 9],
+    })
+    session.pandas.to_parquet(dataframe=dataframe,
+                              database=database,
+                              path=f"s3://{bucket}/test/",
+                              mode="overwrite",
+                              cast_columns={"col_string_null": "string"})
+    dataframe2 = None
+    for counter in range(10):
+        dataframe2 = session.pandas.read_sql_athena(sql="select * from test",
+                                                    database=database)
+        if len(dataframe.index) == len(dataframe2.index):
+            break
+        sleep(2)
+    assert len(dataframe.index) == len(dataframe2.index)
+    assert (len(list(dataframe.columns)) + 1) == len(list(dataframe2.columns))
+    print(dataframe2)
