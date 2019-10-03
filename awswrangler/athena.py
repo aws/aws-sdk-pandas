@@ -1,6 +1,8 @@
 from time import sleep
 import logging
 import ast
+import re
+import unicodedata
 
 from awswrangler import data_types
 from awswrangler.exceptions import QueryFailed, QueryCancelled
@@ -128,3 +130,33 @@ class Athena:
                                   s3_output=s3_output)
         self.wait_query(query_execution_id=query_id)
         return query_id
+
+    @staticmethod
+    def _normalize_name(name):
+        name = "".join(c for c in unicodedata.normalize("NFD", name)
+                       if unicodedata.category(c) != "Mn")
+        name = name.replace(" ", "_")
+        name = name.replace("-", "_")
+        name = name.replace(".", "_")
+        name = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
+        name = re.sub("([a-z0-9])([A-Z])", r"\1_\2", name)
+        name = name.lower()
+        return re.sub(r"(_)\1+", "\\1", name)  # remove repeated underscores
+
+    @staticmethod
+    def normalize_column_name(name):
+        """
+        https://docs.aws.amazon.com/athena/latest/ug/tables-databases-columns-names.html
+        :param name: column name (str)
+        :return: normalized column name (str)
+        """
+        return Athena._normalize_name(name=name)
+
+    @staticmethod
+    def normalize_table_name(name):
+        """
+        https://docs.aws.amazon.com/athena/latest/ug/tables-databases-columns-names.html
+        :param name: table name (str)
+        :return: normalized table name (str)
+        """
+        return Athena._normalize_name(name=name)

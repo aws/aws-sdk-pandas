@@ -778,3 +778,49 @@ def test_read_sql_athena_with_time_zone(session, bucket, database):
     assert len(dataframe.columns) == 2
     assert dataframe["type"][0] == "timestamp with time zone"
     assert dataframe["value"][0].year == datetime.utcnow().year
+
+
+def test_normalize_columns_names_athena():
+    dataframe = pandas.DataFrame({
+        "CammelCase": [1, 2, 3],
+        "With Spaces": [4, 5, 6],
+        "With-Dash": [7, 8, 9],
+        "Ãccént": [10, 11, 12],
+    })
+    Pandas.normalize_columns_names_athena(dataframe=dataframe, inplace=True)
+    assert dataframe.columns[0] == "cammel_case"
+    assert dataframe.columns[1] == "with_spaces"
+    assert dataframe.columns[2] == "with_dash"
+    assert dataframe.columns[3] == "accent"
+
+
+def test_to_parquet_with_normalize(
+        session,
+        bucket,
+        database,
+):
+    dataframe = pandas.DataFrame({
+        "CammelCase": [1, 2, 3],
+        "With Spaces": [4, 5, 6],
+        "With-Dash": [7, 8, 9],
+        "Ãccént": [10, 11, 12],
+        "with.dot": [10, 11, 12],
+    })
+    session.pandas.to_parquet(dataframe=dataframe,
+                              database=database,
+                              path=f"s3://{bucket}/TestTable-with.dot/",
+                              mode="overwrite")
+    dataframe2 = None
+    for counter in range(10):
+        dataframe2 = session.pandas.read_sql_athena(
+            sql="select * from test_table_with_dot", database=database)
+        if len(dataframe.index) == len(dataframe2.index):
+            break
+        sleep(2)
+    assert len(dataframe.index) == len(dataframe2.index)
+    assert (len(list(dataframe.columns)) + 1) == len(list(dataframe2.columns))
+    assert dataframe2.columns[0] == "cammel_case"
+    assert dataframe2.columns[1] == "with_spaces"
+    assert dataframe2.columns[2] == "with_dash"
+    assert dataframe2.columns[3] == "accent"
+    assert dataframe2.columns[4] == "with_dot"

@@ -17,7 +17,7 @@ from awswrangler.exceptions import (UnsupportedWriteMode,
                                     EmptyDataframe, InvalidSerDe,
                                     InvalidCompression)
 from awswrangler.utils import calculate_bounders
-from awswrangler import s3
+from awswrangler import s3, athena
 
 logger = logging.getLogger(__name__)
 
@@ -599,6 +599,7 @@ class Pandas:
         :param extra_args: Extra arguments specific for each file formats (E.g. "sep" for CSV)
         :return: List of objects written on S3
         """
+        Pandas.normalize_columns_names_athena(dataframe, inplace=True)
         if compression is not None:
             compression = compression.lower()
         file_format = file_format.lower()
@@ -1024,3 +1025,12 @@ class Pandas:
                 new_row[col_name] = col["value"]
             pre_df.append(new_row)
         return pandas.DataFrame(pre_df)
+
+    @staticmethod
+    def normalize_columns_names_athena(dataframe, inplace=True):
+        if inplace is False:
+            dataframe = dataframe.copy(deep=True)
+        dataframe.columns = [
+            athena.Athena.normalize_column_name(x) for x in dataframe.columns
+        ]
+        return dataframe

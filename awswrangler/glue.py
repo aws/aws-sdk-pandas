@@ -3,6 +3,7 @@ import re
 import logging
 
 from awswrangler import data_types
+from awswrangler.athena import Athena
 from awswrangler.exceptions import UnsupportedFileFormat, InvalidSerDe, ApiError
 
 logger = logging.getLogger(__name__)
@@ -64,7 +65,7 @@ class Glue:
             indexes_position=indexes_position,
             cast_columns=cast_columns)
         table = table if table else Glue.parse_table_name(path)
-        table = table.lower().replace(".", "_")
+        table = Athena.normalize_table_name(name=table)
         if mode == "overwrite":
             self.delete_table_if_exists(database=database, table=table)
         exists = self.does_table_exists(database=database, table=table)
@@ -124,8 +125,13 @@ class Glue:
         self._client_glue.create_table(DatabaseName=database,
                                        TableInput=table_input)
 
-    def add_partitions(self, database, table, partition_paths, file_format,
-                       compression, extra_args=None):
+    def add_partitions(self,
+                       database,
+                       table,
+                       partition_paths,
+                       file_format,
+                       compression,
+                       extra_args=None):
         if not partition_paths:
             return None
         partitions = list()
@@ -207,8 +213,12 @@ class Glue:
         return path.rpartition("/")[2]
 
     @staticmethod
-    def csv_table_definition(table, partition_cols_schema, schema, path,
-                             compression, extra_args=None):
+    def csv_table_definition(table,
+                             partition_cols_schema,
+                             schema,
+                             path,
+                             compression,
+                             extra_args=None):
         if extra_args is None:
             extra_args = {}
         if partition_cols_schema is None:
