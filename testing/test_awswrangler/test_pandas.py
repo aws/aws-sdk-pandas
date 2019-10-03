@@ -824,3 +824,43 @@ def test_to_parquet_with_normalize(
     assert dataframe2.columns[2] == "with_dash"
     assert dataframe2.columns[3] == "accent"
     assert dataframe2.columns[4] == "with_dot"
+
+
+def test_drop_duplicated_columns():
+    dataframe = pandas.DataFrame({
+        "a": [1, 2, 3],
+        "b": [4, 5, 6],
+        "c": [7, 8, 9],
+    })
+    dataframe.columns = ["a", "a", "c"]
+    dataframe = Pandas.drop_duplicated_columns(dataframe=dataframe)
+    assert dataframe.columns[0] == "a"
+    assert dataframe.columns[1] == "c"
+
+
+def test_to_parquet_duplicated_columns(
+        session,
+        bucket,
+        database,
+):
+    dataframe = pandas.DataFrame({
+        "a": [1, 2, 3],
+        "b": [4, 5, 6],
+        "c": [7, 8, 9],
+    })
+    dataframe.columns = ["a", "a", "c"]
+    session.pandas.to_parquet(dataframe=dataframe,
+                              database=database,
+                              path=f"s3://{bucket}/test/",
+                              mode="overwrite")
+    dataframe2 = None
+    for counter in range(10):
+        dataframe2 = session.pandas.read_sql_athena(sql="select * from test",
+                                                    database=database)
+        if len(dataframe.index) == len(dataframe2.index):
+            break
+        sleep(2)
+    assert len(dataframe.index) == len(dataframe2.index)
+    assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
+    assert dataframe2.columns[0] == "a"
+    assert dataframe2.columns[1] == "c"
