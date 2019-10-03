@@ -4,7 +4,7 @@ import logging
 
 from awswrangler import data_types
 from awswrangler.athena import Athena
-from awswrangler.exceptions import UnsupportedFileFormat, InvalidSerDe, ApiError
+from awswrangler.exceptions import UnsupportedFileFormat, InvalidSerDe, ApiError, UnsupportedType
 
 logger = logging.getLogger(__name__)
 
@@ -192,7 +192,10 @@ class Glue:
                 else:
                     schema_built.append((name, cast_columns[name]))
             else:
-                athena_type = data_types.pyarrow2athena(dtype)
+                try:
+                    athena_type = data_types.pyarrow2athena(dtype)
+                except UnsupportedType:
+                    raise UnsupportedType(f"Unsupported Pyarrow type for column {name}: {dtype}")
                 if name in partition_cols:
                     partition_cols_types[name] = athena_type
                 else:
