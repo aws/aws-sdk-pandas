@@ -125,7 +125,7 @@ class Glue:
                                        TableInput=table_input)
 
     def add_partitions(self, database, table, partition_paths, file_format,
-                       compression, extra_args):
+                       compression, extra_args=None):
         if not partition_paths:
             return None
         partitions = list()
@@ -208,8 +208,10 @@ class Glue:
 
     @staticmethod
     def csv_table_definition(table, partition_cols_schema, schema, path,
-                             compression, extra_args):
-        if not partition_cols_schema:
+                             compression, extra_args=None):
+        if extra_args is None:
+            extra_args = {}
+        if partition_cols_schema is None:
             partition_cols_schema = []
         compressed = False if compression is None else True
         sep = extra_args["sep"] if "sep" in extra_args else ","
@@ -281,7 +283,9 @@ class Glue:
         }
 
     @staticmethod
-    def csv_partition_definition(partition, compression, extra_args):
+    def csv_partition_definition(partition, compression, extra_args=None):
+        if extra_args is None:
+            extra_args = {}
         compressed = False if compression is None else True
         sep = extra_args["sep"] if "sep" in extra_args else ","
         serde = extra_args.get("serde")
