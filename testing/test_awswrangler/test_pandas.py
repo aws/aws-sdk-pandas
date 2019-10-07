@@ -5,8 +5,8 @@ from datetime import datetime, date
 
 import pytest
 import boto3
-import pandas
-import numpy
+import pandas as pd
+import numpy as np
 
 from awswrangler import Session, Pandas
 from awswrangler.exceptions import LineTerminatorNotFound, EmptyDataframe, InvalidSerDe, UnsupportedType
@@ -240,7 +240,7 @@ def test_to_s3(
         procs_cpu_bound,
         factor,
 ):
-    dataframe = pandas.read_csv("data_samples/micro.csv")
+    dataframe = pd.read_csv("data_samples/micro.csv")
     func = session.pandas.to_csv if file_format == "csv" else session.pandas.to_parquet
     objects_paths = func(
         dataframe=dataframe,
@@ -274,9 +274,9 @@ def test_to_parquet_with_cast_int(
         bucket,
         database,
 ):
-    dataframe = pandas.read_csv("data_samples/nano.csv",
-                                dtype={"id": "Int64"},
-                                parse_dates=["date", "time"])
+    dataframe = pd.read_csv("data_samples/nano.csv",
+                            dtype={"id": "Int64"},
+                            parse_dates=["date", "time"])
     session.pandas.to_parquet(dataframe=dataframe,
                               database=database,
                               path=f"s3://{bucket}/test/",
@@ -313,7 +313,7 @@ def test_read_sql_athena_iterator(session, bucket, database, sample, row_num,
     if sample == "data_samples/nano.csv":
         parse_dates.append("time")
         parse_dates.append("date")
-    dataframe_sample = pandas.read_csv(sample, parse_dates=parse_dates)
+    dataframe_sample = pd.read_csv(sample, parse_dates=parse_dates)
     path = f"s3://{bucket}/test/"
     session.pandas.to_parquet(dataframe=dataframe_sample,
                               database=database,
@@ -409,9 +409,9 @@ def test_find_terminator_exception(body, sep, quoting, quotechar,
 
 @pytest.mark.parametrize("max_result_size", [400, 700, 1000, 10000])
 def test_etl_complex(session, bucket, database, max_result_size):
-    dataframe = pandas.read_csv("data_samples/complex.csv",
-                                dtype={"my_int_with_null": "Int64"},
-                                parse_dates=["my_timestamp", "my_date"])
+    dataframe = pd.read_csv("data_samples/complex.csv",
+                            dtype={"my_int_with_null": "Int64"},
+                            parse_dates=["my_timestamp", "my_date"])
     session.pandas.to_parquet(dataframe=dataframe,
                               database=database,
                               path=f"s3://{bucket}/test/",
@@ -430,7 +430,7 @@ def test_etl_complex(session, bucket, database, max_result_size):
             assert isinstance(row.my_timestamp, datetime)
             assert isinstance(row.my_date, date)
             assert isinstance(row.my_float, float)
-            assert isinstance(row.my_int, numpy.int64)
+            assert isinstance(row.my_int, np.int64)
             assert isinstance(row.my_string, str)
             assert str(row.my_timestamp) == "2018-01-01 04:03:02.001000"
             assert str(row.my_date) == "2019-02-02 00:00:00"
@@ -449,7 +449,7 @@ def test_to_parquet_with_kms(
 ):
     extra_args = {"ServerSideEncryption": "aws:kms", "SSEKMSKeyId": kms_key}
     session_inner = Session(s3_additional_kwargs=extra_args)
-    dataframe = pandas.read_csv("data_samples/nano.csv")
+    dataframe = pd.read_csv("data_samples/nano.csv")
     session_inner.pandas.to_parquet(dataframe=dataframe,
                                     database=database,
                                     path=f"s3://{bucket}/test/",
@@ -470,7 +470,7 @@ def test_to_parquet_with_kms(
 
 
 def test_to_parquet_with_empty_dataframe(session, bucket, database):
-    dataframe = pandas.DataFrame()
+    dataframe = pd.DataFrame()
     with pytest.raises(EmptyDataframe):
         assert session.pandas.to_parquet(dataframe=dataframe,
                                          database=database,
@@ -527,9 +527,9 @@ def test_read_log_query(session, loggroup, logstream):
      ("parquet", None, "my_date", ["my_timestamp", "my_float", "my_date"])])
 def test_to_s3_types(session, bucket, database, file_format, serde, index,
                      partition_cols):
-    dataframe = pandas.read_csv("data_samples/complex.csv",
-                                dtype={"my_int_with_null": "Int64"},
-                                parse_dates=["my_timestamp", "my_date"])
+    dataframe = pd.read_csv("data_samples/complex.csv",
+                            dtype={"my_int_with_null": "Int64"},
+                            parse_dates=["my_timestamp", "my_date"])
     dataframe["my_date"] = dataframe["my_date"].dt.date
     dataframe["my_bool"] = True
 
@@ -572,7 +572,7 @@ def test_to_s3_types(session, bucket, database, file_format, serde, index,
             assert isinstance(row.my_timestamp, datetime)
             assert type(row.my_date) == date
             assert isinstance(row.my_float, float)
-            assert isinstance(row.my_int, numpy.int64)
+            assert isinstance(row.my_int, np.int64)
             assert isinstance(row.my_string, str)
             assert isinstance(row.my_bool, bool)
             assert str(
@@ -581,7 +581,7 @@ def test_to_s3_types(session, bucket, database, file_format, serde, index,
         elif file_format == "csv":
             if serde == "LazySimpleSerDe":
                 assert isinstance(row.my_float, float)
-                assert isinstance(row.my_int, numpy.int64)
+                assert isinstance(row.my_int, np.int64)
         assert str(row.my_timestamp).startswith("2018-01-01 04:03:02.001")
         assert str(row.my_date) == "2019-02-02"
         assert str(row.my_float) == "12345.6789"
@@ -601,7 +601,7 @@ def test_to_csv_with_sep(
         bucket,
         database,
 ):
-    dataframe = pandas.read_csv("data_samples/nano.csv")
+    dataframe = pd.read_csv("data_samples/nano.csv")
     session.pandas.to_csv(dataframe=dataframe,
                           database=database,
                           path=f"s3://{bucket}/test/",
@@ -624,7 +624,7 @@ def test_to_csv_serde_exception(
         bucket,
         database,
 ):
-    dataframe = pandas.read_csv("data_samples/nano.csv")
+    dataframe = pd.read_csv("data_samples/nano.csv")
     with pytest.raises(InvalidSerDe):
         assert session.pandas.to_csv(dataframe=dataframe,
                                      database=database,
@@ -636,7 +636,7 @@ def test_to_csv_serde_exception(
 
 @pytest.mark.parametrize("compression", [None, "snappy", "gzip"])
 def test_to_parquet_compressed(session, bucket, database, compression):
-    dataframe = pandas.read_csv("data_samples/small.csv")
+    dataframe = pd.read_csv("data_samples/small.csv")
     session.pandas.to_parquet(dataframe=dataframe,
                               database=database,
                               path=f"s3://{bucket}/test/",
@@ -658,7 +658,7 @@ def test_to_parquet_compressed(session, bucket, database, compression):
 
 
 def test_to_parquet_lists(session, bucket, database):
-    dataframe = pandas.DataFrame({
+    dataframe = pd.DataFrame({
         "id": [0, 1],
         "col_int": [[1, 2], [3, 4, 5]],
         "col_float": [[1.0, 2.0, 3.0], [4.0, 5.0]],
@@ -692,7 +692,7 @@ def test_to_parquet_lists(session, bucket, database):
 
 
 def test_to_parquet_cast(session, bucket, database):
-    dataframe = pandas.DataFrame({
+    dataframe = pd.DataFrame({
         "id": [0, 1],
         "col_int": [[1, 2], [3, 4, 5]],
         "col_float": [[1.0, 2.0, 3.0], [4.0, 5.0]],
@@ -730,7 +730,7 @@ def test_to_parquet_with_cast_null(
         bucket,
         database,
 ):
-    dataframe = pandas.DataFrame({
+    dataframe = pd.DataFrame({
         "id": [0, 1],
         "col_null_tinyint": [None, None],
         "col_null_smallint": [None, None],
@@ -780,7 +780,7 @@ def test_read_sql_athena_with_time_zone(session, bucket, database):
 
 
 def test_normalize_columns_names_athena():
-    dataframe = pandas.DataFrame({
+    dataframe = pd.DataFrame({
         "CamelCase": [1, 2, 3],
         "With Spaces": [4, 5, 6],
         "With-Dash": [7, 8, 9],
@@ -804,7 +804,7 @@ def test_to_parquet_with_normalize(
         bucket,
         database,
 ):
-    dataframe = pandas.DataFrame({
+    dataframe = pd.DataFrame({
         "CamelCase": [1, 2, 3],
         "With Spaces": [4, 5, 6],
         "With-Dash": [7, 8, 9],
@@ -840,7 +840,7 @@ def test_to_parquet_with_normalize_and_cast(
         bucket,
         database,
 ):
-    dataframe = pandas.DataFrame({
+    dataframe = pd.DataFrame({
         "CamelCase": [1, 2, 3],
         "With Spaces": [4, 5, 6],
         "With-Dash": [7, 8, 9],
@@ -880,7 +880,7 @@ def test_to_parquet_with_normalize_and_cast(
 
 
 def test_drop_duplicated_columns():
-    dataframe = pandas.DataFrame({
+    dataframe = pd.DataFrame({
         "a": [1, 2, 3],
         "b": [4, 5, 6],
         "c": [7, 8, 9],
@@ -896,7 +896,7 @@ def test_to_parquet_duplicated_columns(
         bucket,
         database,
 ):
-    dataframe = pandas.DataFrame({
+    dataframe = pd.DataFrame({
         "a": [1, 2, 3],
         "b": [4, 5, 6],
         "c": [7, 8, 9],
@@ -924,7 +924,7 @@ def test_to_parquet_with_pyarrow_null_type(
         bucket,
         database,
 ):
-    dataframe = pandas.DataFrame({
+    dataframe = pd.DataFrame({
         "a": [1, 2, 3],
         "b": [4, 5, 6],
         "col_null": [None, None, None],
@@ -942,7 +942,7 @@ def test_to_parquet_casting_to_string(
         bucket,
         database,
 ):
-    dataframe = pandas.DataFrame({
+    dataframe = pd.DataFrame({
         "a": [1, 2, 3],
         "col_string_null": [None, None, None],
         "c": [7, 8, 9],

@@ -1,6 +1,6 @@
 import logging
 
-import pandas
+import pandas as pd
 
 from pyspark.sql.functions import pandas_udf, PandasUDFType, spark_partition_id
 from pyspark.sql.types import TimestampType
@@ -107,7 +107,7 @@ class Spark:
                 mode="append",
                 procs_cpu_bound=1,
                 cast_columns=casts)
-            return pandas.DataFrame.from_dict({"objects_paths": paths})
+            return pd.DataFrame.from_dict({"objects_paths": paths})
 
         df_objects_paths = dataframe.repartition(numPartitions=num_partitions) \
             .withColumn("aws_data_wrangler_internal_partition_id", spark_partition_id()) \

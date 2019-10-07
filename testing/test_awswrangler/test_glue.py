@@ -2,7 +2,7 @@ import logging
 
 import pytest
 import boto3
-import pandas
+import pandas as pd
 
 from awswrangler import Session
 
@@ -53,7 +53,7 @@ def table(
         bucket,
         database,
 ):
-    dataframe = pandas.read_csv("data_samples/micro.csv")
+    dataframe = pd.read_csv("data_samples/micro.csv")
     path = f"s3://{bucket}/test/"
     table = "test"
     session.pandas.to_parquet(dataframe=dataframe,

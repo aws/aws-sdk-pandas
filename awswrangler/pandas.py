@@ -6,9 +6,9 @@ import copy
 import csv
 from datetime import datetime
 
-import pandas
-import pyarrow
-from pyarrow import parquet
+import pandas as pd
+import pyarrow as pa
+from pyarrow import parquet as pq
 
 from awswrangler import data_types
 from awswrangler.exceptions import (UnsupportedWriteMode,
@@ -239,21 +239,20 @@ class Pandas:
                         lineterminator=lineterminator)
                     forgotten_bytes = len(body[last_char:])
 
-                df = pandas.read_csv(
-                    StringIO(body[:last_char].decode("utf-8")),
-                    header=header,
-                    names=names,
-                    usecols=usecols,
-                    sep=sep,
-                    quotechar=quotechar,
-                    quoting=quoting,
-                    escapechar=escapechar,
-                    parse_dates=parse_dates,
-                    infer_datetime_format=infer_datetime_format,
-                    lineterminator=lineterminator,
-                    dtype=dtype,
-                    encoding=encoding,
-                    converters=converters)
+                df = pd.read_csv(StringIO(body[:last_char].decode("utf-8")),
+                                 header=header,
+                                 names=names,
+                                 usecols=usecols,
+                                 sep=sep,
+                                 quotechar=quotechar,
+                                 quoting=quoting,
+                                 escapechar=escapechar,
+                                 parse_dates=parse_dates,
+                                 infer_datetime_format=infer_datetime_format,
+                                 lineterminator=lineterminator,
+                                 dtype=dtype,
+                                 encoding=encoding,
+                                 converters=converters)
                 yield df
                 if count == 1:  # first chunk
                     names = df.columns
@@ -402,7 +401,7 @@ class Pandas:
                                    Key=key_path,
                                    Fileobj=buff)
         buff.seek(0),
-        dataframe = pandas.read_csv(
+        dataframe = pd.read_csv(
             buff,
             header=header,
             names=names,
@@ -822,7 +821,7 @@ class Pandas:
                                   extra_args=None,
                                   isolated_dataframe=False):
         fs = s3.get_fs(session_primitives=session_primitives)
-        fs = pyarrow.filesystem._ensure_filesystem(fs)
+        fs = pa.filesystem._ensure_filesystem(fs)
         s3.mkdir_if_not_exists(fs, path)
 
         if compression is None:
@@ -834,7 +833,7 @@ class Pandas:
         else:
             raise InvalidCompression(compression)
 
-        guid = pyarrow.compat.guid()
+        guid = pa.compat.guid()
         if file_format == "parquet":
             outfile = f"{guid}.parquet{compression_end}"
         elif file_format == "csv":
@@ -905,9 +904,9 @@ class Pandas:
                 logger.debug(f"Casting column {name} Int64 to float64")
 
         # Converting Pandas Dataframe to Pyarrow's Table
-        table = pyarrow.Table.from_pandas(df=dataframe,
-                                          preserve_index=preserve_index,
-                                          safe=False)
+        table = pa.Table.from_pandas(df=dataframe,
+                                     preserve_index=preserve_index,
+                                     safe=False)
 
         # Casting on Pyarrow
         if cast_columns:
@@ -923,11 +922,11 @@ class Pandas:
 
         # Persisting on S3
         with fs.open(path, "wb") as f:
-            parquet.write_table(table,
-                                f,
-                                compression=compression,
-                                coerce_timestamps="ms",
-                                flavor="spark")
+            pq.write_table(table,
+                           f,
+                           compression=compression,
+                           coerce_timestamps="ms",
+                           flavor="spark")
 
         # Casting back on Pandas if necessary
         if isolated_dataframe is False:
@@ -1047,7 +1046,7 @@ class Pandas:
                     col_name = col["field"]
                 new_row[col_name] = col["value"]
             pre_df.append(new_row)
-        return pandas.DataFrame(pre_df)
+        return pd.DataFrame(pre_df)
 
     @staticmethod
     def normalize_columns_names_athena(dataframe, inplace=True):

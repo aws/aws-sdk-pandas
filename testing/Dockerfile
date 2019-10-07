@@ -1,6 +1,6 @@
 FROM openjdk:8-jre-stretch
 
-ARG SPARK_VERSION=2.4.3
+ARG SPARK_VERSION=2.4.4
 
 RUN apt-get update -y
 RUN apt-get install -y jq make build-essential libssl-dev zlib1g-dev libbz2-dev \
@@ -22,13 +22,11 @@ RUN eval "$(pyenv init -)" && \
     curl --url "http://central.maven.org/maven2/org/apache/hadoop/hadoop-aws/2.7.3/hadoop-aws-2.7.3.jar" --output ${SPARK_HOME}/jars/hadoop-aws-2.7.3.jar && \
     mkdir -p ${SPARK_HOME}/conf && \
     echo spark.hadoop.fs.s3.impl=org.apache.hadoop.fs.s3a.S3AFileSystem >> ${SPARK_HOME}/conf/spark-defaults.conf
-RUN $PIP install aws-sam-cli
-RUN $PIP install awscli
 ADD requirements.txt /root/
-RUN $PIP install -r /root/requirements.txt
+RUN $PIP install --upgrade -r /root/requirements.txt
 RUN rm -rf /root/requirements.txt
 ADD requirements-dev.txt /root/
-RUN $PIP install -r /root/requirements-dev.txt
+RUN $PIP install --upgrade -r /root/requirements-dev.txt
 RUN rm -rf /root/requirements-dev.txt
 
 ENTRYPOINT ["/bin/sh"]
