@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 
 from awswrangler import Session, Pandas
-from awswrangler.exceptions import LineTerminatorNotFound, EmptyDataframe, InvalidSerDe, UnsupportedType
+from awswrangler.exceptions import LineTerminatorNotFound, EmptyDataframe, InvalidSerDe, UnsupportedType, UndetectedType
 
 logging.basicConfig(
     level=logging.INFO,
@@ -962,3 +962,20 @@ def test_to_parquet_casting_to_string(
     assert len(dataframe.index) == len(dataframe2.index)
     assert (len(list(dataframe.columns)) + 1) == len(list(dataframe2.columns))
     print(dataframe2)
+
+
+def test_to_parquet_casting_with_null_object(
+        session,
+        bucket,
+        database,
+):
+    dataframe = pd.DataFrame({
+        "a": [1, 2, 3],
+        "b": [4, 5, 6],
+        "col_null": [None, None, None],
+    })
+    with pytest.raises(UndetectedType):
+        assert session.pandas.to_parquet(dataframe=dataframe,
+                                         database=database,
+                                         path=f"s3://{bucket}/test/",
+                                         mode="overwrite")
