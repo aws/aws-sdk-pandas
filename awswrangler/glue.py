@@ -4,7 +4,7 @@ import logging
 
 from awswrangler import data_types
 from awswrangler.athena import Athena
-from awswrangler.exceptions import UnsupportedFileFormat, InvalidSerDe, ApiError, UnsupportedType
+from awswrangler.exceptions import UnsupportedFileFormat, InvalidSerDe, ApiError, UnsupportedType, UndetectedType
 
 logger = logging.getLogger(__name__)
 
@@ -194,6 +194,11 @@ class Glue:
             else:
                 try:
                     athena_type = data_types.pyarrow2athena(dtype)
+                except UndetectedType:
+                    raise UndetectedType(
+                        f"We can't infer the data type from an entire null object column ({name}). "
+                        f"Please consider pass the type of this column explicitly using the cast "
+                        f"columns argument")
                 except UnsupportedType:
                     raise UnsupportedType(
                         f"Unsupported Pyarrow type for column {name}: {dtype}")

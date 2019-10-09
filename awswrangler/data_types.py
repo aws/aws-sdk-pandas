@@ -3,7 +3,7 @@ from datetime import datetime, date
 
 import pyarrow
 
-from awswrangler.exceptions import UnsupportedType
+from awswrangler.exceptions import UnsupportedType, UndetectedType
 
 logger = logging.getLogger(__name__)
 
@@ -160,6 +160,9 @@ def pyarrow2athena(dtype):
         return "date"
     elif dtype_str.startswith("list"):
         return f"array<{pyarrow2athena(dtype.value_type)}>"
+    elif dtype_str == "null":
+        raise UndetectedType(
+            "We can't infer the data type from an entire null object column")
     else:
         raise UnsupportedType(f"Unsupported Pyarrow type: {dtype}")
 

@@ -2,6 +2,10 @@ class UnsupportedType(Exception):
     pass
 
 
+class UndetectedType(Exception):
+    pass
+
+
 class UnsupportedFileFormat(Exception):
     pass
 
