@@ -72,7 +72,7 @@ rm -f "dist/awswrangler-layer.zip"
 pip install . -t ./python
 rm -rf python/pyarrow*
 cp -r ~/pyarrow_files/pyarrow* python/
-zip -r "awswrangler-layer.zip" ./python
+zip -r9 "awswrangler-layer.zip" ./python
 mv "awswrangler-layer.zip" dist/
 
 # # Cleaning up the directory again
