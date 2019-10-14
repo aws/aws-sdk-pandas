@@ -2,9 +2,9 @@ import multiprocessing as mp
 from math import ceil
 import logging
 
-from botocore.exceptions import ClientError
-import s3fs
-import tenacity
+from botocore.exceptions import ClientError  # type: ignore
+import s3fs  # type: ignore
+import tenacity  # type: ignore
 
 from awswrangler.utils import calculate_bounders, wait_process_release
 

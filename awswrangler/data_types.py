@@ -1,14 +1,16 @@
+from typing import List, Tuple, Dict, Callable
 import logging
 from datetime import datetime, date
 
-import pyarrow
+import pyarrow as pa  # type: ignore
+import pandas as pd  # type: ignore
 
-from awswrangler.exceptions import UnsupportedType, UndetectedType
+from awswrangler.exceptions import UnsupportedType, UndetectedType  # type: ignore
 
 logger = logging.getLogger(__name__)
 
 
-def athena2pandas(dtype):
+def athena2pandas(dtype: str) -> str:
     dtype = dtype.lower()
     if dtype in ["int", "integer", "bigint", "smallint", "tinyint"]:
         return "Int64"
@@ -28,7 +30,7 @@ def athena2pandas(dtype):
         raise UnsupportedType(f"Unsupported Athena type: {dtype}")
 
 
-def athena2pyarrow(dtype):
+def athena2pyarrow(dtype: str) -> str:
     dtype = dtype.lower()
     if dtype == "tinyint":
         return "int8"
@@ -54,7 +56,7 @@ def athena2pyarrow(dtype):
         raise UnsupportedType(f"Unsupported Athena type: {dtype}")
 
 
-def athena2python(dtype):
+def athena2python(dtype: str) -> type:
     dtype = dtype.lower()
     if dtype in ["int", "integer", "bigint", "smallint", "tinyint"]:
         return int
@@ -72,7 +74,7 @@ def athena2python(dtype):
         raise UnsupportedType(f"Unsupported Athena type: {dtype}")
 
 
-def athena2redshift(dtype):
+def athena2redshift(dtype: str) -> str:
     dtype = dtype.lower()
     if dtype == "smallint":
         return "SMALLINT"
@@ -96,7 +98,7 @@ def athena2redshift(dtype):
         raise UnsupportedType(f"Unsupported Athena type: {dtype}")
 
 
-def pandas2athena(dtype):
+def pandas2athena(dtype: str) -> str:
     dtype = dtype.lower()
     if dtype == "int32":
         return "int"
@@ -116,7 +118,7 @@ def pandas2athena(dtype):
         raise UnsupportedType(f"Unsupported Pandas type: {dtype}")
 
 
-def pandas2redshift(dtype):
+def pandas2redshift(dtype: str) -> str:
     dtype = dtype.lower()
     if dtype == "int32":
         return "INTEGER"
@@ -136,7 +138,7 @@ def pandas2redshift(dtype):
         raise UnsupportedType("Unsupported Pandas type: " + dtype)
 
 
-def pyarrow2athena(dtype):
+def pyarrow2athena(dtype: pa.types) -> str:
     dtype_str = str(dtype).lower()
     if dtype_str == "int8":
         return "tinyint"
@@ -167,7 +169,7 @@ def pyarrow2athena(dtype):
         raise UnsupportedType(f"Unsupported Pyarrow type: {dtype}")
 
 
-def pyarrow2redshift(dtype):
+def pyarrow2redshift(dtype: pa.types) -> str:
     dtype_str = str(dtype).lower()
     if dtype_str == "int16":
         return "SMALLINT"
@@ -191,25 +193,25 @@ def pyarrow2redshift(dtype):
         raise UnsupportedType(f"Unsupported Pyarrow type: {dtype}")
 
 
-def python2athena(python_type):
-    python_type = str(python_type)
-    if python_type == "<class 'int'>":
+def python2athena(python_type: type) -> str:
+    python_type_str: str = str(python_type)
+    if python_type_str == "<class 'int'>":
         return "bigint"
-    elif python_type == "<class 'float'>":
+    elif python_type_str == "<class 'float'>":
         return "double"
-    elif python_type == "<class 'boll'>":
+    elif python_type_str == "<class 'boll'>":
         return "boolean"
-    elif python_type == "<class 'str'>":
+    elif python_type_str == "<class 'str'>":
         return "string"
-    elif python_type == "<class 'datetime.datetime'>":
+    elif python_type_str == "<class 'datetime.datetime'>":
         return "timestamp"
-    elif python_type == "<class 'datetime.date'>":
+    elif python_type_str == "<class 'datetime.date'>":
         return "date"
     else:
-        raise UnsupportedType(f"Unsupported Python type: {python_type}")
+        raise UnsupportedType(f"Unsupported Python type: {python_type_str}")
 
 
-def redshift2athena(dtype):
+def redshift2athena(dtype: str) -> str:
     dtype_str = str(dtype)
     if dtype_str in ["SMALLINT", "INT2"]:
         return "smallint"
@@ -233,8 +235,8 @@ def redshift2athena(dtype):
         raise UnsupportedType(f"Unsupported Redshift type: {dtype_str}")
 
 
-def redshift2pyarrow(dtype):
-    dtype_str = str(dtype)
+def redshift2pyarrow(dtype: str) -> str:
+    dtype_str: str = str(dtype)
     if dtype_str in ["SMALLINT", "INT2"]:
         return "int16"
     elif dtype_str in ["INTEGER", "INT", "INT4"]:
@@ -257,7 +259,7 @@ def redshift2pyarrow(dtype):
         raise UnsupportedType(f"Unsupported Redshift type: {dtype_str}")
 
 
-def spark2redshift(dtype):
+def spark2redshift(dtype: str) -> str:
     dtype = dtype.lower()
     if dtype == "smallint":
         return "SMALLINT"
@@ -281,7 +283,7 @@ def spark2redshift(dtype):
         raise UnsupportedType("Unsupported Spark type: " + dtype)
 
 
-def convert_schema(func, schema):
+def convert_schema(func: Callable, schema: List[Tuple[str, str]]) -> Dict[str, str]:
     """
     Convert schema in the format of {"col name": "bigint", "col2 name": "int"}
     applying some data types conversion function (e.g. spark2redshift)
@@ -293,16 +295,16 @@ def convert_schema(func, schema):
     return {name: func(dtype) for name, dtype in schema}
 
 
-def extract_pyarrow_schema_from_pandas(dataframe,
-                                       preserve_index,
-                                       indexes_position="right"):
+def extract_pyarrow_schema_from_pandas(dataframe: pd.DataFrame,
+                                       preserve_index: bool,
+                                       indexes_position: str = "right") -> List[Tuple[str, str]]:
     """
     Extract the related Pyarrow schema from any Pandas DataFrame
 
     :param dataframe: Pandas Dataframe
     :param preserve_index: True or False
     :param indexes_position: "right" or "left"
-    :return: Pyarrow schema (e.g. {"col name": "bigint", "col2 name": "int"})
+    :return: Pyarrow schema (e.g. [("col name": "bigint"), ("col2 name": "int")]
     """
     cols = []
     cols_dtypes = {}
@@ -319,8 +321,8 @@ def extract_pyarrow_schema_from_pandas(dataframe,
 
     # Filling cols_dtypes and indexes
     indexes = []
-    for field in pyarrow.Schema.from_pandas(df=dataframe[cols],
-                                            preserve_index=preserve_index):
+    for field in pa.Schema.from_pandas(df=dataframe[cols],
+                                       preserve_index=preserve_index):
         name = str(field.name)
         dtype = field.type
         cols_dtypes[name] = dtype

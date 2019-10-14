@@ -1,9 +1,11 @@
+from typing import List, Tuple, Dict
 import logging
 
 import pandas as pd
 
 from pyspark.sql.functions import pandas_udf, PandasUDFType, spark_partition_id
 from pyspark.sql.types import TimestampType
+from pyspark.sql import DataFrame
 
 from awswrangler.exceptions import MissingBatchDetected, UnsupportedFileFormat
 
@@ -210,3 +212,122 @@ class Spark:
             extra_args=extra_args)
         if load_partitions:
             self._session.athena.repair_table(database=database, table=table)
+
+    @staticmethod
+    def _is_struct(dtype: str) -> bool:
+        return True if dtype.startswith("struct") else False
+
+    @staticmethod
+    def _is_array(dtype: str) -> bool:
+        return True if dtype.startswith("array") else False
+
+    @staticmethod
+    def _is_map(dtype: str) -> bool:
+        return True if dtype.startswith("map") else False
+
+    @staticmethod
+    def _is_array_or_map(dtype: str) -> bool:
+        return True if (dtype.startswith("array") or dtype.startswith("map")) else False
+
+    @staticmethod
+    def _parse_aux(path: str, aux: str) -> Tuple[str, str]:
+        path_child: str
+        dtype: str
+        if ":" in aux:
+            path_child, dtype = aux.split(sep=":", maxsplit=1)
+        else:
+            path_child = "element"
+            dtype = aux
+        return f"{path}.{path_child}", dtype
+
+    @staticmethod
+    def _flatten_struct_column(path: str, dtype: str) -> List[Tuple[str, str]]:
+        dtype: str = dtype[7:-1]  # Cutting off "struct<" and ">"
+        cols: List[Tuple[str, str]] = []
+        struct_acc: int = 0
+        path_child: str
+        dtype_child: str
+        aux: str = ""
+        for c, i in zip(dtype, range(len(dtype), 0, -1)):  # Zipping a descendant ID for each letter
+            if ((c == ",") and (struct_acc == 0)) or (i == 1):
+                if i == 1:
+                    aux += c
+                path_child, dtype_child = Spark._parse_aux(path=path, aux=aux)
+                if Spark._is_struct(dtype=dtype_child):
+                    cols += Spark._flatten_struct_column(path=path_child, dtype=dtype_child)  # Recursion
+                elif Spark._is_array(dtype=dtype):
+                    cols.append((path, "array"))
+                else:
+                    cols.append((path_child, dtype_child))
+                aux = ""
+            elif c == "<":
+                aux += c
+                struct_acc += 1
+            elif c == ">":
+                aux += c
+                struct_acc -= 1
+            else:
+                aux += c
+        return cols
+
+    @staticmethod
+    def _flatten_struct_dataframe(
+            df: DataFrame,
+            explode_outer: bool = True,
+            explode_pos: bool = True) -> List[Tuple[str, str, str]]:
+        explode: str = "EXPLODE_OUTER" if explode_outer is True else "EXPLODE"
+        explode = f"POS{explode}" if explode_pos is True else explode
+        cols: List[Tuple[str, str]] = []
+        for path, dtype in df.dtypes:
+            if Spark._is_struct(dtype=dtype):
+                cols += Spark._flatten_struct_column(path=path, dtype=dtype)
+            elif Spark._is_array(dtype=dtype):
+                cols.append((path, "array"))
+            elif Spark._is_map(dtype=dtype):
+                cols.append((path, "map"))
+            else:
+                cols.append((path, dtype))
+        cols_exprs: List[Tuple[str, str, str]] = []
+        expr: str
+        for path, dtype in cols:
+            path_under = path.replace('.', '_')
+            if Spark._is_array(dtype):
+                if explode_pos:
+                    expr = f"{explode}({path}) AS ({path_under}_pos, {path_under})"
+                else:
+                    expr = f"{explode}({path}) AS {path_under}"
+            elif Spark._is_map(dtype):
+                if explode_pos:
+                    expr = f"{explode}({path}) AS ({path_under}_pos, {path_under}_key, {path_under}_value)"
+                else:
+                    expr = f"{explode}({path}) AS ({path_under}_key, {path_under}_value)"
+            else:
+                expr = f"{path} AS {path.replace('.', '_')}"
+            cols_exprs.append((path, dtype, expr))
+        return cols_exprs
+
+    @staticmethod
+    def _build_name(name: str, expr: str) -> str:
+        suffix: str = expr[expr.find("(") + 1: expr.find(")")]
+        return f"{name}_{suffix}".replace(".", "_")
+
+    @staticmethod
+    def flatten(
+            df: DataFrame,
+            explode_outer: bool = True,
+            explode_pos: bool = True,
+            name: str = "root") -> Dict[str, DataFrame]:
+        cols_exprs: List[Tuple[str, str, str]] = Spark._flatten_struct_dataframe(
+            df=df,
+            explode_outer=explode_outer,
+            explode_pos=explode_pos)
+        exprs_arr: List[str] = [x[2] for x in cols_exprs if Spark._is_array_or_map(x[1])]
+        exprs: List[str] = [x[2] for x in cols_exprs if not Spark._is_array_or_map(x[1])]
+        dfs: Dict[str, DataFrame] = {name: df.selectExpr(exprs)}
+        exprs: List[str] = [x[2] for x in cols_exprs if not Spark._is_array_or_map(x[1]) and not x[0].endswith("_pos")]
+        for expr in exprs_arr:
+            df_arr = df.selectExpr(exprs + [expr])
+            name_new: str = Spark._build_name(name=name, expr=expr)
+            dfs_new = Spark.flatten(df=df_arr, explode_outer=explode_outer, explode_pos=explode_pos, name=name_new)
+            dfs = {**dfs, **dfs_new}
+        return dfs
