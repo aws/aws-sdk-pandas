@@ -5,7 +5,7 @@ from datetime import datetime, date
 import pyarrow as pa  # type: ignore
 import pandas as pd  # type: ignore
 
-from awswrangler.exceptions import UnsupportedType, UndetectedType  # type: ignore
+from awswrangler.exceptions import UnsupportedType, UndetectedType
 
 logger = logging.getLogger(__name__)
 
@@ -283,7 +283,8 @@ def spark2redshift(dtype: str) -> str:
         raise UnsupportedType("Unsupported Spark type: " + dtype)
 
 
-def convert_schema(func: Callable, schema: List[Tuple[str, str]]) -> Dict[str, str]:
+def convert_schema(func: Callable,
+                   schema: List[Tuple[str, str]]) -> Dict[str, str]:
     """
     Convert schema in the format of {"col name": "bigint", "col2 name": "int"}
     applying some data types conversion function (e.g. spark2redshift)
@@ -297,7 +298,8 @@ def convert_schema(func: Callable, schema: List[Tuple[str, str]]) -> Dict[str, s
 
 def extract_pyarrow_schema_from_pandas(dataframe: pd.DataFrame,
                                        preserve_index: bool,
-                                       indexes_position: str = "right") -> List[Tuple[str, str]]:
+                                       indexes_position: str = "right"
+                                       ) -> List[Tuple[str, str]]:
     """
     Extract the related Pyarrow schema from any Pandas DataFrame
 

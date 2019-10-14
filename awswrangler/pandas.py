@@ -6,9 +6,9 @@ import copy
 import csv
 from datetime import datetime
 
-import pandas as pd
-import pyarrow as pa
-from pyarrow import parquet as pq
+import pandas as pd  # type: ignore
+import pyarrow as pa  # type: ignore
+from pyarrow import parquet as pq  # type: ignore
 
 from awswrangler import data_types
 from awswrangler.exceptions import (UnsupportedWriteMode,
@@ -1058,7 +1058,8 @@ class Pandas:
         return dataframe
 
     @staticmethod
-    def drop_duplicated_columns(dataframe, inplace=True):
+    def drop_duplicated_columns(dataframe: pd.DataFrame,
+                                inplace: bool = True) -> pd.DataFrame:
         if inplace is False:
             dataframe = dataframe.copy(deep=True)
         duplicated_cols = dataframe.columns.duplicated()

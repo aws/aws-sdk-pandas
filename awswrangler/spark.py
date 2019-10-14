@@ -1,11 +1,9 @@
 from typing import List, Tuple, Dict
 import logging
 
-import pandas as pd
+import pandas as pd  # type: ignore
 
-from pyspark.sql.functions import pandas_udf, PandasUDFType, spark_partition_id
-from pyspark.sql.types import TimestampType
-from pyspark.sql import DataFrame
+from pyspark import sql
 
 from awswrangler.exceptions import MissingBatchDetected, UnsupportedFileFormat
 
@@ -38,7 +36,7 @@ class Spark:
         for name, dtype in dataframe.dtypes:
             if dtype == "date":
                 dataframe = dataframe.withColumn(
-                    name, dataframe[name].cast(TimestampType()))
+                    name, dataframe[name].cast(sql.types.TimestampType()))
                 logger.warning(
                     f"Casting column {name} from date to timestamp!")
         return dataframe
@@ -98,8 +96,9 @@ class Spark:
         spark.conf.set("spark.sql.execution.arrow.enabled", "true")
         session_primitives = self._session.primitives
 
-        @pandas_udf(returnType="objects_paths string",
-                    functionType=PandasUDFType.GROUPED_MAP)
+        @sql.functions.pandas_udf(
+            returnType="objects_paths string",
+            functionType=sql.functions.PandasUDFType.GROUPED_MAP)
         def write(pandas_dataframe):
             del pandas_dataframe["aws_data_wrangler_internal_partition_id"]
             paths = session_primitives.session.pandas.to_parquet(
@@ -112,7 +111,7 @@ class Spark:
             return pd.DataFrame.from_dict({"objects_paths": paths})
 
         df_objects_paths = dataframe.repartition(numPartitions=num_partitions) \
-            .withColumn("aws_data_wrangler_internal_partition_id", spark_partition_id()) \
+            .withColumn("aws_data_wrangler_internal_partition_id", sql.functions.spark_partition_id()) \
             .groupby("aws_data_wrangler_internal_partition_id") \
             .apply(write)
 
@@ -227,7 +226,8 @@ class Spark:
 
     @staticmethod
     def _is_array_or_map(dtype: str) -> bool:
-        return True if (dtype.startswith("array") or dtype.startswith("map")) else False
+        return True if (dtype.startswith("array")
+                        or dtype.startswith("map")) else False
 
     @staticmethod
     def _parse_aux(path: str, aux: str) -> Tuple[str, str]:
@@ -242,19 +242,22 @@ class Spark:
 
     @staticmethod
     def _flatten_struct_column(path: str, dtype: str) -> List[Tuple[str, str]]:
-        dtype: str = dtype[7:-1]  # Cutting off "struct<" and ">"
+        dtype = dtype[7:-1]  # Cutting off "struct<" and ">"
         cols: List[Tuple[str, str]] = []
         struct_acc: int = 0
         path_child: str
         dtype_child: str
         aux: str = ""
-        for c, i in zip(dtype, range(len(dtype), 0, -1)):  # Zipping a descendant ID for each letter
+        for c, i in zip(dtype,
+                        range(len(dtype), 0,
+                              -1)):  # Zipping a descendant ID for each letter
             if ((c == ",") and (struct_acc == 0)) or (i == 1):
                 if i == 1:
                     aux += c
                 path_child, dtype_child = Spark._parse_aux(path=path, aux=aux)
                 if Spark._is_struct(dtype=dtype_child):
-                    cols += Spark._flatten_struct_column(path=path_child, dtype=dtype_child)  # Recursion
+                    cols += Spark._flatten_struct_column(
+                        path=path_child, dtype=dtype_child)  # Recursion
                 elif Spark._is_array(dtype=dtype):
                     cols.append((path, "array"))
                 else:
@@ -271,10 +274,10 @@ class Spark:
         return cols
 
     @staticmethod
-    def _flatten_struct_dataframe(
-            df: DataFrame,
-            explode_outer: bool = True,
-            explode_pos: bool = True) -> List[Tuple[str, str, str]]:
+    def _flatten_struct_dataframe(df: sql.DataFrame,
+                                  explode_outer: bool = True,
+                                  explode_pos: bool = True
+                                  ) -> List[Tuple[str, str, str]]:
         explode: str = "EXPLODE_OUTER" if explode_outer is True else "EXPLODE"
         explode = f"POS{explode}" if explode_pos is True else explode
         cols: List[Tuple[str, str]] = []
@@ -308,26 +311,34 @@ class Spark:
 
     @staticmethod
     def _build_name(name: str, expr: str) -> str:
-        suffix: str = expr[expr.find("(") + 1: expr.find(")")]
+        suffix: str = expr[expr.find("(") + 1:expr.find(")")]
         return f"{name}_{suffix}".replace(".", "_")
 
     @staticmethod
-    def flatten(
-            df: DataFrame,
-            explode_outer: bool = True,
-            explode_pos: bool = True,
-            name: str = "root") -> Dict[str, DataFrame]:
-        cols_exprs: List[Tuple[str, str, str]] = Spark._flatten_struct_dataframe(
-            df=df,
-            explode_outer=explode_outer,
-            explode_pos=explode_pos)
-        exprs_arr: List[str] = [x[2] for x in cols_exprs if Spark._is_array_or_map(x[1])]
-        exprs: List[str] = [x[2] for x in cols_exprs if not Spark._is_array_or_map(x[1])]
-        dfs: Dict[str, DataFrame] = {name: df.selectExpr(exprs)}
-        exprs: List[str] = [x[2] for x in cols_exprs if not Spark._is_array_or_map(x[1]) and not x[0].endswith("_pos")]
+    def flatten(df: sql.DataFrame,
+                explode_outer: bool = True,
+                explode_pos: bool = True,
+                name: str = "root") -> Dict[str, sql.DataFrame]:
+        cols_exprs: List[
+            Tuple[str, str, str]] = Spark._flatten_struct_dataframe(
+                df=df, explode_outer=explode_outer, explode_pos=explode_pos)
+        exprs_arr: List[str] = [
+            x[2] for x in cols_exprs if Spark._is_array_or_map(x[1])
+        ]
+        exprs: List[str] = [
+            x[2] for x in cols_exprs if not Spark._is_array_or_map(x[1])
+        ]
+        dfs: Dict[str, sql.DataFrame] = {name: df.selectExpr(exprs)}
+        exprs = [
+            x[2] for x in cols_exprs
+            if not Spark._is_array_or_map(x[1]) and not x[0].endswith("_pos")
+        ]
         for expr in exprs_arr:
             df_arr = df.selectExpr(exprs + [expr])
             name_new: str = Spark._build_name(name=name, expr=expr)
-            dfs_new = Spark.flatten(df=df_arr, explode_outer=explode_outer, explode_pos=explode_pos, name=name_new)
+            dfs_new = Spark.flatten(df=df_arr,
+                                    explode_outer=explode_outer,
+                                    explode_pos=explode_pos,
+                                    name=name_new)
             dfs = {**dfs, **dfs_new}
         return dfs

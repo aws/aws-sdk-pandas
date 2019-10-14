@@ -1,7 +1,7 @@
 import json
 import logging
 
-import pg8000
+import pg8000  # type: ignore
 
 from awswrangler import data_types
 from awswrangler.exceptions import (

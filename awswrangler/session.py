@@ -2,8 +2,8 @@ import os
 import logging
 import importlib
 
-import boto3
-from botocore.config import Config
+import boto3  # type: ignore
+from botocore.config import Config  # type: ignore
 
 from awswrangler.s3 import S3
 from awswrangler.athena import Athena
@@ -13,7 +13,7 @@ from awswrangler.glue import Glue
 from awswrangler.redshift import Redshift
 
 PYSPARK_INSTALLED = False
-if importlib.util.find_spec("pyspark"):
+if importlib.util.find_spec("pyspark"):  # type: ignore
     PYSPARK_INSTALLED = True
     from awswrangler.spark import Spark
 

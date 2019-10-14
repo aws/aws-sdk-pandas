@@ -47,8 +47,8 @@ def wait_process_release(processes):
         sleep(0.1)
 
 
-def lcm(a, b):
+def lcm(a: int, b: int) -> int:
     """
     Least Common Multiple
     """
-    return abs(a * b) // gcd(a, b)
+    return int(abs(a * b) // gcd(a, b))
