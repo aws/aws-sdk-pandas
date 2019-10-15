@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 
 from awswrangler import Session, Pandas
-from awswrangler.exceptions import LineTerminatorNotFound, EmptyDataframe, InvalidSerDe, UnsupportedType, UndetectedType
+from awswrangler.exceptions import LineTerminatorNotFound, EmptyDataframe, InvalidSerDe, UndetectedType
 
 logging.basicConfig(
     level=logging.INFO,
@@ -930,7 +930,7 @@ def test_to_parquet_with_pyarrow_null_type(
         "col_null": [None, None, None],
         "c": [7, 8, 9],
     })
-    with pytest.raises(UnsupportedType):
+    with pytest.raises(UndetectedType):
         assert session.pandas.to_parquet(dataframe=dataframe,
                                          database=database,
                                          path=f"s3://{bucket}/test/",
