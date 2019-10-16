@@ -319,6 +319,16 @@ class Spark:
                 explode_outer: bool = True,
                 explode_pos: bool = True,
                 name: str = "root") -> Dict[str, sql.DataFrame]:
+        """
+        Convert a complex nested DataFrame in one (or many) flat DataFrames
+        If a columns is a struct it is flatten directly.
+        If a columns is an array or map, then child DataFrames are created in different granularities.
+        :param df: Spark DataFrame
+        :param explode_outer: Should we preserve the null values on arrays?
+        :param explode_pos: Create columns with the index of the ex-array
+        :param name: The name of the root Dataframe
+        :return: A list of Dictionaries with the name as Keys and the DataFrames as Values
+        """
         cols_exprs: List[
             Tuple[str, str, str]] = Spark._flatten_struct_dataframe(
                 df=df, explode_outer=explode_outer, explode_pos=explode_pos)

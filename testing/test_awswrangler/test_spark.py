@@ -2,8 +2,10 @@ import logging
 
 import pytest
 import boto3
+import pandas as pd
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import lit, array, create_map, struct
+from pyspark.sql.types import StructType, StructField, IntegerType
 
 from awswrangler import Session
 
@@ -164,3 +166,41 @@ def test_create_glue_table_csv(session, bucket, database, compression,
     assert int(pandas_df.iloc[0]["id"]) == 4
     assert pandas_df.iloc[0]["name"] == "four"
     assert float(pandas_df.iloc[0]["value"]) == 4.0
+
+
+def test_flatten_simple_struct(session):
+    print()
+    pdf = pd.DataFrame({
+        "a": [1, 2],
+        "b": [
+            {
+                "bb1": 1,
+                "bb2": 2
+            },
+            {
+                "bb1": 1,
+                "bb2": 2
+            },
+        ],
+    })
+    schema = StructType([
+        StructField(name="a", dataType=IntegerType(), nullable=True),
+        StructField(name="b",
+                    dataType=StructType([
+                        StructField(name="bb1",
+                                    dataType=IntegerType(),
+                                    nullable=True),
+                        StructField(name="bb2",
+                                    dataType=IntegerType(),
+                                    nullable=True),
+                    ]),
+                    nullable=True),
+    ])
+    df = session.spark_session.createDataFrame(data=pdf, schema=schema)
+    df.printSchema()
+    dfs = session.spark.flatten(df=df)
+    assert len(dfs) == 1
+    dfs["root"].printSchema()
+    assert str(dfs["root"].dtypes
+               ) == "[('a', 'int'), ('b_bb1', 'int'), ('b_bb2', 'int')]"
+    assert df.count() == dfs["root"].count()
