@@ -29,25 +29,24 @@ def get_fs(session_primitives=None):
         if session_primitives.profile_name:
             profile_name = session_primitives.profile_name
         if session_primitives.botocore_max_retries:
-            config = {
-                "retries": {
-                    "max_attempts": session_primitives.botocore_max_retries
-                }
-            }
+            config = {"retries": {"max_attempts": session_primitives.botocore_max_retries}}
         if session_primitives.s3_additional_kwargs:
             s3_additional_kwargs = session_primitives.s3_additional_kwargs
     if profile_name:
-        fs = s3fs.S3FileSystem(profile_name=profile_name,
-                               config_kwargs=config,
-                               s3_additional_kwargs=s3_additional_kwargs)
+        fs = s3fs.S3FileSystem(
+            profile_name=profile_name,
+            config_kwargs=config,
+            s3_additional_kwargs=s3_additional_kwargs
+        )
     elif aws_access_key_id and aws_secret_access_key:
-        fs = s3fs.S3FileSystem(key=aws_access_key_id,
-                               secret=aws_secret_access_key,
-                               config_kwargs=config,
-                               s3_additional_kwargs=s3_additional_kwargs)
+        fs = s3fs.S3FileSystem(
+            key=aws_access_key_id,
+            secret=aws_secret_access_key,
+            config_kwargs=config,
+            s3_additional_kwargs=s3_additional_kwargs
+        )
     else:
-        fs = s3fs.S3FileSystem(config_kwargs=config,
-                               s3_additional_kwargs=s3_additional_kwargs)
+        fs = s3fs.S3FileSystem(config_kwargs=config, s3_additional_kwargs=s3_additional_kwargs)
     return fs
 
 
@@ -77,7 +76,8 @@ class S3:
     def delete_objects(self, path):
         bucket, path = self.parse_path(path=path)
         client = self._session.boto3_session.client(
-            service_name="s3", config=self._session.botocore_config)
+            service_name="s3", config=self._session.botocore_config
+        )
         procs = []
         args = {"Bucket": bucket, "MaxKeys": 1000, "Prefix": path}
         logger.debug(f"Arguments: \n{args}")
@@ -102,8 +102,7 @@ class S3:
                     wait_process_release(procs)
             else:
                 logger.debug(f"Starting last delete call...")
-                self.delete_objects_batch(self._session.primitives, bucket,
-                                          keys)
+                self.delete_objects_batch(self._session.primitives, bucket, keys)
         logger.debug(f"Waiting final processes...")
         for proc in procs:
             proc.join()
@@ -143,9 +142,8 @@ class S3:
                     proc.join()
             else:
                 self.delete_objects_batch(
-                    session_primitives=self._session.primitives,
-                    bucket=bucket,
-                    batch=batch)
+                    session_primitives=self._session.primitives, bucket=bucket, batch=batch
+                )
 
     def delete_not_listed_objects(self, objects_paths, procs_io_bound=None):
         if not procs_io_bound:
@@ -174,38 +172,32 @@ class S3:
             proc.join()
 
     @staticmethod
-    def delete_not_listed_batch(session_primitives,
-                                partition_path,
-                                batch,
-                                procs_io_bound=None):
+    def delete_not_listed_batch(session_primitives, partition_path, batch, procs_io_bound=None):
         session = session_primitives.session
         if not procs_io_bound:
             procs_io_bound = session.procs_io_bound
         logger.debug(f"procs_io_bound: {procs_io_bound}")
         keys = session.s3.list_objects(path=partition_path)
         dead_keys = [key for key in keys if key not in batch]
-        session.s3.delete_listed_objects(objects_paths=dead_keys,
-                                         procs_io_bound=1)
+        session.s3.delete_listed_objects(objects_paths=dead_keys, procs_io_bound=1)
 
     @staticmethod
     def delete_objects_batch(session_primitives, bucket, batch):
         session = session_primitives.session
-        client = session.boto3_session.client(service_name="s3",
-                                              config=session.botocore_config)
+        client = session.boto3_session.client(service_name="s3", config=session.botocore_config)
         num_requests = int(ceil((float(len(batch)) / 1000.0)))
         bounders = calculate_bounders(len(batch), num_requests)
         logger.debug(f"Bounders: {bounders}")
         for bounder in bounders:
-            client.delete_objects(
-                Bucket=bucket,
-                Delete={"Objects": batch[bounder[0]:bounder[1]]})
+            client.delete_objects(Bucket=bucket, Delete={"Objects": batch[bounder[0]:bounder[1]]})
 
     def list_objects(self, path):
         bucket, path = path.replace("s3://", "").split("/", 1)
         if path[-1] != "/":
             path += "/"
         client = self._session.boto3_session.client(
-            service_name="s3", config=self._session.botocore_config)
+            service_name="s3", config=self._session.botocore_config
+        )
         args = {"Bucket": bucket, "MaxKeys": 1000, "Prefix": path}
         next_continuation_token = True
         keys = []
@@ -213,9 +205,7 @@ class S3:
             res = client.list_objects_v2(**args)
             if not res.get("Contents"):
                 break
-            keys += [
-                f"s3://{bucket}/{x.get('Key')}" for x in res.get("Contents")
-            ]
+            keys += [f"s3://{bucket}/{x.get('Key')}" for x in res.get("Contents")]
             next_continuation_token = res.get("NextContinuationToken")
             if next_continuation_token:
                 args["ContinuationToken"] = next_continuation_token
@@ -234,15 +224,12 @@ class S3:
     @staticmethod
     def _get_objects_head_remote(send_pipe, session_primitives, objects_paths):
         session = session_primitives.session
-        client = session.boto3_session.client(service_name="s3",
-                                              config=session.botocore_config)
+        client = session.boto3_session.client(service_name="s3", config=session.botocore_config)
         objects_sizes = {}
         logger.debug(f"len(objects_paths): {len(objects_paths)}")
         for object_path in objects_paths:
             bucket, key = object_path.replace("s3://", "").split("/", 1)
-            res = S3.head_object_with_retry(client=client,
-                                            bucket=bucket,
-                                            key=key)
+            res = S3.head_object_with_retry(client=client, bucket=bucket, key=key)
             size = res["ContentLength"]
             objects_sizes[object_path] = size
         logger.debug(f"len(objects_sizes): {len(objects_sizes)}")
@@ -284,12 +271,9 @@ class S3:
             receive_pipes[i].close()
         return objects_sizes
 
-    def copy_listed_objects(self,
-                            objects_paths,
-                            source_path,
-                            target_path,
-                            mode="append",
-                            procs_io_bound=None):
+    def copy_listed_objects(
+        self, objects_paths, source_path, target_path, mode="append", procs_io_bound=None
+    ):
         if not procs_io_bound:
             procs_io_bound = self._session.procs_io_bound
         logger.debug(f"procs_io_bound: {procs_io_bound}")
@@ -303,16 +287,10 @@ class S3:
             logger.debug(f"Deleting to overwrite: {target_path}")
             self._session.s3.delete_objects(path=target_path)
         elif mode == "overwrite_partitions":
-            objects_wo_prefix = [
-                o.replace(f"{source_path}/", "") for o in objects_paths
-            ]
-            objects_wo_filename = [
-                f"{o.rpartition('/')[0]}/" for o in objects_wo_prefix
-            ]
+            objects_wo_prefix = [o.replace(f"{source_path}/", "") for o in objects_paths]
+            objects_wo_filename = [f"{o.rpartition('/')[0]}/" for o in objects_wo_prefix]
             partitions_paths = list(set(objects_wo_filename))
-            target_partitions_paths = [
-                f"{target_path}/{p}" for p in partitions_paths
-            ]
+            target_partitions_paths = [f"{target_path}/{p}" for p in partitions_paths]
             for path in target_partitions_paths:
                 logger.debug(f"Deleting to overwrite_partitions: {path}")
                 self._session.s3.delete_objects(path=path)
@@ -341,14 +319,12 @@ class S3:
             for proc in procs:
                 proc.join()
         else:
-            self.copy_objects_batch(
-                session_primitives=self._session.primitives, batch=batch)
+            self.copy_objects_batch(session_primitives=self._session.primitives, batch=batch)
 
     @staticmethod
     def copy_objects_batch(session_primitives, batch):
         session = session_primitives.session
-        resource = session.boto3_session.resource(
-            service_name="s3", config=session.botocore_config)
+        resource = session.boto3_session.resource(service_name="s3", config=session.botocore_config)
         logger.debug(f"len(batch): {len(batch)}")
         for source_obj, target_obj in batch:
             source_bucket, source_key = S3.parse_object_path(path=source_obj)

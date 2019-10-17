@@ -18,8 +18,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     license=about["__license__"],
-    packages=find_packages(include=["awswrangler", "awswrangler.*"],
-                           exclude=["tests"]),
+    packages=find_packages(include=["awswrangler", "awswrangler.*"], exclude=["tests"]),
     python_requires=">=3.6",
     install_requires=[
         "numpy~=1.17.2",

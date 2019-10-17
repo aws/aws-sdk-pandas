@@ -30,20 +30,20 @@ class Session:
     PROCS_IO_BOUND_FACTOR = 2
 
     def __init__(
-            self,
-            boto3_session=None,
-            profile_name=None,
-            aws_access_key_id=None,
-            aws_secret_access_key=None,
-            aws_session_token=None,
-            region_name=None,
-            botocore_max_retries=40,
-            s3_additional_kwargs=None,
-            spark_context=None,
-            spark_session=None,
-            procs_cpu_bound=os.cpu_count(),
-            procs_io_bound=os.cpu_count() * PROCS_IO_BOUND_FACTOR,
-            athena_workgroup="primary",
+        self,
+        boto3_session=None,
+        profile_name=None,
+        aws_access_key_id=None,
+        aws_secret_access_key=None,
+        aws_session_token=None,
+        region_name=None,
+        botocore_max_retries=40,
+        s3_additional_kwargs=None,
+        spark_context=None,
+        spark_session=None,
+        procs_cpu_bound=os.cpu_count(),
+        procs_io_bound=os.cpu_count() * PROCS_IO_BOUND_FACTOR,
+        athena_workgroup="primary",
     ):
         """
         Most parameters inherit from Boto3 or Pyspark.
@@ -64,16 +64,15 @@ class Session:
         :param procs_io_bound: number of processes that can be used in single node applications for I/O bound cases (Default: os.cpu_count() * PROCS_IO_BOUND_FACTOR)
         :param athena_workgroup: Default AWS Athena Workgroup (str)
         """
-        self._profile_name = (boto3_session.profile_name
-                              if boto3_session else profile_name)
-        self._aws_access_key_id = (boto3_session.get_credentials().access_key
-                                   if boto3_session else aws_access_key_id)
+        self._profile_name = (boto3_session.profile_name if boto3_session else profile_name)
+        self._aws_access_key_id = (
+            boto3_session.get_credentials().access_key if boto3_session else aws_access_key_id
+        )
         self._aws_secret_access_key = (
-            boto3_session.get_credentials().secret_key
-            if boto3_session else aws_secret_access_key)
+            boto3_session.get_credentials().secret_key if boto3_session else aws_secret_access_key
+        )
         self._botocore_max_retries = botocore_max_retries
-        self._botocore_config = Config(
-            retries={"max_attempts": self._botocore_max_retries})
+        self._botocore_config = Config(retries={"max_attempts": self._botocore_max_retries})
         self._aws_session_token = aws_session_token
         self._region_name = boto3_session.region_name if boto3_session else region_name
         self._s3_additional_kwargs = s3_additional_kwargs
@@ -113,10 +112,8 @@ class Session:
         self._boto3_session = boto3.Session(**args)
 
         self._profile_name = self._boto3_session.profile_name
-        self._aws_access_key_id = self._boto3_session.get_credentials(
-        ).access_key
-        self._aws_secret_access_key = self._boto3_session.get_credentials(
-        ).secret_key
+        self._aws_access_key_id = self._boto3_session.get_credentials().access_key
+        self._aws_secret_access_key = self._boto3_session.get_credentials().secret_key
         self._region_name = self._boto3_session.region_name
 
     def _load_new_primitives(self):
@@ -250,18 +247,18 @@ class SessionPrimitives:
     That must be "pickable"!
     """
     def __init__(
-            self,
-            profile_name=None,
-            aws_access_key_id=None,
-            aws_secret_access_key=None,
-            aws_session_token=None,
-            region_name=None,
-            botocore_max_retries=None,
-            s3_additional_kwargs=None,
-            botocore_config=None,
-            procs_cpu_bound=None,
-            procs_io_bound=None,
-            athena_workgroup=None,
+        self,
+        profile_name=None,
+        aws_access_key_id=None,
+        aws_secret_access_key=None,
+        aws_session_token=None,
+        region_name=None,
+        botocore_max_retries=None,
+        s3_additional_kwargs=None,
+        botocore_config=None,
+        procs_cpu_bound=None,
+        procs_io_bound=None,
+        athena_workgroup=None,
     ):
         """
         Most parameters inherit from Boto3.
@@ -341,13 +338,15 @@ class SessionPrimitives:
         Reconstruct the session from primitives
         :return: awswrangler.session.Session
         """
-        return Session(profile_name=self._profile_name,
-                       aws_access_key_id=self._aws_access_key_id,
-                       aws_secret_access_key=self._aws_secret_access_key,
-                       aws_session_token=self._aws_session_token,
-                       region_name=self._region_name,
-                       botocore_max_retries=self._botocore_max_retries,
-                       s3_additional_kwargs=self._s3_additional_kwargs,
-                       procs_cpu_bound=self._procs_cpu_bound,
-                       procs_io_bound=self._procs_io_bound,
-                       athena_workgroup=self._athena_workgroup)
+        return Session(
+            profile_name=self._profile_name,
+            aws_access_key_id=self._aws_access_key_id,
+            aws_secret_access_key=self._aws_secret_access_key,
+            aws_session_token=self._aws_session_token,
+            region_name=self._region_name,
+            botocore_max_retries=self._botocore_max_retries,
+            s3_additional_kwargs=self._s3_additional_kwargs,
+            procs_cpu_bound=self._procs_cpu_bound,
+            procs_io_bound=self._procs_io_bound,
+            athena_workgroup=self._athena_workgroup
+        )

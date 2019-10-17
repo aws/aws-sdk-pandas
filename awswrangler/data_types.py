@@ -163,8 +163,7 @@ def pyarrow2athena(dtype: pa.types) -> str:
     elif dtype_str.startswith("list"):
         return f"array<{pyarrow2athena(dtype.value_type)}>"
     elif dtype_str == "null":
-        raise UndetectedType(
-            "We can't infer the data type from an entire null object column")
+        raise UndetectedType("We can't infer the data type from an entire null object column")
     else:
         raise UnsupportedType(f"Unsupported Pyarrow type: {dtype}")
 
@@ -283,8 +282,7 @@ def spark2redshift(dtype: str) -> str:
         raise UnsupportedType("Unsupported Spark type: " + dtype)
 
 
-def convert_schema(func: Callable,
-                   schema: List[Tuple[str, str]]) -> Dict[str, str]:
+def convert_schema(func: Callable, schema: List[Tuple[str, str]]) -> Dict[str, str]:
     """
     Convert schema in the format of {"col name": "bigint", "col2 name": "int"}
     applying some data types conversion function (e.g. spark2redshift)
@@ -296,10 +294,9 @@ def convert_schema(func: Callable,
     return {name: func(dtype) for name, dtype in schema}
 
 
-def extract_pyarrow_schema_from_pandas(dataframe: pd.DataFrame,
-                                       preserve_index: bool,
-                                       indexes_position: str = "right"
-                                       ) -> List[Tuple[str, str]]:
+def extract_pyarrow_schema_from_pandas(
+    dataframe: pd.DataFrame, preserve_index: bool, indexes_position: str = "right"
+) -> List[Tuple[str, str]]:
     """
     Extract the related Pyarrow schema from any Pandas DataFrame
 
@@ -323,8 +320,7 @@ def extract_pyarrow_schema_from_pandas(dataframe: pd.DataFrame,
 
     # Filling cols_dtypes and indexes
     indexes = []
-    for field in pa.Schema.from_pandas(df=dataframe[cols],
-                                       preserve_index=preserve_index):
+    for field in pa.Schema.from_pandas(df=dataframe[cols], preserve_index=preserve_index):
         name = str(field.name)
         dtype = field.type
         cols_dtypes[name] = dtype
@@ -333,15 +329,11 @@ def extract_pyarrow_schema_from_pandas(dataframe: pd.DataFrame,
 
     # Filling schema
     if indexes_position == "right":
-        schema = [(name, cols_dtypes[name])
-                  for name in dataframe.columns]  # adding columns
-        schema += [(name, cols_dtypes[name])
-                   for name in indexes]  # adding indexes
+        schema = [(name, cols_dtypes[name]) for name in dataframe.columns]  # adding columns
+        schema += [(name, cols_dtypes[name]) for name in indexes]  # adding indexes
     elif indexes_position == "left":
-        schema = [(name, cols_dtypes[name])
-                  for name in indexes]  # adding indexes
-        schema += [(name, cols_dtypes[name])
-                   for name in dataframe.columns]  # adding columns
+        schema = [(name, cols_dtypes[name]) for name in indexes]  # adding indexes
+        schema += [(name, cols_dtypes[name]) for name in dataframe.columns]  # adding columns
     else:
         raise ValueError(f"indexes_position must be \"right\" or \"left\"")
 

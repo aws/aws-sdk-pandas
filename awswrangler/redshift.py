@@ -33,39 +33,45 @@ class Redshift:
         self._session = session
 
     @staticmethod
-    def _validate_connection(database,
-                             host,
-                             port,
-                             user,
-                             password,
-                             tcp_keepalive=True,
-                             application_name="aws-data-wrangler-validation",
-                             validation_timeout=5):
+    def _validate_connection(
+        database,
+        host,
+        port,
+        user,
+        password,
+        tcp_keepalive=True,
+        application_name="aws-data-wrangler-validation",
+        validation_timeout=5
+    ):
         try:
-            conn = pg8000.connect(database=database,
-                                  host=host,
-                                  port=int(port),
-                                  user=user,
-                                  password=password,
-                                  ssl=True,
-                                  application_name=application_name,
-                                  tcp_keepalive=tcp_keepalive,
-                                  timeout=validation_timeout)
+            conn = pg8000.connect(
+                database=database,
+                host=host,
+                port=int(port),
+                user=user,
+                password=password,
+                ssl=True,
+                application_name=application_name,
+                tcp_keepalive=tcp_keepalive,
+                timeout=validation_timeout
+            )
             conn.close()
         except pg8000.core.InterfaceError as e:
             raise e
 
     @staticmethod
-    def generate_connection(database,
-                            host,
-                            port,
-                            user,
-                            password,
-                            tcp_keepalive=True,
-                            application_name="aws-data-wrangler",
-                            connection_timeout=1_200_000,
-                            statement_timeout=1_200_000,
-                            validation_timeout=5):
+    def generate_connection(
+        database,
+        host,
+        port,
+        user,
+        password,
+        tcp_keepalive=True,
+        application_name="aws-data-wrangler",
+        connection_timeout=1_200_000,
+        statement_timeout=1_200_000,
+        validation_timeout=5
+    ):
         """
         Generates a valid connection object to be passed to the load_table method
 
@@ -81,25 +87,29 @@ class Redshift:
         :param validation_timeout: Timeout to try to validate the connection
         :return: pg8000 connection
         """
-        Redshift._validate_connection(database=database,
-                                      host=host,
-                                      port=port,
-                                      user=user,
-                                      password=password,
-                                      tcp_keepalive=tcp_keepalive,
-                                      application_name=application_name,
-                                      validation_timeout=validation_timeout)
+        Redshift._validate_connection(
+            database=database,
+            host=host,
+            port=port,
+            user=user,
+            password=password,
+            tcp_keepalive=tcp_keepalive,
+            application_name=application_name,
+            validation_timeout=validation_timeout
+        )
         if isinstance(type(port), str) or isinstance(type(port), float):
             port = int(port)
-        conn = pg8000.connect(database=database,
-                              host=host,
-                              port=int(port),
-                              user=user,
-                              password=password,
-                              ssl=True,
-                              application_name=application_name,
-                              tcp_keepalive=tcp_keepalive,
-                              timeout=connection_timeout)
+        conn = pg8000.connect(
+            database=database,
+            host=host,
+            port=int(port),
+            user=user,
+            password=password,
+            ssl=True,
+            application_name=application_name,
+            tcp_keepalive=tcp_keepalive,
+            timeout=connection_timeout
+        )
         cursor = conn.cursor()
         cursor.execute(f"set statement_timeout = {statement_timeout}")
         conn.commit()
@@ -107,36 +117,27 @@ class Redshift:
         return conn
 
     def get_connection(self, glue_connection):
-        conn_details = self._session.glue.get_connection_details(
-            name=glue_connection)
+        conn_details = self._session.glue.get_connection_details(name=glue_connection)
         props = conn_details["ConnectionProperties"]
         host = props["JDBC_CONNECTION_URL"].split(":")[2].replace("/", "")
         port, database = props["JDBC_CONNECTION_URL"].split(":")[3].split("/")
         user = props["USERNAME"]
         password = props["PASSWORD"]
-        conn = self.generate_connection(database=database,
-                                        host=host,
-                                        port=int(port),
-                                        user=user,
-                                        password=password)
+        conn = self.generate_connection(
+            database=database, host=host, port=int(port), user=user, password=password
+        )
         return conn
 
     def write_load_manifest(self, manifest_path, objects_paths):
-        objects_sizes = self._session.s3.get_objects_sizes(
-            objects_paths=objects_paths)
+        objects_sizes = self._session.s3.get_objects_sizes(objects_paths=objects_paths)
         manifest = {"entries": []}
         for path, size in objects_sizes.items():
-            entry = {
-                "url": path,
-                "mandatory": True,
-                "meta": {
-                    "content_length": size
-                }
-            }
+            entry = {"url": path, "mandatory": True, "meta": {"content_length": size}}
             manifest.get("entries").append(entry)
         payload = json.dumps(manifest)
         client_s3 = self._session.boto3_session.client(
-            service_name="s3", config=self._session.botocore_config)
+            service_name="s3", config=self._session.botocore_config
+        )
         bucket, path = manifest_path.replace("s3://", "").split("/", 1)
         client_s3.put_object(Body=payload, Bucket=bucket, Key=path)
         return manifest
@@ -152,21 +153,23 @@ class Redshift:
         return count_slices
 
     @staticmethod
-    def load_table(dataframe,
-                   dataframe_type,
-                   manifest_path,
-                   schema_name,
-                   table_name,
-                   redshift_conn,
-                   num_files,
-                   iam_role,
-                   diststyle="AUTO",
-                   distkey=None,
-                   sortstyle="COMPOUND",
-                   sortkey=None,
-                   mode="append",
-                   preserve_index=False,
-                   cast_columns=None):
+    def load_table(
+        dataframe,
+        dataframe_type,
+        manifest_path,
+        schema_name,
+        table_name,
+        redshift_conn,
+        num_files,
+        iam_role,
+        diststyle="AUTO",
+        distkey=None,
+        sortstyle="COMPOUND",
+        sortkey=None,
+        mode="append",
+        preserve_index=False,
+        cast_columns=None
+    ):
         """
         Load Parquet files into a Redshift table using a manifest file.
         Creates the table if necessary.
@@ -190,25 +193,28 @@ class Redshift:
         """
         cursor = redshift_conn.cursor()
         if mode == "overwrite":
-            Redshift._create_table(cursor=cursor,
-                                   dataframe=dataframe,
-                                   dataframe_type=dataframe_type,
-                                   schema_name=schema_name,
-                                   table_name=table_name,
-                                   diststyle=diststyle,
-                                   distkey=distkey,
-                                   sortstyle=sortstyle,
-                                   sortkey=sortkey,
-                                   preserve_index=preserve_index,
-                                   cast_columns=cast_columns)
-        sql = ("-- AWS DATA WRANGLER\n"
-               f"COPY {schema_name}.{table_name} FROM '{manifest_path}'\n"
-               f"IAM_ROLE '{iam_role}'\n"
-               "MANIFEST\n"
-               "FORMAT AS PARQUET")
+            Redshift._create_table(
+                cursor=cursor,
+                dataframe=dataframe,
+                dataframe_type=dataframe_type,
+                schema_name=schema_name,
+                table_name=table_name,
+                diststyle=diststyle,
+                distkey=distkey,
+                sortstyle=sortstyle,
+                sortkey=sortkey,
+                preserve_index=preserve_index,
+                cast_columns=cast_columns
+            )
+        sql = (
+            "-- AWS DATA WRANGLER\n"
+            f"COPY {schema_name}.{table_name} FROM '{manifest_path}'\n"
+            f"IAM_ROLE '{iam_role}'\n"
+            "MANIFEST\n"
+            "FORMAT AS PARQUET"
+        )
         cursor.execute(sql)
-        cursor.execute(
-            "-- AWS DATA WRANGLER\n SELECT pg_last_copy_id() AS query_id")
+        cursor.execute("-- AWS DATA WRANGLER\n SELECT pg_last_copy_id() AS query_id")
         query_id = cursor.fetchall()[0][0]
         sql = (
             "-- AWS DATA WRANGLER\n"
@@ -226,17 +232,19 @@ class Redshift:
         cursor.close()
 
     @staticmethod
-    def _create_table(cursor,
-                      dataframe,
-                      dataframe_type,
-                      schema_name,
-                      table_name,
-                      diststyle="AUTO",
-                      distkey=None,
-                      sortstyle="COMPOUND",
-                      sortkey=None,
-                      preserve_index=False,
-                      cast_columns=None):
+    def _create_table(
+        cursor,
+        dataframe,
+        dataframe_type,
+        schema_name,
+        table_name,
+        diststyle="AUTO",
+        distkey=None,
+        sortstyle="COMPOUND",
+        sortkey=None,
+        preserve_index=False,
+        cast_columns=None
+    ):
         """
         Creates Redshift table.
 
@@ -271,11 +279,13 @@ class Redshift:
             sortstyle = sortstyle.upper()
         else:
             sortstyle = "COMPOUND"
-        Redshift._validate_parameters(schema=schema,
-                                      diststyle=diststyle,
-                                      distkey=distkey,
-                                      sortstyle=sortstyle,
-                                      sortkey=sortkey)
+        Redshift._validate_parameters(
+            schema=schema,
+            diststyle=diststyle,
+            distkey=distkey,
+            sortstyle=sortstyle,
+            sortkey=sortkey
+        )
         cols_str = "".join([f"{col[0]} {col[1]},\n" for col in schema])[:-2]
         distkey_str = ""
         if distkey and diststyle == "KEY":
@@ -283,12 +293,14 @@ class Redshift:
         sortkey_str = ""
         if sortkey:
             sortkey_str = f"\n{sortstyle} SORTKEY({','.join(sortkey)})"
-        sql = (f"-- AWS DATA WRANGLER\n"
-               f"CREATE TABLE IF NOT EXISTS {schema_name}.{table_name} (\n"
-               f"{cols_str}"
-               f")\nDISTSTYLE {diststyle}"
-               f"{distkey_str}"
-               f"{sortkey_str}")
+        sql = (
+            f"-- AWS DATA WRANGLER\n"
+            f"CREATE TABLE IF NOT EXISTS {schema_name}.{table_name} (\n"
+            f"{cols_str}"
+            f")\nDISTSTYLE {diststyle}"
+            f"{distkey_str}"
+            f"{sortkey_str}"
+        )
         logger.debug(f"Create table query:\n{sql}")
         cursor.execute(sql)
 
@@ -306,46 +318,43 @@ class Redshift:
         :return: None
         """
         if diststyle not in DISTSTYLES:
-            raise InvalidRedshiftDiststyle(
-                f"diststyle must be in {DISTSTYLES}")
+            raise InvalidRedshiftDiststyle(f"diststyle must be in {DISTSTYLES}")
         cols = [x[0] for x in schema]
         logger.debug(f"Redshift columns: {cols}")
         if (diststyle == "KEY") and (not distkey):
             raise InvalidRedshiftDistkey(
-                "You must pass a distkey if you intend to use KEY diststyle")
+                "You must pass a distkey if you intend to use KEY diststyle"
+            )
         if distkey and distkey not in cols:
             raise InvalidRedshiftDistkey(
-                f"distkey ({distkey}) must be in the columns list: {cols})")
+                f"distkey ({distkey}) must be in the columns list: {cols})"
+            )
         if sortstyle and sortstyle not in SORTSTYLES:
-            raise InvalidRedshiftSortstyle(
-                f"sortstyle must be in {SORTSTYLES}")
+            raise InvalidRedshiftSortstyle(f"sortstyle must be in {SORTSTYLES}")
         if sortkey:
             if type(sortkey) != list:
                 raise InvalidRedshiftSortkey(
                     f"sortkey must be a List of items in the columns list: {cols}. "
-                    f"Currently value: {sortkey}")
+                    f"Currently value: {sortkey}"
+                )
             for key in sortkey:
                 if key not in cols:
                     raise InvalidRedshiftSortkey(
                         f"sortkey must be a List of items in the columns list: {cols}. "
-                        f"Currently value: {key}")
+                        f"Currently value: {key}"
+                    )
 
     @staticmethod
-    def _get_redshift_schema(dataframe,
-                             dataframe_type,
-                             preserve_index=False,
-                             cast_columns=None):
+    def _get_redshift_schema(dataframe, dataframe_type, preserve_index=False, cast_columns=None):
         if cast_columns is None:
             cast_columns = {}
         schema_built = []
         if dataframe_type == "pandas":
             pyarrow_schema = data_types.extract_pyarrow_schema_from_pandas(
-                dataframe=dataframe,
-                preserve_index=preserve_index,
-                indexes_position="right")
+                dataframe=dataframe, preserve_index=preserve_index, indexes_position="right"
+            )
             for name, dtype in pyarrow_schema:
-                if (cast_columns is
-                        not None) and (name in cast_columns.keys()):
+                if (cast_columns is not None) and (name in cast_columns.keys()):
                     schema_built.append((name, cast_columns[name]))
                 else:
                     redshift_type = data_types.pyarrow2redshift(dtype)
@@ -353,8 +362,7 @@ class Redshift:
         elif dataframe_type == "spark":
             for name, dtype in dataframe.dtypes:
                 if name in cast_columns.keys():
-                    redshift_type = data_types.athena2redshift(
-                        cast_columns[name])
+                    redshift_type = data_types.athena2redshift(cast_columns[name])
                 else:
                     redshift_type = data_types.spark2redshift(dtype)
                 schema_built.append((name, redshift_type))

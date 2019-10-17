@@ -8,15 +8,16 @@ from awswrangler import Session
 from awswrangler.exceptions import QueryCancelled
 
 logging.basicConfig(
-    level=logging.INFO,
-    format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
+    level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s"
+)
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
 @pytest.fixture(scope="module")
 def cloudformation_outputs():
     response = boto3.client("cloudformation").describe_stacks(
-        StackName="aws-data-wrangler-test-arena")
+        StackName="aws-data-wrangler-test-arena"
+    )
     outputs = {}
     for output in response.get("Stacks")[0].get("Outputs"):
         outputs[output.get("OutputKey")] = output.get("OutputValue")
@@ -33,8 +34,7 @@ def loggroup(cloudformation_outputs):
     if "LogGroupName" in cloudformation_outputs:
         database = cloudformation_outputs["LogGroupName"]
     else:
-        raise Exception(
-            "You must deploy the test infrastructure using Cloudformation!")
+        raise Exception("You must deploy the test infrastructure using Cloudformation!")
     yield database
 
 
@@ -43,23 +43,14 @@ def logstream(cloudformation_outputs, loggroup):
     if "LogStream" in cloudformation_outputs:
         logstream = cloudformation_outputs["LogStream"]
     else:
-        raise Exception(
-            "You must deploy the test infrastructure using Cloudformation!")
+        raise Exception("You must deploy the test infrastructure using Cloudformation!")
     client = boto3.client("logs")
-    response = client.describe_log_streams(logGroupName=loggroup,
-                                           logStreamNamePrefix=logstream)
+    response = client.describe_log_streams(logGroupName=loggroup, logStreamNamePrefix=logstream)
     token = response["logStreams"][0].get("uploadSequenceToken")
     events = []
     for i in range(5):
-        events.append({
-            "timestamp": int(1000 * datetime.utcnow().timestamp()),
-            "message": str(i)
-        })
-    args = {
-        "logGroupName": loggroup,
-        "logStreamName": logstream,
-        "logEvents": events
-    }
+        events.append({"timestamp": int(1000 * datetime.utcnow().timestamp()), "message": str(i)})
+    args = {"logGroupName": loggroup, "logStreamName": logstream, "logEvents": events}
     if token:
         args["sequenceToken"] = token
     client.put_log_events(**args)

@@ -36,25 +36,25 @@ class Spark:
         for name, dtype in dataframe.dtypes:
             if dtype == "date":
                 dataframe = dataframe.withColumn(
-                    name, dataframe[name].cast(sql.types.TimestampType()))
-                logger.warning(
-                    f"Casting column {name} from date to timestamp!")
+                    name, dataframe[name].cast(sql.types.TimestampType())
+                )
+                logger.warning(f"Casting column {name} from date to timestamp!")
         return dataframe
 
     def to_redshift(
-            self,
-            dataframe,
-            path,
-            connection,
-            schema,
-            table,
-            iam_role,
-            diststyle="AUTO",
-            distkey=None,
-            sortstyle="COMPOUND",
-            sortkey=None,
-            min_num_partitions=200,
-            mode="append",
+        self,
+        dataframe,
+        path,
+        connection,
+        schema,
+        table,
+        iam_role,
+        diststyle="AUTO",
+        distkey=None,
+        sortstyle="COMPOUND",
+        sortkey=None,
+        min_num_partitions=200,
+        mode="append",
     ):
         """
         Load Spark Dataframe as a Table on Amazon Redshift
@@ -86,8 +86,7 @@ class Spark:
         if num_rows < MIN_NUMBER_OF_ROWS_TO_DISTRIBUTE:
             num_partitions = 1
         else:
-            num_slices = self._session.redshift.get_number_of_slices(
-                redshift_conn=connection)
+            num_slices = self._session.redshift.get_number_of_slices(redshift_conn=connection)
             logger.debug(f"Number of slices on Redshift: {num_slices}")
             num_partitions = num_slices
             while num_partitions < min_num_partitions:
@@ -97,8 +96,8 @@ class Spark:
         session_primitives = self._session.primitives
 
         @sql.functions.pandas_udf(
-            returnType="objects_paths string",
-            functionType=sql.functions.PandasUDFType.GROUPED_MAP)
+            returnType="objects_paths string", functionType=sql.functions.PandasUDFType.GROUPED_MAP
+        )
         def write(pandas_dataframe):
             del pandas_dataframe["aws_data_wrangler_internal_partition_id"]
             paths = session_primitives.session.pandas.to_parquet(
@@ -107,7 +106,8 @@ class Spark:
                 preserve_index=False,
                 mode="append",
                 procs_cpu_bound=1,
-                cast_columns=casts)
+                cast_columns=casts
+            )
             return pd.DataFrame.from_dict({"objects_paths": paths})
 
         df_objects_paths = dataframe.repartition(numPartitions=num_partitions) \
@@ -123,40 +123,44 @@ class Spark:
                 f"{num_files_returned} files returned. {num_partitions} expected."
             )
         logger.debug(f"List of objects returned: {objects_paths}")
-        logger.debug(
-            f"Number of objects returned from UDF: {num_files_returned}")
+        logger.debug(f"Number of objects returned from UDF: {num_files_returned}")
         manifest_path = f"{path}manifest.json"
-        self._session.redshift.write_load_manifest(manifest_path=manifest_path,
-                                                   objects_paths=objects_paths)
-        self._session.redshift.load_table(dataframe=dataframe,
-                                          dataframe_type="spark",
-                                          manifest_path=manifest_path,
-                                          schema_name=schema,
-                                          table_name=table,
-                                          redshift_conn=connection,
-                                          preserve_index=False,
-                                          num_files=num_partitions,
-                                          iam_role=iam_role,
-                                          diststyle=diststyle,
-                                          distkey=distkey,
-                                          sortstyle=sortstyle,
-                                          sortkey=sortkey,
-                                          mode=mode,
-                                          cast_columns=casts)
+        self._session.redshift.write_load_manifest(
+            manifest_path=manifest_path, objects_paths=objects_paths
+        )
+        self._session.redshift.load_table(
+            dataframe=dataframe,
+            dataframe_type="spark",
+            manifest_path=manifest_path,
+            schema_name=schema,
+            table_name=table,
+            redshift_conn=connection,
+            preserve_index=False,
+            num_files=num_partitions,
+            iam_role=iam_role,
+            diststyle=diststyle,
+            distkey=distkey,
+            sortstyle=sortstyle,
+            sortkey=sortkey,
+            mode=mode,
+            cast_columns=casts
+        )
         self._session.s3.delete_objects(path=path)
 
-    def create_glue_table(self,
-                          database,
-                          path,
-                          dataframe,
-                          file_format,
-                          compression,
-                          table=None,
-                          serde=None,
-                          sep=",",
-                          partition_by=None,
-                          load_partitions=True,
-                          replace_if_exists=True):
+    def create_glue_table(
+        self,
+        database,
+        path,
+        dataframe,
+        file_format,
+        compression,
+        table=None,
+        serde=None,
+        sep=",",
+        partition_by=None,
+        load_partitions=True,
+        replace_if_exists=True
+    ):
         """
         Create a Glue metadata table pointing for some dataset stored on AWS S3.
 
@@ -183,17 +187,12 @@ class Spark:
         if partition_by is None:
             partition_by = []
         schema = [x for x in full_schema if x[0] not in partition_by]
-        partitions_schema_tmp = {
-            x[0]: x[1]
-            for x in full_schema if x[0] in partition_by
-        }
-        partitions_schema = [(x, partitions_schema_tmp[x])
-                             for x in partition_by]
+        partitions_schema_tmp = {x[0]: x[1] for x in full_schema if x[0] in partition_by}
+        partitions_schema = [(x, partitions_schema_tmp[x]) for x in partition_by]
         logger.debug(f"schema: {schema}")
         logger.debug(f"partitions_schema: {partitions_schema}")
         if replace_if_exists is not None:
-            self._session.glue.delete_table_if_exists(database=database,
-                                                      table=table)
+            self._session.glue.delete_table_if_exists(database=database, table=table)
         extra_args = {}
         if file_format == "csv":
             extra_args["sep"] = sep
@@ -208,7 +207,8 @@ class Spark:
             path=path,
             file_format=file_format,
             compression=compression,
-            extra_args=extra_args)
+            extra_args=extra_args
+        )
         if load_partitions:
             self._session.athena.repair_table(database=database, table=table)
 
@@ -226,8 +226,7 @@ class Spark:
 
     @staticmethod
     def _is_array_or_map(dtype: str) -> bool:
-        return True if (dtype.startswith("array")
-                        or dtype.startswith("map")) else False
+        return True if (dtype.startswith("array") or dtype.startswith("map")) else False
 
     @staticmethod
     def _parse_aux(path: str, aux: str) -> Tuple[str, str]:
@@ -248,16 +247,15 @@ class Spark:
         path_child: str
         dtype_child: str
         aux: str = ""
-        for c, i in zip(dtype,
-                        range(len(dtype), 0,
-                              -1)):  # Zipping a descendant ID for each letter
+        for c, i in zip(dtype, range(len(dtype), 0, -1)):  # Zipping a descendant ID for each letter
             if ((c == ",") and (struct_acc == 0)) or (i == 1):
                 if i == 1:
                     aux += c
                 path_child, dtype_child = Spark._parse_aux(path=path, aux=aux)
                 if Spark._is_struct(dtype=dtype_child):
                     cols += Spark._flatten_struct_column(
-                        path=path_child, dtype=dtype_child)  # Recursion
+                        path=path_child, dtype=dtype_child
+                    )  # Recursion
                 elif Spark._is_array(dtype=dtype):
                     cols.append((path, "array"))
                 else:
@@ -274,10 +272,9 @@ class Spark:
         return cols
 
     @staticmethod
-    def _flatten_struct_dataframe(df: sql.DataFrame,
-                                  explode_outer: bool = True,
-                                  explode_pos: bool = True
-                                  ) -> List[Tuple[str, str, str]]:
+    def _flatten_struct_dataframe(
+        df: sql.DataFrame, explode_outer: bool = True, explode_pos: bool = True
+    ) -> List[Tuple[str, str, str]]:
         explode: str = "EXPLODE_OUTER" if explode_outer is True else "EXPLODE"
         explode = f"POS{explode}" if explode_pos is True else explode
         cols: List[Tuple[str, str]] = []
@@ -315,10 +312,9 @@ class Spark:
         return f"{name}_{suffix}".replace(".", "_")
 
     @staticmethod
-    def flatten(df: sql.DataFrame,
-                explode_outer: bool = True,
-                explode_pos: bool = True,
-                name: str = "root") -> Dict[str, sql.DataFrame]:
+    def flatten(
+        df: sql.DataFrame, explode_outer: bool = True, explode_pos: bool = True, name: str = "root"
+    ) -> Dict[str, sql.DataFrame]:
         """
         Convert a complex nested DataFrame in one (or many) flat DataFrames
         If a columns is a struct it is flatten directly.
@@ -327,28 +323,23 @@ class Spark:
         :param explode_outer: Should we preserve the null values on arrays?
         :param explode_pos: Create columns with the index of the ex-array
         :param name: The name of the root Dataframe
-        :return: A list of Dictionaries with the name as Keys and the DataFrames as Values
+        :return: A dictionary with the names as Keys and the DataFrames as Values
         """
-        cols_exprs: List[
-            Tuple[str, str, str]] = Spark._flatten_struct_dataframe(
-                df=df, explode_outer=explode_outer, explode_pos=explode_pos)
-        exprs_arr: List[str] = [
-            x[2] for x in cols_exprs if Spark._is_array_or_map(x[1])
-        ]
-        exprs: List[str] = [
-            x[2] for x in cols_exprs if not Spark._is_array_or_map(x[1])
-        ]
+        cols_exprs: List[Tuple[str, str, str]] = Spark._flatten_struct_dataframe(
+            df=df, explode_outer=explode_outer, explode_pos=explode_pos
+        )
+        exprs_arr: List[str] = [x[2] for x in cols_exprs if Spark._is_array_or_map(x[1])]
+        exprs: List[str] = [x[2] for x in cols_exprs if not Spark._is_array_or_map(x[1])]
         dfs: Dict[str, sql.DataFrame] = {name: df.selectExpr(exprs)}
         exprs = [
-            x[2] for x in cols_exprs
-            if not Spark._is_array_or_map(x[1]) and not x[0].endswith("_pos")
+            x[2]
+            for x in cols_exprs if not Spark._is_array_or_map(x[1]) and not x[0].endswith("_pos")
         ]
         for expr in exprs_arr:
             df_arr = df.selectExpr(exprs + [expr])
             name_new: str = Spark._build_name(name=name, expr=expr)
-            dfs_new = Spark.flatten(df=df_arr,
-                                    explode_outer=explode_outer,
-                                    explode_pos=explode_pos,
-                                    name=name_new)
+            dfs_new = Spark.flatten(
+                df=df_arr, explode_outer=explode_outer, explode_pos=explode_pos, name=name_new
+            )
             dfs = {**dfs, **dfs_new}
         return dfs
