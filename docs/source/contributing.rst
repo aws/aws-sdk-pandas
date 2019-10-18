@@ -26,7 +26,7 @@ Step-by-step
 
 * Go to the project's directory create a Python's virtual environment for the project (**python -m venv venv && source venv/bin/activate**)
 
-* Run **./install-dev.sh**
+* Run **./setup-dev-env.sh**
 
 * Go to the *testing* directory
 
