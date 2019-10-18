@@ -43,7 +43,7 @@ General
 * Terminate EMR cluster (NEW)
 * Get EMR cluster state (NEW)
 * Submit EMR step (For humans) (NEW)
-* Ger EMR step state (NEW)
+* Get EMR step state (NEW)
 
 
 Table Of Contents

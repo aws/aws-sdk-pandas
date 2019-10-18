@@ -51,7 +51,7 @@
 * Terminate EMR cluster (NEW :star:)
 * Get EMR cluster state (NEW :star:)
 * Submit EMR step (For humans) (NEW :star:)
-* Ger EMR step state (NEW :star:)
+* Get EMR step state (NEW :star:)
 
 ## Installation
 
