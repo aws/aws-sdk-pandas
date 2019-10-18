@@ -5,9 +5,7 @@ import pytest
 
 from awswrangler import Session
 
-logging.basicConfig(
-    level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
@@ -38,8 +36,7 @@ def test_from_boto3_keys(default_session):
         Session(
             aws_access_key_id=default_session.aws_access_key_id,
             aws_secret_access_key=default_session.aws_secret_access_key,
-        )
-    )
+        ))
 
 
 def test_from_boto3_region_name(default_session):
@@ -51,9 +48,7 @@ def test_cpu_count():
 
 
 def get_account_id_remote(primitives, account_id):
-    account_id.value = (
-        primitives.session.boto3_session.client("sts").get_caller_identity().get("Account")
-    )
+    account_id.value = (primitives.session.boto3_session.client("sts").get_caller_identity().get("Account"))
 
 
 def test_multiprocessing(default_session):

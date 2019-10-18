@@ -7,17 +7,13 @@ import boto3
 from awswrangler import Session
 from awswrangler.exceptions import QueryCancelled
 
-logging.basicConfig(
-    level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
 @pytest.fixture(scope="module")
 def cloudformation_outputs():
-    response = boto3.client("cloudformation").describe_stacks(
-        StackName="aws-data-wrangler-test-arena"
-    )
+    response = boto3.client("cloudformation").describe_stacks(StackName="aws-data-wrangler-test-arena")
     outputs = {}
     for output in response.get("Stacks")[0].get("Outputs"):
         outputs[output.get("OutputKey")] = output.get("OutputValue")

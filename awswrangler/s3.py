@@ -33,18 +33,14 @@ def get_fs(session_primitives=None):
         if session_primitives.s3_additional_kwargs:
             s3_additional_kwargs = session_primitives.s3_additional_kwargs
     if profile_name:
-        fs = s3fs.S3FileSystem(
-            profile_name=profile_name,
-            config_kwargs=config,
-            s3_additional_kwargs=s3_additional_kwargs
-        )
+        fs = s3fs.S3FileSystem(profile_name=profile_name,
+                               config_kwargs=config,
+                               s3_additional_kwargs=s3_additional_kwargs)
     elif aws_access_key_id and aws_secret_access_key:
-        fs = s3fs.S3FileSystem(
-            key=aws_access_key_id,
-            secret=aws_secret_access_key,
-            config_kwargs=config,
-            s3_additional_kwargs=s3_additional_kwargs
-        )
+        fs = s3fs.S3FileSystem(key=aws_access_key_id,
+                               secret=aws_secret_access_key,
+                               config_kwargs=config,
+                               s3_additional_kwargs=s3_additional_kwargs)
     else:
         fs = s3fs.S3FileSystem(config_kwargs=config, s3_additional_kwargs=s3_additional_kwargs)
     return fs
@@ -75,9 +71,7 @@ class S3:
 
     def delete_objects(self, path):
         bucket, path = self.parse_path(path=path)
-        client = self._session.boto3_session.client(
-            service_name="s3", config=self._session.botocore_config
-        )
+        client = self._session.boto3_session.client(service_name="s3", config=self._session.botocore_config)
         procs = []
         args = {"Bucket": bucket, "MaxKeys": 1000, "Prefix": path}
         logger.debug(f"Arguments: \n{args}")
@@ -141,9 +135,7 @@ class S3:
                 for proc in procs:
                     proc.join()
             else:
-                self.delete_objects_batch(
-                    session_primitives=self._session.primitives, bucket=bucket, batch=batch
-                )
+                self.delete_objects_batch(session_primitives=self._session.primitives, bucket=bucket, batch=batch)
 
     def delete_not_listed_objects(self, objects_paths, procs_io_bound=None):
         if not procs_io_bound:
@@ -195,9 +187,7 @@ class S3:
         bucket, path = path.replace("s3://", "").split("/", 1)
         if path[-1] != "/":
             path += "/"
-        client = self._session.boto3_session.client(
-            service_name="s3", config=self._session.botocore_config
-        )
+        client = self._session.boto3_session.client(service_name="s3", config=self._session.botocore_config)
         args = {"Bucket": bucket, "MaxKeys": 1000, "Prefix": path}
         next_continuation_token = True
         keys = []
@@ -271,9 +261,7 @@ class S3:
             receive_pipes[i].close()
         return objects_sizes
 
-    def copy_listed_objects(
-        self, objects_paths, source_path, target_path, mode="append", procs_io_bound=None
-    ):
+    def copy_listed_objects(self, objects_paths, source_path, target_path, mode="append", procs_io_bound=None):
         if not procs_io_bound:
             procs_io_bound = self._session.procs_io_bound
         logger.debug(f"procs_io_bound: {procs_io_bound}")

@@ -157,6 +157,17 @@ Register Glue table from Dataframe stored on S3
                                     compression="gzip",
                                     database="my_database")
 
+Flatten nested PySpark DataFrame
+```````````````````````````````````````````````
+
+.. code-block:: python
+
+    session = awswrangler.Session(spark_session=spark)
+    dfs = session.spark.flatten(df=df_nested)
+    for name, df_flat in dfs:
+        print(name)
+        df_flat.show()
+
 General
 -------
 
@@ -186,3 +197,49 @@ Load partitions on Athena/Glue table (repair table)
 
     session = awswrangler.Session()
     session.athena.repair_table(database="db_name", table="tbl_name")
+
+Create EMR cluster
+```````````````````````````````````````````````````
+
+.. code-block:: python
+
+    session = awswrangler.Session()
+    cluster_id = session.emr.create_cluster(
+        cluster_name="wrangler_cluster",
+        logging_s3_path=f"s3://BUCKET_NAME/emr-logs/",
+        emr_release="emr-5.27.0",
+        subnet_id="SUBNET_ID",
+        emr_ec2_role="EMR_EC2_DefaultRole",
+        emr_role="EMR_DefaultRole",
+        instance_type_master="m5.xlarge",
+        instance_type_core="m5.xlarge",
+        instance_type_task="m5.xlarge",
+        instance_ebs_size_master=50,
+        instance_ebs_size_core=50,
+        instance_ebs_size_task=50,
+        instance_num_on_demand_master=1,
+        instance_num_on_demand_core=1,
+        instance_num_on_demand_task=1,
+        instance_num_spot_master=0,
+        instance_num_spot_core=1,
+        instance_num_spot_task=1,
+        spot_bid_percentage_of_on_demand_master=100,
+        spot_bid_percentage_of_on_demand_core=100,
+        spot_bid_percentage_of_on_demand_task=100,
+        spot_provisioning_timeout_master=5,
+        spot_provisioning_timeout_core=5,
+        spot_provisioning_timeout_task=5,
+        spot_timeout_to_on_demand_master=True,
+        spot_timeout_to_on_demand_core=True,
+        spot_timeout_to_on_demand_task=True,
+        python3=True,
+        spark_glue_catalog=True,
+        hive_glue_catalog=True,
+        presto_glue_catalog=True,
+        bootstraps_paths=None,
+        debugging=True,
+        applications=["Hadoop", "Spark", "Ganglia", "Hive"],
+        visible_to_all_users=True,
+        key_pair_name=None,
+    )
+    print(cluster_id)

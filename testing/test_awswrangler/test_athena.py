@@ -7,17 +7,13 @@ import boto3
 from awswrangler import Session
 from awswrangler.exceptions import QueryCancelled, QueryFailed
 
-logging.basicConfig(
-    level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
 @pytest.fixture(scope="module")
 def cloudformation_outputs():
-    response = boto3.client("cloudformation").describe_stacks(
-        StackName="aws-data-wrangler-test-arena"
-    )
+    response = boto3.client("cloudformation").describe_stacks(StackName="aws-data-wrangler-test-arena")
     outputs = {}
     for output in response.get("Stacks")[0].get("Outputs"):
         outputs[output.get("OutputKey")] = output.get("OutputValue")
@@ -56,23 +52,20 @@ def workgroup_secondary(bucket):
     wkgs = client.list_work_groups()
     wkgs = [x["Name"] for x in wkgs["WorkGroups"]]
     if wkg_name not in wkgs:
-        response = client.create_work_group(
-            Name=wkg_name,
-            Configuration={
-                "ResultConfiguration":
-                    {
-                        "OutputLocation": f"s3://{bucket}/athena_workgroup_secondary/",
-                        "EncryptionConfiguration": {
-                            "EncryptionOption": "SSE_S3",
-                        }
-                    },
-                "EnforceWorkGroupConfiguration": True,
-                "PublishCloudWatchMetricsEnabled": True,
-                "BytesScannedCutoffPerQuery": 100_000_000,
-                "RequesterPaysEnabled": False
-            },
-            Description="AWS Data Wrangler Test WorkGroup"
-        )
+        response = client.create_work_group(Name=wkg_name,
+                                            Configuration={
+                                                "ResultConfiguration": {
+                                                    "OutputLocation": f"s3://{bucket}/athena_workgroup_secondary/",
+                                                    "EncryptionConfiguration": {
+                                                        "EncryptionOption": "SSE_S3",
+                                                    }
+                                                },
+                                                "EnforceWorkGroupConfiguration": True,
+                                                "PublishCloudWatchMetricsEnabled": True,
+                                                "BytesScannedCutoffPerQuery": 100_000_000,
+                                                "RequesterPaysEnabled": False
+                                            },
+                                            Description="AWS Data Wrangler Test WorkGroup")
         pprint(response)
     yield wkg_name
 
@@ -83,8 +76,7 @@ def test_workgroup_secondary(session, database, workgroup_secondary):
 
 def test_query_cancelled(session, database):
     client_athena = boto3.client("athena")
-    query_execution_id = session.athena.run_query(
-        query="""
+    query_execution_id = session.athena.run_query(query="""
 SELECT
 rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(),
 rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(),
@@ -184,8 +176,7 @@ rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), 
 rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(),
 rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand()
         """,
-        database=database
-    )
+                                                  database=database)
     client_athena.stop_query_execution(QueryExecutionId=query_execution_id)
     with pytest.raises(QueryCancelled):
         assert session.athena.wait_query(query_execution_id=query_execution_id)

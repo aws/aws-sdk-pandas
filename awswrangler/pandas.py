@@ -11,10 +11,8 @@ import pyarrow as pa  # type: ignore
 from pyarrow import parquet as pq  # type: ignore
 
 from awswrangler import data_types
-from awswrangler.exceptions import (
-    UnsupportedWriteMode, UnsupportedFileFormat, AthenaQueryError, EmptyS3Object,
-    LineTerminatorNotFound, EmptyDataframe, InvalidSerDe, InvalidCompression
-)
+from awswrangler.exceptions import (UnsupportedWriteMode, UnsupportedFileFormat, AthenaQueryError, EmptyS3Object,
+                                    LineTerminatorNotFound, EmptyDataframe, InvalidSerDe, InvalidCompression)
 from awswrangler.utils import calculate_bounders
 from awswrangler import s3
 from awswrangler.athena import Athena
@@ -45,22 +43,22 @@ class Pandas:
         return parts[0], parts[2]
 
     def read_csv(
-        self,
-        path,
-        max_result_size=None,
-        header="infer",
-        names=None,
-        usecols=None,
-        dtype=None,
-        sep=",",
-        lineterminator="\n",
-        quotechar='"',
-        quoting=csv.QUOTE_MINIMAL,
-        escapechar=None,
-        parse_dates=False,
-        infer_datetime_format=False,
-        encoding="utf-8",
-        converters=None,
+            self,
+            path,
+            max_result_size=None,
+            header="infer",
+            names=None,
+            usecols=None,
+            dtype=None,
+            sep=",",
+            lineterminator="\n",
+            quotechar='"',
+            quoting=csv.QUOTE_MINIMAL,
+            escapechar=None,
+            parse_dates=False,
+            infer_datetime_format=False,
+            encoding="utf-8",
+            converters=None,
     ):
         """
         Read CSV file from AWS S3 using optimized strategies.
@@ -86,69 +84,65 @@ class Pandas:
         :return: Pandas Dataframe or Iterator of Pandas Dataframes if max_result_size != None
         """
         bucket_name, key_path = self._parse_path(path)
-        client_s3 = self._session.boto3_session.client(
-            service_name="s3", use_ssl=True, config=self._session.botocore_config
-        )
+        client_s3 = self._session.boto3_session.client(service_name="s3",
+                                                       use_ssl=True,
+                                                       config=self._session.botocore_config)
         if max_result_size:
-            ret = Pandas._read_csv_iterator(
-                client_s3=client_s3,
-                bucket_name=bucket_name,
-                key_path=key_path,
-                max_result_size=max_result_size,
-                header=header,
-                names=names,
-                usecols=usecols,
-                dtype=dtype,
-                sep=sep,
-                lineterminator=lineterminator,
-                quotechar=quotechar,
-                quoting=quoting,
-                escapechar=escapechar,
-                parse_dates=parse_dates,
-                infer_datetime_format=infer_datetime_format,
-                encoding=encoding,
-                converters=converters
-            )
+            ret = Pandas._read_csv_iterator(client_s3=client_s3,
+                                            bucket_name=bucket_name,
+                                            key_path=key_path,
+                                            max_result_size=max_result_size,
+                                            header=header,
+                                            names=names,
+                                            usecols=usecols,
+                                            dtype=dtype,
+                                            sep=sep,
+                                            lineterminator=lineterminator,
+                                            quotechar=quotechar,
+                                            quoting=quoting,
+                                            escapechar=escapechar,
+                                            parse_dates=parse_dates,
+                                            infer_datetime_format=infer_datetime_format,
+                                            encoding=encoding,
+                                            converters=converters)
         else:
-            ret = Pandas._read_csv_once(
-                client_s3=client_s3,
-                bucket_name=bucket_name,
-                key_path=key_path,
-                header=header,
-                names=names,
-                usecols=usecols,
-                dtype=dtype,
-                sep=sep,
-                lineterminator=lineterminator,
-                quotechar=quotechar,
-                quoting=quoting,
-                escapechar=escapechar,
-                parse_dates=parse_dates,
-                infer_datetime_format=infer_datetime_format,
-                encoding=encoding,
-                converters=converters
-            )
+            ret = Pandas._read_csv_once(client_s3=client_s3,
+                                        bucket_name=bucket_name,
+                                        key_path=key_path,
+                                        header=header,
+                                        names=names,
+                                        usecols=usecols,
+                                        dtype=dtype,
+                                        sep=sep,
+                                        lineterminator=lineterminator,
+                                        quotechar=quotechar,
+                                        quoting=quoting,
+                                        escapechar=escapechar,
+                                        parse_dates=parse_dates,
+                                        infer_datetime_format=infer_datetime_format,
+                                        encoding=encoding,
+                                        converters=converters)
         return ret
 
     @staticmethod
     def _read_csv_iterator(
-        client_s3,
-        bucket_name,
-        key_path,
-        max_result_size=200_000_000,  # 200 MB
-        header="infer",
-        names=None,
-        usecols=None,
-        dtype=None,
-        sep=",",
-        lineterminator="\n",
-        quotechar='"',
-        quoting=csv.QUOTE_MINIMAL,
-        escapechar=None,
-        parse_dates=False,
-        infer_datetime_format=False,
-        encoding="utf-8",
-        converters=None,
+            client_s3,
+            bucket_name,
+            key_path,
+            max_result_size=200_000_000,  # 200 MB
+            header="infer",
+            names=None,
+            usecols=None,
+            dtype=None,
+            sep=",",
+            lineterminator="\n",
+            quotechar='"',
+            quoting=csv.QUOTE_MINIMAL,
+            escapechar=None,
+            parse_dates=False,
+            infer_datetime_format=False,
+            encoding="utf-8",
+            converters=None,
     ):
         """
         Read CSV file from AWS S3 using optimized strategies.
@@ -181,24 +175,22 @@ class Pandas:
         if total_size <= 0:
             raise EmptyS3Object(metadata)
         elif total_size <= max_result_size:
-            yield Pandas._read_csv_once(
-                client_s3=client_s3,
-                bucket_name=bucket_name,
-                key_path=key_path,
-                header=header,
-                names=names,
-                usecols=usecols,
-                dtype=dtype,
-                sep=sep,
-                lineterminator=lineterminator,
-                quotechar=quotechar,
-                quoting=quoting,
-                escapechar=escapechar,
-                parse_dates=parse_dates,
-                infer_datetime_format=infer_datetime_format,
-                encoding=encoding,
-                converters=converters
-            )
+            yield Pandas._read_csv_once(client_s3=client_s3,
+                                        bucket_name=bucket_name,
+                                        key_path=key_path,
+                                        header=header,
+                                        names=names,
+                                        usecols=usecols,
+                                        dtype=dtype,
+                                        sep=sep,
+                                        lineterminator=lineterminator,
+                                        quotechar=quotechar,
+                                        quoting=quoting,
+                                        escapechar=escapechar,
+                                        parse_dates=parse_dates,
+                                        infer_datetime_format=infer_datetime_format,
+                                        encoding=encoding,
+                                        converters=converters)
         else:
             bounders = calculate_bounders(num_items=total_size, max_size=max_result_size)
             logger.debug(f"bounders: {bounders}")
@@ -212,48 +204,41 @@ class Pandas:
                 end -= 1  # Range is inclusive, contrary from Python's List
                 bytes_range = "bytes={}-{}".format(ini, end)
                 logger.debug(f"bytes_range: {bytes_range}")
-                body = client_s3.get_object(Bucket=bucket_name, Key=key_path,
-                                            Range=bytes_range)["Body"].read()
+                body = client_s3.get_object(Bucket=bucket_name, Key=key_path, Range=bytes_range)["Body"].read()
                 chunk_size = len(body)
                 logger.debug(f"chunk_size (bytes): {chunk_size}")
 
                 if count == 1:  # first chunk
-                    last_char = Pandas._find_terminator(
-                        body=body,
-                        sep=sep,
-                        quoting=quoting,
-                        quotechar=quotechar,
-                        lineterminator=lineterminator
-                    )
+                    last_char = Pandas._find_terminator(body=body,
+                                                        sep=sep,
+                                                        quoting=quoting,
+                                                        quotechar=quotechar,
+                                                        lineterminator=lineterminator)
                     forgotten_bytes = len(body[last_char:])
                 elif count == bounders_len:  # Last chunk
                     last_char = chunk_size
                 else:
-                    last_char = Pandas._find_terminator(
-                        body=body,
-                        sep=sep,
-                        quoting=quoting,
-                        quotechar=quotechar,
-                        lineterminator=lineterminator
-                    )
+                    last_char = Pandas._find_terminator(body=body,
+                                                        sep=sep,
+                                                        quoting=quoting,
+                                                        quotechar=quotechar,
+                                                        lineterminator=lineterminator)
                     forgotten_bytes = len(body[last_char:])
 
-                df = pd.read_csv(
-                    StringIO(body[:last_char].decode("utf-8")),
-                    header=header,
-                    names=names,
-                    usecols=usecols,
-                    sep=sep,
-                    quotechar=quotechar,
-                    quoting=quoting,
-                    escapechar=escapechar,
-                    parse_dates=parse_dates,
-                    infer_datetime_format=infer_datetime_format,
-                    lineterminator=lineterminator,
-                    dtype=dtype,
-                    encoding=encoding,
-                    converters=converters
-                )
+                df = pd.read_csv(StringIO(body[:last_char].decode("utf-8")),
+                                 header=header,
+                                 names=names,
+                                 usecols=usecols,
+                                 sep=sep,
+                                 quotechar=quotechar,
+                                 quoting=quoting,
+                                 escapechar=escapechar,
+                                 parse_dates=parse_dates,
+                                 infer_datetime_format=infer_datetime_format,
+                                 lineterminator=lineterminator,
+                                 dtype=dtype,
+                                 encoding=encoding,
+                                 converters=converters)
                 yield df
                 if count == 1:  # first chunk
                     names = df.columns
@@ -271,12 +256,8 @@ class Pandas:
         :return: Dict with the profile
         """
         sep_int = int.from_bytes(bytes=sep.encode(encoding="utf-8"), byteorder="big")  # b"," -> 44
-        quote_int = int.from_bytes(
-            bytes=quotechar.encode(encoding="utf-8"), byteorder="big"
-        )  # b'"' -> 34
-        terminator_int = int.from_bytes(
-            bytes=lineterminator.encode(encoding="utf-8"), byteorder="big"
-        )  # b"\n" -> 10
+        quote_int = int.from_bytes(bytes=quotechar.encode(encoding="utf-8"), byteorder="big")  # b'"' -> 34
+        terminator_int = int.from_bytes(bytes=lineterminator.encode(encoding="utf-8"), byteorder="big")  # b"\n" -> 10
         logger.debug(f"sep_int: {sep_int}")
         logger.debug(f"quote_int: {quote_int}")
         logger.debug(f"terminator_int: {terminator_int}")
@@ -329,15 +310,12 @@ class Pandas:
             last_index = None
             if quoting == csv.QUOTE_ALL:
                 while True:
-                    profile = Pandas._extract_terminator_profile(
-                        body=body,
-                        sep=sep,
-                        quotechar=quotechar,
-                        lineterminator=lineterminator,
-                        last_index=last_index
-                    )
-                    if profile["last_terminator_suspect_index"
-                              ] and profile["first_non_special_byte_index"]:
+                    profile = Pandas._extract_terminator_profile(body=body,
+                                                                 sep=sep,
+                                                                 quotechar=quotechar,
+                                                                 lineterminator=lineterminator,
+                                                                 last_index=last_index)
+                    if profile["last_terminator_suspect_index"] and profile["first_non_special_byte_index"]:
                         if profile["quote_counter"] % 2 == 0 or profile["quote_counter"] == 0:
                             last_index = profile["last_terminator_suspect_index"]
                         else:
@@ -353,22 +331,22 @@ class Pandas:
 
     @staticmethod
     def _read_csv_once(
-        client_s3,
-        bucket_name,
-        key_path,
-        header="infer",
-        names=None,
-        usecols=None,
-        dtype=None,
-        sep=",",
-        lineterminator="\n",
-        quotechar='"',
-        quoting=0,
-        escapechar=None,
-        parse_dates=False,
-        infer_datetime_format=False,
-        encoding=None,
-        converters=None,
+            client_s3,
+            bucket_name,
+            key_path,
+            header="infer",
+            names=None,
+            usecols=None,
+            dtype=None,
+            sep=",",
+            lineterminator="\n",
+            quotechar='"',
+            quoting=0,
+            escapechar=None,
+            parse_dates=False,
+            infer_datetime_format=False,
+            encoding=None,
+            converters=None,
     ):
         """
         Read CSV file from AWS S3 using optimized strategies.
@@ -428,9 +406,7 @@ class Pandas:
         """
         if not s3_output:
             s3_output = self._session.athena.create_athena_bucket()
-        query_execution_id = self._session.athena.run_query(
-            query=sql, database=database, s3_output=s3_output
-        )
+        query_execution_id = self._session.athena.run_query(query=sql, database=database, s3_output=s3_output)
         query_response = self._session.athena.wait_query(query_execution_id=query_execution_id)
         if query_response["QueryExecution"]["Status"]["State"] in ["FAILED", "CANCELLED"]:
             reason = query_response["QueryExecution"]["Status"]["StateChangeReason"]
@@ -438,17 +414,14 @@ class Pandas:
             raise AthenaQueryError(message_error)
         else:
             dtype, parse_timestamps, parse_dates, converters = self._session.athena.get_query_dtype(
-                query_execution_id=query_execution_id
-            )
+                query_execution_id=query_execution_id)
             path = f"{s3_output}{query_execution_id}.csv"
-            ret = self.read_csv(
-                path=path,
-                dtype=dtype,
-                parse_dates=parse_timestamps,
-                converters=converters,
-                quoting=csv.QUOTE_ALL,
-                max_result_size=max_result_size
-            )
+            ret = self.read_csv(path=path,
+                                dtype=dtype,
+                                parse_dates=parse_timestamps,
+                                converters=converters,
+                                quoting=csv.QUOTE_ALL,
+                                max_result_size=max_result_size)
             if max_result_size is None:
                 if len(ret.index) > 0:
                     for col in parse_dates:
@@ -466,19 +439,19 @@ class Pandas:
             yield df
 
     def to_csv(
-        self,
-        dataframe,
-        path,
-        sep=",",
-        serde="OpenCSVSerDe",
-        database=None,
-        table=None,
-        partition_cols=None,
-        preserve_index=True,
-        mode="append",
-        procs_cpu_bound=None,
-        procs_io_bound=None,
-        inplace=True,
+            self,
+            dataframe,
+            path,
+            sep=",",
+            serde="OpenCSVSerDe",
+            database=None,
+            table=None,
+            partition_cols=None,
+            preserve_index=True,
+            mode="append",
+            procs_cpu_bound=None,
+            procs_io_bound=None,
+            inplace=True,
     ):
         """
         Write a Pandas Dataframe as CSV files on S3
@@ -499,41 +472,35 @@ class Pandas:
         :return: List of objects written on S3
         """
         if serde not in Pandas.VALID_CSV_SERDES:
-            raise InvalidSerDe(
-                f"{serde} in not in the valid SerDe list ({Pandas.VALID_CSV_SERDES})"
-            )
+            raise InvalidSerDe(f"{serde} in not in the valid SerDe list ({Pandas.VALID_CSV_SERDES})")
         extra_args = {"sep": sep, "serde": serde}
-        return self.to_s3(
-            dataframe=dataframe,
-            path=path,
-            file_format="csv",
-            database=database,
-            table=table,
-            partition_cols=partition_cols,
-            preserve_index=preserve_index,
-            mode=mode,
-            compression=None,
-            procs_cpu_bound=procs_cpu_bound,
-            procs_io_bound=procs_io_bound,
-            extra_args=extra_args,
-            inplace=inplace
-        )
+        return self.to_s3(dataframe=dataframe,
+                          path=path,
+                          file_format="csv",
+                          database=database,
+                          table=table,
+                          partition_cols=partition_cols,
+                          preserve_index=preserve_index,
+                          mode=mode,
+                          compression=None,
+                          procs_cpu_bound=procs_cpu_bound,
+                          procs_io_bound=procs_io_bound,
+                          extra_args=extra_args,
+                          inplace=inplace)
 
-    def to_parquet(
-        self,
-        dataframe,
-        path,
-        database=None,
-        table=None,
-        partition_cols=None,
-        preserve_index=True,
-        mode="append",
-        compression="snappy",
-        procs_cpu_bound=None,
-        procs_io_bound=None,
-        cast_columns=None,
-        inplace=True
-    ):
+    def to_parquet(self,
+                   dataframe,
+                   path,
+                   database=None,
+                   table=None,
+                   partition_cols=None,
+                   preserve_index=True,
+                   mode="append",
+                   compression="snappy",
+                   procs_cpu_bound=None,
+                   procs_io_bound=None,
+                   cast_columns=None,
+                   inplace=True):
         """
         Write a Pandas Dataframe as parquet files on S3
         Optionally writes metadata on AWS Glue.
@@ -552,39 +519,35 @@ class Pandas:
         :param inplace: True is cheapest (CPU and Memory) but False leaves your DataFrame intact
         :return: List of objects written on S3
         """
-        return self.to_s3(
-            dataframe=dataframe,
-            path=path,
-            file_format="parquet",
-            database=database,
-            table=table,
-            partition_cols=partition_cols,
-            preserve_index=preserve_index,
-            mode=mode,
-            compression=compression,
-            procs_cpu_bound=procs_cpu_bound,
-            procs_io_bound=procs_io_bound,
-            cast_columns=cast_columns,
-            inplace=inplace
-        )
+        return self.to_s3(dataframe=dataframe,
+                          path=path,
+                          file_format="parquet",
+                          database=database,
+                          table=table,
+                          partition_cols=partition_cols,
+                          preserve_index=preserve_index,
+                          mode=mode,
+                          compression=compression,
+                          procs_cpu_bound=procs_cpu_bound,
+                          procs_io_bound=procs_io_bound,
+                          cast_columns=cast_columns,
+                          inplace=inplace)
 
-    def to_s3(
-        self,
-        dataframe,
-        path,
-        file_format,
-        database=None,
-        table=None,
-        partition_cols=None,
-        preserve_index=True,
-        mode="append",
-        compression=None,
-        procs_cpu_bound=None,
-        procs_io_bound=None,
-        cast_columns=None,
-        extra_args=None,
-        inplace=True
-    ):
+    def to_s3(self,
+              dataframe,
+              path,
+              file_format,
+              database=None,
+              table=None,
+              partition_cols=None,
+              preserve_index=True,
+              mode="append",
+              compression=None,
+              procs_cpu_bound=None,
+              procs_io_bound=None,
+              cast_columns=None,
+              extra_args=None,
+              inplace=True):
         """
         Write a Pandas Dataframe on S3
         Optionally writes metadata on AWS Glue.
@@ -621,69 +584,58 @@ class Pandas:
         if file_format == "csv":
             if compression not in Pandas.VALID_CSV_COMPRESSIONS:
                 raise InvalidCompression(
-                    f"{compression} isn't a valid CSV compression. Try: {Pandas.VALID_CSV_COMPRESSIONS}"
-                )
+                    f"{compression} isn't a valid CSV compression. Try: {Pandas.VALID_CSV_COMPRESSIONS}")
         elif file_format == "parquet":
             if compression not in Pandas.VALID_PARQUET_COMPRESSIONS:
                 raise InvalidCompression(
-                    f"{compression} isn't a valid PARQUET compression. Try: {Pandas.VALID_PARQUET_COMPRESSIONS}"
-                )
+                    f"{compression} isn't a valid PARQUET compression. Try: {Pandas.VALID_PARQUET_COMPRESSIONS}")
         else:
             raise UnsupportedFileFormat(file_format)
         if dataframe.empty:
             raise EmptyDataframe()
-        if (
-            (mode == "overwrite") or
-            ((mode == "overwrite_partitions") and  # noqa
-             (not partition_cols))
-        ):
+        if ((mode == "overwrite") or ((mode == "overwrite_partitions") and  # noqa
+                                      (not partition_cols))):
             self._session.s3.delete_objects(path=path)
         elif mode not in ["overwrite_partitions", "append"]:
             raise UnsupportedWriteMode(mode)
-        objects_paths = self.data_to_s3(
-            dataframe=dataframe,
-            path=path,
-            partition_cols=partition_cols,
-            preserve_index=preserve_index,
-            file_format=file_format,
-            mode=mode,
-            compression=compression,
-            procs_cpu_bound=procs_cpu_bound,
-            procs_io_bound=procs_io_bound,
-            cast_columns=cast_columns,
-            extra_args=extra_args
-        )
+        objects_paths = self.data_to_s3(dataframe=dataframe,
+                                        path=path,
+                                        partition_cols=partition_cols,
+                                        preserve_index=preserve_index,
+                                        file_format=file_format,
+                                        mode=mode,
+                                        compression=compression,
+                                        procs_cpu_bound=procs_cpu_bound,
+                                        procs_io_bound=procs_io_bound,
+                                        cast_columns=cast_columns,
+                                        extra_args=extra_args)
         if database:
-            self._session.glue.metadata_to_glue(
-                dataframe=dataframe,
-                path=path,
-                objects_paths=objects_paths,
-                database=database,
-                table=table,
-                partition_cols=partition_cols,
-                preserve_index=preserve_index,
-                file_format=file_format,
-                mode=mode,
-                compression=compression,
-                cast_columns=cast_columns,
-                extra_args=extra_args
-            )
+            self._session.glue.metadata_to_glue(dataframe=dataframe,
+                                                path=path,
+                                                objects_paths=objects_paths,
+                                                database=database,
+                                                table=table,
+                                                partition_cols=partition_cols,
+                                                preserve_index=preserve_index,
+                                                file_format=file_format,
+                                                mode=mode,
+                                                compression=compression,
+                                                cast_columns=cast_columns,
+                                                extra_args=extra_args)
         return objects_paths
 
-    def data_to_s3(
-        self,
-        dataframe,
-        path,
-        file_format,
-        partition_cols=None,
-        preserve_index=True,
-        mode="append",
-        compression=None,
-        procs_cpu_bound=None,
-        procs_io_bound=None,
-        cast_columns=None,
-        extra_args=None
-    ):
+    def data_to_s3(self,
+                   dataframe,
+                   path,
+                   file_format,
+                   partition_cols=None,
+                   preserve_index=True,
+                   mode="append",
+                   compression=None,
+                   procs_cpu_bound=None,
+                   procs_io_bound=None,
+                   cast_columns=None,
+                   extra_args=None):
         if not procs_cpu_bound:
             procs_cpu_bound = self._session.procs_cpu_bound
         if not procs_io_bound:
@@ -701,11 +653,8 @@ class Pandas:
                 receive_pipe, send_pipe = mp.Pipe()
                 proc = mp.Process(
                     target=self._data_to_s3_dataset_writer_remote,
-                    args=(
-                        send_pipe, dataframe.iloc[bounder[0]:bounder[1], :], path, partition_cols,
-                        preserve_index, compression, self._session.primitives, file_format,
-                        cast_columns, extra_args
-                    ),
+                    args=(send_pipe, dataframe.iloc[bounder[0]:bounder[1], :], path, partition_cols, preserve_index,
+                          compression, self._session.primitives, file_format, cast_columns, extra_args),
                 )
                 proc.daemon = False
                 proc.start()
@@ -716,54 +665,46 @@ class Pandas:
                 procs[i].join()
                 receive_pipes[i].close()
         else:
-            objects_paths += self._data_to_s3_dataset_writer(
-                dataframe=dataframe,
-                path=path,
-                partition_cols=partition_cols,
-                preserve_index=preserve_index,
-                compression=compression,
-                session_primitives=self._session.primitives,
-                file_format=file_format,
-                cast_columns=cast_columns,
-                extra_args=extra_args
-            )
+            objects_paths += self._data_to_s3_dataset_writer(dataframe=dataframe,
+                                                             path=path,
+                                                             partition_cols=partition_cols,
+                                                             preserve_index=preserve_index,
+                                                             compression=compression,
+                                                             session_primitives=self._session.primitives,
+                                                             file_format=file_format,
+                                                             cast_columns=cast_columns,
+                                                             extra_args=extra_args)
         if mode == "overwrite_partitions" and partition_cols:
             if procs_io_bound > procs_cpu_bound:
                 num_procs = floor(float(procs_io_bound) / float(procs_cpu_bound))
             else:
                 num_procs = 1
             logger.debug(f"num_procs for delete_not_listed_objects: {num_procs}")
-            self._session.s3.delete_not_listed_objects(
-                objects_paths=objects_paths, procs_io_bound=num_procs
-            )
+            self._session.s3.delete_not_listed_objects(objects_paths=objects_paths, procs_io_bound=num_procs)
         return objects_paths
 
     @staticmethod
-    def _data_to_s3_dataset_writer(
-        dataframe,
-        path,
-        partition_cols,
-        preserve_index,
-        compression,
-        session_primitives,
-        file_format,
-        cast_columns=None,
-        extra_args=None,
-        isolated_dataframe=False
-    ):
+    def _data_to_s3_dataset_writer(dataframe,
+                                   path,
+                                   partition_cols,
+                                   preserve_index,
+                                   compression,
+                                   session_primitives,
+                                   file_format,
+                                   cast_columns=None,
+                                   extra_args=None,
+                                   isolated_dataframe=False):
         objects_paths = []
         if not partition_cols:
-            object_path = Pandas._data_to_s3_object_writer(
-                dataframe=dataframe,
-                path=path,
-                preserve_index=preserve_index,
-                compression=compression,
-                session_primitives=session_primitives,
-                file_format=file_format,
-                cast_columns=cast_columns,
-                extra_args=extra_args,
-                isolated_dataframe=isolated_dataframe
-            )
+            object_path = Pandas._data_to_s3_object_writer(dataframe=dataframe,
+                                                           path=path,
+                                                           preserve_index=preserve_index,
+                                                           compression=compression,
+                                                           session_primitives=session_primitives,
+                                                           file_format=file_format,
+                                                           cast_columns=cast_columns,
+                                                           extra_args=extra_args,
+                                                           isolated_dataframe=isolated_dataframe)
             objects_paths.append(object_path)
         else:
             for keys, subgroup in dataframe.groupby(partition_cols):
@@ -772,61 +713,52 @@ class Pandas:
                     keys = (keys, )
                 subdir = "/".join([f"{name}={val}" for name, val in zip(partition_cols, keys)])
                 prefix = "/".join([path, subdir])
-                object_path = Pandas._data_to_s3_object_writer(
-                    dataframe=subgroup,
-                    path=prefix,
-                    preserve_index=preserve_index,
-                    compression=compression,
-                    session_primitives=session_primitives,
-                    file_format=file_format,
-                    cast_columns=cast_columns,
-                    extra_args=extra_args,
-                    isolated_dataframe=True
-                )
+                object_path = Pandas._data_to_s3_object_writer(dataframe=subgroup,
+                                                               path=prefix,
+                                                               preserve_index=preserve_index,
+                                                               compression=compression,
+                                                               session_primitives=session_primitives,
+                                                               file_format=file_format,
+                                                               cast_columns=cast_columns,
+                                                               extra_args=extra_args,
+                                                               isolated_dataframe=True)
                 objects_paths.append(object_path)
         return objects_paths
 
     @staticmethod
-    def _data_to_s3_dataset_writer_remote(
-        send_pipe,
-        dataframe,
-        path,
-        partition_cols,
-        preserve_index,
-        compression,
-        session_primitives,
-        file_format,
-        cast_columns=None,
-        extra_args=None
-    ):
+    def _data_to_s3_dataset_writer_remote(send_pipe,
+                                          dataframe,
+                                          path,
+                                          partition_cols,
+                                          preserve_index,
+                                          compression,
+                                          session_primitives,
+                                          file_format,
+                                          cast_columns=None,
+                                          extra_args=None):
         send_pipe.send(
-            Pandas._data_to_s3_dataset_writer(
-                dataframe=dataframe,
-                path=path,
-                partition_cols=partition_cols,
-                preserve_index=preserve_index,
-                compression=compression,
-                session_primitives=session_primitives,
-                file_format=file_format,
-                cast_columns=cast_columns,
-                extra_args=extra_args,
-                isolated_dataframe=True
-            )
-        )
+            Pandas._data_to_s3_dataset_writer(dataframe=dataframe,
+                                              path=path,
+                                              partition_cols=partition_cols,
+                                              preserve_index=preserve_index,
+                                              compression=compression,
+                                              session_primitives=session_primitives,
+                                              file_format=file_format,
+                                              cast_columns=cast_columns,
+                                              extra_args=extra_args,
+                                              isolated_dataframe=True))
         send_pipe.close()
 
     @staticmethod
-    def _data_to_s3_object_writer(
-        dataframe,
-        path,
-        preserve_index,
-        compression,
-        session_primitives,
-        file_format,
-        cast_columns=None,
-        extra_args=None,
-        isolated_dataframe=False
-    ):
+    def _data_to_s3_object_writer(dataframe,
+                                  path,
+                                  preserve_index,
+                                  compression,
+                                  session_primitives,
+                                  file_format,
+                                  cast_columns=None,
+                                  extra_args=None,
+                                  isolated_dataframe=False):
         fs = s3.get_fs(session_primitives=session_primitives)
         fs = pa.filesystem._ensure_filesystem(fs)
         s3.mkdir_if_not_exists(fs, path)
@@ -849,24 +781,20 @@ class Pandas:
             raise UnsupportedFileFormat(file_format)
         object_path = "/".join([path, outfile])
         if file_format == "parquet":
-            Pandas.write_parquet_dataframe(
-                dataframe=dataframe,
-                path=object_path,
-                preserve_index=preserve_index,
-                compression=compression,
-                fs=fs,
-                cast_columns=cast_columns,
-                isolated_dataframe=isolated_dataframe
-            )
+            Pandas.write_parquet_dataframe(dataframe=dataframe,
+                                           path=object_path,
+                                           preserve_index=preserve_index,
+                                           compression=compression,
+                                           fs=fs,
+                                           cast_columns=cast_columns,
+                                           isolated_dataframe=isolated_dataframe)
         elif file_format == "csv":
-            Pandas.write_csv_dataframe(
-                dataframe=dataframe,
-                path=object_path,
-                preserve_index=preserve_index,
-                compression=compression,
-                fs=fs,
-                extra_args=extra_args
-            )
+            Pandas.write_csv_dataframe(dataframe=dataframe,
+                                       path=object_path,
+                                       preserve_index=preserve_index,
+                                       compression=compression,
+                                       fs=fs,
+                                       extra_args=extra_args)
         return object_path
 
     @staticmethod
@@ -884,17 +812,13 @@ class Pandas:
                 csv_extra_args["quoting"] = csv.QUOTE_NONE
                 csv_extra_args["escapechar"] = "\\"
         csv_buffer = bytes(
-            dataframe.to_csv(
-                None, header=False, index=preserve_index, compression=compression, **csv_extra_args
-            ), "utf-8"
-        )
+            dataframe.to_csv(None, header=False, index=preserve_index, compression=compression, **csv_extra_args),
+            "utf-8")
         with fs.open(path, "wb") as f:
             f.write(csv_buffer)
 
     @staticmethod
-    def write_parquet_dataframe(
-        dataframe, path, preserve_index, compression, fs, cast_columns, isolated_dataframe
-    ):
+    def write_parquet_dataframe(dataframe, path, preserve_index, compression, fs, cast_columns, isolated_dataframe):
         if not cast_columns:
             cast_columns = {}
 
@@ -917,15 +841,11 @@ class Pandas:
                 col_index = table.column_names.index(col_name)
                 pyarrow_dtype = data_types.athena2pyarrow(dtype)
                 table = table.set_column(col_index, table.column(col_name).cast(pyarrow_dtype))
-                logger.debug(
-                    f"Casting column {col_name} ({col_index}) to {dtype} ({pyarrow_dtype})"
-                )
+                logger.debug(f"Casting column {col_name} ({col_index}) to {dtype} ({pyarrow_dtype})")
 
         # Persisting on S3
         with fs.open(path, "wb") as f:
-            pq.write_table(
-                table, f, compression=compression, coerce_timestamps="ms", flavor="spark"
-            )
+            pq.write_table(table, f, compression=compression, coerce_timestamps="ms", flavor="spark")
 
         # Casting back on Pandas if necessary
         if isolated_dataframe is False:
@@ -933,20 +853,20 @@ class Pandas:
                 dataframe[col] = dataframe[col].astype("Int64")
 
     def to_redshift(
-        self,
-        dataframe,
-        path,
-        connection,
-        schema,
-        table,
-        iam_role,
-        diststyle="AUTO",
-        distkey=None,
-        sortstyle="COMPOUND",
-        sortkey=None,
-        preserve_index=False,
-        mode="append",
-        cast_columns=None,
+            self,
+            dataframe,
+            path,
+            connection,
+            schema,
+            table,
+            iam_role,
+            diststyle="AUTO",
+            distkey=None,
+            sortstyle="COMPOUND",
+            sortkey=None,
+            preserve_index=False,
+            mode="append",
+            cast_columns=None,
     ):
         """
         Load Pandas Dataframe as a Table on Amazon Redshift
@@ -970,9 +890,7 @@ class Pandas:
             cast_columns = {}
             cast_columns_parquet = {}
         else:
-            cast_columns_parquet = data_types.convert_schema(
-                func=data_types.redshift2athena, schema=cast_columns
-            )
+            cast_columns_parquet = data_types.convert_schema(func=data_types.redshift2athena, schema=cast_columns)
         if path[-1] != "/":
             path += "/"
         self._session.s3.delete_objects(path=path)
@@ -985,18 +903,14 @@ class Pandas:
             logger.debug(f"Number of slices on Redshift: {num_slices}")
             num_partitions = num_slices
         logger.debug(f"Number of partitions calculated: {num_partitions}")
-        objects_paths = self.to_parquet(
-            dataframe=dataframe,
-            path=path,
-            preserve_index=preserve_index,
-            mode="append",
-            procs_cpu_bound=num_partitions,
-            cast_columns=cast_columns_parquet
-        )
+        objects_paths = self.to_parquet(dataframe=dataframe,
+                                        path=path,
+                                        preserve_index=preserve_index,
+                                        mode="append",
+                                        procs_cpu_bound=num_partitions,
+                                        cast_columns=cast_columns_parquet)
         manifest_path = f"{path}manifest.json"
-        self._session.redshift.write_load_manifest(
-            manifest_path=manifest_path, objects_paths=objects_paths
-        )
+        self._session.redshift.write_load_manifest(manifest_path=manifest_path, objects_paths=objects_paths)
         self._session.redshift.load_table(
             dataframe=dataframe,
             dataframe_type="pandas",
@@ -1016,14 +930,12 @@ class Pandas:
         )
         self._session.s3.delete_objects(path=path)
 
-    def read_log_query(
-        self,
-        query,
-        log_group_names,
-        start_time=datetime(year=1970, month=1, day=1),
-        end_time=datetime.utcnow(),
-        limit=None
-    ):
+    def read_log_query(self,
+                       query,
+                       log_group_names,
+                       start_time=datetime(year=1970, month=1, day=1),
+                       end_time=datetime.utcnow(),
+                       limit=None):
         """
         Run a query against AWS CloudWatchLogs Insights and convert the results to Pandas DataFrame
 
@@ -1034,13 +946,11 @@ class Pandas:
         :param limit: The maximum number of log events to return in the query. If the query string uses the fields command, only the specified fields and their values are returned.
         :return: Results as a Pandas DataFrame
         """
-        results = self._session.cloudwatchlogs.query(
-            query=query,
-            log_group_names=log_group_names,
-            start_time=start_time,
-            end_time=end_time,
-            limit=limit
-        )
+        results = self._session.cloudwatchlogs.query(query=query,
+                                                     log_group_names=log_group_names,
+                                                     start_time=start_time,
+                                                     end_time=end_time,
+                                                     limit=limit)
         pre_df = []
         for row in results:
             new_row = {}

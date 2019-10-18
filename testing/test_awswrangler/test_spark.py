@@ -6,21 +6,18 @@ import boto3
 import pandas as pd
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import lit, array, create_map, struct
-from pyspark.sql.types import StructType, StructField, IntegerType, DateType, TimestampType, StringType, FloatType
+from pyspark.sql.types import StructType, StructField, IntegerType, DateType,\
+    TimestampType, StringType, FloatType, MapType, ArrayType
 
 from awswrangler import Session
 
-logging.basicConfig(
-    level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
 @pytest.fixture(scope="module")
 def cloudformation_outputs():
-    response = boto3.client("cloudformation").describe_stacks(
-        StackName="aws-data-wrangler-test-arena"
-    )
+    response = boto3.client("cloudformation").describe_stacks(StackName="aws-data-wrangler-test-arena")
     outputs = {}
     for output in response.get("Stacks")[0].get("Outputs"):
         outputs[output.get("OutputKey")] = output.get("OutputValue")
@@ -67,23 +64,21 @@ def test_read_csv(session, bucket, sample_name):
     elif sample_name == "nano":
         schema = "id INTEGER, name STRING, value DOUBLE, date DATE, time TIMESTAMP"
         timestamp_format = "yyyy-MM-dd"
-    dataframe = session.spark.read_csv(
-        path=path,
-        schema=schema,
-        timestampFormat=timestamp_format,
-        dateFormat=timestamp_format,
-        header=True
-    )
+    else:
+        raise Exception("Impossible situation!")
+    dataframe = session.spark.read_csv(path=path,
+                                       schema=schema,
+                                       timestampFormat=timestamp_format,
+                                       dateFormat=timestamp_format,
+                                       header=True)
 
     boto3.client("s3").upload_file(path, bucket, path)
     path2 = f"s3://{bucket}/{path}"
-    dataframe2 = session.spark.read_csv(
-        path=path2,
-        schema=schema,
-        timestampFormat=timestamp_format,
-        dateFormat=timestamp_format,
-        header=True
-    )
+    dataframe2 = session.spark.read_csv(path=path2,
+                                        schema=schema,
+                                        timestampFormat=timestamp_format,
+                                        dateFormat=timestamp_format,
+                                        header=True)
     assert dataframe.count() == dataframe2.count()
     assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
 
@@ -96,13 +91,11 @@ def test_create_glue_table_parquet(session, bucket, database, compression, parti
     path = "data_samples/nano.csv"
     schema = "id INTEGER, name STRING, value DOUBLE, date DATE, time TIMESTAMP"
     timestamp_format = "yyyy-MM-dd"
-    dataframe = session.spark.read_csv(
-        path=path,
-        schema=schema,
-        timestampFormat=timestamp_format,
-        dateFormat=timestamp_format,
-        header=True
-    )
+    dataframe = session.spark.read_csv(path=path,
+                                       schema=schema,
+                                       timestampFormat=timestamp_format,
+                                       dateFormat=timestamp_format,
+                                       header=True)
     dataframe = dataframe \
         .withColumn("my_array", array(lit(0), lit(1))) \
         .withColumn("my_struct", struct(lit("text").alias("a"), lit(1).alias("b"))) \
@@ -113,16 +106,14 @@ def test_create_glue_table_parquet(session, bucket, database, compression, parti
         .format("parquet") \
         .partitionBy(partition_by) \
         .save(compression=compression, path=s3_path)
-    session.spark.create_glue_table(
-        dataframe=dataframe,
-        file_format="parquet",
-        partition_by=partition_by,
-        path=s3_path,
-        compression=compression,
-        database=database,
-        table="test",
-        replace_if_exists=True
-    )
+    session.spark.create_glue_table(dataframe=dataframe,
+                                    file_format="parquet",
+                                    partition_by=partition_by,
+                                    path=s3_path,
+                                    compression=compression,
+                                    database=database,
+                                    table="test",
+                                    replace_if_exists=True)
     query = "select count(*) as counter from test"
     pandas_df = session.pandas.read_sql_athena(sql=query, database=database)
     assert pandas_df.iloc[0]["counter"] == 5
@@ -135,40 +126,34 @@ def test_create_glue_table_parquet(session, bucket, database, compression, parti
 
 @pytest.mark.parametrize(
     "compression, partition_by, serde",
-    [
-        ("gzip", [], None), ("gzip", ["date", "value"], None), ("none", ["time"], "OpenCSVSerDe"),
-        ("gzip", [], "LazySimpleSerDe"), ("gzip", ["date", "value"], "LazySimpleSerDe"),
-        ("none", ["time"], "LazySimpleSerDe")
-    ],
+    [("gzip", [], None), ("gzip", ["date", "value"], None), ("none", ["time"], "OpenCSVSerDe"),
+     ("gzip", [], "LazySimpleSerDe"), ("gzip", ["date", "value"], "LazySimpleSerDe"),
+     ("none", ["time"], "LazySimpleSerDe")],
 )
 def test_create_glue_table_csv(session, bucket, database, compression, partition_by, serde):
     path = "data_samples/nano.csv"
     schema = "id INTEGER, name STRING, value DOUBLE, date DATE, time TIMESTAMP"
     timestamp_format = "yyyy-MM-dd"
-    dataframe = session.spark.read_csv(
-        path=path,
-        schema=schema,
-        timestampFormat=timestamp_format,
-        dateFormat=timestamp_format,
-        header=True
-    )
+    dataframe = session.spark.read_csv(path=path,
+                                       schema=schema,
+                                       timestampFormat=timestamp_format,
+                                       dateFormat=timestamp_format,
+                                       header=True)
     s3_path = f"s3://{bucket}/test"
     dataframe.write \
         .mode("overwrite") \
         .format("csv") \
         .partitionBy(partition_by) \
         .save(compression=compression, path=s3_path)
-    session.spark.create_glue_table(
-        dataframe=dataframe,
-        file_format="csv",
-        partition_by=partition_by,
-        path=s3_path,
-        compression=compression,
-        database=database,
-        table="test",
-        serde=serde,
-        replace_if_exists=True
-    )
+    session.spark.create_glue_table(dataframe=dataframe,
+                                    file_format="csv",
+                                    partition_by=partition_by,
+                                    path=s3_path,
+                                    compression=compression,
+                                    database=database,
+                                    table="test",
+                                    serde=serde,
+                                    replace_if_exists=True)
     query = "select count(*) as counter from test"
     pandas_df = session.pandas.read_sql_athena(sql=query, database=database)
     assert pandas_df.iloc[0]["counter"] == 5
@@ -185,30 +170,24 @@ def test_flatten_simple_struct(session):
         "a": [1, 2],
         "b": [
             {
-                "bb1": 1,
-                "bb2": 2
+                "a": 1,
+                "b": 2
             },
             {
-                "bb1": 1,
-                "bb2": 2
+                "a": 1,
+                "b": 2
             },
         ],
     })
-    schema = StructType(
-        [
-            StructField(name="a", dataType=IntegerType(), nullable=True),
-            StructField(
-                name="b",
-                dataType=StructType(
-                    [
+    schema = StructType([
+        StructField(name="a", dataType=IntegerType(), nullable=True),
+        StructField(name="b",
+                    dataType=StructType([
                         StructField(name="bb1", dataType=IntegerType(), nullable=True),
                         StructField(name="bb2", dataType=IntegerType(), nullable=True),
-                    ]
-                ),
-                nullable=True
-            ),
-        ]
-    )
+                    ]),
+                    nullable=True),
+    ])
     df = session.spark_session.createDataFrame(data=pdf, schema=schema)
     df.printSchema()
     dfs = session.spark.flatten(df=df)
@@ -221,98 +200,65 @@ def test_flatten_simple_struct(session):
 
 def test_flatten_complex_struct(session):
     print()
-    pdf = pd.DataFrame(
-        {
-            "a": [1, 2],
-            "b":
-                [
-                    {
-                        "a": 1,
-                        "b":
-                            {
-                                "a": "foo",
-                                "b":
-                                    {
-                                        "a": datetime(2030, 1, 1),
-                                        "b": {
-                                            "a": date(2030, 1, 1),
-                                            "b": 0.999
-                                        }
-                                    }
-                            }
-                    },
-                    {
-                        "a": 1,
-                        "b":
-                            {
-                                "a": "foo",
-                                "b":
-                                    {
-                                        "a": datetime(2030, 1, 1),
-                                        "b": {
-                                            "a": date(2030, 1, 1),
-                                            "b": 0.999
-                                        }
-                                    }
-                            }
-                    },
-                ],
-        }
-    )
-    schema = StructType(
-        [
-            StructField(name="a", dataType=IntegerType(), nullable=True),
-            StructField(
-                name="b",
-                dataType=StructType(
-                    [
+    pdf = pd.DataFrame({
+        "a": [1, 2],
+        "b": [
+            {
+                "a": 1,
+                "b": {
+                    "a": "foo",
+                    "b": {
+                        "a": datetime(2030, 1, 1),
+                        "b": {
+                            "a": date(2030, 1, 1),
+                            "b": 0.999
+                        }
+                    }
+                }
+            },
+            {
+                "a": 1,
+                "b": {
+                    "a": "foo",
+                    "b": {
+                        "a": datetime(2030, 1, 1),
+                        "b": {
+                            "a": date(2030, 1, 1),
+                            "b": 0.999
+                        }
+                    }
+                }
+            },
+        ],
+    })
+    schema = StructType([
+        StructField(name="a", dataType=IntegerType(), nullable=True),
+        StructField(name="b",
+                    dataType=StructType([
                         StructField(name="a", dataType=IntegerType(), nullable=True),
-                        StructField(
-                            name="b",
-                            dataType=StructType(
-                                [
-                                    StructField(name="a", dataType=StringType(), nullable=True),
-                                    StructField(
-                                        name="b",
-                                        dataType=StructType(
-                                            [
-                                                StructField(
-                                                    name="a",
-                                                    dataType=TimestampType(),
-                                                    nullable=True
-                                                ),
-                                                StructField(
-                                                    name="b",
-                                                    dataType=StructType(
-                                                        [
-                                                            StructField(
-                                                                name="a",
-                                                                dataType=DateType(),
-                                                                nullable=True
-                                                            ),
-                                                            StructField(
-                                                                name="b",
-                                                                dataType=FloatType(),
-                                                                nullable=True
-                                                            ),
-                                                        ]
-                                                    ),
-                                                    nullable=True
-                                                ),
-                                            ]
-                                        ),
-                                        nullable=True
-                                    ),
-                                ]
-                            ),
-                            nullable=True
-                        ),
-                    ]
-                ),
-                nullable=True
-            ),
-        ]
-    )
+                        StructField(name="b",
+                                    dataType=StructType([
+                                        StructField(name="a", dataType=StringType(), nullable=True),
+                                        StructField(name="b",
+                                                    dataType=StructType([
+                                                        StructField(name="a", dataType=TimestampType(), nullable=True),
+                                                        StructField(name="b",
+                                                                    dataType=StructType([
+                                                                        StructField(name="a",
+                                                                                    dataType=DateType(),
+                                                                                    nullable=True),
+                                                                        StructField(name="b",
+                                                                                    dataType=FloatType(),
+                                                                                    nullable=True),
+                                                                    ]),
+                                                                    nullable=True),
+                                                    ]),
+                                                    nullable=True),
+                                    ]),
+                                    nullable=True),
+                    ]),
+                    nullable=True),
+    ])
     df = session.spark_session.createDataFrame(data=pdf, schema=schema)
     df.printSchema()
     dfs = session.spark.flatten(df=df)
@@ -323,3 +269,81 @@ def test_flatten_complex_struct(session):
                      "('b_b_b_b_a', 'date'), ('b_b_b_b_b', 'float')]"
     assert df.count() == dfs["root"].count()
     dfs["root"].show()
+
+
+def test_flatten_simple_map(session):
+    print()
+    pdf = pd.DataFrame({
+        "a": [1, 2],
+        "b": [
+            {
+                "a": 1,
+                "b": 2
+            },
+            {
+                "a": 1,
+                "b": 2
+            },
+        ],
+    })
+    schema = StructType([
+        StructField(name="a", dataType=IntegerType(), nullable=True),
+        StructField(name="b",
+                    dataType=MapType(keyType=StringType(), valueType=IntegerType(), valueContainsNull=True),
+                    nullable=True),
+    ])
+    df = session.spark_session.createDataFrame(data=pdf, schema=schema)
+    df.printSchema()
+    dfs = session.spark.flatten(df=df)
+    assert len(dfs) == 2
+
+    # root
+    dfs["root"].printSchema()
+    dtypes = str(dfs["root"].dtypes)
+    print(dtypes)
+    assert dtypes == "[('a', 'int')]"
+    assert dfs["root"].count() == df.count()
+    dfs["root"].show()
+
+    # root_b
+    dfs["root_b"].printSchema()
+    dtypes = str(dfs["root_b"].dtypes)
+    print(dtypes)
+    assert dtypes == "[('a', 'int'), ('b_pos', 'int'), ('b_key', 'string'), ('b_value', 'int')]"
+    assert dfs["root_b"].count() == 4
+    dfs["root_b"].show()
+
+
+def test_flatten_simple_array(session):
+    print()
+    pdf = pd.DataFrame({
+        "a": [1, 2],
+        "b": [
+            [1, 2, 3],
+            [4, 5],
+        ],
+    })
+    schema = StructType([
+        StructField(name="a", dataType=IntegerType(), nullable=True),
+        StructField(name="b", dataType=ArrayType(elementType=IntegerType(), containsNull=True), nullable=True),
+    ])
+    df = session.spark_session.createDataFrame(data=pdf, schema=schema)
+    df.printSchema()
+    dfs = session.spark.flatten(df=df)
+    assert len(dfs) == 2
+
+    # root
+    dfs["root"].printSchema()
+    dtypes = str(dfs["root"].dtypes)
+    print(dtypes)
+    assert dtypes == "[('a', 'int')]"
+    assert dfs["root"].count() == df.count()
+    dfs["root"].show()
+
+    # root_b
+    dfs["root_b"].printSchema()
+    dtypes = str(dfs["root_b"].dtypes)
+    print(dtypes)
+    assert dtypes == "[('a', 'int'), ('b_pos', 'int'), ('b', 'int')]"
+    assert dfs["root_b"].count() == 5
+    dfs["root_b"].show()

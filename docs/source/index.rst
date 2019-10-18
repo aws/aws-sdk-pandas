@@ -26,7 +26,8 @@ Pandas
 PySpark
 ```````
 * PySpark -> Redshift (Parallel)
-* Register Glue table from Dataframe stored on S3 (NEW)
+* Register Glue table from Dataframe stored on S3
+* Flatten nested DataFrames (NEW)
 
 General
 ```````
@@ -37,7 +38,12 @@ General
 * Copy listed S3 objects (Parallel)
 * Get the size of S3 objects (Parallel)
 * Get CloudWatch Logs Insights query results
-* Load partitions on Athena/Glue table (repair table) (NEW)
+* Load partitions on Athena/Glue table (repair table)
+* Create EMR cluster (For humans) (NEW)
+* Terminate EMR cluster (NEW)
+* Get EMR cluster state (NEW)
+* Submit EMR step (For humans) (NEW)
+* Ger EMR step state (NEW)
 
 
 Table Of Contents

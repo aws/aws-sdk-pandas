@@ -9,6 +9,7 @@ from awswrangler.athena import Athena  # noqa
 from awswrangler.cloudwatchlogs import CloudWatchLogs  # noqa
 from awswrangler.glue import Glue  # noqa
 from awswrangler.redshift import Redshift  # noqa
+from awswrangler.emr import EMR  # noqa
 import awswrangler.utils  # noqa
 import awswrangler.data_types  # noqa
 

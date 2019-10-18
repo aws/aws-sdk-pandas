@@ -2,11 +2,11 @@
 
 > Utility belt to handle data on AWS.
 
-[![Release](https://img.shields.io/badge/release-0.0.9-brightgreen.svg)](https://pypi.org/project/awswrangler/)
+[![Release](https://img.shields.io/badge/release-0.0.10-brightgreen.svg)](https://pypi.org/project/awswrangler/)
 [![Downloads](https://img.shields.io/pypi/dm/awswrangler.svg)](https://pypi.org/project/awswrangler/)
 [![Python Version](https://img.shields.io/badge/python-3.6%20%7C%203.7-brightgreen.svg)](https://pypi.org/project/awswrangler/)
 [![Documentation Status](https://readthedocs.org/projects/aws-data-wrangler/badge/?version=latest)](https://aws-data-wrangler.readthedocs.io/en/latest/?badge=latest)
-[![Coverage](https://img.shields.io/badge/coverage-83%25-brightgreen.svg)](https://pypi.org/project/awswrangler/)
+[![Coverage](https://img.shields.io/badge/coverage-87%25-brightgreen.svg)](https://pypi.org/project/awswrangler/)
 [![Average time to resolve an issue](http://isitmaintained.com/badge/resolution/awslabs/aws-data-wrangler.svg)](http://isitmaintained.com/project/awslabs/aws-data-wrangler "Average time to resolve an issue")
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
@@ -35,7 +35,8 @@
 
 ### PySpark
 * PySpark -> Redshift (Parallel)
-* Register Glue table from Dataframe stored on S3 (NEW :star:)
+* Register Glue table from Dataframe stored on S3
+* Flatten nested DataFrames (NEW :star:)
 
 ### General
 * List S3 objects (Parallel)
@@ -45,7 +46,12 @@
 * Copy listed S3 objects (Parallel)
 * Get the size of S3 objects (Parallel)
 * Get CloudWatch Logs Insights query results
-* Load partitions on Athena/Glue table (repair table) (NEW :star:)
+* Load partitions on Athena/Glue table (repair table)
+* Create EMR cluster (For humans) (NEW :star:)
+* Terminate EMR cluster (NEW :star:)
+* Get EMR cluster state (NEW :star:)
+* Submit EMR step (For humans) (NEW :star:)
+* Ger EMR step state (NEW :star:)
 
 ## Installation
 
@@ -195,6 +201,16 @@ session.spark.create_glue_table(dataframe=dataframe,
                                 database="my_database")
 ```
 
+#### Flatten nested PySpark DataFrame
+
+```py3
+session = awswrangler.Session(spark_session=spark)
+dfs = session.spark.flatten(df=df_nested)
+for name, df_flat in dfs:
+    print(name)
+    df_flat.show()
+```
+
 ### General
 
 #### Deleting a bunch of S3 objects (parallel)
@@ -219,6 +235,51 @@ results = session.cloudwatchlogs.query(
 ```py3
 session = awswrangler.Session()
 session.athena.repair_table(database="db_name", table="tbl_name")
+```
+
+#### Create EMR cluster
+
+```py3
+session = awswrangler.Session()
+cluster_id = session.emr.create_cluster(
+    cluster_name="wrangler_cluster",
+    logging_s3_path=f"s3://BUCKET_NAME/emr-logs/",
+    emr_release="emr-5.27.0",
+    subnet_id="SUBNET_ID",
+    emr_ec2_role="EMR_EC2_DefaultRole",
+    emr_role="EMR_DefaultRole",
+    instance_type_master="m5.xlarge",
+    instance_type_core="m5.xlarge",
+    instance_type_task="m5.xlarge",
+    instance_ebs_size_master=50,
+    instance_ebs_size_core=50,
+    instance_ebs_size_task=50,
+    instance_num_on_demand_master=1,
+    instance_num_on_demand_core=1,
+    instance_num_on_demand_task=1,
+    instance_num_spot_master=0,
+    instance_num_spot_core=1,
+    instance_num_spot_task=1,
+    spot_bid_percentage_of_on_demand_master=100,
+    spot_bid_percentage_of_on_demand_core=100,
+    spot_bid_percentage_of_on_demand_task=100,
+    spot_provisioning_timeout_master=5,
+    spot_provisioning_timeout_core=5,
+    spot_provisioning_timeout_task=5,
+    spot_timeout_to_on_demand_master=True,
+    spot_timeout_to_on_demand_core=True,
+    spot_timeout_to_on_demand_task=True,
+    python3=True,
+    spark_glue_catalog=True,
+    hive_glue_catalog=True,
+    presto_glue_catalog=True,
+    bootstraps_paths=None,
+    debugging=True,
+    applications=["Hadoop", "Spark", "Ganglia", "Hive"],
+    visible_to_all_users=True,
+    key_pair_name=None,
+)
+print(cluster_id)
 ```
 
 ## Diving Deep

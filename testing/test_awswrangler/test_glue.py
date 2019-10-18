@@ -6,17 +6,13 @@ import pandas as pd
 
 from awswrangler import Session
 
-logging.basicConfig(
-    level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
 @pytest.fixture(scope="module")
 def cloudformation_outputs():
-    response = boto3.client("cloudformation").describe_stacks(
-        StackName="aws-data-wrangler-test-arena"
-    )
+    response = boto3.client("cloudformation").describe_stacks(StackName="aws-data-wrangler-test-arena")
     outputs = {}
     for output in response.get("Stacks")[0].get("Outputs"):
         outputs[output.get("OutputKey")] = output.get("OutputValue")
@@ -50,23 +46,21 @@ def database(cloudformation_outputs):
 
 @pytest.fixture(scope="module")
 def table(
-    session,
-    bucket,
-    database,
+        session,
+        bucket,
+        database,
 ):
     dataframe = pd.read_csv("data_samples/micro.csv")
     path = f"s3://{bucket}/test/"
     table = "test"
-    session.pandas.to_parquet(
-        dataframe=dataframe,
-        database=database,
-        table=table,
-        path=path,
-        preserve_index=False,
-        mode="overwrite",
-        procs_cpu_bound=1,
-        partition_cols=["name", "date"]
-    )
+    session.pandas.to_parquet(dataframe=dataframe,
+                              database=database,
+                              table=table,
+                              path=path,
+                              preserve_index=False,
+                              mode="overwrite",
+                              procs_cpu_bound=1,
+                              partition_cols=["name", "date"])
     yield table
     session.glue.delete_table_if_exists(database=database, table=table)
     session.s3.delete_objects(path=path)

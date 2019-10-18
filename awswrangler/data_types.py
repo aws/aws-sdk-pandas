@@ -294,9 +294,8 @@ def convert_schema(func: Callable, schema: List[Tuple[str, str]]) -> Dict[str, s
     return {name: func(dtype) for name, dtype in schema}
 
 
-def extract_pyarrow_schema_from_pandas(
-    dataframe: pd.DataFrame, preserve_index: bool, indexes_position: str = "right"
-) -> List[Tuple[str, str]]:
+def extract_pyarrow_schema_from_pandas(dataframe: pd.DataFrame, preserve_index: bool,
+                                       indexes_position: str = "right") -> List[Tuple[str, str]]:
     """
     Extract the related Pyarrow schema from any Pandas DataFrame
 

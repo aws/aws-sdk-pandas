@@ -172,3 +172,6 @@ Outputs:
   LogStream:
     Value: !Ref LogStream
     Description: LogStream name.
+  SubnetId:
+    Value: !Ref SubnetId
+    Description: Subnet ID

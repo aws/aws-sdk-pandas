@@ -12,18 +12,14 @@ QUERY_WAIT_POLLING_DELAY = 0.2  # MILLISECONDS
 class CloudWatchLogs:
     def __init__(self, session):
         self._session = session
-        self._client_logs = session.boto3_session.client(
-            service_name="logs", config=session.botocore_config
-        )
+        self._client_logs = session.boto3_session.client(service_name="logs", config=session.botocore_config)
 
-    def start_query(
-        self,
-        query,
-        log_group_names,
-        start_time=datetime(year=1970, month=1, day=1),
-        end_time=datetime.utcnow(),
-        limit=None
-    ):
+    def start_query(self,
+                    query,
+                    log_group_names,
+                    start_time=datetime(year=1970, month=1, day=1),
+                    end_time=datetime.utcnow(),
+                    limit=None):
         """
         Run a query against AWS CloudWatchLogs Insights and wait the results
         https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CWL_QuerySyntax.html
@@ -72,14 +68,12 @@ class CloudWatchLogs:
             raise QueryCancelled(f"query ID: {query_id}")
         return response
 
-    def query(
-        self,
-        query,
-        log_group_names,
-        start_time=datetime(year=1970, month=1, day=1),
-        end_time=datetime.utcnow(),
-        limit=None
-    ):
+    def query(self,
+              query,
+              log_group_names,
+              start_time=datetime(year=1970, month=1, day=1),
+              end_time=datetime.utcnow(),
+              limit=None):
         """
         Run a query against AWS CloudWatchLogs Insights and wait the results
         https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CWL_QuerySyntax.html
@@ -91,12 +85,10 @@ class CloudWatchLogs:
         :param limit: The maximum number of log events to return in the query.
         :return: Results
         """
-        query_id = self.start_query(
-            query=query,
-            log_group_names=log_group_names,
-            start_time=start_time,
-            end_time=end_time,
-            limit=limit
-        )
+        query_id = self.start_query(query=query,
+                                    log_group_names=log_group_names,
+                                    start_time=start_time,
+                                    end_time=end_time,
+                                    limit=limit)
         response = self.wait_query(query_id=query_id)
         return response["results"]
