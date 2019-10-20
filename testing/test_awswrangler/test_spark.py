@@ -190,7 +190,7 @@ def test_flatten_simple_struct(session):
     ])
     df = session.spark_session.createDataFrame(data=pdf, schema=schema)
     df.printSchema()
-    dfs = session.spark.flatten(df=df)
+    dfs = session.spark.flatten(dataframe=df)
     assert len(dfs) == 1
     dfs["root"].printSchema()
     dtypes = str(dfs["root"].dtypes)
@@ -261,7 +261,7 @@ def test_flatten_complex_struct(session):
     ])
     df = session.spark_session.createDataFrame(data=pdf, schema=schema)
     df.printSchema()
-    dfs = session.spark.flatten(df=df)
+    dfs = session.spark.flatten(dataframe=df)
     assert len(dfs) == 1
     dfs["root"].printSchema()
     dtypes = str(dfs["root"].dtypes)
@@ -294,7 +294,7 @@ def test_flatten_simple_map(session):
     ])
     df = session.spark_session.createDataFrame(data=pdf, schema=schema)
     df.printSchema()
-    dfs = session.spark.flatten(df=df)
+    dfs = session.spark.flatten(dataframe=df)
     assert len(dfs) == 2
 
     # root
@@ -329,7 +329,7 @@ def test_flatten_simple_array(session):
     ])
     df = session.spark_session.createDataFrame(data=pdf, schema=schema)
     df.printSchema()
-    dfs = session.spark.flatten(df=df)
+    dfs = session.spark.flatten(dataframe=df)
     assert len(dfs) == 2
 
     # root

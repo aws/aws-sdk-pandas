@@ -294,28 +294,31 @@ class Spark:
         return f"{name}_{suffix}".replace(".", "_")
 
     @staticmethod
-    def flatten(df: sql.DataFrame, explode_outer: bool = True, explode_pos: bool = True,
+    def flatten(dataframe: sql.DataFrame, explode_outer: bool = True, explode_pos: bool = True,
                 name: str = "root") -> Dict[str, sql.DataFrame]:
         """
         Convert a complex nested DataFrame in one (or many) flat DataFrames
         If a columns is a struct it is flatten directly.
         If a columns is an array or map, then child DataFrames are created in different granularities.
-        :param df: Spark DataFrame
+        :param dataframe: Spark DataFrame
         :param explode_outer: Should we preserve the null values on arrays?
         :param explode_pos: Create columns with the index of the ex-array
         :param name: The name of the root Dataframe
         :return: A dictionary with the names as Keys and the DataFrames as Values
         """
-        cols_exprs: List[Tuple[str, str, str]] = Spark._flatten_struct_dataframe(df=df,
+        cols_exprs: List[Tuple[str, str, str]] = Spark._flatten_struct_dataframe(df=dataframe,
                                                                                  explode_outer=explode_outer,
                                                                                  explode_pos=explode_pos)
         exprs_arr: List[str] = [x[2] for x in cols_exprs if Spark._is_array_or_map(x[1])]
         exprs: List[str] = [x[2] for x in cols_exprs if not Spark._is_array_or_map(x[1])]
-        dfs: Dict[str, sql.DataFrame] = {name: df.selectExpr(exprs)}
+        dfs: Dict[str, sql.DataFrame] = {name: dataframe.selectExpr(exprs)}
         exprs = [x[2] for x in cols_exprs if not Spark._is_array_or_map(x[1]) and not x[0].endswith("_pos")]
         for expr in exprs_arr:
-            df_arr = df.selectExpr(exprs + [expr])
+            df_arr = dataframe.selectExpr(exprs + [expr])
             name_new: str = Spark._build_name(name=name, expr=expr)
-            dfs_new = Spark.flatten(df=df_arr, explode_outer=explode_outer, explode_pos=explode_pos, name=name_new)
+            dfs_new = Spark.flatten(dataframe=df_arr,
+                                    explode_outer=explode_outer,
+                                    explode_pos=explode_pos,
+                                    name=name_new)
             dfs = {**dfs, **dfs_new}
         return dfs

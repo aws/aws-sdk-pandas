@@ -205,7 +205,7 @@ session.spark.create_glue_table(dataframe=dataframe,
 
 ```py3
 session = awswrangler.Session(spark_session=spark)
-dfs = session.spark.flatten(df=df_nested)
+dfs = session.spark.flatten(dataframe=df_nested)
 for name, df_flat in dfs:
     print(name)
     df_flat.show()

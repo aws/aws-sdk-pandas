@@ -40,6 +40,18 @@ class EMR:
         if pars["key_pair_name"] is not None:
             args["Instances"]["Ec2KeyName"] = pars["key_pair_name"]
 
+        # Security groups
+        if pars["security_group_master"] is not None:
+            args["Instances"]["EmrManagedMasterSecurityGroup"] = pars["security_group_master"]
+        if pars["security_groups_master_additional"] is not None:
+            args["Instances"]["AdditionalMasterSecurityGroups"] = pars["security_groups_master_additional"]
+        if pars["security_group_slave"] is not None:
+            args["Instances"]["EmrManagedSlaveSecurityGroup"] = pars["security_group_slave"]
+        if pars["security_groups_slave_additional"] is not None:
+            args["Instances"]["AdditionalSlaveSecurityGroups"] = pars["security_groups_slave_additional"]
+        if pars["security_group_service_access"] is not None:
+            args["Instances"]["ServiceAccessSecurityGroup"] = pars["security_group_service_access"]
+
         # Configurations
         if pars["python3"] or pars["spark_glue_catalog"] or pars["hive_glue_catalog"] or pars["presto_glue_catalog"]:
             args["Configurations"]: List = []
@@ -265,7 +277,12 @@ class EMR:
                        debugging: bool = True,
                        applications: Optional[List[str]] = None,
                        visible_to_all_users: bool = True,
-                       key_pair_name: Optional[str] = None):
+                       key_pair_name: Optional[str] = None,
+                       security_group_master: Optional[str] = None,
+                       security_groups_master_additional: Optional[List[str]] = None,
+                       security_group_slave: Optional[str] = None,
+                       security_groups_slave_additional: Optional[List[str]] = None,
+                       security_group_service_access: Optional[str] = None):
         """
         Create a EMR cluster with instance fleets configuration
         https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-instance-fleet.html
@@ -305,6 +322,11 @@ class EMR:
         :param applications: List of applications (e.g ["Hadoop", "Spark", "Ganglia", "Hive"])
         :param visible_to_all_users: True or False
         :param key_pair_name: Key pair name (string)
+        :param security_group_master: The identifier of the Amazon EC2 security group for the master node.
+        :param security_groups_master_additional: A list of additional Amazon EC2 security group IDs for the master node.
+        :param security_group_slave: The identifier of the Amazon EC2 security group for the core and task nodes.
+        :param security_groups_slave_additional: A list of additional Amazon EC2 security group IDs for the core and task nodes.
+        :param security_group_service_access: The identifier of the Amazon EC2 security group for the Amazon EMR service to access clusters in VPC private subnets.
         :return: Cluster ID (string)
         """
         args = EMR._build_cluster_args(**locals())

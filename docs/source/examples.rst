@@ -163,7 +163,7 @@ Flatten nested PySpark DataFrame
 .. code-block:: python
 
     session = awswrangler.Session(spark_session=spark)
-    dfs = session.spark.flatten(df=df_nested)
+    dfs = session.spark.flatten(dataframe=df_nested)
     for name, df_flat in dfs:
         print(name)
         df_flat.show()
