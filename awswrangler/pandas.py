@@ -1,3 +1,4 @@
+from typing import Dict, List, Tuple, Optional, Any
 from io import BytesIO, StringIO
 import multiprocessing as mp
 import logging
@@ -854,20 +855,20 @@ class Pandas:
 
     def to_redshift(
             self,
-            dataframe,
-            path,
-            connection,
-            schema,
-            table,
-            iam_role,
-            diststyle="AUTO",
-            distkey=None,
-            sortstyle="COMPOUND",
-            sortkey=None,
-            preserve_index=False,
-            mode="append",
-            cast_columns=None,
-    ):
+            dataframe: pd.DataFrame,
+            path: str,
+            connection: Any,
+            schema: str,
+            table: str,
+            iam_role: str,
+            diststyle: str = "AUTO",
+            distkey: Optional[str] = None,
+            sortstyle: str = "COMPOUND",
+            sortkey: Optional[str] = None,
+            preserve_index: bool = False,
+            mode: str = "append",
+            cast_columns: Optional[Dict[str, str]] = None,
+    ) -> None:
         """
         Load Pandas Dataframe as a Table on Amazon Redshift
 
@@ -888,28 +889,30 @@ class Pandas:
         """
         if cast_columns is None:
             cast_columns = {}
-            cast_columns_parquet = {}
+            cast_columns_parquet: Dict = {}
         else:
-            cast_columns_parquet = data_types.convert_schema(func=data_types.redshift2athena, schema=cast_columns)
+            cast_columns_tuples: List[Tuple[str, str]] = [(k, v) for k, v in cast_columns.items()]
+            cast_columns_parquet = data_types.convert_schema(func=data_types.redshift2athena,
+                                                             schema=cast_columns_tuples)
         if path[-1] != "/":
             path += "/"
         self._session.s3.delete_objects(path=path)
-        num_rows = len(dataframe.index)
+        num_rows: int = len(dataframe.index)
         logger.debug(f"Number of rows: {num_rows}")
         if num_rows < MIN_NUMBER_OF_ROWS_TO_DISTRIBUTE:
-            num_partitions = 1
+            num_partitions: int = 1
         else:
-            num_slices = self._session.redshift.get_number_of_slices(redshift_conn=connection)
+            num_slices: int = self._session.redshift.get_number_of_slices(redshift_conn=connection)
             logger.debug(f"Number of slices on Redshift: {num_slices}")
             num_partitions = num_slices
         logger.debug(f"Number of partitions calculated: {num_partitions}")
-        objects_paths = self.to_parquet(dataframe=dataframe,
-                                        path=path,
-                                        preserve_index=preserve_index,
-                                        mode="append",
-                                        procs_cpu_bound=num_partitions,
-                                        cast_columns=cast_columns_parquet)
-        manifest_path = f"{path}manifest.json"
+        objects_paths: List[str] = self.to_parquet(dataframe=dataframe,
+                                                   path=path,
+                                                   preserve_index=preserve_index,
+                                                   mode="append",
+                                                   procs_cpu_bound=num_partitions,
+                                                   cast_columns=cast_columns_parquet)
+        manifest_path: str = f"{path}manifest.json"
         self._session.redshift.write_load_manifest(manifest_path=manifest_path, objects_paths=objects_paths)
         self._session.redshift.load_table(
             dataframe=dataframe,

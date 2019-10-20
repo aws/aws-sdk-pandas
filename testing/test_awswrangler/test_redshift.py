@@ -1,9 +1,10 @@
 import json
 import logging
+from datetime import date, datetime
 
 import pytest
 import boto3
-import pandas
+import pandas as pd
 from pyspark.sql import SparkSession
 import pg8000
 
@@ -80,7 +81,7 @@ def test_to_redshift_pandas(session, bucket, redshift_parameters, sample_name, m
         dates = ["date"]
     if sample_name == "nano":
         dates = ["date", "time"]
-    dataframe = pandas.read_csv(f"data_samples/{sample_name}.csv", parse_dates=dates, infer_datetime_format=True)
+    dataframe = pd.read_csv(f"data_samples/{sample_name}.csv", parse_dates=dates, infer_datetime_format=True)
     dataframe["date"] = dataframe["date"].dt.date
     con = Redshift.generate_connection(
         database="test",
@@ -113,6 +114,46 @@ def test_to_redshift_pandas(session, bucket, redshift_parameters, sample_name, m
     assert len(list(dataframe.columns)) + 1 == len(list(rows[0]))
 
 
+def test_to_redshift_pandas_cast(session, bucket, redshift_parameters):
+    df = pd.DataFrame({
+        "id": [1, 2, 3],
+        "name": ["name1", "name2", "name3"],
+        "foo": [None, None, None],
+        "boo": [date(2020, 1, 1), None, None],
+        "bar": [datetime(2021, 1, 1), None, None]})
+    schema = {
+        "id": "BIGINT",
+        "name": "VARCHAR",
+        "foo": "REAL",
+        "boo": "DATE",
+        "bar": "TIMESTAMP"}
+    con = Redshift.generate_connection(
+        database="test",
+        host=redshift_parameters.get("RedshiftAddress"),
+        port=redshift_parameters.get("RedshiftPort"),
+        user="test",
+        password=redshift_parameters.get("RedshiftPassword"),
+    )
+    path = f"s3://{bucket}/redshift-load/"
+    session.pandas.to_redshift(dataframe=df,
+                               path=path,
+                               schema="public",
+                               table="test",
+                               connection=con,
+                               iam_role=redshift_parameters.get("RedshiftRole"),
+                               mode="overwrite",
+                               preserve_index=False,
+                               cast_columns=schema)
+    cursor = con.cursor()
+    cursor.execute("SELECT * from public.test")
+    rows = cursor.fetchall()
+    cursor.close()
+    con.close()
+    print(rows)
+    assert len(df.index) == len(rows)
+    assert len(list(df.columns)) == len(list(rows[0]))
+
+
 @pytest.mark.parametrize(
     "sample_name,mode,factor,diststyle,distkey,exc,sortstyle,sortkey",
     [
@@ -125,7 +166,7 @@ def test_to_redshift_pandas(session, bucket, redshift_parameters, sample_name, m
 )
 def test_to_redshift_pandas_exceptions(session, bucket, redshift_parameters, sample_name, mode, factor, diststyle,
                                        distkey, sortstyle, sortkey, exc):
-    dataframe = pandas.read_csv(f"data_samples/{sample_name}.csv")
+    dataframe = pd.read_csv(f"data_samples/{sample_name}.csv")
     con = Redshift.generate_connection(
         database="test",
         host=redshift_parameters.get("RedshiftAddress"),
