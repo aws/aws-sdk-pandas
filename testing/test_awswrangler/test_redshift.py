@@ -120,13 +120,9 @@ def test_to_redshift_pandas_cast(session, bucket, redshift_parameters):
         "name": ["name1", "name2", "name3"],
         "foo": [None, None, None],
         "boo": [date(2020, 1, 1), None, None],
-        "bar": [datetime(2021, 1, 1), None, None]})
-    schema = {
-        "id": "BIGINT",
-        "name": "VARCHAR",
-        "foo": "REAL",
-        "boo": "DATE",
-        "bar": "TIMESTAMP"}
+        "bar": [datetime(2021, 1, 1), None, None]
+    })
+    schema = {"id": "BIGINT", "name": "VARCHAR", "foo": "REAL", "boo": "DATE", "bar": "TIMESTAMP"}
     con = Redshift.generate_connection(
         database="test",
         host=redshift_parameters.get("RedshiftAddress"),
