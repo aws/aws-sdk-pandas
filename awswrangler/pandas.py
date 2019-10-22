@@ -52,6 +52,8 @@ class Pandas:
             usecols=None,
             dtype=None,
             sep=",",
+            thousands=None,
+            decimal=".",
             lineterminator="\n",
             quotechar='"',
             quoting=csv.QUOTE_MINIMAL,
@@ -74,6 +76,8 @@ class Pandas:
         :param usecols: Same as pandas.read_csv()
         :param dtype: Same as pandas.read_csv()
         :param sep: Same as pandas.read_csv()
+        :param thousands: Same as pandas.read_csv()
+        :param decimal: Same as pandas.read_csv()
         :param lineterminator: Same as pandas.read_csv()
         :param quotechar: Same as pandas.read_csv()
         :param quoting: Same as pandas.read_csv()
@@ -98,6 +102,8 @@ class Pandas:
                                             usecols=usecols,
                                             dtype=dtype,
                                             sep=sep,
+                                            thousands=thousands,
+                                            decimal=decimal,
                                             lineterminator=lineterminator,
                                             quotechar=quotechar,
                                             quoting=quoting,
@@ -115,6 +121,8 @@ class Pandas:
                                         usecols=usecols,
                                         dtype=dtype,
                                         sep=sep,
+                                        thousands=thousands,
+                                        decimal=decimal,
                                         lineterminator=lineterminator,
                                         quotechar=quotechar,
                                         quoting=quoting,
@@ -136,6 +144,8 @@ class Pandas:
             usecols=None,
             dtype=None,
             sep=",",
+            thousands=None,
+            decimal=".",
             lineterminator="\n",
             quotechar='"',
             quoting=csv.QUOTE_MINIMAL,
@@ -159,6 +169,8 @@ class Pandas:
         :param usecols: Same as pandas.read_csv()
         :param dtype: Same as pandas.read_csv()
         :param sep: Same as pandas.read_csv()
+        :param thousands: Same as pandas.read_csv()
+        :param decimal: Same as pandas.read_csv()
         :param lineterminator: Same as pandas.read_csv()
         :param quotechar: Same as pandas.read_csv()
         :param quoting: Same as pandas.read_csv()
@@ -184,6 +196,8 @@ class Pandas:
                                         usecols=usecols,
                                         dtype=dtype,
                                         sep=sep,
+                                        thousands=thousands,
+                                        decimal=decimal,
                                         lineterminator=lineterminator,
                                         quotechar=quotechar,
                                         quoting=quoting,
@@ -231,6 +245,8 @@ class Pandas:
                                  names=names,
                                  usecols=usecols,
                                  sep=sep,
+                                 thousands=thousands,
+                                 decimal=decimal,
                                  quotechar=quotechar,
                                  quoting=quoting,
                                  escapechar=escapechar,
@@ -340,6 +356,8 @@ class Pandas:
             usecols=None,
             dtype=None,
             sep=",",
+            thousands=None,
+            decimal=".",
             lineterminator="\n",
             quotechar='"',
             quoting=0,
@@ -362,6 +380,8 @@ class Pandas:
         :param usecols: Same as pandas.read_csv()
         :param dtype: Same as pandas.read_csv()
         :param sep: Same as pandas.read_csv()
+        :param thousands: Same as pandas.read_csv()
+        :param decimal: Same as pandas.read_csv()
         :param lineterminator: Same as pandas.read_csv()
         :param quotechar: Same as pandas.read_csv()
         :param quoting: Same as pandas.read_csv()
@@ -381,6 +401,8 @@ class Pandas:
             names=names,
             usecols=usecols,
             sep=sep,
+            thousands=thousands,
+            decimal=decimal,
             quotechar=quotechar,
             quoting=quoting,
             escapechar=escapechar,

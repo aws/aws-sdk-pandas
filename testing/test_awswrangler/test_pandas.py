@@ -130,6 +130,20 @@ def test_read_csv_iterator_usecols(session, bucket, sample, row_num):
     assert total_count == row_num
 
 
+def test_read_csv_thousands_and_decimal(session, bucket):
+    text = "col1;col2\n1.000.000,00;2.000.000,00\n3.000.000,00;4.000.000,00"
+    filename = "test_read_csv_thousands_and_decimal/sample.txt"
+    boto3.resource("s3").Object(bucket, filename).put(Body=text)
+    path = f"s3://{bucket}/{filename}"
+    df = session.pandas.read_csv(path=path, sep=";", thousands=".", decimal=",")
+    assert len(df.index) == 2
+    assert len(df.columns) == 2
+    assert df.iloc[0].col1 == 1_000_000
+    assert df.iloc[0].col2 == 2_000_000
+    assert df.iloc[1].col1 == 3_000_000
+    assert df.iloc[1].col2 == 4_000_000
+
+
 @pytest.mark.parametrize(
     "mode, file_format, preserve_index, partition_cols, procs_cpu_bound, factor",
     [
@@ -437,7 +451,7 @@ def test_to_parquet_with_empty_dataframe(session, bucket, database):
                                          procs_cpu_bound=1)
 
 
-def test_read_log_query(session, loggroup, logstream):
+def test_read_log_query(session, loggroup):
     dataframe = session.pandas.read_log_query(
         log_group_names=[loggroup],
         query="fields @timestamp, @message | sort @timestamp desc | limit 5",
