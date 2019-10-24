@@ -1000,5 +1000,5 @@ class Pandas:
         if inplace is False:
             dataframe = dataframe.copy(deep=True)
         duplicated_cols = dataframe.columns.duplicated()
-        logger.warning(f"Dropping repeated columns: {duplicated_cols}")
+        logger.warning(f"Dropping repeated columns: {list(dataframe.columns[duplicated_cols])}")
         return dataframe.loc[:, ~duplicated_cols]
