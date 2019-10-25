@@ -1,5 +1,4 @@
-#!/bin/bash
-
+#!/bin/#!/usr/bin/env bash
 set -e
 
 cd ..
