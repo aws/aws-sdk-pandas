@@ -285,6 +285,23 @@ print(cluster_id)
 ## Diving Deep
 
 
+### Parallelism, Non-picklable objects and GeoPandas
+
+AWS Data Wrangler tries to parallelize everything that is possible (I/O and CPU bound task).
+You can control the parallelism level using the parameters:
+
+- **procs_cpu_bound**: number of processes that can be used in single node applications for CPU bound case (Default: os.cpu_count())
+- **procs_io_bound**: number of processes that can be used in single node applications for I/O bound cases (Default: os.cpu_count() * PROCS_IO_BOUND_FACTOR) 
+
+Both can be defined on Session level or directly in the functions.
+
+Some special cases will not work with parallelism:
+
+- GeoPandas
+- Columns with non-picklable objects
+
+To handle that use `procs_cpu_bound=1` and avoid the distribution of the dataframe.
+
 ### Pandas with null object columns (UndetectedType exception)
 
 Pandas has a too generic "data type" named object. Pandas object columns can be string, dates, etc, etc, etc.
