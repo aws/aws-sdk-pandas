@@ -75,8 +75,8 @@ class S3:
         procs = []
         args = {"Bucket": bucket, "MaxKeys": 1000, "Prefix": path}
         logger.debug(f"Arguments: \n{args}")
-        next_continuation_token = True
-        while next_continuation_token:
+        next_continuation_token = ""
+        while next_continuation_token is not None:
             res = client.list_objects_v2(**args)
             if not res.get("Contents"):
                 break

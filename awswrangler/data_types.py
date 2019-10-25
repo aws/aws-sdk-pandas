@@ -1,4 +1,4 @@
-from typing import List, Tuple, Dict, Callable
+from typing import List, Tuple, Dict, Callable, Optional
 import logging
 from datetime import datetime, date
 
@@ -56,7 +56,7 @@ def athena2pyarrow(dtype: str) -> str:
         raise UnsupportedType(f"Unsupported Athena type: {dtype}")
 
 
-def athena2python(dtype: str) -> type:
+def athena2python(dtype: str) -> Optional[type]:
     dtype = dtype.lower()
     if dtype in ["int", "integer", "bigint", "smallint", "tinyint"]:
         return int
@@ -70,6 +70,8 @@ def athena2python(dtype: str) -> type:
         return datetime
     elif dtype == "date":
         return date
+    elif dtype == "unknown":
+        return None
     else:
         raise UnsupportedType(f"Unsupported Athena type: {dtype}")
 

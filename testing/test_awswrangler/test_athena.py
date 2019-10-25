@@ -186,3 +186,12 @@ def test_query_failed(session, database):
     query_execution_id = session.athena.run_query(query="SELECT random(-1)", database=database)
     with pytest.raises(QueryFailed):
         assert session.athena.wait_query(query_execution_id=query_execution_id)
+
+
+def test_query(session, database):
+    row = list(session.athena.query(query="SELECT 'foo', 1, 2.0, true, null", database=database))[0]
+    assert row["_col0"] == "foo"
+    assert row["_col1"] == 1
+    assert row["_col2"] == 2.0
+    assert row["_col3"] is True
+    assert row["_col4"] is None
