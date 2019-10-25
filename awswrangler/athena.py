@@ -1,10 +1,11 @@
+from typing import Dict, List, Tuple, Optional, Any, Iterator
 from time import sleep
 import logging
 import ast
 import re
 import unicodedata
 
-from awswrangler import data_types
+from awswrangler.data_types import athena2python, athena2pandas
 from awswrangler.exceptions import QueryFailed, QueryCancelled
 
 logger = logging.getLogger(__name__)
@@ -30,7 +31,7 @@ class Athena:
         parse_dates = []
         converters = {}
         for col_name, col_type in cols_metadata.items():
-            pandas_type = data_types.athena2pandas(dtype=col_type)
+            pandas_type = athena2pandas(dtype=col_type)
             if pandas_type in ["datetime64", "date"]:
                 parse_timestamps.append(col_name)
                 if pandas_type == "date":
@@ -121,6 +122,58 @@ class Athena:
         query_id = self.run_query(query=query, database=database, s3_output=s3_output, workgroup=workgroup)
         self.wait_query(query_execution_id=query_id)
         return query_id
+
+    @staticmethod
+    def _rows2row(rows: List[Dict[str, List[Dict[str, str]]]],
+                  python_types: List[Tuple[str, Optional[type]]]) -> Iterator[Dict[str, Any]]:
+        for row in rows:
+            vals_varchar: List[Optional[str]] = [x["VarCharValue"] if x else None for x in row["Data"]]
+            data: Dict[str, Any] = {}
+            for (name, ptype), val in zip(python_types, vals_varchar):
+                if ptype is not None:
+                    data[name] = ptype(val)
+                else:
+                    data[name] = None
+            yield data
+
+    def get_results(self, query_execution_id: str) -> Iterator[Dict[str, Any]]:
+        """
+        Get a query results and return a list of rows
+        :param query_execution_id: Query execution ID
+        :return: Iterator os lists
+        """
+        res: Dict = self._client_athena.get_query_results(QueryExecutionId=query_execution_id)
+        cols_info: List[Dict] = res["ResultSet"]["ResultSetMetadata"]["ColumnInfo"]
+        athena_types: List[Tuple[str, str]] = [(x["Label"], x["Type"]) for x in cols_info]
+        logger.info(f"athena_types: {athena_types}")
+        python_types: List[Tuple[str, Optional[type]]] = [(n, athena2python(dtype=t)) for n, t in athena_types]
+        logger.info(f"python_types: {python_types}")
+        rows: List[Dict[str, List[Dict[str, str]]]] = res["ResultSet"]["Rows"][1:]
+        for row in Athena._rows2row(rows=rows, python_types=python_types):
+            yield row
+        next_token: Optional[str] = res.get("NextToken")
+        while next_token is not None:
+            logger.info(f"next_token: {next_token}")
+            res = self._client_athena.get_query_results(QueryExecutionId=query_execution_id, NextToken=next_token)
+            rows = res["ResultSet"]["Rows"]
+            for row in Athena._rows2row(rows=rows, python_types=python_types):
+                yield row
+            next_token = res.get("NextToken")
+
+    def query(self, query: str, database: str, s3_output: str = None,
+              workgroup: str = None) -> Iterator[Dict[str, Any]]:
+        """
+        Run a SQL Query against AWS Athena and return the result as a Iterator of lists
+
+        :param query: SQL query
+        :param database: Glue database name
+        :param s3_output: AWS S3 path
+        :param workgroup: Athena workgroup (By default uses de Session() workgroup)
+        :return: Query execution ID
+        """
+        query_id: str = self.run_query(query=query, database=database, s3_output=s3_output, workgroup=workgroup)
+        self.wait_query(query_execution_id=query_id)
+        return self.get_results(query_execution_id=query_id)
 
     @staticmethod
     def _normalize_name(name):
