@@ -160,83 +160,85 @@ class EMR:
         args["Instances"]["InstanceFleets"].append(fleet_master)
 
         # Core Instance Fleet
-        timeout_action_core = "SWITCH_TO_ON_DEMAND" if pars["spot_timeout_to_on_demand_core"] else "TERMINATE_CLUSTER"
-        fleet_core: Dict = {
-            "Name":
-            "CORE",
-            "InstanceFleetType":
-            "CORE",
-            "TargetOnDemandCapacity":
-            pars["instance_num_on_demand_core"],
-            "TargetSpotCapacity":
-            pars["instance_num_spot_core"],
-            "InstanceTypeConfigs": [
-                {
-                    "InstanceType": pars["instance_type_core"],
-                    "WeightedCapacity": 1,
-                    "BidPriceAsPercentageOfOnDemandPrice": pars["spot_bid_percentage_of_on_demand_core"],
-                    "EbsConfiguration": {
-                        "EbsBlockDeviceConfigs": [{
-                            "VolumeSpecification": {
-                                "SizeInGB": pars["instance_ebs_size_core"],
-                                "VolumeType": "gp2"
-                            },
-                            "VolumesPerInstance": 1
-                        }],
-                        "EbsOptimized":
-                        True
+        if (pars["instance_num_spot_core"] > 0) or pars["instance_num_on_demand_core"] > 0:
+            timeout_action_core = "SWITCH_TO_ON_DEMAND" if pars["spot_timeout_to_on_demand_core"] else "TERMINATE_CLUSTER"
+            fleet_core: Dict = {
+                "Name":
+                "CORE",
+                "InstanceFleetType":
+                "CORE",
+                "TargetOnDemandCapacity":
+                pars["instance_num_on_demand_core"],
+                "TargetSpotCapacity":
+                pars["instance_num_spot_core"],
+                "InstanceTypeConfigs": [
+                    {
+                        "InstanceType": pars["instance_type_core"],
+                        "WeightedCapacity": 1,
+                        "BidPriceAsPercentageOfOnDemandPrice": pars["spot_bid_percentage_of_on_demand_core"],
+                        "EbsConfiguration": {
+                            "EbsBlockDeviceConfigs": [{
+                                "VolumeSpecification": {
+                                    "SizeInGB": pars["instance_ebs_size_core"],
+                                    "VolumeType": "gp2"
+                                },
+                                "VolumesPerInstance": 1
+                            }],
+                            "EbsOptimized":
+                            True
+                        },
                     },
-                },
-            ],
-        }
-        if pars["instance_num_spot_core"] > 0:
-            fleet_core["LaunchSpecifications"]: Dict = {
-                "SpotSpecification": {
-                    "TimeoutDurationMinutes": pars["spot_provisioning_timeout_core"],
-                    "TimeoutAction": timeout_action_core,
-                }
+                ],
             }
-        args["Instances"]["InstanceFleets"].append(fleet_core)
+            if pars["instance_num_spot_core"] > 0:
+                fleet_core["LaunchSpecifications"]: Dict = {
+                    "SpotSpecification": {
+                        "TimeoutDurationMinutes": pars["spot_provisioning_timeout_core"],
+                        "TimeoutAction": timeout_action_core,
+                    }
+                }
+            args["Instances"]["InstanceFleets"].append(fleet_core)
 
-        # # Task Instance Fleet
-        timeout_action_task: str = "SWITCH_TO_ON_DEMAND" if pars[
-            "spot_timeout_to_on_demand_task"] else "TERMINATE_CLUSTER"
-        fleet_task: Dict = {
-            "Name":
-            "TASK",
-            "InstanceFleetType":
-            "TASK",
-            "TargetOnDemandCapacity":
-            pars["instance_num_on_demand_task"],
-            "TargetSpotCapacity":
-            pars["instance_num_spot_task"],
-            "InstanceTypeConfigs": [
-                {
-                    "InstanceType": pars["instance_type_task"],
-                    "WeightedCapacity": 1,
-                    "BidPriceAsPercentageOfOnDemandPrice": pars["spot_bid_percentage_of_on_demand_task"],
-                    "EbsConfiguration": {
-                        "EbsBlockDeviceConfigs": [{
-                            "VolumeSpecification": {
-                                "SizeInGB": pars["instance_ebs_size_task"],
-                                "VolumeType": "gp2"
-                            },
-                            "VolumesPerInstance": 1
-                        }],
-                        "EbsOptimized":
-                        True
+        # Task Instance Fleet
+        if (pars["instance_num_spot_task"] > 0) or pars["instance_num_on_demand_task"] > 0:
+            timeout_action_task: str = "SWITCH_TO_ON_DEMAND" if pars[
+                "spot_timeout_to_on_demand_task"] else "TERMINATE_CLUSTER"
+            fleet_task: Dict = {
+                "Name":
+                "TASK",
+                "InstanceFleetType":
+                "TASK",
+                "TargetOnDemandCapacity":
+                pars["instance_num_on_demand_task"],
+                "TargetSpotCapacity":
+                pars["instance_num_spot_task"],
+                "InstanceTypeConfigs": [
+                    {
+                        "InstanceType": pars["instance_type_task"],
+                        "WeightedCapacity": 1,
+                        "BidPriceAsPercentageOfOnDemandPrice": pars["spot_bid_percentage_of_on_demand_task"],
+                        "EbsConfiguration": {
+                            "EbsBlockDeviceConfigs": [{
+                                "VolumeSpecification": {
+                                    "SizeInGB": pars["instance_ebs_size_task"],
+                                    "VolumeType": "gp2"
+                                },
+                                "VolumesPerInstance": 1
+                            }],
+                            "EbsOptimized":
+                            True
+                        },
                     },
-                },
-            ],
-        }
-        if pars["instance_num_spot_task"] > 0:
-            fleet_task["LaunchSpecifications"]: Dict = {
-                "SpotSpecification": {
-                    "TimeoutDurationMinutes": pars["spot_provisioning_timeout_task"],
-                    "TimeoutAction": timeout_action_task,
-                }
+                ],
             }
-        args["Instances"]["InstanceFleets"].append(fleet_task)
+            if pars["instance_num_spot_task"] > 0:
+                fleet_task["LaunchSpecifications"]: Dict = {
+                    "SpotSpecification": {
+                        "TimeoutDurationMinutes": pars["spot_provisioning_timeout_task"],
+                        "TimeoutAction": timeout_action_task,
+                    }
+                }
+            args["Instances"]["InstanceFleets"].append(fleet_task)
 
         logger.info(f"args: \n{json.dumps(args, default=str, indent=4)}")
         return args
