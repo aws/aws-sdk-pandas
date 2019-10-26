@@ -243,3 +243,12 @@ Create EMR cluster
         key_pair_name=None,
     )
     print(cluster_id)
+
+Athena query to receive the result as python primitives (Iterable[Dict[str, Any])
+`````````````````````````````````````````````````````````````````````````````````
+
+.. code-block:: python
+
+    session = awswrangler.Session()
+    for row in session.athena.query(query="...", database="..."):
+        print(row)

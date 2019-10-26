@@ -42,8 +42,9 @@ General
 * Create EMR cluster (For humans) (NEW)
 * Terminate EMR cluster (NEW)
 * Get EMR cluster state (NEW)
-* Submit EMR step (For humans) (NEW)
+* Submit EMR step(s) (For humans) (NEW)
 * Get EMR step state (NEW)
+* Athena query to receive the result as python primitives (Iterable[Dict[str, Any]) (NEW)
 
 
 Table Of Contents

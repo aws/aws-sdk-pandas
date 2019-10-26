@@ -50,8 +50,10 @@
 * Create EMR cluster (For humans) (NEW :star:)
 * Terminate EMR cluster (NEW :star:)
 * Get EMR cluster state (NEW :star:)
-* Submit EMR step (For humans) (NEW :star:)
+* Submit EMR step(s) (For humans) (NEW :star:)
 * Get EMR step state (NEW :star:)
+* Get EMR step state (NEW :star:)
+* Athena query to receive the result as python primitives (*Iterable[Dict[str, Any]*) (NEW :star:)
 
 ## Installation
 
@@ -280,6 +282,14 @@ cluster_id = session.emr.create_cluster(
     key_pair_name=None,
 )
 print(cluster_id)
+```
+
+#### Athena query to receive the result as python primitives (*Iterable[Dict[str, Any]*)
+
+```py3
+session = awswrangler.Session()
+for row in session.athena.query(query="...", database="..."):
+    print(row)
 ```
 
 ## Diving Deep
