@@ -2,7 +2,7 @@
 Module to handle all utilities related to EMR (Elastic Map Reduce)
 https://aws.amazon.com/emr/
 """
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any, Union, Collection
 import logging
 import json
 
@@ -29,8 +29,8 @@ class EMR:
             "JobFlowRole": pars["emr_ec2_role"],
             "ServiceRole": pars["emr_role"],
             "Instances": {
-                "KeepJobFlowAliveWhenNoSteps": True,
-                "TerminationProtected": False,
+                "KeepJobFlowAliveWhenNoSteps": pars["keep_cluster_alive_when_no_steps"],
+                "TerminationProtected": pars["termination_protected"],
                 "Ec2SubnetId": pars["subnet_id"],
                 "InstanceFleets": []
             }
@@ -53,47 +53,68 @@ class EMR:
             args["Instances"]["ServiceAccessSecurityGroup"] = pars["security_group_service_access"]
 
         # Configurations
-        if pars["python3"] or pars["spark_glue_catalog"] or pars["hive_glue_catalog"] or pars["presto_glue_catalog"]:
-            args["Configurations"]: List = []
-            if pars["python3"]:
-                args["Configurations"].append({
-                    "Classification":
-                    "spark-env",
-                    "Properties": {},
-                    "Configurations": [{
-                        "Classification": "export",
-                        "Properties": {
-                            "PYSPARK_PYTHON": "/usr/bin/python3"
-                        },
-                        "Configurations": []
-                    }]
-                })
-            if pars["spark_glue_catalog"]:
-                args["Configurations"].append({
-                    "Classification": "spark-hive-site",
+        args["Configurations"]: List[Dict[str, Any]] = [{
+            "Classification": "spark-log4j",
+            "Properties": {
+                "log4j.rootCategory": f"{pars['spark_log_level']}, console"
+            }
+        }]
+        if pars["python3"]:
+            args["Configurations"].append({
+                "Classification":
+                "spark-env",
+                "Properties": {},
+                "Configurations": [{
+                    "Classification": "export",
                     "Properties": {
-                        "hive.metastore.client.factory.class":
-                        "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory",
+                        "PYSPARK_PYTHON": "/usr/bin/python3"
                     },
                     "Configurations": []
-                })
-            if pars["hive_glue_catalog"]:
-                args["Configurations"].append({
-                    "Classification": "hive-site",
-                    "Properties": {
-                        "hive.metastore.client.factory.class":
-                        "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory"
-                    },
-                    "Configurations": []
-                })
-            if pars["presto_glue_catalog"]:
-                args["Configurations"].append({
-                    "Classification": "presto-connector-hive",
-                    "Properties": {
-                        "hive.metastore.glue.datacatalog.enabled": "true"
-                    },
-                    "Configurations": []
-                })
+                }]
+            })
+        if pars["spark_glue_catalog"]:
+            args["Configurations"].append({
+                "Classification": "spark-hive-site",
+                "Properties": {
+                    "hive.metastore.client.factory.class":
+                    "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory",
+                },
+                "Configurations": []
+            })
+        if pars["hive_glue_catalog"]:
+            args["Configurations"].append({
+                "Classification": "hive-site",
+                "Properties": {
+                    "hive.metastore.client.factory.class":
+                    "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory"
+                },
+                "Configurations": []
+            })
+        if pars["presto_glue_catalog"]:
+            args["Configurations"].append({
+                "Classification": "presto-connector-hive",
+                "Properties": {
+                    "hive.metastore.glue.datacatalog.enabled": "true"
+                },
+                "Configurations": []
+            })
+        if pars["maximize_resource_allocation"]:
+            args["Configurations"].append({
+                "Classification": "spark",
+                "Properties": {
+                    "maximizeResourceAllocation": "true"
+                }
+            })
+        if (pars["spark_jars_path"] is not None) or (pars["spark_defaults"] is not None):
+            spark_defaults: Dict[str, Union[str, Dict[str, str]]] = {
+                "Classification": "spark-defaults",
+                "Properties": {}
+            }
+            if pars["spark_jars_path"] is not None:
+                spark_defaults["Properties"]["spark.jars"] = pars["spark_jars_path"]
+            for k, v in pars["spark_defaults"].items():
+                spark_defaults["Properties"][k] = v
+            args["Configurations"].append(spark_defaults)
 
         # Applications
         if pars["applications"]:
@@ -108,16 +129,20 @@ class EMR:
                 }
             } for x in pars["bootstraps_paths"]]
 
-        # Debugging
-        if pars["debugging"]:
-            args["Steps"]: List[Dict] = [{
-                "Name": "Setup Hadoop Debugging",
-                "ActionOnFailure": "TERMINATE_CLUSTER",
-                "HadoopJarStep": {
-                    "Jar": "command-runner.jar",
-                    "Args": ["state-pusher-script"]
-                }
-            }]
+        # Debugging and Steps
+        if (pars["debugging"] is True) or (pars["steps"] is not None):
+            args["Steps"]: List[Dict[str, Collection[str]]] = []
+            if pars["debugging"] is True:
+                args["Steps"].append({
+                    "Name": "Setup Hadoop Debugging",
+                    "ActionOnFailure": "TERMINATE_CLUSTER",
+                    "HadoopJarStep": {
+                        "Jar": "command-runner.jar",
+                        "Args": ["state-pusher-script"]
+                    }
+                })
+            if pars["steps"] is not None:
+                args["Steps"] += pars["steps"]
 
         # Master Instance Fleet
         timeout_action_master: str = "SWITCH_TO_ON_DEMAND" if pars[
@@ -161,7 +186,8 @@ class EMR:
 
         # Core Instance Fleet
         if (pars["instance_num_spot_core"] > 0) or pars["instance_num_on_demand_core"] > 0:
-            timeout_action_core = "SWITCH_TO_ON_DEMAND" if pars["spot_timeout_to_on_demand_core"] else "TERMINATE_CLUSTER"
+            timeout_action_core = "SWITCH_TO_ON_DEMAND" if pars[
+                "spot_timeout_to_on_demand_core"] else "TERMINATE_CLUSTER"
             fleet_core: Dict = {
                 "Name":
                 "CORE",
@@ -284,7 +310,14 @@ class EMR:
                        security_groups_master_additional: Optional[List[str]] = None,
                        security_group_slave: Optional[str] = None,
                        security_groups_slave_additional: Optional[List[str]] = None,
-                       security_group_service_access: Optional[str] = None):
+                       security_group_service_access: Optional[str] = None,
+                       spark_log_level: str = "WARN",
+                       spark_jars_path: Optional[str] = None,
+                       spark_defaults: Dict[str, str] = None,
+                       maximize_resource_allocation: bool = False,
+                       steps: Optional[List[Dict[str, Collection[str]]]] = None,
+                       keep_cluster_alive_when_no_steps: bool = True,
+                       termination_protected: bool = False):
         """
         Create a EMR cluster with instance fleets configuration
         https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-instance-fleet.html
@@ -329,6 +362,13 @@ class EMR:
         :param security_group_slave: The identifier of the Amazon EC2 security group for the core and task nodes.
         :param security_groups_slave_additional: A list of additional Amazon EC2 security group IDs for the core and task nodes.
         :param security_group_service_access: The identifier of the Amazon EC2 security group for the Amazon EMR service to access clusters in VPC private subnets.
+        :param spark_log_level: log4j.rootCategory log level (ALL, DEBUG, INFO, WARN, ERROR, FATAL, OFF, TRACE)
+        :param spark_jars_path: spark.jars (https://spark.apache.org/docs/latest/configuration.html) (e.g. s3://...)
+        :param spark_defaults: (https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark-configure.html#spark-defaults)
+        :param maximize_resource_allocation: Configure your executors to utilize the maximum resources possible (https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark-configure.html#emr-spark-maximizeresourceallocation)
+        :param steps: Steps definitions (Obs: Use EMR.build_step() to build that)
+        :param keep_cluster_alive_when_no_steps: Specifies whether the cluster should remain available after completing all steps
+        :param termination_protected: Specifies whether the Amazon EC2 instances in the cluster are protected from termination by API calls, user intervention, or in the event of a job-flow error.
         :return: Cluster ID (string)
         """
         args = EMR._build_cluster_args(**locals())
@@ -358,28 +398,60 @@ class EMR:
         ])
         logger.info(f"response: \n{json.dumps(response, default=str, indent=4)}")
 
-    def submit_step(self, cluster_id: str, name: str, cmd: str, action_on_failure: str = "CONTINUE") -> str:
+    def submit_steps(self, cluster_id: str, steps: List[Dict[str, Collection[str]]]) -> List[str]:
+        """
+        Submit a list of steps
+        :param cluster_id: EMR Cluster ID
+        :param steps: Steps definitions (Obs: Use EMR.build_step() to build that)
+        :return: List of step IDs
+        """
+        response: Dict = self._client_emr.add_job_flow_steps(JobFlowId=cluster_id, Steps=steps)
+        logger.info(f"response: \n{json.dumps(response, default=str, indent=4)}")
+        return response["StepIds"]
+
+    def submit_step(self,
+                    cluster_id: str,
+                    name: str,
+                    command: str,
+                    action_on_failure: str = "CONTINUE",
+                    script: bool = False) -> str:
         """
         Submit new job in the EMR Cluster
         :param cluster_id: EMR Cluster ID
         :param name: Step name
-        :param cmd: Command to be executed
+        :param command: e.g. 'echo "Hello!"' | e.g. for script 's3://.../script.sh arg1 arg2'
         :param action_on_failure: 'TERMINATE_JOB_FLOW', 'TERMINATE_CLUSTER', 'CANCEL_AND_WAIT', 'CONTINUE'
+        :param script: True for raw command or False for script runner (https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-commandrunner.html)
         :return: Step ID
         """
-        region: str = self._session.region_name
-        logger.info(f"region: {region}")
+        step = EMR.build_step(self, name=name, command=command, action_on_failure=action_on_failure, script=script)
+        response: Dict = self._client_emr.add_job_flow_steps(JobFlowId=cluster_id, Steps=[step])
+        logger.info(f"response: \n{json.dumps(response, default=str, indent=4)}")
+        return response["StepIds"][0]
+
+    def build_step(self, name: str, command: str, action_on_failure: str = "CONTINUE",
+                   script: bool = False) -> Dict[str, Collection[str]]:
+        """
+        Build the Step dictionary
+        :param name: Step name
+        :param command: e.g. 'echo "Hello!"' | e.g. for script 's3://.../script.sh arg1 arg2'
+        :param action_on_failure: 'TERMINATE_JOB_FLOW', 'TERMINATE_CLUSTER', 'CANCEL_AND_WAIT', 'CONTINUE'
+        :param script: True for raw command or False for script runner (https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-commandrunner.html)
+        :return: Step Dict
+        """
+        jar: str = "command-runner.jar"
+        if script is True:
+            region: str = self._session.region_name
+            jar = f"s3://{region}.elasticmapreduce/libs/script-runner/script-runner.jar"
         step = {
             "Name": name,
             "ActionOnFailure": action_on_failure,
             "HadoopJarStep": {
-                "Jar": f"s3://{region}.elasticmapreduce/libs/script-runner/script-runner.jar",
-                "Args": cmd.split(" ")
+                "Jar": jar,
+                "Args": command.split(" ")
             }
         }
-        response: Dict = self._client_emr.add_job_flow_steps(JobFlowId=cluster_id, Steps=[step])
-        logger.info(f"response: \n{json.dumps(response, default=str, indent=4)}")
-        return response["StepIds"][0]
+        return step
 
     def get_step_state(self, cluster_id: str, step_id: str) -> str:
         """
