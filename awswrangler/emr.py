@@ -112,8 +112,9 @@ class EMR:
             }
             if pars["spark_jars_path"] is not None:
                 spark_defaults["Properties"]["spark.jars"] = pars["spark_jars_path"]
-            for k, v in pars["spark_defaults"].items():
-                spark_defaults["Properties"][k] = v
+            if pars["spark_defaults"] is not None:
+                for k, v in pars["spark_defaults"].items():
+                    spark_defaults["Properties"][k] = v
             args["Configurations"].append(spark_defaults)
 
         # Applications
