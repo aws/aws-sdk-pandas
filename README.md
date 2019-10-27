@@ -280,6 +280,10 @@ cluster_id = session.emr.create_cluster(
     applications=["Hadoop", "Spark", "Ganglia", "Hive"],
     visible_to_all_users=True,
     key_pair_name=None,
+    spark_jars_path=f"s3://...jar",
+    maximize_resource_allocation=True,
+    keep_cluster_alive_when_no_steps=True,
+    termination_protected=False
 )
 print(cluster_id)
 ```
