@@ -129,7 +129,7 @@ def test_cluster_single_node(session, bucket, cloudformation_outputs):
                                             visible_to_all_users=True,
                                             key_pair_name=None,
                                             spark_log_level="ERROR",
-                                            spark_jars_path=f"s3://{bucket}/jars/",
+                                            spark_jars_path=[f"s3://{bucket}/jars/"],
                                             spark_defaults={"spark.default.parallelism": "400"},
                                             maximize_resource_allocation=True,
                                             keep_cluster_alive_when_no_steps=False,

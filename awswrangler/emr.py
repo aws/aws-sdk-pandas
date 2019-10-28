@@ -111,10 +111,10 @@ class EMR:
                 "Properties": {}
             }
             if pars["spark_jars_path"] is not None:
-                spark_defaults["Properties"]["spark.jars"] = pars["spark_jars_path"]
+                spark_defaults["Properties"]["spark.jars"]: str = ",".join(pars["spark_jars_path"])
             if pars["spark_defaults"] is not None:
                 for k, v in pars["spark_defaults"].items():
-                    spark_defaults["Properties"][k] = v
+                    spark_defaults["Properties"][k]: str = v
             args["Configurations"].append(spark_defaults)
 
         # Applications
@@ -313,7 +313,7 @@ class EMR:
                        security_groups_slave_additional: Optional[List[str]] = None,
                        security_group_service_access: Optional[str] = None,
                        spark_log_level: str = "WARN",
-                       spark_jars_path: Optional[str] = None,
+                       spark_jars_path: Optional[List[str]] = None,
                        spark_defaults: Dict[str, str] = None,
                        maximize_resource_allocation: bool = False,
                        steps: Optional[List[Dict[str, Collection[str]]]] = None,
@@ -364,7 +364,7 @@ class EMR:
         :param security_groups_slave_additional: A list of additional Amazon EC2 security group IDs for the core and task nodes.
         :param security_group_service_access: The identifier of the Amazon EC2 security group for the Amazon EMR service to access clusters in VPC private subnets.
         :param spark_log_level: log4j.rootCategory log level (ALL, DEBUG, INFO, WARN, ERROR, FATAL, OFF, TRACE)
-        :param spark_jars_path: spark.jars (https://spark.apache.org/docs/latest/configuration.html) (e.g. s3://...)
+        :param spark_jars_path: spark.jars (e.g. [s3://.../foo.jar, s3://.../boo.jar]) (https://spark.apache.org/docs/latest/configuration.html)
         :param spark_defaults: (https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark-configure.html#spark-defaults)
         :param maximize_resource_allocation: Configure your executors to utilize the maximum resources possible (https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark-configure.html#emr-spark-maximizeresourceallocation)
         :param steps: Steps definitions (Obs: Use EMR.build_step() to build that)
