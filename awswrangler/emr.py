@@ -267,6 +267,10 @@ class EMR:
                 }
             args["Instances"]["InstanceFleets"].append(fleet_task)
 
+        # Tags
+        if pars["tags"] is not None:
+            args["Tags"] = [{"Key": k, "Value": v} for k, v in pars["tags"].items()]
+
         logger.info(f"args: \n{json.dumps(args, default=str, indent=4)}")
         return args
 
@@ -318,7 +322,8 @@ class EMR:
                        maximize_resource_allocation: bool = False,
                        steps: Optional[List[Dict[str, Collection[str]]]] = None,
                        keep_cluster_alive_when_no_steps: bool = True,
-                       termination_protected: bool = False):
+                       termination_protected: bool = False,
+                       tags: Optional[Dict[str, str]] = None):
         """
         Create a EMR cluster with instance fleets configuration
         https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-instance-fleet.html
@@ -370,6 +375,7 @@ class EMR:
         :param steps: Steps definitions (Obs: Use EMR.build_step() to build that)
         :param keep_cluster_alive_when_no_steps: Specifies whether the cluster should remain available after completing all steps
         :param termination_protected: Specifies whether the Amazon EC2 instances in the cluster are protected from termination by API calls, user intervention, or in the event of a job-flow error.
+        :param tags: Key/Value collection to put on the Cluster. (e.g. {"foo": "boo", "bar": "xoo"})
         :return: Cluster ID (string)
         """
         args = EMR._build_cluster_args(**locals())

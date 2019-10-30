@@ -2,7 +2,7 @@
 
 > Utility belt to handle data on AWS.
 
-[![Release](https://img.shields.io/badge/release-0.0.15-brightgreen.svg)](https://pypi.org/project/awswrangler/)
+[![Release](https://img.shields.io/badge/release-0.0.16-brightgreen.svg)](https://pypi.org/project/awswrangler/)
 [![Downloads](https://img.shields.io/pypi/dm/awswrangler.svg)](https://pypi.org/project/awswrangler/)
 [![Python Version](https://img.shields.io/badge/python-3.6%20%7C%203.7-brightgreen.svg)](https://pypi.org/project/awswrangler/)
 [![Documentation Status](https://readthedocs.org/projects/aws-data-wrangler/badge/?version=latest)](https://aws-data-wrangler.readthedocs.io/en/latest/?badge=latest)
@@ -283,7 +283,10 @@ cluster_id = session.emr.create_cluster(
     spark_jars_path=[f"s3://...jar"],
     maximize_resource_allocation=True,
     keep_cluster_alive_when_no_steps=True,
-    termination_protected=False
+    termination_protected=False,
+    tags={
+        "foo": "boo"
+    }
 )
 print(cluster_id)
 ```

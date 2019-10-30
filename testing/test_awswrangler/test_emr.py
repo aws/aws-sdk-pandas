@@ -133,7 +133,11 @@ def test_cluster_single_node(session, bucket, cloudformation_outputs):
                                             spark_defaults={"spark.default.parallelism": "400"},
                                             maximize_resource_allocation=True,
                                             keep_cluster_alive_when_no_steps=False,
-                                            termination_protected=False)
+                                            termination_protected=False,
+                                            tags={
+                                                "foo": "boo",
+                                                "bar": "xoo"
+                                            })
     sleep(10)
     cluster_state = session.emr.get_cluster_state(cluster_id=cluster_id)
     print(f"cluster_state: {cluster_state}")

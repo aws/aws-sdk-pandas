@@ -244,7 +244,10 @@ Create EMR cluster
         spark_jars_path=[f"s3://...jar"],
         maximize_resource_allocation=True,
         keep_cluster_alive_when_no_steps=True,
-        termination_protected=False
+        termination_protected=False,
+        tags={
+            "foo": "boo"
+        }
     )
     print(cluster_id)
 
