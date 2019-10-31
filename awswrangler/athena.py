@@ -1,11 +1,10 @@
 from typing import Dict, List, Tuple, Optional, Any, Iterator
 from time import sleep
 import logging
-import ast
 import re
 import unicodedata
 
-from awswrangler.data_types import athena2python, athena2pandas
+from awswrangler.data_types import athena2python
 from awswrangler.exceptions import QueryFailed, QueryCancelled
 
 logger = logging.getLogger(__name__)
@@ -18,32 +17,15 @@ class Athena:
         self._session = session
         self._client_athena = session.boto3_session.client(service_name="athena", config=session.botocore_config)
 
-    def get_query_columns_metadata(self, query_execution_id):
-        response = self._client_athena.get_query_results(QueryExecutionId=query_execution_id, MaxResults=1)
-        col_info = response["ResultSet"]["ResultSetMetadata"]["ColumnInfo"]
+    def get_query_columns_metadata(self, query_execution_id: str) -> Dict[str, str]:
+        """
+        Get the data type of all columns queried
+        :param query_execution_id: Athena query execution ID
+        :return: Dictionary with all data types
+        """
+        response: Dict = self._client_athena.get_query_results(QueryExecutionId=query_execution_id, MaxResults=1)
+        col_info: List[Dict[str, str]] = response["ResultSet"]["ResultSetMetadata"]["ColumnInfo"]
         return {x["Name"]: x["Type"] for x in col_info}
-
-    def get_query_dtype(self, query_execution_id):
-        cols_metadata = self.get_query_columns_metadata(query_execution_id=query_execution_id)
-        logger.debug(f"cols_metadata: {cols_metadata}")
-        dtype = {}
-        parse_timestamps = []
-        parse_dates = []
-        converters = {}
-        for col_name, col_type in cols_metadata.items():
-            pandas_type = athena2pandas(dtype=col_type)
-            if pandas_type in ["datetime64", "date"]:
-                parse_timestamps.append(col_name)
-                if pandas_type == "date":
-                    parse_dates.append(col_name)
-            elif pandas_type == "literal_eval":
-                converters[col_name] = ast.literal_eval
-            else:
-                dtype[col_name] = pandas_type
-        logger.debug(f"dtype: {dtype}")
-        logger.debug(f"parse_timestamps: {parse_timestamps}")
-        logger.debug(f"parse_dates: {parse_dates}")
-        return dtype, parse_timestamps, parse_dates, converters
 
     def create_athena_bucket(self):
         """

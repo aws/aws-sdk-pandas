@@ -6,6 +6,7 @@ from math import floor
 import copy
 import csv
 from datetime import datetime
+import ast
 
 import pandas as pd  # type: ignore
 import pyarrow as pa  # type: ignore
@@ -416,6 +417,33 @@ class Pandas:
         buff.close()
         return dataframe
 
+    def _get_query_dtype(self, query_execution_id: str) -> Tuple[Dict[str, str], List[str], List[str], Dict[str, Any]]:
+        cols_metadata: Dict[str, str] = self._session.athena.get_query_columns_metadata(
+            query_execution_id=query_execution_id)
+        logger.debug(f"cols_metadata: {cols_metadata}")
+        dtype: Dict[str, str] = {}
+        parse_timestamps: List[str] = []
+        parse_dates: List[str] = []
+        converters: Dict[str, Any] = {}
+        col_name: str
+        col_type: str
+        for col_name, col_type in cols_metadata.items():
+            pandas_type: str = data_types.athena2pandas(dtype=col_type)
+            if pandas_type in ["datetime64", "date"]:
+                parse_timestamps.append(col_name)
+                if pandas_type == "date":
+                    parse_dates.append(col_name)
+            elif pandas_type == "literal_eval":
+                converters[col_name] = ast.literal_eval
+            elif pandas_type == "bool":
+                logger.debug(f"Ignoring bool column: {col_name}")
+            else:
+                dtype[col_name] = pandas_type
+        logger.debug(f"dtype: {dtype}")
+        logger.debug(f"parse_timestamps: {parse_timestamps}")
+        logger.debug(f"parse_dates: {parse_dates}")
+        return dtype, parse_timestamps, parse_dates, converters
+
     def read_sql_athena(self, sql, database, s3_output=None, max_result_size=None):
         """
         Executes any SQL query on AWS Athena and return a Dataframe of the result.
@@ -436,7 +464,7 @@ class Pandas:
             message_error = f"Query error: {reason}"
             raise AthenaQueryError(message_error)
         else:
-            dtype, parse_timestamps, parse_dates, converters = self._session.athena.get_query_dtype(
+            dtype, parse_timestamps, parse_dates, converters = self._get_query_dtype(
                 query_execution_id=query_execution_id)
             path = f"{s3_output}{query_execution_id}.csv"
             ret = self.read_csv(path=path,

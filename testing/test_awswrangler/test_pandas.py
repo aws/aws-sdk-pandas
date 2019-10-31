@@ -921,3 +921,31 @@ def test_to_parquet_casting_with_null_object(
                                          database=database,
                                          path=f"s3://{bucket}/test/",
                                          mode="overwrite")
+
+
+def test_read_sql_athena_with_nulls(session, bucket, database):
+    df = pd.DataFrame({"col_int": [1, None, 3], "col_bool": [True, False, False], "col_bool_null": [True, None, False]})
+    path = f"s3://{bucket}/test/"
+    session.pandas.to_parquet(dataframe=df,
+                              database=database,
+                              path=path,
+                              preserve_index=False,
+                              mode="overwrite",
+                              cast_columns={
+                                  "col_int": "int",
+                                  "col_bool_null": "boolean"
+                              })
+    df2 = None
+    for counter in range(10):
+        df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+        assert len(list(df.columns)) == len(list(df2.columns))
+        if len(df.index) == len(df2.index):
+            break
+        sleep(1)
+    assert len(df.index) == len(df2.index)
+    print(df2)
+    print(df2.dtypes)
+    assert df2.dtypes[0] == "Int64"
+    assert df2.dtypes[1] == "bool"
+    assert df2.dtypes[2] == "object"
+    session.s3.delete_objects(path=path)
