@@ -758,6 +758,9 @@ class Pandas:
                                                            isolated_dataframe=isolated_dataframe)
             objects_paths.append(object_path)
         else:
+            dataframe = Pandas._cast_pandas(dataframe=dataframe, cast_columns=cast_columns)
+            cast_columns_materialized = {c: t for c, t in cast_columns.items() if c not in partition_cols}
+            dataframe = Pandas._cast_pandas(dataframe=dataframe, cast_columns=cast_columns)
             for keys, subgroup in dataframe.groupby(partition_cols):
                 subgroup = subgroup.drop(partition_cols, axis="columns")
                 if not isinstance(keys, tuple):
@@ -770,11 +773,23 @@ class Pandas:
                                                                compression=compression,
                                                                session_primitives=session_primitives,
                                                                file_format=file_format,
-                                                               cast_columns=cast_columns,
+                                                               cast_columns=cast_columns_materialized,
                                                                extra_args=extra_args,
                                                                isolated_dataframe=True)
                 objects_paths.append(object_path)
         return objects_paths
+
+    @staticmethod
+    def _cast_pandas(dataframe: pd.DataFrame, cast_columns: Dict[str, str]) -> pd.DataFrame:
+        for col, athena_type in cast_columns.items():
+            pandas_type: str = data_types.athena2pandas(dtype=athena_type)
+            if pandas_type == "datetime64":
+                dataframe[col] = pd.to_datetime(dataframe[col])
+            elif pandas_type == "date":
+                dataframe[col] = pd.to_datetime(dataframe[col]).dt.date
+            else:
+                dataframe[col] = dataframe[col].astype(pandas_type)
+        return dataframe
 
     @staticmethod
     def _data_to_s3_dataset_writer_remote(send_pipe,

@@ -949,3 +949,153 @@ def test_read_sql_athena_with_nulls(session, bucket, database):
     assert df2.dtypes[1] == "bool"
     assert df2.dtypes[2] == "object"
     session.s3.delete_objects(path=path)
+
+
+def test_partition_date(session, bucket, database):
+    df = pd.DataFrame({
+        "col1": ["val1", "val2"],
+        "datecol": ["2019-11-09", "2019-11-08"],
+        'partcol': ["2019-11-09", "2019-11-08"]
+    })
+    df["datecol"] = pd.to_datetime(df.datecol).dt.date
+    df["partcol"] = pd.to_datetime(df.partcol).dt.date
+    print(df)
+    print(df.dtypes)
+    path = f"s3://{bucket}/test/"
+    session.pandas.to_parquet(dataframe=df,
+                              database=database,
+                              path=path,
+                              partition_cols=["datecol"],
+                              preserve_index=False,
+                              mode="overwrite")
+    df2 = None
+    for counter in range(10):
+        df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+        assert len(list(df.columns)) == len(list(df2.columns))
+        if len(df.index) == len(df2.index):
+            break
+        sleep(1)
+    assert len(df.index) == len(df2.index)
+    print(df2)
+    print(df2.dtypes)
+    assert df2.dtypes[0] == "object"
+    assert df2.dtypes[1] == "object"
+    assert df2.dtypes[2] == "object"
+    session.s3.delete_objects(path=path)
+
+
+def test_partition_cast_date(session, bucket, database):
+    df = pd.DataFrame({
+        "col1": ["val1", "val2"],
+        "datecol": ["2019-11-09", "2019-11-08"],
+        "partcol": ["2019-11-09", "2019-11-08"]
+    })
+    print(df)
+    print(df.dtypes)
+    path = f"s3://{bucket}/test/"
+    schema = {
+        "col1": "string",
+        "datecol": "date",
+        "partcol": "date",
+    }
+    session.pandas.to_parquet(dataframe=df,
+                              database=database,
+                              path=path,
+                              partition_cols=["partcol"],
+                              preserve_index=False,
+                              cast_columns=schema,
+                              mode="overwrite")
+    df2 = None
+    for counter in range(10):
+        df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+        assert len(list(df.columns)) == len(list(df2.columns))
+        if len(df.index) == len(df2.index):
+            break
+        sleep(1)
+    assert len(df.index) == len(df2.index)
+    print(df2)
+    print(df2.dtypes)
+    assert df2.dtypes[0] == "object"
+    assert df2.dtypes[1] == "object"
+    assert df2.dtypes[2] == "object"
+    session.s3.delete_objects(path=path)
+
+
+def test_partition_cast_timestamp(session, bucket, database):
+    df = pd.DataFrame({
+        "col1": ["val1", "val2"],
+        "datecol": ["2019-11-09", "2019-11-08"],
+        "partcol": ["2019-11-09", "2019-11-08"]
+    })
+    print(df)
+    print(df.dtypes)
+    path = f"s3://{bucket}/test/"
+    schema = {
+        "col1": "string",
+        "datecol": "timestamp",
+        "partcol": "timestamp",
+    }
+    session.pandas.to_parquet(dataframe=df,
+                              database=database,
+                              path=path,
+                              partition_cols=["partcol"],
+                              preserve_index=False,
+                              cast_columns=schema,
+                              mode="overwrite")
+    df2 = None
+    for counter in range(10):
+        df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+        assert len(list(df.columns)) == len(list(df2.columns))
+        if len(df.index) == len(df2.index):
+            break
+        sleep(1)
+    assert len(df.index) == len(df2.index)
+    print(df2)
+    print(df2.dtypes)
+    assert str(df2.dtypes[0]) == "object"
+    assert str(df2.dtypes[1]).startswith("datetime64")
+    assert str(df2.dtypes[2]).startswith("datetime64")
+    session.s3.delete_objects(path=path)
+
+
+def test_partition_cast(session, bucket, database):
+    df = pd.DataFrame({
+        "col1": ["val1", "val2"],
+        "datecol": ["2019-11-09", "2019-11-08"],
+        "partcol": ["2019-11-09", "2019-11-08"],
+        "col_double": ["1.0", "1.1"],
+        "col_bool": ["True", "False"],
+    })
+    print(df)
+    print(df.dtypes)
+    path = f"s3://{bucket}/test/"
+    schema = {
+        "col1": "string",
+        "datecol": "timestamp",
+        "partcol": "timestamp",
+        "col_double": "double",
+        "col_bool": "boolean",
+    }
+    session.pandas.to_parquet(dataframe=df,
+                              database=database,
+                              path=path,
+                              partition_cols=["partcol"],
+                              preserve_index=False,
+                              cast_columns=schema,
+                              mode="overwrite")
+    df2 = None
+    for counter in range(10):
+        df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+        assert len(list(df.columns)) == len(list(df2.columns))
+        if len(df.index) == len(df2.index):
+            break
+        sleep(1)
+    assert len(df.index) == len(df2.index)
+    print(df2)
+    print(df2.dtypes)
+    assert df2.dtypes[0] == "object"
+    assert str(df2.dtypes[1]).startswith("datetime")
+    assert str(df2.dtypes[2]).startswith("float")
+    assert str(df2.dtypes[3]).startswith("bool")
+    assert str(df2.dtypes[4]).startswith("datetime")
+    session.s3.delete_objects(path=path)
