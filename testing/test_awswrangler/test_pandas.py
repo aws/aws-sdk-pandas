@@ -1099,3 +1099,53 @@ def test_partition_cast(session, bucket, database):
     assert str(df2.dtypes[3]).startswith("bool")
     assert str(df2.dtypes[4]).startswith("datetime")
     session.s3.delete_objects(path=path)
+
+
+@pytest.mark.parametrize("procs", [1, 2, 8])
+def test_partition_single_row(session, bucket, database, procs):
+    data = {
+        "col1": [
+            1,
+            2,
+            3,
+        ],
+        "datecol": [
+            "2019-11-09",
+            "2019-11-09",
+            "2019-11-08",
+        ],
+        "partcol": [
+            "2019-11-09",
+            "2019-11-09",
+            "2019-11-08",
+        ]
+    }
+    df = pd.DataFrame(data)
+    df = df.astype({"datecol": "datetime64", "partcol": "datetime64"})
+    schema = {
+        "col1": "bigint",
+        "datecol": "date",
+        "partcol": "date",
+    }
+    path = f"s3://{bucket}/test/"
+    session.pandas.to_parquet(dataframe=df,
+                              database=database,
+                              path=path,
+                              partition_cols=["datecol"],
+                              mode="overwrite",
+                              cast_columns=schema,
+                              procs_cpu_bound=procs,
+                              preserve_index=False)
+    df2 = None
+    for counter in range(10):
+        df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+        assert len(list(df.columns)) == len(list(df2.columns))
+        if len(df.index) == len(df2.index):
+            break
+        sleep(1)
+    print(df2.dtypes)
+    assert len(df.index) == len(df2.index)
+    assert df2.dtypes[0] == "Int64"
+    assert df2.dtypes[1] == "object"
+    assert df2.dtypes[2] == "object"
+    session.s3.delete_objects(path=path)

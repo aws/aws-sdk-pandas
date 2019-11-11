@@ -893,7 +893,7 @@ class Pandas:
         dtypes = copy.deepcopy(dataframe.dtypes.to_dict())
         for name, dtype in dtypes.items():
             if str(dtype) == "Int64":
-                dataframe.loc[:, name] = dataframe[name].astype("float64")
+                dataframe[name] = dataframe[name].astype("float64")
                 casted_in_pandas.append(name)
                 cast_columns[name] = "bigint"
                 logger.debug(f"Casting column {name} Int64 to float64")
