@@ -587,20 +587,20 @@ class Pandas:
                           inplace=inplace)
 
     def to_s3(self,
-              dataframe,
-              path,
-              file_format,
-              database=None,
-              table=None,
+              dataframe: pd.DataFrame,
+              path: str,
+              file_format: str,
+              database: Optional[str] = None,
+              table: Optional[str] = None,
               partition_cols=None,
               preserve_index=True,
-              mode="append",
+              mode: str = "append",
               compression=None,
               procs_cpu_bound=None,
               procs_io_bound=None,
               cast_columns=None,
               extra_args=None,
-              inplace=True):
+              inplace: bool = True) -> List[str]:
         """
         Write a Pandas Dataframe on S3
         Optionally writes metadata on AWS Glue.
@@ -621,9 +621,9 @@ class Pandas:
         :param inplace: True is cheapest (CPU and Memory) but False leaves your DataFrame intact
         :return: List of objects written on S3
         """
-        if not partition_cols:
+        if partition_cols is None:
             partition_cols = []
-        if not cast_columns:
+        if cast_columns is None:
             cast_columns = {}
         dataframe = Pandas.normalize_columns_names_athena(dataframe, inplace=inplace)
         cast_columns = {Athena.normalize_column_name(k): v for k, v in cast_columns.items()}
@@ -748,6 +748,8 @@ class Pandas:
                                    extra_args=None,
                                    isolated_dataframe=False):
         objects_paths = []
+        dataframe = Pandas._cast_pandas(dataframe=dataframe, cast_columns=cast_columns)
+        cast_columns_materialized = {c: t for c, t in cast_columns.items() if c not in partition_cols}
         if not partition_cols:
             object_path = Pandas._data_to_s3_object_writer(dataframe=dataframe,
                                                            path=path,
@@ -755,13 +757,11 @@ class Pandas:
                                                            compression=compression,
                                                            session_primitives=session_primitives,
                                                            file_format=file_format,
-                                                           cast_columns=cast_columns,
+                                                           cast_columns=cast_columns_materialized,
                                                            extra_args=extra_args,
                                                            isolated_dataframe=isolated_dataframe)
             objects_paths.append(object_path)
         else:
-            dataframe = Pandas._cast_pandas(dataframe=dataframe, cast_columns=cast_columns)
-            cast_columns_materialized = {c: t for c, t in cast_columns.items() if c not in partition_cols}
             dataframe = Pandas._cast_pandas(dataframe=dataframe, cast_columns=cast_columns)
             for keys, subgroup in dataframe.groupby(partition_cols):
                 subgroup = subgroup.drop(partition_cols, axis="columns")
@@ -790,7 +790,7 @@ class Pandas:
             elif pandas_type == "date":
                 dataframe[col] = pd.to_datetime(dataframe[col]).dt.date
             else:
-                dataframe[col] = dataframe[col].astype(pandas_type)
+                dataframe[col] = dataframe[col].astype(pandas_type, skipna=True)
         return dataframe
 
     @staticmethod
