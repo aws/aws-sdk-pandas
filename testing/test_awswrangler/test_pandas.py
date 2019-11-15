@@ -947,7 +947,7 @@ def test_read_sql_athena_with_nulls(session, bucket, database):
     print(df2.dtypes)
     assert df2.dtypes[0] == "Int64"
     assert df2.dtypes[1] == "bool"
-    assert df2.dtypes[2] == "object"
+    assert df2.dtypes[2] == "bool"
     session.s3.delete_objects(path=path)
 
 
@@ -1148,4 +1148,51 @@ def test_partition_single_row(session, bucket, database, procs):
     assert df2.dtypes[0] == "Int64"
     assert df2.dtypes[1] == "object"
     assert df2.dtypes[2] == "object"
+    session.s3.delete_objects(path=path)
+
+
+@pytest.mark.parametrize("partition_cols", [None, ["pt"]])
+def test_nan_cast(session, bucket, database, partition_cols):
+    dtypes = {"col1": "object", "col2": "object", "col3": "object", "col4": "object", "pt": "object"}
+    df = pd.read_csv("data_samples/nan.csv", dtype=dtypes)
+    print(df)
+    schema = {
+        "col1": "string",
+        "col2": "string",
+        "col3": "string",
+        "col4": "string",
+        "pt": "string",
+    }
+    path = f"s3://{bucket}/test/"
+    session.pandas.to_parquet(dataframe=df,
+                              database=database,
+                              path=path,
+                              partition_cols=partition_cols,
+                              mode="overwrite",
+                              cast_columns=schema)
+    df2 = None
+    for counter in range(10):
+        sleep(1)
+        df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+        assert len(list(df.columns)) == len(list(df2.columns)) - 1
+        if len(df.index) == len(df2.index):
+            break
+    print(df2.dtypes)
+    assert len(df.index) == len(df2.index)
+    assert df2.dtypes[0] == "object"
+    assert df2.dtypes[1] == "object"
+    assert df2.dtypes[2] == "object"
+    assert df2.dtypes[3] == "object"
+    assert df2.iloc[:, 0].isna().sum() == 4
+    assert df2.iloc[:, 1].isna().sum() == 2
+    assert df2.iloc[:, 2].isna().sum() == 2
+    assert df2.iloc[:, 3].isna().sum() == 2
+    assert df2.iloc[:, 4].isna().sum() == 0
+    assert df2.iloc[:, 5].isna().sum() == 0
+    if partition_cols is None:
+        assert df2.dtypes[4] == "object"
+        assert df2.dtypes[5] == "Int64"
+    else:
+        assert df2.dtypes[4] == "Int64"
+        assert df2.dtypes[5] == "object"
     session.s3.delete_objects(path=path)
