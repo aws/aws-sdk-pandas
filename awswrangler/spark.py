@@ -1,9 +1,12 @@
 from typing import List, Tuple, Dict
 import logging
+import os
 
 import pandas as pd  # type: ignore
 
-from pyspark import sql
+from pyspark.sql.functions import pandas_udf, PandasUDFType, spark_partition_id
+from pyspark.sql.types import TimestampType
+from pyspark.sql import DataFrame
 
 from awswrangler.exceptions import MissingBatchDetected, UnsupportedFileFormat
 
@@ -35,7 +38,7 @@ class Spark:
     def date2timestamp(dataframe):
         for name, dtype in dataframe.dtypes:
             if dtype == "date":
-                dataframe = dataframe.withColumn(name, dataframe[name].cast(sql.types.TimestampType()))
+                dataframe = dataframe.withColumn(name, dataframe[name].cast(TimestampType()))
                 logger.warning(f"Casting column {name} from date to timestamp!")
         return dataframe
 
@@ -93,9 +96,13 @@ class Spark:
         spark.conf.set("spark.sql.execution.arrow.enabled", "true")
         session_primitives = self._session.primitives
 
-        @sql.functions.pandas_udf(returnType="objects_paths string",
-                                  functionType=sql.functions.PandasUDFType.GROUPED_MAP)
+        @pandas_udf(returnType="objects_paths string", functionType=PandasUDFType.GROUPED_MAP)
         def write(pandas_dataframe):
+            # Exporting ARROW_PRE_0_15_IPC_FORMAT environment variable for
+            # a temporary workaround while waiting for Apache Arrow updates
+            # https://stackoverflow.com/questions/58273063/pandasudf-and-pyarrow-0-15-0
+            os.environ["ARROW_PRE_0_15_IPC_FORMAT"] = "1"
+
             del pandas_dataframe["aws_data_wrangler_internal_partition_id"]
             paths = session_primitives.session.pandas.to_parquet(dataframe=pandas_dataframe,
                                                                  path=path,
@@ -106,7 +113,7 @@ class Spark:
             return pd.DataFrame.from_dict({"objects_paths": paths})
 
         df_objects_paths = dataframe.repartition(numPartitions=num_partitions) \
-            .withColumn("aws_data_wrangler_internal_partition_id", sql.functions.spark_partition_id()) \
+            .withColumn("aws_data_wrangler_internal_partition_id", spark_partition_id()) \
             .groupby("aws_data_wrangler_internal_partition_id") \
             .apply(write)
 
@@ -255,7 +262,7 @@ class Spark:
         return cols
 
     @staticmethod
-    def _flatten_struct_dataframe(df: sql.DataFrame, explode_outer: bool = True,
+    def _flatten_struct_dataframe(df: DataFrame, explode_outer: bool = True,
                                   explode_pos: bool = True) -> List[Tuple[str, str, str]]:
         explode: str = "EXPLODE_OUTER" if explode_outer is True else "EXPLODE"
         explode = f"POS{explode}" if explode_pos is True else explode
@@ -294,8 +301,8 @@ class Spark:
         return f"{name}_{suffix}".replace(".", "_")
 
     @staticmethod
-    def flatten(dataframe: sql.DataFrame, explode_outer: bool = True, explode_pos: bool = True,
-                name: str = "root") -> Dict[str, sql.DataFrame]:
+    def flatten(dataframe: DataFrame, explode_outer: bool = True, explode_pos: bool = True,
+                name: str = "root") -> Dict[str, DataFrame]:
         """
         Convert a complex nested DataFrame in one (or many) flat DataFrames
         If a columns is a struct it is flatten directly.
@@ -311,7 +318,7 @@ class Spark:
                                                                                  explode_pos=explode_pos)
         exprs_arr: List[str] = [x[2] for x in cols_exprs if Spark._is_array_or_map(x[1])]
         exprs: List[str] = [x[2] for x in cols_exprs if not Spark._is_array_or_map(x[1])]
-        dfs: Dict[str, sql.DataFrame] = {name: dataframe.selectExpr(exprs)}
+        dfs: Dict[str, DataFrame] = {name: dataframe.selectExpr(exprs)}
         exprs = [x[2] for x in cols_exprs if not Spark._is_array_or_map(x[1]) and not x[0].endswith("_pos")]
         for expr in exprs_arr:
             df_arr = dataframe.selectExpr(exprs + [expr])

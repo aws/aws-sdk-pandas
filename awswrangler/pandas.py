@@ -8,9 +8,11 @@ import csv
 from datetime import datetime
 import ast
 
+from botocore.exceptions import ClientError, HTTPClientError  # type: ignore
 import pandas as pd  # type: ignore
 import pyarrow as pa  # type: ignore
 from pyarrow import parquet as pq  # type: ignore
+import tenacity  # type: ignore
 
 from awswrangler import data_types
 from awswrangler.exceptions import (UnsupportedWriteMode, UnsupportedFileFormat, AthenaQueryError, EmptyS3Object,
@@ -880,8 +882,18 @@ class Pandas:
         csv_buffer = bytes(
             dataframe.to_csv(None, header=False, index=preserve_index, compression=compression, **csv_extra_args),
             "utf-8")
+        Pandas._write_csv_to_s3_retrying(fs=fs, path=path, buffer=csv_buffer)
+
+    @staticmethod
+    @tenacity.retry(
+        retry=tenacity.retry_if_exception_type(exception_types=(ClientError, HTTPClientError)),
+        wait=tenacity.wait_random_exponential(multiplier=0.5, max=10),
+        stop=tenacity.stop_after_attempt(max_attempt_number=15),
+        reraise=True,
+    )
+    def _write_csv_to_s3_retrying(fs: Any, path: str, buffer: bytes) -> None:
         with fs.open(path, "wb") as f:
-            f.write(csv_buffer)
+            f.write(buffer)
 
     @staticmethod
     def write_parquet_dataframe(dataframe, path, preserve_index, compression, fs, cast_columns, isolated_dataframe):
@@ -906,17 +918,28 @@ class Pandas:
             for col_name, dtype in cast_columns.items():
                 col_index = table.column_names.index(col_name)
                 pyarrow_dtype = data_types.athena2pyarrow(dtype)
-                table = table.set_column(col_index, table.column(col_name).cast(pyarrow_dtype))
+                field = pa.field(name=col_name, type=pyarrow_dtype)
+                table = table.set_column(col_index, field, table.column(col_name).cast(pyarrow_dtype))
                 logger.debug(f"Casting column {col_name} ({col_index}) to {dtype} ({pyarrow_dtype})")
 
         # Persisting on S3
-        with fs.open(path, "wb") as f:
-            pq.write_table(table, f, compression=compression, coerce_timestamps="ms", flavor="spark")
+        Pandas._write_parquet_to_s3_retrying(fs=fs, path=path, table=table, compression=compression)
 
         # Casting back on Pandas if necessary
         if isolated_dataframe is False:
             for col in casted_in_pandas:
                 dataframe[col] = dataframe[col].astype("Int64")
+
+    @staticmethod
+    @tenacity.retry(
+        retry=tenacity.retry_if_exception_type(exception_types=[ClientError, HTTPClientError]),
+        wait=tenacity.wait_random_exponential(multiplier=0.5, max=10),
+        stop=tenacity.stop_after_attempt(max_attempt_number=15),
+        reraise=True,
+    )
+    def _write_parquet_to_s3_retrying(fs: Any, path: str, table: pa.Table, compression: str) -> None:
+        with fs.open(path, "wb") as f:
+            pq.write_table(table, f, compression=compression, coerce_timestamps="ms", flavor="spark")
 
     def to_redshift(
             self,

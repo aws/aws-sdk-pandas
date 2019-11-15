@@ -7,7 +7,7 @@ cd ~
 # Clone desired Arrow version
 rm -rf arrow dist pyarrow*
 git clone \
-    --branch apache-arrow-0.14.1 \
+    --branch apache-arrow-0.15.1 \
     --single-branch \
     https://github.com/apache/arrow.git
 
@@ -43,6 +43,7 @@ make install
 popd
 
 # Build Pyarrow
+export ARROW_PRE_0_15_IPC_FORMAT=1
 export PYARROW_WITH_FLIGHT=0
 export PYARROW_WITH_GANDIVA=0
 export PYARROW_WITH_ORC=0

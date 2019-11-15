@@ -247,10 +247,10 @@ def test_to_s3(
     assert len(objects_paths) >= num_partitions
     dataframe2 = None
     for counter in range(10):
+        sleep(1)
         dataframe2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
         if factor * len(dataframe.index) == len(dataframe2.index):
             break
-        sleep(1)
     assert factor * len(dataframe.index) == len(dataframe2.index)
     if preserve_index:
         assert (len(list(dataframe.columns)) + 1) == len(list(dataframe2.columns))
@@ -273,10 +273,10 @@ def test_to_parquet_with_cast_int(
                               cast_columns={"value": "int"})
     dataframe2 = None
     for counter in range(10):
+        sleep(1)
         dataframe2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
         if len(dataframe.index) == len(dataframe2.index):
             break
-        sleep(2)
     assert len(dataframe.index) == len(dataframe2.index)
     assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
     assert dataframe[dataframe["id"] == 0].iloc[0]["name"] == dataframe2[dataframe2["id"] == 0].iloc[0]["name"]
@@ -306,6 +306,7 @@ def test_read_sql_athena_iterator(session, bucket, database, sample, row_num, ma
                               mode="overwrite")
     total_count = 0
     for counter in range(10):
+        sleep(1)
         dataframe_iter = session.pandas.read_sql_athena(sql="select * from test",
                                                         database=database,
                                                         max_result_size=max_result_size)
@@ -316,7 +317,6 @@ def test_read_sql_athena_iterator(session, bucket, database, sample, row_num, ma
             print(dataframe)
         if total_count == row_num:
             break
-        sleep(1)
     session.s3.delete_objects(path=path)
     assert total_count == row_num
 
@@ -431,10 +431,10 @@ def test_to_parquet_with_kms(
                                     procs_cpu_bound=1)
     dataframe2 = None
     for counter in range(10):
+        sleep(1)
         dataframe2 = session_inner.pandas.read_sql_athena(sql="select * from test", database=database)
         if len(dataframe.index) == len(dataframe2.index):
             break
-        sleep(1)
     assert len(dataframe.index) == len(dataframe2.index)
     assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
     assert dataframe[dataframe["id"] == 0].iloc[0]["name"] == dataframe2[dataframe2["id"] == 0].iloc[0]["name"]
@@ -567,10 +567,10 @@ def test_to_csv_with_sep(
                           sep="|")
     dataframe2 = None
     for counter in range(10):
+        sleep(1)
         dataframe2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
         if len(dataframe.index) == len(dataframe2.index):
             break
-        sleep(2)
     assert len(dataframe.index) == len(dataframe2.index)
     assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
 
@@ -602,10 +602,10 @@ def test_to_parquet_compressed(session, bucket, database, compression):
                               procs_cpu_bound=1)
     dataframe2 = None
     for counter in range(10):
+        sleep(1)
         dataframe2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
         if len(dataframe.index) == len(dataframe2.index):
             break
-        sleep(2)
     assert len(dataframe.index) == len(dataframe2.index)
     assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
     assert dataframe[dataframe["id"] == 1].iloc[0]["name"] == dataframe2[dataframe2["id"] == 1].iloc[0]["name"]
@@ -631,11 +631,11 @@ def test_to_parquet_lists(session, bucket, database):
     assert len(paths) == 1
     dataframe2 = None
     for counter in range(10):
+        sleep(1)
         dataframe2 = session.pandas.read_sql_athena(sql="select id, col_int, col_float, col_list_int from test",
                                                     database=database)
         if len(dataframe.index) == len(dataframe2.index):
             break
-        sleep(2)
     assert len(dataframe.index) == len(dataframe2.index)
     assert 4 == len(list(dataframe2.columns))
     val = dataframe[dataframe["id"] == 0].iloc[0]["col_list_int"]
@@ -663,11 +663,11 @@ def test_to_parquet_cast(session, bucket, database):
     assert len(paths) == 1
     dataframe2 = None
     for counter in range(10):
+        sleep(1)
         dataframe2 = session.pandas.read_sql_athena(sql="select id, col_int, col_float, col_list_int from test",
                                                     database=database)
         if len(dataframe.index) == len(dataframe2.index):
             break
-        sleep(2)
     assert len(dataframe.index) == len(dataframe2.index)
     assert 4 == len(list(dataframe2.columns))
     val = dataframe[dataframe["id"] == 0].iloc[0]["col_list_int"]
@@ -711,10 +711,10 @@ def test_to_parquet_with_cast_null(
                               })
     dataframe2 = None
     for counter in range(10):
+        sleep(1)
         dataframe2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
         if len(dataframe.index) == len(dataframe2.index):
             break
-        sleep(2)
     assert len(dataframe.index) == len(dataframe2.index)
     assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
 
@@ -768,10 +768,10 @@ def test_to_parquet_with_normalize(
                               mode="overwrite")
     dataframe2 = None
     for counter in range(10):
+        sleep(1)
         dataframe2 = session.pandas.read_sql_athena(sql="select * from test_table_with_dot", database=database)
         if len(dataframe.index) == len(dataframe2.index):
             break
-        sleep(2)
     assert len(dataframe.index) == len(dataframe2.index)
     assert (len(list(dataframe.columns)) + 1) == len(list(dataframe2.columns))
     assert dataframe2.columns[0] == "camel_case"
@@ -808,10 +808,10 @@ def test_to_parquet_with_normalize_and_cast(
                               })
     dataframe2 = None
     for counter in range(10):
+        sleep(1)
         dataframe2 = session.pandas.read_sql_athena(sql="select * from test_table_with_dot", database=database)
         if len(dataframe.index) == len(dataframe2.index):
             break
-        sleep(2)
     assert len(dataframe.index) == len(dataframe2.index)
     assert (len(list(dataframe.columns)) + 1) == len(list(dataframe2.columns))
     assert dataframe2.columns[0] == "with_spaces"
@@ -852,10 +852,10 @@ def test_to_parquet_duplicated_columns(
     session.pandas.to_parquet(dataframe=dataframe, database=database, path=f"s3://{bucket}/test/", mode="overwrite")
     dataframe2 = None
     for counter in range(10):
+        sleep(1)
         dataframe2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
         if len(dataframe.index) == len(dataframe2.index):
             break
-        sleep(2)
     assert len(dataframe.index) == len(dataframe2.index)
     assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
     assert dataframe2.columns[0] == "a"
@@ -897,10 +897,10 @@ def test_to_parquet_casting_to_string(
                               cast_columns={"col_string_null": "string"})
     dataframe2 = None
     for counter in range(10):
+        sleep(1)
         dataframe2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
         if len(dataframe.index) == len(dataframe2.index):
             break
-        sleep(2)
     assert len(dataframe.index) == len(dataframe2.index)
     assert (len(list(dataframe.columns)) + 1) == len(list(dataframe2.columns))
     print(dataframe2)
@@ -937,11 +937,11 @@ def test_read_sql_athena_with_nulls(session, bucket, database):
                               })
     df2 = None
     for counter in range(10):
+        sleep(1)
         df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
         assert len(list(df.columns)) == len(list(df2.columns))
         if len(df.index) == len(df2.index):
             break
-        sleep(1)
     assert len(df.index) == len(df2.index)
     print(df2)
     print(df2.dtypes)
@@ -970,11 +970,11 @@ def test_partition_date(session, bucket, database):
                               mode="overwrite")
     df2 = None
     for counter in range(10):
+        sleep(1)
         df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
         assert len(list(df.columns)) == len(list(df2.columns))
         if len(df.index) == len(df2.index):
             break
-        sleep(1)
     assert len(df.index) == len(df2.index)
     print(df2)
     print(df2.dtypes)
@@ -1007,11 +1007,11 @@ def test_partition_cast_date(session, bucket, database):
                               mode="overwrite")
     df2 = None
     for counter in range(10):
+        sleep(1)
         df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
         assert len(list(df.columns)) == len(list(df2.columns))
         if len(df.index) == len(df2.index):
             break
-        sleep(1)
     assert len(df.index) == len(df2.index)
     print(df2)
     print(df2.dtypes)
@@ -1044,11 +1044,11 @@ def test_partition_cast_timestamp(session, bucket, database):
                               mode="overwrite")
     df2 = None
     for counter in range(10):
+        sleep(1)
         df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
         assert len(list(df.columns)) == len(list(df2.columns))
         if len(df.index) == len(df2.index):
             break
-        sleep(1)
     assert len(df.index) == len(df2.index)
     print(df2)
     print(df2.dtypes)
@@ -1085,11 +1085,11 @@ def test_partition_cast(session, bucket, database):
                               mode="overwrite")
     df2 = None
     for counter in range(10):
+        sleep(1)
         df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
         assert len(list(df.columns)) == len(list(df2.columns))
         if len(df.index) == len(df2.index):
             break
-        sleep(1)
     assert len(df.index) == len(df2.index)
     print(df2)
     print(df2.dtypes)
@@ -1138,11 +1138,11 @@ def test_partition_single_row(session, bucket, database, procs):
                               preserve_index=False)
     df2 = None
     for counter in range(10):
+        sleep(1)
         df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
         assert len(list(df.columns)) == len(list(df2.columns))
         if len(df.index) == len(df2.index):
             break
-        sleep(1)
     print(df2.dtypes)
     assert len(df.index) == len(df2.index)
     assert df2.dtypes[0] == "Int64"

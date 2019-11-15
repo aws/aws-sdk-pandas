@@ -2,7 +2,7 @@ import multiprocessing as mp
 from math import ceil
 import logging
 
-from botocore.exceptions import ClientError  # type: ignore
+from botocore.exceptions import ClientError, HTTPClientError  # type: ignore
 import s3fs  # type: ignore
 import tenacity  # type: ignore
 
@@ -203,7 +203,7 @@ class S3:
 
     @staticmethod
     @tenacity.retry(
-        retry=tenacity.retry_if_exception_type(exception_types=ClientError),
+        retry=tenacity.retry_if_exception_type(exception_types=(ClientError, HTTPClientError)),
         wait=tenacity.wait_random_exponential(multiplier=0.5, max=10),
         stop=tenacity.stop_after_attempt(max_attempt_number=15),
         reraise=True,
