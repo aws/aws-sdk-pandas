@@ -10,8 +10,8 @@ RUN curl https://pyenv.run | bash
 RUN echo 'eval "$(pyenv init -)"' >> /root/.bashrc
 ENV PATH="/root/.pyenv/bin:$PATH"
 RUN pyenv install 3.6.8
-RUN pyenv install 3.7.3
-RUN pyenv global 3.7.3 3.6.8
+RUN pyenv install 3.7.4
+RUN pyenv global 3.7.4 3.6.8
 ENV PYSPARK_PYTHON=python
 ENV PIP=/root/.pyenv/shims/pip
 RUN $PIP install --upgrade pip
