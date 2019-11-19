@@ -1,3 +1,4 @@
+from typing import Dict, List, Union, Optional
 import json
 import logging
 
@@ -116,14 +117,25 @@ class Redshift:
         conn = self.generate_connection(database=database, host=host, port=int(port), user=user, password=password)
         return conn
 
-    def write_load_manifest(self, manifest_path, objects_paths):
-        objects_sizes = self._session.s3.get_objects_sizes(objects_paths=objects_paths)
-        manifest = {"entries": []}
+    def write_load_manifest(self, manifest_path: str, objects_paths: List[str], procs_io_bound: Optional[int] = None
+                            ) -> Dict[str, List[Dict[str, Union[str, bool, Dict[str, int]]]]]:
+        objects_sizes: Dict[str, int] = self._session.s3.get_objects_sizes(objects_paths=objects_paths,
+                                                                           procs_io_bound=procs_io_bound)
+        manifest: Dict[str, List[Dict[str, Union[str, bool, Dict[str, int]]]]] = {"entries": []}
+        path: str
+        size: int
         for path, size in objects_sizes.items():
-            entry = {"url": path, "mandatory": True, "meta": {"content_length": size}}
-            manifest.get("entries").append(entry)
-        payload = json.dumps(manifest)
+            entry: Dict[str, Union[str, bool, Dict[str, int]]] = {
+                "url": path,
+                "mandatory": True,
+                "meta": {
+                    "content_length": size
+                }
+            }
+            manifest["entries"].append(entry)
+        payload: str = json.dumps(manifest)
         client_s3 = self._session.boto3_session.client(service_name="s3", config=self._session.botocore_config)
+        bucket: str
         bucket, path = manifest_path.replace("s3://", "").split("/", 1)
         client_s3.put_object(Body=payload, Bucket=bucket, Key=path)
         return manifest

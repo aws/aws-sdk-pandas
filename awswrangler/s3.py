@@ -1,3 +1,4 @@
+from typing import Dict, List, Optional
 import multiprocessing as mp
 from math import ceil
 import logging
@@ -202,12 +203,11 @@ class S3:
         return keys
 
     @staticmethod
-    @tenacity.retry(
-        retry=tenacity.retry_if_exception_type(exception_types=(ClientError, HTTPClientError)),
-        wait=tenacity.wait_random_exponential(multiplier=0.5, max=10),
-        stop=tenacity.stop_after_attempt(max_attempt_number=15),
-        reraise=True,
-    )
+    @tenacity.retry(retry=tenacity.retry_if_exception_type(exception_types=(ClientError, HTTPClientError)),
+                    wait=tenacity.wait_random_exponential(multiplier=0.5),
+                    stop=tenacity.stop_after_attempt(max_attempt_number=10),
+                    reraise=True,
+                    after=tenacity.after_log(logger, logging.INFO))
     def head_object_with_retry(client, bucket, key):
         return client.head_object(Bucket=bucket, Key=key)
 
@@ -226,11 +226,11 @@ class S3:
         send_pipe.send(objects_sizes)
         send_pipe.close()
 
-    def get_objects_sizes(self, objects_paths, procs_io_bound=None):
+    def get_objects_sizes(self, objects_paths: List[str], procs_io_bound: Optional[int] = None) -> Dict[str, int]:
         if not procs_io_bound:
             procs_io_bound = self._session.procs_io_bound
         logger.debug(f"procs_io_bound: {procs_io_bound}")
-        objects_sizes = {}
+        objects_sizes: Dict[str, int] = {}
         procs = []
         receive_pipes = []
         bounders = calculate_bounders(len(objects_paths), procs_io_bound)

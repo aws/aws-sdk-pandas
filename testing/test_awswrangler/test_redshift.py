@@ -280,6 +280,36 @@ def test_to_redshift_spark_big(session, bucket, redshift_parameters):
     assert len(list(dataframe.columns)) == len(list(rows[0]))
 
 
+def test_stress_to_redshift_spark_big(session, bucket, redshift_parameters):
+    dataframe = session.spark_session.createDataFrame(
+        pd.DataFrame({
+            "A": list(range(1_000_000)),
+            "B": list(range(1_000_000)),
+            "C": list(range(1_000_000))
+        }))
+
+    for i in range(10):
+        print(i)
+        con = Redshift.generate_connection(
+            database="test",
+            host=redshift_parameters.get("RedshiftAddress"),
+            port=redshift_parameters.get("RedshiftPort"),
+            user="test",
+            password=redshift_parameters.get("RedshiftPassword"),
+        )
+        session.spark.to_redshift(
+            dataframe=dataframe,
+            path=f"s3://{bucket}/redshift-load/",
+            connection=con,
+            schema="public",
+            table="test",
+            iam_role=redshift_parameters.get("RedshiftRole"),
+            mode="overwrite",
+            min_num_partitions=4,
+        )
+        con.close()
+
+
 @pytest.mark.parametrize(
     "sample_name,mode,factor,diststyle,distkey,exc,sortstyle,sortkey",
     [

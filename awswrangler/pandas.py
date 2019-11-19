@@ -885,12 +885,11 @@ class Pandas:
         Pandas._write_csv_to_s3_retrying(fs=fs, path=path, buffer=csv_buffer)
 
     @staticmethod
-    @tenacity.retry(
-        retry=tenacity.retry_if_exception_type(exception_types=(ClientError, HTTPClientError)),
-        wait=tenacity.wait_random_exponential(multiplier=0.5, max=10),
-        stop=tenacity.stop_after_attempt(max_attempt_number=15),
-        reraise=True,
-    )
+    @tenacity.retry(retry=tenacity.retry_if_exception_type(exception_types=(ClientError, HTTPClientError)),
+                    wait=tenacity.wait_random_exponential(multiplier=0.5),
+                    stop=tenacity.stop_after_attempt(max_attempt_number=10),
+                    reraise=True,
+                    after=tenacity.after_log(logger, logging.INFO))
     def _write_csv_to_s3_retrying(fs: Any, path: str, buffer: bytes) -> None:
         with fs.open(path, "wb") as f:
             f.write(buffer)
@@ -931,12 +930,11 @@ class Pandas:
                 dataframe[col] = dataframe[col].astype("Int64")
 
     @staticmethod
-    @tenacity.retry(
-        retry=tenacity.retry_if_exception_type(exception_types=[ClientError, HTTPClientError]),
-        wait=tenacity.wait_random_exponential(multiplier=0.5, max=10),
-        stop=tenacity.stop_after_attempt(max_attempt_number=15),
-        reraise=True,
-    )
+    @tenacity.retry(retry=tenacity.retry_if_exception_type(exception_types=(ClientError, HTTPClientError)),
+                    wait=tenacity.wait_random_exponential(multiplier=0.5),
+                    stop=tenacity.stop_after_attempt(max_attempt_number=10),
+                    reraise=True,
+                    after=tenacity.after_log(logger, logging.INFO))
     def _write_parquet_to_s3_retrying(fs: Any, path: str, table: pa.Table, compression: str) -> None:
         with fs.open(path, "wb") as f:
             pq.write_table(table, f, compression=compression, coerce_timestamps="ms", flavor="spark")
@@ -1066,5 +1064,7 @@ class Pandas:
         if inplace is False:
             dataframe = dataframe.copy(deep=True)
         duplicated_cols = dataframe.columns.duplicated()
-        logger.warning(f"Dropping repeated columns: {list(dataframe.columns[duplicated_cols])}")
+        duplicated_cols_names = list(dataframe.columns[duplicated_cols])
+        if len(duplicated_cols_names) > 0:
+            logger.warning(f"Dropping repeated columns: {duplicated_cols_names}")
         return dataframe.loc[:, ~duplicated_cols]

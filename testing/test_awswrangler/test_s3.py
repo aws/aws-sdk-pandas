@@ -32,23 +32,23 @@ def wrt_fake_objs_batch_wrapper(args):
     return wrt_fake_objs_batch(*args)
 
 
-def wrt_fake_objs_batch(bucket, path, start, end):
+def wrt_fake_objs_batch(bucket, path, start, end, size=10):
     s3 = boto3.resource("s3")
     for obj_id in range(start, end + 1):
-        s3.Object(bucket, f"{path}{obj_id}").put(Body=str(obj_id).zfill(10))
+        s3.Object(bucket, f"{path}{obj_id}").put(Body=str(obj_id).zfill(size))
 
 
-def write_fake_objects(bucket, path, num):
+def write_fake_objects(bucket, path, num, size=10):
     if path[-1] != "/":
         path += "/"
-    if num < 10:
-        wrt_fake_objs_batch(bucket, path, 0, num - 1)
+    if num < 4:
+        wrt_fake_objs_batch(bucket, path, 0, num - 1, size)
         return
     cpus = mp.cpu_count()
     bounders = calc_bounders(num, cpus)
     args = []
     for item in bounders:
-        args.append((bucket, path, item[0], item[1]))
+        args.append((bucket, path, item[0], item[1], size))
     pool = mp.Pool(processes=cpus)
     print("Starting parallel writes...")
     pool.map(wrt_fake_objs_batch_wrapper, args)
@@ -154,6 +154,23 @@ def test_get_objects_sizes(session, bucket, objects_num):
     session.s3.delete_objects(path=path)
     for _, object_size in objects_sizes.items():
         assert object_size == 10
+
+
+def test_stress_get_objects_sizes(session, bucket):
+    path = f"s3://{bucket}/objs-get-objects-sizes-stress/"
+    for i in range(10):
+        print(f"Run number: {i}")
+        print("Starting deletes...")
+        session.s3.delete_objects(path=path)
+        print("Starting writes...")
+        write_fake_objects(bucket, "objs-get-objects-sizes-stress/", 4, size=100_000)
+        objects_paths = [f"s3://{bucket}/objs-get-objects-sizes-stress/{i}" for i in range(4)]
+        print("Starting gets...")
+        objects_sizes = session.s3.get_objects_sizes(objects_paths=objects_paths)
+        for _, object_size in objects_sizes.items():
+            assert object_size == 100_000
+    print("Starting deletes...")
+    session.s3.delete_objects(path=path)
 
 
 @pytest.mark.parametrize("mode, procs_io_bound", [

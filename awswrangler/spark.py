@@ -1,4 +1,4 @@
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Any
 import logging
 import os
 
@@ -6,7 +6,7 @@ import pandas as pd  # type: ignore
 
 from pyspark.sql.functions import pandas_udf, PandasUDFType, spark_partition_id
 from pyspark.sql.types import TimestampType
-from pyspark.sql import DataFrame
+from pyspark.sql import DataFrame, SparkSession
 
 from awswrangler.exceptions import MissingBatchDetected, UnsupportedFileFormat
 
@@ -18,14 +18,22 @@ MIN_NUMBER_OF_ROWS_TO_DISTRIBUTE = 1000
 class Spark:
     def __init__(self, session):
         self._session = session
+        cpus: int = os.cpu_count()
+        if cpus == 1:
+            self._procs_io_bound: int = 1
+        else:
+            self._procs_io_bound = int(cpus / 2)
+        logging.info(f"_procs_io_bound: {self._procs_io_bound}")
 
-    def read_csv(self, **args):
-        spark = self._session.spark_session
+    def read_csv(self, **args) -> DataFrame:
+        spark: SparkSession = self._session.spark_session
         return spark.read.csv(**args)
 
     @staticmethod
-    def _extract_casts(dtypes):
-        casts = {}
+    def _extract_casts(dtypes: List[Tuple[str, str]]) -> Dict[str, str]:
+        casts: Dict[str, str] = {}
+        name: str
+        dtype: str
         for name, dtype in dtypes:
             if dtype in ["smallint", "int", "bigint"]:
                 casts[name] = "bigint"
@@ -35,7 +43,9 @@ class Spark:
         return casts
 
     @staticmethod
-    def date2timestamp(dataframe):
+    def date2timestamp(dataframe: DataFrame) -> DataFrame:
+        name: str
+        dtype: str
         for name, dtype in dataframe.dtypes:
             if dtype == "date":
                 dataframe = dataframe.withColumn(name, dataframe[name].cast(TimestampType()))
@@ -44,19 +54,19 @@ class Spark:
 
     def to_redshift(
             self,
-            dataframe,
-            path,
-            connection,
-            schema,
-            table,
-            iam_role,
-            diststyle="AUTO",
+            dataframe: DataFrame,
+            path: str,
+            connection: Any,
+            schema: str,
+            table: str,
+            iam_role: str,
+            diststyle: str = "AUTO",
             distkey=None,
-            sortstyle="COMPOUND",
+            sortstyle: str = "COMPOUND",
             sortkey=None,
-            min_num_partitions=200,
-            mode="append",
-    ):
+            min_num_partitions: int = 200,
+            mode: str = "append",
+    ) -> None:
         """
         Load Spark Dataframe as a Table on Amazon Redshift
 
@@ -78,16 +88,17 @@ class Spark:
         if path[-1] != "/":
             path += "/"
         self._session.s3.delete_objects(path=path)
-        spark = self._session.spark_session
-        casts = Spark._extract_casts(dataframe.dtypes)
+        spark: SparkSession = self._session.spark_session
+        casts: Dict[str, str] = Spark._extract_casts(dataframe.dtypes)
         dataframe = Spark.date2timestamp(dataframe)
         dataframe.cache()
-        num_rows = dataframe.count()
+        num_rows: int = dataframe.count()
         logger.info(f"Number of rows: {num_rows}")
+        num_partitions: int
         if num_rows < MIN_NUMBER_OF_ROWS_TO_DISTRIBUTE:
             num_partitions = 1
         else:
-            num_slices = self._session.redshift.get_number_of_slices(redshift_conn=connection)
+            num_slices: int = self._session.redshift.get_number_of_slices(redshift_conn=connection)
             logger.debug(f"Number of slices on Redshift: {num_slices}")
             num_partitions = num_slices
             while num_partitions < min_num_partitions:
@@ -95,37 +106,40 @@ class Spark:
         logger.debug(f"Number of partitions calculated: {num_partitions}")
         spark.conf.set("spark.sql.execution.arrow.enabled", "true")
         session_primitives = self._session.primitives
+        par_col_name: str = "aws_data_wrangler_internal_partition_id"
 
         @pandas_udf(returnType="objects_paths string", functionType=PandasUDFType.GROUPED_MAP)
-        def write(pandas_dataframe):
+        def write(pandas_dataframe: pd.DataFrame) -> pd.DataFrame:
             # Exporting ARROW_PRE_0_15_IPC_FORMAT environment variable for
             # a temporary workaround while waiting for Apache Arrow updates
             # https://stackoverflow.com/questions/58273063/pandasudf-and-pyarrow-0-15-0
             os.environ["ARROW_PRE_0_15_IPC_FORMAT"] = "1"
 
-            del pandas_dataframe["aws_data_wrangler_internal_partition_id"]
-            paths = session_primitives.session.pandas.to_parquet(dataframe=pandas_dataframe,
-                                                                 path=path,
-                                                                 preserve_index=False,
-                                                                 mode="append",
-                                                                 procs_cpu_bound=1,
-                                                                 cast_columns=casts)
+            del pandas_dataframe[par_col_name]
+            paths: List[str] = session_primitives.session.pandas.to_parquet(dataframe=pandas_dataframe,
+                                                                            path=path,
+                                                                            preserve_index=False,
+                                                                            mode="append",
+                                                                            procs_cpu_bound=1,
+                                                                            procs_io_bound=1,
+                                                                            cast_columns=casts)
             return pd.DataFrame.from_dict({"objects_paths": paths})
 
-        df_objects_paths = dataframe.repartition(numPartitions=num_partitions) \
-            .withColumn("aws_data_wrangler_internal_partition_id", spark_partition_id()) \
-            .groupby("aws_data_wrangler_internal_partition_id") \
-            .apply(write)
+        df_objects_paths = dataframe.repartition(numPartitions=num_partitions)  # type: ignore
+        df_objects_paths = df_objects_paths.withColumn(par_col_name, spark_partition_id())  # type: ignore
+        df_objects_paths = df_objects_paths.groupby(par_col_name).apply(write)  # type: ignore
 
-        objects_paths = list(df_objects_paths.toPandas()["objects_paths"])
+        objects_paths: List[str] = list(df_objects_paths.toPandas()["objects_paths"])
         dataframe.unpersist()
-        num_files_returned = len(objects_paths)
+        num_files_returned: int = len(objects_paths)
         if num_files_returned != num_partitions:
             raise MissingBatchDetected(f"{num_files_returned} files returned. {num_partitions} expected.")
         logger.debug(f"List of objects returned: {objects_paths}")
         logger.debug(f"Number of objects returned from UDF: {num_files_returned}")
-        manifest_path = f"{path}manifest.json"
-        self._session.redshift.write_load_manifest(manifest_path=manifest_path, objects_paths=objects_paths)
+        manifest_path: str = f"{path}manifest.json"
+        self._session.redshift.write_load_manifest(manifest_path=manifest_path,
+                                                   objects_paths=objects_paths,
+                                                   procs_io_bound=self._procs_io_bound)
         self._session.redshift.load_table(dataframe=dataframe,
                                           dataframe_type="spark",
                                           manifest_path=manifest_path,
