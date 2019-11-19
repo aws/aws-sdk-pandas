@@ -12,15 +12,15 @@ logger = logging.getLogger(__name__)
 
 def athena2pandas(dtype: str) -> str:
     dtype = dtype.lower()
-    if dtype in ["int", "integer", "bigint", "smallint", "tinyint"]:
+    if dtype in ("int", "integer", "bigint", "smallint", "tinyint"):
         return "Int64"
-    elif dtype in ["float", "double", "real"]:
+    elif dtype in ("float", "double", "real"):
         return "float64"
     elif dtype == "boolean":
         return "bool"
-    elif dtype in ["string", "char", "varchar"]:
+    elif dtype in ("string", "char", "varchar"):
         return "str"
-    elif dtype in ["timestamp", "timestamp with time zone"]:
+    elif dtype in ("timestamp", "timestamp with time zone"):
         return "datetime64"
     elif dtype == "date":
         return "date"
@@ -36,7 +36,7 @@ def athena2pyarrow(dtype: str) -> str:
         return "int8"
     if dtype == "smallint":
         return "int16"
-    elif dtype in ["int", "integer"]:
+    elif dtype in ("int", "integer"):
         return "int32"
     elif dtype == "bigint":
         return "int64"
@@ -44,9 +44,9 @@ def athena2pyarrow(dtype: str) -> str:
         return "float32"
     elif dtype == "double":
         return "float64"
-    elif dtype in ["boolean", "bool"]:
+    elif dtype in ("boolean", "bool"):
         return "bool"
-    elif dtype in ["string", "char", "varchar", "array", "row", "map"]:
+    elif dtype in ("string", "char", "varchar", "array", "row", "map"):
         return "string"
     elif dtype == "timestamp":
         return "timestamp[ns]"
@@ -58,13 +58,13 @@ def athena2pyarrow(dtype: str) -> str:
 
 def athena2python(dtype: str) -> Optional[type]:
     dtype = dtype.lower()
-    if dtype in ["int", "integer", "bigint", "smallint", "tinyint"]:
+    if dtype in ("int", "integer", "bigint", "smallint", "tinyint"):
         return int
-    elif dtype in ["float", "double", "real"]:
+    elif dtype in ("float", "double", "real"):
         return float
     elif dtype == "boolean":
         return bool
-    elif dtype in ["string", "char", "varchar", "array", "row", "map"]:
+    elif dtype in ("string", "char", "varchar", "array", "row", "map"):
         return str
     elif dtype == "timestamp":
         return datetime
@@ -80,7 +80,7 @@ def athena2redshift(dtype: str) -> str:
     dtype = dtype.lower()
     if dtype == "smallint":
         return "SMALLINT"
-    elif dtype in ["int", "integer"]:
+    elif dtype in ("int", "integer"):
         return "INTEGER"
     elif dtype == "bigint":
         return "BIGINT"
@@ -88,9 +88,9 @@ def athena2redshift(dtype: str) -> str:
         return "FLOAT4"
     elif dtype == "double":
         return "FLOAT8"
-    elif dtype in ["boolean", "bool"]:
+    elif dtype in ("boolean", "bool"):
         return "BOOL"
-    elif dtype in ["string", "char", "varchar", "array", "row", "map"]:
+    elif dtype in ("string", "char", "varchar", "array", "row", "map"):
         return "VARCHAR(256)"
     elif dtype == "timestamp":
         return "TIMESTAMP"
@@ -104,7 +104,7 @@ def pandas2athena(dtype: str) -> str:
     dtype = dtype.lower()
     if dtype == "int32":
         return "int"
-    elif dtype in ["int64", "Int64"]:
+    elif dtype in ("int64", "Int64"):
         return "bigint"
     elif dtype == "float32":
         return "float"
@@ -214,19 +214,19 @@ def python2athena(python_type: type) -> str:
 
 def redshift2athena(dtype: str) -> str:
     dtype_str = str(dtype)
-    if dtype_str in ["SMALLINT", "INT2"]:
+    if dtype_str in ("SMALLINT", "INT2"):
         return "smallint"
-    elif dtype_str in ["INTEGER", "INT", "INT4"]:
+    elif dtype_str in ("INTEGER", "INT", "INT4"):
         return "int"
-    elif dtype_str in ["BIGINT", "INT8"]:
+    elif dtype_str in ("BIGINT", "INT8"):
         return "bigint"
-    elif dtype_str in ["REAL", "FLOAT4"]:
+    elif dtype_str in ("REAL", "FLOAT4"):
         return "float"
-    elif dtype_str in ["DOUBLE PRECISION", "FLOAT8", "FLOAT"]:
+    elif dtype_str in ("DOUBLE PRECISION", "FLOAT8", "FLOAT"):
         return "double"
-    elif dtype_str in ["BOOLEAN", "BOOL"]:
+    elif dtype_str in ("BOOLEAN", "BOOL"):
         return "boolean"
-    elif dtype_str in ["VARCHAR", "CHARACTER VARYING", "NVARCHAR", "TEXT"]:
+    elif dtype_str in ("VARCHAR", "CHARACTER VARYING", "NVARCHAR", "TEXT"):
         return "string"
     elif dtype_str == "DATE":
         return "date"
@@ -238,19 +238,19 @@ def redshift2athena(dtype: str) -> str:
 
 def redshift2pyarrow(dtype: str) -> str:
     dtype_str: str = str(dtype)
-    if dtype_str in ["SMALLINT", "INT2"]:
+    if dtype_str in ("SMALLINT", "INT2"):
         return "int16"
-    elif dtype_str in ["INTEGER", "INT", "INT4"]:
+    elif dtype_str in ("INTEGER", "INT", "INT4"):
         return "int32"
-    elif dtype_str in ["BIGINT", "INT8"]:
+    elif dtype_str in ("BIGINT", "INT8"):
         return "int64"
-    elif dtype_str in ["REAL", "FLOAT4"]:
+    elif dtype_str in ("REAL", "FLOAT4"):
         return "float32"
-    elif dtype_str in ["DOUBLE PRECISION", "FLOAT8", "FLOAT"]:
+    elif dtype_str in ("DOUBLE PRECISION", "FLOAT8", "FLOAT"):
         return "float64"
-    elif dtype_str in ["BOOLEAN", "BOOL"]:
+    elif dtype_str in ("BOOLEAN", "BOOL"):
         return "bool"
-    elif dtype_str in ["VARCHAR", "CHARACTER VARYING", "NVARCHAR", "TEXT"]:
+    elif dtype_str in ("VARCHAR", "CHARACTER VARYING", "NVARCHAR", "TEXT"):
         return "string"
     elif dtype_str == "DATE":
         return "date32"
@@ -272,7 +272,7 @@ def spark2redshift(dtype: str) -> str:
         return "FLOAT4"
     elif dtype == "double":
         return "FLOAT8"
-    elif dtype == "bool":
+    elif dtype in ("bool", "boolean"):
         return "BOOLEAN"
     elif dtype == "timestamp":
         return "TIMESTAMP"
@@ -308,7 +308,7 @@ def extract_pyarrow_schema_from_pandas(dataframe: pd.DataFrame, preserve_index: 
     """
     cols = []
     cols_dtypes = {}
-    if indexes_position not in ["right", "left"]:
+    if indexes_position not in ("right", "left"):
         raise ValueError(f"indexes_position must be \"right\" or \"left\"")
 
     # Handle exception data types (e.g. Int64)

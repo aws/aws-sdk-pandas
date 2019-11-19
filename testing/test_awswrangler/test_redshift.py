@@ -280,6 +280,43 @@ def test_to_redshift_spark_big(session, bucket, redshift_parameters):
     assert len(list(dataframe.columns)) == len(list(rows[0]))
 
 
+def test_to_redshift_spark_bool(session, bucket, redshift_parameters):
+    dataframe = session.spark_session.createDataFrame(
+        pd.DataFrame({
+            "A": [1, 2, 3],
+            "B": [True, False, True]
+        })
+    )
+    print(dataframe)
+    print(dataframe.dtypes)
+    con = Redshift.generate_connection(
+        database="test",
+        host=redshift_parameters.get("RedshiftAddress"),
+        port=redshift_parameters.get("RedshiftPort"),
+        user="test",
+        password=redshift_parameters.get("RedshiftPassword"),
+    )
+    session.spark.to_redshift(
+        dataframe=dataframe,
+        path=f"s3://{bucket}/redshift-load-bool/",
+        connection=con,
+        schema="public",
+        table="test",
+        iam_role=redshift_parameters.get("RedshiftRole"),
+        mode="overwrite",
+        min_num_partitions=1,
+    )
+    cursor = con.cursor()
+    cursor.execute("SELECT * from public.test")
+    rows = cursor.fetchall()
+    cursor.close()
+    con.close()
+    assert dataframe.count() == len(rows)
+    assert len(list(dataframe.columns)) == len(list(rows[0]))
+    assert type(rows[0][0]) == int
+    assert type(rows[0][1]) == bool
+
+
 def test_stress_to_redshift_spark_big(session, bucket, redshift_parameters):
     dataframe = session.spark_session.createDataFrame(
         pd.DataFrame({
@@ -288,7 +325,6 @@ def test_stress_to_redshift_spark_big(session, bucket, redshift_parameters):
             "C": list(range(1_000_000))
         }))
     dataframe.cache()
-
     for i in range(10):
         print(f"Run number: {i}")
         con = Redshift.generate_connection(
