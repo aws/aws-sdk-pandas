@@ -137,6 +137,7 @@ class Redshift:
         client_s3 = self._session.boto3_session.client(service_name="s3", config=self._session.botocore_config)
         bucket: str
         bucket, path = manifest_path.replace("s3://", "").split("/", 1)
+        logger.info(f"payload: {payload}")
         client_s3.put_object(Body=payload, Bucket=bucket, Key=path)
         return manifest
 

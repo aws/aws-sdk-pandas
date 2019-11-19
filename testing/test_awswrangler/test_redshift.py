@@ -287,9 +287,10 @@ def test_stress_to_redshift_spark_big(session, bucket, redshift_parameters):
             "B": list(range(1_000_000)),
             "C": list(range(1_000_000))
         }))
+    dataframe.cache()
 
     for i in range(10):
-        print(i)
+        print(f"Run number: {i}")
         con = Redshift.generate_connection(
             database="test",
             host=redshift_parameters.get("RedshiftAddress"),
@@ -299,15 +300,16 @@ def test_stress_to_redshift_spark_big(session, bucket, redshift_parameters):
         )
         session.spark.to_redshift(
             dataframe=dataframe,
-            path=f"s3://{bucket}/redshift-load/",
+            path=f"s3://{bucket}/redshift-load-{i}/",
             connection=con,
             schema="public",
             table="test",
             iam_role=redshift_parameters.get("RedshiftRole"),
             mode="overwrite",
-            min_num_partitions=4,
+            min_num_partitions=16,
         )
         con.close()
+        dataframe.unpersist()
 
 
 @pytest.mark.parametrize(
