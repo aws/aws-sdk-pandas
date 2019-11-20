@@ -281,12 +281,7 @@ def test_to_redshift_spark_big(session, bucket, redshift_parameters):
 
 
 def test_to_redshift_spark_bool(session, bucket, redshift_parameters):
-    dataframe = session.spark_session.createDataFrame(
-        pd.DataFrame({
-            "A": [1, 2, 3],
-            "B": [True, False, True]
-        })
-    )
+    dataframe = session.spark_session.createDataFrame(pd.DataFrame({"A": [1, 2, 3], "B": [True, False, True]}))
     print(dataframe)
     print(dataframe.dtypes)
     con = Redshift.generate_connection(
@@ -318,12 +313,11 @@ def test_to_redshift_spark_bool(session, bucket, redshift_parameters):
 
 
 def test_stress_to_redshift_spark_big(session, bucket, redshift_parameters):
-    dataframe = session.spark_session.createDataFrame(
-        pd.DataFrame({
-            "A": list(range(1_000_000)),
-            "B": list(range(1_000_000)),
-            "C": list(range(1_000_000))
-        }))
+    print("Creating DataFrame...")
+    dataframe = session.spark_session.createDataFrame(pd.DataFrame({
+        "A": list(range(10_000)),
+        "B": list(range(10_000))
+    }))
     dataframe.cache()
     for i in range(10):
         print(f"Run number: {i}")

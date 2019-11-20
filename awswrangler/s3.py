@@ -70,7 +70,9 @@ class S3:
     def parse_object_path(path):
         return path.replace("s3://", "").split("/", 1)
 
-    def delete_objects(self, path):
+    def delete_objects(self, path: str, procs_io_bound: Optional[int] = None) -> None:
+        if not procs_io_bound:
+            procs_io_bound = self._session.procs_io_bound
         bucket, path = self.parse_path(path=path)
         client = self._session.boto3_session.client(service_name="s3", config=self._session.botocore_config)
         procs = []
@@ -93,7 +95,7 @@ class S3:
                 proc.daemon = False
                 proc.start()
                 procs.append(proc)
-                if len(procs) == self._session.procs_io_bound:
+                if len(procs) == procs_io_bound:
                     wait_process_release(procs)
             else:
                 logger.debug(f"Starting last delete call...")

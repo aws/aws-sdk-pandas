@@ -1,4 +1,4 @@
-from typing import List, Tuple, Dict, Any
+from typing import List, Tuple, Dict, Any, Optional
 import logging
 import os
 
@@ -18,11 +18,7 @@ MIN_NUMBER_OF_ROWS_TO_DISTRIBUTE = 1000
 class Spark:
     def __init__(self, session):
         self._session = session
-        cpus: int = os.cpu_count()
-        if cpus == 1:
-            self._procs_io_bound: int = 1
-        else:
-            self._procs_io_bound = int(cpus / 2)
+        self._procs_io_bound: int = 1
         logging.info(f"_procs_io_bound: {self._procs_io_bound}")
 
     def read_csv(self, **args) -> DataFrame:
@@ -61,9 +57,9 @@ class Spark:
             table: str,
             iam_role: str,
             diststyle: str = "AUTO",
-            distkey=None,
+            distkey: Optional[str] = None,
             sortstyle: str = "COMPOUND",
-            sortkey=None,
+            sortkey: Optional[str] = None,
             min_num_partitions: int = 200,
             mode: str = "append",
     ) -> None:
@@ -87,7 +83,7 @@ class Spark:
         logger.debug(f"Minimum number of partitions : {min_num_partitions}")
         if path[-1] != "/":
             path += "/"
-        self._session.s3.delete_objects(path=path)
+        self._session.s3.delete_objects(path=path, procs_io_bound=self._procs_io_bound)
         spark: SparkSession = self._session.spark_session
         casts: Dict[str, str] = Spark._extract_casts(dataframe.dtypes)
         dataframe = Spark.date2timestamp(dataframe)
@@ -125,9 +121,9 @@ class Spark:
                                                                             cast_columns=casts)
             return pd.DataFrame.from_dict({"objects_paths": paths})
 
-        df_objects_paths = dataframe.repartition(numPartitions=num_partitions)  # type: ignore
-        df_objects_paths = df_objects_paths.withColumn(par_col_name, spark_partition_id())  # type: ignore
-        df_objects_paths = df_objects_paths.groupby(par_col_name).apply(write)  # type: ignore
+        df_objects_paths: DataFrame = dataframe.repartition(numPartitions=num_partitions)  # type: ignore
+        df_objects_paths: DataFrame = df_objects_paths.withColumn(par_col_name, spark_partition_id())  # type: ignore
+        df_objects_paths: DataFrame = df_objects_paths.groupby(par_col_name).apply(write)  # type: ignore
 
         objects_paths: List[str] = list(df_objects_paths.toPandas()["objects_paths"])
         dataframe.unpersist()
@@ -155,7 +151,7 @@ class Spark:
                                           sortkey=sortkey,
                                           mode=mode,
                                           cast_columns=casts)
-        self._session.s3.delete_objects(path=path)
+        self._session.s3.delete_objects(path=path, procs_io_bound=self._procs_io_bound)
 
     def create_glue_table(self,
                           database,
