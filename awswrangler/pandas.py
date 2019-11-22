@@ -478,7 +478,7 @@ class Pandas:
             if max_result_size is None:
                 if len(ret.index) > 0:
                     for col in parse_dates:
-                        ret[col] = ret[col].dt.date
+                        ret[col] = ret[col].dt.date.replace(to_replace={pd.NaT: None})
                 return ret
             else:
                 return Pandas._apply_dates_to_generator(generator=ret, parse_dates=parse_dates)

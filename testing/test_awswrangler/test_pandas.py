@@ -234,10 +234,11 @@ def test_to_s3(
 ):
     dataframe = pd.read_csv("data_samples/micro.csv")
     func = session.pandas.to_csv if file_format == "csv" else session.pandas.to_parquet
+    path = f"s3://{bucket}/test/"
     objects_paths = func(
         dataframe=dataframe,
         database=database,
-        path=f"s3://{bucket}/test/",
+        path=path,
         preserve_index=preserve_index,
         mode=mode,
         partition_cols=partition_cols,
@@ -264,9 +265,10 @@ def test_to_parquet_with_cast_int(
         database,
 ):
     dataframe = pd.read_csv("data_samples/nano.csv", dtype={"id": "Int64"}, parse_dates=["date", "time"])
+    path = f"s3://{bucket}/test/"
     session.pandas.to_parquet(dataframe=dataframe,
                               database=database,
-                              path=f"s3://{bucket}/test/",
+                              path=path,
                               preserve_index=False,
                               mode="overwrite",
                               procs_cpu_bound=1,
@@ -277,6 +279,7 @@ def test_to_parquet_with_cast_int(
         dataframe2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
         if len(dataframe.index) == len(dataframe2.index):
             break
+    session.s3.delete_objects(path=path)
     assert len(dataframe.index) == len(dataframe2.index)
     assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
     assert dataframe[dataframe["id"] == 0].iloc[0]["name"] == dataframe2[dataframe2["id"] == 0].iloc[0]["name"]
@@ -385,9 +388,10 @@ def test_etl_complex(session, bucket, database, max_result_size):
     dataframe = pd.read_csv("data_samples/complex.csv",
                             dtype={"my_int_with_null": "Int64"},
                             parse_dates=["my_timestamp", "my_date"])
+    path = f"s3://{bucket}/test/"
     session.pandas.to_parquet(dataframe=dataframe,
                               database=database,
-                              path=f"s3://{bucket}/test/",
+                              path=path,
                               preserve_index=False,
                               mode="overwrite",
                               procs_cpu_bound=1)
@@ -412,6 +416,7 @@ def test_etl_complex(session, bucket, database, max_result_size):
             assert str(
                 row.my_string
             ) == "foo\nboo\nbar\nFOO\nBOO\nBAR\nxxxxx\nÁÃÀÂÇ\n汉字汉字汉字汉字汉字汉字汉字æøåæøåæøåæøåæøåæøåæøåæøåæøåæøå汉字汉字汉字汉字汉字汉字汉字æøåæøåæøåæøåæøåæøåæøåæøåæøåæøå"
+    session.s3.delete_objects(path=path)
     assert count == len(dataframe.index)
 
 
@@ -423,9 +428,10 @@ def test_to_parquet_with_kms(
     extra_args = {"ServerSideEncryption": "aws:kms", "SSEKMSKeyId": kms_key}
     session_inner = Session(s3_additional_kwargs=extra_args)
     dataframe = pd.read_csv("data_samples/nano.csv")
+    path = f"s3://{bucket}/test/"
     session_inner.pandas.to_parquet(dataframe=dataframe,
                                     database=database,
-                                    path=f"s3://{bucket}/test/",
+                                    path=path,
                                     preserve_index=False,
                                     mode="overwrite",
                                     procs_cpu_bound=1)
@@ -435,6 +441,7 @@ def test_to_parquet_with_kms(
         dataframe2 = session_inner.pandas.read_sql_athena(sql="select * from test", database=database)
         if len(dataframe.index) == len(dataframe2.index):
             break
+    session_inner.s3.delete_objects(path=path)
     assert len(dataframe.index) == len(dataframe2.index)
     assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
     assert dataframe[dataframe["id"] == 0].iloc[0]["name"] == dataframe2[dataframe2["id"] == 0].iloc[0]["name"]
@@ -1196,3 +1203,49 @@ def test_nan_cast(session, bucket, database, partition_cols):
         assert df2.dtypes[4] == "Int64"
         assert df2.dtypes[5] == "object"
     session.s3.delete_objects(path=path)
+
+
+def test_to_parquet_date_null(session, bucket, database):
+    df = pd.DataFrame({
+        "col1": ["val1", "val2"],
+        "datecol": [date(2019, 11, 9), None],
+    })
+    path = f"s3://{bucket}/test/"
+    session.pandas.to_parquet(dataframe=df,
+                              database=database,
+                              table="test",
+                              path=path,
+                              mode="overwrite",
+                              preserve_index=False,
+                              procs_cpu_bound=1)
+    df2 = None
+    for counter in range(10):  # Retrying to workaround s3 eventual consistency
+        sleep(1)
+        df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+        if len(df.index) == len(df2.index):
+            break
+    path = f"s3://{bucket}/test2/"
+    session.pandas.to_parquet(dataframe=df2,
+                              database=database,
+                              table="test2",
+                              path=path,
+                              mode="overwrite",
+                              preserve_index=False,
+                              procs_cpu_bound=1)
+    df3 = None
+    for counter in range(10):  # Retrying to workaround s3 eventual consistency
+        sleep(1)
+        df3 = session.pandas.read_sql_athena(sql="select * from test2", database=database)
+        if len(df2.index) == len(df3.index):
+            break
+
+    session.s3.delete_objects(path=path)
+
+    assert len(list(df.columns)) == len(list(df2.columns)) == len(list(df3.columns))
+    assert len(df.index) == len(df2.index) == len(df3.index)
+
+    assert df[df.col1 == "val1"].iloc[0].datecol == df2[df2.col1 == "val1"].iloc[0].datecol
+    assert df2[df2.col1 == "val1"].iloc[0].datecol == df3[df3.col1 == "val1"].iloc[0].datecol == date(2019, 11, 9)
+
+    assert df[df.col1 == "val2"].iloc[0].datecol == df2[df2.col1 == "val2"].iloc[0].datecol
+    assert df2[df2.col1 == "val2"].iloc[0].datecol == df3[df3.col1 == "val2"].iloc[0].datecol is None
