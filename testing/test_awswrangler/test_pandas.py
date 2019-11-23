@@ -1249,3 +1249,34 @@ def test_to_parquet_date_null(session, bucket, database):
 
     assert df[df.col1 == "val2"].iloc[0].datecol == df2[df2.col1 == "val2"].iloc[0].datecol
     assert df2[df2.col1 == "val2"].iloc[0].datecol == df3[df3.col1 == "val2"].iloc[0].datecol is None
+
+
+def test_to_parquet_date_null_at_first(session, bucket, database):
+    df = pd.DataFrame({
+        "col1": ["val0", "val1", "val2", "val3", "val4", "val5", "val6", "val7", "val8", "val9"],
+        "datecol": [None, pd.NaT, None, pd.NaT, None, pd.NaT, None, pd.NaT, None,
+                    date(2019, 11, 9)],
+    })
+    path = f"s3://{bucket}/test/"
+    session.pandas.to_parquet(dataframe=df,
+                              database=database,
+                              table="test",
+                              path=path,
+                              mode="overwrite",
+                              preserve_index=False,
+                              procs_cpu_bound=1,
+                              cast_columns={"datecol": "date"})
+    df2 = None
+    for counter in range(10):  # Retrying to workaround s3 eventual consistency
+        sleep(1)
+        df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+        if len(df.index) == len(df2.index):
+            break
+
+    session.s3.delete_objects(path=path)
+
+    assert len(list(df.columns)) == len(list(df2.columns))
+    assert len(df.index) == len(df2.index)
+
+    assert df[df.col1 == "val9"].iloc[0].datecol == df2[df2.col1 == "val9"].iloc[0].datecol == date(2019, 11, 9)
+    assert df[df.col1 == "val0"].iloc[0].datecol == df2[df2.col1 == "val0"].iloc[0].datecol is None
