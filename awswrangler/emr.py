@@ -21,6 +21,33 @@ class EMR:
 
     @staticmethod
     def _build_cluster_args(**pars):
+
+        spark_env: Optional[Dict[str, str]] = None
+        yarn_env: Optional[Dict[str, str]] = None
+        livy_env: Optional[Dict[str, str]] = None
+
+        if pars["spark_pyarrow"] is True:
+            if pars["spark_defaults"] is None:
+                pars["spark_defaults"]: Dict[str, str] = {"spark.sql.execution.arrow.enabled": "true"}
+            else:
+                pars["spark_defaults"]["spark.sql.execution.arrow.enabled"]: str = "true"
+            spark_env = {"ARROW_PRE_0_15_IPC_FORMAT": "1"}
+            yarn_env = {"ARROW_PRE_0_15_IPC_FORMAT": "1"}
+            livy_env = {"ARROW_PRE_0_15_IPC_FORMAT": "1"}
+
+        if pars["python3"] is True:
+            if spark_env is None:
+                spark_env: Dict[str, str] = {"PYSPARK_PYTHON": "/usr/bin/python3"}
+            else:
+                spark_env["PYSPARK_PYTHON"]: str = "/usr/bin/python3"
+
+        if pars["spark_jars_path"] is not None:
+            paths: str = ",".join(pars["spark_jars_path"])
+            if pars["spark_defaults"] is None:
+                pars["spark_defaults"]: Dict[str, str] = {"spark.jars": paths}
+            else:
+                pars["spark_defaults"]["spark.jars"]: str = paths
+
         args: Dict = {
             "Name": pars["cluster_name"],
             "LogUri": pars["logging_s3_path"],
@@ -59,16 +86,36 @@ class EMR:
                 "log4j.rootCategory": f"{pars['spark_log_level']}, console"
             }
         }]
-        if pars["python3"]:
+        if spark_env is not None:
             args["Configurations"].append({
                 "Classification":
                 "spark-env",
                 "Properties": {},
                 "Configurations": [{
                     "Classification": "export",
-                    "Properties": {
-                        "PYSPARK_PYTHON": "/usr/bin/python3"
-                    },
+                    "Properties": spark_env,
+                    "Configurations": []
+                }]
+            })
+        if yarn_env is not None:
+            args["Configurations"].append({
+                "Classification":
+                "yarn-env",
+                "Properties": {},
+                "Configurations": [{
+                    "Classification": "export",
+                    "Properties": yarn_env,
+                    "Configurations": []
+                }]
+            })
+        if livy_env is not None:
+            args["Configurations"].append({
+                "Classification":
+                "livy-env",
+                "Properties": {},
+                "Configurations": [{
+                    "Classification": "export",
+                    "Properties": livy_env,
                     "Configurations": []
                 }]
             })
@@ -105,16 +152,11 @@ class EMR:
                     "maximizeResourceAllocation": "true"
                 }
             })
-        if (pars["spark_jars_path"] is not None) or (pars["spark_defaults"] is not None):
+        if pars["spark_defaults"] is not None:
             spark_defaults: Dict[str, Union[str, Dict[str, str]]] = {
                 "Classification": "spark-defaults",
-                "Properties": {}
+                "Properties": pars["spark_defaults"]
             }
-            if pars["spark_jars_path"] is not None:
-                spark_defaults["Properties"]["spark.jars"]: str = ",".join(pars["spark_jars_path"])
-            if pars["spark_defaults"] is not None:
-                for k, v in pars["spark_defaults"].items():
-                    spark_defaults["Properties"][k]: str = v
             args["Configurations"].append(spark_defaults)
 
         # Applications
@@ -318,7 +360,8 @@ class EMR:
                        security_group_service_access: Optional[str] = None,
                        spark_log_level: str = "WARN",
                        spark_jars_path: Optional[List[str]] = None,
-                       spark_defaults: Dict[str, str] = None,
+                       spark_defaults: Optional[Dict[str, str]] = None,
+                       spark_pyarrow: bool = False,
                        maximize_resource_allocation: bool = False,
                        steps: Optional[List[Dict[str, Collection[str]]]] = None,
                        keep_cluster_alive_when_no_steps: bool = True,
@@ -329,7 +372,7 @@ class EMR:
         https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-instance-fleet.html
         :param cluster_name: Cluster name
         :param logging_s3_path: Logging s3 path (e.g. s3://BUCKET_NAME/DIRECTORY_NAME/)
-        :param emr_release: EMR release (e.g. emr-5.27.0)
+        :param emr_release: EMR release (e.g. emr-5.28.0)
         :param subnet_id: VPC subnet ID
         :param emr_ec2_role: IAM role name
         :param emr_role: IAM role name
@@ -371,6 +414,7 @@ class EMR:
         :param spark_log_level: log4j.rootCategory log level (ALL, DEBUG, INFO, WARN, ERROR, FATAL, OFF, TRACE)
         :param spark_jars_path: spark.jars (e.g. [s3://.../foo.jar, s3://.../boo.jar]) (https://spark.apache.org/docs/latest/configuration.html)
         :param spark_defaults: (https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark-configure.html#spark-defaults)
+        :param spark_pyarrow: Enable PySpark to use PyArrow behind the scenes. (P.S. You must install pyarrow by your self via bootstrap)
         :param maximize_resource_allocation: Configure your executors to utilize the maximum resources possible (https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark-configure.html#emr-spark-maximizeresourceallocation)
         :param steps: Steps definitions (Obs: Use EMR.build_step() to build that)
         :param keep_cluster_alive_when_no_steps: Specifies whether the cluster should remain available after completing all steps

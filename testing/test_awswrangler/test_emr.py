@@ -75,6 +75,7 @@ def test_cluster(session, bucket, cloudformation_outputs):
                                             applications=["Hadoop", "Spark", "Ganglia", "Hive"],
                                             visible_to_all_users=True,
                                             key_pair_name=None,
+                                            spark_pyarrow=True,
                                             steps=steps)
     sleep(10)
     cluster_state = session.emr.get_cluster_state(cluster_id=cluster_id)
