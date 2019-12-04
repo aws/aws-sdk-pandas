@@ -6,7 +6,7 @@ from math import floor
 import copy
 import csv
 from datetime import datetime
-import ast
+from decimal import Decimal
 
 from botocore.exceptions import ClientError, HTTPClientError  # type: ignore
 import pandas as pd  # type: ignore
@@ -471,6 +471,8 @@ class Pandas:
                 converters[col_name] = Pandas._list_parser
             elif pandas_type == "bool":
                 logger.debug(f"Ignoring bool column: {col_name}")
+            elif pandas_type == "decimal":
+                converters[col_name] = lambda x: Decimal(str(x)) if str(x) != "" else None
             else:
                 dtype[col_name] = pandas_type
         logger.debug(f"dtype: {dtype}")

@@ -1,6 +1,7 @@
 import json
 import logging
 from datetime import date, datetime
+from decimal import Decimal
 
 import pytest
 import boto3
@@ -421,3 +422,90 @@ def test_connection_with_different_port_types(redshift_parameters):
         password=redshift_parameters.get("RedshiftPassword"),
     )
     conn.close()
+
+
+def test_to_redshift_pandas_decimal(session, bucket, redshift_parameters):
+    df = pd.DataFrame({
+        "id": [1, 2, 3],
+        "decimal_2": [Decimal((0, (1, 9, 9), -2)), None, Decimal((0, (1, 9, 0), -2))],
+        "decimal_5": [Decimal((0, (1, 9, 9, 9, 9, 9), -5)), None, Decimal((0, (1, 9, 0, 0, 0, 0), -5))],
+    })
+    con = Redshift.generate_connection(
+        database="test",
+        host=redshift_parameters.get("RedshiftAddress"),
+        port=redshift_parameters.get("RedshiftPort"),
+        user="test",
+        password=redshift_parameters.get("RedshiftPassword"),
+    )
+    path = f"s3://{bucket}/redshift-load/"
+    session.pandas.to_redshift(
+        dataframe=df,
+        path=path,
+        schema="public",
+        table="test",
+        connection=con,
+        iam_role=redshift_parameters.get("RedshiftRole"),
+        mode="overwrite",
+        preserve_index=False,
+    )
+    cursor = con.cursor()
+    cursor.execute("SELECT * from public.test")
+    rows = cursor.fetchall()
+    cursor.close()
+    con.close()
+    assert len(df.index) == len(rows)
+    assert len(list(df.columns)) == len(list(rows[0]))
+    print(rows)
+    for row in rows:
+        if row[0] == 1:
+            assert row[1] == Decimal((0, (1, 9, 9), -2))
+            assert row[2] == Decimal((0, (1, 9, 9, 9, 9, 9), -5))
+        elif row[1] == 2:
+            assert row[1] is None
+            assert row[2] is None
+        elif row[2] == 3:
+            assert row[1] == Decimal((0, (1, 9, 0), -2))
+            assert row[2] == Decimal((0, (1, 9, 0, 0, 0, 0), -5))
+
+
+def test_to_redshift_spark_decimal(session, bucket, redshift_parameters):
+    df = session.spark_session.createDataFrame(pd.DataFrame({
+        "id": [1, 2, 3],
+        "decimal_2": [Decimal((0, (1, 9, 9), -2)), None, Decimal((0, (1, 9, 0), -2))],
+        "decimal_5": [Decimal((0, (1, 9, 9, 9, 9, 9), -5)), None, Decimal((0, (1, 9, 0, 0, 0, 0), -5))]}),
+        schema="id INTEGER, decimal_2 DECIMAL(3,2), decimal_5 DECIMAL(6,5)")
+    con = Redshift.generate_connection(
+        database="test",
+        host=redshift_parameters.get("RedshiftAddress"),
+        port=redshift_parameters.get("RedshiftPort"),
+        user="test",
+        password=redshift_parameters.get("RedshiftPassword"),
+    )
+    path = f"s3://{bucket}/redshift-load2/"
+    session.spark.to_redshift(
+        dataframe=df,
+        path=path,
+        schema="public",
+        table="test2",
+        connection=con,
+        iam_role=redshift_parameters.get("RedshiftRole"),
+        mode="overwrite",
+    )
+    cursor = con.cursor()
+    cursor.execute("SELECT * from public.test2")
+    rows = cursor.fetchall()
+    cursor.close()
+    con.close()
+    assert df.count() == len(rows)
+    assert len(list(df.columns)) == len(list(rows[0]))
+    print(rows)
+    for row in rows:
+        if row[0] == 1:
+            assert row[1] == Decimal((0, (1, 9, 9), -2))
+            assert row[2] == Decimal((0, (1, 9, 9, 9, 9, 9), -5))
+        elif row[1] == 2:
+            assert row[1] is None
+            assert row[2] is None
+        elif row[2] == 3:
+            assert row[1] == Decimal((0, (1, 9, 0), -2))
+            assert row[2] == Decimal((0, (1, 9, 0, 0, 0, 0), -5))

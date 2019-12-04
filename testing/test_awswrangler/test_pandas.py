@@ -2,6 +2,7 @@ from time import sleep
 import logging
 import csv
 from datetime import datetime, date
+from decimal import Decimal
 
 import pytest
 import boto3
@@ -1303,7 +1304,6 @@ def test_to_parquet_array(session, bucket, database):
         df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
         if len(df.index) == len(df2.index):
             break
-    print(df2)
     session.s3.delete_objects(path=path)
 
     assert len(list(df.columns)) == len(list(df2.columns))
@@ -1312,3 +1312,37 @@ def test_to_parquet_array(session, bucket, database):
     assert df2[df2.a == 2].iloc[0].b[0] == 4.0
     assert df2[df2.a == 2].iloc[0].c[0] == 7
     assert df2[df2.a == 2].iloc[0].d[0] == "foo"
+
+
+def test_to_parquet_decimal(session, bucket, database):
+    df = pd.DataFrame({
+        "id": [1, 2, 3],
+        "decimal_2": [Decimal((0, (1, 9, 9), -2)), None, Decimal((0, (1, 9, 0), -2))],
+        "decimal_5": [Decimal((0, (1, 9, 9, 9, 9, 9), -5)), None, Decimal((0, (1, 9, 0, 0, 0, 0), -5))],
+    })
+    print(df)
+    print(df.dtypes)
+    path = f"s3://{bucket}/test/"
+    session.pandas.to_parquet(dataframe=df,
+                              database=database,
+                              path=path,
+                              mode="overwrite",
+                              preserve_index=False,
+                              procs_cpu_bound=1)
+    df2 = None
+    for counter in range(10):  # Retrying to workaround s3 eventual consistency
+        sleep(1)
+        df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+        if len(df.index) == len(df2.index):
+            break
+    session.s3.delete_objects(path=path)
+
+    assert len(list(df.columns)) == len(list(df2.columns))
+    assert len(df.index) == len(df2.index)
+
+    assert df2[df2.id == 1].iloc[0].decimal_2 == Decimal((0, (1, 9, 9), -2))
+    assert df2[df2.id == 1].iloc[0].decimal_5 == Decimal((0, (1, 9, 9, 9, 9, 9), -5))
+    assert df2[df2.id == 2].iloc[0].decimal_2 is None
+    assert df2[df2.id == 2].iloc[0].decimal_5 is None
+    assert df2[df2.id == 3].iloc[0].decimal_2 == Decimal((0, (1, 9, 0), -2))
+    assert df2[df2.id == 3].iloc[0].decimal_5 == Decimal((0, (1, 9, 0, 0, 0, 0), -5))

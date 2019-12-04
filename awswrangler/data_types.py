@@ -26,6 +26,8 @@ def athena2pandas(dtype: str) -> str:
         return "date"
     elif dtype == "array":
         return "list"
+    elif dtype == "decimal":
+        return "decimal"
     else:
         raise UnsupportedType(f"Unsupported Athena type: {dtype}")
 
@@ -162,6 +164,8 @@ def pyarrow2athena(dtype: pa.types) -> str:
         return "timestamp"
     elif dtype_str.startswith("date"):
         return "date"
+    elif dtype_str.startswith("decimal"):
+        return dtype_str.replace(" ", "")
     elif dtype_str.startswith("list"):
         return f"array<{pyarrow2athena(dtype.value_type)}>"
     elif dtype_str == "null":
@@ -190,6 +194,8 @@ def pyarrow2redshift(dtype: pa.types) -> str:
         return "TIMESTAMP"
     elif dtype_str.startswith("date"):
         return "DATE"
+    elif dtype_str.startswith("decimal"):
+        return dtype_str.replace(" ", "").upper()
     else:
         raise UnsupportedType(f"Unsupported Pyarrow type: {dtype}")
 
@@ -280,6 +286,8 @@ def spark2redshift(dtype: str) -> str:
         return "DATE"
     elif dtype == "string":
         return "VARCHAR(256)"
+    elif dtype.startswith("decimal"):
+        return dtype.replace(" ", "").upper()
     else:
         raise UnsupportedType("Unsupported Spark type: " + dtype)
 
