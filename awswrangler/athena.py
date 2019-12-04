@@ -25,6 +25,7 @@ class Athena:
         """
         response: Dict = self._client_athena.get_query_results(QueryExecutionId=query_execution_id, MaxResults=1)
         col_info: List[Dict[str, str]] = response["ResultSet"]["ResultSetMetadata"]["ColumnInfo"]
+        logger.debug(f"col_info: {col_info}")
         return {x["Name"]: x["Type"] for x in col_info}
 
     def create_athena_bucket(self):

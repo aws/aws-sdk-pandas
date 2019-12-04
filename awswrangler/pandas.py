@@ -418,6 +418,39 @@ class Pandas:
         buff.close()
         return dataframe
 
+    @staticmethod
+    def _list_parser(value: str) -> List[Union[int, float, str, None]]:
+        if len(value) <= 1:
+            return []
+        items: List[None, str] = [None if x == "null" else x for x in value[1:-1].split(", ")]
+        array_type: Optional[type] = None
+
+        # check if all values are integers
+        for item in items:
+            if item is not None:
+                try:
+                    int(item)  # type: ignore
+                except ValueError:
+                    break
+        else:
+            array_type = int
+
+        # check if all values are floats
+        if array_type is None:
+            for item in items:
+                if item is not None:
+                    try:
+                        float(item)  # type: ignore
+                    except ValueError:
+                        break
+            else:
+                array_type = float
+
+        # check if all values are strings
+        array_type = str if array_type is None else array_type
+
+        return [array_type(x) if x is not None else None for x in items]
+
     def _get_query_dtype(self, query_execution_id: str) -> Tuple[Dict[str, str], List[str], List[str], Dict[str, Any]]:
         cols_metadata: Dict[str, str] = self._session.athena.get_query_columns_metadata(
             query_execution_id=query_execution_id)
@@ -434,8 +467,8 @@ class Pandas:
                 parse_timestamps.append(col_name)
                 if pandas_type == "date":
                     parse_dates.append(col_name)
-            elif pandas_type == "literal_eval":
-                converters[col_name] = ast.literal_eval
+            elif pandas_type == "list":
+                converters[col_name] = Pandas._list_parser
             elif pandas_type == "bool":
                 logger.debug(f"Ignoring bool column: {col_name}")
             else:
@@ -443,6 +476,7 @@ class Pandas:
         logger.debug(f"dtype: {dtype}")
         logger.debug(f"parse_timestamps: {parse_timestamps}")
         logger.debug(f"parse_dates: {parse_dates}")
+        logger.debug(f"converters: {converters}")
         return dtype, parse_timestamps, parse_dates, converters
 
     def read_sql_athena(self, sql, database=None, s3_output=None, max_result_size=None, workgroup=None,

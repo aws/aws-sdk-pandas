@@ -1285,9 +1285,10 @@ def test_to_parquet_date_null_at_first(session, bucket, database):
 def test_to_parquet_array(session, bucket, database):
     df = pd.DataFrame({
         "A": [1, 2, 3],
-        "B": [[], [4, 5, 6], []],
-        "C": [[], ["foo", "boo", "bar"], []],
-        "D": [7, 8, 9]
+        "B": [[], [4.0, None, 6.0], []],
+        "C": [[], [7, None, 9], []],
+        "D": [[], ["foo", None, "bar"], []],
+        "E": [10, 11, 12]
     })
     path = f"s3://{bucket}/test/"
     session.pandas.to_parquet(dataframe=df,
@@ -1296,3 +1297,18 @@ def test_to_parquet_array(session, bucket, database):
                               mode="overwrite",
                               preserve_index=False,
                               procs_cpu_bound=1)
+    df2 = None
+    for counter in range(10):  # Retrying to workaround s3 eventual consistency
+        sleep(1)
+        df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+        if len(df.index) == len(df2.index):
+            break
+    print(df2)
+    session.s3.delete_objects(path=path)
+
+    assert len(list(df.columns)) == len(list(df2.columns))
+    assert len(df.index) == len(df2.index)
+
+    assert df2[df2.a == 2].iloc[0].b[0] == 4.0
+    assert df2[df2.a == 2].iloc[0].c[0] == 7
+    assert df2[df2.a == 2].iloc[0].d[0] == "foo"
