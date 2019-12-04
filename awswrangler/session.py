@@ -1,3 +1,4 @@
+from typing import Optional
 import os
 import logging
 import importlib
@@ -33,18 +34,22 @@ class Session:
     def __init__(
             self,
             boto3_session=None,
-            profile_name=None,
-            aws_access_key_id=None,
-            aws_secret_access_key=None,
-            aws_session_token=None,
-            region_name=None,
-            botocore_max_retries=40,
+            profile_name: Optional[str] = None,
+            aws_access_key_id: Optional[str] = None,
+            aws_secret_access_key: Optional[str] = None,
+            aws_session_token: Optional[str] = None,
+            region_name: Optional[str] = None,
+            botocore_max_retries: int = 40,
             s3_additional_kwargs=None,
             spark_context=None,
             spark_session=None,
-            procs_cpu_bound=os.cpu_count(),
-            procs_io_bound=os.cpu_count() * PROCS_IO_BOUND_FACTOR,
-            athena_workgroup="primary",
+            procs_cpu_bound: int = os.cpu_count(),
+            procs_io_bound: int = os.cpu_count() * PROCS_IO_BOUND_FACTOR,
+            athena_workgroup: str = "primary",
+            athena_s3_output: Optional[str] = None,
+            athena_encryption: Optional[str] = "SSE_S3",
+            athena_kms_key: Optional[str] = None,
+            athena_database: str = "default"
     ):
         """
         Most parameters inherit from Boto3 or Pyspark.
@@ -64,21 +69,28 @@ class Session:
         :param procs_cpu_bound: number of processes that can be used in single node applications for CPU bound case (Default: os.cpu_count())
         :param procs_io_bound: number of processes that can be used in single node applications for I/O bound cases (Default: os.cpu_count() * PROCS_IO_BOUND_FACTOR)
         :param athena_workgroup: Default AWS Athena Workgroup (str)
+        :param athena_database: AWS Glue/Athena database name
+        :param athena_s3_output: AWS S3 path
+        :param athena_encryption: None|'SSE_S3'|'SSE_KMS'|'CSE_KMS'
+        :param athena_kms_key: For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
         """
-        self._profile_name = (boto3_session.profile_name if boto3_session else profile_name)
-        self._aws_access_key_id = (boto3_session.get_credentials().access_key if boto3_session else aws_access_key_id)
-        self._aws_secret_access_key = (boto3_session.get_credentials().secret_key
-                                       if boto3_session else aws_secret_access_key)
-        self._botocore_max_retries = botocore_max_retries
+        self._profile_name: Optional[str] = (boto3_session.profile_name if boto3_session else profile_name)
+        self._aws_access_key_id: Optional[str] = (boto3_session.get_credentials().access_key if boto3_session else aws_access_key_id)
+        self._aws_secret_access_key: Optional[str] = (boto3_session.get_credentials().secret_key if boto3_session else aws_secret_access_key)
+        self._botocore_max_retries: int = botocore_max_retries
         self._botocore_config = Config(retries={"max_attempts": self._botocore_max_retries})
-        self._aws_session_token = aws_session_token
-        self._region_name = boto3_session.region_name if boto3_session else region_name
+        self._aws_session_token: Optional[str] = aws_session_token
+        self._region_name: Optional[str] = boto3_session.region_name if boto3_session else region_name
         self._s3_additional_kwargs = s3_additional_kwargs
         self._spark_context = spark_context
         self._spark_session = spark_session
-        self._procs_cpu_bound = procs_cpu_bound
-        self._procs_io_bound = procs_io_bound
-        self._athena_workgroup = athena_workgroup
+        self._procs_cpu_bound: int = procs_cpu_bound
+        self._procs_io_bound: int = procs_io_bound
+        self._athena_workgroup: str = athena_workgroup
+        self._athena_s3_output: Optional[str] = athena_s3_output
+        self._athena_encryption: Optional[str] = athena_encryption
+        self._athena_kms_key: Optional[str] = athena_kms_key
+        self._athena_database: str = athena_database
         self._primitives = None
         self._load_new_primitives()
         if boto3_session:
@@ -130,6 +142,10 @@ class Session:
             procs_cpu_bound=self._procs_cpu_bound,
             procs_io_bound=self._procs_io_bound,
             athena_workgroup=self._athena_workgroup,
+            athena_s3_output=self._athena_s3_output,
+            athena_encryption=self._athena_encryption,
+            athena_kms_key=self._athena_kms_key,
+            athena_database=self._athena_database,
         )
 
     @property
@@ -181,8 +197,24 @@ class Session:
         return self._procs_io_bound
 
     @property
-    def athena_workgroup(self):
+    def athena_workgroup(self) -> str:
         return self._athena_workgroup
+
+    @property
+    def athena_s3_output(self) -> Optional[str]:
+        return self._athena_s3_output
+
+    @property
+    def athena_encryption(self) -> Optional[str]:
+        return self._athena_encryption
+
+    @property
+    def athena_kms_key(self) -> Optional[str]:
+        return self._athena_kms_key
+
+    @property
+    def athena_database(self) -> str:
+        return self._athena_database
 
     @property
     def boto3_session(self):
@@ -261,7 +293,11 @@ class SessionPrimitives:
             botocore_config=None,
             procs_cpu_bound=None,
             procs_io_bound=None,
-            athena_workgroup=None,
+            athena_workgroup: Optional[str] = None,
+            athena_s3_output: Optional[str] = None,
+            athena_encryption: Optional[str] = None,
+            athena_kms_key: Optional[str] = None,
+            athena_database: Optional[str] = None
     ):
         """
         Most parameters inherit from Boto3.
@@ -278,18 +314,26 @@ class SessionPrimitives:
         :param procs_cpu_bound: number of processes that can be used in single node applications for CPU bound case (Default: os.cpu_count())
         :param procs_io_bound: number of processes that can be used in single node applications for I/O bound cases (Default: os.cpu_count() * PROCS_IO_BOUND_FACTOR)
         :param athena_workgroup: Default AWS Athena Workgroup (str)
+        :param athena_database: AWS Glue/Athena database name
+        :param athena_s3_output: AWS S3 path
+        :param athena_encryption: None|'SSE_S3'|'SSE_KMS'|'CSE_KMS'
+        :param athena_kms_key: For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
         """
-        self._profile_name = profile_name
-        self._aws_access_key_id = aws_access_key_id
-        self._aws_secret_access_key = aws_secret_access_key
-        self._aws_session_token = aws_session_token
-        self._region_name = region_name
-        self._botocore_max_retries = botocore_max_retries
+        self._profile_name: Optional[str] = profile_name
+        self._aws_access_key_id: Optional[str] = aws_access_key_id
+        self._aws_secret_access_key: Optional[str] = aws_secret_access_key
+        self._aws_session_token: Optional[str] = aws_session_token
+        self._region_name: Optional[str] = region_name
+        self._botocore_max_retries: Optional[int] = botocore_max_retries
         self._s3_additional_kwargs = s3_additional_kwargs
         self._botocore_config = botocore_config
-        self._procs_cpu_bound = procs_cpu_bound
-        self._procs_io_bound = procs_io_bound
-        self._athena_workgroup = athena_workgroup
+        self._procs_cpu_bound: Optional[int] = procs_cpu_bound
+        self._procs_io_bound: Optional[int] = procs_io_bound
+        self._athena_workgroup: Optional[str] = athena_workgroup
+        self._athena_s3_output: Optional[str] = athena_s3_output
+        self._athena_encryption: Optional[str] = athena_encryption
+        self._athena_kms_key: Optional[str] = athena_kms_key
+        self._athena_database: Optional[str] = athena_database
 
     @property
     def profile_name(self):
@@ -332,8 +376,24 @@ class SessionPrimitives:
         return self._procs_io_bound
 
     @property
-    def athena_workgroup(self):
+    def athena_workgroup(self) -> str:
         return self._athena_workgroup
+
+    @property
+    def athena_s3_output(self) -> Optional[str]:
+        return self._athena_s3_output
+
+    @property
+    def athena_encryption(self) -> Optional[str]:
+        return self._athena_encryption
+
+    @property
+    def athena_kms_key(self) -> Optional[str]:
+        return self._athena_kms_key
+
+    @property
+    def athena_database(self) -> str:
+        return self._athena_database
 
     @property
     def session(self):
@@ -350,4 +410,8 @@ class SessionPrimitives:
                        s3_additional_kwargs=self._s3_additional_kwargs,
                        procs_cpu_bound=self._procs_cpu_bound,
                        procs_io_bound=self._procs_io_bound,
-                       athena_workgroup=self._athena_workgroup)
+                       athena_workgroup=self._athena_workgroup,
+                       athena_s3_output=self._athena_s3_output,
+                       athena_encryption=self._athena_encryption,
+                       athena_kms_key=self._athena_kms_key,
+                       athena_database=self._athena_database)

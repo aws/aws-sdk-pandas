@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, List, Tuple, Optional, Any, Union
 from io import BytesIO, StringIO
 import multiprocessing as mp
 import logging
@@ -32,7 +32,6 @@ def _get_bounders(dataframe, num_partitions):
 
 
 class Pandas:
-
     VALID_CSV_SERDES = ["OpenCSVSerDe", "LazySimpleSerDe"]
     VALID_CSV_COMPRESSIONS = [None]
     VALID_PARQUET_COMPRESSIONS = [None, "snappy", "gzip"]
@@ -61,7 +60,7 @@ class Pandas:
             quotechar='"',
             quoting=csv.QUOTE_MINIMAL,
             escapechar=None,
-            parse_dates=False,
+            parse_dates: Union[bool, Dict, List] = False,
             infer_datetime_format=False,
             encoding="utf-8",
             converters=None,
@@ -153,7 +152,7 @@ class Pandas:
             quotechar='"',
             quoting=csv.QUOTE_MINIMAL,
             escapechar=None,
-            parse_dates=False,
+            parse_dates: Union[bool, Dict, List] = False,
             infer_datetime_format=False,
             encoding="utf-8",
             converters=None,
@@ -365,7 +364,7 @@ class Pandas:
             quotechar='"',
             quoting=0,
             escapechar=None,
-            parse_dates=False,
+            parse_dates: Union[bool, Dict, List] = False,
             infer_datetime_format=False,
             encoding=None,
             converters=None,
@@ -446,20 +445,25 @@ class Pandas:
         logger.debug(f"parse_dates: {parse_dates}")
         return dtype, parse_timestamps, parse_dates, converters
 
-    def read_sql_athena(self, sql, database, s3_output=None, max_result_size=None):
+    def read_sql_athena(self, sql, database=None, s3_output=None, max_result_size=None, workgroup=None,
+                        encryption=None, kms_key=None):
         """
         Executes any SQL query on AWS Athena and return a Dataframe of the result.
         P.S. If max_result_size is passed, then a iterator of Dataframes is returned.
+        P.S.S. All default values will be inherited from the Session()
 
         :param sql: SQL Query
         :param database: Glue/Athena Database
         :param s3_output: AWS S3 path
         :param max_result_size: Max number of bytes on each request to S3
+        :param workgroup: The name of the workgroup in which the query is being started. (By default uses de Session() workgroup)
+        :param encryption: None|'SSE_S3'|'SSE_KMS'|'CSE_KMS'
+        :param kms_key: For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
         :return: Pandas Dataframe or Iterator of Pandas Dataframes if max_result_size != None
         """
         if not s3_output:
             s3_output = self._session.athena.create_athena_bucket()
-        query_execution_id = self._session.athena.run_query(query=sql, database=database, s3_output=s3_output)
+        query_execution_id = self._session.athena.run_query(query=sql, database=database, s3_output=s3_output, workgroup=workgroup, encryption=encryption, kms_key=kms_key)
         query_response = self._session.athena.wait_query(query_execution_id=query_execution_id)
         if query_response["QueryExecution"]["Status"]["State"] in ["FAILED", "CANCELLED"]:
             reason = query_response["QueryExecution"]["Status"]["StateChangeReason"]
@@ -497,7 +501,7 @@ class Pandas:
             path,
             sep=",",
             serde="OpenCSVSerDe",
-            database=None,
+            database: Optional[str] = None,
             table=None,
             partition_cols=None,
             preserve_index=True,
@@ -544,7 +548,7 @@ class Pandas:
     def to_parquet(self,
                    dataframe,
                    path,
-                   database=None,
+                   database: Optional[str] = None,
                    table=None,
                    partition_cols=None,
                    preserve_index=True,
@@ -766,7 +770,7 @@ class Pandas:
             for keys, subgroup in dataframe.groupby(partition_cols):
                 subgroup = subgroup.drop(partition_cols, axis="columns")
                 if not isinstance(keys, tuple):
-                    keys = (keys, )
+                    keys = (keys,)
                 subdir = "/".join([f"{name}={val}" for name, val in zip(partition_cols, keys)])
                 prefix = "/".join([path, subdir])
                 object_path = Pandas._data_to_s3_object_writer(dataframe=subgroup,

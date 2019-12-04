@@ -25,11 +25,6 @@ def cloudformation_outputs():
 
 
 @pytest.fixture(scope="module")
-def session():
-    yield Session()
-
-
-@pytest.fixture(scope="module")
 def bucket(session, cloudformation_outputs):
     if "BucketName" in cloudformation_outputs:
         bucket = cloudformation_outputs["BucketName"]
@@ -47,6 +42,11 @@ def database(cloudformation_outputs):
     else:
         raise Exception("You must deploy the test infrastructure using Cloudformation!")
     yield database
+
+
+@pytest.fixture(scope="module")
+def session(database):
+    yield Session(athena_database=database)
 
 
 @pytest.fixture(scope="module")
@@ -1280,3 +1280,19 @@ def test_to_parquet_date_null_at_first(session, bucket, database):
 
     assert df[df.col1 == "val9"].iloc[0].datecol == df2[df2.col1 == "val9"].iloc[0].datecol == date(2019, 11, 9)
     assert df[df.col1 == "val0"].iloc[0].datecol == df2[df2.col1 == "val0"].iloc[0].datecol is None
+
+
+def test_to_parquet_array(session, bucket, database):
+    df = pd.DataFrame({
+        "A": [1, 2, 3],
+        "B": [[], [4, 5, 6], []],
+        "C": [[], ["foo", "boo", "bar"], []],
+        "D": [7, 8, 9]
+    })
+    path = f"s3://{bucket}/test/"
+    session.pandas.to_parquet(dataframe=df,
+                              database=database,
+                              path=path,
+                              mode="overwrite",
+                              preserve_index=False,
+                              procs_cpu_bound=1)
