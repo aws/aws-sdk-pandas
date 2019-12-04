@@ -25,7 +25,7 @@ def athena2pandas(dtype: str) -> str:
     elif dtype == "date":
         return "date"
     elif dtype == "array":
-        return "literal_eval"
+        return "list"
     else:
         raise UnsupportedType(f"Unsupported Athena type: {dtype}")
 
