@@ -31,26 +31,24 @@ class Session:
 
     PROCS_IO_BOUND_FACTOR = 2
 
-    def __init__(
-            self,
-            boto3_session=None,
-            profile_name: Optional[str] = None,
-            aws_access_key_id: Optional[str] = None,
-            aws_secret_access_key: Optional[str] = None,
-            aws_session_token: Optional[str] = None,
-            region_name: Optional[str] = None,
-            botocore_max_retries: int = 40,
-            s3_additional_kwargs=None,
-            spark_context=None,
-            spark_session=None,
-            procs_cpu_bound: int = os.cpu_count(),
-            procs_io_bound: int = os.cpu_count() * PROCS_IO_BOUND_FACTOR,
-            athena_workgroup: str = "primary",
-            athena_s3_output: Optional[str] = None,
-            athena_encryption: Optional[str] = "SSE_S3",
-            athena_kms_key: Optional[str] = None,
-            athena_database: str = "default"
-    ):
+    def __init__(self,
+                 boto3_session=None,
+                 profile_name: Optional[str] = None,
+                 aws_access_key_id: Optional[str] = None,
+                 aws_secret_access_key: Optional[str] = None,
+                 aws_session_token: Optional[str] = None,
+                 region_name: Optional[str] = None,
+                 botocore_max_retries: int = 40,
+                 s3_additional_kwargs=None,
+                 spark_context=None,
+                 spark_session=None,
+                 procs_cpu_bound: Optional[int] = None,
+                 procs_io_bound: Optional[int] = None,
+                 athena_workgroup: str = "primary",
+                 athena_s3_output: Optional[str] = None,
+                 athena_encryption: Optional[str] = "SSE_S3",
+                 athena_kms_key: Optional[str] = None,
+                 athena_database: str = "default"):
         """
         Most parameters inherit from Boto3 or Pyspark.
         https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
@@ -75,8 +73,10 @@ class Session:
         :param athena_kms_key: For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
         """
         self._profile_name: Optional[str] = (boto3_session.profile_name if boto3_session else profile_name)
-        self._aws_access_key_id: Optional[str] = (boto3_session.get_credentials().access_key if boto3_session else aws_access_key_id)
-        self._aws_secret_access_key: Optional[str] = (boto3_session.get_credentials().secret_key if boto3_session else aws_secret_access_key)
+        self._aws_access_key_id: Optional[str] = (boto3_session.get_credentials().access_key
+                                                  if boto3_session else aws_access_key_id)
+        self._aws_secret_access_key: Optional[str] = (boto3_session.get_credentials().secret_key
+                                                      if boto3_session else aws_secret_access_key)
         self._botocore_max_retries: int = botocore_max_retries
         self._botocore_config = Config(retries={"max_attempts": self._botocore_max_retries})
         self._aws_session_token: Optional[str] = aws_session_token
@@ -84,8 +84,9 @@ class Session:
         self._s3_additional_kwargs = s3_additional_kwargs
         self._spark_context = spark_context
         self._spark_session = spark_session
-        self._procs_cpu_bound: int = procs_cpu_bound
-        self._procs_io_bound: int = procs_io_bound
+        cpus = os.cpu_count()
+        self._procs_cpu_bound: int = 1 if cpus is None else cpus if procs_cpu_bound is None else procs_cpu_bound
+        self._procs_io_bound: int = 1 if cpus is None else cpus * Session.PROCS_IO_BOUND_FACTOR if procs_io_bound is None else procs_io_bound
         self._athena_workgroup: str = athena_workgroup
         self._athena_s3_output: Optional[str] = athena_s3_output
         self._athena_encryption: Optional[str] = athena_encryption
@@ -281,24 +282,22 @@ class SessionPrimitives:
     It is required to "share" the session attributes to other processes.
     That must be "pickable"!
     """
-    def __init__(
-            self,
-            profile_name=None,
-            aws_access_key_id=None,
-            aws_secret_access_key=None,
-            aws_session_token=None,
-            region_name=None,
-            botocore_max_retries=None,
-            s3_additional_kwargs=None,
-            botocore_config=None,
-            procs_cpu_bound=None,
-            procs_io_bound=None,
-            athena_workgroup: Optional[str] = None,
-            athena_s3_output: Optional[str] = None,
-            athena_encryption: Optional[str] = None,
-            athena_kms_key: Optional[str] = None,
-            athena_database: Optional[str] = None
-    ):
+    def __init__(self,
+                 profile_name=None,
+                 aws_access_key_id=None,
+                 aws_secret_access_key=None,
+                 aws_session_token=None,
+                 region_name=None,
+                 botocore_max_retries=None,
+                 s3_additional_kwargs=None,
+                 botocore_config=None,
+                 procs_cpu_bound=None,
+                 procs_io_bound=None,
+                 athena_workgroup: Optional[str] = None,
+                 athena_s3_output: Optional[str] = None,
+                 athena_encryption: Optional[str] = None,
+                 athena_kms_key: Optional[str] = None,
+                 athena_database: Optional[str] = None):
         """
         Most parameters inherit from Boto3.
         https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
@@ -376,7 +375,7 @@ class SessionPrimitives:
         return self._procs_io_bound
 
     @property
-    def athena_workgroup(self) -> str:
+    def athena_workgroup(self) -> Optional[str]:
         return self._athena_workgroup
 
     @property
@@ -392,7 +391,7 @@ class SessionPrimitives:
         return self._athena_kms_key
 
     @property
-    def athena_database(self) -> str:
+    def athena_database(self) -> Optional[str]:
         return self._athena_database
 
     @property

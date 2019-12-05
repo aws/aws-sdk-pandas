@@ -76,6 +76,7 @@ def redshift_parameters(cloudformation_outputs):
 )
 def test_to_redshift_pandas(session, bucket, redshift_parameters, sample_name, mode, factor, diststyle, distkey,
                             sortstyle, sortkey):
+
     if sample_name == "micro":
         dates = ["date"]
     if sample_name == "small":
@@ -146,7 +147,6 @@ def test_to_redshift_pandas_cast(session, bucket, redshift_parameters):
     rows = cursor.fetchall()
     cursor.close()
     con.close()
-    print(rows)
     assert len(df.index) == len(rows)
     assert len(list(df.columns)) == len(list(rows[0]))
 
@@ -283,8 +283,6 @@ def test_to_redshift_spark_big(session, bucket, redshift_parameters):
 
 def test_to_redshift_spark_bool(session, bucket, redshift_parameters):
     dataframe = session.spark_session.createDataFrame(pd.DataFrame({"A": [1, 2, 3], "B": [True, False, True]}))
-    print(dataframe)
-    print(dataframe.dtypes)
     con = Redshift.generate_connection(
         database="test",
         host=redshift_parameters.get("RedshiftAddress"),
@@ -428,7 +426,8 @@ def test_to_redshift_pandas_decimal(session, bucket, redshift_parameters):
     df = pd.DataFrame({
         "id": [1, 2, 3],
         "decimal_2": [Decimal((0, (1, 9, 9), -2)), None, Decimal((0, (1, 9, 0), -2))],
-        "decimal_5": [Decimal((0, (1, 9, 9, 9, 9, 9), -5)), None, Decimal((0, (1, 9, 0, 0, 0, 0), -5))],
+        "decimal_5": [Decimal((0, (1, 9, 9, 9, 9, 9), -5)), None,
+                      Decimal((0, (1, 9, 0, 0, 0, 0), -5))],
     })
     con = Redshift.generate_connection(
         database="test",
@@ -455,7 +454,6 @@ def test_to_redshift_pandas_decimal(session, bucket, redshift_parameters):
     con.close()
     assert len(df.index) == len(rows)
     assert len(list(df.columns)) == len(list(rows[0]))
-    print(rows)
     for row in rows:
         if row[0] == 1:
             assert row[1] == Decimal((0, (1, 9, 9), -2))
@@ -472,8 +470,10 @@ def test_to_redshift_spark_decimal(session, bucket, redshift_parameters):
     df = session.spark_session.createDataFrame(pd.DataFrame({
         "id": [1, 2, 3],
         "decimal_2": [Decimal((0, (1, 9, 9), -2)), None, Decimal((0, (1, 9, 0), -2))],
-        "decimal_5": [Decimal((0, (1, 9, 9, 9, 9, 9), -5)), None, Decimal((0, (1, 9, 0, 0, 0, 0), -5))]}),
-        schema="id INTEGER, decimal_2 DECIMAL(3,2), decimal_5 DECIMAL(6,5)")
+        "decimal_5": [Decimal((0, (1, 9, 9, 9, 9, 9), -5)), None,
+                      Decimal((0, (1, 9, 0, 0, 0, 0), -5))]
+    }),
+                                               schema="id INTEGER, decimal_2 DECIMAL(3,2), decimal_5 DECIMAL(6,5)")
     con = Redshift.generate_connection(
         database="test",
         host=redshift_parameters.get("RedshiftAddress"),
@@ -498,7 +498,6 @@ def test_to_redshift_spark_decimal(session, bucket, redshift_parameters):
     con.close()
     assert df.count() == len(rows)
     assert len(list(df.columns)) == len(list(rows[0]))
-    print(rows)
     for row in rows:
         if row[0] == 1:
             assert row[1] == Decimal((0, (1, 9, 9), -2))

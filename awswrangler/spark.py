@@ -272,7 +272,8 @@ class Spark:
         return cols
 
     @staticmethod
-    def _flatten_struct_dataframe(df: DataFrame, explode_outer: bool = True,
+    def _flatten_struct_dataframe(df: DataFrame,
+                                  explode_outer: bool = True,
                                   explode_pos: bool = True) -> List[Tuple[str, str, str]]:
         explode: str = "EXPLODE_OUTER" if explode_outer is True else "EXPLODE"
         explode = f"POS{explode}" if explode_pos is True else explode
@@ -311,7 +312,9 @@ class Spark:
         return f"{name}_{suffix}".replace(".", "_")
 
     @staticmethod
-    def flatten(dataframe: DataFrame, explode_outer: bool = True, explode_pos: bool = True,
+    def flatten(dataframe: DataFrame,
+                explode_outer: bool = True,
+                explode_pos: bool = True,
                 name: str = "root") -> Dict[str, DataFrame]:
         """
         Convert a complex nested DataFrame in one (or many) flat DataFrames

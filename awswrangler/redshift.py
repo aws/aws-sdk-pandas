@@ -117,8 +117,11 @@ class Redshift:
         conn = self.generate_connection(database=database, host=host, port=int(port), user=user, password=password)
         return conn
 
-    def write_load_manifest(self, manifest_path: str, objects_paths: List[str], procs_io_bound: Optional[int] = None
-                            ) -> Dict[str, List[Dict[str, Union[str, bool, Dict[str, int]]]]]:
+    def write_load_manifest(
+            self,
+            manifest_path: str,
+            objects_paths: List[str],
+            procs_io_bound: Optional[int] = None) -> Dict[str, List[Dict[str, Union[str, bool, Dict[str, int]]]]]:
         objects_sizes: Dict[str, int] = self._session.s3.get_objects_sizes(objects_paths=objects_paths,
                                                                            procs_io_bound=procs_io_bound)
         manifest: Dict[str, List[Dict[str, Union[str, bool, Dict[str, int]]]]] = {"entries": []}

@@ -46,9 +46,9 @@ def database(cloudformation_outputs):
 
 @pytest.fixture(scope="module")
 def table(
-        session,
-        bucket,
-        database,
+    session,
+    bucket,
+    database,
 ):
     dataframe = pd.read_csv("data_samples/micro.csv")
     path = f"s3://{bucket}/test/"

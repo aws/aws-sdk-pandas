@@ -7,6 +7,7 @@ import copy
 import csv
 from datetime import datetime
 from decimal import Decimal
+from ast import literal_eval
 
 from botocore.exceptions import ClientError, HTTPClientError  # type: ignore
 import pandas as pd  # type: ignore
@@ -46,24 +47,24 @@ class Pandas:
         return parts[0], parts[2]
 
     def read_csv(
-            self,
-            path,
-            max_result_size=None,
-            header="infer",
-            names=None,
-            usecols=None,
-            dtype=None,
-            sep=",",
-            thousands=None,
-            decimal=".",
-            lineterminator="\n",
-            quotechar='"',
-            quoting=csv.QUOTE_MINIMAL,
-            escapechar=None,
-            parse_dates: Union[bool, Dict, List] = False,
-            infer_datetime_format=False,
-            encoding="utf-8",
-            converters=None,
+        self,
+        path,
+        max_result_size=None,
+        header="infer",
+        names=None,
+        usecols=None,
+        dtype=None,
+        sep=",",
+        thousands=None,
+        decimal=".",
+        lineterminator="\n",
+        quotechar='"',
+        quoting=csv.QUOTE_MINIMAL,
+        escapechar=None,
+        parse_dates: Union[bool, Dict, List] = False,
+        infer_datetime_format=False,
+        encoding="utf-8",
+        converters=None,
     ):
         """
         Read CSV file from AWS S3 using optimized strategies.
@@ -137,25 +138,25 @@ class Pandas:
 
     @staticmethod
     def _read_csv_iterator(
-            client_s3,
-            bucket_name,
-            key_path,
-            max_result_size=200_000_000,  # 200 MB
-            header="infer",
-            names=None,
-            usecols=None,
-            dtype=None,
-            sep=",",
-            thousands=None,
-            decimal=".",
-            lineterminator="\n",
-            quotechar='"',
-            quoting=csv.QUOTE_MINIMAL,
-            escapechar=None,
-            parse_dates: Union[bool, Dict, List] = False,
-            infer_datetime_format=False,
-            encoding="utf-8",
-            converters=None,
+        client_s3,
+        bucket_name,
+        key_path,
+        max_result_size=200_000_000,  # 200 MB
+        header="infer",
+        names=None,
+        usecols=None,
+        dtype=None,
+        sep=",",
+        thousands=None,
+        decimal=".",
+        lineterminator="\n",
+        quotechar='"',
+        quoting=csv.QUOTE_MINIMAL,
+        escapechar=None,
+        parse_dates: Union[bool, Dict, List] = False,
+        infer_datetime_format=False,
+        encoding="utf-8",
+        converters=None,
     ):
         """
         Read CSV file from AWS S3 using optimized strategies.
@@ -350,24 +351,24 @@ class Pandas:
 
     @staticmethod
     def _read_csv_once(
-            client_s3,
-            bucket_name,
-            key_path,
-            header="infer",
-            names=None,
-            usecols=None,
-            dtype=None,
-            sep=",",
-            thousands=None,
-            decimal=".",
-            lineterminator="\n",
-            quotechar='"',
-            quoting=0,
-            escapechar=None,
-            parse_dates: Union[bool, Dict, List] = False,
-            infer_datetime_format=False,
-            encoding=None,
-            converters=None,
+        client_s3,
+        bucket_name,
+        key_path,
+        header="infer",
+        names=None,
+        usecols=None,
+        dtype=None,
+        sep=",",
+        thousands=None,
+        decimal=".",
+        lineterminator="\n",
+        quotechar='"',
+        quoting=0,
+        escapechar=None,
+        parse_dates: Union[bool, Dict, List] = False,
+        infer_datetime_format=False,
+        encoding=None,
+        converters=None,
     ):
         """
         Read CSV file from AWS S3 using optimized strategies.
@@ -420,9 +421,17 @@ class Pandas:
 
     @staticmethod
     def _list_parser(value: str) -> List[Union[int, float, str, None]]:
+        # try resolve with a simple literal_eval
+        try:
+            return literal_eval(value)
+        except ValueError:
+            pass  # keep trying
+
+        # sanity check
         if len(value) <= 1:
             return []
-        items: List[None, str] = [None if x == "null" else x for x in value[1:-1].split(", ")]
+
+        items: List[Union[None, str]] = [None if x == "null" else x for x in value[1:-1].split(", ")]
         array_type: Optional[type] = None
 
         # check if all values are integers
@@ -481,8 +490,14 @@ class Pandas:
         logger.debug(f"converters: {converters}")
         return dtype, parse_timestamps, parse_dates, converters
 
-    def read_sql_athena(self, sql, database=None, s3_output=None, max_result_size=None, workgroup=None,
-                        encryption=None, kms_key=None):
+    def read_sql_athena(self,
+                        sql,
+                        database=None,
+                        s3_output=None,
+                        max_result_size=None,
+                        workgroup=None,
+                        encryption=None,
+                        kms_key=None):
         """
         Executes any SQL query on AWS Athena and return a Dataframe of the result.
         P.S. If max_result_size is passed, then a iterator of Dataframes is returned.
@@ -499,7 +514,12 @@ class Pandas:
         """
         if not s3_output:
             s3_output = self._session.athena.create_athena_bucket()
-        query_execution_id = self._session.athena.run_query(query=sql, database=database, s3_output=s3_output, workgroup=workgroup, encryption=encryption, kms_key=kms_key)
+        query_execution_id = self._session.athena.run_query(query=sql,
+                                                            database=database,
+                                                            s3_output=s3_output,
+                                                            workgroup=workgroup,
+                                                            encryption=encryption,
+                                                            kms_key=kms_key)
         query_response = self._session.athena.wait_query(query_execution_id=query_execution_id)
         if query_response["QueryExecution"]["Status"]["State"] in ["FAILED", "CANCELLED"]:
             reason = query_response["QueryExecution"]["Status"]["StateChangeReason"]
@@ -532,19 +552,19 @@ class Pandas:
             yield df
 
     def to_csv(
-            self,
-            dataframe,
-            path,
-            sep=",",
-            serde="OpenCSVSerDe",
-            database: Optional[str] = None,
-            table=None,
-            partition_cols=None,
-            preserve_index=True,
-            mode="append",
-            procs_cpu_bound=None,
-            procs_io_bound=None,
-            inplace=True,
+        self,
+        dataframe,
+        path,
+        sep=",",
+        serde="OpenCSVSerDe",
+        database: Optional[str] = None,
+        table=None,
+        partition_cols=None,
+        preserve_index=True,
+        mode="append",
+        procs_cpu_bound=None,
+        procs_io_bound=None,
+        inplace=True,
     ):
         """
         Write a Pandas Dataframe as CSV files on S3
@@ -806,7 +826,7 @@ class Pandas:
             for keys, subgroup in dataframe.groupby(partition_cols):
                 subgroup = subgroup.drop(partition_cols, axis="columns")
                 if not isinstance(keys, tuple):
-                    keys = (keys,)
+                    keys = (keys, )
                 subdir = "/".join([f"{name}={val}" for name, val in zip(partition_cols, keys)])
                 prefix = "/".join([path, subdir])
                 object_path = Pandas._data_to_s3_object_writer(dataframe=subgroup,

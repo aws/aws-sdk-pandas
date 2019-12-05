@@ -1,5 +1,4 @@
 import logging
-from pprint import pprint
 
 import pytest
 import boto3
@@ -52,21 +51,20 @@ def workgroup_secondary(bucket):
     wkgs = client.list_work_groups()
     wkgs = [x["Name"] for x in wkgs["WorkGroups"]]
     if wkg_name not in wkgs:
-        response = client.create_work_group(Name=wkg_name,
-                                            Configuration={
-                                                "ResultConfiguration": {
-                                                    "OutputLocation": f"s3://{bucket}/athena_workgroup_secondary/",
-                                                    "EncryptionConfiguration": {
-                                                        "EncryptionOption": "SSE_S3",
-                                                    }
-                                                },
-                                                "EnforceWorkGroupConfiguration": True,
-                                                "PublishCloudWatchMetricsEnabled": True,
-                                                "BytesScannedCutoffPerQuery": 100_000_000,
-                                                "RequesterPaysEnabled": False
-                                            },
-                                            Description="AWS Data Wrangler Test WorkGroup")
-        pprint(response)
+        client.create_work_group(Name=wkg_name,
+                                 Configuration={
+                                     "ResultConfiguration": {
+                                         "OutputLocation": f"s3://{bucket}/athena_workgroup_secondary/",
+                                         "EncryptionConfiguration": {
+                                             "EncryptionOption": "SSE_S3",
+                                         }
+                                     },
+                                     "EnforceWorkGroupConfiguration": True,
+                                     "PublishCloudWatchMetricsEnabled": True,
+                                     "BytesScannedCutoffPerQuery": 100_000_000,
+                                     "RequesterPaysEnabled": False
+                                 },
+                                 Description="AWS Data Wrangler Test WorkGroup")
     yield wkg_name
 
 

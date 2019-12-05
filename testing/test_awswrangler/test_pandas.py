@@ -223,15 +223,15 @@ def test_read_csv_thousands_and_decimal(session, bucket):
     ],
 )
 def test_to_s3(
-        session,
-        bucket,
-        database,
-        mode,
-        file_format,
-        preserve_index,
-        partition_cols,
-        procs_cpu_bound,
-        factor,
+    session,
+    bucket,
+    database,
+    mode,
+    file_format,
+    preserve_index,
+    partition_cols,
+    procs_cpu_bound,
+    factor,
 ):
     dataframe = pd.read_csv("data_samples/micro.csv")
     func = session.pandas.to_csv if file_format == "csv" else session.pandas.to_parquet
@@ -261,9 +261,9 @@ def test_to_s3(
 
 
 def test_to_parquet_with_cast_int(
-        session,
-        bucket,
-        database,
+    session,
+    bucket,
+    database,
 ):
     dataframe = pd.read_csv("data_samples/nano.csv", dtype={"id": "Int64"}, parse_dates=["date", "time"])
     path = f"s3://{bucket}/test/"
@@ -318,7 +318,6 @@ def test_read_sql_athena_iterator(session, bucket, database, sample, row_num, ma
         for dataframe in dataframe_iter:
             total_count += len(dataframe.index)
             assert len(list(dataframe.columns)) == len(list(dataframe_sample.columns))
-            print(dataframe)
         if total_count == row_num:
             break
     session.s3.delete_objects(path=path)
@@ -422,9 +421,9 @@ def test_etl_complex(session, bucket, database, max_result_size):
 
 
 def test_to_parquet_with_kms(
-        bucket,
-        database,
-        kms_key,
+    bucket,
+    database,
+    kms_key,
 ):
     extra_args = {"ServerSideEncryption": "aws:kms", "SSEKMSKeyId": kms_key}
     session_inner = Session(s3_additional_kwargs=extra_args)
@@ -562,9 +561,9 @@ def test_to_s3_types(session, bucket, database, file_format, serde, index, parti
 
 
 def test_to_csv_with_sep(
-        session,
-        bucket,
-        database,
+    session,
+    bucket,
+    database,
 ):
     dataframe = pd.read_csv("data_samples/nano.csv")
     session.pandas.to_csv(dataframe=dataframe,
@@ -584,9 +583,9 @@ def test_to_csv_with_sep(
 
 
 def test_to_csv_serde_exception(
-        session,
-        bucket,
-        database,
+    session,
+    bucket,
+    database,
 ):
     dataframe = pd.read_csv("data_samples/nano.csv")
     with pytest.raises(InvalidSerDe):
@@ -651,42 +650,10 @@ def test_to_parquet_lists(session, bucket, database):
     assert val == val2
 
 
-def test_to_parquet_cast(session, bucket, database):
-    dataframe = pd.DataFrame({
-        "id": [0, 1],
-        "col_int": [[1, 2], [3, 4, 5]],
-        "col_float": [[1.0, 2.0, 3.0], [4.0, 5.0]],
-        "col_string": [["foo"], ["boo", "bar"]],
-        "col_timestamp": [[datetime(2019, 1, 1), datetime(2019, 1, 2)], [datetime(2019, 1, 3)]],
-        "col_date": [[date(2019, 1, 1), date(2019, 1, 2)], [date(2019, 1, 3)]],
-        "col_list_int": [[[1]], [[2, 3], [4, 5, 6]]],
-        "col_list_list_string": [[[["foo"]]], [[["boo", "bar"]]]],
-    })
-    paths = session.pandas.to_parquet(dataframe=dataframe,
-                                      database=database,
-                                      path=f"s3://{bucket}/test/",
-                                      preserve_index=False,
-                                      mode="overwrite",
-                                      procs_cpu_bound=1)
-    assert len(paths) == 1
-    dataframe2 = None
-    for counter in range(10):
-        sleep(1)
-        dataframe2 = session.pandas.read_sql_athena(sql="select id, col_int, col_float, col_list_int from test",
-                                                    database=database)
-        if len(dataframe.index) == len(dataframe2.index):
-            break
-    assert len(dataframe.index) == len(dataframe2.index)
-    assert 4 == len(list(dataframe2.columns))
-    val = dataframe[dataframe["id"] == 0].iloc[0]["col_list_int"]
-    val2 = dataframe2[dataframe2["id"] == 0].iloc[0]["col_list_int"]
-    assert val == val2
-
-
 def test_to_parquet_with_cast_null(
-        session,
-        bucket,
-        database,
+    session,
+    bucket,
+    database,
 ):
     dataframe = pd.DataFrame({
         "id": [0, 1],
@@ -757,9 +724,9 @@ def test_normalize_columns_names_athena():
 
 
 def test_to_parquet_with_normalize(
-        session,
-        bucket,
-        database,
+    session,
+    bucket,
+    database,
 ):
     dataframe = pd.DataFrame({
         "CamelCase": [1, 2, 3],
@@ -792,9 +759,9 @@ def test_to_parquet_with_normalize(
 
 
 def test_to_parquet_with_normalize_and_cast(
-        session,
-        bucket,
-        database,
+    session,
+    bucket,
+    database,
 ):
     dataframe = pd.DataFrame({
         "CamelCase": [1, 2, 3],
@@ -847,9 +814,9 @@ def test_drop_duplicated_columns():
 
 
 def test_to_parquet_duplicated_columns(
-        session,
-        bucket,
-        database,
+    session,
+    bucket,
+    database,
 ):
     dataframe = pd.DataFrame({
         "a": [1, 2, 3],
@@ -871,9 +838,9 @@ def test_to_parquet_duplicated_columns(
 
 
 def test_to_parquet_with_pyarrow_null_type(
-        session,
-        bucket,
-        database,
+    session,
+    bucket,
+    database,
 ):
     dataframe = pd.DataFrame({
         "a": [1, 2, 3],
@@ -889,9 +856,9 @@ def test_to_parquet_with_pyarrow_null_type(
 
 
 def test_to_parquet_casting_to_string(
-        session,
-        bucket,
-        database,
+    session,
+    bucket,
+    database,
 ):
     dataframe = pd.DataFrame({
         "a": [1, 2, 3],
@@ -911,13 +878,12 @@ def test_to_parquet_casting_to_string(
             break
     assert len(dataframe.index) == len(dataframe2.index)
     assert (len(list(dataframe.columns)) + 1) == len(list(dataframe2.columns))
-    print(dataframe2)
 
 
 def test_to_parquet_casting_with_null_object(
-        session,
-        bucket,
-        database,
+    session,
+    bucket,
+    database,
 ):
     dataframe = pd.DataFrame({
         "a": [1, 2, 3],
@@ -951,8 +917,6 @@ def test_read_sql_athena_with_nulls(session, bucket, database):
         if len(df.index) == len(df2.index):
             break
     assert len(df.index) == len(df2.index)
-    print(df2)
-    print(df2.dtypes)
     assert df2.dtypes[0] == "Int64"
     assert df2.dtypes[1] == "bool"
     assert df2.dtypes[2] == "bool"
@@ -967,8 +931,6 @@ def test_partition_date(session, bucket, database):
     })
     df["datecol"] = pd.to_datetime(df.datecol).dt.date
     df["partcol"] = pd.to_datetime(df.partcol).dt.date
-    print(df)
-    print(df.dtypes)
     path = f"s3://{bucket}/test/"
     session.pandas.to_parquet(dataframe=df,
                               database=database,
@@ -984,8 +946,6 @@ def test_partition_date(session, bucket, database):
         if len(df.index) == len(df2.index):
             break
     assert len(df.index) == len(df2.index)
-    print(df2)
-    print(df2.dtypes)
     assert df2.dtypes[0] == "object"
     assert df2.dtypes[1] == "object"
     assert df2.dtypes[2] == "object"
@@ -998,8 +958,6 @@ def test_partition_cast_date(session, bucket, database):
         "datecol": ["2019-11-09", "2019-11-08"],
         "partcol": ["2019-11-09", "2019-11-08"]
     })
-    print(df)
-    print(df.dtypes)
     path = f"s3://{bucket}/test/"
     schema = {
         "col1": "string",
@@ -1021,8 +979,6 @@ def test_partition_cast_date(session, bucket, database):
         if len(df.index) == len(df2.index):
             break
     assert len(df.index) == len(df2.index)
-    print(df2)
-    print(df2.dtypes)
     assert df2.dtypes[0] == "object"
     assert df2.dtypes[1] == "object"
     assert df2.dtypes[2] == "object"
@@ -1035,8 +991,6 @@ def test_partition_cast_timestamp(session, bucket, database):
         "datecol": ["2019-11-09", "2019-11-08"],
         "partcol": ["2019-11-09", "2019-11-08"]
     })
-    print(df)
-    print(df.dtypes)
     path = f"s3://{bucket}/test/"
     schema = {
         "col1": "string",
@@ -1058,8 +1012,6 @@ def test_partition_cast_timestamp(session, bucket, database):
         if len(df.index) == len(df2.index):
             break
     assert len(df.index) == len(df2.index)
-    print(df2)
-    print(df2.dtypes)
     assert str(df2.dtypes[0]) == "object"
     assert str(df2.dtypes[1]).startswith("datetime64")
     assert str(df2.dtypes[2]).startswith("datetime64")
@@ -1074,8 +1026,6 @@ def test_partition_cast(session, bucket, database):
         "col_double": ["1.0", "1.1"],
         "col_bool": ["True", "False"],
     })
-    print(df)
-    print(df.dtypes)
     path = f"s3://{bucket}/test/"
     schema = {
         "col1": "string",
@@ -1099,8 +1049,6 @@ def test_partition_cast(session, bucket, database):
         if len(df.index) == len(df2.index):
             break
     assert len(df.index) == len(df2.index)
-    print(df2)
-    print(df2.dtypes)
     assert df2.dtypes[0] == "object"
     assert str(df2.dtypes[1]).startswith("datetime")
     assert str(df2.dtypes[2]).startswith("float")
@@ -1151,7 +1099,6 @@ def test_partition_single_row(session, bucket, database, procs):
         assert len(list(df.columns)) == len(list(df2.columns))
         if len(df.index) == len(df2.index):
             break
-    print(df2.dtypes)
     assert len(df.index) == len(df2.index)
     assert df2.dtypes[0] == "Int64"
     assert df2.dtypes[1] == "object"
@@ -1163,7 +1110,6 @@ def test_partition_single_row(session, bucket, database, procs):
 def test_nan_cast(session, bucket, database, partition_cols):
     dtypes = {"col1": "object", "col2": "object", "col3": "object", "col4": "object", "pt": "object"}
     df = pd.read_csv("data_samples/nan.csv", dtype=dtypes)
-    print(df)
     schema = {
         "col1": "string",
         "col2": "string",
@@ -1185,7 +1131,6 @@ def test_nan_cast(session, bucket, database, partition_cols):
         assert len(list(df.columns)) == len(list(df2.columns)) - 1
         if len(df.index) == len(df2.index):
             break
-    print(df2.dtypes)
     assert len(df.index) == len(df2.index)
     assert df2.dtypes[0] == "object"
     assert df2.dtypes[1] == "object"
@@ -1283,7 +1228,7 @@ def test_to_parquet_date_null_at_first(session, bucket, database):
     assert df[df.col1 == "val0"].iloc[0].datecol == df2[df2.col1 == "val0"].iloc[0].datecol is None
 
 
-def test_to_parquet_array(session, bucket, database):
+def test_to_parquet_lists2(session, bucket, database):
     df = pd.DataFrame({
         "A": [1, 2, 3],
         "B": [[], [4.0, None, 6.0], []],
@@ -1318,10 +1263,9 @@ def test_to_parquet_decimal(session, bucket, database):
     df = pd.DataFrame({
         "id": [1, 2, 3],
         "decimal_2": [Decimal((0, (1, 9, 9), -2)), None, Decimal((0, (1, 9, 0), -2))],
-        "decimal_5": [Decimal((0, (1, 9, 9, 9, 9, 9), -5)), None, Decimal((0, (1, 9, 0, 0, 0, 0), -5))],
+        "decimal_5": [Decimal((0, (1, 9, 9, 9, 9, 9), -5)), None,
+                      Decimal((0, (1, 9, 0, 0, 0, 0), -5))],
     })
-    print(df)
-    print(df.dtypes)
     path = f"s3://{bucket}/test/"
     session.pandas.to_parquet(dataframe=df,
                               database=database,

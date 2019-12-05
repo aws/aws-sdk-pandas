@@ -480,7 +480,10 @@ class EMR:
         logger.info(f"response: \n{json.dumps(response, default=str, indent=4)}")
         return response["StepIds"][0]
 
-    def build_step(self, name: str, command: str, action_on_failure: str = "CONTINUE",
+    def build_step(self,
+                   name: str,
+                   command: str,
+                   action_on_failure: str = "CONTINUE",
                    script: bool = False) -> Dict[str, Collection[str]]:
         """
         Build the Step dictionary

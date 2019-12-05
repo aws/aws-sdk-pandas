@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple, Optional, Any, Iterator, Union
+from typing import Dict, List, Tuple, Optional, Any, Iterator
 from time import sleep
 import logging
 import re
@@ -25,7 +25,6 @@ class Athena:
         """
         response: Dict = self._client_athena.get_query_results(QueryExecutionId=query_execution_id, MaxResults=1)
         col_info: List[Dict[str, str]] = response["ResultSet"]["ResultSetMetadata"]["ColumnInfo"]
-        logger.debug(f"col_info: {col_info}")
         return {x["Name"]: x["Type"] for x in col_info}
 
     def create_athena_bucket(self):
@@ -42,7 +41,13 @@ class Athena:
         s3_resource.Bucket(s3_output)
         return s3_output
 
-    def run_query(self, query: str, database: Optional[str] = None, s3_output: Optional[str] = None, workgroup: Optional[str] = None, encryption: Optional[str] = None, kms_key: Optional[str] = None) -> str:
+    def run_query(self,
+                  query: str,
+                  database: Optional[str] = None,
+                  s3_output: Optional[str] = None,
+                  workgroup: Optional[str] = None,
+                  encryption: Optional[str] = None,
+                  kms_key: Optional[str] = None) -> str:
         """
         Run a SQL Query against AWS Athena
         P.S All default values will be inherited from the Session()
@@ -55,7 +60,7 @@ class Athena:
         :param kms_key: For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
         :return: Query execution ID
         """
-        args: Dict[str, Union[str, Dict[str, Union[str, Dict[str, str]]]]] = {"QueryString": query}
+        args: Dict[str, Any] = {"QueryString": query}
 
         # s3_output
         if s3_output is None:
@@ -71,7 +76,9 @@ class Athena:
             if kms_key is not None:
                 args["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"] = kms_key
         elif self._session.athena_encryption is not None:
-            args["ResultConfiguration"]["EncryptionConfiguration"] = {"EncryptionOption": self._session.athena_encryption}
+            args["ResultConfiguration"]["EncryptionConfiguration"] = {
+                "EncryptionOption": self._session.athena_encryption
+            }
             if self._session.athena_kms_key is not None:
                 args["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"] = self._session.athena_kms_key
 
@@ -113,7 +120,13 @@ class Athena:
             raise QueryCancelled(response["QueryExecution"]["Status"].get("StateChangeReason"))
         return response
 
-    def repair_table(self, table: str, database: Optional[str] = None, s3_output: Optional[str] = None, workgroup: Optional[str] = None, encryption: Optional[str] = None, kms_key: Optional[str] = None):
+    def repair_table(self,
+                     table: str,
+                     database: Optional[str] = None,
+                     s3_output: Optional[str] = None,
+                     workgroup: Optional[str] = None,
+                     encryption: Optional[str] = None,
+                     kms_key: Optional[str] = None):
         """
         Hive's metastore consistency check
         "MSCK REPAIR TABLE table;"
@@ -133,7 +146,12 @@ class Athena:
         :return: Query execution ID
         """
         query = f"MSCK REPAIR TABLE {table};"
-        query_id = self.run_query(query=query, database=database, s3_output=s3_output, workgroup=workgroup, encryption=encryption, kms_key=kms_key)
+        query_id = self.run_query(query=query,
+                                  database=database,
+                                  s3_output=s3_output,
+                                  workgroup=workgroup,
+                                  encryption=encryption,
+                                  kms_key=kms_key)
         self.wait_query(query_execution_id=query_id)
         return query_id
 
@@ -174,7 +192,13 @@ class Athena:
                 yield row
             next_token = res.get("NextToken")
 
-    def query(self, query: str, database: Optional[str] = None, s3_output: Optional[str] = None, workgroup: Optional[str] = None, encryption: Optional[str] = None, kms_key: Optional[str] = None) -> Iterator[Dict[str, Any]]:
+    def query(self,
+              query: str,
+              database: Optional[str] = None,
+              s3_output: Optional[str] = None,
+              workgroup: Optional[str] = None,
+              encryption: Optional[str] = None,
+              kms_key: Optional[str] = None) -> Iterator[Dict[str, Any]]:
         """
         Run a SQL Query against AWS Athena and return the result as a Iterator of lists
         P.S All default values will be inherited from the Session()
@@ -187,7 +211,12 @@ class Athena:
         :param kms_key: For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
         :return: Query execution ID
         """
-        query_id: str = self.run_query(query=query, database=database, s3_output=s3_output, workgroup=workgroup, encryption=encryption, kms_key=kms_key)
+        query_id: str = self.run_query(query=query,
+                                       database=database,
+                                       s3_output=s3_output,
+                                       workgroup=workgroup,
+                                       encryption=encryption,
+                                       kms_key=kms_key)
         self.wait_query(query_execution_id=query_id)
         return self.get_results(query_execution_id=query_id)
 

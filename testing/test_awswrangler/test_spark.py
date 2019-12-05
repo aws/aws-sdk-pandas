@@ -165,7 +165,6 @@ def test_create_glue_table_csv(session, bucket, database, compression, partition
 
 
 def test_flatten_simple_struct(session):
-    print()
     pdf = pd.DataFrame({
         "a": [1, 2],
         "b": [
@@ -199,7 +198,6 @@ def test_flatten_simple_struct(session):
 
 
 def test_flatten_complex_struct(session):
-    print()
     pdf = pd.DataFrame({
         "a": [1, 2],
         "b": [
@@ -272,7 +270,6 @@ def test_flatten_complex_struct(session):
 
 
 def test_flatten_simple_map(session):
-    print()
     pdf = pd.DataFrame({
         "a": [1, 2],
         "b": [
@@ -315,7 +312,6 @@ def test_flatten_simple_map(session):
 
 
 def test_flatten_simple_array(session):
-    print()
     pdf = pd.DataFrame({
         "a": [1, 2],
         "b": [

@@ -79,7 +79,6 @@ def test_cluster(session, bucket, cloudformation_outputs):
                                             steps=steps)
     sleep(10)
     cluster_state = session.emr.get_cluster_state(cluster_id=cluster_id)
-    print(f"cluster_state: {cluster_state}")
     assert cluster_state == "STARTING"
     step_id = session.emr.submit_step(cluster_id=cluster_id,
                                       name="step_test",
@@ -87,7 +86,6 @@ def test_cluster(session, bucket, cloudformation_outputs):
                                       script=True)
     sleep(10)
     step_state = session.emr.get_step_state(cluster_id=cluster_id, step_id=step_id)
-    print(f"step_state: {step_state}")
     assert step_state == "PENDING"
     session.emr.terminate_cluster(cluster_id=cluster_id)
 
@@ -141,7 +139,6 @@ def test_cluster_single_node(session, bucket, cloudformation_outputs):
                                             })
     sleep(10)
     cluster_state = session.emr.get_cluster_state(cluster_id=cluster_id)
-    print(f"cluster_state: {cluster_state}")
     assert cluster_state == "STARTING"
     steps = []
     for cmd in ['echo "Hello"', "ls -la"]:
