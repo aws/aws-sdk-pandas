@@ -619,7 +619,7 @@ class Pandas:
         Optionally writes metadata on AWS Glue.
 
         :param dataframe: Pandas Dataframe
-        :param path: AWS S3 path (E.g. s3://bucket-name/folder_name/
+        :param path: AWS S3 path (E.g. s3://bucket-name/folder_name/)
         :param database: AWS Glue Database name
         :param table: AWS Glue table name
         :param partition_cols: List of columns names that will be partitions on S3
@@ -1128,3 +1128,24 @@ class Pandas:
         if len(duplicated_cols_names) > 0:
             logger.warning(f"Dropping repeated columns: {duplicated_cols_names}")
         return dataframe.loc[:, ~duplicated_cols]
+
+    def read_parquet(self,
+                     path: str,
+                     columns: Optional[List[str]] = None,
+                     filters: Optional[Union[List[Tuple[Any]], List[Tuple[Any]]]] = None,
+                     procs_cpu_bound: Optional[int] = None):
+        """
+        Read parquet data from S3
+
+        :param path: AWS S3 path (E.g. s3://bucket-name/folder_name/)
+        :param columns: Names of columns to read from the file
+        :param filters: List of filters to apply, like ``[[('x', '=', 0), ...], ...]``.
+        :param procs_cpu_bound: Number of cores used for CPU bound tasks
+        """
+        path = path[:-1] if path[-1] == "/" else path
+        procs_cpu_bound = 1 if self._session.procs_cpu_bound is None else self._session.procs_cpu_bound if procs_cpu_bound is None else procs_cpu_bound
+        use_threads: bool = True if procs_cpu_bound > 1 else False
+        fs = s3.get_fs(session_primitives=self._session.primitives)
+        fs = pa.filesystem._ensure_filesystem(fs)
+        return pq.read_table(source=path, columns=columns, filters=filters,
+                             filesystem=fs).to_pandas(use_threads=use_threads)
