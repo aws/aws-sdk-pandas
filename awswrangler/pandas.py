@@ -14,6 +14,7 @@ import pandas as pd  # type: ignore
 import pyarrow as pa  # type: ignore
 from pyarrow import parquet as pq  # type: ignore
 import tenacity  # type: ignore
+from s3fs import S3FileSystem  # type: ignore
 
 from awswrangler import data_types
 from awswrangler.exceptions import (UnsupportedWriteMode, UnsupportedFileFormat, AthenaQueryError, EmptyS3Object,
@@ -491,13 +492,13 @@ class Pandas:
         return dtype, parse_timestamps, parse_dates, converters
 
     def read_sql_athena(self,
-                        sql,
-                        database=None,
-                        s3_output=None,
-                        max_result_size=None,
-                        workgroup=None,
-                        encryption=None,
-                        kms_key=None):
+                        sql: str,
+                        database: Optional[str] = None,
+                        s3_output: Optional[str] = None,
+                        max_result_size: Optional[int] = None,
+                        workgroup: Optional[str] = None,
+                        encryption: Optional[str] = None,
+                        kms_key: Optional[str] = None):
         """
         Executes any SQL query on AWS Athena and return a Dataframe of the result.
         P.S. If max_result_size is passed, then a iterator of Dataframes is returned.
@@ -512,18 +513,21 @@ class Pandas:
         :param kms_key: For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
         :return: Pandas Dataframe or Iterator of Pandas Dataframes if max_result_size != None
         """
-        if not s3_output:
-            s3_output = self._session.athena.create_athena_bucket()
-        query_execution_id = self._session.athena.run_query(query=sql,
-                                                            database=database,
-                                                            s3_output=s3_output,
-                                                            workgroup=workgroup,
-                                                            encryption=encryption,
-                                                            kms_key=kms_key)
-        query_response = self._session.athena.wait_query(query_execution_id=query_execution_id)
+        if s3_output is None:
+            if self._session.athena_s3_output is not None:
+                s3_output = self._session.athena_s3_output
+            else:
+                s3_output = self._session.athena.create_athena_bucket()
+        query_execution_id: str = self._session.athena.run_query(query=sql,
+                                                                 database=database,
+                                                                 s3_output=s3_output,
+                                                                 workgroup=workgroup,
+                                                                 encryption=encryption,
+                                                                 kms_key=kms_key)
+        query_response: Dict = self._session.athena.wait_query(query_execution_id=query_execution_id)
         if query_response["QueryExecution"]["Status"]["State"] in ["FAILED", "CANCELLED"]:
-            reason = query_response["QueryExecution"]["Status"]["StateChangeReason"]
-            message_error = f"Query error: {reason}"
+            reason: str = query_response["QueryExecution"]["Status"]["StateChangeReason"]
+            message_error: str = f"Query error: {reason}"
             raise AthenaQueryError(message_error)
         else:
             dtype, parse_timestamps, parse_dates, converters = self._get_query_dtype(
@@ -1133,7 +1137,7 @@ class Pandas:
                      path: str,
                      columns: Optional[List[str]] = None,
                      filters: Optional[Union[List[Tuple[Any]], List[Tuple[Any]]]] = None,
-                     procs_cpu_bound: Optional[int] = None):
+                     procs_cpu_bound: Optional[int] = None) -> pd.DataFrame:
         """
         Read parquet data from S3
 
@@ -1145,7 +1149,7 @@ class Pandas:
         path = path[:-1] if path[-1] == "/" else path
         procs_cpu_bound = 1 if self._session.procs_cpu_bound is None else self._session.procs_cpu_bound if procs_cpu_bound is None else procs_cpu_bound
         use_threads: bool = True if procs_cpu_bound > 1 else False
-        fs = s3.get_fs(session_primitives=self._session.primitives)
+        fs: S3FileSystem = s3.get_fs(session_primitives=self._session.primitives)
         fs = pa.filesystem._ensure_filesystem(fs)
         return pq.read_table(source=path, columns=columns, filters=filters,
                              filesystem=fs).to_pandas(use_threads=use_threads)
