@@ -1,10 +1,11 @@
+from typing import Dict, Optional
 from math import ceil
 import re
 import logging
 
 from awswrangler import data_types
 from awswrangler.athena import Athena
-from awswrangler.exceptions import UnsupportedFileFormat, InvalidSerDe, ApiError, UnsupportedType, UndetectedType
+from awswrangler.exceptions import UnsupportedFileFormat, InvalidSerDe, ApiError, UnsupportedType, UndetectedType, InvalidTable, InvalidArguments
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +86,11 @@ class Glue:
                                 compression=compression,
                                 extra_args=extra_args)
 
-    def delete_table_if_exists(self, database, table):
+    def delete_table_if_exists(self, table: str = None, database: Optional[str] = None):
+        if database is None and self._session.athena_database is not None:
+            database = self._session.athena_database
+        if database is None:
+            raise InvalidArguments("You must pass a valid database or have one defined in your Session!")
         try:
             self._client_glue.delete_table(DatabaseName=database, Name=table)
         except self._client_glue.exceptions.EntityNotFoundException:
@@ -372,3 +377,16 @@ class Glue:
     @staticmethod
     def _parse_partition_values(path, partition_cols):
         return [re.search(f"/{col}=(.*?)/", path).group(1) for col in partition_cols]
+
+    def get_table_location(self, database: str, table: str):
+        """
+        Get table's location on Glue catalog
+
+        :param database: Database name
+        :param table: table name
+        """
+        res: Dict = self._client_glue.get_table(DatabaseName=database, Name=table)
+        try:
+            return res["Table"]["StorageDescriptor"]["Location"]
+        except KeyError:
+            raise InvalidTable(f"{database}.{table}")

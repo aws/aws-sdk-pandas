@@ -250,7 +250,7 @@ def test_to_s3(
     dataframe2 = None
     for counter in range(10):
         sleep(1)
-        dataframe2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+        dataframe2 = session.pandas.read_sql_athena(ctas_approach=False, sql="select * from test", database=database)
         if factor * len(dataframe.index) == len(dataframe2.index):
             break
     assert factor * len(dataframe.index) == len(dataframe2.index)
@@ -277,7 +277,7 @@ def test_to_parquet_with_cast_int(
     dataframe2 = None
     for counter in range(10):
         sleep(1)
-        dataframe2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+        dataframe2 = session.pandas.read_sql_athena(ctas_approach=False, sql="select * from test", database=database)
         if len(dataframe.index) == len(dataframe2.index):
             break
     session.s3.delete_objects(path=path)
@@ -311,7 +311,8 @@ def test_read_sql_athena_iterator(session, bucket, database, sample, row_num, ma
     total_count = 0
     for counter in range(10):
         sleep(1)
-        dataframe_iter = session.pandas.read_sql_athena(sql="select * from test",
+        dataframe_iter = session.pandas.read_sql_athena(ctas_approach=False,
+                                                        sql="select * from test",
                                                         database=database,
                                                         max_result_size=max_result_size)
         total_count = 0
@@ -396,7 +397,8 @@ def test_etl_complex(session, bucket, database, max_result_size):
                               mode="overwrite",
                               procs_cpu_bound=1)
     sleep(1)
-    df_iter = session.pandas.read_sql_athena(sql="select * from test",
+    df_iter = session.pandas.read_sql_athena(ctas_approach=False,
+                                             sql="select * from test",
                                              database=database,
                                              max_result_size=max_result_size)
     count = 0
@@ -420,6 +422,38 @@ def test_etl_complex(session, bucket, database, max_result_size):
     assert count == len(dataframe.index)
 
 
+def test_etl_complex_ctas(session, bucket, database):
+    dataframe = pd.read_csv("data_samples/complex.csv",
+                            dtype={"my_int_with_null": "Int64"},
+                            parse_dates=["my_timestamp", "my_date"])
+    path = f"s3://{bucket}/test/"
+    session.pandas.to_parquet(dataframe=dataframe,
+                              database=database,
+                              path=path,
+                              preserve_index=False,
+                              mode="overwrite",
+                              procs_cpu_bound=1)
+    sleep(1)
+    df = session.pandas.read_sql_athena(sql="select * from test", database=database)
+    for row in df.itertuples():
+        assert isinstance(row.my_timestamp, datetime)
+        assert isinstance(row.my_date, date)
+        assert isinstance(row.my_float, float)
+        assert isinstance(row.my_int, int)
+        assert isinstance(row.my_string, str)
+        assert str(row.my_int_with_null) in ("1", "nan")
+        assert str(row.my_timestamp) == "2018-01-01 04:03:02.001000"
+        assert str(row.my_date) == "2019-02-02 00:00:00"
+        assert str(row.my_float) == "12345.6789"
+        assert row.my_int == 123456789
+        assert str(
+            row.my_string
+        ) == "foo\nboo\nbar\nFOO\nBOO\nBAR\nxxxxx\nÁÃÀÂÇ\n汉字汉字汉字汉字汉字汉字汉字æøåæøåæøåæøåæøåæøåæøåæøåæøåæøå汉字汉字汉字汉字汉字汉字汉字æøåæøåæøåæøåæøåæøåæøåæøåæøåæøå"
+    session.s3.delete_objects(path=path)
+    assert len(list(dataframe.columns)) == len(list(df.columns))
+    assert len(df.index) == len(dataframe.index)
+
+
 def test_to_parquet_with_kms(
     bucket,
     database,
@@ -438,7 +472,9 @@ def test_to_parquet_with_kms(
     dataframe2 = None
     for counter in range(10):
         sleep(1)
-        dataframe2 = session_inner.pandas.read_sql_athena(sql="select * from test", database=database)
+        dataframe2 = session_inner.pandas.read_sql_athena(ctas_approach=False,
+                                                          sql="select * from test",
+                                                          database=database)
         if len(dataframe.index) == len(dataframe2.index):
             break
     session_inner.s3.delete_objects(path=path)
@@ -525,7 +561,7 @@ def test_to_s3_types(session, bucket, database, file_format, serde, index, parti
     objects_paths = func(**args)
     assert len(objects_paths) == 1
     sleep(2)
-    dataframe2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+    dataframe2 = session.pandas.read_sql_athena(ctas_approach=False, sql="select * from test", database=database)
     for row in dataframe2.itertuples():
 
         if file_format == "parquet":
@@ -575,7 +611,7 @@ def test_to_csv_with_sep(
     dataframe2 = None
     for counter in range(10):
         sleep(1)
-        dataframe2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+        dataframe2 = session.pandas.read_sql_athena(ctas_approach=False, sql="select * from test", database=database)
         if len(dataframe.index) == len(dataframe2.index):
             break
     assert len(dataframe.index) == len(dataframe2.index)
@@ -610,7 +646,7 @@ def test_to_parquet_compressed(session, bucket, database, compression):
     dataframe2 = None
     for counter in range(10):
         sleep(1)
-        dataframe2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+        dataframe2 = session.pandas.read_sql_athena(ctas_approach=False, sql="select * from test", database=database)
         if len(dataframe.index) == len(dataframe2.index):
             break
     assert len(dataframe.index) == len(dataframe2.index)
@@ -639,7 +675,8 @@ def test_to_parquet_lists(session, bucket, database):
     dataframe2 = None
     for counter in range(10):
         sleep(1)
-        dataframe2 = session.pandas.read_sql_athena(sql="select id, col_int, col_float, col_list_int from test",
+        dataframe2 = session.pandas.read_sql_athena(ctas_approach=False,
+                                                    sql="select id, col_int, col_float, col_list_int from test",
                                                     database=database)
         if len(dataframe.index) == len(dataframe2.index):
             break
@@ -687,7 +724,7 @@ def test_to_parquet_with_cast_null(
     dataframe2 = None
     for counter in range(10):
         sleep(1)
-        dataframe2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+        dataframe2 = session.pandas.read_sql_athena(ctas_approach=False, sql="select * from test", database=database)
         if len(dataframe.index) == len(dataframe2.index):
             break
     assert len(dataframe.index) == len(dataframe2.index)
@@ -696,7 +733,7 @@ def test_to_parquet_with_cast_null(
 
 def test_read_sql_athena_with_time_zone(session, bucket, database):
     query = "select current_timestamp as value, typeof(current_timestamp) as type"
-    dataframe = session.pandas.read_sql_athena(sql=query, database=database)
+    dataframe = session.pandas.read_sql_athena(ctas_approach=False, sql=query, database=database)
     assert len(dataframe.index) == 1
     assert len(dataframe.columns) == 2
     assert dataframe["type"][0] == "timestamp with time zone"
@@ -744,7 +781,9 @@ def test_to_parquet_with_normalize(
     dataframe2 = None
     for counter in range(10):
         sleep(1)
-        dataframe2 = session.pandas.read_sql_athena(sql="select * from test_table_with_dot", database=database)
+        dataframe2 = session.pandas.read_sql_athena(ctas_approach=False,
+                                                    sql="select * from test_table_with_dot",
+                                                    database=database)
         if len(dataframe.index) == len(dataframe2.index):
             break
     assert len(dataframe.index) == len(dataframe2.index)
@@ -784,7 +823,9 @@ def test_to_parquet_with_normalize_and_cast(
     dataframe2 = None
     for counter in range(10):
         sleep(1)
-        dataframe2 = session.pandas.read_sql_athena(sql="select * from test_table_with_dot", database=database)
+        dataframe2 = session.pandas.read_sql_athena(ctas_approach=False,
+                                                    sql="select * from test_table_with_dot",
+                                                    database=database)
         if len(dataframe.index) == len(dataframe2.index):
             break
     assert len(dataframe.index) == len(dataframe2.index)
@@ -828,7 +869,7 @@ def test_to_parquet_duplicated_columns(
     dataframe2 = None
     for counter in range(10):
         sleep(1)
-        dataframe2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+        dataframe2 = session.pandas.read_sql_athena(ctas_approach=False, sql="select * from test", database=database)
         if len(dataframe.index) == len(dataframe2.index):
             break
     assert len(dataframe.index) == len(dataframe2.index)
@@ -873,7 +914,7 @@ def test_to_parquet_casting_to_string(
     dataframe2 = None
     for counter in range(10):
         sleep(1)
-        dataframe2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+        dataframe2 = session.pandas.read_sql_athena(ctas_approach=False, sql="select * from test", database=database)
         if len(dataframe.index) == len(dataframe2.index):
             break
     assert len(dataframe.index) == len(dataframe2.index)
@@ -912,7 +953,7 @@ def test_read_sql_athena_with_nulls(session, bucket, database):
     df2 = None
     for counter in range(10):
         sleep(1)
-        df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+        df2 = session.pandas.read_sql_athena(ctas_approach=False, sql="select * from test", database=database)
         assert len(list(df.columns)) == len(list(df2.columns))
         if len(df.index) == len(df2.index):
             break
@@ -941,7 +982,7 @@ def test_partition_date(session, bucket, database):
     df2 = None
     for counter in range(10):
         sleep(1)
-        df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+        df2 = session.pandas.read_sql_athena(ctas_approach=False, sql="select * from test", database=database)
         assert len(list(df.columns)) == len(list(df2.columns))
         if len(df.index) == len(df2.index):
             break
@@ -974,7 +1015,7 @@ def test_partition_cast_date(session, bucket, database):
     df2 = None
     for counter in range(10):
         sleep(1)
-        df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+        df2 = session.pandas.read_sql_athena(ctas_approach=False, sql="select * from test", database=database)
         assert len(list(df.columns)) == len(list(df2.columns))
         if len(df.index) == len(df2.index):
             break
@@ -1007,7 +1048,7 @@ def test_partition_cast_timestamp(session, bucket, database):
     df2 = None
     for counter in range(10):
         sleep(1)
-        df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+        df2 = session.pandas.read_sql_athena(ctas_approach=False, sql="select * from test", database=database)
         assert len(list(df.columns)) == len(list(df2.columns))
         if len(df.index) == len(df2.index):
             break
@@ -1044,7 +1085,7 @@ def test_partition_cast(session, bucket, database):
     df2 = None
     for counter in range(10):
         sleep(1)
-        df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+        df2 = session.pandas.read_sql_athena(ctas_approach=False, sql="select * from test", database=database)
         assert len(list(df.columns)) == len(list(df2.columns))
         if len(df.index) == len(df2.index):
             break
@@ -1095,7 +1136,7 @@ def test_partition_single_row(session, bucket, database, procs):
     df2 = None
     for counter in range(10):
         sleep(1)
-        df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+        df2 = session.pandas.read_sql_athena(ctas_approach=False, sql="select * from test", database=database)
         assert len(list(df.columns)) == len(list(df2.columns))
         if len(df.index) == len(df2.index):
             break
@@ -1127,7 +1168,7 @@ def test_nan_cast(session, bucket, database, partition_cols):
     df2 = None
     for counter in range(10):
         sleep(1)
-        df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+        df2 = session.pandas.read_sql_athena(ctas_approach=False, sql="select * from test", database=database)
         assert len(list(df.columns)) == len(list(df2.columns)) - 1
         if len(df.index) == len(df2.index):
             break
@@ -1167,7 +1208,7 @@ def test_to_parquet_date_null(session, bucket, database):
     df2 = None
     for counter in range(10):  # Retrying to workaround s3 eventual consistency
         sleep(1)
-        df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+        df2 = session.pandas.read_sql_athena(ctas_approach=False, sql="select * from test", database=database)
         if len(df.index) == len(df2.index):
             break
     path = f"s3://{bucket}/test2/"
@@ -1181,7 +1222,7 @@ def test_to_parquet_date_null(session, bucket, database):
     df3 = None
     for counter in range(10):  # Retrying to workaround s3 eventual consistency
         sleep(1)
-        df3 = session.pandas.read_sql_athena(sql="select * from test2", database=database)
+        df3 = session.pandas.read_sql_athena(ctas_approach=False, sql="select * from test2", database=database)
         if len(df2.index) == len(df3.index):
             break
 
@@ -1215,7 +1256,7 @@ def test_to_parquet_date_null_at_first(session, bucket, database):
     df2 = None
     for counter in range(10):  # Retrying to workaround s3 eventual consistency
         sleep(1)
-        df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+        df2 = session.pandas.read_sql_athena(ctas_approach=False, sql="select * from test", database=database)
         if len(df.index) == len(df2.index):
             break
 
@@ -1246,7 +1287,7 @@ def test_to_parquet_lists2(session, bucket, database):
     df2 = None
     for counter in range(10):  # Retrying to workaround s3 eventual consistency
         sleep(1)
-        df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+        df2 = session.pandas.read_sql_athena(ctas_approach=False, sql="select * from test", database=database)
         if len(df.index) == len(df2.index):
             break
     session.s3.delete_objects(path=path)
@@ -1276,7 +1317,7 @@ def test_to_parquet_decimal(session, bucket, database):
     df2 = None
     for counter in range(10):  # Retrying to workaround s3 eventual consistency
         sleep(1)
-        df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+        df2 = session.pandas.read_sql_athena(ctas_approach=False, sql="select * from test", database=database)
         if len(df.index) == len(df2.index):
             break
     session.s3.delete_objects(path=path)
@@ -1349,5 +1390,123 @@ def test_read_parquet_file(session, bucket):
                                          preserve_index=False,
                                          procs_cpu_bound=1)
     df2 = session.pandas.read_parquet(path=filepath[0])
+    assert len(list(df.columns)) == len(list(df2.columns))
+    assert len(df.index) == len(df2.index)
+
+
+def test_read_sql_athena_date(session, bucket, database):
+    df = pd.DataFrame({"id": [1, 2, 3], "col_date": [date(194, 1, 12), date(2019, 1, 2), date(2049, 12, 30)]})
+    path = f"s3://{bucket}/test_read_sql_athena_date/"
+    session.pandas.to_parquet(dataframe=df,
+                              database=database,
+                              table="test",
+                              path=path,
+                              mode="overwrite",
+                              preserve_index=False,
+                              procs_cpu_bound=4)
+    df2 = None
+    for counter in range(10):  # Retrying to workaround s3 eventual consistency
+        sleep(1)
+        df2 = session.pandas.read_sql_athena(ctas_approach=False, sql="select * from test", database=database)
+        if len(df.index) == len(df2.index):
+            break
+    session.s3.delete_objects(path=path)
+
+    assert len(list(df.columns)) == len(list(df2.columns))
+    assert len(df.index) == len(df2.index)
+
+    assert df2[df2.id == 1].iloc[0].col_date == date(194, 1, 12)
+    assert df2[df2.id == 2].iloc[0].col_date == date(2019, 1, 2)
+    assert df2[df2.id == 3].iloc[0].col_date == date(2049, 12, 30)
+
+
+def test_read_table(session, bucket, database):
+    df = pd.DataFrame({
+        "id": [1, 2, 3],
+        "decimal_2": [Decimal((0, (1, 9, 9), -2)), None, Decimal((0, (1, 9, 0), -2))],
+        "decimal_5": [Decimal((0, (1, 9, 9, 9, 9, 9), -5)), None,
+                      Decimal((0, (1, 9, 0, 0, 0, 0), -5))],
+        "float": [1.1, None, 3.3],
+        "list_int": [[1, 2], None, [3, 4, 5]],
+        "list_float": [[1.0, 2.0, 3.0], None, [4.0, 5.0]],
+        "list_string": [["foo"], None, ["boo", "bar"]],
+        "list_timestamp": [[datetime(2019, 1, 1), datetime(2019, 1, 2)], None, [datetime(2019, 1, 3)]],
+        "partition": [0, 0, 1]
+    })
+    path = f"s3://{bucket}/test_read_table/"
+    session.pandas.to_parquet(dataframe=df,
+                              database=database,
+                              table="test",
+                              path=path,
+                              mode="overwrite",
+                              preserve_index=False,
+                              procs_cpu_bound=1)
+    df2 = session.pandas.read_table(database=database, table="test")
+    assert len(list(df.columns)) == len(list(df2.columns))
+    assert len(df.index) == len(df2.index)
+
+
+def test_read_table2(session, bucket, database):
+    df = pd.DataFrame({
+        "id": [1, 2, 3],
+        "decimal_2": [Decimal((0, (1, 9, 9), -2)),
+                      Decimal((0, (1, 9, 9), -2)),
+                      Decimal((0, (1, 9, 0), -2))],
+        "decimal_5": [
+            Decimal((0, (1, 9, 9, 9, 9, 9), -5)),
+            Decimal((0, (1, 9, 9, 9, 9, 9), -5)),
+            Decimal((0, (1, 9, 0, 0, 0, 0), -5))
+        ],
+        "float": [1.1, 2.2, 3.3],
+        "list_int": [[1, 2], [1], [3, 4, 5]],
+        "list_float": [[1.0, 2.0, 3.0], [9.9], [4.0, 5.0]],
+        "list_string": [["foo"], ["xxx"], ["boo", "bar"]],
+        "list_timestamp": [[datetime(2019, 1, 1), datetime(2019, 1, 2)], [datetime(2019, 1, 3)], [datetime(2019, 1,
+                                                                                                           3)]],
+        "partition": [0, 0, 1]
+    })
+    path = f"s3://{bucket}/test_read_table/"
+    session.pandas.to_parquet(dataframe=df,
+                              database=database,
+                              table="test",
+                              path=path,
+                              mode="overwrite",
+                              preserve_index=False,
+                              procs_cpu_bound=4,
+                              partition_cols=["partition"])
+    df2 = session.pandas.read_table(database=database, table="test")
+    assert len(list(df.columns)) == len(list(df2.columns))
+    assert len(df.index) == len(df2.index)
+
+
+def test_read_sql_athena_ctas(session, bucket, database):
+    df = pd.DataFrame({
+        "id": [1, 2, 3],
+        "decimal_2": [Decimal((0, (1, 9, 9), -2)),
+                      Decimal((0, (1, 9, 9), -2)),
+                      Decimal((0, (1, 9, 0), -2))],
+        "decimal_5": [
+            Decimal((0, (1, 9, 9, 9, 9, 9), -5)),
+            Decimal((0, (1, 9, 9, 9, 9, 9), -5)),
+            Decimal((0, (1, 9, 0, 0, 0, 0), -5))
+        ],
+        "float": [1.1, 2.2, 3.3],
+        "list_int": [[1, 2], [1], [3, 4, 5]],
+        "list_float": [[1.0, 2.0, 3.0], [9.9], [4.0, 5.0]],
+        "list_string": [["foo"], ["xxx"], ["boo", "bar"]],
+        "list_timestamp": [[datetime(2019, 1, 1), datetime(2019, 1, 2)], [datetime(2019, 1, 3)], [datetime(2019, 1,
+                                                                                                           3)]],
+        "partition": [0, 0, 1]
+    })
+    path = f"s3://{bucket}/test_read_table/"
+    session.pandas.to_parquet(dataframe=df,
+                              database=database,
+                              table="test",
+                              path=path,
+                              mode="overwrite",
+                              preserve_index=False,
+                              procs_cpu_bound=4,
+                              partition_cols=["partition"])
+    df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
     assert len(list(df.columns)) == len(list(df2.columns))
     assert len(df.index) == len(df2.index)

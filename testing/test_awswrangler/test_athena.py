@@ -1,7 +1,10 @@
 import logging
+from datetime import datetime, date
+from decimal import Decimal
 
 import pytest
 import boto3
+import pandas as pd
 
 from awswrangler import Session
 from awswrangler.exceptions import QueryCancelled, QueryFailed
@@ -193,3 +196,46 @@ def test_query(session, database):
     assert row["_col2"] == 2.0
     assert row["_col3"] is True
     assert row["_col4"] is None
+
+
+def test_query2(session, bucket, database):
+    df = pd.DataFrame({
+        "id": [1, 2, 3],
+        "col_date": [date(194, 1, 12), None, date(2049, 12, 30)],
+        "col_timestamp": [datetime(194, 1, 12, 1, 1, 1, 1000), None,
+                          datetime(2049, 12, 30, 1, 1, 1, 1000)],
+        "col_string": ["foo", None, "boo"],
+        "col_double": [1.1, None, 2.2],
+        "col_decimal": [Decimal((0, (1, 9, 9), -2)), None,
+                        Decimal((0, (1, 9, 0), -2))],
+        "col_int": [1, None, 2]
+    })
+    path = f"s3://{bucket}/test_query2/"
+    session.pandas.to_parquet(dataframe=df,
+                              database=database,
+                              table="test",
+                              path=path,
+                              mode="overwrite",
+                              preserve_index=False)
+    for row in session.athena.query(query="SELECT * FROM test", database=database):
+        if row["id"] == 1:
+            assert row["col_date"] == date(194, 1, 12)
+            assert row["col_timestamp"] == datetime(194, 1, 12, 1, 1, 1, 1000)
+            assert row["col_string"] == "foo"
+            assert row["col_double"] == 1.1
+            assert row["col_decimal"] == Decimal((0, (1, 9, 9), -2))
+            assert row["col_int"] == 1
+        elif row["id"] == 2:
+            assert row["col_date"] is None
+            assert row["col_timestamp"] is None
+            assert row["col_string"] is None
+            assert row["col_double"] is None
+            assert row["col_decimal"] is None
+            assert row["col_int"] is None
+        else:
+            assert row["col_date"] == date(2049, 12, 30)
+            assert row["col_timestamp"] == datetime(2049, 12, 30, 1, 1, 1, 1000)
+            assert row["col_string"] == "boo"
+            assert row["col_double"] == 2.2
+            assert row["col_decimal"] == Decimal((0, (1, 9, 0), -2))
+            assert row["col_int"] == 2

@@ -5,7 +5,7 @@ import logging
 from math import floor
 import copy
 import csv
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal
 from ast import literal_eval
 
@@ -18,7 +18,8 @@ from s3fs import S3FileSystem  # type: ignore
 
 from awswrangler import data_types
 from awswrangler.exceptions import (UnsupportedWriteMode, UnsupportedFileFormat, AthenaQueryError, EmptyS3Object,
-                                    LineTerminatorNotFound, EmptyDataframe, InvalidSerDe, InvalidCompression)
+                                    LineTerminatorNotFound, EmptyDataframe, InvalidSerDe, InvalidCompression,
+                                    InvalidParameters)
 from awswrangler.utils import calculate_bounders
 from awswrangler import s3
 from awswrangler.athena import Athena
@@ -495,29 +496,100 @@ class Pandas:
                         sql: str,
                         database: Optional[str] = None,
                         s3_output: Optional[str] = None,
-                        max_result_size: Optional[int] = None,
                         workgroup: Optional[str] = None,
                         encryption: Optional[str] = None,
-                        kms_key: Optional[str] = None):
+                        kms_key: Optional[str] = None,
+                        ctas_approach: bool = True,
+                        procs_cpu_bound: Optional[int] = None,
+                        max_result_size: Optional[int] = None):
         """
         Executes any SQL query on AWS Athena and return a Dataframe of the result.
-        P.S. If max_result_size is passed, then a iterator of Dataframes is returned.
+        There are two approaches to be defined through ctas_approach parameter:
+        1 - ctas_approach True (Default):
+            Wrap the query with a CTAS and then reads the table data as parquet directly from s3.
+            PROS: Faster and has a better handle of nested types
+            CONS: Can't use max_result_size.
+        2 - ctas_approach False:
+            Does a regular query on Athena and parse the regular CSV result on s3
+            PROS: Accepts max_result_size.
+            CONS: Slower (But stills faster than other libraries that uses the Athena API) and does not handle nested types so well
+
+        P.S. If ctas_approach is False and max_result_size is passed, then a iterator of Dataframes is returned.
         P.S.S. All default values will be inherited from the Session()
 
         :param sql: SQL Query
         :param database: Glue/Athena Database
         :param s3_output: AWS S3 path
-        :param max_result_size: Max number of bytes on each request to S3
         :param workgroup: The name of the workgroup in which the query is being started. (By default uses de Session() workgroup)
         :param encryption: None|'SSE_S3'|'SSE_KMS'|'CSE_KMS'
         :param kms_key: For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
-        :return: Pandas Dataframe or Iterator of Pandas Dataframes if max_result_size != None
+        :param ctas_approach: Wraps the query with a CTAS
+        :param procs_cpu_bound: Number of cores used for CPU bound tasks
+        :param max_result_size: Max number of bytes on each request to S3 (VALID ONLY FOR ctas_approach=False)
+        :return: Pandas Dataframe or Iterator of Pandas Dataframes if max_result_size was passed
         """
+        if ctas_approach is True and max_result_size is not None:
+            raise InvalidParameters("ctas_approach can't use max_result_size!")
         if s3_output is None:
             if self._session.athena_s3_output is not None:
                 s3_output = self._session.athena_s3_output
             else:
                 s3_output = self._session.athena.create_athena_bucket()
+        if ctas_approach is False:
+            return self._read_sql_athena_regular(sql=sql,
+                                                 database=database,
+                                                 s3_output=s3_output,
+                                                 workgroup=workgroup,
+                                                 encryption=encryption,
+                                                 kms_key=kms_key,
+                                                 max_result_size=max_result_size)
+        else:
+            return self._read_sql_athena_ctas(sql=sql,
+                                              database=database,
+                                              s3_output=s3_output,
+                                              workgroup=workgroup,
+                                              encryption=encryption,
+                                              kms_key=kms_key,
+                                              procs_cpu_bound=procs_cpu_bound)
+
+    def _read_sql_athena_ctas(self,
+                              sql: str,
+                              s3_output: str,
+                              database: Optional[str] = None,
+                              workgroup: Optional[str] = None,
+                              encryption: Optional[str] = None,
+                              kms_key: Optional[str] = None,
+                              procs_cpu_bound: Optional[int] = None) -> pd.DataFrame:
+        guid: str = pa.compat.guid()
+        name: str = f"temp_table_{guid}"
+        s3_output = s3_output[:-1] if s3_output[-1] == "/" else s3_output
+        path: str = f"{s3_output}/{name}"
+        query: str = f"CREATE TABLE {name}\n" \
+                     f"WITH(\n" \
+                     f"    format = 'Parquet',\n" \
+                     f"    parquet_compression = 'SNAPPY',\n" \
+                     f"    external_location = '{path}'\n" \
+                     f") AS\n" \
+                     f"{sql}"
+        logger.debug(f"query: {query}")
+        query_id: str = self._session.athena.run_query(query=query,
+                                                       database=database,
+                                                       s3_output=s3_output,
+                                                       workgroup=workgroup,
+                                                       encryption=encryption,
+                                                       kms_key=kms_key)
+        self._session.athena.wait_query(query_execution_id=query_id)
+        self._session.glue.delete_table_if_exists(database=database, table=name)
+        return self.read_parquet(path=path, procs_cpu_bound=procs_cpu_bound)
+
+    def _read_sql_athena_regular(self,
+                                 sql: str,
+                                 s3_output: str,
+                                 database: Optional[str] = None,
+                                 workgroup: Optional[str] = None,
+                                 encryption: Optional[str] = None,
+                                 kms_key: Optional[str] = None,
+                                 max_result_size: Optional[int] = None):
         query_execution_id: str = self._session.athena.run_query(query=sql,
                                                                  database=database,
                                                                  s3_output=s3_output,
@@ -542,7 +614,10 @@ class Pandas:
             if max_result_size is None:
                 if len(ret.index) > 0:
                     for col in parse_dates:
-                        ret[col] = ret[col].dt.date.replace(to_replace={pd.NaT: None})
+                        if str(ret[col].dtype) == "object":
+                            ret[col] = ret[col].apply(lambda x: date(*[int(y) for y in x.split("-")]))
+                        else:
+                            ret[col] = ret[col].dt.date.replace(to_replace={pd.NaT: None})
                 return ret
             else:
                 return Pandas._apply_dates_to_generator(generator=ret, parse_dates=parse_dates)
@@ -1151,5 +1226,29 @@ class Pandas:
         use_threads: bool = True if procs_cpu_bound > 1 else False
         fs: S3FileSystem = s3.get_fs(session_primitives=self._session.primitives)
         fs = pa.filesystem._ensure_filesystem(fs)
-        return pq.read_table(source=path, columns=columns, filters=filters,
-                             filesystem=fs).to_pandas(use_threads=use_threads)
+        table = pq.read_table(source=path, columns=columns, filters=filters, filesystem=fs, use_threads=use_threads)
+        # Check if we lose some integer during the conversion (Happens when has some null value)
+        integers = [field.name for field in table.schema if str(field.type).startswith("int")]
+        df = table.to_pandas(use_threads=use_threads, integer_object_nulls=True)
+        for c in integers:
+            if not str(df[c].dtype).startswith("int"):
+                df[c] = df[c].astype("Int64")
+        return df
+
+    def read_table(self,
+                   database: str,
+                   table: str,
+                   columns: Optional[List[str]] = None,
+                   filters: Optional[Union[List[Tuple[Any]], List[Tuple[Any]]]] = None,
+                   procs_cpu_bound: Optional[int] = None) -> pd.DataFrame:
+        """
+        Read PARQUET table from S3 using the Glue Catalog location skipping Athena's necessity
+
+        :param database: Database name
+        :param table: table name
+        :param columns: Names of columns to read from the file
+        :param filters: List of filters to apply, like ``[[('x', '=', 0), ...], ...]``.
+        :param procs_cpu_bound: Number of cores used for CPU bound tasks
+        """
+        path: str = self._session.glue.get_table_location(database=database, table=table)
+        return self.read_parquet(path=path, columns=columns, filters=filters, procs_cpu_bound=procs_cpu_bound)

@@ -80,3 +80,11 @@ class ApiError(Exception):
 
 class InvalidCompression(Exception):
     pass
+
+
+class InvalidTable(Exception):
+    pass
+
+
+class InvalidParameters(Exception):
+    pass

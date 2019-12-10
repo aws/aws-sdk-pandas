@@ -3,6 +3,7 @@ from time import sleep
 import logging
 import re
 import unicodedata
+from datetime import datetime, date
 
 from awswrangler.data_types import athena2python
 from awswrangler.exceptions import QueryFailed, QueryCancelled
@@ -162,8 +163,15 @@ class Athena:
             vals_varchar: List[Optional[str]] = [x["VarCharValue"] if x else None for x in row["Data"]]
             data: Dict[str, Any] = {}
             for (name, ptype), val in zip(python_types, vals_varchar):
-                if ptype is not None:
-                    data[name] = ptype(val)
+                if val is not None:
+                    if ptype is None:
+                        data[name] = None
+                    elif ptype == date:
+                        data[name] = date(*[int(y) for y in val.split("-")])
+                    elif ptype == datetime:
+                        data[name] = datetime.strptime(val + "000", "%Y-%m-%d %H:%M:%S.%f")
+                    else:
+                        data[name] = ptype(val)
                 else:
                     data[name] = None
             yield data

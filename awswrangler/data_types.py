@@ -1,6 +1,7 @@
 from typing import List, Tuple, Dict, Callable, Optional
 import logging
 from datetime import datetime, date
+from decimal import Decimal
 
 import pyarrow as pa  # type: ignore
 import pandas as pd  # type: ignore
@@ -74,6 +75,8 @@ def athena2python(dtype: str) -> Optional[type]:
         return date
     elif dtype == "unknown":
         return None
+    elif dtype == "decimal":
+        return Decimal
     else:
         raise UnsupportedType(f"Unsupported Athena type: {dtype}")
 
