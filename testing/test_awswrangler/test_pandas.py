@@ -434,7 +434,7 @@ def test_etl_complex_ctas(session, bucket, database):
                               mode="overwrite",
                               procs_cpu_bound=1)
     sleep(1)
-    df = session.pandas.read_sql_athena(sql="select * from test", database=database)
+    df = session.pandas.read_sql_athena(ctas_approach=True, sql="select * from test", database=database)
     for row in df.itertuples():
         assert isinstance(row.my_timestamp, datetime)
         assert isinstance(row.my_date, date)
@@ -731,7 +731,7 @@ def test_to_parquet_with_cast_null(
     assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
 
 
-def test_read_sql_athena_with_time_zone(session, bucket, database):
+def test_read_sql_athena_with_time_zone(session, database):
     query = "select current_timestamp as value, typeof(current_timestamp) as type"
     dataframe = session.pandas.read_sql_athena(ctas_approach=False, sql=query, database=database)
     assert len(dataframe.index) == 1
@@ -1507,6 +1507,6 @@ def test_read_sql_athena_ctas(session, bucket, database):
                               preserve_index=False,
                               procs_cpu_bound=4,
                               partition_cols=["partition"])
-    df2 = session.pandas.read_sql_athena(sql="select * from test", database=database)
+    df2 = session.pandas.read_sql_athena(ctas_approach=True, sql="select * from test", database=database)
     assert len(list(df.columns)) == len(list(df2.columns))
     assert len(df.index) == len(df2.index)
