@@ -1,4 +1,4 @@
-from typing import Dict, List, Union, Optional
+from typing import Dict, List, Union, Optional, Any
 import json
 import logging
 
@@ -346,3 +346,49 @@ class Redshift:
         else:
             raise InvalidDataframeType(dataframe_type)
         return schema_built
+
+    @staticmethod
+    def to_parquet(sql: str,
+                   path: str,
+                   iam_role: str,
+                   redshift_conn: Any,
+                   partition_cols: Optional[List] = None) -> List[str]:
+        """
+        Write a query result as parquet files on S3
+
+        :param sql: SQL Query
+        :param path: AWS S3 path to write the data (e.g. s3://...)
+        :param iam_role: AWS IAM role with the related permissions
+        :param redshift_conn: A PEP 249 compatible connection (Can be generated with Redshift.generate_connection())
+        :param partition_cols: Specifies the partition keys for the unload operation.
+        """
+        sql = sql.replace("'", "\'").replace(";", "")  # escaping single quote
+        path = path if path[-1] == "/" else path + "/"
+        cursor: Any = redshift_conn.cursor()
+        partition_str: str = ""
+        if partition_cols is not None:
+            partition_str = f"PARTITION BY ({','.join([x for x in partition_cols])})\n"
+        query: str = f"-- AWS DATA WRANGLER\n" \
+                     f"UNLOAD ('{sql}')\n" \
+                     f"TO '{path}'\n" \
+                     f"IAM_ROLE '{iam_role}'\n" \
+                     f"ALLOWOVERWRITE\n" \
+                     f"PARALLEL ON\n" \
+                     f"ENCRYPTED \n" \
+                     f"{partition_str}" \
+                     f"FORMAT PARQUET;"
+        logger.debug(f"query:\n{query}")
+        cursor.execute(query)
+        query = "-- AWS DATA WRANGLER\nSELECT pg_last_query_id() AS query_id"
+        logger.debug(f"query:\n{query}")
+        cursor.execute(query)
+        query_id = cursor.fetchall()[0][0]
+        query = f"-- AWS DATA WRANGLER\n" \
+                f"SELECT path FROM STL_UNLOAD_LOG WHERE query={query_id};"
+        logger.debug(f"query:\n{query}")
+        cursor.execute(query)
+        paths: List[str] = [row[0].replace(" ", "") for row in cursor.fetchall()]
+        logger.debug(f"paths: {paths}")
+        redshift_conn.commit()
+        cursor.close()
+        return paths

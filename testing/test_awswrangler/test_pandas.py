@@ -1474,6 +1474,7 @@ def test_read_table2(session, bucket, database):
                               preserve_index=False,
                               procs_cpu_bound=4,
                               partition_cols=["partition"])
+    sleep(5)
     df2 = session.pandas.read_table(database=database, table="test")
     assert len(list(df.columns)) == len(list(df2.columns))
     assert len(df.index) == len(df2.index)

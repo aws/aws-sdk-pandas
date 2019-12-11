@@ -508,3 +508,22 @@ def test_to_redshift_spark_decimal(session, bucket, redshift_parameters):
         elif row[2] == 3:
             assert row[1] == Decimal((0, (1, 9, 0), -2))
             assert row[2] == Decimal((0, (1, 9, 0, 0, 0, 0), -5))
+
+
+def test_to_parquet(bucket, redshift_parameters):
+    con = Redshift.generate_connection(
+        database="test",
+        host=redshift_parameters.get("RedshiftAddress"),
+        port=redshift_parameters.get("RedshiftPort"),
+        user="test",
+        password=redshift_parameters.get("RedshiftPassword"),
+    )
+    path = f"s3://{bucket}/test_to_parquet/"
+    paths = Redshift.to_parquet(
+        sql="SELECT * FROM public.test",
+        path=path,
+        iam_role=redshift_parameters.get("RedshiftRole"),
+        redshift_conn=con,
+        partition_cols=["name"]
+    )
+    assert len(paths) == 20
