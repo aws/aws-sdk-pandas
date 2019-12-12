@@ -528,7 +528,7 @@ class Pandas:
         :param max_result_size: Max number of bytes on each request to S3 (VALID ONLY FOR ctas_approach=False)
         :return: Pandas Dataframe or Iterator of Pandas Dataframes if max_result_size was passed
         """
-        ctas_approach = ctas_approach if ctas_approach is not None else self._session.ctas_approach if self._session.ctas_approach is not None else False
+        ctas_approach = ctas_approach if ctas_approach is not None else self._session.athena_ctas_approach if self._session.athena_ctas_approach is not None else False
         if ctas_approach is True and max_result_size is not None:
             raise InvalidParameters("ctas_approach can't use max_result_size!")
         if s3_output is None:

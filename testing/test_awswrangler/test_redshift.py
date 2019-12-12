@@ -510,7 +510,9 @@ def test_to_redshift_spark_decimal(session, bucket, redshift_parameters):
             assert row[2] == Decimal((0, (1, 9, 0, 0, 0, 0), -5))
 
 
-def test_to_parquet(bucket, redshift_parameters):
+def test_to_parquet(session, bucket, redshift_parameters):
+    n: int = 1_000_000
+    df = pd.DataFrame({"id": list((range(n))), "name": list(["foo" if i % 2 == 0 else "boo" for i in range(n)])})
     con = Redshift.generate_connection(
         database="test",
         host=redshift_parameters.get("RedshiftAddress"),
@@ -519,12 +521,23 @@ def test_to_parquet(bucket, redshift_parameters):
         password=redshift_parameters.get("RedshiftPassword"),
     )
     path = f"s3://{bucket}/test_to_parquet/"
+    session.pandas.to_redshift(
+        dataframe=df,
+        path=path,
+        schema="public",
+        table="test",
+        connection=con,
+        iam_role=redshift_parameters.get("RedshiftRole"),
+        mode="overwrite",
+        preserve_index=True,
+    )
+    path = f"s3://{bucket}/test_to_parquet2/"
     paths = Redshift.to_parquet(sql="SELECT * FROM public.test",
                                 path=path,
                                 iam_role=redshift_parameters.get("RedshiftRole"),
                                 connection=con,
                                 partition_cols=["name"])
-    assert len(paths) == 20
+    assert len(paths) == 4
 
 
 @pytest.mark.parametrize("sample_name", ["micro", "small", "nano"])
