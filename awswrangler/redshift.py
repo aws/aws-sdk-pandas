@@ -351,7 +351,7 @@ class Redshift:
     def to_parquet(sql: str,
                    path: str,
                    iam_role: str,
-                   redshift_conn: Any,
+                   connection: Any,
                    partition_cols: Optional[List] = None) -> List[str]:
         """
         Write a query result as parquet files on S3
@@ -359,12 +359,12 @@ class Redshift:
         :param sql: SQL Query
         :param path: AWS S3 path to write the data (e.g. s3://...)
         :param iam_role: AWS IAM role with the related permissions
-        :param redshift_conn: A PEP 249 compatible connection (Can be generated with Redshift.generate_connection())
+        :param connection: A PEP 249 compatible connection (Can be generated with Redshift.generate_connection())
         :param partition_cols: Specifies the partition keys for the unload operation.
         """
         sql = sql.replace("'", "\'").replace(";", "")  # escaping single quote
         path = path if path[-1] == "/" else path + "/"
-        cursor: Any = redshift_conn.cursor()
+        cursor: Any = connection.cursor()
         partition_str: str = ""
         if partition_cols is not None:
             partition_str = f"PARTITION BY ({','.join([x for x in partition_cols])})\n"
@@ -389,6 +389,6 @@ class Redshift:
         cursor.execute(query)
         paths: List[str] = [row[0].replace(" ", "") for row in cursor.fetchall()]
         logger.debug(f"paths: {paths}")
-        redshift_conn.commit()
+        connection.commit()
         cursor.close()
         return paths

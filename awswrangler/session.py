@@ -49,7 +49,8 @@ class Session:
                  athena_encryption: Optional[str] = "SSE_S3",
                  athena_kms_key: Optional[str] = None,
                  athena_database: str = "default",
-                 athena_ctas_approach: bool = False):
+                 athena_ctas_approach: bool = False,
+                 redshift_temp_s3_path: Optional[str] = None):
         """
         Most parameters inherit from Boto3 or Pyspark.
         https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
@@ -73,6 +74,7 @@ class Session:
         :param athena_s3_output: AWS S3 path
         :param athena_encryption: None|'SSE_S3'|'SSE_KMS'|'CSE_KMS'
         :param athena_kms_key: For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
+        :param redshift_temp_s3_path: redshift_temp_s3_path: AWS S3 path to write temporary data (e.g. s3://...)
         """
         self._profile_name: Optional[str] = (boto3_session.profile_name if boto3_session else profile_name)
         self._aws_access_key_id: Optional[str] = (boto3_session.get_credentials().access_key
@@ -95,6 +97,7 @@ class Session:
         self._athena_kms_key: Optional[str] = athena_kms_key
         self._athena_database: str = athena_database
         self._athena_ctas_approach: bool = athena_ctas_approach
+        self._redshift_temp_s3_path: Optional[str] = redshift_temp_s3_path
         self._primitives = None
         self._load_new_primitives()
         if boto3_session:
@@ -149,7 +152,8 @@ class Session:
                                              athena_encryption=self._athena_encryption,
                                              athena_kms_key=self._athena_kms_key,
                                              athena_database=self._athena_database,
-                                             athena_ctas_approach=self._athena_ctas_approach)
+                                             athena_ctas_approach=self._athena_ctas_approach,
+                                             redshift_temp_s3_path=self._redshift_temp_s3_path)
 
     @property
     def profile_name(self):
@@ -222,6 +226,10 @@ class Session:
     @property
     def athena_ctas_approach(self) -> bool:
         return self._athena_ctas_approach
+
+    @property
+    def redshift_temp_s3_path(self) -> Optional[str]:
+        return self._redshift_temp_s3_path
 
     @property
     def boto3_session(self):
@@ -304,7 +312,8 @@ class SessionPrimitives:
                  athena_encryption: Optional[str] = None,
                  athena_kms_key: Optional[str] = None,
                  athena_database: Optional[str] = None,
-                 athena_ctas_approach: bool = False):
+                 athena_ctas_approach: bool = False,
+                 redshift_temp_s3_path: Optional[str] = None):
         """
         Most parameters inherit from Boto3.
         https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
@@ -325,6 +334,7 @@ class SessionPrimitives:
         :param athena_s3_output: AWS S3 path
         :param athena_encryption: None|'SSE_S3'|'SSE_KMS'|'CSE_KMS'
         :param athena_kms_key: For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
+        :param redshift_temp_s3_path: AWS S3 path to write temporary data (e.g. s3://...)
         """
         self._profile_name: Optional[str] = profile_name
         self._aws_access_key_id: Optional[str] = aws_access_key_id
@@ -342,6 +352,7 @@ class SessionPrimitives:
         self._athena_kms_key: Optional[str] = athena_kms_key
         self._athena_database: Optional[str] = athena_database
         self._athena_ctas_approach: bool = athena_ctas_approach
+        self._redshift_temp_s3_path: Optional[str] = redshift_temp_s3_path
 
     @property
     def profile_name(self):
@@ -408,6 +419,10 @@ class SessionPrimitives:
         return self._athena_ctas_approach
 
     @property
+    def redshift_temp_s3_path(self) -> Optional[str]:
+        return self._redshift_temp_s3_path
+
+    @property
     def session(self):
         """
         Reconstruct the session from primitives
@@ -427,4 +442,5 @@ class SessionPrimitives:
                        athena_encryption=self._athena_encryption,
                        athena_kms_key=self._athena_kms_key,
                        athena_database=self._athena_database,
-                       athena_ctas_approach=self._athena_ctas_approach)
+                       athena_ctas_approach=self._athena_ctas_approach,
+                       redshift_temp_s3_path=self._redshift_temp_s3_path)

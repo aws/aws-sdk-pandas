@@ -522,6 +522,73 @@ def test_to_parquet(bucket, redshift_parameters):
     paths = Redshift.to_parquet(sql="SELECT * FROM public.test",
                                 path=path,
                                 iam_role=redshift_parameters.get("RedshiftRole"),
-                                redshift_conn=con,
+                                connection=con,
                                 partition_cols=["name"])
     assert len(paths) == 20
+
+
+@pytest.mark.parametrize("sample_name", ["micro", "small", "nano"])
+def test_read_sql_redshift_pandas(session, bucket, redshift_parameters, sample_name):
+    if sample_name == "micro":
+        dates = ["date"]
+    elif sample_name == "small":
+        dates = ["date"]
+    else:
+        dates = ["date", "time"]
+    df = pd.read_csv(f"data_samples/{sample_name}.csv", parse_dates=dates, infer_datetime_format=True)
+    df["date"] = df["date"].dt.date
+    con = Redshift.generate_connection(
+        database="test",
+        host=redshift_parameters.get("RedshiftAddress"),
+        port=redshift_parameters.get("RedshiftPort"),
+        user="test",
+        password=redshift_parameters.get("RedshiftPassword"),
+    )
+    path = f"s3://{bucket}/test_read_sql_redshift_pandas/"
+    session.pandas.to_redshift(
+        dataframe=df,
+        path=path,
+        schema="public",
+        table="test",
+        connection=con,
+        iam_role=redshift_parameters.get("RedshiftRole"),
+        mode="overwrite",
+        preserve_index=True,
+    )
+    path2 = f"s3://{bucket}/test_read_sql_redshift_pandas2/"
+    df2 = session.pandas.read_sql_redshift(sql="select * from public.test",
+                                           iam_role=redshift_parameters.get("RedshiftRole"),
+                                           connection=con,
+                                           temp_s3_path=path2)
+    assert len(df.index) == len(df2.index)
+    assert len(df.columns) + 1 == len(df2.columns)
+
+
+def test_read_sql_redshift_pandas2(session, bucket, redshift_parameters):
+    n: int = 1_000_000
+    df = pd.DataFrame({"id": list((range(n))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(n)])})
+    con = Redshift.generate_connection(
+        database="test",
+        host=redshift_parameters.get("RedshiftAddress"),
+        port=redshift_parameters.get("RedshiftPort"),
+        user="test",
+        password=redshift_parameters.get("RedshiftPassword"),
+    )
+    path = f"s3://{bucket}/test_read_sql_redshift_pandas2/"
+    session.pandas.to_redshift(
+        dataframe=df,
+        path=path,
+        schema="public",
+        table="test",
+        connection=con,
+        iam_role=redshift_parameters.get("RedshiftRole"),
+        mode="overwrite",
+        preserve_index=True,
+    )
+    path2 = f"s3://{bucket}/test_read_sql_redshift_pandas22/"
+    df2 = session.pandas.read_sql_redshift(sql="select * from public.test",
+                                           iam_role=redshift_parameters.get("RedshiftRole"),
+                                           connection=con,
+                                           temp_s3_path=path2)
+    assert len(df.index) == len(df2.index)
+    assert len(df.columns) + 1 == len(df2.columns)
