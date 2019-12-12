@@ -1442,6 +1442,7 @@ def test_read_table(session, bucket, database):
                               preserve_index=False,
                               procs_cpu_bound=1)
     df2 = session.pandas.read_table(database=database, table="test")
+    session.s3.delete_objects(path=path)
     assert len(list(df.columns)) == len(list(df2.columns))
     assert len(df.index) == len(df2.index)
 
@@ -1465,7 +1466,7 @@ def test_read_table2(session, bucket, database):
                                                                                                            3)]],
         "partition": [0, 0, 1]
     })
-    path = f"s3://{bucket}/test_read_table/"
+    path = f"s3://{bucket}/test_read_table2/"
     session.pandas.to_parquet(dataframe=df,
                               database=database,
                               table="test",
@@ -1474,8 +1475,9 @@ def test_read_table2(session, bucket, database):
                               preserve_index=False,
                               procs_cpu_bound=4,
                               partition_cols=["partition"])
-    sleep(5)
+    sleep(15)
     df2 = session.pandas.read_table(database=database, table="test")
+    session.s3.delete_objects(path=path)
     assert len(list(df.columns)) == len(list(df2.columns))
     assert len(df.index) == len(df2.index)
 

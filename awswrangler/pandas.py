@@ -523,12 +523,12 @@ class Pandas:
         :param workgroup: The name of the workgroup in which the query is being started. (By default uses de Session() workgroup)
         :param encryption: None|'SSE_S3'|'SSE_KMS'|'CSE_KMS'
         :param kms_key: For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
-        :param ctas_approach: Wraps the query with a CTAS (Session's deafult is False)
+        :param ctas_approach: Wraps the query with a CTAS (Session's default is False)
         :param procs_cpu_bound: Number of cores used for CPU bound tasks
         :param max_result_size: Max number of bytes on each request to S3 (VALID ONLY FOR ctas_approach=False)
         :return: Pandas Dataframe or Iterator of Pandas Dataframes if max_result_size was passed
         """
-        ctas_approach = ctas_approach if ctas_approach is not None else self._session.ctas_approach if self._session.ctas_approach is not None else False
+        ctas_approach = ctas_approach if ctas_approach is not None else self._session.athena_ctas_approach if self._session.athena_ctas_approach is not None else False
         if ctas_approach is True and max_result_size is not None:
             raise InvalidParameters("ctas_approach can't use max_result_size!")
         if s3_output is None:
@@ -1376,3 +1376,45 @@ class Pandas:
         """
         path: str = self._session.glue.get_table_location(database=database, table=table)
         return self.read_parquet(path=path, columns=columns, filters=filters, procs_cpu_bound=procs_cpu_bound)
+
+    def read_sql_redshift(self,
+                          sql: str,
+                          iam_role: str,
+                          connection: Any,
+                          temp_s3_path: Optional[str] = None,
+                          procs_cpu_bound: Optional[int] = None) -> pd.DataFrame:
+        """
+        Convert a query result in a Pandas Dataframe.
+
+        :param sql: SQL Query
+        :param iam_role: AWS IAM role with the related permissions
+        :param connection: A PEP 249 compatible connection (Can be generated with Redshift.generate_connection())
+        :param temp_s3_path: AWS S3 path to write temporary data (e.g. s3://...) (Default uses the Athena's results bucket)
+        :param procs_cpu_bound: Number of cores used for CPU bound tasks
+        """
+        guid: str = pa.compat.guid()
+        name: str = f"temp_redshift_{guid}"
+        if temp_s3_path is None:
+            if self._session.athena_s3_output is not None:
+                temp_s3_path = self._session.redshift_temp_s3_path
+            else:
+                temp_s3_path = self._session.athena.create_athena_bucket()
+        temp_s3_path = temp_s3_path[:-1] if temp_s3_path[-1] == "/" else temp_s3_path
+        temp_s3_path = f"{temp_s3_path}/{name}"
+        logger.debug(f"temp_s3_path: {temp_s3_path}")
+        paths: Optional[List[str]] = None
+        try:
+            paths = self._session.redshift.to_parquet(sql=sql,
+                                                      path=temp_s3_path,
+                                                      iam_role=iam_role,
+                                                      connection=connection)
+            logger.debug(f"paths: {paths}")
+            df: pd.DataFrame = self.read_parquet(path=paths, procs_cpu_bound=procs_cpu_bound)  # type: ignore
+            self._session.s3.delete_listed_objects(objects_paths=paths)
+            return df
+        except Exception as e:
+            if paths is not None:
+                self._session.s3.delete_listed_objects(objects_paths=paths)
+            else:
+                self._session.s3.delete_objects(path=temp_s3_path)
+            raise e
