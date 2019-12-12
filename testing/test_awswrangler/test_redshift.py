@@ -519,11 +519,9 @@ def test_to_parquet(bucket, redshift_parameters):
         password=redshift_parameters.get("RedshiftPassword"),
     )
     path = f"s3://{bucket}/test_to_parquet/"
-    paths = Redshift.to_parquet(
-        sql="SELECT * FROM public.test",
-        path=path,
-        iam_role=redshift_parameters.get("RedshiftRole"),
-        redshift_conn=con,
-        partition_cols=["name"]
-    )
+    paths = Redshift.to_parquet(sql="SELECT * FROM public.test",
+                                path=path,
+                                iam_role=redshift_parameters.get("RedshiftRole"),
+                                redshift_conn=con,
+                                partition_cols=["name"])
     assert len(paths) == 20

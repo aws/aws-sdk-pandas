@@ -499,7 +499,7 @@ class Pandas:
                         workgroup: Optional[str] = None,
                         encryption: Optional[str] = None,
                         kms_key: Optional[str] = None,
-                        ctas_approach: bool = False,
+                        ctas_approach: bool = None,
                         procs_cpu_bound: Optional[int] = None,
                         max_result_size: Optional[int] = None):
         """
@@ -523,11 +523,12 @@ class Pandas:
         :param workgroup: The name of the workgroup in which the query is being started. (By default uses de Session() workgroup)
         :param encryption: None|'SSE_S3'|'SSE_KMS'|'CSE_KMS'
         :param kms_key: For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
-        :param ctas_approach: Wraps the query with a CTAS
+        :param ctas_approach: Wraps the query with a CTAS (Session's deafult is False)
         :param procs_cpu_bound: Number of cores used for CPU bound tasks
         :param max_result_size: Max number of bytes on each request to S3 (VALID ONLY FOR ctas_approach=False)
         :return: Pandas Dataframe or Iterator of Pandas Dataframes if max_result_size was passed
         """
+        ctas_approach = ctas_approach if ctas_approach is not None else self._session.ctas_approach if self._session.ctas_approach is not None else False
         if ctas_approach is True and max_result_size is not None:
             raise InvalidParameters("ctas_approach can't use max_result_size!")
         if s3_output is None:
@@ -580,7 +581,10 @@ class Pandas:
                                                        kms_key=kms_key)
         self._session.athena.wait_query(query_execution_id=query_id)
         self._session.glue.delete_table_if_exists(database=database, table=name)
-        return self.read_parquet(path=path, procs_cpu_bound=procs_cpu_bound)
+        manifest_path: str = f"{s3_output}/tables/{query_id}-manifest.csv"
+        paths: List[str] = self._session.athena.extract_manifest_paths(path=manifest_path)
+        logger.debug(f"paths: {paths}")
+        return self.read_parquet(path=paths, procs_cpu_bound=procs_cpu_bound)
 
     def _read_sql_athena_regular(self,
                                  sql: str,
@@ -1209,30 +1213,150 @@ class Pandas:
         return dataframe.loc[:, ~duplicated_cols]
 
     def read_parquet(self,
-                     path: str,
+                     path: Union[str, List[str]],
                      columns: Optional[List[str]] = None,
                      filters: Optional[Union[List[Tuple[Any]], List[Tuple[Any]]]] = None,
                      procs_cpu_bound: Optional[int] = None) -> pd.DataFrame:
         """
         Read parquet data from S3
 
+        :param path: AWS S3 path or List of paths (E.g. s3://bucket-name/folder_name/)
+        :param columns: Names of columns to read from the file
+        :param filters: List of filters to apply, like ``[[('x', '=', 0), ...], ...]``.
+        :param procs_cpu_bound: Number of cores used for CPU bound tasks
+        """
+        procs_cpu_bound = procs_cpu_bound if procs_cpu_bound is not None else self._session.procs_cpu_bound if self._session.procs_cpu_bound is not None else 1
+        logger.debug(f"procs_cpu_bound: {procs_cpu_bound}")
+        df: Optional[pd.DataFrame] = None
+        session_primitives = self._session.primitives
+        path = [path] if type(path) == str else path  # type: ignore
+        bounders = calculate_bounders(len(path), procs_cpu_bound)
+        logger.debug(f"len(bounders): {len(bounders)}")
+        if len(bounders) == 1:
+            df = Pandas._read_parquet_paths(session_primitives=session_primitives,
+                                            path=path,
+                                            columns=columns,
+                                            filters=filters,
+                                            procs_cpu_bound=procs_cpu_bound)
+        else:
+            procs = []
+            receive_pipes = []
+            for bounder in bounders:
+                receive_pipe, send_pipe = mp.Pipe()
+                logger.debug(f"bounder: {bounder}")
+                proc = mp.Process(
+                    target=self._read_parquet_paths_remote,
+                    args=(
+                        send_pipe,
+                        session_primitives,
+                        path[bounder[0]:bounder[1]],
+                        columns,
+                        filters,
+                        1  # procs_cpu_bound
+                    ),
+                )
+                proc.daemon = False
+                proc.start()
+                procs.append(proc)
+                receive_pipes.append(receive_pipe)
+            logger.debug(f"len(procs): {len(bounders)}")
+            for i in range(len(procs)):
+                logger.debug(f"Waiting pipe number: {i}")
+                df_received = receive_pipes[i].recv()
+                if df is None:
+                    df = df_received
+                else:
+                    df = pd.concat(objs=[df, df_received], ignore_index=True)
+                logger.debug(f"Waiting proc number: {i}")
+                procs[i].join()
+                logger.debug(f"Closing proc number: {i}")
+                receive_pipes[i].close()
+        return df
+
+    @staticmethod
+    def _read_parquet_paths_remote(send_pipe: mp.connection.Connection,
+                                   session_primitives: Any,
+                                   path: Union[str, List[str]],
+                                   columns: Optional[List[str]] = None,
+                                   filters: Optional[Union[List[Tuple[Any]], List[Tuple[Any]]]] = None,
+                                   procs_cpu_bound: Optional[int] = None):
+        df: pd.DataFrame = Pandas._read_parquet_paths(session_primitives=session_primitives,
+                                                      path=path,
+                                                      columns=columns,
+                                                      filters=filters,
+                                                      procs_cpu_bound=procs_cpu_bound)
+        send_pipe.send(df)
+        send_pipe.close()
+
+    @staticmethod
+    def _read_parquet_paths(session_primitives: Any,
+                            path: Union[str, List[str]],
+                            columns: Optional[List[str]] = None,
+                            filters: Optional[Union[List[Tuple[Any]], List[Tuple[Any]]]] = None,
+                            procs_cpu_bound: Optional[int] = None) -> pd.DataFrame:
+        """
+        Read parquet data from S3
+
+        :param session_primitives: SessionPrimitives()
+        :param path: AWS S3 path or List of paths (E.g. s3://bucket-name/folder_name/)
+        :param columns: Names of columns to read from the file
+        :param filters: List of filters to apply, like ``[[('x', '=', 0), ...], ...]``.
+        :param procs_cpu_bound: Number of cores used for CPU bound tasks
+        """
+        df: pd.DataFrame
+        if (type(path) == str) or (len(path) == 1):
+            path = path[0] if type(path) == list else path  # type: ignore
+            df = Pandas._read_parquet_path(
+                session_primitives=session_primitives,
+                path=path,  # type: ignore
+                columns=columns,
+                filters=filters,
+                procs_cpu_bound=procs_cpu_bound)
+        else:
+            df = Pandas._read_parquet_path(session_primitives=session_primitives,
+                                           path=path[0],
+                                           columns=columns,
+                                           filters=filters,
+                                           procs_cpu_bound=procs_cpu_bound)
+            for p in path[1:]:
+                df_aux = Pandas._read_parquet_path(session_primitives=session_primitives,
+                                                   path=p,
+                                                   columns=columns,
+                                                   filters=filters,
+                                                   procs_cpu_bound=procs_cpu_bound)
+                df = pd.concat(objs=[df, df_aux], ignore_index=True)
+        return df
+
+    @staticmethod
+    def _read_parquet_path(session_primitives: Any,
+                           path: str,
+                           columns: Optional[List[str]] = None,
+                           filters: Optional[Union[List[Tuple[Any]], List[Tuple[Any]]]] = None,
+                           procs_cpu_bound: Optional[int] = None) -> pd.DataFrame:
+        """
+        Read parquet data from S3
+
+        :param session_primitives: SessionPrimitives()
         :param path: AWS S3 path (E.g. s3://bucket-name/folder_name/)
         :param columns: Names of columns to read from the file
         :param filters: List of filters to apply, like ``[[('x', '=', 0), ...], ...]``.
         :param procs_cpu_bound: Number of cores used for CPU bound tasks
         """
         path = path[:-1] if path[-1] == "/" else path
-        procs_cpu_bound = 1 if self._session.procs_cpu_bound is None else self._session.procs_cpu_bound if procs_cpu_bound is None else procs_cpu_bound
+        procs_cpu_bound = procs_cpu_bound if procs_cpu_bound is not None else session_primitives.procs_cpu_bound if session_primitives.procs_cpu_bound is not None else 1
         use_threads: bool = True if procs_cpu_bound > 1 else False
-        fs: S3FileSystem = s3.get_fs(session_primitives=self._session.primitives)
+        fs: S3FileSystem = s3.get_fs(session_primitives=session_primitives)
         fs = pa.filesystem._ensure_filesystem(fs)
+        logger.debug(f"Reading Parquet table: {path}")
         table = pq.read_table(source=path, columns=columns, filters=filters, filesystem=fs, use_threads=use_threads)
         # Check if we lose some integer during the conversion (Happens when has some null value)
         integers = [field.name for field in table.schema if str(field.type).startswith("int")]
+        logger.debug(f"Converting to Pandas: {path}")
         df = table.to_pandas(use_threads=use_threads, integer_object_nulls=True)
         for c in integers:
             if not str(df[c].dtype).startswith("int"):
                 df[c] = df[c].astype("Int64")
+        logger.debug(f"Done: {path}")
         return df
 
     def read_table(self,

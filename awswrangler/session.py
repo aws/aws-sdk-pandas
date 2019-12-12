@@ -48,7 +48,8 @@ class Session:
                  athena_s3_output: Optional[str] = None,
                  athena_encryption: Optional[str] = "SSE_S3",
                  athena_kms_key: Optional[str] = None,
-                 athena_database: str = "default"):
+                 athena_database: str = "default",
+                 athena_ctas_approach: bool = False):
         """
         Most parameters inherit from Boto3 or Pyspark.
         https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
@@ -68,6 +69,7 @@ class Session:
         :param procs_io_bound: number of processes that can be used in single node applications for I/O bound cases (Default: os.cpu_count() * PROCS_IO_BOUND_FACTOR)
         :param athena_workgroup: Default AWS Athena Workgroup (str)
         :param athena_database: AWS Glue/Athena database name
+        :param athena_ctas_approach: Wraps the query with a CTAS
         :param athena_s3_output: AWS S3 path
         :param athena_encryption: None|'SSE_S3'|'SSE_KMS'|'CSE_KMS'
         :param athena_kms_key: For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
@@ -92,6 +94,7 @@ class Session:
         self._athena_encryption: Optional[str] = athena_encryption
         self._athena_kms_key: Optional[str] = athena_kms_key
         self._athena_database: str = athena_database
+        self._athena_ctas_approach: bool = athena_ctas_approach
         self._primitives = None
         self._load_new_primitives()
         if boto3_session:
@@ -131,23 +134,22 @@ class Session:
         Load or reload a new AWS Wrangler Session primitives
         :return: None
         """
-        self._primitives = SessionPrimitives(
-            profile_name=self._profile_name,
-            aws_access_key_id=self._aws_access_key_id,
-            aws_secret_access_key=self._aws_secret_access_key,
-            aws_session_token=self._aws_session_token,
-            region_name=self._region_name,
-            botocore_max_retries=self._botocore_max_retries,
-            s3_additional_kwargs=self._s3_additional_kwargs,
-            botocore_config=self._botocore_config,
-            procs_cpu_bound=self._procs_cpu_bound,
-            procs_io_bound=self._procs_io_bound,
-            athena_workgroup=self._athena_workgroup,
-            athena_s3_output=self._athena_s3_output,
-            athena_encryption=self._athena_encryption,
-            athena_kms_key=self._athena_kms_key,
-            athena_database=self._athena_database,
-        )
+        self._primitives = SessionPrimitives(profile_name=self._profile_name,
+                                             aws_access_key_id=self._aws_access_key_id,
+                                             aws_secret_access_key=self._aws_secret_access_key,
+                                             aws_session_token=self._aws_session_token,
+                                             region_name=self._region_name,
+                                             botocore_max_retries=self._botocore_max_retries,
+                                             s3_additional_kwargs=self._s3_additional_kwargs,
+                                             botocore_config=self._botocore_config,
+                                             procs_cpu_bound=self._procs_cpu_bound,
+                                             procs_io_bound=self._procs_io_bound,
+                                             athena_workgroup=self._athena_workgroup,
+                                             athena_s3_output=self._athena_s3_output,
+                                             athena_encryption=self._athena_encryption,
+                                             athena_kms_key=self._athena_kms_key,
+                                             athena_database=self._athena_database,
+                                             athena_ctas_approach=self._athena_ctas_approach)
 
     @property
     def profile_name(self):
@@ -216,6 +218,10 @@ class Session:
     @property
     def athena_database(self) -> str:
         return self._athena_database
+
+    @property
+    def athena_ctas_approach(self) -> bool:
+        return self._athena_ctas_approach
 
     @property
     def boto3_session(self):
@@ -297,7 +303,8 @@ class SessionPrimitives:
                  athena_s3_output: Optional[str] = None,
                  athena_encryption: Optional[str] = None,
                  athena_kms_key: Optional[str] = None,
-                 athena_database: Optional[str] = None):
+                 athena_database: Optional[str] = None,
+                 athena_ctas_approach: bool = False):
         """
         Most parameters inherit from Boto3.
         https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
@@ -314,6 +321,7 @@ class SessionPrimitives:
         :param procs_io_bound: number of processes that can be used in single node applications for I/O bound cases (Default: os.cpu_count() * PROCS_IO_BOUND_FACTOR)
         :param athena_workgroup: Default AWS Athena Workgroup (str)
         :param athena_database: AWS Glue/Athena database name
+        :param athena_ctas_approach: Wraps the query with a CTAS
         :param athena_s3_output: AWS S3 path
         :param athena_encryption: None|'SSE_S3'|'SSE_KMS'|'CSE_KMS'
         :param athena_kms_key: For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
@@ -333,6 +341,7 @@ class SessionPrimitives:
         self._athena_encryption: Optional[str] = athena_encryption
         self._athena_kms_key: Optional[str] = athena_kms_key
         self._athena_database: Optional[str] = athena_database
+        self._athena_ctas_approach: bool = athena_ctas_approach
 
     @property
     def profile_name(self):
@@ -395,6 +404,10 @@ class SessionPrimitives:
         return self._athena_database
 
     @property
+    def athena_ctas_approach(self) -> bool:
+        return self._athena_ctas_approach
+
+    @property
     def session(self):
         """
         Reconstruct the session from primitives
@@ -413,4 +426,5 @@ class SessionPrimitives:
                        athena_s3_output=self._athena_s3_output,
                        athena_encryption=self._athena_encryption,
                        athena_kms_key=self._athena_kms_key,
-                       athena_database=self._athena_database)
+                       athena_database=self._athena_database,
+                       athena_ctas_approach=self._athena_ctas_approach)

@@ -16,7 +16,10 @@ QUERY_WAIT_POLLING_DELAY = 0.2  # MILLISECONDS
 class Athena:
     def __init__(self, session):
         self._session = session
-        self._client_athena = session.boto3_session.client(service_name="athena", config=session.botocore_config)
+        self._client_athena = session.boto3_session.client(service_name="athena",
+                                                           use_ssl=True,
+                                                           config=session.botocore_config)
+        self._client_s3 = session.boto3_session.client(service_name="s3", use_ssl=True, config=session.botocore_config)
 
     def get_query_columns_metadata(self, query_execution_id: str) -> Dict[str, str]:
         """
@@ -256,3 +259,14 @@ class Athena:
         :return: normalized table name (str)
         """
         return Athena._normalize_name(name=name)
+
+    @staticmethod
+    def _parse_path(path):
+        path2 = path.replace("s3://", "")
+        parts = path2.partition("/")
+        return parts[0], parts[2]
+
+    def extract_manifest_paths(self, path: str) -> List[str]:
+        bucket_name, key_path = self._parse_path(path)
+        body: bytes = self._client_s3.get_object(Bucket=bucket_name, Key=key_path)["Body"].read()
+        return [x for x in body.decode('utf-8').split("\n") if x != ""]

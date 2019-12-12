@@ -1509,5 +1509,29 @@ def test_read_sql_athena_ctas(session, bucket, database):
                               procs_cpu_bound=4,
                               partition_cols=["partition"])
     df2 = session.pandas.read_sql_athena(ctas_approach=True, sql="select * from test", database=database)
+    session.s3.delete_objects(path=path)
     assert len(list(df.columns)) == len(list(df2.columns))
     assert len(df.index) == len(df2.index)
+
+
+def test_read_sql_athena_s3_output_ctas(session, bucket, database):
+    n: int = 1_000_000
+    df = pd.DataFrame({"id": list((range(n))), "partition": list(["foo" if i % 2 == 0 else "boo" for i in range(n)])})
+    path = f"s3://{bucket}/test_read_sql_athena_s3_output_ctas/"
+    session.pandas.to_parquet(dataframe=df,
+                              database=database,
+                              table="test",
+                              path=path,
+                              mode="overwrite",
+                              preserve_index=True,
+                              procs_cpu_bound=4,
+                              partition_cols=["partition"])
+    path_ctas = f"s3://{bucket}/test_read_sql_athena_s3_output_ctas_metadata/"
+    df2 = session.pandas.read_sql_athena(ctas_approach=True,
+                                         sql="select * from test",
+                                         database=database,
+                                         s3_output=path_ctas)
+    session.s3.delete_objects(path=path)
+    assert len(list(df.columns)) + 1 == len(list(df2.columns))
+    assert len(df.index) == len(df2.index)
+    print(df2)
