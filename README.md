@@ -30,7 +30,7 @@
 * Pandas -> Redshift (Parallel)
 * Parquet (S3) -> Pandas (Parallel) (NEW :star:)
 * CSV (S3) -> Pandas (One shot or Batching)
-* Glue Catalog Table -> Pandas (Parallel)
+* Glue Catalog Table -> Pandas (Parallel) (NEW :star:)
 * Athena -> Pandas (One shot, Batching or Parallel (NEW :star:))
 * Redshift -> Pandas (Parallel) (NEW :star:)
 * Redshift -> Parquet (S3) (NEW :star:)
