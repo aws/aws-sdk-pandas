@@ -505,14 +505,16 @@ class Pandas:
         """
         Executes any SQL query on AWS Athena and return a Dataframe of the result.
         There are two approaches to be defined through ctas_approach parameter:
+
         1 - ctas_approach True (For Huge results):
-            Wrap the query with a CTAS and then reads the table data as parquet directly from s3.
-            PROS: Faster and has a better handle of nested types
-            CONS: Can't use max_result_size and must have create and drop table permissions
+        Wrap the query with a CTAS and then reads the table data as parquet directly from s3.
+        PROS: Faster and has a better handle of nested types
+        CONS: Can't use max_result_size and must have create and drop table permissions
+
         2 - ctas_approach False (Default):
-            Does a regular query on Athena and parse the regular CSV result on s3
-            PROS: Accepts max_result_size.
-            CONS: Slower (But stills faster than other libraries that uses the Athena API) and does not handle nested types so well
+        Does a regular query on Athena and parse the regular CSV result on s3
+        PROS: Accepts max_result_size.
+        CONS: Slower (But stills faster than other libraries that uses the Athena API) and does not handle nested types so well
 
         P.S. If ctas_approach is False and max_result_size is passed, then a iterator of Dataframes is returned.
         P.S.S. All default values will be inherited from the Session()

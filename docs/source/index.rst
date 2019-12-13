@@ -15,11 +15,15 @@ Pandas
 ``````
 * Pandas -> Parquet (S3) (Parallel)
 * Pandas -> CSV (S3) (Parallel)
-* Pandas -> Glue Catalog
+* Pandas -> Glue Catalog Table
 * Pandas -> Athena (Parallel)
 * Pandas -> Redshift (Parallel)
+* Parquet (S3) -> Pandas (Parallel)
 * CSV (S3) -> Pandas (One shot or Batching)
-* Athena -> Pandas (One shot or Batching)
+* Glue Catalog Table -> Pandas (Parallel)
+* Athena -> Pandas (One shot, Batching or Parallel)
+* Redshift -> Pandas (Parallel)
+* Redshift -> Parquet (S3)
 * CloudWatch Logs Insights -> Pandas
 * Encrypt Pandas Dataframes on S3 with KMS keys
 
