@@ -389,6 +389,10 @@ session.pandas.to_parquet(
     })
 ```
 
+### Athena to Pandas Flow (PARALLEL/CTAS)
+
+![Spark to Redshift Flow](docs/source/_static/athena-to-pandas-parallel.jpg?raw=true "Spark to Redshift Flow")
+
 ### Pandas to Redshift Flow
 
 ![Pandas to Redshift Flow](docs/source/_static/pandas-to-redshift-flow.jpg?raw=true "Pandas to Redshift Flow")
