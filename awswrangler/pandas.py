@@ -1114,7 +1114,7 @@ class Pandas:
         :param sortstyle: Sorting can be "COMPOUND" or "INTERLEAVED" (https://docs.aws.amazon.com/redshift/latest/dg/t_Sorting_data.html)
         :param sortkey: List of columns to be sorted
         :param preserve_index: Should we preserve the Dataframe index?
-        :param mode: append or overwrite
+        :param mode: append, overwrite or upsert
         :param cast_columns: Dictionary of columns names and Redshift types to be casted. (E.g. {"col name": "SMALLINT", "col2 name": "FLOAT4"})
         :return: None
         """
@@ -1348,6 +1348,7 @@ class Pandas:
         procs_cpu_bound = procs_cpu_bound if procs_cpu_bound is not None else session_primitives.procs_cpu_bound if session_primitives.procs_cpu_bound is not None else 1
         use_threads: bool = True if procs_cpu_bound > 1 else False
         fs: S3FileSystem = s3.get_fs(session_primitives=session_primitives)
+        fs.invalidate_cache()
         fs = pa.filesystem._ensure_filesystem(fs)
         logger.debug(f"Reading Parquet table: {path}")
         table = pq.read_table(source=path, columns=columns, filters=filters, filesystem=fs, use_threads=use_threads)
