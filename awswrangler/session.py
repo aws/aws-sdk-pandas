@@ -13,6 +13,8 @@ from awswrangler.pandas import Pandas
 from awswrangler.glue import Glue
 from awswrangler.redshift import Redshift
 from awswrangler.emr import EMR
+from awswrangler.sagemaker import SageMaker
+
 
 PYSPARK_INSTALLED = False
 if importlib.util.find_spec("pyspark"):  # type: ignore
@@ -112,6 +114,7 @@ class Session:
         self._glue = None
         self._redshift = None
         self._spark = None
+        self._sagemaker = None
 
     def _load_new_boto3_session(self):
         """
@@ -280,6 +283,12 @@ class Session:
         if not self._redshift:
             self._redshift = Redshift(session=self)
         return self._redshift
+
+    @property
+    def sagemaker(self):
+        if not self._sagemaker:
+            self._sagemaker = SageMaker(session=self)
+        return self._sagemaker
 
     @property
     def spark(self):
