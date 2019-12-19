@@ -24,17 +24,17 @@ def get_fs(session_primitives=None):
     aws_access_key_id, aws_secret_access_key, profile_name, config, s3_additional_kwargs = None, None, None, None, None
     args = {}
 
-    if session_primitives:
-        if session_primitives.aws_access_key_id:
+    if session_primitives is not None:
+        if session_primitives.aws_access_key_id is not None:
             aws_access_key_id = session_primitives.aws_access_key_id
-        if session_primitives.aws_secret_access_key:
+        if session_primitives.aws_secret_access_key is not None:
             aws_secret_access_key = session_primitives.aws_secret_access_key
-        if session_primitives.profile_name:
+        if session_primitives.profile_name is not None:
             profile_name = session_primitives.profile_name
-        if session_primitives.botocore_max_retries:
-            config = {"retries": {"max_attempts": session_primitives.botocore_max_retries}}
-        if session_primitives.s3_additional_kwargs:
-            s3_additional_kwargs = session_primitives.s3_additional_kwargs
+        if session_primitives.botocore_max_retries is not None:
+            args["config_kwargs"] = {"retries": {"max_attempts": session_primitives.botocore_max_retries}}
+        if session_primitives.s3_additional_kwargs is not None:
+            args["s3_additional_kwargs"] = session_primitives.s3_additional_kwargs
 
     if profile_name:
         args["profile_name"] = profile_name
@@ -42,8 +42,6 @@ def get_fs(session_primitives=None):
         args["key"] = aws_access_key_id,
         args["secret"] = aws_secret_access_key
 
-    args["config_kwargs"] = config,
-    args["s3_additional_kwargs"] = s3_additional_kwargs
     fs = s3fs.S3FileSystem(**args)
     fs.invalidate_cache(path=None)
     return fs
