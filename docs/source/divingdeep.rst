@@ -51,7 +51,7 @@ To work with null object columns you can explicitly set the expected Athena data
 
 
 Athena to Pandas Flow (PARALLEL/CTAS)
------------------------
+-------------------------------------
 
 .. figure:: _static/athena-to-pandas-parallel.jpg
     :align: center

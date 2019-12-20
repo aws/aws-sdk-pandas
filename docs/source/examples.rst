@@ -11,9 +11,10 @@ Writing Pandas Dataframe to S3 + Glue Catalog
 
 .. code-block:: python
 
-    wrangler = awswrangler.Session()
-    wrangler.pandas.to_parquet(
-        dataframe=dataframe,
+    import awswrangler as wr
+
+    wr.pandas.to_parquet(
+        dataframe=df,
         database="database",
         path="s3://...",
         partition_cols=["col_name"],
@@ -27,12 +28,14 @@ Writing Pandas Dataframe to S3 as Parquet encrypting with a KMS key
 
 .. code-block:: python
 
+    import awswrangler as wr
+
     extra_args = {
         "ServerSideEncryption": "aws:kms",
         "SSEKMSKeyId": "YOUR_KMY_KEY_ARN"
     }
-    wrangler = awswrangler.Session(s3_additional_kwargs=extra_args)
-    wrangler.pandas.to_parquet(
+    sess = wr.Session(s3_additional_kwargs=extra_args)
+    sess.pandas.to_parquet(
         path="s3://..."
     )
 
@@ -42,8 +45,9 @@ Reading from AWS Athena to Pandas
 
 .. code-block:: python
 
-    wrangler = awswrangler.Session()
-    dataframe = wrangler.pandas.read_sql_athena(
+    import awswrangler as wr
+
+    df = wr.pandas.read_sql_athena(
         sql="select * from table",
         database="database"
     )
@@ -54,14 +58,16 @@ Reading from AWS Athena to Pandas in chunks (For memory restrictions)
 
 .. code-block:: python
 
-    wrangler = awswrangler.Session()
-    dataframe_iter = wrangler.pandas.read_sql_athena(
+    import awswrangler as wr
+
+    df_iter = wr.pandas.read_sql_athena(
         sql="select * from table",
         database="database",
         max_result_size=512_000_000  # 512 MB
     )
-    for dataframe in dataframe_iter:
-        print(dataframe)  # Do whatever you want
+
+    for df in df_iter:
+        print(df)  # Do whatever you want
 
 
 Reading from AWS Athena to Pandas with the blazing fast CTAS approach
@@ -69,8 +75,10 @@ Reading from AWS Athena to Pandas with the blazing fast CTAS approach
 
 .. code-block:: python
 
-    wrangler = awswrangler.Session(athena_ctas_approach=True)
-    dataframe = wrangler.pandas.read_sql_athena(
+    import awswrangler as wr
+
+    sess = wr.Session(athena_ctas_approach=True)
+    df = sess.pandas.read_sql_athena(
         sql="select * from table",
         database="database"
     )
@@ -81,8 +89,9 @@ Reading from S3 (CSV) to Pandas
 
 .. code-block:: python
 
-    wrangler = awswrangler.Session()
-    dataframe = wrangler.pandas.read_csv(path="s3://...")
+    import awswrangler as wr
+
+    df = wr.pandas.read_csv(path="s3://...")
 
 
 Reading from S3 (CSV) to Pandas in chunks (For memory restrictions)
@@ -90,21 +99,24 @@ Reading from S3 (CSV) to Pandas in chunks (For memory restrictions)
 
 .. code-block:: python
 
-    wrangler = awswrangler.Session()
-    dataframe_iter = wrangler.pandas.read_csv(
+    import awswrangler as wr
+
+    df_iter = wr.pandas.read_csv(
         path="s3://...",
         max_result_size=512_000_000  # 512 MB
     )
-    for dataframe in dataframe_iter:
-        print(dataframe)  # Do whatever you want
+
+    for df in df_iter:
+        print(df)  # Do whatever you want
 
 Reading from CloudWatch Logs Insights to Pandas
 ```````````````````````````````````````````````
 
 .. code-block:: python
 
-    wrangler = awswrangler.Session()
-    dataframe = wrangler.pandas.read_log_query(
+    import awswrangler as wr
+
+    df = wr.pandas.read_log_query(
         log_group_names=[LOG_GROUP_NAME],
         query="fields @timestamp, @message | sort @timestamp desc | limit 5",
     )
@@ -116,15 +128,14 @@ Typical Pandas ETL
 .. code-block:: python
 
     import pandas
-    import awswrangler
+    import awswrangler as wr
 
     df = pandas.read_...  # Read from anywhere
 
     # Typical Pandas, Numpy or Pyarrow transformation HERE!
 
-    session = awswrangler.Session()
-    session.pandas.to_parquet(  # Storing the data and metadata to Data Lake
-        dataframe=dataframe,
+    wr.pandas.to_parquet(  # Storing the data and metadata to Data Lake
+        dataframe=df,
         database="database",
         path="s3://...",
         partition_cols=["col_name"],
@@ -136,9 +147,10 @@ Loading Pandas Dataframe to Redshift
 
 .. code-block:: python
 
-    wrangler = awswrangler.Session()
-    wrangler.pandas.to_redshift(
-        dataframe=dataframe,
+    import awswrangler as wr
+
+    wr.pandas.to_redshift(
+        dataframe=df,
         path="s3://temp_path",
         schema="...",
         table="...",
@@ -154,8 +166,9 @@ Extract Redshift query to Pandas DataFrame
 
 .. code-block:: python
 
-    wrangler = awswrangler.Session()
-    dataframe = session.pandas.read_sql_redshift(
+    import awswrangler as wr
+
+    df = wr.pandas.read_sql_redshift(
         sql="SELECT ...",
         iam_role="YOUR_ROLE_ARN",
         connection=con,
@@ -170,8 +183,9 @@ Loading Pyspark Dataframe to Redshift
 
 .. code-block:: python
 
-    wrangler = awswrangler.Session(spark_session=spark)
-    wrangler.spark.to_redshift(
+    import awswrangler as wr
+
+    wr.spark.to_redshift(
         dataframe=df,
         path="s3://...",
         connection=conn,
@@ -186,13 +200,15 @@ Register Glue table from Dataframe stored on S3
 
 .. code-block:: python
 
+    import awswrangler as wr
+
     dataframe.write \
             .mode("overwrite") \
             .format("parquet") \
             .partitionBy(["year", "month"]) \
             .save(compression="gzip", path="s3://...")
-    wrangler = awswrangler.Session(spark_session=spark)
-    wrangler.spark.create_glue_table(
+    sess = wr.Session(spark_session=spark)
+    sess.spark.create_glue_table(
         dataframe=dataframe,
         file_format="parquet",
         partition_by=["year", "month"],
@@ -205,8 +221,10 @@ Flatten nested PySpark DataFrame
 
 .. code-block:: python
 
-    wrangler = awswrangler.Session(spark_session=spark)
-    dfs = wrangler.spark.flatten(dataframe=df_nested)
+    import awswrangler as wr
+
+    sess = awswrangler.Session(spark_session=spark)
+    dfs = sess.spark.flatten(dataframe=df_nested)
     for name, df_flat in dfs.items():
         print(name)
         df_flat.show()
@@ -219,16 +237,18 @@ Deleting a bunch of S3 objects
 
 .. code-block:: python
 
-    wrangler = awswrangler.Session()
-    wrangler.s3.delete_objects(path="s3://...")
+    import awswrangler as wr
+
+    wr.s3.delete_objects(path="s3://...")
 
 Get CloudWatch Logs Insights query results
 ``````````````````````````````````````````
 
 .. code-block:: python
 
-    wrangler = awswrangler.Session()
-    results = wrangler.cloudwatchlogs.query(
+    import awswrangler as wr
+
+    results = wr.cloudwatchlogs.query(
         log_group_names=[LOG_GROUP_NAME],
         query="fields @timestamp, @message | sort @timestamp desc | limit 5",
     )
@@ -238,16 +258,18 @@ Load partitions on Athena/Glue table (repair table)
 
 .. code-block:: python
 
-    wrangler = awswrangler.Session()
-    wrangler.athena.repair_table(database="db_name", table="tbl_name")
+    import awswrangler as wr
+
+    wr.athena.repair_table(database="db_name", table="tbl_name")
 
 Create EMR cluster
 ```````````````````````````````````````````````````
 
 .. code-block:: python
 
-    wrangler = awswrangler.Session()
-    cluster_id = wrangler.emr.create_cluster(
+    import awswrangler as wr
+
+    cluster_id = wr.emr.create_cluster(
         cluster_name="wrangler_cluster",
         logging_s3_path=f"s3://BUCKET_NAME/emr-logs/",
         emr_release="emr-5.28.0",
@@ -300,6 +322,17 @@ Athena query to receive the result as python primitives (Iterable[Dict[str, Any]
 
 .. code-block:: python
 
-    session = awswrangler.Session()
-    for row in session.athena.query(query="...", database="..."):
+    import awswrangler as wr
+
+    for row in wr.athena.query(query="...", database="..."):
         print(row)
+
+Load and unzip SageMaker job output
+```````````````````````````````````
+
+.. code-block:: python
+
+    import awswrangler as wr
+
+    outputs = wr.sagemaker.get_job_outputs("s3://...")
+

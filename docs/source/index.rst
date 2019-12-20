@@ -17,7 +17,7 @@ Pandas
 * Pandas -> CSV (S3) (Parallel)
 * Pandas -> Glue Catalog Table
 * Pandas -> Athena (Parallel)
-* Pandas -> Redshift (Parallel)
+* Pandas -> Redshift (Append/Overwrite/Upsert) (Parallel)
 * Parquet (S3) -> Pandas (Parallel)
 * CSV (S3) -> Pandas (One shot or Batching)
 * Glue Catalog Table -> Pandas (Parallel)
@@ -49,6 +49,7 @@ General
 * Submit EMR step(s) (For humans) (NEW)
 * Get EMR step state (NEW)
 * Athena query to receive the result as python primitives (Iterable[Dict[str, Any]) (NEW)
+* Load and Unzip SageMaker jobs outputs
 
 
 Table Of Contents

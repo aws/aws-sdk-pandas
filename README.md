@@ -2,7 +2,7 @@
 
 > Utility belt to handle data on AWS.
 
-[![Release](https://img.shields.io/badge/release-0.1.0-brightgreen.svg)](https://pypi.org/project/awswrangler/)
+[![Release](https://img.shields.io/badge/release-0.1.1-brightgreen.svg)](https://pypi.org/project/awswrangler/)
 [![Downloads](https://img.shields.io/pypi/dm/awswrangler.svg)](https://pypi.org/project/awswrangler/)
 [![Python Version](https://img.shields.io/badge/python-3.6%20%7C%203.7-brightgreen.svg)](https://pypi.org/project/awswrangler/)
 [![Documentation Status](https://readthedocs.org/projects/aws-data-wrangler/badge/?version=latest)](https://aws-data-wrangler.readthedocs.io/en/latest/?badge=latest)
@@ -28,7 +28,7 @@
 * Pandas -> CSV (S3) (Parallel)
 * Pandas -> Glue Catalog Table
 * Pandas -> Athena (Parallel)
-* Pandas -> Redshift (Parallel)
+* Pandas -> Redshift (Append/Overwrite/Upsert) (Parallel)
 * Parquet (S3) -> Pandas (Parallel) (NEW :star:)
 * CSV (S3) -> Pandas (One shot or Batching)
 * Glue Catalog Table -> Pandas (Parallel) (NEW :star:)
@@ -61,6 +61,7 @@
 * Get EMR step state
 * Get EMR step state
 * Athena query to receive the result as python primitives (*Iterable[Dict[str, Any]*)
+* Load and Unzip SageMaker jobs outputs
 
 ## Installation
 
@@ -84,7 +85,7 @@ Runs anywhere (AWS Lambda, AWS Glue Python Shell, EMR, EC2, on-premises, local, 
 import awswrangler as wr
 
 wr.pandas.to_parquet(
-    dataframe=dataframe,
+    dataframe=df,
     database="database",
     path="s3://...",
     partition_cols=["col_name"],
@@ -113,7 +114,7 @@ sess.pandas.to_parquet(
 ```py3
 import awswrangler as wr
 
-dataframe = wr.pandas.read_sql_athena(
+df = wr.pandas.read_sql_athena(
     sql="select * from table",
     database="database"
 )
@@ -140,7 +141,7 @@ for df in df_iter:
 import awswrangler as wr
 
 sess = wr.Session(athena_ctas_approach=True)
-dataframe = sess.pandas.read_sql_athena(
+df = sess.pandas.read_sql_athena(
     sql="select * from table",
     database="database"
 )
@@ -151,7 +152,7 @@ dataframe = sess.pandas.read_sql_athena(
 ```py3
 import awswrangler as wr
 
-dataframe = wr.pandas.read_csv(path="s3://...")
+df = wr.pandas.read_csv(path="s3://...")
 ```
 
 #### Reading from S3 (CSV) to Pandas in chunks (For memory restrictions)
@@ -173,7 +174,7 @@ for df in df_iter:
 ```py3
 import awswrangler as wr
 
-dataframe = wr.pandas.read_log_query(
+df = wr.pandas.read_log_query(
     log_group_names=[LOG_GROUP_NAME],
     query="fields @timestamp, @message | sort @timestamp desc | limit 5",
 )
@@ -190,7 +191,7 @@ df = pandas.read_...  # Read from anywhere
 # Typical Pandas, Numpy or Pyarrow transformation HERE!
 
 wr.pandas.to_parquet(  # Storing the data and metadata to Data Lake
-    dataframe=dataframe,
+    dataframe=df,
     database="database",
     path="s3://...",
     partition_cols=["col_name"],
@@ -203,7 +204,7 @@ wr.pandas.to_parquet(  # Storing the data and metadata to Data Lake
 import awswrangler as wr
 
 wr.pandas.to_redshift(
-    dataframe=dataframe,
+    dataframe=df,
     path="s3://temp_path",
     schema="...",
     table="...",
@@ -219,7 +220,7 @@ wr.pandas.to_redshift(
 ```py3
 import awswrangler as wr
 
-dataframe = wr.pandas.read_sql_redshift(
+df = wr.pandas.read_sql_redshift(
     sql="SELECT ...",
     iam_role="YOUR_ROLE_ARN",
     connection=con,
@@ -268,6 +269,7 @@ sess.spark.create_glue_table(
 
 ```py3
 import awswrangler as wr
+
 sess = awswrangler.Session(spark_session=spark)
 dfs = sess.spark.flatten(dataframe=df_nested)
 for name, df_flat in dfs.items():
@@ -367,6 +369,14 @@ for row in wr.athena.query(query="...", database="..."):
     print(row)
 ```
 
+#### Load and unzip SageMaker job output
+
+```py3
+import awswrangler as wr
+
+outputs = wr.sagemaker.get_job_outputs("s3://...")
+```
+
 ## Diving Deep
 
 ### Parallelism, Non-picklable objects and GeoPandas
@@ -397,14 +407,14 @@ To work with null object columns you can explicitly set the expected Athena data
 import awswrangler as wr
 import pandas as pd
 
-dataframe = pd.DataFrame({
+df = pd.DataFrame({
     "col": [1, 2],
     "col_string_null": [None, None],
     "col_date_null": [None, None],
 })
 
 wr.pandas.to_parquet(
-    dataframe=dataframe,
+    dataframe=df,
     database="DATABASE",
     path=f"s3://...",
     cast_columns={
