@@ -38,9 +38,9 @@ def bucket(session, cloudformation_outputs):
     session.s3.delete_objects(path=f"s3://{bucket}/")
 
 
-def test_get_job_outputs(session, bucket):
-    model_path = "output"
-    s3 = boto3.resource("s3")
+@pytest.fixture(scope="module")
+def model(bucket):
+    model_path = "output/model.tar.gz"
 
     lr = LinearRegression()
     with open("model.pkl", "wb") as fp:
@@ -49,10 +49,23 @@ def test_get_job_outputs(session, bucket):
     with tarfile.open("model.tar.gz", "w:gz") as tar:
         tar.add("model.pkl")
 
-    s3.Bucket(bucket).upload_file("model.tar.gz", f"{model_path}/model.tar.gz")
-    outputs = session.sagemaker.get_job_outputs(f"{bucket}/{model_path}")
+    s3 = boto3.resource("s3")
+    s3.Bucket(bucket).upload_file("model.tar.gz", model_path)
+
+    yield f"s3://{bucket}/{model_path}"
 
     os.remove("model.pkl")
     os.remove("model.tar.gz")
 
+
+def test_get_job_outputs_by_path(session, model):
+    outputs = session.sagemaker.get_job_outputs(path=model)
     assert type(outputs[0]) == LinearRegression
+
+
+def test_get_job_outputs_by_job_id(session, bucket):
+    pass
+
+
+def test_get_job_outputs_empty(session, bucket):
+    pass
