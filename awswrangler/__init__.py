@@ -17,12 +17,14 @@ import awswrangler.data_types  # noqa
 
 class DynamicInstantiate:
 
-    __default_session = Session()
+    __default_session = None
 
     def __init__(self, service):
         self._service = service
 
     def __getattr__(self, name):
+        if DynamicInstantiate.__default_session is None:
+            DynamicInstantiate.__default_session = Session()
         return getattr(getattr(DynamicInstantiate.__default_session, self._service), name)
 
 

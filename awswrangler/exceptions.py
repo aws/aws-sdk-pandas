@@ -92,3 +92,7 @@ class InvalidTable(Exception):
 
 class InvalidParameters(Exception):
     pass
+
+
+class AWSCredentialsNotFound(Exception):
+    pass
