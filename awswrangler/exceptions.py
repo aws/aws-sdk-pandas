@@ -58,6 +58,10 @@ class InvalidRedshiftSortkey(Exception):
     pass
 
 
+class InvalidRedshiftPrimaryKeys(Exception):
+    pass
+
+
 class EmptyDataframe(Exception):
     pass
 

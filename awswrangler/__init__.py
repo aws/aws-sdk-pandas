@@ -23,13 +23,7 @@ class DynamicInstantiate:
         self._service = service
 
     def __getattr__(self, name):
-        return getattr(
-            getattr(
-                DynamicInstantiate.__default_session,
-                self._service
-            ),
-            name
-        )
+        return getattr(getattr(DynamicInstantiate.__default_session, self._service), name)
 
 
 if importlib.util.find_spec("pyspark"):  # type: ignore

@@ -15,6 +15,7 @@ Submodules
    awswrangler.pandas
    awswrangler.redshift
    awswrangler.s3
+   awswrangler.sagemaker
    awswrangler.session
    awswrangler.spark
    awswrangler.utils

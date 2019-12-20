@@ -3,16 +3,12 @@ import json
 import logging
 
 import pg8000  # type: ignore
+import pyarrow as pa  # type: ignore
 
 from awswrangler import data_types
-from awswrangler.exceptions import (
-    RedshiftLoadError,
-    InvalidDataframeType,
-    InvalidRedshiftDiststyle,
-    InvalidRedshiftDistkey,
-    InvalidRedshiftSortstyle,
-    InvalidRedshiftSortkey,
-)
+from awswrangler.exceptions import (RedshiftLoadError, InvalidDataframeType, InvalidRedshiftDiststyle,
+                                    InvalidRedshiftDistkey, InvalidRedshiftSortstyle, InvalidRedshiftSortkey,
+                                    InvalidRedshiftPrimaryKeys)
 
 logger = logging.getLogger(__name__)
 
@@ -165,6 +161,7 @@ class Redshift:
                    distkey=None,
                    sortstyle="COMPOUND",
                    sortkey=None,
+                   primary_keys: Optional[List[str]] = None,
                    mode="append",
                    preserve_index=False,
                    cast_columns=None):
@@ -184,11 +181,14 @@ class Redshift:
         :param distkey: Specifies a column name or positional number for the distribution key
         :param sortstyle: Sorting can be "COMPOUND" or "INTERLEAVED" (https://docs.aws.amazon.com/redshift/latest/dg/t_Sorting_data.html)
         :param sortkey: List of columns to be sorted
-        :param mode: append or overwrite
+        :param primary_keys: Primary keys
+        :param mode: append, overwrite or upsert
         :param preserve_index: Should we preserve the Dataframe index? (ONLY for Pandas Dataframe)
         :param cast_columns: Dictionary of columns names and Redshift types to be casted. (E.g. {"col name": "INT", "col2 name": "FLOAT"})
         :return: None
         """
+        final_table_name: Optional[str] = None
+        temp_table_name: Optional[str] = None
         cursor = redshift_conn.cursor()
         if mode == "overwrite":
             Redshift._create_table(cursor=cursor,
@@ -200,13 +200,27 @@ class Redshift:
                                    distkey=distkey,
                                    sortstyle=sortstyle,
                                    sortkey=sortkey,
+                                   primary_keys=primary_keys,
                                    preserve_index=preserve_index,
                                    cast_columns=cast_columns)
+            table_name = f"{schema_name}.{table_name}"
+        elif mode == "upsert":
+            guid: str = pa.compat.guid()
+            temp_table_name = f"temp_redshift_{guid}"
+            final_table_name = table_name
+            table_name = temp_table_name
+            sql: str = f"CREATE TEMPORARY TABLE {temp_table_name} (LIKE {schema_name}.{final_table_name})"
+            logger.debug(sql)
+            cursor.execute(sql)
+        else:
+            table_name = f"{schema_name}.{table_name}"
+
         sql = ("-- AWS DATA WRANGLER\n"
-               f"COPY {schema_name}.{table_name} FROM '{manifest_path}'\n"
+               f"COPY {table_name} FROM '{manifest_path}'\n"
                f"IAM_ROLE '{iam_role}'\n"
                "MANIFEST\n"
                "FORMAT AS PARQUET")
+        logger.debug(sql)
         cursor.execute(sql)
         cursor.execute("-- AWS DATA WRANGLER\n SELECT pg_last_copy_id() AS query_id")
         query_id = cursor.fetchall()[0][0]
@@ -219,6 +233,23 @@ class Redshift:
             cursor.close()
             raise RedshiftLoadError(
                 f"Redshift load rollbacked. {num_files_loaded} files counted. {num_files} expected.")
+
+        if (mode == "upsert") and (final_table_name is not None):
+            if not primary_keys:
+                primary_keys = Redshift.get_primary_keys(connection=redshift_conn,
+                                                         schema=schema_name,
+                                                         table=final_table_name)
+            if not primary_keys:
+                raise InvalidRedshiftPrimaryKeys()
+            equals_clause = f"{final_table_name}.%s = {temp_table_name}.%s"
+            join_clause = " AND ".join([equals_clause % (pk, pk) for pk in primary_keys])
+            sql = f"DELETE FROM {schema_name}.{final_table_name} USING {temp_table_name} WHERE {join_clause}"
+            logger.debug(sql)
+            cursor.execute(sql)
+            sql = f"INSERT INTO {schema_name}.{final_table_name} SELECT * FROM {temp_table_name}"
+            logger.debug(sql)
+            cursor.execute(sql)
+
         redshift_conn.commit()
         cursor.close()
 
@@ -232,6 +263,7 @@ class Redshift:
                       distkey=None,
                       sortstyle="COMPOUND",
                       sortkey=None,
+                      primary_keys: List[str] = None,
                       preserve_index=False,
                       cast_columns=None):
         """
@@ -246,6 +278,7 @@ class Redshift:
         :param distkey: Specifies a column name or positional number for the distribution key
         :param sortstyle: Sorting can be "COMPOUND" or "INTERLEAVED" (https://docs.aws.amazon.com/redshift/latest/dg/t_Sorting_data.html)
         :param sortkey: List of columns to be sorted
+        :param primary_keys: Primary keys
         :param preserve_index: Should we preserve the Dataframe index? (ONLY for Pandas Dataframe)
         :param cast_columns: Dictionary of columns names and Redshift types to be casted. (E.g. {"col name": "INT", "col2 name": "FLOAT"})
         :return: None
@@ -273,21 +306,42 @@ class Redshift:
                                       distkey=distkey,
                                       sortstyle=sortstyle,
                                       sortkey=sortkey)
-        cols_str = "".join([f"{col[0]} {col[1]},\n" for col in schema])[:-2]
-        distkey_str = ""
+        cols_str: str = "".join([f"{col[0]} {col[1]},\n" for col in schema])[:-2]
+        primary_keys_str: str = ""
+        if primary_keys:
+            primary_keys_str = f",\nPRIMARY KEY ({', '.join(primary_keys)})"
+        distkey_str: str = ""
         if distkey and diststyle == "KEY":
             distkey_str = f"\nDISTKEY({distkey})"
-        sortkey_str = ""
+        sortkey_str: str = ""
         if sortkey:
             sortkey_str = f"\n{sortstyle} SORTKEY({','.join(sortkey)})"
         sql = (f"-- AWS DATA WRANGLER\n"
                f"CREATE TABLE IF NOT EXISTS {schema_name}.{table_name} (\n"
                f"{cols_str}"
+               f"{primary_keys_str}"
                f")\nDISTSTYLE {diststyle}"
                f"{distkey_str}"
                f"{sortkey_str}")
         logger.debug(f"Create table query:\n{sql}")
         cursor.execute(sql)
+
+    @staticmethod
+    def get_primary_keys(connection, schema, table):
+        """
+        Get PKs
+        :param connection: A PEP 249 compatible connection (Can be generated with Redshift.generate_connection())
+        :param schema: Schema name
+        :param table: Redshift table name
+        :return: PKs list List[str]
+        """
+        cursor = connection.cursor()
+        cursor.execute(f"SELECT indexdef FROM pg_indexes WHERE schemaname = '{schema}' AND tablename = '{table}'")
+        result = cursor.fetchall()[0][0]
+        rfields = result.split('(')[1].strip(')').split(',')
+        fields = [field.strip().strip('"') for field in rfields]
+        cursor.close()
+        return fields
 
     @staticmethod
     def _validate_parameters(schema, diststyle, distkey, sortstyle, sortkey):
@@ -347,8 +401,8 @@ class Redshift:
             raise InvalidDataframeType(dataframe_type)
         return schema_built
 
-    @staticmethod
-    def to_parquet(sql: str,
+    def to_parquet(self,
+                   sql: str,
                    path: str,
                    iam_role: str,
                    connection: Any,
@@ -366,8 +420,11 @@ class Redshift:
         path = path if path[-1] == "/" else path + "/"
         cursor: Any = connection.cursor()
         partition_str: str = ""
+        manifest_str: str = ""
         if partition_cols is not None:
             partition_str = f"PARTITION BY ({','.join([x for x in partition_cols])})\n"
+        else:
+            manifest_str = "\nmanifest"
         query: str = f"-- AWS DATA WRANGLER\n" \
                      f"UNLOAD ('{sql}')\n" \
                      f"TO '{path}'\n" \
@@ -376,7 +433,8 @@ class Redshift:
                      f"PARALLEL ON\n" \
                      f"ENCRYPTED \n" \
                      f"{partition_str}" \
-                     f"FORMAT PARQUET;"
+                     f"FORMAT PARQUET" \
+                     f"{manifest_str};"
         logger.debug(f"query:\n{query}")
         cursor.execute(query)
         query = "-- AWS DATA WRANGLER\nSELECT pg_last_query_id() AS query_id"
@@ -391,4 +449,8 @@ class Redshift:
         logger.debug(f"paths: {paths}")
         connection.commit()
         cursor.close()
+        if manifest_str != "":
+            self._session.s3.wait_object_exists(path=f"{path}manifest")
+        for p in paths:
+            self._session.s3.wait_object_exists(path=p)
         return paths

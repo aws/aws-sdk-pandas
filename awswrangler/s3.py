@@ -1,7 +1,8 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 import multiprocessing as mp
 from math import ceil
 import logging
+from time import sleep
 
 from botocore.exceptions import ClientError, HTTPClientError  # type: ignore
 import s3fs  # type: ignore
@@ -21,7 +22,7 @@ def mkdir_if_not_exists(fs, path):
 
 
 def get_fs(session_primitives=None):
-    aws_access_key_id, aws_secret_access_key, profile_name, config, s3_additional_kwargs = None, None, None, None, None
+    aws_access_key_id, aws_secret_access_key, profile_name = None, None, None
     args = {}
 
     if session_primitives is not None:
@@ -42,17 +43,49 @@ def get_fs(session_primitives=None):
         args["key"] = aws_access_key_id,
         args["secret"] = aws_secret_access_key
 
+    args["default_cache_type"] = "none"
+    args["default_fill_cache"] = False
     fs = s3fs.S3FileSystem(**args)
-    fs.invalidate_cache(path=None)
     return fs
 
 
 class S3:
     def __init__(self, session):
         self._session = session
+        self._client_s3 = session.boto3_session.client(service_name="s3", use_ssl=True, config=session.botocore_config)
+
+    def does_object_exists(self, path: str) -> bool:
+        """
+        Check if object exists on S3
+
+        :param path: S3 path (e.g. s3://...)
+        :return: boolean
+        """
+        bucket: str
+        key: str
+        bucket, key = path.replace("s3://", "").split("/", 1)
+        try:
+            self._client_s3.head_object(Bucket=bucket, Key=key)
+            return True
+        except ClientError as ex:
+            if ex.response["ResponseMetadata"]["HTTPStatusCode"] == 404:
+                return False
+            raise ex
+
+    def wait_object_exists(self, path: str, polling_sleep: float = 0.1) -> None:
+        """
+        Wait object exists on S3
+
+        :param path: S3 path (e.g. s3://...)
+        :param polling_sleep: Milliseconds
+        :return: None
+        """
+        while self.does_object_exists(path=path) is False:
+            sleep(polling_sleep)
 
     @staticmethod
-    def parse_path(path):
+    def parse_path(path: str) -> Tuple[str, str]:
+        bucket: str
         bucket, path = path.replace("s3://", "").split("/", 1)
         if not path:
             path = ""

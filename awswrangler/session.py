@@ -15,7 +15,6 @@ from awswrangler.redshift import Redshift
 from awswrangler.emr import EMR
 from awswrangler.sagemaker import SageMaker
 
-
 PYSPARK_INSTALLED = False
 if importlib.util.find_spec("pyspark"):  # type: ignore
     PYSPARK_INSTALLED = True

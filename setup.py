@@ -20,14 +20,5 @@ setup(
     license=about["__license__"],
     packages=find_packages(include=["awswrangler", "awswrangler.*"], exclude=["tests"]),
     python_requires=">=3.6",
-    install_requires=[
-        "numpy~=1.17.4",
-        "pandas~=0.25.3",
-        "pyarrow~=0.15.1",
-        "botocore~=1.13.25",
-        "boto3~=1.10.25",
-        "s3fs~=0.4.0",
-        "tenacity~=6.0.0",
-        "pg8000~=1.13.2",
-    ],
+    install_requires=[open("requirements.txt").read().strip().split("\n")],
 )

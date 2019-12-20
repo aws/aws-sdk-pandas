@@ -1096,6 +1096,7 @@ class Pandas:
             distkey: Optional[str] = None,
             sortstyle: str = "COMPOUND",
             sortkey: Optional[str] = None,
+            primary_keys: Optional[str] = None,
             preserve_index: bool = False,
             mode: str = "append",
             cast_columns: Optional[Dict[str, str]] = None,
@@ -1113,6 +1114,7 @@ class Pandas:
         :param distkey: Specifies a column name or positional number for the distribution key
         :param sortstyle: Sorting can be "COMPOUND" or "INTERLEAVED" (https://docs.aws.amazon.com/redshift/latest/dg/t_Sorting_data.html)
         :param sortkey: List of columns to be sorted
+        :param primary_keys: Primary keys
         :param preserve_index: Should we preserve the Dataframe index?
         :param mode: append, overwrite or upsert
         :param cast_columns: Dictionary of columns names and Redshift types to be casted. (E.g. {"col name": "SMALLINT", "col2 name": "FLOAT4"})
@@ -1159,6 +1161,7 @@ class Pandas:
             distkey=distkey,
             sortstyle=sortstyle,
             sortkey=sortkey,
+            primary_keys=primary_keys,
             mode=mode,
             cast_columns=cast_columns,
         )
@@ -1344,14 +1347,23 @@ class Pandas:
         :param filters: List of filters to apply, like ``[[('x', '=', 0), ...], ...]``.
         :param procs_cpu_bound: Number of cores used for CPU bound tasks
         """
-        path = path[:-1] if path[-1] == "/" else path
+        session = session_primitives.session
+        is_file: bool = session.s3.does_object_exists(path=path)
+        if is_file is False:
+            path = path[:-1] if path[-1] == "/" else path
         procs_cpu_bound = procs_cpu_bound if procs_cpu_bound is not None else session_primitives.procs_cpu_bound if session_primitives.procs_cpu_bound is not None else 1
         use_threads: bool = True if procs_cpu_bound > 1 else False
-        fs: S3FileSystem = s3.get_fs(session_primitives=session_primitives)
-        fs.invalidate_cache()
-        fs = pa.filesystem._ensure_filesystem(fs)
-        logger.debug(f"Reading Parquet table: {path}")
-        table = pq.read_table(source=path, columns=columns, filters=filters, filesystem=fs, use_threads=use_threads)
+        logger.debug(f"Reading Parquet: {path}")
+        if is_file is True:
+            client_s3 = session.boto3_session.client(service_name="s3", use_ssl=True, config=session.botocore_config)
+            bucket, key = path.replace("s3://", "").split("/", 1)
+            obj = client_s3.get_object(Bucket=bucket, Key=key)
+            table = pq.ParquetFile(source=BytesIO(obj["Body"].read())).read(columns=columns, use_threads=use_threads)
+        else:
+            fs: S3FileSystem = s3.get_fs(session_primitives=session_primitives)
+            fs = pa.filesystem._ensure_filesystem(fs)
+            fs.invalidate_cache()
+            table = pq.read_table(source=path, columns=columns, filters=filters, filesystem=fs, use_threads=use_threads)
         # Check if we lose some integer during the conversion (Happens when has some null value)
         integers = [field.name for field in table.schema if str(field.type).startswith("int")]
         logger.debug(f"Converting to Pandas: {path}")

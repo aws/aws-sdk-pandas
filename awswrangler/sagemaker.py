@@ -23,7 +23,7 @@ class SageMaker:
         if key.split("/")[-1] != "model.tar.gz":
             key = f"{key}/model.tar.gz"
         body = self._client_s3.get_object(Bucket=bucket, Key=key)["Body"].read()
-        body = tarfile.io.BytesIO(body)
+        body = tarfile.io.BytesIO(body)  # type: ignore
         tar = tarfile.open(fileobj=body)
 
         results = []
@@ -31,7 +31,7 @@ class SageMaker:
             f = tar.extractfile(member)
             file_type = member.name.split(".")[-1]
 
-            if file_type == "pkl":
+            if (file_type == "pkl") and (f is not None):
                 f = pickle.load(f)
 
             results.append(f)

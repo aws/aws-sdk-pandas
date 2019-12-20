@@ -1383,7 +1383,7 @@ def test_read_parquet_file(session, bucket):
                                                                                                            3)]],
         "partition": [0, 0, 1]
     })
-    path = f"s3://{bucket}/test_read_parquet/"
+    path = f"s3://{bucket}/test_read_parquet_file/"
     filepath = session.pandas.to_parquet(dataframe=df,
                                          path=path,
                                          mode="overwrite",
@@ -1392,6 +1392,37 @@ def test_read_parquet_file(session, bucket):
     df2 = session.pandas.read_parquet(path=filepath[0])
     assert len(list(df.columns)) == len(list(df2.columns))
     assert len(df.index) == len(df2.index)
+
+
+def test_read_parquet_file_stress(session, bucket):
+    df = pd.DataFrame({
+        "id": [1, 2, 3],
+        "decimal_2": [Decimal((0, (1, 9, 9), -2)),
+                      Decimal((0, (1, 9, 9), -2)),
+                      Decimal((0, (1, 9, 0), -2))],
+        "decimal_5": [
+            Decimal((0, (1, 9, 9, 9, 9, 9), -5)),
+            Decimal((0, (1, 9, 9, 9, 9, 9), -5)),
+            Decimal((0, (1, 9, 0, 0, 0, 0), -5))
+        ],
+        "float": [1.1, 2.2, 3.3],
+        "list_int": [[1, 2], [1], [3, 4, 5]],
+        "list_float": [[1.0, 2.0, 3.0], [9.9], [4.0, 5.0]],
+        "list_string": [["foo"], ["xxx"], ["boo", "bar"]],
+        "list_timestamp": [[datetime(2019, 1, 1), datetime(2019, 1, 2)], [datetime(2019, 1, 3)], [datetime(2019, 1,
+                                                                                                           3)]],
+        "partition": [0, 0, 1]
+    })
+    for i in range(100):
+        path = f"s3://{bucket}/test_read_parquet_file_stress_{i}/"
+        filepath = session.pandas.to_parquet(dataframe=df,
+                                             path=path,
+                                             mode="overwrite",
+                                             preserve_index=False,
+                                             procs_cpu_bound=8)
+        df2 = session.pandas.read_parquet(path=filepath)
+        assert len(list(df.columns)) == len(list(df2.columns))
+        assert len(df.index) == len(df2.index)
 
 
 def test_read_sql_athena_date(session, bucket, database):
