@@ -2,7 +2,7 @@
 
 > Utility belt to handle data on AWS.
 
-[![Release](https://img.shields.io/badge/release-0.1.1-brightgreen.svg)](https://pypi.org/project/awswrangler/)
+[![Release](https://img.shields.io/badge/release-0.1.3-brightgreen.svg)](https://pypi.org/project/awswrangler/)
 [![Downloads](https://img.shields.io/pypi/dm/awswrangler.svg)](https://pypi.org/project/awswrangler/)
 [![Python Version](https://img.shields.io/badge/python-3.6%20%7C%203.7-brightgreen.svg)](https://pypi.org/project/awswrangler/)
 [![Documentation Status](https://readthedocs.org/projects/aws-data-wrangler/badge/?version=latest)](https://aws-data-wrangler.readthedocs.io/en/latest/?badge=latest)
@@ -374,7 +374,7 @@ for row in wr.athena.query(query="...", database="..."):
 ```py3
 import awswrangler as wr
 
-outputs = wr.sagemaker.get_job_outputs("s3://...")
+outputs = wr.sagemaker.get_job_outputs("JOB_NAME")
 ```
 
 ## Diving Deep

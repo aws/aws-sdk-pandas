@@ -78,7 +78,6 @@ class Session:
         :param athena_kms_key: For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
         :param redshift_temp_s3_path: redshift_temp_s3_path: AWS S3 path to write temporary data (e.g. s3://...)
         """
-
         self._profile_name: Optional[str] = (boto3_session.profile_name if boto3_session else profile_name)
         self._aws_access_key_id: Optional[str] = (boto3_session.get_credentials().access_key
                                                   if boto3_session else aws_access_key_id)
@@ -134,7 +133,8 @@ class Session:
         self._profile_name = self._boto3_session.profile_name
         credentials = self._boto3_session.get_credentials()
         if credentials is None:
-            raise AWSCredentialsNotFound("Please run aws configure: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html")
+            raise AWSCredentialsNotFound(
+                "Please run aws configure: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html")
         self._aws_access_key_id = credentials.access_key
         self._aws_secret_access_key = credentials.secret_key
         self._region_name = self._boto3_session.region_name

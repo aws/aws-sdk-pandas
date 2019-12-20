@@ -26,7 +26,8 @@ class SageMaker:
             raise InvalidParameters("Specify either path, job_arn or job_name")
 
         if job_name:
-            path = self._client_sagemaker.describe_training_job(TrainingJobName=job_name)["ModelArtifacts"]["S3ModelArtifacts"]
+            path = self._client_sagemaker.describe_training_job(
+                TrainingJobName=job_name)["ModelArtifacts"]["S3ModelArtifacts"]
 
         if not self._session.s3.does_object_exists(path):
             return None

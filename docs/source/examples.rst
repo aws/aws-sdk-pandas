@@ -334,5 +334,5 @@ Load and unzip SageMaker job output
 
     import awswrangler as wr
 
-    outputs = wr.sagemaker.get_job_outputs("s3://...")
+    outputs = wr.sagemaker.get_job_outputs("JOB_NAME")
 
