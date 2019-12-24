@@ -1,4 +1,4 @@
-# AWS Data Wrangler
+![AWS Data Wrangler](docs/source/_static/logo.png?raw=true "AWS Data Wrangler")
 
 > Utility belt to handle data on AWS.
 
@@ -10,9 +10,7 @@
 [![Average time to resolve an issue](http://isitmaintained.com/badge/resolution/awslabs/aws-data-wrangler.svg)](http://isitmaintained.com/project/awslabs/aws-data-wrangler "Average time to resolve an issue")
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-[![forthebadge made-with-python](http://ForTheBadge.com/images/badges/made-with-python.svg)](https://www.python.org/)
-
-**[Read the documentation](https://aws-data-wrangler.readthedocs.io)**
+**[Read the Docs!](https://aws-data-wrangler.readthedocs.io)**
 
 ---
 

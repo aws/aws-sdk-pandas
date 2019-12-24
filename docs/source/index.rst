@@ -3,8 +3,10 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-AWS Data Wrangler
-=============================================
+.. figure:: _static/logo.png
+    :align: center
+    :alt: alternate text
+    :figclass: align-center
 
 *Utility belt to handle data on AWS.*
 

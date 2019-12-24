@@ -1568,3 +1568,27 @@ def test_read_sql_athena_s3_output_ctas(session, bucket, database):
     assert len(list(df.columns)) + 1 == len(list(df2.columns))
     assert len(df.index) == len(df2.index)
     print(df2)
+
+
+def test_to_csv_single_file(session, bucket, database):
+    n: int = 1_000_000
+    df = pd.DataFrame({"id": list((range(n))), "partition": list(["foo" if i % 2 == 0 else "boo" for i in range(n)])})
+    path = f"s3://{bucket}/test_to_csv_single_file/"
+    s3_path = session.pandas.to_csv(dataframe=df,
+                                    database=database,
+                                    table="test",
+                                    path=path,
+                                    mode="overwrite",
+                                    preserve_index=True,
+                                    procs_cpu_bound=1)
+    print(f"s3_path: {s3_path}")
+    assert len(s3_path) == 1
+    path_ctas = f"s3://{bucket}/test_to_csv_single_file2/"
+    df2 = session.pandas.read_sql_athena(ctas_approach=True,
+                                         sql="select * from test",
+                                         database=database,
+                                         s3_output=path_ctas)
+    session.s3.delete_objects(path=path)
+    assert len(list(df.columns)) + 1 == len(list(df2.columns))
+    assert len(df.index) == len(df2.index)
+    print(df2)
