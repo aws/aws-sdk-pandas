@@ -65,7 +65,7 @@
 
 `pip install awswrangler`
 
-Runs only with Python 3.6 and beyond.
+Runs only with Python 3.6 and 3.7.
 
 Runs anywhere (AWS Lambda, AWS Glue Python Shell, EMR, EC2, on-premises, local, etc).
 
