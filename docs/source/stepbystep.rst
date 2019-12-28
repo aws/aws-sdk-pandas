@@ -11,7 +11,7 @@ Setting Up Lambda Layer
     :alt: alternate text
     :figclass: align-center
 
-    Go to [GitHub's release section](https://github.com/awslabs/aws-data-wrangler/releases) and download the layer bundle related to the desired version. Also select between Python 3.6 or 3.7.
+    Go to `GitHub's release section <https://github.com/awslabs/aws-data-wrangler/releases>`_ and download the layer bundle related to the desired version. Also select between Python 3.6 or 3.7.
 
 .. figure:: _static/step-by-step/lambda-layer/upload.png
     :align: center
