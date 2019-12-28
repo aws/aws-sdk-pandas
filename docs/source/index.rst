@@ -63,6 +63,7 @@ Table Of Contents
    installation
    examples
    divingdeep
+   stepbystep
    contributing
    api/modules
    license

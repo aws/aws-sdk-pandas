@@ -14,7 +14,7 @@
 
 ---
 
-*Contents:* **[Use Cases](#Use-Cases)** | **[Installation](#Installation)** | **[Examples](#Examples)** | **[Diving Deep](#Diving-Deep)** | **[Contributing](#Contributing)**
+*Contents:* **[Use Cases](#Use-Cases)** | **[Installation](#Installation)** | **[Examples](#Examples)** | **[Diving Deep](#Diving-Deep)** | **[Step By Step](#Step-By-Step)** | **[Contributing](#Contributing)**
 
 ---
 
@@ -71,7 +71,9 @@ Runs anywhere (AWS Lambda, AWS Glue Python Shell, EMR, EC2, on-premises, local, 
 
 *P.S.* Lambda Layer's bundle and Glue's wheel/egg are available to [download](https://github.com/awslabs/aws-data-wrangler/releases). Just upload it and run! :rocket:
 
-*P.P.S.* AWS Data Wrangler counts on compiled dependencies (C/C++) so there is no support for Glue PySpark by now.
+*P.P.S.* Did you never have used Layers before? Check the [step-by-step guide](#Setting-Up-Lambda-Layer) .
+
+*P.P.P.S.* AWS Data Wrangler counts on compiled dependencies (C/C++) so there is no support for Glue PySpark by now.
 
 ## Examples
 
@@ -433,6 +435,36 @@ wr.pandas.to_parquet(
 
 ![Spark to Redshift Flow](docs/source/_static/spark-to-redshift-flow.jpg?raw=true "Spark to Redshift Flow")
 
+## Step By Step
+
+### Setting Up Lambda Layer
+
+Go to [GitHub's release section](https://github.com/awslabs/aws-data-wrangler/releases) and download the layer bundle related to the desired version.
+Also select between Python 3.6 or 3.7.
+
+![Download](docs/source/_static/step-by-step/lambda-layer/download.png?raw=true "Download")
+
+Go to the AWS console and open the S3 panel.
+Upload the layer bundle to any S3 bucket in the desired AWS region.
+
+![Upload](docs/source/_static/step-by-step/lambda-layer/upload.png?raw=true "Upload")
+
+Copy the S3 object URL.
+
+![Url](docs/source/_static/step-by-step/lambda-layer/url.png?raw=true "Url")
+
+Go to the AWS Lambda Panel, get in the layer's section (left side) and click to create one.
+
+![Create](docs/source/_static/step-by-step/lambda-layer/create.png?raw=true "Create")
+
+Fill the fields (Use the pasted URL) and create your layer.
+
+![Config](docs/source/_static/step-by-step/lambda-layer/config.png?raw=true "Config")
+
+Go to your AWS Lambda and use it!
+
+![Use](docs/source/_static/step-by-step/lambda-layer/use.png?raw=true "Use")
+
 ## Contributing
 
 * AWS Data Wrangler practically only makes integrations. So we prefer to dedicate our energy / time writing integration tests instead of unit tests. We really like an end-to-end approach for all features.
@@ -443,7 +475,7 @@ wr.pandas.to_parquet(
 
 * We have a Cloudformation to set up the AWS end (testing/template.yaml).
 
-### Step-by-step
+### Steps
 
 **DISCLAIMER**: Make sure to know what you are doing. This steps will charge some services on your AWS account. And requires a minimum security skills to keep your environment safe.
 

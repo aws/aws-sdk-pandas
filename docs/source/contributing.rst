@@ -11,8 +11,8 @@ Contributing
 
 * We have a Cloudformation to set up the AWS end (testing/template.yaml).
 
-Step-by-step
-------------
+Steps
+-----
 
 **DISCLAIMER**: Make sure to know what you are doing. This steps will charge some services on your AWS account. And requires a minimum security skills to keep your environment safe.
 

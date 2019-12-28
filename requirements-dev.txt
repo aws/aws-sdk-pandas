@@ -3,7 +3,7 @@ mypy~=0.761
 flake8~=3.7.9
 pytest-cov~=2.8.1
 scikit-learn==0.22
-cfn-lint~=0.26.1
+cfn-lint~=0.26.2
 twine~=3.1.1
 wheel~=0.33.6
 sphinx~=2.3.1

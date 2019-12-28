@@ -37,7 +37,8 @@ version = awswrangler.__version__
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    "sphinx.ext.autodoc"
+    "sphinx.ext.autodoc",
+    "sphinx.ext.autosectionlabel"
 ]
 
 language = None
