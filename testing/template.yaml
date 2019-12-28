@@ -66,6 +66,14 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: CleaningUp
+            Status: Enabled
+            ExpirationInDays: 1
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+            NoncurrentVersionExpirationInDays: 1
 
   RedshiftRole:
     Type: AWS::IAM::Role
