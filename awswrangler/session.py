@@ -12,6 +12,7 @@ from awswrangler.cloudwatchlogs import CloudWatchLogs
 from awswrangler.pandas import Pandas
 from awswrangler.glue import Glue
 from awswrangler.redshift import Redshift
+from awswrangler.aurora import Aurora
 from awswrangler.emr import EMR
 from awswrangler.sagemaker import SageMaker
 from awswrangler.exceptions import AWSCredentialsNotFound
@@ -52,7 +53,8 @@ class Session:
                  athena_kms_key: Optional[str] = None,
                  athena_database: str = "default",
                  athena_ctas_approach: bool = False,
-                 redshift_temp_s3_path: Optional[str] = None):
+                 redshift_temp_s3_path: Optional[str] = None,
+                 aurora_temp_s3_path: Optional[str] = None):
         """
         Most parameters inherit from Boto3 or Pyspark.
         https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
@@ -76,7 +78,8 @@ class Session:
         :param athena_s3_output: AWS S3 path
         :param athena_encryption: None|'SSE_S3'|'SSE_KMS'|'CSE_KMS'
         :param athena_kms_key: For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
-        :param redshift_temp_s3_path: redshift_temp_s3_path: AWS S3 path to write temporary data (e.g. s3://...)
+        :param redshift_temp_s3_path: AWS S3 path to write temporary data (e.g. s3://...)
+        :param aurora_temp_s3_path: AWS S3 path to write temporary data (e.g. s3://...)
         """
         self._profile_name: Optional[str] = (boto3_session.profile_name if boto3_session else profile_name)
         self._aws_access_key_id: Optional[str] = (boto3_session.get_credentials().access_key
@@ -100,6 +103,7 @@ class Session:
         self._athena_database: str = athena_database
         self._athena_ctas_approach: bool = athena_ctas_approach
         self._redshift_temp_s3_path: Optional[str] = redshift_temp_s3_path
+        self._aurora_temp_s3_path: Optional[str] = aurora_temp_s3_path
         self._primitives = None
         self._load_new_primitives()
         if boto3_session:
@@ -113,6 +117,7 @@ class Session:
         self._pandas = None
         self._glue = None
         self._redshift = None
+        self._aurora = None
         self._spark = None
         self._sagemaker = None
 
@@ -160,7 +165,8 @@ class Session:
                                              athena_kms_key=self._athena_kms_key,
                                              athena_database=self._athena_database,
                                              athena_ctas_approach=self._athena_ctas_approach,
-                                             redshift_temp_s3_path=self._redshift_temp_s3_path)
+                                             redshift_temp_s3_path=self._redshift_temp_s3_path,
+                                             aurora_temp_s3_path=self._aurora_temp_s3_path)
 
     @property
     def profile_name(self):
@@ -239,6 +245,10 @@ class Session:
         return self._redshift_temp_s3_path
 
     @property
+    def aurora_temp_s3_path(self) -> Optional[str]:
+        return self._aurora_temp_s3_path
+
+    @property
     def boto3_session(self):
         return self._boto3_session
 
@@ -289,6 +299,12 @@ class Session:
         return self._redshift
 
     @property
+    def aurora(self):
+        if not self._aurora:
+            self._aurora = Aurora(session=self)
+        return self._aurora
+
+    @property
     def sagemaker(self):
         if not self._sagemaker:
             self._sagemaker = SageMaker(session=self)
@@ -326,7 +342,8 @@ class SessionPrimitives:
                  athena_kms_key: Optional[str] = None,
                  athena_database: Optional[str] = None,
                  athena_ctas_approach: bool = False,
-                 redshift_temp_s3_path: Optional[str] = None):
+                 redshift_temp_s3_path: Optional[str] = None,
+                 aurora_temp_s3_path: Optional[str] = None):
         """
         Most parameters inherit from Boto3.
         https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
@@ -348,6 +365,7 @@ class SessionPrimitives:
         :param athena_encryption: None|'SSE_S3'|'SSE_KMS'|'CSE_KMS'
         :param athena_kms_key: For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
         :param redshift_temp_s3_path: AWS S3 path to write temporary data (e.g. s3://...)
+        :param aurora_temp_s3_path: AWS S3 path to write temporary data (e.g. s3://...)
         """
         self._profile_name: Optional[str] = profile_name
         self._aws_access_key_id: Optional[str] = aws_access_key_id
@@ -366,6 +384,7 @@ class SessionPrimitives:
         self._athena_database: Optional[str] = athena_database
         self._athena_ctas_approach: bool = athena_ctas_approach
         self._redshift_temp_s3_path: Optional[str] = redshift_temp_s3_path
+        self._aurora_temp_s3_path: Optional[str] = aurora_temp_s3_path
 
     @property
     def profile_name(self):
@@ -436,6 +455,10 @@ class SessionPrimitives:
         return self._redshift_temp_s3_path
 
     @property
+    def aurora_temp_s3_path(self) -> Optional[str]:
+        return self._aurora_temp_s3_path
+
+    @property
     def session(self):
         """
         Reconstruct the session from primitives
@@ -456,4 +479,5 @@ class SessionPrimitives:
                        athena_kms_key=self._athena_kms_key,
                        athena_database=self._athena_database,
                        athena_ctas_approach=self._athena_ctas_approach,
-                       redshift_temp_s3_path=self._redshift_temp_s3_path)
+                       redshift_temp_s3_path=self._redshift_temp_s3_path,
+                       aurora_temp_s3_path=self._aurora_temp_s3_path)
