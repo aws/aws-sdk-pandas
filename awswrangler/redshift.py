@@ -38,19 +38,16 @@ class Redshift:
                              tcp_keepalive=True,
                              application_name="aws-data-wrangler-validation",
                              validation_timeout=5):
-        try:
-            conn = pg8000.connect(database=database,
-                                  host=host,
-                                  port=int(port),
-                                  user=user,
-                                  password=password,
-                                  ssl=True,
-                                  application_name=application_name,
-                                  tcp_keepalive=tcp_keepalive,
-                                  timeout=validation_timeout)
-            conn.close()
-        except pg8000.core.InterfaceError as e:
-            raise e
+        conn = pg8000.connect(database=database,
+                              host=host,
+                              port=int(port),
+                              user=user,
+                              password=password,
+                              ssl=True,
+                              application_name=application_name,
+                              tcp_keepalive=tcp_keepalive,
+                              timeout=validation_timeout)
+        conn.close()
 
     @staticmethod
     def generate_connection(database,
@@ -86,8 +83,6 @@ class Redshift:
                                       tcp_keepalive=tcp_keepalive,
                                       application_name=application_name,
                                       validation_timeout=validation_timeout)
-        if isinstance(type(port), str) or isinstance(type(port), float):
-            port = int(port)
         conn = pg8000.connect(database=database,
                               host=host,
                               port=int(port),

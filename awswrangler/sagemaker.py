@@ -12,7 +12,9 @@ class SageMaker:
     def __init__(self, session):
         self._session = session
         self._client_s3 = session.boto3_session.client(service_name="s3", use_ssl=True, config=session.botocore_config)
-        self._client_sagemaker = session.boto3_session.client(service_name="sagemaker", use_ssl=True, config=session.botocore_config)
+        self._client_sagemaker = session.boto3_session.client(service_name="sagemaker",
+                                                              use_ssl=True,
+                                                              config=session.botocore_config)
 
     @staticmethod
     def _parse_path(path):

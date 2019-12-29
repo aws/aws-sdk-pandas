@@ -96,3 +96,7 @@ class InvalidParameters(Exception):
 
 class AWSCredentialsNotFound(Exception):
     pass
+
+
+class InvalidEngine(Exception):
+    pass

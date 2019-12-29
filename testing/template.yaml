@@ -234,9 +234,9 @@ Outputs:
   RedshiftPort:
     Value: !GetAtt Redshift.Endpoint.Port
     Description: Redshift Endpoint Port.
-  RedshiftPassword:
+  Password:
     Value: !Ref Password
-    Description: Redshift Password.
+    Description: Password.
   RedshiftRole:
     Value: !GetAtt RedshiftRole.Arn
     Description: Redshift IAM role.

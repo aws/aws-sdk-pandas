@@ -1433,3 +1433,43 @@ class Pandas:
             else:
                 self._session.s3.delete_objects(path=temp_s3_path)
             raise e
+
+    def read_sql_aurora(self,
+                        sql: str,
+                        iam_role: str,
+                        connection: Any,
+                        temp_s3_path: Optional[str] = None) -> pd.DataFrame:
+        """
+        Convert a query result in a Pandas Dataframe.
+
+        :param sql: SQL Query
+        :param iam_role: AWS IAM role with the related permissions
+        :param connection: A PEP 249 compatible connection (Can be generated with Aurora.generate_connection())
+        :param temp_s3_path: AWS S3 path to write temporary data (e.g. s3://...) (Default uses the Athena's results bucket)
+        """
+        guid: str = pa.compat.guid()
+        name: str = f"temp_redshift_{guid}"
+        if temp_s3_path is None:
+            if self._session.athena_s3_output is not None:
+                temp_s3_path = self._session.redshift_temp_s3_path
+            else:
+                temp_s3_path = self._session.athena.create_athena_bucket()
+        temp_s3_path = temp_s3_path[:-1] if temp_s3_path[-1] == "/" else temp_s3_path
+        temp_s3_path = f"{temp_s3_path}/{name}"
+        logger.debug(f"temp_s3_path: {temp_s3_path}")
+        paths: Optional[List[str]] = None
+        try:
+            paths = self._session.redshift.to_parquet(sql=sql,
+                                                      path=temp_s3_path,
+                                                      iam_role=iam_role,
+                                                      connection=connection)
+            logger.debug(f"paths: {paths}")
+            df: pd.DataFrame = self.read_parquet(path=paths)  # type: ignore
+            self._session.s3.delete_listed_objects(objects_paths=paths)
+            return df
+        except Exception as e:
+            if paths is not None:
+                self._session.s3.delete_listed_objects(objects_paths=paths)
+            else:
+                self._session.s3.delete_objects(path=temp_s3_path)
+            raise e

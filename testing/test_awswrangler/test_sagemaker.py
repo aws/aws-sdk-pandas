@@ -20,7 +20,7 @@ def session():
 
 @pytest.fixture(scope="module")
 def cloudformation_outputs():
-    response = boto3.client("cloudformation").describe_stacks(StackName="aws-data-wrangler-test-arena")
+    response = boto3.client("cloudformation").describe_stacks(StackName="aws-data-wrangler-test")
     outputs = {}
     for output in response.get("Stacks")[0].get("Outputs"):
         outputs[output.get("OutputKey")] = output.get("OutputValue")
