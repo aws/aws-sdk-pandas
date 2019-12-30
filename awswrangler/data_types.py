@@ -203,6 +203,58 @@ def pyarrow2redshift(dtype: pa.types) -> str:
         raise UnsupportedType(f"Unsupported Pyarrow type: {dtype}")
 
 
+def pyarrow2postgres(dtype: pa.types) -> str:
+    dtype_str = str(dtype).lower()
+    if dtype_str == "int16":
+        return "SMALLINT"
+    elif dtype_str == "int32":
+        return "INT"
+    elif dtype_str == "int64":
+        return "BIGINT"
+    elif dtype_str == "float":
+        return "FLOAT4"
+    elif dtype_str == "double":
+        return "FLOAT8"
+    elif dtype_str == "bool":
+        return "BOOLEAN"
+    elif dtype_str == "string":
+        return "VARCHAR(256)"
+    elif dtype_str.startswith("timestamp"):
+        return "TIMESTAMP"
+    elif dtype_str.startswith("date"):
+        return "DATE"
+    elif dtype_str.startswith("decimal"):
+        return dtype_str.replace(" ", "").upper()
+    else:
+        raise UnsupportedType(f"Unsupported Pyarrow type: {dtype}")
+
+
+def pyarrow2mysql(dtype: pa.types) -> str:
+    dtype_str = str(dtype).lower()
+    if dtype_str == "int16":
+        return "SMALLINT"
+    elif dtype_str == "int32":
+        return "INT"
+    elif dtype_str == "int64":
+        return "BIGINT"
+    elif dtype_str == "float":
+        return "FLOAT"
+    elif dtype_str == "double":
+        return "DOUBLE"
+    elif dtype_str == "bool":
+        return "BOOLEAN"
+    elif dtype_str == "string":
+        return "VARCHAR(256)"
+    elif dtype_str.startswith("timestamp"):
+        return "TIMESTAMP"
+    elif dtype_str.startswith("date"):
+        return "DATE"
+    elif dtype_str.startswith("decimal"):
+        return dtype_str.replace(" ", "").upper()
+    else:
+        raise UnsupportedType(f"Unsupported Pyarrow type: {dtype}")
+
+
 def python2athena(python_type: type) -> str:
     python_type_str: str = str(python_type)
     if python_type_str == "<class 'int'>":

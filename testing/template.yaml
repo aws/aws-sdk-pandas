@@ -163,6 +163,33 @@ Resources:
         - Ref: SubnetId
         - Ref: SubnetId2
 
+  AuroraRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - rds.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: "/"
+      Policies:
+        - PolicyName: S3GetAndList
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "s3:Get*"
+                  - "s3:List*"
+                  - "s3:Put*"
+                Resource:
+                  - !Join ['', ['arn:aws:s3:::', !Ref Bucket]]
+                  - !Join ['', ['arn:aws:s3:::', !Ref Bucket, /*]]
+
   PostgresParameterGroup:
     Type: AWS::RDS::DBClusterParameterGroup
     Properties:
@@ -170,6 +197,7 @@ Resources:
       Family: aurora-postgresql10
       Parameters:
         apg_plan_mgmt.capture_plan_baselines: "off"
+
   AuroraClusterPostgres:
     Type: AWS::RDS::DBCluster
     Properties:
@@ -182,6 +210,9 @@ Resources:
       VpcSecurityGroupIds:
         - !Ref DatabaseSecurityGroup
       DBClusterParameterGroupName: !Ref PostgresParameterGroup
+      AssociatedRoles:
+        - FeatureName: s3Import
+        - RoleArn: !GetAtt AuroraRole.Arn
 
   AuroraInstancePostgres:
     Type: AWS::RDS::DBInstance
@@ -199,7 +230,9 @@ Resources:
       Description: Mysql 5.7
       Family: aurora-mysql5.7
       Parameters:
-        binlog_format: "MIXED"
+        aurora_load_from_s3_role: !GetAtt AuroraRole.Arn
+        aws_default_s3_role: !GetAtt AuroraRole.Arn
+        aurora_select_into_s3_role: !GetAtt AuroraRole.Arn
 
   AuroraClusterMysql:
     Type: AWS::RDS::DBCluster
@@ -213,6 +246,9 @@ Resources:
       VpcSecurityGroupIds:
         - !Ref DatabaseSecurityGroup
       DBClusterParameterGroupName: !Ref MysqlParameterGroup
+      AssociatedRoles:
+        - RoleArn: !GetAtt AuroraRole.Arn
+
 
   AuroraInstanceMysql:
     Type: AWS::RDS::DBInstance

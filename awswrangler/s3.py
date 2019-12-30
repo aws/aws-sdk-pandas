@@ -354,3 +354,10 @@ class S3:
             copy_source = {"Bucket": source_bucket, "Key": source_key}
             target_bucket, target_key = S3.parse_object_path(path=target_obj)
             resource.meta.client.copy(copy_source, target_bucket, target_key)
+
+    def get_bucket_region(self, bucket: str) -> str:
+        logger.debug(f"bucket: {bucket}")
+        region: str = self._client_s3.get_bucket_location(Bucket=bucket)["LocationConstraint"]
+        region = "us-east-1" if region is None else region
+        logger.debug(f"region: {region}")
+        return region

@@ -19,10 +19,11 @@ from s3fs import S3FileSystem  # type: ignore
 from awswrangler import data_types
 from awswrangler.exceptions import (UnsupportedWriteMode, UnsupportedFileFormat, AthenaQueryError, EmptyS3Object,
                                     LineTerminatorNotFound, EmptyDataframe, InvalidSerDe, InvalidCompression,
-                                    InvalidParameters)
+                                    InvalidParameters, InvalidEngine)
 from awswrangler.utils import calculate_bounders
 from awswrangler import s3
 from awswrangler.athena import Athena
+from awswrangler.aurora import Aurora
 
 logger = logging.getLogger(__name__)
 
@@ -834,9 +835,9 @@ class Pandas:
                    procs_io_bound=None,
                    cast_columns=None,
                    extra_args=None):
-        if not procs_cpu_bound:
+        if procs_cpu_bound is None:
             procs_cpu_bound = self._session.procs_cpu_bound
-        if not procs_io_bound:
+        if procs_io_bound is None:
             procs_io_bound = self._session.procs_io_bound
         logger.debug(f"procs_cpu_bound: {procs_cpu_bound}")
         logger.debug(f"procs_io_bound: {procs_io_bound}")
@@ -1473,3 +1474,78 @@ class Pandas:
             else:
                 self._session.s3.delete_objects(path=temp_s3_path)
             raise e
+
+    def to_aurora(self,
+                  dataframe: pd.DataFrame,
+                  connection: Any,
+                  schema: str,
+                  table: str,
+                  engine: str = "mysql",
+                  temp_s3_path: Optional[str] = None,
+                  preserve_index: bool = False,
+                  mode: str = "append",
+                  procs_cpu_bound: Optional[int] = None,
+                  procs_io_bound: Optional[int] = None,
+                  inplace=True) -> None:
+        """
+        Load Pandas Dataframe as a Table on Aurora
+
+        :param dataframe: Pandas Dataframe
+        :param connection: A PEP 249 compatible connection (Can be generated with Redshift.generate_connection())
+        :param schema: The Redshift Schema for the table
+        :param table: The name of the desired Redshift table
+        :param engine: "mysql" or "postgres"
+        :param temp_s3_path: S3 path to write temporary files (E.g. s3://BUCKET_NAME/ANY_NAME/)
+        :param preserve_index: Should we preserve the Dataframe index?
+        :param mode: append, overwrite or upsert
+        :param procs_cpu_bound: Number of cores used for CPU bound tasks
+        :param procs_io_bound: Number of cores used for I/O bound tasks
+        :param inplace: True is cheapest (CPU and Memory) but False leaves your DataFrame intact
+        :return: None
+        """
+        if temp_s3_path is None:
+            if self._session.aurora_temp_s3_path is not None:
+                temp_s3_path = self._session.aurora_temp_s3_path
+            else:
+                guid: str = pa.compat.guid()
+                temp_directory = f"temp_aurora_{guid}"
+                temp_s3_path = self._session.athena.create_athena_bucket() + temp_directory + "/"
+        temp_s3_path = temp_s3_path if temp_s3_path[-1] == "/" else temp_s3_path + "/"
+        logger.debug(f"temp_s3_path: {temp_s3_path}")
+
+        paths: List[str] = self.to_csv(dataframe=dataframe,
+                                       path=temp_s3_path,
+                                       sep=",",
+                                       preserve_index=preserve_index,
+                                       mode="overwrite",
+                                       procs_cpu_bound=procs_cpu_bound,
+                                       procs_io_bound=procs_io_bound,
+                                       inplace=inplace)
+
+        load_paths: List[str]
+        region: str = "us-east-1"
+        if "postgres" in engine.lower():
+            load_paths = paths.copy()
+            bucket, _ = Pandas._parse_path(path=load_paths[0])
+            region = self._session.s3.get_bucket_region(bucket=bucket)
+        elif "mysql" in engine.lower():
+            manifest_path: str = f"{temp_s3_path}manifest_{pa.compat.guid()}.json"
+            self._session.aurora.write_load_manifest(manifest_path=manifest_path, objects_paths=paths)
+            load_paths = [manifest_path]
+        else:
+            raise InvalidEngine(f"{engine} is not a valid engine. Please use 'mysql' or 'postgres'!")
+        logger.debug(f"load_paths: {load_paths}")
+
+        Aurora.load_table(dataframe=dataframe,
+                          dataframe_type="pandas",
+                          load_paths=load_paths,
+                          schema_name=schema,
+                          table_name=table,
+                          connection=connection,
+                          num_files=len(paths),
+                          mode=mode,
+                          preserve_index=preserve_index,
+                          engine=engine,
+                          region=region)
+
+        self._session.s3.delete_objects(path=temp_s3_path, procs_io_bound=procs_io_bound)

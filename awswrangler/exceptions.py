@@ -26,6 +26,10 @@ class RedshiftLoadError(Exception):
     pass
 
 
+class AuroraLoadError(Exception):
+    pass
+
+
 class AthenaQueryError(Exception):
     pass
 
