@@ -10,6 +10,9 @@ Parameters:
   SubnetId:
     Type: String
     Description: Redshift Subnet ID
+  SubnetId2:
+    Type: String
+    Description: Redshift Subnet ID
   Password:
     Type: String
     Description: Redshift Password
@@ -97,6 +100,7 @@ Resources:
                 Action:
                   - "s3:Get*"
                   - "s3:List*"
+                  - "s3:Put*"
                 Resource:
                   - !Join ['', ['arn:aws:s3:::', !Ref Bucket]]
                   - !Join ['', ['arn:aws:s3:::', !Ref Bucket, /*]]
@@ -108,7 +112,7 @@ Resources:
       SubnetIds:
         - Ref: SubnetId
 
-  RedshiftSecurityGroup:
+  DatabaseSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       VpcId: !Ref VpcId
@@ -117,7 +121,7 @@ Resources:
   Redshift:
     Type: AWS::Redshift::Cluster
     DependsOn:
-      - RedshiftSecurityGroup
+      - DatabaseSecurityGroup
       - RedshiftSubnetGroup
       - RedshiftRole
     Properties:
@@ -127,7 +131,7 @@ Resources:
       NodeType: dc2.large
       ClusterType: single-node
       VpcSecurityGroupIds:
-        - !Ref RedshiftSecurityGroup
+        - !Ref DatabaseSecurityGroup
       ClusterSubnetGroupName: !Ref RedshiftSubnetGroup
       PubliclyAccessible: true
       Port: 5439
@@ -152,6 +156,121 @@ Resources:
     Properties:
       LogGroupName: !Ref LogGroup
 
+  RdsSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: RDS Database Subnet Group
+      SubnetIds:
+        - Ref: SubnetId
+        - Ref: SubnetId2
+
+  AuroraRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - rds.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: "/"
+      Policies:
+        - PolicyName: S3GetAndList
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "s3:Get*"
+                  - "s3:List*"
+                  - "s3:Put*"
+                Resource:
+                  - !Join ['', ['arn:aws:s3:::', !Ref Bucket]]
+                  - !Join ['', ['arn:aws:s3:::', !Ref Bucket, /*]]
+
+  PostgresParameterGroup:
+    Type: AWS::RDS::DBClusterParameterGroup
+    Properties:
+      Description: Postgres 10
+      Family: aurora-postgresql10
+      Parameters:
+        apg_plan_mgmt.capture_plan_baselines: "off"
+
+  AuroraClusterPostgres:
+    Type: AWS::RDS::DBCluster
+    DependsOn:
+      - PostgresParameterGroup
+      - AuroraRole
+      - RdsSubnetGroup
+      - DatabaseSecurityGroup
+    Properties:
+      Engine: aurora-postgresql
+      DBClusterIdentifier : postgres-cluster-wrangler
+      MasterUsername: test
+      MasterUserPassword: !Ref Password
+      BackupRetentionPeriod: 1
+      DBSubnetGroupName: !Ref RdsSubnetGroup
+      VpcSecurityGroupIds:
+        - !Ref DatabaseSecurityGroup
+      DBClusterParameterGroupName: !Ref PostgresParameterGroup
+      AssociatedRoles:
+        - FeatureName: s3Import
+          RoleArn: !GetAtt AuroraRole.Arn
+
+  AuroraInstancePostgres:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      Engine: aurora-postgresql
+      DBInstanceIdentifier: postgres-instance-wrangler
+      DBClusterIdentifier: !Ref AuroraClusterPostgres
+      DBInstanceClass: db.t3.medium
+      DBSubnetGroupName: !Ref RdsSubnetGroup
+      PubliclyAccessible: true
+
+  MysqlParameterGroup:
+    Type: AWS::RDS::DBClusterParameterGroup
+    Properties:
+      Description: Mysql 5.7
+      Family: aurora-mysql5.7
+      Parameters:
+        aurora_load_from_s3_role: !GetAtt AuroraRole.Arn
+        aws_default_s3_role: !GetAtt AuroraRole.Arn
+        aurora_select_into_s3_role: !GetAtt AuroraRole.Arn
+
+  AuroraClusterMysql:
+    Type: AWS::RDS::DBCluster
+    DependsOn:
+      - MysqlParameterGroup
+      - AuroraRole
+      - RdsSubnetGroup
+      - DatabaseSecurityGroup
+    Properties:
+      Engine: aurora-mysql
+      DBClusterIdentifier: mysql-cluster-wrangler
+      MasterUsername: test
+      MasterUserPassword: !Ref Password
+      BackupRetentionPeriod: 1
+      DBSubnetGroupName: !Ref RdsSubnetGroup
+      VpcSecurityGroupIds:
+        - !Ref DatabaseSecurityGroup
+      DBClusterParameterGroupName: !Ref MysqlParameterGroup
+      AssociatedRoles:
+        - RoleArn: !GetAtt AuroraRole.Arn
+
+
+  AuroraInstanceMysql:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      Engine: aurora-mysql
+      DBInstanceIdentifier: mysql-instance-wrangler
+      DBClusterIdentifier: !Ref AuroraClusterMysql
+      DBInstanceClass: db.t3.medium
+      DBSubnetGroupName: !Ref RdsSubnetGroup
+      PubliclyAccessible: true
+
 Outputs:
   BucketName:
     Value: !Ref Bucket
@@ -162,9 +281,9 @@ Outputs:
   RedshiftPort:
     Value: !GetAtt Redshift.Endpoint.Port
     Description: Redshift Endpoint Port.
-  RedshiftPassword:
+  Password:
     Value: !Ref Password
-    Description: Redshift Password.
+    Description: Password.
   RedshiftRole:
     Value: !GetAtt RedshiftRole.Arn
     Description: Redshift IAM role.
@@ -183,3 +302,12 @@ Outputs:
   SubnetId:
     Value: !Ref SubnetId
     Description: Subnet ID
+  SubnetId2:
+    Value: !Ref SubnetId2
+    Description: Subnet ID 2
+  PostgresAddress:
+    Value: !GetAtt AuroraInstancePostgres.Endpoint.Address
+    Description: Postgres Address
+  MysqlAddress:
+    Value: !GetAtt AuroraInstanceMysql.Endpoint.Address
+    Description: Mysql Address

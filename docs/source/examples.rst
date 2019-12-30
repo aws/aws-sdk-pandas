@@ -83,6 +83,23 @@ Reading from AWS Athena to Pandas with the blazing fast CTAS approach
         database="database"
     )
 
+Reading from Glue Catalog (Parquet) to Pandas
+`````````````````````````````````````````````
+
+.. code-block:: python
+
+    import awswrangler as wr
+
+    df = wr.pandas.read_table(database="DATABASE_NAME", table="TABLE_NAME")
+
+Reading from S3 (Parquet) to Pandas
+```````````````````````````````````
+
+.. code-block:: python
+
+    import awswrangler as wr
+
+    df = wr.pandas.read_parquet(path="s3://...", columns=["c1", "c3"], filters=[("c5", "=", 0)])
 
 Reading from S3 (CSV) to Pandas
 ```````````````````````````````
@@ -174,6 +191,32 @@ Extract Redshift query to Pandas DataFrame
         connection=con,
         temp_s3_path="s3://temp_path")
 
+Loading Pandas Dataframe to Aurora (MySQL/PostgreSQL)
+`````````````````````````````````````````````````````
+
+.. code-block:: python
+
+    import awswrangler as wr
+
+    wr.pandas.to_aurora(
+        dataframe=df,
+        connection=con,
+        schema="...",
+        table="..."
+    )
+
+
+Extract Aurora query to Pandas DataFrame (MySQL)
+````````````````````````````````````````````````
+
+.. code-block:: python
+
+    import awswrangler as wr
+
+    df = wr.pandas.read_sql_aurora(
+        sql="SELECT ...",
+        connection=con
+    )
 
 PySpark
 -------

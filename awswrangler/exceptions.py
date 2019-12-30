@@ -26,6 +26,10 @@ class RedshiftLoadError(Exception):
     pass
 
 
+class AuroraLoadError(Exception):
+    pass
+
+
 class AthenaQueryError(Exception):
     pass
 
@@ -95,4 +99,8 @@ class InvalidParameters(Exception):
 
 
 class AWSCredentialsNotFound(Exception):
+    pass
+
+
+class InvalidEngine(Exception):
     pass

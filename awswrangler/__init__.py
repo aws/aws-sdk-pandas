@@ -9,6 +9,7 @@ from awswrangler.athena import Athena  # noqa
 from awswrangler.cloudwatchlogs import CloudWatchLogs  # noqa
 from awswrangler.glue import Glue  # noqa
 from awswrangler.redshift import Redshift  # noqa
+from awswrangler.aurora import Aurora  # noqa
 from awswrangler.emr import EMR  # noqa
 from awswrangler.sagemaker import SageMaker  # noqa
 import awswrangler.utils  # noqa
@@ -38,6 +39,7 @@ spark = DynamicInstantiate("spark")
 pandas = DynamicInstantiate("pandas")
 athena = DynamicInstantiate("athena")
 redshift = DynamicInstantiate("redshift")
+aurora = DynamicInstantiate("aurora")
 sagemaker = DynamicInstantiate("sagemaker")
 cloudwatchlogs = DynamicInstantiate("cloudwatchlogs")
 

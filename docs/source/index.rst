@@ -20,13 +20,14 @@ Pandas
 * Pandas -> Glue Catalog Table
 * Pandas -> Athena (Parallel)
 * Pandas -> Redshift (Append/Overwrite/Upsert) (Parallel)
+* Pandas -> Aurora (MySQL/PostgreSQL) (Append/Overwrite) (Via S3) (NEW)
 * Parquet (S3) -> Pandas (Parallel)
 * CSV (S3) -> Pandas (One shot or Batching)
 * Glue Catalog Table -> Pandas (Parallel)
 * Athena -> Pandas (One shot, Batching or Parallel)
 * Redshift -> Pandas (Parallel)
-* Redshift -> Parquet (S3)
 * CloudWatch Logs Insights -> Pandas
+* Aurora -> Pandas (MySQL) (Via S3) (NEW)
 * Encrypt Pandas Dataframes on S3 with KMS keys
 
 PySpark
@@ -45,13 +46,16 @@ General
 * Get the size of S3 objects (Parallel)
 * Get CloudWatch Logs Insights query results
 * Load partitions on Athena/Glue table (repair table)
-* Create EMR cluster (For humans) (NEW)
-* Terminate EMR cluster (NEW)
-* Get EMR cluster state (NEW)
-* Submit EMR step(s) (For humans) (NEW)
-* Get EMR step state (NEW)
-* Athena query to receive the result as python primitives (Iterable[Dict[str, Any]) (NEW)
+* Create EMR cluster (For humans)
+* Terminate EMR cluster
+* Get EMR cluster state
+* Submit EMR step(s) (For humans)
+* Get EMR step state
+* Get EMR step state
+* Athena query to receive the result as python primitives (*Iterable[Dict[str, Any]*)
 * Load and Unzip SageMaker jobs outputs
+* Redshift -> Parquet (S3)
+* Aurora -> CSV (S3) (MySQL) (NEW :star:)
 
 
 Table Of Contents

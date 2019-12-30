@@ -3,13 +3,15 @@ import logging
 import csv
 from datetime import datetime, date
 from decimal import Decimal
+import warnings
 
 import pytest
 import boto3
 import pandas as pd
 import numpy as np
 
-from awswrangler import Session, Pandas
+import awswrangler as wr
+from awswrangler import Session, Pandas, Aurora
 from awswrangler.exceptions import LineTerminatorNotFound, EmptyDataframe, InvalidSerDe, UndetectedType
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
@@ -18,7 +20,7 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 @pytest.fixture(scope="module")
 def cloudformation_outputs():
-    response = boto3.client("cloudformation").describe_stacks(StackName="aws-data-wrangler-test-arena")
+    response = boto3.client("cloudformation").describe_stacks(StackName="aws-data-wrangler-test")
     outputs = {}
     for output in response.get("Stacks")[0].get("Outputs"):
         outputs[output.get("OutputKey")] = output.get("OutputValue")
@@ -85,6 +87,58 @@ def logstream(cloudformation_outputs, loggroup):
         args["sequenceToken"] = token
     client.put_log_events(**args)
     yield logstream
+
+
+@pytest.fixture(scope="module")
+def postgres_parameters(cloudformation_outputs):
+    postgres_parameters = {}
+    if "PostgresAddress" in cloudformation_outputs:
+        postgres_parameters["PostgresAddress"] = cloudformation_outputs.get("PostgresAddress")
+    else:
+        raise Exception("You must deploy the test infrastructure using SAM!")
+    if "Password" in cloudformation_outputs:
+        postgres_parameters["Password"] = cloudformation_outputs.get("Password")
+    else:
+        raise Exception("You must deploy the test infrastructure using SAM!")
+    conn = Aurora.generate_connection(database="postgres",
+                                      host=postgres_parameters["PostgresAddress"],
+                                      port=3306,
+                                      user="test",
+                                      password=postgres_parameters["Password"],
+                                      engine="postgres")
+    with conn.cursor() as cursor:
+        sql = "CREATE EXTENSION IF NOT EXISTS aws_s3 CASCADE"
+        cursor.execute(sql)
+    conn.commit()
+    conn.close()
+    yield postgres_parameters
+
+
+@pytest.fixture(scope="module")
+def mysql_parameters(cloudformation_outputs):
+    mysql_parameters = {}
+    if "MysqlAddress" in cloudformation_outputs:
+        mysql_parameters["MysqlAddress"] = cloudformation_outputs.get("MysqlAddress")
+    else:
+        raise Exception("You must deploy the test infrastructure using SAM!")
+    if "Password" in cloudformation_outputs:
+        mysql_parameters["Password"] = cloudformation_outputs.get("Password")
+    else:
+        raise Exception("You must deploy the test infrastructure using SAM!")
+    conn = Aurora.generate_connection(database="mysql",
+                                      host=mysql_parameters["MysqlAddress"],
+                                      port=3306,
+                                      user="test",
+                                      password=mysql_parameters["Password"],
+                                      engine="mysql")
+    with conn.cursor() as cursor:
+        sql = "CREATE DATABASE IF NOT EXISTS test"
+        with warnings.catch_warnings():
+            warnings.filterwarnings(action="ignore", message=".*database exists.*")
+            cursor.execute(sql)
+    conn.commit()
+    conn.close()
+    yield mysql_parameters
 
 
 @pytest.mark.parametrize("sample, row_num", [("data_samples/micro.csv", 30), ("data_samples/small.csv", 100)])
@@ -1592,3 +1646,134 @@ def test_to_csv_single_file(session, bucket, database):
     assert len(list(df.columns)) + 1 == len(list(df2.columns))
     assert len(df.index) == len(df2.index)
     print(df2)
+
+
+def test_aurora_mysql_load_simple(bucket, mysql_parameters):
+    df = pd.DataFrame({"id": [1, 2, 3], "value": ["foo", "boo", "bar"]})
+    conn = Aurora.generate_connection(database="mysql",
+                                      host=mysql_parameters["MysqlAddress"],
+                                      port=3306,
+                                      user="test",
+                                      password=mysql_parameters["Password"],
+                                      engine="mysql")
+    path = f"s3://{bucket}/test_aurora_mysql_load_simple"
+    wr.pandas.to_aurora(dataframe=df,
+                        connection=conn,
+                        schema="test",
+                        table="test_aurora_mysql_load_simple",
+                        mode="overwrite",
+                        temp_s3_path=path)
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT * FROM test.test_aurora_mysql_load_simple")
+        rows = cursor.fetchall()
+        assert len(rows) == len(df.index)
+        assert rows[0][0] == 1
+        assert rows[1][0] == 2
+        assert rows[2][0] == 3
+        assert rows[0][1] == "foo"
+        assert rows[1][1] == "boo"
+        assert rows[2][1] == "bar"
+    conn.close()
+
+
+def test_aurora_postgres_load_simple(bucket, postgres_parameters):
+    df = pd.DataFrame({"id": [1, 2, 3], "value": ["foo", "boo", "bar"]})
+    conn = Aurora.generate_connection(database="postgres",
+                                      host=postgres_parameters["PostgresAddress"],
+                                      port=3306,
+                                      user="test",
+                                      password=postgres_parameters["Password"],
+                                      engine="postgres")
+    path = f"s3://{bucket}/test_aurora_postgres_load_simple"
+    wr.pandas.to_aurora(
+        dataframe=df,
+        connection=conn,
+        schema="public",
+        table="test_aurora_postgres_load_simple",
+        mode="overwrite",
+        temp_s3_path=path,
+        engine="postgres",
+    )
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT * FROM public.test_aurora_postgres_load_simple")
+        rows = cursor.fetchall()
+        assert len(rows) == len(df.index)
+        assert rows[0][0] == 1
+        assert rows[1][0] == 2
+        assert rows[2][0] == 3
+        assert rows[0][1] == "foo"
+        assert rows[1][1] == "boo"
+        assert rows[2][1] == "bar"
+    conn.close()
+
+
+def test_aurora_mysql_unload_simple(bucket, mysql_parameters):
+    df = pd.DataFrame({"id": [1, 2, 3], "value": ["foo", "boo", "bar"]})
+    conn = Aurora.generate_connection(database="mysql",
+                                      host=mysql_parameters["MysqlAddress"],
+                                      port=3306,
+                                      user="test",
+                                      password=mysql_parameters["Password"],
+                                      engine="mysql")
+    path = f"s3://{bucket}/test_aurora_mysql_unload_simple"
+    wr.pandas.to_aurora(dataframe=df,
+                        connection=conn,
+                        schema="test",
+                        table="test_aurora_mysql_load_simple",
+                        mode="overwrite",
+                        temp_s3_path=path)
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT * FROM test.test_aurora_mysql_load_simple")
+        rows = cursor.fetchall()
+        assert len(rows) == len(df.index)
+        assert rows[0][0] == 1
+        assert rows[1][0] == 2
+        assert rows[2][0] == 3
+        assert rows[0][1] == "foo"
+        assert rows[1][1] == "boo"
+        assert rows[2][1] == "bar"
+    path2 = f"s3://{bucket}/test_aurora_mysql_unload_simple2"
+    df2 = wr.pandas.read_sql_aurora(sql="SELECT * FROM test.test_aurora_mysql_load_simple",
+                                    connection=conn,
+                                    col_names=["id", "value"],
+                                    temp_s3_path=path2)
+    assert len(df.index) == len(df2.index)
+    assert len(df.columns) == len(df2.columns)
+    df2 = wr.pandas.read_sql_aurora(sql="SELECT * FROM test.test_aurora_mysql_load_simple",
+                                    connection=conn,
+                                    temp_s3_path=path2)
+    assert len(df.index) == len(df2.index)
+    assert len(df.columns) == len(df2.columns)
+    conn.close()
+
+
+@pytest.mark.parametrize("sample, row_num", [("data_samples/micro.csv", 30), ("data_samples/small.csv", 100)])
+def test_read_csv_list(bucket, sample, row_num):
+    n = 10
+    paths = []
+    for i in range(n):
+        key = f"{sample}_{i}"
+        boto3.client("s3").upload_file(sample, bucket, key)
+        paths.append(f"s3://{bucket}/{key}")
+    dataframe = wr.pandas.read_csv_list(paths=paths)
+    wr.s3.delete_listed_objects(objects_paths=paths)
+    assert len(dataframe.index) == row_num * n
+
+
+@pytest.mark.parametrize("sample, row_num", [("data_samples/micro.csv", 30), ("data_samples/small.csv", 100)])
+def test_read_csv_list_iterator(bucket, sample, row_num):
+    n = 10
+    paths = []
+    for i in range(n):
+        key = f"{sample}_{i}"
+        boto3.client("s3").upload_file(sample, bucket, key)
+        paths.append(f"s3://{bucket}/{key}")
+
+    df_iter = wr.pandas.read_csv_list(paths=paths, max_result_size=200)
+    total_count = 0
+    for df in df_iter:
+        count = len(df.index)
+        print(f"count: {count}")
+        total_count += count
+    wr.s3.delete_listed_objects(objects_paths=paths)
+    assert total_count == row_num * n

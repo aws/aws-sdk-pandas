@@ -1,18 +1,15 @@
 #!/usr/bin/env bash
 set -e
 
-
 # Go back to AWSWRANGLER directory
 cd /aws-data-wrangler/
 
 rm -rf dist/*.zip
 
-# Build PyArrow files if necessary
-if [ ! -d "dist/pyarrow_files" ] ; then
-  cd building
-  ./build-pyarrow.sh
-  cd ..
-fi
+# Build PyArrow files
+cd building
+./build-pyarrow.sh
+cd ..
 
 # Preparing directories
 mkdir -p dist

@@ -1,4 +1,4 @@
-from typing import Dict, List, Union, Optional, Any
+from typing import Dict, List, Union, Optional, Any, Tuple
 import json
 import logging
 
@@ -28,6 +28,7 @@ SORTSTYLES = [
 class Redshift:
     def __init__(self, session):
         self._session = session
+        self._client_s3 = session.boto3_session.client(service_name="s3", use_ssl=True, config=session.botocore_config)
 
     @staticmethod
     def _validate_connection(database,
@@ -38,19 +39,16 @@ class Redshift:
                              tcp_keepalive=True,
                              application_name="aws-data-wrangler-validation",
                              validation_timeout=5):
-        try:
-            conn = pg8000.connect(database=database,
-                                  host=host,
-                                  port=int(port),
-                                  user=user,
-                                  password=password,
-                                  ssl=True,
-                                  application_name=application_name,
-                                  tcp_keepalive=tcp_keepalive,
-                                  timeout=validation_timeout)
-            conn.close()
-        except pg8000.core.InterfaceError as e:
-            raise e
+        conn = pg8000.connect(database=database,
+                              host=host,
+                              port=int(port),
+                              user=user,
+                              password=password,
+                              ssl=True,
+                              application_name=application_name,
+                              tcp_keepalive=tcp_keepalive,
+                              timeout=validation_timeout)
+        conn.close()
 
     @staticmethod
     def generate_connection(database,
@@ -86,8 +84,6 @@ class Redshift:
                                       tcp_keepalive=tcp_keepalive,
                                       application_name=application_name,
                                       validation_timeout=validation_timeout)
-        if isinstance(type(port), str) or isinstance(type(port), float):
-            port = int(port)
         conn = pg8000.connect(database=database,
                               host=host,
                               port=int(port),
@@ -133,11 +129,10 @@ class Redshift:
             }
             manifest["entries"].append(entry)
         payload: str = json.dumps(manifest)
-        client_s3 = self._session.boto3_session.client(service_name="s3", config=self._session.botocore_config)
         bucket: str
         bucket, path = manifest_path.replace("s3://", "").split("/", 1)
         logger.info(f"payload: {payload}")
-        client_s3.put_object(Body=payload, Bucket=bucket, Key=path)
+        self._client_s3.put_object(Body=payload, Bucket=bucket, Key=path)
         return manifest
 
     @staticmethod
@@ -189,69 +184,67 @@ class Redshift:
         """
         final_table_name: Optional[str] = None
         temp_table_name: Optional[str] = None
-        cursor = redshift_conn.cursor()
-        if mode == "overwrite":
-            Redshift._create_table(cursor=cursor,
-                                   dataframe=dataframe,
-                                   dataframe_type=dataframe_type,
-                                   schema_name=schema_name,
-                                   table_name=table_name,
-                                   diststyle=diststyle,
-                                   distkey=distkey,
-                                   sortstyle=sortstyle,
-                                   sortkey=sortkey,
-                                   primary_keys=primary_keys,
-                                   preserve_index=preserve_index,
-                                   cast_columns=cast_columns)
-            table_name = f"{schema_name}.{table_name}"
-        elif mode == "upsert":
-            guid: str = pa.compat.guid()
-            temp_table_name = f"temp_redshift_{guid}"
-            final_table_name = table_name
-            table_name = temp_table_name
-            sql: str = f"CREATE TEMPORARY TABLE {temp_table_name} (LIKE {schema_name}.{final_table_name})"
-            logger.debug(sql)
-            cursor.execute(sql)
-        else:
-            table_name = f"{schema_name}.{table_name}"
+        with redshift_conn.cursor() as cursor:
+            if mode == "overwrite":
+                Redshift._create_table(cursor=cursor,
+                                       dataframe=dataframe,
+                                       dataframe_type=dataframe_type,
+                                       schema_name=schema_name,
+                                       table_name=table_name,
+                                       diststyle=diststyle,
+                                       distkey=distkey,
+                                       sortstyle=sortstyle,
+                                       sortkey=sortkey,
+                                       primary_keys=primary_keys,
+                                       preserve_index=preserve_index,
+                                       cast_columns=cast_columns)
+                table_name = f"{schema_name}.{table_name}"
+            elif mode == "upsert":
+                guid: str = pa.compat.guid()
+                temp_table_name = f"temp_redshift_{guid}"
+                final_table_name = table_name
+                table_name = temp_table_name
+                sql: str = f"CREATE TEMPORARY TABLE {temp_table_name} (LIKE {schema_name}.{final_table_name})"
+                logger.debug(sql)
+                cursor.execute(sql)
+            else:
+                table_name = f"{schema_name}.{table_name}"
 
-        sql = ("-- AWS DATA WRANGLER\n"
-               f"COPY {table_name} FROM '{manifest_path}'\n"
-               f"IAM_ROLE '{iam_role}'\n"
-               "MANIFEST\n"
-               "FORMAT AS PARQUET")
-        logger.debug(sql)
-        cursor.execute(sql)
-        cursor.execute("-- AWS DATA WRANGLER\n SELECT pg_last_copy_id() AS query_id")
-        query_id = cursor.fetchall()[0][0]
-        sql = ("-- AWS DATA WRANGLER\n"
-               f"SELECT COUNT(*) as num_files_loaded FROM STL_LOAD_COMMITS WHERE query = {query_id}")
-        cursor.execute(sql)
-        num_files_loaded = cursor.fetchall()[0][0]
-        if num_files_loaded != num_files:
-            redshift_conn.rollback()
-            cursor.close()
-            raise RedshiftLoadError(
-                f"Redshift load rollbacked. {num_files_loaded} files counted. {num_files} expected.")
+            sql = ("-- AWS DATA WRANGLER\n"
+                   f"COPY {table_name} FROM '{manifest_path}'\n"
+                   f"IAM_ROLE '{iam_role}'\n"
+                   "MANIFEST\n"
+                   "FORMAT AS PARQUET")
+            logger.debug(sql)
+            cursor.execute(sql)
+            cursor.execute("-- AWS DATA WRANGLER\n SELECT pg_last_copy_id() AS query_id")
+            query_id = cursor.fetchall()[0][0]
+            sql = ("-- AWS DATA WRANGLER\n"
+                   f"SELECT COUNT(*) as num_files_loaded FROM STL_LOAD_COMMITS WHERE query = {query_id}")
+            cursor.execute(sql)
+            num_files_loaded = cursor.fetchall()[0][0]
+            if num_files_loaded != num_files:
+                redshift_conn.rollback()
+                raise RedshiftLoadError(
+                    f"Redshift load rollbacked. {num_files_loaded} files counted. {num_files} expected.")
 
-        if (mode == "upsert") and (final_table_name is not None):
-            if not primary_keys:
-                primary_keys = Redshift.get_primary_keys(connection=redshift_conn,
-                                                         schema=schema_name,
-                                                         table=final_table_name)
-            if not primary_keys:
-                raise InvalidRedshiftPrimaryKeys()
-            equals_clause = f"{final_table_name}.%s = {temp_table_name}.%s"
-            join_clause = " AND ".join([equals_clause % (pk, pk) for pk in primary_keys])
-            sql = f"DELETE FROM {schema_name}.{final_table_name} USING {temp_table_name} WHERE {join_clause}"
-            logger.debug(sql)
-            cursor.execute(sql)
-            sql = f"INSERT INTO {schema_name}.{final_table_name} SELECT * FROM {temp_table_name}"
-            logger.debug(sql)
-            cursor.execute(sql)
+            if (mode == "upsert") and (final_table_name is not None):
+                if not primary_keys:
+                    primary_keys = Redshift.get_primary_keys(connection=redshift_conn,
+                                                             schema=schema_name,
+                                                             table=final_table_name)
+                if not primary_keys:
+                    raise InvalidRedshiftPrimaryKeys()
+                equals_clause = f"{final_table_name}.%s = {temp_table_name}.%s"
+                join_clause = " AND ".join([equals_clause % (pk, pk) for pk in primary_keys])
+                sql = f"DELETE FROM {schema_name}.{final_table_name} USING {temp_table_name} WHERE {join_clause}"
+                logger.debug(sql)
+                cursor.execute(sql)
+                sql = f"INSERT INTO {schema_name}.{final_table_name} SELECT * FROM {temp_table_name}"
+                logger.debug(sql)
+                cursor.execute(sql)
 
         redshift_conn.commit()
-        cursor.close()
 
     @staticmethod
     def _create_table(cursor,
@@ -376,11 +369,14 @@ class Redshift:
                                                  f"Currently value: {key}")
 
     @staticmethod
-    def _get_redshift_schema(dataframe, dataframe_type, preserve_index=False, cast_columns=None):
+    def _get_redshift_schema(dataframe,
+                             dataframe_type: str,
+                             preserve_index: bool = False,
+                             cast_columns=None) -> List[Tuple[str, str]]:
         if cast_columns is None:
             cast_columns = {}
-        schema_built = []
-        if dataframe_type == "pandas":
+        schema_built: List[Tuple[str, str]] = []
+        if dataframe_type.lower() == "pandas":
             pyarrow_schema = data_types.extract_pyarrow_schema_from_pandas(dataframe=dataframe,
                                                                            preserve_index=preserve_index,
                                                                            indexes_position="right")
@@ -390,7 +386,7 @@ class Redshift:
                 else:
                     redshift_type = data_types.pyarrow2redshift(dtype)
                     schema_built.append((name, redshift_type))
-        elif dataframe_type == "spark":
+        elif dataframe_type.lower() == "spark":
             for name, dtype in dataframe.dtypes:
                 if name in cast_columns.keys():
                     redshift_type = data_types.athena2redshift(cast_columns[name])
@@ -398,7 +394,8 @@ class Redshift:
                     redshift_type = data_types.spark2redshift(dtype)
                 schema_built.append((name, redshift_type))
         else:
-            raise InvalidDataframeType(dataframe_type)
+            raise InvalidDataframeType(
+                f"{dataframe_type} is not a valid DataFrame type. Please use 'pandas' or 'spark'!")
         return schema_built
 
     def to_parquet(self,
