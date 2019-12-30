@@ -27,13 +27,14 @@
 * Pandas -> Glue Catalog Table
 * Pandas -> Athena (Parallel)
 * Pandas -> Redshift (Append/Overwrite/Upsert) (Parallel)
-* Parquet (S3) -> Pandas (Parallel) (NEW :star:)
+* Pandas -> Aurora (MySQL/PostgreSQL) (Append/Overwrite) (Via S3) (NEW :star:)
+* Parquet (S3) -> Pandas (Parallel)
 * CSV (S3) -> Pandas (One shot or Batching)
-* Glue Catalog Table -> Pandas (Parallel) (NEW :star:)
-* Athena -> Pandas (One shot, Batching or Parallel (NEW :star:))
-* Redshift -> Pandas (Parallel) (NEW :star:)
-* Redshift -> Parquet (S3) (NEW :star:)
+* Glue Catalog Table -> Pandas (Parallel)
+* Athena -> Pandas (One shot, Batching or Parallel)
+* Redshift -> Pandas (Parallel)
 * CloudWatch Logs Insights -> Pandas
+* Aurora -> Pandas (MySQL) (Via S3) (NEW :star:)
 * Encrypt Pandas Dataframes on S3 with KMS keys
 
 ### PySpark
@@ -60,6 +61,8 @@
 * Get EMR step state
 * Athena query to receive the result as python primitives (*Iterable[Dict[str, Any]*)
 * Load and Unzip SageMaker jobs outputs
+* Redshift -> Parquet (S3)
+* Aurora -> CSV (S3) (MySQL) (NEW :star:)
 
 ## Installation
 
@@ -147,6 +150,22 @@ df = sess.pandas.read_sql_athena(
 )
 ```
 
+#### Reading from Glue Catalog (Parquet) to Pandas
+
+```py3
+import awswrangler as wr
+
+df = wr.pandas.read_table(database="DATABASE_NAME", table="TABLE_NAME")
+```
+
+#### Reading from S3 (Parquet) to Pandas
+
+```py3
+import awswrangler as wr
+
+df = wr.pandas.read_parquet(path="s3://...", columns=["c1", "c3"], filters=[("c5", "=", 0)])
+```
+
 #### Reading from S3 (CSV) to Pandas
 
 ```py3
@@ -225,6 +244,30 @@ df = wr.pandas.read_sql_redshift(
     iam_role="YOUR_ROLE_ARN",
     connection=con,
     temp_s3_path="s3://temp_path")
+```
+
+#### Loading Pandas Dataframe to Aurora (MySQL/PostgreSQL)
+
+```py3
+import awswrangler as wr
+
+wr.pandas.to_aurora(
+    dataframe=df,
+    connection=con,
+    schema="...",
+    table="..."
+)
+```
+
+#### Extract Aurora query to Pandas DataFrame (MySQL)
+
+```py3
+import awswrangler as wr
+
+df = wr.pandas.read_sql_aurora(
+    sql="SELECT ...",
+    connection=con
+)
 ```
 
 ### PySpark

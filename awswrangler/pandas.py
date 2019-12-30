@@ -1211,7 +1211,7 @@ class Pandas:
     def read_parquet(self,
                      path: Union[str, List[str]],
                      columns: Optional[List[str]] = None,
-                     filters: Optional[Union[List[Tuple[Any]], List[Tuple[Any]]]] = None,
+                     filters: Optional[Union[List[Tuple[Any]], List[List[Tuple[Any]]]]] = None,
                      procs_cpu_bound: Optional[int] = None) -> pd.DataFrame:
         """
         Read parquet data from S3
@@ -1274,7 +1274,7 @@ class Pandas:
                                    session_primitives: Any,
                                    path: Union[str, List[str]],
                                    columns: Optional[List[str]] = None,
-                                   filters: Optional[Union[List[Tuple[Any]], List[Tuple[Any]]]] = None,
+                                   filters: Optional[Union[List[Tuple[Any]], List[List[Tuple[Any]]]]] = None,
                                    procs_cpu_bound: Optional[int] = None):
         df: pd.DataFrame = Pandas._read_parquet_paths(session_primitives=session_primitives,
                                                       path=path,
@@ -1288,7 +1288,7 @@ class Pandas:
     def _read_parquet_paths(session_primitives: Any,
                             path: Union[str, List[str]],
                             columns: Optional[List[str]] = None,
-                            filters: Optional[Union[List[Tuple[Any]], List[Tuple[Any]]]] = None,
+                            filters: Optional[Union[List[Tuple[Any]], List[List[Tuple[Any]]]]] = None,
                             procs_cpu_bound: Optional[int] = None) -> pd.DataFrame:
         """
         Read parquet data from S3
@@ -1327,7 +1327,7 @@ class Pandas:
     def _read_parquet_path(session_primitives: Any,
                            path: str,
                            columns: Optional[List[str]] = None,
-                           filters: Optional[Union[List[Tuple[Any]], List[Tuple[Any]]]] = None,
+                           filters: Optional[Union[List[Tuple[Any]], List[List[Tuple[Any]]]]] = None,
                            procs_cpu_bound: Optional[int] = None) -> pd.DataFrame:
         """
         Read parquet data from S3
@@ -1369,7 +1369,7 @@ class Pandas:
                    database: str,
                    table: str,
                    columns: Optional[List[str]] = None,
-                   filters: Optional[Union[List[Tuple[Any]], List[Tuple[Any]]]] = None,
+                   filters: Optional[Union[List[Tuple[Any]], List[List[Tuple[Any]]]]] = None,
                    procs_cpu_bound: Optional[int] = None) -> pd.DataFrame:
         """
         Read PARQUET table from S3 using the Glue Catalog location skipping Athena's necessity
@@ -1408,6 +1408,7 @@ class Pandas:
         temp_s3_path = temp_s3_path[:-1] if temp_s3_path[-1] == "/" else temp_s3_path
         temp_s3_path = f"{temp_s3_path}/{name}"
         logger.debug(f"temp_s3_path: {temp_s3_path}")
+        self._session.s3.delete_objects(path=temp_s3_path)
         paths: Optional[List[str]] = None
         try:
             paths = self._session.redshift.to_parquet(sql=sql,
@@ -1416,11 +1417,11 @@ class Pandas:
                                                       connection=connection)
             logger.debug(f"paths: {paths}")
             df: pd.DataFrame = self.read_parquet(path=paths, procs_cpu_bound=procs_cpu_bound)  # type: ignore
-            self._session.s3.delete_listed_objects(objects_paths=paths)
+            self._session.s3.delete_listed_objects(objects_paths=paths + [temp_s3_path + "/manifest"])  # type: ignore
             return df
         except Exception as e:
             if paths is not None:
-                self._session.s3.delete_listed_objects(objects_paths=paths)
+                self._session.s3.delete_listed_objects(objects_paths=paths + [temp_s3_path + "/manifest"])
             else:
                 self._session.s3.delete_objects(path=temp_s3_path)
             raise e

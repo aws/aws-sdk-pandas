@@ -7,7 +7,6 @@ rm -rf \
   dist \
   /aws-data-wrangler/dist/pyarrow_wheels \
   /aws-data-wrangler/dist/pyarrow_files \
-  /aws-data-wrangler/dist/pyarrow_wheels/
 
 # Clone desired Arrow version
 git clone \

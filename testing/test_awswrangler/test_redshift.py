@@ -9,6 +9,7 @@ import pandas as pd
 from pyspark.sql import SparkSession
 import pg8000
 
+import awswrangler as wr
 from awswrangler import Session, Redshift
 from awswrangler.exceptions import InvalidRedshiftDiststyle, InvalidRedshiftDistkey, InvalidRedshiftSortstyle, InvalidRedshiftSortkey
 
@@ -603,11 +604,13 @@ def test_read_sql_redshift_pandas2(session, bucket, redshift_parameters):
                                            iam_role=redshift_parameters.get("RedshiftRole"),
                                            connection=con,
                                            temp_s3_path=path2)
+    wr.s3.delete_objects(path=f"s3://{bucket}/")
     assert len(df.index) == len(df2.index)
     assert len(df.columns) + 1 == len(df2.columns)
 
 
 def test_to_redshift_pandas_upsert(session, bucket, redshift_parameters):
+    wr.s3.delete_objects(path=f"s3://{bucket}/")
     con = Redshift.generate_connection(
         database="test",
         host=redshift_parameters.get("RedshiftAddress"),
@@ -616,48 +619,53 @@ def test_to_redshift_pandas_upsert(session, bucket, redshift_parameters):
         password=redshift_parameters.get("Password"),
     )
 
-    # CREATE
-    df = pd.DataFrame({
-        "id": list((range(1_000_000))),
-        "val": list(["foo" if i % 2 == 0 else "boo" for i in range(1_000_000)])
-    })
-    path = f"s3://{bucket}/test_to_redshift_pandas_upsert/"
-    session.pandas.to_redshift(dataframe=df,
-                               path=path,
-                               schema="public",
-                               table="test_upsert",
-                               connection=con,
-                               iam_role=redshift_parameters.get("RedshiftRole"),
-                               mode="overwrite",
-                               preserve_index=True,
-                               primary_keys=["id"])
-    path = f"s3://{bucket}/test_to_redshift_pandas_upsert2/"
-    df2 = session.pandas.read_sql_redshift(sql="select * from public.test_upsert",
-                                           iam_role=redshift_parameters.get("RedshiftRole"),
-                                           connection=con,
-                                           temp_s3_path=path)
-    assert len(df.index) == len(df2.index)
-    assert len(df.columns) + 1 == len(df2.columns)
+    df = pd.DataFrame({"id": list((range(1_000))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(1_000)])})
 
-    # UPSERT
     df3 = pd.DataFrame({
-        "id": list((range(1_000_000, 1_500_000))),
-        "val": list(["foo" if i % 2 == 0 else "boo" for i in range(500_000)])
+        "id": list((range(1_000, 1_500))),
+        "val": list(["foo" if i % 2 == 0 else "boo" for i in range(500)])
     })
-    path = f"s3://{bucket}/test_to_redshift_pandas_upsert3/"
-    session.pandas.to_redshift(dataframe=df3,
-                               path=path,
-                               schema="public",
-                               table="test_upsert",
-                               connection=con,
-                               iam_role=redshift_parameters.get("RedshiftRole"),
-                               mode="upsert",
-                               preserve_index=True,
-                               primary_keys=["id"])
-    path = f"s3://{bucket}/test_to_redshift_pandas_upsert4/"
-    df4 = session.pandas.read_sql_redshift(sql="select * from public.test_upsert",
-                                           iam_role=redshift_parameters.get("RedshiftRole"),
-                                           connection=con,
-                                           temp_s3_path=path)
-    assert len(df.index) + len(df3.index) == len(df4.index)
-    assert len(df.columns) + 1 == len(df2.columns)
+
+    for i in range(10):
+        print(f"run: {i}")
+
+        # CREATE
+        path = f"s3://{bucket}/test_to_redshift_pandas_upsert/"
+        session.pandas.to_redshift(dataframe=df,
+                                   path=path,
+                                   schema="public",
+                                   table="test_upsert",
+                                   connection=con,
+                                   iam_role=redshift_parameters.get("RedshiftRole"),
+                                   mode="overwrite",
+                                   preserve_index=True,
+                                   primary_keys=["id"])
+        path = f"s3://{bucket}/test_to_redshift_pandas_upsert2/"
+        df2 = session.pandas.read_sql_redshift(sql="select * from public.test_upsert",
+                                               iam_role=redshift_parameters.get("RedshiftRole"),
+                                               connection=con,
+                                               temp_s3_path=path)
+        assert len(df.index) == len(df2.index)
+        assert len(df.columns) + 1 == len(df2.columns)
+
+        # UPSERT
+        path = f"s3://{bucket}/test_to_redshift_pandas_upsert3/"
+        session.pandas.to_redshift(dataframe=df3,
+                                   path=path,
+                                   schema="public",
+                                   table="test_upsert",
+                                   connection=con,
+                                   iam_role=redshift_parameters.get("RedshiftRole"),
+                                   mode="upsert",
+                                   preserve_index=True,
+                                   primary_keys=["id"])
+        path = f"s3://{bucket}/test_to_redshift_pandas_upsert4/"
+        df4 = session.pandas.read_sql_redshift(sql="select * from public.test_upsert",
+                                               iam_role=redshift_parameters.get("RedshiftRole"),
+                                               connection=con,
+                                               temp_s3_path=path)
+        assert len(df.index) + len(df3.index) == len(df4.index)
+        assert len(df.columns) + 1 == len(df2.columns)
+
+    wr.s3.delete_objects(path=f"s3://{bucket}/")
+    con.close()
