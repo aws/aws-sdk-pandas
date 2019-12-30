@@ -100,6 +100,17 @@ def postgres_parameters(cloudformation_outputs):
         postgres_parameters["Password"] = cloudformation_outputs.get("Password")
     else:
         raise Exception("You must deploy the test infrastructure using SAM!")
+    conn = Aurora.generate_connection(database="postgres",
+                                      host=postgres_parameters["PostgresAddress"],
+                                      port=3306,
+                                      user="test",
+                                      password=postgres_parameters["Password"],
+                                      engine="postgres")
+    with conn.cursor() as cursor:
+        sql = "CREATE EXTENSION IF NOT EXISTS aws_s3 CASCADE"
+        cursor.execute(sql)
+    conn.commit()
+    conn.close()
     yield postgres_parameters
 
 
