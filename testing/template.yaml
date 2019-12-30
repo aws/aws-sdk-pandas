@@ -200,6 +200,11 @@ Resources:
 
   AuroraClusterPostgres:
     Type: AWS::RDS::DBCluster
+    DependsOn:
+      - PostgresParameterGroup
+      - AuroraRole
+      - RdsSubnetGroup
+      - DatabaseSecurityGroup
     Properties:
       Engine: aurora-postgresql
       DBClusterIdentifier : postgres-cluster-wrangler
@@ -212,7 +217,7 @@ Resources:
       DBClusterParameterGroupName: !Ref PostgresParameterGroup
       AssociatedRoles:
         - FeatureName: s3Import
-        - RoleArn: !GetAtt AuroraRole.Arn
+          RoleArn: !GetAtt AuroraRole.Arn
 
   AuroraInstancePostgres:
     Type: AWS::RDS::DBInstance
@@ -236,6 +241,11 @@ Resources:
 
   AuroraClusterMysql:
     Type: AWS::RDS::DBCluster
+    DependsOn:
+      - MysqlParameterGroup
+      - AuroraRole
+      - RdsSubnetGroup
+      - DatabaseSecurityGroup
     Properties:
       Engine: aurora-mysql
       DBClusterIdentifier: mysql-cluster-wrangler

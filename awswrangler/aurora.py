@@ -201,7 +201,6 @@ class Aurora:
                         f"'({bucket},{key},{region})')")
         elif "mysql" in engine.lower():
             sql = ("-- AWS DATA WRANGLER\n"
-                   "SELECT aws_s3.table_import_from_s3(\n"
                    f"LOAD DATA FROM S3 MANIFEST '{path}'\n"
                    "REPLACE\n"
                    f"INTO TABLE {schema_name}.{table_name}\n"
@@ -240,7 +239,7 @@ class Aurora:
                                     preserve_index=preserve_index,
                                     engine=engine)
         cols_str: str = "".join([f"{col[0]} {col[1]},\n" for col in schema])[:-2]
-        sql = (f"-- AWS DATA WRANGLER\n" f"CREATE TABLE IF NOT EXISTS {schema_name}.{table_name} (\n" f"{cols_str})")
+        sql = f"-- AWS DATA WRANGLER\n" f"CREATE TABLE IF NOT EXISTS {schema_name}.{table_name} (\n" f"{cols_str})"
         logger.debug(f"Create table query:\n{sql}")
         cursor.execute(sql)
 
@@ -265,3 +264,34 @@ class Aurora:
         else:
             raise InvalidDataframeType(f"{dataframe_type} is not a valid DataFrame type. Please use 'pandas'!")
         return schema_built
+
+    def to_s3(self, sql: str, path: str, connection: Any, engine: str = "mysql") -> str:
+        """
+        Write a query result on S3
+
+        :param sql: SQL Query
+        :param path: AWS S3 path to write the data (e.g. s3://...)
+        :param connection: A PEP 249 compatible connection (Can be generated with Redshift.generate_connection())
+        :param engine: Only "mysql" by now
+        :return: Manifest S3 path
+        """
+        if "mysql" not in engine.lower():
+            raise InvalidEngine(f"{engine} is not a valid engine. Please use 'mysql'!")
+        path = path[-1] if path[-1] == "/" else path
+        self._session.s3.delete_objects(path=path)
+        sql = f"{sql}\n" \
+              f"INTO OUTFILE S3 '{path}'\n" \
+              "FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\'\n" \
+              "LINES TERMINATED BY '\\n'\n" \
+              "MANIFEST ON\n" \
+              "OVERWRITE ON"
+        with connection.cursor() as cursor:
+            logger.debug(sql)
+            cursor.execute(sql)
+        connection.commit()
+        return path + ".manifest"
+
+    def extract_manifest_paths(self, path: str) -> List[str]:
+        bucket_name, key_path = Aurora._parse_path(path)
+        body: bytes = self._client_s3.get_object(Bucket=bucket_name, Key=key_path)["Body"].read()
+        return [x["url"] for x in json.loads(body.decode('utf-8'))["entries"]]

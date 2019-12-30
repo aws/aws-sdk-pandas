@@ -1694,3 +1694,75 @@ def test_aurora_postgres_load_simple(bucket, postgres_parameters):
         assert rows[1][1] == "boo"
         assert rows[2][1] == "bar"
     conn.close()
+
+
+def test_aurora_mysql_unload_simple(bucket, mysql_parameters):
+    df = pd.DataFrame({"id": [1, 2, 3], "value": ["foo", "boo", "bar"]})
+    conn = Aurora.generate_connection(database="mysql",
+                                      host=mysql_parameters["MysqlAddress"],
+                                      port=3306,
+                                      user="test",
+                                      password=mysql_parameters["Password"],
+                                      engine="mysql")
+    path = f"s3://{bucket}/test_aurora_mysql_unload_simple"
+    wr.pandas.to_aurora(dataframe=df,
+                        connection=conn,
+                        schema="test",
+                        table="test_aurora_mysql_load_simple",
+                        mode="overwrite",
+                        temp_s3_path=path)
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT * FROM test.test_aurora_mysql_load_simple")
+        rows = cursor.fetchall()
+        assert len(rows) == len(df.index)
+        assert rows[0][0] == 1
+        assert rows[1][0] == 2
+        assert rows[2][0] == 3
+        assert rows[0][1] == "foo"
+        assert rows[1][1] == "boo"
+        assert rows[2][1] == "bar"
+    path2 = f"s3://{bucket}/test_aurora_mysql_unload_simple2"
+    df2 = wr.pandas.read_sql_aurora(sql="SELECT * FROM test.test_aurora_mysql_load_simple",
+                                    connection=conn,
+                                    col_names=["id", "value"],
+                                    temp_s3_path=path2)
+    assert len(df.index) == len(df2.index)
+    assert len(df.columns) == len(df2.columns)
+    df2 = wr.pandas.read_sql_aurora(sql="SELECT * FROM test.test_aurora_mysql_load_simple",
+                                    connection=conn,
+                                    temp_s3_path=path2)
+    assert len(df.index) == len(df2.index)
+    assert len(df.columns) == len(df2.columns)
+    conn.close()
+
+
+@pytest.mark.parametrize("sample, row_num", [("data_samples/micro.csv", 30), ("data_samples/small.csv", 100)])
+def test_read_csv_list(bucket, sample, row_num):
+    n = 10
+    paths = []
+    for i in range(n):
+        key = f"{sample}_{i}"
+        boto3.client("s3").upload_file(sample, bucket, key)
+        paths.append(f"s3://{bucket}/{key}")
+    dataframe = wr.pandas.read_csv_list(paths=paths)
+    wr.s3.delete_listed_objects(objects_paths=paths)
+    assert len(dataframe.index) == row_num * n
+
+
+@pytest.mark.parametrize("sample, row_num", [("data_samples/micro.csv", 30), ("data_samples/small.csv", 100)])
+def test_read_csv_list_iterator(bucket, sample, row_num):
+    n = 10
+    paths = []
+    for i in range(n):
+        key = f"{sample}_{i}"
+        boto3.client("s3").upload_file(sample, bucket, key)
+        paths.append(f"s3://{bucket}/{key}")
+
+    df_iter = wr.pandas.read_csv_list(paths=paths, max_result_size=200)
+    total_count = 0
+    for df in df_iter:
+        count = len(df.index)
+        print(f"count: {count}")
+        total_count += count
+    wr.s3.delete_listed_objects(objects_paths=paths)
+    assert total_count == row_num * n

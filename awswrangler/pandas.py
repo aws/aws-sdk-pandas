@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple, Optional, Any, Union
+from typing import Dict, List, Tuple, Optional, Any, Union, Iterator
 from io import BytesIO, StringIO
 import multiprocessing as mp
 import logging
@@ -42,6 +42,7 @@ class Pandas:
 
     def __init__(self, session):
         self._session = session
+        self._client_s3 = session.boto3_session.client(service_name="s3", use_ssl=True, config=session.botocore_config)
 
     @staticmethod
     def _parse_path(path):
@@ -95,53 +96,47 @@ class Pandas:
         :return: Pandas Dataframe or Iterator of Pandas Dataframes if max_result_size != None
         """
         bucket_name, key_path = self._parse_path(path)
-        client_s3 = self._session.boto3_session.client(service_name="s3",
-                                                       use_ssl=True,
-                                                       config=self._session.botocore_config)
-        if max_result_size:
-            ret = Pandas._read_csv_iterator(client_s3=client_s3,
-                                            bucket_name=bucket_name,
-                                            key_path=key_path,
-                                            max_result_size=max_result_size,
-                                            header=header,
-                                            names=names,
-                                            usecols=usecols,
-                                            dtype=dtype,
-                                            sep=sep,
-                                            thousands=thousands,
-                                            decimal=decimal,
-                                            lineterminator=lineterminator,
-                                            quotechar=quotechar,
-                                            quoting=quoting,
-                                            escapechar=escapechar,
-                                            parse_dates=parse_dates,
-                                            infer_datetime_format=infer_datetime_format,
-                                            encoding=encoding,
-                                            converters=converters)
+        if max_result_size is not None:
+            ret = self._read_csv_iterator(bucket_name=bucket_name,
+                                          key_path=key_path,
+                                          max_result_size=max_result_size,
+                                          header=header,
+                                          names=names,
+                                          usecols=usecols,
+                                          dtype=dtype,
+                                          sep=sep,
+                                          thousands=thousands,
+                                          decimal=decimal,
+                                          lineterminator=lineterminator,
+                                          quotechar=quotechar,
+                                          quoting=quoting,
+                                          escapechar=escapechar,
+                                          parse_dates=parse_dates,
+                                          infer_datetime_format=infer_datetime_format,
+                                          encoding=encoding,
+                                          converters=converters)
         else:
-            ret = Pandas._read_csv_once(client_s3=client_s3,
-                                        bucket_name=bucket_name,
-                                        key_path=key_path,
-                                        header=header,
-                                        names=names,
-                                        usecols=usecols,
-                                        dtype=dtype,
-                                        sep=sep,
-                                        thousands=thousands,
-                                        decimal=decimal,
-                                        lineterminator=lineterminator,
-                                        quotechar=quotechar,
-                                        quoting=quoting,
-                                        escapechar=escapechar,
-                                        parse_dates=parse_dates,
-                                        infer_datetime_format=infer_datetime_format,
-                                        encoding=encoding,
-                                        converters=converters)
+            ret = self._read_csv_once(bucket_name=bucket_name,
+                                      key_path=key_path,
+                                      header=header,
+                                      names=names,
+                                      usecols=usecols,
+                                      dtype=dtype,
+                                      sep=sep,
+                                      thousands=thousands,
+                                      decimal=decimal,
+                                      lineterminator=lineterminator,
+                                      quotechar=quotechar,
+                                      quoting=quoting,
+                                      escapechar=escapechar,
+                                      parse_dates=parse_dates,
+                                      infer_datetime_format=infer_datetime_format,
+                                      encoding=encoding,
+                                      converters=converters)
         return ret
 
-    @staticmethod
     def _read_csv_iterator(
-        client_s3,
+        self,
         bucket_name,
         key_path,
         max_result_size=200_000_000,  # 200 MB
@@ -166,7 +161,6 @@ class Pandas:
         Try to mimic as most as possible pandas.read_csv()
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
 
-        :param client_s3: Boto3 S3 client object
         :param bucket_name: S3 bucket name
         :param key_path: S3 key path (W/o bucket)
         :param max_result_size: Max number of bytes on each request to S3
@@ -187,37 +181,35 @@ class Pandas:
         :param converters: Same as pandas.read_csv()
         :return: Pandas Dataframe
         """
-        metadata = s3.S3.head_object_with_retry(client=client_s3, bucket=bucket_name, key=key_path)
-        logger.debug(f"metadata: {metadata}")
+        metadata = s3.S3.head_object_with_retry(client=self._client_s3, bucket=bucket_name, key=key_path)
         total_size = metadata["ContentLength"]
         logger.debug(f"total_size: {total_size}")
         if total_size <= 0:
             raise EmptyS3Object(metadata)
         elif total_size <= max_result_size:
-            yield Pandas._read_csv_once(client_s3=client_s3,
-                                        bucket_name=bucket_name,
-                                        key_path=key_path,
-                                        header=header,
-                                        names=names,
-                                        usecols=usecols,
-                                        dtype=dtype,
-                                        sep=sep,
-                                        thousands=thousands,
-                                        decimal=decimal,
-                                        lineterminator=lineterminator,
-                                        quotechar=quotechar,
-                                        quoting=quoting,
-                                        escapechar=escapechar,
-                                        parse_dates=parse_dates,
-                                        infer_datetime_format=infer_datetime_format,
-                                        encoding=encoding,
-                                        converters=converters)
+            yield self._read_csv_once(bucket_name=bucket_name,
+                                      key_path=key_path,
+                                      header=header,
+                                      names=names,
+                                      usecols=usecols,
+                                      dtype=dtype,
+                                      sep=sep,
+                                      thousands=thousands,
+                                      decimal=decimal,
+                                      lineterminator=lineterminator,
+                                      quotechar=quotechar,
+                                      quoting=quoting,
+                                      escapechar=escapechar,
+                                      parse_dates=parse_dates,
+                                      infer_datetime_format=infer_datetime_format,
+                                      encoding=encoding,
+                                      converters=converters)
         else:
             bounders = calculate_bounders(num_items=total_size, max_size=max_result_size)
             logger.debug(f"bounders: {bounders}")
-            bounders_len = len(bounders)
-            count = 0
-            forgotten_bytes = 0
+            bounders_len: int = len(bounders)
+            count: int = 0
+            forgotten_bytes: int = 0
             for ini, end in bounders:
                 count += 1
 
@@ -225,7 +217,7 @@ class Pandas:
                 end -= 1  # Range is inclusive, contrary from Python's List
                 bytes_range = "bytes={}-{}".format(ini, end)
                 logger.debug(f"bytes_range: {bytes_range}")
-                body = client_s3.get_object(Bucket=bucket_name, Key=key_path, Range=bytes_range)["Body"].read()
+                body = self._client_s3.get_object(Bucket=bucket_name, Key=key_path, Range=bytes_range)["Body"].read()
                 chunk_size = len(body)
                 logger.debug(f"chunk_size (bytes): {chunk_size}")
 
@@ -352,9 +344,8 @@ class Pandas:
             raise LineTerminatorNotFound()
         return index
 
-    @staticmethod
     def _read_csv_once(
-        client_s3,
+        self,
         bucket_name,
         key_path,
         header="infer",
@@ -378,7 +369,6 @@ class Pandas:
         Try to mimic as most as possible pandas.read_csv()
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
 
-        :param client_s3: Boto3 S3 client object
         :param bucket_name: S3 bucket name
         :param key_path: S3 key path (W/o bucket)
         :param header: Same as pandas.read_csv()
@@ -399,7 +389,7 @@ class Pandas:
         :return: Pandas Dataframe
         """
         buff = BytesIO()
-        client_s3.download_fileobj(Bucket=bucket_name, Key=key_path, Fileobj=buff)
+        self._client_s3.download_fileobj(Bucket=bucket_name, Key=key_path, Fileobj=buff)
         buff.seek(0),
         dataframe = pd.read_csv(
             buff,
@@ -1411,7 +1401,7 @@ class Pandas:
         guid: str = pa.compat.guid()
         name: str = f"temp_redshift_{guid}"
         if temp_s3_path is None:
-            if self._session.athena_s3_output is not None:
+            if self._session.redshift_temp_s3_path is not None:
                 temp_s3_path = self._session.redshift_temp_s3_path
             else:
                 temp_s3_path = self._session.athena.create_athena_bucket()
@@ -1426,46 +1416,6 @@ class Pandas:
                                                       connection=connection)
             logger.debug(f"paths: {paths}")
             df: pd.DataFrame = self.read_parquet(path=paths, procs_cpu_bound=procs_cpu_bound)  # type: ignore
-            self._session.s3.delete_listed_objects(objects_paths=paths)
-            return df
-        except Exception as e:
-            if paths is not None:
-                self._session.s3.delete_listed_objects(objects_paths=paths)
-            else:
-                self._session.s3.delete_objects(path=temp_s3_path)
-            raise e
-
-    def read_sql_aurora(self,
-                        sql: str,
-                        iam_role: str,
-                        connection: Any,
-                        temp_s3_path: Optional[str] = None) -> pd.DataFrame:
-        """
-        Convert a query result in a Pandas Dataframe.
-
-        :param sql: SQL Query
-        :param iam_role: AWS IAM role with the related permissions
-        :param connection: A PEP 249 compatible connection (Can be generated with Aurora.generate_connection())
-        :param temp_s3_path: AWS S3 path to write temporary data (e.g. s3://...) (Default uses the Athena's results bucket)
-        """
-        guid: str = pa.compat.guid()
-        name: str = f"temp_redshift_{guid}"
-        if temp_s3_path is None:
-            if self._session.athena_s3_output is not None:
-                temp_s3_path = self._session.redshift_temp_s3_path
-            else:
-                temp_s3_path = self._session.athena.create_athena_bucket()
-        temp_s3_path = temp_s3_path[:-1] if temp_s3_path[-1] == "/" else temp_s3_path
-        temp_s3_path = f"{temp_s3_path}/{name}"
-        logger.debug(f"temp_s3_path: {temp_s3_path}")
-        paths: Optional[List[str]] = None
-        try:
-            paths = self._session.redshift.to_parquet(sql=sql,
-                                                      path=temp_s3_path,
-                                                      iam_role=iam_role,
-                                                      connection=connection)
-            logger.debug(f"paths: {paths}")
-            df: pd.DataFrame = self.read_parquet(path=paths)  # type: ignore
             self._session.s3.delete_listed_objects(objects_paths=paths)
             return df
         except Exception as e:
@@ -1549,3 +1499,202 @@ class Pandas:
                           region=region)
 
         self._session.s3.delete_objects(path=temp_s3_path, procs_io_bound=procs_io_bound)
+
+    def read_sql_aurora(self,
+                        sql: str,
+                        connection: Any,
+                        col_names: Optional[List[str]] = None,
+                        temp_s3_path: Optional[str] = None,
+                        engine: str = "mysql",
+                        max_result_size: Optional[int] = None) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+        """
+        Convert a query result in a Pandas Dataframe.
+
+        :param sql: SQL Query
+        :param connection: A PEP 249 compatible connection (Can be generated with Aurora.generate_connection())
+        :param col_names: List of column names. Default (None) is use columns IDs as column names.
+        :param temp_s3_path: AWS S3 path to write temporary data (e.g. s3://...) (Default uses the Athena's results bucket)
+        :param engine: Only "mysql" by now
+        :param max_result_size: Max number of bytes on each request to S3
+        :return: Pandas Dataframe or Iterator of Pandas Dataframes if max_result_size != None
+        """
+        if "mysql" not in engine.lower():
+            raise InvalidEngine(f"{engine} is not a valid engine. Please use 'mysql'!")
+        guid: str = pa.compat.guid()
+        name: str = f"temp_aurora_{guid}"
+        if temp_s3_path is None:
+            if self._session.aurora_temp_s3_path is not None:
+                temp_s3_path = self._session.aurora_temp_s3_path
+            else:
+                temp_s3_path = self._session.athena.create_athena_bucket()
+        temp_s3_path = temp_s3_path[:-1] if temp_s3_path[-1] == "/" else temp_s3_path
+        temp_s3_path = f"{temp_s3_path}/{name}"
+        logger.debug(f"temp_s3_path: {temp_s3_path}")
+        manifest_path: str = self._session.aurora.to_s3(sql=sql,
+                                                        path=temp_s3_path,
+                                                        connection=connection,
+                                                        engine=engine)
+        paths: List[str] = self._session.aurora.extract_manifest_paths(path=manifest_path)
+        logger.debug(f"paths: {paths}")
+        ret: Union[pd.DataFrame, Iterator[pd.DataFrame]]
+        ret = self.read_csv_list(paths=paths, max_result_size=max_result_size, header=None, names=col_names)
+        self._session.s3.delete_listed_objects(objects_paths=paths + [manifest_path])
+        return ret
+
+    def read_csv_list(
+            self,
+            paths,
+            max_result_size=None,
+            header: Optional[str] = "infer",
+            names=None,
+            usecols=None,
+            dtype=None,
+            sep=",",
+            thousands=None,
+            decimal=".",
+            lineterminator="\n",
+            quotechar='"',
+            quoting=csv.QUOTE_MINIMAL,
+            escapechar=None,
+            parse_dates: Union[bool, Dict, List] = False,
+            infer_datetime_format=False,
+            encoding="utf-8",
+            converters=None,
+    ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+        """
+        Read CSV files from AWS S3 using optimized strategies.
+        Try to mimic as most as possible pandas.read_csv()
+        https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
+        P.S. max_result_size != None tries to mimic the chunksize behaviour in pandas.read_sql()
+
+        :param paths: AWS S3 paths (E.g. S3://BUCKET_NAME/KEY_NAME)
+        :param max_result_size: Max number of bytes on each request to S3
+        :param header: Same as pandas.read_csv()
+        :param names: Same as pandas.read_csv()
+        :param usecols: Same as pandas.read_csv()
+        :param dtype: Same as pandas.read_csv()
+        :param sep: Same as pandas.read_csv()
+        :param thousands: Same as pandas.read_csv()
+        :param decimal: Same as pandas.read_csv()
+        :param lineterminator: Same as pandas.read_csv()
+        :param quotechar: Same as pandas.read_csv()
+        :param quoting: Same as pandas.read_csv()
+        :param escapechar: Same as pandas.read_csv()
+        :param parse_dates: Same as pandas.read_csv()
+        :param infer_datetime_format: Same as pandas.read_csv()
+        :param encoding: Same as pandas.read_csv()
+        :param converters: Same as pandas.read_csv()
+        :return: Pandas Dataframe or Iterator of Pandas Dataframes if max_result_size != None
+        """
+        if max_result_size is not None:
+            return self._read_csv_list_iterator(paths=paths,
+                                                max_result_size=max_result_size,
+                                                header=header,
+                                                names=names,
+                                                usecols=usecols,
+                                                dtype=dtype,
+                                                sep=sep,
+                                                thousands=thousands,
+                                                decimal=decimal,
+                                                lineterminator=lineterminator,
+                                                quotechar=quotechar,
+                                                quoting=quoting,
+                                                escapechar=escapechar,
+                                                parse_dates=parse_dates,
+                                                infer_datetime_format=infer_datetime_format,
+                                                encoding=encoding,
+                                                converters=converters)
+        else:
+            df_full: Optional[pd.DataFrame] = None
+            for path in paths:
+                logger.debug(f"path: {path}")
+                bucket_name, key_path = Pandas._parse_path(path)
+                df = self._read_csv_once(bucket_name=bucket_name,
+                                         key_path=key_path,
+                                         header=header,
+                                         names=names,
+                                         usecols=usecols,
+                                         dtype=dtype,
+                                         sep=sep,
+                                         thousands=thousands,
+                                         decimal=decimal,
+                                         lineterminator=lineterminator,
+                                         quotechar=quotechar,
+                                         quoting=quoting,
+                                         escapechar=escapechar,
+                                         parse_dates=parse_dates,
+                                         infer_datetime_format=infer_datetime_format,
+                                         encoding=encoding,
+                                         converters=converters)
+                if df_full is None:
+                    df_full = df
+                else:
+                    df_full = pd.concat(objs=[df_full, df], ignore_index=True)
+            return df_full
+
+    def _read_csv_list_iterator(
+        self,
+        paths,
+        max_result_size=None,
+        header="infer",
+        names=None,
+        usecols=None,
+        dtype=None,
+        sep=",",
+        thousands=None,
+        decimal=".",
+        lineterminator="\n",
+        quotechar='"',
+        quoting=csv.QUOTE_MINIMAL,
+        escapechar=None,
+        parse_dates: Union[bool, Dict, List] = False,
+        infer_datetime_format=False,
+        encoding="utf-8",
+        converters=None,
+    ):
+        """
+        Read CSV files from AWS S3 using optimized strategies.
+        Try to mimic as most as possible pandas.read_csv()
+        https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
+        P.S. Try to mimic the chunksize behaviour in pandas.read_sql()
+
+        :param paths: AWS S3 paths (E.g. S3://BUCKET_NAME/KEY_NAME)
+        :param max_result_size: Max number of bytes on each request to S3
+        :param header: Same as pandas.read_csv()
+        :param names: Same as pandas.read_csv()
+        :param usecols: Same as pandas.read_csv()
+        :param dtype: Same as pandas.read_csv()
+        :param sep: Same as pandas.read_csv()
+        :param thousands: Same as pandas.read_csv()
+        :param decimal: Same as pandas.read_csv()
+        :param lineterminator: Same as pandas.read_csv()
+        :param quotechar: Same as pandas.read_csv()
+        :param quoting: Same as pandas.read_csv()
+        :param escapechar: Same as pandas.read_csv()
+        :param parse_dates: Same as pandas.read_csv()
+        :param infer_datetime_format: Same as pandas.read_csv()
+        :param encoding: Same as pandas.read_csv()
+        :param converters: Same as pandas.read_csv()
+        :return: Iterator of iterators of Pandas Dataframes
+        """
+        for path in paths:
+            logger.debug(f"path: {path}")
+            bucket_name, key_path = Pandas._parse_path(path)
+            yield from self._read_csv_iterator(bucket_name=bucket_name,
+                                               key_path=key_path,
+                                               max_result_size=max_result_size,
+                                               header=header,
+                                               names=names,
+                                               usecols=usecols,
+                                               dtype=dtype,
+                                               sep=sep,
+                                               thousands=thousands,
+                                               decimal=decimal,
+                                               lineterminator=lineterminator,
+                                               quotechar=quotechar,
+                                               quoting=quoting,
+                                               escapechar=escapechar,
+                                               parse_dates=parse_dates,
+                                               infer_datetime_format=infer_datetime_format,
+                                               encoding=encoding,
+                                               converters=converters)
