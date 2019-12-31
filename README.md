@@ -76,7 +76,7 @@ Runs anywhere (AWS Lambda, AWS Glue Python Shell, EMR, EC2, on-premises, local, 
 
 *P.P.S.* Have you never used Layers? Check the [step-by-step guide](#Setting-Up-Lambda-Layer).
 
-*P.P.P.S.* AWS Data Wrangler counts on compiled dependencies (C/C++) so there is no support for Glue PySpark by now.
+*P.P.P.S.* AWS Data Wrangler counts on compiled dependencies (C/C++) so there is no support for Glue PySpark by now (Only Glue Python Shell).
 
 ## Examples
 
