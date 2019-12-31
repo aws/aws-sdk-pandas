@@ -6,7 +6,9 @@ import tarfile
 import boto3
 import pytest
 
+import awswrangler as wr
 from awswrangler import Session
+from awswrangler.exceptions import InvalidSagemakerOutput
 from sklearn.linear_model import LinearRegression
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
@@ -54,18 +56,89 @@ def model(bucket):
 
     yield f"s3://{bucket}/{model_path}"
 
-    os.remove("model.pkl")
-    os.remove("model.tar.gz")
+    try:
+        os.remove("model.pkl")
+    except OSError:
+        pass
+    try:
+        os.remove("model.tar.gz")
+    except OSError:
+        pass
+
+
+@pytest.fixture(scope="module")
+def model_empty(bucket):
+    model_path = "output_empty/model.tar.gz"
+
+    with tarfile.open("model.tar.gz", "w:gz") as tar:
+        pass
+
+    s3 = boto3.resource("s3")
+    s3.Bucket(bucket).upload_file("model.tar.gz", model_path)
+
+    yield f"s3://{bucket}/{model_path}"
+
+    try:
+        os.remove("model.tar.gz")
+    except OSError:
+        pass
+
+
+@pytest.fixture(scope="module")
+def model_double(bucket):
+    model_path = "output_double/model.tar.gz"
+
+    lr = LinearRegression()
+    with open("model.pkl", "wb") as fp:
+        pickle.dump(lr, fp, pickle.HIGHEST_PROTOCOL)
+
+    with open("model2.pkl", "wb") as fp:
+        pickle.dump(lr, fp, pickle.HIGHEST_PROTOCOL)
+
+    with tarfile.open("model.tar.gz", "w:gz") as tar:
+        tar.add("model.pkl")
+        tar.add("model2.pkl")
+
+    s3 = boto3.resource("s3")
+    s3.Bucket(bucket).upload_file("model.tar.gz", model_path)
+
+    yield f"s3://{bucket}/{model_path}"
+
+    try:
+        os.remove("model.pkl")
+    except OSError:
+        pass
+    try:
+        os.remove("model2.pkl")
+    except OSError:
+        pass
+    try:
+        os.remove("model.tar.gz")
+    except OSError:
+        pass
 
 
 def test_get_job_outputs_by_path(session, model):
     outputs = session.sagemaker.get_job_outputs(path=model)
-    assert type(outputs[0]) == LinearRegression
+    assert type(list(outputs.values())[0]) == LinearRegression
 
 
 def test_get_job_outputs_by_job_id(session, bucket):
     pass
 
 
-def test_get_job_outputs_empty(session, bucket):
-    pass
+def test_get_model_empty(model_empty):
+    with pytest.raises(InvalidSagemakerOutput):
+        wr.sagemaker.get_model(path=model_empty)
+
+
+def test_get_model_double(session, model_double):
+    with pytest.raises(InvalidSagemakerOutput):
+        wr.sagemaker.get_model(path=model_double)
+    model = session.sagemaker.get_model(path=model_double, model_name="model.pkl")
+    assert type(model) == LinearRegression
+
+
+def test_get_model_by_path(session, model):
+    model = session.sagemaker.get_model(path=model)
+    assert type(model) == LinearRegression

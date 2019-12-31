@@ -104,3 +104,7 @@ class AWSCredentialsNotFound(Exception):
 
 class InvalidEngine(Exception):
     pass
+
+
+class InvalidSagemakerOutput(Exception):
+    pass
