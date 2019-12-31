@@ -61,6 +61,7 @@
 * Get EMR step state
 * Athena query to receive the result as python primitives (*Iterable[Dict[str, Any]*)
 * Load and Unzip SageMaker jobs outputs
+* Load and Unzip SageMaker models
 * Redshift -> Parquet (S3)
 * Aurora -> CSV (S3) (MySQL) (NEW :star:)
 
@@ -410,6 +411,14 @@ import awswrangler as wr
 
 for row in wr.athena.query(query="...", database="..."):
     print(row)
+```
+
+#### Load and unzip SageMaker job output
+
+```py3
+import awswrangler as wr
+
+outputs = wr.sagemaker.get_model("JOB_NAME")
 ```
 
 #### Load and unzip SageMaker job output
