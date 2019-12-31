@@ -422,6 +422,21 @@ outputs = wr.sagemaker.get_job_outputs("JOB_NAME")
 
 ## Diving Deep
 
+### Relational Databases (SQL) - (Oracle, PostgreSQL, MySQL, Microsoft SQL Server, etc)
+
+Pandas and PySpark already have great interfaces to handle integrations with relational databases:
+
+1. https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_sql.html
+2. https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_sql.html
+3. https://spark.apache.org/docs/latest/api/python/pyspark.sql.html?highlight=jdbc#pyspark.sql.DataFrameReader.jdbc
+4. https://spark.apache.org/docs/latest/api/python/pyspark.sql.html?highlight=jdbc#pyspark.sql.DataFrameWriter.jdbc
+
+AWS Data Wrangler does not want to reinvent the wheel. And will only implement the integrations not covered by the natives Pandas and PySpark APIs.
+
+E.g.:
+* MySQL Aurora [LOAD](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraMySQL.Integrating.LoadFromS3.html) and [UNLOAD](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraMySQL.Integrating.SaveIntoS3.html) through S3
+* PostgreSQL Aurora [COPY through aws_s3 extension and the S3 service itself](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraPostgreSQL.Migrating.html#USER_PostgreSQL.S3Import)
+
 ### Parallelism, Non-picklable objects and GeoPandas
 
 AWS Data Wrangler tries to parallelize everything that is possible (I/O and CPU bound task).
