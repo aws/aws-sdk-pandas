@@ -7,6 +7,7 @@ Submodules
 .. toctree::
 
    awswrangler.athena
+   awswrangler.aurora
    awswrangler.cloudwatchlogs
    awswrangler.data_types
    awswrangler.emr

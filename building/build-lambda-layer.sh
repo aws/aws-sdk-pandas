@@ -4,8 +4,6 @@ set -e
 # Go back to AWSWRANGLER directory
 cd /aws-data-wrangler/
 
-rm -rf dist/*.zip
-
 # Build PyArrow files
 cd building
 ./build-pyarrow.sh
