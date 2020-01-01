@@ -12,5 +12,6 @@ docker run \
     --workdir /aws-data-wrangler/testing \
     -v $(dirname $PWD):/aws-data-wrangler/ \
     -it \
+    -p 8888:8888 \
     --entrypoint /bin/bash \
     awswrangler-testing
