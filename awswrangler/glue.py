@@ -1,7 +1,10 @@
-from typing import Dict, Optional
+from typing import Dict, Optional, Any, Iterator
 from math import ceil
+from itertools import islice
 import re
 import logging
+
+from pandas import DataFrame
 
 from awswrangler import data_types
 from awswrangler.athena import Athena
@@ -390,3 +393,127 @@ class Glue:
             return res["Table"]["StorageDescriptor"]["Location"]
         except KeyError:
             raise InvalidTable(f"{database}.{table}")
+
+    def get_databases(self, catalog_id: Optional[str] = None) -> Iterator[Dict[str, Any]]:
+        """
+        Get an iterator of databases
+
+        :param catalog_id: The ID of the Data Catalog from which to retrieve Databases. If none is provided, the AWS account ID is used by default.
+        :return: Iterator[Dict[str, Any]] of Databases
+        """
+        paginator = self._client_glue.get_paginator("get_databases")
+        if catalog_id is None:
+            response_iterator = paginator.paginate()
+        else:
+            response_iterator = paginator.paginate(CatalogId=catalog_id)
+        for page in response_iterator:
+            for db in page["DatabaseList"]:
+                yield db
+
+    def get_tables(self, catalog_id: Optional[str] = None, database: Optional[str] = None, search: Optional[str] = None, prefix: Optional[str] = None, suffix: Optional[str] = None) -> Iterator[Dict[str, Any]]:
+        """
+        Get an iterator of tables
+
+        :param catalog_id: The ID of the Data Catalog from which to retrieve Databases. If none is provided, the AWS account ID is used by default.
+        :param database: Filter a specific database
+        :param search: Select by a specific string on table name
+        :param prefix: Select by a specific prefix on table name
+        :param suffix: Select by a specific suffix on table name
+        :return: Iterator[Dict[str, Any]] of Tables
+        """
+        paginator = self._client_glue.get_paginator("get_tables")
+        args: Dict[str, str] = {}
+        if catalog_id is not None:
+            args["CatalogId"] = catalog_id
+        if (prefix is not None) and (suffix is not None) and (search is not None):
+            args["Expression"] = f"{prefix}.*{search}.*{suffix}"
+        elif (prefix is not None) and (suffix is not None):
+            args["Expression"] = f"{prefix}.*{suffix}"
+        elif search is not None:
+            args["Expression"] = f".*{search}.*"
+        elif prefix is not None:
+            args["Expression"] = f"{prefix}.*"
+        elif suffix is not None:
+            args["Expression"] = f".*{suffix}"
+        if database is not None:
+            databases = [database]
+        else:
+            databases = [x["Name"] for x in self.get_databases(catalog_id=catalog_id)]
+        for db in databases:
+            args["DatabaseName"] = db
+            response_iterator = paginator.paginate(**args)
+            for page in response_iterator:
+                for tbl in page["TableList"]:
+                    yield tbl
+
+    def tables(self, limit: int = 100, catalog_id: Optional[str] = None, database: Optional[str] = None, search: Optional[str] = None, prefix: Optional[str] = None, suffix: Optional[str] = None) -> DataFrame:
+        table_iter = self.get_tables(catalog_id=catalog_id, database=database, search=search, prefix=prefix, suffix=suffix)
+        tables = islice(table_iter, limit)
+        df_dict = {
+            "Database": [],
+            "Table": [],
+            "Description": [],
+            "Columns": [],
+            "Partitions": []
+        }
+        for table in tables:
+            df_dict["Database"].append(table["DatabaseName"])
+            df_dict["Table"].append(table["Name"])
+            if "Description" in table:
+                df_dict["Description"].append(table["Description"])
+            else:
+                df_dict["Description"].append("")
+            df_dict["Columns"].append(", ".join([x["Name"] for x in table["StorageDescriptor"]["Columns"]]))
+            df_dict["Partitions"].append(", ".join([x["Name"] for x in table["PartitionKeys"]]))
+        return DataFrame(data=df_dict)
+
+    def databases(self, limit: int = 100, catalog_id: Optional[str] = None) -> DataFrame:
+        database_iter = self.get_databases(catalog_id=catalog_id)
+        dbs = islice(database_iter, limit)
+        df_dict = {
+            "Database": [],
+            "Description": []
+        }
+        for db in dbs:
+            df_dict["Database"].append(db["Name"])
+            if "Description" in db:
+                df_dict["Description"].append(db["Description"])
+            else:
+                df_dict["Description"].append("")
+        return DataFrame(data=df_dict)
+
+    def table(self, database: str, name: str, catalog_id: Optional[str] = None) -> DataFrame:
+        if catalog_id is None:
+            table: Dict[str, Any] = self._client_glue.get_table(
+                DatabaseName=database,
+                Name=name
+            )["Table"]
+        else:
+            table = self._client_glue.get_table(
+                CatalogId=catalog_id,
+                DatabaseName=database,
+                Name=name
+            )["Table"]
+        df_dict = {
+            "Column Name": [],
+            "Type": [],
+            "Partition": [],
+            "Comment": []
+        }
+        for col in table["StorageDescriptor"]["Columns"]:
+            df_dict["Column Name"].append(col["Name"])
+            df_dict["Type"].append(col["Type"])
+            df_dict["Partition"].append(False)
+            if "Comment" in table:
+                df_dict["Comment"].append(table["Comment"])
+            else:
+                df_dict["Comment"].append("")
+        for col in table["PartitionKeys"]:
+            df_dict["Column Name"].append(col["Name"])
+            df_dict["Type"].append(col["Type"])
+            df_dict["Partition"].append(True)
+            if "Comment" in table:
+                df_dict["Comment"].append(table["Comment"])
+            else:
+                df_dict["Comment"].append("")
+        return DataFrame(data=df_dict)

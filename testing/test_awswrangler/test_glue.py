@@ -80,3 +80,50 @@ def test_get_table_python_types(session, database, table):
     assert ptypes["value"] == float
     assert ptypes["name"] == str
     assert ptypes["date"] == str
+
+
+def test_get_databases(session, database):
+    dbs = list(session.glue.get_databases())
+    assert len(dbs) > 0
+    for db in dbs:
+        if db["Name"] == database:
+            assert db["Description"] == "AWS Data Wrangler Test Arena - Glue Database"
+
+
+def test_get_tables(session, table):
+    tables = list(session.glue.get_tables())
+    assert len(tables) > 0
+    for tbl in tables:
+        if tbl["Name"] == table:
+            assert tbl["TableType"] == "EXTERNAL_TABLE"
+
+
+def test_get_tables_database(session, database):
+    tables = list(session.glue.get_tables(database=database))
+    assert len(tables) > 0
+    for tbl in tables:
+        assert tbl["DatabaseName"] == database
+
+
+def test_get_tables_search(session, table):
+    tables = list(session.glue.get_tables(search=table[1:-1]))
+    assert len(tables) > 0
+    for tbl in tables:
+        if tbl["Name"] == table:
+            assert tbl["TableType"] == "EXTERNAL_TABLE"
+
+
+def test_get_tables_prefix(session, table):
+    tables = list(session.glue.get_tables(prefix=table[:-1]))
+    assert len(tables) > 0
+    for tbl in tables:
+        if tbl["Name"] == table:
+            assert tbl["TableType"] == "EXTERNAL_TABLE"
+
+
+def test_get_tables_suffix(session, table):
+    tables = list(session.glue.get_tables(suffix=table[1:]))
+    assert len(tables) > 0
+    for tbl in tables:
+        if tbl["Name"] == table:
+            assert tbl["TableType"] == "EXTERNAL_TABLE"
