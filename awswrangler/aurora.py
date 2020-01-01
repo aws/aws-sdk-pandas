@@ -1,6 +1,7 @@
 from typing import Union, List, Dict, Tuple, Any
 import logging
 import json
+import warnings
 
 import pg8000  # type: ignore
 import pymysql  # type: ignore
@@ -158,7 +159,6 @@ class Aurora:
                                      table_name=table_name,
                                      preserve_index=preserve_index,
                                      engine=engine)
-
             for path in load_paths:
                 sql = Aurora._get_load_sql(path=path,
                                            schema_name=schema_name,
@@ -167,21 +167,20 @@ class Aurora:
                                            region=region)
                 logger.debug(sql)
                 cursor.execute(sql)
-
-                if "mysql" in engine.lower():
-                    sql = ("-- AWS DATA WRANGLER\n"
-                           f"SELECT COUNT(*) as num_files_loaded FROM mysql.aurora_s3_load_history "
-                           f"WHERE load_prefix = '{path}'")
-                    logger.debug(sql)
-                    cursor.execute(sql)
-                    num_files_loaded = cursor.fetchall()[0][0]
-                    if num_files_loaded != (num_files + 1):
-                        connection.rollback()
-                        raise AuroraLoadError(
-                            f"Aurora load rolled back. {num_files_loaded} files counted. {num_files} expected.")
-
         connection.commit()
         logger.debug("Load committed.")
+
+        if "mysql" in engine.lower():
+            with connection.cursor() as cursor:
+                sql = ("-- AWS DATA WRANGLER\n"
+                       f"SELECT COUNT(*) as num_files_loaded FROM mysql.aurora_s3_load_history "
+                       f"WHERE load_prefix = '{path}'")
+                logger.debug(sql)
+                cursor.execute(sql)
+                num_files_loaded = cursor.fetchall()[0][0]
+                if num_files_loaded != (num_files + 1):
+                    raise AuroraLoadError(
+                        f"Missing files to load. {num_files_loaded} files counted. {num_files + 1} expected.")
 
     @staticmethod
     def _parse_path(path):
@@ -233,7 +232,14 @@ class Aurora:
         sql: str = f"-- AWS DATA WRANGLER\n" \
                    f"DROP TABLE IF EXISTS {schema_name}.{table_name}"
         logger.debug(f"Drop table query:\n{sql}")
-        cursor.execute(sql)
+        if "postgres" in engine.lower():
+            cursor.execute(sql)
+        elif "mysql" in engine.lower():
+            with warnings.catch_warnings():
+                warnings.filterwarnings(action="ignore", message=".*Unknown table.*")
+                cursor.execute(sql)
+        else:
+            raise InvalidEngine(f"{engine} is not a valid engine. Please use 'mysql' or 'postgres'!")
         schema = Aurora._get_schema(dataframe=dataframe,
                                     dataframe_type=dataframe_type,
                                     preserve_index=preserve_index,

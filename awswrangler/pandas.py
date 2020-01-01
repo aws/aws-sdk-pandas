@@ -1448,7 +1448,7 @@ class Pandas:
         :param engine: "mysql" or "postgres"
         :param temp_s3_path: S3 path to write temporary files (E.g. s3://BUCKET_NAME/ANY_NAME/)
         :param preserve_index: Should we preserve the Dataframe index?
-        :param mode: append, overwrite or upsert
+        :param mode: append or overwrite
         :param procs_cpu_bound: Number of cores used for CPU bound tasks
         :param procs_io_bound: Number of cores used for I/O bound tasks
         :param inplace: True is cheapest (CPU and Memory) but False leaves your DataFrame intact
