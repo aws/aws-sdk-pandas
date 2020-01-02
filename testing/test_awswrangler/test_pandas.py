@@ -1779,6 +1779,108 @@ def test_read_csv_list_iterator(bucket, sample, row_num):
     assert total_count == row_num * n
 
 
+def test_aurora_mysql_load_append(bucket, mysql_parameters):
+    n: int = 10_000
+    df = pd.DataFrame({"id": list((range(n))), "value": list(["foo" if i % 2 == 0 else "boo" for i in range(n)])})
+    conn = Aurora.generate_connection(database="mysql",
+                                      host=mysql_parameters["MysqlAddress"],
+                                      port=3306,
+                                      user="test",
+                                      password=mysql_parameters["Password"],
+                                      engine="mysql")
+    path = f"s3://{bucket}/test_aurora_mysql_load_append"
+
+    # LOAD
+    wr.pandas.to_aurora(dataframe=df,
+                        connection=conn,
+                        schema="test",
+                        table="test_aurora_mysql_load_append",
+                        mode="overwrite",
+                        temp_s3_path=path)
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT count(*) FROM test.test_aurora_mysql_load_append")
+        count = cursor.fetchall()[0][0]
+        assert count == len(df.index)
+
+    # APPEND
+    wr.pandas.to_aurora(dataframe=df,
+                        connection=conn,
+                        schema="test",
+                        table="test_aurora_mysql_load_append",
+                        mode="append",
+                        temp_s3_path=path)
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT count(*) FROM test.test_aurora_mysql_load_append")
+        count = cursor.fetchall()[0][0]
+        assert count == len(df.index) * 2
+
+    # RESET
+    wr.pandas.to_aurora(dataframe=df,
+                        connection=conn,
+                        schema="test",
+                        table="test_aurora_mysql_load_append",
+                        mode="overwrite",
+                        temp_s3_path=path)
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT count(*) FROM test.test_aurora_mysql_load_append")
+        count = cursor.fetchall()[0][0]
+        assert count == len(df.index)
+
+    conn.close()
+
+
+def test_aurora_postgres_load_append(bucket, postgres_parameters):
+    df = pd.DataFrame({"id": [1, 2, 3], "value": ["foo", "boo", "bar"]})
+    conn = Aurora.generate_connection(database="postgres",
+                                      host=postgres_parameters["PostgresAddress"],
+                                      port=3306,
+                                      user="test",
+                                      password=postgres_parameters["Password"],
+                                      engine="postgres")
+    path = f"s3://{bucket}/test_aurora_postgres_load_append"
+
+    # LOAD
+    wr.pandas.to_aurora(dataframe=df,
+                        connection=conn,
+                        schema="public",
+                        table="test_aurora_postgres_load_append",
+                        mode="overwrite",
+                        temp_s3_path=path,
+                        engine="postgres")
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT count(*) FROM public.test_aurora_postgres_load_append")
+        count = cursor.fetchall()[0][0]
+        assert count == len(df.index)
+
+    # APPEND
+    wr.pandas.to_aurora(dataframe=df,
+                        connection=conn,
+                        schema="public",
+                        table="test_aurora_postgres_load_append",
+                        mode="append",
+                        temp_s3_path=path,
+                        engine="postgres")
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT count(*) FROM public.test_aurora_postgres_load_append")
+        count = cursor.fetchall()[0][0]
+        assert count == len(df.index) * 2
+
+    # RESET
+    wr.pandas.to_aurora(dataframe=df,
+                        connection=conn,
+                        schema="public",
+                        table="test_aurora_postgres_load_append",
+                        mode="overwrite",
+                        temp_s3_path=path,
+                        engine="postgres")
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT count(*) FROM public.test_aurora_postgres_load_append")
+        count = cursor.fetchall()[0][0]
+        assert count == len(df.index)
+
+    conn.close()
+
+
 def test_to_csv_metadata(
     session,
     bucket,
