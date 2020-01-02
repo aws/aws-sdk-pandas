@@ -370,6 +370,15 @@ Athena query to receive the result as python primitives (Iterable[Dict[str, Any]
     for row in wr.athena.query(query="...", database="..."):
         print(row)
 
+Load and unzip SageMaker model
+``````````````````````````````
+
+.. code-block:: python
+
+    import awswrangler as wr
+
+    outputs = wr.sagemaker.get_model("JOB_NAME")
+
 Load and unzip SageMaker job output
 ```````````````````````````````````
 

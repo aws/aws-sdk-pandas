@@ -54,6 +54,7 @@ General
 * Get EMR step state
 * Athena query to receive the result as python primitives (*Iterable[Dict[str, Any]*)
 * Load and Unzip SageMaker jobs outputs
+* Load and Unzip SageMaker models
 * Redshift -> Parquet (S3)
 * Aurora -> CSV (S3) (MySQL) (NEW :star:)
 
