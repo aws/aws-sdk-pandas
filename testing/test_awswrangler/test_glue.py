@@ -106,7 +106,7 @@ def test_get_tables_database(session, database):
 
 
 def test_get_tables_search(session, table):
-    tables = list(session.glue.get_tables(search=table[1:-1]))
+    tables = list(session.glue.search_tables(text="parquet"))
     assert len(tables) > 0
     for tbl in tables:
         if tbl["Name"] == table:
@@ -133,3 +133,12 @@ def test_glue_utils(session, database, table):
     assert len(session.glue.databases().index) > 1
     assert len(session.glue.tables().index) > 1
     assert len(session.glue.table(database=database, name=table).index) > 1
+
+
+def test_glue_tables_full(session, database, table):
+    assert len(
+        session.glue.tables(database=database,
+                            search_text="parquet",
+                            name_contains=table[1:-1],
+                            name_prefix=table[0],
+                            name_suffix=table[-1]).index) > 1

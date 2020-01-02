@@ -413,33 +413,33 @@ class Glue:
     def get_tables(self,
                    catalog_id: Optional[str] = None,
                    database: Optional[str] = None,
-                   search: Optional[str] = None,
-                   prefix: Optional[str] = None,
-                   suffix: Optional[str] = None) -> Iterator[Dict[str, Any]]:
+                   name_contains: Optional[str] = None,
+                   name_prefix: Optional[str] = None,
+                   name_suffix: Optional[str] = None) -> Iterator[Dict[str, Any]]:
         """
         Get an iterator of tables
 
         :param catalog_id: The ID of the Data Catalog from which to retrieve Databases. If none is provided, the AWS account ID is used by default.
         :param database: Filter a specific database
-        :param search: Select by a specific string on table name
-        :param prefix: Select by a specific prefix on table name
-        :param suffix: Select by a specific suffix on table name
+        :param name_contains: Select by a specific string on table name
+        :param name_prefix: Select by a specific prefix on table name
+        :param name_suffix: Select by a specific suffix on table name
         :return: Iterator[Dict[str, Any]] of Tables
         """
         paginator = self._client_glue.get_paginator("get_tables")
         args: Dict[str, str] = {}
         if catalog_id is not None:
             args["CatalogId"] = catalog_id
-        if (prefix is not None) and (suffix is not None) and (search is not None):
-            args["Expression"] = f"{prefix}.*{search}.*{suffix}"
-        elif (prefix is not None) and (suffix is not None):
-            args["Expression"] = f"{prefix}.*{suffix}"
-        elif search is not None:
-            args["Expression"] = f".*{search}.*"
-        elif prefix is not None:
-            args["Expression"] = f"{prefix}.*"
-        elif suffix is not None:
-            args["Expression"] = f".*{suffix}"
+        if (name_prefix is not None) and (name_suffix is not None) and (name_contains is not None):
+            args["Expression"] = f"{name_prefix}.*{name_contains}.*{name_suffix}"
+        elif (name_prefix is not None) and (name_suffix is not None):
+            args["Expression"] = f"{name_prefix}.*{name_suffix}"
+        elif name_contains is not None:
+            args["Expression"] = f".*{name_contains}.*"
+        elif name_prefix is not None:
+            args["Expression"] = f"{name_prefix}.*"
+        elif name_suffix is not None:
+            args["Expression"] = f".*{name_suffix}"
         if database is not None:
             databases = [database]
         else:
@@ -455,27 +455,41 @@ class Glue:
                limit: int = 100,
                catalog_id: Optional[str] = None,
                database: Optional[str] = None,
-               search: Optional[str] = None,
-               prefix: Optional[str] = None,
-               suffix: Optional[str] = None) -> DataFrame:
+               search_text: Optional[str] = None,
+               name_contains: Optional[str] = None,
+               name_prefix: Optional[str] = None,
+               name_suffix: Optional[str] = None) -> DataFrame:
         """
-        Get iterator of tables filtered by a search term, prefix, suffix.
+        Get a Dataframe with tables filtered by a search term, prefix, suffix.
 
         :param limit: Max number of tables
         :param catalog_id: The ID of the Data Catalog from which to retrieve Databases. If none is provided, the AWS account ID is used by default.
         :param database: Glue database name
-        :param search: Select only tables with the given string in the name.
-        :param prefix: Select only tables with the given string in the name prefix.
-        :param suffix: Select only tables with the given string in the name suffix.
-
+        :param search_text: Select only tables with the given string in table's properties
+        :param name_contains: Select by a specific string on table name
+        :param name_prefix: Select only tables with the given string in the name prefix
+        :param name_suffix: Select only tables with the given string in the name suffix
         :return: Pandas Dataframe filled by formatted infos
         """
-        table_iter = self.get_tables(catalog_id=catalog_id,
-                                     database=database,
-                                     search=search,
-                                     prefix=prefix,
-                                     suffix=suffix)
-        tables = islice(table_iter, limit)
+        if search_text is None:
+            table_iter = self.get_tables(catalog_id=catalog_id,
+                                         database=database,
+                                         name_contains=name_contains,
+                                         name_prefix=name_prefix,
+                                         name_suffix=name_suffix)
+            tables: List[Dict[str, Any]] = list(islice(table_iter, limit))
+        else:
+            tables = list(self.search_tables(text=search_text, catalog_id=catalog_id))
+            if database is not None:
+                tables = [x for x in tables if x["DatabaseName"] == database]
+            if name_contains is not None:
+                tables = [x for x in tables if name_contains in x["Name"]]
+            if name_prefix is not None:
+                tables = [x for x in tables if x["Name"].startswith(name_prefix)]
+            if name_suffix is not None:
+                tables = [x for x in tables if x["Name"].endswith(name_suffix)]
+            tables = tables[:limit]
+
         df_dict: Dict[str, List] = {"Database": [], "Table": [], "Description": [], "Columns": [], "Partitions": []}
         for table in tables:
             df_dict["Database"].append(table["DatabaseName"])
@@ -487,6 +501,26 @@ class Glue:
             df_dict["Columns"].append(", ".join([x["Name"] for x in table["StorageDescriptor"]["Columns"]]))
             df_dict["Partitions"].append(", ".join([x["Name"] for x in table["PartitionKeys"]]))
         return DataFrame(data=df_dict)
+
+    def search_tables(self, text: str, catalog_id: Optional[str] = None):
+        """
+        Get iterator of tables filtered by a search string.
+
+        :param text: Select only tables with the given string in table's properties.
+        :param catalog_id: The ID of the Data Catalog from which to retrieve Databases. If none is provided, the AWS account ID is used by default.
+        :return: Iterator of tables
+        """
+        args: Dict[str, Any] = {"SearchText": text}
+        if catalog_id is not None:
+            args["CatalogId"] = catalog_id
+        response = self._client_glue.search_tables(**args)
+        for tbl in response["TableList"]:
+            yield tbl
+        while "NextToken" in response:
+            args["NextToken"] = response["NextToken"]
+            response = self._client_glue.search_tables(**args)
+            for tbl in response["TableList"]:
+                yield tbl
 
     def databases(self, limit: int = 100, catalog_id: Optional[str] = None) -> DataFrame:
         """
