@@ -70,7 +70,7 @@ def model(bucket):
 def model_empty(bucket):
     model_path = "output_empty/model.tar.gz"
 
-    with tarfile.open("model.tar.gz", "w:gz") as tar:
+    with tarfile.open("model.tar.gz", "w:gz"):
         pass
 
     s3 = boto3.resource("s3")

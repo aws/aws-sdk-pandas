@@ -114,7 +114,7 @@ def test_get_tables_search(session, table):
 
 
 def test_get_tables_prefix(session, table):
-    tables = list(session.glue.get_tables(prefix=table[:-1]))
+    tables = list(session.glue.get_tables(name_prefix=table[:-1]))
     assert len(tables) > 0
     for tbl in tables:
         if tbl["Name"] == table:
@@ -122,7 +122,7 @@ def test_get_tables_prefix(session, table):
 
 
 def test_get_tables_suffix(session, table):
-    tables = list(session.glue.get_tables(suffix=table[1:]))
+    tables = list(session.glue.get_tables(name_suffix=table[1:]))
     assert len(tables) > 0
     for tbl in tables:
         if tbl["Name"] == table:

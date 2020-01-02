@@ -1830,7 +1830,8 @@ def test_aurora_mysql_load_append(bucket, mysql_parameters):
 
 
 def test_aurora_postgres_load_append(bucket, postgres_parameters):
-    df = pd.DataFrame({"id": [1, 2, 3], "value": ["foo", "boo", "bar"]})
+    n: int = 10_000
+    df = pd.DataFrame({"id": list((range(n))), "value": list(["foo" if i % 2 == 0 else "boo" for i in range(n)])})
     conn = Aurora.generate_connection(database="postgres",
                                       host=postgres_parameters["PostgresAddress"],
                                       port=3306,

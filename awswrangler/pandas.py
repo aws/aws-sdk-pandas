@@ -1524,7 +1524,13 @@ class Pandas:
                           engine=engine,
                           region=region)
 
-        self._session.s3.delete_objects(path=temp_s3_path, procs_io_bound=procs_io_bound)
+        if "postgres" in engine.lower():
+            self._session.s3.delete_listed_objects(objects_paths=load_paths, procs_io_bound=procs_io_bound)
+        elif "mysql" in engine.lower():
+            self._session.s3.delete_listed_objects(objects_paths=load_paths + [manifest_path],
+                                                   procs_io_bound=procs_io_bound)
+        else:
+            raise InvalidEngine(f"{engine} is not a valid engine. Please use 'mysql' or 'postgres'!")
 
     def read_sql_aurora(self,
                         sql: str,

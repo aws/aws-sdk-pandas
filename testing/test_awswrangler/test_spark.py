@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, date
+from time import sleep
 
 import pytest
 import boto3
@@ -88,6 +89,8 @@ def test_read_csv(session, bucket, sample_name):
     [("snappy", []), ("gzip", ["date", "value"]), ("none", ["time"])],
 )
 def test_create_glue_table_parquet(session, bucket, database, compression, partition_by):
+    s3_path = f"s3://{bucket}/test"
+    session.s3.delete_objects(path=s3_path)
     path = "data_samples/nano.csv"
     schema = "id INTEGER, name STRING, value DOUBLE, date DATE, time TIMESTAMP"
     timestamp_format = "yyyy-MM-dd"
@@ -100,12 +103,12 @@ def test_create_glue_table_parquet(session, bucket, database, compression, parti
         .withColumn("my_array", array(lit(0), lit(1))) \
         .withColumn("my_struct", struct(lit("text").alias("a"), lit(1).alias("b"))) \
         .withColumn("my_map", create_map(lit("k0"), lit(1.0), lit("k1"), lit(2.0)))
-    s3_path = f"s3://{bucket}/test"
     dataframe.write \
         .mode("overwrite") \
         .format("parquet") \
         .partitionBy(partition_by) \
         .save(compression=compression, path=s3_path)
+    sleep(10)
     session.spark.create_glue_table(dataframe=dataframe,
                                     file_format="parquet",
                                     partition_by=partition_by,
@@ -119,6 +122,7 @@ def test_create_glue_table_parquet(session, bucket, database, compression, parti
     assert pandas_df.iloc[0]["counter"] == 5
     query = "select my_array[1] as foo, my_struct.a as boo, my_map['k0'] as bar from test limit 1"
     pandas_df = session.pandas.read_sql_athena(sql=query, database=database)
+    session.s3.delete_objects(path=s3_path)
     assert pandas_df.iloc[0]["foo"] == 0
     assert pandas_df.iloc[0]["boo"] == "text"
     assert pandas_df.iloc[0]["bar"] == 1.0
