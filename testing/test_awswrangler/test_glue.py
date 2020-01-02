@@ -80,3 +80,65 @@ def test_get_table_python_types(session, database, table):
     assert ptypes["value"] == float
     assert ptypes["name"] == str
     assert ptypes["date"] == str
+
+
+def test_get_databases(session, database):
+    dbs = list(session.glue.get_databases())
+    assert len(dbs) > 0
+    for db in dbs:
+        if db["Name"] == database:
+            assert db["Description"] == "AWS Data Wrangler Test Arena - Glue Database"
+
+
+def test_get_tables(session, table):
+    tables = list(session.glue.get_tables())
+    assert len(tables) > 0
+    for tbl in tables:
+        if tbl["Name"] == table:
+            assert tbl["TableType"] == "EXTERNAL_TABLE"
+
+
+def test_get_tables_database(session, database):
+    tables = list(session.glue.get_tables(database=database))
+    assert len(tables) > 0
+    for tbl in tables:
+        assert tbl["DatabaseName"] == database
+
+
+def test_get_tables_search(session, table):
+    tables = list(session.glue.search_tables(text="parquet"))
+    assert len(tables) > 0
+    for tbl in tables:
+        if tbl["Name"] == table:
+            assert tbl["TableType"] == "EXTERNAL_TABLE"
+
+
+def test_get_tables_prefix(session, table):
+    tables = list(session.glue.get_tables(prefix=table[:-1]))
+    assert len(tables) > 0
+    for tbl in tables:
+        if tbl["Name"] == table:
+            assert tbl["TableType"] == "EXTERNAL_TABLE"
+
+
+def test_get_tables_suffix(session, table):
+    tables = list(session.glue.get_tables(suffix=table[1:]))
+    assert len(tables) > 0
+    for tbl in tables:
+        if tbl["Name"] == table:
+            assert tbl["TableType"] == "EXTERNAL_TABLE"
+
+
+def test_glue_utils(session, database, table):
+    assert len(session.glue.databases().index) > 0
+    assert len(session.glue.tables().index) > 0
+    assert len(session.glue.table(database=database, name=table).index) > 0
+
+
+def test_glue_tables_full(session, database, table):
+    assert len(
+        session.glue.tables(database=database,
+                            search_text="parquet",
+                            name_contains=table[1:-1],
+                            name_prefix=table[0],
+                            name_suffix=table[-1]).index) > 0

@@ -1777,3 +1777,40 @@ def test_read_csv_list_iterator(bucket, sample, row_num):
         total_count += count
     wr.s3.delete_listed_objects(objects_paths=paths)
     assert total_count == row_num * n
+
+
+def test_to_csv_metadata(
+    session,
+    bucket,
+    database,
+):
+    session.glue.delete_table_if_exists(table="test_to_csv_metadata", database=database)
+    assert len(session.glue.tables(database=database, search_text="boo bar").index) == 0
+    dataframe = pd.read_csv("data_samples/nano.csv")
+    session.pandas.to_csv(dataframe=dataframe,
+                          database=database,
+                          path=f"s3://{bucket}/test_to_csv_metadata/",
+                          preserve_index=False,
+                          mode="overwrite",
+                          sep="|",
+                          description="foo boo bar",
+                          parameters={
+                              "123": "345",
+                              "678": "910"
+                          },
+                          columns_comments={
+                              "name": "zoo",
+                              "value": "zaa"
+                          })
+    dataframe2 = None
+    for counter in range(10):
+        sleep(1)
+        dataframe2 = session.pandas.read_sql_athena(ctas_approach=False,
+                                                    sql="select * from test_to_csv_metadata",
+                                                    database=database)
+        if len(dataframe.index) == len(dataframe2.index):
+            break
+    assert len(dataframe.index) == len(dataframe2.index)
+    assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
+    assert len(session.glue.tables(database=database, search_text="boo bar").index) == 1
+    assert len(session.glue.tables(database=database, search_text="value").index) > 0

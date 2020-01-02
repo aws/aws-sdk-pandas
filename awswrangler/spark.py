@@ -164,7 +164,10 @@ class Spark:
                           sep=",",
                           partition_by=None,
                           load_partitions=True,
-                          replace_if_exists=True):
+                          replace_if_exists=True,
+                          description: Optional[str] = None,
+                          parameters: Optional[Dict[str, str]] = None,
+                          columns_comments: Optional[Dict[str, str]] = None):
         """
         Create a Glue metadata table pointing for some dataset stored on AWS S3.
 
@@ -179,6 +182,9 @@ class Spark:
         :param table: Glue table name. If not passed, extracted from the path
         :param load_partitions: Load partitions after the table creation
         :param replace_if_exists: Drop table and recreates that if already exists
+        :param description: Table description
+        :param parameters: Key/value pairs to tag the table (Optional[Dict[str, str]])
+        :param columns_comments: Columns names and the related comments (Optional[Dict[str, str]])
         :return: None
         """
         file_format = file_format.lower()
@@ -210,7 +216,10 @@ class Spark:
                                         path=path,
                                         file_format=file_format,
                                         compression=compression,
-                                        extra_args=extra_args)
+                                        extra_args=extra_args,
+                                        description=description,
+                                        parameters=parameters,
+                                        columns_comments=columns_comments)
         if load_partitions:
             self._session.athena.repair_table(database=database, table=table)
 
