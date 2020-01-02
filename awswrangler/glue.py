@@ -58,7 +58,29 @@ class Glue:
                          mode="append",
                          compression=None,
                          cast_columns=None,
-                         extra_args=None):
+                         extra_args=None,
+                         description: Optional[str] = None,
+                         parameters: Optional[Dict[str, str]] = None,
+                         columns_comments: Optional[Dict[str, str]] = None) -> None:
+        """
+
+        :param dataframe: Pandas Dataframe
+        :param objects_paths: Files paths on S3
+        :param preserve_index: Should preserve index on S3?
+        :param partition_cols: partitions names
+        :param mode: "append", "overwrite", "overwrite_partitions"
+        :param cast_columns: Dictionary of columns names and Athena/Glue types to be casted. (E.g. {"col name": "bigint", "col2 name": "int"}) (Only for "parquet" file_format)
+        :param database: AWS Glue Database name
+        :param table: AWS Glue table name
+        :param path: AWS S3 path (E.g. s3://bucket-name/folder_name/
+        :param file_format: "csv" or "parquet"
+        :param compression: None, gzip, snappy, etc
+        :param extra_args: Extra arguments specific for each file formats (E.g. "sep" for CSV)
+        :param description: Table description
+        :param parameters: Key/value pairs to tag the table (Optional[Dict[str, str]])
+        :param columns_comments: Columns names and the related comments (Optional[Dict[str, str]])
+        :return: None
+        """
         indexes_position = "left" if file_format == "csv" else "right"
         schema, partition_cols_schema = Glue._build_schema(dataframe=dataframe,
                                                            partition_cols=partition_cols,
@@ -78,7 +100,10 @@ class Glue:
                               path=path,
                               file_format=file_format,
                               compression=compression,
-                              extra_args=extra_args)
+                              extra_args=extra_args,
+                              description=description,
+                              parameters=parameters,
+                              columns_comments=columns_comments)
         if partition_cols:
             partitions_tuples = Glue._parse_partitions_tuples(objects_paths=objects_paths,
                                                               partition_cols=partition_cols)
@@ -114,7 +139,26 @@ class Glue:
                      file_format,
                      compression,
                      partition_cols_schema=None,
-                     extra_args=None):
+                     extra_args=None,
+                     description: Optional[str] = None,
+                     parameters: Optional[Dict[str, str]] = None,
+                     columns_comments: Optional[Dict[str, str]] = None) -> None:
+        """
+        Create Glue table (Catalog)
+
+        :param database: AWS Glue Database name
+        :param table: AWS Glue table name
+        :param schema: Table schema
+        :param path: AWS S3 path (E.g. s3://bucket-name/folder_name/
+        :param file_format: "csv" or "parquet"
+        :param compression: None, gzip, snappy, etc
+        :param partition_cols_schema: Partitions schema
+        :param extra_args: Extra arguments specific for each file formats (E.g. "sep" for CSV)
+        :param description: Table description
+        :param parameters: Key/value pairs to tag the table (Optional[Dict[str, str]])
+        :param columns_comments: Columns names and the related comments (Optional[Dict[str, str]])
+        :return: None
+        """
         if file_format == "parquet":
             table_input = Glue.parquet_table_definition(table, partition_cols_schema, schema, path, compression)
         elif file_format == "csv":
@@ -126,6 +170,20 @@ class Glue:
                                                     extra_args=extra_args)
         else:
             raise UnsupportedFileFormat(file_format)
+        if description is not None:
+            table_input["Description"] = description
+        if parameters is not None:
+            for k, v in parameters.items():
+                table_input["Parameters"][k] = v
+        if columns_comments is not None:
+            for col in table_input["StorageDescriptor"]["Columns"]:
+                name = col["Name"]
+                if name in columns_comments:
+                    col["Comment"] = columns_comments[name]
+            for par in table_input["PartitionKeys"]:
+                name = par["Name"]
+                if name in columns_comments:
+                    par["Comment"] = columns_comments[name]
         self._client_glue.create_table(DatabaseName=database, TableInput=table_input)
 
     def add_partitions(self, database, table, partition_paths, file_format, compression, extra_args=None):

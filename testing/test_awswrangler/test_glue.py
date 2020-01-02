@@ -130,9 +130,9 @@ def test_get_tables_suffix(session, table):
 
 
 def test_glue_utils(session, database, table):
-    assert len(session.glue.databases().index) > 1
-    assert len(session.glue.tables().index) > 1
-    assert len(session.glue.table(database=database, name=table).index) > 1
+    assert len(session.glue.databases().index) > 0
+    assert len(session.glue.tables().index) > 0
+    assert len(session.glue.table(database=database, name=table).index) > 0
 
 
 def test_glue_tables_full(session, database, table):
@@ -141,4 +141,4 @@ def test_glue_tables_full(session, database, table):
                             search_text="parquet",
                             name_contains=table[1:-1],
                             name_prefix=table[0],
-                            name_suffix=table[-1]).index) > 1
+                            name_suffix=table[-1]).index) > 0

@@ -627,21 +627,22 @@ class Pandas:
                     df[col] = df[col].dt.date.replace(to_replace={pd.NaT: None})
             yield df
 
-    def to_csv(
-        self,
-        dataframe,
-        path,
-        sep=",",
-        serde="OpenCSVSerDe",
-        database: Optional[str] = None,
-        table=None,
-        partition_cols=None,
-        preserve_index=True,
-        mode="append",
-        procs_cpu_bound=None,
-        procs_io_bound=None,
-        inplace=True,
-    ):
+    def to_csv(self,
+               dataframe,
+               path,
+               sep=",",
+               serde="OpenCSVSerDe",
+               database: Optional[str] = None,
+               table=None,
+               partition_cols=None,
+               preserve_index=True,
+               mode="append",
+               procs_cpu_bound=None,
+               procs_io_bound=None,
+               inplace=True,
+               description: Optional[str] = None,
+               parameters: Optional[Dict[str, str]] = None,
+               columns_comments: Optional[Dict[str, str]] = None):
         """
         Write a Pandas Dataframe as CSV files on S3
         Optionally writes metadata on AWS Glue.
@@ -658,6 +659,9 @@ class Pandas:
         :param procs_cpu_bound: Number of cores used for CPU bound tasks
         :param procs_io_bound: Number of cores used for I/O bound tasks
         :param inplace: True is cheapest (CPU and Memory) but False leaves your DataFrame intact
+        :param description: Table description
+        :param parameters: Key/value pairs to tag the table (Optional[Dict[str, str]])
+        :param columns_comments: Columns names and the related comments (Optional[Dict[str, str]])
         :return: List of objects written on S3
         """
         if serde not in Pandas.VALID_CSV_SERDES:
@@ -675,7 +679,10 @@ class Pandas:
                           procs_cpu_bound=procs_cpu_bound,
                           procs_io_bound=procs_io_bound,
                           extra_args=extra_args,
-                          inplace=inplace)
+                          inplace=inplace,
+                          description=description,
+                          parameters=parameters,
+                          columns_comments=columns_comments)
 
     def to_parquet(self,
                    dataframe,
@@ -689,7 +696,10 @@ class Pandas:
                    procs_cpu_bound=None,
                    procs_io_bound=None,
                    cast_columns=None,
-                   inplace=True):
+                   inplace=True,
+                   description: Optional[str] = None,
+                   parameters: Optional[Dict[str, str]] = None,
+                   columns_comments: Optional[Dict[str, str]] = None):
         """
         Write a Pandas Dataframe as parquet files on S3
         Optionally writes metadata on AWS Glue.
@@ -706,6 +716,9 @@ class Pandas:
         :param procs_io_bound: Number of cores used for I/O bound tasks
         :param cast_columns: Dictionary of columns names and Athena/Glue types to be casted (E.g. {"col name": "bigint", "col2 name": "int"})
         :param inplace: True is cheapest (CPU and Memory) but False leaves your DataFrame intact
+        :param description: Table description
+        :param parameters: Key/value pairs to tag the table (Optional[Dict[str, str]])
+        :param columns_comments: Columns names and the related comments (Optional[Dict[str, str]])
         :return: List of objects written on S3
         """
         return self.to_s3(dataframe=dataframe,
@@ -720,7 +733,10 @@ class Pandas:
                           procs_cpu_bound=procs_cpu_bound,
                           procs_io_bound=procs_io_bound,
                           cast_columns=cast_columns,
-                          inplace=inplace)
+                          inplace=inplace,
+                          description=description,
+                          parameters=parameters,
+                          columns_comments=columns_comments)
 
     def to_s3(self,
               dataframe: pd.DataFrame,
@@ -736,7 +752,10 @@ class Pandas:
               procs_io_bound=None,
               cast_columns=None,
               extra_args=None,
-              inplace: bool = True) -> List[str]:
+              inplace: bool = True,
+              description: Optional[str] = None,
+              parameters: Optional[Dict[str, str]] = None,
+              columns_comments: Optional[Dict[str, str]] = None) -> List[str]:
         """
         Write a Pandas Dataframe on S3
         Optionally writes metadata on AWS Glue.
@@ -755,6 +774,9 @@ class Pandas:
         :param cast_columns: Dictionary of columns names and Athena/Glue types to be casted. (E.g. {"col name": "bigint", "col2 name": "int"}) (Only for "parquet" file_format)
         :param extra_args: Extra arguments specific for each file formats (E.g. "sep" for CSV)
         :param inplace: True is cheapest (CPU and Memory) but False leaves your DataFrame intact
+        :param description: Table description
+        :param parameters: Key/value pairs to tag the table (Optional[Dict[str, str]])
+        :param columns_comments: Columns names and the related comments (Optional[Dict[str, str]])
         :return: List of objects written on S3
         """
         if partition_cols is None:
@@ -810,7 +832,10 @@ class Pandas:
                                                 mode=mode,
                                                 compression=compression,
                                                 cast_columns=cast_columns,
-                                                extra_args=extra_args)
+                                                extra_args=extra_args,
+                                                description=description,
+                                                parameters=parameters,
+                                                columns_comments=columns_comments)
         return objects_paths
 
     def data_to_s3(self,
