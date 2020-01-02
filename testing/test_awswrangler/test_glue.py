@@ -127,3 +127,9 @@ def test_get_tables_suffix(session, table):
     for tbl in tables:
         if tbl["Name"] == table:
             assert tbl["TableType"] == "EXTERNAL_TABLE"
+
+
+def test_glue_utils(session, database, table):
+    assert len(session.glue.databases().index) > 1
+    assert len(session.glue.tables().index) > 1
+    assert len(session.glue.table(database=database, name=table).index) > 1

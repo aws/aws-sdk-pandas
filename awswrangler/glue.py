@@ -1,10 +1,10 @@
-from typing import Dict, Optional, Any, Iterator
+from typing import Dict, Optional, Any, Iterator, List
 from math import ceil
 from itertools import islice
 import re
 import logging
 
-from pandas import DataFrame
+from pandas import DataFrame  # type: ignore
 
 from awswrangler import data_types
 from awswrangler.athena import Athena
@@ -410,7 +410,12 @@ class Glue:
             for db in page["DatabaseList"]:
                 yield db
 
-    def get_tables(self, catalog_id: Optional[str] = None, database: Optional[str] = None, search: Optional[str] = None, prefix: Optional[str] = None, suffix: Optional[str] = None) -> Iterator[Dict[str, Any]]:
+    def get_tables(self,
+                   catalog_id: Optional[str] = None,
+                   database: Optional[str] = None,
+                   search: Optional[str] = None,
+                   prefix: Optional[str] = None,
+                   suffix: Optional[str] = None) -> Iterator[Dict[str, Any]]:
         """
         Get an iterator of tables
 
@@ -446,16 +451,32 @@ class Glue:
                 for tbl in page["TableList"]:
                     yield tbl
 
-    def tables(self, limit: int = 100, catalog_id: Optional[str] = None, database: Optional[str] = None, search: Optional[str] = None, prefix: Optional[str] = None, suffix: Optional[str] = None) -> DataFrame:
-        table_iter = self.get_tables(catalog_id=catalog_id, database=database, search=search, prefix=prefix, suffix=suffix)
+    def tables(self,
+               limit: int = 100,
+               catalog_id: Optional[str] = None,
+               database: Optional[str] = None,
+               search: Optional[str] = None,
+               prefix: Optional[str] = None,
+               suffix: Optional[str] = None) -> DataFrame:
+        """
+        Get iterator of tables filtered by a search term, prefix, suffix.
+
+        :param limit: Max number of tables
+        :param catalog_id: The ID of the Data Catalog from which to retrieve Databases. If none is provided, the AWS account ID is used by default.
+        :param database: Glue database name
+        :param search: Select only tables with the given string in the name.
+        :param prefix: Select only tables with the given string in the name prefix.
+        :param suffix: Select only tables with the given string in the name suffix.
+
+        :return: Pandas Dataframe filled by formatted infos
+        """
+        table_iter = self.get_tables(catalog_id=catalog_id,
+                                     database=database,
+                                     search=search,
+                                     prefix=prefix,
+                                     suffix=suffix)
         tables = islice(table_iter, limit)
-        df_dict = {
-            "Database": [],
-            "Table": [],
-            "Description": [],
-            "Columns": [],
-            "Partitions": []
-        }
+        df_dict: Dict[str, List] = {"Database": [], "Table": [], "Description": [], "Columns": [], "Partitions": []}
         for table in tables:
             df_dict["Database"].append(table["DatabaseName"])
             df_dict["Table"].append(table["Name"])
@@ -468,12 +489,16 @@ class Glue:
         return DataFrame(data=df_dict)
 
     def databases(self, limit: int = 100, catalog_id: Optional[str] = None) -> DataFrame:
+        """
+        Get iterator of databases.
+
+        :param limit: Max number of tables
+        :param catalog_id: The ID of the Data Catalog from which to retrieve Databases. If none is provided, the AWS account ID is used by default.
+        :return: Pandas Dataframe filled by formatted infos
+        """
         database_iter = self.get_databases(catalog_id=catalog_id)
         dbs = islice(database_iter, limit)
-        df_dict = {
-            "Database": [],
-            "Description": []
-        }
+        df_dict: Dict[str, List] = {"Database": [], "Description": []}
         for db in dbs:
             df_dict["Database"].append(db["Name"])
             if "Description" in db:
@@ -483,23 +508,19 @@ class Glue:
         return DataFrame(data=df_dict)
 
     def table(self, database: str, name: str, catalog_id: Optional[str] = None) -> DataFrame:
+        """
+        Get table details as Pandas Dataframe
+
+        :param database: Glue database name
+        :param name: Table name
+        :param catalog_id: The ID of the Data Catalog from which to retrieve Databases. If none is provided, the AWS account ID is used by default.
+        :return: Pandas Dataframe filled by formatted infos
+        """
         if catalog_id is None:
-            table: Dict[str, Any] = self._client_glue.get_table(
-                DatabaseName=database,
-                Name=name
-            )["Table"]
+            table: Dict[str, Any] = self._client_glue.get_table(DatabaseName=database, Name=name)["Table"]
         else:
-            table = self._client_glue.get_table(
-                CatalogId=catalog_id,
-                DatabaseName=database,
-                Name=name
-            )["Table"]
-        df_dict = {
-            "Column Name": [],
-            "Type": [],
-            "Partition": [],
-            "Comment": []
-        }
+            table = self._client_glue.get_table(CatalogId=catalog_id, DatabaseName=database, Name=name)["Table"]
+        df_dict: Dict[str, List] = {"Column Name": [], "Type": [], "Partition": [], "Comment": []}
         for col in table["StorageDescriptor"]["Columns"]:
             df_dict["Column Name"].append(col["Name"])
             df_dict["Type"].append(col["Type"])
