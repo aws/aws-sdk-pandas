@@ -447,7 +447,7 @@ class Redshift:
         connection.commit()
         cursor.close()
         if manifest_str != "":
-            self._session.s3.wait_object_exists(path=f"{path}manifest")
+            self._session.s3.wait_object_exists(path=f"{path}manifest", timeout=30.0)
         for p in paths:
-            self._session.s3.wait_object_exists(path=p)
+            self._session.s3.wait_object_exists(path=p, timeout=30.0)
         return paths

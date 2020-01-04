@@ -4,11 +4,12 @@ from math import ceil
 import logging
 from time import sleep
 
-from botocore.exceptions import ClientError, HTTPClientError  # type: ignore
+from botocore.exceptions import ClientError, HTTPClientError, ConnectTimeoutError  # type: ignore
 import s3fs  # type: ignore
 import tenacity  # type: ignore
 
 from awswrangler.utils import calculate_bounders, wait_process_release
+from awswrangler.exceptions import S3WaitObjectTimeout
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,12 @@ class S3:
         self._session = session
         self._client_s3 = session.boto3_session.client(service_name="s3", use_ssl=True, config=session.botocore_config)
 
+    @tenacity.retry(retry=tenacity.retry_if_exception_type(exception_types=(ClientError, HTTPClientError,
+                                                                            ConnectTimeoutError)),
+                    wait=tenacity.wait_random_exponential(multiplier=0.5),
+                    stop=tenacity.stop_after_attempt(max_attempt_number=10),
+                    reraise=True,
+                    after=tenacity.after_log(logger, logging.INFO))
     def does_object_exists(self, path: str) -> bool:
         """
         Check if object exists on S3
@@ -72,16 +79,22 @@ class S3:
                 return False
             raise ex
 
-    def wait_object_exists(self, path: str, polling_sleep: float = 0.1) -> None:
+    def wait_object_exists(self, path: str, polling_sleep: float = 0.1, timeout: Optional[float] = 10.0) -> None:
         """
         Wait object exists on S3
 
         :param path: S3 path (e.g. s3://...)
         :param polling_sleep: Milliseconds
+        :param timeout: Timeout (seconds)
         :return: None
         """
+        time_acc: float = 0.0
         while self.does_object_exists(path=path) is False:
             sleep(polling_sleep)
+            if timeout is not None:
+                time_acc += polling_sleep
+                if time_acc >= timeout:
+                    raise S3WaitObjectTimeout(f"Waited for {path} for {time_acc} seconds")
 
     @staticmethod
     def parse_path(path: str) -> Tuple[str, str]:
@@ -222,7 +235,8 @@ class S3:
         return keys
 
     @staticmethod
-    @tenacity.retry(retry=tenacity.retry_if_exception_type(exception_types=(ClientError, HTTPClientError)),
+    @tenacity.retry(retry=tenacity.retry_if_exception_type(exception_types=(ClientError, HTTPClientError,
+                                                                            ConnectTimeoutError)),
                     wait=tenacity.wait_random_exponential(multiplier=0.5),
                     stop=tenacity.stop_after_attempt(max_attempt_number=10),
                     reraise=True,

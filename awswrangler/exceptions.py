@@ -108,3 +108,7 @@ class InvalidEngine(Exception):
 
 class InvalidSagemakerOutput(Exception):
     pass
+
+
+class S3WaitObjectTimeout(Exception):
+    pass

@@ -6,7 +6,9 @@ import pytest
 import boto3
 import pandas
 
+import awswrangler as wr
 from awswrangler import Session
+from awswrangler.exceptions import S3WaitObjectTimeout
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
@@ -220,3 +222,8 @@ def test_copy_listed_objects(session, bucket, database, mode, procs_io_bound):
         assert 2 * len(dataframe.index) == len(dataframe2.index)
     else:
         assert len(dataframe.index) == len(dataframe2.index)
+
+
+def test_wait_object_exists(bucket):
+    with pytest.raises(S3WaitObjectTimeout):
+        wr.s3.wait_object_exists(path=f"s3://{bucket}/test_wait_object_exists.txt", timeout=5.0)

@@ -577,7 +577,10 @@ class Pandas:
         manifest_path: str = f"{s3_output}/tables/{query_id}-manifest.csv"
         paths: List[str] = self._session.athena.extract_manifest_paths(path=manifest_path)
         logger.debug(f"paths: {paths}")
-        return self.read_parquet(path=paths, procs_cpu_bound=procs_cpu_bound)
+        return self.read_parquet(path=paths,
+                                 procs_cpu_bound=procs_cpu_bound,
+                                 wait_objects=True,
+                                 wait_objects_timeout=15.0)
 
     def _read_sql_athena_regular(self,
                                  sql: str,
@@ -1237,7 +1240,9 @@ class Pandas:
                      path: Union[str, List[str]],
                      columns: Optional[List[str]] = None,
                      filters: Optional[Union[List[Tuple[Any]], List[List[Tuple[Any]]]]] = None,
-                     procs_cpu_bound: Optional[int] = None) -> pd.DataFrame:
+                     procs_cpu_bound: Optional[int] = None,
+                     wait_objects: bool = False,
+                     wait_objects_timeout: Optional[float] = 10.0) -> pd.DataFrame:
         """
         Read parquet data from S3
 
@@ -1245,6 +1250,9 @@ class Pandas:
         :param columns: Names of columns to read from the file
         :param filters: List of filters to apply, like ``[[('x', '=', 0), ...], ...]``.
         :param procs_cpu_bound: Number of cores used for CPU bound tasks
+        :param wait_objects: Wait for all files exists (Not valid when path is a directory) (Useful for eventual consistency situations)
+        :param wait_objects: Wait objects Timeout (seconds)
+        :return: Pandas DataFrame
         """
         procs_cpu_bound = procs_cpu_bound if procs_cpu_bound is not None else self._session.procs_cpu_bound if self._session.procs_cpu_bound is not None else 1
         logger.debug(f"procs_cpu_bound: {procs_cpu_bound}")
@@ -1258,7 +1266,9 @@ class Pandas:
                                             path=path,
                                             columns=columns,
                                             filters=filters,
-                                            procs_cpu_bound=procs_cpu_bound)
+                                            procs_cpu_bound=procs_cpu_bound,
+                                            wait_objects=wait_objects,
+                                            wait_objects_timeout=wait_objects_timeout)
         else:
             procs = []
             receive_pipes = []
@@ -1273,8 +1283,9 @@ class Pandas:
                         path[bounder[0]:bounder[1]],
                         columns,
                         filters,
-                        1  # procs_cpu_bound
-                    ),
+                        1,  # procs_cpu_bound
+                        wait_objects,
+                        wait_objects_timeout),
                 )
                 proc.daemon = False
                 proc.start()
@@ -1300,12 +1311,16 @@ class Pandas:
                                    path: Union[str, List[str]],
                                    columns: Optional[List[str]] = None,
                                    filters: Optional[Union[List[Tuple[Any]], List[List[Tuple[Any]]]]] = None,
-                                   procs_cpu_bound: Optional[int] = None):
+                                   procs_cpu_bound: Optional[int] = None,
+                                   wait_objects: bool = False,
+                                   wait_objects_timeout: Optional[float] = 10.0):
         df: pd.DataFrame = Pandas._read_parquet_paths(session_primitives=session_primitives,
                                                       path=path,
                                                       columns=columns,
                                                       filters=filters,
-                                                      procs_cpu_bound=procs_cpu_bound)
+                                                      procs_cpu_bound=procs_cpu_bound,
+                                                      wait_objects=wait_objects,
+                                                      wait_objects_timeout=wait_objects_timeout)
         send_pipe.send(df)
         send_pipe.close()
 
@@ -1314,7 +1329,9 @@ class Pandas:
                             path: Union[str, List[str]],
                             columns: Optional[List[str]] = None,
                             filters: Optional[Union[List[Tuple[Any]], List[List[Tuple[Any]]]]] = None,
-                            procs_cpu_bound: Optional[int] = None) -> pd.DataFrame:
+                            procs_cpu_bound: Optional[int] = None,
+                            wait_objects: bool = False,
+                            wait_objects_timeout: Optional[float] = 10.0) -> pd.DataFrame:
         """
         Read parquet data from S3
 
@@ -1323,6 +1340,9 @@ class Pandas:
         :param columns: Names of columns to read from the file
         :param filters: List of filters to apply, like ``[[('x', '=', 0), ...], ...]``.
         :param procs_cpu_bound: Number of cores used for CPU bound tasks
+        :param wait_objects: Wait for all files exists (Not valid when path is a directory) (Useful for eventual consistency situations)
+        :param wait_objects: Wait objects Timeout (seconds)
+        :return: Pandas DataFrame
         """
         df: pd.DataFrame
         if (type(path) == str) or (len(path) == 1):
@@ -1332,19 +1352,25 @@ class Pandas:
                 path=path,  # type: ignore
                 columns=columns,
                 filters=filters,
-                procs_cpu_bound=procs_cpu_bound)
+                procs_cpu_bound=procs_cpu_bound,
+                wait_objects=wait_objects,
+                wait_objects_timeout=wait_objects_timeout)
         else:
             df = Pandas._read_parquet_path(session_primitives=session_primitives,
                                            path=path[0],
                                            columns=columns,
                                            filters=filters,
-                                           procs_cpu_bound=procs_cpu_bound)
+                                           procs_cpu_bound=procs_cpu_bound,
+                                           wait_objects=wait_objects,
+                                           wait_objects_timeout=wait_objects_timeout)
             for p in path[1:]:
                 df_aux = Pandas._read_parquet_path(session_primitives=session_primitives,
                                                    path=p,
                                                    columns=columns,
                                                    filters=filters,
-                                                   procs_cpu_bound=procs_cpu_bound)
+                                                   procs_cpu_bound=procs_cpu_bound,
+                                                   wait_objects=wait_objects,
+                                                   wait_objects_timeout=wait_objects_timeout)
                 df = pd.concat(objs=[df, df_aux], ignore_index=True)
         return df
 
@@ -1353,7 +1379,9 @@ class Pandas:
                            path: str,
                            columns: Optional[List[str]] = None,
                            filters: Optional[Union[List[Tuple[Any]], List[List[Tuple[Any]]]]] = None,
-                           procs_cpu_bound: Optional[int] = None) -> pd.DataFrame:
+                           procs_cpu_bound: Optional[int] = None,
+                           wait_objects: bool = False,
+                           wait_objects_timeout: Optional[float] = 10.0) -> pd.DataFrame:
         """
         Read parquet data from S3
 
@@ -1362,11 +1390,21 @@ class Pandas:
         :param columns: Names of columns to read from the file
         :param filters: List of filters to apply, like ``[[('x', '=', 0), ...], ...]``.
         :param procs_cpu_bound: Number of cores used for CPU bound tasks
+        :param wait_objects: Wait for all files exists (Not valid when path is a directory) (Useful for eventual consistency situations)
+        :param wait_objects: Wait objects Timeout (seconds)
+        :return: Pandas DataFrame
         """
         session = session_primitives.session
-        is_file: bool = session.s3.does_object_exists(path=path)
-        if is_file is False:
-            path = path[:-1] if path[-1] == "/" else path
+        if wait_objects is True:
+            logger.debug(f"waiting {path}...")
+            session.s3.wait_object_exists(path=path, timeout=wait_objects_timeout)
+            is_file: bool = True
+        else:
+            logger.debug(f"checking if {path} exists...")
+            is_file = session.s3.does_object_exists(path=path)
+            if is_file is False:
+                path = path[:-1] if path[-1] == "/" else path
+        logger.debug(f"is_file: {is_file}")
         procs_cpu_bound = procs_cpu_bound if procs_cpu_bound is not None else session_primitives.procs_cpu_bound if session_primitives.procs_cpu_bound is not None else 1
         use_threads: bool = True if procs_cpu_bound > 1 else False
         logger.debug(f"Reading Parquet: {path}")
