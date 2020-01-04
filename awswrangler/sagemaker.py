@@ -1,5 +1,4 @@
 from typing import Any, Dict
-import pickle
 import tarfile
 import logging
 
@@ -54,36 +53,11 @@ class SageMaker:
 
         members = tar.getmembers()
         if len(members) < 1:
-            raise InvalidSagemakerOutput(f"No artifacts found in {path}")
+            raise InvalidSagemakerOutput(f"No artifacts found in {path}.")
 
         results: Dict[str, Any] = {}
         for member in members:
             logger.debug(f"member: {member.name}")
-            f = tar.extractfile(member)
-            file_type: str = member.name.split(".")[-1]
-
-            if (file_type == "pkl") and (f is not None):
-                f = pickle.load(f)
-
-            results[member.name] = f
+            results[member.name] = tar.extractfile(member)
 
         return results
-
-    def get_model(self, job_name: str = None, path: str = None, model_name: str = None) -> Any:
-        """
-        Extract and deserialize a Sagemaker's output model (.tat.gz)
-
-        :param job_name: Sagemaker's job name
-        :param path: S3 path (model.tar.gz path)
-        :param model_name: model name (e.g: )
-        :return:
-        """
-        outputs: Dict[str, Any] = self.get_job_outputs(job_name=job_name, path=path)
-        outputs_len: int = len(outputs)
-        if model_name in outputs:
-            return outputs[model_name]
-        elif outputs_len > 1:
-            raise InvalidSagemakerOutput(
-                f"Number of artifacts found: {outputs_len}. Please, specify a model_name or use the Sagemaker.get_job_outputs() method."
-            )
-        return list(outputs.values())[0]
