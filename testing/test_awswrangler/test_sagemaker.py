@@ -149,6 +149,10 @@ def model_dirty(bucket):
         os.remove("test.txt")
     except OSError:
         pass
+    try:
+        os.remove("model.tar.gz")
+    except OSError:
+        pass
 
     yield f"s3://{bucket}/{model_path}"
 
