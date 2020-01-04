@@ -159,32 +159,28 @@ def model_dirty(bucket):
 
 def test_get_job_outputs_by_path(session, model):
     outputs = session.sagemaker.get_job_outputs(path=model)
-    assert type(list(outputs.values())[0]) == LinearRegression
-
-
-def test_get_job_outputs_by_job_id(session, bucket):
-    pass
+    assert type(list(outputs.values())[0]) == tarfile.ExFileObject
 
 
 def test_get_model_empty(model_empty):
     with pytest.raises(InvalidSagemakerOutput):
-        wr.sagemaker.get_model(path=model_empty)
+        wr.sagemaker.get_job_outputs(path=model_empty)
 
 
 def test_get_model_double(session, model_double):
-    with pytest.raises(InvalidSagemakerOutput):
-        wr.sagemaker.get_model(path=model_double)
-    model = session.sagemaker.get_model(path=model_double, model_name="model.pkl")
-    assert type(model) == LinearRegression
+    objs = session.sagemaker.get_job_outputs(path=model_double)
+    assert type(objs["model.pkl"]) == tarfile.ExFileObject
+    assert type(objs["model2.pkl"]) == tarfile.ExFileObject
 
 
 def test_get_model_by_path(session, model):
-    model = session.sagemaker.get_model(path=model)
-    assert type(model) == LinearRegression
+    objs = session.sagemaker.get_job_outputs(path=model)
+    print(objs)
+    assert type(pickle.load(objs["model"])) == LinearRegression
 
 
 def test_get_job_outputs_model_dirty(model_dirty):
     outputs = wr.sagemaker.get_job_outputs(path=model_dirty)
-    assert type(outputs["model.pkl"]) == LinearRegression
-    assert type(outputs["model"]) == LinearRegression
+    assert type(pickle.load(outputs["model.pkl"])) == LinearRegression
+    assert type(pickle.load(outputs["model"])) == LinearRegression
     assert outputs["test.txt"].read().decode("utf-8") == "foo-boo-bar"

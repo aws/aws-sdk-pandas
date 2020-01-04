@@ -1,5 +1,4 @@
 from typing import Any, Dict
-import pickle
 import tarfile
 import logging
 
@@ -22,13 +21,12 @@ class SageMaker:
         parts = path2.partition("/")
         return parts[0], parts[2]
 
-    def get_job_outputs(self, job_name: str = None, path: str = None, only_pickle: bool = False) -> Dict[str, Any]:
+    def get_job_outputs(self, job_name: str = None, path: str = None) -> Dict[str, Any]:
         """
         Extract and deserialize all Sagemaker's outputs (everything inside model.tar.gz)
 
         :param job_name: Sagemaker's job name
         :param path: S3 path (model.tar.gz path)
-        :param only_pickle: Get only pickle objects
         :return: A Dictionary with all filenames (key) and all objects (values)
         """
 
@@ -60,33 +58,6 @@ class SageMaker:
         results: Dict[str, Any] = {}
         for member in members:
             logger.debug(f"member: {member.name}")
-            f = tar.extractfile(member)
-            try:
-                f_unpickled = pickle.load(f)  # type: ignore
-                logger.debug(f"Pickle object: {member.name}")
-                results[member.name] = f_unpickled
-            except pickle.UnpicklingError:
-                logger.debug(f"Non pickle object: {member.name}")
-                if only_pickle is False:
-                    results[member.name] = f
+            results[member.name] = tar.extractfile(member)
 
         return results
-
-    def get_model(self, job_name: str = None, path: str = None, model_name: str = None) -> Any:
-        """
-        Extract and deserialize a Sagemaker's output model (.tat.gz)
-
-        :param job_name: Sagemaker's job name
-        :param path: S3 path (model.tar.gz path)
-        :param model_name: model name (e.g: xgboost-model)
-        :return: The deserialized model, in which the type will depend on the algorithm used
-        """
-        outputs: Dict[str, Any] = self.get_job_outputs(job_name=job_name, path=path, only_pickle=True)
-        outputs_len: int = len(outputs)
-        if model_name in outputs:
-            return outputs[model_name]
-        elif outputs_len > 1:
-            raise InvalidSagemakerOutput(
-                f"Number of artifacts found: {outputs_len}. Please, specify a model_name or use the Sagemaker.get_job_outputs() method."
-            )
-        return list(outputs.values())[0]
