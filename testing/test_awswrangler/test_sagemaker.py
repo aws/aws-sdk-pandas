@@ -45,25 +45,25 @@ def model(bucket):
     model_path = "output/model.tar.gz"
 
     lr = LinearRegression()
-    with open("model.pkl", "wb") as fp:
+    with open("model", "wb") as fp:
         pickle.dump(lr, fp, pickle.HIGHEST_PROTOCOL)
 
     with tarfile.open("model.tar.gz", "w:gz") as tar:
-        tar.add("model.pkl")
+        tar.add("model")
 
     s3 = boto3.resource("s3")
     s3.Bucket(bucket).upload_file("model.tar.gz", model_path)
 
-    yield f"s3://{bucket}/{model_path}"
-
     try:
-        os.remove("model.pkl")
+        os.remove("model")
     except OSError:
         pass
     try:
         os.remove("model.tar.gz")
     except OSError:
         pass
+
+    yield f"s3://{bucket}/{model_path}"
 
 
 @pytest.fixture(scope="module")
@@ -76,12 +76,12 @@ def model_empty(bucket):
     s3 = boto3.resource("s3")
     s3.Bucket(bucket).upload_file("model.tar.gz", model_path)
 
-    yield f"s3://{bucket}/{model_path}"
-
     try:
         os.remove("model.tar.gz")
     except OSError:
         pass
+
+    yield f"s3://{bucket}/{model_path}"
 
 
 @pytest.fixture(scope="module")
@@ -102,8 +102,6 @@ def model_double(bucket):
     s3 = boto3.resource("s3")
     s3.Bucket(bucket).upload_file("model.tar.gz", model_path)
 
-    yield f"s3://{bucket}/{model_path}"
-
     try:
         os.remove("model.pkl")
     except OSError:
@@ -116,6 +114,43 @@ def model_double(bucket):
         os.remove("model.tar.gz")
     except OSError:
         pass
+
+    yield f"s3://{bucket}/{model_path}"
+
+
+@pytest.fixture(scope="module")
+def model_dirty(bucket):
+    model_path = "output/model.tar.gz"
+
+    lr = LinearRegression()
+    with open("model.pkl", "wb") as fp:
+        pickle.dump(lr, fp, pickle.HIGHEST_PROTOCOL)
+    with open("model", "wb") as fp:
+        pickle.dump(lr, fp, pickle.HIGHEST_PROTOCOL)
+    with open("test.txt", "w") as fp:
+        fp.write("foo-boo-bar")
+    with tarfile.open("model.tar.gz", "w:gz") as tar:
+        tar.add("model.pkl")
+        tar.add("model")
+        tar.add("test.txt")
+
+    s3 = boto3.resource("s3")
+    s3.Bucket(bucket).upload_file("model.tar.gz", model_path)
+
+    try:
+        os.remove("model.pkl")
+    except OSError:
+        pass
+    try:
+        os.remove("model")
+    except OSError:
+        pass
+    try:
+        os.remove("test.txt")
+    except OSError:
+        pass
+
+    yield f"s3://{bucket}/{model_path}"
 
 
 def test_get_job_outputs_by_path(session, model):
@@ -142,3 +177,10 @@ def test_get_model_double(session, model_double):
 def test_get_model_by_path(session, model):
     model = session.sagemaker.get_model(path=model)
     assert type(model) == LinearRegression
+
+
+def test_get_job_outputs_model_dirty(model_dirty):
+    outputs = wr.sagemaker.get_job_outputs(path=model_dirty)
+    assert type(outputs["model.pkl"]) == LinearRegression
+    assert type(outputs["model"]) == LinearRegression
+    assert outputs["test.txt"].read().decode("utf-8") == "foo-boo-bar"

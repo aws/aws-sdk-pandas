@@ -22,13 +22,13 @@ class SageMaker:
         parts = path2.partition("/")
         return parts[0], parts[2]
 
-    def get_job_outputs(self, job_name: str = None, path: str = None, model_name: str = None) -> Dict[str, Any]:
+    def get_job_outputs(self, job_name: str = None, path: str = None, only_pickle: bool = False) -> Dict[str, Any]:
         """
         Extract and deserialize all Sagemaker's outputs (everything inside model.tar.gz)
 
         :param job_name: Sagemaker's job name
         :param path: S3 path (model.tar.gz path)
-        :param model_name: model name (e.g: xgboost-model)
+        :param only_pickle: Get only pickle objects
         :return: A Dictionary with all filenames (key) and all objects (values)
         """
 
@@ -55,18 +55,20 @@ class SageMaker:
 
         members = tar.getmembers()
         if len(members) < 1:
-            raise InvalidSagemakerOutput(f"No artifacts found in {path}")
+            raise InvalidSagemakerOutput(f"No artifacts found in {path}.")
 
         results: Dict[str, Any] = {}
         for member in members:
             logger.debug(f"member: {member.name}")
             f = tar.extractfile(member)
-            file_type: str = member.name.split(".")[-1]
-
-            if ((file_type == "pkl") or (member.name == model_name)) and (f is not None):
-                f = pickle.load(f)
-
-            results[member.name] = f
+            try:
+                f_unpickled = pickle.load(f)  # type: ignore
+                logger.debug(f"Pickle object: {member.name}")
+                results[member.name] = f_unpickled
+            except pickle.UnpicklingError:
+                logger.debug(f"Non pickle object: {member.name}")
+                if only_pickle is False:
+                    results[member.name] = f
 
         return results
 
@@ -79,7 +81,7 @@ class SageMaker:
         :param model_name: model name (e.g: xgboost-model)
         :return: The deserialized model, in which the type will depend on the algorithm used
         """
-        outputs: Dict[str, Any] = self.get_job_outputs(job_name=job_name, path=path, model_name=model_name)
+        outputs: Dict[str, Any] = self.get_job_outputs(job_name=job_name, path=path, only_pickle=True)
         outputs_len: int = len(outputs)
         if model_name in outputs:
             return outputs[model_name]
