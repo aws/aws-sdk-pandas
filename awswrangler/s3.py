@@ -87,33 +87,20 @@ class S3:
     def parse_path(path: str) -> Tuple[str, str]:
         bucket: str
         bucket, path = path.replace("s3://", "").split("/", 1)
-        if not path:
+        if path is None:
             path = ""
-        elif len(path) == 1:
-            if path[0] != "/":
-                path += "/"
-            else:
-                path = ""
-        else:
-            if path[-1] != "/":
-                path += "/"
         return bucket, path
-
-    @staticmethod
-    def parse_object_path(path):
-        return path.replace("s3://", "").split("/", 1)
 
     def delete_objects(self, path: str, procs_io_bound: Optional[int] = None) -> None:
         if not procs_io_bound:
             procs_io_bound = self._session.procs_io_bound
         bucket, path = self.parse_path(path=path)
-        client = self._session.boto3_session.client(service_name="s3", config=self._session.botocore_config)
         procs = []
         args = {"Bucket": bucket, "MaxKeys": 1000, "Prefix": path}
         logger.debug(f"Arguments: \n{args}")
         next_continuation_token = ""
         while next_continuation_token is not None:
-            res = client.list_objects_v2(**args)
+            res = self._client_s3.list_objects_v2(**args)
             if not res.get("Contents"):
                 break
             keys = [{"Key": x.get("Key")} for x in res.get("Contents")]
@@ -212,7 +199,7 @@ class S3:
     @staticmethod
     def delete_objects_batch(session_primitives, bucket, batch):
         session = session_primitives.session
-        client = session.boto3_session.client(service_name="s3", config=session.botocore_config)
+        client = session.boto3_session.client(service_name="s3", use_ssl=True, config=session.botocore_config)
         num_requests = int(ceil((float(len(batch)) / 1000.0)))
         bounders = calculate_bounders(len(batch), num_requests)
         logger.debug(f"Bounders: {bounders}")
@@ -220,15 +207,12 @@ class S3:
             client.delete_objects(Bucket=bucket, Delete={"Objects": batch[bounder[0]:bounder[1]]})
 
     def list_objects(self, path):
-        bucket, path = path.replace("s3://", "").split("/", 1)
-        if path[-1] != "/":
-            path += "/"
-        client = self._session.boto3_session.client(service_name="s3", config=self._session.botocore_config)
+        bucket, path = self.parse_path(path=path)
         args = {"Bucket": bucket, "MaxKeys": 1000, "Prefix": path}
         next_continuation_token = True
         keys = []
         while next_continuation_token:
-            res = client.list_objects_v2(**args)
+            res = self._client_s3.list_objects_v2(**args)
             if not res.get("Contents"):
                 break
             keys += [f"s3://{bucket}/{x.get('Key')}" for x in res.get("Contents")]
@@ -249,7 +233,7 @@ class S3:
     @staticmethod
     def _get_objects_head_remote(send_pipe, session_primitives, objects_paths):
         session = session_primitives.session
-        client = session.boto3_session.client(service_name="s3", config=session.botocore_config)
+        client = session.boto3_session.client(service_name="s3", use_ssl=True, config=session.botocore_config)
         objects_sizes = {}
         logger.debug(f"len(objects_paths): {len(objects_paths)}")
         for object_path in objects_paths:
@@ -350,9 +334,9 @@ class S3:
         resource = session.boto3_session.resource(service_name="s3", config=session.botocore_config)
         logger.debug(f"len(batch): {len(batch)}")
         for source_obj, target_obj in batch:
-            source_bucket, source_key = S3.parse_object_path(path=source_obj)
+            source_bucket, source_key = S3.parse_path(path=source_obj)
             copy_source = {"Bucket": source_bucket, "Key": source_key}
-            target_bucket, target_key = S3.parse_object_path(path=target_obj)
+            target_bucket, target_key = S3.parse_path(path=target_obj)
             resource.meta.client.copy(copy_source, target_bucket, target_key)
 
     def get_bucket_region(self, bucket: str) -> str:
