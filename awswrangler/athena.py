@@ -1,6 +1,6 @@
 from typing import Dict, List, Tuple, Optional, Any, Iterator
 from time import sleep
-import logging
+from logging import getLogger, Logger
 import re
 import unicodedata
 from datetime import datetime, date
@@ -8,7 +8,7 @@ from datetime import datetime, date
 from awswrangler.data_types import athena2python
 from awswrangler.exceptions import QueryFailed, QueryCancelled
 
-logger = logging.getLogger(__name__)
+logger: Logger = getLogger(__name__)
 
 QUERY_WAIT_POLLING_DELAY = 0.2  # MILLISECONDS
 

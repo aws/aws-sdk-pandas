@@ -3,12 +3,12 @@ Module to handle all utilities related to EMR (Elastic Map Reduce)
 https://aws.amazon.com/emr/
 """
 from typing import Optional, List, Dict, Any, Union, Collection
-import logging
+from logging import getLogger, Logger
 import json
 
 from boto3 import client  # type: ignore
 
-logger = logging.getLogger(__name__)
+logger: Logger = getLogger(__name__)
 
 
 class EMR:

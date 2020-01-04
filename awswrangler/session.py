@@ -1,6 +1,6 @@
-from typing import Optional
+from typing import Optional, Dict
 import os
-import logging
+from logging import getLogger, Logger
 import importlib
 
 import boto3  # type: ignore
@@ -17,12 +17,12 @@ from awswrangler.emr import EMR
 from awswrangler.sagemaker import SageMaker
 from awswrangler.exceptions import AWSCredentialsNotFound
 
-PYSPARK_INSTALLED = False
+PYSPARK_INSTALLED: bool = False
 if importlib.util.find_spec("pyspark"):  # type: ignore
     PYSPARK_INSTALLED = True
     from awswrangler.spark import Spark
 
-logger = logging.getLogger(__name__)
+logger: Logger = getLogger(__name__)
 
 
 class Session:
@@ -32,7 +32,7 @@ class Session:
     AWS Glue Connections attributes, number of cpu cores that can be used, etc)
     """
 
-    PROCS_IO_BOUND_FACTOR = 2
+    PROCS_IO_BOUND_FACTOR: int = 2
 
     def __init__(self,
                  boto3_session=None,
@@ -42,7 +42,7 @@ class Session:
                  aws_session_token: Optional[str] = None,
                  region_name: Optional[str] = None,
                  botocore_max_retries: int = 40,
-                 s3_additional_kwargs=None,
+                 s3_additional_kwargs: Optional[Dict[str, str]] = None,
                  spark_context=None,
                  spark_session=None,
                  procs_cpu_bound: Optional[int] = None,
@@ -90,10 +90,10 @@ class Session:
         self._botocore_config = Config(retries={"max_attempts": self._botocore_max_retries})
         self._aws_session_token: Optional[str] = aws_session_token
         self._region_name: Optional[str] = boto3_session.region_name if boto3_session else region_name
-        self._s3_additional_kwargs = s3_additional_kwargs
+        self._s3_additional_kwargs: Optional[Dict[str, str]] = s3_additional_kwargs
         self._spark_context = spark_context
         self._spark_session = spark_session
-        cpus = os.cpu_count()
+        cpus: Optional[int] = os.cpu_count()
         self._procs_cpu_bound: int = 1 if cpus is None else cpus if procs_cpu_bound is None else procs_cpu_bound
         self._procs_io_bound: int = 1 if cpus is None else cpus * Session.PROCS_IO_BOUND_FACTOR if procs_io_bound is None else procs_io_bound
         self._athena_workgroup: str = athena_workgroup
@@ -104,24 +104,24 @@ class Session:
         self._athena_ctas_approach: bool = athena_ctas_approach
         self._redshift_temp_s3_path: Optional[str] = redshift_temp_s3_path
         self._aurora_temp_s3_path: Optional[str] = aurora_temp_s3_path
-        self._primitives = None
+        self._primitives: Optional[SessionPrimitives] = None
         self._load_new_primitives()
         if boto3_session:
             self._boto3_session = boto3_session
         else:
             self._load_new_boto3_session()
-        self._s3 = None
-        self._athena = None
-        self._cloudwatchlogs = None
-        self._emr = None
-        self._pandas = None
-        self._glue = None
-        self._redshift = None
-        self._aurora = None
-        self._spark = None
-        self._sagemaker = None
+        self._s3: Optional[S3] = None
+        self._athena: Optional[Athena] = None
+        self._cloudwatchlogs: Optional[CloudWatchLogs] = None
+        self._emr: Optional[EMR] = None
+        self._pandas: Optional[Pandas] = None
+        self._glue: Optional[Glue] = None
+        self._redshift: Optional[Redshift] = None
+        self._aurora: Optional[Aurora] = None
+        self._spark: Optional[Spark] = None
+        self._sagemaker: Optional[SageMaker] = None
 
-    def _load_new_boto3_session(self):
+    def _load_new_boto3_session(self) -> None:
         """
         Load or reload a new Boto3 Session for the AWS Wrangler Session
         :return: None
@@ -144,7 +144,7 @@ class Session:
         self._aws_secret_access_key = credentials.secret_key
         self._region_name = self._boto3_session.region_name
 
-    def _load_new_primitives(self):
+    def _load_new_primitives(self) -> None:
         """
         Load or reload a new AWS Wrangler Session primitives
         :return: None
@@ -169,35 +169,35 @@ class Session:
                                              aurora_temp_s3_path=self._aurora_temp_s3_path)
 
     @property
-    def profile_name(self):
+    def profile_name(self) -> Optional[str]:
         return self._profile_name
 
     @property
-    def aws_access_key_id(self):
+    def aws_access_key_id(self) -> Optional[str]:
         return self._aws_access_key_id
 
     @property
-    def aws_secret_access_key(self):
+    def aws_secret_access_key(self) -> Optional[str]:
         return self._aws_secret_access_key
 
     @property
-    def aws_session_token(self):
+    def aws_session_token(self) -> Optional[str]:
         return self._aws_session_token
 
     @property
-    def region_name(self):
+    def region_name(self) -> Optional[str]:
         return self._region_name
 
     @property
-    def botocore_max_retries(self):
+    def botocore_max_retries(self) -> int:
         return self._botocore_max_retries
 
     @property
-    def botocore_config(self):
+    def botocore_config(self) -> Config:
         return self._botocore_config
 
     @property
-    def s3_additional_kwargs(self):
+    def s3_additional_kwargs(self) -> Optional[Dict[str, str]]:
         return self._s3_additional_kwargs
 
     @property
@@ -209,11 +209,11 @@ class Session:
         return self._spark_session
 
     @property
-    def procs_cpu_bound(self):
+    def procs_cpu_bound(self) -> int:
         return self._procs_cpu_bound
 
     @property
-    def procs_io_bound(self):
+    def procs_io_bound(self) -> int:
         return self._procs_io_bound
 
     @property
@@ -257,62 +257,62 @@ class Session:
         return self._primitives
 
     @property
-    def s3(self):
-        if not self._s3:
+    def s3(self) -> S3:
+        if self._s3 is None:
             self._s3 = S3(session=self)
         return self._s3
 
     @property
-    def athena(self):
-        if not self._athena:
+    def athena(self) -> Athena:
+        if self._athena is None:
             self._athena = Athena(session=self)
         return self._athena
 
     @property
-    def cloudwatchlogs(self):
-        if not self._cloudwatchlogs:
+    def cloudwatchlogs(self) -> CloudWatchLogs:
+        if self._cloudwatchlogs is None:
             self._cloudwatchlogs = CloudWatchLogs(session=self)
         return self._cloudwatchlogs
 
     @property
-    def emr(self):
-        if not self._emr:
+    def emr(self) -> EMR:
+        if self._emr is None:
             self._emr = EMR(session=self)
         return self._emr
 
     @property
-    def pandas(self):
-        if not self._pandas:
+    def pandas(self) -> Pandas:
+        if self._pandas is None:
             self._pandas = Pandas(session=self)
         return self._pandas
 
     @property
-    def glue(self):
-        if not self._glue:
+    def glue(self) -> Glue:
+        if self._glue is None:
             self._glue = Glue(session=self)
         return self._glue
 
     @property
-    def redshift(self):
-        if not self._redshift:
+    def redshift(self) -> Redshift:
+        if self._redshift is None:
             self._redshift = Redshift(session=self)
         return self._redshift
 
     @property
-    def aurora(self):
-        if not self._aurora:
+    def aurora(self) -> Aurora:
+        if self._aurora is None:
             self._aurora = Aurora(session=self)
         return self._aurora
 
     @property
-    def sagemaker(self):
-        if not self._sagemaker:
+    def sagemaker(self) -> SageMaker:
+        if self._sagemaker is None:
             self._sagemaker = SageMaker(session=self)
         return self._sagemaker
 
     @property
     def spark(self):
-        if not PYSPARK_INSTALLED:
+        if PYSPARK_INSTALLED is False:
             self._spark = None
         elif not self._spark:
             self._spark = Spark(session=self)

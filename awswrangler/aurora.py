@@ -1,5 +1,5 @@
 from typing import Union, List, Dict, Tuple, Any
-import logging
+from logging import getLogger, Logger
 import json
 import warnings
 
@@ -10,7 +10,7 @@ import pandas as pd  # type: ignore
 from awswrangler import data_types
 from awswrangler.exceptions import InvalidEngine, InvalidDataframeType, AuroraLoadError
 
-logger = logging.getLogger(__name__)
+logger: Logger = getLogger(__name__)
 
 
 class Aurora:

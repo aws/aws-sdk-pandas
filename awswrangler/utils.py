@@ -1,10 +1,10 @@
 from math import ceil, gcd
 from time import sleep
-import logging
+from logging import getLogger, Logger
 
 from awswrangler.exceptions import InvalidArguments
 
-logger = logging.getLogger(__name__)
+logger: Logger = getLogger(__name__)
 
 
 def calculate_bounders(num_items, num_groups=None, max_size=None):

@@ -1,7 +1,7 @@
 from typing import Dict, List, Tuple, Optional, Any, Union, Iterator
 from io import BytesIO, StringIO
 import multiprocessing as mp
-import logging
+from logging import getLogger, Logger, INFO
 from math import floor
 import copy
 import csv
@@ -25,7 +25,7 @@ from awswrangler import s3
 from awswrangler.athena import Athena
 from awswrangler.aurora import Aurora
 
-logger = logging.getLogger(__name__)
+logger: Logger = getLogger(__name__)
 
 MIN_NUMBER_OF_ROWS_TO_DISTRIBUTE = 1000
 
@@ -1053,7 +1053,7 @@ class Pandas:
                     wait=tenacity.wait_random_exponential(multiplier=0.5),
                     stop=tenacity.stop_after_attempt(max_attempt_number=10),
                     reraise=True,
-                    after=tenacity.after_log(logger, logging.INFO))
+                    after=tenacity.after_log(logger, INFO))
     def _write_csv_to_s3_retrying(fs: Any, path: str, buffer: bytes) -> None:
         with fs.open(path, "wb") as f:
             f.write(buffer)
@@ -1098,7 +1098,7 @@ class Pandas:
                     wait=tenacity.wait_random_exponential(multiplier=0.5),
                     stop=tenacity.stop_after_attempt(max_attempt_number=10),
                     reraise=True,
-                    after=tenacity.after_log(logger, logging.INFO))
+                    after=tenacity.after_log(logger, INFO))
     def _write_parquet_to_s3_retrying(fs: Any, path: str, table: pa.Table, compression: str) -> None:
         with fs.open(path, "wb") as f:
             pq.write_table(table, f, compression=compression, coerce_timestamps="ms", flavor="spark")

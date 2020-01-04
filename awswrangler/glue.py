@@ -2,7 +2,7 @@ from typing import Dict, Optional, Any, Iterator, List
 from math import ceil
 from itertools import islice
 import re
-import logging
+from logging import getLogger, Logger
 
 from pandas import DataFrame  # type: ignore
 
@@ -12,7 +12,7 @@ from awswrangler.redshift import Redshift
 from awswrangler.aurora import Aurora
 from awswrangler.exceptions import UnsupportedFileFormat, InvalidSerDe, ApiError, UnsupportedType, UndetectedType, InvalidTable, InvalidArguments
 
-logger = logging.getLogger(__name__)
+logger: Logger = getLogger(__name__)
 
 
 class Glue:

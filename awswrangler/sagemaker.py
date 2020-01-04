@@ -1,10 +1,10 @@
 from typing import Any, Dict
 import tarfile
-import logging
+from logging import getLogger, Logger
 
 from awswrangler.exceptions import InvalidParameters, InvalidSagemakerOutput
 
-logger = logging.getLogger(__name__)
+logger: Logger = getLogger(__name__)
 
 
 class SageMaker:

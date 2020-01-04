@@ -1,5 +1,5 @@
 from typing import List, Tuple, Dict, Callable, Optional
-import logging
+from logging import getLogger, Logger
 from datetime import datetime, date
 from decimal import Decimal
 
@@ -8,7 +8,7 @@ import pandas as pd  # type: ignore
 
 from awswrangler.exceptions import UnsupportedType, UndetectedType
 
-logger = logging.getLogger(__name__)
+logger: Logger = getLogger(__name__)
 
 
 def athena2pandas(dtype: str) -> str:

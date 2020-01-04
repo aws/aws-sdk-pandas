@@ -1,5 +1,5 @@
 from typing import List, Tuple, Dict, Any, Optional
-import logging
+from logging import getLogger, Logger
 import os
 
 import pandas as pd  # type: ignore
@@ -10,7 +10,7 @@ from pyspark.sql import DataFrame, SparkSession
 
 from awswrangler.exceptions import MissingBatchDetected, UnsupportedFileFormat
 
-logger = logging.getLogger(__name__)
+logger: Logger = getLogger(__name__)
 
 MIN_NUMBER_OF_ROWS_TO_DISTRIBUTE = 1000
 
@@ -19,7 +19,7 @@ class Spark:
     def __init__(self, session):
         self._session = session
         self._procs_io_bound: int = 1
-        logging.info(f"_procs_io_bound: {self._procs_io_bound}")
+        logger.info(f"_procs_io_bound: {self._procs_io_bound}")
 
     def read_csv(self, **args) -> DataFrame:
         spark: SparkSession = self._session.spark_session

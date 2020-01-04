@@ -17,30 +17,40 @@ import awswrangler.data_types  # noqa
 
 
 class DynamicInstantiate:
+    """
+    https://github.com/awslabs/aws-data-wrangler
+    """
 
     __default_session = None
 
-    def __init__(self, service):
-        self._service = service
+    def __dir__(self):
+        return self._class_ref.__dict__.keys()
+
+    def __repr__(self):
+        return repr(self._class_ref)
+
+    def __init__(self, module_name, class_ref):
+        self._module_name = module_name
+        self._class_ref = class_ref
 
     def __getattr__(self, name):
         if DynamicInstantiate.__default_session is None:
             DynamicInstantiate.__default_session = Session()
-        return getattr(getattr(DynamicInstantiate.__default_session, self._service), name)
+        return getattr(getattr(DynamicInstantiate.__default_session, self._module_name), name)
 
 
 if importlib.util.find_spec("pyspark"):  # type: ignore
     from awswrangler.spark import Spark  # noqa
 
-s3 = DynamicInstantiate("s3")
-emr = DynamicInstantiate("emr")
-glue = DynamicInstantiate("glue")
-spark = DynamicInstantiate("spark")
-pandas = DynamicInstantiate("pandas")
-athena = DynamicInstantiate("athena")
-redshift = DynamicInstantiate("redshift")
-aurora = DynamicInstantiate("aurora")
-sagemaker = DynamicInstantiate("sagemaker")
-cloudwatchlogs = DynamicInstantiate("cloudwatchlogs")
+s3: S3 = DynamicInstantiate("s3", S3)  # type: ignore
+emr: EMR = DynamicInstantiate("emr", EMR)  # type: ignore
+glue: Glue = DynamicInstantiate("glue", Glue)  # type: ignore
+spark: Spark = DynamicInstantiate("spark", Spark)  # type: ignore
+pandas: Pandas = DynamicInstantiate("pandas", Pandas)  # type: ignore
+athena: Athena = DynamicInstantiate("athena", Athena)  # type: ignore
+aurora: Aurora = DynamicInstantiate("aurora", Aurora)  # type: ignore
+redshift: Redshift = DynamicInstantiate("redshift", Redshift)  # type: ignore
+sagemaker: SageMaker = DynamicInstantiate("sagemaker", SageMaker)  # type: ignore
+cloudwatchlogs: CloudWatchLogs = DynamicInstantiate("cloudwatchlogs", CloudWatchLogs)  # type: ignore
 
 logging.getLogger("awswrangler").addHandler(logging.NullHandler())

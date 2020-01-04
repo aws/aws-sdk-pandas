@@ -1,7 +1,7 @@
 from typing import Dict, List, Optional, Tuple
 import multiprocessing as mp
 from math import ceil
-import logging
+from logging import getLogger, Logger, INFO
 from time import sleep
 
 from botocore.exceptions import ClientError, HTTPClientError, ConnectTimeoutError  # type: ignore
@@ -11,7 +11,7 @@ import tenacity  # type: ignore
 from awswrangler.utils import calculate_bounders, wait_process_release
 from awswrangler.exceptions import S3WaitObjectTimeout
 
-logger = logging.getLogger(__name__)
+logger: Logger = getLogger(__name__)
 
 
 def mkdir_if_not_exists(fs, path):
@@ -60,7 +60,7 @@ class S3:
                     wait=tenacity.wait_random_exponential(multiplier=0.5),
                     stop=tenacity.stop_after_attempt(max_attempt_number=10),
                     reraise=True,
-                    after=tenacity.after_log(logger, logging.INFO))
+                    after=tenacity.after_log(logger, INFO))
     def does_object_exists(self, path: str) -> bool:
         """
         Check if object exists on S3
@@ -240,7 +240,7 @@ class S3:
                     wait=tenacity.wait_random_exponential(multiplier=0.5),
                     stop=tenacity.stop_after_attempt(max_attempt_number=10),
                     reraise=True,
-                    after=tenacity.after_log(logger, logging.INFO))
+                    after=tenacity.after_log(logger, INFO))
     def head_object_with_retry(client, bucket, key):
         return client.head_object(Bucket=bucket, Key=key)
 

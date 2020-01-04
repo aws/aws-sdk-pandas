@@ -1,6 +1,6 @@
 from typing import Dict, List, Union, Optional, Any, Tuple
 import json
-import logging
+from logging import getLogger, Logger
 
 import pg8000  # type: ignore
 import pyarrow as pa  # type: ignore
@@ -10,7 +10,7 @@ from awswrangler.exceptions import (RedshiftLoadError, InvalidDataframeType, Inv
                                     InvalidRedshiftDistkey, InvalidRedshiftSortstyle, InvalidRedshiftSortkey,
                                     InvalidRedshiftPrimaryKeys)
 
-logger = logging.getLogger(__name__)
+logger: Logger = getLogger(__name__)
 
 DISTSTYLES = [
     "AUTO",
