@@ -633,26 +633,42 @@ class Glue:
                 df_dict["Comment"].append("")
         return DataFrame(data=df_dict)
 
-    def get_connection(self, glue_connection: str,
-                            application_name: str = "aws-data-wrangler",
-                            connection_timeout: int = 1_200_000,
-                            validation_timeout: int = 5) -> Any:
+    def get_connection(self,
+                       name: str,
+                       application_name: str = "aws-data-wrangler",
+                       connection_timeout: int = 1_200_000,
+                       validation_timeout: int = 5) -> Any:
         """
          Generates a valid connection object (PEP 249 compatible)
 
-        :param glue_connection: Glue connection name
+        :param name: Glue connection name
         :param application_name: Application name
         :param connection_timeout: Connection Timeout
         :param validation_timeout: Timeout to try to validate the connection
         :return: PEP 249 compatible connection
         """
-        details: Dict[str, Any] = self._session.glue.get_connection_details(name=glue_connection)["ConnectionProperties"]
+        details: Dict[str, Any] = self._session.glue.get_connection_details(name=name)["ConnectionProperties"]
         engine: str = details["JDBC_CONNECTION_URL"].split(":")[1]
         host: str = details["JDBC_CONNECTION_URL"].split(":")[2].replace("/", "")
         port, database = details["JDBC_CONNECTION_URL"].split(":")[3].split("/")
         user: str = details["USERNAME"]
         password: str = details["PASSWORD"]
         if engine == "redshift":
-            return Redshift.generate_connection(database=database, host=host, port=int(port), user=user, password=password, application_name=application_name, connection_timeout=connection_timeout, validation_timeout=validation_timeout)
+            return Redshift.generate_connection(database=database,
+                                                host=host,
+                                                port=int(port),
+                                                user=user,
+                                                password=password,
+                                                application_name=application_name,
+                                                connection_timeout=connection_timeout,
+                                                validation_timeout=validation_timeout)
         else:
-            Aurora.generate_connection(database=database, host=host, port=int(port), user=user, password=password, engine=engine, application_name=application_name, connection_timeout=connection_timeout, validation_timeout=validation_timeout)
+            return Aurora.generate_connection(database=database,
+                                              host=host,
+                                              port=int(port),
+                                              user=user,
+                                              password=password,
+                                              engine=engine,
+                                              application_name=application_name,
+                                              connection_timeout=connection_timeout,
+                                              validation_timeout=validation_timeout)

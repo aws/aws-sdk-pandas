@@ -4,6 +4,7 @@ import pytest
 import boto3
 import pandas as pd
 
+import awswrangler as wr
 from awswrangler import Session
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
@@ -142,3 +143,18 @@ def test_glue_tables_full(session, database, table):
                             name_contains=table[1:-1],
                             name_prefix=table[0],
                             name_suffix=table[-1]).index) > 0
+
+
+@pytest.mark.parametrize(
+    "engine",
+    ["postgres", "mysql", "redshift"],
+)
+def test_get_connection(engine):
+    conn = wr.glue.get_connection(name=f"aws-data-wrangler-{engine}")
+    cursor = conn.cursor()
+    cursor.execute("SELECT 1 + 2, 3 + 4")
+    first_row = cursor.fetchall()[0]
+    assert first_row[0] == 3
+    assert first_row[1] == 7
+    cursor.close()
+    conn.close()
