@@ -41,11 +41,11 @@ class DynamicInstantiate:
 
 if importlib.util.find_spec("pyspark"):  # type: ignore
     from awswrangler.spark import Spark  # noqa
+    spark: Spark = DynamicInstantiate("spark", Spark)  # type: ignore
 
 s3: S3 = DynamicInstantiate("s3", S3)  # type: ignore
 emr: EMR = DynamicInstantiate("emr", EMR)  # type: ignore
 glue: Glue = DynamicInstantiate("glue", Glue)  # type: ignore
-spark: Spark = DynamicInstantiate("spark", Spark)  # type: ignore
 pandas: Pandas = DynamicInstantiate("pandas", Pandas)  # type: ignore
 athena: Athena = DynamicInstantiate("athena", Athena)  # type: ignore
 aurora: Aurora = DynamicInstantiate("aurora", Aurora)  # type: ignore
