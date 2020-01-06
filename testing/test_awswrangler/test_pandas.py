@@ -1917,3 +1917,87 @@ def test_to_csv_metadata(
     assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
     assert len(session.glue.tables(database=database, search_text="boo bar").index) == 1
     assert len(session.glue.tables(database=database, search_text="value").index) > 0
+
+
+def test_aurora_postgres_load_special(bucket, postgres_parameters):
+    df = pd.DataFrame({
+        "id": [1, 2, 3, 4],
+        "value": ["foo", "boo", "bar", "abc"],
+        "special": ["\\", "\"", "\\\\\\\\", "\"\"\"\""]
+    })
+
+    path = f"s3://{bucket}/test_aurora_postgres_slash"
+    wr.pandas.to_aurora(
+        dataframe=df,
+        connection="aws-data-wrangler-postgres",
+        schema="public",
+        table="test_aurora_postgres_special",
+        mode="overwrite",
+        temp_s3_path=path,
+        engine="postgres",
+        procs_cpu_bound=4
+    )
+    conn = Aurora.generate_connection(database="postgres",
+                                     host=postgres_parameters["PostgresAddress"],
+                                     port=3306,
+                                     user="test",
+                                     password=postgres_parameters["Password"],
+                                     engine="postgres")
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT * FROM public.test_aurora_postgres_special")
+        rows = cursor.fetchall()
+        assert len(rows) == len(df.index)
+        assert rows[0][0] == 1
+        assert rows[1][0] == 2
+        assert rows[2][0] == 3
+        assert rows[0][1] == "foo"
+        assert rows[1][1] == "boo"
+        assert rows[2][1] == "bar"
+        assert rows[3][1] == "abc"
+        assert rows[0][2] == "\\"
+        assert rows[1][2] == "\""
+        assert rows[2][2] == "\\\\\\\\"
+        assert rows[3][2] == "\"\"\"\""
+    conn.close()
+
+
+def test_aurora_mysql_load_special(bucket, mysql_parameters):
+    df = pd.DataFrame({
+        "id": [1, 2, 3, 4],
+        "value": ["foo", "boo", "bar", "abc"],
+        "special": ["\\", "\"", "\\\\\\\\", "\"\"\"\""]
+    })
+
+    path = f"s3://{bucket}/test_aurora_mysql_special"
+    wr.pandas.to_aurora(
+        dataframe=df,
+        connection="aws-data-wrangler-mysql",
+        schema="test",
+        table="test_aurora_mysql_special",
+        mode="overwrite",
+        temp_s3_path=path,
+        engine="mysql",
+        procs_cpu_bound=1
+    )
+    conn = Aurora.generate_connection(database="mysql",
+                                     host=mysql_parameters["MysqlAddress"],
+                                     port=3306,
+                                     user="test",
+                                     password=mysql_parameters["Password"],
+                                     engine="mysql")
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT * FROM test.test_aurora_mysql_special")
+        rows = cursor.fetchall()
+        assert len(rows) == len(df.index)
+        assert rows[0][0] == 1
+        assert rows[1][0] == 2
+        assert rows[2][0] == 3
+        assert rows[0][1] == "foo"
+        assert rows[1][1] == "boo"
+        assert rows[2][1] == "bar"
+        assert rows[3][1] == "abc"
+        assert rows[0][2] == "\\"
+        assert rows[1][2] == "\""
+        assert rows[2][2] == "\\\\\\\\"
+        assert rows[3][2] == "\"\"\"\""
+    conn.close()

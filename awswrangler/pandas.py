@@ -637,17 +637,18 @@ class Pandas:
             yield df
 
     def to_csv(self,
-               dataframe,
-               path,
-               sep=",",
-               serde="OpenCSVSerDe",
+               dataframe: pd.DataFrame,
+               path: str,
+               sep: str = ",",
+               escapechar: Optional[str] = None,
+               serde: str = "OpenCSVSerDe",
                database: Optional[str] = None,
-               table=None,
-               partition_cols=None,
-               preserve_index=True,
-               mode="append",
-               procs_cpu_bound=None,
-               procs_io_bound=None,
+               table: Optional[str] = None,
+               partition_cols: Optional[List[str]] = None,
+               preserve_index: bool = True,
+               mode: str = "append",
+               procs_cpu_bound: Optional[int] = None,
+               procs_io_bound: Optional[int] = None,
                inplace=True,
                description: Optional[str] = None,
                parameters: Optional[Dict[str, str]] = None,
@@ -659,6 +660,7 @@ class Pandas:
         :param dataframe: Pandas Dataframe
         :param path: AWS S3 path (E.g. s3://bucket-name/folder_name/
         :param sep: Same as pandas.to_csv()
+        :param escapechar: Same as pandas.to_csv()
         :param serde: SerDe library name (e.g. OpenCSVSerDe, LazySimpleSerDe)
         :param database: AWS Glue Database name
         :param table: AWS Glue table name
@@ -675,7 +677,7 @@ class Pandas:
         """
         if serde not in Pandas.VALID_CSV_SERDES:
             raise InvalidSerDe(f"{serde} in not in the valid SerDe list ({Pandas.VALID_CSV_SERDES})")
-        extra_args = {"sep": sep, "serde": serde}
+        extra_args = {"sep": sep, "serde": serde, "escapechar": escapechar}
         return self.to_s3(dataframe=dataframe,
                           path=path,
                           file_format="csv",
@@ -1041,8 +1043,13 @@ class Pandas:
         sep = extra_args.get("sep")
         if sep is not None:
             csv_extra_args["sep"] = sep
+
         serde = extra_args.get("serde")
-        if serde is not None:
+        if serde is None:
+            escapechar = extra_args.get("escapechar")
+            if escapechar is not None:
+                csv_extra_args["escapechar"] = escapechar
+        else:
             if serde == "OpenCSVSerDe":
                 csv_extra_args["quoting"] = csv.QUOTE_ALL
                 csv_extra_args["escapechar"] = "\\"
@@ -1511,7 +1518,7 @@ class Pandas:
         Load Pandas Dataframe as a Table on Aurora
 
         :param dataframe: Pandas Dataframe
-        :param connection: A PEP 249 compatible connection (Can be generated with Redshift.generate_connection())
+        :param connection: Glue connection name (str) OR a PEP 249 compatible connection (Can be generated with Redshift.generate_connection())
         :param schema: The Redshift Schema for the table
         :param table: The name of the desired Redshift table
         :param engine: "mysql" or "postgres"
@@ -1523,58 +1530,66 @@ class Pandas:
         :param inplace: True is cheapest (CPU and Memory) but False leaves your DataFrame intact
         :return: None
         """
-        if temp_s3_path is None:
-            if self._session.aurora_temp_s3_path is not None:
-                temp_s3_path = self._session.aurora_temp_s3_path
-            else:
-                guid: str = pa.compat.guid()
-                temp_directory = f"temp_aurora_{guid}"
-                temp_s3_path = self._session.athena.create_athena_bucket() + temp_directory + "/"
-        temp_s3_path = temp_s3_path if temp_s3_path[-1] == "/" else temp_s3_path + "/"
-        logger.debug(f"temp_s3_path: {temp_s3_path}")
-
-        paths: List[str] = self.to_csv(dataframe=dataframe,
-                                       path=temp_s3_path,
-                                       sep=",",
-                                       preserve_index=preserve_index,
-                                       mode="overwrite",
-                                       procs_cpu_bound=procs_cpu_bound,
-                                       procs_io_bound=procs_io_bound,
-                                       inplace=inplace)
-
-        load_paths: List[str]
-        region: str = "us-east-1"
-        if "postgres" in engine.lower():
-            load_paths = paths.copy()
-            bucket, _ = Pandas._parse_path(path=load_paths[0])
-            region = self._session.s3.get_bucket_region(bucket=bucket)
-        elif "mysql" in engine.lower():
-            manifest_path: str = f"{temp_s3_path}manifest_{pa.compat.guid()}.json"
-            self._session.aurora.write_load_manifest(manifest_path=manifest_path, objects_paths=paths)
-            load_paths = [manifest_path]
-        else:
+        if ("postgres" not in engine.lower()) and ("mysql" not in engine.lower()):
             raise InvalidEngine(f"{engine} is not a valid engine. Please use 'mysql' or 'postgres'!")
-        logger.debug(f"load_paths: {load_paths}")
-
-        Aurora.load_table(dataframe=dataframe,
-                          dataframe_type="pandas",
-                          load_paths=load_paths,
-                          schema_name=schema,
-                          table_name=table,
-                          connection=connection,
-                          num_files=len(paths),
-                          mode=mode,
-                          preserve_index=preserve_index,
-                          engine=engine,
-                          region=region)
-
-        if "postgres" in engine.lower():
-            self._session.s3.delete_listed_objects(objects_paths=load_paths, procs_io_bound=procs_io_bound)
-        elif "mysql" in engine.lower():
-            self._session.s3.delete_listed_objects(objects_paths=load_paths + [manifest_path],
-                                                   procs_io_bound=procs_io_bound)
-        else:
-            raise InvalidEngine(f"{engine} is not a valid engine. Please use 'mysql' or 'postgres'!")
+        generated_conn: bool = False
+        if type(connection) == str:
+            logger.debug("Glue connection (str) provided.")
+            connection = self._session.glue.get_connection(name=connection)
+            generated_conn = True
+        try:
+            if temp_s3_path is None:
+                if self._session.aurora_temp_s3_path is not None:
+                    temp_s3_path = self._session.aurora_temp_s3_path
+                else:
+                    guid: str = pa.compat.guid()
+                    temp_directory = f"temp_aurora_{guid}"
+                    temp_s3_path = self._session.athena.create_athena_bucket() + temp_directory + "/"
+            temp_s3_path = temp_s3_path if temp_s3_path[-1] == "/" else temp_s3_path + "/"
+            logger.debug(f"temp_s3_path: {temp_s3_path}")
+            paths: List[str] = self.to_csv(dataframe=dataframe,
+                                           path=temp_s3_path,
+                                           sep=",",
+                                           escapechar="\"",
+                                           preserve_index=preserve_index,
+                                           mode="overwrite",
+                                           procs_cpu_bound=procs_cpu_bound,
+                                           procs_io_bound=procs_io_bound,
+                                           inplace=inplace)
+            load_paths: List[str]
+            region: str = "us-east-1"
+            if "postgres" in engine.lower():
+                load_paths = paths.copy()
+                bucket, _ = Pandas._parse_path(path=load_paths[0])
+                region = self._session.s3.get_bucket_region(bucket=bucket)
+            elif "mysql" in engine.lower():
+                manifest_path: str = f"{temp_s3_path}manifest_{pa.compat.guid()}.json"
+                self._session.aurora.write_load_manifest(manifest_path=manifest_path, objects_paths=paths)
+                load_paths = [manifest_path]
+            logger.debug(f"load_paths: {load_paths}")
+            Aurora.load_table(dataframe=dataframe,
+                              dataframe_type="pandas",
+                              load_paths=load_paths,
+                              schema_name=schema,
+                              table_name=table,
+                              connection=connection,
+                              num_files=len(paths),
+                              mode=mode,
+                              preserve_index=preserve_index,
+                              engine=engine,
+                              region=region)
+            if "postgres" in engine.lower():
+                self._session.s3.delete_listed_objects(objects_paths=load_paths, procs_io_bound=procs_io_bound)
+            elif "mysql" in engine.lower():
+                self._session.s3.delete_listed_objects(objects_paths=load_paths + [manifest_path],
+                                                       procs_io_bound=procs_io_bound)
+        except Exception as ex:
+            connection.rollback()
+            if generated_conn is True:
+                connection.close()
+            raise ex
+        if generated_conn is True:
+            connection.close()
 
     def read_sql_aurora(self,
                         sql: str,
@@ -1587,7 +1602,7 @@ class Pandas:
         Convert a query result in a Pandas Dataframe.
 
         :param sql: SQL Query
-        :param connection: A PEP 249 compatible connection (Can be generated with Aurora.generate_connection())
+        :param connection: Glue connection name (str) OR a PEP 249 compatible connection (Can be generated with Aurora.generate_connection())
         :param col_names: List of column names. Default (None) is use columns IDs as column names.
         :param temp_s3_path: AWS S3 path to write temporary data (e.g. s3://...) (Default uses the Athena's results bucket)
         :param engine: Only "mysql" by now
@@ -1596,25 +1611,38 @@ class Pandas:
         """
         if "mysql" not in engine.lower():
             raise InvalidEngine(f"{engine} is not a valid engine. Please use 'mysql'!")
-        guid: str = pa.compat.guid()
-        name: str = f"temp_aurora_{guid}"
-        if temp_s3_path is None:
-            if self._session.aurora_temp_s3_path is not None:
-                temp_s3_path = self._session.aurora_temp_s3_path
-            else:
-                temp_s3_path = self._session.athena.create_athena_bucket()
-        temp_s3_path = temp_s3_path[:-1] if temp_s3_path[-1] == "/" else temp_s3_path
-        temp_s3_path = f"{temp_s3_path}/{name}"
-        logger.debug(f"temp_s3_path: {temp_s3_path}")
-        manifest_path: str = self._session.aurora.to_s3(sql=sql,
-                                                        path=temp_s3_path,
-                                                        connection=connection,
-                                                        engine=engine)
-        paths: List[str] = self._session.aurora.extract_manifest_paths(path=manifest_path)
-        logger.debug(f"paths: {paths}")
-        ret: Union[pd.DataFrame, Iterator[pd.DataFrame]]
-        ret = self.read_csv_list(paths=paths, max_result_size=max_result_size, header=None, names=col_names)
-        self._session.s3.delete_listed_objects(objects_paths=paths + [manifest_path])
+        generated_conn: bool = False
+        if type(connection) == str:
+            logger.debug("Glue connection (str) provided.")
+            connection = self._session.glue.get_connection(name=connection)
+            generated_conn = True
+        try:
+            guid: str = pa.compat.guid()
+            name: str = f"temp_aurora_{guid}"
+            if temp_s3_path is None:
+                if self._session.aurora_temp_s3_path is not None:
+                    temp_s3_path = self._session.aurora_temp_s3_path
+                else:
+                    temp_s3_path = self._session.athena.create_athena_bucket()
+            temp_s3_path = temp_s3_path[:-1] if temp_s3_path[-1] == "/" else temp_s3_path
+            temp_s3_path = f"{temp_s3_path}/{name}"
+            logger.debug(f"temp_s3_path: {temp_s3_path}")
+            manifest_path: str = self._session.aurora.to_s3(sql=sql,
+                                                            path=temp_s3_path,
+                                                            connection=connection,
+                                                            engine=engine)
+            paths: List[str] = self._session.aurora.extract_manifest_paths(path=manifest_path)
+            logger.debug(f"paths: {paths}")
+            ret: Union[pd.DataFrame, Iterator[pd.DataFrame]]
+            ret = self.read_csv_list(paths=paths, max_result_size=max_result_size, header=None, names=col_names)
+            self._session.s3.delete_listed_objects(objects_paths=paths + [manifest_path])
+        except Exception as ex:
+            connection.rollback()
+            if generated_conn is True:
+                connection.close()
+            raise ex
+        if generated_conn is True:
+            connection.close()
         return ret
 
     def read_csv_list(
