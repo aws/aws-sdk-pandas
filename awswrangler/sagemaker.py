@@ -1,19 +1,26 @@
-from typing import Any, Dict
+from typing import TYPE_CHECKING, Any, Dict
 import tarfile
 from logging import getLogger, Logger
 
+from boto3 import client  # type: ignore
+
 from awswrangler.exceptions import InvalidParameters, InvalidSagemakerOutput
+
+if TYPE_CHECKING:
+    from awswrangler.session import Session
 
 logger: Logger = getLogger(__name__)
 
 
 class SageMaker:
-    def __init__(self, session):
-        self._session = session
-        self._client_s3 = session.boto3_session.client(service_name="s3", use_ssl=True, config=session.botocore_config)
-        self._client_sagemaker = session.boto3_session.client(service_name="sagemaker",
-                                                              use_ssl=True,
-                                                              config=session.botocore_config)
+    def __init__(self, session: "Session"):
+        self._session: "Session" = session
+        self._client_s3: client = session.boto3_session.client(service_name="s3",
+                                                               use_ssl=True,
+                                                               config=session.botocore_config)
+        self._client_sagemaker: client = session.boto3_session.client(service_name="sagemaker",
+                                                                      use_ssl=True,
+                                                                      config=session.botocore_config)
 
     @staticmethod
     def _parse_path(path):

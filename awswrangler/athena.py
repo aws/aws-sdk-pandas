@@ -1,25 +1,32 @@
-from typing import Dict, List, Tuple, Optional, Any, Iterator
+from typing import TYPE_CHECKING, Dict, List, Tuple, Optional, Any, Iterator
 from time import sleep
 from logging import getLogger, Logger
 import re
 import unicodedata
 from datetime import datetime, date
 
+from boto3 import client  # type: ignore
+
 from awswrangler.data_types import athena2python
 from awswrangler.exceptions import QueryFailed, QueryCancelled
 
+if TYPE_CHECKING:
+    from awswrangler.session import Session
+
 logger: Logger = getLogger(__name__)
 
-QUERY_WAIT_POLLING_DELAY = 0.2  # MILLISECONDS
+QUERY_WAIT_POLLING_DELAY: float = 0.2  # MILLISECONDS
 
 
 class Athena:
-    def __init__(self, session):
-        self._session = session
-        self._client_athena = session.boto3_session.client(service_name="athena",
-                                                           use_ssl=True,
-                                                           config=session.botocore_config)
-        self._client_s3 = session.boto3_session.client(service_name="s3", use_ssl=True, config=session.botocore_config)
+    def __init__(self, session: "Session"):
+        self._session: "Session" = session
+        self._client_athena: client = session.boto3_session.client(service_name="athena",
+                                                                   use_ssl=True,
+                                                                   config=session.botocore_config)
+        self._client_s3: client = session.boto3_session.client(service_name="s3",
+                                                               use_ssl=True,
+                                                               config=session.botocore_config)
 
     def get_query_columns_metadata(self, query_execution_id: str) -> Dict[str, str]:
         """

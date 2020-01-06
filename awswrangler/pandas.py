@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple, Optional, Any, Union, Iterator
+from typing import TYPE_CHECKING, Dict, List, Tuple, Optional, Any, Union, Iterator
 from io import BytesIO, StringIO
 import multiprocessing as mp
 from logging import getLogger, Logger, INFO
@@ -10,6 +10,7 @@ from decimal import Decimal
 from ast import literal_eval
 
 from botocore.exceptions import ClientError, HTTPClientError  # type: ignore
+from boto3 import client  # type: ignore
 import pandas as pd  # type: ignore
 import pyarrow as pa  # type: ignore
 from pyarrow import parquet as pq  # type: ignore
@@ -21,39 +22,44 @@ from awswrangler.exceptions import (UnsupportedWriteMode, UnsupportedFileFormat,
                                     LineTerminatorNotFound, EmptyDataframe, InvalidSerDe, InvalidCompression,
                                     InvalidParameters, InvalidEngine)
 from awswrangler.utils import calculate_bounders
-from awswrangler import s3
+from awswrangler.s3 import S3, get_fs, mkdir_if_not_exists
 from awswrangler.athena import Athena
 from awswrangler.aurora import Aurora
 
+if TYPE_CHECKING:
+    from awswrangler.session import Session, SessionPrimitives
+
 logger: Logger = getLogger(__name__)
 
-MIN_NUMBER_OF_ROWS_TO_DISTRIBUTE = 1000
+MIN_NUMBER_OF_ROWS_TO_DISTRIBUTE: int = 1000
 
 
-def _get_bounders(dataframe, num_partitions):
-    num_rows = len(dataframe.index)
+def _get_bounders(dataframe: pd.DataFrame, num_partitions: int):
+    num_rows: int = len(dataframe.index)
     return calculate_bounders(num_items=num_rows, num_groups=num_partitions)
 
 
 class Pandas:
-    VALID_CSV_SERDES = ["OpenCSVSerDe", "LazySimpleSerDe"]
-    VALID_CSV_COMPRESSIONS = [None]
-    VALID_PARQUET_COMPRESSIONS = [None, "snappy", "gzip"]
+    VALID_CSV_SERDES: List[str] = ["OpenCSVSerDe", "LazySimpleSerDe"]
+    VALID_CSV_COMPRESSIONS: List[Optional[str]] = [None]
+    VALID_PARQUET_COMPRESSIONS: List[Optional[str]] = [None, "snappy", "gzip"]
 
-    def __init__(self, session):
-        self._session = session
-        self._client_s3 = session.boto3_session.client(service_name="s3", use_ssl=True, config=session.botocore_config)
+    def __init__(self, session: "Session"):
+        self._session: "Session" = session
+        self._client_s3: client = session.boto3_session.client(service_name="s3",
+                                                               use_ssl=True,
+                                                               config=session.botocore_config)
 
     @staticmethod
-    def _parse_path(path):
-        path2 = path.replace("s3://", "")
-        parts = path2.partition("/")
+    def _parse_path(path: str) -> Tuple[str, str]:
+        path2: str = path.replace("s3://", "")
+        parts: Tuple[str, str, str] = path2.partition("/")
         return parts[0], parts[2]
 
     def read_csv(
         self,
-        path,
-        max_result_size=None,
+        path: str,
+        max_result_size: Optional[int] = None,
         header="infer",
         names=None,
         usecols=None,
@@ -181,7 +187,7 @@ class Pandas:
         :param converters: Same as pandas.read_csv()
         :return: Pandas Dataframe
         """
-        metadata = s3.S3.head_object_with_retry(client=self._client_s3, bucket=bucket_name, key=key_path)
+        metadata = S3.head_object_with_retry(client_s3=self._client_s3, bucket=bucket_name, key=key_path)
         total_size = metadata["ContentLength"]
         logger.debug(f"total_size: {total_size}")
         if total_size <= 0:
@@ -901,16 +907,16 @@ class Pandas:
         return objects_paths
 
     @staticmethod
-    def _data_to_s3_dataset_writer(dataframe,
-                                   path,
+    def _data_to_s3_dataset_writer(dataframe: pd.DataFrame,
+                                   path: str,
                                    partition_cols,
-                                   preserve_index,
+                                   preserve_index: bool,
                                    compression,
-                                   session_primitives,
-                                   file_format,
+                                   session_primitives: "SessionPrimitives",
+                                   file_format: str,
                                    cast_columns=None,
                                    extra_args=None,
-                                   isolated_dataframe=False):
+                                   isolated_dataframe: bool = False):
         objects_paths = []
         dataframe = Pandas._cast_pandas(dataframe=dataframe, cast_columns=cast_columns)
         cast_columns_materialized = {c: t for c, t in cast_columns.items() if c not in partition_cols}
@@ -959,12 +965,12 @@ class Pandas:
 
     @staticmethod
     def _data_to_s3_dataset_writer_remote(send_pipe,
-                                          dataframe,
-                                          path,
+                                          dataframe: pd.DataFrame,
+                                          path: str,
                                           partition_cols,
                                           preserve_index,
                                           compression,
-                                          session_primitives,
+                                          session_primitives: "SessionPrimitives",
                                           file_format,
                                           cast_columns=None,
                                           extra_args=None):
@@ -982,18 +988,18 @@ class Pandas:
         send_pipe.close()
 
     @staticmethod
-    def _data_to_s3_object_writer(dataframe,
-                                  path,
-                                  preserve_index,
+    def _data_to_s3_object_writer(dataframe: pd.DataFrame,
+                                  path: "str",
+                                  preserve_index: bool,
                                   compression,
-                                  session_primitives,
+                                  session_primitives: "SessionPrimitives",
                                   file_format,
                                   cast_columns=None,
                                   extra_args=None,
                                   isolated_dataframe=False):
-        fs = s3.get_fs(session_primitives=session_primitives)
+        fs = get_fs(session_primitives=session_primitives)
         fs = pa.filesystem._ensure_filesystem(fs)
-        s3.mkdir_if_not_exists(fs, path)
+        mkdir_if_not_exists(fs, path)
 
         if compression is None:
             compression_end = ""
@@ -1115,7 +1121,7 @@ class Pandas:
             distkey: Optional[str] = None,
             sortstyle: str = "COMPOUND",
             sortkey: Optional[str] = None,
-            primary_keys: Optional[str] = None,
+            primary_keys: Optional[List[str]] = None,
             preserve_index: bool = False,
             mode: str = "append",
             cast_columns: Optional[Dict[str, str]] = None,
@@ -1251,7 +1257,7 @@ class Pandas:
         :param filters: List of filters to apply, like ``[[('x', '=', 0), ...], ...]``.
         :param procs_cpu_bound: Number of cores used for CPU bound tasks
         :param wait_objects: Wait for all files exists (Not valid when path is a directory) (Useful for eventual consistency situations)
-        :param wait_objects: Wait objects Timeout (seconds)
+        :param wait_objects_timeout: Wait objects Timeout (seconds)
         :return: Pandas DataFrame
         """
         procs_cpu_bound = procs_cpu_bound if procs_cpu_bound is not None else self._session.procs_cpu_bound if self._session.procs_cpu_bound is not None else 1
@@ -1375,7 +1381,7 @@ class Pandas:
         return df
 
     @staticmethod
-    def _read_parquet_path(session_primitives: Any,
+    def _read_parquet_path(session_primitives: "SessionPrimitives",
                            path: str,
                            columns: Optional[List[str]] = None,
                            filters: Optional[Union[List[Tuple[Any]], List[List[Tuple[Any]]]]] = None,
@@ -1394,7 +1400,7 @@ class Pandas:
         :param wait_objects: Wait objects Timeout (seconds)
         :return: Pandas DataFrame
         """
-        session = session_primitives.session
+        session: Session = session_primitives.session
         if wait_objects is True:
             logger.debug(f"waiting {path}...")
             session.s3.wait_object_exists(path=path, timeout=wait_objects_timeout)
@@ -1414,7 +1420,7 @@ class Pandas:
             obj = client_s3.get_object(Bucket=bucket, Key=key)
             table = pq.ParquetFile(source=BytesIO(obj["Body"].read())).read(columns=columns, use_threads=use_threads)
         else:
-            fs: S3FileSystem = s3.get_fs(session_primitives=session_primitives)
+            fs: S3FileSystem = get_fs(session_primitives=session_primitives)
             fs = pa.filesystem._ensure_filesystem(fs)
             fs.invalidate_cache()
             table = pq.read_table(source=path, columns=columns, filters=filters, filesystem=fs, use_threads=use_threads)

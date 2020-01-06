@@ -1,4 +1,4 @@
-from typing import List, Tuple, Dict, Any, Optional
+from typing import TYPE_CHECKING, List, Tuple, Dict, Any, Optional
 from logging import getLogger, Logger
 import os
 
@@ -10,14 +10,17 @@ from pyspark.sql import DataFrame, SparkSession
 
 from awswrangler.exceptions import MissingBatchDetected, UnsupportedFileFormat
 
+if TYPE_CHECKING:
+    from awswrangler.session import Session
+
 logger: Logger = getLogger(__name__)
 
-MIN_NUMBER_OF_ROWS_TO_DISTRIBUTE = 1000
+MIN_NUMBER_OF_ROWS_TO_DISTRIBUTE: int = 1000
 
 
 class Spark:
-    def __init__(self, session):
-        self._session = session
+    def __init__(self, session: "Session"):
+        self._session: "Session" = session
         self._procs_io_bound: int = 1
         logger.info(f"_procs_io_bound: {self._procs_io_bound}")
 

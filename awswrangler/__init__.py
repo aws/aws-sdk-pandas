@@ -1,3 +1,4 @@
+from typing import Optional
 import logging
 import importlib
 
@@ -21,7 +22,7 @@ class DynamicInstantiate:
     https://github.com/awslabs/aws-data-wrangler
     """
 
-    __default_session = None
+    __default_session: Optional[Session] = None
 
     def __dir__(self):
         return self._class_ref.__dict__.keys()
@@ -30,7 +31,7 @@ class DynamicInstantiate:
         return repr(self._class_ref)
 
     def __init__(self, module_name, class_ref):
-        self._module_name = module_name
+        self._module_name: str = module_name
         self._class_ref = class_ref
 
     def __getattr__(self, name):

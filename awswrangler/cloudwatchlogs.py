@@ -1,21 +1,27 @@
+from typing import TYPE_CHECKING
 from time import sleep
 from datetime import datetime
 from logging import getLogger, Logger
 
+from boto3 import client  # type: ignore
+
 from awswrangler.exceptions import QueryFailed, QueryCancelled
+
+if TYPE_CHECKING:
+    from awswrangler.session import Session
 
 logger: Logger = getLogger(__name__)
 
-QUERY_WAIT_POLLING_DELAY = 0.2  # MILLISECONDS
+QUERY_WAIT_POLLING_DELAY: float = 0.2  # MILLISECONDS
 
 
 class CloudWatchLogs:
-    def __init__(self, session):
-        self._session = session
-        self._client_logs = session.boto3_session.client(service_name="logs", config=session.botocore_config)
+    def __init__(self, session: "Session"):
+        self._session: "Session" = session
+        self._client_logs: client = session.boto3_session.client(service_name="logs", config=session.botocore_config)
 
     def start_query(self,
-                    query,
+                    query: str,
                     log_group_names,
                     start_time=datetime(year=1970, month=1, day=1),
                     end_time=datetime.utcnow(),

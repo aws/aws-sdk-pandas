@@ -1,14 +1,18 @@
-from typing import Dict, List, Union, Optional, Any, Tuple
+from typing import TYPE_CHECKING, Dict, List, Union, Optional, Any, Tuple
 import json
 from logging import getLogger, Logger
 
 import pg8000  # type: ignore
 import pyarrow as pa  # type: ignore
+from boto3 import client  # type: ignore
 
 from awswrangler import data_types
 from awswrangler.exceptions import (RedshiftLoadError, InvalidDataframeType, InvalidRedshiftDiststyle,
                                     InvalidRedshiftDistkey, InvalidRedshiftSortstyle, InvalidRedshiftSortkey,
                                     InvalidRedshiftPrimaryKeys)
+
+if TYPE_CHECKING:
+    from awswrangler.session import Session
 
 logger: Logger = getLogger(__name__)
 
@@ -27,8 +31,10 @@ SORTSTYLES = [
 
 class Redshift:
     def __init__(self, session):
-        self._session = session
-        self._client_s3 = session.boto3_session.client(service_name="s3", use_ssl=True, config=session.botocore_config)
+        self._session: Session = session
+        self._client_s3: client = session.boto3_session.client(service_name="s3",
+                                                               use_ssl=True,
+                                                               config=session.botocore_config)
 
     @staticmethod
     def _validate_connection(database,

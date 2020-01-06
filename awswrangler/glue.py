@@ -1,10 +1,11 @@
-from typing import Dict, Optional, Any, Iterator, List
+from typing import TYPE_CHECKING, Dict, Optional, Any, Iterator, List
 from math import ceil
 from itertools import islice
 import re
 from logging import getLogger, Logger
 
 from pandas import DataFrame  # type: ignore
+from boto3 import client  # type: ignore
 
 from awswrangler import data_types
 from awswrangler.athena import Athena
@@ -12,15 +13,18 @@ from awswrangler.redshift import Redshift
 from awswrangler.aurora import Aurora
 from awswrangler.exceptions import UnsupportedFileFormat, InvalidSerDe, ApiError, UnsupportedType, UndetectedType, InvalidTable, InvalidArguments
 
+if TYPE_CHECKING:
+    from awswrangler.session import Session
+
 logger: Logger = getLogger(__name__)
 
 
 class Glue:
-    def __init__(self, session):
-        self._session = session
-        self._client_glue = session.boto3_session.client(service_name="glue", config=session.botocore_config)
+    def __init__(self, session: "Session"):
+        self._session: "Session" = session
+        self._client_glue: client = session.boto3_session.client(service_name="glue", config=session.botocore_config)
 
-    def get_table_athena_types(self, database, table):
+    def get_table_athena_types(self, database: str, table: str) -> Dict[str, str]:
         """
         Get all columns names and the related data types
 
@@ -30,14 +34,14 @@ class Glue:
         """
         response = self._client_glue.get_table(DatabaseName=database, Name=table)
         logger.debug(f"get_table response:\n{response}")
-        dtypes = {}
+        dtypes: Dict[str, str] = {}
         for col in response["Table"]["StorageDescriptor"]["Columns"]:
             dtypes[col["Name"]] = col["Type"]
         for par in response["Table"]["PartitionKeys"]:
             dtypes[par["Name"]] = par["Type"]
         return dtypes
 
-    def get_table_python_types(self, database, table):
+    def get_table_python_types(self, database: str, table: str) -> Dict[str, Optional[type]]:
         """
         Get all columns names and the related python types
 
@@ -50,14 +54,14 @@ class Glue:
 
     def metadata_to_glue(self,
                          dataframe,
-                         path,
+                         path: str,
                          objects_paths,
                          file_format,
                          database=None,
                          table=None,
                          partition_cols=None,
                          preserve_index=True,
-                         mode="append",
+                         mode: str = "append",
                          compression=None,
                          cast_columns=None,
                          extra_args=None,

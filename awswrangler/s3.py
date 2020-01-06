@@ -1,15 +1,19 @@
-from typing import Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Any
 import multiprocessing as mp
 from math import ceil
 from logging import getLogger, Logger, INFO
 from time import sleep
 
+from boto3 import client, resource  # type: ignore
 from botocore.exceptions import ClientError, HTTPClientError, ConnectTimeoutError  # type: ignore
 import s3fs  # type: ignore
 import tenacity  # type: ignore
 
 from awswrangler.utils import calculate_bounders, wait_process_release
 from awswrangler.exceptions import S3WaitObjectTimeout
+
+if TYPE_CHECKING:
+    from awswrangler.session import Session, SessionPrimitives
 
 logger: Logger = getLogger(__name__)
 
@@ -22,9 +26,9 @@ def mkdir_if_not_exists(fs, path):
             assert fs.exists(path)
 
 
-def get_fs(session_primitives=None):
+def get_fs(session_primitives: Optional["SessionPrimitives"] = None):
     aws_access_key_id, aws_secret_access_key, profile_name = None, None, None
-    args = {}
+    args: Dict[str, Any] = {}
 
     if session_primitives is not None:
         if session_primitives.aws_access_key_id is not None:
@@ -51,9 +55,11 @@ def get_fs(session_primitives=None):
 
 
 class S3:
-    def __init__(self, session):
-        self._session = session
-        self._client_s3 = session.boto3_session.client(service_name="s3", use_ssl=True, config=session.botocore_config)
+    def __init__(self, session: "Session"):
+        self._session: "Session" = session
+        self._client_s3: client = session.boto3_session.client(service_name="s3",
+                                                               use_ssl=True,
+                                                               config=session.botocore_config)
 
     @tenacity.retry(retry=tenacity.retry_if_exception_type(exception_types=(ClientError, HTTPClientError,
                                                                             ConnectTimeoutError)),
@@ -200,8 +206,8 @@ class S3:
             proc.join()
 
     @staticmethod
-    def delete_not_listed_batch(session_primitives, partition_path, batch, procs_io_bound=None):
-        session = session_primitives.session
+    def delete_not_listed_batch(session_primitives: "SessionPrimitives", partition_path, batch, procs_io_bound=None):
+        session: "Session" = session_primitives.session
         if not procs_io_bound:
             procs_io_bound = session.procs_io_bound
         logger.debug(f"procs_io_bound: {procs_io_bound}")
@@ -210,14 +216,16 @@ class S3:
         session.s3.delete_listed_objects(objects_paths=dead_keys, procs_io_bound=1)
 
     @staticmethod
-    def delete_objects_batch(session_primitives, bucket, batch):
-        session = session_primitives.session
-        client = session.boto3_session.client(service_name="s3", use_ssl=True, config=session.botocore_config)
+    def delete_objects_batch(session_primitives: "SessionPrimitives", bucket, batch):
+        session: "Session" = session_primitives.session
+        client_s3: client = session.boto3_session.client(service_name="s3",
+                                                         use_ssl=True,
+                                                         config=session.botocore_config)
         num_requests = int(ceil((float(len(batch)) / 1000.0)))
         bounders = calculate_bounders(len(batch), num_requests)
         logger.debug(f"Bounders: {bounders}")
         for bounder in bounders:
-            client.delete_objects(Bucket=bucket, Delete={"Objects": batch[bounder[0]:bounder[1]]})
+            client_s3.delete_objects(Bucket=bucket, Delete={"Objects": batch[bounder[0]:bounder[1]]})
 
     def list_objects(self, path):
         bucket, path = self.parse_path(path=path)
@@ -241,18 +249,20 @@ class S3:
                     stop=tenacity.stop_after_attempt(max_attempt_number=10),
                     reraise=True,
                     after=tenacity.after_log(logger, INFO))
-    def head_object_with_retry(client, bucket, key):
-        return client.head_object(Bucket=bucket, Key=key)
+    def head_object_with_retry(client_s3: client, bucket: str, key: str) -> Dict[str, Any]:
+        return client_s3.head_object(Bucket=bucket, Key=key)
 
     @staticmethod
-    def _get_objects_head_remote(send_pipe, session_primitives, objects_paths):
-        session = session_primitives.session
-        client = session.boto3_session.client(service_name="s3", use_ssl=True, config=session.botocore_config)
+    def _get_objects_head_remote(send_pipe, session_primitives: "SessionPrimitives", objects_paths):
+        session: "Session" = session_primitives.session
+        client_s3: client = session.boto3_session.client(service_name="s3",
+                                                         use_ssl=True,
+                                                         config=session.botocore_config)
         objects_sizes = {}
         logger.debug(f"len(objects_paths): {len(objects_paths)}")
         for object_path in objects_paths:
             bucket, key = object_path.replace("s3://", "").split("/", 1)
-            res = S3.head_object_with_retry(client=client, bucket=bucket, key=key)
+            res = S3.head_object_with_retry(client_s3=client_s3, bucket=bucket, key=key)
             size = res["ContentLength"]
             objects_sizes[object_path] = size
         logger.debug(f"len(objects_sizes): {len(objects_sizes)}")
@@ -343,15 +353,15 @@ class S3:
             self.copy_objects_batch(session_primitives=self._session.primitives, batch=batch)
 
     @staticmethod
-    def copy_objects_batch(session_primitives, batch):
-        session = session_primitives.session
-        resource = session.boto3_session.resource(service_name="s3", config=session.botocore_config)
+    def copy_objects_batch(session_primitives: "SessionPrimitives", batch):
+        session: "Session" = session_primitives.session
+        resource_s3: resource = session.boto3_session.resource(service_name="s3", config=session.botocore_config)
         logger.debug(f"len(batch): {len(batch)}")
         for source_obj, target_obj in batch:
             source_bucket, source_key = S3.parse_path(path=source_obj)
             copy_source = {"Bucket": source_bucket, "Key": source_key}
             target_bucket, target_key = S3.parse_path(path=target_obj)
-            resource.meta.client.copy(copy_source, target_bucket, target_key)
+            resource_s3.meta.client.copy(copy_source, target_bucket, target_key)
 
     def get_bucket_region(self, bucket: str) -> str:
         logger.debug(f"bucket: {bucket}")

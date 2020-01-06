@@ -2,11 +2,14 @@
 Module to handle all utilities related to EMR (Elastic Map Reduce)
 https://aws.amazon.com/emr/
 """
-from typing import Optional, List, Dict, Any, Union, Collection
+from typing import TYPE_CHECKING, Optional, List, Dict, Any, Union, Collection
 from logging import getLogger, Logger
 import json
 
 from boto3 import client  # type: ignore
+
+if TYPE_CHECKING:
+    from awswrangler.session import Session
 
 logger: Logger = getLogger(__name__)
 
@@ -15,8 +18,8 @@ class EMR:
     """
     EMR representation
     """
-    def __init__(self, session):
-        self._session = session
+    def __init__(self, session: "Session"):
+        self._session: "Session" = session
         self._client_emr: client = session.boto3_session.client(service_name="emr", config=session.botocore_config)
 
     @staticmethod
@@ -495,7 +498,10 @@ class EMR:
         """
         jar: str = "command-runner.jar"
         if script is True:
-            region: str = self._session.region_name
+            if self._session.region_name:
+                region: str = self._session.region_name
+            else:
+                region = "us-east-1"
             jar = f"s3://{region}.elasticmapreduce/libs/script-runner/script-runner.jar"
         step = {
             "Name": name,

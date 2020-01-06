@@ -27,7 +27,12 @@ def cloudformation_outputs():
 
 @pytest.fixture(scope="module")
 def session():
-    yield Session(spark_session=SparkSession.builder.appName("AWS Wrangler Test").getOrCreate())
+    spark_session: SparkSession = SparkSession.builder.appName("AWS Wrangler Test").getOrCreate()
+    spark_session.sparkContext.setLogLevel("ERROR")
+    spark_session.sparkContext._jsc.hadoopConfiguration().set("fs.s3a.attempts.maximum", "200")
+    spark_session.sparkContext._jsc.hadoopConfiguration().set("fs.s3a.retry.interval", "1000ms")
+    spark_session.sparkContext._jsc.hadoopConfiguration().set("fs.s3a.retry.limit", "200")
+    yield Session(spark_session=spark_session)
 
 
 @pytest.fixture(scope="module")
@@ -74,7 +79,7 @@ def test_read_csv(session, bucket, sample_name):
                                        header=True)
 
     boto3.client("s3").upload_file(path, bucket, path)
-    path2 = f"s3://{bucket}/{path}"
+    path2 = f"s3a://{bucket}/{path}"
     dataframe2 = session.spark.read_csv(path=path2,
                                         schema=schema,
                                         timestampFormat=timestamp_format,
@@ -91,6 +96,7 @@ def test_read_csv(session, bucket, sample_name):
 def test_create_glue_table_parquet(session, bucket, database, compression, partition_by):
     s3_path = f"s3://{bucket}/test"
     session.s3.delete_objects(path=s3_path)
+    sleep(10)
     path = "data_samples/nano.csv"
     schema = "id INTEGER, name STRING, value DOUBLE, date DATE, time TIMESTAMP"
     timestamp_format = "yyyy-MM-dd"
@@ -107,7 +113,7 @@ def test_create_glue_table_parquet(session, bucket, database, compression, parti
         .mode("overwrite") \
         .format("parquet") \
         .partitionBy(partition_by) \
-        .save(compression=compression, path=s3_path)
+        .save(compression=compression, path=s3_path.replace("s3://", "s3a://"))
     sleep(10)
     session.spark.create_glue_table(dataframe=dataframe,
                                     file_format="parquet",
@@ -144,11 +150,14 @@ def test_create_glue_table_csv(session, bucket, database, compression, partition
                                        dateFormat=timestamp_format,
                                        header=True)
     s3_path = f"s3://{bucket}/test"
+    session.s3.delete_objects(path=s3_path)
+    sleep(10)
     dataframe.write \
         .mode("overwrite") \
         .format("csv") \
         .partitionBy(partition_by) \
-        .save(compression=compression, path=s3_path)
+        .save(compression=compression, path=s3_path.replace("s3://", "s3a://"))
+    sleep(10)
     session.spark.create_glue_table(dataframe=dataframe,
                                     file_format="csv",
                                     partition_by=partition_by,
