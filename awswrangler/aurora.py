@@ -202,14 +202,14 @@ class Aurora:
                         "SELECT aws_s3.table_import_from_s3(\n"
                         f"'{schema_name}.{table_name}',\n"
                         "'',\n"
-                        "'(FORMAT CSV, DELIMITER '','', QUOTE ''\"'', ESCAPE ''\\'')',\n"
+                        "'(FORMAT CSV, DELIMITER '','', QUOTE ''\"'', ESCAPE ''\"'')',\n"
                         f"'({bucket},{key},{region})')")
         elif "mysql" in engine.lower():
             sql = ("-- AWS DATA WRANGLER\n"
                    f"LOAD DATA FROM S3 MANIFEST '{path}'\n"
                    "REPLACE\n"
                    f"INTO TABLE {schema_name}.{table_name}\n"
-                   "FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\'\n"
+                   "FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\"'\n"
                    "LINES TERMINATED BY '\\n'")
         else:
             raise InvalidEngine(f"{engine} is not a valid engine. Please use 'mysql' or 'postgres'!")
