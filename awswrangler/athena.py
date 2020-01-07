@@ -239,18 +239,27 @@ class Athena:
         return self.get_results(query_execution_id=query_id)
 
     @staticmethod
-    def _normalize_name(name):
+    def _normalize_name(name: str) -> str:
         name = "".join(c for c in unicodedata.normalize("NFD", name) if unicodedata.category(c) != "Mn")
+        name = name.replace("{", "_")
+        name = name.replace("}", "_")
+        name = name.replace("]", "_")
+        name = name.replace("[", "_")
+        name = name.replace(")", "_")
+        name = name.replace("(", "_")
         name = name.replace(" ", "_")
         name = name.replace("-", "_")
         name = name.replace(".", "_")
         name = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
         name = re.sub("([a-z0-9])([A-Z])", r"\1_\2", name)
         name = name.lower()
-        return re.sub(r"(_)\1+", "\\1", name)  # remove repeated underscores
+        name = re.sub(r"(_)\1+", "\\1", name)  # remove repeated underscores
+        name = name[1:] if name.startswith("_") else name  # remove trailing underscores
+        name = name[:-1] if name.endswith("_") else name  # remove trailing underscores
+        return name
 
     @staticmethod
-    def normalize_column_name(name):
+    def normalize_column_name(name: str) -> str:
         """
         https://docs.aws.amazon.com/athena/latest/ug/tables-databases-columns-names.html
         :param name: column name (str)
@@ -259,7 +268,7 @@ class Athena:
         return Athena._normalize_name(name=name)
 
     @staticmethod
-    def normalize_table_name(name):
+    def normalize_table_name(name: str) -> str:
         """
         https://docs.aws.amazon.com/athena/latest/ug/tables-databases-columns-names.html
         :param name: table name (str)
@@ -268,9 +277,9 @@ class Athena:
         return Athena._normalize_name(name=name)
 
     @staticmethod
-    def _parse_path(path):
-        path2 = path.replace("s3://", "")
-        parts = path2.partition("/")
+    def _parse_path(path: str) -> Tuple[str, str]:
+        path2: str = path.replace("s3://", "")
+        parts: Tuple[str, str, str] = path2.partition("/")
         return parts[0], parts[2]
 
     def extract_manifest_paths(self, path: str) -> List[str]:

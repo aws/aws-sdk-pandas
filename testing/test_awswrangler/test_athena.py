@@ -6,7 +6,7 @@ import pytest
 import boto3
 import pandas as pd
 
-from awswrangler import Session
+from awswrangler import Session, Athena
 from awswrangler.exceptions import QueryCancelled, QueryFailed
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
@@ -239,3 +239,8 @@ def test_query2(session, bucket, database):
             assert row["col_double"] == 2.2
             assert row["col_decimal"] == Decimal((0, (1, 9, 0), -2))
             assert row["col_int"] == 2
+
+
+def test_normalize_column_name():
+    assert Athena.normalize_column_name("foo()__Boo))))____BAR") == "foo_boo_bar"
+    assert Athena.normalize_column_name("foo()__Boo))))_{}{}{{}{}{}{___BAR[][][][]") == "foo_boo_bar"
