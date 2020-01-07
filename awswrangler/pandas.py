@@ -1647,7 +1647,7 @@ class Pandas:
 
     def read_csv_list(
             self,
-            paths,
+            paths: List[str],
             max_result_size=None,
             header: Optional[str] = "infer",
             names=None,
@@ -1738,7 +1738,7 @@ class Pandas:
 
     def _read_csv_list_iterator(
         self,
-        paths,
+        paths: List[str],
         max_result_size=None,
         header="infer",
         names=None,
@@ -1802,3 +1802,68 @@ class Pandas:
                                                infer_datetime_format=infer_datetime_format,
                                                encoding=encoding,
                                                converters=converters)
+
+    def read_csv_prefix(
+            self,
+            path_prefix: str,
+            max_result_size=None,
+            header: Optional[str] = "infer",
+            names=None,
+            usecols=None,
+            dtype=None,
+            sep=",",
+            thousands=None,
+            decimal=".",
+            lineterminator="\n",
+            quotechar='"',
+            quoting=csv.QUOTE_MINIMAL,
+            escapechar=None,
+            parse_dates: Union[bool, Dict, List] = False,
+            infer_datetime_format=False,
+            encoding="utf-8",
+            converters=None,
+    ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+        """
+        Read CSV files from AWS S3 PREFIX using optimized strategies.
+        Try to mimic as most as possible pandas.read_csv()
+        https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
+        P.S. max_result_size != None tries to mimic the chunksize behaviour in pandas.read_sql()
+
+        :param path_prefix: AWS S3 path prefix (E.g. S3://BUCKET_NAME/PREFIX)
+        :param max_result_size: Max number of bytes on each request to S3
+        :param header: Same as pandas.read_csv()
+        :param names: Same as pandas.read_csv()
+        :param usecols: Same as pandas.read_csv()
+        :param dtype: Same as pandas.read_csv()
+        :param sep: Same as pandas.read_csv()
+        :param thousands: Same as pandas.read_csv()
+        :param decimal: Same as pandas.read_csv()
+        :param lineterminator: Same as pandas.read_csv()
+        :param quotechar: Same as pandas.read_csv()
+        :param quoting: Same as pandas.read_csv()
+        :param escapechar: Same as pandas.read_csv()
+        :param parse_dates: Same as pandas.read_csv()
+        :param infer_datetime_format: Same as pandas.read_csv()
+        :param encoding: Same as pandas.read_csv()
+        :param converters: Same as pandas.read_csv()
+        :return: Pandas Dataframe or Iterator of Pandas Dataframes if max_result_size != None
+        """
+        paths: List[str] = self._session.s3.list_objects(path=path_prefix)
+        paths = [p for p in paths if not p.endswith("/")]
+        return self.read_csv_list(paths=paths,
+                                max_result_size=max_result_size,
+                                header=header,
+                                names=names,
+                                usecols=usecols,
+                                dtype=dtype,
+                                sep=sep,
+                                thousands=thousands,
+                                decimal=decimal,
+                                lineterminator=lineterminator,
+                                quotechar=quotechar,
+                                quoting=quoting,
+                                escapechar=escapechar,
+                                parse_dates=parse_dates,
+                                infer_datetime_format=infer_datetime_format,
+                                encoding=encoding,
+                                converters=converters)

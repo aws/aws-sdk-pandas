@@ -227,14 +227,15 @@ class S3:
         for bounder in bounders:
             client_s3.delete_objects(Bucket=bucket, Delete={"Objects": batch[bounder[0]:bounder[1]]})
 
-    def list_objects(self, path):
+    def list_objects(self, path: str) -> List[str]:
+        bucket: str
         bucket, path = self.parse_path(path=path)
-        args = {"Bucket": bucket, "MaxKeys": 1000, "Prefix": path}
-        next_continuation_token = True
-        keys = []
-        while next_continuation_token:
-            res = self._client_s3.list_objects_v2(**args)
-            if not res.get("Contents"):
+        args: Dict[str, Any] = {"Bucket": bucket, "MaxKeys": 1000, "Prefix": path}
+        next_continuation_token: str = ""
+        keys: List[str] = []
+        while next_continuation_token is not None:
+            res: Dict[str, Any] = self._client_s3.list_objects_v2(**args)
+            if res.get("Contents") is None:
                 break
             keys += [f"s3://{bucket}/{x.get('Key')}" for x in res.get("Contents")]
             next_continuation_token = res.get("NextContinuationToken")

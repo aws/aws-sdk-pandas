@@ -1749,6 +1749,7 @@ def test_aurora_mysql_unload_simple(bucket, mysql_parameters):
 
 @pytest.mark.parametrize("sample, row_num", [("data_samples/micro.csv", 30), ("data_samples/small.csv", 100)])
 def test_read_csv_list(bucket, sample, row_num):
+    wr.s3.delete_objects(path=f"s3://{bucket}/")
     n = 10
     paths = []
     for i in range(n):
@@ -1762,6 +1763,7 @@ def test_read_csv_list(bucket, sample, row_num):
 
 @pytest.mark.parametrize("sample, row_num", [("data_samples/micro.csv", 30), ("data_samples/small.csv", 100)])
 def test_read_csv_list_iterator(bucket, sample, row_num):
+    wr.s3.delete_objects(path=f"s3://{bucket}/")
     n = 10
     paths = []
     for i in range(n):
@@ -2001,3 +2003,24 @@ def test_aurora_mysql_load_special(bucket, mysql_parameters):
         assert rows[2][2] == "\\\\\\\\"
         assert rows[3][2] == "\"\"\"\""
     conn.close()
+
+
+@pytest.mark.parametrize("sample, row_num", [("data_samples/micro.csv", 30), ("data_samples/small.csv", 100)])
+def test_read_csv_prefix_iterator(bucket, sample, row_num):
+    wr.s3.delete_objects(path=f"s3://{bucket}/")
+    n = 10
+    paths = []
+    for i in range(n):
+        key = f"{sample}_{i}"
+        boto3.client("s3").upload_file(sample, bucket, key)
+        paths.append(f"s3://{bucket}/{key}")
+    sleep(15)
+
+    df_iter = wr.pandas.read_csv_prefix(path_prefix=f"s3://{bucket}/{sample}_", max_result_size=200)
+    total_count = 0
+    for df in df_iter:
+        count = len(df.index)
+        print(f"count: {count}")
+        total_count += count
+    wr.s3.delete_listed_objects(objects_paths=paths)
+    assert total_count == row_num * n
