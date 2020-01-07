@@ -623,8 +623,8 @@ class Glue:
             df_dict["Column Name"].append(col["Name"])
             df_dict["Type"].append(col["Type"])
             df_dict["Partition"].append(False)
-            if "Comment" in table:
-                df_dict["Comment"].append(table["Comment"])
+            if "Comment" in col:
+                df_dict["Comment"].append(col["Comment"])
             else:
                 df_dict["Comment"].append("")
         for col in table["PartitionKeys"]:
