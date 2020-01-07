@@ -1929,22 +1929,20 @@ def test_aurora_postgres_load_special(bucket, postgres_parameters):
     })
 
     path = f"s3://{bucket}/test_aurora_postgres_slash"
-    wr.pandas.to_aurora(
-        dataframe=df,
-        connection="aws-data-wrangler-postgres",
-        schema="public",
-        table="test_aurora_postgres_special",
-        mode="overwrite",
-        temp_s3_path=path,
-        engine="postgres",
-        procs_cpu_bound=4
-    )
+    wr.pandas.to_aurora(dataframe=df,
+                        connection="aws-data-wrangler-postgres",
+                        schema="public",
+                        table="test_aurora_postgres_special",
+                        mode="overwrite",
+                        temp_s3_path=path,
+                        engine="postgres",
+                        procs_cpu_bound=4)
     conn = Aurora.generate_connection(database="postgres",
-                                     host=postgres_parameters["PostgresAddress"],
-                                     port=3306,
-                                     user="test",
-                                     password=postgres_parameters["Password"],
-                                     engine="postgres")
+                                      host=postgres_parameters["PostgresAddress"],
+                                      port=3306,
+                                      user="test",
+                                      password=postgres_parameters["Password"],
+                                      engine="postgres")
     with conn.cursor() as cursor:
         cursor.execute("SELECT * FROM public.test_aurora_postgres_special")
         rows = cursor.fetchall()
@@ -1971,22 +1969,20 @@ def test_aurora_mysql_load_special(bucket, mysql_parameters):
     })
 
     path = f"s3://{bucket}/test_aurora_mysql_special"
-    wr.pandas.to_aurora(
-        dataframe=df,
-        connection="aws-data-wrangler-mysql",
-        schema="test",
-        table="test_aurora_mysql_special",
-        mode="overwrite",
-        temp_s3_path=path,
-        engine="mysql",
-        procs_cpu_bound=1
-    )
+    wr.pandas.to_aurora(dataframe=df,
+                        connection="aws-data-wrangler-mysql",
+                        schema="test",
+                        table="test_aurora_mysql_special",
+                        mode="overwrite",
+                        temp_s3_path=path,
+                        engine="mysql",
+                        procs_cpu_bound=1)
     conn = Aurora.generate_connection(database="mysql",
-                                     host=mysql_parameters["MysqlAddress"],
-                                     port=3306,
-                                     user="test",
-                                     password=mysql_parameters["Password"],
-                                     engine="mysql")
+                                      host=mysql_parameters["MysqlAddress"],
+                                      port=3306,
+                                      user="test",
+                                      password=mysql_parameters["Password"],
+                                      engine="mysql")
     with conn.cursor() as cursor:
         cursor.execute("SELECT * FROM test.test_aurora_mysql_special")
         rows = cursor.fetchall()

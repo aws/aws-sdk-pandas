@@ -231,13 +231,16 @@ class S3:
         bucket: str
         bucket, path = self.parse_path(path=path)
         args: Dict[str, Any] = {"Bucket": bucket, "MaxKeys": 1000, "Prefix": path}
-        next_continuation_token: str = ""
+        next_continuation_token: Optional[str] = ""
         keys: List[str] = []
         while next_continuation_token is not None:
             res: Dict[str, Any] = self._client_s3.list_objects_v2(**args)
             if res.get("Contents") is None:
                 break
-            keys += [f"s3://{bucket}/{x.get('Key')}" for x in res.get("Contents")]
+            keys += [
+                f"s3://{bucket}/{x['Key']}" for x in res.get("Contents")  # type: ignore
+                if (x is not None) and ("Key" in x)
+            ]
             next_continuation_token = res.get("NextContinuationToken")
             if next_continuation_token:
                 args["ContinuationToken"] = next_continuation_token
