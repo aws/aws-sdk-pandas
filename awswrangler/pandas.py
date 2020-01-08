@@ -582,6 +582,8 @@ class Pandas:
         self._session.glue.delete_table_if_exists(database=database, table=name)
         manifest_path: str = f"{s3_output}/tables/{query_id}-manifest.csv"
         paths: List[str] = self._session.athena.extract_manifest_paths(path=manifest_path)
+        if not paths:
+            return pd.DataFrame()
         logger.debug(f"paths: {paths}")
         return self.read_parquet(path=paths,
                                  procs_cpu_bound=procs_cpu_bound,

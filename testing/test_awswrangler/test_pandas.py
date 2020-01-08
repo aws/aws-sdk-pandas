@@ -2020,3 +2020,17 @@ def test_read_csv_prefix_iterator(bucket, sample, row_num):
         total_count += count
     wr.s3.delete_listed_objects(objects_paths=paths)
     assert total_count == row_num * n
+
+
+@pytest.mark.parametrize("ctas_approach", [False, True])
+def test_read_sql_athena_empty(ctas_approach):
+    sql = """
+        WITH dataset AS (
+          SELECT 0 AS id
+        )
+        SELECT id
+        FROM dataset
+        WHERE id != 0
+    """
+    df = wr.pandas.read_sql_athena(sql=sql, ctas_approach=ctas_approach)
+    print(df)
