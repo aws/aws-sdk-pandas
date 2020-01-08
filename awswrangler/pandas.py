@@ -916,7 +916,7 @@ class Pandas:
     @staticmethod
     def _data_to_s3_dataset_writer(dataframe: pd.DataFrame,
                                    path: str,
-                                   partition_cols,
+                                   partition_cols: Optional[List[str]],
                                    preserve_index: bool,
                                    compression,
                                    session_primitives: "SessionPrimitives",
@@ -924,9 +924,11 @@ class Pandas:
                                    cast_columns=None,
                                    extra_args: Optional[Dict[str, Optional[str]]] = None,
                                    isolated_dataframe: bool = False):
-        objects_paths = []
+        objects_paths: List[str] = []
         dataframe = Pandas._cast_pandas(dataframe=dataframe, cast_columns=cast_columns)
-        cast_columns_materialized = {c: t for c, t in cast_columns.items() if c not in partition_cols}
+        if partition_cols is None:
+            partition_cols = []
+        cast_columns_materialized: Dict[str, str] = {c: t for c, t in cast_columns.items() if c not in partition_cols}
         if not partition_cols:
             object_path = Pandas._data_to_s3_object_writer(dataframe=dataframe,
                                                            path=path,
@@ -1001,7 +1003,7 @@ class Pandas:
                                   compression: str,
                                   session_primitives: "SessionPrimitives",
                                   file_format: str,
-                                  cast_columns: Optional[List[str]] = None,
+                                  cast_columns: Optional[Dict[str, str]] = None,
                                   extra_args: Optional[Dict[str, Optional[str]]] = None,
                                   isolated_dataframe=False) -> str:
         fs = get_fs(session_primitives=session_primitives)

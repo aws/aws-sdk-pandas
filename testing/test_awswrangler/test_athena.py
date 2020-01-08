@@ -6,6 +6,7 @@ import pytest
 import boto3
 import pandas as pd
 
+import awswrangler as wr
 from awswrangler import Session, Athena
 from awswrangler.exceptions import QueryCancelled, QueryFailed
 
@@ -34,6 +35,10 @@ def database(cloudformation_outputs):
     else:
         raise Exception("You must deploy the test infrastructure using Cloudformation!")
     yield database
+    tables = wr.glue.tables(database=database)["Table"].tolist()
+    for t in tables:
+        print(f"Dropping: {database}.{t}...")
+        wr.glue.delete_table_if_exists(database=database, table=t)
 
 
 @pytest.fixture(scope="module")

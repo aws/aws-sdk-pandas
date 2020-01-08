@@ -10,6 +10,7 @@ from pyspark.sql.functions import lit, array, create_map, struct
 from pyspark.sql.types import StructType, StructField, IntegerType, DateType,\
     TimestampType, StringType, FloatType, MapType, ArrayType
 
+import awswrangler as wr
 from awswrangler import Session
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
@@ -53,6 +54,10 @@ def database(cloudformation_outputs):
     else:
         raise Exception("You must deploy the test infrastructure using Cloudformation!")
     yield database
+    tables = wr.glue.tables(database=database)["Table"].tolist()
+    for t in tables:
+        print(f"Dropping: {database}.{t}...")
+        wr.glue.delete_table_if_exists(database=database, table=t)
 
 
 @pytest.mark.parametrize(

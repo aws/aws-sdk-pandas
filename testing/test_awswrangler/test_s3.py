@@ -88,6 +88,10 @@ def database(cloudformation_outputs):
     else:
         raise Exception("You must deploy the test infrastructure using SAM!")
     yield database
+    tables = wr.glue.tables(database=database)["Table"].tolist()
+    for t in tables:
+        print(f"Dropping: {database}.{t}...")
+        wr.glue.delete_table_if_exists(database=database, table=t)
 
 
 @pytest.mark.parametrize("objects_num", [1, 10, 1001])
