@@ -1927,7 +1927,12 @@ def test_aurora_postgres_load_special(bucket, postgres_parameters):
         "value": ["foo", "boo", "bar", "abc"],
         "slashes": ["\\", "\"", "\\\\\\\\", "\"\"\"\""],
         "floats": [1.0, 2.0, 3.0, 4.0],
-        "decimals": [Decimal((0, (1, 9, 9), -2)), Decimal((0, (1, 9, 9), -2)), Decimal((0, (1, 9, 0), -2)), Decimal((0, (3, 1, 2), -2))]
+        "decimals": [
+            Decimal((0, (1, 9, 9), -2)),
+            Decimal((0, (1, 9, 9), -2)),
+            Decimal((0, (1, 9, 0), -2)),
+            Decimal((0, (3, 1, 2), -2))
+        ]
     })
 
     path = f"s3://{bucket}/test_aurora_postgres_special"
@@ -1977,8 +1982,12 @@ def test_aurora_mysql_load_special(bucket, mysql_parameters):
         "value": ["foo", "boo", "bar", "abc"],
         "slashes": ["\\", "\"", "\\\\\\\\", "\"\"\"\""],
         "floats": [1.0, 2.0, 3.0, 4.0],
-        "decimals": [Decimal((0, (1, 9, 9), -2)), Decimal((0, (1, 9, 9), -2)), Decimal((0, (1, 9, 0), -2)),
-                     Decimal((0, (3, 1, 2), -2))]
+        "decimals": [
+            Decimal((0, (1, 9, 9), -2)),
+            Decimal((0, (1, 9, 9), -2)),
+            Decimal((0, (1, 9, 0), -2)),
+            Decimal((0, (3, 1, 2), -2))
+        ]
     })
 
     path = f"s3://{bucket}/test_aurora_mysql_special"

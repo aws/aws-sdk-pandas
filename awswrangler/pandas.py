@@ -682,7 +682,7 @@ class Pandas:
         """
         if serde not in Pandas.VALID_CSV_SERDES:
             raise InvalidSerDe(f"{serde} in not in the valid SerDe list ({Pandas.VALID_CSV_SERDES})")
-        extra_args = {"sep": sep, "serde": serde, "escapechar": escapechar}
+        extra_args: Dict[str, Optional[str]] = {"sep": sep, "serde": serde, "escapechar": escapechar}
         return self.to_s3(dataframe=dataframe,
                           path=path,
                           file_format="csv",
@@ -767,7 +767,7 @@ class Pandas:
               procs_cpu_bound=None,
               procs_io_bound=None,
               cast_columns=None,
-              extra_args=None,
+              extra_args: Optional[Dict[str, Optional[str]]] = None,
               inplace: bool = True,
               description: Optional[str] = None,
               parameters: Optional[Dict[str, str]] = None,
@@ -922,7 +922,7 @@ class Pandas:
                                    session_primitives: "SessionPrimitives",
                                    file_format: str,
                                    cast_columns=None,
-                                   extra_args=None,
+                                   extra_args: Optional[Dict[str, Optional[str]]] = None,
                                    isolated_dataframe: bool = False):
         objects_paths = []
         dataframe = Pandas._cast_pandas(dataframe=dataframe, cast_columns=cast_columns)
@@ -980,7 +980,7 @@ class Pandas:
                                           session_primitives: "SessionPrimitives",
                                           file_format,
                                           cast_columns=None,
-                                          extra_args=None):
+                                          extra_args: Optional[Dict[str, Optional[str]]] = None):
         send_pipe.send(
             Pandas._data_to_s3_dataset_writer(dataframe=dataframe,
                                               path=path,
@@ -996,35 +996,35 @@ class Pandas:
 
     @staticmethod
     def _data_to_s3_object_writer(dataframe: pd.DataFrame,
-                                  path: "str",
+                                  path: str,
                                   preserve_index: bool,
-                                  compression,
+                                  compression: str,
                                   session_primitives: "SessionPrimitives",
-                                  file_format,
-                                  cast_columns=None,
-                                  extra_args=None,
-                                  isolated_dataframe=False):
+                                  file_format: str,
+                                  cast_columns: Optional[List[str]] = None,
+                                  extra_args: Optional[Dict[str, Optional[str]]] = None,
+                                  isolated_dataframe=False) -> str:
         fs = get_fs(session_primitives=session_primitives)
         fs = pa.filesystem._ensure_filesystem(fs)
         mkdir_if_not_exists(fs, path)
 
         if compression is None:
-            compression_end = ""
+            compression_extension: str = ""
         elif compression == "snappy":
-            compression_end = ".snappy"
+            compression_extension = ".snappy"
         elif compression == "gzip":
-            compression_end = ".gz"
+            compression_extension = ".gz"
         else:
             raise InvalidCompression(compression)
 
-        guid = pa.compat.guid()
+        guid: str = pa.compat.guid()
         if file_format == "parquet":
-            outfile = f"{guid}.parquet{compression_end}"
+            outfile: str = f"{guid}{compression_extension}.parquet"
         elif file_format == "csv":
-            outfile = f"{guid}.csv{compression_end}"
+            outfile = f"{guid}{compression_extension}.csv"
         else:
             raise UnsupportedFileFormat(file_format)
-        object_path = "/".join([path, outfile])
+        object_path: str = "/".join([path, outfile])
         if file_format == "parquet":
             Pandas.write_parquet_dataframe(dataframe=dataframe,
                                            path=object_path,
