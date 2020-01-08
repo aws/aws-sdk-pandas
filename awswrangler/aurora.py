@@ -201,6 +201,7 @@ class Aurora:
             sql: str = ("-- AWS DATA WRANGLER\n"
                         "SELECT aws_s3.table_import_from_s3(\n"
                         f"'{schema_name}.{table_name}',\n"
+                        "'',\n"
                         "'(FORMAT CSV, DELIMITER '','', QUOTE ''\"'', ESCAPE ''\"'')',\n"
                         f"'({bucket},{key},{region})')")
         elif "mysql" in engine.lower():

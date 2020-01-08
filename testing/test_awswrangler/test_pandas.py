@@ -1925,10 +1925,12 @@ def test_aurora_postgres_load_special(bucket, postgres_parameters):
     df = pd.DataFrame({
         "id": [1, 2, 3, 4],
         "value": ["foo", "boo", "bar", "abc"],
-        "special": ["\\", "\"", "\\\\\\\\", "\"\"\"\""]
+        "slashes": ["\\", "\"", "\\\\\\\\", "\"\"\"\""],
+        "floats": [1.0, 2.0, 3.0, 4.0],
+        "decimals": [Decimal((0, (1, 9, 9), -2)), Decimal((0, (1, 9, 9), -2)), Decimal((0, (1, 9, 0), -2)), Decimal((0, (3, 1, 2), -2))]
     })
 
-    path = f"s3://{bucket}/test_aurora_postgres_slash"
+    path = f"s3://{bucket}/test_aurora_postgres_special"
     wr.pandas.to_aurora(dataframe=df,
                         connection="aws-data-wrangler-postgres",
                         schema="public",
@@ -1958,6 +1960,14 @@ def test_aurora_postgres_load_special(bucket, postgres_parameters):
         assert rows[1][2] == "\""
         assert rows[2][2] == "\\\\\\\\"
         assert rows[3][2] == "\"\"\"\""
+        assert (rows[0][3] == 1.0) and (str(type(rows[0][3])) == str(type(1.0)))
+        assert rows[1][3] == 2.0
+        assert rows[2][3] == 3.0
+        assert rows[3][3] == 4.0
+        assert rows[0][4] == Decimal((0, (1, 9, 9), -2))
+        assert rows[1][4] == Decimal((0, (1, 9, 9), -2))
+        assert rows[2][4] == Decimal((0, (1, 9, 0), -2))
+        assert rows[3][4] == Decimal((0, (3, 1, 2), -2))
     conn.close()
 
 
@@ -1965,7 +1975,10 @@ def test_aurora_mysql_load_special(bucket, mysql_parameters):
     df = pd.DataFrame({
         "id": [1, 2, 3, 4],
         "value": ["foo", "boo", "bar", "abc"],
-        "special": ["\\", "\"", "\\\\\\\\", "\"\"\"\""]
+        "slashes": ["\\", "\"", "\\\\\\\\", "\"\"\"\""],
+        "floats": [1.0, 2.0, 3.0, 4.0],
+        "decimals": [Decimal((0, (1, 9, 9), -2)), Decimal((0, (1, 9, 9), -2)), Decimal((0, (1, 9, 0), -2)),
+                     Decimal((0, (3, 1, 2), -2))]
     })
 
     path = f"s3://{bucket}/test_aurora_mysql_special"
@@ -1998,6 +2011,14 @@ def test_aurora_mysql_load_special(bucket, mysql_parameters):
         assert rows[1][2] == "\""
         assert rows[2][2] == "\\\\\\\\"
         assert rows[3][2] == "\"\"\"\""
+        assert (rows[0][3] == 1.0) and (str(type(rows[0][3])) == str(type(1.0)))
+        assert rows[1][3] == 2.0
+        assert rows[2][3] == 3.0
+        assert rows[3][3] == 4.0
+        assert rows[0][4] == Decimal((0, (1, 9, 9), -2))
+        assert rows[1][4] == Decimal((0, (1, 9, 9), -2))
+        assert rows[2][4] == Decimal((0, (1, 9, 0), -2))
+        assert rows[3][4] == Decimal((0, (3, 1, 2), -2))
     conn.close()
 
 
