@@ -12,6 +12,8 @@
 
 **[Read the Docs!](https://aws-data-wrangler.readthedocs.io)**
 
+**[Read the Tutorials](https://github.com/awslabs/aws-data-wrangler/tree/master/tutorials): [Catalog & Metadata](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/catalog_and_metadata.ipynb) | [Athena Nested](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/athena_nested.ipynb)**
+
 ---
 
 *Contents:* **[Use Cases](#Use-Cases)** | **[Installation](#Installation)** | **[Examples](#Examples)** | **[Diving Deep](#Diving-Deep)** | **[Step By Step](#Step-By-Step)** | **[Contributing](#Contributing)**
@@ -36,6 +38,8 @@
 * CloudWatch Logs Insights -> Pandas
 * Aurora -> Pandas (MySQL) (Via S3) (NEW :star:)
 * Encrypt Pandas Dataframes on S3 with KMS keys
+* Glue Databases Metadata -> Pandas (Jupyter output compatible)
+* Glue Table Metadata -> Pandas (Jupyter output compatible)
 
 ### PySpark
 
@@ -64,6 +68,7 @@
 * Load and Unzip SageMaker models
 * Redshift -> Parquet (S3)
 * Aurora -> CSV (S3) (MySQL) (NEW :star:)
+* Get Glue Metadata
 
 ## Installation
 

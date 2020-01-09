@@ -10,6 +10,8 @@
 
 *Utility belt to handle data on AWS.*
 
+`Read the Tutorials <https://github.com/awslabs/aws-data-wrangler/tree/master/tutorials>`_: `Catalog & Metadata <https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/catalog_and_metadata.ipynb>`_ | `Athena Nested <https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/athena_nested.ipynb>`_
+
 Use Cases
 ---------
 
@@ -29,6 +31,8 @@ Pandas
 * CloudWatch Logs Insights -> Pandas
 * Aurora -> Pandas (MySQL) (Via S3) (NEW)
 * Encrypt Pandas Dataframes on S3 with KMS keys
+* Glue Databases Metadata -> Pandas (Jupyter output compatible)
+* Glue Table Metadata -> Pandas (Jupyter output compatible)
 
 PySpark
 ```````
@@ -57,6 +61,7 @@ General
 * Load and Unzip SageMaker models
 * Redshift -> Parquet (S3)
 * Aurora -> CSV (S3) (MySQL) (NEW :star:)
+* Get Glue Metadata
 
 
 Table Of Contents
