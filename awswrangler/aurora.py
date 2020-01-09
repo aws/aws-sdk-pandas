@@ -174,6 +174,9 @@ class Aurora:
                 logger.debug(sql)
                 cursor.execute(sql)
 
+        connection.commit()
+        logger.debug("Load committed.")
+
         if "mysql" in engine.lower():
             with connection.cursor() as cursor:
                 sql = ("-- AWS DATA WRANGLER\n"
@@ -185,9 +188,6 @@ class Aurora:
                 if num_files_loaded != (num_files + 1):
                     raise AuroraLoadError(
                         f"Missing files to load. {num_files_loaded} files counted. {num_files + 1} expected.")
-
-        connection.commit()
-        logger.debug("Load committed.")
 
     @staticmethod
     def _parse_path(path):
