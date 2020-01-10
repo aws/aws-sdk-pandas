@@ -644,9 +644,11 @@ class Pandas:
     def to_csv(self,
                dataframe: pd.DataFrame,
                path: str,
-               sep: str = ",",
+               sep: Optional[str] = None,
+               na_rep: Optional[str] = None,
+               quoting: Optional[int] = None,
                escapechar: Optional[str] = None,
-               serde: str = "OpenCSVSerDe",
+               serde: Optional[str] = "OpenCSVSerDe",
                database: Optional[str] = None,
                table: Optional[str] = None,
                partition_cols: Optional[List[str]] = None,
@@ -665,8 +667,10 @@ class Pandas:
         :param dataframe: Pandas Dataframe
         :param path: AWS S3 path (E.g. s3://bucket-name/folder_name/
         :param sep: Same as pandas.to_csv()
+        :param na_rep: Same as pandas.to_csv()
+        :param quoting: Same as pandas.to_csv()
         :param escapechar: Same as pandas.to_csv()
-        :param serde: SerDe library name (e.g. OpenCSVSerDe, LazySimpleSerDe)
+        :param serde: SerDe library name (e.g. OpenCSVSerDe, LazySimpleSerDe) (For Athena/Glue Catalog only)
         :param database: AWS Glue Database name
         :param table: AWS Glue table name
         :param partition_cols: List of columns names that will be partitions on S3
@@ -680,9 +684,17 @@ class Pandas:
         :param columns_comments: Columns names and the related comments (Optional[Dict[str, str]])
         :return: List of objects written on S3
         """
-        if serde not in Pandas.VALID_CSV_SERDES:
+        if (serde is not None) and (serde not in Pandas.VALID_CSV_SERDES):
             raise InvalidSerDe(f"{serde} in not in the valid SerDe list ({Pandas.VALID_CSV_SERDES})")
-        extra_args: Dict[str, Optional[str]] = {"sep": sep, "serde": serde, "escapechar": escapechar}
+        if (database is not None) and (serde is None):
+            raise InvalidParameters(f"It is not possible write to a Glue Database without a SerDe.")
+        extra_args: Dict[str, Optional[str]] = {
+            "sep": sep,
+            "na_rep": na_rep,
+            "serde": serde,
+            "escapechar": escapechar,
+            "quoting": quoting
+        }
         return self.to_s3(dataframe=dataframe,
                           path=path,
                           file_format="csv",
@@ -1053,9 +1065,15 @@ class Pandas:
 
         serde = extra_args.get("serde")
         if serde is None:
-            escapechar = extra_args.get("escapechar")
+            escapechar: Optional[str] = extra_args.get("escapechar")
             if escapechar is not None:
                 csv_extra_args["escapechar"] = escapechar
+            quoting: Optional[str] = extra_args.get("quoting")
+            if escapechar is not None:
+                csv_extra_args["quoting"] = quoting
+            na_rep: Optional[str] = extra_args.get("na_rep")
+            if na_rep is not None:
+                csv_extra_args["na_rep"] = na_rep
         else:
             if serde == "OpenCSVSerDe":
                 csv_extra_args["quoting"] = csv.QUOTE_ALL
@@ -1063,7 +1081,8 @@ class Pandas:
             elif serde == "LazySimpleSerDe":
                 csv_extra_args["quoting"] = csv.QUOTE_NONE
                 csv_extra_args["escapechar"] = "\\"
-        csv_buffer = bytes(
+        logger.debug(f"csv_extra_args: {csv_extra_args}")
+        csv_buffer: bytes = bytes(
             dataframe.to_csv(None, header=False, index=preserve_index, compression=compression, **csv_extra_args),
             "utf-8")
         Pandas._write_csv_to_s3_retrying(fs=fs, path=path, buffer=csv_buffer)
@@ -1554,9 +1573,13 @@ class Pandas:
                     temp_s3_path = self._session.athena.create_athena_bucket() + temp_directory + "/"
             temp_s3_path = temp_s3_path if temp_s3_path[-1] == "/" else temp_s3_path + "/"
             logger.debug(f"temp_s3_path: {temp_s3_path}")
+            na_rep: str = "NULL" if "mysql" in engine.lower() else ""
             paths: List[str] = self.to_csv(dataframe=dataframe,
                                            path=temp_s3_path,
+                                           serde=None,
                                            sep=",",
+                                           na_rep=na_rep,
+                                           quoting=csv.QUOTE_MINIMAL,
                                            escapechar="\"",
                                            preserve_index=preserve_index,
                                            mode="overwrite",

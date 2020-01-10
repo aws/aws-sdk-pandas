@@ -1417,7 +1417,9 @@ def test_read_parquet_dataset(session, bucket):
                               preserve_index=False,
                               procs_cpu_bound=4,
                               partition_cols=["partition"])
+    sleep(15)
     df2 = session.pandas.read_parquet(path=path)
+    wr.s3.delete_objects(path=path)
     assert len(list(df.columns)) == len(list(df2.columns))
     assert len(df.index) == len(df2.index)
 
@@ -2068,3 +2070,102 @@ def test_read_sql_athena_empty(ctas_approach):
     """
     df = wr.pandas.read_sql_athena(sql=sql, ctas_approach=ctas_approach)
     print(df)
+
+
+def test_aurora_postgres_load_special2(bucket, postgres_parameters):
+    dt = lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S.%f")
+    df = pd.DataFrame({
+        "integer1": [0, 1, np.NaN, 3],
+        "integer2": [8986, 9735, 9918, 9150],
+        "string1": ["O", "P", "P", "O"],
+        "string2": ["050100", "010101", "010101", "050100"],
+        "string3": ["A", "R", "A", "R"],
+        "string4": ["SGD", "SGD", "SGD", "SGD"],
+        "float1": [0.0, 1800000.0, np.NaN, 0.0],
+        "string5": ["0000296722", "0000199396", "0000298592", "0000196380"],
+        "string6": [None, "C", "C", None],
+        "timestamp1": [dt("2020-01-07 00:00:00.000"), None, dt("2020-01-07 00:00:00.000"),
+                       dt("2020-01-07 00:00:00.000")],
+        "string7": ["XXX", "XXX", "XXX", "XXX"],
+        "timestamp2": [dt("2020-01-10 10:34:55.863"), dt("2020-01-10 10:34:55.864"), dt("2020-01-10 10:34:55.865"),
+                       dt("2020-01-10 10:34:55.866")],
+    })
+    df = pd.concat([df for _ in range(10_000)])
+    path = f"s3://{bucket}/test_aurora_postgres_special"
+    wr.pandas.to_aurora(dataframe=df,
+                        connection="aws-data-wrangler-postgres",
+                        schema="public",
+                        table="test_aurora_postgres_load_special2",
+                        mode="overwrite",
+                        temp_s3_path=path,
+                        engine="postgres",
+                        procs_cpu_bound=1)
+    conn = Aurora.generate_connection(database="postgres",
+                                      host=postgres_parameters["PostgresAddress"],
+                                      port=3306,
+                                      user="test",
+                                      password=postgres_parameters["Password"],
+                                      engine="postgres")
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT count(*) FROM public.test_aurora_postgres_load_special2")
+        assert cursor.fetchall()[0][0] == len(df.index)
+        cursor.execute("SELECT timestamp2 FROM public.test_aurora_postgres_load_special2 limit 4")
+        rows = cursor.fetchall()
+        assert rows[0][0] == dt("2020-01-10 10:34:55.863")
+        assert rows[1][0] == dt("2020-01-10 10:34:55.864")
+        assert rows[2][0] == dt("2020-01-10 10:34:55.865")
+        assert rows[3][0] == dt("2020-01-10 10:34:55.866")
+        cursor.execute("SELECT integer1, float1, string6, timestamp1 FROM public.test_aurora_postgres_load_special2 limit 4")
+        rows = cursor.fetchall()
+        assert rows[2][0] is None
+        assert rows[2][1] is None
+        assert rows[0][2] is None
+        assert rows[1][3] is None
+    conn.close()
+
+
+def test_aurora_mysql_load_special2(bucket, mysql_parameters):
+    dt = lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S.%f")
+    df = pd.DataFrame({
+        "integer1": [0, 1, np.NaN, 3],
+        "integer2": [8986, 9735, 9918, 9150],
+        "string1": ["O", "P", "P", "O"],
+        "string2": ["050100", "010101", "010101", "050100"],
+        "string3": ["A", "R", "A", "R"],
+        "string4": ["SGD", "SGD", "SGD", "SGD"],
+        "float1": [0.0, 1800000.0, np.NaN, 0.0],
+        "string5": ["0000296722", "0000199396", "0000298592", "0000196380"],
+        "string6": [None, "C", "C", None],
+        "timestamp1": [dt("2020-01-07 00:00:00.000"), None, dt("2020-01-07 00:00:00.000"),
+                       dt("2020-01-07 00:00:00.000")],
+        "string7": ["XXX", "XXX", "XXX", "XXX"],
+        "timestamp2": [dt("2020-01-10 10:34:55.863"), dt("2020-01-10 10:34:55.864"), dt("2020-01-10 10:34:55.865"),
+                       dt("2020-01-10 10:34:55.866")],
+    })
+    df = pd.concat([df for _ in range(10_000)])
+    path = f"s3://{bucket}/test_aurora_mysql_load_special2"
+    wr.pandas.to_aurora(dataframe=df,
+                        connection="aws-data-wrangler-mysql",
+                        schema="test",
+                        table="test_aurora_mysql_load_special2",
+                        mode="overwrite",
+                        temp_s3_path=path,
+                        engine="mysql",
+                        procs_cpu_bound=1)
+    conn = Aurora.generate_connection(database="mysql",
+                                      host=mysql_parameters["MysqlAddress"],
+                                      port=3306,
+                                      user="test",
+                                      password=mysql_parameters["Password"],
+                                      engine="mysql")
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT count(*) FROM test.test_aurora_mysql_load_special2")
+        assert cursor.fetchall()[0][0] == len(df.index)
+        cursor.execute(
+            "SELECT integer1, float1, string6, timestamp1 FROM test.test_aurora_mysql_load_special2 limit 4")
+        rows = cursor.fetchall()
+        assert rows[2][0] is None
+        assert rows[2][1] is None
+        assert rows[0][2] is None
+        assert rows[1][3] is None
+    conn.close()

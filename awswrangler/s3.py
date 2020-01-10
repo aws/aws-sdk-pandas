@@ -308,8 +308,8 @@ class S3:
             receive_pipes[i].close()
         return objects_sizes
 
-    def copy_listed_objects(self, objects_paths, source_path, target_path, mode="append", procs_io_bound=None):
-        if not procs_io_bound:
+    def copy_listed_objects(self, objects_paths: List[str], source_path: str, target_path: str, mode: str = "append", procs_io_bound: Optional[int] = None):
+        if procs_io_bound is None:
             procs_io_bound = self._session.procs_io_bound
         logger.debug(f"procs_io_bound: {procs_io_bound}")
         logger.debug(f"len(objects_paths): {len(objects_paths)}")
