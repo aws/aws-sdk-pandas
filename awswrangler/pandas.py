@@ -688,7 +688,7 @@ class Pandas:
             raise InvalidSerDe(f"{serde} in not in the valid SerDe list ({Pandas.VALID_CSV_SERDES})")
         if (database is not None) and (serde is None):
             raise InvalidParameters(f"It is not possible write to a Glue Database without a SerDe.")
-        extra_args: Dict[str, Optional[str]] = {
+        extra_args: Dict[str, Optional[Union[str, int]]] = {
             "sep": sep,
             "na_rep": na_rep,
             "serde": serde,
@@ -779,7 +779,7 @@ class Pandas:
               procs_cpu_bound=None,
               procs_io_bound=None,
               cast_columns=None,
-              extra_args: Optional[Dict[str, Optional[str]]] = None,
+              extra_args: Optional[Dict[str, Optional[Union[str, int]]]] = None,
               inplace: bool = True,
               description: Optional[str] = None,
               parameters: Optional[Dict[str, str]] = None,
