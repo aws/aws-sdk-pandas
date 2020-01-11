@@ -8,6 +8,6 @@ twine~=3.1.1
 wheel~=0.33.6
 sphinx~=2.3.1
 pyspark~=2.4.4
-pyspark-stubs~=2.4.0.post6
+pyspark-stubs~=2.4.0.post7
 jupyter~=1.0.0
 jupyterlab~=1.2.4
