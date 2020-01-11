@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Dict, Optional, Any, Iterator, List
+from typing import TYPE_CHECKING, Dict, Optional, Any, Iterator, List, Union
 from math import ceil
 from itertools import islice
 import re
@@ -64,7 +64,7 @@ class Glue:
                          mode: str = "append",
                          compression=None,
                          cast_columns=None,
-                         extra_args=None,
+                         extra_args: Optional[Dict[str, Optional[Union[str, int]]]] = None,
                          description: Optional[str] = None,
                          parameters: Optional[Dict[str, str]] = None,
                          columns_comments: Optional[Dict[str, str]] = None) -> None:
@@ -269,9 +269,13 @@ class Glue:
         return path.rpartition("/")[2]
 
     @staticmethod
-    def csv_table_definition(table, partition_cols_schema, schema, path, compression, extra_args=None):
+    def csv_table_definition(table, partition_cols_schema, schema, path, compression, extra_args: Optional[Dict[str, Optional[Union[str, int]]]] = None):
         if extra_args is None:
-            extra_args = {}
+            extra_args = {
+                "sep": None
+            }
+        if extra_args.get("sep") is None:
+            extra_args["sep"] = ","
         if partition_cols_schema is None:
             partition_cols_schema = []
         compressed = False if compression is None else True
