@@ -1,12 +1,14 @@
 from typing import TYPE_CHECKING, Union, List, Dict, Tuple, Any
-from logging import getLogger, Logger
+from logging import getLogger, Logger, INFO
 import json
 import warnings
 
 import pg8000  # type: ignore
+from pg8000 import ProgrammingError  # type: ignore
 import pymysql  # type: ignore
 import pandas as pd  # type: ignore
 from boto3 import client  # type: ignore
+import tenacity  # type: ignore
 
 from awswrangler import data_types
 from awswrangler.exceptions import InvalidEngine, InvalidDataframeType, AuroraLoadError
@@ -134,7 +136,7 @@ class Aurora:
                    schema_name: str,
                    table_name: str,
                    connection: Any,
-                   num_files,
+                   num_files: int,
                    mode: str = "append",
                    preserve_index: bool = False,
                    engine: str = "mysql",
@@ -156,6 +158,54 @@ class Aurora:
         :param region: AWS S3 bucket region (Required only for postgres engine)
         :return: None
         """
+        if "postgres" in engine.lower():
+            Aurora.load_table_postgres(dataframe=dataframe,
+                                       dataframe_type=dataframe_type,
+                                       load_paths=load_paths,
+                                       schema_name=schema_name,
+                                       table_name=table_name,
+                                       connection=connection,
+                                       mode=mode,
+                                       preserve_index=preserve_index,
+                                       region=region)
+        elif "mysql" in engine.lower():
+            Aurora.load_table_mysql(dataframe=dataframe,
+                                    dataframe_type=dataframe_type,
+                                    manifest_path=load_paths[0],
+                                    schema_name=schema_name,
+                                    table_name=table_name,
+                                    connection=connection,
+                                    mode=mode,
+                                    preserve_index=preserve_index,
+                                    num_files=num_files)
+        else:
+            raise InvalidEngine(f"{engine} is not a valid engine. Please use 'mysql' or 'postgres'!")
+
+    @staticmethod
+    def load_table_postgres(dataframe: pd.DataFrame,
+                            dataframe_type: str,
+                            load_paths: List[str],
+                            schema_name: str,
+                            table_name: str,
+                            connection: Any,
+                            mode: str = "append",
+                            preserve_index: bool = False,
+                            region: str = "us-east-1"):
+        """
+        Load text/CSV files into a Aurora table using a manifest file.
+        Creates the table if necessary.
+
+        :param dataframe: Pandas or Spark Dataframe
+        :param dataframe_type: "pandas" or "spark"
+        :param load_paths: S3 paths to be loaded (E.g. S3://...)
+        :param schema_name: Aurora schema
+        :param table_name: Aurora table name
+        :param connection: A PEP 249 compatible connection (Can be generated with Aurora.generate_connection())
+        :param mode: append or overwrite
+        :param preserve_index: Should we preserve the Dataframe index? (ONLY for Pandas Dataframe)
+        :param region: AWS S3 bucket region (Required only for postgres engine)
+        :return: None
+        """
         with connection.cursor() as cursor:
             if mode == "overwrite":
                 Aurora._create_table(cursor=cursor,
@@ -164,30 +214,94 @@ class Aurora:
                                      schema_name=schema_name,
                                      table_name=table_name,
                                      preserve_index=preserve_index,
-                                     engine=engine)
-            for path in load_paths:
-                sql = Aurora._get_load_sql(path=path,
-                                           schema_name=schema_name,
-                                           table_name=table_name,
-                                           engine=engine,
-                                           region=region)
-                logger.debug(sql)
-                cursor.execute(sql)
+                                     engine="postgres")
+                connection.commit()
+                logger.debug("CREATE TABLE committed.")
+        for path in load_paths:
+            Aurora._load_object_postgres_with_retry(connection=connection,
+                                                    schema_name=schema_name,
+                                                    table_name=table_name,
+                                                    path=path,
+                                                    region=region)
 
-        connection.commit()
-        logger.debug("Load committed.")
-
-        if "mysql" in engine.lower():
-            with connection.cursor() as cursor:
-                sql = ("-- AWS DATA WRANGLER\n"
-                       f"SELECT COUNT(*) as num_files_loaded FROM mysql.aurora_s3_load_history "
-                       f"WHERE load_prefix = '{path}'")
-                logger.debug(sql)
+    @staticmethod
+    @tenacity.retry(retry=tenacity.retry_if_exception_type(exception_types=ProgrammingError),
+                    wait=tenacity.wait_random_exponential(multiplier=0.5),
+                    stop=tenacity.stop_after_attempt(max_attempt_number=5),
+                    reraise=True,
+                    after=tenacity.after_log(logger, INFO))
+    def _load_object_postgres_with_retry(connection: Any, schema_name: str, table_name: str, path: str,
+                                         region: str) -> None:
+        with connection.cursor() as cursor:
+            sql = Aurora._get_load_sql(path=path,
+                                       schema_name=schema_name,
+                                       table_name=table_name,
+                                       engine="postgres",
+                                       region=region)
+            logger.debug(sql)
+            try:
                 cursor.execute(sql)
-                num_files_loaded = cursor.fetchall()[0][0]
-                if num_files_loaded != (num_files + 1):
-                    raise AuroraLoadError(
-                        f"Missing files to load. {num_files_loaded} files counted. {num_files + 1} expected.")
+            except ProgrammingError as ex:
+                if "The file has been modified" in str(ex):
+                    connection.rollback()
+                    raise ex
+            connection.commit()
+            logger.debug(f"Load committed for: {path}.")
+
+    @staticmethod
+    def load_table_mysql(dataframe: pd.DataFrame,
+                         dataframe_type: str,
+                         manifest_path: str,
+                         schema_name: str,
+                         table_name: str,
+                         connection: Any,
+                         num_files: int,
+                         mode: str = "append",
+                         preserve_index: bool = False):
+        """
+        Load text/CSV files into a Aurora table using a manifest file.
+        Creates the table if necessary.
+
+        :param dataframe: Pandas or Spark Dataframe
+        :param dataframe_type: "pandas" or "spark"
+        :param manifest_path: S3 manifest path to be loaded (E.g. S3://...)
+        :param schema_name: Aurora schema
+        :param table_name: Aurora table name
+        :param connection: A PEP 249 compatible connection (Can be generated with Aurora.generate_connection())
+        :param num_files: Number of files to be loaded
+        :param mode: append or overwrite
+        :param preserve_index: Should we preserve the Dataframe index? (ONLY for Pandas Dataframe)
+        :return: None
+        """
+        with connection.cursor() as cursor:
+            if mode == "overwrite":
+                Aurora._create_table(cursor=cursor,
+                                     dataframe=dataframe,
+                                     dataframe_type=dataframe_type,
+                                     schema_name=schema_name,
+                                     table_name=table_name,
+                                     preserve_index=preserve_index,
+                                     engine="mysql")
+            sql = Aurora._get_load_sql(path=manifest_path,
+                                       schema_name=schema_name,
+                                       table_name=table_name,
+                                       engine="mysql")
+            logger.debug(sql)
+            cursor.execute(sql)
+            logger.debug(f"Load done for: {manifest_path}")
+            connection.commit()
+            logger.debug("Load committed.")
+
+        with connection.cursor() as cursor:
+            sql = ("-- AWS DATA WRANGLER\n"
+                   f"SELECT COUNT(*) as num_files_loaded FROM mysql.aurora_s3_load_history "
+                   f"WHERE load_prefix = '{manifest_path}'")
+            logger.debug(sql)
+            cursor.execute(sql)
+            num_files_loaded = cursor.fetchall()[0][0]
+            if num_files_loaded != (num_files + 1):
+                raise AuroraLoadError(
+                    f"Missing files to load. {num_files_loaded} files counted. {num_files + 1} expected.")
 
     @staticmethod
     def _parse_path(path):
