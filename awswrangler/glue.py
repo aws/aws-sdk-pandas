@@ -269,17 +269,19 @@ class Glue:
         return path.rpartition("/")[2]
 
     @staticmethod
-    def csv_table_definition(table, partition_cols_schema, schema, path, compression, extra_args: Optional[Dict[str, Optional[Union[str, int]]]] = None):
+    def csv_table_definition(table,
+                             partition_cols_schema,
+                             schema,
+                             path,
+                             compression,
+                             extra_args: Optional[Dict[str, Optional[Union[str, int]]]] = None):
         if extra_args is None:
-            extra_args = {
-                "sep": None
-            }
-        if extra_args.get("sep") is None:
-            extra_args["sep"] = ","
+            extra_args = {"sep": ","}
         if partition_cols_schema is None:
             partition_cols_schema = []
         compressed = False if compression is None else True
         sep = extra_args["sep"] if "sep" in extra_args else ","
+        sep = "," if sep is None else sep
         serde = extra_args.get("serde")
         if serde == "OpenCSVSerDe":
             serde_fullname = "org.apache.hadoop.hive.serde2.OpenCSVSerde"
@@ -347,6 +349,7 @@ class Glue:
             extra_args = {}
         compressed = False if compression is None else True
         sep = extra_args["sep"] if "sep" in extra_args else ","
+        sep = "," if sep is None else sep
         serde = extra_args.get("serde")
         if serde == "OpenCSVSerDe":
             serde_fullname = "org.apache.hadoop.hive.serde2.OpenCSVSerde"
