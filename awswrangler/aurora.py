@@ -218,11 +218,13 @@ class Aurora:
                 connection.commit()
                 logger.debug("CREATE TABLE committed.")
         for path in load_paths:
-            Aurora._load_object_postgres_with_retry(connection=connection,
-                                                    schema_name=schema_name,
-                                                    table_name=table_name,
-                                                    path=path,
-                                                    region=region)
+            sql = Aurora._get_load_sql(path=path,
+                                       schema_name=schema_name,
+                                       table_name=table_name,
+                                       engine="postgres",
+                                       region=region)
+            Aurora._load_object_postgres_with_retry(connection=connection, sql=sql)
+            logger.debug(f"Load committed for: {path}.")
 
     @staticmethod
     @tenacity.retry(retry=tenacity.retry_if_exception_type(exception_types=ProgrammingError),
@@ -230,23 +232,21 @@ class Aurora:
                     stop=tenacity.stop_after_attempt(max_attempt_number=5),
                     reraise=True,
                     after=tenacity.after_log(logger, INFO))
-    def _load_object_postgres_with_retry(connection: Any, schema_name: str, table_name: str, path: str,
-                                         region: str) -> None:
+    def _load_object_postgres_with_retry(connection: Any, sql: str) -> None:
+        logger.debug(sql)
         with connection.cursor() as cursor:
-            sql = Aurora._get_load_sql(path=path,
-                                       schema_name=schema_name,
-                                       table_name=table_name,
-                                       engine="postgres",
-                                       region=region)
-            logger.debug(sql)
             try:
                 cursor.execute(sql)
             except ProgrammingError as ex:
+                logger.debug(f"Exception: {ex}")
+                connection.rollback()
                 if "The file has been modified" in str(ex):
-                    connection.rollback()
                     raise ex
-            connection.commit()
-            logger.debug(f"Load committed for: {path}.")
+                elif "0 rows were copied successfully" in str(ex):
+                    raise ex
+                else:
+                    raise AuroraLoadError(str(ex))
+        connection.commit()
 
     @staticmethod
     def load_table_mysql(dataframe: pd.DataFrame,

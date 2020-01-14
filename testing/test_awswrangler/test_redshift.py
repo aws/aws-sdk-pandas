@@ -129,7 +129,7 @@ def test_to_redshift_pandas(session, bucket, redshift_parameters, sample_name, m
     ],
 )
 def test_to_redshift_pandas_glue(session, bucket, redshift_parameters, sample_name, mode, factor, diststyle, distkey,
-                            sortstyle, sortkey):
+                                 sortstyle, sortkey):
 
     if sample_name == "micro":
         dates = ["date"]

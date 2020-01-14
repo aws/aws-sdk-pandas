@@ -226,7 +226,10 @@ class Redshift:
             cursor.execute("-- AWS DATA WRANGLER\n SELECT pg_last_copy_id() AS query_id")
             query_id = cursor.fetchall()[0][0]
             sql = ("-- AWS DATA WRANGLER\n"
-                   f"SELECT COUNT(*) as num_files_loaded FROM STL_LOAD_COMMITS WHERE query = {query_id}")
+                   f"SELECT COUNT(DISTINCT filename) as num_files_loaded "
+                   f"FROM STL_LOAD_COMMITS "
+                   f"WHERE query = {query_id}")
+            logger.debug(sql)
             cursor.execute(sql)
             num_files_loaded = cursor.fetchall()[0][0]
             if num_files_loaded != num_files:

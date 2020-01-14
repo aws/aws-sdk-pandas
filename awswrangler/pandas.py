@@ -664,12 +664,14 @@ class Pandas:
             dtype, parse_timestamps, parse_dates, converters = self._get_query_dtype(
                 query_execution_id=query_execution_id)
             path = f"{s3_output}{query_execution_id}.csv"
+            logger.debug("Start reading...")
             ret = self.read_csv(path=path,
                                 dtype=dtype,
                                 parse_dates=parse_timestamps,
                                 converters=converters,
                                 quoting=csv.QUOTE_ALL,
                                 max_result_size=max_result_size)
+            logger.debug("Start type casting...")
             if max_result_size is None:
                 if len(ret.index) > 0:
                     for col in parse_dates:
@@ -1129,7 +1131,6 @@ class Pandas:
             elif serde == "LazySimpleSerDe":
                 csv_extra_args["quoting"] = csv.QUOTE_NONE
                 csv_extra_args["escapechar"] = "\\"
-        logger.debug(f"csv_extra_args: {csv_extra_args}")
         csv_buffer: bytes = bytes(
             dataframe.to_csv(None, header=False, index=preserve_index, compression=compression, **csv_extra_args),
             "utf-8")
@@ -1360,19 +1361,19 @@ class Pandas:
         """
         procs_cpu_bound = procs_cpu_bound if procs_cpu_bound is not None else self._session.procs_cpu_bound if self._session.procs_cpu_bound is not None else 1
         logger.debug(f"procs_cpu_bound: {procs_cpu_bound}")
-        df: Optional[pd.DataFrame] = None
+        dfs: List[pd.DataFrame] = []
         session_primitives = self._session.primitives
         path = [path] if type(path) == str else path  # type: ignore
         bounders = calculate_bounders(len(path), procs_cpu_bound)
         logger.debug(f"len(bounders): {len(bounders)}")
         if len(bounders) == 1:
-            df = Pandas._read_parquet_paths(session_primitives=session_primitives,
-                                            path=path,
-                                            columns=columns,
-                                            filters=filters,
-                                            procs_cpu_bound=procs_cpu_bound,
-                                            wait_objects=wait_objects,
-                                            wait_objects_timeout=wait_objects_timeout)
+            dfs = Pandas._read_parquet_paths(session_primitives=session_primitives,
+                                             path=path,
+                                             columns=columns,
+                                             filters=filters,
+                                             procs_cpu_bound=procs_cpu_bound,
+                                             wait_objects=wait_objects,
+                                             wait_objects_timeout=wait_objects_timeout)
         else:
             procs = []
             receive_pipes = []
@@ -1398,15 +1399,16 @@ class Pandas:
             logger.debug(f"len(procs): {len(bounders)}")
             for i in range(len(procs)):
                 logger.debug(f"Waiting pipe number: {i}")
-                df_received = receive_pipes[i].recv()
-                if df is None:
-                    df = df_received
-                else:
-                    df = pd.concat(objs=[df, df_received], ignore_index=True)
+                dfs_received: List[pd.DataFrame] = receive_pipes[i].recv()
+                dfs = dfs_received + dfs
                 logger.debug(f"Waiting proc number: {i}")
                 procs[i].join()
                 logger.debug(f"Closing proc number: {i}")
                 receive_pipes[i].close()
+        if len(dfs) == 1:
+            df: pd.DataFrame = dfs[0]
+        else:
+            df = pd.concat(objs=dfs, ignore_index=True)
         return df
 
     @staticmethod
@@ -1418,14 +1420,14 @@ class Pandas:
                                    procs_cpu_bound: Optional[int] = None,
                                    wait_objects: bool = False,
                                    wait_objects_timeout: Optional[float] = 10.0):
-        df: pd.DataFrame = Pandas._read_parquet_paths(session_primitives=session_primitives,
-                                                      path=path,
-                                                      columns=columns,
-                                                      filters=filters,
-                                                      procs_cpu_bound=procs_cpu_bound,
-                                                      wait_objects=wait_objects,
-                                                      wait_objects_timeout=wait_objects_timeout)
-        send_pipe.send(df)
+        dfs: List[pd.DataFrame] = Pandas._read_parquet_paths(session_primitives=session_primitives,
+                                                             path=path,
+                                                             columns=columns,
+                                                             filters=filters,
+                                                             procs_cpu_bound=procs_cpu_bound,
+                                                             wait_objects=wait_objects,
+                                                             wait_objects_timeout=wait_objects_timeout)
+        send_pipe.send(dfs)
         send_pipe.close()
 
     @staticmethod
@@ -1435,7 +1437,7 @@ class Pandas:
                             filters: Optional[Union[List[Tuple[Any]], List[List[Tuple[Any]]]]] = None,
                             procs_cpu_bound: Optional[int] = None,
                             wait_objects: bool = False,
-                            wait_objects_timeout: Optional[float] = 10.0) -> pd.DataFrame:
+                            wait_objects_timeout: Optional[float] = 10.0) -> List[pd.DataFrame]:
         """
         Read parquet data from S3
 
@@ -1459,24 +1461,19 @@ class Pandas:
                 procs_cpu_bound=procs_cpu_bound,
                 wait_objects=wait_objects,
                 wait_objects_timeout=wait_objects_timeout)
+            return [df]
         else:
-            df = Pandas._read_parquet_path(session_primitives=session_primitives,
-                                           path=path[0],
-                                           columns=columns,
-                                           filters=filters,
-                                           procs_cpu_bound=procs_cpu_bound,
-                                           wait_objects=wait_objects,
-                                           wait_objects_timeout=wait_objects_timeout)
-            for p in path[1:]:
-                df_aux = Pandas._read_parquet_path(session_primitives=session_primitives,
-                                                   path=p,
-                                                   columns=columns,
-                                                   filters=filters,
-                                                   procs_cpu_bound=procs_cpu_bound,
-                                                   wait_objects=wait_objects,
-                                                   wait_objects_timeout=wait_objects_timeout)
-                df = pd.concat(objs=[df, df_aux], ignore_index=True)
-        return df
+            dfs: List[pd.DataFrame] = []
+            for p in path:
+                df = Pandas._read_parquet_path(session_primitives=session_primitives,
+                                               path=p,
+                                               columns=columns,
+                                               filters=filters,
+                                               procs_cpu_bound=procs_cpu_bound,
+                                               wait_objects=wait_objects,
+                                               wait_objects_timeout=wait_objects_timeout)
+                dfs.append(df)
+            return dfs
 
     @staticmethod
     def _read_parquet_path(session_primitives: "SessionPrimitives",
@@ -1851,17 +1848,17 @@ class Pandas:
                     procs.append(proc)
                     receive_pipes.append(receive_pipe)
                     utils.wait_process_release(processes=procs, target_number=procs_cpu_bound)
+                dfs: List[pd.DataFrame] = []
                 for i in range(len(procs)):
                     logger.debug(f"Waiting pipe number: {i}")
                     df_received = receive_pipes[i].recv()
-                    if df is None:
-                        df = df_received
-                    else:
-                        df = pd.concat(objs=[df, df_received], ignore_index=True)
+                    dfs.append(df_received)
                     logger.debug(f"Waiting proc number: {i}")
                     procs[i].join()
                     logger.debug(f"Closing proc number: {i}")
                     receive_pipes[i].close()
+                logger.debug(f"Concatenating all {len(paths)} DataFrames...")
+                df = pd.concat(objs=dfs, ignore_index=True)
             return df
 
     def _read_csv_list_iterator(
