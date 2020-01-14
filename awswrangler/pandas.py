@@ -18,6 +18,7 @@ import tenacity  # type: ignore
 from s3fs import S3FileSystem  # type: ignore
 
 from awswrangler import data_types
+from awswrangler import utils
 from awswrangler.exceptions import (UnsupportedWriteMode, UnsupportedFileFormat, AthenaQueryError, EmptyS3Object,
                                     LineTerminatorNotFound, EmptyDataframe, InvalidSerDe, InvalidCompression,
                                     InvalidParameters, InvalidEngine)
@@ -122,7 +123,8 @@ class Pandas:
                                           encoding=encoding,
                                           converters=converters)
         else:
-            ret = self._read_csv_once(bucket_name=bucket_name,
+            ret = self._read_csv_once(session_primitives=self._session.primitives,
+                                      bucket_name=bucket_name,
                                       key_path=key_path,
                                       header=header,
                                       names=names,
@@ -193,7 +195,8 @@ class Pandas:
         if total_size <= 0:
             raise EmptyS3Object(metadata)
         elif total_size <= max_result_size:
-            yield self._read_csv_once(bucket_name=bucket_name,
+            yield self._read_csv_once(session_primitives=self._session.primitives,
+                                      bucket_name=bucket_name,
                                       key_path=key_path,
                                       header=header,
                                       names=names,
@@ -350,20 +353,21 @@ class Pandas:
             raise LineTerminatorNotFound()
         return index
 
+    @staticmethod
     def _read_csv_once(
-        self,
-        bucket_name,
-        key_path,
-        header="infer",
+        session_primitives: "SessionPrimitives",
+        bucket_name: str,
+        key_path: str,
+        header: Optional[str] = "infer",
         names=None,
         usecols=None,
         dtype=None,
-        sep=",",
+        sep: str = ",",
         thousands=None,
-        decimal=".",
-        lineterminator="\n",
-        quotechar='"',
-        quoting=0,
+        decimal: str = ".",
+        lineterminator: str = "\n",
+        quotechar: str = '"',
+        quoting: int = 0,
         escapechar=None,
         parse_dates: Union[bool, Dict, List] = False,
         infer_datetime_format=False,
@@ -375,6 +379,7 @@ class Pandas:
         Try to mimic as most as possible pandas.read_csv()
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
 
+        :param session_primitives: SessionPrimitives()
         :param bucket_name: S3 bucket name
         :param key_path: S3 key path (W/o bucket)
         :param header: Same as pandas.read_csv()
@@ -395,7 +400,9 @@ class Pandas:
         :return: Pandas Dataframe
         """
         buff = BytesIO()
-        self._client_s3.download_fileobj(Bucket=bucket_name, Key=key_path, Fileobj=buff)
+        session: Session = session_primitives.session
+        client_s3 = session.boto3_session.client(service_name="s3", use_ssl=True, config=session.botocore_config)
+        client_s3.download_fileobj(Bucket=bucket_name, Key=key_path, Fileobj=buff)
         buff.seek(0),
         dataframe = pd.read_csv(
             buff,
@@ -417,6 +424,47 @@ class Pandas:
         )
         buff.close()
         return dataframe
+
+    @staticmethod
+    def _read_csv_once_remote(send_pipe: mp.connection.Connection,
+                              session_primitives: "SessionPrimitives",
+                              bucket_name: str,
+                              key_path: str,
+                              header: str = "infer",
+                              names=None,
+                              usecols=None,
+                              dtype=None,
+                              sep: str = ",",
+                              thousands=None,
+                              decimal: str = ".",
+                              lineterminator: str = "\n",
+                              quotechar: str = '"',
+                              quoting: int = 0,
+                              escapechar=None,
+                              parse_dates: Union[bool, Dict, List] = False,
+                              infer_datetime_format=False,
+                              encoding=None,
+                              converters=None):
+        df: pd.DataFrame = Pandas._read_csv_once(session_primitives=session_primitives,
+                                                 bucket_name=bucket_name,
+                                                 key_path=key_path,
+                                                 header=header,
+                                                 names=names,
+                                                 usecols=usecols,
+                                                 dtype=dtype,
+                                                 sep=sep,
+                                                 thousands=thousands,
+                                                 decimal=decimal,
+                                                 lineterminator=lineterminator,
+                                                 quotechar=quotechar,
+                                                 quoting=quoting,
+                                                 escapechar=escapechar,
+                                                 parse_dates=parse_dates,
+                                                 infer_datetime_format=infer_datetime_format,
+                                                 encoding=encoding,
+                                                 converters=converters)
+        send_pipe.send(df)
+        send_pipe.close()
 
     @staticmethod
     def _list_parser(value: str) -> List[Union[int, float, str, None]]:
@@ -1164,7 +1212,7 @@ class Pandas:
 
         :param dataframe: Pandas Dataframe
         :param path: S3 path to write temporary files (E.g. s3://BUCKET_NAME/ANY_NAME/)
-        :param connection: A PEP 249 compatible connection (Can be generated with Redshift.generate_connection())
+        :param connection: Glue connection name (str) OR a PEP 249 compatible connection (Can be generated with Redshift.generate_connection())
         :param schema: The Redshift Schema for the table
         :param table: The name of the desired Redshift table
         :param iam_role: AWS IAM role with the related permissions
@@ -1190,40 +1238,57 @@ class Pandas:
         self._session.s3.delete_objects(path=path)
         num_rows: int = len(dataframe.index)
         logger.debug(f"Number of rows: {num_rows}")
-        if num_rows < MIN_NUMBER_OF_ROWS_TO_DISTRIBUTE:
-            num_partitions: int = 1
-        else:
-            num_slices: int = self._session.redshift.get_number_of_slices(redshift_conn=connection)
-            logger.debug(f"Number of slices on Redshift: {num_slices}")
-            num_partitions = num_slices
-        logger.debug(f"Number of partitions calculated: {num_partitions}")
-        objects_paths: List[str] = self.to_parquet(dataframe=dataframe,
-                                                   path=path,
-                                                   preserve_index=preserve_index,
-                                                   mode="append",
-                                                   procs_cpu_bound=num_partitions,
-                                                   cast_columns=cast_columns_parquet)
-        manifest_path: str = f"{path}manifest.json"
-        self._session.redshift.write_load_manifest(manifest_path=manifest_path, objects_paths=objects_paths)
-        self._session.redshift.load_table(
-            dataframe=dataframe,
-            dataframe_type="pandas",
-            manifest_path=manifest_path,
-            schema_name=schema,
-            table_name=table,
-            redshift_conn=connection,
-            preserve_index=preserve_index,
-            num_files=num_partitions,
-            iam_role=iam_role,
-            diststyle=diststyle,
-            distkey=distkey,
-            sortstyle=sortstyle,
-            sortkey=sortkey,
-            primary_keys=primary_keys,
-            mode=mode,
-            cast_columns=cast_columns,
-        )
-        self._session.s3.delete_objects(path=path)
+
+        generated_conn: bool = False
+        if type(connection) == str:
+            logger.debug("Glue connection (str) provided.")
+            connection = self._session.glue.get_connection(name=connection)
+            generated_conn = True
+
+        try:
+
+            if num_rows < MIN_NUMBER_OF_ROWS_TO_DISTRIBUTE:
+                num_partitions: int = 1
+            else:
+                num_slices: int = self._session.redshift.get_number_of_slices(redshift_conn=connection)
+                logger.debug(f"Number of slices on Redshift: {num_slices}")
+                num_partitions = num_slices
+            logger.debug(f"Number of partitions calculated: {num_partitions}")
+            objects_paths: List[str] = self.to_parquet(dataframe=dataframe,
+                                                       path=path,
+                                                       preserve_index=preserve_index,
+                                                       mode="append",
+                                                       procs_cpu_bound=num_partitions,
+                                                       cast_columns=cast_columns_parquet)
+            manifest_path: str = f"{path}manifest.json"
+            self._session.redshift.write_load_manifest(manifest_path=manifest_path, objects_paths=objects_paths)
+            self._session.redshift.load_table(
+                dataframe=dataframe,
+                dataframe_type="pandas",
+                manifest_path=manifest_path,
+                schema_name=schema,
+                table_name=table,
+                redshift_conn=connection,
+                preserve_index=preserve_index,
+                num_files=num_partitions,
+                iam_role=iam_role,
+                diststyle=diststyle,
+                distkey=distkey,
+                sortstyle=sortstyle,
+                sortkey=sortkey,
+                primary_keys=primary_keys,
+                mode=mode,
+                cast_columns=cast_columns,
+            )
+            self._session.s3.delete_objects(path=path)
+
+        except Exception as ex:
+            connection.rollback()
+            if generated_conn is True:
+                connection.close()
+            raise ex
+        if generated_conn is True:
+            connection.close()
 
     def read_log_query(self,
                        query,
@@ -1346,7 +1411,7 @@ class Pandas:
 
     @staticmethod
     def _read_parquet_paths_remote(send_pipe: mp.connection.Connection,
-                                   session_primitives: Any,
+                                   session_primitives: "SessionPrimitives",
                                    path: Union[str, List[str]],
                                    columns: Optional[List[str]] = None,
                                    filters: Optional[Union[List[Tuple[Any]], List[List[Tuple[Any]]]]] = None,
@@ -1364,7 +1429,7 @@ class Pandas:
         send_pipe.close()
 
     @staticmethod
-    def _read_parquet_paths(session_primitives: Any,
+    def _read_parquet_paths(session_primitives: "SessionPrimitives",
                             path: Union[str, List[str]],
                             columns: Optional[List[str]] = None,
                             filters: Optional[Union[List[Tuple[Any]], List[List[Tuple[Any]]]]] = None,
@@ -1694,6 +1759,7 @@ class Pandas:
             infer_datetime_format=False,
             encoding="utf-8",
             converters=None,
+            procs_cpu_bound: Optional[int] = None,
     ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
         """
         Read CSV files from AWS S3 using optimized strategies.
@@ -1718,6 +1784,7 @@ class Pandas:
         :param infer_datetime_format: Same as pandas.read_csv()
         :param encoding: Same as pandas.read_csv()
         :param converters: Same as pandas.read_csv()
+        :param procs_cpu_bound: Number of cores used for CPU bound tasks
         :return: Pandas Dataframe or Iterator of Pandas Dataframes if max_result_size != None
         """
         if max_result_size is not None:
@@ -1739,11 +1806,16 @@ class Pandas:
                                                 encoding=encoding,
                                                 converters=converters)
         else:
-            df_full: Optional[pd.DataFrame] = None
-            for path in paths:
-                logger.debug(f"path: {path}")
+            procs_cpu_bound = procs_cpu_bound if procs_cpu_bound is not None else self._session.procs_cpu_bound if self._session.procs_cpu_bound is not None else 1
+            logger.debug(f"procs_cpu_bound: {procs_cpu_bound}")
+            df: Optional[pd.DataFrame] = None
+            session_primitives = self._session.primitives
+            if len(paths) == 1:
+                path = paths[0]
                 bucket_name, key_path = Pandas._parse_path(path)
-                df = self._read_csv_once(bucket_name=bucket_name,
+                logger.debug(f"path: {path}")
+                df = self._read_csv_once(session_primitives=self._session.primitives,
+                                         bucket_name=bucket_name,
                                          key_path=key_path,
                                          header=header,
                                          names=names,
@@ -1760,11 +1832,37 @@ class Pandas:
                                          infer_datetime_format=infer_datetime_format,
                                          encoding=encoding,
                                          converters=converters)
-                if df_full is None:
-                    df_full = df
-                else:
-                    df_full = pd.concat(objs=[df_full, df], ignore_index=True)
-            return df_full
+            else:
+                procs = []
+                receive_pipes = []
+                logger.debug(f"len(paths): {len(paths)}")
+                for path in paths:
+                    receive_pipe, send_pipe = mp.Pipe()
+                    bucket_name, key_path = Pandas._parse_path(path)
+                    logger.debug(f"launching path: {path}")
+                    proc = mp.Process(
+                        target=self._read_csv_once_remote,
+                        args=(send_pipe, session_primitives, bucket_name, key_path, header, names, usecols, dtype, sep,
+                              thousands, decimal, lineterminator, quotechar, quoting, escapechar, parse_dates,
+                              infer_datetime_format, encoding, converters),
+                    )
+                    proc.daemon = False
+                    proc.start()
+                    procs.append(proc)
+                    receive_pipes.append(receive_pipe)
+                    utils.wait_process_release(processes=procs, target_number=procs_cpu_bound)
+                for i in range(len(procs)):
+                    logger.debug(f"Waiting pipe number: {i}")
+                    df_received = receive_pipes[i].recv()
+                    if df is None:
+                        df = df_received
+                    else:
+                        df = pd.concat(objs=[df, df_received], ignore_index=True)
+                    logger.debug(f"Waiting proc number: {i}")
+                    procs[i].join()
+                    logger.debug(f"Closing proc number: {i}")
+                    receive_pipes[i].close()
+            return df
 
     def _read_csv_list_iterator(
         self,
@@ -1852,6 +1950,7 @@ class Pandas:
             infer_datetime_format=False,
             encoding="utf-8",
             converters=None,
+            procs_cpu_bound: Optional[int] = None,
     ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
         """
         Read CSV files from AWS S3 PREFIX using optimized strategies.
@@ -1876,6 +1975,7 @@ class Pandas:
         :param infer_datetime_format: Same as pandas.read_csv()
         :param encoding: Same as pandas.read_csv()
         :param converters: Same as pandas.read_csv()
+        :param procs_cpu_bound: Number of cores used for CPU bound tasks
         :return: Pandas Dataframe or Iterator of Pandas Dataframes if max_result_size != None
         """
         paths: List[str] = self._session.s3.list_objects(path=path_prefix)

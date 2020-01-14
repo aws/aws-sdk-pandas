@@ -29,22 +29,31 @@ def calculate_bounders(num_items, num_groups=None, max_size=None):
         raise InvalidArguments("You must give num_groups or max_size!")
 
 
-def wait_process_release(processes):
+def wait_process_release(processes, target_number=None):
     """
     Wait one of the processes releases
     :param processes: List of processes
+    :param target_number: Wait for a target number of running processes
     :return: None
     """
     n = len(processes)
     i = 0
     while True:
-        if not processes[i].is_alive():
-            del processes[i]
-            return None
-        i += 1
-        if i == n:
-            i = 0
-        sleep(0.1)
+        if target_number is None:
+            if processes[i].is_alive() is False:
+                del processes[i]
+                return None
+            i += 1
+            if i == n:
+                i = 0
+        else:
+            count = 0
+            for p in processes:
+                if p.is_alive():
+                    count += 1
+            if count <= target_number:
+                return count
+        sleep(0.25)
 
 
 def lcm(a: int, b: int) -> int:

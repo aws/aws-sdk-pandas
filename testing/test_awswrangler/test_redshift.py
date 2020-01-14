@@ -117,6 +117,59 @@ def test_to_redshift_pandas(session, bucket, redshift_parameters, sample_name, m
     assert len(list(dataframe.columns)) + 1 == len(list(rows[0]))
 
 
+@pytest.mark.parametrize(
+    "sample_name,mode,factor,diststyle,distkey,sortstyle,sortkey",
+    [
+        ("micro", "overwrite", 1, "AUTO", "name", None, ["id"]),
+        ("micro", "append", 2, None, None, "INTERLEAVED", ["id", "value"]),
+        ("small", "overwrite", 1, "KEY", "name", "INTERLEAVED", ["id", "name"]),
+        ("small", "append", 2, None, None, "INTERLEAVED", ["id", "name", "date"]),
+        ("nano", "overwrite", 1, "ALL", None, "compound", ["id", "name", "date"]),
+        ("nano", "append", 2, "ALL", "name", "INTERLEAVED", ["id"]),
+    ],
+)
+def test_to_redshift_pandas_glue(session, bucket, redshift_parameters, sample_name, mode, factor, diststyle, distkey,
+                            sortstyle, sortkey):
+
+    if sample_name == "micro":
+        dates = ["date"]
+    if sample_name == "small":
+        dates = ["date"]
+    if sample_name == "nano":
+        dates = ["date", "time"]
+    dataframe = pd.read_csv(f"data_samples/{sample_name}.csv", parse_dates=dates, infer_datetime_format=True)
+    dataframe["date"] = dataframe["date"].dt.date
+    path = f"s3://{bucket}/redshift-load/"
+    session.pandas.to_redshift(
+        dataframe=dataframe,
+        path=path,
+        schema="public",
+        table="test",
+        connection="aws-data-wrangler-redshift",
+        iam_role=redshift_parameters.get("RedshiftRole"),
+        diststyle=diststyle,
+        distkey=distkey,
+        sortstyle=sortstyle,
+        sortkey=sortkey,
+        mode=mode,
+        preserve_index=True,
+    )
+    con = Redshift.generate_connection(
+        database="test",
+        host=redshift_parameters.get("RedshiftAddress"),
+        port=redshift_parameters.get("RedshiftPort"),
+        user="test",
+        password=redshift_parameters.get("Password"),
+    )
+    cursor = con.cursor()
+    cursor.execute("SELECT * from public.test")
+    rows = cursor.fetchall()
+    cursor.close()
+    con.close()
+    assert len(dataframe.index) * factor == len(rows)
+    assert len(list(dataframe.columns)) + 1 == len(list(rows[0]))
+
+
 def test_to_redshift_pandas_cast(session, bucket, redshift_parameters):
     df = pd.DataFrame({
         "id": [1, 2, 3],
