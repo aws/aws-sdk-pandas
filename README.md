@@ -1,6 +1,6 @@
 ![AWS Data Wrangler](docs/source/_static/logo.png?raw=true "AWS Data Wrangler")
 
-> DataFrames on AWS.
+> DataFrames on AWS
 
 [![Release](https://img.shields.io/badge/release-0.2.5-brightgreen.svg)](https://pypi.org/project/awswrangler/)
 [![Downloads](https://img.shields.io/pypi/dm/awswrangler.svg)](https://pypi.org/project/awswrangler/)
