@@ -347,7 +347,7 @@ def test_to_redshift_spark_bool(session, bucket, redshift_parameters):
     session.spark.to_redshift(
         dataframe=dataframe,
         path=f"s3://{bucket}/redshift-load-bool/",
-        connection=con,
+        connection="aws-data-wrangler-redshift",
         schema="public",
         table="test",
         iam_role=redshift_parameters.get("RedshiftRole"),
@@ -722,3 +722,33 @@ def test_to_redshift_pandas_upsert(session, bucket, redshift_parameters):
 
     wr.s3.delete_objects(path=f"s3://{bucket}/")
     con.close()
+
+
+@pytest.mark.parametrize("sample_name", ["micro", "small", "nano"])
+def test_read_sql_redshift_pandas_glue_conn(session, bucket, redshift_parameters, sample_name):
+    if sample_name == "micro":
+        dates = ["date"]
+    elif sample_name == "small":
+        dates = ["date"]
+    else:
+        dates = ["date", "time"]
+    df = pd.read_csv(f"data_samples/{sample_name}.csv", parse_dates=dates, infer_datetime_format=True)
+    df["date"] = df["date"].dt.date
+    path = f"s3://{bucket}/test_read_sql_redshift_pandas_glue_conn/"
+    session.pandas.to_redshift(
+        dataframe=df,
+        path=path,
+        schema="public",
+        table="test",
+        connection="aws-data-wrangler-redshift",
+        iam_role=redshift_parameters.get("RedshiftRole"),
+        mode="overwrite",
+        preserve_index=True,
+    )
+    path2 = f"s3://{bucket}/test_read_sql_redshift_pandas_glue_conn2/"
+    df2 = session.pandas.read_sql_redshift(sql="select * from public.test",
+                                           iam_role=redshift_parameters.get("RedshiftRole"),
+                                           connection="aws-data-wrangler-redshift",
+                                           temp_s3_path=path2)
+    assert len(df.index) == len(df2.index)
+    assert len(df.columns) + 1 == len(df2.columns)

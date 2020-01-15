@@ -71,7 +71,7 @@ class Spark:
 
         :param dataframe: Pandas Dataframe
         :param path: S3 path to write temporary files (E.g. s3://BUCKET_NAME/ANY_NAME/)
-        :param connection: A PEP 249 compatible connection (Can be generated with Redshift.generate_connection())
+        :param connection: Glue connection name (str) OR a PEP 249 compatible connection (Can be generated with Redshift.generate_connection())
         :param schema: The Redshift Schema for the table
         :param table: The name of the desired Redshift table
         :param iam_role: AWS IAM role with the related permissions
@@ -93,68 +93,83 @@ class Spark:
         dataframe.cache()
         num_rows: int = dataframe.count()
         logger.info(f"Number of rows: {num_rows}")
-        num_partitions: int
-        if num_rows < MIN_NUMBER_OF_ROWS_TO_DISTRIBUTE:
-            num_partitions = 1
-        else:
-            num_slices: int = self._session.redshift.get_number_of_slices(redshift_conn=connection)
-            logger.debug(f"Number of slices on Redshift: {num_slices}")
-            num_partitions = num_slices
-            while num_partitions < min_num_partitions:
-                num_partitions += num_slices
-        logger.debug(f"Number of partitions calculated: {num_partitions}")
-        spark.conf.set("spark.sql.execution.arrow.enabled", "true")
-        session_primitives = self._session.primitives
-        par_col_name: str = "aws_data_wrangler_internal_partition_id"
 
-        @pandas_udf(returnType="objects_paths string", functionType=PandasUDFType.GROUPED_MAP)
-        def write(pandas_dataframe: pd.DataFrame) -> pd.DataFrame:
-            # Exporting ARROW_PRE_0_15_IPC_FORMAT environment variable for
-            # a temporary workaround while waiting for Apache Arrow updates
-            # https://stackoverflow.com/questions/58273063/pandasudf-and-pyarrow-0-15-0
-            os.environ["ARROW_PRE_0_15_IPC_FORMAT"] = "1"
+        generated_conn: bool = False
+        if type(connection) == str:
+            logger.debug("Glue connection (str) provided.")
+            connection = self._session.glue.get_connection(name=connection)
+            generated_conn = True
 
-            del pandas_dataframe[par_col_name]
-            paths: List[str] = session_primitives.session.pandas.to_parquet(dataframe=pandas_dataframe,
-                                                                            path=path,
-                                                                            preserve_index=False,
-                                                                            mode="append",
-                                                                            procs_cpu_bound=1,
-                                                                            procs_io_bound=1,
-                                                                            cast_columns=casts)
-            return pd.DataFrame.from_dict({"objects_paths": paths})
+        try:
+            num_partitions: int
+            if num_rows < MIN_NUMBER_OF_ROWS_TO_DISTRIBUTE:
+                num_partitions = 1
+            else:
+                num_slices: int = self._session.redshift.get_number_of_slices(redshift_conn=connection)
+                logger.debug(f"Number of slices on Redshift: {num_slices}")
+                num_partitions = num_slices
+                while num_partitions < min_num_partitions:
+                    num_partitions += num_slices
+            logger.debug(f"Number of partitions calculated: {num_partitions}")
+            spark.conf.set("spark.sql.execution.arrow.enabled", "true")
+            session_primitives = self._session.primitives
+            par_col_name: str = "aws_data_wrangler_internal_partition_id"
 
-        df_objects_paths: DataFrame = dataframe.repartition(numPartitions=num_partitions)  # type: ignore
-        df_objects_paths: DataFrame = df_objects_paths.withColumn(par_col_name, spark_partition_id())  # type: ignore
-        df_objects_paths: DataFrame = df_objects_paths.groupby(par_col_name).apply(write)  # type: ignore
+            @pandas_udf(returnType="objects_paths string", functionType=PandasUDFType.GROUPED_MAP)
+            def write(pandas_dataframe: pd.DataFrame) -> pd.DataFrame:
+                # Exporting ARROW_PRE_0_15_IPC_FORMAT environment variable for
+                # a temporary workaround while waiting for Apache Arrow updates
+                # https://stackoverflow.com/questions/58273063/pandasudf-and-pyarrow-0-15-0
+                os.environ["ARROW_PRE_0_15_IPC_FORMAT"] = "1"
 
-        objects_paths: List[str] = list(df_objects_paths.toPandas()["objects_paths"])
-        dataframe.unpersist()
-        num_files_returned: int = len(objects_paths)
-        if num_files_returned != num_partitions:
-            raise MissingBatchDetected(f"{num_files_returned} files returned. {num_partitions} expected.")
-        logger.debug(f"List of objects returned: {objects_paths}")
-        logger.debug(f"Number of objects returned from UDF: {num_files_returned}")
-        manifest_path: str = f"{path}manifest.json"
-        self._session.redshift.write_load_manifest(manifest_path=manifest_path,
-                                                   objects_paths=objects_paths,
-                                                   procs_io_bound=self._procs_io_bound)
-        self._session.redshift.load_table(dataframe=dataframe,
-                                          dataframe_type="spark",
-                                          manifest_path=manifest_path,
-                                          schema_name=schema,
-                                          table_name=table,
-                                          redshift_conn=connection,
-                                          preserve_index=False,
-                                          num_files=num_partitions,
-                                          iam_role=iam_role,
-                                          diststyle=diststyle,
-                                          distkey=distkey,
-                                          sortstyle=sortstyle,
-                                          sortkey=sortkey,
-                                          mode=mode,
-                                          cast_columns=casts)
-        self._session.s3.delete_objects(path=path, procs_io_bound=self._procs_io_bound)
+                del pandas_dataframe[par_col_name]
+                paths: List[str] = session_primitives.session.pandas.to_parquet(dataframe=pandas_dataframe,
+                                                                                path=path,
+                                                                                preserve_index=False,
+                                                                                mode="append",
+                                                                                procs_cpu_bound=1,
+                                                                                procs_io_bound=1,
+                                                                                cast_columns=casts)
+                return pd.DataFrame.from_dict({"objects_paths": paths})
+
+            df_objects_paths: DataFrame = dataframe.repartition(numPartitions=num_partitions)  # type: ignore
+            df_objects_paths = df_objects_paths.withColumn(par_col_name, spark_partition_id())  # type: ignore
+            df_objects_paths = df_objects_paths.groupby(par_col_name).apply(write)  # type: ignore
+
+            objects_paths: List[str] = list(df_objects_paths.toPandas()["objects_paths"])
+            dataframe.unpersist()
+            num_files_returned: int = len(objects_paths)
+            if num_files_returned != num_partitions:
+                raise MissingBatchDetected(f"{num_files_returned} files returned. {num_partitions} expected.")
+            logger.debug(f"List of objects returned: {objects_paths}")
+            logger.debug(f"Number of objects returned from UDF: {num_files_returned}")
+            manifest_path: str = f"{path}manifest.json"
+            self._session.redshift.write_load_manifest(manifest_path=manifest_path,
+                                                       objects_paths=objects_paths,
+                                                       procs_io_bound=self._procs_io_bound)
+            self._session.redshift.load_table(dataframe=dataframe,
+                                              dataframe_type="spark",
+                                              manifest_path=manifest_path,
+                                              schema_name=schema,
+                                              table_name=table,
+                                              redshift_conn=connection,
+                                              preserve_index=False,
+                                              num_files=num_partitions,
+                                              iam_role=iam_role,
+                                              diststyle=diststyle,
+                                              distkey=distkey,
+                                              sortstyle=sortstyle,
+                                              sortkey=sortkey,
+                                              mode=mode,
+                                              cast_columns=casts)
+            self._session.s3.delete_objects(path=path, procs_io_bound=self._procs_io_bound)
+        except Exception as ex:
+            connection.rollback()
+            if generated_conn is True:
+                connection.close()
+            raise ex
+        if generated_conn is True:
+            connection.close()
 
     def create_glue_table(self,
                           database,

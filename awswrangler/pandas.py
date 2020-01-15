@@ -1247,7 +1247,6 @@ class Pandas:
             generated_conn = True
 
         try:
-
             if num_rows < MIN_NUMBER_OF_ROWS_TO_DISTRIBUTE:
                 num_partitions: int = 1
             else:
@@ -1558,7 +1557,7 @@ class Pandas:
 
         :param sql: SQL Query
         :param iam_role: AWS IAM role with the related permissions
-        :param connection: A PEP 249 compatible connection (Can be generated with Redshift.generate_connection())
+        :param connection: Glue connection name (str) OR a PEP 249 compatible connection (Can be generated with Redshift.generate_connection())
         :param temp_s3_path: AWS S3 path to write temporary data (e.g. s3://...) (Default uses the Athena's results bucket)
         :param procs_cpu_bound: Number of cores used for CPU bound tasks
         """
@@ -1574,6 +1573,13 @@ class Pandas:
         logger.debug(f"temp_s3_path: {temp_s3_path}")
         self._session.s3.delete_objects(path=temp_s3_path)
         paths: Optional[List[str]] = None
+
+        generated_conn: bool = False
+        if type(connection) == str:
+            logger.debug("Glue connection (str) provided.")
+            connection = self._session.glue.get_connection(name=connection)
+            generated_conn = True
+
         try:
             paths = self._session.redshift.to_parquet(sql=sql,
                                                       path=temp_s3_path,
@@ -1581,14 +1587,20 @@ class Pandas:
                                                       connection=connection)
             logger.debug(f"paths: {paths}")
             df: pd.DataFrame = self.read_parquet(path=paths, procs_cpu_bound=procs_cpu_bound)  # type: ignore
-            self._session.s3.delete_listed_objects(objects_paths=paths + [temp_s3_path + "/manifest"])  # type: ignore
-            return df
-        except Exception as e:
+        except Exception as ex:
+            connection.rollback()
             if paths is not None:
                 self._session.s3.delete_listed_objects(objects_paths=paths + [temp_s3_path + "/manifest"])
             else:
                 self._session.s3.delete_objects(path=temp_s3_path)
-            raise e
+            if generated_conn is True:
+                connection.close()
+            raise ex
+
+        if generated_conn is True:
+            connection.close()
+        self._session.s3.delete_listed_objects(objects_paths=paths + [temp_s3_path + "/manifest"])  # type: ignore
+        return df
 
     def to_aurora(self,
                   dataframe: pd.DataFrame,
