@@ -1004,7 +1004,7 @@ class Pandas:
             objects_paths.append(object_path)
         else:
             dataframe = Pandas._cast_pandas(dataframe=dataframe, cast_columns=cast_columns)
-            for keys, subgroup in dataframe.groupby(partition_cols):
+            for keys, subgroup in dataframe.groupby(by=partition_cols, observed=True):
                 subgroup = subgroup.drop(partition_cols, axis="columns")
                 if not isinstance(keys, tuple):
                     keys = (keys, )
@@ -1407,7 +1407,7 @@ class Pandas:
         if len(dfs) == 1:
             df: pd.DataFrame = dfs[0]
         else:
-            df = pd.concat(objs=dfs, ignore_index=True)
+            df = pd.concat(objs=dfs, ignore_index=True, sort=False)
         return df
 
     @staticmethod
@@ -1870,7 +1870,7 @@ class Pandas:
                     logger.debug(f"Closing proc number: {i}")
                     receive_pipes[i].close()
                 logger.debug(f"Concatenating all {len(paths)} DataFrames...")
-                df = pd.concat(objs=dfs, ignore_index=True)
+                df = pd.concat(objs=dfs, ignore_index=True, sort=False)
             return df
 
     def _read_csv_list_iterator(

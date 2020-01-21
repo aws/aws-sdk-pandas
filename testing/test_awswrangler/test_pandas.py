@@ -2173,3 +2173,16 @@ def test_aurora_mysql_load_special2(bucket, mysql_parameters):
         assert rows[0][2] is None
         assert rows[1][3] is None
     conn.close()
+
+
+def test_to_parquet_categorical_partitions(bucket):
+    path = f"s3://{bucket}/test_to_parquet_categorical_partitions"
+    wr.s3.delete_objects(path=path)
+    d = pd.date_range("1990-01-01", freq="D", periods=10000)
+    vals = pd.np.random.randn(len(d), 4)
+    x = pd.DataFrame(vals, index=d, columns=["A", "B", "C", "D"])
+    x['Year'] = x.index.year
+    x['Year'] = x['Year'].astype('category')
+    wr.pandas.to_parquet(x[x.Year == 1990], path=path, partition_cols=["Year"])
+    y = wr.pandas.read_parquet(path=path)
+    assert len(x[x.Year == 1990].index) == len(y.index)
