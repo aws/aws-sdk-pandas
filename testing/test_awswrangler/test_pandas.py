@@ -2186,3 +2186,16 @@ def test_to_parquet_categorical_partitions(bucket):
     wr.pandas.to_parquet(x[x.Year == 1990], path=path, partition_cols=["Year"])
     y = wr.pandas.read_parquet(path=path)
     assert len(x[x.Year == 1990].index) == len(y.index)
+
+
+def test_range_index(bucket, database):
+    path = f"s3://{bucket}/test_range_index"
+    wr.s3.delete_objects(path=path)
+    d = pd.date_range('1990-01-01', freq='D', periods=10000)
+    vals = pd.np.random.randn(len(d), 4)
+    x = pd.DataFrame(vals, index=d, columns=['A', 'B', 'C', 'D']).reset_index()
+    print(x)
+    wr.pandas.to_parquet(dataframe=x, path=path, database=database)
+    df = wr.pandas.read_parquet(path=path)
+    assert len(x.columns) == len(df.columns)
+    assert len(x.index) == len(df.index)

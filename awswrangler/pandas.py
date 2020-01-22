@@ -1519,9 +1519,10 @@ class Pandas:
             fs.invalidate_cache()
             table = pq.read_table(source=path, columns=columns, filters=filters, filesystem=fs, use_threads=use_threads)
         # Check if we lose some integer during the conversion (Happens when has some null value)
-        integers = [field.name for field in table.schema if str(field.type).startswith("int")]
+        integers = [field.name for field in table.schema if str(field.type).startswith("int") and field.name != "__index_level_0__"]
         logger.debug(f"Converting to Pandas: {path}")
         df = table.to_pandas(use_threads=use_threads, integer_object_nulls=True)
+        logger.debug(f"Casting Int64 columns: {path}")
         for c in integers:
             if not str(df[c].dtype).startswith("int"):
                 df[c] = df[c].astype("Int64")
