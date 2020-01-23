@@ -370,8 +370,8 @@ def extract_pyarrow_schema_from_pandas(dataframe: pd.DataFrame,
     :param indexes_position: "right" or "left"
     :return: Pyarrow schema (e.g. [("col name": "bigint"), ("col2 name": "int")]
     """
-    cols = []
-    cols_dtypes = {}
+    cols: List[str] = []
+    cols_dtypes: Dict[str, str] = {}
     if indexes_position not in ("right", "left"):
         raise ValueError(f"indexes_position must be \"right\" or \"left\"")
 
@@ -384,10 +384,10 @@ def extract_pyarrow_schema_from_pandas(dataframe: pd.DataFrame,
             cols.append(name)
 
     # Filling cols_dtypes and indexes
-    indexes = []
+    indexes: List[str] = []
     for field in pa.Schema.from_pandas(df=dataframe[cols], preserve_index=preserve_index):
         name = str(field.name)
-        dtype = field.type
+        dtype = str(field.type)
         cols_dtypes[name] = dtype
         if name not in dataframe.columns:
             indexes.append(name)

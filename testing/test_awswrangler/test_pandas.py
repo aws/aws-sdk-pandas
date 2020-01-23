@@ -2185,6 +2185,7 @@ def test_to_parquet_categorical_partitions(bucket):
     x['Year'] = x['Year'].astype('category')
     wr.pandas.to_parquet(x[x.Year == 1990], path=path, partition_cols=["Year"])
     y = wr.pandas.read_parquet(path=path)
+    wr.s3.delete_objects(path=path)
     assert len(x[x.Year == 1990].index) == len(y.index)
 
 
@@ -2197,5 +2198,32 @@ def test_range_index(bucket, database):
     print(x)
     wr.pandas.to_parquet(dataframe=x, path=path, database=database)
     df = wr.pandas.read_parquet(path=path)
+    wr.s3.delete_objects(path=path)
     assert len(x.columns) == len(df.columns)
     assert len(x.index) == len(df.index)
+
+
+def test_to_csv_columns(bucket, database):
+    path = f"s3://{bucket}/test_to_csv_columns"
+    wr.s3.delete_objects(path=path)
+    df = pd.DataFrame({
+        "A": [1, 2, 3],
+        "B": [4, 5, 6],
+        "C": ["foo", "boo", "bar"]
+    })
+    wr.s3.delete_objects(path=path)
+    wr.pandas.to_csv(
+        dataframe=df,
+        database=database,
+        path=path,
+        columns=["A", "B"],
+        mode="overwrite",
+        preserve_index=False,
+        procs_cpu_bound=1,
+        inplace=False
+    )
+    sleep(10)
+    df2 = wr.pandas.read_sql_athena(database=database, sql="SELECT * FROM test_to_csv_columns")
+    wr.s3.delete_objects(path=path)
+    assert len(df.columns) == len(df2.columns) + 1
+    assert len(df.index) == len(df2.index)
