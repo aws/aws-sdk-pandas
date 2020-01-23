@@ -2206,24 +2206,106 @@ def test_range_index(bucket, database):
 def test_to_csv_columns(bucket, database):
     path = f"s3://{bucket}/test_to_csv_columns"
     wr.s3.delete_objects(path=path)
-    df = pd.DataFrame({
-        "A": [1, 2, 3],
-        "B": [4, 5, 6],
-        "C": ["foo", "boo", "bar"]
-    })
+    df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6], "C": ["foo", "boo", "bar"]})
     wr.s3.delete_objects(path=path)
-    wr.pandas.to_csv(
-        dataframe=df,
-        database=database,
-        path=path,
-        columns=["A", "B"],
-        mode="overwrite",
-        preserve_index=False,
-        procs_cpu_bound=1,
-        inplace=False
-    )
+    wr.pandas.to_csv(dataframe=df,
+                     database=database,
+                     path=path,
+                     columns=["A", "B"],
+                     mode="overwrite",
+                     preserve_index=False,
+                     procs_cpu_bound=1,
+                     inplace=False)
     sleep(10)
     df2 = wr.pandas.read_sql_athena(database=database, sql="SELECT * FROM test_to_csv_columns")
     wr.s3.delete_objects(path=path)
     assert len(df.columns) == len(df2.columns) + 1
     assert len(df.index) == len(df2.index)
+
+
+def test_aurora_postgres_load_columns(bucket, postgres_parameters):
+    df = pd.DataFrame({"id": [1, 2, 3], "value": ["foo", "boo", "bar"], "value2": [4, 5, 6]})
+    conn = Aurora.generate_connection(database="postgres",
+                                      host=postgres_parameters["PostgresAddress"],
+                                      port=3306,
+                                      user="test",
+                                      password=postgres_parameters["Password"],
+                                      engine="postgres")
+    path = f"s3://{bucket}/test_aurora_postgres_load_columns"
+    wr.pandas.to_aurora(dataframe=df,
+                        connection=conn,
+                        schema="public",
+                        table="test_aurora_postgres_load_columns",
+                        mode="overwrite",
+                        temp_s3_path=path,
+                        engine="postgres",
+                        columns=["id", "value"])
+    wr.pandas.to_aurora(dataframe=df,
+                        connection=conn,
+                        schema="public",
+                        table="test_aurora_postgres_load_columns",
+                        mode="append",
+                        temp_s3_path=path,
+                        engine="postgres",
+                        columns=["value"])
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT * FROM public.test_aurora_postgres_load_columns")
+        rows = cursor.fetchall()
+        assert len(rows) == len(df.index) * 2
+        assert rows[0][0] == 1
+        assert rows[1][0] == 2
+        assert rows[2][0] == 3
+        assert rows[3][0] is None
+        assert rows[4][0] is None
+        assert rows[5][0] is None
+        assert rows[0][1] == "foo"
+        assert rows[1][1] == "boo"
+        assert rows[2][1] == "bar"
+        assert rows[3][1] == "foo"
+        assert rows[4][1] == "boo"
+        assert rows[5][1] == "bar"
+    conn.close()
+
+
+def test_aurora_mysql_load_columns(bucket, mysql_parameters):
+    df = pd.DataFrame({"id": [1, 2, 3], "value": ["foo", "boo", "bar"], "value2": [4, 5, 6]})
+    conn = Aurora.generate_connection(database="mysql",
+                                      host=mysql_parameters["MysqlAddress"],
+                                      port=3306,
+                                      user="test",
+                                      password=mysql_parameters["Password"],
+                                      engine="mysql")
+    path = f"s3://{bucket}/test_aurora_mysql_load_columns"
+    wr.pandas.to_aurora(dataframe=df,
+                        connection=conn,
+                        schema="test",
+                        table="test_aurora_mysql_load_columns",
+                        mode="overwrite",
+                        temp_s3_path=path,
+                        engine="mysql",
+                        columns=["id", "value"])
+    wr.pandas.to_aurora(dataframe=df,
+                        connection=conn,
+                        schema="test",
+                        table="test_aurora_mysql_load_columns",
+                        mode="append",
+                        temp_s3_path=path,
+                        engine=" mysql",
+                        columns=["value"])
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT * FROM test.test_aurora_mysql_load_columns")
+        rows = cursor.fetchall()
+        assert len(rows) == len(df.index) * 2
+        assert rows[0][0] == 1
+        assert rows[1][0] == 2
+        assert rows[2][0] == 3
+        assert rows[3][0] is None
+        assert rows[4][0] is None
+        assert rows[5][0] is None
+        assert rows[0][1] == "foo"
+        assert rows[1][1] == "boo"
+        assert rows[2][1] == "bar"
+        assert rows[3][1] == "foo"
+        assert rows[4][1] == "boo"
+        assert rows[5][1] == "bar"
+    conn.close()

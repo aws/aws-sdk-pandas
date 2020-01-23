@@ -870,7 +870,7 @@ class Pandas:
         partition_cols = [Athena.normalize_column_name(x) for x in partition_cols]
         logger.debug(f"partition_cols: {partition_cols}")
         if extra_args is not None and "columns" in extra_args:
-            extra_args["columns"] = [Athena.normalize_column_name(x) for x in extra_args["columns"]]
+            extra_args["columns"] = [Athena.normalize_column_name(x) for x in extra_args["columns"]]  # type: ignore
         dataframe = Pandas.drop_duplicated_columns(dataframe=dataframe, inplace=inplace)
         if compression is not None:
             compression = compression.lower()
@@ -1691,6 +1691,7 @@ class Pandas:
                               load_paths=load_paths,
                               schema_name=schema,
                               table_name=table,
+                              columns=columns,
                               connection=connection,
                               num_files=len(paths),
                               mode=mode,
