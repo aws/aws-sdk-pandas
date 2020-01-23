@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Dict, Optional, Any, Iterator, List, Union
+from typing import TYPE_CHECKING, Dict, Optional, Any, Iterator, List, Union, Tuple
 from math import ceil
 from itertools import islice
 import re
@@ -55,16 +55,16 @@ class Glue:
     def metadata_to_glue(self,
                          dataframe,
                          path: str,
-                         objects_paths,
-                         file_format,
-                         database=None,
-                         table=None,
-                         partition_cols=None,
-                         preserve_index=True,
+                         objects_paths: List[str],
+                         file_format: str,
+                         database: str,
+                         table: Optional[str],
+                         partition_cols: Optional[List[str]] = None,
+                         preserve_index: bool = True,
                          mode: str = "append",
-                         compression=None,
-                         cast_columns=None,
-                         extra_args: Optional[Dict[str, Optional[Union[str, int]]]] = None,
+                         compression: Optional[str] = None,
+                         cast_columns: Optional[Dict[str, str]] = None,
+                         extra_args: Optional[Dict[str, Optional[Union[str, int, List[str]]]]] = None,
                          description: Optional[str] = None,
                          parameters: Optional[Dict[str, str]] = None,
                          columns_comments: Optional[Dict[str, str]] = None) -> None:
@@ -88,6 +88,8 @@ class Glue:
         :return: None
         """
         indexes_position = "left" if file_format == "csv" else "right"
+        schema: List[Tuple[str, str]]
+        partition_cols_schema: List[Tuple[str, str]]
         schema, partition_cols_schema = Glue._build_schema(dataframe=dataframe,
                                                            partition_cols=partition_cols,
                                                            preserve_index=preserve_index,
@@ -138,14 +140,14 @@ class Glue:
             return False
 
     def create_table(self,
-                     database,
-                     table,
-                     schema,
-                     path,
-                     file_format,
-                     compression,
-                     partition_cols_schema=None,
-                     extra_args=None,
+                     database: str,
+                     table: str,
+                     schema: List[Tuple[str, str]],
+                     path: str,
+                     file_format: str,
+                     compression: Optional[str],
+                     partition_cols_schema: List[Tuple[str, str]],
+                     extra_args: Optional[Dict[str, Union[str, int, List[str], None]]] = None,
                      description: Optional[str] = None,
                      parameters: Optional[Dict[str, str]] = None,
                      columns_comments: Optional[Dict[str, str]] = None) -> None:
@@ -166,13 +168,17 @@ class Glue:
         :return: None
         """
         if file_format == "parquet":
-            table_input = Glue.parquet_table_definition(table, partition_cols_schema, schema, path, compression)
+            table_input: Dict[str, Any] = Glue.parquet_table_definition(table=table,
+                                                                        partition_cols_schema=partition_cols_schema,
+                                                                        schema=schema,
+                                                                        path=path,
+                                                                        compression=compression)
         elif file_format == "csv":
-            table_input = Glue.csv_table_definition(table,
-                                                    partition_cols_schema,
-                                                    schema,
-                                                    path,
-                                                    compression,
+            table_input = Glue.csv_table_definition(table=table,
+                                                    partition_cols_schema=partition_cols_schema,
+                                                    schema=schema,
+                                                    path=path,
+                                                    compression=compression,
                                                     extra_args=extra_args)
         else:
             raise UnsupportedFileFormat(file_format)
@@ -223,19 +229,23 @@ class Glue:
         return self._client_glue.get_connection(Name=name, HidePassword=False)["Connection"]
 
     @staticmethod
-    def _build_schema(dataframe, partition_cols, preserve_index, indexes_position, cast_columns=None):
+    def _build_schema(
+            dataframe,
+            partition_cols: Optional[List[str]],
+            preserve_index: bool,
+            indexes_position: str,
+            cast_columns: Optional[Dict[str, str]] = None) -> Tuple[List[Tuple[str, str]], List[Tuple[str, str]]]:
         if cast_columns is None:
             cast_columns = {}
         logger.debug(f"dataframe.dtypes:\n{dataframe.dtypes}")
-        if not partition_cols:
+        if partition_cols is None:
             partition_cols = []
 
-        pyarrow_schema = data_types.extract_pyarrow_schema_from_pandas(dataframe=dataframe,
-                                                                       preserve_index=preserve_index,
-                                                                       indexes_position=indexes_position)
+        pyarrow_schema: List[Tuple[str, str]] = data_types.extract_pyarrow_schema_from_pandas(
+            dataframe=dataframe, preserve_index=preserve_index, indexes_position=indexes_position)
 
-        schema_built = []
-        partition_cols_types = {}
+        schema_built: List[Tuple[str, str]] = []
+        partition_cols_types: Dict[str, str] = {}
         for name, dtype in pyarrow_schema:
             if (cast_columns is not None) and (name in cast_columns.keys()):
                 if name in partition_cols:
@@ -256,7 +266,7 @@ class Glue:
                 else:
                     schema_built.append((name, athena_type))
 
-        partition_cols_schema_built = [(name, partition_cols_types[name]) for name in partition_cols]
+        partition_cols_schema_built: List = [(name, partition_cols_types[name]) for name in partition_cols]
 
         logger.debug(f"schema_built:\n{schema_built}")
         logger.debug(f"partition_cols_schema_built:\n{partition_cols_schema_built}")
@@ -269,12 +279,12 @@ class Glue:
         return path.rpartition("/")[2]
 
     @staticmethod
-    def csv_table_definition(table,
-                             partition_cols_schema,
-                             schema,
-                             path,
-                             compression,
-                             extra_args: Optional[Dict[str, Optional[Union[str, int]]]] = None):
+    def csv_table_definition(table: str,
+                             partition_cols_schema: List[Tuple[str, str]],
+                             schema: List[Tuple[str, str]],
+                             path: str,
+                             compression: Optional[str],
+                             extra_args: Optional[Dict[str, Optional[Union[str, int, List[str]]]]] = None):
         if extra_args is None:
             extra_args = {"sep": ","}
         if partition_cols_schema is None:
@@ -301,6 +311,9 @@ class Glue:
             refined_schema = [(name, dtype) if dtype in dtypes_allowed else (name, "string") for name, dtype in schema]
         else:
             raise InvalidSerDe(f"{serde} in not in the valid SerDe list.")
+        if "columns" in extra_args:
+            refined_schema = [(name, dtype) for name, dtype in refined_schema
+                              if name in extra_args["columns"]]  # type: ignore
         return {
             "Name": table,
             "PartitionKeys": [{
@@ -378,7 +391,8 @@ class Glue:
         }
 
     @staticmethod
-    def parquet_table_definition(table, partition_cols_schema, schema, path, compression):
+    def parquet_table_definition(table: str, partition_cols_schema: List[Tuple[str, str]],
+                                 schema: List[Tuple[str, str]], path: str, compression: Optional[str]):
         if not partition_cols_schema:
             partition_cols_schema = []
         compressed = False if compression is None else True

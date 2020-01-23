@@ -696,6 +696,7 @@ class Pandas:
                path: str,
                sep: Optional[str] = None,
                na_rep: Optional[str] = None,
+               columns: Optional[List[str]] = None,
                quoting: Optional[int] = None,
                escapechar: Optional[str] = None,
                serde: Optional[str] = "OpenCSVSerDe",
@@ -718,6 +719,7 @@ class Pandas:
         :param path: AWS S3 path (E.g. s3://bucket-name/folder_name/
         :param sep: Same as pandas.to_csv()
         :param na_rep: Same as pandas.to_csv()
+        :param columns: Same as pandas.to_csv()
         :param quoting: Same as pandas.to_csv()
         :param escapechar: Same as pandas.to_csv()
         :param serde: SerDe library name (e.g. OpenCSVSerDe, LazySimpleSerDe) (For Athena/Glue Catalog only)
@@ -738,9 +740,10 @@ class Pandas:
             raise InvalidSerDe(f"{serde} in not in the valid SerDe list ({Pandas.VALID_CSV_SERDES})")
         if (database is not None) and (serde is None):
             raise InvalidParameters(f"It is not possible write to a Glue Database without a SerDe.")
-        extra_args: Dict[str, Optional[Union[str, int]]] = {
+        extra_args: Dict[str, Optional[Union[str, int, List[str]]]] = {
             "sep": sep,
             "na_rep": na_rep,
+            "columns": columns,
             "serde": serde,
             "escapechar": escapechar,
             "quoting": quoting
@@ -822,14 +825,14 @@ class Pandas:
               file_format: str,
               database: Optional[str] = None,
               table: Optional[str] = None,
-              partition_cols=None,
-              preserve_index=True,
+              partition_cols: Optional[List[str]] = None,
+              preserve_index: bool = True,
               mode: str = "append",
-              compression=None,
-              procs_cpu_bound=None,
-              procs_io_bound=None,
-              cast_columns=None,
-              extra_args: Optional[Dict[str, Optional[Union[str, int]]]] = None,
+              compression: Optional[str] = None,
+              procs_cpu_bound: Optional[int] = None,
+              procs_io_bound: Optional[int] = None,
+              cast_columns: Optional[Dict[str, str]] = None,
+              extra_args: Optional[Dict[str, Optional[Union[str, int, List[str]]]]] = None,
               inplace: bool = True,
               description: Optional[str] = None,
               parameters: Optional[Dict[str, str]] = None,
@@ -866,6 +869,8 @@ class Pandas:
         logger.debug(f"cast_columns: {cast_columns}")
         partition_cols = [Athena.normalize_column_name(x) for x in partition_cols]
         logger.debug(f"partition_cols: {partition_cols}")
+        if extra_args is not None and "columns" in extra_args:
+            extra_args["columns"] = [Athena.normalize_column_name(x) for x in extra_args["columns"]]  # type: ignore
         dataframe = Pandas.drop_duplicated_columns(dataframe=dataframe, inplace=inplace)
         if compression is not None:
             compression = compression.lower()
@@ -1112,6 +1117,9 @@ class Pandas:
         sep = extra_args.get("sep")
         if sep is not None:
             csv_extra_args["sep"] = sep
+        columns = extra_args.get("columns")
+        if columns is not None:
+            csv_extra_args["columns"] = columns
 
         serde = extra_args.get("serde")
         if serde is None:
@@ -1519,7 +1527,10 @@ class Pandas:
             fs.invalidate_cache()
             table = pq.read_table(source=path, columns=columns, filters=filters, filesystem=fs, use_threads=use_threads)
         # Check if we lose some integer during the conversion (Happens when has some null value)
-        integers = [field.name for field in table.schema if str(field.type).startswith("int") and field.name != "__index_level_0__"]
+        integers = [
+            field.name for field in table.schema
+            if str(field.type).startswith("int") and field.name != "__index_level_0__"
+        ]
         logger.debug(f"Converting to Pandas: {path}")
         df = table.to_pandas(use_threads=use_threads, integer_object_nulls=True)
         logger.debug(f"Casting Int64 columns: {path}")
@@ -1612,6 +1623,7 @@ class Pandas:
                   temp_s3_path: Optional[str] = None,
                   preserve_index: bool = False,
                   mode: str = "append",
+                  columns: Optional[List[str]] = None,
                   procs_cpu_bound: Optional[int] = None,
                   procs_io_bound: Optional[int] = None,
                   inplace=True) -> None:
@@ -1626,6 +1638,7 @@ class Pandas:
         :param temp_s3_path: S3 path to write temporary files (E.g. s3://BUCKET_NAME/ANY_NAME/)
         :param preserve_index: Should we preserve the Dataframe index?
         :param mode: append or overwrite
+        :param columns: List of columns to load
         :param procs_cpu_bound: Number of cores used for CPU bound tasks
         :param procs_io_bound: Number of cores used for I/O bound tasks
         :param inplace: True is cheapest (CPU and Memory) but False leaves your DataFrame intact
@@ -1654,6 +1667,7 @@ class Pandas:
                                            serde=None,
                                            sep=",",
                                            na_rep=na_rep,
+                                           columns=columns,
                                            quoting=csv.QUOTE_MINIMAL,
                                            escapechar="\"",
                                            preserve_index=preserve_index,
@@ -1677,6 +1691,7 @@ class Pandas:
                               load_paths=load_paths,
                               schema_name=schema,
                               table_name=table,
+                              columns=columns,
                               connection=connection,
                               num_files=len(paths),
                               mode=mode,
