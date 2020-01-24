@@ -2309,3 +2309,35 @@ def test_aurora_mysql_load_columns(bucket, mysql_parameters):
         assert rows[4][1] == "boo"
         assert rows[5][1] == "bar"
     conn.close()
+
+
+def test_aurora_mysql_unload_null(bucket, mysql_parameters):
+    df = pd.DataFrame({
+        "id": [1, 2, 3, 4, 5],
+        "c_str": ["foo", "", None, "bar", None],
+        "c_float": [1.1, None, 3.3, None, 5.5],
+        "c_int": [1, 2, None, 3, 4],
+    })
+    df["c_int"] = df["c_int"].astype("Int64")
+    print(df)
+    conn = Aurora.generate_connection(database="mysql",
+                                      host=mysql_parameters["MysqlAddress"],
+                                      port=3306,
+                                      user="test",
+                                      password=mysql_parameters["Password"],
+                                      engine="mysql")
+    path = f"s3://{bucket}/test_aurora_mysql_unload_complex"
+    wr.pandas.to_aurora(dataframe=df,
+                        connection=conn,
+                        schema="test",
+                        table="test_aurora_mysql_unload_complex",
+                        mode="overwrite",
+                        temp_s3_path=path)
+    path2 = f"s3://{bucket}/test_aurora_mysql_unload_complex2"
+    df2 = wr.pandas.read_sql_aurora(sql="SELECT * FROM test.test_aurora_mysql_unload_complex",
+                                    connection=conn,
+                                    col_names=["id", "c_str", "c_float", "c_int"],
+                                    temp_s3_path=path2)
+    df2["c_int"] = df2["c_int"].astype("Int64")
+    assert df.equals(df2)
+    conn.close()
