@@ -1408,6 +1408,8 @@ class Pandas:
         :param wait_objects_timeout: Wait objects Timeout (seconds)
         :return: Pandas DataFrame
         """
+        if type(path) == list and not path:  # Empty list
+            return pd.DataFrame()
         procs_cpu_bound = procs_cpu_bound if procs_cpu_bound is not None else self._session.procs_cpu_bound if self._session.procs_cpu_bound is not None else 1
         logger.debug(f"procs_cpu_bound: {procs_cpu_bound}")
         dfs: List[pd.DataFrame] = []
@@ -1640,7 +1642,10 @@ class Pandas:
                                                       iam_role=iam_role,
                                                       connection=connection)
             logger.debug(f"paths: {paths}")
-            df: pd.DataFrame = self.read_parquet(path=paths, procs_cpu_bound=procs_cpu_bound)  # type: ignore
+            if paths:
+                df: pd.DataFrame = self.read_parquet(path=paths, procs_cpu_bound=procs_cpu_bound)  # type: ignore
+            else:
+                df = pd.DataFrame()
         except Exception as ex:
             connection.rollback()
             if paths is not None:
