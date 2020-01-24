@@ -2207,7 +2207,6 @@ def test_to_csv_columns(bucket, database):
     path = f"s3://{bucket}/test_to_csv_columns"
     wr.s3.delete_objects(path=path)
     df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6], "C": ["foo", "boo", "bar"]})
-    wr.s3.delete_objects(path=path)
     wr.pandas.to_csv(dataframe=df,
                      database=database,
                      path=path,
@@ -2319,7 +2318,6 @@ def test_aurora_mysql_unload_null(bucket, mysql_parameters):
         "c_int": [1, 2, None, 3, 4],
     })
     df["c_int"] = df["c_int"].astype("Int64")
-    print(df)
     conn = Aurora.generate_connection(database="mysql",
                                       host=mysql_parameters["MysqlAddress"],
                                       port=3306,
@@ -2341,3 +2339,27 @@ def test_aurora_mysql_unload_null(bucket, mysql_parameters):
     df2["c_int"] = df2["c_int"].astype("Int64")
     assert df.equals(df2)
     conn.close()
+
+
+def test_s3_overall_nan(bucket, database):
+    path = f"s3://{bucket}/test_s3_overall_nan"
+    wr.s3.delete_objects(path=path)
+    df = pd.DataFrame({
+        "id": [1, 2, 3, 4, 5],
+        "c_str": ["foo", "", None, "bar", None],
+        "c_float": [1.1, None, 3.3, None, 5.5],
+        "c_int": [1, 2, None, 3, 4],
+    })
+    df["c_int"] = df["c_int"].astype("Int64")
+    print(df)
+    wr.pandas.to_parquet(dataframe=df,
+                     database=database,
+                     path=path,
+                     mode="overwrite",
+                     preserve_index=False,
+                     procs_cpu_bound=1,
+                     inplace=False)
+    sleep(15)
+    df2 = wr.pandas.read_sql_athena(database=database, sql="SELECT * FROM test_s3_overall_nan ORDER BY id", ctas_approach=True)
+    wr.s3.delete_objects(path=path)
+    assert df.equals(df2)

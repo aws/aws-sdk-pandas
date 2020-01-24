@@ -311,7 +311,7 @@ class Glue:
             refined_schema = [(name, dtype) if dtype in dtypes_allowed else (name, "string") for name, dtype in schema]
         else:
             raise InvalidSerDe(f"{serde} in not in the valid SerDe list.")
-        if "columns" in extra_args:
+        if "columns" in extra_args and extra_args["columns"] is not None:
             refined_schema = [(name, dtype) for name, dtype in refined_schema
                               if name in extra_args["columns"]]  # type: ignore
         return {

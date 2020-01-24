@@ -665,6 +665,7 @@ class Pandas:
                                                        workgroup=workgroup,
                                                        encryption=encryption,
                                                        kms_key=kms_key)
+        logger.debug(f"query_id: {query_id}")
         self._session.athena.wait_query(query_execution_id=query_id)
         self._session.glue.delete_table_if_exists(database=database, table=name)
         manifest_path: str = f"{s3_output}/tables/{query_id}-manifest.csv"
@@ -709,7 +710,9 @@ class Pandas:
                                 parse_dates=parse_timestamps,
                                 converters=converters,
                                 quoting=csv.QUOTE_ALL,
-                                max_result_size=max_result_size)
+                                max_result_size=max_result_size,
+                                keep_default_na=False,
+                                na_values=[""])
             logger.debug("Start type casting...")
             if max_result_size is None:
                 if len(ret.index) > 0:
