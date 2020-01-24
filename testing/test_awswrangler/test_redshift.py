@@ -752,3 +752,26 @@ def test_read_sql_redshift_pandas_glue_conn(session, bucket, redshift_parameters
                                            temp_s3_path=path2)
     assert len(df.index) == len(df2.index)
     assert len(df.columns) + 1 == len(df2.columns)
+
+
+def test_read_sql_redshift_pandas_empty(session, bucket, redshift_parameters):
+    path = f"s3://{bucket}/test_read_sql_redshift_pandas_empty/"
+    path2 = f"s3://{bucket}/test_read_sql_redshift_pandas_empty2/"
+    wr.s3.delete_objects(path=path)
+    wr.s3.delete_objects(path=path2)
+    df = pd.DataFrame({"id": [1, 2, 3, 4, 5]})
+    session.pandas.to_redshift(
+        dataframe=df,
+        path=path,
+        schema="public",
+        table="test",
+        connection="aws-data-wrangler-redshift",
+        iam_role=redshift_parameters.get("RedshiftRole"),
+        mode="overwrite",
+        preserve_index=True,
+    )
+    df2 = session.pandas.read_sql_redshift(sql="SELECT * FROM public.test WHERE id = 6",
+                                           iam_role=redshift_parameters.get("RedshiftRole"),
+                                           connection="aws-data-wrangler-redshift",
+                                           temp_s3_path=path2)
+    assert df2.equals(pd.DataFrame())

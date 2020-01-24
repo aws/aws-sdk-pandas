@@ -2353,13 +2353,15 @@ def test_s3_overall_nan(bucket, database):
     df["c_int"] = df["c_int"].astype("Int64")
     print(df)
     wr.pandas.to_parquet(dataframe=df,
-                     database=database,
-                     path=path,
-                     mode="overwrite",
-                     preserve_index=False,
-                     procs_cpu_bound=1,
-                     inplace=False)
+                         database=database,
+                         path=path,
+                         mode="overwrite",
+                         preserve_index=False,
+                         procs_cpu_bound=1,
+                         inplace=False)
     sleep(15)
-    df2 = wr.pandas.read_sql_athena(database=database, sql="SELECT * FROM test_s3_overall_nan ORDER BY id", ctas_approach=True)
+    df2 = wr.pandas.read_sql_athena(database=database,
+                                    sql="SELECT * FROM test_s3_overall_nan ORDER BY id",
+                                    ctas_approach=True)
     wr.s3.delete_objects(path=path)
     assert df.equals(df2)
