@@ -1950,6 +1950,7 @@ class Pandas:
                     receive_pipes[i].close()
                 logger.debug(f"Concatenating all {len(paths)} DataFrames...")
                 df = pd.concat(objs=dfs, ignore_index=True, sort=False)
+                logger.debug("Concatenation done!")
             return df
 
     def _read_csv_list_iterator(

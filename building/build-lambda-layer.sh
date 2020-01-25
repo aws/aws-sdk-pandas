@@ -18,6 +18,7 @@ rm -f "dist/awswrangler-layer.zip"
 # Building
 pip install . -t ./python
 rm -rf python/pyarrow*
+rm -rf python/boto*
 cp -r /aws-data-wrangler/dist/pyarrow_files/pyarrow* python/
 find python -wholename "*/tests/*" -type f -delete
 zip -r9 "awswrangler-layer.zip" ./python

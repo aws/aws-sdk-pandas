@@ -29,4 +29,7 @@ ADD requirements-dev.txt /root/
 RUN $PIP install --upgrade -r /root/requirements-dev.txt
 RUN rm -rf /root/requirements-dev.txt
 
+RUN $PIP install boto3==1.10.34
+RUN $PIP install botocore==1.13.34
+
 ENTRYPOINT ["/bin/sh"]

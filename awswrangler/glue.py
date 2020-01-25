@@ -241,7 +241,7 @@ class Glue:
         if partition_cols is None:
             partition_cols = []
 
-        pyarrow_schema: List[Tuple[str, str]] = data_types.extract_pyarrow_schema_from_pandas(
+        pyarrow_schema: List[Tuple[str, Any]] = data_types.extract_pyarrow_schema_from_pandas(
             dataframe=dataframe, preserve_index=preserve_index, indexes_position=indexes_position)
 
         schema_built: List[Tuple[str, str]] = []

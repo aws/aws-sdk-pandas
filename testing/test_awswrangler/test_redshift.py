@@ -591,7 +591,7 @@ def test_to_parquet(session, bucket, redshift_parameters):
                                         iam_role=redshift_parameters.get("RedshiftRole"),
                                         connection=con,
                                         partition_cols=["name"])
-    assert len(paths) == 4
+    assert len(paths) in (4, 16)  # Depends of the size of your redshift cluster
 
 
 @pytest.mark.parametrize("sample_name", ["micro", "small", "nano"])

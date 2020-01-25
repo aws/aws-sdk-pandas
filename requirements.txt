@@ -1,8 +1,8 @@
 numpy~=1.18.1
 pandas~=0.25.3
 pyarrow~=0.15.1
-botocore~=1.14.7
-boto3~=1.11.7
+botocore>=1.13.34
+boto3>=1.10.34
 s3fs~=0.4.0
 tenacity~=6.0.0
 pg8000~=1.13.2

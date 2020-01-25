@@ -1,4 +1,4 @@
-from typing import List, Tuple, Dict, Callable, Optional
+from typing import List, Tuple, Dict, Callable, Optional, Any
 from logging import getLogger, Logger
 from datetime import datetime, date
 from decimal import Decimal
@@ -361,7 +361,7 @@ def convert_schema(func: Callable, schema: List[Tuple[str, str]]) -> Dict[str, s
 
 def extract_pyarrow_schema_from_pandas(dataframe: pd.DataFrame,
                                        preserve_index: bool,
-                                       indexes_position: str = "right") -> List[Tuple[str, str]]:
+                                       indexes_position: str = "right") -> List[Tuple[str, Any]]:
     """
     Extract the related Pyarrow schema from any Pandas DataFrame
 
@@ -387,8 +387,7 @@ def extract_pyarrow_schema_from_pandas(dataframe: pd.DataFrame,
     indexes: List[str] = []
     for field in pa.Schema.from_pandas(df=dataframe[cols], preserve_index=preserve_index):
         name = str(field.name)
-        dtype = str(field.type)
-        cols_dtypes[name] = dtype
+        cols_dtypes[name] = field.type
         if name not in dataframe.columns:
             indexes.append(name)
 
