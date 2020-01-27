@@ -376,6 +376,22 @@ Resources:
           }
         Name: "aws-data-wrangler-mysql"
 
+  DynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: "attr_hash"
+          AttributeType: "S"
+        - AttributeName: "attr_range"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "attr_hash"
+          KeyType: "HASH"
+        - AttributeName: "attr_range"
+          KeyType: "RANGE"
+      BillingMode: "PAY_PER_REQUEST"
+      TableName: "aws-data-wrangler-test"
+
 Outputs:
   BucketName:
     Value: !Ref Bucket
@@ -416,3 +432,6 @@ Outputs:
   MysqlAddress:
     Value: !GetAtt AuroraInstanceMysql.Endpoint.Address
     Description: Mysql Address
+  DynamoDbTableARN:
+    Value: !GetAtt DynamoDBTable.Arn
+    Description: DynamoDB table name
