@@ -15,6 +15,7 @@ from awswrangler.redshift import Redshift
 from awswrangler.aurora import Aurora
 from awswrangler.emr import EMR
 from awswrangler.sagemaker import SageMaker
+from awswrangler.dynamodb import DynamoDB
 from awswrangler.exceptions import AWSCredentialsNotFound
 
 PYSPARK_INSTALLED: bool = False
@@ -120,6 +121,7 @@ class Session:
         self._aurora: Optional[Aurora] = None
         self._spark: Optional[Spark] = None
         self._sagemaker: Optional[SageMaker] = None
+        self._dynamodb: Optional[DynamoDB] = None
 
     def _load_new_boto3_session(self) -> None:
         """
@@ -309,6 +311,12 @@ class Session:
         if self._sagemaker is None:
             self._sagemaker = SageMaker(session=self)
         return self._sagemaker
+
+    @property
+    def dynamodb(self) -> DynamoDB:
+        if self._dynamodb is None:
+            self._dynamodb = DynamoDB(session=self)
+        return self._dynamodb
 
     @property
     def spark(self):

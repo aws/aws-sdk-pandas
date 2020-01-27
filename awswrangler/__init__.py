@@ -13,6 +13,7 @@ from awswrangler.redshift import Redshift  # noqa
 from awswrangler.aurora import Aurora  # noqa
 from awswrangler.emr import EMR  # noqa
 from awswrangler.sagemaker import SageMaker  # noqa
+from awswrangler.dynamodb import DynamoDB  # noqa
 import awswrangler.utils  # noqa
 import awswrangler.data_types  # noqa
 
@@ -51,6 +52,7 @@ pandas: Pandas = DynamicInstantiate("pandas", Pandas)  # type: ignore
 athena: Athena = DynamicInstantiate("athena", Athena)  # type: ignore
 aurora: Aurora = DynamicInstantiate("aurora", Aurora)  # type: ignore
 redshift: Redshift = DynamicInstantiate("redshift", Redshift)  # type: ignore
+dynamodb: DynamoDB = DynamicInstantiate("dynamodb", DynamoDB)  # type: ignore
 sagemaker: SageMaker = DynamicInstantiate("sagemaker", SageMaker)  # type: ignore
 cloudwatchlogs: CloudWatchLogs = DynamicInstantiate("cloudwatchlogs", CloudWatchLogs)  # type: ignore
 
