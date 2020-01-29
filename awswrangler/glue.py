@@ -292,7 +292,7 @@ class Glue:
         compressed = False if compression is None else True
         sep = extra_args["sep"] if "sep" in extra_args else ","
         sep = "," if sep is None else sep
-        serde = extra_args.get("serde")
+        serde = extra_args.get("serde", "OpenCSVSerDe")
         if serde == "OpenCSVSerDe":
             serde_fullname = "org.apache.hadoop.hive.serde2.OpenCSVSerde"
             param = {
