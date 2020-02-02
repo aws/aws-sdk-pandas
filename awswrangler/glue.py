@@ -68,19 +68,19 @@ class Glue:
                          description: Optional[str] = None,
                          parameters: Optional[Dict[str, str]] = None,
                          columns_comments: Optional[Dict[str, str]] = None) -> None:
-        """
+        """Create/update a table in the Glue catalog based on a dataframe.
 
         :param dataframe: Pandas Dataframe
+        :param path: AWS S3 path (E.g. s3://bucket-name/folder_name/
         :param objects_paths: Files paths on S3
-        :param preserve_index: Should preserve index on S3?
-        :param partition_cols: partitions names
-        :param mode: "append", "overwrite", "overwrite_partitions"
-        :param cast_columns: Dictionary of columns names and Athena/Glue types to be casted. (E.g. {"col name": "bigint", "col2 name": "int"}) (Only for "parquet" file_format)
+        :param file_format: "csv" or "parquet"
         :param database: AWS Glue Database name
         :param table: AWS Glue table name
-        :param path: AWS S3 path (E.g. s3://bucket-name/folder_name/
-        :param file_format: "csv" or "parquet"
+        :param partition_cols: partitions names
+        :param preserve_index: Should preserve index on S3?
+        :param mode: "append", "overwrite", "overwrite_partitions"
         :param compression: None, gzip, snappy, etc
+        :param cast_columns: Dictionary of columns names and Athena/Glue types to be casted. (E.g. {"col name": "bigint", "col2 name": "int"}) (Only for "parquet" file_format)
         :param extra_args: Extra arguments specific for each file formats (E.g. "sep" for CSV)
         :param description: Table description
         :param parameters: Key/value pairs to tag the table (Optional[Dict[str, str]])
@@ -292,7 +292,7 @@ class Glue:
         compressed = False if compression is None else True
         sep = extra_args["sep"] if "sep" in extra_args else ","
         sep = "," if sep is None else sep
-        serde = extra_args.get("serde")
+        serde = extra_args.get("serde", "OpenCSVSerDe")
         if serde == "OpenCSVSerDe":
             serde_fullname = "org.apache.hadoop.hive.serde2.OpenCSVSerde"
             param = {
