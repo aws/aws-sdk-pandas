@@ -2369,6 +2369,7 @@ def test_s3_overall_nan(bucket, database):
 
 def test_aurora_postgres_load_varchar(bucket, postgres_parameters):
     df = pd.DataFrame({"id": [1, 2, 3], "varchar3": ["foo", "boo", "bar"], "varchar1": ["a", "b", "c"]})
+    df["varchar3"] = df["varchar3"].astype("string")
     path = f"s3://{bucket}/test_aurora_postgres_load_varchar"
     wr.pandas.to_aurora(dataframe=df,
                         connection="aws-data-wrangler-postgres",
@@ -2404,6 +2405,7 @@ def test_aurora_postgres_load_varchar(bucket, postgres_parameters):
 
 def test_aurora_mysql_load_varchar(bucket):
     df = pd.DataFrame({"id": [1, 2, 3], "varchar3": ["foo", "boo", "bar"], "varchar1": ["a", "b", "c"]})
+    df["varchar3"] = df["varchar3"].astype("string")
     path = f"s3://{bucket}/test_aurora_mysql_load_varchar"
     wr.pandas.to_aurora(dataframe=df,
                         connection="aws-data-wrangler-mysql",
@@ -2430,3 +2432,51 @@ def test_aurora_mysql_load_varchar(bucket):
         assert rows[1][2] == "b"
         assert rows[2][2] == "c"
     conn.close()
+
+
+def test_to_parquet_string(bucket, database):
+    path = f"s3://{bucket}/test_to_parquet_string"
+    wr.s3.delete_objects(path=path)
+    df = pd.DataFrame({
+        "id": [1, 2, 3, 4, 5],
+        "c_str": ["foo", None, None, "bar", None],
+    })
+    df["id"] = df["id"].astype("Int64")
+    df["c_str"] = df["c_str"].astype("string")
+    wr.pandas.to_parquet(dataframe=df,
+                         database=database,
+                         path=path,
+                         mode="overwrite",
+                         preserve_index=False,
+                         procs_cpu_bound=5,
+                         inplace=False)
+    sleep(15)
+    df2 = wr.pandas.read_sql_athena(database=database,
+                                    sql="SELECT * FROM test_to_parquet_string ORDER BY id",
+                                    ctas_approach=False)
+    wr.s3.delete_objects(path=path)
+    assert df.equals(df2)
+
+
+def test_to_csv_string(bucket, database):
+    path = f"s3://{bucket}/test_to_csv_string"
+    wr.s3.delete_objects(path=path)
+    df = pd.DataFrame({
+        "id": [1, 2, 3, 4, 5],
+        "c_str": ["foo", None, None, "bar", None],
+    })
+    df["id"] = df["id"].astype("Int64")
+    df["c_str"] = df["c_str"].astype("string")
+    wr.pandas.to_parquet(dataframe=df,
+                         database=database,
+                         path=path,
+                         mode="overwrite",
+                         preserve_index=False,
+                         procs_cpu_bound=5,
+                         inplace=False)
+    sleep(5)
+    df2 = wr.pandas.read_sql_athena(database=database,
+                                    sql="SELECT * FROM test_to_csv_string ORDER BY id",
+                                    ctas_approach=False)
+    wr.s3.delete_objects(path=path)
+    assert df.equals(df2)
