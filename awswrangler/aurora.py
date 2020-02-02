@@ -141,7 +141,9 @@ class Aurora:
                    mode: str = "append",
                    preserve_index: bool = False,
                    engine: str = "mysql",
-                   region: str = "us-east-1"):
+                   region: str = "us-east-1",
+                   varchar_default_length: int = 256,
+                   varchar_lengths: Optional[Dict[str, int]] = None) -> None:
         """
         Load text/CSV files into a Aurora table using a manifest file.
         Creates the table if necessary.
@@ -158,6 +160,8 @@ class Aurora:
         :param preserve_index: Should we preserve the Dataframe index? (ONLY for Pandas Dataframe)
         :param engine: "mysql" or "postgres"
         :param region: AWS S3 bucket region (Required only for postgres engine)
+        :param varchar_default_length: The size that will be set for all VARCHAR columns not specified with varchar_lengths
+        :param varchar_lengths: Dict of VARCHAR length by columns. (e.g. {"col1": 10, "col5": 200})
         :return: None
         """
         if "postgres" in engine.lower():
@@ -170,7 +174,9 @@ class Aurora:
                                        mode=mode,
                                        preserve_index=preserve_index,
                                        region=region,
-                                       columns=columns)
+                                       columns=columns,
+                                       varchar_default_length=varchar_default_length,
+                                       varchar_lengths=varchar_lengths)
         elif "mysql" in engine.lower():
             Aurora.load_table_mysql(dataframe=dataframe,
                                     dataframe_type=dataframe_type,
@@ -181,7 +187,9 @@ class Aurora:
                                     mode=mode,
                                     preserve_index=preserve_index,
                                     num_files=num_files,
-                                    columns=columns)
+                                    columns=columns,
+                                    varchar_default_length=varchar_default_length,
+                                    varchar_lengths=varchar_lengths)
         else:
             raise InvalidEngine(f"{engine} is not a valid engine. Please use 'mysql' or 'postgres'!")
 
@@ -195,7 +203,9 @@ class Aurora:
                             mode: str = "append",
                             preserve_index: bool = False,
                             region: str = "us-east-1",
-                            columns: Optional[List[str]] = None):
+                            columns: Optional[List[str]] = None,
+                            varchar_default_length: int = 256,
+                            varchar_lengths: Optional[Dict[str, int]] = None):
         """
         Load text/CSV files into a Aurora table using a manifest file.
         Creates the table if necessary.
@@ -210,6 +220,8 @@ class Aurora:
         :param preserve_index: Should we preserve the Dataframe index? (ONLY for Pandas Dataframe)
         :param region: AWS S3 bucket region (Required only for postgres engine)
         :param columns: List of columns to load
+        :param varchar_default_length: The size that will be set for all VARCHAR columns not specified with varchar_lengths
+        :param varchar_lengths: Dict of VARCHAR length by columns. (e.g. {"col1": 10, "col5": 200})
         :return: None
         """
         with connection.cursor() as cursor:
@@ -221,7 +233,9 @@ class Aurora:
                                      table_name=table_name,
                                      preserve_index=preserve_index,
                                      engine="postgres",
-                                     columns=columns)
+                                     columns=columns,
+                                     varchar_default_length=varchar_default_length,
+                                     varchar_lengths=varchar_lengths)
                 connection.commit()
                 logger.debug("CREATE TABLE committed.")
         for path in load_paths:
@@ -266,7 +280,9 @@ class Aurora:
                          num_files: int,
                          mode: str = "append",
                          preserve_index: bool = False,
-                         columns: Optional[List[str]] = None):
+                         columns: Optional[List[str]] = None,
+                         varchar_default_length: int = 256,
+                         varchar_lengths: Optional[Dict[str, int]] = None):
         """
         Load text/CSV files into a Aurora table using a manifest file.
         Creates the table if necessary.
@@ -281,6 +297,8 @@ class Aurora:
         :param mode: append or overwrite
         :param preserve_index: Should we preserve the Dataframe index? (ONLY for Pandas Dataframe)
         :param columns: List of columns to load
+        :param varchar_default_length: The size that will be set for all VARCHAR columns not specified with varchar_lengths
+        :param varchar_lengths: Dict of VARCHAR length by columns. (e.g. {"col1": 10, "col5": 200})
         :return: None
         """
         with connection.cursor() as cursor:
@@ -292,7 +310,9 @@ class Aurora:
                                      table_name=table_name,
                                      preserve_index=preserve_index,
                                      engine="mysql",
-                                     columns=columns)
+                                     columns=columns,
+                                     varchar_default_length=varchar_default_length,
+                                     varchar_lengths=varchar_lengths)
             sql = Aurora._get_load_sql(path=manifest_path,
                                        schema_name=schema_name,
                                        table_name=table_name,
@@ -368,7 +388,9 @@ class Aurora:
                       table_name,
                       preserve_index=False,
                       engine: str = "mysql",
-                      columns: Optional[List[str]] = None):
+                      columns: Optional[List[str]] = None,
+                      varchar_default_length: int = 256,
+                      varchar_lengths: Optional[Dict[str, int]] = None) -> None:
         """
         Creates Aurora table.
 
@@ -380,6 +402,8 @@ class Aurora:
         :param preserve_index: Should we preserve the Dataframe index? (ONLY for Pandas Dataframe)
         :param engine: "mysql" or "postgres"
         :param columns: List of columns to load
+        :param varchar_default_length: The size that will be set for all VARCHAR columns not specified with varchar_lengths
+        :param varchar_lengths: Dict of VARCHAR length by columns. (e.g. {"col1": 10, "col5": 200})
         :return: None
         """
         sql: str = f"-- AWS DATA WRANGLER\n" \
@@ -397,7 +421,9 @@ class Aurora:
                                     dataframe_type=dataframe_type,
                                     preserve_index=preserve_index,
                                     engine=engine,
-                                    columns=columns)
+                                    columns=columns,
+                                    varchar_default_length=varchar_default_length,
+                                    varchar_lengths=varchar_lengths)
         cols_str: str = "".join([f"{col[0]} {col[1]},\n" for col in schema])[:-2]
         sql = f"-- AWS DATA WRANGLER\n" f"CREATE TABLE IF NOT EXISTS {schema_name}.{table_name} (\n" f"{cols_str})"
         logger.debug(f"Create table query:\n{sql}")
@@ -408,7 +434,10 @@ class Aurora:
                     dataframe_type: str,
                     preserve_index: bool,
                     engine: str = "mysql",
-                    columns: Optional[List[str]] = None) -> List[Tuple[str, str]]:
+                    columns: Optional[List[str]] = None,
+                    varchar_default_length: int = 256,
+                    varchar_lengths: Optional[Dict[str, int]] = None) -> List[Tuple[str, str]]:
+        varchar_lengths = {} if varchar_lengths is None else varchar_lengths
         schema_built: List[Tuple[str, str]] = []
         if "postgres" in engine.lower():
             convert_func = data_types.pyarrow2postgres
@@ -421,7 +450,8 @@ class Aurora:
                 dataframe=dataframe, preserve_index=preserve_index, indexes_position="right")
             for name, dtype in pyarrow_schema:
                 if columns is None or name in columns:
-                    aurora_type: str = convert_func(dtype)
+                    varchar_len = varchar_lengths.get(name, varchar_default_length)
+                    aurora_type: str = convert_func(dtype=dtype, varchar_length=varchar_len)
                     schema_built.append((name, aurora_type))
         else:
             raise InvalidDataframeType(f"{dataframe_type} is not a valid DataFrame type. Please use 'pandas'!")

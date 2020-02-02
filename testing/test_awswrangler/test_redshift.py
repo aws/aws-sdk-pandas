@@ -85,9 +85,9 @@ def external_schema(cloudformation_outputs, redshift_parameters, glue_database):
     else:
         raise Exception("You must deploy the test infrastructure using SAM!")
     sql1 = f"""
-    CREATE EXTERNAL SCHEMA IF NOT EXISTS aws_data_wrangler_external FROM data catalog 
-    DATABASE '{glue_database}' 
-    IAM_ROLE '{redshift_parameters.get("RedshiftRole")}' 
+    CREATE EXTERNAL SCHEMA IF NOT EXISTS aws_data_wrangler_external FROM data catalog
+    DATABASE '{glue_database}'
+    IAM_ROLE '{redshift_parameters.get("RedshiftRole")}'
     REGION '{region}';
     """
     sql2 = f"""
@@ -824,21 +824,15 @@ def test_read_sql_redshift_pandas_empty(session, bucket, redshift_parameters):
 
 
 def test_spectrum_parquet(bucket, glue_database, external_schema):
-    df = pd.DataFrame({
-        "id": [1, 2, 3, 4, 5],
-        "col_str": ["foo", None, "bar", None, "xoo"],
-        "par_int": [0, 1, 0, 1, 1]
-    })
+    df = pd.DataFrame({"id": [1, 2, 3, 4, 5], "col_str": ["foo", None, "bar", None, "xoo"], "par_int": [0, 1, 0, 1, 1]})
     path = f"s3://{bucket}/test_spectrum_parquet/"
-    wr.pandas.to_parquet(
-        dataframe=df,
-        path=path,
-        database=glue_database,
-        mode="overwrite",
-        preserve_index=False,
-        partition_cols=["par_int"],
-        procs_cpu_bound=1
-    )
+    wr.pandas.to_parquet(dataframe=df,
+                         path=path,
+                         database=glue_database,
+                         mode="overwrite",
+                         preserve_index=False,
+                         partition_cols=["par_int"],
+                         procs_cpu_bound=1)
     sleep(1)
     conn = wr.redshift.get_connection("aws-data-wrangler-redshift")
     with conn.cursor() as cursor:
@@ -852,21 +846,15 @@ def test_spectrum_parquet(bucket, glue_database, external_schema):
 
 
 def test_spectrum_csv(bucket, glue_database, external_schema):
-    df = pd.DataFrame({
-        "id": [1, 2, 3, 4, 5],
-        "col_str": ["foo", None, "bar", None, "xoo"],
-        "par_int": [0, 1, 0, 1, 1]
-    })
+    df = pd.DataFrame({"id": [1, 2, 3, 4, 5], "col_str": ["foo", None, "bar", None, "xoo"], "par_int": [0, 1, 0, 1, 1]})
     path = f"s3://{bucket}/test_spectrum_csv/"
-    wr.pandas.to_parquet(
-        dataframe=df,
-        path=path,
-        database=glue_database,
-        mode="overwrite",
-        preserve_index=False,
-        partition_cols=["par_int"],
-        procs_cpu_bound=1
-    )
+    wr.pandas.to_parquet(dataframe=df,
+                         path=path,
+                         database=glue_database,
+                         mode="overwrite",
+                         preserve_index=False,
+                         partition_cols=["par_int"],
+                         procs_cpu_bound=1)
     sleep(1)
     conn = wr.redshift.get_connection("aws-data-wrangler-redshift")
     with conn.cursor() as cursor:

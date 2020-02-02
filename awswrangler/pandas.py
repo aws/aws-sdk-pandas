@@ -994,23 +994,23 @@ class Pandas:
         with fs.open(path, "wb") as f:
             pq.write_table(table, f, compression=compression, coerce_timestamps="ms", flavor="spark")
 
-    def to_redshift(
-            self,
-            dataframe: pd.DataFrame,
-            path: str,
-            connection: Any,
-            schema: str,
-            table: str,
-            iam_role: str,
-            diststyle: str = "AUTO",
-            distkey: Optional[str] = None,
-            sortstyle: str = "COMPOUND",
-            sortkey: Optional[str] = None,
-            primary_keys: Optional[List[str]] = None,
-            preserve_index: bool = False,
-            mode: str = "append",
-            cast_columns: Optional[Dict[str, str]] = None,
-    ) -> None:
+    def to_redshift(self,
+                    dataframe: pd.DataFrame,
+                    path: str,
+                    connection: Any,
+                    schema: str,
+                    table: str,
+                    iam_role: str,
+                    diststyle: str = "AUTO",
+                    distkey: Optional[str] = None,
+                    sortstyle: str = "COMPOUND",
+                    sortkey: Optional[str] = None,
+                    primary_keys: Optional[List[str]] = None,
+                    preserve_index: bool = False,
+                    mode: str = "append",
+                    cast_columns: Optional[Dict[str, str]] = None,
+                    varchar_default_length: int = 256,
+                    varchar_lengths: Optional[Dict[str, int]] = None) -> None:
         """
         Load Pandas Dataframe as a Table on Amazon Redshift
 
@@ -1028,6 +1028,8 @@ class Pandas:
         :param preserve_index: Should we preserve the Dataframe index?
         :param mode: append, overwrite or upsert
         :param cast_columns: Dictionary of columns names and Redshift types to be casted. (e.g. {"col name": "SMALLINT", "col2 name": "FLOAT4"})
+        :param varchar_default_length: The size that will be set for all VARCHAR columns not specified with varchar_lengths
+        :param varchar_lengths: Dict of VARCHAR length by columns. (e.g. {"col1": 10, "col5": 200})
         :return: None
         """
         if cast_columns is None:
@@ -1065,24 +1067,24 @@ class Pandas:
                                                        cast_columns=cast_columns_parquet)
             manifest_path: str = f"{path}manifest.json"
             self._session.redshift.write_load_manifest(manifest_path=manifest_path, objects_paths=objects_paths)
-            self._session.redshift.load_table(
-                dataframe=dataframe,
-                dataframe_type="pandas",
-                manifest_path=manifest_path,
-                schema_name=schema,
-                table_name=table,
-                redshift_conn=connection,
-                preserve_index=preserve_index,
-                num_files=num_partitions,
-                iam_role=iam_role,
-                diststyle=diststyle,
-                distkey=distkey,
-                sortstyle=sortstyle,
-                sortkey=sortkey,
-                primary_keys=primary_keys,
-                mode=mode,
-                cast_columns=cast_columns,
-            )
+            self._session.redshift.load_table(dataframe=dataframe,
+                                              dataframe_type="pandas",
+                                              manifest_path=manifest_path,
+                                              schema_name=schema,
+                                              table_name=table,
+                                              redshift_conn=connection,
+                                              preserve_index=preserve_index,
+                                              num_files=num_partitions,
+                                              iam_role=iam_role,
+                                              diststyle=diststyle,
+                                              distkey=distkey,
+                                              sortstyle=sortstyle,
+                                              sortkey=sortkey,
+                                              primary_keys=primary_keys,
+                                              mode=mode,
+                                              cast_columns=cast_columns,
+                                              varchar_default_length=varchar_default_length,
+                                              varchar_lengths=varchar_lengths)
             self._session.s3.delete_objects(path=path)
 
         except Exception as ex:
@@ -1426,7 +1428,9 @@ class Pandas:
                   columns: Optional[List[str]] = None,
                   procs_cpu_bound: Optional[int] = None,
                   procs_io_bound: Optional[int] = None,
-                  inplace=True) -> None:
+                  inplace=True,
+                  varchar_default_length: int = 256,
+                  varchar_lengths: Optional[Dict[str, int]] = None) -> None:
         """
         Load Pandas Dataframe as a Table on Aurora
 
@@ -1442,6 +1446,8 @@ class Pandas:
         :param procs_cpu_bound: Number of cores used for CPU bound tasks
         :param procs_io_bound: Number of cores used for I/O bound tasks
         :param inplace: True is cheapest (CPU and Memory) but False leaves your DataFrame intact
+        :param varchar_default_length: The size that will be set for all VARCHAR columns not specified with varchar_lengths
+        :param varchar_lengths: Dict of VARCHAR length by columns. (e.g. {"col1": 10, "col5": 200})
         :return: None
         """
         if ("postgres" not in engine.lower()) and ("mysql" not in engine.lower()):
@@ -1497,7 +1503,9 @@ class Pandas:
                               mode=mode,
                               preserve_index=preserve_index,
                               engine=engine,
-                              region=region)
+                              region=region,
+                              varchar_default_length=varchar_default_length,
+                              varchar_lengths=varchar_lengths)
             if "postgres" in engine.lower():
                 self._session.s3.delete_listed_objects(objects_paths=load_paths, procs_io_bound=procs_io_bound)
             elif "mysql" in engine.lower():
@@ -1660,7 +1668,7 @@ class Pandas:
         :param path_prefix: Amazon S3 prefix (e.g. s3://bucket_name/prefix)
         :param max_result_size: Max number of bytes on each request to S3. It offers functionality similar to chunksize in pandas.read_csv(), but with higher performance
         :param procs_cpu_bound: Number of cores used for CPU bound tasks
-        :param **pd_additional_kwargs: Additional parameters forwarded to pandas.read_csv
+        :param pd_additional_kwargs: Additional parameters forwarded to pandas.read_csv
         :return: Pandas Dataframe or Iterator of Pandas Dataframes if max_result_size != None
         """
         paths: List[str] = self._session.s3.list_objects(path=path_prefix)

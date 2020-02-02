@@ -165,7 +165,9 @@ class Redshift:
                    primary_keys: Optional[List[str]] = None,
                    mode="append",
                    preserve_index=False,
-                   cast_columns=None):
+                   cast_columns=None,
+                   varchar_default_length: int = 256,
+                   varchar_lengths: Optional[Dict[str, int]] = None):
         """
         Load Parquet files into a Redshift table using a manifest file.
         Creates the table if necessary.
@@ -186,6 +188,8 @@ class Redshift:
         :param mode: append, overwrite or upsert
         :param preserve_index: Should we preserve the Dataframe index? (ONLY for Pandas Dataframe)
         :param cast_columns: Dictionary of columns names and Redshift types to be casted. (E.g. {"col name": "INT", "col2 name": "FLOAT"})
+        :param varchar_default_length: The size that will be set for all VARCHAR columns not specified with varchar_lengths
+        :param varchar_lengths: Dict of VARCHAR length by columns. (e.g. {"col1": 10, "col5": 200})
         :return: None
         """
         final_table_name: Optional[str] = None
@@ -203,7 +207,9 @@ class Redshift:
                                        sortkey=sortkey,
                                        primary_keys=primary_keys,
                                        preserve_index=preserve_index,
-                                       cast_columns=cast_columns)
+                                       cast_columns=cast_columns,
+                                       varchar_default_length=varchar_default_length,
+                                       varchar_lengths=varchar_lengths)
                 table_name = f"{schema_name}.{table_name}"
             elif mode == "upsert":
                 guid: str = pa.compat.guid()
@@ -267,7 +273,9 @@ class Redshift:
                       sortkey=None,
                       primary_keys: List[str] = None,
                       preserve_index=False,
-                      cast_columns=None):
+                      cast_columns=None,
+                      varchar_default_length: int = 256,
+                      varchar_lengths: Optional[Dict[str, int]] = None):
         """
         Creates Redshift table.
 
@@ -283,18 +291,20 @@ class Redshift:
         :param primary_keys: Primary keys
         :param preserve_index: Should we preserve the Dataframe index? (ONLY for Pandas Dataframe)
         :param cast_columns: Dictionary of columns names and Redshift types to be casted. (E.g. {"col name": "INT", "col2 name": "FLOAT"})
+        :param varchar_default_length: The size that will be set for all VARCHAR columns not specified with varchar_lengths
+        :param varchar_lengths: Dict of VARCHAR length by columns. (e.g. {"col1": 10, "col5": 200})
         :return: None
         """
         sql = f"-- AWS DATA WRANGLER\n" \
               f"DROP TABLE IF EXISTS {schema_name}.{table_name}"
         logger.debug(f"Drop table query:\n{sql}")
         cursor.execute(sql)
-        schema = Redshift._get_redshift_schema(
-            dataframe=dataframe,
-            dataframe_type=dataframe_type,
-            preserve_index=preserve_index,
-            cast_columns=cast_columns,
-        )
+        schema = Redshift._get_redshift_schema(dataframe=dataframe,
+                                               dataframe_type=dataframe_type,
+                                               preserve_index=preserve_index,
+                                               cast_columns=cast_columns,
+                                               varchar_default_length=varchar_default_length,
+                                               varchar_lengths=varchar_lengths)
         if diststyle:
             diststyle = diststyle.upper()
         else:
@@ -381,9 +391,11 @@ class Redshift:
     def _get_redshift_schema(dataframe,
                              dataframe_type: str,
                              preserve_index: bool = False,
-                             cast_columns=None) -> List[Tuple[str, str]]:
-        if cast_columns is None:
-            cast_columns = {}
+                             cast_columns=None,
+                             varchar_default_length: int = 256,
+                             varchar_lengths: Optional[Dict[str, int]] = None) -> List[Tuple[str, str]]:
+        cast_columns = {} if cast_columns is None else cast_columns
+        varchar_lengths = {} if varchar_lengths is None else varchar_lengths
         schema_built: List[Tuple[str, str]] = []
         if dataframe_type.lower() == "pandas":
             pyarrow_schema = data_types.extract_pyarrow_schema_from_pandas(dataframe=dataframe,
@@ -393,14 +405,16 @@ class Redshift:
                 if (cast_columns is not None) and (name in cast_columns.keys()):
                     schema_built.append((name, cast_columns[name]))
                 else:
-                    redshift_type = data_types.pyarrow2redshift(dtype)
+                    varchar_len = varchar_lengths.get(name, varchar_default_length)
+                    redshift_type = data_types.pyarrow2redshift(dtype=dtype, varchar_length=varchar_len)
                     schema_built.append((name, redshift_type))
         elif dataframe_type.lower() == "spark":
             for name, dtype in dataframe.dtypes:
+                varchar_len = varchar_lengths.get(name, varchar_default_length)
                 if name in cast_columns.keys():
-                    redshift_type = data_types.athena2redshift(cast_columns[name])
+                    redshift_type = data_types.athena2redshift(dtype=cast_columns[name], varchar_length=varchar_len)
                 else:
-                    redshift_type = data_types.spark2redshift(dtype)
+                    redshift_type = data_types.spark2redshift(dtype=cast_columns[name], varchar_length=varchar_len)
                 schema_built.append((name, redshift_type))
         else:
             raise InvalidDataframeType(

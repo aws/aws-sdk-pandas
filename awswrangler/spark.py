@@ -51,21 +51,21 @@ class Spark:
                 logger.warning(f"Casting column {name} from date to timestamp!")
         return dataframe
 
-    def to_redshift(
-            self,
-            dataframe: DataFrame,
-            path: str,
-            connection: Any,
-            schema: str,
-            table: str,
-            iam_role: str,
-            diststyle: str = "AUTO",
-            distkey: Optional[str] = None,
-            sortstyle: str = "COMPOUND",
-            sortkey: Optional[str] = None,
-            min_num_partitions: int = 200,
-            mode: str = "append",
-    ) -> None:
+    def to_redshift(self,
+                    dataframe: DataFrame,
+                    path: str,
+                    connection: Any,
+                    schema: str,
+                    table: str,
+                    iam_role: str,
+                    diststyle: str = "AUTO",
+                    distkey: Optional[str] = None,
+                    sortstyle: str = "COMPOUND",
+                    sortkey: Optional[str] = None,
+                    min_num_partitions: int = 200,
+                    mode: str = "append",
+                    varchar_default_length: int = 256,
+                    varchar_lengths: Optional[Dict[str, int]] = None) -> None:
         """
         Load Spark Dataframe as a Table on Amazon Redshift
 
@@ -81,6 +81,8 @@ class Spark:
         :param sortkey: List of columns to be sorted
         :param min_num_partitions: Minimal number of partitions
         :param mode: append or overwrite
+        :param varchar_default_length: The size that will be set for all VARCHAR columns not specified with varchar_lengths
+        :param varchar_lengths: Dict of VARCHAR length by columns. (e.g. {"col1": 10, "col5": 200})
         :return: None
         """
         logger.debug(f"Minimum number of partitions : {min_num_partitions}")
@@ -161,7 +163,9 @@ class Spark:
                                               sortstyle=sortstyle,
                                               sortkey=sortkey,
                                               mode=mode,
-                                              cast_columns=casts)
+                                              cast_columns=casts,
+                                              varchar_default_length=varchar_default_length,
+                                              varchar_lengths=varchar_lengths)
             self._session.s3.delete_objects(path=path, procs_io_bound=self._procs_io_bound)
         except Exception as ex:
             connection.rollback()

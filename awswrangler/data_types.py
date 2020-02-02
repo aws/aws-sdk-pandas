@@ -81,7 +81,7 @@ def athena2python(dtype: str) -> Optional[type]:
         raise UnsupportedType(f"Unsupported Athena type: {dtype}")
 
 
-def athena2redshift(dtype: str) -> str:
+def athena2redshift(dtype: str, varchar_length: int = 256) -> str:
     dtype = dtype.lower()
     if dtype == "smallint":
         return "SMALLINT"
@@ -96,7 +96,7 @@ def athena2redshift(dtype: str) -> str:
     elif dtype in ("boolean", "bool"):
         return "BOOL"
     elif dtype in ("string", "char", "varchar", "array", "row", "map"):
-        return "VARCHAR(256)"
+        return f"VARCHAR({varchar_length})"
     elif dtype == "timestamp":
         return "TIMESTAMP"
     elif dtype == "date":
@@ -125,7 +125,7 @@ def pandas2athena(dtype: str) -> str:
         raise UnsupportedType(f"Unsupported Pandas type: {dtype}")
 
 
-def pandas2redshift(dtype: str) -> str:
+def pandas2redshift(dtype: str, varchar_length: int = 256) -> str:
     dtype = dtype.lower()
     if dtype == "int32":
         return "INTEGER"
@@ -138,7 +138,7 @@ def pandas2redshift(dtype: str) -> str:
     elif dtype == "bool":
         return "BOOLEAN"
     elif dtype == "object" and isinstance(dtype, str):
-        return "VARCHAR(256)"
+        return f"VARCHAR({varchar_length})"
     elif dtype[:10] == "datetime64":
         return "TIMESTAMP"
     else:
@@ -177,7 +177,7 @@ def pyarrow2athena(dtype: pa.types) -> str:
         raise UnsupportedType(f"Unsupported Pyarrow type: {dtype}")
 
 
-def pyarrow2redshift(dtype: pa.types) -> str:
+def pyarrow2redshift(dtype: pa.types, varchar_length: int = 256) -> str:
     dtype_str = str(dtype).lower()
     if dtype_str == "int16":
         return "SMALLINT"
@@ -192,7 +192,7 @@ def pyarrow2redshift(dtype: pa.types) -> str:
     elif dtype_str == "bool":
         return "BOOLEAN"
     elif dtype_str == "string":
-        return "VARCHAR(256)"
+        return f"VARCHAR({varchar_length})"
     elif dtype_str.startswith("timestamp"):
         return "TIMESTAMP"
     elif dtype_str.startswith("date"):
@@ -203,7 +203,7 @@ def pyarrow2redshift(dtype: pa.types) -> str:
         raise UnsupportedType(f"Unsupported Pyarrow type: {dtype}")
 
 
-def pyarrow2postgres(dtype: pa.types) -> str:
+def pyarrow2postgres(dtype: pa.types, varchar_length: int = 256) -> str:
     dtype_str = str(dtype).lower()
     if dtype_str == "int16":
         return "SMALLINT"
@@ -218,7 +218,7 @@ def pyarrow2postgres(dtype: pa.types) -> str:
     elif dtype_str == "bool":
         return "BOOLEAN"
     elif dtype_str == "string":
-        return "VARCHAR(256)"
+        return f"VARCHAR({varchar_length})"
     elif dtype_str.startswith("timestamp"):
         return "TIMESTAMP"
     elif dtype_str.startswith("date"):
@@ -229,7 +229,7 @@ def pyarrow2postgres(dtype: pa.types) -> str:
         raise UnsupportedType(f"Unsupported Pyarrow type: {dtype}")
 
 
-def pyarrow2mysql(dtype: pa.types) -> str:
+def pyarrow2mysql(dtype: pa.types, varchar_length: int = 256) -> str:
     dtype_str = str(dtype).lower()
     if dtype_str == "int16":
         return "SMALLINT"
@@ -244,7 +244,7 @@ def pyarrow2mysql(dtype: pa.types) -> str:
     elif dtype_str == "bool":
         return "BOOLEAN"
     elif dtype_str == "string":
-        return "VARCHAR(256)"
+        return f"VARCHAR({varchar_length})"
     elif dtype_str.startswith("timestamp"):
         return "TIMESTAMP"
     elif dtype_str.startswith("date"):
@@ -321,7 +321,7 @@ def redshift2pyarrow(dtype: str) -> str:
         raise UnsupportedType(f"Unsupported Redshift type: {dtype_str}")
 
 
-def spark2redshift(dtype: str) -> str:
+def spark2redshift(dtype: str, varchar_length: int = 256) -> str:
     dtype = dtype.lower()
     if dtype == "smallint":
         return "SMALLINT"
@@ -340,7 +340,7 @@ def spark2redshift(dtype: str) -> str:
     elif dtype == "date":
         return "DATE"
     elif dtype == "string":
-        return "VARCHAR(256)"
+        return f"VARCHAR({varchar_length})"
     elif dtype.startswith("decimal"):
         return dtype.replace(" ", "").upper()
     else:
