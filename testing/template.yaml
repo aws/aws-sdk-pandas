@@ -16,10 +16,10 @@ Parameters:
   SubnetAz:
     Type: String
     Description: Subnet AZ
-  Password:
+  DatabasesPassword:
     Type: String
-    Description: Redshift Password
-  TestUser:
+    Description: Password for all databases
+  AWSUserForTests:
     Type: String
     Description: AWS User that will running the tests on the CLI
 
@@ -49,7 +49,7 @@ Resources:
           - Sid: "Allow administration of the key"
             Effect: "Allow"
             Principal:
-              AWS: !Join ["", ["arn:aws:iam::", !Ref "AWS::AccountId", ":user/", !Ref TestUser]]
+              AWS: !Join ["", ["arn:aws:iam::", !Ref "AWS::AccountId", ":user/", !Ref AWSUserForTests]]
             Action:
               - "kms:Create*"
               - "kms:Describe*"
@@ -95,7 +95,7 @@ Resources:
               - sts:AssumeRole
       Path: "/"
       Policies:
-        - PolicyName: S3GetAndList
+        - PolicyName: Root
           PolicyDocument:
             Version: 2012-10-17
             Statement:
@@ -107,6 +107,30 @@ Resources:
                 Resource:
                   - !Join ['', ['arn:aws:s3:::', !Ref Bucket]]
                   - !Join ['', ['arn:aws:s3:::', !Ref Bucket, /*]]
+              - Effect: Allow
+                Action:
+                  - "lakeformation:GrantPermissions"
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - "glue:SearchTables"
+                  - "glue:GetConnections"
+                  - "glue:GetDataCatalogEncryptionSettings"
+                  - "glue:GetTables"
+                  - "glue:GetTableVersions"
+                  - "glue:GetPartitions"
+                  - "glue:DeleteTableVersion"
+                  - "glue:BatchGetPartition"
+                  - "glue:GetDatabases"
+                  - "glue:GetTags"
+                  - "glue:GetTable"
+                  - "glue:GetDatabase"
+                  - "glue:GetPartition"
+                  - "glue:GetTableVersion"
+                  - "glue:GetConnection"
+                  - "glue:GetUserDefinedFunction"
+                  - "glue:GetUserDefinedFunctions"
+                Resource: "*"
 
   RedshiftSubnetGroup:
     Type: AWS::Redshift::ClusterSubnetGroup
@@ -140,7 +164,7 @@ Resources:
     Properties:
       DBName: test
       MasterUsername: test
-      MasterUserPassword: !Ref Password
+      MasterUserPassword: !Ref DatabasesPassword
       NodeType: dc2.large
       ClusterType: single-node
       VpcSecurityGroupIds:
@@ -223,7 +247,7 @@ Resources:
       Engine: aurora-postgresql
       DBClusterIdentifier : postgres-cluster-wrangler
       MasterUsername: test
-      MasterUserPassword: !Ref Password
+      MasterUserPassword: !Ref DatabasesPassword
       BackupRetentionPeriod: 1
       DBSubnetGroupName: !Ref RdsSubnetGroup
       VpcSecurityGroupIds:
@@ -264,12 +288,13 @@ Resources:
       Engine: aurora-mysql
       DBClusterIdentifier: mysql-cluster-wrangler
       MasterUsername: test
-      MasterUserPassword: !Ref Password
+      MasterUserPassword: !Ref DatabasesPassword
       BackupRetentionPeriod: 1
       DBSubnetGroupName: !Ref RdsSubnetGroup
       VpcSecurityGroupIds:
         - !Ref DatabaseSecurityGroup
       DBClusterParameterGroupName: !Ref MysqlParameterGroup
+      DatabaseName: test
       AssociatedRoles:
         - RoleArn: !GetAtt AuroraRole.Arn
 
@@ -277,6 +302,7 @@ Resources:
     Type: AWS::RDS::DBInstance
     Properties:
       Engine: aurora-mysql
+#      DBName: test
       DBInstanceIdentifier: mysql-instance-wrangler
       DBClusterIdentifier: !Ref AuroraClusterMysql
       DBInstanceClass: db.t3.medium
@@ -285,6 +311,9 @@ Resources:
 
   RedshiftGlueConnection:
     Type: AWS::Glue::Connection
+    DependsOn:
+      - DatabaseSecurityGroup
+      - Redshift
     Properties:
       CatalogId: !Ref AWS::AccountId
       ConnectionInput:
@@ -310,12 +339,15 @@ Resources:
                 ],
               ],
             "USERNAME": test,
-            "PASSWORD": !Ref Password,
+            "PASSWORD": !Ref DatabasesPassword,
           }
         Name: "aws-data-wrangler-redshift"
 
   PostgresGlueConnection:
     Type: AWS::Glue::Connection
+    DependsOn:
+      - DatabaseSecurityGroup
+      - AuroraInstancePostgres
     Properties:
       CatalogId: !Ref AWS::AccountId
       ConnectionInput:
@@ -341,12 +373,15 @@ Resources:
                 ],
               ],
             "USERNAME": test,
-            "PASSWORD": !Ref Password,
+            "PASSWORD": !Ref DatabasesPassword,
           }
         Name: "aws-data-wrangler-postgres"
 
   MysqlGlueConnection:
     Type: AWS::Glue::Connection
+    DependsOn:
+      - DatabaseSecurityGroup
+      - AuroraInstanceMysql
     Properties:
       CatalogId: !Ref AWS::AccountId
       ConnectionInput:
@@ -372,7 +407,7 @@ Resources:
                 ],
               ],
             "USERNAME": test,
-            "PASSWORD": !Ref Password,
+            "PASSWORD": !Ref DatabasesPassword,
           }
         Name: "aws-data-wrangler-mysql"
 
@@ -398,12 +433,12 @@ Outputs:
     Description: Name of the S3 Bucket used for tests.
   RedshiftAddress:
     Value: !GetAtt Redshift.Endpoint.Address
-    Description: Redshift Password.
+    Description: Redshift address.
   RedshiftPort:
     Value: !GetAtt Redshift.Endpoint.Port
     Description: Redshift Endpoint Port.
-  Password:
-    Value: !Ref Password
+  DatabasesPassword:
+    Value: !Ref DatabasesPassword
     Description: Password.
   RedshiftRole:
     Value: !GetAtt RedshiftRole.Arn
@@ -435,3 +470,6 @@ Outputs:
   DynamoDbTableARN:
     Value: !GetAtt DynamoDBTable.Arn
     Description: DynamoDB table name
+  Region:
+    Value: !Ref AWS::Region
+    Description: AWS Region

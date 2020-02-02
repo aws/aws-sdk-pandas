@@ -100,15 +100,15 @@ def postgres_parameters(cloudformation_outputs):
         postgres_parameters["PostgresAddress"] = cloudformation_outputs.get("PostgresAddress")
     else:
         raise Exception("You must deploy the test infrastructure using SAM!")
-    if "Password" in cloudformation_outputs:
-        postgres_parameters["Password"] = cloudformation_outputs.get("Password")
+    if "DatabasesPassword" in cloudformation_outputs:
+        postgres_parameters["DatabasesPassword"] = cloudformation_outputs.get("DatabasesPassword")
     else:
         raise Exception("You must deploy the test infrastructure using SAM!")
     conn = Aurora.generate_connection(database="postgres",
                                       host=postgres_parameters["PostgresAddress"],
                                       port=3306,
                                       user="test",
-                                      password=postgres_parameters["Password"],
+                                      password=postgres_parameters["DatabasesPassword"],
                                       engine="postgres")
     with conn.cursor() as cursor:
         sql = "CREATE EXTENSION IF NOT EXISTS aws_s3 CASCADE"
@@ -125,15 +125,15 @@ def mysql_parameters(cloudformation_outputs):
         mysql_parameters["MysqlAddress"] = cloudformation_outputs.get("MysqlAddress")
     else:
         raise Exception("You must deploy the test infrastructure using SAM!")
-    if "Password" in cloudformation_outputs:
-        mysql_parameters["Password"] = cloudformation_outputs.get("Password")
+    if "DatabasesPassword" in cloudformation_outputs:
+        mysql_parameters["DatabasesPassword"] = cloudformation_outputs.get("DatabasesPassword")
     else:
         raise Exception("You must deploy the test infrastructure using SAM!")
     conn = Aurora.generate_connection(database="mysql",
                                       host=mysql_parameters["MysqlAddress"],
                                       port=3306,
                                       user="test",
-                                      password=mysql_parameters["Password"],
+                                      password=mysql_parameters["DatabasesPassword"],
                                       engine="mysql")
     with conn.cursor() as cursor:
         sql = "CREATE DATABASE IF NOT EXISTS test"
@@ -1660,7 +1660,7 @@ def test_aurora_mysql_load_simple(bucket, mysql_parameters):
                                       host=mysql_parameters["MysqlAddress"],
                                       port=3306,
                                       user="test",
-                                      password=mysql_parameters["Password"],
+                                      password=mysql_parameters["DatabasesPassword"],
                                       engine="mysql")
     path = f"s3://{bucket}/test_aurora_mysql_load_simple"
     wr.pandas.to_aurora(dataframe=df,
@@ -1688,7 +1688,7 @@ def test_aurora_postgres_load_simple(bucket, postgres_parameters):
                                       host=postgres_parameters["PostgresAddress"],
                                       port=3306,
                                       user="test",
-                                      password=postgres_parameters["Password"],
+                                      password=postgres_parameters["DatabasesPassword"],
                                       engine="postgres")
     path = f"s3://{bucket}/test_aurora_postgres_load_simple"
     wr.pandas.to_aurora(
@@ -1719,7 +1719,7 @@ def test_aurora_mysql_unload_simple(bucket, mysql_parameters):
                                       host=mysql_parameters["MysqlAddress"],
                                       port=3306,
                                       user="test",
-                                      password=mysql_parameters["Password"],
+                                      password=mysql_parameters["DatabasesPassword"],
                                       engine="mysql")
     path = f"s3://{bucket}/test_aurora_mysql_unload_simple"
     wr.pandas.to_aurora(dataframe=df,
@@ -1794,7 +1794,7 @@ def test_aurora_mysql_load_append(bucket, mysql_parameters):
                                       host=mysql_parameters["MysqlAddress"],
                                       port=3306,
                                       user="test",
-                                      password=mysql_parameters["Password"],
+                                      password=mysql_parameters["DatabasesPassword"],
                                       engine="mysql")
     path = f"s3://{bucket}/test_aurora_mysql_load_append"
 
@@ -1844,7 +1844,7 @@ def test_aurora_postgres_load_append(bucket, postgres_parameters):
                                       host=postgres_parameters["PostgresAddress"],
                                       port=3306,
                                       user="test",
-                                      password=postgres_parameters["Password"],
+                                      password=postgres_parameters["DatabasesPassword"],
                                       engine="postgres")
     path = f"s3://{bucket}/test_aurora_postgres_load_append"
 
@@ -1951,7 +1951,7 @@ def test_aurora_postgres_load_special(bucket, postgres_parameters):
                                       host=postgres_parameters["PostgresAddress"],
                                       port=3306,
                                       user="test",
-                                      password=postgres_parameters["Password"],
+                                      password=postgres_parameters["DatabasesPassword"],
                                       engine="postgres")
     with conn.cursor() as cursor:
         cursor.execute("SELECT * FROM public.test_aurora_postgres_special")
@@ -2003,7 +2003,7 @@ def test_aurora_mysql_load_special(bucket, mysql_parameters):
                                       host=mysql_parameters["MysqlAddress"],
                                       port=3306,
                                       user="test",
-                                      password=mysql_parameters["Password"],
+                                      password=mysql_parameters["DatabasesPassword"],
                                       engine="mysql")
     with conn.cursor() as cursor:
         cursor.execute("SELECT * FROM test.test_aurora_mysql_special")
@@ -2103,7 +2103,7 @@ def test_aurora_postgres_load_special2(bucket, postgres_parameters):
                                       host=postgres_parameters["PostgresAddress"],
                                       port=3306,
                                       user="test",
-                                      password=postgres_parameters["Password"],
+                                      password=postgres_parameters["DatabasesPassword"],
                                       engine="postgres")
     with conn.cursor() as cursor:
         cursor.execute("SELECT count(*) FROM public.test_aurora_postgres_load_special2")
@@ -2161,7 +2161,7 @@ def test_aurora_mysql_load_special2(bucket, mysql_parameters):
                                       host=mysql_parameters["MysqlAddress"],
                                       port=3306,
                                       user="test",
-                                      password=mysql_parameters["Password"],
+                                      password=mysql_parameters["DatabasesPassword"],
                                       engine="mysql")
     with conn.cursor() as cursor:
         cursor.execute("SELECT count(*) FROM test.test_aurora_mysql_load_special2")
@@ -2228,7 +2228,7 @@ def test_aurora_postgres_load_columns(bucket, postgres_parameters):
                                       host=postgres_parameters["PostgresAddress"],
                                       port=3306,
                                       user="test",
-                                      password=postgres_parameters["Password"],
+                                      password=postgres_parameters["DatabasesPassword"],
                                       engine="postgres")
     path = f"s3://{bucket}/test_aurora_postgres_load_columns"
     wr.pandas.to_aurora(dataframe=df,
@@ -2272,7 +2272,7 @@ def test_aurora_mysql_load_columns(bucket, mysql_parameters):
                                       host=mysql_parameters["MysqlAddress"],
                                       port=3306,
                                       user="test",
-                                      password=mysql_parameters["Password"],
+                                      password=mysql_parameters["DatabasesPassword"],
                                       engine="mysql")
     path = f"s3://{bucket}/test_aurora_mysql_load_columns"
     wr.pandas.to_aurora(dataframe=df,
@@ -2322,7 +2322,7 @@ def test_aurora_mysql_unload_null(bucket, mysql_parameters):
                                       host=mysql_parameters["MysqlAddress"],
                                       port=3306,
                                       user="test",
-                                      password=mysql_parameters["Password"],
+                                      password=mysql_parameters["DatabasesPassword"],
                                       engine="mysql")
     path = f"s3://{bucket}/test_aurora_mysql_unload_complex"
     wr.pandas.to_aurora(dataframe=df,

@@ -63,7 +63,7 @@ class Pandas:
 
         :param path: Amazon S3 path (e.g. s3://bucket_name/key_name)
         :param max_result_size: Max number of bytes on each request to S3. It offers functionality similar to chunksize in pandas.read_csv(), but with higher performance
-        :param **pd_additional_kwargs: Additional parameters forwarded to pandas.read_csv
+        :param pd_additional_kwargs: Additional parameters forwarded to pandas.read_csv
         :return: Pandas Dataframe or Iterator of Pandas Dataframes if max_result_size != None
         """
 
@@ -1583,7 +1583,7 @@ class Pandas:
         :param paths: List of Amazon S3 paths (e.g. ['s3://bucket_name/key_name1', 's3://bucket_name/key_name2'])
         :param max_result_size: Max number of bytes on each request to S3. It offers functionality similar to chunksize in pandas.read_csv(), but with higher performance
         :param procs_cpu_bound: Number of cores used for CPU bound tasks
-        :param **pd_additional_kwargs: Additional parameters forwarded to pandas.read_csv
+        :param pd_additional_kwargs: Additional parameters forwarded to pandas.read_csv
         :return: Pandas Dataframe or Iterator of Pandas Dataframes if max_result_size != None
         """
         if max_result_size is not None:
@@ -1636,7 +1636,7 @@ class Pandas:
 
         :param paths: List of Amazon S3 paths (e.g. ['s3://bucket_name/key_name1', 's3://bucket_name/key_name2'])
         :param max_result_size: Max number of bytes on each request to S3. It offers functionality similar to chunksize in pandas.read_csv(), but with higher performance
-        :param **pd_additional_kwargs: Additional parameters forwarded to pandas.read_csv
+        :param pd_additional_kwargs: Additional parameters forwarded to pandas.read_csv
         :return: Iterator of iterators of Pandas Dataframes
         """
         for path in paths:

@@ -379,6 +379,7 @@ class Glue:
         return {
             "StorageDescriptor": {
                 "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
+                "OutputFormat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
                 "Location": partition[0],
                 "Compressed": compressed,
                 "SerdeInfo": {
@@ -440,7 +441,8 @@ class Glue:
         compressed = False if compression is None else True
         return {
             "StorageDescriptor": {
-                "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
+                "InputFormat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+                "OutputFormat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat",
                 "Location": partition[0],
                 "Compressed": compressed,
                 "SerdeInfo": {

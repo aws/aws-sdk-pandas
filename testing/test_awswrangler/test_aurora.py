@@ -26,8 +26,8 @@ def postgres_parameters(cloudformation_outputs):
         postgres_parameters["PostgresAddress"] = cloudformation_outputs.get("PostgresAddress")
     else:
         raise Exception("You must deploy the test infrastructure using SAM!")
-    if "Password" in cloudformation_outputs:
-        postgres_parameters["Password"] = cloudformation_outputs.get("Password")
+    if "DatabasesPassword" in cloudformation_outputs:
+        postgres_parameters["DatabasesPassword"] = cloudformation_outputs.get("DatabasesPassword")
     else:
         raise Exception("You must deploy the test infrastructure using SAM!")
     yield postgres_parameters
@@ -40,8 +40,8 @@ def mysql_parameters(cloudformation_outputs):
         mysql_parameters["MysqlAddress"] = cloudformation_outputs.get("MysqlAddress")
     else:
         raise Exception("You must deploy the test infrastructure using SAM!")
-    if "Password" in cloudformation_outputs:
-        mysql_parameters["Password"] = cloudformation_outputs.get("Password")
+    if "DatabasesPassword" in cloudformation_outputs:
+        mysql_parameters["DatabasesPassword"] = cloudformation_outputs.get("DatabasesPassword")
     else:
         raise Exception("You must deploy the test infrastructure using SAM!")
     yield mysql_parameters
@@ -52,7 +52,7 @@ def test_postgres_connection(postgres_parameters):
                                       host=postgres_parameters["PostgresAddress"],
                                       port=3306,
                                       user="test",
-                                      password=postgres_parameters["Password"],
+                                      password=postgres_parameters["DatabasesPassword"],
                                       engine="postgres")
     cursor = conn.cursor()
     cursor.execute("SELECT 1 + 2, 3 + 4")
@@ -68,7 +68,7 @@ def test_mysql_connection(mysql_parameters):
                                       host=mysql_parameters["MysqlAddress"],
                                       port=3306,
                                       user="test",
-                                      password=mysql_parameters["Password"],
+                                      password=mysql_parameters["DatabasesPassword"],
                                       engine="mysql")
     cursor = conn.cursor()
     cursor.execute("SELECT 1 + 2, 3 + 4")
@@ -85,5 +85,5 @@ def test_invalid_engine(mysql_parameters):
                                    host=mysql_parameters["MysqlAddress"],
                                    port=3306,
                                    user="test",
-                                   password=mysql_parameters["Password"],
+                                   password=mysql_parameters["DatabasesPassword"],
                                    engine="foo")
