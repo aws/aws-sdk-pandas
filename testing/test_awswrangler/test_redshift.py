@@ -2,6 +2,7 @@ import json
 import logging
 from datetime import date, datetime
 from decimal import Decimal
+from time import sleep
 
 import pytest
 import boto3
@@ -39,7 +40,7 @@ def bucket(session, cloudformation_outputs):
     else:
         raise Exception("You must deploy the test infrastructure using SAM!")
     yield bucket
-    session.s3.delete_objects(path=f"s3://{bucket}/")
+    # session.s3.delete_objects(path=f"s3://{bucket}/")
 
 
 @pytest.fixture(scope="module")
@@ -49,8 +50,8 @@ def redshift_parameters(cloudformation_outputs):
         redshift_parameters["RedshiftAddress"] = cloudformation_outputs.get("RedshiftAddress")
     else:
         raise Exception("You must deploy the test infrastructure using SAM!")
-    if "Password" in cloudformation_outputs:
-        redshift_parameters["Password"] = cloudformation_outputs.get("Password")
+    if "DatabasesPassword" in cloudformation_outputs:
+        redshift_parameters["DatabasesPassword"] = cloudformation_outputs.get("DatabasesPassword")
     else:
         raise Exception("You must deploy the test infrastructure using SAM!")
     if "RedshiftPort" in cloudformation_outputs:
@@ -62,6 +63,51 @@ def redshift_parameters(cloudformation_outputs):
     else:
         raise Exception("You must deploy the test infrastructure using SAM!")
     yield redshift_parameters
+
+
+@pytest.fixture(scope="module")
+def glue_database(cloudformation_outputs):
+    if "GlueDatabaseName" in cloudformation_outputs:
+        database = cloudformation_outputs["GlueDatabaseName"]
+    else:
+        raise Exception("You must deploy the test infrastructure using Cloudformation!")
+    yield database
+    tables = wr.glue.tables(database=database)["Table"].tolist()
+    for t in tables:
+        print(f"Dropping: {database}.{t}...")
+        wr.glue.delete_table_if_exists(database=database, table=t)
+
+
+@pytest.fixture(scope="module")
+def external_schema(cloudformation_outputs, redshift_parameters, glue_database):
+    if "Region" in cloudformation_outputs:
+        region = cloudformation_outputs.get("Region")
+    else:
+        raise Exception("You must deploy the test infrastructure using SAM!")
+    sql1 = f"""
+    CREATE EXTERNAL SCHEMA IF NOT EXISTS aws_data_wrangler_external FROM data catalog 
+    DATABASE '{glue_database}' 
+    IAM_ROLE '{redshift_parameters.get("RedshiftRole")}' 
+    REGION '{region}';
+    """
+    sql2 = f"""
+    GRANT ALL
+    ON EXTERNAL SCHEMA aws_data_wrangler_external
+    TO IAM_ROLE '{redshift_parameters.get("RedshiftRole")}'
+    """
+    sql3 = f"""
+    GRANT ALL
+    ON EXTERNAL SCHEMA aws_data_wrangler_external
+    TO PUBLIC
+    """
+    conn = wr.redshift.get_connection("aws-data-wrangler-redshift")
+    conn.autocommit = True
+    with conn.cursor() as cursor:
+        cursor.execute(sql1)
+        cursor.execute(sql2)
+        cursor.execute(sql3)
+    conn.close()
+    yield "aws_data_wrangler_external"
 
 
 @pytest.mark.parametrize(
@@ -91,7 +137,7 @@ def test_to_redshift_pandas(session, bucket, redshift_parameters, sample_name, m
         host=redshift_parameters.get("RedshiftAddress"),
         port=redshift_parameters.get("RedshiftPort"),
         user="test",
-        password=redshift_parameters.get("Password"),
+        password=redshift_parameters.get("DatabasesPassword"),
     )
     path = f"s3://{bucket}/redshift-load/"
     session.pandas.to_redshift(
@@ -159,7 +205,7 @@ def test_to_redshift_pandas_glue(session, bucket, redshift_parameters, sample_na
         host=redshift_parameters.get("RedshiftAddress"),
         port=redshift_parameters.get("RedshiftPort"),
         user="test",
-        password=redshift_parameters.get("Password"),
+        password=redshift_parameters.get("DatabasesPassword"),
     )
     cursor = con.cursor()
     cursor.execute("SELECT * from public.test")
@@ -184,7 +230,7 @@ def test_to_redshift_pandas_cast(session, bucket, redshift_parameters):
         host=redshift_parameters.get("RedshiftAddress"),
         port=redshift_parameters.get("RedshiftPort"),
         user="test",
-        password=redshift_parameters.get("Password"),
+        password=redshift_parameters.get("DatabasesPassword"),
     )
     path = f"s3://{bucket}/redshift-load/"
     session.pandas.to_redshift(dataframe=df,
@@ -223,7 +269,7 @@ def test_to_redshift_pandas_exceptions(session, bucket, redshift_parameters, sam
         host=redshift_parameters.get("RedshiftAddress"),
         port=redshift_parameters.get("RedshiftPort"),
         user="test",
-        password=redshift_parameters.get("Password"),
+        password=redshift_parameters.get("DatabasesPassword"),
     )
     path = f"s3://{bucket}/redshift-load/"
     with pytest.raises(exc):
@@ -277,7 +323,7 @@ def test_to_redshift_spark(session, bucket, redshift_parameters, sample_name, mo
         host=redshift_parameters.get("RedshiftAddress"),
         port=redshift_parameters.get("RedshiftPort"),
         user="test",
-        password=redshift_parameters.get("Password"),
+        password=redshift_parameters.get("DatabasesPassword"),
     )
     session.spark.to_redshift(
         dataframe=dataframe,
@@ -314,7 +360,7 @@ def test_to_redshift_spark_big(session, bucket, redshift_parameters):
         host=redshift_parameters.get("RedshiftAddress"),
         port=redshift_parameters.get("RedshiftPort"),
         user="test",
-        password=redshift_parameters.get("Password"),
+        password=redshift_parameters.get("DatabasesPassword"),
     )
     session.spark.to_redshift(
         dataframe=dataframe,
@@ -342,7 +388,7 @@ def test_to_redshift_spark_bool(session, bucket, redshift_parameters):
         host=redshift_parameters.get("RedshiftAddress"),
         port=redshift_parameters.get("RedshiftPort"),
         user="test",
-        password=redshift_parameters.get("Password"),
+        password=redshift_parameters.get("DatabasesPassword"),
     )
     session.spark.to_redshift(
         dataframe=dataframe,
@@ -379,7 +425,7 @@ def test_stress_to_redshift_spark_big(session, bucket, redshift_parameters):
             host=redshift_parameters.get("RedshiftAddress"),
             port=redshift_parameters.get("RedshiftPort"),
             user="test",
-            password=redshift_parameters.get("Password"),
+            password=redshift_parameters.get("DatabasesPassword"),
         )
         session.spark.to_redshift(
             dataframe=dataframe,
@@ -414,7 +460,7 @@ def test_to_redshift_spark_exceptions(session, bucket, redshift_parameters, samp
         host=redshift_parameters.get("RedshiftAddress"),
         port=redshift_parameters.get("RedshiftPort"),
         user="test",
-        password=redshift_parameters.get("Password"),
+        password=redshift_parameters.get("DatabasesPassword"),
     )
     with pytest.raises(exc):
         assert session.spark.to_redshift(
@@ -453,7 +499,7 @@ def test_connection_timeout(redshift_parameters):
             host=redshift_parameters.get("RedshiftAddress"),
             port=12345,
             user="test",
-            password=redshift_parameters.get("Password"),
+            password=redshift_parameters.get("DatabasesPassword"),
         )
 
 
@@ -463,7 +509,7 @@ def test_connection_with_different_port_types(redshift_parameters):
         host=redshift_parameters.get("RedshiftAddress"),
         port=str(redshift_parameters.get("RedshiftPort")),
         user="test",
-        password=redshift_parameters.get("Password"),
+        password=redshift_parameters.get("DatabasesPassword"),
     )
     conn.close()
     conn = Redshift.generate_connection(
@@ -471,7 +517,7 @@ def test_connection_with_different_port_types(redshift_parameters):
         host=redshift_parameters.get("RedshiftAddress"),
         port=float(redshift_parameters.get("RedshiftPort")),
         user="test",
-        password=redshift_parameters.get("Password"),
+        password=redshift_parameters.get("DatabasesPassword"),
     )
     conn.close()
 
@@ -488,7 +534,7 @@ def test_to_redshift_pandas_decimal(session, bucket, redshift_parameters):
         host=redshift_parameters.get("RedshiftAddress"),
         port=redshift_parameters.get("RedshiftPort"),
         user="test",
-        password=redshift_parameters.get("Password"),
+        password=redshift_parameters.get("DatabasesPassword"),
     )
     path = f"s3://{bucket}/redshift-load/"
     session.pandas.to_redshift(
@@ -533,7 +579,7 @@ def test_to_redshift_spark_decimal(session, bucket, redshift_parameters):
         host=redshift_parameters.get("RedshiftAddress"),
         port=redshift_parameters.get("RedshiftPort"),
         user="test",
-        password=redshift_parameters.get("Password"),
+        password=redshift_parameters.get("DatabasesPassword"),
     )
     path = f"s3://{bucket}/redshift-load2/"
     session.spark.to_redshift(
@@ -572,7 +618,7 @@ def test_to_parquet(session, bucket, redshift_parameters):
         host=redshift_parameters.get("RedshiftAddress"),
         port=redshift_parameters.get("RedshiftPort"),
         user="test",
-        password=redshift_parameters.get("Password"),
+        password=redshift_parameters.get("DatabasesPassword"),
     )
     path = f"s3://{bucket}/test_to_parquet/"
     session.pandas.to_redshift(
@@ -609,7 +655,7 @@ def test_read_sql_redshift_pandas(session, bucket, redshift_parameters, sample_n
         host=redshift_parameters.get("RedshiftAddress"),
         port=redshift_parameters.get("RedshiftPort"),
         user="test",
-        password=redshift_parameters.get("Password"),
+        password=redshift_parameters.get("DatabasesPassword"),
     )
     path = f"s3://{bucket}/test_read_sql_redshift_pandas/"
     session.pandas.to_redshift(
@@ -639,7 +685,7 @@ def test_read_sql_redshift_pandas2(session, bucket, redshift_parameters):
         host=redshift_parameters.get("RedshiftAddress"),
         port=redshift_parameters.get("RedshiftPort"),
         user="test",
-        password=redshift_parameters.get("Password"),
+        password=redshift_parameters.get("DatabasesPassword"),
     )
     path = f"s3://{bucket}/test_read_sql_redshift_pandas2/"
     session.pandas.to_redshift(
@@ -669,7 +715,7 @@ def test_to_redshift_pandas_upsert(session, bucket, redshift_parameters):
         host=redshift_parameters.get("RedshiftAddress"),
         port=redshift_parameters.get("RedshiftPort"),
         user="test",
-        password=redshift_parameters.get("Password"),
+        password=redshift_parameters.get("DatabasesPassword"),
     )
 
     df = pd.DataFrame({"id": list((range(1_000))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(1_000)])})
@@ -775,3 +821,60 @@ def test_read_sql_redshift_pandas_empty(session, bucket, redshift_parameters):
                                            connection="aws-data-wrangler-redshift",
                                            temp_s3_path=path2)
     assert df2.equals(pd.DataFrame())
+
+
+def test_spectrum_parquet(bucket, glue_database, external_schema):
+    df = pd.DataFrame({
+        "id": [1, 2, 3, 4, 5],
+        "col_str": ["foo", None, "bar", None, "xoo"],
+        "par_int": [0, 1, 0, 1, 1]
+    })
+    path = f"s3://{bucket}/test_spectrum_parquet/"
+    wr.pandas.to_parquet(
+        dataframe=df,
+        path=path,
+        database=glue_database,
+        mode="overwrite",
+        preserve_index=False,
+        partition_cols=["par_int"],
+        procs_cpu_bound=1
+    )
+    sleep(1)
+    conn = wr.redshift.get_connection("aws-data-wrangler-redshift")
+    with conn.cursor() as cursor:
+        cursor = cursor.execute(f"SELECT * FROM {external_schema}.test_spectrum_parquet")
+        rows = cursor.fetchall()
+    conn.commit()
+    conn.close()
+    assert len(rows) == len(df.index)
+    for row in rows:
+        assert len(row) == len(df.columns)
+
+
+def test_spectrum_csv(bucket, glue_database, external_schema):
+    df = pd.DataFrame({
+        "id": [1, 2, 3, 4, 5],
+        "col_str": ["foo", None, "bar", None, "xoo"],
+        "par_int": [0, 1, 0, 1, 1]
+    })
+    path = f"s3://{bucket}/test_spectrum_csv/"
+    wr.pandas.to_parquet(
+        dataframe=df,
+        path=path,
+        database=glue_database,
+        mode="overwrite",
+        preserve_index=False,
+        partition_cols=["par_int"],
+        procs_cpu_bound=1
+    )
+    sleep(1)
+    conn = wr.redshift.get_connection("aws-data-wrangler-redshift")
+    with conn.cursor() as cursor:
+        cursor = cursor.execute(f"SELECT * FROM {external_schema}.test_spectrum_csv")
+        rows = cursor.fetchall()
+    conn.commit()
+    conn.close()
+    print(rows)
+    assert len(rows) == len(df.index)
+    for row in rows:
+        assert len(row) == len(df.columns)

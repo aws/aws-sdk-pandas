@@ -44,7 +44,7 @@ class Redshift:
                              password,
                              tcp_keepalive=True,
                              application_name="aws-data-wrangler-validation",
-                             validation_timeout=5):
+                             validation_timeout=10):
         conn = pg8000.connect(database=database,
                               host=host,
                               port=int(port),
@@ -66,7 +66,7 @@ class Redshift:
                             application_name="aws-data-wrangler",
                             connection_timeout=1_200_000,
                             statement_timeout=1_200_000,
-                            validation_timeout=5):
+                            validation_timeout=10):
         """
         Generates a valid connection object to be passed to the load_table method
 
