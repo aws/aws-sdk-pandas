@@ -20,7 +20,7 @@ def athena2pandas(dtype: str) -> str:
     elif dtype == "boolean":
         return "bool"
     elif dtype in ("string", "char", "varchar"):
-        return "str"
+        return "string"
     elif dtype in ("timestamp", "timestamp with time zone"):
         return "datetime64"
     elif dtype == "date":
@@ -117,6 +117,8 @@ def pandas2athena(dtype: str) -> str:
         return "double"
     elif dtype == "bool":
         return "boolean"
+    elif dtype == "string":
+        return "string"
     elif dtype == "object":
         return "string"
     elif dtype.startswith("datetime64"):
@@ -137,7 +139,9 @@ def pandas2redshift(dtype: str, varchar_length: int = 256) -> str:
         return "FLOAT8"
     elif dtype == "bool":
         return "BOOLEAN"
-    elif dtype == "object" and isinstance(dtype, str):
+    elif dtype == "string":
+        return f"VARCHAR({varchar_length})"
+    elif dtype == "object":
         return f"VARCHAR({varchar_length})"
     elif dtype[:10] == "datetime64":
         return "TIMESTAMP"
@@ -375,11 +379,13 @@ def extract_pyarrow_schema_from_pandas(dataframe: pd.DataFrame,
     if indexes_position not in ("right", "left"):
         raise ValueError(f"indexes_position must be \"right\" or \"left\"")
 
-    # Handle exception data types (e.g. Int64)
+    # Handle exception data types (e.g. Int64, string)
     for name, dtype in dataframe.dtypes.to_dict().items():
         dtype = str(dtype)
         if dtype == "Int64":
             cols_dtypes[name] = "int64"
+        elif dtype == "string":
+            cols_dtypes[name] = "string"
         else:
             cols.append(name)
 

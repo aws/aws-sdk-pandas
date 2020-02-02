@@ -235,12 +235,9 @@ class Glue:
             preserve_index: bool,
             indexes_position: str,
             cast_columns: Optional[Dict[str, str]] = None) -> Tuple[List[Tuple[str, str]], List[Tuple[str, str]]]:
-        if cast_columns is None:
-            cast_columns = {}
+        cast_columns = {} if cast_columns is None else cast_columns
+        partition_cols = [] if partition_cols is None else partition_cols
         logger.debug(f"dataframe.dtypes:\n{dataframe.dtypes}")
-        if partition_cols is None:
-            partition_cols = []
-
         pyarrow_schema: List[Tuple[str, Any]] = data_types.extract_pyarrow_schema_from_pandas(
             dataframe=dataframe, preserve_index=preserve_index, indexes_position=indexes_position)
 

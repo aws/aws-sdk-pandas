@@ -870,6 +870,7 @@ def test_spectrum_csv(bucket, glue_database, external_schema):
 
 def test_to_redshift_pandas_varchar(bucket, redshift_parameters):
     df = pd.DataFrame({"id": [1, 2, 3], "varchar3": ["foo", "boo", "bar"], "varchar1": ["a", "b", "c"]})
+    df["varchar3"] = df["varchar3"].astype("string")
     path = f"s3://{bucket}/test_to_redshift_pandas_varchar"
     wr.pandas.to_redshift(dataframe=df,
                           path=path,
