@@ -2365,3 +2365,68 @@ def test_s3_overall_nan(bucket, database):
                                     ctas_approach=True)
     wr.s3.delete_objects(path=path)
     assert df.equals(df2)
+
+
+def test_aurora_postgres_load_varchar(bucket, postgres_parameters):
+    df = pd.DataFrame({"id": [1, 2, 3], "varchar3": ["foo", "boo", "bar"], "varchar1": ["a", "b", "c"]})
+    path = f"s3://{bucket}/test_aurora_postgres_load_varchar"
+    wr.pandas.to_aurora(dataframe=df,
+                        connection="aws-data-wrangler-postgres",
+                        schema="public",
+                        table="test_aurora_postgres_load_varchar",
+                        mode="overwrite",
+                        temp_s3_path=path,
+                        engine="postgres",
+                        preserve_index=False,
+                        varchar_default_length=3,
+                        varchar_lengths={"varchar1": 1})
+    conn = Aurora.generate_connection(database="postgres",
+                                      host=postgres_parameters["PostgresAddress"],
+                                      port=3306,
+                                      user="test",
+                                      password=postgres_parameters["DatabasesPassword"],
+                                      engine="postgres")
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT * FROM public.test_aurora_postgres_load_varchar")
+        rows = cursor.fetchall()
+        assert len(rows) == len(df.index)
+        assert rows[0][0] == 1
+        assert rows[1][0] == 2
+        assert rows[2][0] == 3
+        assert rows[0][1] == "foo"
+        assert rows[1][1] == "boo"
+        assert rows[2][1] == "bar"
+        assert rows[0][2] == "a"
+        assert rows[1][2] == "b"
+        assert rows[2][2] == "c"
+    conn.close()
+
+
+def test_aurora_mysql_load_varchar(bucket):
+    df = pd.DataFrame({"id": [1, 2, 3], "varchar3": ["foo", "boo", "bar"], "varchar1": ["a", "b", "c"]})
+    path = f"s3://{bucket}/test_aurora_mysql_load_varchar"
+    wr.pandas.to_aurora(dataframe=df,
+                        connection="aws-data-wrangler-mysql",
+                        schema="test",
+                        table="test_aurora_mysql_load_varchar",
+                        mode="overwrite",
+                        temp_s3_path=path,
+                        engine="mysql",
+                        preserve_index=False,
+                        varchar_default_length=3,
+                        varchar_lengths={"varchar1": 1})
+    conn = wr.glue.get_connection("aws-data-wrangler-mysql")
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT * FROM test.test_aurora_mysql_load_varchar")
+        rows = cursor.fetchall()
+        assert len(rows) == len(df.index)
+        assert rows[0][0] == 1
+        assert rows[1][0] == 2
+        assert rows[2][0] == 3
+        assert rows[0][1] == "foo"
+        assert rows[1][1] == "boo"
+        assert rows[2][1] == "bar"
+        assert rows[0][2] == "a"
+        assert rows[1][2] == "b"
+        assert rows[2][2] == "c"
+    conn.close()

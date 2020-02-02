@@ -409,12 +409,13 @@ class Redshift:
                     redshift_type = data_types.pyarrow2redshift(dtype=dtype, varchar_length=varchar_len)
                     schema_built.append((name, redshift_type))
         elif dataframe_type.lower() == "spark":
+            logger.debug(f"cast_columns.keys: {cast_columns.keys()}")
             for name, dtype in dataframe.dtypes:
                 varchar_len = varchar_lengths.get(name, varchar_default_length)
                 if name in cast_columns.keys():
                     redshift_type = data_types.athena2redshift(dtype=cast_columns[name], varchar_length=varchar_len)
                 else:
-                    redshift_type = data_types.spark2redshift(dtype=cast_columns[name], varchar_length=varchar_len)
+                    redshift_type = data_types.spark2redshift(dtype=dtype, varchar_length=varchar_len)
                 schema_built.append((name, redshift_type))
         else:
             raise InvalidDataframeType(

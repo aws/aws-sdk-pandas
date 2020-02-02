@@ -866,3 +866,49 @@ def test_spectrum_csv(bucket, glue_database, external_schema):
     assert len(rows) == len(df.index)
     for row in rows:
         assert len(row) == len(df.columns)
+
+
+def test_to_redshift_pandas_varchar(bucket, redshift_parameters):
+    df = pd.DataFrame({"id": [1, 2, 3], "varchar3": ["foo", "boo", "bar"], "varchar1": ["a", "b", "c"]})
+    path = f"s3://{bucket}/test_to_redshift_pandas_varchar"
+    wr.pandas.to_redshift(dataframe=df,
+                          path=path,
+                          schema="public",
+                          table="test_to_redshift_pandas_varchar",
+                          connection="aws-data-wrangler-redshift",
+                          iam_role=redshift_parameters.get("RedshiftRole"),
+                          mode="overwrite",
+                          preserve_index=False,
+                          varchar_default_length=3,
+                          varchar_lengths={"varchar1": 1})
+    conn = wr.glue.get_connection("aws-data-wrangler-redshift")
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT * FROM public.test_to_redshift_pandas_varchar")
+        rows = cursor.fetchall()
+        assert len(rows) == len(df.index)
+        for row in rows:
+            assert len(row) == len(df.columns)
+    conn.close()
+
+
+def test_to_redshift_spark_varchar(session, bucket, redshift_parameters):
+    pdf = pd.DataFrame({"id": [1, 2, 3], "varchar3": ["foo", "boo", "bar"], "varchar1": ["a", "b", "c"]})
+    df = session.spark_session.createDataFrame(pdf)
+    path = f"s3://{bucket}/test_to_redshift_spark_varchar"
+    session.spark.to_redshift(dataframe=df,
+                              path=path,
+                              schema="public",
+                              table="test_to_redshift_spark_varchar",
+                              connection="aws-data-wrangler-redshift",
+                              iam_role=redshift_parameters.get("RedshiftRole"),
+                              mode="overwrite",
+                              varchar_default_length=3,
+                              varchar_lengths={"varchar1": 1})
+    conn = wr.glue.get_connection("aws-data-wrangler-redshift")
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT * FROM public.test_to_redshift_spark_varchar")
+        rows = cursor.fetchall()
+        assert len(rows) == len(pdf.index)
+        for row in rows:
+            assert len(row) == len(pdf.columns)
+    conn.close()
