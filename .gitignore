@@ -136,4 +136,5 @@ python/
 .aws-sam
 testing/*parameters-*.properties
 testing/*requirements*.txt
+testing/coverage/*
 building/*requirements*.txt
