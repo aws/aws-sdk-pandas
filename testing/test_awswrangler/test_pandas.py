@@ -147,8 +147,9 @@ def mysql_parameters(cloudformation_outputs):
 
 @pytest.mark.parametrize("sample, row_num", [("data_samples/micro.csv", 30), ("data_samples/small.csv", 100)])
 def test_read_csv(session, bucket, sample, row_num):
-    boto3.client("s3").upload_file(sample, bucket, sample)
     path = f"s3://{bucket}/{sample}"
+    session.s3.delete_objects(path=f"s3://{bucket}/")
+    boto3.client("s3").upload_file(sample, bucket, sample)
     dataframe = session.pandas.read_csv(path=path)
     session.s3.delete_objects(path=path)
     assert len(dataframe.index) == row_num
@@ -341,7 +342,9 @@ def test_to_parquet_with_cast_int(
     session.s3.delete_objects(path=path)
     assert len(dataframe.index) == len(dataframe2.index)
     assert len(list(dataframe.columns)) == len(list(dataframe2.columns))
-    assert dataframe[dataframe["id"] == 0].iloc[0]["name"] == dataframe2[dataframe2["id"] == 0].iloc[0]["name"]
+    df = dataframe[~dataframe.id.isna()]
+    df2 = dataframe2[~dataframe2.id.isna()]
+    assert df[df["id"] == 0].iloc[0]["name"] == df2[df2["id"] == 0].iloc[0]["name"]
 
 
 @pytest.mark.parametrize("sample, row_num, max_result_size", [
@@ -499,7 +502,7 @@ def test_etl_complex_ctas(session, bucket, database):
         assert isinstance(row.my_float, float)
         assert isinstance(row.my_int, int)
         assert isinstance(row.my_string, str)
-        assert str(row.my_int_with_null) in ("1", "nan")
+        assert str(row.my_int_with_null) in ("1", "nan", "<NA>")
         assert str(row.my_timestamp) == "2018-01-01 04:03:02.001000"
         assert str(row.my_date) == "2019-02-02 00:00:00"
         assert str(row.my_float) == "12345.6789"
@@ -1044,11 +1047,11 @@ def test_partition_date(session, bucket, database):
         assert len(list(df.columns)) == len(list(df2.columns))
         if len(df.index) == len(df2.index):
             break
-    assert len(df.index) == len(df2.index)
-    assert df2.dtypes[0] == "object"
-    assert df2.dtypes[1] == "object"
-    assert df2.dtypes[2] == "object"
     session.s3.delete_objects(path=path)
+    assert len(df.index) == len(df2.index)
+    assert str(df2.dtypes[0]) == "string"
+    assert str(df2.dtypes[1]) == "object"
+    assert str(df2.dtypes[2]) == "object"
 
 
 def test_partition_cast_date(session, bucket, database):
@@ -1078,9 +1081,9 @@ def test_partition_cast_date(session, bucket, database):
         if len(df.index) == len(df2.index):
             break
     assert len(df.index) == len(df2.index)
-    assert df2.dtypes[0] == "object"
-    assert df2.dtypes[1] == "object"
-    assert df2.dtypes[2] == "object"
+    assert str(df2.dtypes[0]) == "string"
+    assert str(df2.dtypes[1]) == "object"
+    assert str(df2.dtypes[2]) == "object"
     session.s3.delete_objects(path=path)
 
 
@@ -1111,7 +1114,7 @@ def test_partition_cast_timestamp(session, bucket, database):
         if len(df.index) == len(df2.index):
             break
     assert len(df.index) == len(df2.index)
-    assert str(df2.dtypes[0]) == "object"
+    assert str(df2.dtypes[0]) == "string"
     assert str(df2.dtypes[1]).startswith("datetime64")
     assert str(df2.dtypes[2]).startswith("datetime64")
     session.s3.delete_objects(path=path)
@@ -1147,13 +1150,13 @@ def test_partition_cast(session, bucket, database):
         assert len(list(df.columns)) == len(list(df2.columns))
         if len(df.index) == len(df2.index):
             break
+    session.s3.delete_objects(path=path)
     assert len(df.index) == len(df2.index)
-    assert df2.dtypes[0] == "object"
+    assert str(df2.dtypes[0]) == "string"
     assert str(df2.dtypes[1]).startswith("datetime")
     assert str(df2.dtypes[2]).startswith("float")
     assert str(df2.dtypes[3]).startswith("bool")
     assert str(df2.dtypes[4]).startswith("datetime")
-    session.s3.delete_objects(path=path)
 
 
 @pytest.mark.parametrize("procs", [1, 2, 8])
@@ -1231,10 +1234,10 @@ def test_nan_cast(session, bucket, database, partition_cols):
         if len(df.index) == len(df2.index):
             break
     assert len(df.index) == len(df2.index)
-    assert df2.dtypes[0] == "object"
-    assert df2.dtypes[1] == "object"
-    assert df2.dtypes[2] == "object"
-    assert df2.dtypes[3] == "object"
+    assert str(df2.dtypes[0]) == "string"
+    assert str(df2.dtypes[1]) == "string"
+    assert str(df2.dtypes[2]) == "string"
+    assert str(df2.dtypes[3]) == "string"
     assert df2.iloc[:, 0].isna().sum() == 4
     assert df2.iloc[:, 1].isna().sum() == 2
     assert df2.iloc[:, 2].isna().sum() == 2
@@ -1242,11 +1245,11 @@ def test_nan_cast(session, bucket, database, partition_cols):
     assert df2.iloc[:, 4].isna().sum() == 0
     assert df2.iloc[:, 5].isna().sum() == 0
     if partition_cols is None:
-        assert df2.dtypes[4] == "object"
+        assert str(df2.dtypes[4]) == "string"
         assert df2.dtypes[5] == "Int64"
     else:
         assert df2.dtypes[4] == "Int64"
-        assert df2.dtypes[5] == "object"
+        assert str(df2.dtypes[5]) == "string"
     session.s3.delete_objects(path=path)
 
 
@@ -2179,7 +2182,7 @@ def test_to_parquet_categorical_partitions(bucket):
     path = f"s3://{bucket}/test_to_parquet_categorical_partitions"
     wr.s3.delete_objects(path=path)
     d = pd.date_range("1990-01-01", freq="D", periods=10000)
-    vals = pd.np.random.randn(len(d), 4)
+    vals = np.random.randn(len(d), 4)
     x = pd.DataFrame(vals, index=d, columns=["A", "B", "C", "D"])
     x['Year'] = x.index.year
     x['Year'] = x['Year'].astype('category')
@@ -2193,9 +2196,8 @@ def test_range_index(bucket, database):
     path = f"s3://{bucket}/test_range_index"
     wr.s3.delete_objects(path=path)
     d = pd.date_range('1990-01-01', freq='D', periods=10000)
-    vals = pd.np.random.randn(len(d), 4)
+    vals = np.random.randn(len(d), 4)
     x = pd.DataFrame(vals, index=d, columns=['A', 'B', 'C', 'D']).reset_index()
-    print(x)
     wr.pandas.to_parquet(dataframe=x, path=path, database=database)
     df = wr.pandas.read_parquet(path=path)
     wr.s3.delete_objects(path=path)

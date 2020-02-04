@@ -10,6 +10,7 @@ Submodules
    awswrangler.aurora
    awswrangler.cloudwatchlogs
    awswrangler.data_types
+   awswrangler.dynamodb
    awswrangler.emr
    awswrangler.exceptions
    awswrangler.glue

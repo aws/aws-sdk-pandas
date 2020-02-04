@@ -7,4 +7,5 @@ mypy awswrangler
 flake8 setup.py awswrangler testing/test_awswrangler
 pip install --upgrade -e .
 pytest --cov=awswrangler testing/test_awswrangler
+coverage html --directory docs/coverage
 cd testing

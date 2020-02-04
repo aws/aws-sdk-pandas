@@ -831,7 +831,7 @@ class Pandas:
             elif pandas_type == "date":
                 dataframe[col] = pd.to_datetime(dataframe[col]).dt.date.replace(to_replace={pd.NaT: None})
             else:
-                dataframe[col] = dataframe[col].astype(pandas_type, skipna=True)
+                dataframe[col] = dataframe[col].astype(pandas_type)
         return dataframe
 
     @staticmethod

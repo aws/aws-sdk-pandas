@@ -186,7 +186,7 @@ Resources:
   LogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      RetentionInDays: 1
+      RetentionInDays: 30
 
   LogStream:
     Type: AWS::Logs::LogStream
