@@ -73,7 +73,8 @@
 
 ## Installation
 
-`pip install awswrangler`
+- `pip install awswrangler`
+- `conda install awswrangler`
 
 Runs only with Python 3.6 and 3.7.
 
