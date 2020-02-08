@@ -16,7 +16,7 @@ import pyarrow as pa  # type: ignore
 from pyarrow import parquet as pq  # type: ignore
 import tenacity  # type: ignore
 from s3fs import S3FileSystem  # type: ignore
-from pandas.io.common import infer_compression
+from pandas.io.common import infer_compression  # type: ignore
 
 from awswrangler import data_types
 from awswrangler import utils
