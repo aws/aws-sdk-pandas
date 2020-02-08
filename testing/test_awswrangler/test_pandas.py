@@ -155,6 +155,16 @@ def test_read_csv(session, bucket, sample, row_num):
     assert len(dataframe.index) == row_num
 
 
+@pytest.mark.parametrize("sample, row_num", [("data_samples/small.csv.gz", 100)])
+def test_read_csv_infer_compression(session, bucket, sample, row_num):
+    path = f"s3://{bucket}/{sample}"
+    session.s3.delete_objects(path=f"s3://{bucket}/")
+    boto3.client("s3").upload_file(sample, bucket, sample)
+    dataframe = session.pandas.read_csv(path=path)
+    session.s3.delete_objects(path=path)
+    assert len(dataframe.index) == row_num
+
+
 @pytest.mark.parametrize("sample, row_num", [("data_samples/micro.csv", 30), ("data_samples/small.csv", 100)])
 def test_read_csv_iterator(session, bucket, sample, row_num):
     boto3.client("s3").upload_file(sample, bucket, sample)
