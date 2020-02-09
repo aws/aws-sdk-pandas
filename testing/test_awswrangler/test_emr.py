@@ -41,7 +41,7 @@ def test_cluster(session, bucket, cloudformation_outputs):
         steps.append(session.emr.build_step(name=cmd, command=cmd))
     cluster_id = session.emr.create_cluster(cluster_name="wrangler_cluster",
                                             logging_s3_path=f"s3://{bucket}/emr-logs/",
-                                            emr_release="emr-5.27.0",
+                                            emr_release="emr-5.29.0",
                                             subnet_id=cloudformation_outputs["SubnetId"],
                                             emr_ec2_role="EMR_EC2_DefaultRole",
                                             emr_role="EMR_DefaultRole",
@@ -93,7 +93,7 @@ def test_cluster(session, bucket, cloudformation_outputs):
 def test_cluster_single_node(session, bucket, cloudformation_outputs):
     cluster_id = session.emr.create_cluster(cluster_name="wrangler_cluster",
                                             logging_s3_path=f"s3://{bucket}/emr-logs/",
-                                            emr_release="emr-5.27.0",
+                                            emr_release="emr-5.29.0",
                                             subnet_id=cloudformation_outputs["SubnetId"],
                                             emr_ec2_role="EMR_EC2_DefaultRole",
                                             emr_role="EMR_DefaultRole",
@@ -122,6 +122,10 @@ def test_cluster_single_node(session, bucket, cloudformation_outputs):
                                             spark_glue_catalog=False,
                                             hive_glue_catalog=False,
                                             presto_glue_catalog=False,
+                                            consistent_view=True,
+                                            consistent_view_retry_count=6,
+                                            consistent_view_retry_seconds=15,
+                                            consistent_view_table_name="EMRConsistentView",
                                             bootstraps_paths=None,
                                             debugging=False,
                                             applications=["Hadoop", "Spark", "Ganglia", "Hive"],
