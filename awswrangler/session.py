@@ -1,5 +1,5 @@
-import os
 import importlib
+from os import cpu_count
 from typing import Optional, Dict
 from sys import version_info
 from logging import getLogger, Logger
@@ -95,7 +95,7 @@ class Session:
         self._s3_additional_kwargs: Optional[Dict[str, str]] = s3_additional_kwargs
         self._spark_context = spark_context
         self._spark_session = spark_session
-        cpus: Optional[int] = os.cpu_count()
+        cpus: Optional[int] = cpu_count()
         self._procs_cpu_bound: int = 1 if cpus is None else cpus if procs_cpu_bound is None else procs_cpu_bound
         self._procs_io_bound: int = 1 if cpus is None else cpus * Session.PROCS_IO_BOUND_FACTOR if procs_io_bound is None else procs_io_bound
         self._athena_workgroup: str = athena_workgroup

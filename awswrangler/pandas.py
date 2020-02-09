@@ -237,7 +237,7 @@ class Pandas:
 
     @staticmethod
     def _read_csv_once(session_primitives: "SessionPrimitives", bucket_name: str, key_path: str,
-                       **pd_additional_kwargs):
+                       **pd_additional_kwargs) -> pd.DataFrame:
         """
         Read a single CSV file from Amazon S3 using optimized strategies.
 
@@ -256,7 +256,7 @@ class Pandas:
         if pd_additional_kwargs.get('compression', 'infer') == 'infer':
             pd_additional_kwargs['compression'] = infer_compression(key_path, compression='infer')
 
-        dataframe = pd.read_csv(buff, **pd_additional_kwargs)
+        dataframe: pd.DataFrame = pd.read_csv(buff, **pd_additional_kwargs)
         buff.close()
         return dataframe
 
@@ -1613,7 +1613,9 @@ class Pandas:
             logger.debug(f"procs_cpu_bound: {procs_cpu_bound}")
             session_primitives = self._session.primitives
             if len(paths) == 1:
-                path = paths[0]
+                path: str = paths[0]
+                bucket_name: str
+                key_path: str
                 bucket_name, key_path = Pandas._parse_path(path)
                 logger.debug(f"path: {path}")
                 df: pd.DataFrame = self._read_csv_once(session_primitives=self._session.primitives,
@@ -1621,8 +1623,8 @@ class Pandas:
                                                        key_path=key_path,
                                                        **pd_additional_kwargs)
             else:
-                procs = []
-                receive_pipes = []
+                procs: list = []
+                receive_pipes: list = []
                 logger.debug(f"len(paths): {len(paths)}")
                 for path in paths:
                     receive_pipe, send_pipe = mp.Pipe()
@@ -1639,7 +1641,7 @@ class Pandas:
                 dfs: List[pd.DataFrame] = []
                 for i in range(len(procs)):
                     logger.debug(f"Waiting pipe number: {i}")
-                    df_received = receive_pipes[i].recv()
+                    df_received: pd.DataFrame = receive_pipes[i].recv()
                     dfs.append(df_received)
                     logger.debug(f"Waiting proc number: {i}")
                     procs[i].join()
@@ -1687,5 +1689,130 @@ class Pandas:
         paths = [p for p in paths if not p.endswith("/")]
         return self.read_csv_list(paths=paths,
                                   max_result_size=max_result_size,
+                                  procs_cpu_bound=procs_cpu_bound,
+                                  **pd_additional_kwargs)
+
+    @staticmethod
+    def _read_fwf(session_primitives: "SessionPrimitives", bucket_name: str, key_path: str, **pd_additional_kwargs) -> pd.DataFrame:
+        """
+        Read a single fixed-width formatted file from Amazon S3 using optimized strategies.
+
+        :param session_primitives: SessionPrimitives()
+        :param bucket_name: S3 bucket name
+        :param key_path: S3 key path (w/o bucket)
+        :param **pd_additional_kwargs: Additional parameters forwarded to pandas.read_fwf
+        :return: Pandas Dataframe
+        """
+        buff = BytesIO()
+        session: Session = session_primitives.session
+        client_s3 = session.boto3_session.client(service_name="s3", use_ssl=True, config=session.botocore_config)
+        client_s3.download_fileobj(Bucket=bucket_name, Key=key_path, Fileobj=buff)
+        buff.seek(0)
+        if pd_additional_kwargs.get('compression', 'infer') == 'infer':
+            pd_additional_kwargs['compression'] = infer_compression(key_path, compression='infer')
+        dataframe: pd.DataFrame = pd.read_fwf(buff, **pd_additional_kwargs)
+        buff.close()
+        return dataframe
+
+    @staticmethod
+    def _read_fwf_remote(send_pipe: mp.connection.Connection, session_primitives: "SessionPrimitives",
+                              bucket_name: str, key_path: str, **pd_additional_kwargs):
+        df: pd.DataFrame = Pandas._read_fwf(session_primitives=session_primitives,
+                                                 bucket_name=bucket_name,
+                                                 key_path=key_path,
+                                                 **pd_additional_kwargs)
+        send_pipe.send(df)
+        send_pipe.close()
+
+    def read_fwf(self, path: str, **pd_additional_kwargs) -> pd.DataFrame:
+        """
+        Read a single fixed-width formatted file from Amazon S3 using optimized strategies.
+
+        :param path: Amazon S3 path (e.g. s3://bucket_name/key_name)
+        :param pd_additional_kwargs: Additional parameters forwarded to pandas.read_fwf
+        :return: Pandas Dataframe
+        """
+        bucket_name, key_path = self._parse_path(path)
+        dataframe: pd.DataFrame = self._read_fwf(
+                                        session_primitives=self._session.primitives,
+                                      bucket_name=bucket_name,
+                                      key_path=key_path,
+                                      **pd_additional_kwargs)
+        return dataframe
+
+    def read_fwf_list(
+            self,
+            paths: List[str],
+            procs_cpu_bound: Optional[int] = None,
+            **pd_additional_kwargs,
+    ) -> pd.DataFrame:
+        """
+        Read a list of fixed-width formatted files from Amazon S3 using optimized strategies.
+
+        :param paths: List of Amazon S3 paths (e.g. ['s3://bucket_name/key_name1', 's3://bucket_name/key_name2'])
+        :param procs_cpu_bound: Number of cores used for CPU bound tasks
+        :param pd_additional_kwargs: Additional parameters forwarded to pandas.read_fwf
+        :return: Pandas Dataframe
+        """
+        procs_cpu_bound = procs_cpu_bound if procs_cpu_bound is not None else self._session.procs_cpu_bound if self._session.procs_cpu_bound is not None else 1
+        logger.debug(f"procs_cpu_bound: {procs_cpu_bound}")
+        session_primitives = self._session.primitives
+        if len(paths) == 1:
+            path: str = paths[0]
+            bucket_name: str
+            key_path: str
+            bucket_name, key_path = Pandas._parse_path(path)
+            logger.debug(f"path: {path}")
+            df: pd.DataFrame = self._read_fwf(session_primitives=self._session.primitives,
+                                                   bucket_name=bucket_name,
+                                                   key_path=key_path,
+                                                   **pd_additional_kwargs)
+        else:
+            procs: list = []
+            receive_pipes: list = []
+            logger.debug(f"len(paths): {len(paths)}")
+            for path in paths:
+                receive_pipe, send_pipe = mp.Pipe()
+                bucket_name, key_path = Pandas._parse_path(path)
+                logger.debug(f"launching path: {path}")
+                proc = mp.Process(target=self._read_fwf_remote,
+                                  args=(send_pipe, session_primitives, bucket_name, key_path),
+                                  kwargs=pd_additional_kwargs)
+                proc.daemon = False
+                proc.start()
+                procs.append(proc)
+                receive_pipes.append(receive_pipe)
+                utils.wait_process_release(processes=procs, target_number=procs_cpu_bound)
+            dfs: List[pd.DataFrame] = []
+            for i in range(len(procs)):
+                logger.debug(f"Waiting pipe number: {i}")
+                df_received: pd.DataFrame = receive_pipes[i].recv()
+                dfs.append(df_received)
+                logger.debug(f"Waiting proc number: {i}")
+                procs[i].join()
+                logger.debug(f"Closing proc number: {i}")
+                receive_pipes[i].close()
+            logger.debug(f"Concatenating all {len(paths)} DataFrames...")
+            df = pd.concat(objs=dfs, ignore_index=True, sort=False)
+            logger.debug("Concatenation done!")
+        return df
+
+    def read_fwf_prefix(
+            self,
+            path_prefix: str,
+            procs_cpu_bound: Optional[int] = None,
+            **pd_additional_kwargs,
+    ) -> pd.DataFrame:
+        """
+        Read all fixed-width formatted files from a given Amazon S3 prefix using optimized strategies.
+
+        :param path_prefix: Amazon S3 prefix (e.g. s3://bucket_name/prefix)
+        :param procs_cpu_bound: Number of cores used for CPU bound tasks
+        :param pd_additional_kwargs: Additional parameters forwarded to pandas.read_fwf
+        :return: Pandas Dataframe
+        """
+        paths: List[str] = self._session.s3.list_objects(path=path_prefix)
+        paths = [p for p in paths if not p.endswith("/")]
+        return self.read_fwf_list(paths=paths,
                                   procs_cpu_bound=procs_cpu_bound,
                                   **pd_additional_kwargs)

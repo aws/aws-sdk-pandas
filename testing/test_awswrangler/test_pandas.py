@@ -2492,3 +2492,28 @@ def test_to_csv_string(bucket, database):
                                     ctas_approach=False)
     wr.s3.delete_objects(path=path)
     assert df.equals(df2)
+
+
+@pytest.mark.parametrize("sample, row_num", [
+    ("data_samples/fwf_nano.txt", 5),
+    ("data_samples/fwf_nano.txt.zip", 5)
+])
+def test_read_fwf(bucket, sample, row_num):
+    path = f"s3://{bucket}/{sample}"
+    wr.s3.delete_objects(path=f"s3://{bucket}/")
+    boto3.client("s3").upload_file(sample, bucket, sample)
+    dataframe = wr.pandas.read_fwf(path=path, widths=[1, 12, 8], names=["id", "name", "date"])
+    wr.s3.delete_objects(path=path)
+    assert len(dataframe.index) == row_num
+
+
+def test_read_fwf_prefix(bucket):
+    path = f"s3://{bucket}/data_samples/"
+    wr.s3.delete_objects(path=f"s3://{bucket}/")
+    boto3.client("s3").upload_file("data_samples/fwf_nano.txt", bucket, "data_samples/fwf_nano.txt")
+    boto3.client("s3").upload_file("data_samples/fwf_nano.txt.zip", bucket, "data_samples/fwf_nano.txt.zip")
+    sleep(10)
+    dataframe = wr.pandas.read_fwf_prefix(path_prefix=path, widths=[1, 12, 8], names=["id", "name", "date"])
+    wr.s3.delete_objects(path=path)
+    print(dataframe)
+    assert len(dataframe.index) == 10
