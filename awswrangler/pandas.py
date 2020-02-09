@@ -16,6 +16,7 @@ import pyarrow as pa  # type: ignore
 from pyarrow import parquet as pq  # type: ignore
 import tenacity  # type: ignore
 from s3fs import S3FileSystem  # type: ignore
+from pandas.io.common import infer_compression  # type: ignore
 
 from awswrangler import data_types
 from awswrangler import utils
@@ -94,6 +95,13 @@ class Pandas:
         :param **pd_additional_kwargs: Additional parameters forwarded to pandas.read_csv
         :return: Iterator of Pandas Dataframes
         """
+
+        if pd_additional_kwargs.get('compression', 'infer') == 'infer':
+            pd_additional_kwargs['compression'] = infer_compression(key_path, compression='infer')
+
+        if pd_additional_kwargs['compression'] is not None:
+            raise InvalidParameters("max_result_size currently does not support compressed files")
+
         metadata = S3.head_object_with_retry(client_s3=self._client_s3, bucket=bucket_name, key=key_path)
         total_size = metadata["ContentLength"]
         logger.debug(f"total_size: {total_size}")
@@ -243,7 +251,11 @@ class Pandas:
         session: Session = session_primitives.session
         client_s3 = session.boto3_session.client(service_name="s3", use_ssl=True, config=session.botocore_config)
         client_s3.download_fileobj(Bucket=bucket_name, Key=key_path, Fileobj=buff)
-        buff.seek(0),
+        buff.seek(0)
+
+        if pd_additional_kwargs.get('compression', 'infer') == 'infer':
+            pd_additional_kwargs['compression'] = infer_compression(key_path, compression='infer')
+
         dataframe = pd.read_csv(buff, **pd_additional_kwargs)
         buff.close()
         return dataframe
