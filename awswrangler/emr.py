@@ -122,7 +122,7 @@ class EMR:
                     "Configurations": []
                 }]
             })
-        if pars["spark_glue_catalog"]:
+        if pars["spark_glue_catalog"] is True:
             args["Configurations"].append({
                 "Classification": "spark-hive-site",
                 "Properties": {
@@ -131,7 +131,7 @@ class EMR:
                 },
                 "Configurations": []
             })
-        if pars["hive_glue_catalog"]:
+        if pars["hive_glue_catalog"] is True:
             args["Configurations"].append({
                 "Classification": "hive-site",
                 "Properties": {
@@ -140,7 +140,7 @@ class EMR:
                 },
                 "Configurations": []
             })
-        if pars["presto_glue_catalog"]:
+        if pars["presto_glue_catalog"] is True:
             args["Configurations"].append({
                 "Classification": "presto-connector-hive",
                 "Properties": {
@@ -148,7 +148,17 @@ class EMR:
                 },
                 "Configurations": []
             })
-        if pars["maximize_resource_allocation"]:
+        if pars["consistent_view"] is True:
+            args["Configurations"].append({
+                "Classification": "emrfs-site",
+                "Properties": {
+                    "fs.s3.consistent.retryPeriodSeconds": str(pars.get("consistent_view_retry_seconds", "10")),
+                    "fs.s3.consistent": "true",
+                    "fs.s3.consistent.retryCount": str(pars.get("consistent_view_retry_count", "5")),
+                    "fs.s3.consistent.metadata.tableName": pars.get("consistent_view_table_name", "EmrFSMetadata")
+                }
+            })
+        if pars["maximize_resource_allocation"] is True:
             args["Configurations"].append({
                 "Classification": "spark",
                 "Properties": {
@@ -351,6 +361,10 @@ class EMR:
                        spark_glue_catalog: bool = True,
                        hive_glue_catalog: bool = True,
                        presto_glue_catalog: bool = True,
+                       consistent_view: bool = False,
+                       consistent_view_retry_seconds: int = 10,
+                       consistent_view_retry_count: int = 5,
+                       consistent_view_table_name: str = "EmrFSMetadata",
                        bootstraps_paths: Optional[List[str]] = None,
                        debugging: bool = True,
                        applications: Optional[List[str]] = None,
@@ -369,7 +383,7 @@ class EMR:
                        steps: Optional[List[Dict[str, Collection[str]]]] = None,
                        keep_cluster_alive_when_no_steps: bool = True,
                        termination_protected: bool = False,
-                       tags: Optional[Dict[str, str]] = None):
+                       tags: Optional[Dict[str, str]] = None) -> str:
         """
         Create a EMR cluster with instance fleets configuration
         https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-instance-fleet.html
@@ -404,6 +418,10 @@ class EMR:
         :param spark_glue_catalog: Spark integration with Glue Catalog?
         :param hive_glue_catalog: Hive integration with Glue Catalog?
         :param presto_glue_catalog: Presto integration with Glue Catalog?
+        :param consistent_view: Consistent view allows EMR clusters to check for list and read-after-write consistency for Amazon S3 objects written by or synced with EMRFS. (https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-plan-consistent-view.html)
+        :param consistent_view_retry_seconds: Delay between the tries (seconds)
+        :param consistent_view_retry_count: Number of tries
+        :param consistent_view_table_name: Name of the DynamoDB table to store the consistent view data
         :param bootstraps_paths: Bootstraps paths (e.g ["s3://BUCKET_NAME/script.sh"])
         :param debugging: Debugging enabled?
         :param applications: List of applications (e.g ["Hadoop", "Spark", "Ganglia", "Hive"])

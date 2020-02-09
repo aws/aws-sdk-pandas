@@ -1,6 +1,7 @@
-from typing import Optional
-import logging
 import importlib
+from logging import getLogger, NullHandler
+from typing import Optional
+from sys import version_info
 
 from awswrangler.__version__ import __title__, __description__, __version__  # noqa
 from awswrangler.session import Session  # noqa
@@ -41,7 +42,7 @@ class DynamicInstantiate:
         return getattr(getattr(DynamicInstantiate.__default_session, self._module_name), name)
 
 
-if importlib.util.find_spec("pyspark"):  # type: ignore
+if version_info < (3, 8) and importlib.util.find_spec("pyspark"):  # type: ignore
     from awswrangler.spark import Spark  # noqa
     spark: Spark = DynamicInstantiate("spark", Spark)  # type: ignore
 
@@ -56,4 +57,4 @@ dynamodb: DynamoDB = DynamicInstantiate("dynamodb", DynamoDB)  # type: ignore
 sagemaker: SageMaker = DynamicInstantiate("sagemaker", SageMaker)  # type: ignore
 cloudwatchlogs: CloudWatchLogs = DynamicInstantiate("cloudwatchlogs", CloudWatchLogs)  # type: ignore
 
-logging.getLogger("awswrangler").addHandler(logging.NullHandler())
+getLogger("awswrangler").addHandler(NullHandler())

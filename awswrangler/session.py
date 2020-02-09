@@ -1,7 +1,8 @@
-from typing import Optional, Dict
 import os
-from logging import getLogger, Logger
 import importlib
+from typing import Optional, Dict
+from sys import version_info
+from logging import getLogger, Logger
 
 import boto3  # type: ignore
 from botocore.config import Config  # type: ignore
@@ -19,7 +20,7 @@ from awswrangler.dynamodb import DynamoDB
 from awswrangler.exceptions import AWSCredentialsNotFound
 
 PYSPARK_INSTALLED: bool = False
-if importlib.util.find_spec("pyspark"):  # type: ignore
+if version_info < (3, 8) and importlib.util.find_spec("pyspark"):  # type: ignore
     PYSPARK_INSTALLED = True
     from awswrangler.spark import Spark
 
