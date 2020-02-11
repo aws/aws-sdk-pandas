@@ -3,7 +3,7 @@ Install
 
     >>> pip install awswrangler
 
-    >>> conda install awswrangler
+    >>> conda install -c conda-forge awswrangler
 
 Runs with Python 3.6, 3.7 and 3.8.
 
