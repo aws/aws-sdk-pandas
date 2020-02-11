@@ -17,7 +17,7 @@
   - [Pandas](#Pandas)
   - [PySpark](#PySpark)
   - [General](#General)
-- [Install](https://aws-data-wrangler.readthedocs.io/installation.html)
+- [Install](https://aws-data-wrangler.readthedocs.io/install.html)
 - [Examples](https://aws-data-wrangler.readthedocs.io/examples.html)
 - [Tutorials](https://aws-data-wrangler.readthedocs.io/tutorials.html)
 - [API Reference](https://aws-data-wrangler.readthedocs.io/api/awswrangler.html)
