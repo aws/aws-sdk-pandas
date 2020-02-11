@@ -1,6 +1,8 @@
+"""Utilities Module."""
+
+from logging import Logger, getLogger
 from math import ceil, gcd
 from time import sleep
-from logging import getLogger, Logger
 
 from awswrangler.exceptions import InvalidArguments
 
@@ -8,6 +10,16 @@ logger: Logger = getLogger(__name__)
 
 
 def calculate_bounders(num_items, num_groups=None, max_size=None):
+    """
+    Calculate bounders to split a list.
+
+    Use num_groups or max_size.
+
+    :param num_items: Total number os items to be splitted
+    :param num_groups: Number of chunks
+    :param max_size: Max size per chunk
+    :return: List of tuples with the indexes to split
+    """
     if num_groups or max_size:
         if max_size:
             num_groups = int(ceil(float(num_items) / float(max_size)))
@@ -31,7 +43,8 @@ def calculate_bounders(num_items, num_groups=None, max_size=None):
 
 def wait_process_release(processes, target_number=None):
     """
-    Wait one of the processes releases
+    Wait one of the processes releases.
+
     :param processes: List of processes
     :param target_number: Wait for a target number of running processes
     :return: None
@@ -57,7 +70,5 @@ def wait_process_release(processes, target_number=None):
 
 
 def lcm(a: int, b: int) -> int:
-    """
-    Least Common Multiple
-    """
+    """Least Common Multiple."""
     return int(abs(a * b) // gcd(a, b))

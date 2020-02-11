@@ -1,15 +1,17 @@
-from typing import TYPE_CHECKING, Dict, List, Union, Optional, Any, Tuple
+"""Amazon Redshift Module."""
+
 import json
-from logging import getLogger, Logger
+from logging import Logger, getLogger
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import pg8000  # type: ignore
 import pyarrow as pa  # type: ignore
 from boto3 import client  # type: ignore
 
 from awswrangler import data_types
-from awswrangler.exceptions import (RedshiftLoadError, InvalidDataframeType, InvalidRedshiftDiststyle,
-                                    InvalidRedshiftDistkey, InvalidRedshiftSortstyle, InvalidRedshiftSortkey,
-                                    InvalidRedshiftPrimaryKeys)
+from awswrangler.exceptions import (InvalidDataframeType, InvalidRedshiftDistkey, InvalidRedshiftDiststyle,
+                                    InvalidRedshiftPrimaryKeys, InvalidRedshiftSortkey, InvalidRedshiftSortstyle,
+                                    RedshiftLoadError)
 
 if TYPE_CHECKING:
     from awswrangler.session import Session
@@ -30,8 +32,17 @@ SORTSTYLES = [
 
 
 class Redshift:
-    def __init__(self, session):
-        self._session: Session = session
+    """Amazon Redshift Class."""
+    def __init__(self, session: "Session"):
+        """
+        Amazon Redshift Class Constructor.
+
+        Don't use it directly, call through a Session().
+        e.g. wr.redshift.your_method()
+
+        :param session: awswrangler.Session()
+        """
+        self._session: "Session" = session
         self._client_s3: client = session.boto3_session.client(service_name="s3",
                                                                use_ssl=True,
                                                                config=session.botocore_config)
@@ -62,13 +73,13 @@ class Redshift:
                             port,
                             user,
                             password,
-                            tcp_keepalive=True,
-                            application_name="aws-data-wrangler",
-                            connection_timeout=1_200_000,
-                            statement_timeout=1_200_000,
-                            validation_timeout=10):
+                            tcp_keepalive: bool = True,
+                            application_name: Optional[str] = "aws-data-wrangler",
+                            connection_timeout: Optional[int] = None,
+                            statement_timeout: Optional[int] = None,
+                            validation_timeout: int = 10):
         """
-        Generates a valid connection object to be passed to the load_table method
+        Generate a valid connection object to be passed to the load_table method.
 
         :param database: The name of the database instance to connect with.
         :param host: The hostname of the Redshift server to connect with.
@@ -77,9 +88,9 @@ class Redshift:
         :param password: The user password to connect to the server with.
         :param tcp_keepalive: If True then use TCP keepalive
         :param application_name: Application name
-        :param connection_timeout: Connection Timeout
-        :param statement_timeout: Redshift statements timeout
-        :param validation_timeout: Timeout to try to validate the connection
+        :param connection_timeout: Connection Timeout (seconds)
+        :param statement_timeout: Redshift statements timeout (milliseconds)
+        :param validation_timeout: Timeout to try to validate the connection (seconds)
         :return: pg8000 connection
         """
         Redshift._validate_connection(database=database,
@@ -99,19 +110,26 @@ class Redshift:
                               application_name=application_name,
                               tcp_keepalive=tcp_keepalive,
                               timeout=connection_timeout)
-        cursor = conn.cursor()
-        cursor.execute(f"set statement_timeout = {statement_timeout}")
-        conn.commit()
-        cursor.close()
+        if statement_timeout is not None:
+            cursor = conn.cursor()
+            cursor.execute(f"set statement_timeout = {statement_timeout}")
+            conn.commit()
+            cursor.close()
         return conn
 
-    def get_connection(self, glue_connection):
-        conn_details = self._session.glue.get_connection_details(name=glue_connection)
-        props = conn_details["ConnectionProperties"]
-        host = props["JDBC_CONNECTION_URL"].split(":")[2].replace("/", "")
+    def get_connection(self, glue_connection: str):
+        """
+        Get a Glue connection as a PG8000 connection.
+
+        :param glue_connection: Glue connection name
+        :return: pg8000 connection
+        """
+        conn_details: dict = self._session.glue.get_connection_details(name=glue_connection)
+        props: dict = conn_details["ConnectionProperties"]
+        host: str = props["JDBC_CONNECTION_URL"].split(":")[2].replace("/", "")
         port, database = props["JDBC_CONNECTION_URL"].split(":")[3].split("/")
-        user = props["USERNAME"]
-        password = props["PASSWORD"]
+        user: str = props["USERNAME"]
+        password: str = props["PASSWORD"]
         conn = self.generate_connection(database=database, host=host, port=int(port), user=user, password=password)
         return conn
 
@@ -120,6 +138,14 @@ class Redshift:
             manifest_path: str,
             objects_paths: List[str],
             procs_io_bound: Optional[int] = None) -> Dict[str, List[Dict[str, Union[str, bool, Dict[str, int]]]]]:
+        """
+        Write Redshift load manifest.
+
+        :param manifest_path: Amazon S3 manifest path (e.g. s3://...)
+        :param objects_paths: List of S3 paths
+        :param procs_io_bound: Number of processes to be used on I/O bound operations
+        :return: Manifest content
+        """
         objects_sizes: Dict[str, int] = self._session.s3.get_objects_sizes(objects_paths=objects_paths,
                                                                            procs_io_bound=procs_io_bound)
         manifest: Dict[str, List[Dict[str, Union[str, bool, Dict[str, int]]]]] = {"entries": []}
@@ -142,10 +168,16 @@ class Redshift:
         return manifest
 
     @staticmethod
-    def get_number_of_slices(redshift_conn):
+    def get_number_of_slices(redshift_conn) -> int:
+        """
+        Get the number of slices in the Redshift cluster.
+
+        :param redshift_conn: Redshift connection (PEP 249 compatible)
+        :return: Number of slices in the Redshift CLuster
+        """
         cursor = redshift_conn.cursor()
         cursor.execute("SELECT COUNT(*) as count_slices FROM (SELECT DISTINCT node, slice from STV_SLICES)")
-        count_slices = cursor.fetchall()[0][0]
+        count_slices: int = cursor.fetchall()[0][0]
         cursor.close()
         return count_slices
 
@@ -169,8 +201,7 @@ class Redshift:
                    varchar_default_length: int = 256,
                    varchar_lengths: Optional[Dict[str, int]] = None):
         """
-        Load Parquet files into a Redshift table using a manifest file.
-        Creates the table if necessary.
+        Load Parquet files into a Redshift table using a manifest file and create the table if necessary.
 
         :param dataframe: Pandas or Spark Dataframe
         :param dataframe_type: "pandas" or "spark"
@@ -277,7 +308,7 @@ class Redshift:
                       varchar_default_length: int = 256,
                       varchar_lengths: Optional[Dict[str, int]] = None):
         """
-        Creates Redshift table.
+        Create Redshift table.
 
         :param cursor: A PEP 249 compatible cursor
         :param dataframe: Pandas or Spark Dataframe
@@ -339,9 +370,10 @@ class Redshift:
         cursor.execute(sql)
 
     @staticmethod
-    def get_primary_keys(connection, schema, table):
+    def get_primary_keys(connection, schema: str, table: str) -> List[str]:
         """
-        Get PKs
+        Get PKs.
+
         :param connection: A PEP 249 compatible connection (Can be generated with Redshift.generate_connection())
         :param schema: Schema name
         :param table: Redshift table name
@@ -349,16 +381,17 @@ class Redshift:
         """
         cursor = connection.cursor()
         cursor.execute(f"SELECT indexdef FROM pg_indexes WHERE schemaname = '{schema}' AND tablename = '{table}'")
-        result = cursor.fetchall()[0][0]
-        rfields = result.split('(')[1].strip(')').split(',')
-        fields = [field.strip().strip('"') for field in rfields]
+        result: str = cursor.fetchall()[0][0]
+        rfields: List[str] = result.split('(')[1].strip(')').split(',')
+        fields: List[str] = [field.strip().strip('"') for field in rfields]
         cursor.close()
         return fields
 
     @staticmethod
     def _validate_parameters(schema, diststyle, distkey, sortstyle, sortkey):
         """
-        Validates the sanity of Redshift's parameters
+        Validate the sanity of Redshift's parameters.
+
         :param schema: List of tuples (column name, column type)
         :param diststyle: Redshift distribution styles. Must be in ["AUTO", "EVEN", "ALL", "KEY"]
                https://docs.aws.amazon.com/redshift/latest/dg/t_Distributing_data.html
@@ -429,7 +462,7 @@ class Redshift:
                    connection: Any,
                    partition_cols: Optional[List] = None) -> List[str]:
         """
-        Write a query result as parquet files on S3
+        Write a query result as parquet files on S3.
 
         :param sql: SQL Query
         :param path: AWS S3 path to write the data (e.g. s3://...)
@@ -472,7 +505,9 @@ class Redshift:
         cursor.close()
         if paths:
             if manifest_str != "":
+                logger.debug(f"Waiting manifest path: {f'{path}manifest'}")
                 self._session.s3.wait_object_exists(path=f"{path}manifest", timeout=30.0)
             for p in paths:
+                logger.debug(f"Waiting path: {p}")
                 self._session.s3.wait_object_exists(path=p, timeout=30.0)
         return paths

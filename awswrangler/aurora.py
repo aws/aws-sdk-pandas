@@ -1,17 +1,19 @@
-from typing import TYPE_CHECKING, Union, List, Dict, Tuple, Any, Optional
-from logging import getLogger, Logger, INFO
+"""Amazon Aurora Module."""
+
 import json
 import warnings
+from logging import INFO, Logger, getLogger
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
-import pg8000  # type: ignore
-from pg8000 import ProgrammingError  # type: ignore
-import pymysql  # type: ignore
 import pandas as pd  # type: ignore
-from boto3 import client  # type: ignore
+import pg8000  # type: ignore
+import pymysql  # type: ignore
 import tenacity  # type: ignore
+from boto3 import client  # type: ignore
+from pg8000 import ProgrammingError  # type: ignore
 
 from awswrangler import data_types
-from awswrangler.exceptions import InvalidEngine, InvalidDataframeType, AuroraLoadError
+from awswrangler.exceptions import AuroraLoadError, InvalidDataframeType, InvalidEngine
 
 if TYPE_CHECKING:
     from awswrangler.session import Session
@@ -20,7 +22,16 @@ logger: Logger = getLogger(__name__)
 
 
 class Aurora:
+    """Amazon Aurora Class."""
     def __init__(self, session: "Session"):
+        """
+        Amazon Aurora Class Constructor.
+
+        Don't use it directly, call through a Session().
+        e.g. wr.redshift.your_method()
+
+        :param session: awswrangler.Session()
+        """
         self._session: "Session" = session
         self._client_s3: client = session.boto3_session.client(service_name="s3",
                                                                use_ssl=True,
@@ -35,7 +46,7 @@ class Aurora:
                              engine: str = "mysql",
                              tcp_keepalive: bool = True,
                              application_name: str = "aws-data-wrangler-validation",
-                             validation_timeout: int = 5) -> None:
+                             validation_timeout: int = 10) -> None:
         if "postgres" in engine.lower():
             conn = pg8000.connect(database=database,
                                   host=host,
@@ -67,10 +78,10 @@ class Aurora:
                             engine: str = "mysql",
                             tcp_keepalive: bool = True,
                             application_name: str = "aws-data-wrangler",
-                            connection_timeout: int = 1_200_000,
-                            validation_timeout: int = 5):
+                            connection_timeout: Optional[int] = None,
+                            validation_timeout: int = 10):
         """
-        Generates a valid connection object
+        Generate a valid connection object.
 
         :param database: The name of the database instance to connect with.
         :param host: The hostname of the Aurora server to connect with.
@@ -110,13 +121,20 @@ class Aurora:
                                    user=user,
                                    password=password,
                                    program_name=application_name,
-                                   connect_timeout=connection_timeout)
+                                   connect_timeout=validation_timeout)
         else:
             raise InvalidEngine(f"{engine} is not a valid engine. Please use 'mysql' or 'postgres'!")
         return conn
 
     def write_load_manifest(self, manifest_path: str,
                             objects_paths: List[str]) -> Dict[str, List[Dict[str, Union[str, bool]]]]:
+        """
+        Write Load manifest on S3.
+
+        :param manifest_path: S3 path to manifest (e.g. "s3://...")
+        :param objects_paths: List of objects to be loaded
+        :return: manifest content
+        """
         manifest: Dict[str, List[Dict[str, Union[str, bool]]]] = {"entries": []}
         path: str
         for path in objects_paths:
@@ -146,6 +164,7 @@ class Aurora:
                    varchar_lengths: Optional[Dict[str, int]] = None) -> None:
         """
         Load text/CSV files into a Aurora table using a manifest file.
+
         Creates the table if necessary.
 
         :param dataframe: Pandas or Spark Dataframe
@@ -208,6 +227,7 @@ class Aurora:
                             varchar_lengths: Optional[Dict[str, int]] = None):
         """
         Load text/CSV files into a Aurora table using a manifest file.
+
         Creates the table if necessary.
 
         :param dataframe: Pandas or Spark Dataframe
@@ -285,6 +305,7 @@ class Aurora:
                          varchar_lengths: Optional[Dict[str, int]] = None):
         """
         Load text/CSV files into a Aurora table using a manifest file.
+
         Creates the table if necessary.
 
         :param dataframe: Pandas or Spark Dataframe
@@ -392,7 +413,7 @@ class Aurora:
                       varchar_default_length: int = 256,
                       varchar_lengths: Optional[Dict[str, int]] = None) -> None:
         """
-        Creates Aurora table.
+        Create Aurora table.
 
         :param cursor: A PEP 249 compatible cursor
         :param dataframe: Pandas or Spark Dataframe
@@ -459,7 +480,7 @@ class Aurora:
 
     def to_s3(self, sql: str, path: str, connection: Any, engine: str = "mysql") -> str:
         """
-        Write a query result on S3
+        Write a query result on S3.
 
         :param sql: SQL Query
         :param path: AWS S3 path to write the data (e.g. s3://...)
@@ -484,6 +505,12 @@ class Aurora:
         return path + ".manifest"
 
     def extract_manifest_paths(self, path: str) -> List[str]:
+        """
+        Extract the object path from a manifest object.
+
+        :param path: manifest S3 path
+        :return: List of objects paths
+        """
         bucket_name, key_path = Aurora._parse_path(path)
         body: bytes = self._client_s3.get_object(Bucket=bucket_name, Key=key_path)["Body"].read()
         return [x["url"] for x in json.loads(body.decode('utf-8'))["entries"]]

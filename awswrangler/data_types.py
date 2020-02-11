@@ -1,17 +1,20 @@
-from typing import List, Tuple, Dict, Callable, Optional, Any
-from logging import getLogger, Logger
-from datetime import datetime, date
+"""Module exclusive for Data Type conversions."""
+
+from datetime import date, datetime
 from decimal import Decimal
+from logging import Logger, getLogger
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
-import pyarrow as pa  # type: ignore
 import pandas as pd  # type: ignore
+import pyarrow as pa  # type: ignore
 
-from awswrangler.exceptions import UnsupportedType, UndetectedType
+from awswrangler.exceptions import UndetectedType, UnsupportedType
 
 logger: Logger = getLogger(__name__)
 
 
 def athena2pandas(dtype: str) -> str:
+    """Athena to Pandas conversion."""
     dtype = dtype.lower()
     if dtype in ("int", "integer", "bigint", "smallint", "tinyint"):
         return "Int64"
@@ -34,6 +37,7 @@ def athena2pandas(dtype: str) -> str:
 
 
 def athena2pyarrow(dtype: str) -> str:
+    """Athena to PyArrow conversion."""
     dtype = dtype.lower()
     if dtype == "tinyint":
         return "int8"
@@ -60,6 +64,7 @@ def athena2pyarrow(dtype: str) -> str:
 
 
 def athena2python(dtype: str) -> Optional[type]:
+    """Athena to Python conversion."""
     dtype = dtype.lower()
     if dtype in ("int", "integer", "bigint", "smallint", "tinyint"):
         return int
@@ -82,6 +87,7 @@ def athena2python(dtype: str) -> Optional[type]:
 
 
 def athena2redshift(dtype: str, varchar_length: int = 256) -> str:
+    """Athena to Redshift conversion."""
     dtype = dtype.lower()
     if dtype == "smallint":
         return "SMALLINT"
@@ -106,6 +112,7 @@ def athena2redshift(dtype: str, varchar_length: int = 256) -> str:
 
 
 def pandas2athena(dtype: str) -> str:
+    """Pandas to Aurora conversion."""
     dtype = dtype.lower()
     if dtype == "int32":
         return "int"
@@ -128,6 +135,7 @@ def pandas2athena(dtype: str) -> str:
 
 
 def pandas2redshift(dtype: str, varchar_length: int = 256) -> str:
+    """Pandas to Redshift conversion."""
     dtype = dtype.lower()
     if dtype == "int32":
         return "INTEGER"
@@ -150,6 +158,7 @@ def pandas2redshift(dtype: str, varchar_length: int = 256) -> str:
 
 
 def pyarrow2athena(dtype: pa.types) -> str:
+    """Pyarrow to Athena conversion."""
     dtype_str = str(dtype).lower()
     if dtype_str == "int8":
         return "tinyint"
@@ -182,6 +191,7 @@ def pyarrow2athena(dtype: pa.types) -> str:
 
 
 def pyarrow2redshift(dtype: pa.types, varchar_length: int = 256) -> str:
+    """Pyarrow to Redshift conversion."""
     dtype_str = str(dtype).lower()
     if dtype_str == "int16":
         return "SMALLINT"
@@ -208,6 +218,7 @@ def pyarrow2redshift(dtype: pa.types, varchar_length: int = 256) -> str:
 
 
 def pyarrow2postgres(dtype: pa.types, varchar_length: int = 256) -> str:
+    """Pyarrow to PostgreSQL conversion."""
     dtype_str = str(dtype).lower()
     if dtype_str == "int16":
         return "SMALLINT"
@@ -234,6 +245,7 @@ def pyarrow2postgres(dtype: pa.types, varchar_length: int = 256) -> str:
 
 
 def pyarrow2mysql(dtype: pa.types, varchar_length: int = 256) -> str:
+    """Pyarrow to MySQL conversion."""
     dtype_str = str(dtype).lower()
     if dtype_str == "int16":
         return "SMALLINT"
@@ -260,6 +272,7 @@ def pyarrow2mysql(dtype: pa.types, varchar_length: int = 256) -> str:
 
 
 def python2athena(python_type: type) -> str:
+    """Python to Athena conversion."""
     python_type_str: str = str(python_type)
     if python_type_str == "<class 'int'>":
         return "bigint"
@@ -278,6 +291,7 @@ def python2athena(python_type: type) -> str:
 
 
 def redshift2athena(dtype: str) -> str:
+    """Redshift to Athena conversion."""
     dtype_str = str(dtype)
     if dtype_str in ("SMALLINT", "INT2"):
         return "smallint"
@@ -302,6 +316,7 @@ def redshift2athena(dtype: str) -> str:
 
 
 def redshift2pyarrow(dtype: str) -> str:
+    """Redshift to Pyarrow conversion."""
     dtype_str: str = str(dtype)
     if dtype_str in ("SMALLINT", "INT2"):
         return "int16"
@@ -326,6 +341,7 @@ def redshift2pyarrow(dtype: str) -> str:
 
 
 def spark2redshift(dtype: str, varchar_length: int = 256) -> str:
+    """Pyspark to Redshift conversion."""
     dtype = dtype.lower()
     if dtype == "smallint":
         return "SMALLINT"
@@ -353,8 +369,9 @@ def spark2redshift(dtype: str, varchar_length: int = 256) -> str:
 
 def convert_schema(func: Callable, schema: List[Tuple[str, str]]) -> Dict[str, str]:
     """
-    Convert schema in the format of {"col name": "bigint", "col2 name": "int"}
-    applying some data types conversion function (e.g. spark2redshift)
+    Convert schema in the format of {"col name": "bigint", "col2 name": "int"}.
+
+    Applying some data types conversion function (e.g. spark2redshift)
 
     :param func: Conversion Function (e.g. spark2redshift)
     :param schema: Schema (e.g. {"col name": "bigint", "col2 name": "int"})
@@ -367,7 +384,7 @@ def extract_pyarrow_schema_from_pandas(dataframe: pd.DataFrame,
                                        preserve_index: bool,
                                        indexes_position: str = "right") -> List[Tuple[str, Any]]:
     """
-    Extract the related Pyarrow schema from any Pandas DataFrame
+    Extract the related Pyarrow schema from any Pandas DataFrame.
 
     :param dataframe: Pandas Dataframe
     :param preserve_index: True or False

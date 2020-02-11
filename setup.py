@@ -12,6 +12,8 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(
+    author="Igor Tavares",
+    url="https://github.com/awslabs/aws-data-wrangler",
     name=about["__title__"],
     version=about["__version__"],
     description=about["__description__"],

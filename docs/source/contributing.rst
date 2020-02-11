@@ -1,5 +1,3 @@
-.. _doc_contributing:
-
 Contributing
 ============
 
@@ -14,7 +12,7 @@ Contributing
 Steps
 -----
 
-**DISCLAIMER**: Make sure to know what you are doing. This steps will charge some services on your AWS account. And requires a minimum security skills to keep your environment safe.
+.. warning:: Make sure to know what you are doing. This steps will charge some services on your AWS account. And requires a minimum security skills to keep your environment safe.
 
 * Pick up a Linux or MacOS.
 

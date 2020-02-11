@@ -1,11 +1,13 @@
-from typing import TYPE_CHECKING
-from time import sleep
+"""CloudWatchLogs Module."""
+
 from datetime import datetime
-from logging import getLogger, Logger
+from logging import Logger, getLogger
+from time import sleep
+from typing import TYPE_CHECKING
 
 from boto3 import client  # type: ignore
 
-from awswrangler.exceptions import QueryFailed, QueryCancelled
+from awswrangler.exceptions import QueryCancelled, QueryFailed
 
 if TYPE_CHECKING:
     from awswrangler.session import Session
@@ -16,7 +18,16 @@ QUERY_WAIT_POLLING_DELAY: float = 0.2  # MILLISECONDS
 
 
 class CloudWatchLogs:
+    """CloudWatchLogs Class."""
     def __init__(self, session: "Session"):
+        """
+        Cloudwatchlogs Class Constructor.
+
+        Don't use it directly, call through a Session().
+        e.g. wr.redshift.your_method()
+
+        :param session: awswrangler.Session()
+        """
         self._session: "Session" = session
         self._client_logs: client = session.boto3_session.client(service_name="logs", config=session.botocore_config)
 
@@ -27,7 +38,8 @@ class CloudWatchLogs:
                     end_time=datetime.utcnow(),
                     limit=None):
         """
-        Run a query against AWS CloudWatchLogs Insights and wait the results
+        Run a query against AWS CloudWatchLogs Insights and wait the results.
+
         https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CWL_QuerySyntax.html
 
         :param query: The query string to use.
@@ -55,7 +67,7 @@ class CloudWatchLogs:
 
     def wait_query(self, query_id):
         """
-        Wait query ends
+        Wait query ends.
 
         :param query_id: Query ID
         :return: Query results
@@ -81,7 +93,8 @@ class CloudWatchLogs:
               end_time=datetime.utcnow(),
               limit=None):
         """
-        Run a query against AWS CloudWatchLogs Insights and wait the results
+        Run a query against AWS CloudWatchLogs Insights and wait the results.
+
         https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CWL_QuerySyntax.html
 
         :param query: The query string to use.

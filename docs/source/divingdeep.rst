@@ -1,5 +1,3 @@
-.. _doc_divingdeep:
-
 Diving Deep
 ===========
 

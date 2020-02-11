@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -ex
 
 pip install --upgrade pip
 pip install --upgrade -r requirements.txt

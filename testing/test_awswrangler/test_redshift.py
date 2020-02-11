@@ -40,7 +40,7 @@ def bucket(session, cloudformation_outputs):
     else:
         raise Exception("You must deploy the test infrastructure using SAM!")
     yield bucket
-    # session.s3.delete_objects(path=f"s3://{bucket}/")
+    session.s3.delete_objects(path=f"s3://{bucket}/")
 
 
 @pytest.fixture(scope="module")
@@ -657,7 +657,7 @@ def test_read_sql_redshift_pandas(session, bucket, redshift_parameters, sample_n
         user="test",
         password=redshift_parameters.get("DatabasesPassword"),
     )
-    path = f"s3://{bucket}/test_read_sql_redshift_pandas/"
+    path = f"s3://{bucket}/test_read_sql_redshift_pandas_{sample_name}/"
     session.pandas.to_redshift(
         dataframe=df,
         path=path,
@@ -668,7 +668,7 @@ def test_read_sql_redshift_pandas(session, bucket, redshift_parameters, sample_n
         mode="overwrite",
         preserve_index=True,
     )
-    path2 = f"s3://{bucket}/test_read_sql_redshift_pandas2/"
+    path2 = f"s3://{bucket}/test_read_sql_redshift_pandas_{sample_name}2/"
     df2 = session.pandas.read_sql_redshift(sql="select * from public.test",
                                            iam_role=redshift_parameters.get("RedshiftRole"),
                                            connection=con,
@@ -678,15 +678,13 @@ def test_read_sql_redshift_pandas(session, bucket, redshift_parameters, sample_n
 
 
 def test_read_sql_redshift_pandas2(session, bucket, redshift_parameters):
-    n: int = 1_000_000
+    n: int = 10_000_000
     df = pd.DataFrame({"id": list((range(n))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(n)])})
-    con = Redshift.generate_connection(
-        database="test",
-        host=redshift_parameters.get("RedshiftAddress"),
-        port=redshift_parameters.get("RedshiftPort"),
-        user="test",
-        password=redshift_parameters.get("DatabasesPassword"),
-    )
+    con = Redshift.generate_connection(database="test",
+                                       host=redshift_parameters.get("RedshiftAddress"),
+                                       port=redshift_parameters.get("RedshiftPort"),
+                                       user="test",
+                                       password=redshift_parameters.get("DatabasesPassword"))
     path = f"s3://{bucket}/test_read_sql_redshift_pandas2/"
     session.pandas.to_redshift(
         dataframe=df,
@@ -725,7 +723,7 @@ def test_to_redshift_pandas_upsert(session, bucket, redshift_parameters):
         "val": list(["foo" if i % 2 == 0 else "boo" for i in range(500)])
     })
 
-    for i in range(10):
+    for i in range(3):
         print(f"run: {i}")
 
         # CREATE

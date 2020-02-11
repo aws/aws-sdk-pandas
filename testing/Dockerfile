@@ -9,18 +9,18 @@ xz-utils tk-dev libffi-dev liblzma-dev python-openssl git gcc curl postgresql li
 RUN curl https://pyenv.run | bash
 RUN echo 'eval "$(pyenv init -)"' >> /root/.bashrc
 ENV PATH="/root/.pyenv/bin:$PATH"
-RUN pyenv install 3.6.9
-RUN pyenv install 3.7.5
+RUN pyenv install 3.6.8
+RUN pyenv install 3.7.4
 RUN pyenv install 3.8.0
-RUN pyenv global 3.8.0 3.7.5 3.6.9
+RUN pyenv global 3.7.4 3.8.0 3.6.8
 ENV PYSPARK_PYTHON=python
 ENV PIP=/root/.pyenv/shims/pip
 RUN $PIP install --upgrade pip
 RUN $PIP install --no-cache pyspark==${SPARK_VERSION}
 RUN eval "$(pyenv init -)" && \
     export SPARK_HOME=$(python -c "import sys; print([x for x in sys.path if x.endswith('site-packages')][0])")/pyspark && \
-    curl --url "http://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk/1.11.717/aws-java-sdk-1.11.717.jar" --output ${SPARK_HOME}/jars/aws-java-sdk-1.11.717.jar && \
-    curl --url "http://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/2.10.0/hadoop-aws-2.10.0.jar" --output ${SPARK_HOME}/jars/hadoop-aws-2.10.0.jar && \
+    curl --url "https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk/1.7.4/aws-java-sdk-1.7.4.jar" --output ${SPARK_HOME}/jars/aws-java-sdk-1.7.4.jar && \
+    curl --url "https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/2.7.3/hadoop-aws-2.7.3.jar" --output ${SPARK_HOME}/jars/hadoop-aws-2.7.3.jar && \
     mkdir -p ${SPARK_HOME}/conf && \
     echo spark.hadoop.fs.s3.impl=org.apache.hadoop.fs.s3a.S3AFileSystem >> ${SPARK_HOME}/conf/spark-defaults.conf
 ADD requirements.txt /root/

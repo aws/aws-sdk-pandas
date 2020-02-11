@@ -1,17 +1,20 @@
-from typing import TYPE_CHECKING, Dict, Optional, Any, Iterator, List, Union, Tuple
-from math import ceil
-from itertools import islice
-import re
-from logging import getLogger, Logger
+"""AWS Glue Module."""
 
-from pandas import DataFrame  # type: ignore
+import re
+from itertools import islice
+from logging import Logger, getLogger
+from math import ceil
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union
+
 from boto3 import client  # type: ignore
+from pandas import DataFrame  # type: ignore
 
 from awswrangler import data_types
 from awswrangler.athena import Athena
-from awswrangler.redshift import Redshift
 from awswrangler.aurora import Aurora
-from awswrangler.exceptions import UnsupportedFileFormat, InvalidSerDe, ApiError, UnsupportedType, UndetectedType, InvalidTable, InvalidArguments
+from awswrangler.exceptions import (ApiError, InvalidArguments, InvalidSerDe, InvalidTable, UndetectedType,
+                                    UnsupportedFileFormat, UnsupportedType)
+from awswrangler.redshift import Redshift
 
 if TYPE_CHECKING:
     from awswrangler.session import Session
@@ -20,13 +23,22 @@ logger: Logger = getLogger(__name__)
 
 
 class Glue:
+    """AWS Glue Class."""
     def __init__(self, session: "Session"):
+        """
+        AWS Glue Class Constructor.
+
+        Don't use it directly, call through a Session().
+        e.g. wr.redshift.your_method()
+
+        :param session: awswrangler.Session()
+        """
         self._session: "Session" = session
         self._client_glue: client = session.boto3_session.client(service_name="glue", config=session.botocore_config)
 
     def get_table_athena_types(self, database: str, table: str) -> Dict[str, str]:
         """
-        Get all columns names and the related data types
+        Get all columns names and the related data types.
 
         :param database: Glue database's name
         :param table: Glue table's name
@@ -43,7 +55,7 @@ class Glue:
 
     def get_table_python_types(self, database: str, table: str) -> Dict[str, Optional[type]]:
         """
-        Get all columns names and the related python types
+        Get all columns names and the related python types.
 
         :param database: Glue database's name
         :param table: Glue table's name
@@ -68,7 +80,8 @@ class Glue:
                          description: Optional[str] = None,
                          parameters: Optional[Dict[str, str]] = None,
                          columns_comments: Optional[Dict[str, str]] = None) -> None:
-        """Create/update a table in the Glue catalog based on a dataframe.
+        """
+        Create/update a table in the Glue catalog based on a dataframe.
 
         :param dataframe: Pandas Dataframe
         :param path: AWS S3 path (E.g. s3://bucket-name/folder_name/
@@ -95,7 +108,7 @@ class Glue:
                                                            preserve_index=preserve_index,
                                                            indexes_position=indexes_position,
                                                            cast_columns=cast_columns)
-        table = table if table else Glue.parse_table_name(path)
+        table = table if table else Glue._parse_table_name(path)
         table = Athena.normalize_table_name(name=table)
         if mode == "overwrite":
             self.delete_table_if_exists(database=database, table=table)
@@ -123,6 +136,13 @@ class Glue:
                                 extra_args=extra_args)
 
     def delete_table_if_exists(self, table: str = None, database: Optional[str] = None):
+        """
+        Delete Glue table if exists.
+
+        :param table: Table name
+        :param database: Database name
+        :return: None
+        """
         if database is None and self._session.athena_database is not None:
             database = self._session.athena_database
         if database is None:
@@ -133,6 +153,13 @@ class Glue:
             pass
 
     def does_table_exists(self, database, table):
+        """
+        Check if the table exists.
+
+        :param database: Database name
+        :param table: Table name
+        :return: True or False
+        """
         try:
             self._client_glue.get_table(DatabaseName=database, Name=table)
             return True
@@ -152,7 +179,7 @@ class Glue:
                      parameters: Optional[Dict[str, str]] = None,
                      columns_comments: Optional[Dict[str, str]] = None) -> None:
         """
-        Create Glue table (Catalog)
+        Create Glue table (Catalog).
 
         :param database: AWS Glue Database name
         :param table: AWS Glue table name
@@ -168,18 +195,18 @@ class Glue:
         :return: None
         """
         if file_format == "parquet":
-            table_input: Dict[str, Any] = Glue.parquet_table_definition(table=table,
-                                                                        partition_cols_schema=partition_cols_schema,
-                                                                        schema=schema,
-                                                                        path=path,
-                                                                        compression=compression)
+            table_input: Dict[str, Any] = Glue._parquet_table_definition(table=table,
+                                                                         partition_cols_schema=partition_cols_schema,
+                                                                         schema=schema,
+                                                                         path=path,
+                                                                         compression=compression)
         elif file_format == "csv":
-            table_input = Glue.csv_table_definition(table=table,
-                                                    partition_cols_schema=partition_cols_schema,
-                                                    schema=schema,
-                                                    path=path,
-                                                    compression=compression,
-                                                    extra_args=extra_args)
+            table_input = Glue._csv_table_definition(table=table,
+                                                     partition_cols_schema=partition_cols_schema,
+                                                     schema=schema,
+                                                     path=path,
+                                                     compression=compression,
+                                                     extra_args=extra_args)
         else:
             raise UnsupportedFileFormat(file_format)
         if description is not None:
@@ -199,16 +226,27 @@ class Glue:
         self._client_glue.create_table(DatabaseName=database, TableInput=table_input)
 
     def add_partitions(self, database, table, partition_paths, file_format, compression, extra_args=None):
+        """
+        Add partitions to Glue Table.
+
+        :param database: Database name
+        :param table: Table name
+        :param partition_paths: Partitions paths
+        :param file_format: File format
+        :param compression: Compression format
+        :param extra_args: Extra arguments
+        :return: None
+        """
         if not partition_paths:
             return None
         partitions = list()
         for partition in partition_paths:
             if file_format == "parquet":
-                partition_def = Glue.parquet_partition_definition(partition=partition, compression=compression)
+                partition_def = Glue._parquet_partition_definition(partition=partition, compression=compression)
             elif file_format == "csv":
-                partition_def = Glue.csv_partition_definition(partition=partition,
-                                                              compression=compression,
-                                                              extra_args=extra_args)
+                partition_def = Glue._csv_partition_definition(partition=partition,
+                                                               compression=compression,
+                                                               extra_args=extra_args)
             else:
                 raise UnsupportedFileFormat(file_format)
             partitions.append(partition_def)
@@ -225,7 +263,13 @@ class Glue:
                         if error["ErrorDetail"]["ErrorCode"] != "AlreadyExistsException":
                             raise ApiError(f"{error}")
 
-    def get_connection_details(self, name):
+    def get_connection_details(self, name: str) -> Dict:
+        """
+        Get Glue connection details.
+
+        :param name: Connection name
+        :return: Details
+        """
         return self._client_glue.get_connection(Name=name, HidePassword=False)["Connection"]
 
     @staticmethod
@@ -270,18 +314,18 @@ class Glue:
         return schema_built, partition_cols_schema_built
 
     @staticmethod
-    def parse_table_name(path):
+    def _parse_table_name(path):
         if path[-1] == "/":
             path = path[:-1]
         return path.rpartition("/")[2]
 
     @staticmethod
-    def csv_table_definition(table: str,
-                             partition_cols_schema: List[Tuple[str, str]],
-                             schema: List[Tuple[str, str]],
-                             path: str,
-                             compression: Optional[str],
-                             extra_args: Optional[Dict[str, Optional[Union[str, int, List[str]]]]] = None):
+    def _csv_table_definition(table: str,
+                              partition_cols_schema: List[Tuple[str, str]],
+                              schema: List[Tuple[str, str]],
+                              path: str,
+                              compression: Optional[str],
+                              extra_args: Optional[Dict[str, Optional[Union[str, int, List[str]]]]] = None):
         if extra_args is None:
             extra_args = {"sep": ","}
         if partition_cols_schema is None:
@@ -354,7 +398,7 @@ class Glue:
         }
 
     @staticmethod
-    def csv_partition_definition(partition, compression, extra_args=None):
+    def _csv_partition_definition(partition, compression, extra_args=None):
         if extra_args is None:
             extra_args = {}
         compressed = False if compression is None else True
@@ -389,8 +433,8 @@ class Glue:
         }
 
     @staticmethod
-    def parquet_table_definition(table: str, partition_cols_schema: List[Tuple[str, str]],
-                                 schema: List[Tuple[str, str]], path: str, compression: Optional[str]):
+    def _parquet_table_definition(table: str, partition_cols_schema: List[Tuple[str, str]],
+                                  schema: List[Tuple[str, str]], path: str, compression: Optional[str]):
         if not partition_cols_schema:
             partition_cols_schema = []
         compressed = False if compression is None else True
@@ -434,7 +478,7 @@ class Glue:
         }
 
     @staticmethod
-    def parquet_partition_definition(partition, compression):
+    def _parquet_partition_definition(partition, compression):
         compressed = False if compression is None else True
         return {
             "StorageDescriptor": {
@@ -467,7 +511,7 @@ class Glue:
 
     def get_table_location(self, database: str, table: str):
         """
-        Get table's location on Glue catalog
+        Get table's location on Glue catalog.
 
         :param database: Database name
         :param table: table name
@@ -480,7 +524,7 @@ class Glue:
 
     def get_databases(self, catalog_id: Optional[str] = None) -> Iterator[Dict[str, Any]]:
         """
-        Get an iterator of databases
+        Get an iterator of databases.
 
         :param catalog_id: The ID of the Data Catalog from which to retrieve Databases. If none is provided, the AWS account ID is used by default.
         :return: Iterator[Dict[str, Any]] of Databases
@@ -501,7 +545,7 @@ class Glue:
                    name_prefix: Optional[str] = None,
                    name_suffix: Optional[str] = None) -> Iterator[Dict[str, Any]]:
         """
-        Get an iterator of tables
+        Get an iterator of tables.
 
         :param catalog_id: The ID of the Data Catalog from which to retrieve Databases. If none is provided, the AWS account ID is used by default.
         :param database: Filter a specific database
@@ -627,7 +671,7 @@ class Glue:
 
     def table(self, database: str, name: str, catalog_id: Optional[str] = None) -> DataFrame:
         """
-        Get table details as Pandas Dataframe
+        Get table details as Pandas Dataframe.
 
         :param database: Glue database name
         :param name: Table name
@@ -663,7 +707,7 @@ class Glue:
                        connection_timeout: int = 1_200_000,
                        validation_timeout: int = 5) -> Any:
         """
-         Generates a valid connection object (PEP 249 compatible)
+        Generate a valid connection object (PEP 249 compatible).
 
         :param name: Glue connection name
         :param application_name: Application name

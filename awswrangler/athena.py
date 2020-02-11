@@ -1,14 +1,16 @@
-from typing import TYPE_CHECKING, Dict, List, Tuple, Optional, Any, Iterator
-from time import sleep
-from logging import getLogger, Logger
+"""Amazon Athena Module."""
+
 import re
 import unicodedata
-from datetime import datetime, date
+from datetime import date, datetime
+from logging import Logger, getLogger
+from time import sleep
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple
 
 from boto3 import client  # type: ignore
 
 from awswrangler.data_types import athena2python
-from awswrangler.exceptions import QueryFailed, QueryCancelled
+from awswrangler.exceptions import QueryCancelled, QueryFailed
 
 if TYPE_CHECKING:
     from awswrangler.session import Session
@@ -19,7 +21,16 @@ QUERY_WAIT_POLLING_DELAY: float = 0.2  # MILLISECONDS
 
 
 class Athena:
+    """Amazon Athena Class."""
     def __init__(self, session: "Session"):
+        """
+        Amazon Athena Class Constructor.
+
+        Don't use it directly, call through a Session().
+        e.g. wr.athena.your_method()
+
+        :param session: awswrangler.Session()
+        """
         self._session: "Session" = session
         self._client_athena: client = session.boto3_session.client(service_name="athena",
                                                                    use_ssl=True,
@@ -30,7 +41,8 @@ class Athena:
 
     def get_query_columns_metadata(self, query_execution_id: str) -> Dict[str, str]:
         """
-        Get the data type of all columns queried
+        Get the data type of all columns queried.
+
         :param query_execution_id: Athena query execution ID
         :return: Dictionary with all data types
         """
@@ -38,9 +50,9 @@ class Athena:
         col_info: List[Dict[str, str]] = response["ResultSet"]["ResultSetMetadata"]["ColumnInfo"]
         return {x["Name"]: x["Type"] for x in col_info}
 
-    def create_athena_bucket(self):
+    def create_athena_bucket(self) -> str:
         """
-        Creates the default Athena bucket if not exists
+        Create the default Athena bucket if not exists.
 
         :return: Bucket s3 path (E.g. s3://aws-athena-query-results-ACCOUNT-REGION/)
         """
@@ -60,7 +72,8 @@ class Athena:
                   encryption: Optional[str] = None,
                   kms_key: Optional[str] = None) -> str:
         """
-        Run a SQL Query against AWS Athena
+        Run a SQL Query against AWS Athena.
+
         P.S All default values will be inherited from the Session()
 
         :param query: SQL query
@@ -109,16 +122,16 @@ class Athena:
         response = self._client_athena.start_query_execution(**args)
         return response["QueryExecutionId"]
 
-    def wait_query(self, query_execution_id):
+    def wait_query(self, query_execution_id: str) -> Dict:
         """
-        Wait query ends
+        Wait query ends.
 
         :param query_execution_id: Query execution ID
         :return: Query response
         """
-        final_states = ["FAILED", "SUCCEEDED", "CANCELLED"]
-        response = self._client_athena.get_query_execution(QueryExecutionId=query_execution_id)
-        state = response["QueryExecution"]["Status"]["State"]
+        final_states: List[str] = ["FAILED", "SUCCEEDED", "CANCELLED"]
+        response: Dict = self._client_athena.get_query_execution(QueryExecutionId=query_execution_id)
+        state: str = response["QueryExecution"]["Status"]["State"]
         while state not in final_states:
             sleep(QUERY_WAIT_POLLING_DELAY)
             response = self._client_athena.get_query_execution(QueryExecutionId=query_execution_id)
@@ -139,13 +152,14 @@ class Athena:
                      encryption: Optional[str] = None,
                      kms_key: Optional[str] = None):
         """
-        Hive's metastore consistency check
-        "MSCK REPAIR TABLE table;"
+        Run the Hive's metastore consistency check: "MSCK REPAIR TABLE table;".
+
         Recovers partitions and data associated with partitions.
         Use this statement when you add partitions to the catalog.
         It is possible it will take some time to add all partitions.
         If this operation times out, it will be in an incomplete state
         where only a few partitions are added to the catalog.
+
         P.S All default values will be inherited from the Session()
 
         :param database: Glue database name
@@ -188,7 +202,8 @@ class Athena:
 
     def get_results(self, query_execution_id: str) -> Iterator[Dict[str, Any]]:
         """
-        Get a query results and return a list of rows
+        Get a query results and return a list of rows.
+
         :param query_execution_id: Query execution ID
         :return: Iterator os lists
         """
@@ -218,7 +233,8 @@ class Athena:
               encryption: Optional[str] = None,
               kms_key: Optional[str] = None) -> Iterator[Dict[str, Any]]:
         """
-        Run a SQL Query against AWS Athena and return the result as a Iterator of lists
+        Run a SQL Query against AWS Athena and return the result as a Iterator of lists.
+
         P.S All default values will be inherited from the Session()
 
         :param query: SQL query
@@ -261,7 +277,10 @@ class Athena:
     @staticmethod
     def normalize_column_name(name: str) -> str:
         """
+        Convert the column name to be compatible with Amazon Athena.
+
         https://docs.aws.amazon.com/athena/latest/ug/tables-databases-columns-names.html
+
         :param name: column name (str)
         :return: normalized column name (str)
         """
@@ -270,7 +289,10 @@ class Athena:
     @staticmethod
     def normalize_table_name(name: str) -> str:
         """
+        Convert the table name to be compatible with Amazon Athena.
+
         https://docs.aws.amazon.com/athena/latest/ug/tables-databases-columns-names.html
+
         :param name: table name (str)
         :return: normalized table name (str)
         """
@@ -283,6 +305,12 @@ class Athena:
         return parts[0], parts[2]
 
     def extract_manifest_paths(self, path: str) -> List[str]:
+        """
+        Get the list of paths of the generated files.
+
+        :param path: Amazon S3 path
+        :return: List of S3 paths
+        """
         bucket_name, key_path = self._parse_path(path)
         body: bytes = self._client_s3.get_object(Bucket=bucket_name, Key=key_path)["Body"].read()
         return [x for x in body.decode('utf-8').split("\n") if x != ""]

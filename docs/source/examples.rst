@@ -1,5 +1,3 @@
-.. _doc_examples:
-
 Examples
 ========
 
@@ -21,7 +19,7 @@ Writing Pandas Dataframe to S3 + Glue Catalog
     )
 
 
-**P.S.** If a Glue Database name is passed, all the metadata will be created in the Glue Catalog. If not, only the s3 data write will be done.
+.. note:: If a Glue Database name is passed, all the metadata will be created in the Glue Catalog. If not, only the s3 data write will be done.
 
 Writing Pandas Dataframe to S3 as Parquet encrypting with a KMS key
 ```````````````````````````````````````````````````````````````````

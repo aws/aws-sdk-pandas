@@ -1654,8 +1654,8 @@ def test_to_csv_single_file(session, bucket, database):
                                     mode="overwrite",
                                     preserve_index=True,
                                     procs_cpu_bound=1)
-    print(f"s3_path: {s3_path}")
     assert len(s3_path) == 1
+    sleep(10)
     path_ctas = f"s3://{bucket}/test_to_csv_single_file2/"
     df2 = session.pandas.read_sql_athena(ctas_approach=True,
                                          sql="select * from test",
@@ -1664,7 +1664,6 @@ def test_to_csv_single_file(session, bucket, database):
     session.s3.delete_objects(path=path)
     assert len(list(df.columns)) + 1 == len(list(df2.columns))
     assert len(df.index) == len(df2.index)
-    print(df2)
 
 
 def test_aurora_mysql_load_simple(bucket, mysql_parameters):
@@ -2494,10 +2493,7 @@ def test_to_csv_string(bucket, database):
     assert df.equals(df2)
 
 
-@pytest.mark.parametrize("sample, row_num", [
-    ("data_samples/fwf_nano.txt", 5),
-    ("data_samples/fwf_nano.txt.zip", 5)
-])
+@pytest.mark.parametrize("sample, row_num", [("data_samples/fwf_nano.txt", 5), ("data_samples/fwf_nano.txt.zip", 5)])
 def test_read_fwf(bucket, sample, row_num):
     path = f"s3://{bucket}/{sample}"
     wr.s3.delete_objects(path=f"s3://{bucket}/")

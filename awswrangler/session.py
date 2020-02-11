@@ -1,23 +1,25 @@
+"""AWS Data Wrangler Session Module."""
+
 import importlib
+from logging import Logger, getLogger
 from os import cpu_count
-from typing import Optional, Dict
 from sys import version_info
-from logging import getLogger, Logger
+from typing import Dict, Optional
 
 import boto3  # type: ignore
 from botocore.config import Config  # type: ignore
 
-from awswrangler.s3 import S3
 from awswrangler.athena import Athena
-from awswrangler.cloudwatchlogs import CloudWatchLogs
-from awswrangler.pandas import Pandas
-from awswrangler.glue import Glue
-from awswrangler.redshift import Redshift
 from awswrangler.aurora import Aurora
-from awswrangler.emr import EMR
-from awswrangler.sagemaker import SageMaker
+from awswrangler.cloudwatchlogs import CloudWatchLogs
 from awswrangler.dynamodb import DynamoDB
+from awswrangler.emr import EMR
 from awswrangler.exceptions import AWSCredentialsNotFound
+from awswrangler.glue import Glue
+from awswrangler.pandas import Pandas
+from awswrangler.redshift import Redshift
+from awswrangler.s3 import S3
+from awswrangler.sagemaker import SageMaker
 
 PYSPARK_INSTALLED: bool = False
 if version_info < (3, 8) and importlib.util.find_spec("pyspark"):  # type: ignore
@@ -29,8 +31,9 @@ logger: Logger = getLogger(__name__)
 
 class Session:
     """
-    A session stores configuration state (e.g. Boto3.Session,
-    pyspark.sql.SparkSession, pyspark.SparkContext,
+    A session stores configuration state.
+
+    (e.g. Boto3.Session, pyspark.sql.SparkSession, pyspark.SparkContext,
     AWS Glue Connections attributes, number of cpu cores that can be used, etc)
     """
 
@@ -59,6 +62,7 @@ class Session:
                  aurora_temp_s3_path: Optional[str] = None):
         """
         Most parameters inherit from Boto3 or Pyspark.
+
         https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
         https://spark.apache.org/docs/latest/api/python/index.html
 
@@ -126,7 +130,8 @@ class Session:
 
     def _load_new_boto3_session(self) -> None:
         """
-        Load or reload a new Boto3 Session for the AWS Wrangler Session
+        Load or reload a new Boto3 Session for the AWS Wrangler Session.
+
         :return: None
         """
         args = {}
@@ -149,7 +154,8 @@ class Session:
 
     def _load_new_primitives(self) -> None:
         """
-        Load or reload a new AWS Wrangler Session primitives
+        Load or reload a new AWS Wrangler Session primitives.
+
         :return: None
         """
         self._primitives = SessionPrimitives(profile_name=self._profile_name,
@@ -173,154 +179,187 @@ class Session:
 
     @property
     def profile_name(self) -> Optional[str]:
+        """profile_name property."""
         return self._profile_name
 
     @property
     def aws_access_key_id(self) -> Optional[str]:
+        """aws_access_key_id property."""
         return self._aws_access_key_id
 
     @property
     def aws_secret_access_key(self) -> Optional[str]:
+        """aws_secret_access_key property."""
         return self._aws_secret_access_key
 
     @property
     def aws_session_token(self) -> Optional[str]:
+        """aws_session_token property."""
         return self._aws_session_token
 
     @property
     def region_name(self) -> Optional[str]:
+        """region_name property."""
         return self._region_name
 
     @property
     def botocore_max_retries(self) -> int:
+        """botocore_max_retries property."""
         return self._botocore_max_retries
 
     @property
     def botocore_config(self) -> Config:
+        """botocore_config property."""
         return self._botocore_config
 
     @property
     def s3_additional_kwargs(self) -> Optional[Dict[str, str]]:
+        """s3_additional_kwargs property."""
         return self._s3_additional_kwargs
 
     @property
     def spark_context(self):
+        """spark_context property."""
         return self._spark_context
 
     @property
     def spark_session(self):
+        """spark_session property."""
         return self._spark_session
 
     @property
     def procs_cpu_bound(self) -> int:
+        """procs_cpu_bound property."""
         return self._procs_cpu_bound
 
     @property
     def procs_io_bound(self) -> int:
+        """procs_io_bound property."""
         return self._procs_io_bound
 
     @property
     def athena_workgroup(self) -> str:
+        """athena_workgroup property."""
         return self._athena_workgroup
 
     @property
     def athena_s3_output(self) -> Optional[str]:
+        """athena_s3_output property."""
         return self._athena_s3_output
 
     @property
     def athena_encryption(self) -> Optional[str]:
+        """athena_encryption property."""
         return self._athena_encryption
 
     @property
     def athena_kms_key(self) -> Optional[str]:
+        """athena_kms_key property."""
         return self._athena_kms_key
 
     @property
     def athena_database(self) -> str:
+        """athena_database property."""
         return self._athena_database
 
     @property
     def athena_ctas_approach(self) -> bool:
+        """athena_ctas_approach property."""
         return self._athena_ctas_approach
 
     @property
     def redshift_temp_s3_path(self) -> Optional[str]:
+        """redshift_temp_s3_path property."""
         return self._redshift_temp_s3_path
 
     @property
     def aurora_temp_s3_path(self) -> Optional[str]:
+        """aurora_temp_s3_path property."""
         return self._aurora_temp_s3_path
 
     @property
     def boto3_session(self):
+        """boto3_session property."""
         return self._boto3_session
 
     @property
     def primitives(self):
+        """Primitives property."""
         return self._primitives
 
     @property
     def s3(self) -> S3:
+        """S3 property."""
         if self._s3 is None:
             self._s3 = S3(session=self)
         return self._s3
 
     @property
     def athena(self) -> Athena:
+        """Athena property."""
         if self._athena is None:
             self._athena = Athena(session=self)
         return self._athena
 
     @property
     def cloudwatchlogs(self) -> CloudWatchLogs:
+        """Cloudwatchlogs property."""
         if self._cloudwatchlogs is None:
             self._cloudwatchlogs = CloudWatchLogs(session=self)
         return self._cloudwatchlogs
 
     @property
     def emr(self) -> EMR:
+        """EMR property."""
         if self._emr is None:
             self._emr = EMR(session=self)
         return self._emr
 
     @property
     def pandas(self) -> Pandas:
+        """Pandas property."""
         if self._pandas is None:
             self._pandas = Pandas(session=self)
         return self._pandas
 
     @property
     def glue(self) -> Glue:
+        """Glue property."""
         if self._glue is None:
             self._glue = Glue(session=self)
         return self._glue
 
     @property
     def redshift(self) -> Redshift:
+        """Redshift property."""
         if self._redshift is None:
             self._redshift = Redshift(session=self)
         return self._redshift
 
     @property
     def aurora(self) -> Aurora:
+        """Aurora property."""
         if self._aurora is None:
             self._aurora = Aurora(session=self)
         return self._aurora
 
     @property
     def sagemaker(self) -> SageMaker:
+        """Sagemaker property."""
         if self._sagemaker is None:
             self._sagemaker = SageMaker(session=self)
         return self._sagemaker
 
     @property
     def dynamodb(self) -> DynamoDB:
+        """Dynamodb property."""
         if self._dynamodb is None:
             self._dynamodb = DynamoDB(session=self)
         return self._dynamodb
 
     @property
     def spark(self):
+        """Spark property."""
         if PYSPARK_INSTALLED is False:
             self._spark = None
         elif not self._spark:
@@ -331,6 +370,7 @@ class Session:
 class SessionPrimitives:
     """
     A minimalist version of Session to store only primitive attributes.
+
     It is required to "share" the session attributes to other processes.
     That must be "pickable"!
     """
@@ -355,6 +395,7 @@ class SessionPrimitives:
                  aurora_temp_s3_path: Optional[str] = None):
         """
         Most parameters inherit from Boto3.
+
         https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
 
         :param profile_name: Boto3 profile_name
@@ -397,80 +438,99 @@ class SessionPrimitives:
 
     @property
     def profile_name(self):
+        """profile_name property."""
         return self._profile_name
 
     @property
     def aws_access_key_id(self):
+        """aws_access_key_id property."""
         return self._aws_access_key_id
 
     @property
     def aws_secret_access_key(self):
+        """aws_secret_access_key property."""
         return self._aws_secret_access_key
 
     @property
     def aws_session_token(self):
+        """aws_session_token property."""
         return self._aws_session_token
 
     @property
     def region_name(self):
+        """region_name property."""
         return self._region_name
 
     @property
     def botocore_max_retries(self):
+        """botocore_max_retries property."""
         return self._botocore_max_retries
 
     @property
     def botocore_config(self):
+        """botocore_config property."""
         return self._botocore_config
 
     @property
     def s3_additional_kwargs(self):
+        """s3_additional_kwargs property."""
         return self._s3_additional_kwargs
 
     @property
     def procs_cpu_bound(self):
+        """procs_cpu_bound property."""
         return self._procs_cpu_bound
 
     @property
     def procs_io_bound(self):
+        """procs_io_bound property."""
         return self._procs_io_bound
 
     @property
     def athena_workgroup(self) -> Optional[str]:
+        """athena_workgroup property."""
         return self._athena_workgroup
 
     @property
     def athena_s3_output(self) -> Optional[str]:
+        """athena_s3_output property."""
         return self._athena_s3_output
 
     @property
     def athena_encryption(self) -> Optional[str]:
+        """athena_encryption property."""
         return self._athena_encryption
 
     @property
     def athena_kms_key(self) -> Optional[str]:
+        """athena_kms_key property."""
         return self._athena_kms_key
 
     @property
     def athena_database(self) -> Optional[str]:
+        """athena_database property."""
         return self._athena_database
 
     @property
     def athena_ctas_approach(self) -> bool:
+        """athena_ctas_approach property."""
         return self._athena_ctas_approach
 
     @property
     def redshift_temp_s3_path(self) -> Optional[str]:
+        """redshift_temp_s3_path property."""
         return self._redshift_temp_s3_path
 
     @property
     def aurora_temp_s3_path(self) -> Optional[str]:
+        """aurora_temp_s3_path property."""
         return self._aurora_temp_s3_path
 
     @property
     def session(self):
         """
-        Reconstruct the session from primitives
+        Reconstruct the session from primitives.
+
         :return: awswrangler.session.Session
         """
         return Session(profile_name=self._profile_name,

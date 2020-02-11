@@ -1,6 +1,8 @@
-from typing import TYPE_CHECKING, Any, Dict
+"""Amazon SageMaker Module."""
+
 import tarfile
-from logging import getLogger, Logger
+from logging import Logger, getLogger
+from typing import TYPE_CHECKING, Any, Dict
 
 from boto3 import client  # type: ignore
 
@@ -13,7 +15,16 @@ logger: Logger = getLogger(__name__)
 
 
 class SageMaker:
+    """Amazon SageMaker Class."""
     def __init__(self, session: "Session"):
+        """
+        Amazon SageMaker Class Constructor.
+
+        Don't use it directly, call through a Session().
+        e.g. wr.redshift.your_method()
+
+        :param session: awswrangler.Session()
+        """
         self._session: "Session" = session
         self._client_s3: client = session.boto3_session.client(service_name="s3",
                                                                use_ssl=True,
@@ -30,13 +41,12 @@ class SageMaker:
 
     def get_job_outputs(self, job_name: str = None, path: str = None) -> Dict[str, Any]:
         """
-        Extract and deserialize all Sagemaker's outputs (everything inside model.tar.gz)
+        Extract and deserialize all Sagemaker's outputs (everything inside model.tar.gz).
 
         :param job_name: Sagemaker's job name
         :param path: S3 path (model.tar.gz path)
         :return: A Dictionary with all filenames (key) and all objects (values)
         """
-
         if path and job_name:
             raise InvalidParameters("Specify either path or job_name")
 

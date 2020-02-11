@@ -1,12 +1,13 @@
-from typing import TYPE_CHECKING, List, Tuple, Dict, Any, Optional
-from logging import getLogger, Logger
+"""Apache Spark Module."""
+
 import os
+from logging import Logger, getLogger
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import pandas as pd  # type: ignore
-
-from pyspark.sql.functions import pandas_udf, PandasUDFType, spark_partition_id
-from pyspark.sql.types import TimestampType
 from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql.functions import PandasUDFType, pandas_udf, spark_partition_id
+from pyspark.sql.types import TimestampType
 
 from awswrangler.exceptions import MissingBatchDetected, UnsupportedFileFormat
 
@@ -19,12 +20,27 @@ MIN_NUMBER_OF_ROWS_TO_DISTRIBUTE: int = 1000
 
 
 class Spark:
+    """Apache Spark Class."""
     def __init__(self, session: "Session"):
+        """
+        Apache Spark Class Constructor.
+
+        Don't use it directly, call through a Session().
+        e.g. wr.redshift.your_method()
+
+        :param session: awswrangler.Session()
+        """
         self._session: "Session" = session
         self._procs_io_bound: int = 1
         logger.info(f"_procs_io_bound: {self._procs_io_bound}")
 
     def read_csv(self, **args) -> DataFrame:
+        """
+        Read CSV.
+
+        :param args: All arguments supported by spark.read.csv()
+        :return: PySpark DataDataframe
+        """
         spark: SparkSession = self._session.spark_session
         return spark.read.csv(**args)
 
@@ -43,6 +59,12 @@ class Spark:
 
     @staticmethod
     def date2timestamp(dataframe: DataFrame) -> DataFrame:
+        """
+        Convert all Date columns to Timestamp.
+
+        :param dataframe: PySpark DataFrame
+        :return: New converted DataFrame
+        """
         name: str
         dtype: str
         for name, dtype in dataframe.dtypes:
@@ -67,7 +89,7 @@ class Spark:
                     varchar_default_length: int = 256,
                     varchar_lengths: Optional[Dict[str, int]] = None) -> None:
         """
-        Load Spark Dataframe as a Table on Amazon Redshift
+        Load Spark Dataframe as a Table on Amazon Redshift.
 
         :param dataframe: Pandas Dataframe
         :param path: S3 path to write temporary files (E.g. s3://BUCKET_NAME/ANY_NAME/)
@@ -212,7 +234,7 @@ class Spark:
         file_format = file_format.lower()
         if file_format not in ["parquet", "csv"]:
             raise UnsupportedFileFormat(file_format)
-        table = table if table else self._session.glue.parse_table_name(path)
+        table = table if table else self._session.glue._parse_table_name(path)
         table = table.lower().replace(".", "_")
         logger.debug(f"table: {table}")
         full_schema = dataframe.dtypes
@@ -348,9 +370,11 @@ class Spark:
                 explode_pos: bool = True,
                 name: str = "root") -> Dict[str, DataFrame]:
         """
-        Convert a complex nested DataFrame in one (or many) flat DataFrames
+        Convert a complex nested DataFrame in one (or many) flat DataFrames.
+
         If a columns is a struct it is flatten directly.
         If a columns is an array or map, then child DataFrames are created in different granularities.
+
         :param dataframe: Spark DataFrame
         :param explode_outer: Should we preserve the null values on arrays?
         :param explode_pos: Create columns with the index of the ex-array

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -ex
 
 # Go to home
 rm -rf \
@@ -10,7 +10,7 @@ rm -rf \
 
 # Clone desired Arrow version
 git clone \
-  --branch apache-arrow-0.15.1 \
+  --branch apache-arrow-0.16.0 \
   --single-branch \
   https://github.com/apache/arrow.git
 
@@ -26,10 +26,13 @@ cmake \
     -DARROW_FLIGHT=OFF \
     -DARROW_GANDIVA=OFF \
     -DARROW_ORC=OFF \
+    -DARROW_WITH_SNAPPY=ON \
+    -DARROW_WITH_ZLIB=ON \
     -DARROW_PARQUET=ON \
+    -DARROW_CSV=OFF \
     -DARROW_PYTHON=ON \
     -DARROW_PLASMA=OFF \
-    -DARROW_BUILD_TESTS=ON \
+    -DARROW_BUILD_TESTS=OFF \
     ..
 make -j4
 make install
@@ -37,9 +40,11 @@ popd
 
 # Build Pyarrow
 export ARROW_PRE_0_15_IPC_FORMAT=1
+export PYARROW_WITH_HDFS=0
 export PYARROW_WITH_FLIGHT=0
 export PYARROW_WITH_GANDIVA=0
 export PYARROW_WITH_ORC=0
+export PYARROW_WITH_CUDA=0
 export PYARROW_WITH_PARQUET=1
 pushd arrow/python
 python setup.py build_ext \

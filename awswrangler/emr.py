@@ -1,10 +1,12 @@
 """
-Module to handle all utilities related to EMR (Elastic Map Reduce)
+Module to handle all utilities related to EMR (Elastic Map Reduce).
+
 https://aws.amazon.com/emr/
 """
-from typing import TYPE_CHECKING, Optional, List, Dict, Any, Union, Collection
-from logging import getLogger, Logger
+
 import json
+from logging import Logger, getLogger
+from typing import TYPE_CHECKING, Any, Collection, Dict, List, Optional, Union
 
 from boto3 import client  # type: ignore
 
@@ -15,10 +17,16 @@ logger: Logger = getLogger(__name__)
 
 
 class EMR:
-    """
-    EMR representation
-    """
+    """Amazon EMR Class."""
     def __init__(self, session: "Session"):
+        """
+        Amazon EMR Class Constructor.
+
+        Don't use it directly, call through a Session().
+        e.g. wr.redshift.your_method()
+
+        :param session: awswrangler.Session()
+        """
         self._session: "Session" = session
         self._client_emr: client = session.boto3_session.client(service_name="emr", config=session.botocore_config)
 
@@ -385,8 +393,10 @@ class EMR:
                        termination_protected: bool = False,
                        tags: Optional[Dict[str, str]] = None) -> str:
         """
-        Create a EMR cluster with instance fleets configuration
+        Create a EMR cluster with instance fleets configuration.
+
         https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-instance-fleet.html
+
         :param cluster_name: Cluster name
         :param logging_s3_path: Logging s3 path (e.g. s3://BUCKET_NAME/DIRECTORY_NAME/)
         :param emr_release: EMR release (e.g. emr-5.28.0)
@@ -450,8 +460,10 @@ class EMR:
 
     def get_cluster_state(self, cluster_id: str) -> str:
         """
-        Get the EMR cluster state
+        Get the EMR cluster state.
+
         Possible states: 'STARTING', 'BOOTSTRAPPING', 'RUNNING', 'WAITING', 'TERMINATING', 'TERMINATED', 'TERMINATED_WITH_ERRORS'
+
         :param cluster_id: EMR Cluster ID
         :return: State (string)
         """
@@ -461,7 +473,8 @@ class EMR:
 
     def terminate_cluster(self, cluster_id: str) -> None:
         """
-        Terminate the cluster
+        Terminate the cluster.
+
         :param cluster_id: EMR Cluster ID
         :return: None
         """
@@ -472,7 +485,8 @@ class EMR:
 
     def submit_steps(self, cluster_id: str, steps: List[Dict[str, Collection[str]]]) -> List[str]:
         """
-        Submit a list of steps
+        Submit a list of steps.
+
         :param cluster_id: EMR Cluster ID
         :param steps: Steps definitions (Obs: Use EMR.build_step() to build that)
         :return: List of step IDs
@@ -488,7 +502,8 @@ class EMR:
                     action_on_failure: str = "CONTINUE",
                     script: bool = False) -> str:
         """
-        Submit new job in the EMR Cluster
+        Submit new job in the EMR Cluster.
+
         :param cluster_id: EMR Cluster ID
         :param name: Step name
         :param command: e.g. 'echo "Hello!"' | e.g. for script 's3://.../script.sh arg1 arg2'
@@ -507,7 +522,8 @@ class EMR:
                    action_on_failure: str = "CONTINUE",
                    script: bool = False) -> Dict[str, Collection[str]]:
         """
-        Build the Step dictionary
+        Build the Step dictionary.
+
         :param name: Step name
         :param command: e.g. 'echo "Hello!"' | e.g. for script 's3://.../script.sh arg1 arg2'
         :param action_on_failure: 'TERMINATE_JOB_FLOW', 'TERMINATE_CLUSTER', 'CANCEL_AND_WAIT', 'CONTINUE'
@@ -533,7 +549,8 @@ class EMR:
 
     def get_step_state(self, cluster_id: str, step_id: str) -> str:
         """
-        Get the EMR step state
+        Get the EMR step state.
+
         Possible states: 'PENDING', 'CANCEL_PENDING', 'RUNNING', 'COMPLETED', 'CANCELLED', 'FAILED', 'INTERRUPTED',
         :param cluster_id: EMR Cluster ID
         :param step_id: EMR Step ID

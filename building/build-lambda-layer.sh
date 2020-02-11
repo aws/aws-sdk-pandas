@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -ex
 
 # Go back to AWSWRANGLER directory
 cd /aws-data-wrangler/
