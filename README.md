@@ -11,11 +11,10 @@
 
 **PyPI**: [![PyPI Downloads](https://img.shields.io/pypi/dm/awswrangler.svg)](https://pypi.org/project/awswrangler/)
 
-**Conda**: [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/awswrangler.svg)](https://pypi.org/project/awswrangler/)
-
-## [Read the Docs](https://aws-data-wrangler.readthedocs.io)
+**Conda**: [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/awswrangler.svg)](https://anaconda.org/conda-forge/awswrangler)
 
 ## Resources
+- [Read the Docs](https://aws-data-wrangler.readthedocs.io)
 - [Use Cases](#Use-Cases)
   - [Pandas](#Pandas)
   - [PySpark](#PySpark)
