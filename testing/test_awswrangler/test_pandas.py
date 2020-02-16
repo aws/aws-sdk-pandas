@@ -2552,3 +2552,19 @@ def test_read_parquet_int_na(bucket):
     assert len(df2.index) == 10_001
     assert len(df2.columns) == 1
     assert df2.dtypes["col"] == "Int64"
+
+
+def test_to_csv_header_filename(bucket):
+    path = f"s3://{bucket}/test_to_csv_header_filename/"
+    df = pd.DataFrame({"col1": [1, 2], "col2": ["foo", "boo"]})
+    paths = wr.pandas.to_csv(
+        dataframe=df,
+        path=path,
+        filename="file.csv",
+        header=True,
+        preserve_index=False
+    )
+    assert len(paths) == 1
+    assert paths[0].endswith("/test_to_csv_header_filename/file.csv")
+    df2 = wr.pandas.read_csv(path=paths[0])
+    assert df.equals(df2)
