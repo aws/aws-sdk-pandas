@@ -2513,3 +2513,26 @@ def test_read_fwf_prefix(bucket):
     wr.s3.delete_objects(path=path)
     print(dataframe)
     assert len(dataframe.index) == 10
+
+
+def test_sequential_overwrite(bucket):
+    path = f"s3://{bucket}/test_sequential_overwrite/"
+    df = pd.DataFrame({"col": [1]})
+    df2 = pd.DataFrame({"col": [2]})
+    wr.pandas.to_parquet(
+        dataframe=df,
+        path=path,
+        preserve_index=False,
+        mode="overwrite",
+        procs_cpu_bound=1
+    )
+    wr.pandas.to_parquet(
+        dataframe=df2,
+        path=path,
+        preserve_index=False,
+        mode="overwrite",
+        procs_cpu_bound=1
+    )
+    df3 = wr.pandas.read_parquet(path=path)
+    assert len(df3.index) == 1
+    assert df3.col[0] == 2
