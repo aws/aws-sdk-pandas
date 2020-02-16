@@ -511,11 +511,13 @@ class Pandas:
     def to_csv(self,
                dataframe: pd.DataFrame,
                path: str,
+               filename: Optional[str] = None,
                sep: Optional[str] = None,
                na_rep: Optional[str] = None,
                columns: Optional[List[str]] = None,
                quoting: Optional[int] = None,
                escapechar: Optional[str] = None,
+               header: Union[bool, List[str]] = False,
                serde: Optional[str] = "OpenCSVSerDe",
                database: Optional[str] = None,
                table: Optional[str] = None,
@@ -533,11 +535,13 @@ class Pandas:
 
         :param dataframe: Pandas Dataframe
         :param path: Amazon S3 path (e.g. s3://bucket_name/folder_name/)
+        :param filename: The default behavior writes several files with random names, but if you prefer pass a filename it will disable the parallelism and will write a single file with the desired name. NOT VALID for Glue catalog integration.
         :param sep: Same as pandas.to_csv()
         :param na_rep: Same as pandas.to_csv()
         :param columns: Same as pandas.to_csv()
         :param quoting: Same as pandas.to_csv()
         :param escapechar: Same as pandas.to_csv()
+        :param header: Same as pandas.to_csv(). NOT VALID for Glue catalog integration.
         :param serde: SerDe library name (e.g. OpenCSVSerDe, LazySimpleSerDe) (For Athena/Glue Catalog only)
         :param database: AWS Glue Database name
         :param table: AWS Glue table name
@@ -552,17 +556,23 @@ class Pandas:
         :param columns_comments: Columns names and the related comments (Optional[Dict[str, str]])
         :return: List of objects written on S3
         """
+        if (filename is not None) or (header is not False):
+            database = None
+            table = None
+            procs_cpu_bound = 1
         if (serde is not None) and (serde not in Pandas.VALID_CSV_SERDES):
             raise InvalidSerDe(f"{serde} in not in the valid SerDe list ({Pandas.VALID_CSV_SERDES})")
         if (database is not None) and (serde is None):
             raise InvalidParameters(f"It is not possible write to a Glue Database without a SerDe.")
-        extra_args: Dict[str, Optional[Union[str, int, List[str]]]] = {
+        extra_args: Dict[str, Optional[Union[str, int, bool, List[str]]]] = {
+            "filename": filename,
             "sep": sep,
             "na_rep": na_rep,
             "columns": columns,
             "serde": serde,
             "escapechar": escapechar,
-            "quoting": quoting
+            "quoting": quoting,
+            "header": header
         }
         return self.to_s3(dataframe=dataframe,
                           path=path,
@@ -925,7 +935,11 @@ class Pandas:
         if file_format == "parquet":
             outfile: str = f"{guid}{compression_extension}.parquet"
         elif file_format == "csv":
-            outfile = f"{guid}{compression_extension}.csv"
+            filename: Optional[str] = extra_args.get("filename")
+            if filename is None:
+                outfile = f"{guid}{compression_extension}.csv"
+            else:
+                outfile = filename
         else:
             raise UnsupportedFileFormat(file_format)
         object_path: str = "/".join([path, outfile])
@@ -975,7 +989,7 @@ class Pandas:
                 csv_extra_args["quoting"] = csv.QUOTE_NONE
                 csv_extra_args["escapechar"] = "\\"
         csv_buffer: bytes = bytes(
-            dataframe.to_csv(None, header=False, index=preserve_index, compression=compression, **csv_extra_args),
+            dataframe.to_csv(None, header=extra_args.get("header"), index=preserve_index, compression=compression, **csv_extra_args),
             "utf-8")
         Pandas._write_csv_to_s3_retrying(fs=fs, path=path, buffer=csv_buffer)
 
