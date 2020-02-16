@@ -325,7 +325,7 @@ class S3:
                     after=tenacity.after_log(logger, INFO))
     def head_object_with_retry(client_s3: client, bucket: str, key: str) -> Dict[str, Any]:
         """
-        Executes the Boto3 head_object() function with an extra layer of random exponential back-off.
+        Execute the Boto3 head_object() function with an extra layer of random exponential back-off.
 
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.head_object
 

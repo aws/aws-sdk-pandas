@@ -12,9 +12,9 @@
    :maxdepth: 4
 
    install
-   examples
    tutorials
+   examples
    divingdeep
-   contributing
    api/awswrangler
+   contributing
    license

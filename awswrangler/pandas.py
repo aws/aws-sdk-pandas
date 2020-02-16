@@ -935,7 +935,9 @@ class Pandas:
         if file_format == "parquet":
             outfile: str = f"{guid}{compression_extension}.parquet"
         elif file_format == "csv":
-            filename: Optional[str] = extra_args.get("filename")
+            filename: Optional[str] = None
+            if extra_args is not None:
+                filename = extra_args.get("filename")
             if filename is None:
                 outfile = f"{guid}{compression_extension}.csv"
             else:
@@ -989,8 +991,11 @@ class Pandas:
                 csv_extra_args["quoting"] = csv.QUOTE_NONE
                 csv_extra_args["escapechar"] = "\\"
         csv_buffer: bytes = bytes(
-            dataframe.to_csv(None, header=extra_args.get("header"), index=preserve_index, compression=compression, **csv_extra_args),
-            "utf-8")
+            dataframe.to_csv(None,
+                             header=extra_args.get("header"),
+                             index=preserve_index,
+                             compression=compression,
+                             **csv_extra_args), "utf-8")
         Pandas._write_csv_to_s3_retrying(fs=fs, path=path, buffer=csv_buffer)
 
     @staticmethod

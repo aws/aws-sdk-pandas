@@ -236,9 +236,5 @@ def test_wait_object_exists(bucket):
 def test_head_object_with_retry(bucket):
     key = "test_head_object_with_retry"
     boto3.resource("s3").Object(bucket, key).put(Body=str("Hello!"))
-    res = wr.s3.head_object_with_retry(
-        client_s3=boto3.client("s3"),
-        bucket=bucket,
-        key=key
-    )
+    res = wr.s3.head_object_with_retry(client_s3=boto3.client("s3"), bucket=bucket, key=key)
     assert res["ResponseMetadata"]["HTTPHeaders"]["content-length"] == "6"

@@ -2519,20 +2519,8 @@ def test_sequential_overwrite(bucket):
     path = f"s3://{bucket}/test_sequential_overwrite/"
     df = pd.DataFrame({"col": [1]})
     df2 = pd.DataFrame({"col": [2]})
-    wr.pandas.to_parquet(
-        dataframe=df,
-        path=path,
-        preserve_index=False,
-        mode="overwrite",
-        procs_cpu_bound=1
-    )
-    wr.pandas.to_parquet(
-        dataframe=df2,
-        path=path,
-        preserve_index=False,
-        mode="overwrite",
-        procs_cpu_bound=1
-    )
+    wr.pandas.to_parquet(dataframe=df, path=path, preserve_index=False, mode="overwrite", procs_cpu_bound=1)
+    wr.pandas.to_parquet(dataframe=df2, path=path, preserve_index=False, mode="overwrite", procs_cpu_bound=1)
     df3 = wr.pandas.read_parquet(path=path)
     assert len(df3.index) == 1
     assert df3.col[0] == 2
@@ -2541,13 +2529,7 @@ def test_sequential_overwrite(bucket):
 def test_read_parquet_int_na(bucket):
     path = f"s3://{bucket}/test_read_parquet_int_na/"
     df = pd.DataFrame({"col": [1] + [pd.NA for _ in range(10_000)]}, dtype="Int64")
-    wr.pandas.to_parquet(
-        dataframe=df,
-        path=path,
-        preserve_index=False,
-        mode="overwrite",
-        procs_cpu_bound=4
-    )
+    wr.pandas.to_parquet(dataframe=df, path=path, preserve_index=False, mode="overwrite", procs_cpu_bound=4)
     df2 = wr.pandas.read_parquet(path=path)
     assert len(df2.index) == 10_001
     assert len(df2.columns) == 1
@@ -2557,13 +2539,7 @@ def test_read_parquet_int_na(bucket):
 def test_to_csv_header_filename(bucket):
     path = f"s3://{bucket}/test_to_csv_header_filename/"
     df = pd.DataFrame({"col1": [1, 2], "col2": ["foo", "boo"]})
-    paths = wr.pandas.to_csv(
-        dataframe=df,
-        path=path,
-        filename="file.csv",
-        header=True,
-        preserve_index=False
-    )
+    paths = wr.pandas.to_csv(dataframe=df, path=path, filename="file.csv", header=True, preserve_index=False)
     assert len(paths) == 1
     assert paths[0].endswith("/test_to_csv_header_filename/file.csv")
     df2 = wr.pandas.read_csv(path=paths[0])

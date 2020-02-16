@@ -933,9 +933,7 @@ def test_to_redshift_int_na(bucket, redshift_parameters):
                           iam_role=redshift_parameters.get("RedshiftRole"),
                           mode="overwrite",
                           preserve_index=False,
-                          cast_columns={
-                              "col4": "INT8"
-                          })
+                          cast_columns={"col4": "INT8"})
     conn = wr.glue.get_connection("aws-data-wrangler-redshift")
     with conn.cursor() as cursor:
         cursor.execute("SELECT * FROM public.test_to_redshift_int_na")
