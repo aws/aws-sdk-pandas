@@ -843,7 +843,6 @@ class Pandas:
                                                            isolated_dataframe=isolated_dataframe)
             objects_paths.append(object_path)
         else:
-            dataframe = Pandas._cast_pandas(dataframe=dataframe, cast_columns=cast_columns)
             for keys, subgroup in dataframe.groupby(by=partition_cols, observed=True):
                 subgroup = subgroup.drop(partition_cols, axis="columns")
                 if not isinstance(keys, tuple):
@@ -1390,7 +1389,7 @@ class Pandas:
             if str(field.type).startswith("int") and field.name != "__index_level_0__"
         ]
         logger.debug(f"Converting to Pandas: {path}")
-        df = table.to_pandas(use_threads=use_threads, integer_object_nulls=True)
+        df = table.to_pandas(use_threads=use_threads, integer_object_nulls=False)
         logger.debug(f"Casting Int64 columns: {path}")
         for c in integers:
             if not str(df[c].dtype).startswith("int"):

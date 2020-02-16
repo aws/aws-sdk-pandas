@@ -2536,3 +2536,19 @@ def test_sequential_overwrite(bucket):
     df3 = wr.pandas.read_parquet(path=path)
     assert len(df3.index) == 1
     assert df3.col[0] == 2
+
+
+def test_read_parquet_int_na(bucket):
+    path = f"s3://{bucket}/test_read_parquet_int_na/"
+    df = pd.DataFrame({"col": [1] + [pd.NA for _ in range(10_000)]}, dtype="Int64")
+    wr.pandas.to_parquet(
+        dataframe=df,
+        path=path,
+        preserve_index=False,
+        mode="overwrite",
+        procs_cpu_bound=4
+    )
+    df2 = wr.pandas.read_parquet(path=path)
+    assert len(df2.index) == 10_001
+    assert len(df2.columns) == 1
+    assert df2.dtypes["col"] == "Int64"
