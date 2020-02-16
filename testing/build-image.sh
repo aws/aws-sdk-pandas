@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -ex
 
 cp ../requirements.txt .
 cp ../requirements-dev.txt .

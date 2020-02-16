@@ -323,7 +323,17 @@ class S3:
                     stop=tenacity.stop_after_attempt(max_attempt_number=10),
                     reraise=True,
                     after=tenacity.after_log(logger, INFO))
-    def _head_object_with_retry(client_s3: client, bucket: str, key: str) -> Dict[str, Any]:
+    def head_object_with_retry(client_s3: client, bucket: str, key: str) -> Dict[str, Any]:
+        """
+        Executes the Boto3 head_object() function with an extra layer of random exponential back-off.
+
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.head_object
+
+        :param client_s3: Boto3 S3 client
+        :param bucket: Bucket name.
+        :param key: Key
+        :return: Boto3 head_object() regular response dictionary
+        """
         return client_s3.head_object(Bucket=bucket, Key=key)
 
     @staticmethod
@@ -336,7 +346,7 @@ class S3:
         logger.debug(f"len(objects_paths): {len(objects_paths)}")
         for object_path in objects_paths:
             bucket, key = object_path.replace("s3://", "").split("/", 1)
-            res = S3._head_object_with_retry(client_s3=client_s3, bucket=bucket, key=key)
+            res = S3.head_object_with_retry(client_s3=client_s3, bucket=bucket, key=key)
             size = res["ContentLength"]
             objects_sizes[object_path] = size
         logger.debug(f"len(objects_sizes): {len(objects_sizes)}")

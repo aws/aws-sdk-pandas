@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -ex
 
 aws cloudformation deploy \
   --template-file template.yaml \

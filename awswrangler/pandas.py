@@ -111,7 +111,7 @@ class Pandas:
         if pd_additional_kwargs['compression'] is not None:
             raise InvalidParameters("max_result_size currently does not support compressed files")
 
-        metadata = S3._head_object_with_retry(client_s3=self._client_s3, bucket=bucket_name, key=key_path)
+        metadata = S3.head_object_with_retry(client_s3=self._client_s3, bucket=bucket_name, key=key_path)
         total_size = metadata["ContentLength"]
         logger.debug(f"total_size: {total_size}")
         if total_size <= 0:
