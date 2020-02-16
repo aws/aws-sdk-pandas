@@ -947,3 +947,54 @@ def test_to_redshift_int_na(bucket, redshift_parameters):
         rows = cursor.fetchall()
         assert rows[0][0] == 3
     conn.close()
+
+
+def test_does_table_exists():
+    conn = wr.glue.get_connection("aws-data-wrangler-redshift")
+    with conn.cursor() as cursor:
+        res = wr.redshift.does_table_exists(cursor=cursor, schema="information_schema", table="tables")
+        assert res is True
+        res = wr.redshift.does_table_exists(cursor=cursor, schema="information_schema", table="adjwbdjawbjd")
+        assert res is False
+    conn.close()
+
+
+def test_append_create_table(bucket, redshift_parameters):
+    df = pd.DataFrame({
+        "id": [1, 2, 3],
+        "decimal_2": [Decimal((0, (1, 9, 9), -2)), None, Decimal((0, (1, 9, 0), -2))],
+        "decimal_5": [Decimal((0, (1, 9, 9, 9, 9, 9), -5)), None,
+                      Decimal((0, (1, 9, 0, 0, 0, 0), -5))],
+    })
+    con = wr.redshift.get_connection("aws-data-wrangler-redshift")
+    cursor = con.cursor()
+    cursor.execute("DROP TABLE IF EXISTS public.test_append_create_table")
+    cursor.close()
+    path = f"s3://{bucket}/test_append_create_table/"
+    wr.pandas.to_redshift(
+        dataframe=df,
+        path=path,
+        schema="public",
+        table="test_append_create_table",
+        connection=con,
+        iam_role=redshift_parameters.get("RedshiftRole"),
+        mode="append",
+        preserve_index=False,
+    )
+    cursor = con.cursor()
+    cursor.execute("SELECT * from public.test_append_create_table")
+    rows = cursor.fetchall()
+    cursor.close()
+    con.close()
+    assert len(df.index) == len(rows)
+    assert len(list(df.columns)) == len(list(rows[0]))
+    for row in rows:
+        if row[0] == 1:
+            assert row[1] == Decimal((0, (1, 9, 9), -2))
+            assert row[2] == Decimal((0, (1, 9, 9, 9, 9, 9), -5))
+        elif row[1] == 2:
+            assert row[1] is None
+            assert row[2] is None
+        elif row[2] == 3:
+            assert row[1] == Decimal((0, (1, 9, 0), -2))
+            assert row[2] == Decimal((0, (1, 9, 0, 0, 0, 0), -5))

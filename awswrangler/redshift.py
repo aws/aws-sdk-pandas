@@ -242,16 +242,32 @@ class Redshift:
                                        varchar_default_length=varchar_default_length,
                                        varchar_lengths=varchar_lengths)
                 table_name = f"{schema_name}.{table_name}"
-            elif mode == "upsert":
-                guid: str = pa.compat.guid()
-                temp_table_name = f"temp_redshift_{guid}"
-                final_table_name = table_name
-                table_name = temp_table_name
-                sql: str = f"CREATE TEMPORARY TABLE {temp_table_name} (LIKE {schema_name}.{final_table_name})"
-                logger.debug(sql)
-                cursor.execute(sql)
             else:
-                table_name = f"{schema_name}.{table_name}"
+                if Redshift.does_table_exists(cursor=cursor, schema=schema_name, table=table_name) is False:
+                    Redshift._create_table(cursor=cursor,
+                                           dataframe=dataframe,
+                                           dataframe_type=dataframe_type,
+                                           schema_name=schema_name,
+                                           table_name=table_name,
+                                           diststyle=diststyle,
+                                           distkey=distkey,
+                                           sortstyle=sortstyle,
+                                           sortkey=sortkey,
+                                           primary_keys=primary_keys,
+                                           preserve_index=preserve_index,
+                                           cast_columns=cast_columns,
+                                           varchar_default_length=varchar_default_length,
+                                           varchar_lengths=varchar_lengths)
+                if mode == "upsert":
+                    guid: str = pa.compat.guid()
+                    temp_table_name = f"temp_redshift_{guid}"
+                    final_table_name = table_name
+                    table_name = temp_table_name
+                    sql: str = f"CREATE TEMPORARY TABLE {temp_table_name} (LIKE {schema_name}.{final_table_name})"
+                    logger.debug(sql)
+                    cursor.execute(sql)
+                else:
+                    table_name = f"{schema_name}.{table_name}"
 
             sql = ("-- AWS DATA WRANGLER\n"
                    f"COPY {table_name} FROM '{manifest_path}'\n"
@@ -513,3 +529,24 @@ class Redshift:
                 logger.debug(f"Waiting path: {p}")
                 self._session.s3.wait_object_exists(path=p, timeout=30.0)
         return paths
+
+    @staticmethod
+    def does_table_exists(cursor, schema: str, table: str) -> bool:
+        """
+        Check if the table exists.
+
+        :param cursor: A PEP 249 compatible cursor (A valid connection be generated with Redshift.generate_connection())
+        :param schema: Schema name
+        :param table: Table name
+        :return: True or False
+        """
+        cursor.execute(f"SELECT true WHERE EXISTS ("
+                       f"SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE "
+                       f"TABLE_SCHEMA = '{schema}' AND TABLE_NAME = '{table}'"
+                       f");")
+        rows: List = cursor.fetchall()
+        if len(rows) > 0:
+            res: bool = rows[0][0]
+        else:
+            res = False
+        return res
