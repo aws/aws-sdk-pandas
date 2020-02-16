@@ -431,9 +431,11 @@ class Redshift:
         varchar_lengths = {} if varchar_lengths is None else varchar_lengths
         schema_built: List[Tuple[str, str]] = []
         if dataframe_type.lower() == "pandas":
+            ignore_cols = list(cast_columns.keys()) if cast_columns is not None else None
             pyarrow_schema = data_types.extract_pyarrow_schema_from_pandas(dataframe=dataframe,
                                                                            preserve_index=preserve_index,
-                                                                           indexes_position="right")
+                                                                           indexes_position="right",
+                                                                           ignore_cols=ignore_cols)
             for name, dtype in pyarrow_schema:
                 if (cast_columns is not None) and (name in cast_columns.keys()):
                     schema_built.append((name, cast_columns[name]))

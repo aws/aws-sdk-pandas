@@ -911,3 +911,39 @@ def test_to_redshift_spark_varchar(session, bucket, redshift_parameters):
         for row in rows:
             assert len(row) == len(pdf.columns)
     conn.close()
+
+
+def test_to_redshift_int_na(bucket, redshift_parameters):
+    df = pd.DataFrame({
+        "id": [1, 2, 3, 4, 5],
+        "col1": [1, pd.NA, 2, pd.NA, pd.NA],
+        "col2": [pd.NA, pd.NA, pd.NA, pd.NA, pd.NA],
+        "col3": [None, None, None, None, None],
+        "col4": [1, pd.NA, 2, pd.NA, pd.NA]
+    })
+    df["col1"] = df["col1"].astype("Int64")
+    df["col2"] = df["col2"].astype("Int64")
+    df["col3"] = df["col3"].astype("Int64")
+    path = f"s3://{bucket}/test_to_redshift_int_na"
+    wr.pandas.to_redshift(dataframe=df,
+                          path=path,
+                          schema="public",
+                          table="test_to_redshift_int_na",
+                          connection="aws-data-wrangler-redshift",
+                          iam_role=redshift_parameters.get("RedshiftRole"),
+                          mode="overwrite",
+                          preserve_index=False,
+                          cast_columns={
+                              "col4": "INT8"
+                          })
+    conn = wr.glue.get_connection("aws-data-wrangler-redshift")
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT * FROM public.test_to_redshift_int_na")
+        rows = cursor.fetchall()
+        assert len(rows) == len(df.index)
+        for row in rows:
+            assert len(row) == len(df.columns)
+        cursor.execute("SELECT SUM(col1) FROM public.test_to_redshift_int_na")
+        rows = cursor.fetchall()
+        assert rows[0][0] == 3
+    conn.close()

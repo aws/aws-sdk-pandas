@@ -382,24 +382,29 @@ def convert_schema(func: Callable, schema: List[Tuple[str, str]]) -> Dict[str, s
 
 def extract_pyarrow_schema_from_pandas(dataframe: pd.DataFrame,
                                        preserve_index: bool,
-                                       indexes_position: str = "right") -> List[Tuple[str, Any]]:
+                                       indexes_position: str = "right",
+                                       ignore_cols: Optional[List[str]] = None) -> List[Tuple[str, Any]]:
     """
     Extract the related Pyarrow schema from any Pandas DataFrame.
 
     :param dataframe: Pandas Dataframe
     :param preserve_index: True or False
     :param indexes_position: "right" or "left"
+    :param ignore_cols: List of columns to be ignored
     :return: Pyarrow schema (e.g. [("col name": "bigint"), ("col2 name": "int")]
     """
+    ignore_cols = [] if ignore_cols is None else ignore_cols
     cols: List[str] = []
-    cols_dtypes: Dict[str, str] = {}
+    cols_dtypes: Dict[str, Optional[str]] = {}
     if indexes_position not in ("right", "left"):
         raise ValueError(f"indexes_position must be \"right\" or \"left\"")
 
     # Handle exception data types (e.g. Int64, string)
     for name, dtype in dataframe.dtypes.to_dict().items():
         dtype = str(dtype)
-        if dtype == "Int64":
+        if name in ignore_cols:
+            cols_dtypes[name] = None
+        elif dtype == "Int64":
             cols_dtypes[name] = "int64"
         elif dtype == "string":
             cols_dtypes[name] = "string"
