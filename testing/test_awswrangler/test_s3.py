@@ -231,3 +231,14 @@ def test_copy_listed_objects(session, bucket, database, mode, procs_io_bound):
 def test_wait_object_exists(bucket):
     with pytest.raises(S3WaitObjectTimeout):
         wr.s3.wait_object_exists(path=f"s3://{bucket}/test_wait_object_exists.txt", timeout=5.0)
+
+
+def test_head_object_with_retry(bucket):
+    key = "test_head_object_with_retry"
+    boto3.resource("s3").Object(bucket, key).put(Body=str("Hello!"))
+    res = wr.s3.head_object_with_retry(
+        client_s3=boto3.client("s3"),
+        bucket=bucket,
+        key=key
+    )
+    assert res["ResponseMetadata"]["HTTPHeaders"]["content-length"] == "6"
