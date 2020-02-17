@@ -1,4 +1,4 @@
-FROM lambci/lambda:build-python3.7
+FROM lambci/lambda:build-python3.6
 
 RUN yum install -y \
     boost-devel \
@@ -6,7 +6,7 @@ RUN yum install -y \
     bison \
     flex \
     autoconf \
-    python37-devel
+    python36-devel
 
 RUN pip3 install --upgrade pip
 
