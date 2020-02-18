@@ -21,7 +21,7 @@ from awswrangler.sagemaker import SageMaker  # noqa
 from awswrangler.session import Session  # noqa
 
 
-class DynamicInstantiate:
+class _DynamicInstantiate:
     """
     Class to instantiate the default Session.
 
@@ -50,24 +50,24 @@ class DynamicInstantiate:
 
     def __getattr__(self, name):
         """Override __getattr__."""
-        if DynamicInstantiate.__default_session is None:
-            DynamicInstantiate.__default_session = Session()
-        return getattr(getattr(DynamicInstantiate.__default_session, self._module_name), name)
+        if _DynamicInstantiate.__default_session is None:
+            _DynamicInstantiate.__default_session = Session()
+        return getattr(getattr(_DynamicInstantiate.__default_session, self._module_name), name)
 
 
 if version_info < (3, 8) and importlib.util.find_spec("pyspark"):  # type: ignore
     from awswrangler.spark import Spark  # noqa
-    spark: Spark = DynamicInstantiate("spark", Spark)  # type: ignore
+    spark: Spark = _DynamicInstantiate("spark", Spark)  # type: ignore
 
-s3: S3 = DynamicInstantiate("s3", S3)  # type: ignore
-emr: EMR = DynamicInstantiate("emr", EMR)  # type: ignore
-glue: Glue = DynamicInstantiate("glue", Glue)  # type: ignore
-pandas: Pandas = DynamicInstantiate("pandas", Pandas)  # type: ignore
-athena: Athena = DynamicInstantiate("athena", Athena)  # type: ignore
-aurora: Aurora = DynamicInstantiate("aurora", Aurora)  # type: ignore
-redshift: Redshift = DynamicInstantiate("redshift", Redshift)  # type: ignore
-dynamodb: DynamoDB = DynamicInstantiate("dynamodb", DynamoDB)  # type: ignore
-sagemaker: SageMaker = DynamicInstantiate("sagemaker", SageMaker)  # type: ignore
-cloudwatchlogs: CloudWatchLogs = DynamicInstantiate("cloudwatchlogs", CloudWatchLogs)  # type: ignore
+s3: S3 = _DynamicInstantiate("s3", S3)  # type: ignore
+emr: EMR = _DynamicInstantiate("emr", EMR)  # type: ignore
+glue: Glue = _DynamicInstantiate("glue", Glue)  # type: ignore
+pandas: Pandas = _DynamicInstantiate("pandas", Pandas)  # type: ignore
+athena: Athena = _DynamicInstantiate("athena", Athena)  # type: ignore
+aurora: Aurora = _DynamicInstantiate("aurora", Aurora)  # type: ignore
+redshift: Redshift = _DynamicInstantiate("redshift", Redshift)  # type: ignore
+dynamodb: DynamoDB = _DynamicInstantiate("dynamodb", DynamoDB)  # type: ignore
+sagemaker: SageMaker = _DynamicInstantiate("sagemaker", SageMaker)  # type: ignore
+cloudwatchlogs: CloudWatchLogs = _DynamicInstantiate("cloudwatchlogs", CloudWatchLogs)  # type: ignore
 
 getLogger("awswrangler").addHandler(NullHandler())
