@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 here = os.path.abspath(os.path.dirname(__file__))
 about = {}
-path = os.path.join(here, "awswrangler", "__version__.py")
+path = os.path.join(here, "awswrangler", "__metadata__.py")
 with open(file=path, mode="r", encoding="utf-8") as f:
     exec(f.read(), about)
 

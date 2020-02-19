@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 set -ex
 
-cd ..
-sphinx-apidoc --maxdepth 10 --separate --force --no-toc -H "API Reference" -o docs/source/api awswrangler/
+pushd ..
 make -C docs/ html
-doc8 --ignore D001 docs/source
-cd building
+doc8 --ignore D001,D002,D005 docs/source
 echo DONE!

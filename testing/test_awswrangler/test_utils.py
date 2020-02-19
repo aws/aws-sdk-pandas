@@ -1,13 +1,10 @@
 import logging
 
-import pytest
-
-import awswrangler
+import awswrangler as wr
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
-@pytest.mark.parametrize("in1,in2,out", [(2, 3, 6), (65, 10, 130), (743, 321, 238503)])
-def test_lcm(in1, in2, out):
-    assert out == awswrangler.utils.lcm(in1, in2)
+def test_chunkify():
+    assert wr.utils.chunkify(list(range(13)), 3) == [[0, 1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]]
