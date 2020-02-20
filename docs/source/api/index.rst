@@ -24,6 +24,8 @@ wr.s3
      parse_path
      get_bucket_region
      list_objects
+     delete_objects_list
+     delete_objects_prefix
 
 wr.utils
 --------
@@ -34,3 +36,4 @@ wr.utils
      :toctree: stubs
 
      chunkify
+     get_cpu_count

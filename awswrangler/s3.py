@@ -1,15 +1,18 @@
 """Amazon S3 Module."""
 
+import multiprocessing as mp
 from logging import Logger, getLogger
 from time import sleep
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 from botocore.exceptions import ClientError  # type: ignore
 
+from awswrangler import utils
 from awswrangler.exceptions import S3WaitObjectTimeout
 
-if TYPE_CHECKING:
-    from awswrangler.session import Session  # pragma: no cover
+if TYPE_CHECKING:  # pragma: no cover
+    from awswrangler.session import Session, _SessionPrimitives
+    import boto3  # type: ignore
 
 logger: Logger = getLogger(__name__)
 
@@ -65,7 +68,10 @@ class S3:
                 return False
             raise ex  # pragma: no cover
 
-    def wait_object_exists(self, path: str, polling_sleep: float = 0.1, timeout: Optional[float] = 10.0) -> None:
+    def wait_object_exists(self,
+                           path: str,
+                           polling_sleep: float = 0.1,
+                           timeout: Optional[float] = 10.0) -> None:
         """Wait object exists on S3.
 
         Parameters
@@ -99,7 +105,8 @@ class S3:
             if timeout is not None:
                 time_acc += polling_sleep
                 if time_acc >= timeout:
-                    raise S3WaitObjectTimeout(f"Waited for {path} for {time_acc} seconds")
+                    raise S3WaitObjectTimeout(
+                        f"Waited for {path} for {time_acc} seconds")
 
     @staticmethod
     def parse_path(path: str) -> Tuple[str, str]:
@@ -150,7 +157,8 @@ class S3:
 
         """
         logger.debug(f"bucket: {bucket}")
-        region: str = self._session.s3_client.get_bucket_location(Bucket=bucket)["LocationConstraint"]
+        region: str = self._session.s3_client.get_bucket_location(
+            Bucket=bucket)["LocationConstraint"]
         region = "us-east-1" if region is None else region
         logger.debug(f"region: {region}")
         return region
@@ -166,7 +174,7 @@ class S3:
         Returns
         -------
         List[str]
-            List of objects paths
+            List of objects paths.
 
         Examples
         --------
@@ -179,11 +187,122 @@ class S3:
         bucket: str
         prefix: str
         bucket, prefix = self.parse_path(path=path)
-        response_iterator = paginator.paginate(Bucket=bucket, Prefix=prefix, PaginationConfig={"PageSize": 1000})
+        response_iterator = paginator.paginate(
+            Bucket=bucket, Prefix=prefix, PaginationConfig={"PageSize": 1000})
         paths: List[str] = []
         for page in response_iterator:
-            for content in page.get("Contents"):
-                if (content is not None) and ("Key" in content):
-                    key: str = content["Key"]
-                    paths.append(f"s3://{bucket}/{key}")
+            if page.get("Contents") is not None:
+                for content in page.get("Contents"):
+                    if (content is not None) and ("Key" in content):
+                        key: str = content["Key"]
+                        paths.append(f"s3://{bucket}/{key}")
         return paths
+
+    def delete_objects_list(self,
+                            paths: List[str],
+                            parallel: bool = True) -> None:
+        """Delete all listed Amazon S3 objects.
+
+        Note
+        ----
+        In case of `parallel=True` the number of process that will be spawned will be get from os.cpu_count().
+
+        Parameters
+        ----------
+        paths : str
+            S3 path (e.g. s3://bucket/prefix).
+        parallel : bool
+            True to enable parallel requests, False to disable.
+
+        Returns
+        -------
+        None
+            None.
+
+        Examples
+        --------
+        >>> import awswrangler as wr
+        >>> wr.s3.delete_objects_list(["s3://bucket/key0", "s3://bucket/key1"])
+
+        """
+        cpus: int = utils.get_cpu_count(parallel=parallel)
+        buckets: Dict[str, List[str]] = self._split_paths_by_bucket(paths=paths)
+        for bucket, keys in buckets.items():
+            if cpus == 1:
+                self._delete_objects(s3_client=self._session.s3_client,
+                                     bucket=bucket,
+                                     keys=keys)
+            else:
+                chunks: List[List[str]] = utils.chunkify(lst=keys,
+                                                         num_chunks=cpus)
+                procs: List[mp.Process] = []
+                for chunk in chunks:
+                    proc: mp.Process = mp.Process(
+                        target=self._delete_objects_remote,
+                        args=(
+                            self._session.primitives,
+                            bucket,
+                            chunk,
+                        ),
+                    )
+                    proc.daemon = False
+                    proc.start()
+                    procs.append(proc)
+                for proc in procs:
+                    proc.join()
+
+    @staticmethod
+    def _delete_objects_remote(session_primitives: "_SessionPrimitives",
+                               bucket: str, keys: List[str]) -> None:
+        session: "Session" = session_primitives.build_session()
+        s3_client: boto3.client = session.s3_client
+        S3._delete_objects(s3_client=s3_client, bucket=bucket, keys=keys)
+
+    @staticmethod
+    def _delete_objects(s3_client: "boto3.client", bucket: str,
+                        keys: List[str]) -> None:
+        chunks: List[List[str]] = utils.chunkify(lst=keys, max_length=1_000)
+        logger.debug(f"len(chunks): {len(chunks)}")
+        for chunk in chunks:
+            batch: List[Dict[str, str]] = [{"Key": key} for key in chunk]
+            s3_client.delete_objects(Bucket=bucket, Delete={"Objects": batch})
+
+    @staticmethod
+    def _split_paths_by_bucket(paths: List[str]) -> Dict[str, List[str]]:
+        buckets: Dict[str, List[str]] = {}
+        bucket: str
+        key: str
+        for path in paths:
+            bucket, key = S3.parse_path(path=path)
+            if bucket not in buckets:
+                buckets[bucket] = []
+            buckets[bucket].append(key)
+        return buckets
+
+    def delete_objects_prefix(self, path: str, parallel: bool = True) -> None:
+        """Delete all Amazon S3 objects under the received prefix.
+
+        Note
+        ----
+        In case of `parallel=True` the number of process that will be spawned will be get from os.cpu_count().
+
+        Parameters
+        ----------
+        path : str
+            S3 prefix path (e.g. s3://bucket/prefix).
+        parallel : bool
+            True to enable parallel requests, False to disable.
+
+        Returns
+        -------
+        None
+            None.
+
+        Examples
+        --------
+        >>> import awswrangler as wr
+        >>> wr.s3.delete_objects_prefix(path="s3://bucket/prefix"])
+
+        """
+        paths: List[str] = self.list_objects(path=path)
+        self.delete_objects_list(paths=paths, parallel=parallel)

@@ -2,24 +2,10 @@
 
 > Pandas on AWS
 
-## IMPORTANT NOTE: Version 1.0.0 coming soon with several breaking changes.
-
-Please, pin the version you are using on your environment.
-
-AWS Data Wrangler is completing 1 year, and the team is working to collect feedbacks and features requests to put in our 1.0.0 version. By now we have 3 major changes listed:
-
-- API redesign
-- Nested data types support
-- Deprecation of PySpark support
-	- PySpark support takes considerable part of the development time and it has not been reflected in user adoption. Only 2 of our 66 issues on GitHub are related to Spark.
-	- In addition, the integration between PySpark and PyArrow/Pandas remains in experimental stage and we have been experiencing tough times to keep it stable.
-
----
-
-[![Release](https://img.shields.io/badge/release-0.3.2-brightgreen.svg)](https://pypi.org/project/awswrangler/)
+[![Release](https://img.shields.io/badge/release-1.0.0-brightgreen.svg)](https://pypi.org/project/awswrangler/)
 [![Python Version](https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.8-brightgreen.svg)](https://anaconda.org/conda-forge/awswrangler)
 [![Documentation Status](https://readthedocs.org/projects/aws-data-wrangler/badge/?version=latest)](https://aws-data-wrangler.readthedocs.io/?badge=latest)
-[![Coverage](https://img.shields.io/badge/coverage-89%25-brightgreen.svg)](https://pypi.org/project/awswrangler/)
+[![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](https://pypi.org/project/awswrangler/)
 [![Average time to resolve an issue](http://isitmaintained.com/badge/resolution/awslabs/aws-data-wrangler.svg)](http://isitmaintained.com/project/awslabs/aws-data-wrangler "Average time to resolve an issue")
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
@@ -41,15 +27,6 @@ AWS Data Wrangler is completing 1 year, and the team is working to collect feedb
 - [Contributing](https://aws-data-wrangler.readthedocs.io/contributing.html)
 
 ## Use Cases
-
-### PySpark
-
-| FROM                        | TO                        | Features                                                                                 |
-|-----------------------------|---------------------------|------------------------------------------------------------------------------------------|
-| PySpark DataFrame           | Amazon Redshift            | Blazing fast using parallel parquet on S3 behind the scenesAppend/Overwrite/Upsert modes |
-| PySpark DataFrame           | Glue Catalog              | Register Parquet or CSV DataFrame on Glue Catalog                                        |
-| Nested PySpark<br>DataFrame | Flat PySpark<br>DataFrames| Flatten structs and break up arrays in child tables                                      |
-
 
 ### Pandas
 
