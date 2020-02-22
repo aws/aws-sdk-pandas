@@ -10,6 +10,8 @@ import pytest
 
 import awswrangler as wr
 
+EVENTUAL_CONSISTENCY_SLEEP: float = 20.0
+
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -61,7 +63,7 @@ def bucket(cloudformation_outputs):
     else:
         raise Exception("You must deploy/update the test infrastructure (CloudFormation)")
     yield bucket
-    wr.s3.delete_objects_prefix(f"s3://{bucket}/")
+    # wr.s3.delete_objects_prefix(f"s3://{bucket}/")
 
 
 def df():
@@ -70,10 +72,8 @@ def df():
     df = pd.DataFrame({
         "int_full": [1, 2, 3, 4, 5],
         "int_none": [None, 2, None, 4, None],
-        "int_na": [pd.NA, 2, pd.NA, 4, pd.NA],
         "double_full": [1.1, 2.2, 3.3, 4.4, 5.5],
         "double_none": [None, 2.2, None, 4.4, None],
-        "double_na": [pd.NA, 2.2, pd.NA, 4.4, pd.NA],
         "decimal_full": [
             Decimal((0, (1, 1), -1)),
             Decimal((0, (2, 2), -1)),
@@ -83,14 +83,10 @@ def df():
         ],
         "decimal_none": [None, Decimal((0, (2, 2), -1)), None,
                          Decimal((0, (4, 4), -1)), None],
-        "decimal_na": [pd.NA, Decimal((0, (2, 2), -1)), pd.NA,
-                       Decimal((0, (4, 4), -1)), pd.NA],
         "bool_full": [True, False, True, False, True],
         "bool_none": [True, None, None, False, None],
-        "bool_na": [True, pd.NA, pd.NA, False, pd.NA],
         "string_full": ["øåæøå", "汉字", "foo", "1.1", "True"],
         "string_none": ["øåæøå", None, None, "foo", None],
-        "string_na": ["øåæøå", pd.NA, pd.NA, "foo", pd.NA],
         "timestamp_full": [
             ts("0001-01-10 10:34:55.863"),
             ts("2500-01-10 10:34:55.863"),
@@ -100,15 +96,12 @@ def df():
         ],
         "timestamp_none": [ts("0001-01-10 10:34:55.863"), None, None, None,
                            ts("2023-01-10 10:34:55.863")],
-        "timestamp_na": [ts("0001-01-10 10:34:55.863"), pd.NA, pd.NA, pd.NA,
-                         ts("2023-01-10 10:34:55.863")],
         "date_full": [dt("0001-01-10"),
                       dt("2500-01-10"),
                       dt("2020-01-10"),
                       dt("2021-01-10"),
                       dt("2023-01-10")],
         "date_none": [dt("0001-01-10"), None, None, None, dt("2023-01-10")],
-        "date_na": [dt("0001-01-10"), pd.NA, pd.NA, pd.NA, dt("2023-01-10")],
         "category_full": ["a", "a", "b", "b", "a"],
         "category_none": ["a", None, None, "b", None],
     })
@@ -116,13 +109,10 @@ def df():
     df["category_none"] = df["category_none"].astype("category")
     df["int_full_new"] = df["int_full"].astype("Int64")
     df["int_none_new"] = df["int_none"].astype("Int64")
-    df["int_na_new"] = df["int_na"].astype("Int64")
     df["string_full_new"] = df["string_full"].astype("string")
     df["string_none_new"] = df["string_none"].astype("string")
-    df["string_na_new"] = df["string_na"].astype("string")
     df["bool_full_new"] = df["bool_full"].astype("boolean")
     df["bool_none_new"] = df["bool_none"].astype("boolean")
-    df["bool_na_new"] = df["bool_na"].astype("boolean")
     return df
 
 
@@ -165,14 +155,14 @@ def test_delete_objects_prefix(bucket, parallel):
     print("Starting writes...")
     write_fake_objects(bucket, prefix, num)
     print("Waiting eventual consistency...")
-    sleep(15)
+    sleep(EVENTUAL_CONSISTENCY_SLEEP)
     print("Listing...")
     paths = wr.s3.list_objects(path)
     assert len(paths) == num
     print("Deleting...")
     wr.s3.delete_objects_prefix(path=path, parallel=parallel)
     print("Waiting eventual consistency...")
-    sleep(15)
+    sleep(EVENTUAL_CONSISTENCY_SLEEP)
     assert len(wr.s3.list_objects(path)) == 0
     wr.s3.delete_objects_list(paths=[])
 
@@ -188,7 +178,7 @@ def test_to_csv_overwrite(bucket):
     wr.s3.to_csv(df=df(), path=path, mode="overwrite")
     wr.s3.to_csv(df=df(), path=path, mode="overwrite")
     print("Waiting eventual consistency...")
-    sleep(15)
+    sleep(EVENTUAL_CONSISTENCY_SLEEP)
     print("Listing...")
     assert len(wr.s3.list_objects(path)) == 1
 
@@ -207,9 +197,28 @@ def test_to_csv_partition_upsert(bucket):
     path = f"s3://{bucket}/test_to_csv_partition_upsert/"
     wr.s3.to_csv(df=df(), path=path, mode="overwrite", partition_cols=["int_full_new"])
     print("Waiting eventual consistency...")
-    sleep(15)
+    sleep(EVENTUAL_CONSISTENCY_SLEEP)
     wr.s3.to_csv(df=df(), path=path, mode="partition_upsert", partition_cols=["int_full_new"])
     print("Waiting eventual consistency...")
-    sleep(15)
+    sleep(EVENTUAL_CONSISTENCY_SLEEP)
     print("Listing...")
     assert len(wr.s3.list_objects(path)) == 5
+
+
+@pytest.mark.parametrize("filename", [None, "filename.parquet"])
+def test_to_parquet_filename(bucket, filename):
+    paths = wr.s3.to_parquet(df=df(),
+                             path=f"s3://{bucket}/test_to_parquet_filename/",
+                             filename=filename,
+                             parallel=False)
+    wr.s3.wait_object_exists(path=paths[0])
+
+
+@pytest.mark.parametrize("partition_cols", [
+    'int_full', 'double_full', 'decimal_full', 'bool_full', 'string_full', 'timestamp_full', 'date_full',
+    'category_full', 'int_full_new', 'string_full_new', 'bool_full_new'
+])
+def test_to_parquet_partitioned(bucket, partition_cols):
+    paths = wr.s3.to_parquet(df=df(), path=f"s3://{bucket}/test_to_parquet_partitioned/", partition_cols=partition_cols)
+    for p in paths:
+        wr.s3.wait_object_exists(path=p)

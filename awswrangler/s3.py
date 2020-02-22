@@ -8,7 +8,10 @@ from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple
 from uuid import uuid4
 
 import pandas as pd  # type: ignore
+import pyarrow as pa  # type: ignore
+from boto3.s3.transfer import TransferConfig  # type: ignore
 from botocore.exceptions import ClientError  # type: ignore
+from pyarrow import parquet as pq  # type: ignore
 
 from awswrangler import utils
 from awswrangler.exceptions import S3WaitObjectTimeout
@@ -308,15 +311,16 @@ class S3:
                         mode: str = "append",
                         parallel: bool = True,
                         **pd_kwargs) -> List[str]:
+        cpus: int = utils.get_cpu_count(parallel=parallel)
         paths: List[str] = []
         path = path if path[-1] == "/" else f"{path}/"
         if filename is not None:
-            paths.append(file_writer(df=df, path=path, filename=filename, **pd_kwargs))
+            paths.append(file_writer(df=df, path=path, filename=filename, cpus=cpus, **pd_kwargs))
         else:
             if (mode == "overwrite") or ((mode == "partition_upsert") and (not partition_cols)):
                 self.delete_objects_prefix(path=path, parallel=parallel)
             if not partition_cols:
-                paths.append(file_writer(df=df, path=path, **pd_kwargs))
+                paths.append(file_writer(df=df, path=path, cpus=cpus, **pd_kwargs))
             else:
                 for keys, subgroup in df.groupby(by=partition_cols, observed=True):
                     subgroup = subgroup.drop(partition_cols, axis="columns")
@@ -325,7 +329,7 @@ class S3:
                     prefix: str = f"{path}{subdir}/"
                     if mode == "partition_upsert":
                         self.delete_objects_prefix(path=prefix, parallel=parallel)
-                    paths.append(file_writer(df=subgroup, path=prefix, **pd_kwargs))
+                    paths.append(file_writer(df=subgroup, path=prefix, cpus=cpus, **pd_kwargs))
         return paths
 
     def to_csv(self,
@@ -368,7 +372,7 @@ class S3:
 
         Examples
         --------
-        Writing single file
+        Writing with filename
 
         >>> import awswrangler as wr
         >>> import pandas as pd
@@ -401,38 +405,117 @@ class S3:
                                     parallel=parallel,
                                     **pd_kwargs)
 
-    def _write_csv_file(self, df: pd.DataFrame, path: str, filename: Optional[str] = None, **pd_kwargs) -> str:
+    def _write_csv_file(self,
+                        df: pd.DataFrame,
+                        path: str,
+                        cpus: int,
+                        filename: Optional[str] = None,
+                        **pd_kwargs) -> str:
         file_path: str = f"{path}{uuid4().hex}.csv" if filename is None else f"{path}{filename}"
         file_obj: BytesIO = BytesIO(initial_bytes=bytes(df.to_csv(None, **pd_kwargs), "utf-8"))
-        bucket: str
-        key: str
-        bucket, key = self.parse_path(path=file_path)
-        self._session.s3_client.upload_fileobj(Fileobj=file_obj, Bucket=bucket, Key=key)
-        file_obj.close()
+        self._upload_fileobj(file_obj=file_obj, path=file_path, cpus=cpus)
         return file_path
 
-    # @staticmethod
-    # def _get_filesystem(session_primitives: Optional["_SessionPrimitives"] = None) -> s3fs.S3FileSystem:
-    #     """Get a file-system abstraction for S3."""
-    #     aws_access_key_id, aws_secret_access_key, profile_name = None, None, None
-    #     args: Dict[str, Any] = {}
-    #
-    #     if session_primitives is not None:
-    #         if session_primitives.aws_access_key_id is not None:
-    #             aws_access_key_id = session_primitives.aws_access_key_id
-    #         if session_primitives.aws_secret_access_key is not None:
-    #             aws_secret_access_key = session_primitives.aws_secret_access_key
-    #         if session_primitives.profile_name is not None:
-    #             profile_name = session_primitives.profile_name
-    #         if session_primitives.botocore_max_retries is not None:
-    #             args["config_kwargs"] = {"retries": {"max_attempts": session_primitives.botocore_max_retries}}
-    #
-    #     if profile_name is not None:
-    #         args["profile_name"] = profile_name
-    #     elif (aws_access_key_id is not None) and (aws_secret_access_key is not None):
-    #         args["key"] = aws_access_key_id,
-    #         args["secret"] = aws_secret_access_key
-    #
-    #     args["default_cache_type"] = "none"
-    #     args["default_fill_cache"] = False
-    #     return s3fs.S3FileSystem(**args)
+    def to_parquet(self,
+                   df: pd.DataFrame,
+                   path: str,
+                   filename: Optional[str] = None,
+                   partition_cols: Optional[List[str]] = None,
+                   mode: str = "append",
+                   parallel: bool = True,
+                   **pd_kwargs) -> List[str]:
+        """Write Parquet file(s) on Amazon S3.
+
+        Note
+        ----
+        In case of `parallel=True` the number of process that will be spawned will be get from os.cpu_count().
+
+        Parameters
+        ----------
+        df: pandas.DataFrame
+            Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
+        path : str
+            S3 path (e.g. s3://bucket/prefix).
+        filename : str, optional
+            The default behavior (`filename=None`) uses random names, but if you prefer pass a filename.
+            It will disable the partitioning.
+        partition_cols: List[str], optional
+            List of column names that will be used to create partitions.
+        mode: str
+            "append", "overwrite", "partition_upsert"
+        parallel : bool
+            True to enable parallel requests, False to disable.
+        pd_kwargs:
+            keyword arguments forwarded to pandas.DataFrame.to_parquet()
+            https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_parquet.html
+
+        Returns
+        -------
+        List[str]
+            List with the s3 paths created.
+
+        Examples
+        --------
+        Writing with filename
+
+        >>> import awswrangler as wr
+        >>> import pandas as pd
+        >>> wr.s3.to_parquet(
+        ...     df=pd.DataFrame({"col": [1, 2, 3]}),
+        ...     path="s3://bucket/prefix",
+        ...     filename="my_file.parquet"
+        ... )
+
+        Writing partitioned dataset
+
+        >>> import awswrangler as wr
+        >>> import pandas as pd
+        >>> wr.s3.to_parquet(
+        ...     df=pd.DataFrame({
+        ...         "col": [1, 2, 3],
+        ...         "col2": ["A", "A", "B"]
+        ...     }),
+        ...     path="s3://bucket/prefix",
+        ...     partition_cols=["col2"]
+        ... )
+
+        """
+        return self._writer_factory(file_writer=self._write_parquet_file,
+                                    df=df,
+                                    path=path,
+                                    filename=filename,
+                                    partition_cols=partition_cols,
+                                    mode=mode,
+                                    parallel=parallel,
+                                    **pd_kwargs)
+
+    def _write_parquet_file(self,
+                            df: pd.DataFrame,
+                            path: str,
+                            cpus: int,
+                            filename: Optional[str] = None,
+                            **pd_kwargs) -> str:
+        file_path: str = f"{path}{uuid4().hex}.parquet" if filename is None else f"{path}{filename}"
+        file_obj: BytesIO = BytesIO()
+        table: pa.Table = pa.Table.from_pandas(df=df, nthreads=cpus, preserve_index=False, safe=False)
+        pq.write_table(table=table,
+                       where=file_obj,
+                       compression="snappy",
+                       coerce_timestamps="ms",
+                       flavor="spark",
+                       **pd_kwargs)
+        del table
+        file_obj.seek(0)
+        self._upload_fileobj(file_obj=file_obj, path=file_path, cpus=cpus)
+        return file_path
+
+    def _upload_fileobj(self, file_obj: BytesIO, path: str, cpus: int) -> None:
+        bucket: str
+        key: str
+        bucket, key = self.parse_path(path=path)
+        if cpus > 1:
+            config: TransferConfig = TransferConfig(max_concurrency=cpus, use_threads=True)
+        else:
+            config = TransferConfig(max_concurrency=1, use_threads=False)
+        self._session.s3_client.upload_fileobj(Fileobj=file_obj, Bucket=bucket, Key=key, Config=config)
+        file_obj.close()
