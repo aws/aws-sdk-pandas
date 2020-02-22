@@ -7,9 +7,7 @@ from typing import Any, List, Optional
 import numpy as np  # type: ignore
 
 
-def chunkify(lst: List[Any],
-             num_chunks: int = 1,
-             max_length: Optional[int] = None) -> List[List[Any]]:
+def chunkify(lst: List[Any], num_chunks: int = 1, max_length: Optional[int] = None) -> List[List[Any]]:
     """Split a list in a List of List (chunks) with even sizes.
 
     Parameters
@@ -35,10 +33,9 @@ def chunkify(lst: List[Any],
     [[0, 1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
 
     """
-    n: int = num_chunks if max_length is None else int(
-        ceil((float(len(lst)) / float(max_length))))
+    n: int = num_chunks if max_length is None else int(ceil((float(len(lst)) / float(max_length))))
     np_chunks = np.array_split(lst, n)
-    return [arr.tolist() for arr in np_chunks]
+    return [arr.tolist() for arr in np_chunks if len(arr) > 0]
 
 
 def get_cpu_count(parallel: bool = True) -> int:

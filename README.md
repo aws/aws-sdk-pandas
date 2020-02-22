@@ -17,7 +17,6 @@
 - [Read the Docs](https://aws-data-wrangler.readthedocs.io)
 - [Use Cases](#Use-Cases)
   - [Pandas](#Pandas)
-  - [PySpark](#PySpark)
   - [General](#General)
 - [Install](https://aws-data-wrangler.readthedocs.io/install.html)
 - [Examples](https://aws-data-wrangler.readthedocs.io/examples.html)

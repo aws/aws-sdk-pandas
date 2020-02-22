@@ -21,9 +21,7 @@ logger: Logger = getLogger(__name__)
 
 class Session:
     """Hold boto3 and botocore states."""
-    def __init__(self,
-                 boto3_session: Optional[boto3.Session] = None,
-                 botocore_config: Optional[Config] = None):
+    def __init__(self, boto3_session: Optional[boto3.Session] = None, botocore_config: Optional[Config] = None):
         """Wrangler's Session.
 
         Note
@@ -84,13 +82,12 @@ class Session:
             raise exceptions.AWSCredentialsNotFound(
                 "Please run 'aws configure': https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html"
             )  # pragma: no cover
-        self._primitives = _SessionPrimitives(
-            profile_name=self.boto3_session.profile_name,
-            aws_access_key_id=credentials.access_key,
-            aws_secret_access_key=credentials.secret_key,
-            aws_session_token=credentials.token,
-            region_name=self.boto3_session.region_name,
-            botocore_config=self.botocore_config)
+        self._primitives = _SessionPrimitives(profile_name=self.boto3_session.profile_name,
+                                              aws_access_key_id=credentials.access_key,
+                                              aws_secret_access_key=credentials.secret_key,
+                                              aws_session_token=credentials.token,
+                                              region_name=self.boto3_session.region_name,
+                                              botocore_config=self.botocore_config)
 
     @property
     def botocore_config(self) -> Config:
@@ -118,8 +115,7 @@ class Session:
     def s3_client(self) -> boto3.client:
         """Boto3 S3 client property."""
         if self._s3_client is None:
-            self._s3_client = self.boto3_session.client(
-                service_name="s3", use_ssl=True, config=self.botocore_config)
+            self._s3_client = self.boto3_session.client(service_name="s3", use_ssl=True, config=self.botocore_config)
         return self._s3_client
 
 
@@ -147,10 +143,9 @@ class _SessionPrimitives:
 
     def build_session(self) -> Session:
         """Reconstruct the session from primitives."""
-        return Session(boto3_session=boto3.Session(
-            aws_access_key_id=self._aws_access_key_id,
-            aws_secret_access_key=self._aws_secret_access_key,
-            aws_session_token=self._aws_session_token,
-            region_name=self._region_name,
-            profile_name=self._profile_name),
+        return Session(boto3_session=boto3.Session(aws_access_key_id=self._aws_access_key_id,
+                                                   aws_secret_access_key=self._aws_secret_access_key,
+                                                   aws_session_token=self._aws_session_token,
+                                                   region_name=self._region_name,
+                                                   profile_name=self._profile_name),
                        botocore_config=self._botocore_config)
