@@ -27,6 +27,7 @@ wr.s3
      delete_objects_list
      delete_objects_prefix
      to_csv
+     to_parquet
 
 wr.utils
 --------
