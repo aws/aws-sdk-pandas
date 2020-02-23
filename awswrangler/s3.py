@@ -568,7 +568,7 @@ class S3:
         Parameters
         ----------
         path : str
-            S3 path (e.g. s3://bucket/prefix).
+            S3 path (e.g. s3://bucket/filename.csv).
         parallel : bool
             True to enable parallel requests, False to disable.
         pd_kwargs:
@@ -592,4 +592,42 @@ class S3:
         file_obj: BytesIO = self._download_fileobj(path=path, cpus=cpus)
         df: pd.DataFrame = pd.read_csv(file_obj, **pd_kwargs)
         file_obj.close()
+        return df
+
+    def read_parquet(self, path: str, parallel: bool = True, **pd_kwargs) -> pd.DataFrame:
+        """Read Apache Parquet file from Amazon S3 to Pandas DataFrame.
+
+        Note
+        ----
+        In case of `parallel=True` the number of process that will be spawned will be get from os.cpu_count().
+
+        Parameters
+        ----------
+        path : str
+            S3 path (e.g. s3://bucket/filename.parquet).
+        parallel : bool
+            True to enable parallel requests, False to disable.
+        pd_kwargs:
+            keyword arguments forwarded to pandas.read_parquet().
+            https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_parquet.html
+
+        Returns
+        -------
+        pandas.DataFrame
+            Pandas DataFrame.
+
+        Examples
+        --------
+        >>> import awswrangler as wr
+        >>> df = wr.s3.read_parquet(path="s3://bucket/filename.parquet")
+
+        """
+        cpus: int = utils.get_cpu_count(parallel=parallel)
+        file_obj: BytesIO = self._download_fileobj(path=path, cpus=cpus)
+        pd_kwargs["use_threads"] = True if cpus > 1 else False
+        table: pa.Table = pq.read_table(source=file_obj, **pd_kwargs)
+        file_obj.close()
+        del file_obj
+        df: pd.DataFrame = table.to_pandas(split_blocks=True, self_destruct=True)
+        del table  # not necessary, but a good practice
         return df

@@ -29,6 +29,7 @@ wr.s3
      to_csv
      to_parquet
      read_csv
+     read_parquet
 
 wr.utils
 --------

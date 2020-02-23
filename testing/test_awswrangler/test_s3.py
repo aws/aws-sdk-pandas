@@ -63,7 +63,7 @@ def bucket(cloudformation_outputs):
     else:
         raise Exception("You must deploy/update the test infrastructure (CloudFormation)")
     yield bucket
-    # wr.s3.delete_objects_prefix(f"s3://{bucket}/")
+    wr.s3.delete_objects_prefix(f"s3://{bucket}/")
 
 
 def get_df():
@@ -247,4 +247,19 @@ def test_read_csv(bucket, parallel):
     assert df[["int_full"]].equals(df2[["int_full"]])
     paths = wr.s3.to_csv(df=df, path=path, parallel=parallel, compression="gzip")
     df2 = wr.s3.read_csv(path=paths[0], parallel=parallel, compression="gzip")
+    assert df[["int_full"]].equals(df2[["int_full"]])
+
+
+@pytest.mark.parametrize("parallel", [True, False])
+def test_read_parquet(bucket, parallel):
+    path = f"s3://{bucket}/test_read_parquet/"
+    df = get_df()
+    paths = wr.s3.to_parquet(df=df, path=path, parallel=parallel)
+    df2 = wr.s3.read_parquet(path=paths[0], parallel=parallel)
+    assert df[["int_full"]].equals(df2[["int_full"]])
+    paths = wr.s3.to_parquet(df=df, path=path, parallel=parallel, compression=None)
+    df2 = wr.s3.read_parquet(path=paths[0], parallel=parallel)
+    assert df[["int_full"]].equals(df2[["int_full"]])
+    paths = wr.s3.to_parquet(df=df, path=path, parallel=parallel, compression="gzip")
+    df2 = wr.s3.read_parquet(path=paths[0], parallel=parallel)
     assert df[["int_full"]].equals(df2[["int_full"]])
