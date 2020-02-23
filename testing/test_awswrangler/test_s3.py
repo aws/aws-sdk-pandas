@@ -10,7 +10,7 @@ import pytest
 
 import awswrangler as wr
 
-EVENTUAL_CONSISTENCY_SLEEP: float = 10.0  # seconds
+EVENTUAL_CONSISTENCY_SLEEP: float = 5.0  # seconds
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
@@ -119,6 +119,8 @@ def get_df():
 def test_does_object_exists(bucket):
     key = "test_does_object_exists"
     boto3.resource("s3").Object(bucket, key).put(Body=key)
+    print("Waiting eventual consistency...")
+    sleep(EVENTUAL_CONSISTENCY_SLEEP)
     assert wr.s3.does_object_exists(path=f"s3://{bucket}/{key}") is True
     assert wr.s3.does_object_exists(path=f"s3://{bucket}/{key}_wrong") is False
     session = wr.Session()
@@ -201,8 +203,13 @@ def test_to_csv_partitioned(bucket, partition_cols, self_destruct):
 
 @pytest.mark.parametrize("compression", [None, "gzip"])
 def test_to_csv_compressed(bucket, compression):
-    paths = wr.s3.to_csv(df=get_df(), path=f"s3://{bucket}/test_to_csv_compressed/", compression=compression)
+    paths = wr.s3.to_csv(df=get_df(),
+                         path=f"s3://{bucket}/test_to_csv_compressed/",
+                         compression=compression,
+                         num_files=2)
+    assert len(paths) == 2
     wr.s3.wait_object_exists(path=paths[0])
+    wr.s3.wait_object_exists(path=paths[1])
 
 
 def test_to_csv_partition_upsert(bucket):
@@ -243,8 +250,13 @@ def test_to_parquet_partitioned(bucket, partition_cols, self_destruct):
 
 @pytest.mark.parametrize("compression", [None, "snappy", "gzip"])
 def test_to_parquet_compressed(bucket, compression):
-    paths = wr.s3.to_parquet(df=get_df(), path=f"s3://{bucket}/test_to_parquet_compressed/", compression=compression)
+    paths = wr.s3.to_parquet(df=get_df(),
+                             path=f"s3://{bucket}/test_to_parquet_compressed/",
+                             compression=compression,
+                             num_files=2)
+    assert len(paths) == 2
     wr.s3.wait_object_exists(path=paths[0])
+    wr.s3.wait_object_exists(path=paths[1])
 
 
 @pytest.mark.parametrize("parallel", [True, False])

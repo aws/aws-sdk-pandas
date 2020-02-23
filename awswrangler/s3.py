@@ -8,6 +8,7 @@ from time import sleep
 from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple
 from uuid import uuid4
 
+import numpy as np  # type: ignore
 import pandas as pd  # type: ignore
 import pyarrow as pa  # type: ignore
 from boto3.s3.transfer import TransferConfig  # type: ignore
@@ -310,6 +311,7 @@ class S3:
                         path: str,
                         filename: Optional[str] = None,
                         partition_cols: Optional[List[str]] = None,
+                        num_files: int = 1,
                         mode: str = "append",
                         parallel: bool = True,
                         self_destruct: bool = False,
@@ -324,7 +326,12 @@ class S3:
             if (mode == "overwrite") or ((mode == "partition_upsert") and (not partition_cols)):
                 self.delete_objects_prefix(path=path, parallel=parallel)
             if not partition_cols:
-                paths.append(file_writer(df=df, path=path, cpus=cpus, self_destruct=self_destruct, **pd_kwargs))
+                if num_files < 2:
+                    paths.append(file_writer(df=df, path=path, cpus=cpus, self_destruct=self_destruct, **pd_kwargs))
+                else:
+                    for subgroup in np.array_split(df, num_files):
+                        paths.append(
+                            file_writer(df=subgroup, path=path, cpus=cpus, self_destruct=self_destruct, **pd_kwargs))
             else:
                 for keys, subgroup in df.groupby(by=partition_cols, observed=True):
                     subgroup = subgroup.drop(partition_cols, axis="columns")
@@ -342,6 +349,7 @@ class S3:
                path: str,
                filename: Optional[str] = None,
                partition_cols: Optional[List[str]] = None,
+               num_files: int = 1,
                mode: str = "append",
                parallel: bool = True,
                self_destruct: bool = False,
@@ -363,6 +371,8 @@ class S3:
             It will disable the partitioning.
         partition_cols: List[str], optional
             List of column names that will be used to create partitions.
+        num_files: int
+            Number of files to split the data. There is no effect when partition_cols or filename are used.
         mode: str
             "append", "overwrite", "partition_upsert"
         parallel : bool
@@ -380,7 +390,7 @@ class S3:
 
         Examples
         --------
-        Writing with filename
+        Writing single file with filename
 
         >>> import awswrangler as wr
         >>> import pandas as pd
@@ -388,6 +398,16 @@ class S3:
         ...     df=pd.DataFrame({"col": [1, 2, 3]}),
         ...     path="s3://bucket/prefix",
         ...     filename="my_file.csv"
+        ... )
+
+        Writing multiple files
+
+        >>> import awswrangler as wr
+        >>> import pandas as pd
+        >>> wr.s3.to_csv(
+        ...     df=pd.DataFrame({"col": [1, 2, 3]}),
+        ...     path="s3://bucket/prefix",
+        ...     num_files=4
         ... )
 
         Writing partitioned dataset
@@ -409,6 +429,7 @@ class S3:
                                     path=path,
                                     filename=filename,
                                     partition_cols=partition_cols,
+                                    num_files=num_files,
                                     mode=mode,
                                     parallel=parallel,
                                     self_destruct=self_destruct,
@@ -448,6 +469,7 @@ class S3:
                    path: str,
                    filename: Optional[str] = None,
                    partition_cols: Optional[List[str]] = None,
+                   num_files: int = 1,
                    mode: str = "append",
                    parallel: bool = True,
                    self_destruct: bool = False,
@@ -469,6 +491,8 @@ class S3:
             It will disable the partitioning.
         partition_cols: List[str], optional
             List of column names that will be used to create partitions.
+        num_files: int
+            Number of files to split the data. There is no effect when partition_cols or filename are used.
         mode: str
             "append", "overwrite", "partition_upsert"
         parallel : bool
@@ -486,7 +510,7 @@ class S3:
 
         Examples
         --------
-        Writing with filename
+        Writing single file with filename
 
         >>> import awswrangler as wr
         >>> import pandas as pd
@@ -494,6 +518,16 @@ class S3:
         ...     df=pd.DataFrame({"col": [1, 2, 3]}),
         ...     path="s3://bucket/prefix",
         ...     filename="my_file.parquet"
+        ... )
+
+        Writing multiple files
+
+        >>> import awswrangler as wr
+        >>> import pandas as pd
+        >>> wr.s3.to_parquet(
+        ...     df=pd.DataFrame({"col": [1, 2, 3]}),
+        ...     path="s3://bucket/prefix",
+        ...     num_files=4
         ... )
 
         Writing partitioned dataset
@@ -515,6 +549,7 @@ class S3:
                                     path=path,
                                     filename=filename,
                                     partition_cols=partition_cols,
+                                    num_files=num_files,
                                     mode=mode,
                                     parallel=parallel,
                                     self_destruct=self_destruct,
