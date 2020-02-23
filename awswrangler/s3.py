@@ -1,5 +1,6 @@
 """Amazon S3 Module."""
 
+import gzip
 import multiprocessing as mp
 from io import BytesIO
 from logging import Logger, getLogger
@@ -11,10 +12,11 @@ import pandas as pd  # type: ignore
 import pyarrow as pa  # type: ignore
 from boto3.s3.transfer import TransferConfig  # type: ignore
 from botocore.exceptions import ClientError  # type: ignore
+from pandas.io.common import infer_compression  # type: ignore
 from pyarrow import parquet as pq  # type: ignore
 
 from awswrangler import utils
-from awswrangler.exceptions import S3WaitObjectTimeout
+from awswrangler.exceptions import InvalidCompression, S3WaitObjectTimeout
 
 if TYPE_CHECKING:  # pragma: no cover
     from awswrangler.session import Session, _SessionPrimitives
@@ -411,8 +413,22 @@ class S3:
                         cpus: int,
                         filename: Optional[str] = None,
                         **pd_kwargs) -> str:
-        file_path: str = f"{path}{uuid4().hex}.csv" if filename is None else f"{path}{filename}"
-        file_obj: BytesIO = BytesIO(initial_bytes=bytes(df.to_csv(None, **pd_kwargs), "utf-8"))
+        compression: Optional[str] = pd_kwargs.get("compression")
+        if compression is None:
+            compression_ext: str = ""
+        elif compression == "gzip":
+            compression_ext = ".gz"
+            pd_kwargs["compression"] = None
+        else:
+            raise InvalidCompression(f"{compression} is invalid, please use gzip.")  # pragma: no cover
+        file_path: str = f"{path}{uuid4().hex}{compression_ext}.csv" if filename is None else f"{path}{filename}"
+        if compression is None:
+            file_obj: BytesIO = BytesIO(initial_bytes=bytes(df.to_csv(None, **pd_kwargs), "utf-8"))
+        else:
+            file_obj = BytesIO()
+            with gzip.open(file_obj, 'wb') as f:
+                f.write(df.to_csv(None, **pd_kwargs).encode(encoding="utf-8"))
+            file_obj.seek(0)
         self._upload_fileobj(file_obj=file_obj, path=file_path, cpus=cpus)
         return file_path
 
@@ -494,14 +510,23 @@ class S3:
                             path: str,
                             cpus: int,
                             filename: Optional[str] = None,
+                            compression: Optional[str] = "snappy",
                             **pd_kwargs) -> str:
-        file_path: str = f"{path}{uuid4().hex}.parquet" if filename is None else f"{path}{filename}"
+        if compression is None:
+            compression_ext: str = ""
+        elif compression == "snappy":
+            compression_ext = ".snappy"
+        elif compression == "gzip":
+            compression_ext = ".gz"
+        else:
+            raise InvalidCompression(f"{compression} is invalid, please use snappy or gzip.")  # pragma: no cover
+        file_path: str = f"{path}{uuid4().hex}{compression_ext}.parquet" if filename is None else f"{path}{filename}"
         file_obj: BytesIO = BytesIO()
         table: pa.Table = pa.Table.from_pandas(df=df, nthreads=cpus, preserve_index=False, safe=False)
         pq.write_table(table=table,
                        where=file_obj,
-                       compression="snappy",
                        coerce_timestamps="ms",
+                       compression=compression,
                        flavor="spark",
                        **pd_kwargs)
         del table
@@ -519,3 +544,52 @@ class S3:
             config = TransferConfig(max_concurrency=1, use_threads=False)
         self._session.s3_client.upload_fileobj(Fileobj=file_obj, Bucket=bucket, Key=key, Config=config)
         file_obj.close()
+
+    def _download_fileobj(self, path: str, cpus: int) -> BytesIO:
+        bucket: str
+        key: str
+        bucket, key = self.parse_path(path=path)
+        if cpus > 1:
+            config: TransferConfig = TransferConfig(max_concurrency=cpus, use_threads=True)
+        else:
+            config = TransferConfig(max_concurrency=1, use_threads=False)
+        file_obj: BytesIO = BytesIO()
+        self._session.s3_client.download_fileobj(Fileobj=file_obj, Bucket=bucket, Key=key, Config=config)
+        file_obj.seek(0)
+        return file_obj
+
+    def read_csv(self, path: str, parallel: bool = True, **pd_kwargs) -> pd.DataFrame:
+        """Read CSV file from Amazon S3 to Pandas DataFrame.
+
+        Note
+        ----
+        In case of `parallel=True` the number of process that will be spawned will be get from os.cpu_count().
+
+        Parameters
+        ----------
+        path : str
+            S3 path (e.g. s3://bucket/prefix).
+        parallel : bool
+            True to enable parallel requests, False to disable.
+        pd_kwargs:
+            keyword arguments forwarded to pandas.read_csv().
+            https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
+
+        Returns
+        -------
+        pandas.DataFrame
+            Pandas DataFrame.
+
+        Examples
+        --------
+        >>> import awswrangler as wr
+        >>> df = wr.s3.read_csv(path="s3://bucket/filename.csv")
+
+        """
+        cpus: int = utils.get_cpu_count(parallel=parallel)
+        if pd_kwargs.get('compression', 'infer') == 'infer':
+            pd_kwargs['compression'] = infer_compression(path, compression='infer')
+        file_obj: BytesIO = self._download_fileobj(path=path, cpus=cpus)
+        df: pd.DataFrame = pd.read_csv(file_obj, **pd_kwargs)
+        file_obj.close()
+        return df

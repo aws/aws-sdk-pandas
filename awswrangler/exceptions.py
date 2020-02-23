@@ -11,3 +11,9 @@ class AWSCredentialsNotFound(Exception):
     """Boto3 didn't find any AWS credential."""
 
     pass
+
+
+class InvalidCompression(Exception):
+    """Invalid compression format."""
+
+    pass

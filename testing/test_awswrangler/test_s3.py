@@ -66,7 +66,7 @@ def bucket(cloudformation_outputs):
     # wr.s3.delete_objects_prefix(f"s3://{bucket}/")
 
 
-def df():
+def get_df():
     ts = lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S.%f")  # noqa
     dt = lambda x: datetime.strptime(x, "%Y-%m-%d").date()  # noqa
     df = pd.DataFrame({
@@ -169,14 +169,14 @@ def test_delete_objects_prefix(bucket, parallel):
 
 @pytest.mark.parametrize("filename", [None, "filename.csv"])
 def test_to_csv_filename(bucket, filename):
-    paths = wr.s3.to_csv(df=df(), path=f"s3://{bucket}/test_to_csv_filename/", filename=filename)
+    paths = wr.s3.to_csv(df=get_df(), path=f"s3://{bucket}/test_to_csv_filename/", filename=filename)
     wr.s3.wait_object_exists(path=paths[0])
 
 
 def test_to_csv_overwrite(bucket):
     path = f"s3://{bucket}/test_to_csv_overwrite/"
-    wr.s3.to_csv(df=df(), path=path, mode="overwrite")
-    wr.s3.to_csv(df=df(), path=path, mode="overwrite")
+    wr.s3.to_csv(df=get_df(), path=path, mode="overwrite")
+    wr.s3.to_csv(df=get_df(), path=path, mode="overwrite")
     print("Waiting eventual consistency...")
     sleep(EVENTUAL_CONSISTENCY_SLEEP)
     print("Listing...")
@@ -188,17 +188,23 @@ def test_to_csv_overwrite(bucket):
     'category_full', 'int_full_new', 'string_full_new', 'bool_full_new'
 ])
 def test_to_csv_partitioned(bucket, partition_cols):
-    paths = wr.s3.to_csv(df=df(), path=f"s3://{bucket}/test_to_csv_partitioned/", partition_cols=partition_cols)
+    paths = wr.s3.to_csv(df=get_df(), path=f"s3://{bucket}/test_to_csv_partitioned/", partition_cols=partition_cols)
     for p in paths:
         wr.s3.wait_object_exists(path=p)
 
 
+@pytest.mark.parametrize("compression", [None, "gzip"])
+def test_to_csv_compressed(bucket, compression):
+    paths = wr.s3.to_csv(df=get_df(), path=f"s3://{bucket}/test_to_csv_compressed/", compression=compression)
+    wr.s3.wait_object_exists(path=paths[0])
+
+
 def test_to_csv_partition_upsert(bucket):
     path = f"s3://{bucket}/test_to_csv_partition_upsert/"
-    wr.s3.to_csv(df=df(), path=path, mode="overwrite", partition_cols=["int_full_new"])
+    wr.s3.to_csv(df=get_df(), path=path, mode="overwrite", partition_cols=["int_full_new"])
     print("Waiting eventual consistency...")
     sleep(EVENTUAL_CONSISTENCY_SLEEP)
-    wr.s3.to_csv(df=df(), path=path, mode="partition_upsert", partition_cols=["int_full_new"])
+    wr.s3.to_csv(df=get_df(), path=path, mode="partition_upsert", partition_cols=["int_full_new"])
     print("Waiting eventual consistency...")
     sleep(EVENTUAL_CONSISTENCY_SLEEP)
     print("Listing...")
@@ -207,7 +213,7 @@ def test_to_csv_partition_upsert(bucket):
 
 @pytest.mark.parametrize("filename", [None, "filename.parquet"])
 def test_to_parquet_filename(bucket, filename):
-    paths = wr.s3.to_parquet(df=df(),
+    paths = wr.s3.to_parquet(df=get_df(),
                              path=f"s3://{bucket}/test_to_parquet_filename/",
                              filename=filename,
                              parallel=False)
@@ -219,6 +225,26 @@ def test_to_parquet_filename(bucket, filename):
     'category_full', 'int_full_new', 'string_full_new', 'bool_full_new'
 ])
 def test_to_parquet_partitioned(bucket, partition_cols):
-    paths = wr.s3.to_parquet(df=df(), path=f"s3://{bucket}/test_to_parquet_partitioned/", partition_cols=partition_cols)
+    paths = wr.s3.to_parquet(df=get_df(),
+                             path=f"s3://{bucket}/test_to_parquet_partitioned/",
+                             partition_cols=partition_cols)
     for p in paths:
         wr.s3.wait_object_exists(path=p)
+
+
+@pytest.mark.parametrize("compression", [None, "snappy", "gzip"])
+def test_to_parquet_compressed(bucket, compression):
+    paths = wr.s3.to_parquet(df=get_df(), path=f"s3://{bucket}/test_to_parquet_compressed/", compression=compression)
+    wr.s3.wait_object_exists(path=paths[0])
+
+
+@pytest.mark.parametrize("parallel", [True, False])
+def test_read_csv(bucket, parallel):
+    path = f"s3://{bucket}/test_read_csv/"
+    df = get_df()
+    paths = wr.s3.to_csv(df=df, path=path, parallel=parallel)
+    df2 = wr.s3.read_csv(path=paths[0], parallel=parallel)
+    assert df[["int_full"]].equals(df2[["int_full"]])
+    paths = wr.s3.to_csv(df=df, path=path, parallel=parallel, compression="gzip")
+    df2 = wr.s3.read_csv(path=paths[0], parallel=parallel, compression="gzip")
+    assert df[["int_full"]].equals(df2[["int_full"]])

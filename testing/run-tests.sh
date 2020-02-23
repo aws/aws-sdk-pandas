@@ -2,7 +2,7 @@
 set -ex
 
 pushd ..
-yapf --in-place --recursive setup.py awswrangler testing/test_awswrangler
+yapf --in-place --recursive --parallel setup.py awswrangler testing/test_awswrangler
 isort -rc --line-width 120 awswrangler testing/test_awswrangler
 pydocstyle awswrangler/ --add-ignore=D204
 mypy awswrangler
