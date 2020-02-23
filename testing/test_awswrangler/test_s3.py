@@ -10,7 +10,7 @@ import pytest
 
 import awswrangler as wr
 
-EVENTUAL_CONSISTENCY_SLEEP: float = 20.0
+EVENTUAL_CONSISTENCY_SLEEP: float = 10.0  # seconds
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
@@ -149,7 +149,7 @@ def test_get_bucket_region(bucket, region):
 
 @pytest.mark.parametrize("parallel", [True, False])
 def test_delete_objects_prefix(bucket, parallel):
-    num = 1_001
+    num = 20
     prefix = f"test_list_objects_{parallel}/"
     path = f"s3://{bucket}/{prefix}"
     print("Starting writes...")
@@ -167,28 +167,34 @@ def test_delete_objects_prefix(bucket, parallel):
     wr.s3.delete_objects_list(paths=[])
 
 
-@pytest.mark.parametrize("filename", [None, "filename.csv"])
-def test_to_csv_filename(bucket, filename):
-    paths = wr.s3.to_csv(df=get_df(), path=f"s3://{bucket}/test_to_csv_filename/", filename=filename)
+@pytest.mark.parametrize("filename, self_destruct", [(None, True), ("filename.csv", False)])
+def test_to_csv_filename(bucket, filename, self_destruct):
+    paths = wr.s3.to_csv(df=get_df(),
+                         path=f"s3://{bucket}/test_to_csv_filename/",
+                         filename=filename,
+                         self_destruct=self_destruct)
     wr.s3.wait_object_exists(path=paths[0])
 
 
 def test_to_csv_overwrite(bucket):
     path = f"s3://{bucket}/test_to_csv_overwrite/"
-    wr.s3.to_csv(df=get_df(), path=path, mode="overwrite")
-    wr.s3.to_csv(df=get_df(), path=path, mode="overwrite")
-    print("Waiting eventual consistency...")
-    sleep(EVENTUAL_CONSISTENCY_SLEEP)
-    print("Listing...")
-    assert len(wr.s3.list_objects(path)) == 1
+    path1 = wr.s3.to_csv(df=get_df(), path=path, mode="overwrite")[0]
+    path2 = wr.s3.to_csv(df=get_df(), path=path, mode="overwrite")[0]
+    assert wr.s3.does_object_exists(path1) is False
+    assert wr.s3.does_object_exists(path2) is True
 
 
-@pytest.mark.parametrize("partition_cols", [
-    'int_full', 'double_full', 'decimal_full', 'bool_full', 'string_full', 'timestamp_full', 'date_full',
-    'category_full', 'int_full_new', 'string_full_new', 'bool_full_new'
-])
-def test_to_csv_partitioned(bucket, partition_cols):
-    paths = wr.s3.to_csv(df=get_df(), path=f"s3://{bucket}/test_to_csv_partitioned/", partition_cols=partition_cols)
+@pytest.mark.parametrize("partition_cols, self_destruct", [('int_full', True), ('double_full', False),
+                                                           ('decimal_full', True), ('bool_full', False),
+                                                           ('string_full', True), ('timestamp_full', False),
+                                                           ('date_full', True), ('category_full', False),
+                                                           ('int_full_new', True), ('string_full_new', False),
+                                                           ('bool_full_new', True)])
+def test_to_csv_partitioned(bucket, partition_cols, self_destruct):
+    paths = wr.s3.to_csv(df=get_df(),
+                         path=f"s3://{bucket}/test_to_csv_partitioned/",
+                         partition_cols=partition_cols,
+                         self_destruct=self_destruct)
     for p in paths:
         wr.s3.wait_object_exists(path=p)
 
@@ -201,18 +207,18 @@ def test_to_csv_compressed(bucket, compression):
 
 def test_to_csv_partition_upsert(bucket):
     path = f"s3://{bucket}/test_to_csv_partition_upsert/"
-    wr.s3.to_csv(df=get_df(), path=path, mode="overwrite", partition_cols=["int_full_new"])
+    paths1 = wr.s3.to_csv(df=get_df(), path=path, mode="overwrite", partition_cols=["int_full_new"])
     print("Waiting eventual consistency...")
     sleep(EVENTUAL_CONSISTENCY_SLEEP)
-    wr.s3.to_csv(df=get_df(), path=path, mode="partition_upsert", partition_cols=["int_full_new"])
-    print("Waiting eventual consistency...")
-    sleep(EVENTUAL_CONSISTENCY_SLEEP)
-    print("Listing...")
-    assert len(wr.s3.list_objects(path)) == 5
+    paths2 = wr.s3.to_csv(df=get_df(), path=path, mode="partition_upsert", partition_cols=["int_full_new"])
+    for p in paths1:
+        assert wr.s3.does_object_exists(p) is False
+    for p in paths2:
+        assert wr.s3.does_object_exists(p) is True
 
 
-@pytest.mark.parametrize("filename", [None, "filename.parquet"])
-def test_to_parquet_filename(bucket, filename):
+@pytest.mark.parametrize("filename, self_destruct", [(None, True), ("filename.csv", False)])
+def test_to_parquet_filename(bucket, filename, self_destruct):
     paths = wr.s3.to_parquet(df=get_df(),
                              path=f"s3://{bucket}/test_to_parquet_filename/",
                              filename=filename,
@@ -220,14 +226,17 @@ def test_to_parquet_filename(bucket, filename):
     wr.s3.wait_object_exists(path=paths[0])
 
 
-@pytest.mark.parametrize("partition_cols", [
-    'int_full', 'double_full', 'decimal_full', 'bool_full', 'string_full', 'timestamp_full', 'date_full',
-    'category_full', 'int_full_new', 'string_full_new', 'bool_full_new'
-])
-def test_to_parquet_partitioned(bucket, partition_cols):
+@pytest.mark.parametrize("partition_cols, self_destruct", [('int_full', True), ('double_full', False),
+                                                           ('decimal_full', True), ('bool_full', False),
+                                                           ('string_full', True), ('timestamp_full', False),
+                                                           ('date_full', True), ('category_full', False),
+                                                           ('int_full_new', True), ('string_full_new', False),
+                                                           ('bool_full_new', True)])
+def test_to_parquet_partitioned(bucket, partition_cols, self_destruct):
     paths = wr.s3.to_parquet(df=get_df(),
                              path=f"s3://{bucket}/test_to_parquet_partitioned/",
-                             partition_cols=partition_cols)
+                             partition_cols=partition_cols,
+                             self_destruct=self_destruct)
     for p in paths:
         wr.s3.wait_object_exists(path=p)
 

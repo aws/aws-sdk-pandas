@@ -312,17 +312,19 @@ class S3:
                         partition_cols: Optional[List[str]] = None,
                         mode: str = "append",
                         parallel: bool = True,
+                        self_destruct: bool = False,
                         **pd_kwargs) -> List[str]:
         cpus: int = utils.get_cpu_count(parallel=parallel)
         paths: List[str] = []
         path = path if path[-1] == "/" else f"{path}/"
         if filename is not None:
-            paths.append(file_writer(df=df, path=path, filename=filename, cpus=cpus, **pd_kwargs))
+            paths.append(
+                file_writer(df=df, path=path, filename=filename, cpus=cpus, self_destruct=self_destruct, **pd_kwargs))
         else:
             if (mode == "overwrite") or ((mode == "partition_upsert") and (not partition_cols)):
                 self.delete_objects_prefix(path=path, parallel=parallel)
             if not partition_cols:
-                paths.append(file_writer(df=df, path=path, cpus=cpus, **pd_kwargs))
+                paths.append(file_writer(df=df, path=path, cpus=cpus, self_destruct=self_destruct, **pd_kwargs))
             else:
                 for keys, subgroup in df.groupby(by=partition_cols, observed=True):
                     subgroup = subgroup.drop(partition_cols, axis="columns")
@@ -331,7 +333,8 @@ class S3:
                     prefix: str = f"{path}{subdir}/"
                     if mode == "partition_upsert":
                         self.delete_objects_prefix(path=prefix, parallel=parallel)
-                    paths.append(file_writer(df=subgroup, path=prefix, cpus=cpus, **pd_kwargs))
+                    paths.append(
+                        file_writer(df=subgroup, path=prefix, cpus=cpus, self_destruct=self_destruct, **pd_kwargs))
         return paths
 
     def to_csv(self,
@@ -341,6 +344,7 @@ class S3:
                partition_cols: Optional[List[str]] = None,
                mode: str = "append",
                parallel: bool = True,
+               self_destruct: bool = False,
                **pd_kwargs) -> List[str]:
         """Write CSV file(s) on Amazon S3.
 
@@ -363,6 +367,8 @@ class S3:
             "append", "overwrite", "partition_upsert"
         parallel : bool
             True to enable parallel requests, False to disable.
+        self_destruct: bool
+            Destroy the received DataFrame to deallocate memory during the write process.
         pd_kwargs:
             keyword arguments forwarded to pandas.DataFrame.to_csv()
             https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_csv.html
@@ -405,6 +411,7 @@ class S3:
                                     partition_cols=partition_cols,
                                     mode=mode,
                                     parallel=parallel,
+                                    self_destruct=self_destruct,
                                     **pd_kwargs)
 
     def _write_csv_file(self,
@@ -412,6 +419,7 @@ class S3:
                         path: str,
                         cpus: int,
                         filename: Optional[str] = None,
+                        self_destruct: bool = False,
                         **pd_kwargs) -> str:
         compression: Optional[str] = pd_kwargs.get("compression")
         if compression is None:
@@ -429,6 +437,9 @@ class S3:
             with gzip.open(file_obj, 'wb') as f:
                 f.write(df.to_csv(None, **pd_kwargs).encode(encoding="utf-8"))
             file_obj.seek(0)
+        if self_destruct is True:
+            df.drop(df.index, inplace=True)
+            del df
         self._upload_fileobj(file_obj=file_obj, path=file_path, cpus=cpus)
         return file_path
 
@@ -439,6 +450,7 @@ class S3:
                    partition_cols: Optional[List[str]] = None,
                    mode: str = "append",
                    parallel: bool = True,
+                   self_destruct: bool = False,
                    **pd_kwargs) -> List[str]:
         """Write Parquet file(s) on Amazon S3.
 
@@ -461,6 +473,8 @@ class S3:
             "append", "overwrite", "partition_upsert"
         parallel : bool
             True to enable parallel requests, False to disable.
+        self_destruct: bool
+            Destroy the received DataFrame to deallocate memory during the write process.
         pd_kwargs:
             keyword arguments forwarded to pandas.DataFrame.to_parquet()
             https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_parquet.html
@@ -503,6 +517,7 @@ class S3:
                                     partition_cols=partition_cols,
                                     mode=mode,
                                     parallel=parallel,
+                                    self_destruct=self_destruct,
                                     **pd_kwargs)
 
     def _write_parquet_file(self,
@@ -510,6 +525,7 @@ class S3:
                             path: str,
                             cpus: int,
                             filename: Optional[str] = None,
+                            self_destruct: bool = False,
                             compression: Optional[str] = "snappy",
                             **pd_kwargs) -> str:
         if compression is None:
@@ -521,8 +537,11 @@ class S3:
         else:
             raise InvalidCompression(f"{compression} is invalid, please use snappy or gzip.")  # pragma: no cover
         file_path: str = f"{path}{uuid4().hex}{compression_ext}.parquet" if filename is None else f"{path}{filename}"
-        file_obj: BytesIO = BytesIO()
         table: pa.Table = pa.Table.from_pandas(df=df, nthreads=cpus, preserve_index=False, safe=False)
+        if self_destruct is True:
+            df.drop(df.index, inplace=True)
+            del df
+        file_obj: BytesIO = BytesIO()
         pq.write_table(table=table,
                        where=file_obj,
                        coerce_timestamps="ms",
@@ -543,7 +562,6 @@ class S3:
         else:
             config = TransferConfig(max_concurrency=1, use_threads=False)
         self._session.s3_client.upload_fileobj(Fileobj=file_obj, Bucket=bucket, Key=key, Config=config)
-        file_obj.close()
 
     def _download_fileobj(self, path: str, cpus: int) -> BytesIO:
         bucket: str
@@ -590,9 +608,7 @@ class S3:
         if pd_kwargs.get('compression', 'infer') == 'infer':
             pd_kwargs['compression'] = infer_compression(path, compression='infer')
         file_obj: BytesIO = self._download_fileobj(path=path, cpus=cpus)
-        df: pd.DataFrame = pd.read_csv(file_obj, **pd_kwargs)
-        file_obj.close()
-        return df
+        return pd.read_csv(file_obj, **pd_kwargs)
 
     def read_parquet(self, path: str, parallel: bool = True, **pd_kwargs) -> pd.DataFrame:
         """Read Apache Parquet file from Amazon S3 to Pandas DataFrame.
@@ -623,11 +639,15 @@ class S3:
 
         """
         cpus: int = utils.get_cpu_count(parallel=parallel)
+        use_threads: bool = True if cpus > 1 else False
+        pd_kwargs["use_threads"] = use_threads
         file_obj: BytesIO = self._download_fileobj(path=path, cpus=cpus)
-        pd_kwargs["use_threads"] = True if cpus > 1 else False
         table: pa.Table = pq.read_table(source=file_obj, **pd_kwargs)
+        file_obj.seek(0)
+        file_obj.truncate(0)
         file_obj.close()
         del file_obj
-        df: pd.DataFrame = table.to_pandas(split_blocks=True, self_destruct=True)
-        del table  # not necessary, but a good practice
-        return df
+        return table.to_pandas(use_threads=use_threads,
+                               split_blocks=True,
+                               self_destruct=True,
+                               integer_object_nulls=False)
