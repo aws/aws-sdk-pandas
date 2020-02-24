@@ -9,6 +9,7 @@ import pandas as pd
 import pytest
 
 import awswrangler as wr
+from awswrangler._utils import chunkify, parse_path  # noqa
 
 EVENTUAL_CONSISTENCY_SLEEP: float = 5.0  # seconds
 
@@ -28,7 +29,7 @@ def wrt_fake_objs_batch_wrapper(args):
 
 def write_fake_objects(bucket, path, num, obj_size=3):
     cpus = mp.cpu_count()
-    chunks = wr.utils.chunkify(list(range(num)), cpus)
+    chunks = chunkify(list(range(num)), cpus)
     args = []
     for chunk in chunks:
         args.append((bucket, path, chunk, obj_size))
@@ -135,14 +136,6 @@ def test_wait_object_exists(bucket):
     assert wr.s3.wait_object_exists(path=f"s3://{bucket}/{key}", polling_sleep=0.05, timeout=10.0) is None
     with pytest.raises(wr.exceptions.S3WaitObjectTimeout):
         wr.s3.wait_object_exists(path=f"s3://{bucket}/{key}_wrong", timeout=2.0)
-
-
-def test_parse_path():
-    assert wr.s3.parse_path("s3://bucket/key") == ("bucket", "key")
-    assert wr.s3.parse_path("s3://bucket/dir/dir2/filename") == ("bucket", "dir/dir2/filename")
-    assert wr.s3.parse_path("s3://bucket/dir/dir2/filename/") == ("bucket", "dir/dir2/filename/")
-    assert wr.s3.parse_path("s3://bucket/") == ("bucket", "")
-    assert wr.s3.parse_path("s3://bucket") == ("bucket", "")
 
 
 def test_get_bucket_region(bucket, region):
@@ -284,3 +277,33 @@ def test_read_parquet(bucket, parallel):
     paths = wr.s3.to_parquet(df=df, path=path, parallel=parallel, compression="gzip")
     df2 = wr.s3.read_parquet(path=paths[0], parallel=parallel)
     assert df[["int_full"]].equals(df2[["int_full"]])
+
+
+def test_read_csv_list(bucket):
+    df = get_df()
+    paths = wr.s3.to_csv(path=f"s3://{bucket}/test_read_csv_list/", df=df, num_files=3, index=False)
+    df2 = wr.s3.read_csv_list(paths=paths, parallel=True, chunked=False)
+    assert len(df.index) == len(df2.index)
+    assert len(df.columns) == len(df2.columns)
+    df2 = wr.s3.read_csv_list(paths=paths, parallel=False, chunked=False)
+    assert len(df.index) == len(df2.index)
+    assert len(df.columns) == len(df2.columns)
+    dfs = list(wr.s3.read_csv_list(paths=paths, parallel=False, chunked=True))
+    df2 = pd.concat(objs=dfs, ignore_index=True, sort=False)
+    assert len(df.index) == len(df2.index)
+    assert len(df.columns) == len(df2.columns)
+
+
+def test_read_parquet_list(bucket):
+    df = get_df().drop("string_none_new", axis=1)
+    paths = wr.s3.to_parquet(path=f"s3://{bucket}/test_read_parquet_list/", df=df, num_files=2, preserve_index=False)
+    df2 = wr.s3.read_parquet_list(paths=paths, parallel=True, chunked=False)
+    assert len(df.index) == len(df2.index)
+    assert len(df.columns) == len(df2.columns)
+    df2 = wr.s3.read_parquet_list(paths=paths, parallel=False, chunked=False)
+    assert len(df.index) == len(df2.index)
+    assert len(df.columns) == len(df2.columns)
+    dfs = list(wr.s3.read_parquet_list(paths=paths, parallel=False, chunked=True))
+    df2 = pd.concat(objs=dfs, ignore_index=True, sort=False)
+    assert len(df.index) == len(df2.index)
+    assert len(df.columns) == len(df2.columns)
