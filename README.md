@@ -6,12 +6,12 @@
 
 Please, pin the version you are using on your environment.
 
-AWS Data Wrangler is completing 1 year, and the team is working to collect feedbacks and features requests to put in our 1.0.0 version. By now we have 3 major changes listed:
+AWS Data Wrangler is completing 1 year, and the team is working to collect feedback and features requests to put in our 1.0.0 version. By now we have 3 major changes listed:
 
 - API redesign
 - Nested data types support
 - Deprecation of PySpark support
-	- PySpark support takes considerable part of the development time and it has not been reflected in user adoption. Only 2 of our 66 issues on GitHub are related to Spark.
+	- PySpark support takes considerable part of the development time and it has not been reflected in user adoption. Only 2 of our 70 issues on GitHub are related to Spark.
 	- In addition, the integration between PySpark and PyArrow/Pandas remains in experimental stage and we have been experiencing tough times to keep it stable.
 
 ---
@@ -33,12 +33,12 @@ AWS Data Wrangler is completing 1 year, and the team is working to collect feedb
   - [Pandas](#Pandas)
   - [PySpark](#PySpark)
   - [General](#General)
-- [Install](https://aws-data-wrangler.readthedocs.io/install.html)
-- [Examples](https://aws-data-wrangler.readthedocs.io/examples.html)
-- [Tutorials](https://aws-data-wrangler.readthedocs.io/tutorials.html)
-- [API Reference](https://aws-data-wrangler.readthedocs.io/api/awswrangler.html)
-- [License](https://aws-data-wrangler.readthedocs.io/license.html)
-- [Contributing](https://aws-data-wrangler.readthedocs.io/contributing.html)
+- [Install](https://aws-data-wrangler.readthedocs.io/en/latest/install.html)
+- [Examples](https://aws-data-wrangler.readthedocs.io/en/latest/examples.html)
+- [Tutorials](https://aws-data-wrangler.readthedocs.io/en/latest/tutorials.html)
+- [API Reference](https://aws-data-wrangler.readthedocs.io/en/latest/api/awswrangler.html)
+- [License](https://aws-data-wrangler.readthedocs.io/en/latest/license.html)
+- [Contributing](https://aws-data-wrangler.readthedocs.io/en/latest/contributing.html)
 
 ## Use Cases
 

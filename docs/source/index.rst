@@ -15,7 +15,7 @@
              - API redesign
              - Nested data types support
              - Deprecation of PySpark support
-                 - PySpark support takes considerable part of the development time and it has not been reflected in user adoption. Only 2 of our 66 issues on GitHub are related to Spark.
+                 - PySpark support takes considerable part of the development time and it has not been reflected in user adoption. Only 2 of our 70 issues on GitHub are related to Spark.
                  - In addition, the integration between PySpark and PyArrow/Pandas remains in experimental stage and we have been experiencing tough times to keep it stable.
 
 .. toctree::
