@@ -15,11 +15,9 @@ import sys
 
 import sphinx_bootstrap_theme
 
-
 # Insert awswrangler"s path into the system.
 sys.path.insert(0, os.path.abspath("../.."))
 import awswrangler
-
 
 # -- Project information -----------------------------------------------------
 
@@ -32,17 +30,12 @@ master_doc = "index"
 release = awswrangler.__version__
 version = awswrangler.__version__
 
-
 # -- General configuration ---------------------------------------------------
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named "sphinx.ext.*") or your custom
 # ones.
-extensions = [
-    "sphinx.ext.autosectionlabel",
-    "sphinx.ext.autosummary",
-    "sphinx.ext.napoleon"
-]
+extensions = ["sphinx.ext.autosectionlabel", "sphinx.ext.autosummary", "sphinx.ext.napoleon"]
 
 language = None
 
@@ -55,7 +48,6 @@ templates_path = ["_templates"]
 exclude_patterns = []
 
 autosummary_generate = True
-
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -77,13 +69,10 @@ html_logo = "_static/logo_transparent.png"
 # Theme options are theme-specific and customize the look and feel of a
 # theme further.
 html_theme_options = {
-
     # Navigation bar title. (Default: ``project`` value)
     "navbar_title": "AWS Data Wrangler",
-
     # Tab name for entire site. (Default: "Site")
     "navbar_site_name": "Site",
-
     # A list of tuples containing pages or urls to link to.
     # Valid tuples should be in the following forms:
     #    (name, page)                 # a link to a page
@@ -99,20 +88,15 @@ html_theme_options = {
         ("Contributing", "contributing"),
         ("GitHub", "https://github.com/awslabs/aws-data-wrangler", True),
     ],
-
     # Render the next and previous page links in navbar. (Default: true)
     "navbar_sidebarrel": False,
-
     # Render the current pages TOC in the navbar. (Default: true)
     "navbar_pagenav": False,
-
     # Tab name for the current pages TOC. (Default: "Page")
     "navbar_pagenav_name": "Sections",
-
     # Global TOC depth for "site" navbar tab. (Default: 1)
     # Switching to -1 shows all levels.
     "globaltoc_depth": -1,
-
     # Include hidden TOCs in Site navbar?
     #
     # Note: If this is "false", you cannot have mixed ``:hidden:`` and
@@ -121,19 +105,15 @@ html_theme_options = {
     #
     # Values: "true" (default) or "false"
     "globaltoc_includehidden": "false",
-
     # HTML navbar class (Default: "navbar") to attach to <div> element.
     # For black navbar, do "navbar navbar-inverse"
     "navbar_class": "navbar",
-
     # Fix navigation bar to top of page?
     # Values: "true" (default) or "false"
     "navbar_fixed_top": "true",
-
     # Location of link to source.
     # Options are "nav" (default), "footer" or anything else to exclude.
     "source_link_position": "nav",
-
     # Bootswatch (http://bootswatch.com/) theme.
     #
     # Options are nothing (default) or the name of a valid theme
@@ -147,7 +127,6 @@ html_theme_options = {
     # - Bootstrap 3: https://bootswatch.com/3
     # "bootswatch_theme": "yeti",
     "bootswatch_theme": "lumen",
-
     # Choose Bootstrap version.
     # Values: "3" (default) or "2" (in quotes)
     "bootstrap_version": "3",

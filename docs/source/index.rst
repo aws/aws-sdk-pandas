@@ -14,6 +14,5 @@
    install
    tutorials
    api/index
-   divingdeep
    contributing
    license

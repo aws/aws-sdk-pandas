@@ -1,781 +1,558 @@
 """Amazon S3 Module."""
 
-import gzip
-import multiprocessing as mp
-from io import BytesIO
-from logging import Logger, getLogger
-from time import sleep
-from typing import TYPE_CHECKING, Callable, Dict, Iterator, List, Optional, Union
-from uuid import uuid4
+import concurrent.futures
+import logging
+import uuid
+from itertools import repeat
+from typing import Dict, List, Optional, Tuple, Union
 
-import numpy as np  # type: ignore
+import boto3  # type: ignore
+import botocore.exceptions  # type: ignore
 import pandas as pd  # type: ignore
-import pyarrow as pa  # type: ignore
-from botocore.exceptions import ClientError  # type: ignore
-from pandas.io.common import infer_compression  # type: ignore
-from pyarrow import parquet as pq  # type: ignore
+import pyarrow  # type: ignore
+import pyarrow.parquet  # type: ignore
+import s3fs  # type: ignore
 
-from awswrangler import _utils
-from awswrangler.exceptions import InvalidCompression, S3WaitObjectTimeout
+from awswrangler import _utils, exceptions
 
-if TYPE_CHECKING:  # pragma: no cover
-    from awswrangler.session import Session, _SessionPrimitives
-    import boto3  # type: ignore
+_COMPRESSION_2_EXT: Dict[Optional[str], str] = {None: "", "gzip": ".gz", "snappy": ".snappy"}
 
-logger: Logger = getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
-class S3:
-    """Amazon S3 Class."""
-    def __init__(self, session: "Session"):
-        """Amazon S3 Class Constructor.
+def get_bucket_region(bucket: str, boto3_session: Optional[boto3.Session] = None) -> str:
+    """Get bucket region name.
 
-        Note
-        ----
-        Don't use it directly, call through a Session().
-        e.g. wr.SERVICE.FUNCTION() (Default Session)
+    Parameters
+    ----------
+    bucket : str
+        Bucket name.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
-        Parameters
-        ----------
-        session : awswrangler.Session()
-            Wrangler's Session
+    Returns
+    -------
+    str
+        Region code (e.g. "us-east-1").
 
-        """
-        self._session: "Session" = session
+    Examples
+    --------
+    Using the default boto3 session
 
-    def does_object_exists(self, path: str) -> bool:
-        """Check if object exists on S3.
+    >>> import awswrangler as wr
+    >>> region = wr.s3.get_bucket_region("bucket-name")
 
-        Parameters
-        ----------
-        path: str
-            S3 path (e.g. s3://bucket/key).
+    Using a custom boto3 session
 
-        Returns
-        -------
-        bool
-            True if exists, False otherwise.
+    >>> import boto3
+    >>> import awswrangler as wr
+    >>> region = wr.s3.get_bucket_region("bucket-name", boto3_session=boto3.Session())
 
-        Examples
-        --------
-        >>> import awswrangler as wr
-        >>> wr.s3.does_object_exists("s3://bucket/key_real")
-        True
-        >>> wr.s3.does_object_exists("s3://bucket/key_unreal")
-        False
+    """
+    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    logger.debug(f"bucket: {bucket}")
+    region: str = client_s3.get_bucket_location(Bucket=bucket)["LocationConstraint"]
+    region = "us-east-1" if region is None else region
+    logger.debug(f"region: {region}")
+    return region
 
-        """
-        bucket: str
-        key: str
-        bucket, key = path.replace("s3://", "").split("/", 1)
-        try:
-            self._session.s3_client.head_object(Bucket=bucket, Key=key)
-            return True
-        except ClientError as ex:
-            if ex.response["ResponseMetadata"]["HTTPStatusCode"] == 404:
-                return False
-            raise ex  # pragma: no cover
 
-    def wait_object_exists(self, path: str, polling_sleep: float = 0.1, timeout: Optional[float] = 10.0) -> None:
-        """Wait object exists on S3.
+def does_object_exists(path: str, boto3_session: Optional[boto3.Session] = None) -> bool:
+    """Check if object exists on S3.
 
-        Parameters
-        ----------
-        path : str
-            S3 path (e.g. s3://bucket/key).
-        polling_sleep : float
-            Sleep between each retry (Seconds).
-        timeout : float, optional
-            Timeout (Seconds).
+    Parameters
+    ----------
+    path: str
+        S3 path (e.g. s3://bucket/key).
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
-        Returns
-        -------
-        None
-            None
+    Returns
+    -------
+    bool
+        True if exists, False otherwise.
 
-        Raises
-        ------
-        S3WaitObjectTimeout
-            Raised in case of timeout.
+    Examples
+    --------
+    Using the default boto3 session
 
-        Examples
-        --------
-        >>> import awswrangler as wr
-        >>> wr.s3.wait_object_exists("s3://bucket/key_expected")
+    >>> import awswrangler as wr
+    >>> wr.s3.does_object_exists("s3://bucket/key_real")
+    True
+    >>> wr.s3.does_object_exists("s3://bucket/key_unreal")
+    False
 
-        """
-        time_acc: float = 0.0
-        while self.does_object_exists(path=path) is False:
-            sleep(polling_sleep)
-            if timeout is not None:
-                time_acc += polling_sleep
-                if time_acc >= timeout:
-                    raise S3WaitObjectTimeout(f"Waited for {path} for {time_acc} seconds")
+    Using a custom boto3 session
 
-    def get_bucket_region(self, bucket: str) -> str:
-        """Get bucket region.
+    >>> import boto3
+    >>> import awswrangler as wr
+    >>> wr.s3.does_object_exists("s3://bucket/key_real", boto3_session=boto3.Session())
+    True
+    >>> wr.s3.does_object_exists("s3://bucket/key_unreal", boto3_session=boto3.Session())
+    False
 
-        Parameters
-        ----------
-        bucket : str
-            Bucket name.
+    """
+    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    bucket: str
+    key: str
+    bucket, key = path.replace("s3://", "").split("/", 1)
+    try:
+        client_s3.head_object(Bucket=bucket, Key=key)
+        return True
+    except botocore.exceptions.ClientError as ex:
+        if ex.response["ResponseMetadata"]["HTTPStatusCode"] == 404:
+            return False
+        raise ex  # pragma: no cover
 
-        Returns
-        -------
-        str
-            Region code (e.g. "us-east-1").
 
-        Examples
-        --------
-        >>> import awswrangler as wr
-        >>> region = wr.s3.get_bucket_region("bucket-name")
+def list_objects(path: str, boto3_session: Optional[boto3.Session] = None) -> List[str]:
+    """List Amazon S3 objects from a prefix.
 
-        """
-        logger.debug(f"bucket: {bucket}")
-        region: str = self._session.s3_client.get_bucket_location(Bucket=bucket)["LocationConstraint"]
-        region = "us-east-1" if region is None else region
-        logger.debug(f"region: {region}")
-        return region
+    Parameters
+    ----------
+    path : str
+        S3 path (e.g. s3://bucket/prefix).
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
-    def list_objects(self, path: str) -> List[str]:
-        """List Amazon S3 objects from a prefix.
+    Returns
+    -------
+    List[str]
+        List of objects paths.
 
-        Parameters
-        ----------
-        path : str
-            S3 path (e.g. s3://bucket/prefix).
+    Examples
+    --------
+    Using the default boto3 session
 
-        Returns
-        -------
-        List[str]
-            List of objects paths.
+    >>> import awswrangler as wr
+    >>> wr.s3.list_objects("s3://bucket/prefix")
+    ["s3://bucket/prefix0", "s3://bucket/prefix1", "s3://bucket/prefix2"]
 
-        Examples
-        --------
-        >>> import awswrangler as wr
-        >>> wr.s3.list_objects("s3://bucket/prefix")
-        ["s3://bucket/prefix0", "s3://bucket/prefix1", "s3://bucket/prefix2"]
+    Using a custom boto3 session
 
-        """
-        paginator = self._session.s3_client.get_paginator("list_objects_v2")
-        bucket: str
-        prefix: str
-        bucket, prefix = _utils.parse_path(path=path)
-        response_iterator = paginator.paginate(Bucket=bucket, Prefix=prefix, PaginationConfig={"PageSize": 1000})
-        paths: List[str] = []
-        for page in response_iterator:
-            if page.get("Contents") is not None:
-                for content in page.get("Contents"):
-                    if (content is not None) and ("Key" in content):
-                        key: str = content["Key"]
-                        paths.append(f"s3://{bucket}/{key}")
-        return paths
+    >>> import boto3
+    >>> import awswrangler as wr
+    >>> wr.s3.list_objects("s3://bucket/prefix", boto3_session=boto3.Session())
+    ["s3://bucket/prefix0", "s3://bucket/prefix1", "s3://bucket/prefix2"]
 
-    def delete_objects_list(self, paths: List[str], parallel: bool = True) -> None:
-        """Delete all listed Amazon S3 objects.
+    """
+    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    paginator = client_s3.get_paginator("list_objects_v2")
+    bucket: str
+    prefix: str
+    bucket, prefix = _utils.parse_path(path=path)
+    response_iterator = paginator.paginate(Bucket=bucket, Prefix=prefix, PaginationConfig={"PageSize": 1000})
+    paths: List[str] = []
+    for page in response_iterator:
+        contents: Optional[List] = page.get("Contents")
+        if contents is not None:
+            for content in contents:
+                if (content is not None) and ("Key" in content):
+                    key: str = content["Key"]
+                    paths.append(f"s3://{bucket}/{key}")
+    return paths
 
-        Note
-        ----
-        In case of `parallel=True` the number of process that will be spawned will be get from os.cpu_count().
 
-        Parameters
-        ----------
-        paths : str
-            S3 path (e.g. s3://bucket/prefix).
-        parallel : bool
-            True to enable parallel requests, False to disable.
+def _path2list(path: Union[str, List[str]], boto3_session: Optional[boto3.Session]) -> List[str]:
+    if isinstance(path, str):  # prefix
+        paths: List[str] = list_objects(path=path, boto3_session=boto3_session)
+    elif isinstance(path, list):
+        paths = path
+    else:
+        raise exceptions.InvalidArgumentType(f"{type(path)} is not a valid path type. Please, use str or List[str].")
+    return paths
 
-        Returns
-        -------
-        None
-            None.
 
-        Examples
-        --------
-        >>> import awswrangler as wr
-        >>> wr.s3.delete_objects_list(["s3://bucket/key0", "s3://bucket/key1"])
+def delete_objects(
+    path: Union[str, List[str]], use_threads: bool = True, boto3_session: Optional[boto3.Session] = None
+) -> None:
+    """Delete Amazon S3 objects from a received S3 prefix or list of S3 objects paths.
 
-        """
-        if len(paths) < 1:
-            return
-        cpus: int = _utils.get_cpu_count(parallel=parallel)
-        buckets: Dict[str, List[str]] = self._split_paths_by_bucket(paths=paths)
-        for bucket, keys in buckets.items():
-            if cpus == 1:
-                self._delete_objects(s3_client=self._session.s3_client, bucket=bucket, keys=keys)
-            else:
-                _utils.parallelize(func=self._delete_objects_remote,
-                                   session=self._session,
-                                   lst=keys,
-                                   extra_args=(bucket, ),
-                                   has_return=False)
+    Note
+    ----
+    In case of ``use_threads=True`` the number of process that will be spawned will be get from os.cpu_count().
 
-    @staticmethod
-    def _delete_objects_remote(session_primitives: "_SessionPrimitives", keys: List[str], bucket: str) -> None:
-        session: "Session" = session_primitives.build_session()
-        s3_client: boto3.client = session.s3_client
-        S3._delete_objects(s3_client=s3_client, bucket=bucket, keys=keys)
+    Parameters
+    ----------
+    path : Union[str, List[str]]
+        S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+    use_threads : bool
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
-    @staticmethod
-    def _delete_objects(s3_client: "boto3.session.Session.client", bucket: str, keys: List[str]) -> None:
+    Returns
+    -------
+    None
+        None.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> wr.s3.delete_objects(["s3://bucket/key0", "s3://bucket/key1"])  # Delete both objects
+    >>> wr.s3.delete_objects("s3://bucket/prefix")  # Delete all objects under the received prefix
+
+    """
+    paths: List[str] = _path2list(path=path, boto3_session=boto3_session)
+    if len(paths) < 1:
+        return
+    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    buckets: Dict[str, List[str]] = _split_paths_by_bucket(paths=paths)
+    for bucket, keys in buckets.items():
         chunks: List[List[str]] = _utils.chunkify(lst=keys, max_length=1_000)
-        logger.debug(f"len(chunks): {len(chunks)}")
-        for chunk in chunks:
-            batch: List[Dict[str, str]] = [{"Key": key} for key in chunk]
-            s3_client.delete_objects(Bucket=bucket, Delete={"Objects": batch})
-
-    @staticmethod
-    def _split_paths_by_bucket(paths: List[str]) -> Dict[str, List[str]]:
-        buckets: Dict[str, List[str]] = {}
-        bucket: str
-        key: str
-        for path in paths:
-            bucket, key = _utils.parse_path(path=path)
-            if bucket not in buckets:
-                buckets[bucket] = []
-            buckets[bucket].append(key)
-        return buckets
-
-    def delete_objects_prefix(self, path: str, parallel: bool = True) -> None:
-        """Delete all Amazon S3 objects under the received prefix.
-
-        Note
-        ----
-        In case of `parallel=True` the number of process that will be spawned will be get from os.cpu_count().
-
-        Parameters
-        ----------
-        path : str
-            S3 prefix path (e.g. s3://bucket/prefix).
-        parallel : bool
-            True to enable parallel requests, False to disable.
-
-        Returns
-        -------
-        None
-            None.
-
-        Examples
-        --------
-        >>> import awswrangler as wr
-        >>> wr.s3.delete_objects_prefix(path="s3://bucket/prefix"])
-
-        """
-        paths: List[str] = self.list_objects(path=path)
-        self.delete_objects_list(paths=paths, parallel=parallel)
-
-    def _writer_factory(self,
-                        file_writer: Callable,
-                        df: pd.DataFrame,
-                        path: str,
-                        filename: Optional[str] = None,
-                        partition_cols: Optional[List[str]] = None,
-                        num_files: int = 1,
-                        mode: str = "append",
-                        parallel: bool = True,
-                        self_destruct: bool = False,
-                        **pd_kwargs) -> List[str]:
-        cpus: int = _utils.get_cpu_count(parallel=parallel)
-        paths: List[str] = []
-        path = path if path[-1] == "/" else f"{path}/"
-        if filename is not None:
-            paths.append(
-                file_writer(df=df, path=path, filename=filename, cpus=cpus, self_destruct=self_destruct, **pd_kwargs))
+        if use_threads is False:
+            for chunk in chunks:
+                _delete_objects(bucket=bucket, keys=chunk, client_s3=client_s3)
         else:
-            if (mode == "overwrite") or ((mode == "partition_upsert") and (not partition_cols)):
-                self.delete_objects_prefix(path=path, parallel=parallel)
-            if not partition_cols:
-                if num_files < 2:
-                    paths.append(file_writer(df=df, path=path, cpus=cpus, self_destruct=self_destruct, **pd_kwargs))
-                else:
-                    for subgroup in np.array_split(df, num_files):
-                        paths.append(
-                            file_writer(df=subgroup, path=path, cpus=cpus, self_destruct=self_destruct, **pd_kwargs))
-            else:
-                for keys, subgroup in df.groupby(by=partition_cols, observed=True):
-                    subgroup = subgroup.drop(partition_cols, axis="columns")
-                    keys = (keys, ) if not isinstance(keys, tuple) else keys
-                    subdir = "/".join([f"{name}={val}" for name, val in zip(partition_cols, keys)])
-                    prefix: str = f"{path}{subdir}/"
-                    if mode == "partition_upsert":
-                        self.delete_objects_prefix(path=prefix, parallel=parallel)
-                    paths.append(
-                        file_writer(df=subgroup, path=prefix, cpus=cpus, self_destruct=self_destruct, **pd_kwargs))
-        return paths
+            cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
+                executor.map(_delete_objects, repeat(bucket), chunks, repeat(client_s3))
 
-    def to_csv(self,
-               df: pd.DataFrame,
-               path: str,
-               filename: Optional[str] = None,
-               partition_cols: Optional[List[str]] = None,
-               num_files: int = 1,
-               mode: str = "append",
-               parallel: bool = True,
-               self_destruct: bool = False,
-               **pd_kwargs) -> List[str]:
-        """Write CSV file(s) on Amazon S3.
 
-        Note
-        ----
-        In case of `parallel=True` the number of process that will be spawned will be get from os.cpu_count().
+def _split_paths_by_bucket(paths: List[str]) -> Dict[str, List[str]]:
+    buckets: Dict[str, List[str]] = {}
+    bucket: str
+    key: str
+    for path in paths:
+        bucket, key = _utils.parse_path(path=path)
+        if bucket not in buckets:
+            buckets[bucket] = []
+        buckets[bucket].append(key)
+    return buckets
 
-        Parameters
-        ----------
-        df: pandas.DataFrame
-            Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
-        path : str
-            S3 path (e.g. s3://bucket/prefix).
-        filename : str, optional
-            The default behavior (`filename=None`) uses random names, but if you prefer pass a filename.
-            It will disable the partitioning.
-        partition_cols: List[str], optional
-            List of column names that will be used to create partitions.
-        num_files: int
-            Number of files to split the data. There is no effect when partition_cols or filename are used.
-        mode: str
-            "append", "overwrite", "partition_upsert"
-        parallel : bool
-            True to enable parallel requests, False to disable.
-        self_destruct: bool
-            Destroy the received DataFrame to deallocate memory during the write process.
-        pd_kwargs:
-            keyword arguments forwarded to pandas.DataFrame.to_csv()
-            https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_csv.html
 
-        Returns
-        -------
-        List[str]
-            List with the s3 paths created.
+def _delete_objects(bucket: str, keys: List[str], client_s3: boto3.client) -> None:
+    logger.debug(f"len(keys): {len(keys)}")
+    batch: List[Dict[str, str]] = [{"Key": key} for key in keys]
+    client_s3.delete_objects(Bucket=bucket, Delete={"Objects": batch})
 
-        Examples
-        --------
-        Writing single file with filename
 
-        >>> import awswrangler as wr
-        >>> import pandas as pd
-        >>> wr.s3.to_csv(
-        ...     df=pd.DataFrame({"col": [1, 2, 3]}),
-        ...     path="s3://bucket/prefix",
-        ...     filename="my_file.csv"
-        ... )
+def to_csv(df: pd.DataFrame, path: str, boto3_session: Optional[boto3.Session] = None, **pd_kwargs) -> None:
+    """Write CSV file on Amazon S3.
 
-        Writing multiple files
+    Parameters
+    ----------
+    df: pandas.DataFrame
+        Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
+    path : str
+        Amazon S3 path (e.g. s3://bucket/filename.csv).
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
+    pd_kwargs:
+        keyword arguments forwarded to pandas.DataFrame.to_csv()
+        https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_csv.html
 
-        >>> import awswrangler as wr
-        >>> import pandas as pd
-        >>> wr.s3.to_csv(
-        ...     df=pd.DataFrame({"col": [1, 2, 3]}),
-        ...     path="s3://bucket/prefix",
-        ...     num_files=4
-        ... )
+    Returns
+    -------
+    None
+        None.
 
-        Writing partitioned dataset
+    Examples
+    --------
+    Writing single file with filename
 
-        >>> import awswrangler as wr
-        >>> import pandas as pd
-        >>> wr.s3.to_csv(
-        ...     df=pd.DataFrame({
-        ...         "col": [1, 2, 3],
-        ...         "col2": ["A", "A", "B"]
-        ...     }),
-        ...     path="s3://bucket/prefix",
-        ...     partition_cols=["col2"]
-        ... )
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.s3.to_csv(
+    ...     df=pd.DataFrame({"col": [1, 2, 3]}),
+    ...     path="s3://bucket/filename.csv",
+    ... )
 
-        """
-        return self._writer_factory(file_writer=self._write_csv_file,
-                                    df=df,
-                                    path=path,
-                                    filename=filename,
-                                    partition_cols=partition_cols,
-                                    num_files=num_files,
-                                    mode=mode,
-                                    parallel=parallel,
-                                    self_destruct=self_destruct,
-                                    **pd_kwargs)
+    """
+    fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session)
+    with fs.open(path, "w") as f:
+        df.to_csv(path_or_buf=f, **pd_kwargs)
 
-    def _write_csv_file(self,
-                        df: pd.DataFrame,
-                        path: str,
-                        cpus: int,
-                        filename: Optional[str] = None,
-                        self_destruct: bool = False,
-                        **pd_kwargs) -> str:
-        compression: Optional[str] = pd_kwargs.get("compression")
-        if compression is None:
-            compression_ext: str = ""
-        elif compression == "gzip":
-            compression_ext = ".gz"
-            pd_kwargs["compression"] = None
-        else:
-            raise InvalidCompression(f"{compression} is invalid, please use gzip.")  # pragma: no cover
-        file_path: str = f"{path}{uuid4().hex}{compression_ext}.csv" if filename is None else f"{path}{filename}"
-        if compression is None:
-            file_obj: BytesIO = BytesIO(initial_bytes=bytes(df.to_csv(None, **pd_kwargs), "utf-8"))
-        else:
-            file_obj = BytesIO()
-            with gzip.open(file_obj, 'wb') as f:
-                f.write(df.to_csv(None, **pd_kwargs).encode(encoding="utf-8"))
-            file_obj.seek(0)
-        if self_destruct is True:
-            df.drop(df.index, inplace=True)
-            del df
-        _utils.upload_fileobj(s3_client=self._session.s3_client, file_obj=file_obj, path=file_path, cpus=cpus)
-        return file_path
 
-    def to_parquet(self,
-                   df: pd.DataFrame,
-                   path: str,
-                   filename: Optional[str] = None,
-                   partition_cols: Optional[List[str]] = None,
-                   num_files: int = 1,
-                   mode: str = "append",
-                   parallel: bool = True,
-                   self_destruct: bool = False,
-                   **pd_kwargs) -> List[str]:
-        """Write Parquet file(s) on Amazon S3.
+def to_parquet(
+    df: pd.DataFrame,
+    path: str,
+    index: bool = False,
+    compression: Optional[str] = "snappy",
+    use_threads: bool = True,
+    boto3_session: Optional[boto3.Session] = None,
+    dataset: bool = False,
+    partition_cols: Optional[List[str]] = None,
+    mode: Optional[str] = None,
+) -> List[str]:
+    """Write Parquet file or dataset on Amazon S3.
 
-        Note
-        ----
-        In case of `parallel=True` the number of process that will be spawned will be get from os.cpu_count().
+    The concept of Dataset goes beyond the simple idea of files and enable more
+    complex features like partitioning and catalog integration (AWS Glue Catalog).
 
-        Parameters
-        ----------
-        df: pandas.DataFrame
-            Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
-        path : str
-            S3 path (e.g. s3://bucket/prefix).
-        filename : str, optional
-            The default behavior (`filename=None`) uses random names, but if you prefer pass a filename.
-            It will disable the partitioning.
-        partition_cols: List[str], optional
-            List of column names that will be used to create partitions.
-        num_files: int
-            Number of files to split the data. There is no effect when partition_cols or filename are used.
-        mode: str
-            "append", "overwrite", "partition_upsert"
-        parallel : bool
-            True to enable parallel requests, False to disable.
-        self_destruct: bool
-            Destroy the received DataFrame to deallocate memory during the write process.
-        pd_kwargs:
-            keyword arguments forwarded to pandas.DataFrame.to_parquet()
-            https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_parquet.html
+    Note
+    ----
+    In case of ``use_threads=True`` the number of process that will be spawned will be get from os.cpu_count().
 
-        Returns
-        -------
-        List[str]
-            List with the s3 paths created.
+    Parameters
+    ----------
+    df: pandas.DataFrame
+        Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
+    path : str
+        S3 path (for file e.g. ``s3://bucket/prefix/filename.parquet``) (for dataset e.g. ``s3://bucket/prefix``).
+    index : bool
+        True to store the DataFrame index in file, otherwise False to ignore it.
+    compression: str, optional
+        Compression style (``None``, ``snappy``, ``gzip``).
+    use_threads : bool
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    dataset: bool
+        If True store a parquet dataset instead of a single file.
+        If True, enable all follow arguments (partition_cols, mode).
+    partition_cols: List[str], optional
+        List of column names that will be used to create partitions. Only takes effect if dataset=True.
+    mode: str, optional
+        ``append`` (Default), ``overwrite``, ``partition_upsert``. Only takes effect if dataset=True.
 
-        Examples
-        --------
-        Writing single file with filename
+    Returns
+    -------
+    List[str]
+        List with the s3 paths created.
 
-        >>> import awswrangler as wr
-        >>> import pandas as pd
-        >>> wr.s3.to_parquet(
-        ...     df=pd.DataFrame({"col": [1, 2, 3]}),
-        ...     path="s3://bucket/prefix",
-        ...     filename="my_file.parquet"
-        ... )
+    Examples
+    --------
+    Writing single file
 
-        Writing multiple files
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.s3.to_parquet(
+    ...     df=pd.DataFrame({"col": [1, 2, 3]}),
+    ...     path="s3://bucket/prefix/my_file.parquet",
+    ... )
+    ["s3://bucket/prefix/my_file.parquet"]
 
-        >>> import awswrangler as wr
-        >>> import pandas as pd
-        >>> wr.s3.to_parquet(
-        ...     df=pd.DataFrame({"col": [1, 2, 3]}),
-        ...     path="s3://bucket/prefix",
-        ...     num_files=4
-        ... )
+    Writing partitioned dataset
 
-        Writing partitioned dataset
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.s3.to_parquet(
+    ...     df=pd.DataFrame({
+    ...         "col": [1, 2, 3],
+    ...         "col2": ["A", "A", "B"]
+    ...     }),
+    ...     path="s3://bucket/prefix",
+    ...     dataset=True,
+    ...     partition_cols=["col2"]
+    ... )
+    ["s3://bucket/prefix/col2=A/xxx.snappy.parquet", "s3://bucket/prefix/col2=B/xxx.snappy.parquet"]
 
-        >>> import awswrangler as wr
-        >>> import pandas as pd
-        >>> wr.s3.to_parquet(
-        ...     df=pd.DataFrame({
-        ...         "col": [1, 2, 3],
-        ...         "col2": ["A", "A", "B"]
-        ...     }),
-        ...     path="s3://bucket/prefix",
-        ...     partition_cols=["col2"]
-        ... )
+    """
+    cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
+    fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session)
+    compression_ext: Optional[str] = _COMPRESSION_2_EXT.get(compression, None)
+    if compression_ext is None:
+        raise exceptions.InvalidCompression(f"{compression} is invalid, please use None, snappy or gzip.")
+    if dataset is False:
+        if partition_cols:
+            raise exceptions.InvalidArgumentCombination("Please, pass dataset=True to be able to use partition_cols.")
+        if mode:
+            raise exceptions.InvalidArgumentCombination("Please pass dataset=True to be able to use mode.")
+        paths = [_to_parquet_file(df=df, path=path, index=index, compression=compression, cpus=cpus, fs=fs)]
+    else:
+        mode = "append" if mode is None else mode
+        paths = _to_parquet_dataset(
+            df=df,
+            path=path,
+            index=index,
+            compression=compression,
+            compression_ext=compression_ext,
+            cpus=cpus,
+            fs=fs,
+            use_threads=use_threads,
+            partition_cols=partition_cols,
+            mode=mode,
+            boto3_session=boto3_session,
+        )
+    return paths
 
-        """
-        return self._writer_factory(file_writer=self._write_parquet_file,
-                                    df=df,
-                                    path=path,
-                                    filename=filename,
-                                    partition_cols=partition_cols,
-                                    num_files=num_files,
-                                    mode=mode,
-                                    parallel=parallel,
-                                    self_destruct=self_destruct,
-                                    **pd_kwargs)
 
-    def _write_parquet_file(self,
-                            df: pd.DataFrame,
-                            path: str,
-                            cpus: int,
-                            filename: Optional[str] = None,
-                            self_destruct: bool = False,
-                            compression: Optional[str] = "snappy",
-                            **pd_kwargs) -> str:
-        preserve_index: bool = False
-        if "preserve_index" in pd_kwargs:
-            preserve_index = pd_kwargs["preserve_index"]
-            del pd_kwargs["preserve_index"]
-        if compression is None:
-            compression_ext: str = ""
-        elif compression == "snappy":
-            compression_ext = ".snappy"
-        elif compression == "gzip":
-            compression_ext = ".gz"
-        else:
-            raise InvalidCompression(f"{compression} is invalid, please use snappy or gzip.")  # pragma: no cover
-        file_path: str = f"{path}{uuid4().hex}{compression_ext}.parquet" if filename is None else f"{path}{filename}"
-        table: pa.Table = pa.Table.from_pandas(df=df, nthreads=cpus, preserve_index=preserve_index, safe=False)
-        if self_destruct is True:
-            df.drop(df.index, inplace=True)
-            del df
-        file_obj: BytesIO = BytesIO()
-        pq.write_table(table=table,
-                       where=file_obj,
-                       coerce_timestamps="ms",
-                       compression=compression,
-                       flavor="spark",
-                       **pd_kwargs)
-        del table
-        file_obj.seek(0)
-        _utils.upload_fileobj(s3_client=self._session.s3_client, file_obj=file_obj, path=file_path, cpus=cpus)
-        return file_path
+def _to_parquet_dataset(
+    df: pd.DataFrame,
+    path: str,
+    index: bool,
+    compression: Optional[str],
+    compression_ext: str,
+    cpus: int,
+    fs: s3fs.S3FileSystem,
+    use_threads: bool,
+    mode: str,
+    partition_cols: Optional[List[str]] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> List[str]:
+    paths: List[str] = []
+    path = path if path[-1] == "/" else f"{path}/"
+    if mode not in ["append", "overwrite", "partitions_upsert"]:
+        raise exceptions.InvalidArgumentValue(
+            f"{mode} is a invalid mode, please use append, overwrite or partitions_upsert."
+        )
+    if (mode == "overwrite") or ((mode == "partitions_upsert") and (not partition_cols)):
+        delete_objects(path=path, use_threads=use_threads, boto3_session=boto3_session)
+    if not partition_cols:
+        file_path: str = f"{path}{uuid.uuid4().hex}{compression_ext}.parquet"
+        _to_parquet_file(df=df, path=file_path, index=index, compression=compression, cpus=cpus, fs=fs)
+        paths.append(file_path)
+    else:
+        for keys, subgroup in df.groupby(by=partition_cols, observed=True):
+            subgroup = subgroup.drop(partition_cols, axis="columns")
+            keys = (keys,) if not isinstance(keys, tuple) else keys
+            subdir = "/".join([f"{name}={val}" for name, val in zip(partition_cols, keys)])
+            prefix: str = f"{path}{subdir}/"
+            if mode == "partitions_upsert":
+                delete_objects(path=prefix, use_threads=use_threads)
+            file_path = f"{prefix}{uuid.uuid4().hex}{compression_ext}.parquet"
+            _to_parquet_file(df=subgroup, path=file_path, index=index, compression=compression, cpus=cpus, fs=fs)
+            paths.append(file_path)
+    return paths
 
-    def read_csv(self, path: str, parallel: bool = True, **pd_kwargs) -> pd.DataFrame:
-        """Read CSV file from Amazon S3 to Pandas DataFrame.
 
-        Note
-        ----
-        In case of `parallel=True` the number of process that will be spawned will be get from os.cpu_count().
+def _to_parquet_file(
+    df: pd.DataFrame, path: str, index: bool, compression: Optional[str], cpus: int, fs: s3fs.S3FileSystem
+) -> str:
+    table: pyarrow.Table = pyarrow.Table.from_pandas(df=df, nthreads=cpus, preserve_index=index, safe=False)
+    pyarrow.parquet.write_table(
+        table=table,
+        where=path,
+        write_statistics=True,
+        use_dictionary=True,
+        filesystem=fs,
+        coerce_timestamps="ms",
+        compression=compression,
+        flavor="spark",
+    )
+    return path
 
-        Parameters
-        ----------
-        path : str
-            S3 path (e.g. s3://bucket/filename.csv).
-        parallel : bool
-            True to enable parallel requests, False to disable.
-        pd_kwargs:
-            keyword arguments forwarded to pandas.read_csv().
-            https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
 
-        Returns
-        -------
-        pandas.DataFrame
-            Pandas DataFrame.
+def read_csv(
+    path: Union[str, List[str]],
+    use_threads: bool = True,
+    boto3_session: Optional[boto3.Session] = None,
+    **pandas_kwargs,
+) -> pd.DataFrame:
+    """Read CSV file(s) from from a received S3 prefix or list of S3 objects paths.
 
-        Examples
-        --------
-        >>> import awswrangler as wr
-        >>> df = wr.s3.read_csv(path="s3://bucket/filename.csv")
+    Note
+    ----
+    In case of ``use_threads=True`` the number of process that will be spawned will be get from os.cpu_count().
 
-        """
-        return S3._read_csv(s3_client=self._session.s3_client, paths=[path], parallel=parallel, **pd_kwargs)[0]
+    Parameters
+    ----------
+    path : Union[str, List[str]]
+        S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. ``[s3://bucket/key0, s3://bucket/key1]``).
+    use_threads : bool
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    pandas_kwargs:
+        keyword arguments forwarded to pandas.read_csv().
+        https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
 
-    @staticmethod
-    def _read_csv_remote(send_pipe: mp.connection.Connection,
-                         session_primitives: "_SessionPrimitives",
-                         paths: List[str],
-                         parallel: bool = True,
-                         **pd_kwargs) -> None:
-        session: "Session" = session_primitives.build_session()
-        s3_client: boto3.client = session.s3_client
-        dfs: List[pd.DataFrame] = S3._read_csv(s3_client=s3_client, paths=paths, parallel=parallel, **pd_kwargs)
-        send_pipe.send(dfs)
-        send_pipe.close()
+    Returns
+    -------
+    pandas.DataFrame
+        Pandas DataFrame.
 
-    @staticmethod
-    def _read_csv(s3_client: "boto3.session.Session.client",
-                  paths: List[str],
-                  parallel: bool = True,
-                  **pd_kwargs) -> List[pd.DataFrame]:
-        cpus: int = _utils.get_cpu_count(parallel=parallel)
-        dfs: List[pd.DataFrame] = []
-        for path in paths:
-            if pd_kwargs.get('compression', 'infer') == 'infer':
-                pd_kwargs['compression'] = infer_compression(path, compression='infer')
-            file_obj: BytesIO = _utils.download_fileobj(s3_client=s3_client, path=path, cpus=cpus)
-            dfs.append(pd.read_csv(file_obj, **pd_kwargs))
-        return dfs
+    Examples
+    --------
+    Reading all CSV files under a prefix
 
-    def read_parquet(self, path: str, parallel: bool = True, **pd_kwargs) -> pd.DataFrame:
-        """Read Apache Parquet file from Amazon S3 to Pandas DataFrame.
+    >>> import awswrangler as wr
+    >>> df = wr.s3.read_csv(path="s3://bucket/prefix/")
 
-        Note
-        ----
-        In case of `parallel=True` the number of process that will be spawned will be get from os.cpu_count().
+    Reading all CSV files from a list
 
-        Parameters
-        ----------
-        path : str
-            S3 path (e.g. s3://bucket/filename.parquet).
-        parallel : bool
-            True to enable parallel requests, False to disable.
-        pd_kwargs:
-            keyword arguments forwarded to pandas.read_parquet().
-            https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_parquet.html
+    >>> import awswrangler as wr
+    >>> df = wr.s3.read_csv(path=["s3://bucket/filename0.csv", "s3://bucket/filename1.csv"])
 
-        Returns
-        -------
-        pandas.DataFrame
-            Pandas DataFrame.
+    """
+    paths: List[str] = _path2list(path=path, boto3_session=boto3_session)
+    if use_threads is False:
+        df: pd.DataFrame = pd.concat(
+            objs=[_read_csv(path=p, boto3_session=boto3_session, pandas_args=pandas_kwargs) for p in paths],
+            ignore_index=True,
+            sort=False,
+        )
+    else:
+        cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
+            df = pd.concat(
+                objs=executor.map(_read_csv, paths, repeat(boto3_session), repeat(pandas_kwargs)),
+                ignore_index=True,
+                sort=False,
+            )
+    return df
 
-        Examples
-        --------
-        >>> import awswrangler as wr
-        >>> df = wr.s3.read_parquet(path="s3://bucket/filename.parquet")
 
-        """
-        return S3._read_parquet(s3_client=self._session.s3_client, paths=[path], parallel=parallel, **pd_kwargs)[0]
+def _read_csv(path: str, boto3_session: boto3.Session, pandas_args) -> pd.DataFrame:
+    fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session)
+    with fs.open(path, "r") as f:
+        return pd.read_csv(filepath_or_buffer=f, **pandas_args)
 
-    @staticmethod
-    def _read_parquet_remote(send_pipe: mp.connection.Connection,
-                             session_primitives: "_SessionPrimitives",
-                             paths: List[str],
-                             parallel: bool = True,
-                             **pd_kwargs) -> None:
-        session: "Session" = session_primitives.build_session()
-        s3_client: boto3.client = session.s3_client
-        dfs: List[pd.DataFrame] = S3._read_parquet(s3_client=s3_client, paths=paths, parallel=parallel, **pd_kwargs)
-        send_pipe.send(dfs)
-        send_pipe.close()
 
-    @staticmethod
-    def _read_parquet(s3_client: "boto3.session.Session.client",
-                      paths: List[str],
-                      parallel: bool = True,
-                      **pd_kwargs) -> List[pd.DataFrame]:
-        cpus: int = _utils.get_cpu_count(parallel=parallel)
-        use_threads: bool = True if cpus > 1 else False
-        pd_kwargs["use_threads"] = use_threads
-        dfs: List[pd.DataFrame] = []
-        for path in paths:
-            file_obj: BytesIO = _utils.download_fileobj(s3_client=s3_client, path=path, cpus=cpus)
-            table: pa.Table = pq.read_table(source=file_obj, **pd_kwargs)
-            file_obj.seek(0)
-            file_obj.truncate(0)
-            file_obj.close()
-            del file_obj
-            dfs.append(
-                table.to_pandas(use_threads=use_threads,
-                                split_blocks=True,
-                                self_destruct=True,
-                                integer_object_nulls=False))
-        return dfs
+def read_parquet(
+    path: Union[str, List[str]],
+    filters: Optional[Union[List[Tuple], List[List[Tuple]]]] = None,
+    columns: Optional[List[str]] = None,
+    dataset: bool = False,
+    use_threads: bool = True,
+    boto3_session: Optional[boto3.Session] = None,
+) -> pd.DataFrame:
+    """Read Apache Parquet file(s) from from a received S3 prefix or list of S3 objects paths.
 
-    def _read_list_factory(self, file_reader: Callable, file_reader_remote: Callable, paths: List[str], parallel: bool,
-                           chunked: bool, **pd_kwargs) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-        if parallel is False and chunked is True:
-            return self._read_list_iterator(file_reader=file_reader, paths=paths, parallel=parallel, **pd_kwargs)
-        elif parallel is False:
-            dfs: List[pd.DataFrame] = file_reader(s3_client=self._session.s3_client,
-                                                  paths=paths,
-                                                  parallel=parallel,
-                                                  **pd_kwargs)
-        else:
-            dfs_list = _utils.parallelize(func=file_reader_remote,
-                                          session=self._session,
-                                          lst=paths,
-                                          has_return=True,
-                                          **pd_kwargs)
-            dfs = [item for sublist in dfs_list for item in sublist]
-        logger.debug(f"Concatenating all {len(paths)} DataFrames...")
-        df: pd.DataFrame = pd.concat(objs=dfs, ignore_index=True, sort=False)
-        logger.debug("Concatenation done!")
-        return df
+    The concept of Dataset goes beyond the simple idea of files and enable more
+    complex features like partitioning and catalog integration (AWS Glue Catalog).
 
-    def _read_list_iterator(self, file_reader: Callable, paths: List[str], parallel: bool,
-                            **pd_kwargs) -> Iterator[pd.DataFrame]:
-        for path in paths:
-            yield file_reader(s3_client=self._session.s3_client, paths=[path], parallel=parallel, **pd_kwargs)[0]
+    Note
+    ----
+    In case of ``use_threads=True`` the number of process that will be spawned will be get from os.cpu_count().
 
-    def read_csv_list(self,
-                      paths: List[str],
-                      parallel: bool = True,
-                      chunked: bool = False,
-                      **pd_kwargs) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-        """Read all CSV files in the list and return a single concatenated Pandas DataFrame.
+    Parameters
+    ----------
+    path : Union[str, List[str]]
+        S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+    filters: Union[List[Tuple], List[List[Tuple]]], optional
+        List of filters to apply, like ``[[('x', '=', 0), ...], ...]``.
+    columns: List[str], optional
+        Names of columns to read from the file(s)
+    dataset: bool
+        If True read a parquet dataset instead of simple file(s) loading all the related partitions as columns.
+    use_threads : bool
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
-        Note
-        ----
-        In case of `parallel=True` the number of process that will be spawned will be get from os.cpu_count().
+    Returns
+    -------
+    pandas.DataFrame
+        Pandas DataFrame.
 
-        Parameters
-        ----------
-        paths : str
-            S3 path (e.g. s3://bucket/filename.csv).
-        parallel : bool
-            True to enable parallel operations, False to disable.
-        chunked: bool
-            Nice for environments with memory restrictions. Return a generator of DataFrames, a DataFrame per file. Takes no effect if `parallel=True`.
-        pd_kwargs:
-            keyword arguments forwarded to pandas.read_csv().
-            https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
+    Examples
+    --------
+    Reading all Parquet files under a prefix
 
-        Returns
-        -------
-        Union[pd.DataFrame, Iterator[pd.DataFrame]]
-            A single Pandas DataFrame if `chunked=False`. A generator of DataFrames if `chunked=True`.
+    >>> import awswrangler as wr
+    >>> df = wr.s3.read_parquet(path="s3://bucket/prefix/")
 
-        Examples
-        --------
-        >>> import awswrangler as wr
-        >>> df = wr.s3.read_csv_list(paths=["s3://bucket/filename1.csv", "s3://bucket/filename2.csv"])
+    Reading all Parquet files from a list
 
-        """
-        return self._read_list_factory(file_reader=self._read_csv,
-                                       file_reader_remote=self._read_csv_remote,
-                                       paths=paths,
-                                       parallel=parallel,
-                                       chunked=chunked,
-                                       **pd_kwargs)
+    >>> import awswrangler as wr
+    >>> df = wr.s3.read_parquet(path=["s3://bucket/filename0.parquet", "s3://bucket/filename1.parquet"])
 
-    def read_parquet_list(self,
-                          paths: List[str],
-                          parallel: bool = True,
-                          chunked: bool = False,
-                          **pd_kwargs) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-        """Read all parquet files in the list and return a single concatenated Pandas DataFrame.
-
-        Note
-        ----
-        In case of `parallel=True` the number of process that will be spawned will be get from os.cpu_count().
-
-        Parameters
-        ----------
-        paths : str
-            S3 path (e.g. s3://bucket/filename.parquet).
-        parallel : bool
-            True to enable parallel operations, False to disable.
-        chunked: bool
-            Nice for environments with memory restrictions. Return a generator of DataFrames, a DataFrame per file. Takes no effect if `parallel=True`.
-        pd_kwargs:
-            keyword arguments forwarded to pandas.read_parquet().
-            https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_parquet.html
-
-        Returns
-        -------
-        Union[pd.DataFrame, Iterator[pd.DataFrame]]
-            A single Pandas DataFrame if `chunked=False`. A generator of DataFrames if `chunked=True`.
-
-        Examples
-        --------
-        >>> import awswrangler as wr
-        >>> df = wr.s3.read_parquet_list(paths=["s3://bucket/filename1.parquet", "s3://bucket/filename2.parquet"])
-
-        """
-        return self._read_list_factory(file_reader=self._read_parquet,
-                                       file_reader_remote=self._read_parquet_remote,
-                                       paths=paths,
-                                       parallel=parallel,
-                                       chunked=chunked,
-                                       **pd_kwargs)
+    """
+    if dataset is False:
+        path_or_paths: Union[str, List[str]] = _path2list(path=path, boto3_session=boto3_session)
+    else:
+        path_or_paths = path
+    fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session)
+    cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
+    data: pyarrow.parquet.ParquetDataset = pyarrow.parquet.ParquetDataset(
+        path_or_paths=path_or_paths, filesystem=fs, metadata_nthreads=cpus, filters=filters
+    )
+    return data.read(columns=columns, use_threads=use_threads).to_pandas(
+        use_threads=use_threads, split_blocks=True, self_destruct=True, integer_object_nulls=False
+    )

@@ -5,15 +5,10 @@ Documentation: https://aws-data-wrangler.readthedocs.io/
 
 """
 
-from logging import NullHandler, getLogger
+import logging
 
 from awswrangler import exceptions  # noqa
-from awswrangler.__metadata__ import __version__  # noqa
-from awswrangler.s3 import S3 as _S3
-from awswrangler.session import Session
+from awswrangler import s3  # noqa
+from awswrangler.__metadata__ import __description__, __license__, __title__, __version__  # noqa
 
-default_session: Session = Session()
-
-s3: _S3 = default_session.s3
-
-getLogger("awswrangler").addHandler(NullHandler())
+logging.getLogger("awswrangler").addHandler(logging.NullHandler())

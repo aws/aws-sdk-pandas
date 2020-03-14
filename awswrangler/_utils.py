@@ -1,122 +1,32 @@
-"""Utilities Module."""
+"""Internal (private) Utilities Module."""
 
-import multiprocessing as mp
-from io import BytesIO
-from logging import Logger, getLogger
-from math import ceil
-from os import cpu_count
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Tuple
+import logging
+import math
+import os
+from typing import Any, List, Optional, Tuple
 
+import boto3  # type: ignore
+import botocore.config  # type: ignore
 import numpy as np  # type: ignore
-from boto3.s3.transfer import TransferConfig  # type: ignore
+import s3fs  # type: ignore
 
-if TYPE_CHECKING:  # pragma: no cover
-    from awswrangler.session import Session, _SessionPrimitives
-    import boto3  # type: ignore
-
-logger: Logger = getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
-def chunkify(lst: List[Any], num_chunks: int = 1, max_length: Optional[int] = None) -> List[List[Any]]:
-    """Split a list in a List of List (chunks) with even sizes.
-
-    Parameters
-    ----------
-    lst: List
-        List of anything to be splitted.
-    num_chunks: int, optional
-        Maximum number of chunks.
-    max_length: int, optional
-        Max length of each chunk. Has priority over num_chunks.
-
-    Returns
-    -------
-    List[List[Any]]
-        List of List (chunks) with even sizes.
-
-    Examples
-    --------
-    >>> from awswrangler._utils import chunkify
-    >>> chunkify(list(range(13)), num_chunks=3)
-    [[0, 1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]]
-    >>> chunkify(list(range(13)), max_length=4)
-    [[0, 1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
-
-    """
-    n: int = num_chunks if max_length is None else int(ceil((float(len(lst)) / float(max_length))))
-    np_chunks = np.array_split(lst, n)
-    return [arr.tolist() for arr in np_chunks if len(arr) > 0]
+def ensure_session(session: Optional[boto3.Session] = None) -> boto3.Session:
+    """Ensure that a valid boto3.Session will be returned."""
+    if session is not None:
+        return session
+    return boto3.Session()
 
 
-def get_cpu_count(parallel: bool = True) -> int:
-    """Get the number of cpu cores to be used.
-
-    Note
-    ----
-    In case of `parallel=True` the number of process that could be spawned will be get from os.cpu_count().
-
-    Parameters
-    ----------
-    parallel : bool
-            True to enable parallelism, False to disable.
-
-    Returns
-    -------
-    int
-        Number of cpu cores to be used.
-
-    Examples
-    --------
-    >>> from awswrangler._utils import get_cpu_count
-    >>> get_cpu_count(parallel=True)
-    4
-    >>> get_cpu_count(parallel=False)
-    1
-
-    """
-    cpus: int = 1
-    if parallel is True:
-        cpu_cnt: Optional[int] = cpu_count()
-        if cpu_cnt is not None:
-            cpus = cpu_cnt if cpu_cnt > cpus else cpus
-    return cpus
-
-
-def parallelize(func: Callable,
-                session: "Session",
-                lst: List[Any],
-                extra_args: Tuple = None,
-                has_return: bool = False,
-                **kwargs) -> List[Any]:
-    """Do a generic parallelization boilerplate abstracted."""
-    extra_args = tuple() if extra_args is None else extra_args
-    primitives: "_SessionPrimitives" = session.primitives
-    cpus: int = get_cpu_count(parallel=True)
-    chunks: List[List[str]] = chunkify(lst=lst, num_chunks=cpus)
-    procs: List[mp.Process] = []
-    receive_pipes: List[mp.connection.Connection] = []
-    return_list: list = []
-    for chunk in chunks:
-        args: Tuple = (primitives, chunk) + extra_args
-        if has_return is True:
-            receive_pipe: mp.connection.Connection
-            send_pipe: mp.connection.Connection
-            receive_pipe, send_pipe = mp.Pipe()
-            receive_pipes.append(receive_pipe)
-            args = (send_pipe, ) + args
-        proc: mp.Process = mp.Process(target=func, args=args, kwargs=kwargs)
-        proc.daemon = False
-        proc.start()
-        procs.append(proc)
-    for i in range(len(procs)):
-        if has_return is True:
-            logger.debug(f"Waiting pipe number: {i}")
-            return_list.append(receive_pipes[i].recv())
-            logger.debug(f"Closing pipe number: {i}")
-            receive_pipes[i].close()
-        logger.debug(f"Waiting proc number: {i}")
-        procs[i].join()
-    return return_list
+def client(service_name: str, session: Optional[boto3.Session] = None) -> boto3.client:
+    """Create a valid boto3.client."""
+    return ensure_session(session=session).client(
+        service_name=service_name,
+        use_ssl=True,
+        config=botocore.config.Config(retries={"mode": "adaptive", "max_attempts": 10}),
+    )
 
 
 def parse_path(path: str) -> Tuple[str, str]:
@@ -148,28 +58,79 @@ def parse_path(path: str) -> Tuple[str, str]:
     return bucket, key
 
 
-def upload_fileobj(s3_client: "boto3.session.Session.client", file_obj: BytesIO, path: str, cpus: int) -> None:
-    """Upload object from memory to Amazon S3."""
-    bucket: str
-    key: str
-    bucket, key = parse_path(path=path)
-    if cpus > 1:
-        config: TransferConfig = TransferConfig(max_concurrency=cpus, use_threads=True)
-    else:
-        config = TransferConfig(max_concurrency=1, use_threads=False)
-    s3_client.upload_fileobj(Fileobj=file_obj, Bucket=bucket, Key=key, Config=config)
+def ensure_cpu_count(use_threads: bool = True) -> int:
+    """Get the number of cpu cores to be used.
+
+    Note
+    ----
+    In case of `use_threads=True` the number of process that could be spawned will be get from os.cpu_count().
+
+    Parameters
+    ----------
+    use_threads : bool
+            True to enable multi-core utilization, False to disable.
+
+    Returns
+    -------
+    int
+        Number of cpu cores to be used.
+
+    Examples
+    --------
+    >>> from awswrangler._utils import ensure_cpu_count
+    >>> ensure_cpu_count(use_threads=True)
+    4
+    >>> ensure_cpu_count(use_threads=False)
+    1
+
+    """
+    cpus: int = 1
+    if use_threads is True:
+        cpu_cnt: Optional[int] = os.cpu_count()
+        if cpu_cnt is not None:
+            cpus = cpu_cnt if cpu_cnt > cpus else cpus
+    return cpus
 
 
-def download_fileobj(s3_client: "boto3.session.Session.client", path: str, cpus: int) -> BytesIO:
-    """Download object from Amazon S3 to memory."""
-    bucket: str
-    key: str
-    bucket, key = parse_path(path=path)
-    if cpus > 1:
-        config: TransferConfig = TransferConfig(max_concurrency=cpus, use_threads=True)
-    else:
-        config = TransferConfig(max_concurrency=1, use_threads=False)
-    file_obj: BytesIO = BytesIO()
-    s3_client.download_fileobj(Fileobj=file_obj, Bucket=bucket, Key=key, Config=config)
-    file_obj.seek(0)
-    return file_obj
+def chunkify(lst: List[Any], num_chunks: int = 1, max_length: Optional[int] = None) -> List[List[Any]]:
+    """Split a list in a List of List (chunks) with even sizes.
+
+    Parameters
+    ----------
+    lst: List
+        List of anything to be splitted.
+    num_chunks: int, optional
+        Maximum number of chunks.
+    max_length: int, optional
+        Max length of each chunk. Has priority over num_chunks.
+
+    Returns
+    -------
+    List[List[Any]]
+        List of List (chunks) with even sizes.
+
+    Examples
+    --------
+    >>> from awswrangler._utils import chunkify
+    >>> chunkify(list(range(13)), num_chunks=3)
+    [[0, 1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]]
+    >>> chunkify(list(range(13)), max_length=4)
+    [[0, 1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
+
+    """
+    n: int = num_chunks if max_length is None else int(math.ceil((float(len(lst)) / float(max_length))))
+    np_chunks = np.array_split(lst, n)
+    return [arr.tolist() for arr in np_chunks if len(arr) > 0]
+
+
+def get_fs(session: Optional[boto3.Session] = None) -> s3fs.S3FileSystem:
+    """Build a S3FileSystem from a given boto3 session."""
+    return s3fs.S3FileSystem(
+        anon=False,
+        use_ssl=True,
+        default_cache_type="none",
+        default_fill_cache=False,
+        default_block_size=52_428_800,  # 50 MB (50 * 2**20)
+        config_kwargs={"retries": {"mode": "adaptive", "max_attempts": 10}},
+        session=ensure_session(session=session),
+    )
