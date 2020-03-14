@@ -10,21 +10,12 @@
 [![Average time to resolve an issue](http://isitmaintained.com/badge/resolution/awslabs/aws-data-wrangler.svg)](http://isitmaintained.com/project/awslabs/aws-data-wrangler "Average time to resolve an issue")
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-**PyPI**: [![PyPI Downloads](https://img.shields.io/pypi/dm/awswrangler.svg)](https://pypi.org/project/awswrangler/)
+| Source    | Downloads                                                                                                                       | Page                                                 | Installation Command                       |
+|-----------|---------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------|--------------------------------------------|
+| **PyPi**  | [![PyPI Downloads](https://img.shields.io/pypi/dm/awswrangler.svg)](https://pypi.org/project/awswrangler/)                      | [Link](https://pypi.org/project/awswrangler/)        | `pip install awswrangler`                  |
+| **Conda** | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/awswrangler.svg)](https://anaconda.org/conda-forge/awswrangler) | [Link](https://anaconda.org/conda-forge/awswrangler) | `conda install -c conda-forge awswrangler` |
 
-**Conda**: [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/awswrangler.svg)](https://anaconda.org/conda-forge/awswrangler)
-
-## Resources
-
-- [Install](https://aws-data-wrangler.readthedocs.io/install.html)
-- [Tutorials](https://aws-data-wrangler.readthedocs.io/tutorials.html)
-- [API Reference](https://aws-data-wrangler.readthedocs.io/api/awswrangler.html)
-- [License](https://aws-data-wrangler.readthedocs.io/license.html)
-- [Contributing](https://aws-data-wrangler.readthedocs.io/contributing.html)
-
-## Integrations
-
-| **AWS SERVICES**          |
+|**Integrated AWS Services**|
 |---------------------------|
 | Amazon S3                 |
 | AWS Glue Catalog          |
@@ -35,3 +26,11 @@
 | AWS Lambda                |
 | Glue Job Python Shell     |
 | AWS KMS                   |
+
+## Resources
+
+- [Install](https://aws-data-wrangler.readthedocs.io/install.html)
+- [Tutorials](https://aws-data-wrangler.readthedocs.io/tutorials.html)
+- [API Reference](https://aws-data-wrangler.readthedocs.io/api/awswrangler.html)
+- [License](https://aws-data-wrangler.readthedocs.io/license.html)
+- [Contributing](https://aws-data-wrangler.readthedocs.io/contributing.html)
