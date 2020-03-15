@@ -15,9 +15,9 @@
 | **PyPi**  | [![PyPI Downloads](https://img.shields.io/pypi/dm/awswrangler.svg)](https://pypi.org/project/awswrangler/)                      | [Link](https://pypi.org/project/awswrangler/)        | `pip install awswrangler`                  |
 | **Conda** | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/awswrangler.svg)](https://anaconda.org/conda-forge/awswrangler) | [Link](https://anaconda.org/conda-forge/awswrangler) | `conda install -c conda-forge awswrangler` |
 
-## Resources
+## Read The Docs
 
-- [Install (Lambda Layer and Glue Wheel available!)](https://aws-data-wrangler.readthedocs.io/install.html)
+- [Install - **Lambda Layer** and **Glue Wheel** available!](https://aws-data-wrangler.readthedocs.io/install.html)
 - [Tutorials :rocket:](https://aws-data-wrangler.readthedocs.io/tutorials.html)
 - [API Reference](https://aws-data-wrangler.readthedocs.io/api/awswrangler.html)
 - [License](https://aws-data-wrangler.readthedocs.io/license.html)
