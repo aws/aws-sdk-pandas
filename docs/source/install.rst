@@ -1,6 +1,9 @@
 Install
 ============
 
+PyPI (pip)
+----------
+
     >>> pip install awswrangler
 
     >>> conda install -c conda-forge awswrangler
@@ -9,13 +12,16 @@ Runs with Python 3.6, 3.7 and 3.8.
 
 Runs anywhere (AWS Lambda, AWS Glue Python Shell, EMR, EC2, on-premises, local, etc).
 
+Conda
+-----
+
 .. note:: Lambda Layer's bundle and Glue's wheel/egg are available to `download <https://github.com/awslabs/aws-data-wrangler/releases>`_. Just upload it and run! 🚀
 .. note:: Have you never used Layers? Check the :ref:`step-by-step guide <Setting Up Lambda Layer>`.
 .. note:: AWS Data Wrangler counts with compiled dependencies (C/C++) so there is no support for Glue PySpark by now.
 .. note:: PySpark doesn't support Python 3.8 yet.
 
-Setting Up Lambda Layer
------------------------
+AWS Lambda Layer
+----------------
 
 .. figure:: _static/step-by-step/lambda-layer/download.png
     :align: center
@@ -58,3 +64,8 @@ Setting Up Lambda Layer
     :figclass: align-center
 
     Go to your AWS Lambda and use it!
+
+AWS Glue Wheel
+--------------
+
+adawdwadwadaw

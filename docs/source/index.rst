@@ -14,5 +14,5 @@
    install
    tutorials
    api/index
-   contributing
    license
+   contributing
