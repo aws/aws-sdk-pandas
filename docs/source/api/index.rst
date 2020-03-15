@@ -9,9 +9,11 @@ wr.s3
 .. autosummary::
      :toctree: stubs
 
-     does_object_exists
      get_bucket_region
+     does_object_exists
      list_objects
+     describe_objects
+     size_objects
      delete_objects
      read_csv
      read_parquet

@@ -15,18 +15,6 @@
 | **PyPi**  | [![PyPI Downloads](https://img.shields.io/pypi/dm/awswrangler.svg)](https://pypi.org/project/awswrangler/)                      | [Link](https://pypi.org/project/awswrangler/)        | `pip install awswrangler`                  |
 | **Conda** | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/awswrangler.svg)](https://anaconda.org/conda-forge/awswrangler) | [Link](https://anaconda.org/conda-forge/awswrangler) | `conda install -c conda-forge awswrangler` |
 
-|**Integrated AWS Services**|
-|---------------------------|
-| Amazon S3                 |
-| AWS Glue Catalog          |
-| Amazon Athena             |
-| Amazon Redshift           |
-| Amazon Aurora             |
-| Amazon EMR                |
-| AWS Lambda                |
-| Glue Job Python Shell     |
-| AWS KMS                   |
-
 ## Resources
 
 - [Install](https://aws-data-wrangler.readthedocs.io/install.html)

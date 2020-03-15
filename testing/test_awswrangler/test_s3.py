@@ -9,7 +9,7 @@ import pytest
 import awswrangler as wr
 from awswrangler import _utils  # noqa
 
-EVENTUAL_CONSISTENCY_SLEEP: float = 5.0  # seconds
+EVENTUAL_CONSISTENCY_SLEEP: float = 20.0  # seconds
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
@@ -21,7 +21,7 @@ def wrt_fake_objs_batch(bucket, path, chunk, size=10):
         s3.Object(bucket, f"{path}{obj_id}").put(Body=str(obj_id).zfill(size).encode())
 
 
-def write_fake_objects(bucket, path, num, obj_size=3):
+def write_fake_objects(bucket, path, num, obj_size=5):
     cpus = _utils.ensure_cpu_count(use_threads=True) * 4
     chunks = _utils.chunkify(list(range(num)), cpus)
     args = []
@@ -65,40 +65,44 @@ def test_get_bucket_region(bucket, region):
     assert wr.s3.get_bucket_region(bucket=bucket, boto3_session=boto3.Session()) == region
 
 
-def test_does_object_exists(bucket):
-    key = "test_does_object_exists.txt"
-    boto3.resource("s3").Object(bucket, key).put(Body=key.encode())
-    print("Waiting eventual consistency...")
-    time.sleep(EVENTUAL_CONSISTENCY_SLEEP)
-    assert wr.s3.does_object_exists(path=f"s3://{bucket}/{key}") is True
-    assert wr.s3.does_object_exists(path=f"s3://{bucket}/{key}_wrong") is False
-    assert wr.s3.does_object_exists(path=f"s3://{bucket}/{key}", boto3_session=boto3.Session()) is True
-    assert wr.s3.does_object_exists(path=f"s3://{bucket}/{key}_wrong", boto3_session=boto3.Session()) is False
-
-
-@pytest.mark.parametrize("use_threads", [True, False])
-def test_delete_objects(bucket, use_threads):
+def test_objects(bucket):
     num = 1_001
-    prefix = f"test_delete_objects_{use_threads}/"
+    prefix = f"test_objects/"
     path = f"s3://{bucket}/{prefix}"
+    assert len(wr.s3.size_objects(path=path, use_threads=False)) == 0
     print("Starting writes...")
-    write_fake_objects(bucket, prefix, num)
+    write_fake_objects(bucket, prefix, num, obj_size=5)
+    print("Getting sizes with wait_time...")
+    sizes = wr.s3.size_objects(path=path, wait_time=EVENTUAL_CONSISTENCY_SLEEP, use_threads=True)
+    for _, size in sizes.items():
+        assert size == 5
     print("Waiting eventual consistency...")
     time.sleep(EVENTUAL_CONSISTENCY_SLEEP)
+    print("checking existence...")
+    assert wr.s3.does_object_exists(path=f"{path}0") is True
+    assert wr.s3.does_object_exists(path=f"{path}0_wrong") is False
+    assert wr.s3.does_object_exists(path=f"{path}0", boto3_session=boto3.Session()) is True
+    assert wr.s3.does_object_exists(path=f"s3://{path}0_wrong", boto3_session=boto3.Session()) is False
     print("Listing...")
     paths = wr.s3.list_objects(path)
     assert len(paths) == num
+    print("Getting sizes...")
+    sizes = wr.s3.size_objects(path=path, use_threads=True)
+    assert len(sizes) == num
+    for _, size in sizes.items():
+        assert size == 5
     print("Deleting...")
-    wr.s3.delete_objects(path=path, use_threads=use_threads)
+    wr.s3.delete_objects(path=path, use_threads=True)
     print("Waiting eventual consistency...")
     time.sleep(EVENTUAL_CONSISTENCY_SLEEP)
     assert len(wr.s3.list_objects(path)) == 0
-    wr.s3.delete_objects(path=[], use_threads=use_threads)
-    key = f"test_delete_objects_{use_threads}.txt"
+    wr.s3.delete_objects(path=[], use_threads=True)
+    key = f"test_objects.txt"
     boto3.resource("s3").Object(bucket, key).put(Body=key.encode())
-    wr.s3.delete_objects(path=[f"s3://{bucket}/{key}"])
+    assert len(wr.s3.size_objects(path=[f"s3://{bucket}/{key}"], use_threads=False)) == 1
+    wr.s3.delete_objects(path=[f"s3://{bucket}/{key}"], use_threads=False)
     with pytest.raises(wr.exceptions.InvalidArgumentType):
-        wr.s3.delete_objects(path=1, use_threads=use_threads)
+        wr.s3.delete_objects(path=1, use_threads=True)
 
 
 def test_csv(bucket):
