@@ -10,11 +10,11 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import boto3  # type: ignore
 import botocore.exceptions  # type: ignore
 import pandas as pd  # type: ignore
-import pyarrow  # type: ignore
+import pyarrow as pa  # type: ignore
 import pyarrow.parquet  # type: ignore
 import s3fs  # type: ignore
 
-from awswrangler import _utils, exceptions
+from awswrangler import _data_types, _utils, catalog, exceptions
 
 _COMPRESSION_2_EXT: Dict[Optional[str], str] = {None: "", "gzip": ".gz", "snappy": ".snappy"}
 
@@ -406,11 +406,16 @@ def to_parquet(
     dataset: bool = False,
     partition_cols: Optional[List[str]] = None,
     mode: Optional[str] = None,
+    database: Optional[str] = None,
+    table: Optional[str] = None,
+    description: Optional[str] = None,
+    parameters: Optional[Dict[str, str]] = None,
+    columns_comments: Optional[Dict[str, str]] = None,
 ) -> List[str]:
     """Write Parquet file or dataset on Amazon S3.
 
     The concept of Dataset goes beyond the simple idea of files and enable more
-    complex features like partitioning and catalog integration (AWS Glue Catalog).
+    complex features like partitioning and catalog integration (Amazon Athena/AWS Glue Catalog).
 
     Note
     ----
@@ -433,11 +438,23 @@ def to_parquet(
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     dataset: bool
         If True store a parquet dataset instead of a single file.
-        If True, enable all follow arguments (partition_cols, mode).
+        If True, enable all follow arguments:
+        partition_cols, mode, database, table, description, parameters, columns_comments, .
     partition_cols: List[str], optional
         List of column names that will be used to create partitions. Only takes effect if dataset=True.
     mode: str, optional
         ``append`` (Default), ``overwrite``, ``partition_upsert``. Only takes effect if dataset=True.
+    database : str
+        Glue/Athena catalog: Database name.
+    table : str
+        Glue/Athena catalog: Table name.
+    description: str, optional
+        Glue/Athena catalog: Table description
+    parameters: Dict[str, str], optional
+        Glue/Athena catalog: Key/value pairs to tag the table.
+    columns_comments: Dict[str, str], optional
+        Glue/Athena catalog:
+        Columns names and the related comments (e.g. {"col0": "Column 0.", "col1": "Column 1.", "col2": "Partition."}).
 
     Returns
     -------
@@ -471,6 +488,23 @@ def to_parquet(
     ... )
     ["s3://bucket/prefix/col2=A/xxx.snappy.parquet", "s3://bucket/prefix/col2=B/xxx.snappy.parquet"]
 
+    Writing dataset to S3 with metadata on Athena/Glue Catalog.
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.s3.to_parquet(
+    ...     df=pd.DataFrame({
+    ...         "col": [1, 2, 3],
+    ...         "col2": ["A", "A", "B"]
+    ...     }),
+    ...     path="s3://bucket/prefix",
+    ...     dataset=True,
+    ...     partition_cols=["col2"],
+    ...     database="default",  # Athena/Glue database
+    ...     table="my_table"  # Athena/Glue table
+    ... )
+    ["s3://bucket/prefix/col2=A/xxx.snappy.parquet", "s3://bucket/prefix/col2=B/xxx.snappy.parquet"]
+
     """
     cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
     fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session)
@@ -480,10 +514,23 @@ def to_parquet(
     if dataset is False:
         if partition_cols:
             raise exceptions.InvalidArgumentCombination("Please, pass dataset=True to be able to use partition_cols.")
-        if mode:
+        if mode is not None:
             raise exceptions.InvalidArgumentCombination("Please pass dataset=True to be able to use mode.")
-        paths = [_to_parquet_file(df=df, path=path, index=index, compression=compression, cpus=cpus, fs=fs)]
+        if any(arg is not None for arg in (database, table, description, parameters, columns_comments)):
+            raise exceptions.InvalidArgumentCombination(
+                "Please pass dataset=True to be able to use any one of these "
+                "arguments: database, table, description, parameters, "
+                "columns_comments."
+            )
+        paths = [
+            _to_parquet_file(df=df, path=path, schema=None, index=index, compression=compression, cpus=cpus, fs=fs)
+        ]
     else:
+        if (database is None) ^ (table is None):
+            raise exceptions.InvalidArgumentCombination(
+                "Please pass database and table arguments to be able to "
+                "store the metadata into the Athena/Glue Catalog."
+            )
         mode = "append" if mode is None else mode
         paths = _to_parquet_dataset(
             df=df,
@@ -498,6 +545,23 @@ def to_parquet(
             mode=mode,
             boto3_session=boto3_session,
         )
+        if (database is not None) and (table is not None):
+            columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
+                df=df, index=index, partition_cols=partition_cols
+            )
+            catalog.create_parquet_table(
+                database=database,
+                table=table,
+                path=path,
+                columns_types=columns_types,
+                partitions_types=partitions_types,
+                compression=compression,
+                description=description,
+                parameters=parameters,
+                columns_comments=columns_comments,
+                boto3_session=boto3_session,
+                mode="overwrite",
+            )
     return paths
 
 
@@ -524,9 +588,10 @@ def _to_parquet_dataset(
         delete_objects(path=path, use_threads=use_threads, boto3_session=boto3_session)
     if not partition_cols:
         file_path: str = f"{path}{uuid.uuid4().hex}{compression_ext}.parquet"
-        _to_parquet_file(df=df, path=file_path, index=index, compression=compression, cpus=cpus, fs=fs)
+        _to_parquet_file(df=df, schema=None, path=file_path, index=index, compression=compression, cpus=cpus, fs=fs)
         paths.append(file_path)
     else:
+        schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(df=df, ignore_cols=partition_cols)
         for keys, subgroup in df.groupby(by=partition_cols, observed=True):
             subgroup = subgroup.drop(partition_cols, axis="columns")
             keys = (keys,) if not isinstance(keys, tuple) else keys
@@ -535,15 +600,23 @@ def _to_parquet_dataset(
             if mode == "partitions_upsert":
                 delete_objects(path=prefix, use_threads=use_threads)
             file_path = f"{prefix}{uuid.uuid4().hex}{compression_ext}.parquet"
-            _to_parquet_file(df=subgroup, path=file_path, index=index, compression=compression, cpus=cpus, fs=fs)
+            _to_parquet_file(
+                df=subgroup, schema=schema, path=file_path, index=index, compression=compression, cpus=cpus, fs=fs
+            )
             paths.append(file_path)
     return paths
 
 
 def _to_parquet_file(
-    df: pd.DataFrame, path: str, index: bool, compression: Optional[str], cpus: int, fs: s3fs.S3FileSystem
+    df: pd.DataFrame,
+    path: str,
+    schema: pa.Schema,
+    index: bool,
+    compression: Optional[str],
+    cpus: int,
+    fs: s3fs.S3FileSystem,
 ) -> str:
-    table: pyarrow.Table = pyarrow.Table.from_pandas(df=df, nthreads=cpus, preserve_index=index, safe=False)
+    table: pa.Table = pyarrow.Table.from_pandas(df=df, schema=schema, nthreads=cpus, preserve_index=index, safe=False)
     pyarrow.parquet.write_table(
         table=table,
         where=path,

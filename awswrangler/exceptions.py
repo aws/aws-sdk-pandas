@@ -15,3 +15,11 @@ class InvalidArgumentType(Exception):
 
 class InvalidArgumentCombination(Exception):
     """Invalid argument combination."""
+
+
+class UnsupportedType(Exception):
+    """UnsupportedType exception."""
+
+
+class UndetectedType(Exception):
+    """UndetectedType exception."""

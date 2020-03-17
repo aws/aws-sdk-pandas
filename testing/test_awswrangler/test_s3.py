@@ -57,7 +57,20 @@ def bucket(cloudformation_outputs):
     else:
         raise Exception("You must deploy/update the test infrastructure (CloudFormation)")
     yield bucket
-    wr.s3.delete_objects(f"s3://{bucket}/")
+    # wr.s3.delete_objects(f"s3://{bucket}/")
+
+
+@pytest.fixture(scope="module")
+def database(cloudformation_outputs):
+    if "GlueDatabaseName" in cloudformation_outputs:
+        database = cloudformation_outputs["GlueDatabaseName"]
+    else:
+        raise Exception("You must deploy the test infrastructure using Cloudformation!")
+    yield database
+    # tables = wr.glue.tables(database=database)["Table"].tolist()
+    # for t in tables:
+    #     print(f"Dropping: {database}.{t}...")
+    #     wr.glue.delete_table_if_exists(database=database, table=t)
 
 
 def test_get_bucket_region(bucket, region):
@@ -158,4 +171,28 @@ def test_parquet(bucket):
     wr.s3.to_parquet(df=df_dataset, path=path_dataset, dataset=True, partition_cols=["partition"], mode="overwrite")
     wr.s3.to_parquet(
         df=df_dataset, path=path_dataset, dataset=True, partition_cols=["partition"], mode="partitions_upsert"
+    )
+
+
+def test_parquet_catalog(bucket, database):
+    df = pd.DataFrame({"id": [1, 2, 3], "partition": ["A", "A", "B"]})
+    wr.s3.to_parquet(
+        df=df,
+        path=f"s3://{bucket}/test_parquet_catalog0",
+        use_threads=True,
+        dataset=True,
+        mode="overwrite",
+        database=database,
+        table="test_parquet_catalog0",
+    )
+    wr.s3.to_parquet(
+        df=df,
+        path=f"s3://{bucket}/test_parquet_catalog1",
+        index=True,
+        use_threads=True,
+        dataset=True,
+        mode="overwrite",
+        database=database,
+        table="test_parquet_catalog1",
+        partition_cols=["partition"],
     )

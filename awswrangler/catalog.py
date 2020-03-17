@@ -10,14 +10,14 @@ from awswrangler import _utils, athena
 logger: logging.Logger = logging.getLogger(__name__)
 
 
-def delete_table_if_exists(database, name, boto3_session: Optional[boto3.Session] = None):
+def delete_table_if_exists(database, table, boto3_session: Optional[boto3.Session] = None):
     """Delete Glue table if exists.
 
     Parameters
     ----------
     database : str
         Database name.
-    name : str
+    table : str
         Table name.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
@@ -35,19 +35,19 @@ def delete_table_if_exists(database, name, boto3_session: Optional[boto3.Session
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
     try:
-        client_glue.delete_table(DatabaseName=database, Name=name)
+        client_glue.delete_table(DatabaseName=database, Name=table)
     except client_glue.exceptions.EntityNotFoundException:
         pass
 
 
-def does_table_exist(database, name, boto3_session: Optional[boto3.Session] = None):
+def does_table_exist(database, table, boto3_session: Optional[boto3.Session] = None):
     """Check if the table exists.
 
     Parameters
     ----------
     database : str
         Database name.
-    name : str
+    table : str
         Table name.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
@@ -65,7 +65,7 @@ def does_table_exist(database, name, boto3_session: Optional[boto3.Session] = No
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
     try:
-        client_glue.get_table(DatabaseName=database, Name=name)
+        client_glue.get_table(DatabaseName=database, Name=table)
         return True
     except client_glue.exceptions.EntityNotFoundException:
         return False
@@ -73,7 +73,7 @@ def does_table_exist(database, name, boto3_session: Optional[boto3.Session] = No
 
 def create_parquet_table(
     database: str,
-    name: str,
+    table: str,
     path: str,
     columns_types: Dict[str, str],
     partitions_types: Optional[Dict[str, str]],
@@ -81,6 +81,7 @@ def create_parquet_table(
     description: Optional[str] = None,
     parameters: Optional[Dict[str, str]] = None,
     columns_comments: Optional[Dict[str, str]] = None,
+    mode: str = "overwrite",
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
     """Create a Parquet Table (Metadata Only) in the AWS Glue Catalog.
@@ -91,7 +92,7 @@ def create_parquet_table(
     ----------
     database : str
         Database name.
-    name : str
+    table : str
         Table name.
     path : str
         Amazon S3 path (e.g. s3://bucket/prefix/).
@@ -107,6 +108,8 @@ def create_parquet_table(
         Key/value pairs to tag the table.
     columns_comments: Dict[str, str], optional
         Columns names and the related comments (e.g. {"col0": "Column 0.", "col1": "Column 1.", "col2": "Partition."}).
+    mode: str
+        Only "overwrite" available by now.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -120,7 +123,7 @@ def create_parquet_table(
     >>> import awswrangler as wr
     >>> wr.catalog.create_parquet_table(
     ...     database="default",
-    ...     name="my_table",
+    ...     table="my_table",
     ...     path="s3://bucket/prefix/",
     ...     columns_types={"col0": "bigint", "col1": "double"},
     ...     partitions_types={"col2": "date"},
@@ -131,10 +134,10 @@ def create_parquet_table(
     ... )
 
     """
-    name = athena.normalize_table_name(name=name)
+    table = athena.normalize_table_name(table=table)
     partitions_types = {} if partitions_types is None else partitions_types
     table_input: Dict[str, Any] = _parquet_table_definition(
-        name=name, path=path, columns_types=columns_types, partitions_types=partitions_types, compression=compression
+        table=table, path=path, columns_types=columns_types, partitions_types=partitions_types, compression=compression
     )
     if description is not None:
         table_input["Description"] = description
@@ -143,23 +146,25 @@ def create_parquet_table(
             table_input["Parameters"][k] = v
     if columns_comments is not None:
         for col in table_input["StorageDescriptor"]["Columns"]:
-            name = col["Name"]
+            name: str = col["Name"]
             if name in columns_comments:
-                col["Comment"] = columns_comments[name]
+                col["Comment"] = columns_comments[table]
         for par in table_input["PartitionKeys"]:
             name = par["Name"]
             if name in columns_comments:
-                par["Comment"] = columns_comments[name]
+                par["Comment"] = columns_comments[table]
+    if mode == "overwrite":
+        delete_table_if_exists(database=database, table=table, boto3_session=boto3_session)
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
     client_glue.create_table(DatabaseName=database, TableInput=table_input)
 
 
 def _parquet_table_definition(
-    name: str, path: str, columns_types: Dict[str, str], partitions_types: Dict[str, str], compression: Optional[str]
+    table: str, path: str, columns_types: Dict[str, str], partitions_types: Dict[str, str], compression: Optional[str]
 ) -> Dict[str, Any]:
     compressed: bool = compression is not None
     return {
-        "Name": name,
+        "Name": table,
         "PartitionKeys": [{"Name": cname, "Type": dtype} for cname, dtype in partitions_types.items()],
         "TableType": "EXTERNAL_TABLE",
         "Parameters": {"classification": "parquet", "compressionType": str(compression).lower(), "typeOfData": "file"},

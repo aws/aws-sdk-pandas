@@ -24,14 +24,14 @@ def _normalize_name(name: str) -> str:
     return name
 
 
-def normalize_column_name(name: str) -> str:
+def normalize_column_name(column: str) -> str:
     """Convert the column name to be compatible with Amazon Athena.
 
     https://docs.aws.amazon.com/athena/latest/ug/tables-databases-columns-names.html
 
     Parameters
     ----------
-    name : str
+    column : str
         Column name.
 
     Returns
@@ -46,17 +46,17 @@ def normalize_column_name(name: str) -> str:
     "my_new_column"
 
     """
-    return _normalize_name(name=name)
+    return _normalize_name(name=column)
 
 
-def normalize_table_name(name: str) -> str:
+def normalize_table_name(table: str) -> str:
     """Convert the table name to be compatible with Amazon Athena.
 
     https://docs.aws.amazon.com/athena/latest/ug/tables-databases-columns-names.html
 
     Parameters
     ----------
-    name : str
+    table : str
         Table name.
 
     Returns
@@ -71,4 +71,4 @@ def normalize_table_name(name: str) -> str:
     "my_new_table"
 
     """
-    return _normalize_name(name=name)
+    return _normalize_name(name=table)
