@@ -58,7 +58,7 @@ def get_bucket_region(bucket: str, boto3_session: Optional[boto3.Session] = None
     return region
 
 
-def does_object_exists(path: str, boto3_session: Optional[boto3.Session] = None) -> bool:
+def does_object_exist(path: str, boto3_session: Optional[boto3.Session] = None) -> bool:
     """Check if object exists on S3.
 
     Parameters
@@ -78,18 +78,18 @@ def does_object_exists(path: str, boto3_session: Optional[boto3.Session] = None)
     Using the default boto3 session
 
     >>> import awswrangler as wr
-    >>> wr.s3.does_object_exists("s3://bucket/key_real")
+    >>> wr.s3.does_object_exist("s3://bucket/key_real")
     True
-    >>> wr.s3.does_object_exists("s3://bucket/key_unreal")
+    >>> wr.s3.does_object_exist("s3://bucket/key_unreal")
     False
 
     Using a custom boto3 session
 
     >>> import boto3
     >>> import awswrangler as wr
-    >>> wr.s3.does_object_exists("s3://bucket/key_real", boto3_session=boto3.Session())
+    >>> wr.s3.does_object_exist("s3://bucket/key_real", boto3_session=boto3.Session())
     True
-    >>> wr.s3.does_object_exists("s3://bucket/key_unreal", boto3_session=boto3.Session())
+    >>> wr.s3.does_object_exist("s3://bucket/key_unreal", boto3_session=boto3.Session())
     False
 
     """

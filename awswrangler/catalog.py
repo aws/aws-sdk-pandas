@@ -40,7 +40,7 @@ def delete_table_if_exists(database, name, boto3_session: Optional[boto3.Session
         pass
 
 
-def does_table_exists(database, name, boto3_session: Optional[boto3.Session] = None):
+def does_table_exist(database, name, boto3_session: Optional[boto3.Session] = None):
     """Check if the table exists.
 
     Parameters
@@ -60,7 +60,7 @@ def does_table_exists(database, name, boto3_session: Optional[boto3.Session] = N
     Examples
     --------
     >>> import awswrangler as wr
-    >>> wr.catalog.does_table_exists(database="default", name="my_table")
+    >>> wr.catalog.does_table_exist(database="default", name="my_table")
 
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)

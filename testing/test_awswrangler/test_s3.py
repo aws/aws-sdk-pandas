@@ -79,10 +79,10 @@ def test_objects(bucket):
     print("Waiting eventual consistency...")
     time.sleep(EVENTUAL_CONSISTENCY_SLEEP)
     print("checking existence...")
-    assert wr.s3.does_object_exists(path=f"{path}0") is True
-    assert wr.s3.does_object_exists(path=f"{path}0_wrong") is False
-    assert wr.s3.does_object_exists(path=f"{path}0", boto3_session=boto3.Session()) is True
-    assert wr.s3.does_object_exists(path=f"s3://{path}0_wrong", boto3_session=boto3.Session()) is False
+    assert wr.s3.does_object_exist(path=f"{path}0") is True
+    assert wr.s3.does_object_exist(path=f"{path}0_wrong") is False
+    assert wr.s3.does_object_exist(path=f"{path}0", boto3_session=boto3.Session()) is True
+    assert wr.s3.does_object_exist(path=f"s3://{path}0_wrong", boto3_session=boto3.Session()) is False
     print("Listing...")
     paths = wr.s3.list_objects(path)
     assert len(paths) == num
