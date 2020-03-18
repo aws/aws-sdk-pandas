@@ -591,7 +591,8 @@ def _to_parquet_dataset(
         _to_parquet_file(df=df, schema=None, path=file_path, index=index, compression=compression, cpus=cpus, fs=fs)
         paths.append(file_path)
     else:
-        schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(df=df, ignore_cols=partition_cols)
+        schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(df=df, index=index, ignore_cols=partition_cols)
+        logger.debug(f"schema: {schema}")
         for keys, subgroup in df.groupby(by=partition_cols, observed=True):
             subgroup = subgroup.drop(partition_cols, axis="columns")
             keys = (keys,) if not isinstance(keys, tuple) else keys

@@ -111,9 +111,9 @@ def athena_types_from_pandas_partitioned(
     return columns_types, partitions_types
 
 
-def pyarrow_schema_from_pandas(df: pd.DataFrame, ignore_cols: Optional[List[str]] = None) -> pa.Schema:
+def pyarrow_schema_from_pandas(df: pd.DataFrame, index: bool, ignore_cols: Optional[List[str]] = None) -> pa.Schema:
     """Extract the related Pyarrow Schema from any Pandas DataFrame."""
     columns_types: Dict[str, Optional[pa.DataType]] = pyarrow_types_from_pandas(
-        df=df, index=False, ignore_cols=ignore_cols
+        df=df, index=index, ignore_cols=ignore_cols
     )
     return pa.schema(fields=columns_types)
