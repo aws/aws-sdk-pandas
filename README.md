@@ -15,7 +15,7 @@
 | **PyPi**  | [![PyPI Downloads](https://img.shields.io/pypi/dm/awswrangler.svg)](https://pypi.org/project/awswrangler/)                      | [Link](https://pypi.org/project/awswrangler/)        | `pip install awswrangler`                  |
 | **Conda** | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/awswrangler.svg)](https://anaconda.org/conda-forge/awswrangler) | [Link](https://anaconda.org/conda-forge/awswrangler) | `conda install -c conda-forge awswrangler` |
 
-## Read The Docs
+## [Read The Docs](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/index.html)
 
 - [**Install**](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/install.html)
     - [PyPi (pip)](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/install.html#pypi-pip)
