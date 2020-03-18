@@ -84,8 +84,6 @@ html_theme_options = {
         ("Install", "install"),
         ("Tutorials", "tutorials"),
         ("API Reference", "api/index"),
-        ("Diving Deep", "divingdeep"),
-        ("Contributing", "contributing"),
         ("GitHub", "https://github.com/awslabs/aws-data-wrangler", True),
     ],
     # Render the next and previous page links in navbar. (Default: true)
