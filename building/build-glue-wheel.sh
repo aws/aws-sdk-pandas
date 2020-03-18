@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-set -e
+set -ex
 
-cd ..
+pushd ..
 rm -rf *.egg-info build dist/*.whl
 python3.6 setup.py bdist_wheel
 rm -rf *.egg-info build
-cd building

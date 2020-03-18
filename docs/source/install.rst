@@ -10,7 +10,8 @@ PyPI (pip)
 
 Runs with Python 3.6, 3.7 and 3.8.
 
-Runs anywhere (AWS Lambda, AWS Glue Python Shell, EMR, EC2, on-premises, local, etc).
+Runs anywhere (AWS Lambda, AWS Glue Python Shell, EMR, EC2,
+on-premises, local, etc).
 
 Conda
 -----
@@ -69,3 +70,6 @@ AWS Glue Wheel
 --------------
 
 adawdwadwadaw
+
+Amazon SageMaker Notebook Lifecycle
+-----------------------------------

@@ -2,12 +2,12 @@
 set -ex
 
 # Go back to AWSWRANGLER directory
-cd /aws-data-wrangler/
+push /aws-data-wrangler
 
 # Build PyArrow files
-cd building
+push building
 ./build-pyarrow.sh
-cd ..
+popd
 
 # Preparing directories
 mkdir -p dist
@@ -26,5 +26,3 @@ mv "awswrangler-layer.zip" dist/
 
 # Cleaning up the directory again
 rm -rf python
-
-cd building

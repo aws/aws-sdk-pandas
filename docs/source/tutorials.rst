@@ -1,9 +1,9 @@
 Tutorials
 =========
 
-`Catalog & Metadata <https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/catalog_and_metadata.ipynb>`_
----------------------------------------------------------------------------------------------------------------------
-`Athena Nested <https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/athena_nested.ipynb>`_
+`Amazon S3 <https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/amazon-s3.ipynb>`_
+-------------------------------------------------------------------------------------------------
+`AWS Glue Catalog <https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/aws-glue-catalog.ipynb>`_
+---------------------------------------------------------------------------------------------------------------
+`Amazon Athena <https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/amazon-athena.ipynb>`_
 ---------------------------------------------------------------------------------------------------------
-`S3 Write Modes <https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/s3_write_modes.ipynb>`_
------------------------------------------------------------------------------------------------------------

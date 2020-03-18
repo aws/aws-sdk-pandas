@@ -1,9 +1,13 @@
 Contributing
 ============
 
-* AWS Data Wrangler practically only makes integrations. So we prefer to dedicate our energy / time writing integration tests instead of unit tests. We really like an end-to-end approach for all features.
+* AWS Data Wrangler practically only makes integrations.
+  So we prefer to dedicate our energy / time writing integration
+  tests instead of unit tests.
+  We really like an end-to-end approach for all features.
 
-* All integration tests are between a local Docker container and a remote/real AWS service.
+* All integration tests are between a local Docker container and a
+  remote/real AWS service.
 
 * We have a Docker recipe to set up the local end (testing/Dockerfile).
 
@@ -20,15 +24,20 @@ Steps
 
 * Install Docker and configure at least 4 cores and 8 GB of memory
 
-* Fork the AWS Data Wrangler repository and clone that into your development environment
+* Fork the AWS Data Wrangler repository and clone that into your
+  development environment
 
-* Go to the project's directory create a Python's virtual environment for the project (**python -m venv venv && source venv/bin/activate**)
+* Go to the project's directory create a Python's virtual
+  environment for the project
+  (**python -m venv venv && source venv/bin/activate**)
 
 * Run **./setup-dev-env.sh**
 
 * Go to the *testing* directory
 
-* Configure the parameters.json file with your AWS environment infos (Make sure that your Redshift will not be open for the World! Configure your security group to only give access for your IP.)
+* Configure the parameters.json file with your AWS environment infos
+  (Make sure that your Redshift will not be open for the World!
+  Configure your security group to only give access for your IP.)
 
 * Deploy the Cloudformation stack **./deploy-cloudformation.sh**
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -ex
 
-cd ..
+pushd ..
 rm -fr build dist .egg awswrangler.egg-info
 python3.6 setup.py bdist_egg
 python3.6 setup.py bdist_wheel

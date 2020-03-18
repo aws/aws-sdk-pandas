@@ -139,3 +139,5 @@ testing/*requirements*.txt
 testing/coverage/*
 building/*requirements*.txt
 /docs/coverage/
+/docs/build/
+/docs/source/api/stubs/

@@ -2,11 +2,11 @@
     :format: html
 
 .. image:: _static/logo_transparent.png
-    :width: 38%
+    :width: 30%
     :alt: AWS Data Wrangler
 
-*Pandas on AWS*
-===============
+Pandas on AWS
+=============
 
 .. toctree::
    :maxdepth: 2

@@ -1,8 +1,8 @@
 API Reference
 =============
 
-wr.s3
------
+Amazon S3
+---------
 
 .. currentmodule:: awswrangler.s3
 
@@ -10,7 +10,7 @@ wr.s3
      :toctree: stubs
 
      get_bucket_region
-     does_object_exists
+     does_object_exist
      list_objects
      describe_objects
      size_objects
@@ -19,3 +19,26 @@ wr.s3
      read_parquet
      to_csv
      to_parquet
+
+AWS Glue Catalog
+----------------
+
+.. currentmodule:: awswrangler.catalog
+
+.. autosummary::
+     :toctree: stubs
+
+     delete_table_if_exists
+     does_table_exist
+     create_parquet_table
+
+Amazon Athena
+-------------
+
+.. currentmodule:: awswrangler.athena
+
+.. autosummary::
+     :toctree: stubs
+
+     normalize_column_name
+     normalize_table_name

@@ -5,4 +5,7 @@ exclude data_samples*
 exclude dist*
 exclude docs*
 exclude htmlcov*
-exclude tests*
+exclude testing*
+exclude building*
+exclude tutorials*
+exclude tutorials*
