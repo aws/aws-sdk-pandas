@@ -11,36 +11,41 @@ from awswrangler import exceptions
 logger: logging.Logger = logging.getLogger(__name__)
 
 
-def pyarrow2athena(dtype: pa.DataType) -> str:
+def pyarrow2athena(dtype: pa.DataType) -> str:  # pylint: disable=too-many-branches,too-many-return-statements
     """Pyarrow to Athena data types conversion."""
-    dtype_str = str(dtype).lower()
-    if dtype == pa.lib.int8():
+    if pa.types.is_int8(dtype):
         return "tinyint"
-    if dtype == pa.lib.int16():
+    if pa.types.is_int16(dtype):
         return "smallint"
-    if dtype == pa.lib.int32():
+    if pa.types.is_int32(dtype):
         return "int"
-    if dtype == pa.lib.int64():
+    if pa.types.is_int64(dtype):
         return "bigint"
-    if dtype == pa.lib.float32():
+    if pa.types.is_float32(dtype):
         return "float"
-    if dtype == pa.lib.float64():
+    if pa.types.is_float64(dtype):
         return "double"
-    if dtype == pa.lib.bool_():
+    if pa.types.is_boolean(dtype):
         return "boolean"
-    if dtype == pa.lib.string():
+    if pa.types.is_string(dtype):
         return "string"
-    if dtype_str.startswith("timestamp"):
+    if pa.types.is_timestamp(dtype):
         return "timestamp"
-    if dtype_str.startswith("date"):
+    if pa.types.is_date(dtype):
         return "date"
-    if dtype_str.startswith("decimal"):
-        return dtype_str.replace(" ", "")
-    if dtype_str.startswith("list"):
-        return f"array<{pyarrow2athena(dtype.value_type)}>"
-    if dtype_str == "null":
+    if pa.types.is_binary(dtype):
+        return "binary"
+    if pa.types.is_dictionary(dtype):
+        return pyarrow2athena(dtype=dtype.value_type)
+    if pa.types.is_decimal(dtype):
+        return f"decimal({dtype.precision},{dtype.scale})"
+    if pa.types.is_list(dtype):
+        return f"array<{pyarrow2athena(dtype=dtype.value_type)}>"
+    if pa.types.is_struct(dtype):
+        return f"struct<{', '.join([f'{f.name}: {pyarrow2athena(dtype=f.type)}' for f in dtype])}>"
+    if dtype == pa.null():
         raise exceptions.UndetectedType("We can't infer the data type from an entire null object column")
-    raise exceptions.UnsupportedType(f"Unsupported Pyarrow type: {dtype}")
+    raise exceptions.UnsupportedType(f"Unsupported Pyarrow type: {dtype}")  # pragma: no cover
 
 
 def pyarrow_types_from_pandas(
@@ -58,11 +63,11 @@ def pyarrow_types_from_pandas(
         if name in ignore_cols:
             pass
         elif dtype == "Int32":
-            cols_dtypes[name] = pa.lib.int32()
+            cols_dtypes[name] = pa.int32()
         elif dtype == "Int64":
-            cols_dtypes[name] = pa.lib.int64()
+            cols_dtypes[name] = pa.int64()
         elif dtype == "string":
-            cols_dtypes[name] = pa.lib.string()
+            cols_dtypes[name] = pa.string()
         else:
             cols.append(name)
 

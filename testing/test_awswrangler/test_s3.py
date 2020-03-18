@@ -9,6 +9,8 @@ import pytest
 import awswrangler as wr
 from awswrangler import _utils  # noqa
 
+from ._utils import get_parquet_df
+
 EVENTUAL_CONSISTENCY_SLEEP: float = 20.0  # seconds
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
@@ -175,7 +177,34 @@ def test_parquet(bucket):
 
 
 def test_parquet_catalog(bucket, database):
-    df = pd.DataFrame({"id": [1, 2, 3], "partition": ["A", "A", "B"]})
+    df = get_parquet_df()
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.s3.to_parquet(
+            df=df,
+            path=f"s3://{bucket}/test_parquet_catalog0",
+            use_threads=True,
+            dataset=False,
+            mode="overwrite",
+            database=database,
+            table="test_parquet_catalog0",
+        )
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.s3.to_parquet(
+            df=df,
+            path=f"s3://{bucket}/test_parquet_catalog0",
+            use_threads=True,
+            dataset=False,
+            table="test_parquet_catalog0",
+        )
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.s3.to_parquet(
+            df=df,
+            path=f"s3://{bucket}/test_parquet_catalog0",
+            use_threads=True,
+            dataset=True,
+            mode="overwrite",
+            database=database,
+        )
     wr.s3.to_parquet(
         df=df,
         path=f"s3://{bucket}/test_parquet_catalog0",
@@ -194,5 +223,5 @@ def test_parquet_catalog(bucket, database):
         mode="overwrite",
         database=database,
         table="test_parquet_catalog1",
-        partition_cols=["partition"],
+        partition_cols=["int8"],
     )
