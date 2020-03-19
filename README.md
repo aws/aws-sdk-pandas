@@ -1,4 +1,6 @@
-![AWS Data Wrangler](docs/source/_static/logo.png?raw=true "AWS Data Wrangler")
+# AWS Data Wrangler
+
+![AWS Data Wrangler](docs/source/_static/logo2.png?raw=true "AWS Data Wrangler")
 
 > Pandas on AWS
 
@@ -18,18 +20,15 @@
 ## [Read The Docs](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/index.html)
 
 - [**Install**](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/install.html)
-    - [PyPi (pip)](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/install.html#pypi-pip)
-    - [Conda](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/install.html#conda)
-    - [AWS Lambda Layer](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/install.html#aws-lambda-layer)
-    - [AWS Glue Wheel](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/install.html#aws-glue-wheel)
-    - [Amazon SageMaker Notebook Lifecycle](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/install.html#amazon-sagemaker-notebook-lifecycle)
-- [**Tutorials**](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/tutorials.html)
-    - [Amazon S3](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/tutorials.html#id1)
-    - [AWS Glue Catalog](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/tutorials.html#id2)
-    - [Amazon Athena](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/tutorials.html#id3)
+  - [PyPi (pip)](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/install.html#pypi-pip)
+  - [Conda](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/install.html#conda)
+  - [AWS Lambda Layer](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/install.html#aws-lambda-layer)
+  - [AWS Glue Wheel](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/install.html#aws-glue-wheel)
+  - [Amazon SageMaker Notebook Lifecycle](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/install.html#amazon-sagemaker-notebook-lifecycle)
+- [**Tutorials**](https://github.com/awslabs/aws-data-wrangler/tree/dev-1.0.0/tutorials)
 - [**API Reference**](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/api/index.html)
-    - [Amazon S3](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/api/index.html#amazon-s3)
-    - [AWS Glue Catalog](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/api/index.html#aws-glue-catalog)
-    - [Amazon Athena](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/api/index.html#amazon-athena)
-- [**License**](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/license.html)
-- [**Contributing**](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/contributing.html)
+  - [Amazon S3](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/api/index.html#amazon-s3)
+  - [AWS Glue Catalog](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/api/index.html#aws-glue-catalog)
+  - [Amazon Athena](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/api/index.html#amazon-athena)
+- [**License**](https://github.com/awslabs/aws-data-wrangler/blob/dev-1.0.0/LICENSE)
+- [**Contributing**](https://github.com/awslabs/aws-data-wrangler/blob/dev-1.0.0/CONTRIBUTING.mdl)

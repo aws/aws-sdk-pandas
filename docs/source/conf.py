@@ -82,8 +82,10 @@ html_theme_options = {
     # an arbitrary url.
     "navbar_links": [
         ("Install", "install"),
-        ("Tutorials", "tutorials"),
+        ("Tutorials", "https://github.com/awslabs/aws-data-wrangler/tree/dev-1.0.0/tutorials", True),
         ("API Reference", "api/index"),
+        ("License", "https://github.com/awslabs/aws-data-wrangler/blob/dev-1.0.0/LICENSE", True),
+        ("Contributing", "https://github.com/awslabs/aws-data-wrangler/blob/dev-1.0.0/CONTRIBUTING.md", True),
         ("GitHub", "https://github.com/awslabs/aws-data-wrangler", True),
     ],
     # Render the next and previous page links in navbar. (Default: true)
