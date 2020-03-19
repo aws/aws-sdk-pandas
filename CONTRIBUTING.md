@@ -58,7 +58,7 @@ See the [LICENSE](https://github.com/awslabs/aws-data-wrangler/blob/master/LICEN
 
 We may ask you to sign a [Contributor License Agreement (CLA)](http://en.wikipedia.org/wiki/Contributor_License_Agreement) for larger changes.
 
-## Instructions
+## Environment
 
 * AWS Data Wrangler practically only makes integrations. So we prefer to dedicate our energy / time writing integration tests instead of unit tests. We really like an end-to-end approach for all features.
 
@@ -66,7 +66,7 @@ We may ask you to sign a [Contributor License Agreement (CLA)](http://en.wikiped
 
 * We have a Cloudformation to set up the AWS end (testing/template.yaml).
 
-### Step-by-step
+## Step-by-step
 
 **DISCLAIMER**: Make sure to know what you are doing. This steps will charge some services on your AWS account. And requires a minimum security skills to keep your environment safe.
 
