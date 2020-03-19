@@ -31,4 +31,4 @@
   - [AWS Glue Catalog](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/api/index.html#aws-glue-catalog)
   - [Amazon Athena](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/api/index.html#amazon-athena)
 - [**License**](https://github.com/awslabs/aws-data-wrangler/blob/dev-1.0.0/LICENSE)
-- [**Contributing**](https://github.com/awslabs/aws-data-wrangler/blob/dev-1.0.0/CONTRIBUTING.mdl)
+- [**Contributing**](https://github.com/awslabs/aws-data-wrangler/blob/dev-1.0.0/CONTRIBUTING.md)
