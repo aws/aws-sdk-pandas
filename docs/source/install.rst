@@ -71,7 +71,7 @@ SageMaker kernels (`Reference <https://github.com/aws-samples/amazon-sagemaker-n
         continue
         fi
 
-        nohup pip install --upgrade "$PACKAGE"
+        nohup pip install --upgrade "$PACKAGE" &
 
         source /home/ec2-user/anaconda3/bin/deactivate
     done
