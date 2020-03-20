@@ -148,11 +148,11 @@ def create_parquet_table(
         for col in table_input["StorageDescriptor"]["Columns"]:
             name: str = col["Name"]
             if name in columns_comments:
-                col["Comment"] = columns_comments[table]
+                col["Comment"] = columns_comments[name]
         for par in table_input["PartitionKeys"]:
             name = par["Name"]
             if name in columns_comments:
-                par["Comment"] = columns_comments[table]
+                par["Comment"] = columns_comments[name]
     if mode == "overwrite":
         delete_table_if_exists(database=database, table=table, boto3_session=boto3_session)
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
@@ -244,11 +244,8 @@ def add_parquet_partitions(
         res: Dict[str, Any] = client_glue.batch_create_partition(
             DatabaseName=database, TableName=table, PartitionInputList=chunk
         )
-        for error in res["Errors"]:
-            if "ErrorDetail" in error:
-                if "ErrorCode" in error["ErrorDetail"]:
-                    if error["ErrorDetail"]["ErrorCode"] != "AlreadyExistsException":
-                        raise exceptions.ServiceApiError(str(error))
+        if ("Errors" in res) and res["Errors"]:  # pragma: no cover
+            raise exceptions.ServiceApiError(str(res["Errors"]))
 
 
 def _parquet_partition_definition(location: str, values: List[str], compression: Optional[str]) -> Dict[str, Any]:
