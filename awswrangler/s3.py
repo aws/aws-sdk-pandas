@@ -411,7 +411,7 @@ def to_parquet(
     description: Optional[str] = None,
     parameters: Optional[Dict[str, str]] = None,
     columns_comments: Optional[Dict[str, str]] = None,
-) -> List[str]:
+) -> Dict[str, Union[List[str], Dict[str, List[str]]]]:
     """Write Parquet file or dataset on Amazon S3.
 
     The concept of Dataset goes beyond the simple idea of files and enable more
@@ -458,8 +458,11 @@ def to_parquet(
 
     Returns
     -------
-    List[str]
-        List with the s3 paths created.
+    Dict[str, Union[List[str],Dict[str, List[str]]]]
+        Dictionary with:
+        "paths": List of all stored files paths on S3.
+        "partitions_values": Dictionary of partitions added with keys as S3 path locations
+        and values as a list of partitions values as str.
 
     Examples
     --------
@@ -471,7 +474,10 @@ def to_parquet(
     ...     df=pd.DataFrame({"col": [1, 2, 3]}),
     ...     path="s3://bucket/prefix/my_file.parquet",
     ... )
-    ["s3://bucket/prefix/my_file.parquet"]
+    {
+        "paths": ["s3://bucket/prefix/my_file.parquet"],
+        "partitions_values": {}
+    }
 
     Writing partitioned dataset
 
@@ -486,7 +492,13 @@ def to_parquet(
     ...     dataset=True,
     ...     partition_cols=["col2"]
     ... )
-    ["s3://bucket/prefix/col2=A/xxx.snappy.parquet", "s3://bucket/prefix/col2=B/xxx.snappy.parquet"]
+    {
+        "paths": ["s3://.../col2=A/x.parquet", "s3://.../col2=B/y.parquet"],
+        "partitions_values: {
+            "s3://.../col2=A/": ["A"],
+            "s3://.../col2=B/": ["B"]
+        }
+    }
 
     Writing dataset to S3 with metadata on Athena/Glue Catalog.
 
@@ -503,9 +515,16 @@ def to_parquet(
     ...     database="default",  # Athena/Glue database
     ...     table="my_table"  # Athena/Glue table
     ... )
-    ["s3://bucket/prefix/col2=A/xxx.snappy.parquet", "s3://bucket/prefix/col2=B/xxx.snappy.parquet"]
+    {
+        "paths": ["s3://.../col2=A/x.parquet", "s3://.../col2=B/y.parquet"],
+        "partitions_values: {
+            "s3://.../col2=A/": ["A"],
+            "s3://.../col2=B/": ["B"]
+        }
+    }
 
     """
+    partitions_values: Dict[str, List[str]] = {}
     cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
     fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session)
     compression_ext: Optional[str] = _COMPRESSION_2_EXT.get(compression, None)
@@ -532,7 +551,7 @@ def to_parquet(
                 "store the metadata into the Athena/Glue Catalog."
             )
         mode = "append" if mode is None else mode
-        paths = _to_parquet_dataset(
+        paths, partitions_values = _to_parquet_dataset(
             df=df,
             path=path,
             index=index,
@@ -562,7 +581,16 @@ def to_parquet(
                 boto3_session=boto3_session,
                 mode="overwrite",
             )
-    return paths
+            if partitions_values:
+                logger.debug(f"partitions_values:\n{partitions_values}")
+                catalog.add_parquet_partitions(
+                    database=database,
+                    table=table,
+                    partitions_values=partitions_values,
+                    compression=compression,
+                    boto3_session=boto3_session,
+                )
+    return {"paths": paths, "partitions_values": partitions_values}
 
 
 def _to_parquet_dataset(
@@ -577,8 +605,9 @@ def _to_parquet_dataset(
     mode: str,
     partition_cols: Optional[List[str]] = None,
     boto3_session: Optional[boto3.Session] = None,
-) -> List[str]:
+) -> Tuple[List[str], Dict[str, List[str]]]:
     paths: List[str] = []
+    partitions_values: Dict[str, List[str]] = {}
     path = path if path[-1] == "/" else f"{path}/"
     if mode not in ["append", "overwrite", "partitions_upsert"]:
         raise exceptions.InvalidArgumentValue(
@@ -605,7 +634,8 @@ def _to_parquet_dataset(
                 df=subgroup, schema=schema, path=file_path, index=index, compression=compression, cpus=cpus, fs=fs
             )
             paths.append(file_path)
-    return paths
+            partitions_values[prefix] = [str(k) for k in keys]
+    return paths, partitions_values
 
 
 def _to_parquet_file(

@@ -1,11 +1,11 @@
 """AWS Glue Catalog Module."""
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import boto3  # type: ignore
 
-from awswrangler import _utils, athena
+from awswrangler import _utils, athena, exceptions
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -99,7 +99,7 @@ def create_parquet_table(
     columns_types: Dict[str, str]
         Dictionary with keys as column names and vales as data types (e.g. {"col0": "bigint", "col1": "double"}).
     partitions_types: Dict[str, str], optional
-        Dictionary with keys as partition names and vales as data types (e.g. {"col2": "date"}).
+        Dictionary with keys as partition names and values as data types (e.g. {"col2": "date"}).
     compression: str, optional
         Compression style (``None``, ``snappy``, ``gzip``, etc).
     description: str, optional
@@ -188,4 +188,82 @@ def _parquet_table_definition(
                 "typeOfData": "file",
             },
         },
+    }
+
+
+def add_parquet_partitions(
+    database: str,
+    table: str,
+    partitions_values: Dict[str, List[str]],
+    compression: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> None:
+    """Create a Parquet Table (Metadata Only) in the AWS Glue Catalog.
+
+    https://docs.aws.amazon.com/athena/latest/ug/data-types.html
+
+    Parameters
+    ----------
+    database : str
+        Database name.
+    table : str
+        Table name.
+    partitions_values: Dict[str, List[str]]
+        Dictionary with keys as S3 path locations and values as a list of partitions values as str
+        (e.g. {"s3://bucket/prefix/y=2020/m=10/": ["2020", "10"]}).
+    compression: str, optional
+        Compression style (``None``, ``snappy``, ``gzip``, etc).
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    None
+        None.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> wr.catalog.add_parquet_partitions(
+    ...     database="default",
+    ...     table="my_table",
+    ...     partitions_values={
+    ...         "s3://bucket/prefix/y=2020/m=10/": ["2020", "10"]},
+    ...         "s3://bucket/prefix/y=2020/m=11/": ["2020", "11"]},
+    ...         "s3://bucket/prefix/y=2020/m=12/": ["2020", "12"]},
+    ... )
+
+    """
+    inputs: List[Dict[str, Any]] = [
+        _parquet_partition_definition(location=k, values=v, compression=compression)
+        for k, v in partitions_values.items()
+    ]
+    chunks: List[List[Dict[str, Any]]] = _utils.chunkify(lst=inputs, max_length=100)
+    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    for chunk in chunks:
+        res: Dict[str, Any] = client_glue.batch_create_partition(
+            DatabaseName=database, TableName=table, PartitionInputList=chunk
+        )
+        for error in res["Errors"]:
+            if "ErrorDetail" in error:
+                if "ErrorCode" in error["ErrorDetail"]:
+                    if error["ErrorDetail"]["ErrorCode"] != "AlreadyExistsException":
+                        raise exceptions.ServiceApiError(str(error))
+
+
+def _parquet_partition_definition(location: str, values: List[str], compression: Optional[str]) -> Dict[str, Any]:
+    compressed: bool = compression is not None
+    return {
+        "StorageDescriptor": {
+            "InputFormat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "OutputFormat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat",
+            "Location": location,
+            "Compressed": compressed,
+            "SerdeInfo": {
+                "Parameters": {"serialization.format": "1"},
+                "SerializationLibrary": "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe",
+            },
+            "StoredAsSubDirectories": False,
+        },
+        "Values": values,
     }

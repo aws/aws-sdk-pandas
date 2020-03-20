@@ -15,6 +15,7 @@ EVENTUAL_CONSISTENCY_SLEEP: float = 20.0  # seconds
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
+logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
 
 
 def wrt_fake_objs_batch(bucket, path, chunk, size=10):
@@ -59,7 +60,7 @@ def bucket(cloudformation_outputs):
     else:
         raise Exception("You must deploy/update the test infrastructure (CloudFormation)")
     yield bucket
-    # wr.s3.delete_objects(f"s3://{bucket}/")
+    wr.s3.delete_objects(f"s3://{bucket}/")
 
 
 @pytest.fixture(scope="module")
@@ -165,7 +166,7 @@ def test_parquet(bucket):
     assert df_dataset.equals(wr.s3.read_parquet(path=path_dataset, use_threads=True, boto3_session=boto3.Session()))
     dataset_paths = wr.s3.to_parquet(
         df=df_dataset, path=path_dataset, dataset=True, partition_cols=["partition"], mode="overwrite"
-    )
+    )["paths"]
     time.sleep(EVENTUAL_CONSISTENCY_SLEEP)
     assert df_file.equals(wr.s3.read_parquet(path=path_dataset, use_threads=True, boto3_session=None))
     assert df_file.equals(wr.s3.read_parquet(path=dataset_paths, use_threads=True))

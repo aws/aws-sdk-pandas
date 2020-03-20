@@ -4,6 +4,7 @@ from awswrangler._utils import chunkify, ensure_cpu_count, parse_path  # noqa
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
+logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
 
 
 def test_parse_path():

@@ -23,3 +23,7 @@ class UnsupportedType(Exception):
 
 class UndetectedType(Exception):
     """UndetectedType exception."""
+
+
+class ServiceApiError(Exception):
+    """ServiceApiError exception."""

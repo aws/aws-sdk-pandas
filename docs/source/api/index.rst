@@ -31,6 +31,7 @@ AWS Glue Catalog
      delete_table_if_exists
      does_table_exist
      create_parquet_table
+     add_parquet_partitions
 
 Amazon Athena
 -------------
