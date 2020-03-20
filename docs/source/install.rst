@@ -44,7 +44,7 @@ Amazon SageMaker Notebook
 -------------------------
 
 Run this command in any Python 3 notebook paragraph and then make sure to
-**restart the kernel** before import the *awswrangler* package.
+**restart the kernel** before import the **awswrangler** package.
 
     >>> !pip install awswrangler
 

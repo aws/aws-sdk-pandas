@@ -24,6 +24,7 @@
   - [Conda](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/install.html#conda)
   - [AWS Lambda Layer](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/install.html#aws-lambda-layer)
   - [AWS Glue Wheel](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/install.html#aws-glue-wheel)
+  - [Amazon SageMaker Notebook](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/install.html#amazon-sagemaker-notebook)
   - [Amazon SageMaker Notebook Lifecycle](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/install.html#amazon-sagemaker-notebook-lifecycle)
 - [**Tutorials**](https://github.com/awslabs/aws-data-wrangler/tree/dev-1.0.0/tutorials)
 - [**API Reference**](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/api/index.html)
