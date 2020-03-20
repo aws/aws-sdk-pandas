@@ -72,17 +72,17 @@ We may ask you to sign a [Contributor License Agreement (CLA)](http://en.wikiped
 
 * Pick up a Linux or MacOS.
 
-* Install Python 3.6+
+* Install Python 3.6
 
 * Fork the AWS Data Wrangler repository and clone that into your development environment
 
 * Go to the project's directory create a Python's virtual environment for the project
 
-`python -m venv venv && source venv/bin/activate**`
+`python -m venv venv && source venv/bin/activate`
 
 * Then run the command bellow to install all dependencies:
 
-`./setup-dev-env.sh**`
+`./setup-dev-env.sh`
 
 * Go to the ``testing`` directory
 

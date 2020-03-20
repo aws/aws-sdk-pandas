@@ -1,9 +1,8 @@
 Install
 =======
 
-*Runs* with Python ``3.6``, ``3.7`` and ``3.8``.
-
-*Runs* on several platforms (AWS Lambda, AWS Glue Python Shell, EMR, EC2,
+**AWS Data Wrtangler** with Python ``3.6``, ``3.7`` and ``3.8``
+and on several platforms (AWS Lambda, AWS Glue Python Shell, EMR, EC2,
 on-premises, Amazon SageMaker, local, etc).
 
 PyPI (pip)
@@ -19,11 +18,14 @@ Conda
 AWS Lambda Layer
 ----------------
 
-1 - Go to `GitHub's release section <https://github.com/awslabs/aws-data-wrangler/releases>`_ and download the layer zip related to the desired version.
+1 - Go to `GitHub's release section <https://github.com/awslabs/aws-data-wrangler/releases>`_
+and download the layer zip related to the desired version.
 
-2 - Go to the AWS Lambda Panel, get in the layer's section (left side) and click to create one.
+2 - Go to the AWS Lambda Panel, get in the layer's section (left side)
+and click to create one.
 
-3 - Fill the fields, upload your fresh downloaded zip file and create your layer.
+3 - Fill the fields, upload your fresh downloaded zip file
+and create your layer.
 
 4 - Go to your Lambda and select your new layer!
 
@@ -41,4 +43,37 @@ AWS Glue Wheel
 Amazon SageMaker Notebook Lifecycle
 -----------------------------------
 
-Use the follow snippit to configure AWS Data Wrangler for all compatible SageMaker kernels.
+Use the follow snippet to configure AWS Data Wrangler for all compatible
+SageMaker kernels (`Reference <https://github.com/aws-samples/amazon-sagemaker-notebook-instance-lifecycle-config-samples/blob/master/scripts/install-pip-package-all-environments/on-start.sh>`_).
+
+.. code-block:: sh
+
+    #!/bin/bash
+
+    set -e
+
+    # OVERVIEW
+    # This script installs a single pip package in all SageMaker conda environments, apart from the JupyterSystemEnv which is a
+    # system environment reserved for Jupyter.
+    # Note this may timeout if the package installations in all environments take longer than 5 mins, consider using "nohup" to run this
+    # as a background process in that case.
+
+    sudo -u ec2-user -i <<EOF
+
+    # PARAMETERS
+    PACKAGE=awswrangler
+
+    # Note that "base" is special environment name, include it there as well.
+    for env in base /home/ec2-user/anaconda3/envs/*; do
+        source /home/ec2-user/anaconda3/bin/activate $(basename "$env")
+
+        if [ $env = 'JupyterSystemEnv' ]; then
+        continue
+        fi
+
+        nohup pip install --upgrade "$PACKAGE"
+
+        source /home/ec2-user/anaconda3/bin/deactivate
+    done
+
+    EOF
