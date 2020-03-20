@@ -1,7 +1,7 @@
 Install
 =======
 
-**AWS Data Wrtangler** with Python ``3.6``, ``3.7`` and ``3.8``
+**AWS Data Wrangler** runs with Python ``3.6``, ``3.7`` and ``3.8``
 and on several platforms (AWS Lambda, AWS Glue Python Shell, EMR, EC2,
 on-premises, Amazon SageMaker, local, etc).
 
