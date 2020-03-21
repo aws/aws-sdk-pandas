@@ -32,6 +32,12 @@ AWS Glue Catalog
      does_table_exist
      create_parquet_table
      add_parquet_partitions
+     get_table_types
+     get_databases
+     databases
+     get_tables
+     tables
+     search_tables
 
 Amazon Athena
 -------------

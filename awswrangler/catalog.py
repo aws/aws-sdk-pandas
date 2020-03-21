@@ -230,9 +230,10 @@ def add_parquet_partitions(
     ...     database="default",
     ...     table="my_table",
     ...     partitions_values={
-    ...         "s3://bucket/prefix/y=2020/m=10/": ["2020", "10"]},
-    ...         "s3://bucket/prefix/y=2020/m=11/": ["2020", "11"]},
-    ...         "s3://bucket/prefix/y=2020/m=12/": ["2020", "12"]},
+    ...         "s3://bucket/prefix/y=2020/m=10/": ["2020", "10"],
+    ...         "s3://bucket/prefix/y=2020/m=11/": ["2020", "11"],
+    ...         "s3://bucket/prefix/y=2020/m=12/": ["2020", "12"]
+    ...     }
     ... )
 
     """
@@ -355,7 +356,7 @@ def databases(
     Returns
     -------
     pandas.DataFrame
-        Pandas Dataframe filled by formatted infos.
+        Pandas DataFrame filled by formatted infos.
 
     Examples
     --------
@@ -373,3 +374,183 @@ def databases(
         else:
             df_dict["Description"].append("")
     return pd.DataFrame(data=df_dict)
+
+
+def get_tables(
+    catalog_id: Optional[str] = None,
+    database: Optional[str] = None,
+    name_contains: Optional[str] = None,
+    name_prefix: Optional[str] = None,
+    name_suffix: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> Iterator[Dict[str, Any]]:
+    """Get an iterator of tables.
+
+    Parameters
+    ----------
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    database : str, optional
+        Database name.
+    name_contains : str, optional
+        Select by a specific string on table name
+    name_prefix : str, optional
+        Select by a specific prefix on table name
+    name_suffix : str, optional
+        Select by a specific suffix on table name
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    Iterator[Dict[str, Any]]
+        Iterator of tables.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> tables = wr.catalog.get_tables()
+
+    """
+    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    paginator = client_glue.get_paginator("get_tables")
+    args: Dict[str, str] = {}
+    if catalog_id is not None:
+        args["CatalogId"] = catalog_id
+    if (name_prefix is not None) and (name_suffix is not None) and (name_contains is not None):
+        args["Expression"] = f"{name_prefix}.*{name_contains}.*{name_suffix}"
+    elif (name_prefix is not None) and (name_suffix is not None):
+        args["Expression"] = f"{name_prefix}.*{name_suffix}"
+    elif name_contains is not None:
+        args["Expression"] = f".*{name_contains}.*"
+    elif name_prefix is not None:
+        args["Expression"] = f"{name_prefix}.*"
+    elif name_suffix is not None:
+        args["Expression"] = f".*{name_suffix}"
+    if database is not None:
+        dbs: List[str] = [database]
+    else:
+        dbs = [x["Name"] for x in get_databases(catalog_id=catalog_id)]
+    for db in dbs:
+        args["DatabaseName"] = db
+        response_iterator = paginator.paginate(**args)
+        for page in response_iterator:
+            for tbl in page["TableList"]:
+                yield tbl
+
+
+def tables(
+    limit: int = 100,
+    catalog_id: Optional[str] = None,
+    database: Optional[str] = None,
+    search_text: Optional[str] = None,
+    name_contains: Optional[str] = None,
+    name_prefix: Optional[str] = None,
+    name_suffix: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> pd.DataFrame:
+    """Get a DataFrame with tables filtered by a search term, prefix, suffix.
+
+    Parameters
+    ----------
+    limit : int, optional
+        Max number of tables to be returned.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    database : str, optional
+        Database name.
+    search_text : str, optional
+        Select only tables with the given string in table's properties.
+    name_contains : str, optional
+        Select by a specific string on table name
+    name_prefix : str, optional
+        Select by a specific prefix on table name
+    name_suffix : str, optional
+        Select by a specific suffix on table name
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    Iterator[Dict[str, Any]]
+        Pandas Dataframe filled by formatted infos.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> df_tables = wr.catalog.tables()
+
+    """
+    if search_text is None:
+        table_iter = get_tables(
+            catalog_id=catalog_id,
+            database=database,
+            name_contains=name_contains,
+            name_prefix=name_prefix,
+            name_suffix=name_suffix,
+            boto3_session=boto3_session,
+        )
+        tbls: List[Dict[str, Any]] = list(itertools.islice(table_iter, limit))
+    else:
+        tbls = list(search_tables(text=search_text, catalog_id=catalog_id, boto3_session=boto3_session))
+        if database is not None:
+            tbls = [x for x in tbls if x["DatabaseName"] == database]
+        if name_contains is not None:
+            tbls = [x for x in tbls if name_contains in x["Name"]]
+        if name_prefix is not None:
+            tbls = [x for x in tbls if x["Name"].startswith(name_prefix)]
+        if name_suffix is not None:
+            tbls = [x for x in tbls if x["Name"].endswith(name_suffix)]
+        tbls = tbls[:limit]
+
+    df_dict: Dict[str, List] = {"Database": [], "Table": [], "Description": [], "Columns": [], "Partitions": []}
+    for table in tbls:
+        df_dict["Database"].append(table["DatabaseName"])
+        df_dict["Table"].append(table["Name"])
+        if "Description" in table:
+            df_dict["Description"].append(table["Description"])
+        else:
+            df_dict["Description"].append("")
+        df_dict["Columns"].append(", ".join([x["Name"] for x in table["StorageDescriptor"]["Columns"]]))
+        df_dict["Partitions"].append(", ".join([x["Name"] for x in table["PartitionKeys"]]))
+    return pd.DataFrame(data=df_dict)
+
+
+def search_tables(text: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None):
+    """Get Pandas DataFrame of tables filtered by a search string.
+
+    Parameters
+    ----------
+    text : str, optional
+        Select only tables with the given string in table's properties.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    Iterator[Dict[str, Any]]
+        Iterator of tables.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> df_tables = wr.catalog.search_tables(text="my_property")
+
+    """
+    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    args: Dict[str, Any] = {"SearchText": text}
+    if catalog_id is not None:
+        args["CatalogId"] = catalog_id
+    response: Dict[str, Any] = client_glue.search_tables(**args)
+    for tbl in response["TableList"]:
+        yield tbl
+    while "NextToken" in response:  # pragma: no cover
+        args["NextToken"] = response["NextToken"]
+        response = client_glue.search_tables(**args)
+        for tbl in response["TableList"]:
+            yield tbl

@@ -70,10 +70,10 @@ def database(cloudformation_outputs):
     else:
         raise Exception("You must deploy the test infrastructure using Cloudformation!")
     yield database
-    # tables = wr.glue.tables(database=database)["Table"].tolist()
-    # for t in tables:
-    #     print(f"Dropping: {database}.{t}...")
-    #     wr.glue.delete_table_if_exists(database=database, table=t)
+    tables = wr.catalog.tables(database=database)["Table"].tolist()
+    for t in tables:
+        print(f"Dropping: {database}.{t}...")
+        wr.catalog.delete_table_if_exists(database=database, table=t)
 
 
 def test_get_bucket_region(bucket, region):

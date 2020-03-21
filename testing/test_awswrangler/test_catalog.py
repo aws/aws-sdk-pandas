@@ -37,13 +37,22 @@ def database(cloudformation_outputs):
     else:
         raise Exception("You must deploy the test infrastructure using Cloudformation!")
     yield database
-    # tables = wr.glue.tables(database=database)["Table"].tolist()
-    # for t in tables:
-    #     print(f"Dropping: {database}.{t}...")
-    #     wr.glue.delete_table_if_exists(database=database, table=t)
+    tables = wr.catalog.tables(database=database)["Table"].tolist()
+    for t in tables:
+        print(f"Dropping: {database}.{t}...")
+        wr.catalog.delete_table_if_exists(database=database, table=t)
+
+
+def test_get_databases(database):
+    dbs = list(wr.catalog.get_databases())
+    assert len(dbs) > 0
+    for db in dbs:
+        if db["Name"] == database:
+            assert db["Description"] == "AWS Data Wrangler Test Arena - Glue Database"
 
 
 def test_catalog(bucket, database):
+    account_id = boto3.client("sts").get_caller_identity().get("Account")
     path = f"s3://{bucket}/test_catalog/"
     wr.catalog.delete_table_if_exists(database=database, table="test_catalog")
     assert wr.catalog.does_table_exist(database=database, table="test_catalog") is False
@@ -81,5 +90,66 @@ def test_catalog(bucket, database):
     assert dtypes["y"] == "int"
     assert dtypes["m"] == "int"
     df_dbs = wr.catalog.databases()
-    assert len(wr.catalog.databases(catalog_id=boto3.client("sts").get_caller_identity().get("Account"))) == len(df_dbs)
+    assert len(wr.catalog.databases(catalog_id=account_id)) == len(df_dbs)
     assert database in df_dbs["Database"].to_list()
+    tables = list(wr.catalog.get_tables())
+    assert len(tables) > 0
+    for tbl in tables:
+        if tbl["Name"] == "test_catalog":
+            assert tbl["TableType"] == "EXTERNAL_TABLE"
+    tables = list(wr.catalog.get_tables(database=database))
+    assert len(tables) > 0
+    for tbl in tables:
+        assert tbl["DatabaseName"] == database
+    # search
+    tables = list(wr.catalog.search_tables(text="parquet", catalog_id=account_id))
+    assert len(tables) > 0
+    for tbl in tables:
+        if tbl["Name"] == "test_catalog":
+            assert tbl["TableType"] == "EXTERNAL_TABLE"
+    # prefix
+    tables = list(wr.catalog.get_tables(name_prefix="test_cat", catalog_id=account_id))
+    assert len(tables) > 0
+    for tbl in tables:
+        if tbl["Name"] == "test_catalog":
+            assert tbl["TableType"] == "EXTERNAL_TABLE"
+    # suffix
+    tables = list(wr.catalog.get_tables(name_suffix="_catalog", catalog_id=account_id))
+    assert len(tables) > 0
+    for tbl in tables:
+        if tbl["Name"] == "test_catalog":
+            assert tbl["TableType"] == "EXTERNAL_TABLE"
+    # name_contains
+    tables = list(wr.catalog.get_tables(name_contains="cat", catalog_id=account_id))
+    assert len(tables) > 0
+    for tbl in tables:
+        if tbl["Name"] == "test_catalog":
+            assert tbl["TableType"] == "EXTERNAL_TABLE"
+    # prefix & suffix & name_contains
+    tables = list(wr.catalog.get_tables(name_prefix="t", name_contains="_", name_suffix="g", catalog_id=account_id))
+    assert len(tables) > 0
+    for tbl in tables:
+        if tbl["Name"] == "test_catalog":
+            assert tbl["TableType"] == "EXTERNAL_TABLE"
+    # prefix & suffix
+    tables = list(wr.catalog.get_tables(name_prefix="t", name_suffix="g", catalog_id=account_id))
+    assert len(tables) > 0
+    for tbl in tables:
+        if tbl["Name"] == "test_catalog":
+            assert tbl["TableType"] == "EXTERNAL_TABLE"
+    # DataFrames
+    assert len(wr.catalog.databases().index) > 0
+    assert len(wr.catalog.tables().index) > 0
+    assert (
+        len(
+            wr.catalog.tables(
+                database=database,
+                search_text="parquet",
+                name_prefix="t",
+                name_contains="_",
+                name_suffix="g",
+                catalog_id=account_id,
+            ).index
+        )
+        > 0
+    )
