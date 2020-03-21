@@ -1,16 +1,18 @@
 """AWS Glue Catalog Module."""
 
+import itertools
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 import boto3  # type: ignore
+import pandas as pd  # type: ignore
 
 from awswrangler import _utils, athena, exceptions
 
 logger: logging.Logger = logging.getLogger(__name__)
 
 
-def delete_table_if_exists(database, table, boto3_session: Optional[boto3.Session] = None):
+def delete_table_if_exists(database: str, table: str, boto3_session: Optional[boto3.Session] = None):
     """Delete Glue table if exists.
 
     Parameters
@@ -40,7 +42,7 @@ def delete_table_if_exists(database, table, boto3_session: Optional[boto3.Sessio
         pass
 
 
-def does_table_exist(database, table, boto3_session: Optional[boto3.Session] = None):
+def does_table_exist(database: str, table: str, boto3_session: Optional[boto3.Session] = None):
     """Check if the table exists.
 
     Parameters
@@ -264,3 +266,110 @@ def _parquet_partition_definition(location: str, values: List[str], compression:
         },
         "Values": values,
     }
+
+
+def get_table_types(database: str, table: str, boto3_session: Optional[boto3.Session] = None):
+    """Get all columns and types from a table.
+
+    Parameters
+    ----------
+    database : str
+        Database name.
+    table : str
+        Table name.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    Dict[str, str]
+        A dictionary as {"col name": "col dtype"}.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> wr.catalog.get_table_types(database="default", name="my_table")
+    {"col0": "int", "col1": "double}
+
+    """
+    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    response: Dict[str, Any] = client_glue.get_table(DatabaseName=database, Name=table)
+    dtypes: Dict[str, str] = {}
+    for col in response["Table"]["StorageDescriptor"]["Columns"]:
+        dtypes[col["Name"]] = col["Type"]
+    for par in response["Table"]["PartitionKeys"]:
+        dtypes[par["Name"]] = par["Type"]
+    return dtypes
+
+
+def get_databases(
+    catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
+) -> Iterator[Dict[str, Any]]:
+    """Get an iterator of databases.
+
+    Parameters
+    ----------
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    Iterator[Dict[str, Any]]
+        Iterator of Databases.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> dbs = wr.catalog.get_databases()
+
+    """
+    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    paginator = client_glue.get_paginator("get_databases")
+    if catalog_id is None:
+        response_iterator: Iterator = paginator.paginate()
+    else:
+        response_iterator = paginator.paginate(CatalogId=catalog_id)
+    for page in response_iterator:
+        for db in page["DatabaseList"]:
+            yield db
+
+
+def databases(
+    limit: int = 100, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
+) -> pd.DataFrame:
+    """Get a Pandas DataFrame with all listed databases.
+
+    Parameters
+    ----------
+    limit : int, optional
+        Max number of tables to be returned.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Pandas Dataframe filled by formatted infos.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> df_dbs = wr.catalog.databases()
+
+    """
+    database_iter: Iterator[Dict[str, Any]] = get_databases(catalog_id=catalog_id, boto3_session=boto3_session)
+    dbs = itertools.islice(database_iter, limit)
+    df_dict: Dict[str, List] = {"Database": [], "Description": []}
+    for db in dbs:
+        df_dict["Database"].append(db["Name"])
+        if "Description" in db:
+            df_dict["Description"].append(db["Description"])
+        else:
+            df_dict["Description"].append("")
+    return pd.DataFrame(data=df_dict)

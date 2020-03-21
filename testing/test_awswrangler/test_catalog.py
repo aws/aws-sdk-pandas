@@ -75,3 +75,11 @@ def test_catalog(bucket, database):
         partitions_values={f"{path}y=2020/m=1/": ["2020", "1"], f"{path}y=2021/m=2/": ["2021", "2"]},
         compression="snappy",
     )
+    dtypes = wr.catalog.get_table_types(database=database, table="test_catalog")
+    assert dtypes["col0"] == "int"
+    assert dtypes["col1"] == "double"
+    assert dtypes["y"] == "int"
+    assert dtypes["m"] == "int"
+    df_dbs = wr.catalog.databases()
+    assert len(wr.catalog.databases(catalog_id=boto3.client("sts").get_caller_identity().get("Account"))) == len(df_dbs)
+    assert database in df_dbs["Database"].to_list()
