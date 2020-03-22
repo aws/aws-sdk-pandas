@@ -27,3 +27,7 @@ class UndetectedType(Exception):
 
 class ServiceApiError(Exception):
     """ServiceApiError exception."""
+
+
+class InvalidTable(Exception):
+    """InvalidTable exception."""

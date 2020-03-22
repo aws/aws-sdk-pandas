@@ -1,4 +1,5 @@
 """AWS Glue Catalog Module."""
+# pylint: disable=redefined-outer-name
 
 import itertools
 import logging
@@ -12,7 +13,7 @@ from awswrangler import _utils, athena, exceptions
 logger: logging.Logger = logging.getLogger(__name__)
 
 
-def delete_table_if_exists(database: str, table: str, boto3_session: Optional[boto3.Session] = None):
+def delete_table_if_exists(database: str, table: str, boto3_session: Optional[boto3.Session] = None) -> bool:
     """Delete Glue table if exists.
 
     Parameters
@@ -26,20 +27,24 @@ def delete_table_if_exists(database: str, table: str, boto3_session: Optional[bo
 
     Returns
     -------
-    None
-        None.
+    bool
+        True if deleted, otherwise False.
 
     Examples
     --------
     >>> import awswrangler as wr
-    >>> wr.catalog.delete_table_if_exists(database="default", name="my_table")
+    >>> wr.catalog.delete_table_if_exists(database="default", name="my_table")  # deleted
+    True
+    >>> wr.catalog.delete_table_if_exists(database="default", name="my_table")  # Nothing to be deleted
+    False
 
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
     try:
         client_glue.delete_table(DatabaseName=database, Name=table)
+        return True
     except client_glue.exceptions.EntityNotFoundException:
-        pass
+        return False
 
 
 def does_table_exist(database: str, table: str, boto3_session: Optional[boto3.Session] = None):
@@ -200,9 +205,7 @@ def add_parquet_partitions(
     compression: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
-    """Create a Parquet Table (Metadata Only) in the AWS Glue Catalog.
-
-    https://docs.aws.amazon.com/athena/latest/ug/data-types.html
+    """Add partitions (metadata) to a Parquet Table in the AWS Glue Catalog.
 
     Parameters
     ----------
@@ -251,6 +254,87 @@ def add_parquet_partitions(
             raise exceptions.ServiceApiError(str(res["Errors"]))
 
 
+def get_partitions(
+    database: str,
+    table: str,
+    expression: Optional[str] = None,
+    catalog_id: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> Dict[str, List[str]]:
+    """Get all partitions from a Table in the AWS Glue Catalog.
+
+    Expression argument instructions:
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/glue.html#Glue.Client.get_partitions
+
+    Parameters
+    ----------
+    database : str
+        Database name.
+    table : str
+        Table name.
+    expression : str, optional
+        An expression that filters the partitions to be returned.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    Dict[str, List[str]]
+        partitions_values: Dictionary with keys as S3 path locations and values as a
+        list of partitions values as str (e.g. {"s3://bucket/prefix/y=2020/m=10/": ["2020", "10"]}).
+
+    Examples
+    --------
+    Fetch all partitions
+
+    >>> import awswrangler as wr
+    >>> wr.catalog.get_partitions(
+    ...     database="default",
+    ...     table="my_table",
+    ... )
+    {
+        "s3://bucket/prefix/y=2020/m=10/": ["2020", "10"],
+        "s3://bucket/prefix/y=2020/m=11/": ["2020", "11"],
+        "s3://bucket/prefix/y=2020/m=12/": ["2020", "12"]
+    }
+
+    Filtering partitions
+
+    >>> import awswrangler as wr
+    >>> wr.catalog.get_partitions(
+    ...     database="default",
+    ...     table="my_table",
+    ...     expression="m=10"
+    ... )
+    {
+        "s3://bucket/prefix/y=2020/m=10/": ["2020", "10"]
+    }
+
+    """
+    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    paginator = client_glue.get_paginator("get_partitions")
+    args: Dict[str, Any] = {}
+    if expression is not None:
+        args["Expression"] = expression
+    if catalog_id is not None:
+        args["CatalogId"] = catalog_id
+    response_iterator = paginator.paginate(
+        DatabaseName=database, TableName=table, PaginationConfig={"PageSize": 1000}, **args
+    )
+    partitions_values: Dict[str, List[str]] = {}
+    for page in response_iterator:
+        if (page is not None) and ("Partitions" in page):
+            for partition in page["Partitions"]:
+                location: Optional[str] = partition["StorageDescriptor"].get("Location")
+                if location is not None:
+                    values: List[str] = partition["Values"]
+                    partitions_values[location] = values
+    return partitions_values
+
+
 def _parquet_partition_definition(location: str, values: List[str], compression: Optional[str]) -> Dict[str, Any]:
     compressed: bool = compression is not None
     return {
@@ -269,7 +353,7 @@ def _parquet_partition_definition(location: str, values: List[str], compression:
     }
 
 
-def get_table_types(database: str, table: str, boto3_session: Optional[boto3.Session] = None):
+def get_table_types(database: str, table: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, str]:
     """Get all columns and types from a table.
 
     Parameters
@@ -284,7 +368,7 @@ def get_table_types(database: str, table: str, boto3_session: Optional[boto3.Ses
     Returns
     -------
     Dict[str, str]
-        A dictionary as {"col name": "col dtype"}.
+        A dictionary as {"col name": "col data type"}.
 
     Examples
     --------
@@ -554,3 +638,88 @@ def search_tables(text: str, catalog_id: Optional[str] = None, boto3_session: Op
         response = client_glue.search_tables(**args)
         for tbl in response["TableList"]:
             yield tbl
+
+
+def get_table_location(database: str, table: str, boto3_session: Optional[boto3.Session] = None) -> str:
+    """Get table's location on Glue catalog.
+
+    Parameters
+    ----------
+    database : str
+        Database name.
+    table : str
+        Table name.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    str
+        Table's location.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> wr.catalog.get_table_location(database="default", name="my_table")
+    "s3://bucket/prefix/"
+
+    """
+    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    res: Dict[str, Any] = client_glue.get_table(DatabaseName=database, Name=table)
+    try:
+        return res["Table"]["StorageDescriptor"]["Location"]
+    except KeyError:  # pragma: no cover
+        raise exceptions.InvalidTable(f"{database}.{table}")
+
+
+def table(
+    database: str, table: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
+) -> pd.DataFrame:
+    """Get table details as Pandas DataFrame.
+
+    Parameters
+    ----------
+    database : str
+        Database name.
+    table : str
+        Table name.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Pandas DataFrame filled by formatted infos.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> df_table = wr.catalog.table(database="default", name="my_table")
+
+    """
+    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    if catalog_id is None:
+        tbl: Dict[str, Any] = client_glue.get_table(DatabaseName=database, Name=table)["Table"]
+    else:
+        tbl = client_glue.get_table(CatalogId=catalog_id, DatabaseName=database, Name=table)["Table"]
+    df_dict: Dict[str, List] = {"Column Name": [], "Type": [], "Partition": [], "Comment": []}
+    for col in tbl["StorageDescriptor"]["Columns"]:
+        df_dict["Column Name"].append(col["Name"])
+        df_dict["Type"].append(col["Type"])
+        df_dict["Partition"].append(False)
+        if "Comment" in col:
+            df_dict["Comment"].append(col["Comment"])
+        else:
+            df_dict["Comment"].append("")
+    for col in tbl["PartitionKeys"]:
+        df_dict["Column Name"].append(col["Name"])
+        df_dict["Type"].append(col["Type"])
+        df_dict["Partition"].append(True)
+        if "Comment" in col:
+            df_dict["Comment"].append(col["Comment"])
+        else:
+            df_dict["Comment"].append("")
+    return pd.DataFrame(data=df_dict)

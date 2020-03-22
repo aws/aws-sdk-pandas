@@ -7,18 +7,18 @@ Amazon S3
 .. currentmodule:: awswrangler.s3
 
 .. autosummary::
-     :toctree: stubs
+    :toctree: stubs
 
-     get_bucket_region
-     does_object_exist
-     list_objects
-     describe_objects
-     size_objects
-     delete_objects
-     read_csv
-     read_parquet
-     to_csv
-     to_parquet
+    get_bucket_region
+    does_object_exist
+    list_objects
+    describe_objects
+    size_objects
+    delete_objects
+    read_csv
+    read_parquet
+    to_csv
+    to_parquet
 
 AWS Glue Catalog
 ----------------
@@ -26,18 +26,21 @@ AWS Glue Catalog
 .. currentmodule:: awswrangler.catalog
 
 .. autosummary::
-     :toctree: stubs
+    :toctree: stubs
 
-     delete_table_if_exists
-     does_table_exist
-     create_parquet_table
-     add_parquet_partitions
-     get_table_types
-     get_databases
-     databases
-     get_tables
-     tables
-     search_tables
+    delete_table_if_exists
+    does_table_exist
+    create_parquet_table
+    add_parquet_partitions
+    get_partitions
+    get_table_types
+    get_databases
+    databases
+    get_tables
+    tables
+    search_tables
+    get_table_location
+    table
 
 Amazon Athena
 -------------
@@ -45,7 +48,7 @@ Amazon Athena
 .. currentmodule:: awswrangler.athena
 
 .. autosummary::
-     :toctree: stubs
+    :toctree: stubs
 
-     normalize_column_name
-     normalize_table_name
+    normalize_column_name
+    normalize_table_name

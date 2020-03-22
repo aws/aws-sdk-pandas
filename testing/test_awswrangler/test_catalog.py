@@ -54,7 +54,7 @@ def test_get_databases(database):
 def test_catalog(bucket, database):
     account_id = boto3.client("sts").get_caller_identity().get("Account")
     path = f"s3://{bucket}/test_catalog/"
-    wr.catalog.delete_table_if_exists(database=database, table="test_catalog")
+    assert wr.catalog.delete_table_if_exists(database=database, table="test_catalog") is False
     assert wr.catalog.does_table_exist(database=database, table="test_catalog") is False
     wr.catalog.create_parquet_table(
         database=database,
@@ -65,8 +65,8 @@ def test_catalog(bucket, database):
         compression="snappy",
     )
     assert wr.catalog.does_table_exist(database=database, table="test_catalog") is True
-    wr.catalog.delete_table_if_exists(database=database, table="test_catalog")
-    wr.catalog.delete_table_if_exists(database=database, table="test_catalog")
+    assert wr.catalog.delete_table_if_exists(database=database, table="test_catalog") is True
+    assert wr.catalog.delete_table_if_exists(database=database, table="test_catalog") is False
     wr.catalog.create_parquet_table(
         database=database,
         table="test_catalog",
@@ -76,7 +76,7 @@ def test_catalog(bucket, database):
         compression="snappy",
         description="Foo boo bar",
         parameters={"tag": "test"},
-        columns_comments={"col0": "my int", "col1": "my double", "y": "year", "m": "month"},
+        columns_comments={"col0": "my int", "y": "year"},
     )
     wr.catalog.add_parquet_partitions(
         database=database,
@@ -84,6 +84,14 @@ def test_catalog(bucket, database):
         partitions_values={f"{path}y=2020/m=1/": ["2020", "1"], f"{path}y=2021/m=2/": ["2021", "2"]},
         compression="snappy",
     )
+    assert wr.catalog.get_table_location(database=database, table="test_catalog") == path
+    partitions_values = wr.catalog.get_partitions(database=database, table="test_catalog")
+    assert len(partitions_values) == 2
+    partitions_values = wr.catalog.get_partitions(
+        database=database, table="test_catalog", catalog_id=account_id, expression="y = 2021 AND m = 2"
+    )
+    assert len(partitions_values) == 1
+    assert len(set(partitions_values[f"{path}y=2021/m=2/"]) & set(["2021", "2"])) == 2
     dtypes = wr.catalog.get_table_types(database=database, table="test_catalog")
     assert dtypes["col0"] == "int"
     assert dtypes["col1"] == "double"
@@ -153,3 +161,5 @@ def test_catalog(bucket, database):
         )
         > 0
     )
+    assert len(wr.catalog.table(database=database, table="test_catalog").index) > 0
+    assert len(wr.catalog.table(database=database, table="test_catalog", catalog_id=account_id).index) > 0
