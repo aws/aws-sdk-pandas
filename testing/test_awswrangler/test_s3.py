@@ -173,7 +173,7 @@ def test_parquet(bucket):
     assert df_dataset.equals(wr.s3.read_parquet(path=path_dataset, dataset=True, use_threads=True).sort_values("id"))
     wr.s3.to_parquet(df=df_dataset, path=path_dataset, dataset=True, partition_cols=["partition"], mode="overwrite")
     wr.s3.to_parquet(
-        df=df_dataset, path=path_dataset, dataset=True, partition_cols=["partition"], mode="partitions_upsert"
+        df=df_dataset, path=path_dataset, dataset=True, partition_cols=["partition"], mode="overwrite_partitions"
     )
 
 

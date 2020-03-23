@@ -443,7 +443,7 @@ def to_parquet(
     partition_cols: List[str], optional
         List of column names that will be used to create partitions. Only takes effect if dataset=True.
     mode: str, optional
-        ``append`` (Default), ``overwrite``, ``partition_upsert``. Only takes effect if dataset=True.
+        ``append`` (Default), ``overwrite``, ``overwrite_partitions``. Only takes effect if dataset=True.
     database : str
         Glue/Athena catalog: Database name.
     table : str
@@ -609,9 +609,9 @@ def _to_parquet_dataset(
     paths: List[str] = []
     partitions_values: Dict[str, List[str]] = {}
     path = path if path[-1] == "/" else f"{path}/"
-    if mode not in ["append", "overwrite", "partitions_upsert"]:
+    if mode not in ["append", "overwrite", "overwrite_partitions"]:
         raise exceptions.InvalidArgumentValue(
-            f"{mode} is a invalid mode, please use append, overwrite or partitions_upsert."
+            f"{mode} is a invalid mode, please use append, overwrite or overwrite_partitions."
         )
     if (mode == "overwrite") or ((mode == "partitions_upsert") and (not partition_cols)):
         delete_objects(path=path, use_threads=use_threads, boto3_session=boto3_session)
@@ -627,7 +627,7 @@ def _to_parquet_dataset(
             keys = (keys,) if not isinstance(keys, tuple) else keys
             subdir = "/".join([f"{name}={val}" for name, val in zip(partition_cols, keys)])
             prefix: str = f"{path}{subdir}/"
-            if mode == "partitions_upsert":
+            if mode == "overwrite_partitions":
                 delete_objects(path=prefix, use_threads=use_threads)
             file_path = f"{prefix}{uuid.uuid4().hex}{compression_ext}.parquet"
             _to_parquet_file(
