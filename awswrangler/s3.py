@@ -728,6 +728,28 @@ def _read_csv(path: str, boto3_session: boto3.Session, pandas_args) -> pd.DataFr
         return pd.read_csv(filepath_or_buffer=f, **pandas_args)
 
 
+def _read_parquet_init(
+    path: Union[str, List[str]],
+    filters: Optional[Union[List[Tuple], List[List[Tuple]]]] = None,
+    dataset: bool = False,
+    use_threads: bool = True,
+    boto3_session: Optional[boto3.Session] = None,
+) -> pyarrow.parquet.ParquetDataset:
+    """Encapsulate all initialization before the use of the pyarrow.parquet.ParquetDataset."""
+    if dataset is False:
+        path_or_paths: Union[str, List[str]] = _path2list(path=path, boto3_session=boto3_session)
+    else:
+        path_or_paths = path
+    logger.debug(f"path_or_paths: {path_or_paths}")
+    print(f"path_or_paths: {path_or_paths}")
+    fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session)
+    cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
+    data: pyarrow.parquet.ParquetDataset = pyarrow.parquet.ParquetDataset(
+        path_or_paths=path_or_paths, filesystem=fs, metadata_nthreads=cpus, filters=filters
+    )
+    return data
+
+
 def read_parquet(
     path: Union[str, List[str]],
     filters: Optional[Union[List[Tuple], List[List[Tuple]]]] = None,
@@ -779,15 +801,178 @@ def read_parquet(
     >>> df = wr.s3.read_parquet(path=["s3://bucket/filename0.parquet", "s3://bucket/filename1.parquet"])
 
     """
-    if dataset is False:
-        path_or_paths: Union[str, List[str]] = _path2list(path=path, boto3_session=boto3_session)
-    else:
-        path_or_paths = path
-    fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session)
-    cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
-    data: pyarrow.parquet.ParquetDataset = pyarrow.parquet.ParquetDataset(
-        path_or_paths=path_or_paths, filesystem=fs, metadata_nthreads=cpus, filters=filters
+    data: pyarrow.parquet.ParquetDataset = _read_parquet_init(
+        path=path, filters=filters, dataset=dataset, use_threads=use_threads, boto3_session=boto3_session
     )
-    return data.read(columns=columns, use_threads=use_threads).to_pandas(
+    return data.read(columns=columns, use_threads=use_threads, use_pandas_metadata=True).to_pandas(
         use_threads=use_threads, split_blocks=True, self_destruct=True, integer_object_nulls=False
     )
+
+
+def read_parquet_metadata(
+    path: Union[str, List[str]],
+    filters: Optional[Union[List[Tuple], List[List[Tuple]]]] = None,
+    dataset: bool = False,
+    use_threads: bool = True,
+    boto3_session: Optional[boto3.Session] = None,
+) -> Tuple[Dict[str, str], Optional[Dict[str, str]]]:
+    """Read Apache Parquet file(s) metadata from from a received S3 prefix or list of S3 objects paths.
+
+    The concept of Dataset goes beyond the simple idea of files and enable more
+    complex features like partitioning and catalog integration (AWS Glue Catalog).
+
+    Note
+    ----
+    In case of ``use_threads=True`` the number of process that will be spawned will be get from os.cpu_count().
+
+    Parameters
+    ----------
+    path : Union[str, List[str]]
+        S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+    filters: Union[List[Tuple], List[List[Tuple]]], optional
+        List of filters to apply, like ``[[('x', '=', 0), ...], ...]``.
+    dataset: bool
+        If True read a parquet dataset instead of simple file(s) loading all the related partitions as columns.
+    use_threads : bool
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    Tuple[Dict[str, str], Optional[Dict[str, str]]]
+        columns_types: Dictionary with keys as column names and vales as
+        data types (e.g. {"col0": "bigint", "col1": "double"}). /
+        partitions_types: Dictionary with keys as partition names
+        and values as data types (e.g. {"col2": "date"}).
+
+    Examples
+    --------
+    Reading all Parquet files (with partitions) metadata under a prefix
+
+    >>> import awswrangler as wr
+    >>> columns_types, partitions_types = wr.s3.read_parquet_metadata(path="s3://bucket/prefix/", dataset=True)
+
+    Reading all Parquet files metadata from a list
+
+    >>> import awswrangler as wr
+    >>> columns_types, partitions_types = wr.s3.read_parquet_metadata(path=[
+    ...     "s3://bucket/filename0.parquet",
+    ...     "s3://bucket/filename1.parquet"
+    ... ])
+
+    """
+    data: pyarrow.parquet.ParquetDataset = _read_parquet_init(
+        path=path, filters=filters, dataset=dataset, use_threads=use_threads, boto3_session=boto3_session
+    )
+    return _data_types.athena_types_from_pyarrow_schema(
+        schema=data.schema.to_arrow_schema(), partitions=data.partitions
+    )
+
+
+def store_parquet_metadata(
+    path: str,
+    database: str,
+    table: str,
+    filters: Optional[Union[List[Tuple], List[List[Tuple]]]] = None,
+    dataset: bool = False,
+    use_threads: bool = True,
+    description: Optional[str] = None,
+    parameters: Optional[Dict[str, str]] = None,
+    columns_comments: Optional[Dict[str, str]] = None,
+    compression: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> Tuple[Dict[str, str], Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]:
+    """Infer and store parquet metadata on AWS Glue Catalog.
+
+    Infer Apache Parquet file(s) metadata from from a received S3 prefix or list of S3 objects paths
+    And then stores it on AWS Glue Catalog including all inferred partitions
+    (No need of "MCSK REPAIR TABLE")
+
+    The concept of Dataset goes beyond the simple idea of files and enable more
+    complex features like partitioning and catalog integration (AWS Glue Catalog).
+
+    Note
+    ----
+    In case of ``use_threads=True`` the number of process that will be spawned will be get from os.cpu_count().
+
+    Parameters
+    ----------
+    path : Union[str, List[str]]
+        S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+    database : str
+        Glue/Athena catalog: Database name.
+    table : str
+        Glue/Athena catalog: Table name.
+    filters: Union[List[Tuple], List[List[Tuple]]], optional
+        List of filters to apply, like ``[[('x', '=', 0), ...], ...]``.
+    dataset: bool
+        If True read a parquet dataset instead of simple file(s) loading all the related partitions as columns.
+    use_threads : bool
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
+    description: str, optional
+        Glue/Athena catalog: Table description
+    parameters: Dict[str, str], optional
+        Glue/Athena catalog: Key/value pairs to tag the table.
+    columns_comments: Dict[str, str], optional
+        Glue/Athena catalog:
+        Columns names and the related comments (e.g. {"col0": "Column 0.", "col1": "Column 1.", "col2": "Partition."}).
+
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    Tuple[Dict[str, str], Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]
+        The metadata used to create the Glue Table.
+        columns_types: Dictionary with keys as column names and vales as
+        data types (e.g. {"col0": "bigint", "col1": "double"}). /
+        partitions_types: Dictionary with keys as partition names
+        and values as data types (e.g. {"col2": "date"}). /
+        partitions_values: Dictionary with keys as S3 path locations and values as a
+        list of partitions values as str (e.g. {"s3://bucket/prefix/y=2020/m=10/": ["2020", "10"]}).
+
+    Examples
+    --------
+    Reading all Parquet files metadata under a prefix
+
+    >>> import awswrangler as wr
+    >>> columns_types, partitions_types, partitions_values = wr.s3.store_parquet_metadata(
+    ...     path="s3://bucket/prefix/",
+    ...     database="...",
+    ...     table="...",
+    ...     dataset=True
+    ... )
+
+    """
+    data: pyarrow.parquet.ParquetDataset = _read_parquet_init(
+        path=path, filters=filters, dataset=dataset, use_threads=use_threads, boto3_session=boto3_session
+    )
+    partitions: Optional[pyarrow.parquet.ParquetPartitions] = data.partitions
+    columns_types, partitions_types = _data_types.athena_types_from_pyarrow_schema(
+        schema=data.schema.to_arrow_schema(), partitions=partitions
+    )
+    catalog.create_parquet_table(
+        database=database,
+        table=table,
+        path=path,
+        columns_types=columns_types,
+        partitions_types=partitions_types,
+        description=description,
+        parameters=parameters,
+        columns_comments=columns_comments,
+        boto3_session=boto3_session,
+    )
+    partitions_values: Dict[str, List[str]] = _data_types.athena_partitions_from_pyarrow_partitions(
+        path=path, partitions=partitions
+    )
+    catalog.add_parquet_partitions(
+        database=database,
+        table=table,
+        partitions_values=partitions_values,
+        compression=compression,
+        boto3_session=boto3_session,
+    )
+    return columns_types, partitions_types, partitions_values

@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Tuple
 
 import pandas as pd  # type: ignore
 import pyarrow as pa  # type: ignore
+import pyarrow.parquet  # type: ignore
 
 from awswrangler import exceptions
 
@@ -117,3 +118,28 @@ def pyarrow_schema_from_pandas(df: pd.DataFrame, index: bool, ignore_cols: Optio
         df=df, index=index, ignore_cols=ignore_cols
     )
     return pa.schema(fields=columns_types)
+
+
+def athena_types_from_pyarrow_schema(
+    schema: pa.Schema, partitions: pyarrow.parquet.ParquetPartitions
+) -> Tuple[Dict[str, str], Optional[Dict[str, str]]]:
+    """Extract the related Athena data types from any PyArrow Schema considering possible partitions."""
+    columns_types: Dict[str, str] = {str(f.name): pyarrow2athena(dtype=f.type) for f in schema}
+    logger.debug(f"columns_types: {columns_types}")
+    partitions_types: Dict[str, str] = {p.name: pyarrow2athena(p.dictionary.type) for p in partitions}
+    logger.debug(f"partitions_types: {partitions_types}")
+    return columns_types, partitions_types
+
+
+def athena_partitions_from_pyarrow_partitions(
+    path: str, partitions: pyarrow.parquet.ParquetPartitions
+) -> Dict[str, List[str]]:
+    """Extract the related Athena partitions values from any PyArrow Partitions."""
+    path = path if path[-1] == "/" else f"{path}/"
+    partitions_values: Dict[str, List[str]] = {}
+    names: List[str] = [p.name for p in partitions]
+    for values in zip(*[p.keys for p in partitions]):
+        suffix: str = "/".join([f"{n}={v}" for n, v in zip(names, values)])
+        suffix = suffix if suffix[-1] == "/" else f"{suffix}/"
+        partitions_values[f"{path}{suffix}"] = list(values)
+    return partitions_values

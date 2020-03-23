@@ -224,5 +224,16 @@ def test_parquet_catalog(bucket, database):
         mode="overwrite",
         database=database,
         table="test_parquet_catalog1",
-        partition_cols=["int8"],
+        partition_cols=["int8", "int16"],
     )
+    columns_types, partitions_types = wr.s3.read_parquet_metadata(
+        path=f"s3://{bucket}/test_parquet_catalog1", dataset=True
+    )
+    assert len(columns_types) == 17
+    assert len(partitions_types) == 2
+    columns_types, partitions_types, partitions_values = wr.s3.store_parquet_metadata(
+        path=f"s3://{bucket}/test_parquet_catalog1", database=database, table="test_parquet_catalog2", dataset=True
+    )
+    assert len(columns_types) == 17
+    assert len(partitions_types) == 2
+    assert len(partitions_values) == 2

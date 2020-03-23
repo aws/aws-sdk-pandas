@@ -254,7 +254,7 @@ def add_parquet_partitions(
             raise exceptions.ServiceApiError(str(res["Errors"]))
 
 
-def get_partitions(
+def get_parquet_partitions(
     database: str,
     table: str,
     expression: Optional[str] = None,
@@ -291,7 +291,7 @@ def get_partitions(
     Fetch all partitions
 
     >>> import awswrangler as wr
-    >>> wr.catalog.get_partitions(
+    >>> wr.catalog.get_parquet_partitions(
     ...     database="default",
     ...     table="my_table",
     ... )
@@ -304,7 +304,7 @@ def get_partitions(
     Filtering partitions
 
     >>> import awswrangler as wr
-    >>> wr.catalog.get_partitions(
+    >>> wr.catalog.get_parquet_partitions(
     ...     database="default",
     ...     table="my_table",
     ...     expression="m=10"

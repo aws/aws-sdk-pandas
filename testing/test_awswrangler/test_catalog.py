@@ -85,9 +85,9 @@ def test_catalog(bucket, database):
         compression="snappy",
     )
     assert wr.catalog.get_table_location(database=database, table="test_catalog") == path
-    partitions_values = wr.catalog.get_partitions(database=database, table="test_catalog")
+    partitions_values = wr.catalog.get_parquet_partitions(database=database, table="test_catalog")
     assert len(partitions_values) == 2
-    partitions_values = wr.catalog.get_partitions(
+    partitions_values = wr.catalog.get_parquet_partitions(
         database=database, table="test_catalog", catalog_id=account_id, expression="y = 2021 AND m = 2"
     )
     assert len(partitions_values) == 1

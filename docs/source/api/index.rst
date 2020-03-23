@@ -17,6 +17,8 @@ Amazon S3
     delete_objects
     read_csv
     read_parquet
+    read_parquet_metadata
+    store_parquet_metadata
     to_csv
     to_parquet
 
@@ -32,7 +34,7 @@ AWS Glue Catalog
     does_table_exist
     create_parquet_table
     add_parquet_partitions
-    get_partitions
+    get_parquet_partitions
     get_table_types
     get_databases
     databases
