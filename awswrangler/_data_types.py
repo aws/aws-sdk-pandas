@@ -9,7 +9,7 @@ import pyarrow.parquet  # type: ignore
 
 from awswrangler import exceptions
 
-logger: logging.Logger = logging.getLogger(__name__)
+_logger: logging.Logger = logging.getLogger(__name__)
 
 
 def pyarrow2athena(dtype: pa.DataType) -> str:  # pylint: disable=too-many-branches,too-many-return-statements
@@ -49,6 +49,28 @@ def pyarrow2athena(dtype: pa.DataType) -> str:  # pylint: disable=too-many-branc
     raise exceptions.UnsupportedType(f"Unsupported Pyarrow type: {dtype}")  # pragma: no cover
 
 
+def athena2pandas(dtype: str) -> str:  # pylint: disable=too-many-branches,too-many-return-statements
+    """Athena to Pandas data types conversion."""
+    dtype = dtype.lower()
+    if dtype in ("int", "integer", "bigint", "smallint", "tinyint"):
+        return "Int64"
+    if dtype in ("float", "double", "real"):
+        return "float64"
+    if dtype == "boolean":
+        return "bool"
+    if dtype in ("string", "char", "varchar"):
+        return "string"
+    if dtype in ("timestamp", "timestamp with time zone"):
+        return "datetime64"
+    if dtype == "date":
+        return "date"
+    if dtype == "array":
+        return "list"
+    if dtype == "decimal":
+        return "decimal"
+    raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")
+
+
 def pyarrow_types_from_pandas(
     df: pd.DataFrame, index: bool, ignore_cols: Optional[List[str]] = None
 ) -> Dict[str, pa.DataType]:
@@ -82,7 +104,7 @@ def pyarrow_types_from_pandas(
 
     # Filling schema
     columns_types = {n: cols_dtypes[n] for n in list(df.columns) + indexes if n not in ignore_cols}  # add cols + idxs
-    logger.debug(f"columns_types: {columns_types}")
+    _logger.debug(f"columns_types: {columns_types}")
     return columns_types
 
 
@@ -92,7 +114,7 @@ def athena_types_from_pandas(df: pd.DataFrame, index: bool, ignore_cols: Optiona
         df=df, index=index, ignore_cols=ignore_cols
     )
     athena_columns_types: Dict[str, str] = {k: pyarrow2athena(dtype=v) for k, v in pa_columns_types.items()}
-    logger.debug(f"athena_columns_types: {athena_columns_types}")
+    _logger.debug(f"athena_columns_types: {athena_columns_types}")
     return athena_columns_types
 
 
@@ -125,9 +147,9 @@ def athena_types_from_pyarrow_schema(
 ) -> Tuple[Dict[str, str], Optional[Dict[str, str]]]:
     """Extract the related Athena data types from any PyArrow Schema considering possible partitions."""
     columns_types: Dict[str, str] = {str(f.name): pyarrow2athena(dtype=f.type) for f in schema}
-    logger.debug(f"columns_types: {columns_types}")
+    _logger.debug(f"columns_types: {columns_types}")
     partitions_types: Dict[str, str] = {p.name: pyarrow2athena(p.dictionary.type) for p in partitions}
-    logger.debug(f"partitions_types: {partitions_types}")
+    _logger.debug(f"partitions_types: {partitions_types}")
     return columns_types, partitions_types
 
 

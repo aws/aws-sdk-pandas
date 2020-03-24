@@ -18,7 +18,7 @@ from awswrangler import _data_types, _utils, catalog, exceptions
 
 _COMPRESSION_2_EXT: Dict[Optional[str], str] = {None: "", "gzip": ".gz", "snappy": ".snappy"}
 
-logger: logging.Logger = logging.getLogger(__name__)
+_logger: logging.Logger = logging.getLogger(__name__)
 
 
 def get_bucket_region(bucket: str, boto3_session: Optional[boto3.Session] = None) -> str:
@@ -51,10 +51,10 @@ def get_bucket_region(bucket: str, boto3_session: Optional[boto3.Session] = None
 
     """
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
-    logger.debug(f"bucket: {bucket}")
+    _logger.debug(f"bucket: {bucket}")
     region: str = client_s3.get_bucket_location(Bucket=bucket)["LocationConstraint"]
     region = "us-east-1" if region is None else region
-    logger.debug(f"region: {region}")
+    _logger.debug(f"region: {region}")
     return region
 
 
@@ -224,7 +224,7 @@ def _split_paths_by_bucket(paths: List[str]) -> Dict[str, List[str]]:
 
 
 def _delete_objects(bucket: str, keys: List[str], client_s3: boto3.client) -> None:
-    logger.debug(f"len(keys): {len(keys)}")
+    _logger.debug(f"len(keys): {len(keys)}")
     batch: List[Dict[str, str]] = [{"Key": key} for key in keys]
     client_s3.delete_objects(Bucket=bucket, Delete={"Objects": batch})
 
@@ -304,7 +304,7 @@ def _describe_object(
             break
         except botocore.exceptions.ClientError as e:  # pragma: no cover
             if e.response["ResponseMetadata"]["HTTPStatusCode"] == 404:  # Not Found
-                logger.debug(f"Object not found. {i} seconds remaining to wait.")
+                _logger.debug(f"Object not found. {i} seconds remaining to wait.")
                 if i == 1:  # Last try, there is no more need to sleep
                     break
                 time.sleep(1)
@@ -582,7 +582,7 @@ def to_parquet(
                 mode="overwrite",
             )
             if partitions_values:
-                logger.debug(f"partitions_values:\n{partitions_values}")
+                _logger.debug(f"partitions_values:\n{partitions_values}")
                 catalog.add_parquet_partitions(
                     database=database,
                     table=table,
@@ -621,7 +621,7 @@ def _to_parquet_dataset(
         paths.append(file_path)
     else:
         schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(df=df, index=index, ignore_cols=partition_cols)
-        logger.debug(f"schema: {schema}")
+        _logger.debug(f"schema: {schema}")
         for keys, subgroup in df.groupby(by=partition_cols, observed=True):
             subgroup = subgroup.drop(partition_cols, axis="columns")
             keys = (keys,) if not isinstance(keys, tuple) else keys
@@ -740,7 +740,7 @@ def _read_parquet_init(
         path_or_paths: Union[str, List[str]] = _path2list(path=path, boto3_session=boto3_session)
     else:
         path_or_paths = path
-    logger.debug(f"path_or_paths: {path_or_paths}")
+    _logger.debug(f"path_or_paths: {path_or_paths}")
     print(f"path_or_paths: {path_or_paths}")
     fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session)
     cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
@@ -919,7 +919,8 @@ def store_parquet_metadata(
     columns_comments: Dict[str, str], optional
         Glue/Athena catalog:
         Columns names and the related comments (e.g. {"col0": "Column 0.", "col1": "Column 1.", "col2": "Partition."}).
-
+    compression: str, optional
+        Compression style (``None``, ``snappy``, ``gzip``, etc).
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -947,8 +948,9 @@ def store_parquet_metadata(
     ... )
 
     """
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     data: pyarrow.parquet.ParquetDataset = _read_parquet_init(
-        path=path, filters=filters, dataset=dataset, use_threads=use_threads, boto3_session=boto3_session
+        path=path, filters=filters, dataset=dataset, use_threads=use_threads, boto3_session=session
     )
     partitions: Optional[pyarrow.parquet.ParquetPartitions] = data.partitions
     columns_types, partitions_types = _data_types.athena_types_from_pyarrow_schema(
@@ -963,7 +965,7 @@ def store_parquet_metadata(
         description=description,
         parameters=parameters,
         columns_comments=columns_comments,
-        boto3_session=boto3_session,
+        boto3_session=session,
     )
     partitions_values: Dict[str, List[str]] = _data_types.athena_partitions_from_pyarrow_partitions(
         path=path, partitions=partitions
@@ -973,6 +975,6 @@ def store_parquet_metadata(
         table=table,
         partitions_values=partitions_values,
         compression=compression,
-        boto3_session=boto3_session,
+        boto3_session=session,
     )
     return columns_types, partitions_types, partitions_values

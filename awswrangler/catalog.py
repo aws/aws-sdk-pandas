@@ -10,7 +10,7 @@ import pandas as pd  # type: ignore
 
 from awswrangler import _utils, athena, exceptions
 
-logger: logging.Logger = logging.getLogger(__name__)
+_logger: logging.Logger = logging.getLogger(__name__)
 
 
 def delete_table_if_exists(database: str, table: str, boto3_session: Optional[boto3.Session] = None) -> bool:

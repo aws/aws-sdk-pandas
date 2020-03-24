@@ -52,5 +52,11 @@ Amazon Athena
 .. autosummary::
     :toctree: stubs
 
+    read_sql_query
+    repair_table
+    wait_query
+    start_query_execution
     normalize_column_name
     normalize_table_name
+    create_athena_bucket
+    get_query_columns_types

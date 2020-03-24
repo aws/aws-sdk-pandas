@@ -31,3 +31,15 @@ class ServiceApiError(Exception):
 
 class InvalidTable(Exception):
     """InvalidTable exception."""
+
+
+class QueryFailed(Exception):
+    """QueryFailed exception."""
+
+
+class QueryCancelled(Exception):
+    """QueryCancelled exception."""
+
+
+class AthenaQueryError(Exception):
+    """AthenaQueryError exception."""
