@@ -49,34 +49,61 @@ def pyarrow2athena(dtype: pa.DataType) -> str:  # pylint: disable=too-many-branc
     raise exceptions.UnsupportedType(f"Unsupported Pyarrow type: {dtype}")  # pragma: no cover
 
 
+def pyarrow2pandas_extension(  # pylint: disable=too-many-branches,too-many-return-statements
+    dtype: pa.DataType
+) -> Optional[pd.api.extensions.ExtensionDtype]:
+    """Pyarrow to Pandas data types conversion."""
+    if pa.types.is_int8(dtype):  # pragma: no cover
+        return pd.Int8Dtype()
+    if pa.types.is_int16(dtype):  # pragma: no cover
+        return pd.Int16Dtype()
+    if pa.types.is_int32(dtype):
+        return pd.Int32Dtype()
+    if pa.types.is_int64(dtype):
+        return pd.Int64Dtype()
+    if pa.types.is_boolean(dtype):
+        return pd.BooleanDtype()
+    if pa.types.is_string(dtype):
+        return pd.StringDtype()
+    return None
+
+
 def athena2pandas(dtype: str) -> str:  # pylint: disable=too-many-branches,too-many-return-statements
     """Athena to Pandas data types conversion."""
     dtype = dtype.lower()
-    if dtype in ("int", "integer", "bigint", "smallint", "tinyint"):
+    if dtype == "tinyint":
+        return "Int8"
+    if dtype == "smallint":
+        return "Int16"
+    if dtype in ("int", "integer"):
+        return "Int32"
+    if dtype == "bigint":
         return "Int64"
-    if dtype in ("float", "double", "real"):
+    if dtype == "float":
+        return "float32"
+    if dtype == "double":
         return "float64"
-    if dtype == "boolean":
-        return "bool"
+    if dtype in ("bool", "boolean"):
+        return "boolean"
     if dtype in ("string", "char", "varchar"):
         return "string"
     if dtype in ("timestamp", "timestamp with time zone"):
         return "datetime64"
     if dtype == "date":
         return "date"
-    if dtype == "array":
-        return "list"
     if dtype == "decimal":
         return "decimal"
-    raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")
+    if dtype == "varbinary":
+        return "bytes"
+    if dtype == "array":  # pragma: no cover
+        return "list"
+    raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")  # pragma: no cover
 
 
 def pyarrow_types_from_pandas(
     df: pd.DataFrame, index: bool, ignore_cols: Optional[List[str]] = None
 ) -> Dict[str, pa.DataType]:
     """Extract the related Pyarrow data types from any Pandas DataFrame."""
-    columns_types: Dict[str, pa.DataType] = {}
-
     # Handle exception data types (e.g. Int64, Int32, string)
     ignore_cols = [] if ignore_cols is None else ignore_cols
     cols: List[str] = []
@@ -85,6 +112,10 @@ def pyarrow_types_from_pandas(
         dtype = str(dtype)
         if name in ignore_cols:
             pass
+        elif dtype == "Int8":
+            cols_dtypes[name] = pa.int8()
+        elif dtype == "Int16":
+            cols_dtypes[name] = pa.int16()
         elif dtype == "Int32":
             cols_dtypes[name] = pa.int32()
         elif dtype == "Int64":
@@ -103,6 +134,7 @@ def pyarrow_types_from_pandas(
             indexes.append(name)
 
     # Filling schema
+    columns_types: Dict[str, pa.DataType]
     columns_types = {n: cols_dtypes[n] for n in list(df.columns) + indexes if n not in ignore_cols}  # add cols + idxs
     _logger.debug(f"columns_types: {columns_types}")
     return columns_types

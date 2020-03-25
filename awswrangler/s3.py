@@ -805,7 +805,12 @@ def read_parquet(
         path=path, filters=filters, dataset=dataset, use_threads=use_threads, boto3_session=boto3_session
     )
     return data.read(columns=columns, use_threads=use_threads, use_pandas_metadata=True).to_pandas(
-        use_threads=use_threads, split_blocks=True, self_destruct=True, integer_object_nulls=False
+        use_threads=use_threads,
+        split_blocks=True,
+        self_destruct=True,
+        integer_object_nulls=False,
+        date_as_object=True,
+        types_mapper=_data_types.pyarrow2pandas_extension,
     )
 
 
@@ -978,3 +983,71 @@ def store_parquet_metadata(
         boto3_session=session,
     )
     return columns_types, partitions_types, partitions_values
+
+
+def wait_objects(
+    paths: List[str],
+    delay: Optional[Union[int, float]] = None,
+    max_attempts: Optional[int] = None,
+    use_threads: bool = True,
+    boto3_session: Optional[boto3.Session] = None,
+) -> None:
+    """Wait Amazon S3 objects exist.
+
+    Polls S3.Client.head_object() every 5 seconds (default) until a successful
+    state is reached. An error is returned after 20 (default) failed checks.
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Waiter.ObjectExists
+
+    Note
+    ----
+    In case of ``use_threads=True`` the number of process that will be spawned will be get from os.cpu_count().
+
+    Parameters
+    ----------
+    paths : List[str]
+        List of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+    delay : Union[int,float], optional
+        The amount of time in seconds to wait between attempts. Default: 5
+    max_attempts : int, optional
+        The maximum number of attempts to be made. Default: 20
+    use_threads : bool
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    None
+        None.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> wr.s3.wait_objects(["s3://bucket/key0", "s3://bucket/key1"])  # wait both objects
+
+    """
+    delay = 5 if delay is None else delay
+    max_attempts = 20 if max_attempts is None else max_attempts
+    _delay: int = int(delay) if isinstance(delay, float) else delay
+
+    if len(paths) < 1:
+        return None
+    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    waiter = client_s3.get_waiter("object_exists")
+    _paths: List[Tuple[str, str]] = [_utils.parse_path(path=p) for p in paths]
+    if use_threads is False:
+        for bucket, key in _paths:
+            waiter.wait(Bucket=bucket, Key=key, WaiterConfig={"Delay": _delay, "MaxAttempts": max_attempts})
+    else:
+        cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
+            futures: List[concurrent.futures.Future] = []
+            for bucket, key in _paths:
+                future: concurrent.futures.Future = executor.submit(
+                    fn=waiter.wait, Bucket=bucket, Key=key, WaiterConfig={"Delay": _delay, "MaxAttempts": max_attempts}
+                )
+                futures.append(future)
+            for future in futures:
+                future.result()
+    return None

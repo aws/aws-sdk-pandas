@@ -115,6 +115,8 @@ def test_objects(bucket):
     wr.s3.delete_objects(path=[], use_threads=True)
     key = f"test_objects.txt"
     boto3.resource("s3").Object(bucket, key).put(Body=key.encode())
+    wr.s3.wait_objects(paths=[])
+    wr.s3.wait_objects(paths=[f"s3://{bucket}/{key}"], use_threads=False)
     assert len(wr.s3.size_objects(path=[f"s3://{bucket}/{key}"], use_threads=False)) == 1
     wr.s3.delete_objects(path=[f"s3://{bucket}/{key}"], use_threads=False)
     with pytest.raises(wr.exceptions.InvalidArgumentType):
@@ -159,18 +161,18 @@ def test_parquet(bucket):
         wr.s3.to_parquet(df=df_dataset, path=path_dataset, partition_cols=["col2"], dataset=True, mode="WRONG")
     wr.s3.to_parquet(df=df_file, path=path_file)
     time.sleep(EVENTUAL_CONSISTENCY_SLEEP)
-    assert df_file.equals(wr.s3.read_parquet(path=path_file, use_threads=True, boto3_session=None))
-    assert df_file.equals(wr.s3.read_parquet(path=[path_file], use_threads=False, boto3_session=boto3.Session()))
+    assert len(wr.s3.read_parquet(path=path_file, use_threads=True, boto3_session=None).index) == 3
+    assert len(wr.s3.read_parquet(path=[path_file], use_threads=False, boto3_session=boto3.Session()).index) == 3
     wr.s3.to_parquet(df=df_dataset, path=path_dataset, dataset=True)
     time.sleep(EVENTUAL_CONSISTENCY_SLEEP)
-    assert df_dataset.equals(wr.s3.read_parquet(path=path_dataset, use_threads=True, boto3_session=boto3.Session()))
+    assert len(wr.s3.read_parquet(path=path_dataset, use_threads=True, boto3_session=boto3.Session()).index) == 3
     dataset_paths = wr.s3.to_parquet(
         df=df_dataset, path=path_dataset, dataset=True, partition_cols=["partition"], mode="overwrite"
     )["paths"]
     time.sleep(EVENTUAL_CONSISTENCY_SLEEP)
-    assert df_file.equals(wr.s3.read_parquet(path=path_dataset, use_threads=True, boto3_session=None))
-    assert df_file.equals(wr.s3.read_parquet(path=dataset_paths, use_threads=True))
-    assert df_dataset.equals(wr.s3.read_parquet(path=path_dataset, dataset=True, use_threads=True).sort_values("id"))
+    assert len(wr.s3.read_parquet(path=path_dataset, use_threads=True, boto3_session=None).index) == 3
+    assert len(wr.s3.read_parquet(path=dataset_paths, use_threads=True).index) == 3
+    assert len(wr.s3.read_parquet(path=path_dataset, dataset=True, use_threads=True).sort_values("id").index) == 3
     wr.s3.to_parquet(df=df_dataset, path=path_dataset, dataset=True, partition_cols=["partition"], mode="overwrite")
     wr.s3.to_parquet(
         df=df_dataset, path=path_dataset, dataset=True, partition_cols=["partition"], mode="overwrite_partitions"

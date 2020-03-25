@@ -1,6 +1,5 @@
 """Amazon Athena Module."""
 
-import ast
 import csv
 import logging
 import re
@@ -115,7 +114,7 @@ def get_query_columns_types(query_execution_id: str, boto3_session: Optional[bot
     {"col0": "int", "col1": "double"}
 
     """
-    client_athena: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
     response: Dict = client_athena.get_query_results(QueryExecutionId=query_execution_id, MaxResults=1)
     col_info: List[Dict[str, str]] = response["ResultSet"]["ResultSetMetadata"]["ColumnInfo"]
     return {x["Name"]: x["Type"] for x in col_info}
@@ -216,7 +215,6 @@ def start_query_execution(
     if workgroup is not None:
         args["WorkGroup"] = workgroup
 
-    _logger.debug(f"args: {args}")
     client_athena: boto3.client = _utils.client(service_name="athena", session=session)
     response = client_athena.start_query_execution(**args)
     return response["QueryExecutionId"]
@@ -333,51 +331,9 @@ def _extract_ctas_manifest_paths(path: str, boto3_session: Optional[boto3.Sessio
     return [x for x in body.decode("utf-8").split("\n") if x != ""]
 
 
-def _list_parser(value: str) -> List[Union[int, float, str, None]]:
-    """Parser for lists serialized as string."""
-    # try resolve with a simple literal_eval
-    try:
-        return ast.literal_eval(value)
-    except ValueError:
-        pass  # keep trying
-
-    # sanity check
-    if len(value) <= 1:
-        return []
-
-    items: List[Union[None, str]] = [None if x == "null" else x for x in value[1:-1].split(", ")]
-    array_type: Optional[type] = None
-
-    # check if all values are integers
-    for item in items:
-        if item is not None:
-            try:
-                int(item)  # type: ignore
-            except ValueError:
-                break
-    else:
-        array_type = int
-
-    # check if all values are floats
-    if array_type is None:
-        for item in items:
-            if item is not None:
-                try:
-                    float(item)  # type: ignore
-                except ValueError:
-                    break
-        else:
-            array_type = float
-
-    # check if all values are strings
-    array_type = str if array_type is None else array_type
-
-    return [array_type(x) if x is not None else None for x in items]
-
-
 def _get_query_metadata(
     query_execution_id: str, boto3_session: Optional[boto3.Session] = None
-) -> Tuple[Dict[str, str], List[str], List[str], Dict[str, Any]]:
+) -> Tuple[Dict[str, str], List[str], List[str], Dict[str, Any], List[str]]:
     """Get query metadata."""
     cols_types: Dict[str, str] = get_query_columns_types(
         query_execution_id=query_execution_id, boto3_session=boto3_session
@@ -387,6 +343,7 @@ def _get_query_metadata(
     parse_timestamps: List[str] = []
     parse_dates: List[str] = []
     converters: Dict[str, Any] = {}
+    binaries: List[str] = []
     col_name: str
     col_type: str
     for col_name, col_type in cols_types.items():
@@ -395,28 +352,45 @@ def _get_query_metadata(
             parse_timestamps.append(col_name)
             if pandas_type == "date":
                 parse_dates.append(col_name)
-        elif pandas_type == "list":
-            converters[col_name] = _list_parser
-        elif pandas_type == "bool":
-            _logger.debug(f"Ignoring bool column: {col_name}")
+        elif pandas_type == "bytes":
+            dtype[col_name] = "string"
+            binaries.append(col_name)
         elif pandas_type == "decimal":
             converters[col_name] = lambda x: Decimal(str(x)) if str(x) != "" else None
+        elif pandas_type == "list":
+            exceptions.UnsupportedType(
+                "List data type is not support with ctas_approach=False. "
+                "Please use ctas_approach=True for List columns."
+            )
         else:
             dtype[col_name] = pandas_type
     _logger.debug(f"dtype: {dtype}")
     _logger.debug(f"parse_timestamps: {parse_timestamps}")
     _logger.debug(f"parse_dates: {parse_dates}")
     _logger.debug(f"converters: {converters}")
-    return dtype, parse_timestamps, parse_dates, converters
+    _logger.debug(f"binaries: {binaries}")
+    return dtype, parse_timestamps, parse_dates, converters, binaries
 
 
-def _apply_dates_to_iterator(iterator: Iterator[pd.DataFrame], parse_dates: List[str]) -> Iterator[pd.DataFrame]:
-    """Apply date cast to a iterator of DataFrames."""
-    for df in iterator:
-        if len(df.index) > 0:
-            for col in parse_dates:
+def _fix_csv_types_generator(
+    dfs: Iterator[pd.DataFrame], parse_dates: List[str], binaries: List[str]
+) -> Iterator[pd.DataFrame]:
+    """Apply data types cast to a Pandas DataFrames Generator."""
+    for df in dfs:
+        yield _fix_csv_types(df=df, parse_dates=parse_dates, binaries=binaries)
+
+
+def _fix_csv_types(df: pd.DataFrame, parse_dates: List[str], binaries: List[str]) -> pd.DataFrame:
+    """Apply data types cast to a Pandas DataFrames."""
+    if len(df.index) > 0:
+        for col in parse_dates:
+            if str(df[col].dtype) == "object":
+                df[col] = df[col].apply(lambda x: date(*[int(y) for y in x.split("-")]))
+            else:
                 df[col] = df[col].dt.date.replace(to_replace={pd.NaT: None})
-        yield df
+        for col in binaries:
+            df[col] = df[col].str.encode(encoding="utf-8")
+    return df
 
 
 def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
@@ -504,10 +478,10 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
         _s3_output: str = create_athena_bucket(boto3_session=session)
     else:
         _s3_output = s3_output
-    _s3_output = _s3_output[:-1] if _s3_output[-1] == "/" else _s3_output
     name: str = ""
     if ctas_approach is True:
         name = f"temp_table_{pa.compat.guid()}"
+        _s3_output = _s3_output[:-1] if _s3_output[-1] == "/" else _s3_output
         path: str = f"{_s3_output}/{name}"
         sql = (
             f"CREATE TABLE {name}\n"
@@ -539,20 +513,20 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
         catalog.delete_table_if_exists(database=database, table=name, boto3_session=session)
         manifest_path: str = f"{_s3_output}/tables/{query_id}-manifest.csv"
         paths: List[str] = _extract_ctas_manifest_paths(path=manifest_path, boto3_session=session)
-        _logger.debug(f"paths: {paths}")
         if not paths:
             df = pd.DataFrame()
         else:
+            s3.wait_objects(paths=paths, use_threads=use_threads, boto3_session=session)
             df = s3.read_parquet(path=paths, use_threads=use_threads, boto3_session=session)
         s3.delete_objects(path=[manifest_path] + paths, use_threads=use_threads, boto3_session=session)
         return df
-    dtype, parse_timestamps, parse_dates, converters = _get_query_metadata(
+    dtype, parse_timestamps, parse_dates, converters, binaries = _get_query_metadata(
         query_execution_id=query_id, boto3_session=session
     )
     path = f"{_s3_output}{query_id}.csv"
-    _logger.debug("Start CSV reading...")
+    _logger.debug(f"Start CSV reading from {path}")
     ret = s3.read_csv(
-        path=path,
+        path=[path],
         dtype=dtype,
         parse_dates=parse_timestamps,
         converters=converters,
@@ -560,14 +534,9 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
         keep_default_na=False,
         na_values=[""],
         chunksize=chunksize,
+        skip_blank_lines=False,
     )
     _logger.debug("Start type casting...")
     if chunksize is None:
-        if len(ret.index) > 0:
-            for col in parse_dates:
-                if str(ret[col].dtype) == "object":
-                    ret[col] = ret[col].apply(lambda x: date(*[int(y) for y in x.split("-")]))
-                else:
-                    ret[col] = ret[col].dt.date.replace(to_replace={pd.NaT: None})
-        return ret
-    return _apply_dates_to_iterator(iterator=ret, parse_dates=parse_dates)
+        return _fix_csv_types(df=ret, parse_dates=parse_dates, binaries=binaries)
+    return _fix_csv_types_generator(dfs=ret, parse_dates=parse_dates, binaries=binaries)
