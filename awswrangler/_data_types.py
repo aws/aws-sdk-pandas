@@ -95,7 +95,7 @@ def athena2pandas(dtype: str) -> str:  # pylint: disable=too-many-branches,too-m
         return "decimal"
     if dtype == "varbinary":
         return "bytes"
-    if dtype == "array":  # pragma: no cover
+    if dtype == "array":
         return "list"
     raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")  # pragma: no cover
 

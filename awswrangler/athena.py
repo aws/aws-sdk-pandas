@@ -5,7 +5,6 @@ import logging
 import re
 import time
 import unicodedata
-from datetime import date
 from decimal import Decimal
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
@@ -197,7 +196,7 @@ def start_query_execution(
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
     # s3_output
-    if s3_output is None:
+    if s3_output is None:  # pragma: no cover
         s3_output = create_athena_bucket(boto3_session=session)
     args["ResultConfiguration"] = {"OutputLocation": s3_output}
 
@@ -358,7 +357,7 @@ def _get_query_metadata(
         elif pandas_type == "decimal":
             converters[col_name] = lambda x: Decimal(str(x)) if str(x) != "" else None
         elif pandas_type == "list":
-            exceptions.UnsupportedType(
+            raise exceptions.UnsupportedType(
                 "List data type is not support with ctas_approach=False. "
                 "Please use ctas_approach=True for List columns."
             )
@@ -384,10 +383,7 @@ def _fix_csv_types(df: pd.DataFrame, parse_dates: List[str], binaries: List[str]
     """Apply data types cast to a Pandas DataFrames."""
     if len(df.index) > 0:
         for col in parse_dates:
-            if str(df[col].dtype) == "object":
-                df[col] = df[col].apply(lambda x: date(*[int(y) for y in x.split("-")]))
-            else:
-                df[col] = df[col].dt.date.replace(to_replace={pd.NaT: None})
+            df[col] = df[col].dt.date.replace(to_replace={pd.NaT: None})
         for col in binaries:
             df[col] = df[col].str.encode(encoding="utf-8")
     return df
