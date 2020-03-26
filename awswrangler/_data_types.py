@@ -45,7 +45,7 @@ def pyarrow2athena(dtype: pa.DataType) -> str:  # pylint: disable=too-many-branc
     if pa.types.is_struct(dtype):
         return f"struct<{', '.join([f'{f.name}: {pyarrow2athena(dtype=f.type)}' for f in dtype])}>"
     if dtype == pa.null():
-        raise exceptions.UndetectedType("We can't infer the data type from an entire null object column")
+        raise exceptions.UndetectedType("We can not infer the data type from an entire null object column")
     raise exceptions.UnsupportedType(f"Unsupported Pyarrow type: {dtype}")  # pragma: no cover
 
 

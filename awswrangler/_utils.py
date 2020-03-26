@@ -3,7 +3,7 @@
 import logging
 import math
 import os
-from typing import Any, List, Optional, Tuple
+from typing import Any, Generator, List, Optional, Tuple
 
 import boto3  # type: ignore
 import botocore.config  # type: ignore
@@ -32,7 +32,7 @@ def client(service_name: str, session: Optional[boto3.Session] = None) -> boto3.
 def parse_path(path: str) -> Tuple[str, str]:
     """Split a full S3 path in bucket and key strings.
 
-    "s3://bucket/key" -> ("bucket", "key")
+    's3://bucket/key' -> ('bucket', 'key')
 
     Parameters
     ----------
@@ -47,7 +47,7 @@ def parse_path(path: str) -> Tuple[str, str]:
     Examples
     --------
     >>> from awswrangler._utils import parse_path
-    >>> bucket, key = parse_path("s3://bucket/key")
+    >>> bucket, key = parse_path('s3://bucket/key')
 
     """
     parts = path.replace("s3://", "").split("/", 1)
@@ -134,3 +134,8 @@ def get_fs(session: Optional[boto3.Session] = None) -> s3fs.S3FileSystem:
         config_kwargs={"retries": {"mode": "adaptive", "max_attempts": 10}},
         session=ensure_session(session=session),
     )
+
+
+def empty_generator() -> Generator:
+    """Empty Generator."""
+    yield from ()

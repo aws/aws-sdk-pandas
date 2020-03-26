@@ -1,6 +1,5 @@
 import concurrent.futures
 import logging
-import time
 
 import boto3
 import pandas as pd
@@ -10,8 +9,6 @@ import awswrangler as wr
 from awswrangler import _utils  # noqa
 
 from ._utils import get_parquet_df
-
-EVENTUAL_CONSISTENCY_SLEEP: float = 20.0  # seconds
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
@@ -25,7 +22,7 @@ def wrt_fake_objs_batch(bucket, path, chunk, size=10):
 
 
 def write_fake_objects(bucket, path, num, obj_size=5):
-    cpus = _utils.ensure_cpu_count(use_threads=True) * 4
+    cpus = _utils.ensure_cpu_count(use_threads=True)
     chunks = _utils.chunkify(list(range(num)), cpus)
     args = []
     for chunk in chunks:
@@ -82,18 +79,16 @@ def test_get_bucket_region(bucket, region):
 
 
 def test_objects(bucket):
-    num = 1_001
+    num = 10
     prefix = f"test_objects/"
     path = f"s3://{bucket}/{prefix}"
     assert len(wr.s3.size_objects(path=path, use_threads=False)) == 0
     print("Starting writes...")
     write_fake_objects(bucket, prefix, num, obj_size=5)
     print("Getting sizes with wait_time...")
-    sizes = wr.s3.size_objects(path=path, wait_time=EVENTUAL_CONSISTENCY_SLEEP, use_threads=True)
+    sizes = wr.s3.size_objects(path=path, wait_time=20.0, use_threads=True)
     for _, size in sizes.items():
         assert size == 5
-    print("Waiting eventual consistency...")
-    time.sleep(EVENTUAL_CONSISTENCY_SLEEP)
     print("checking existence...")
     assert wr.s3.does_object_exist(path=f"{path}0") is True
     assert wr.s3.does_object_exist(path=f"{path}0_wrong") is False
@@ -109,14 +104,13 @@ def test_objects(bucket):
         assert size == 5
     print("Deleting...")
     wr.s3.delete_objects(path=path, use_threads=True)
-    print("Waiting eventual consistency...")
-    time.sleep(EVENTUAL_CONSISTENCY_SLEEP)
+    wr.s3.wait_objects_not_exist(paths=paths)
     assert len(wr.s3.list_objects(path)) == 0
     wr.s3.delete_objects(path=[], use_threads=True)
     key = f"test_objects.txt"
     boto3.resource("s3").Object(bucket, key).put(Body=key.encode())
-    wr.s3.wait_objects(paths=[])
-    wr.s3.wait_objects(paths=[f"s3://{bucket}/{key}"], use_threads=False)
+    wr.s3.wait_objects_exist(paths=[])
+    wr.s3.wait_objects_exist(paths=[f"s3://{bucket}/{key}"], use_threads=False)
     assert len(wr.s3.size_objects(path=[f"s3://{bucket}/{key}"], use_threads=False)) == 1
     wr.s3.delete_objects(path=[f"s3://{bucket}/{key}"], use_threads=False)
     with pytest.raises(wr.exceptions.InvalidArgumentType):
@@ -159,17 +153,17 @@ def test_parquet(bucket):
         wr.s3.to_parquet(df=df_dataset, path=path_dataset, partition_cols=["col2"])
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.s3.to_parquet(df=df_dataset, path=path_dataset, partition_cols=["col2"], dataset=True, mode="WRONG")
-    wr.s3.to_parquet(df=df_file, path=path_file)
-    time.sleep(EVENTUAL_CONSISTENCY_SLEEP)
+    paths = wr.s3.to_parquet(df=df_file, path=path_file)["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
     assert len(wr.s3.read_parquet(path=path_file, use_threads=True, boto3_session=None).index) == 3
     assert len(wr.s3.read_parquet(path=[path_file], use_threads=False, boto3_session=boto3.Session()).index) == 3
-    wr.s3.to_parquet(df=df_dataset, path=path_dataset, dataset=True)
-    time.sleep(EVENTUAL_CONSISTENCY_SLEEP)
+    paths = wr.s3.to_parquet(df=df_dataset, path=path_dataset, dataset=True)["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
     assert len(wr.s3.read_parquet(path=path_dataset, use_threads=True, boto3_session=boto3.Session()).index) == 3
     dataset_paths = wr.s3.to_parquet(
         df=df_dataset, path=path_dataset, dataset=True, partition_cols=["partition"], mode="overwrite"
     )["paths"]
-    time.sleep(EVENTUAL_CONSISTENCY_SLEEP)
+    wr.s3.wait_objects_exist(paths=dataset_paths)
     assert len(wr.s3.read_parquet(path=path_dataset, use_threads=True, boto3_session=None).index) == 3
     assert len(wr.s3.read_parquet(path=dataset_paths, use_threads=True).index) == 3
     assert len(wr.s3.read_parquet(path=path_dataset, dataset=True, use_threads=True).sort_values("id").index) == 3

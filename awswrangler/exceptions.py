@@ -17,6 +17,10 @@ class InvalidArgumentCombination(Exception):
     """Invalid argument combination."""
 
 
+class InvalidArgument(Exception):
+    """Invalid argument."""
+
+
 class UnsupportedType(Exception):
     """UnsupportedType exception."""
 

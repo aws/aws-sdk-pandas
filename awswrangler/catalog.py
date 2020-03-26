@@ -33,9 +33,9 @@ def delete_table_if_exists(database: str, table: str, boto3_session: Optional[bo
     Examples
     --------
     >>> import awswrangler as wr
-    >>> wr.catalog.delete_table_if_exists(database="default", name="my_table")  # deleted
+    >>> wr.catalog.delete_table_if_exists(database='default', name='my_table')  # deleted
     True
-    >>> wr.catalog.delete_table_if_exists(database="default", name="my_table")  # Nothing to be deleted
+    >>> wr.catalog.delete_table_if_exists(database='default', name='my_table')  # Nothing to be deleted
     False
 
     """
@@ -67,7 +67,7 @@ def does_table_exist(database: str, table: str, boto3_session: Optional[boto3.Se
     Examples
     --------
     >>> import awswrangler as wr
-    >>> wr.catalog.does_table_exist(database="default", name="my_table")
+    >>> wr.catalog.does_table_exist(database='default', name='my_table')
 
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
@@ -93,7 +93,7 @@ def create_parquet_table(
 ) -> None:
     """Create a Parquet Table (Metadata Only) in the AWS Glue Catalog.
 
-    https://docs.aws.amazon.com/athena/latest/ug/data-types.html
+    'https://docs.aws.amazon.com/athena/latest/ug/data-types.html'
 
     Parameters
     ----------
@@ -104,9 +104,9 @@ def create_parquet_table(
     path : str
         Amazon S3 path (e.g. s3://bucket/prefix/).
     columns_types: Dict[str, str]
-        Dictionary with keys as column names and vales as data types (e.g. {"col0": "bigint", "col1": "double"}).
+        Dictionary with keys as column names and vales as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
     partitions_types: Dict[str, str], optional
-        Dictionary with keys as partition names and values as data types (e.g. {"col2": "date"}).
+        Dictionary with keys as partition names and values as data types (e.g. {'col2': 'date'}).
     compression: str, optional
         Compression style (``None``, ``snappy``, ``gzip``, etc).
     description: str, optional
@@ -114,9 +114,9 @@ def create_parquet_table(
     parameters: Dict[str, str], optional
         Key/value pairs to tag the table.
     columns_comments: Dict[str, str], optional
-        Columns names and the related comments (e.g. {"col0": "Column 0.", "col1": "Column 1.", "col2": "Partition."}).
+        Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
     mode: str
-        Only "overwrite" available by now.
+        Only 'overwrite' available by now.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -129,15 +129,15 @@ def create_parquet_table(
     --------
     >>> import awswrangler as wr
     >>> wr.catalog.create_parquet_table(
-    ...     database="default",
-    ...     table="my_table",
-    ...     path="s3://bucket/prefix/",
-    ...     columns_types={"col0": "bigint", "col1": "double"},
-    ...     partitions_types={"col2": "date"},
-    ...     compression="snappy",
-    ...     description="My own table!",
-    ...     parameters={"source": "postgresql"},
-    ...     columns_comments={"col0": "Column 0.", "col1": "Column 1.", "col2": "Partition."}
+    ...     database='default',
+    ...     table='my_table',
+    ...     path='s3://bucket/prefix/',
+    ...     columns_types={'col0': 'bigint', 'col1': 'double'},
+    ...     partitions_types={'col2': 'date'},
+    ...     compression='snappy',
+    ...     description='My own table!',
+    ...     parameters={'source': 'postgresql'},
+    ...     columns_comments={'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}
     ... )
 
     """
@@ -215,7 +215,7 @@ def add_parquet_partitions(
         Table name.
     partitions_values: Dict[str, List[str]]
         Dictionary with keys as S3 path locations and values as a list of partitions values as str
-        (e.g. {"s3://bucket/prefix/y=2020/m=10/": ["2020", "10"]}).
+        (e.g. {'s3://bucket/prefix/y=2020/m=10/': ['2020', '10']}).
     compression: str, optional
         Compression style (``None``, ``snappy``, ``gzip``, etc).
     boto3_session : boto3.Session(), optional
@@ -230,12 +230,12 @@ def add_parquet_partitions(
     --------
     >>> import awswrangler as wr
     >>> wr.catalog.add_parquet_partitions(
-    ...     database="default",
-    ...     table="my_table",
+    ...     database='default',
+    ...     table='my_table',
     ...     partitions_values={
-    ...         "s3://bucket/prefix/y=2020/m=10/": ["2020", "10"],
-    ...         "s3://bucket/prefix/y=2020/m=11/": ["2020", "11"],
-    ...         "s3://bucket/prefix/y=2020/m=12/": ["2020", "12"]
+    ...         's3://bucket/prefix/y=2020/m=10/': ['2020', '10'],
+    ...         's3://bucket/prefix/y=2020/m=11/': ['2020', '11'],
+    ...         's3://bucket/prefix/y=2020/m=12/': ['2020', '12']
     ...     }
     ... )
 
@@ -284,7 +284,7 @@ def get_parquet_partitions(
     -------
     Dict[str, List[str]]
         partitions_values: Dictionary with keys as S3 path locations and values as a
-        list of partitions values as str (e.g. {"s3://bucket/prefix/y=2020/m=10/": ["2020", "10"]}).
+        list of partitions values as str (e.g. {'s3://bucket/prefix/y=2020/m=10/': ['2020', '10']}).
 
     Examples
     --------
@@ -292,25 +292,25 @@ def get_parquet_partitions(
 
     >>> import awswrangler as wr
     >>> wr.catalog.get_parquet_partitions(
-    ...     database="default",
-    ...     table="my_table",
+    ...     database='default',
+    ...     table='my_table',
     ... )
     {
-        "s3://bucket/prefix/y=2020/m=10/": ["2020", "10"],
-        "s3://bucket/prefix/y=2020/m=11/": ["2020", "11"],
-        "s3://bucket/prefix/y=2020/m=12/": ["2020", "12"]
+        's3://bucket/prefix/y=2020/m=10/': ['2020', '10'],
+        's3://bucket/prefix/y=2020/m=11/': ['2020', '11'],
+        's3://bucket/prefix/y=2020/m=12/': ['2020', '12']
     }
 
     Filtering partitions
 
     >>> import awswrangler as wr
     >>> wr.catalog.get_parquet_partitions(
-    ...     database="default",
-    ...     table="my_table",
-    ...     expression="m=10"
+    ...     database='default',
+    ...     table='my_table',
+    ...     expression='m=10'
     ... )
     {
-        "s3://bucket/prefix/y=2020/m=10/": ["2020", "10"]
+        's3://bucket/prefix/y=2020/m=10/': ['2020', '10']
     }
 
     """
@@ -368,13 +368,13 @@ def get_table_types(database: str, table: str, boto3_session: Optional[boto3.Ses
     Returns
     -------
     Dict[str, str]
-        A dictionary as {"col name": "col data type"}.
+        A dictionary as {'col name': 'col data type'}.
 
     Examples
     --------
     >>> import awswrangler as wr
-    >>> wr.catalog.get_table_types(database="default", name="my_table")
-    {"col0": "int", "col1": "double}
+    >>> wr.catalog.get_table_types(database='default', name='my_table')
+    {'col0': 'int', 'col1': double}
 
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
@@ -623,7 +623,7 @@ def search_tables(text: str, catalog_id: Optional[str] = None, boto3_session: Op
     Examples
     --------
     >>> import awswrangler as wr
-    >>> df_tables = wr.catalog.search_tables(text="my_property")
+    >>> df_tables = wr.catalog.search_tables(text='my_property')
 
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
@@ -660,8 +660,8 @@ def get_table_location(database: str, table: str, boto3_session: Optional[boto3.
     Examples
     --------
     >>> import awswrangler as wr
-    >>> wr.catalog.get_table_location(database="default", name="my_table")
-    "s3://bucket/prefix/"
+    >>> wr.catalog.get_table_location(database='default', name='my_table')
+    's3://bucket/prefix/'
 
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
@@ -697,7 +697,7 @@ def table(
     Examples
     --------
     >>> import awswrangler as wr
-    >>> df_table = wr.catalog.table(database="default", name="my_table")
+    >>> df_table = wr.catalog.table(database='default', name='my_table')
 
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)

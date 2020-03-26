@@ -5,12 +5,14 @@ import logging
 import time
 import uuid
 from itertools import repeat
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Generator, List, Optional, Tuple, Union
 
 import boto3  # type: ignore
 import botocore.exceptions  # type: ignore
 import pandas as pd  # type: ignore
+import pandas.io.parsers  # type: ignore
 import pyarrow as pa  # type: ignore
+import pyarrow.lib  # type: ignore
 import pyarrow.parquet  # type: ignore
 import s3fs  # type: ignore
 
@@ -34,20 +36,20 @@ def get_bucket_region(bucket: str, boto3_session: Optional[boto3.Session] = None
     Returns
     -------
     str
-        Region code (e.g. "us-east-1").
+        Region code (e.g. 'us-east-1').
 
     Examples
     --------
     Using the default boto3 session
 
     >>> import awswrangler as wr
-    >>> region = wr.s3.get_bucket_region("bucket-name")
+    >>> region = wr.s3.get_bucket_region('bucket-name')
 
     Using a custom boto3 session
 
     >>> import boto3
     >>> import awswrangler as wr
-    >>> region = wr.s3.get_bucket_region("bucket-name", boto3_session=boto3.Session())
+    >>> region = wr.s3.get_bucket_region('bucket-name', boto3_session=boto3.Session())
 
     """
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
@@ -78,18 +80,18 @@ def does_object_exist(path: str, boto3_session: Optional[boto3.Session] = None) 
     Using the default boto3 session
 
     >>> import awswrangler as wr
-    >>> wr.s3.does_object_exist("s3://bucket/key_real")
+    >>> wr.s3.does_object_exist('s3://bucket/key_real')
     True
-    >>> wr.s3.does_object_exist("s3://bucket/key_unreal")
+    >>> wr.s3.does_object_exist('s3://bucket/key_unreal')
     False
 
     Using a custom boto3 session
 
     >>> import boto3
     >>> import awswrangler as wr
-    >>> wr.s3.does_object_exist("s3://bucket/key_real", boto3_session=boto3.Session())
+    >>> wr.s3.does_object_exist('s3://bucket/key_real', boto3_session=boto3.Session())
     True
-    >>> wr.s3.does_object_exist("s3://bucket/key_unreal", boto3_session=boto3.Session())
+    >>> wr.s3.does_object_exist('s3://bucket/key_unreal', boto3_session=boto3.Session())
     False
 
     """
@@ -126,15 +128,15 @@ def list_objects(path: str, boto3_session: Optional[boto3.Session] = None) -> Li
     Using the default boto3 session
 
     >>> import awswrangler as wr
-    >>> wr.s3.list_objects("s3://bucket/prefix")
-    ["s3://bucket/prefix0", "s3://bucket/prefix1", "s3://bucket/prefix2"]
+    >>> wr.s3.list_objects('s3://bucket/prefix')
+    ['s3://bucket/prefix0', 's3://bucket/prefix1', 's3://bucket/prefix2']
 
     Using a custom boto3 session
 
     >>> import boto3
     >>> import awswrangler as wr
-    >>> wr.s3.list_objects("s3://bucket/prefix", boto3_session=boto3.Session())
-    ["s3://bucket/prefix0", "s3://bucket/prefix1", "s3://bucket/prefix2"]
+    >>> wr.s3.list_objects('s3://bucket/prefix', boto3_session=boto3.Session())
+    ['s3://bucket/prefix0', 's3://bucket/prefix1', 's3://bucket/prefix2']
 
     """
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
@@ -171,7 +173,7 @@ def delete_objects(
 
     Note
     ----
-    In case of ``use_threads=True`` the number of process that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of process that will be spawned will be get from os.cpu_count().
 
     Parameters
     ----------
@@ -191,8 +193,8 @@ def delete_objects(
     Examples
     --------
     >>> import awswrangler as wr
-    >>> wr.s3.delete_objects(["s3://bucket/key0", "s3://bucket/key1"])  # Delete both objects
-    >>> wr.s3.delete_objects("s3://bucket/prefix")  # Delete all objects under the received prefix
+    >>> wr.s3.delete_objects(['s3://bucket/key0', 's3://bucket/key1'])  # Delete both objects
+    >>> wr.s3.delete_objects('s3://bucket/prefix')  # Delete all objects under the received prefix
 
     """
     paths: List[str] = _path2list(path=path, boto3_session=boto3_session)
@@ -243,7 +245,7 @@ def describe_objects(
 
     Note
     ----
-    In case of ``use_threads=True`` the number of process that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of process that will be spawned will be get from os.cpu_count().
 
     Parameters
     ----------
@@ -269,9 +271,9 @@ def describe_objects(
     Examples
     --------
     >>> import awswrangler as wr
-    >>> descs0 = wr.s3.describe_objects(["s3://bucket/key0", "s3://bucket/key1"])  # Describe both objects
-    >>> descs1 = wr.s3.describe_objects("s3://bucket/prefix")  # Describe all objects under the prefix
-    >>> descs2 = wr.s3.describe_objects("s3://bucket/prefix", wait_time=30)  # Overcoming eventual consistence issues
+    >>> descs0 = wr.s3.describe_objects(['s3://bucket/key0', 's3://bucket/key1'])  # Describe both objects
+    >>> descs1 = wr.s3.describe_objects('s3://bucket/prefix')  # Describe all objects under the prefix
+    >>> descs2 = wr.s3.describe_objects('s3://bucket/prefix', wait_time=30)  # Overcoming eventual consistence issues
 
     """
     paths: List[str] = _path2list(path=path, boto3_session=boto3_session)
@@ -323,7 +325,7 @@ def size_objects(
 
     Note
     ----
-    In case of ``use_threads=True`` the number of process that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of process that will be spawned will be get from os.cpu_count().
 
     Parameters
     ----------
@@ -347,9 +349,9 @@ def size_objects(
     Examples
     --------
     >>> import awswrangler as wr
-    >>> sizes0 = wr.s3.size_objects(["s3://bucket/key0", "s3://bucket/key1"])  # Get the sizes of both objects
-    >>> sizes1 = wr.s3.size_objects("s3://bucket/prefix")  # Get the sizes of all objects under the received prefix
-    >>> sizes2 = wr.s3.size_objects("s3://bucket/prefix", wait_time=30)  # Overcoming eventual consistence issues
+    >>> sizes0 = wr.s3.size_objects(['s3://bucket/key0', 's3://bucket/key1'])  # Get the sizes of both objects
+    >>> sizes1 = wr.s3.size_objects('s3://bucket/prefix')  # Get the sizes of all objects under the received prefix
+    >>> sizes2 = wr.s3.size_objects('s3://bucket/prefix', wait_time=30)  # Overcoming eventual consistence issues
 
     """
     desc_list: Dict[str, Dict[str, Any]] = describe_objects(
@@ -386,8 +388,8 @@ def to_csv(df: pd.DataFrame, path: str, boto3_session: Optional[boto3.Session] =
     >>> import awswrangler as wr
     >>> import pandas as pd
     >>> wr.s3.to_csv(
-    ...     df=pd.DataFrame({"col": [1, 2, 3]}),
-    ...     path="s3://bucket/filename.csv",
+    ...     df=pd.DataFrame({'col': [1, 2, 3]}),
+    ...     path='s3://bucket/filename.csv',
     ... )
 
     """
@@ -419,7 +421,7 @@ def to_parquet(
 
     Note
     ----
-    In case of ``use_threads=True`` the number of process that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of process that will be spawned will be get from os.cpu_count().
 
     Parameters
     ----------
@@ -454,14 +456,14 @@ def to_parquet(
         Glue/Athena catalog: Key/value pairs to tag the table.
     columns_comments: Dict[str, str], optional
         Glue/Athena catalog:
-        Columns names and the related comments (e.g. {"col0": "Column 0.", "col1": "Column 1.", "col2": "Partition."}).
+        Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
 
     Returns
     -------
     Dict[str, Union[List[str],Dict[str, List[str]]]]
         Dictionary with:
-        "paths": List of all stored files paths on S3.
-        "partitions_values": Dictionary of partitions added with keys as S3 path locations
+        'paths': List of all stored files paths on S3.
+        'partitions_values': Dictionary of partitions added with keys as S3 path locations
         and values as a list of partitions values as str.
 
     Examples
@@ -471,12 +473,12 @@ def to_parquet(
     >>> import awswrangler as wr
     >>> import pandas as pd
     >>> wr.s3.to_parquet(
-    ...     df=pd.DataFrame({"col": [1, 2, 3]}),
-    ...     path="s3://bucket/prefix/my_file.parquet",
+    ...     df=pd.DataFrame({'col': [1, 2, 3]}),
+    ...     path='s3://bucket/prefix/my_file.parquet',
     ... )
     {
-        "paths": ["s3://bucket/prefix/my_file.parquet"],
-        "partitions_values": {}
+        'paths': ['s3://bucket/prefix/my_file.parquet'],
+        'partitions_values': {}
     }
 
     Writing partitioned dataset
@@ -485,18 +487,18 @@ def to_parquet(
     >>> import pandas as pd
     >>> wr.s3.to_parquet(
     ...     df=pd.DataFrame({
-    ...         "col": [1, 2, 3],
-    ...         "col2": ["A", "A", "B"]
+    ...         'col': [1, 2, 3],
+    ...         'col2': ['A', 'A', 'B']
     ...     }),
-    ...     path="s3://bucket/prefix",
+    ...     path='s3://bucket/prefix',
     ...     dataset=True,
-    ...     partition_cols=["col2"]
+    ...     partition_cols=['col2']
     ... )
     {
-        "paths": ["s3://.../col2=A/x.parquet", "s3://.../col2=B/y.parquet"],
-        "partitions_values: {
-            "s3://.../col2=A/": ["A"],
-            "s3://.../col2=B/": ["B"]
+        'paths': ['s3://.../col2=A/x.parquet', 's3://.../col2=B/y.parquet'],
+        'partitions_values: {
+            's3://.../col2=A/': ['A'],
+            's3://.../col2=B/': ['B']
         }
     }
 
@@ -506,20 +508,20 @@ def to_parquet(
     >>> import pandas as pd
     >>> wr.s3.to_parquet(
     ...     df=pd.DataFrame({
-    ...         "col": [1, 2, 3],
-    ...         "col2": ["A", "A", "B"]
+    ...         'col': [1, 2, 3],
+    ...         'col2': ['A', 'A', 'B']
     ...     }),
-    ...     path="s3://bucket/prefix",
+    ...     path='s3://bucket/prefix',
     ...     dataset=True,
-    ...     partition_cols=["col2"],
-    ...     database="default",  # Athena/Glue database
-    ...     table="my_table"  # Athena/Glue table
+    ...     partition_cols=['col2'],
+    ...     database='default',  # Athena/Glue database
+    ...     table='my_table'  # Athena/Glue table
     ... )
     {
-        "paths": ["s3://.../col2=A/x.parquet", "s3://.../col2=B/y.parquet"],
-        "partitions_values: {
-            "s3://.../col2=A/": ["A"],
-            "s3://.../col2=B/": ["B"]
+        'paths': ['s3://.../col2=A/x.parquet', 's3://.../col2=B/y.parquet'],
+        'partitions_values: {
+            's3://.../col2=A/': ['A'],
+            's3://.../col2=B/': ['B']
         }
     }
 
@@ -665,13 +667,18 @@ def read_csv(
     path: Union[str, List[str]],
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
+    chunksize: Optional[int] = None,
     **pandas_kwargs,
-) -> pd.DataFrame:
+) -> Union[pd.DataFrame, Generator[pd.DataFrame, None, None]]:
     """Read CSV file(s) from from a received S3 prefix or list of S3 objects paths.
 
     Note
     ----
-    In case of ``use_threads=True`` the number of process that will be spawned will be get from os.cpu_count().
+    For partial and gradual reading use the argument ``chunksize`` instead of ``iterator``.
+
+    Note
+    ----
+    In case of `use_threads=True` the number of process that will be spawned will be get from os.cpu_count().
 
     Parameters
     ----------
@@ -682,29 +689,45 @@ def read_csv(
         If enabled os.cpu_count() will be used as the max number of threads.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    chunksize: int, optional
+        If specified, return an generator where chunksize is the number of rows to include in each chunk.
     pandas_kwargs:
         keyword arguments forwarded to pandas.read_csv().
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
 
     Returns
     -------
-    pandas.DataFrame
-        Pandas DataFrame.
+    Union[pandas.DataFrame, Generator[pandas.DataFrame, None, None]]
+        Pandas DataFrame or a Generator in case of `chunksize != None`.
 
     Examples
     --------
     Reading all CSV files under a prefix
 
     >>> import awswrangler as wr
-    >>> df = wr.s3.read_csv(path="s3://bucket/prefix/")
+    >>> df = wr.s3.read_csv(path='s3://bucket/prefix/')
 
     Reading all CSV files from a list
 
     >>> import awswrangler as wr
-    >>> df = wr.s3.read_csv(path=["s3://bucket/filename0.csv", "s3://bucket/filename1.csv"])
+    >>> df = wr.s3.read_csv(path=['s3://bucket/filename0.csv', 's3://bucket/filename1.csv'])
+
+    Reading in chunks of 100 lines
+
+    >>> import awswrangler as wr
+    >>> dfs = wr.s3.read_csv(path=['s3://bucket/filename0.csv', 's3://bucket/filename1.csv'], chunksize=100)
+    >>> for df in dfs:
+    >>>     print(df)  # 100 lines Pandas DataFrame
 
     """
+    if "iterator" in pandas_kwargs:
+        raise exceptions.InvalidArgument("Please, use chunksize instead of iterator.")
     paths: List[str] = _path2list(path=path, boto3_session=boto3_session)
+    if chunksize is not None:
+        dfs: Generator[pd.DataFrame, None, None] = _read_csv_chunksize(
+            paths=paths, boto3_session=boto3_session, chunksize=chunksize, pandas_args=pandas_kwargs
+        )
+        return dfs
     if use_threads is False:
         df: pd.DataFrame = pd.concat(
             objs=[_read_csv(path=p, boto3_session=boto3_session, pandas_args=pandas_kwargs) for p in paths],
@@ -722,7 +745,20 @@ def read_csv(
     return df
 
 
-def _read_csv(path: str, boto3_session: boto3.Session, pandas_args) -> pd.DataFrame:
+def _read_csv_chunksize(
+    paths: List[str], boto3_session: boto3.Session, chunksize: int, pandas_args: Dict[str, Any]
+) -> Generator[pd.DataFrame, None, None]:
+    fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session)
+    for path in paths:
+        with fs.open(path, "r") as f:
+            reader: pandas.io.parsers.TextFileReader = pd.read_csv(
+                filepath_or_buffer=f, chunksize=chunksize, **pandas_args
+            )
+            for df in reader:
+                yield df
+
+
+def _read_csv(path: str, boto3_session: boto3.Session, pandas_args: Dict[str, Any]) -> pd.DataFrame:
     fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session)
     with fs.open(path, "r") as f:
         return pd.read_csv(filepath_or_buffer=f, **pandas_args)
@@ -754,10 +790,11 @@ def read_parquet(
     path: Union[str, List[str]],
     filters: Optional[Union[List[Tuple], List[List[Tuple]]]] = None,
     columns: Optional[List[str]] = None,
+    chunked: bool = False,
     dataset: bool = False,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
-) -> pd.DataFrame:
+) -> Union[pd.DataFrame, Generator[pd.DataFrame, None, None]]:
     """Read Apache Parquet file(s) from from a received S3 prefix or list of S3 objects paths.
 
     The concept of Dataset goes beyond the simple idea of files and enable more
@@ -765,7 +802,7 @@ def read_parquet(
 
     Note
     ----
-    In case of ``use_threads=True`` the number of process that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of process that will be spawned will be get from os.cpu_count().
 
     Parameters
     ----------
@@ -773,8 +810,11 @@ def read_parquet(
         S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
     filters: Union[List[Tuple], List[List[Tuple]]], optional
         List of filters to apply, like ``[[('x', '=', 0), ...], ...]``.
-    columns: List[str], optional
+    columns : List[str], optional
         Names of columns to read from the file(s)
+    chunked : bool
+        If True will break the data in smaller DataFrames (Non deterministic number of lines).
+        Otherwise return a single DataFrame with the whole data.
     dataset: bool
         If True read a parquet dataset instead of simple file(s) loading all the related partitions as columns.
     use_threads : bool
@@ -785,26 +825,60 @@ def read_parquet(
 
     Returns
     -------
-    pandas.DataFrame
-        Pandas DataFrame.
+    Union[pandas.DataFrame, Generator[pandas.DataFrame, None, None]]
+        Pandas DataFrame or a Generator in case of `chunked=True`.
 
     Examples
     --------
     Reading all Parquet files under a prefix
 
     >>> import awswrangler as wr
-    >>> df = wr.s3.read_parquet(path="s3://bucket/prefix/")
+    >>> df = wr.s3.read_parquet(path='s3://bucket/prefix/')
 
     Reading all Parquet files from a list
 
     >>> import awswrangler as wr
-    >>> df = wr.s3.read_parquet(path=["s3://bucket/filename0.parquet", "s3://bucket/filename1.parquet"])
+    >>> df = wr.s3.read_parquet(path=['s3://bucket/filename0.parquet', 's3://bucket/filename1.parquet'])
+
+    Reading in chunks
+
+    >>> import awswrangler as wr
+    >>> dfs = wr.s3.read_parquet(path=['s3://bucket/filename0.csv', 's3://bucket/filename1.csv'], chunked=True)
+    >>> for df in dfs:
+    >>>     print(df)  # Smaller Pandas DataFrame
 
     """
     data: pyarrow.parquet.ParquetDataset = _read_parquet_init(
         path=path, filters=filters, dataset=dataset, use_threads=use_threads, boto3_session=boto3_session
     )
-    return data.read(columns=columns, use_threads=use_threads, use_pandas_metadata=True).to_pandas(
+    common_metadata = data.common_metadata
+    common_metadata = None if common_metadata is None else common_metadata.metadata.get(b"pandas", None)
+    if chunked is False:
+        return _read_parquet(data=data, columns=columns, use_threads=use_threads, common_metadata=common_metadata)
+    return _read_parquet_chunked(data=data, columns=columns, use_threads=use_threads, common_metadata=common_metadata)
+
+
+def _read_parquet(
+    data: pyarrow.parquet.ParquetDataset,
+    columns: Optional[List[str]] = None,
+    use_threads: bool = True,
+    common_metadata: Any = None,
+) -> pd.DataFrame:
+    # Data
+    tables: List[pa.Table] = []
+    for piece in data.pieces:
+        table: pa.Table = piece.read(
+            columns=columns, use_threads=use_threads, partitions=data.partitions, use_pandas_metadata=True
+        )
+        tables.append(table)
+    table = pa.lib.concat_tables(tables)
+
+    # Metadata
+    current_metadata = table.schema.metadata or {}
+    if common_metadata and b"pandas" not in current_metadata:
+        table = table.replace_schema_metadata({b"pandas": common_metadata})
+
+    return table.to_pandas(
         use_threads=use_threads,
         split_blocks=True,
         self_destruct=True,
@@ -812,6 +886,29 @@ def read_parquet(
         date_as_object=True,
         types_mapper=_data_types.pyarrow2pandas_extension,
     )
+
+
+def _read_parquet_chunked(
+    data: pyarrow.parquet.ParquetDataset,
+    columns: Optional[List[str]] = None,
+    use_threads: bool = True,
+    common_metadata: Any = None,
+) -> Generator[pd.DataFrame, None, None]:
+    for piece in data.pieces:
+        table: pa.Table = piece.read(
+            columns=columns, use_threads=use_threads, partitions=data.partitions, use_pandas_metadata=True
+        )
+        current_metadata = table.schema.metadata or {}
+        if common_metadata and b"pandas" not in current_metadata:
+            table = table.replace_schema_metadata({b"pandas": common_metadata})
+        yield table.to_pandas(
+            use_threads=use_threads,
+            split_blocks=True,
+            self_destruct=True,
+            integer_object_nulls=False,
+            date_as_object=True,
+            types_mapper=_data_types.pyarrow2pandas_extension,
+        )
 
 
 def read_parquet_metadata(
@@ -828,7 +925,7 @@ def read_parquet_metadata(
 
     Note
     ----
-    In case of ``use_threads=True`` the number of process that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of process that will be spawned will be get from os.cpu_count().
 
     Parameters
     ----------
@@ -848,23 +945,23 @@ def read_parquet_metadata(
     -------
     Tuple[Dict[str, str], Optional[Dict[str, str]]]
         columns_types: Dictionary with keys as column names and vales as
-        data types (e.g. {"col0": "bigint", "col1": "double"}). /
+        data types (e.g. {'col0': 'bigint', 'col1': 'double'}). /
         partitions_types: Dictionary with keys as partition names
-        and values as data types (e.g. {"col2": "date"}).
+        and values as data types (e.g. {'col2': 'date'}).
 
     Examples
     --------
     Reading all Parquet files (with partitions) metadata under a prefix
 
     >>> import awswrangler as wr
-    >>> columns_types, partitions_types = wr.s3.read_parquet_metadata(path="s3://bucket/prefix/", dataset=True)
+    >>> columns_types, partitions_types = wr.s3.read_parquet_metadata(path='s3://bucket/prefix/', dataset=True)
 
     Reading all Parquet files metadata from a list
 
     >>> import awswrangler as wr
     >>> columns_types, partitions_types = wr.s3.read_parquet_metadata(path=[
-    ...     "s3://bucket/filename0.parquet",
-    ...     "s3://bucket/filename1.parquet"
+    ...     's3://bucket/filename0.parquet',
+    ...     's3://bucket/filename1.parquet'
     ... ])
 
     """
@@ -893,14 +990,14 @@ def store_parquet_metadata(
 
     Infer Apache Parquet file(s) metadata from from a received S3 prefix or list of S3 objects paths
     And then stores it on AWS Glue Catalog including all inferred partitions
-    (No need of "MCSK REPAIR TABLE")
+    (No need of 'MCSK REPAIR TABLE')
 
     The concept of Dataset goes beyond the simple idea of files and enable more
     complex features like partitioning and catalog integration (AWS Glue Catalog).
 
     Note
     ----
-    In case of ``use_threads=True`` the number of process that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of process that will be spawned will be get from os.cpu_count().
 
     Parameters
     ----------
@@ -923,7 +1020,7 @@ def store_parquet_metadata(
         Glue/Athena catalog: Key/value pairs to tag the table.
     columns_comments: Dict[str, str], optional
         Glue/Athena catalog:
-        Columns names and the related comments (e.g. {"col0": "Column 0.", "col1": "Column 1.", "col2": "Partition."}).
+        Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
     compression: str, optional
         Compression style (``None``, ``snappy``, ``gzip``, etc).
     boto3_session : boto3.Session(), optional
@@ -934,11 +1031,11 @@ def store_parquet_metadata(
     Tuple[Dict[str, str], Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]
         The metadata used to create the Glue Table.
         columns_types: Dictionary with keys as column names and vales as
-        data types (e.g. {"col0": "bigint", "col1": "double"}). /
+        data types (e.g. {'col0': 'bigint', 'col1': 'double'}). /
         partitions_types: Dictionary with keys as partition names
-        and values as data types (e.g. {"col2": "date"}). /
+        and values as data types (e.g. {'col2': 'date'}). /
         partitions_values: Dictionary with keys as S3 path locations and values as a
-        list of partitions values as str (e.g. {"s3://bucket/prefix/y=2020/m=10/": ["2020", "10"]}).
+        list of partitions values as str (e.g. {'s3://bucket/prefix/y=2020/m=10/': ['2020', '10']}).
 
     Examples
     --------
@@ -946,9 +1043,9 @@ def store_parquet_metadata(
 
     >>> import awswrangler as wr
     >>> columns_types, partitions_types, partitions_values = wr.s3.store_parquet_metadata(
-    ...     path="s3://bucket/prefix/",
-    ...     database="...",
-    ...     table="...",
+    ...     path='s3://bucket/prefix/',
+    ...     database='...',
+    ...     table='...',
     ...     dataset=True
     ... )
 
@@ -985,7 +1082,7 @@ def store_parquet_metadata(
     return columns_types, partitions_types, partitions_values
 
 
-def wait_objects(
+def wait_objects_exist(
     paths: List[str],
     delay: Optional[Union[int, float]] = None,
     max_attempts: Optional[int] = None,
@@ -1000,7 +1097,7 @@ def wait_objects(
 
     Note
     ----
-    In case of ``use_threads=True`` the number of process that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of process that will be spawned will be get from os.cpu_count().
 
     Parameters
     ----------
@@ -1024,9 +1121,79 @@ def wait_objects(
     Examples
     --------
     >>> import awswrangler as wr
-    >>> wr.s3.wait_objects(["s3://bucket/key0", "s3://bucket/key1"])  # wait both objects
+    >>> wr.s3.wait_objects_exist(['s3://bucket/key0', 's3://bucket/key1'])  # wait both objects
 
     """
+    return _wait_objects(
+        waiter_name="object_exists",
+        paths=paths,
+        delay=delay,
+        max_attempts=max_attempts,
+        use_threads=use_threads,
+        boto3_session=boto3_session,
+    )
+
+
+def wait_objects_not_exist(
+    paths: List[str],
+    delay: Optional[Union[int, float]] = None,
+    max_attempts: Optional[int] = None,
+    use_threads: bool = True,
+    boto3_session: Optional[boto3.Session] = None,
+) -> None:
+    """Wait Amazon S3 objects not exist.
+
+    Polls S3.Client.head_object() every 5 seconds (default) until a successful
+    state is reached. An error is returned after 20 (default) failed checks.
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Waiter.ObjectNotExists
+
+    Note
+    ----
+    In case of `use_threads=True` the number of process that will be spawned will be get from os.cpu_count().
+
+    Parameters
+    ----------
+    paths : List[str]
+        List of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+    delay : Union[int,float], optional
+        The amount of time in seconds to wait between attempts. Default: 5
+    max_attempts : int, optional
+        The maximum number of attempts to be made. Default: 20
+    use_threads : bool
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    None
+        None.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> wr.s3.wait_objects_not_exist(['s3://bucket/key0', 's3://bucket/key1'])  # wait both objects not exist
+
+    """
+    return _wait_objects(
+        waiter_name="object_not_exists",
+        paths=paths,
+        delay=delay,
+        max_attempts=max_attempts,
+        use_threads=use_threads,
+        boto3_session=boto3_session,
+    )
+
+
+def _wait_objects(
+    waiter_name: str,
+    paths: List[str],
+    delay: Optional[Union[int, float]] = None,
+    max_attempts: Optional[int] = None,
+    use_threads: bool = True,
+    boto3_session: Optional[boto3.Session] = None,
+) -> None:
     delay = 5 if delay is None else delay
     max_attempts = 20 if max_attempts is None else max_attempts
     _delay: int = int(delay) if isinstance(delay, float) else delay
@@ -1034,7 +1201,7 @@ def wait_objects(
     if len(paths) < 1:
         return None
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
-    waiter = client_s3.get_waiter("object_exists")
+    waiter = client_s3.get_waiter(waiter_name)
     _paths: List[Tuple[str, str]] = [_utils.parse_path(path=p) for p in paths]
     if use_threads is False:
         for bucket, key in _paths:

@@ -6,7 +6,7 @@ import re
 import time
 import unicodedata
 from decimal import Decimal
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Dict, Generator, List, Optional, Tuple, Union
 
 import boto3  # type: ignore
 import pandas as pd  # type: ignore
@@ -57,8 +57,8 @@ def normalize_column_name(column: str) -> str:
     Examples
     --------
     >>> import awswrangler as wr
-    >>> wr.athena.normalize_column_name("MyNewColumn")
-    "my_new_column"
+    >>> wr.athena.normalize_column_name('MyNewColumn')
+    'my_new_column'
 
     """
     return _normalize_name(name=column)
@@ -82,8 +82,8 @@ def normalize_table_name(table: str) -> str:
     Examples
     --------
     >>> import awswrangler as wr
-    >>> wr.athena.normalize_table_name("MyNewTable")
-    "my_new_table"
+    >>> wr.athena.normalize_table_name('MyNewTable')
+    'my_new_table'
 
     """
     return _normalize_name(name=table)
@@ -109,8 +109,8 @@ def get_query_columns_types(query_execution_id: str, boto3_session: Optional[bot
     Examples
     --------
     >>> import awswrangler as wr
-    >>> wr.athena.get_query_columns_types("query-execution-id")
-    {"col0": "int", "col1": "double"}
+    >>> wr.athena.get_query_columns_types('query-execution-id')
+    {'col0': 'int', 'col1': 'double'}
 
     """
     client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
@@ -136,7 +136,7 @@ def create_athena_bucket(boto3_session: Optional[boto3.Session] = None) -> str:
     --------
     >>> import awswrangler as wr
     >>> wr.athena.create_athena_bucket()
-    "s3://aws-athena-query-results-ACCOUNT-REGION/"
+    's3://aws-athena-query-results-ACCOUNT-REGION/'
 
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
@@ -189,7 +189,7 @@ def start_query_execution(
     Examples
     --------
     >>> import awswrangler as wr
-    >>> query_exec_id = wr.athena.start_query_execution(sql="...", database="...")
+    >>> query_exec_id = wr.athena.start_query_execution(sql='...', database='...')
 
     """
     args: Dict[str, Any] = {"QueryString": sql}
@@ -237,7 +237,7 @@ def wait_query(query_execution_id: str, boto3_session: Optional[boto3.Session] =
     Examples
     --------
     >>> import awswrangler as wr
-    >>> res = wr.athena.wait_query(query_execution_id="query-execution-id")
+    >>> res = wr.athena.wait_query(query_execution_id='query-execution-id')
 
     """
     final_states: List[str] = ["FAILED", "SUCCEEDED", "CANCELLED"]
@@ -266,7 +266,7 @@ def repair_table(
     kms_key: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
-    """Run the Hive's metastore consistency check: "MSCK REPAIR TABLE table;".
+    """Run the Hive's metastore consistency check: 'MSCK REPAIR TABLE table;'.
 
     Recovers partitions and data associated with partitions.
     Use this statement when you add partitions to the catalog.
@@ -304,7 +304,7 @@ def repair_table(
     Examples
     --------
     >>> import awswrangler as wr
-    >>> query_final_state = wr.athena.repair_table(table="...", database="...")
+    >>> query_final_state = wr.athena.repair_table(table='...', database='...')
 
     """
     query = f"MSCK REPAIR TABLE {table};"
@@ -372,8 +372,8 @@ def _get_query_metadata(
 
 
 def _fix_csv_types_generator(
-    dfs: Iterator[pd.DataFrame], parse_dates: List[str], binaries: List[str]
-) -> Iterator[pd.DataFrame]:
+    dfs: Generator[pd.DataFrame, None, None], parse_dates: List[str], binaries: List[str]
+) -> Generator[pd.DataFrame, None, None]:
     """Apply data types cast to a Pandas DataFrames Generator."""
     for df in dfs:
         yield _fix_csv_types(df=df, parse_dates=parse_dates, binaries=binaries)
@@ -400,29 +400,31 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
     kms_key: Optional[str] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> Union[pd.DataFrame, Generator[pd.DataFrame, None, None]]:
     """Execute any SQL query on AWS Athena and return the results as a Pandas DataFrame.
 
     There are two approaches to be defined through ctas_approach parameter:
 
     1 - `ctas_approach=True` (`Default`):
     Wrap the query with a CTAS and then reads the table data as parquet directly from s3.
-    PROS: Faster and has a better handle of nested types
-    CONS: Can't use chunksize and must have create and drop table permissions on Glue.
+    PROS: Faster and can handle some level of nested types
+    CONS: Requires create/delete table permissions on Glue
+    (A temporary table will be created and then deleted immediately).
 
     2 - `ctas_approach False`:
     Does a regular query on Athena and parse the regular CSV result on s3.
-    PROS: Accepts chunksize argument.
-    CONS: Slower (But stills faster than other libraries that uses the Athena API)
-    and does not handle nested types so well
+    PROS: Does not require create/delete table permissions on Glue.
+    CONS: Slower (But stills faster than other libraries that uses the regular Athena API)
+    and does not handle nested types at all
 
     Note
     ----
-    If ctas_approach is False and chunksize is passed, then a iterator of DataFrames is returned.
+    If `chunksize` is passed, then a Generator of DataFrames is returned.
 
     Note
     ----
-    If ctas_approach is True, chunksize will be ignored.
+    If `ctas_approach` is True, `chunksize` will return non deterministic chunks sizes,
+    but it still useful to overcome memory limitation.
 
     Note
     ----
@@ -431,7 +433,7 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
 
     Note
     ----
-    In case of ``use_threads=True`` the number of process that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of process that will be spawned will be get from os.cpu_count().
 
     Parameters
     ----------
@@ -443,7 +445,7 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
         Wraps the query using a CTAS, and read the resulted parquet data on S3.
         If false, read the regular CSV on S3.
     chunksize: int, optional
-        If specified, return an iterator where chunksize is the number of rows to include in each chunk.
+        If specified, return an generator where chunksize is the number of rows to include in each chunk.
     s3_output : str, optional
         AWS S3 path.
     workgroup : str, optional
@@ -460,13 +462,13 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
 
     Returns
     -------
-    Union[pd.DataFrame, Iterator[pd.DataFrame]]
-        Pandas DataFrame or Iterator of Pandas DataFrames if chunksize is passed.
+    Union[pd.DataFrame, Generator[pd.DataFrame, None, None]]
+        Pandas DataFrame or Generator of Pandas DataFrames if chunksize is passed.
 
     Examples
     --------
     >>> import awswrangler as wr
-    >>> df = wr.athena.read_sql_query(sql="...", database="...")
+    >>> df = wr.athena.read_sql_query(sql='...', database='...')
 
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
@@ -504,18 +506,23 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
         reason: str = query_response["QueryExecution"]["Status"]["StateChangeReason"]
         message_error: str = f"Query error: {reason}"
         raise exceptions.AthenaQueryError(message_error)
-    df: pd.DataFrame
+    dfs: Union[pd.DataFrame, Generator[pd.DataFrame, None, None]]
     if ctas_approach is True:
         catalog.delete_table_if_exists(database=database, table=name, boto3_session=session)
         manifest_path: str = f"{_s3_output}/tables/{query_id}-manifest.csv"
         paths: List[str] = _extract_ctas_manifest_paths(path=manifest_path, boto3_session=session)
+        chunked: bool = chunksize is not None
+        _logger.debug(f"chunked: {chunked}")
         if not paths:
-            df = pd.DataFrame()
+            if chunked is False:
+                dfs = pd.DataFrame()
+            else:
+                dfs = _utils.empty_generator()
         else:
-            s3.wait_objects(paths=paths, use_threads=use_threads, boto3_session=session)
-            df = s3.read_parquet(path=paths, use_threads=use_threads, boto3_session=session)
+            s3.wait_objects_exist(paths=paths, use_threads=use_threads, boto3_session=session)
+            dfs = s3.read_parquet(path=paths, use_threads=use_threads, boto3_session=session, chunked=chunked)
         s3.delete_objects(path=[manifest_path] + paths, use_threads=use_threads, boto3_session=session)
-        return df
+        return dfs
     dtype, parse_timestamps, parse_dates, converters, binaries = _get_query_metadata(
         query_execution_id=query_id, boto3_session=session
     )
