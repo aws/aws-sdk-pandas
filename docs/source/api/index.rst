@@ -61,4 +61,6 @@ Amazon Athena
     read_sql_query
     repair_table
     start_query_execution
+    stop_query_execution
     wait_query
+    get_work_group

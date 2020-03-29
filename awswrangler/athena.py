@@ -472,10 +472,15 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
 
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    wg_s3_output, _, _ = _ensure_workgroup(session=session, workgroup=workgroup)
     if s3_output is None:
-        _s3_output: str = create_athena_bucket(boto3_session=session)
+        if wg_s3_output is None:
+            _s3_output: str = create_athena_bucket(boto3_session=session)
+        else:
+            _s3_output = wg_s3_output
     else:
         _s3_output = s3_output
+
     name: str = ""
     if ctas_approach is True:
         name = f"temp_table_{pa.compat.guid()}"
@@ -570,3 +575,42 @@ def stop_query_execution(query_execution_id: str, boto3_session: Optional[boto3.
     """
     client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
     client_athena.stop_query_execution(QueryExecutionId=query_execution_id)
+
+
+def get_work_group(workgroup: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, Any]:
+    """Return information about the workgroup with the specified name.
+
+    Parameters
+    ----------
+    workgroup : str
+        Work Group name.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    Dict[str, Any]
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/athena.html#Athena.Client.get_work_group
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> res = wr.athena.get_work_group(workgroup='workgroup_name')
+
+    """
+    client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
+    return client_athena.get_work_group(WorkGroup=workgroup)
+
+
+def _ensure_workgroup(
+    session: boto3.Session, workgroup: Optional[str] = None
+) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    if workgroup:
+        res: Dict[str, Any] = get_work_group(workgroup=workgroup, boto3_session=session)
+        config: Dict[str, Any] = res["WorkGroup"]["Configuration"]["ResultConfiguration"]
+        wg_s3_output: Optional[str] = config.get("OutputLocation")
+        wg_encryption: Optional[str] = config["EncryptionConfiguration"].get("EncryptionOption")
+        wg_kms_key: Optional[str] = config["EncryptionConfiguration"].get("KmsKey")
+    else:
+        wg_s3_output, wg_encryption, wg_kms_key = None, None, None
+    return wg_s3_output, wg_encryption, wg_kms_key
