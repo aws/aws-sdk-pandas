@@ -3,6 +3,7 @@
 import copy
 import csv
 import multiprocessing as mp
+from multiprocessing.connection import Connection as MultiprocessingConnection
 from ast import literal_eval
 from datetime import date, datetime
 from decimal import Decimal
@@ -270,7 +271,7 @@ class Pandas:
         return dataframe
 
     @staticmethod
-    def _read_csv_once_remote(send_pipe: mp.connection.Connection, session_primitives: "SessionPrimitives",
+    def _read_csv_once_remote(send_pipe: MultiprocessingConnection, session_primitives: "SessionPrimitives",
                               bucket_name: str, key_path: str, **pd_additional_kwargs):
         df: pd.DataFrame = Pandas._read_csv_once(session_primitives=session_primitives,
                                                  bucket_name=bucket_name,
@@ -884,7 +885,7 @@ class Pandas:
         return dataframe
 
     @staticmethod
-    def _data_to_s3_dataset_writer_remote(send_pipe,
+    def _data_to_s3_dataset_writer_remote(send_pipe: MultiprocessingConnection,
                                           dataframe: pd.DataFrame,
                                           path: str,
                                           partition_cols,
@@ -1295,7 +1296,7 @@ class Pandas:
         return df
 
     @staticmethod
-    def _read_parquet_paths_remote(send_pipe: mp.connection.Connection,
+    def _read_parquet_paths_remote(send_pipe: MultiprocessingConnection,
                                    session_primitives: "SessionPrimitives",
                                    path: Union[str, List[str]],
                                    columns: Optional[List[str]] = None,
@@ -1781,7 +1782,7 @@ class Pandas:
         return dataframe
 
     @staticmethod
-    def _read_fwf_remote(send_pipe: mp.connection.Connection, session_primitives: "SessionPrimitives", bucket_name: str,
+    def _read_fwf_remote(send_pipe: MultiprocessingConnection, session_primitives: "SessionPrimitives", bucket_name: str,
                          key_path: str, **pd_additional_kwargs):
         df: pd.DataFrame = Pandas._read_fwf(session_primitives=session_primitives,
                                             bucket_name=bucket_name,
