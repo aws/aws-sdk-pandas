@@ -9,18 +9,20 @@ Amazon S3
 .. autosummary::
     :toctree: stubs
 
-    get_bucket_region
-    does_object_exist
-    list_objects
-    describe_objects
-    size_objects
     delete_objects
+    describe_objects
+    does_object_exist
+    get_bucket_region
+    list_objects
     read_csv
     read_parquet
     read_parquet_metadata
+    size_objects
     store_parquet_metadata
     to_csv
     to_parquet
+    wait_objects_exist
+    wait_objects_not_exist
 
 AWS Glue Catalog
 ----------------
@@ -30,19 +32,19 @@ AWS Glue Catalog
 .. autosummary::
     :toctree: stubs
 
+    add_parquet_partitions
+    create_parquet_table
+    databases
     delete_table_if_exists
     does_table_exist
-    create_parquet_table
-    add_parquet_partitions
-    get_parquet_partitions
-    get_table_types
     get_databases
-    databases
-    get_tables
-    tables
-    search_tables
+    get_parquet_partitions
     get_table_location
+    get_table_types
+    get_tables
+    search_tables
     table
+    tables
 
 Amazon Athena
 -------------
@@ -52,11 +54,11 @@ Amazon Athena
 .. autosummary::
     :toctree: stubs
 
-    read_sql_query
-    repair_table
-    wait_query
-    start_query_execution
-    normalize_column_name
-    normalize_table_name
     create_athena_bucket
     get_query_columns_types
+    normalize_column_name
+    normalize_table_name
+    read_sql_query
+    repair_table
+    start_query_execution
+    wait_query
