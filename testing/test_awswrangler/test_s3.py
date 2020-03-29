@@ -73,6 +73,15 @@ def database(cloudformation_outputs):
         wr.catalog.delete_table_if_exists(database=database, table=t)
 
 
+@pytest.fixture(scope="module")
+def kms_key(cloudformation_outputs):
+    if "KmsKeyArn" in cloudformation_outputs:
+        key = cloudformation_outputs["KmsKeyArn"]
+    else:
+        raise Exception("You must deploy the test infrastructure using Cloudformation!")
+    yield key
+
+
 def test_get_bucket_region(bucket, region):
     assert wr.s3.get_bucket_region(bucket=bucket) == region
     assert wr.s3.get_bucket_region(bucket=bucket, boto3_session=boto3.Session()) == region

@@ -543,3 +543,30 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
     if chunksize is None:
         return _fix_csv_types(df=ret, parse_dates=parse_dates, binaries=binaries)
     return _fix_csv_types_generator(dfs=ret, parse_dates=parse_dates, binaries=binaries)
+
+
+def stop_query_execution(query_execution_id: str, boto3_session: Optional[boto3.Session] = None) -> None:
+    """Stop a query execution.
+
+    Requires you to have access to the workgroup in which the query ran.
+
+    Parameters
+    ----------
+    query_execution_id : str
+        Athena query execution ID.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    None
+        None.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> wr.athena.stop_query_execution(query_execution_id='query-execution-id')
+
+    """
+    client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
+    client_athena.stop_query_execution(QueryExecutionId=query_execution_id)

@@ -78,10 +78,10 @@ def workgroup_secondary(bucket):
 @pytest.fixture(scope="module")
 def kms_key(cloudformation_outputs):
     if "KmsKeyArn" in cloudformation_outputs:
-        database = cloudformation_outputs["KmsKeyArn"]
+        key = cloudformation_outputs["KmsKeyArn"]
     else:
         raise Exception("You must deploy the test infrastructure using Cloudformation!")
-    yield database
+    yield key
 
 
 @pytest.fixture(scope="module")
@@ -234,7 +234,7 @@ def test_read_list(database):
 
 
 def test_query_cancelled(database):
-    client_athena = boto3.client("athena")
+    session = boto3.Session()
     query_execution_id = wr.athena.start_query_execution(
         sql="""
 SELECT
@@ -337,8 +337,9 @@ rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), 
 rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand()
         """,
         database=database,
+        boto3_session=session,
     )
-    client_athena.stop_query_execution(QueryExecutionId=query_execution_id)
+    wr.athena.stop_query_execution(query_execution_id=query_execution_id, boto3_session=session)
     with pytest.raises(exceptions.QueryCancelled):
         assert wr.athena.wait_query(query_execution_id=query_execution_id)
 

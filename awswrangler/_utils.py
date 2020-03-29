@@ -3,7 +3,7 @@
 import logging
 import math
 import os
-from typing import Any, Generator, List, Optional, Tuple
+from typing import Any, Dict, Generator, List, Optional, Tuple
 
 import boto3  # type: ignore
 import botocore.config  # type: ignore
@@ -123,7 +123,9 @@ def chunkify(lst: List[Any], num_chunks: int = 1, max_length: Optional[int] = No
     return [arr.tolist() for arr in np_chunks if len(arr) > 0]
 
 
-def get_fs(session: Optional[boto3.Session] = None) -> s3fs.S3FileSystem:
+def get_fs(
+    session: Optional[boto3.Session] = None, s3_additional_kwargs: Optional[Dict[str, str]] = None
+) -> s3fs.S3FileSystem:
     """Build a S3FileSystem from a given boto3 session."""
     return s3fs.S3FileSystem(
         anon=False,
@@ -133,6 +135,7 @@ def get_fs(session: Optional[boto3.Session] = None) -> s3fs.S3FileSystem:
         default_block_size=52_428_800,  # 50 MB (50 * 2**20)
         config_kwargs={"retries": {"mode": "adaptive", "max_attempts": 10}},
         session=ensure_session(session=session),
+        s3_additional_kwargs=s3_additional_kwargs,
     )
 
 

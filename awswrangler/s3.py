@@ -361,7 +361,13 @@ def size_objects(
     return size_list
 
 
-def to_csv(df: pd.DataFrame, path: str, boto3_session: Optional[boto3.Session] = None, **pd_kwargs) -> None:
+def to_csv(
+    df: pd.DataFrame,
+    path: str,
+    boto3_session: Optional[boto3.Session] = None,
+    s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    **pandas_kwargs,
+) -> None:
     """Write CSV file on Amazon S3.
 
     Parameters
@@ -372,7 +378,10 @@ def to_csv(df: pd.DataFrame, path: str, boto3_session: Optional[boto3.Session] =
         Amazon S3 path (e.g. s3://bucket/filename.csv).
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
-    pd_kwargs:
+    s3_additional_kwargs:
+        Forward to s3fs, useful for server side encryption
+        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
+    pandas_kwargs:
         keyword arguments forwarded to pandas.DataFrame.to_csv()
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_csv.html
 
@@ -383,7 +392,7 @@ def to_csv(df: pd.DataFrame, path: str, boto3_session: Optional[boto3.Session] =
 
     Examples
     --------
-    Writing single file with filename
+    Writing CSV file
 
     >>> import awswrangler as wr
     >>> import pandas as pd
@@ -392,10 +401,23 @@ def to_csv(df: pd.DataFrame, path: str, boto3_session: Optional[boto3.Session] =
     ...     path='s3://bucket/filename.csv',
     ... )
 
+    Writing CSV file encrypted with a KMS key
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.s3.to_csv(
+    ...     df=pd.DataFrame({'col': [1, 2, 3]}),
+    ...     path='s3://bucket/filename.csv',
+    ...     s3_additional_kwargs={
+    ...         "ServerSideEncryption": "aws:kms",
+    ...         "SSEKMSKeyId": "YOUR_KMY_KEY_ARN"
+    ...     }
+    ... )
+
     """
-    fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session)
+    fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
     with fs.open(path, "w") as f:
-        df.to_csv(path_or_buf=f, **pd_kwargs)
+        df.to_csv(path_or_buf=f, **pandas_kwargs)
 
 
 def to_parquet(
@@ -405,6 +427,7 @@ def to_parquet(
     compression: Optional[str] = "snappy",
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
+    s3_additional_kwargs: Optional[Dict[str, str]] = None,
     dataset: bool = False,
     partition_cols: Optional[List[str]] = None,
     mode: Optional[str] = None,
@@ -438,6 +461,9 @@ def to_parquet(
         If enabled os.cpu_count() will be used as the max number of threads.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    s3_additional_kwargs:
+        Forward to s3fs, useful for server side encryption
+        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
     dataset: bool
         If True store a parquet dataset instead of a single file.
         If True, enable all follow arguments:
@@ -475,6 +501,23 @@ def to_parquet(
     >>> wr.s3.to_parquet(
     ...     df=pd.DataFrame({'col': [1, 2, 3]}),
     ...     path='s3://bucket/prefix/my_file.parquet',
+    ... )
+    {
+        'paths': ['s3://bucket/prefix/my_file.parquet'],
+        'partitions_values': {}
+    }
+
+    Writing single file encrypted with a KMS key
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.s3.to_parquet(
+    ...     df=pd.DataFrame({'col': [1, 2, 3]}),
+    ...     path='s3://bucket/prefix/my_file.parquet',
+    ...     s3_additional_kwargs={
+    ...         "ServerSideEncryption": "aws:kms",
+    ...         "SSEKMSKeyId": "YOUR_KMY_KEY_ARN"
+    ...     }
     ... )
     {
         'paths': ['s3://bucket/prefix/my_file.parquet'],
@@ -528,7 +571,7 @@ def to_parquet(
     """
     partitions_values: Dict[str, List[str]] = {}
     cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
-    fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session)
+    fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
     compression_ext: Optional[str] = _COMPRESSION_2_EXT.get(compression, None)
     if compression_ext is None:
         raise exceptions.InvalidCompression(f"{compression} is invalid, please use None, snappy or gzip.")
@@ -667,6 +710,7 @@ def read_csv(
     path: Union[str, List[str]],
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
+    s3_additional_kwargs: Optional[Dict[str, str]] = None,
     chunksize: Optional[int] = None,
     **pandas_kwargs,
 ) -> Union[pd.DataFrame, Generator[pd.DataFrame, None, None]]:
@@ -689,6 +733,9 @@ def read_csv(
         If enabled os.cpu_count() will be used as the max number of threads.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    s3_additional_kwargs:
+        Forward to s3fs, useful for server side encryption
+        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
     chunksize: int, optional
         If specified, return an generator where chunksize is the number of rows to include in each chunk.
     pandas_kwargs:
@@ -706,6 +753,17 @@ def read_csv(
 
     >>> import awswrangler as wr
     >>> df = wr.s3.read_csv(path='s3://bucket/prefix/')
+
+    Reading all CSV files under a prefix encrypted with a KMS key
+
+    >>> import awswrangler as wr
+    >>> df = wr.s3.read_csv(
+    ...     path='s3://bucket/prefix/',
+    ...     s3_additional_kwargs={
+    ...         "ServerSideEncryption": "aws:kms",
+    ...         "SSEKMSKeyId": "YOUR_KMY_KEY_ARN"
+    ...     }
+    ... )
 
     Reading all CSV files from a list
 
@@ -725,12 +783,24 @@ def read_csv(
     paths: List[str] = _path2list(path=path, boto3_session=boto3_session)
     if chunksize is not None:
         dfs: Generator[pd.DataFrame, None, None] = _read_csv_chunksize(
-            paths=paths, boto3_session=boto3_session, chunksize=chunksize, pandas_args=pandas_kwargs
+            paths=paths,
+            boto3_session=boto3_session,
+            chunksize=chunksize,
+            pandas_args=pandas_kwargs,
+            s3_additional_kwargs=s3_additional_kwargs,
         )
         return dfs
     if use_threads is False:
         df: pd.DataFrame = pd.concat(
-            objs=[_read_csv(path=p, boto3_session=boto3_session, pandas_args=pandas_kwargs) for p in paths],
+            objs=[
+                _read_csv(
+                    path=p,
+                    boto3_session=boto3_session,
+                    pandas_args=pandas_kwargs,
+                    s3_additional_kwargs=s3_additional_kwargs,
+                )
+                for p in paths
+            ],
             ignore_index=True,
             sort=False,
         )
@@ -738,7 +808,9 @@ def read_csv(
         cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
             df = pd.concat(
-                objs=executor.map(_read_csv, paths, repeat(boto3_session), repeat(pandas_kwargs)),
+                objs=executor.map(
+                    _read_csv, paths, repeat(boto3_session), repeat(pandas_kwargs), repeat(s3_additional_kwargs)
+                ),
                 ignore_index=True,
                 sort=False,
             )
@@ -746,9 +818,13 @@ def read_csv(
 
 
 def _read_csv_chunksize(
-    paths: List[str], boto3_session: boto3.Session, chunksize: int, pandas_args: Dict[str, Any]
+    paths: List[str],
+    boto3_session: boto3.Session,
+    chunksize: int,
+    pandas_args: Dict[str, Any],
+    s3_additional_kwargs: Optional[Dict[str, str]] = None,
 ) -> Generator[pd.DataFrame, None, None]:
-    fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session)
+    fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
     for path in paths:
         with fs.open(path, "r") as f:
             reader: pandas.io.parsers.TextFileReader = pd.read_csv(
@@ -758,8 +834,13 @@ def _read_csv_chunksize(
                 yield df
 
 
-def _read_csv(path: str, boto3_session: boto3.Session, pandas_args: Dict[str, Any]) -> pd.DataFrame:
-    fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session)
+def _read_csv(
+    path: str,
+    boto3_session: boto3.Session,
+    pandas_args: Dict[str, Any],
+    s3_additional_kwargs: Optional[Dict[str, str]] = None,
+) -> pd.DataFrame:
+    fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
     with fs.open(path, "r") as f:
         return pd.read_csv(filepath_or_buffer=f, **pandas_args)
 
@@ -770,6 +851,7 @@ def _read_parquet_init(
     dataset: bool = False,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
+    s3_additional_kwargs: Optional[Dict[str, str]] = None,
 ) -> pyarrow.parquet.ParquetDataset:
     """Encapsulate all initialization before the use of the pyarrow.parquet.ParquetDataset."""
     if dataset is False:
@@ -778,7 +860,7 @@ def _read_parquet_init(
         path_or_paths = path
     _logger.debug(f"path_or_paths: {path_or_paths}")
     print(f"path_or_paths: {path_or_paths}")
-    fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session)
+    fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
     cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
     data: pyarrow.parquet.ParquetDataset = pyarrow.parquet.ParquetDataset(
         path_or_paths=path_or_paths, filesystem=fs, metadata_nthreads=cpus, filters=filters
@@ -794,6 +876,7 @@ def read_parquet(
     dataset: bool = False,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
+    s3_additional_kwargs: Optional[Dict[str, str]] = None,
 ) -> Union[pd.DataFrame, Generator[pd.DataFrame, None, None]]:
     """Read Apache Parquet file(s) from from a received S3 prefix or list of S3 objects paths.
 
@@ -822,6 +905,9 @@ def read_parquet(
         If enabled os.cpu_count() will be used as the max number of threads.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    s3_additional_kwargs:
+        Forward to s3fs, useful for server side encryption
+        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
 
     Returns
     -------
@@ -834,6 +920,17 @@ def read_parquet(
 
     >>> import awswrangler as wr
     >>> df = wr.s3.read_parquet(path='s3://bucket/prefix/')
+
+    Reading all Parquet files under a prefix encrypted with a KMS key
+
+    >>> import awswrangler as wr
+    >>> df = wr.s3.read_parquet(
+    ...     path='s3://bucket/prefix/',
+    ...     s3_additional_kwargs={
+    ...         "ServerSideEncryption": "aws:kms",
+    ...         "SSEKMSKeyId": "YOUR_KMY_KEY_ARN"
+    ...     }
+    ... )
 
     Reading all Parquet files from a list
 
@@ -849,7 +946,12 @@ def read_parquet(
 
     """
     data: pyarrow.parquet.ParquetDataset = _read_parquet_init(
-        path=path, filters=filters, dataset=dataset, use_threads=use_threads, boto3_session=boto3_session
+        path=path,
+        filters=filters,
+        dataset=dataset,
+        use_threads=use_threads,
+        boto3_session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,
     )
     common_metadata = data.common_metadata
     common_metadata = None if common_metadata is None else common_metadata.metadata.get(b"pandas", None)
