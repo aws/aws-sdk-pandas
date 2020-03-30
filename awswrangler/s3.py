@@ -1327,3 +1327,86 @@ def _wait_objects(
             for future in futures:
                 future.result()
     return None
+
+
+def read_parquet_table(
+    table: str,
+    database: str,
+    filters: Optional[Union[List[Tuple], List[List[Tuple]]]] = None,
+    columns: Optional[List[str]] = None,
+    chunked: bool = False,
+    use_threads: bool = True,
+    boto3_session: Optional[boto3.Session] = None,
+    s3_additional_kwargs: Optional[Dict[str, str]] = None,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    """Read Apache Parquet table registered on AWS Glue Catalog.
+
+    Note
+    ----
+    In case of `use_threads=True` the number of process that will be spawned will be get from os.cpu_count().
+
+    Parameters
+    ----------
+    table : str
+        AWS Glue Catalog table name.
+    database : str
+        AWS Glue Catalog database name.
+    filters: Union[List[Tuple], List[List[Tuple]]], optional
+        List of filters to apply, like ``[[('x', '=', 0), ...], ...]``.
+    columns : List[str], optional
+        Names of columns to read from the file(s)
+    chunked : bool
+        If True will break the data in smaller DataFrames (Non deterministic number of lines).
+        Otherwise return a single DataFrame with the whole data.
+    use_threads : bool
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    s3_additional_kwargs:
+        Forward to s3fs, useful for server side encryption
+        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
+
+    Returns
+    -------
+    Union[pandas.DataFrame, Generator[pandas.DataFrame, None, None]]
+        Pandas DataFrame or a Generator in case of `chunked=True`.
+
+    Examples
+    --------
+    Reading Parquet Table
+
+    >>> import awswrangler as wr
+    >>> df = wr.s3.read_parquet_table(database='...', table='...')
+
+    Reading Parquet Table encrypted
+
+    >>> import awswrangler as wr
+    >>> df = wr.s3.read_parquet_table(
+    ...     database='...',
+    ...     table='...'
+    ...     s3_additional_kwargs={
+    ...         "ServerSideEncryption": "aws:kms",
+    ...         "SSEKMSKeyId": "YOUR_KMY_KEY_ARN"
+    ...     }
+    ... )
+
+    Reading Parquet Table in chunks
+
+    >>> import awswrangler as wr
+    >>> dfs = wr.s3.read_parquet_table(database='...', table='...', chunked=True)
+    >>> for df in dfs:
+    >>>     print(df)  # Smaller Pandas DataFrame
+
+    """
+    path: str = catalog.get_table_location(database=database, table=table, boto3_session=boto3_session)
+    return read_parquet(
+        path=path,
+        filters=filters,
+        columns=columns,
+        chunked=chunked,
+        dataset=True,
+        use_threads=use_threads,
+        boto3_session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,
+    )

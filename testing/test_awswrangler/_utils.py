@@ -192,9 +192,10 @@ def ensure_data_types(df, has_list=False):
     if has_list is True:
         assert str(df["list"].dtype) == "object"
         assert str(df["list_list"].dtype) == "object"
-    assert str(df["__index_level_0__"].dtype) == "Int64"
-    assert str(df["par0"].dtype) == "Int64"
-    assert str(df["par1"].dtype) == "string"
+    if "__index_level_0__" in df.columns:
+        assert str(df["__index_level_0__"].dtype) == "Int64"
+    assert str(df["par0"].dtype) in ("Int64", "category")
+    assert str(df["par1"].dtype) in ("string", "category")
     row = df[df["iint8"] == 1]
     if not row.empty:
         row = row.iloc[0]

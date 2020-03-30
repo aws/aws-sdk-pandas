@@ -16,6 +16,7 @@ Amazon S3
     list_objects
     read_csv
     read_parquet
+    read_parquet_table
     read_parquet_metadata
     size_objects
     store_parquet_metadata
