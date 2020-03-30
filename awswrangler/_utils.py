@@ -127,16 +127,21 @@ def get_fs(
     session: Optional[boto3.Session] = None, s3_additional_kwargs: Optional[Dict[str, str]] = None
 ) -> s3fs.S3FileSystem:
     """Build a S3FileSystem from a given boto3 session."""
-    return s3fs.S3FileSystem(
+    fs: s3fs.S3FileSystem = s3fs.S3FileSystem(
         anon=False,
         use_ssl=True,
         default_cache_type="none",
         default_fill_cache=False,
         default_block_size=52_428_800,  # 50 MB (50 * 2**20)
         config_kwargs={"retries": {"mode": "adaptive", "max_attempts": 10}},
-        session=ensure_session(session=session),
+        session=ensure_session(session=session)._session,  # pylint: disable=protected-access
         s3_additional_kwargs=s3_additional_kwargs,
+        use_listings_cache=False,
+        skip_instance_cache=True,
     )
+    fs.invalidate_cache()
+    fs.clear_instance_cache()
+    return fs
 
 
 def empty_generator() -> Generator:

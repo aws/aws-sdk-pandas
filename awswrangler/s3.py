@@ -5,7 +5,7 @@ import logging
 import time
 import uuid
 from itertools import repeat
-from typing import Any, Dict, Generator, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3  # type: ignore
 import botocore.exceptions  # type: ignore
@@ -713,7 +713,7 @@ def read_csv(
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     chunksize: Optional[int] = None,
     **pandas_kwargs,
-) -> Union[pd.DataFrame, Generator[pd.DataFrame, None, None]]:
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read CSV file(s) from from a received S3 prefix or list of S3 objects paths.
 
     Note
@@ -782,7 +782,7 @@ def read_csv(
         raise exceptions.InvalidArgument("Please, use chunksize instead of iterator.")
     paths: List[str] = _path2list(path=path, boto3_session=boto3_session)
     if chunksize is not None:
-        dfs: Generator[pd.DataFrame, None, None] = _read_csv_chunksize(
+        dfs: Iterator[pd.DataFrame] = _read_csv_chunksize(
             paths=paths,
             boto3_session=boto3_session,
             chunksize=chunksize,
@@ -823,9 +823,10 @@ def _read_csv_chunksize(
     chunksize: int,
     pandas_args: Dict[str, Any],
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
-) -> Generator[pd.DataFrame, None, None]:
+) -> Iterator[pd.DataFrame]:
     fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
     for path in paths:
+        _logger.debug(f"path: {path}")
         with fs.open(path, "r") as f:
             reader: pandas.io.parsers.TextFileReader = pd.read_csv(
                 filepath_or_buffer=f, chunksize=chunksize, **pandas_args
@@ -877,7 +878,7 @@ def read_parquet(
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
-) -> Union[pd.DataFrame, Generator[pd.DataFrame, None, None]]:
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read Apache Parquet file(s) from from a received S3 prefix or list of S3 objects paths.
 
     The concept of Dataset goes beyond the simple idea of files and enable more
@@ -977,7 +978,7 @@ def _read_parquet(
 
     # Metadata
     current_metadata = table.schema.metadata or {}
-    if common_metadata and b"pandas" not in current_metadata:
+    if common_metadata and b"pandas" not in current_metadata:  # pragma: no cover
         table = table.replace_schema_metadata({b"pandas": common_metadata})
 
     return table.to_pandas(
@@ -995,13 +996,13 @@ def _read_parquet_chunked(
     columns: Optional[List[str]] = None,
     use_threads: bool = True,
     common_metadata: Any = None,
-) -> Generator[pd.DataFrame, None, None]:
+) -> Iterator[pd.DataFrame]:
     for piece in data.pieces:
         table: pa.Table = piece.read(
             columns=columns, use_threads=use_threads, partitions=data.partitions, use_pandas_metadata=True
         )
         current_metadata = table.schema.metadata or {}
-        if common_metadata and b"pandas" not in current_metadata:
+        if common_metadata and b"pandas" not in current_metadata:  # pragma: no cover
             table = table.replace_schema_metadata({b"pandas": common_metadata})
         yield table.to_pandas(
             use_threads=use_threads,

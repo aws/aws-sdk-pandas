@@ -6,7 +6,7 @@ import re
 import time
 import unicodedata
 from decimal import Decimal
-from typing import Any, Dict, Generator, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3  # type: ignore
 import pandas as pd  # type: ignore
@@ -372,8 +372,8 @@ def _get_query_metadata(
 
 
 def _fix_csv_types_generator(
-    dfs: Generator[pd.DataFrame, None, None], parse_dates: List[str], binaries: List[str]
-) -> Generator[pd.DataFrame, None, None]:
+    dfs: Iterator[pd.DataFrame], parse_dates: List[str], binaries: List[str]
+) -> Iterator[pd.DataFrame]:
     """Apply data types cast to a Pandas DataFrames Generator."""
     for df in dfs:
         yield _fix_csv_types(df=df, parse_dates=parse_dates, binaries=binaries)
@@ -400,7 +400,7 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
     kms_key: Optional[str] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
-) -> Union[pd.DataFrame, Generator[pd.DataFrame, None, None]]:
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Execute any SQL query on AWS Athena and return the results as a Pandas DataFrame.
 
     There are two approaches to be defined through ctas_approach parameter:
@@ -462,7 +462,7 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
 
     Returns
     -------
-    Union[pd.DataFrame, Generator[pd.DataFrame, None, None]]
+    Union[pd.DataFrame, Iterator[pd.DataFrame]]
         Pandas DataFrame or Generator of Pandas DataFrames if chunksize is passed.
 
     Examples
@@ -480,7 +480,6 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
             _s3_output = wg_s3_output
     else:
         _s3_output = s3_output
-
     name: str = ""
     if ctas_approach is True:
         name = f"temp_table_{pa.compat.guid()}"
@@ -511,7 +510,7 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
         reason: str = query_response["QueryExecution"]["Status"]["StateChangeReason"]
         message_error: str = f"Query error: {reason}"
         raise exceptions.AthenaQueryError(message_error)
-    dfs: Union[pd.DataFrame, Generator[pd.DataFrame, None, None]]
+    dfs: Union[pd.DataFrame, Iterator[pd.DataFrame]]
     if ctas_approach is True:
         catalog.delete_table_if_exists(database=database, table=name, boto3_session=session)
         manifest_path: str = f"{_s3_output}/tables/{query_id}-manifest.csv"
@@ -526,12 +525,12 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
         else:
             s3.wait_objects_exist(paths=paths, use_threads=use_threads, boto3_session=session)
             dfs = s3.read_parquet(path=paths, use_threads=use_threads, boto3_session=session, chunked=chunked)
-        s3.delete_objects(path=[manifest_path] + paths, use_threads=use_threads, boto3_session=session)
         return dfs
     dtype, parse_timestamps, parse_dates, converters, binaries = _get_query_metadata(
         query_execution_id=query_id, boto3_session=session
     )
     path = f"{_s3_output}{query_id}.csv"
+    s3.wait_objects_exist(paths=[path], use_threads=False, boto3_session=session)
     _logger.debug(f"Start CSV reading from {path}")
     ret = s3.read_csv(
         path=[path],
@@ -543,10 +542,12 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
         na_values=[""],
         chunksize=chunksize,
         skip_blank_lines=False,
+        use_threads=False,
     )
     _logger.debug("Start type casting...")
     if chunksize is None:
         return _fix_csv_types(df=ret, parse_dates=parse_dates, binaries=binaries)
+    _logger.debug(type(ret))
     return _fix_csv_types_generator(dfs=ret, parse_dates=parse_dates, binaries=binaries)
 
 
