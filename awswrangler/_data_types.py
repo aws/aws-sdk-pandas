@@ -42,7 +42,7 @@ def pyarrow2athena(dtype: pa.DataType) -> str:  # pylint: disable=too-many-branc
         return f"decimal({dtype.precision},{dtype.scale})"
     if pa.types.is_list(dtype):
         return f"array<{pyarrow2athena(dtype=dtype.value_type)}>"
-    if pa.types.is_struct(dtype):
+    if pa.types.is_struct(dtype):  # pragma: no cover
         return f"struct<{', '.join([f'{f.name}: {pyarrow2athena(dtype=f.type)}' for f in dtype])}>"
     if dtype == pa.null():
         raise exceptions.UndetectedType("We can not infer the data type from an entire null object column")

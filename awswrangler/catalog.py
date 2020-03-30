@@ -3,12 +3,14 @@
 
 import itertools
 import logging
+import re
+import unicodedata
 from typing import Any, Dict, Iterator, List, Optional
 
 import boto3  # type: ignore
 import pandas as pd  # type: ignore
 
-from awswrangler import _utils, athena, exceptions
+from awswrangler import _utils, exceptions
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -141,7 +143,7 @@ def create_parquet_table(
     ... )
 
     """
-    table = athena.normalize_table_name(table=table)
+    table = normalize_table_name(table=table)
     partitions_types = {} if partitions_types is None else partitions_types
     table_input: Dict[str, Any] = _parquet_table_definition(
         table=table, path=path, columns_types=columns_types, partitions_types=partitions_types, compression=compression
@@ -723,3 +725,124 @@ def table(
         else:
             df_dict["Comment"].append("")
     return pd.DataFrame(data=df_dict)
+
+
+def _normalize_name(name: str) -> str:
+    name = "".join(c for c in unicodedata.normalize("NFD", name) if unicodedata.category(c) != "Mn")
+    name = name.replace("{", "_")
+    name = name.replace("}", "_")
+    name = name.replace("]", "_")
+    name = name.replace("[", "_")
+    name = name.replace(")", "_")
+    name = name.replace("(", "_")
+    name = name.replace(" ", "_")
+    name = name.replace("-", "_")
+    name = name.replace(".", "_")
+    name = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
+    name = re.sub("([a-z0-9])([A-Z])", r"\1_\2", name)
+    name = name.lower()
+    name = re.sub(r"(_)\1+", "\\1", name)  # remove repeated underscores
+    name = name[1:] if name.startswith("_") else name  # remove trailing underscores
+    name = name[:-1] if name.endswith("_") else name  # remove trailing underscores
+    return name
+
+
+def normalize_column_name(column: str) -> str:
+    """Convert the column name to be compatible with Amazon Athena.
+
+    https://docs.aws.amazon.com/athena/latest/ug/tables-databases-columns-names.html
+
+    Parameters
+    ----------
+    column : str
+        Column name.
+
+    Returns
+    -------
+    str
+        Normalized column name.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> wr.catalog.normalize_column_name('MyNewColumn')
+    'my_new_column'
+
+    """
+    return _normalize_name(name=column)
+
+
+def normalize_dataframe_columns_names(df: pd.DataFrame) -> pd.DataFrame:
+    """Normalize all columns names to be compatible with Amazon Athena.
+
+    https://docs.aws.amazon.com/athena/latest/ug/tables-databases-columns-names.html
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Original Pandas DataFrame.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Original Pandas DataFrame with columns names normalized.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> df_normalized = wr.catalog.normalize_dataframe_columns_names(df=pd.DataFrame({"A": [1, 2]}))
+
+    """
+    df.columns = [normalize_column_name(x) for x in df.columns]
+    return df
+
+
+def normalize_table_name(table: str) -> str:
+    """Convert the table name to be compatible with Amazon Athena.
+
+    https://docs.aws.amazon.com/athena/latest/ug/tables-databases-columns-names.html
+
+    Parameters
+    ----------
+    table : str
+        Table name.
+
+    Returns
+    -------
+    str
+        Normalized table name.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> wr.catalog.normalize_table_name('MyNewTable')
+    'my_new_table'
+
+    """
+    return _normalize_name(name=table)
+
+
+def drop_duplicated_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Drop all repeated columns (duplicated names).
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Original Pandas DataFrame.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Pandas DataFrame without duplicated columns.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> df_dedup = wr.catalog.drop_duplicated_columns(df=pd.DataFrame({"A": [1, 2]}))
+
+    """
+    duplicated_cols = df.columns.duplicated()
+    duplicated_cols_names: List[str] = list(df.columns[duplicated_cols])
+    if len(duplicated_cols_names) > 0:
+        _logger.warning(f"Dropping repeated columns: {duplicated_cols_names}")
+    return df.loc[:, ~duplicated_cols]

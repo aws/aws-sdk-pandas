@@ -45,6 +45,10 @@ AWS Glue Catalog
     search_tables
     table
     tables
+    normalize_column_name
+    normalize_dataframe_columns_names
+    normalize_table_name
+    drop_duplicated_columns
 
 Amazon Athena
 -------------
@@ -56,8 +60,6 @@ Amazon Athena
 
     create_athena_bucket
     get_query_columns_types
-    normalize_column_name
-    normalize_table_name
     read_sql_query
     repair_table
     start_query_execution

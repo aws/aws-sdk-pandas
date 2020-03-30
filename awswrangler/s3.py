@@ -415,6 +415,8 @@ def to_csv(
     ... )
 
     """
+    if df.empty is True:
+        raise exceptions.EmptyDataFrame()
     fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
     with fs.open(path, "w") as f:
         df.to_csv(path_or_buf=f, **pandas_kwargs)
@@ -569,6 +571,8 @@ def to_parquet(
     }
 
     """
+    if df.empty is True:
+        raise exceptions.EmptyDataFrame()
     partitions_values: Dict[str, List[str]] = {}
     cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
     fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
@@ -590,6 +594,8 @@ def to_parquet(
             _to_parquet_file(df=df, path=path, schema=None, index=index, compression=compression, cpus=cpus, fs=fs)
         ]
     else:
+        df = catalog.normalize_dataframe_columns_names(df=df)
+        df = catalog.drop_duplicated_columns(df=df)
         if (database is None) ^ (table is None):
             raise exceptions.InvalidArgumentCombination(
                 "Please pass database and table arguments to be able to "

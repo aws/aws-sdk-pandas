@@ -2,9 +2,7 @@
 
 import csv
 import logging
-import re
 import time
-import unicodedata
 from decimal import Decimal
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
@@ -17,76 +15,6 @@ from awswrangler import _data_types, _utils, catalog, exceptions, s3
 _logger: logging.Logger = logging.getLogger(__name__)
 
 _QUERY_WAIT_POLLING_DELAY: float = 0.2  # SECONDS
-
-
-def _normalize_name(name: str) -> str:
-    name = "".join(c for c in unicodedata.normalize("NFD", name) if unicodedata.category(c) != "Mn")
-    name = name.replace("{", "_")
-    name = name.replace("}", "_")
-    name = name.replace("]", "_")
-    name = name.replace("[", "_")
-    name = name.replace(")", "_")
-    name = name.replace("(", "_")
-    name = name.replace(" ", "_")
-    name = name.replace("-", "_")
-    name = name.replace(".", "_")
-    name = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
-    name = re.sub("([a-z0-9])([A-Z])", r"\1_\2", name)
-    name = name.lower()
-    name = re.sub(r"(_)\1+", "\\1", name)  # remove repeated underscores
-    name = name[1:] if name.startswith("_") else name  # remove trailing underscores
-    name = name[:-1] if name.endswith("_") else name  # remove trailing underscores
-    return name
-
-
-def normalize_column_name(column: str) -> str:
-    """Convert the column name to be compatible with Amazon Athena.
-
-    https://docs.aws.amazon.com/athena/latest/ug/tables-databases-columns-names.html
-
-    Parameters
-    ----------
-    column : str
-        Column name.
-
-    Returns
-    -------
-    str
-        Normalized column name.
-
-    Examples
-    --------
-    >>> import awswrangler as wr
-    >>> wr.athena.normalize_column_name('MyNewColumn')
-    'my_new_column'
-
-    """
-    return _normalize_name(name=column)
-
-
-def normalize_table_name(table: str) -> str:
-    """Convert the table name to be compatible with Amazon Athena.
-
-    https://docs.aws.amazon.com/athena/latest/ug/tables-databases-columns-names.html
-
-    Parameters
-    ----------
-    table : str
-        Table name.
-
-    Returns
-    -------
-    str
-        Normalized table name.
-
-    Examples
-    --------
-    >>> import awswrangler as wr
-    >>> wr.athena.normalize_table_name('MyNewTable')
-    'my_new_table'
-
-    """
-    return _normalize_name(name=table)
 
 
 def get_query_columns_types(query_execution_id: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, str]:
@@ -506,7 +434,7 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
     )
     _logger.debug(f"query_id: {query_id}")
     query_response: Dict[str, Any] = wait_query(query_execution_id=query_id, boto3_session=session)
-    if query_response["QueryExecution"]["Status"]["State"] in ["FAILED", "CANCELLED"]:
+    if query_response["QueryExecution"]["Status"]["State"] in ["FAILED", "CANCELLED"]:  # pragma: no cover
         reason: str = query_response["QueryExecution"]["Status"]["StateChangeReason"]
         message_error: str = f"Query error: {reason}"
         raise exceptions.AthenaQueryError(message_error)
