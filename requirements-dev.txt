@@ -5,6 +5,7 @@ mypy~=0.770
 isort~=4.3.21
 pydocstyle~=5.0.2
 doc8~=0.8.0
+tox~=3.14.6
 pytest~=5.4.1
 pytest-cov~=2.8.1
 pytest-xdist~=1.31.0

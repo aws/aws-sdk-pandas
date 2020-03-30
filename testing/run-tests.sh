@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 set -ex
 
+microtime() {
+    python -c 'import time; print(time.time())'
+}
+
+START=$(microtime)
+
+./run-validations.sh
 pushd ..
-black --line-length 120 --target-version py36 awswrangler testing/test_awswrangler
-isort -rc --line-width 120 awswrangler testing/test_awswrangler
-pydocstyle awswrangler/ --add-ignore=D204
-mypy awswrangler
-flake8 setup.py awswrangler testing/test_awswrangler
-pylint awswrangler
-pip install --upgrade -e .
-pytest --cov=awswrangler -n auto testing/test_awswrangler
+time tox
 coverage html --directory testing/coverage
 rm -rf .coverage* testing/Running Running
+
+echo "Time elapsed: $(echo "scale=1; ($(microtime) - $START) / 60" | bc) minutes"
