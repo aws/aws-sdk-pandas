@@ -543,3 +543,99 @@ def _ensure_workgroup(
     else:
         wg_s3_output, wg_encryption, wg_kms_key = None, None, None
     return wg_s3_output, wg_encryption, wg_kms_key
+
+
+def read_sql_table(
+    table: str,
+    database: str,
+    ctas_approach: bool = True,
+    chunksize: Optional[int] = None,
+    s3_output: Optional[str] = None,
+    workgroup: Optional[str] = None,
+    encryption: Optional[str] = None,
+    kms_key: Optional[str] = None,
+    use_threads: bool = True,
+    boto3_session: Optional[boto3.Session] = None,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    """Extract the full table AWS Athena and return the results as a Pandas DataFrame.
+
+    There are two approaches to be defined through ctas_approach parameter:
+
+    1 - `ctas_approach=True` (`Default`):
+    Wrap the query with a CTAS and then reads the table data as parquet directly from s3.
+    PROS: Faster and can handle some level of nested types
+    CONS: Requires create/delete table permissions on Glue
+    (A temporary table will be created and then deleted immediately).
+
+    2 - `ctas_approach False`:
+    Does a regular query on Athena and parse the regular CSV result on s3.
+    PROS: Does not require create/delete table permissions on Glue.
+    CONS: Slower (But stills faster than other libraries that uses the regular Athena API)
+    and does not handle nested types at all
+
+    Note
+    ----
+    If `chunksize` is passed, then a Generator of DataFrames is returned.
+
+    Note
+    ----
+    If `ctas_approach` is True, `chunksize` will return non deterministic chunks sizes,
+    but it still useful to overcome memory limitation.
+
+    Note
+    ----
+    Create the default Athena bucket if it doesn't exist and s3_output is None.
+    (E.g. s3://aws-athena-query-results-ACCOUNT-REGION/)
+
+    Note
+    ----
+    In case of `use_threads=True` the number of process that will be spawned will be get from os.cpu_count().
+
+    Parameters
+    ----------
+    table : str
+        Table name.
+    database : str
+        AWS Glue/Athena database name.
+    ctas_approach: bool
+        Wraps the query using a CTAS, and read the resulted parquet data on S3.
+        If false, read the regular CSV on S3.
+    chunksize: int, optional
+        If specified, return an generator where chunksize is the number of rows to include in each chunk.
+    s3_output : str, optional
+        AWS S3 path.
+    workgroup : str, optional
+        Athena workgroup.
+    encryption : str, optional
+        None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
+    kms_key : str, optional
+        For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
+    use_threads : bool
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    Union[pd.DataFrame, Iterator[pd.DataFrame]]
+        Pandas DataFrame or Generator of Pandas DataFrames if chunksize is passed.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> df = wr.athena.read_sql_table(table='...', database='...')
+
+    """
+    return read_sql_query(
+        sql=f"SELECT * FROM {table}",
+        database=database,
+        ctas_approach=ctas_approach,
+        chunksize=chunksize,
+        s3_output=s3_output,
+        workgroup=workgroup,
+        encryption=encryption,
+        kms_key=kms_key,
+        use_threads=use_threads,
+        boto3_session=boto3_session,
+    )

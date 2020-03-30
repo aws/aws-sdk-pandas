@@ -61,6 +61,7 @@ Amazon Athena
     create_athena_bucket
     get_query_columns_types
     read_sql_query
+    read_sql_table
     repair_table
     start_query_execution
     stop_query_execution

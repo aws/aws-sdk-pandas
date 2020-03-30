@@ -95,8 +95,8 @@ def test_athena_ctas(bucket, database, kms_key):
         partition_cols=["par0", "par1"],
     )["paths"]
     wr.s3.wait_objects_exist(paths=paths)
-    df = wr.athena.read_sql_query(
-        sql=f"SELECT * FROM test_athena_ctas",
+    df = wr.athena.read_sql_table(
+        table="test_athena_ctas",
         database=database,
         ctas_approach=True,
         encryption="SSE_KMS",

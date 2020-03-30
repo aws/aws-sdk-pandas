@@ -141,4 +141,4 @@ building/*requirements*.txt
 /docs/coverage/
 /docs/build/
 /docs/source/_build/
-/docs/source/api/stubs/
+/docs/source/stubs/

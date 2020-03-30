@@ -15,7 +15,7 @@ AWS Data Wrangler
 
    install
    Tutorials <https://github.com/awslabs/aws-data-wrangler/tree/dev-1.0.0/tutorials>
-   api/index
+   api
    License <https://github.com/awslabs/aws-data-wrangler/blob/dev-1.0.0/LICENSE>
    Contributing <https://github.com/awslabs/aws-data-wrangler/blob/dev-1.0.0/CONTRIBUTING.md>
 

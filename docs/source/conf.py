@@ -83,7 +83,7 @@ html_theme_options = {
     "navbar_links": [
         ("Install", "install"),
         ("Tutorials", "https://github.com/awslabs/aws-data-wrangler/tree/dev-1.0.0/tutorials", True),
-        ("API Reference", "api/index"),
+        ("API Reference", "api"),
         ("License", "https://github.com/awslabs/aws-data-wrangler/blob/dev-1.0.0/LICENSE", True),
         ("Contributing", "https://github.com/awslabs/aws-data-wrangler/blob/dev-1.0.0/CONTRIBUTING.md", True),
         ("GitHub", "https://github.com/awslabs/aws-data-wrangler", True),
