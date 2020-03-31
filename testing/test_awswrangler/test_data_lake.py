@@ -1,4 +1,5 @@
 import logging
+import datetime
 
 import boto3
 import pandas as pd
@@ -570,3 +571,12 @@ def test_athena_struct(database):
     assert df["col0"].iloc[0]["field1"]["field0"] == 2
     assert df["col0"].iloc[0]["field1"]["field1"]["field0"] == 3
     assert df["col0"].iloc[0]["field1"]["field1"]["field1"] == "4"
+
+
+def test_athena_time_zone(database):
+    sql = 'SELECT current_timestamp AS value, typeof(current_timestamp) AS type'
+    df = wr.athena.read_sql_query(sql=sql, database=database, ctas_approach=False)
+    assert len(df.index) == 1
+    assert len(df.columns) == 2
+    assert df["type"][0] == "timestamp with time zone"
+    assert df["value"][0].year == datetime.datetime.utcnow().year
