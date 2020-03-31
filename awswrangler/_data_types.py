@@ -44,6 +44,38 @@ def athena2pyarrow(dtype: str) -> pa.DataType:  # pylint: disable=too-many-retur
     raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")  # pragma: no cover
 
 
+def athena2pandas(dtype: str) -> str:  # pylint: disable=too-many-branches,too-many-return-statements
+    """Athena to Pandas data types conversion."""
+    dtype = dtype.lower()
+    if dtype == "tinyint":
+        return "Int8"
+    if dtype == "smallint":
+        return "Int16"
+    if dtype in ("int", "integer"):
+        return "Int32"
+    if dtype == "bigint":
+        return "Int64"
+    if dtype == "float":
+        return "float32"
+    if dtype == "double":
+        return "float64"
+    if dtype == "boolean":
+        return "boolean"
+    if dtype in ("string", "char", "varchar"):
+        return "string"
+    if dtype in ("timestamp", "timestamp with time zone"):
+        return "datetime64"
+    if dtype == "date":
+        return "date"
+    if dtype.startswith("decimal"):
+        return "decimal"
+    if dtype in ("binary", "varbinary"):
+        return "bytes"
+    if dtype == "array":  # pragma: no cover
+        return "list"
+    raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")  # pragma: no cover
+
+
 def pyarrow2athena(dtype: pa.DataType) -> str:  # pylint: disable=too-many-branches,too-many-return-statements
     """Pyarrow to Athena data types conversion."""
     if pa.types.is_int8(dtype):
@@ -98,38 +130,6 @@ def pyarrow2pandas_extension(  # pylint: disable=too-many-branches,too-many-retu
     if pa.types.is_string(dtype):
         return pd.StringDtype()
     return None
-
-
-def athena2pandas(dtype: str) -> str:  # pylint: disable=too-many-branches,too-many-return-statements
-    """Athena to Pandas data types conversion."""
-    dtype = dtype.lower()
-    if dtype == "tinyint":
-        return "Int8"
-    if dtype == "smallint":
-        return "Int16"
-    if dtype in ("int", "integer"):
-        return "Int32"
-    if dtype == "bigint":
-        return "Int64"
-    if dtype == "float":
-        return "float32"
-    if dtype == "double":
-        return "float64"
-    if dtype == "boolean":
-        return "boolean"
-    if dtype in ("string", "char", "varchar"):
-        return "string"
-    if dtype in ("timestamp", "timestamp with time zone"):
-        return "datetime64"
-    if dtype == "date":
-        return "date"
-    if dtype.startswith("decimal"):
-        return "decimal"
-    if dtype in ("binary", "varbinary"):
-        return "bytes"
-    if dtype == "array":
-        return "list"
-    raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")  # pragma: no cover
 
 
 def pyarrow_types_from_pandas(

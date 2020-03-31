@@ -409,8 +409,8 @@ def to_csv(
     ...     df=pd.DataFrame({'col': [1, 2, 3]}),
     ...     path='s3://bucket/filename.csv',
     ...     s3_additional_kwargs={
-    ...         "ServerSideEncryption": "aws:kms",
-    ...         "SSEKMSKeyId": "YOUR_KMY_KEY_ARN"
+    ...         'ServerSideEncryption': 'aws:kms',
+    ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
     ...     }
     ... )
 
@@ -483,7 +483,7 @@ def to_parquet(  # pylint: disable=too-many-arguments
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined or mixed data types.
         Only takes effect if dataset=True.
-        (e.g. {"col name": "bigint", "col2 name": "int"})
+        (e.g. {'col name': 'bigint', 'col2 name': 'int'})
     description: str, optional
         Glue/Athena catalog: Table description
     parameters: Dict[str, str], optional
@@ -523,8 +523,8 @@ def to_parquet(  # pylint: disable=too-many-arguments
     ...     df=pd.DataFrame({'col': [1, 2, 3]}),
     ...     path='s3://bucket/prefix/my_file.parquet',
     ...     s3_additional_kwargs={
-    ...         "ServerSideEncryption": "aws:kms",
-    ...         "SSEKMSKeyId": "YOUR_KMY_KEY_ARN"
+    ...         'ServerSideEncryption': 'aws:kms',
+    ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
     ...     }
     ... )
     {
@@ -830,8 +830,8 @@ def read_csv(
     >>> df = wr.s3.read_csv(
     ...     path='s3://bucket/prefix/',
     ...     s3_additional_kwargs={
-    ...         "ServerSideEncryption": "aws:kms",
-    ...         "SSEKMSKeyId": "YOUR_KMY_KEY_ARN"
+    ...         'ServerSideEncryption': 'aws:kms',
+    ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
     ...     }
     ... )
 
@@ -998,8 +998,8 @@ def read_parquet(
     >>> df = wr.s3.read_parquet(
     ...     path='s3://bucket/prefix/',
     ...     s3_additional_kwargs={
-    ...         "ServerSideEncryption": "aws:kms",
-    ...         "SSEKMSKeyId": "YOUR_KMY_KEY_ARN"
+    ...         'ServerSideEncryption': 'aws:kms',
+    ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
     ...     }
     ... )
 
@@ -1450,8 +1450,8 @@ def read_parquet_table(
     ...     database='...',
     ...     table='...'
     ...     s3_additional_kwargs={
-    ...         "ServerSideEncryption": "aws:kms",
-    ...         "SSEKMSKeyId": "YOUR_KMY_KEY_ARN"
+    ...         'ServerSideEncryption': 'aws:kms',
+    ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
     ...     }
     ... )
 

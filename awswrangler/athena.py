@@ -274,6 +274,16 @@ def _get_query_metadata(
     col_name: str
     col_type: str
     for col_name, col_type in cols_types.items():
+        if col_type == "array":
+            raise exceptions.UnsupportedType(
+                "List data type is not support with ctas_approach=False. "
+                "Please use ctas_approach=True for List columns."
+            )
+        if col_type == "row":
+            raise exceptions.UnsupportedType(
+                "Struct data type is not support with ctas_approach=False. "
+                "Please use ctas_approach=True for Struct columns."
+            )
         pandas_type: str = _data_types.athena2pandas(dtype=col_type)
         if pandas_type in ["datetime64", "date"]:
             parse_timestamps.append(col_name)
@@ -284,11 +294,6 @@ def _get_query_metadata(
             binaries.append(col_name)
         elif pandas_type == "decimal":
             converters[col_name] = lambda x: Decimal(str(x)) if str(x) not in ("", "none", " ", "<NA>") else None
-        elif pandas_type == "list":
-            raise exceptions.UnsupportedType(
-                "List data type is not support with ctas_approach=False. "
-                "Please use ctas_approach=True for List columns."
-            )
         else:
             dtype[col_name] = pandas_type
     _logger.debug(f"dtype: {dtype}")

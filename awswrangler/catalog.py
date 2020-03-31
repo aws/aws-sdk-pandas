@@ -790,7 +790,7 @@ def normalize_dataframe_columns_names(df: pd.DataFrame) -> pd.DataFrame:
     Examples
     --------
     >>> import awswrangler as wr
-    >>> df_normalized = wr.catalog.normalize_dataframe_columns_names(df=pd.DataFrame({"A": [1, 2]}))
+    >>> df_normalized = wr.catalog.normalize_dataframe_columns_names(df=pd.DataFrame({'A': [1, 2]}))
 
     """
     df.columns = [normalize_column_name(x) for x in df.columns]
@@ -838,7 +838,7 @@ def drop_duplicated_columns(df: pd.DataFrame) -> pd.DataFrame:
     Examples
     --------
     >>> import awswrangler as wr
-    >>> df_dedup = wr.catalog.drop_duplicated_columns(df=pd.DataFrame({"A": [1, 2]}))
+    >>> df_dedup = wr.catalog.drop_duplicated_columns(df=pd.DataFrame({'A': [1, 2]}))
 
     """
     duplicated_cols = df.columns.duplicated()

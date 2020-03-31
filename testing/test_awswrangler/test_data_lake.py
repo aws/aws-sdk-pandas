@@ -406,7 +406,7 @@ def test_catalog(bucket, database):
         database=database, table="test_catalog", catalog_id=account_id, expression="y = 2021 AND m = 2"
     )
     assert len(partitions_values) == 1
-    assert len(set(partitions_values[f"{path}y=2021/m=2/"]) & set(["2021", "2"])) == 2
+    assert len(set(partitions_values[f"{path}y=2021/m=2/"]) & {"2021", "2"}) == 2
     dtypes = wr.catalog.get_table_types(database=database, table="test_catalog")
     assert dtypes["col0"] == "int"
     assert dtypes["col1"] == "double"
@@ -551,3 +551,22 @@ def test_absent_object(bucket):
     assert wr.s3.does_object_exist(path=path) is False
     assert len(wr.s3.size_objects(path=path)) == 0
     assert wr.s3.wait_objects_exist(paths=[]) is None
+
+
+def test_athena_struct(database):
+    sql = "SELECT CAST(ROW(1, 'foo') AS ROW(id BIGINT, value VARCHAR)) AS col0"
+    with pytest.raises(wr.exceptions.UnsupportedType):
+        wr.athena.read_sql_query(sql=sql, database=database, ctas_approach=False)
+    df = wr.athena.read_sql_query(sql=sql, database=database, ctas_approach=True)
+    assert len(df.index) == 1
+    assert len(df.columns) == 1
+    assert df["col0"].iloc[0]["id"] == 1
+    assert df["col0"].iloc[0]["value"] == "foo"
+    sql = "SELECT ROW(1, ROW(2, ROW(3, '4'))) AS col0"
+    df = wr.athena.read_sql_query(sql=sql, database=database, ctas_approach=True)
+    assert len(df.index) == 1
+    assert len(df.columns) == 1
+    assert df["col0"].iloc[0]["field0"] == 1
+    assert df["col0"].iloc[0]["field1"]["field0"] == 2
+    assert df["col0"].iloc[0]["field1"]["field1"]["field0"] == 3
+    assert df["col0"].iloc[0]["field1"]["field1"]["field1"] == "4"
