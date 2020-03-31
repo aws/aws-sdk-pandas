@@ -6,7 +6,7 @@ import pytest
 
 import awswrangler as wr
 
-from ._utils import ensure_data_types, get_df, get_df_list, get_query_long
+from ._utils import ensure_data_types, get_df, get_df_cast, get_df_list, get_query_long
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
@@ -116,11 +116,11 @@ def test_athena_ctas(bucket, database, kms_key):
     wr.catalog.delete_table_if_exists(database=database, table="test_athena_ctas")
     wr.s3.delete_objects(path=paths)
     wr.s3.wait_objects_not_exist(paths=paths)
-    wr.s3.delete_objects(path=f"s3://{bucket}/test_athena_ctas_result")
+    wr.s3.delete_objects(path=f"s3://{bucket}/test_athena_ctas_result/")
 
 
 def test_athena(bucket, database, kms_key, workgroup_secondary):
-    wr.s3.delete_objects(path=f"s3://{bucket}/test_athena")
+    wr.s3.delete_objects(path=f"s3://{bucket}/test_athena/")
     paths = wr.s3.to_parquet(
         df=get_df(),
         path=f"s3://{bucket}/test_athena",
@@ -154,7 +154,7 @@ def test_athena(bucket, database, kms_key, workgroup_secondary):
     wr.catalog.delete_table_if_exists(database=database, table="test_athena")
     wr.s3.delete_objects(path=paths)
     wr.s3.wait_objects_not_exist(paths=paths)
-    wr.s3.delete_objects(path=f"s3://{bucket}/athena_workgroup_secondary")
+    wr.s3.delete_objects(path=f"s3://{bucket}/athena_workgroup_secondary/")
 
 
 def test_csv(bucket):
@@ -164,6 +164,7 @@ def test_csv(bucket):
     path1 = f"s3://{bucket}/test_csv1.csv"
     path2 = f"s3://{bucket}/test_csv2.csv"
     wr.s3.to_csv(df=df, path=path0, index=False)
+    wr.s3.wait_objects_exist(paths=[path0])
     assert wr.s3.does_object_exist(path=path0) is True
     assert wr.s3.size_objects(path=[path0], use_threads=False)[path0] == 9
     assert wr.s3.size_objects(path=[path0], use_threads=True)[path0] == 9
@@ -188,7 +189,8 @@ def test_csv(bucket):
 
 
 def test_parquet(bucket):
-    wr.s3.delete_objects(path=f"s3://{bucket}/test_parquet_")
+    wr.s3.delete_objects(path=f"s3://{bucket}/test_parquet_file")
+    wr.s3.delete_objects(path=f"s3://{bucket}/test_parquet_dataset")
     df_file = pd.DataFrame({"id": [1, 2, 3]})
     path_file = f"s3://{bucket}/test_parquet_file.parquet"
     df_dataset = pd.DataFrame({"id": [1, 2, 3], "partition": ["A", "A", "B"]})
@@ -200,6 +202,8 @@ def test_parquet(bucket):
         wr.s3.to_parquet(df=df_file, path=path_file, compression="WRONG")
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
         wr.s3.to_parquet(df=df_dataset, path=path_dataset, partition_cols=["col2"])
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.s3.to_parquet(df=df_dataset, path=path_dataset, description="foo")
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.s3.to_parquet(df=df_dataset, path=path_dataset, partition_cols=["col2"], dataset=True, mode="WRONG")
     paths = wr.s3.to_parquet(df=df_file, path=path_file)["paths"]
@@ -220,79 +224,146 @@ def test_parquet(bucket):
     wr.s3.to_parquet(
         df=df_dataset, path=path_dataset, dataset=True, partition_cols=["partition"], mode="overwrite_partitions"
     )
-    wr.s3.delete_objects(path=f"s3://{bucket}/test_parquet_")
+    wr.s3.delete_objects(path=f"s3://{bucket}/test_parquet_file")
+    wr.s3.delete_objects(path=f"s3://{bucket}/test_parquet_dataset")
 
 
-def test_metadata():
-    assert wr.__version__ == "1.0.0"
-    assert wr.__title__ == "awswrangler"
-    assert wr.__description__ == "Pandas on AWS."
-    assert wr.__license__ == "Apache License 2.0"
-
-
-def test_s3_get_bucket_region(bucket, region):
-    assert wr.s3.get_bucket_region(bucket=bucket) == region
-    assert wr.s3.get_bucket_region(bucket=bucket, boto3_session=boto3.Session()) == region
-
-
-def test_catalog_get_databases(database):
-    dbs = list(wr.catalog.get_databases())
-    assert len(dbs) > 0
-    for db in dbs:
-        if db["Name"] == database:
-            assert db["Description"] == "AWS Data Wrangler Test Arena - Glue Database"
-
-
-def test_athena_query_cancelled(database):
-    session = boto3.Session()
-    query_execution_id = wr.athena.start_query_execution(sql=get_query_long(), database=database, boto3_session=session)
-    wr.athena.stop_query_execution(query_execution_id=query_execution_id, boto3_session=session)
-    with pytest.raises(wr.exceptions.QueryCancelled):
-        assert wr.athena.wait_query(query_execution_id=query_execution_id)
-
-
-def test_athena_query_failed(database):
-    query_execution_id = wr.athena.start_query_execution(sql="SELECT random(-1)", database=database)
-    with pytest.raises(wr.exceptions.QueryFailed):
-        assert wr.athena.wait_query(query_execution_id=query_execution_id)
-
-
-def test_athena_read_list(database):
-    with pytest.raises(wr.exceptions.UnsupportedType):
-        wr.athena.read_sql_query(sql=f"SELECT ARRAY[1, 2, 3]", database=database, ctas_approach=False)
-
-
-def test_normalize_column_name():
-    assert wr.catalog.normalize_column_name("foo()__Boo))))____BAR") == "foo_boo_bar"
-    assert wr.catalog.normalize_column_name("foo()__Boo))))_{}{}{{}{}{}{___BAR[][][][]") == "foo_boo_bar"
-
-
-def test_athena_ctas_empty(database):
-    sql = """
-        WITH dataset AS (
-          SELECT 0 AS id
+def test_parquet_catalog(bucket, database):
+    with pytest.raises(wr.exceptions.UndetectedType):
+        wr.s3.to_parquet(
+            df=pd.DataFrame({"A": [None]}),
+            path=f"s3://{bucket}/test_parquet_catalog",
+            dataset=True,
+            database=database,
+            table="test_parquet_catalog",
         )
-        SELECT id
-        FROM dataset
-        WHERE id != 0
-    """
-    assert wr.athena.read_sql_query(sql=sql, database=database).empty is True
-    assert len(list(wr.athena.read_sql_query(sql=sql, database=database, chunksize=1))) == 0
+    df = get_df_list()
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.s3.to_parquet(
+            df=df,
+            path=f"s3://{bucket}/test_parquet_catalog",
+            use_threads=True,
+            dataset=False,
+            mode="overwrite",
+            database=database,
+            table="test_parquet_catalog",
+        )
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.s3.to_parquet(
+            df=df,
+            path=f"s3://{bucket}/test_parquet_catalog",
+            use_threads=True,
+            dataset=False,
+            table="test_parquet_catalog",
+        )
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.s3.to_parquet(
+            df=df,
+            path=f"s3://{bucket}/test_parquet_catalog",
+            use_threads=True,
+            dataset=True,
+            mode="overwrite",
+            database=database,
+        )
+    wr.s3.to_parquet(
+        df=df,
+        path=f"s3://{bucket}/test_parquet_catalog",
+        use_threads=True,
+        dataset=True,
+        mode="overwrite",
+        database=database,
+        table="test_parquet_catalog",
+    )
+    wr.s3.to_parquet(
+        df=df,
+        path=f"s3://{bucket}/test_parquet_catalog2",
+        index=True,
+        use_threads=True,
+        dataset=True,
+        mode="overwrite",
+        database=database,
+        table="test_parquet_catalog2",
+        partition_cols=["iint8", "iint16"],
+    )
+    columns_types, partitions_types = wr.s3.read_parquet_metadata(
+        path=f"s3://{bucket}/test_parquet_catalog2", dataset=True
+    )
+    assert len(columns_types) == 17
+    assert len(partitions_types) == 2
+    columns_types, partitions_types, partitions_values = wr.s3.store_parquet_metadata(
+        path=f"s3://{bucket}/test_parquet_catalog2", database=database, table="test_parquet_catalog2", dataset=True
+    )
+    assert len(columns_types) == 17
+    assert len(partitions_types) == 2
+    assert len(partitions_values) == 2
+    wr.s3.delete_objects(path=f"s3://{bucket}/test_parquet_catalog/")
+    wr.s3.delete_objects(path=f"s3://{bucket}/test_parquet_catalog2/")
+    assert wr.catalog.delete_table_if_exists(database=database, table="test_parquet_catalog") is True
+    assert wr.catalog.delete_table_if_exists(database=database, table="test_parquet_catalog2") is True
 
 
-def test_s3_empty_dfs():
-    df = pd.DataFrame()
-    with pytest.raises(wr.exceptions.EmptyDataFrame):
-        wr.s3.to_parquet(df=df, path="")
-    with pytest.raises(wr.exceptions.EmptyDataFrame):
-        wr.s3.to_csv(df=df, path="")
+def test_parquet_catalog_duplicated(bucket, database):
+    path = f"s3://{bucket}/test_parquet_catalog_dedup/"
+    df = pd.DataFrame({"A": [1], "a": [1]})
+    wr.s3.to_parquet(
+        df=df,
+        path=path,
+        index=False,
+        dataset=True,
+        mode="overwrite",
+        database=database,
+        table="test_parquet_catalog_dedup",
+    )
+    df = wr.s3.read_parquet(path=path)
+    assert len(df.index) == 1
+    assert len(df.columns) == 1
+    wr.s3.delete_objects(path=path)
+    assert wr.catalog.delete_table_if_exists(database=database, table="test_parquet_catalog_dedup") is True
 
 
-def test_absent_object(bucket):
-    path = f"s3://{bucket}/test_absent_object"
-    assert wr.s3.does_object_exist(path=path) is False
-    assert len(wr.s3.size_objects(path=path)) == 0
-    assert wr.s3.wait_objects_exist(paths=[]) is None
+def test_parquet_catalog_casting(bucket, database):
+    path = f"s3://{bucket}/test_parquet_catalog_casting/"
+    paths = wr.s3.to_parquet(
+        df=get_df_cast(),
+        path=path,
+        index=False,
+        dataset=True,
+        mode="overwrite",
+        database=database,
+        table="test_parquet_catalog_casting",
+        cast_columns={
+            "iint8": "tinyint",
+            "iint16": "smallint",
+            "iint32": "int",
+            "iint64": "bigint",
+            "float": "float",
+            "double": "double",
+            "decimal": "decimal(3,2)",
+            "string": "string",
+            "date": "date",
+            "timestamp": "timestamp",
+            "bool": "boolean",
+            "binary": "binary",
+            "category": "double",
+            "par0": "bigint",
+            "par1": "string",
+        },
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    df = wr.s3.read_parquet(path=path)
+    assert len(df.index) == 3
+    assert len(df.columns) == 15
+    ensure_data_types(df=df, has_list=False)
+    df = wr.athena.read_sql_table(table="test_parquet_catalog_casting", database=database, ctas_approach=True)
+    assert len(df.index) == 3
+    assert len(df.columns) == 15
+    ensure_data_types(df=df, has_list=False)
+    df = wr.athena.read_sql_table(table="test_parquet_catalog_casting", database=database, ctas_approach=False)
+    assert len(df.index) == 3
+    assert len(df.columns) == 15
+    ensure_data_types(df=df, has_list=False)
+    wr.s3.delete_objects(path=path)
+    assert wr.catalog.delete_table_if_exists(database=database, table="test_parquet_catalog_casting") is True
 
 
 def test_catalog(bucket, database):
@@ -410,94 +481,73 @@ def test_catalog(bucket, database):
     assert wr.catalog.delete_table_if_exists(database=database, table="test_catalog") is True
 
 
-def test_parquet_catalog(bucket, database):
-    with pytest.raises(wr.exceptions.UndetectedType):
-        wr.s3.to_parquet(
-            df=pd.DataFrame({"A": [None]}),
-            path=f"s3://{bucket}/test_parquet_catalog",
-            dataset=True,
-            database=database,
-            table="test_parquet_catalog",
-        )
-    df = get_df_list()
-    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.s3.to_parquet(
-            df=df,
-            path=f"s3://{bucket}/test_parquet_catalog",
-            use_threads=True,
-            dataset=False,
-            mode="overwrite",
-            database=database,
-            table="test_parquet_catalog",
-        )
-    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.s3.to_parquet(
-            df=df,
-            path=f"s3://{bucket}/test_parquet_catalog",
-            use_threads=True,
-            dataset=False,
-            table="test_parquet_catalog",
-        )
-    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.s3.to_parquet(
-            df=df,
-            path=f"s3://{bucket}/test_parquet_catalog",
-            use_threads=True,
-            dataset=True,
-            mode="overwrite",
-            database=database,
-        )
-    wr.s3.to_parquet(
-        df=df,
-        path=f"s3://{bucket}/test_parquet_catalog",
-        use_threads=True,
-        dataset=True,
-        mode="overwrite",
-        database=database,
-        table="test_parquet_catalog",
-    )
-    wr.s3.to_parquet(
-        df=df,
-        path=f"s3://{bucket}/test_parquet_catalog2",
-        index=True,
-        use_threads=True,
-        dataset=True,
-        mode="overwrite",
-        database=database,
-        table="test_parquet_catalog2",
-        partition_cols=["iint8", "iint16"],
-    )
-    columns_types, partitions_types = wr.s3.read_parquet_metadata(
-        path=f"s3://{bucket}/test_parquet_catalog2", dataset=True
-    )
-    assert len(columns_types) == 17
-    assert len(partitions_types) == 2
-    columns_types, partitions_types, partitions_values = wr.s3.store_parquet_metadata(
-        path=f"s3://{bucket}/test_parquet_catalog2", database=database, table="test_parquet_catalog2", dataset=True
-    )
-    assert len(columns_types) == 17
-    assert len(partitions_types) == 2
-    assert len(partitions_values) == 2
-    wr.s3.delete_objects(path=f"s3://{bucket}/test_parquet_catalog")
-    wr.s3.delete_objects(path=f"s3://{bucket}/test_parquet_catalog2")
-    assert wr.catalog.delete_table_if_exists(database=database, table="test_parquet_catalog") is True
-    assert wr.catalog.delete_table_if_exists(database=database, table="test_parquet_catalog2") is True
+def test_metadata():
+    assert wr.__version__ == "1.0.0"
+    assert wr.__title__ == "awswrangler"
+    assert wr.__description__ == "Pandas on AWS."
+    assert wr.__license__ == "Apache License 2.0"
 
 
-def test_parquet_catalog_dedup(bucket, database):
-    path = f"s3://{bucket}/test_parquet_catalog_dedup"
-    df = pd.DataFrame({"A": [1], "a": [1]})
-    wr.s3.to_parquet(
-        df=df,
-        path=path,
-        index=False,
-        dataset=True,
-        mode="overwrite",
-        database=database,
-        table="test_parquet_catalog_dedup",
-    )
-    df = wr.s3.read_parquet(path=path)
-    assert len(df.index) == 1
-    assert len(df.columns) == 1
-    wr.s3.delete_objects(path=path)
-    assert wr.catalog.delete_table_if_exists(database=database, table="test_parquet_catalog_dedup") is True
+def test_s3_get_bucket_region(bucket, region):
+    assert wr.s3.get_bucket_region(bucket=bucket) == region
+    assert wr.s3.get_bucket_region(bucket=bucket, boto3_session=boto3.Session()) == region
+
+
+def test_catalog_get_databases(database):
+    dbs = list(wr.catalog.get_databases())
+    assert len(dbs) > 0
+    for db in dbs:
+        if db["Name"] == database:
+            assert db["Description"] == "AWS Data Wrangler Test Arena - Glue Database"
+
+
+def test_athena_query_cancelled(database):
+    session = boto3.Session()
+    query_execution_id = wr.athena.start_query_execution(sql=get_query_long(), database=database, boto3_session=session)
+    wr.athena.stop_query_execution(query_execution_id=query_execution_id, boto3_session=session)
+    with pytest.raises(wr.exceptions.QueryCancelled):
+        assert wr.athena.wait_query(query_execution_id=query_execution_id)
+
+
+def test_athena_query_failed(database):
+    query_execution_id = wr.athena.start_query_execution(sql="SELECT random(-1)", database=database)
+    with pytest.raises(wr.exceptions.QueryFailed):
+        assert wr.athena.wait_query(query_execution_id=query_execution_id)
+
+
+def test_athena_read_list(database):
+    with pytest.raises(wr.exceptions.UnsupportedType):
+        wr.athena.read_sql_query(sql=f"SELECT ARRAY[1, 2, 3]", database=database, ctas_approach=False)
+
+
+def test_normalize_column_name():
+    assert wr.catalog.normalize_column_name("foo()__Boo))))____BAR") == "foo_boo_bar"
+    assert wr.catalog.normalize_column_name("foo()__Boo))))_{}{}{{}{}{}{___BAR[][][][]") == "foo_boo_bar"
+
+
+def test_athena_ctas_empty(database):
+    sql = """
+        WITH dataset AS (
+          SELECT 0 AS id
+        )
+        SELECT id
+        FROM dataset
+        WHERE id != 0
+    """
+    assert wr.athena.read_sql_query(sql=sql, database=database).empty is True
+    assert len(list(wr.athena.read_sql_query(sql=sql, database=database, chunksize=1))) == 0
+
+
+def test_s3_empty_dfs():
+    df = pd.DataFrame()
+    with pytest.raises(wr.exceptions.EmptyDataFrame):
+        wr.s3.to_parquet(df=df, path="")
+    with pytest.raises(wr.exceptions.EmptyDataFrame):
+        wr.s3.to_csv(df=df, path="")
+
+
+def test_absent_object(bucket):
+    path = f"s3://{bucket}/test_absent_object"
+    assert wr.s3.does_object_exist(path=path) is False
+    assert len(wr.s3.size_objects(path=path)) == 0
+    assert wr.s3.wait_objects_exist(paths=[]) is None

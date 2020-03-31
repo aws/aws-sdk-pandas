@@ -71,6 +71,29 @@ def get_df_list():
     return df
 
 
+def get_df_cast():
+    df = pd.DataFrame(
+        {
+            "iint8": [None, None, None],
+            "iint16": [None, None, None],
+            "iint32": [None, None, None],
+            "iint64": [None, None, None],
+            "float": [None, None, None],
+            "double": [None, None, None],
+            "decimal": [None, None, None],
+            "string": [None, None, None],
+            "date": [None, None, dt("2020-01-02")],
+            "timestamp": [None, None, None],
+            "bool": [True, None, None],
+            "binary": [None, None, None],
+            "category": [None, None, None],
+            "par0": [1, 1, 2],
+            "par1": ["a", "b", "b"],
+        }
+    )
+    return df
+
+
 def get_query_long():
     return """
 SELECT
@@ -182,7 +205,8 @@ def ensure_data_types(df, has_list=False):
     assert str(df["float"].dtype) == "float32"
     assert str(df["double"].dtype) == "float64"
     assert str(df["decimal"].dtype) == "object"
-    assert str(df["string_object"].dtype) == "string"
+    if "string_object" in df.columns:
+        assert str(df["string_object"].dtype) == "string"
     assert str(df["string"].dtype) == "string"
     assert str(df["date"].dtype) == "object"
     assert str(df["timestamp"].dtype) == "datetime64[ns]"

@@ -283,7 +283,7 @@ def _get_query_metadata(
             dtype[col_name] = "string"
             binaries.append(col_name)
         elif pandas_type == "decimal":
-            converters[col_name] = lambda x: Decimal(str(x)) if str(x) != "" else None
+            converters[col_name] = lambda x: Decimal(str(x)) if str(x) not in ("", "none", " ", "<NA>") else None
         elif pandas_type == "list":
             raise exceptions.UnsupportedType(
                 "List data type is not support with ctas_approach=False. "

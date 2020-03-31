@@ -1,6 +1,7 @@
 """Internal (private) Data Types Module."""
 
 import logging
+from decimal import Decimal
 from typing import Dict, List, Optional, Tuple
 
 import pandas as pd  # type: ignore
@@ -27,7 +28,7 @@ def athena2pyarrow(dtype: str) -> pa.DataType:  # pylint: disable=too-many-retur
         return pa.float32()
     if dtype == "double":
         return pa.float64()
-    if dtype in ("boolean", "bool"):
+    if dtype == "boolean":
         return pa.bool_()
     if dtype in ("string", "char", "varchar", "array", "row", "map"):
         return pa.string()
@@ -35,7 +36,12 @@ def athena2pyarrow(dtype: str) -> pa.DataType:  # pylint: disable=too-many-retur
         return pa.timestamp(unit="ns")
     if dtype == "date":
         return pa.date32()
-    raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")
+    if dtype in ("binary" or "varbinary"):
+        return pa.binary()
+    if dtype.startswith("decimal"):
+        precision, scale = dtype.replace("decimal(", "").replace(")", "").split(sep=",")
+        return pa.decimal128(precision=int(precision), scale=int(scale))
+    raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")  # pragma: no cover
 
 
 def pyarrow2athena(dtype: pa.DataType) -> str:  # pylint: disable=too-many-branches,too-many-return-statements
@@ -109,7 +115,7 @@ def athena2pandas(dtype: str) -> str:  # pylint: disable=too-many-branches,too-m
         return "float32"
     if dtype == "double":
         return "float64"
-    if dtype in ("bool", "boolean"):
+    if dtype == "boolean":
         return "boolean"
     if dtype in ("string", "char", "varchar"):
         return "string"
@@ -117,9 +123,9 @@ def athena2pandas(dtype: str) -> str:  # pylint: disable=too-many-branches,too-m
         return "datetime64"
     if dtype == "date":
         return "date"
-    if dtype == "decimal":
+    if dtype.startswith("decimal"):
         return "decimal"
-    if dtype == "varbinary":
+    if dtype in ("binary", "varbinary"):
         return "bytes"
     if dtype == "array":
         return "list"
@@ -203,11 +209,22 @@ def athena_types_from_pandas_partitioned(
     return columns_types, partitions_types
 
 
-def pyarrow_schema_from_pandas(df: pd.DataFrame, index: bool, ignore_cols: Optional[List[str]] = None) -> pa.Schema:
+def pyarrow_schema_from_pandas(
+    df: pd.DataFrame,
+    index: bool,
+    ignore_cols: Optional[List[str]] = None,
+    cast_columns: Optional[Dict[str, str]] = None,
+) -> pa.Schema:
     """Extract the related Pyarrow Schema from any Pandas DataFrame."""
-    columns_types: Dict[str, Optional[pa.DataType]] = pyarrow_types_from_pandas(
-        df=df, index=index, ignore_cols=ignore_cols
-    )
+    casts: Dict[str, str] = {} if cast_columns is None else cast_columns
+    ignore: List[str] = [] if ignore_cols is None else ignore_cols
+    ignore = ignore + list(casts.keys())
+    columns_types: Dict[str, Optional[pa.DataType]] = pyarrow_types_from_pandas(df=df, index=index, ignore_cols=ignore)
+    for k, v in casts.items():
+        if k in df.columns:
+            columns_types[k] = athena2pyarrow(v)
+    columns_types = {k: v for k, v in columns_types.items() if v is not None}
+    _logger.debug(f"columns_types: {columns_types}")
     return pa.schema(fields=columns_types)
 
 
@@ -239,11 +256,20 @@ def athena_partitions_from_pyarrow_partitions(
 def cast_pandas_with_athena_types(df: pd.DataFrame, cast_columns: Dict[str, str]) -> pd.DataFrame:
     """Cast columns in a Pandas DataFrame."""
     for col, athena_type in cast_columns.items():
-        pandas_type: str = athena2pandas(dtype=athena_type)
-        if pandas_type == "datetime64":
-            df[col] = pd.to_datetime(df[col])
-        elif pandas_type == "date":
-            df[col] = pd.to_datetime(df[col]).dt.date.replace(to_replace={pd.NaT: None})
-        else:
-            df[col] = df[col].astype(pandas_type)
+        if col in df.columns:
+            pandas_type: str = athena2pandas(dtype=athena_type)
+            if pandas_type == "datetime64":
+                df[col] = pd.to_datetime(df[col])
+            elif pandas_type == "date":
+                df[col] = pd.to_datetime(df[col]).dt.date.replace(to_replace={pd.NaT: None})
+            elif pandas_type == "bytes":
+                df[col] = df[col].astype("string").str.encode(encoding="utf-8").replace(to_replace={pd.NA: None})
+            elif pandas_type == "decimal":
+                df[col] = (
+                    df[col]
+                    .astype("string")
+                    .apply(lambda x: Decimal(str(x)) if str(x) not in ("", "none", " ", "<NA>") else None)
+                )
+            else:
+                df[col] = df[col].astype(pandas_type)
     return df

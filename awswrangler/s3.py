@@ -618,7 +618,7 @@ def to_parquet(  # pylint: disable=too-many-arguments
             raise exceptions.InvalidArgumentCombination("Please, pass dataset=True to be able to use partition_cols.")
         if mode is not None:
             raise exceptions.InvalidArgumentCombination("Please pass dataset=True to be able to use mode.")
-        if any(arg is not None for arg in (database, table, description, parameters, columns_comments)):
+        if any(arg is not None for arg in (database, table, description, parameters)):
             raise exceptions.InvalidArgumentCombination(
                 "Please pass dataset=True to be able to use any one of these "
                 "arguments: database, table, description, parameters, "
@@ -704,11 +704,15 @@ def _to_parquet_dataset(
     if (mode == "overwrite") or ((mode == "overwrite_partitions") and (not partition_cols)):
         delete_objects(path=path, use_threads=use_threads, boto3_session=boto3_session)
     df = _data_types.cast_pandas_with_athena_types(df=df, cast_columns=cast_columns)
+    schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(
+        df=df, index=index, ignore_cols=partition_cols, cast_columns=cast_columns
+    )
+    _logger.debug(f"schema: {schema}")
     if not partition_cols:
         file_path: str = f"{path}{uuid.uuid4().hex}{compression_ext}.parquet"
         _to_parquet_file(
             df=df,
-            schema=None,
+            schema=schema,
             path=file_path,
             index=index,
             compression=compression,
@@ -718,8 +722,6 @@ def _to_parquet_dataset(
         )
         paths.append(file_path)
     else:
-        schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(df=df, index=index, ignore_cols=partition_cols)
-        _logger.debug(f"schema: {schema}")
         for keys, subgroup in df.groupby(by=partition_cols, observed=True):
             subgroup = subgroup.drop(partition_cols, axis="columns")
             keys = (keys,) if not isinstance(keys, tuple) else keys
@@ -755,11 +757,12 @@ def _to_parquet_file(
 ) -> str:
     table: pa.Table = pyarrow.Table.from_pandas(df=df, schema=schema, nthreads=cpus, preserve_index=index, safe=False)
     for col_name, dtype in cast_columns.items():
-        col_index = table.column_names.index(col_name)
-        pyarrow_dtype = _data_types.athena2pyarrow(dtype)
-        field = pa.field(name=col_name, type=pyarrow_dtype)
-        table = table.set_column(col_index, field, table.column(col_name).cast(pyarrow_dtype))
-        _logger.debug(f"Casting column {col_name} ({col_index}) to {dtype} ({pyarrow_dtype})")
+        if col_name in table.column_names:
+            col_index = table.column_names.index(col_name)
+            pyarrow_dtype = _data_types.athena2pyarrow(dtype)
+            field = pa.field(name=col_name, type=pyarrow_dtype)
+            table = table.set_column(col_index, field, table.column(col_name).cast(pyarrow_dtype))
+            _logger.debug(f"Casting column {col_name} ({col_index}) to {dtype} ({pyarrow_dtype})")
     pyarrow.parquet.write_table(
         table=table,
         where=path,
