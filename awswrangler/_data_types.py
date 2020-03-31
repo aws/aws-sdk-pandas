@@ -12,6 +12,32 @@ from awswrangler import exceptions
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
+def athena2pyarrow(dtype: str) -> pa.DataType:  # pylint: disable=too-many-return-statements
+    """Athena to PyArrow data types conversion."""
+    dtype = dtype.lower()
+    if dtype == "tinyint":
+        return pa.int8()
+    if dtype == "smallint":
+        return pa.int16()
+    if dtype in ("int", "integer"):
+        return pa.int32()
+    if dtype == "bigint":
+        return pa.int64()
+    if dtype == "float":
+        return pa.float32()
+    if dtype == "double":
+        return pa.float64()
+    if dtype in ("boolean", "bool"):
+        return pa.bool_()
+    if dtype in ("string", "char", "varchar", "array", "row", "map"):
+        return pa.string()
+    if dtype == "timestamp":
+        return pa.timestamp(unit="ns")
+    if dtype == "date":
+        return pa.date32()
+    raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")
+
+
 def pyarrow2athena(dtype: pa.DataType) -> str:  # pylint: disable=too-many-branches,too-many-return-statements
     """Pyarrow to Athena data types conversion."""
     if pa.types.is_int8(dtype):
@@ -107,11 +133,11 @@ def pyarrow_types_from_pandas(
     # Handle exception data types (e.g. Int64, Int32, string)
     ignore_cols = [] if ignore_cols is None else ignore_cols
     cols: List[str] = []
-    cols_dtypes: Dict[str, pa.DataType] = {}
+    cols_dtypes: Dict[str, Optional[pa.DataType]] = {}
     for name, dtype in df.dtypes.to_dict().items():
         dtype = str(dtype)
         if name in ignore_cols:
-            pass
+            cols_dtypes[name] = None
         elif dtype == "Int8":
             cols_dtypes[name] = pa.int8()
         elif dtype == "Int16":
@@ -135,27 +161,38 @@ def pyarrow_types_from_pandas(
 
     # Filling schema
     columns_types: Dict[str, pa.DataType]
-    columns_types = {n: cols_dtypes[n] for n in list(df.columns) + indexes if n not in ignore_cols}  # add cols + idxs
+    columns_types = {n: cols_dtypes[n] for n in list(df.columns) + indexes}  # add cols + indexes
     _logger.debug(f"columns_types: {columns_types}")
     return columns_types
 
 
-def athena_types_from_pandas(df: pd.DataFrame, index: bool, ignore_cols: Optional[List[str]] = None) -> Dict[str, str]:
+def athena_types_from_pandas(
+    df: pd.DataFrame, index: bool, cast_columns: Optional[Dict[str, str]] = None
+) -> Dict[str, str]:
     """Extract the related Athena data types from any Pandas DataFrame."""
+    casts: Dict[str, str] = cast_columns if cast_columns else {}
     pa_columns_types: Dict[str, Optional[pa.DataType]] = pyarrow_types_from_pandas(
-        df=df, index=index, ignore_cols=ignore_cols
+        df=df, index=index, ignore_cols=list(casts.keys())
     )
-    athena_columns_types: Dict[str, str] = {k: pyarrow2athena(dtype=v) for k, v in pa_columns_types.items()}
+    athena_columns_types: Dict[str, str] = {}
+    for k, v in pa_columns_types.items():
+        if v is None:
+            athena_columns_types[k] = casts[k]
+        else:
+            athena_columns_types[k] = pyarrow2athena(dtype=v)
     _logger.debug(f"athena_columns_types: {athena_columns_types}")
     return athena_columns_types
 
 
 def athena_types_from_pandas_partitioned(
-    df: pd.DataFrame, index: bool, ignore_cols: Optional[List[str]] = None, partition_cols: Optional[List[str]] = None
+    df: pd.DataFrame,
+    index: bool,
+    partition_cols: Optional[List[str]] = None,
+    cast_columns: Optional[Dict[str, str]] = None,
 ) -> Tuple[Dict[str, str], Dict[str, str]]:
     """Extract the related Athena data types from any Pandas DataFrame considering possible partitions."""
     partitions: List[str] = partition_cols if partition_cols else []
-    athena_columns_types: Dict[str, str] = athena_types_from_pandas(df=df, index=index, ignore_cols=ignore_cols)
+    athena_columns_types: Dict[str, str] = athena_types_from_pandas(df=df, index=index, cast_columns=cast_columns)
     columns_types: Dict[str, str] = {}
     partitions_types: Dict[str, str] = {}
     for k, v in athena_columns_types.items():
@@ -197,3 +234,16 @@ def athena_partitions_from_pyarrow_partitions(
         suffix = suffix if suffix[-1] == "/" else f"{suffix}/"
         partitions_values[f"{path}{suffix}"] = list(values)
     return partitions_values
+
+
+def cast_pandas_with_athena_types(df: pd.DataFrame, cast_columns: Dict[str, str]) -> pd.DataFrame:
+    """Cast columns in a Pandas DataFrame."""
+    for col, athena_type in cast_columns.items():
+        pandas_type: str = athena2pandas(dtype=athena_type)
+        if pandas_type == "datetime64":
+            df[col] = pd.to_datetime(df[col])
+        elif pandas_type == "date":
+            df[col] = pd.to_datetime(df[col]).dt.date.replace(to_replace={pd.NaT: None})
+        else:
+            df[col] = df[col].astype(pandas_type)
+    return df
