@@ -142,6 +142,8 @@ class Session:
         if self.aws_access_key_id and self.aws_secret_access_key:
             args["aws_access_key_id"] = self.aws_access_key_id
             args["aws_secret_access_key"] = self.aws_secret_access_key
+        if self.aws_session_token:
+            args['aws_session_token'] = self.aws_session_token
         self._boto3_session = boto3.Session(**args)
         self._profile_name = self._boto3_session.profile_name
         credentials = self._boto3_session.get_credentials()
