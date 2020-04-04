@@ -6,9 +6,11 @@ import logging
 import re
 import unicodedata
 from typing import Any, Dict, Iterator, List, Optional
+from urllib.parse import quote_plus
 
 import boto3  # type: ignore
 import pandas as pd  # type: ignore
+import sqlalchemy  # type: ignore
 
 from awswrangler import _utils, exceptions
 
@@ -846,3 +848,87 @@ def drop_duplicated_columns(df: pd.DataFrame) -> pd.DataFrame:
     if len(duplicated_cols_names) > 0:
         _logger.warning(f"Dropping repeated columns: {duplicated_cols_names}")
     return df.loc[:, ~duplicated_cols]
+
+
+def get_connection(
+    name: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
+) -> Dict[str, Any]:
+    """Get Glue connection details.
+
+    Parameters
+    ----------
+    name : str
+        Connection name.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    Dict[str, Any]
+        API Response for:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/glue.html#Glue.Client.get_connection
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> res = wr.catalog.get_connection(name='my_connection')
+
+    """
+    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    if catalog_id is None:
+        return client_glue.get_connection(Name=name, HidePassword=False)["Connection"]
+    return client_glue.get_connection(CatalogId=catalog_id, Name=name, HidePassword=False)["Connection"]
+
+
+def get_engine(
+    connection: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
+) -> sqlalchemy.engine.Engine:
+    """Return a SQLAlchemy Engine from a Glue Catalog Connection.
+
+    Only Redshift, PostgreSQL and MySQL are supported.
+
+    Parameters
+    ----------
+    connection : str
+        Connection name.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    sqlalchemy.engine.Engine
+        SQLAlchemy Engine.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> res = wr.catalog.get_engine(name='my_connection')
+
+    """
+    details: Dict[str, Any] = get_connection(name=connection, catalog_id=catalog_id, boto3_session=boto3_session)[
+        "ConnectionProperties"
+    ]
+    db_type: str = details["JDBC_CONNECTION_URL"].split(":")[1].lower()
+    host: str = details["JDBC_CONNECTION_URL"].split(":")[2].replace("/", "")
+    port, database = details["JDBC_CONNECTION_URL"].split(":")[3].split("/")
+    user: str = quote_plus(details["USERNAME"])
+    password: str = quote_plus(details["PASSWORD"])
+    if db_type == "postgresql":
+        _utils.ensure_postgresql_casts()
+    if db_type in ("redshift", "postgresql"):
+        conn_str: str = f"{db_type}+psycopg2://{user}:{password}@{host}:{port}/{database}"
+        return sqlalchemy.create_engine(
+            conn_str, echo=False, executemany_mode="values", executemany_values_page_size=100_000
+        )
+    if db_type == "mysql":
+        conn_str = f"mysql+pymysql://{user}:{password}@{host}:{port}/{database}"
+        return sqlalchemy.create_engine(conn_str, echo=False)
+    raise exceptions.InvalidDatabaseType(  # pragma: no cover
+        f"{db_type} is not a valid Database type." f" Only Redshift, PostgreSQL and MySQL are supported."
+    )

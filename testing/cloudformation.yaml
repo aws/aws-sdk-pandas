@@ -1,0 +1,470 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  AWS Data Wrangler Test Infrastructure
+Parameters:
+  VpcId:
+    Type: String
+    Description: Redshift VPC ID
+  SubnetId:
+    Type: String
+    Description: Redshift Subnet ID
+  SubnetId2:
+    Type: String
+    Description: Redshift Subnet ID
+  SubnetAz:
+    Type: String
+    Description: Subnet AZ
+  DatabasesPassword:
+    Type: String
+    Description: Password for all databases
+    NoEcho: true
+  AWSUserForTests:
+    Type: String
+    Description: AWS User that will running the tests on the CLI
+Resources:
+  KmsKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/aws-data-wrangler-test-key
+      TargetKeyId:
+        Ref: KmsKey
+  KmsKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: Aws Data Wrangler Test Key.
+      KeyPolicy:
+        Version: '2012-10-17'
+        Id: aws-data-wrangler-test-key
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Sub: arn:aws:iam::${AWS::AccountId}:root
+            Action: kms:*
+            Resource: '*'
+          - Sid: Allow administration of the key
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Sub: arn:aws:iam::${AWS::AccountId}:user/${AWSUserForTests}
+            Action:
+              - kms:Create*
+              - kms:Describe*
+              - kms:Enable*
+              - kms:List*
+              - kms:Put*
+              - kms:Update*
+              - kms:Revoke*
+              - kms:Disable*
+              - kms:Get*
+              - kms:Delete*
+              - kms:ScheduleKeyDeletion
+              - kms:CancelKeyDeletion
+            Resource: '*'
+  Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: CleaningUp
+            Status: Enabled
+            ExpirationInDays: 1
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+            NoncurrentVersionExpirationInDays: 1
+  RedshiftRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - redshift.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: Root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:Get*
+                  - s3:List*
+                  - s3:Put*
+                Resource:
+                  - Fn::Sub: arn:aws:s3:::${Bucket}
+                  - Fn::Sub: arn:aws:s3:::${Bucket}/*
+              - Effect: Allow
+                Action:
+                  - lakeformation:GrantPermissions
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - glue:SearchTables
+                  - glue:GetConnections
+                  - glue:GetDataCatalogEncryptionSettings
+                  - glue:GetTables
+                  - glue:GetTableVersions
+                  - glue:GetPartitions
+                  - glue:DeleteTableVersion
+                  - glue:BatchGetPartition
+                  - glue:GetDatabases
+                  - glue:GetTags
+                  - glue:GetTable
+                  - glue:GetDatabase
+                  - glue:GetPartition
+                  - glue:GetTableVersion
+                  - glue:GetConnection
+                  - glue:GetUserDefinedFunction
+                  - glue:GetUserDefinedFunctions
+                Resource: '*'
+  RedshiftSubnetGroup:
+    Type: AWS::Redshift::ClusterSubnetGroup
+    Properties:
+      Description: AWS Data Wrangler Test Arena - Redshift Subnet Group
+      SubnetIds:
+        - Ref: SubnetId
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId:
+        Ref: VpcId
+      GroupDescription: AWS Data Wrangler Test Arena - Redshift security group
+  DatabaseSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: Self Referencing
+      GroupId:
+        Ref: DatabaseSecurityGroup
+      IpProtocol: '-1'
+      FromPort: 0
+      ToPort: 65535
+      SourceSecurityGroupId:
+        Ref: DatabaseSecurityGroup
+  Redshift:
+    Type: AWS::Redshift::Cluster
+    Properties:
+      DBName: test
+      MasterUsername: test
+      MasterUserPassword:
+        Ref: DatabasesPassword
+      NodeType: dc2.large
+      ClusterType: single-node
+      VpcSecurityGroupIds:
+        - Ref: DatabaseSecurityGroup
+      ClusterSubnetGroupName:
+        Ref: RedshiftSubnetGroup
+      PubliclyAccessible: true
+      Port: 5439
+      IamRoles:
+        - Fn::GetAtt:
+            - RedshiftRole
+            - Arn
+  GlueDatabase:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId:
+        Ref: AWS::AccountId
+      DatabaseInput:
+        Name: awswrangler_test
+        Description: AWS Data Wrangler Test Arena - Glue Database
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 30
+  LogStream:
+    Type: AWS::Logs::LogStream
+    Properties:
+      LogGroupName:
+        Ref: LogGroup
+  RdsSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: RDS Database Subnet Group
+      SubnetIds:
+        - Ref: SubnetId
+        - Ref: SubnetId2
+  AuroraRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - rds.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: S3GetAndList
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:Get*
+                  - s3:List*
+                  - s3:Put*
+                Resource:
+                  - Fn::Sub: arn:aws:s3:::${Bucket}
+                  - Fn::Sub: arn:aws:s3:::${Bucket}/*
+  PostgresqlParameterGroup:
+    Type: AWS::RDS::DBClusterParameterGroup
+    Properties:
+      Description: Postgres 10
+      Family: aurora-postgresql10
+      Parameters:
+        apg_plan_mgmt.capture_plan_baselines: 'off'
+  AuroraClusterPostgresql:
+    Type: AWS::RDS::DBCluster
+    Properties:
+      Engine: aurora-postgresql
+      DBClusterIdentifier: postgresql-cluster-wrangler
+      MasterUsername: test
+      MasterUserPassword:
+        Ref: DatabasesPassword
+      BackupRetentionPeriod: 1
+      DBSubnetGroupName:
+        Ref: RdsSubnetGroup
+      VpcSecurityGroupIds:
+        - Ref: DatabaseSecurityGroup
+      DBClusterParameterGroupName:
+        Ref: PostgresqlParameterGroup
+      AssociatedRoles:
+        - FeatureName: s3Import
+          RoleArn:
+            Fn::GetAtt:
+              - AuroraRole
+              - Arn
+  AuroraInstancePostgresql:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      Engine: aurora-postgresql
+      DBInstanceIdentifier: postgresql-instance-wrangler
+      DBClusterIdentifier:
+        Ref: AuroraClusterPostgresql
+      DBInstanceClass: db.t3.medium
+      DBSubnetGroupName:
+        Ref: RdsSubnetGroup
+      PubliclyAccessible: true
+  MysqlParameterGroup:
+    Type: AWS::RDS::DBClusterParameterGroup
+    Properties:
+      Description: Mysql 5.7
+      Family: aurora-mysql5.7
+      Parameters:
+        aurora_load_from_s3_role:
+          Fn::GetAtt:
+            - AuroraRole
+            - Arn
+        aws_default_s3_role:
+          Fn::GetAtt:
+            - AuroraRole
+            - Arn
+        aurora_select_into_s3_role:
+          Fn::GetAtt:
+            - AuroraRole
+            - Arn
+  AuroraClusterMysql:
+    Type: AWS::RDS::DBCluster
+    Properties:
+      Engine: aurora-mysql
+      DBClusterIdentifier: mysql-cluster-wrangler
+      MasterUsername: test
+      MasterUserPassword:
+        Ref: DatabasesPassword
+      BackupRetentionPeriod: 1
+      DBSubnetGroupName:
+        Ref: RdsSubnetGroup
+      VpcSecurityGroupIds:
+        - Ref: DatabaseSecurityGroup
+      DBClusterParameterGroupName:
+        Ref: MysqlParameterGroup
+      DatabaseName: test
+      AssociatedRoles:
+        - RoleArn:
+            Fn::GetAtt:
+              - AuroraRole
+              - Arn
+  AuroraInstanceMysql:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      Engine: aurora-mysql
+      DBInstanceIdentifier: mysql-instance-wrangler
+      DBClusterIdentifier:
+        Ref: AuroraClusterMysql
+      DBInstanceClass: db.t3.medium
+      DBSubnetGroupName:
+        Ref: RdsSubnetGroup
+      PubliclyAccessible: true
+  RedshiftGlueConnection:
+    Type: AWS::Glue::Connection
+    Properties:
+      CatalogId:
+        Ref: AWS::AccountId
+      ConnectionInput:
+        Description: Connect to Redshift.
+        ConnectionType: JDBC
+        PhysicalConnectionRequirements:
+          AvailabilityZone:
+            Ref: SubnetAz
+          SecurityGroupIdList:
+            - Ref: DatabaseSecurityGroup
+          SubnetId:
+            Ref: SubnetId
+        ConnectionProperties:
+          JDBC_CONNECTION_URL:
+            Fn::Sub: jdbc:redshift://${Redshift.Endpoint.Address}:${Redshift.Endpoint.Port}/test
+          USERNAME: test
+          PASSWORD:
+            Ref: DatabasesPassword
+        Name: aws-data-wrangler-redshift
+  PostgresqlGlueConnection:
+    Type: AWS::Glue::Connection
+    Properties:
+      CatalogId:
+        Ref: AWS::AccountId
+      ConnectionInput:
+        Description: Connect to Aurora (PostgreSQL).
+        ConnectionType: JDBC
+        PhysicalConnectionRequirements:
+          AvailabilityZone:
+            Ref: SubnetAz
+          SecurityGroupIdList:
+            - Ref: DatabaseSecurityGroup
+          SubnetId:
+            Ref: SubnetId
+        ConnectionProperties:
+          JDBC_CONNECTION_URL:
+            Fn::Sub: jdbc:postgresql://${AuroraInstancePostgresql.Endpoint.Address}:${AuroraInstancePostgresql.Endpoint.Port}/postgres
+          USERNAME: test
+          PASSWORD:
+            Ref: DatabasesPassword
+        Name: aws-data-wrangler-postgresql
+  MysqlGlueConnection:
+    Type: AWS::Glue::Connection
+    Properties:
+      CatalogId:
+        Ref: AWS::AccountId
+      ConnectionInput:
+        Description: Connect to Aurora (MySQL).
+        ConnectionType: JDBC
+        PhysicalConnectionRequirements:
+          AvailabilityZone:
+            Ref: SubnetAz
+          SecurityGroupIdList:
+            - Ref: DatabaseSecurityGroup
+          SubnetId:
+            Ref: SubnetId
+        ConnectionProperties:
+          JDBC_CONNECTION_URL:
+            Fn::Sub: jdbc:mysql://${AuroraInstanceMysql.Endpoint.Address}:${AuroraInstanceMysql.Endpoint.Port}/test
+          USERNAME: test
+          PASSWORD:
+            Ref: DatabasesPassword
+        Name: aws-data-wrangler-mysql
+  DynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: attr_hash
+          AttributeType: S
+        - AttributeName: attr_range
+          AttributeType: S
+      KeySchema:
+        - AttributeName: attr_hash
+          KeyType: HASH
+        - AttributeName: attr_range
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+      TableName: aws-data-wrangler-test
+Outputs:
+  BucketName:
+    Value:
+      Ref: Bucket
+    Description: Name of the S3 Bucket used for tests.
+  RedshiftIdentifier:
+    Value:
+      Ref: Redshift
+  RedshiftAddress:
+    Value:
+      Fn::GetAtt:
+        - Redshift
+        - Endpoint.Address
+    Description: Redshift address.
+  RedshiftPort:
+    Value:
+      Fn::GetAtt:
+        - Redshift
+        - Endpoint.Port
+    Description: Redshift Endpoint Port.
+  DatabasesPassword:
+    Value:
+      Ref: DatabasesPassword
+    Description: Password.
+  RedshiftRole:
+    Value:
+      Fn::GetAtt:
+        - RedshiftRole
+        - Arn
+    Description: Redshift IAM role.
+  GlueDatabaseName:
+    Value:
+      Ref: GlueDatabase
+    Description: Glue Database Name.
+  KmsKeyArn:
+    Value:
+      Fn::GetAtt:
+        - KmsKey
+        - Arn
+    Description: KMS Key ARN.
+  LogGroupName:
+    Value:
+      Ref: LogGroup
+    Description: LogGroup name.
+  LogStream:
+    Value:
+      Ref: LogStream
+    Description: LogStream name.
+  SubnetId:
+    Value:
+      Ref: SubnetId
+    Description: Subnet ID
+  SubnetId2:
+    Value:
+      Ref: SubnetId2
+    Description: Subnet ID 2
+  PostgresqlAddress:
+    Value:
+      Fn::GetAtt:
+        - AuroraInstancePostgresql
+        - Endpoint.Address
+    Description: Postgresql Address
+  MysqlAddress:
+    Value:
+      Fn::GetAtt:
+        - AuroraInstanceMysql
+        - Endpoint.Address
+    Description: Mysql Address
+  DynamoDbTableARN:
+    Value:
+      Fn::GetAtt:
+        - DynamoDBTable
+        - Arn
+    Description: DynamoDB table name
+  Region:
+    Value:
+      Ref: AWS::Region
+    Description: AWS Region

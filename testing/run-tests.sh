@@ -9,7 +9,7 @@ START=$(microtime)
 
 ./run-validations.sh
 pushd ..
-tox -e py36
+tox --develop True -e py36
 coverage html --directory testing/coverage
 rm -rf .coverage* testing/Running Running
 

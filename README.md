@@ -9,6 +9,7 @@
 [![Documentation Status](https://readthedocs.org/projects/aws-data-wrangler/badge/?version=latest)](https://aws-data-wrangler.readthedocs.io/?badge=latest)
 [![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](https://pypi.org/project/awswrangler/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Checked with mypy](http://www.mypy-lang.org/static/mypy_badge.svg)](http://mypy-lang.org/)
 [![Average time to resolve an issue](http://isitmaintained.com/badge/resolution/awslabs/aws-data-wrangler.svg)](http://isitmaintained.com/project/awslabs/aws-data-wrangler "Average time to resolve an issue")
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
@@ -31,5 +32,6 @@
   - [Amazon S3](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/api/index.html#amazon-s3)
   - [AWS Glue Catalog](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/api/index.html#aws-glue-catalog)
   - [Amazon Athena](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/api/index.html#amazon-athena)
+  - [Databases (Redshift, PostgreSQL, MySQL)](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/api/index.html#databases-redshift-postgresql-mysql)
 - [**License**](https://github.com/awslabs/aws-data-wrangler/blob/dev-1.0.0/LICENSE)
 - [**Contributing**](https://github.com/awslabs/aws-data-wrangler/blob/dev-1.0.0/CONTRIBUTING.md)

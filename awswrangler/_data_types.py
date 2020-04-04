@@ -7,6 +7,11 @@ from typing import Dict, List, Optional, Tuple
 import pandas as pd  # type: ignore
 import pyarrow as pa  # type: ignore
 import pyarrow.parquet  # type: ignore
+import sqlalchemy  # type: ignore
+import sqlalchemy.dialects.mysql  # type: ignore
+import sqlalchemy.dialects.postgresql  # type: ignore
+import sqlalchemy_redshift.dialect  # type: ignore
+from sqlalchemy.sql.visitors import VisitableType  # type: ignore
 
 from awswrangler import exceptions
 
@@ -130,6 +135,59 @@ def pyarrow2pandas_extension(  # pylint: disable=too-many-branches,too-many-retu
     if pa.types.is_string(dtype):
         return pd.StringDtype()
     return None
+
+
+def pyarrow2sqlalchemy(  # pylint: disable=too-many-branches,too-many-return-statements
+    dtype: pa.DataType, db_type: str
+) -> VisitableType:
+    """Pyarrow to Athena data types conversion."""
+    if pa.types.is_int8(dtype):
+        return sqlalchemy.types.SmallInteger
+    if pa.types.is_int16(dtype):
+        return sqlalchemy.types.SmallInteger
+    if pa.types.is_int32(dtype):
+        return sqlalchemy.types.Integer
+    if pa.types.is_int64(dtype):
+        return sqlalchemy.types.BigInteger
+    if pa.types.is_float32(dtype):
+        return sqlalchemy.types.Float
+    if pa.types.is_float64(dtype):
+        if db_type == "mysql":
+            return sqlalchemy.dialects.mysql.DOUBLE
+        if db_type == "postgresql":
+            return sqlalchemy.dialects.postgresql.DOUBLE_PRECISION
+        if db_type == "redshift":
+            return sqlalchemy_redshift.dialect.DOUBLE_PRECISION
+        raise exceptions.InvalidDatabaseType(
+            f"{db_type} is a invalid database type, please choose between postgresql, mysql and redshift."
+        )  # pragma: no cover
+    if pa.types.is_boolean(dtype):
+        return sqlalchemy.types.Boolean
+    if pa.types.is_string(dtype):
+        if db_type == "mysql":
+            return sqlalchemy.types.Text
+        if db_type == "postgresql":
+            return sqlalchemy.types.Text
+        if db_type == "redshift":
+            return sqlalchemy.types.VARCHAR(length=256)
+        raise exceptions.InvalidDatabaseType(
+            f"{db_type} is a invalid database type. " f"Please choose between postgresql, mysql and redshift."
+        )  # pragma: no cover
+    if pa.types.is_timestamp(dtype):
+        return sqlalchemy.types.DateTime
+    if pa.types.is_date(dtype):
+        return sqlalchemy.types.Date
+    if pa.types.is_binary(dtype):
+        if db_type == "redshift":
+            raise exceptions.UnsupportedType(f"Binary columns are not supported for Redshift.")  # pragma: no cover
+        return sqlalchemy.types.Binary
+    if pa.types.is_decimal(dtype):
+        return sqlalchemy.types.Numeric(precision=dtype.precision, scale=dtype.scale)
+    if pa.types.is_dictionary(dtype):
+        return pyarrow2sqlalchemy(dtype=dtype.value_type, db_type=db_type)
+    if dtype == pa.null():  # pragma: no cover
+        raise exceptions.UndetectedType("We can not infer the data type from an entire null object column")
+    raise exceptions.UnsupportedType(f"Unsupported Pyarrow type: {dtype}")  # pragma: no cover
 
 
 def pyarrow_types_from_pandas(
@@ -273,3 +331,21 @@ def cast_pandas_with_athena_types(df: pd.DataFrame, cast_columns: Dict[str, str]
             else:
                 df[col] = df[col].astype(pandas_type)
     return df
+
+
+def sqlalchemy_types_from_pandas(
+    df: pd.DataFrame, db_type: str, cast_columns: Optional[Dict[str, VisitableType]] = None
+) -> Dict[str, VisitableType]:
+    """Extract the related SQLAlchemy data types from any Pandas DataFrame."""
+    casts: Dict[str, VisitableType] = cast_columns if cast_columns else {}
+    pa_columns_types: Dict[str, Optional[pa.DataType]] = pyarrow_types_from_pandas(
+        df=df, index=False, ignore_cols=list(casts.keys())
+    )
+    sqlalchemy_columns_types: Dict[str, VisitableType] = {}
+    for k, v in pa_columns_types.items():
+        if v is None:
+            sqlalchemy_columns_types[k] = casts[k]
+        else:
+            sqlalchemy_columns_types[k] = pyarrow2sqlalchemy(dtype=v, db_type=db_type)
+    _logger.debug(f"sqlalchemy_columns_types: {sqlalchemy_columns_types}")
+    return sqlalchemy_columns_types

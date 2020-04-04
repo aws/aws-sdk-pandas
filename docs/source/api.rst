@@ -50,6 +50,7 @@ AWS Glue Catalog
     normalize_dataframe_columns_names
     normalize_table_name
     drop_duplicated_columns
+    get_engine
 
 Amazon Athena
 -------------
@@ -59,12 +60,27 @@ Amazon Athena
 .. autosummary::
     :toctree: stubs
 
-    create_athena_bucket
-    get_query_columns_types
     read_sql_query
     read_sql_table
     repair_table
     start_query_execution
     stop_query_execution
     wait_query
+    create_athena_bucket
+    get_query_columns_types
     get_work_group
+
+Databases (Redshift, PostgreSQL, MySQL)
+---------------------------------------
+
+.. currentmodule:: awswrangler.db
+
+.. autosummary::
+    :toctree: stubs
+
+    to_sql
+    read_sql_query
+    read_sql_table
+    get_engine
+    get_redshift_temp_engine
+

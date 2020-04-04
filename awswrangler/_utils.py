@@ -8,6 +8,7 @@ from typing import Any, Dict, Generator, List, Optional, Tuple
 import boto3  # type: ignore
 import botocore.config  # type: ignore
 import numpy as np  # type: ignore
+import psycopg2  # type: ignore
 import s3fs  # type: ignore
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -147,3 +148,11 @@ def get_fs(
 def empty_generator() -> Generator:
     """Empty Generator."""
     yield from ()
+
+
+def ensure_postgresql_casts():
+    """Ensure that psycopg2 will handle some data types right."""
+    psycopg2.extensions.register_adapter(bytes, psycopg2.Binary)
+    typecast_bytea = lambda data, cur: None if data is None else bytes(psycopg2.BINARY(data, cur))  # noqa
+    BYTEA = psycopg2.extensions.new_type(psycopg2.BINARY.values, "BYTEA", typecast_bytea)
+    psycopg2.extensions.register_type(BYTEA)

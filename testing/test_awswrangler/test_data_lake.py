@@ -1,5 +1,5 @@
-import logging
 import datetime
+import logging
 
 import boto3
 import pandas as pd
@@ -574,7 +574,7 @@ def test_athena_struct(database):
 
 
 def test_athena_time_zone(database):
-    sql = 'SELECT current_timestamp AS value, typeof(current_timestamp) AS type'
+    sql = "SELECT current_timestamp AS value, typeof(current_timestamp) AS type"
     df = wr.athena.read_sql_query(sql=sql, database=database, ctas_approach=False)
     assert len(df.index) == 1
     assert len(df.columns) == 2

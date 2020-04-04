@@ -51,3 +51,11 @@ class AthenaQueryError(Exception):
 
 class EmptyDataFrame(Exception):
     """EmptyDataFrame exception."""
+
+
+class InvalidConnection(Exception):
+    """InvalidConnection exception."""
+
+
+class InvalidDatabaseType(Exception):
+    """InvalidDatabaseEngine exception."""
