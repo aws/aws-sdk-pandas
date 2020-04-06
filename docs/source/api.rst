@@ -91,3 +91,32 @@ Databases (Redshift, PostgreSQL, MySQL)
     unload_redshift_to_df
     unload_redshift_to_files
     write_redshift_copy_manifest
+
+EMR
+---
+
+.. currentmodule:: awswrangler.emr
+
+.. autosummary::
+    :toctree: stubs
+
+    create_cluster
+    get_cluster_state
+    terminate_cluster
+    submit_step
+    submit_steps
+    build_step
+    get_step_state
+
+CloudWatch Logs
+---------------
+
+.. currentmodule:: awswrangler.cloudwatch
+
+.. autosummary::
+    :toctree: stubs
+
+    read_logs
+    run_query
+    start_query
+    wait_query
