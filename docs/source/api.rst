@@ -23,6 +23,7 @@ Amazon S3
     size_objects
     store_parquet_metadata
     to_csv
+    to_json
     to_parquet
     wait_objects_exist
     wait_objects_not_exist
