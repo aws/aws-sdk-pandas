@@ -290,7 +290,8 @@ rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), 
 
 
 def ensure_data_types(df, has_list=False):
-    assert str(df["iint8"].dtype).startswith("Int")
+    if "iint8" in df.columns:
+        assert str(df["iint8"].dtype).startswith("Int")
     assert str(df["iint16"].dtype).startswith("Int")
     assert str(df["iint32"].dtype).startswith("Int")
     assert str(df["iint64"].dtype) == "Int64"
@@ -313,7 +314,7 @@ def ensure_data_types(df, has_list=False):
         assert str(df["__index_level_0__"].dtype) == "Int64"
     assert str(df["par0"].dtype) in ("Int64", "category")
     assert str(df["par1"].dtype) in ("string", "category")
-    row = df[df["iint8"] == 1]
+    row = df[df["iint16"] == 1]
     if not row.empty:
         row = row.iloc[0]
         assert str(type(row["decimal"]).__name__) == "Decimal"

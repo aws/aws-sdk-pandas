@@ -1,4 +1,5 @@
 import logging
+import random
 
 import boto3
 import pandas as pd
@@ -121,7 +122,6 @@ def test_sql(parameters, db_type):
         if db_type == "postgresql":
             schema = parameters[db_type]["schema"]
         df = wr.db.read_sql_table(con=engine, table="test_sql", schema=schema, index_col="index")
-        print(df)
         assert len(df.index) == 3
         assert len(df.columns) == 1
 
@@ -139,3 +139,169 @@ def test_postgresql_param():
     assert df["col0"].iloc[0] == 1
     df = wr.db.read_sql_query(sql="SELECT %s as col0", con=engine, params=[1])
     assert df["col0"].iloc[0] == 1
+
+
+def test_redshift_copy_unload(bucket, parameters):
+    path = f"s3://{bucket}/test_redshift_copy/"
+    df = get_df().drop(["iint8", "binary"], axis=1, inplace=False)
+    engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-redshift")
+    wr.db.copy_df_to_redshift(
+        df=df,
+        path=path,
+        con=engine,
+        schema="public",
+        table="test_redshift_copy",
+        mode="overwrite",
+        iam_role=parameters["redshift"]["role"],
+    )
+    df2 = wr.db.unload_redshift_to_df(
+        sql="SELECT * FROM public.test_redshift_copy",
+        con=engine,
+        iam_role=parameters["redshift"]["role"],
+        path=path,
+        keep_files=False,
+    )
+    assert len(df2.index) == 3
+    ensure_data_types(df=df2, has_list=False)
+    wr.db.copy_df_to_redshift(
+        df=df,
+        path=path,
+        con=engine,
+        schema="public",
+        table="test_redshift_copy",
+        mode="append",
+        iam_role=parameters["redshift"]["role"],
+    )
+    df2 = wr.db.unload_redshift_to_df(
+        sql="SELECT * FROM public.test_redshift_copy",
+        con=engine,
+        iam_role=parameters["redshift"]["role"],
+        path=path,
+        keep_files=False,
+    )
+    assert len(df2.index) == 6
+    ensure_data_types(df=df2, has_list=False)
+    dfs = wr.db.unload_redshift_to_df(
+        sql="SELECT * FROM public.test_redshift_copy",
+        con=engine,
+        iam_role=parameters["redshift"]["role"],
+        path=path,
+        keep_files=False,
+        chunked=True,
+    )
+    for chunk in dfs:
+        ensure_data_types(df=chunk, has_list=False)
+
+
+def test_redshift_copy_upsert(bucket, parameters):
+    engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-redshift")
+    df = pd.DataFrame({"id": list((range(1_000))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(1_000)])})
+    df3 = pd.DataFrame(
+        {"id": list((range(1_000, 1_500))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(500)])}
+    )
+
+    # CREATE
+    path = f"s3://{bucket}/upsert/test_redshift_copy_upsert/"
+    wr.db.copy_df_to_redshift(
+        df=df,
+        path=path,
+        con=engine,
+        schema="public",
+        table="test_redshift_copy_upsert",
+        mode="overwrite",
+        index=False,
+        primary_keys=["id"],
+        iam_role=parameters["redshift"]["role"],
+    )
+    path = f"s3://{bucket}/upsert/test_redshift_copy_upsert2/"
+    df2 = wr.db.unload_redshift_to_df(
+        sql="SELECT * FROM public.test_redshift_copy_upsert",
+        con=engine,
+        iam_role=parameters["redshift"]["role"],
+        path=path,
+        keep_files=False,
+    )
+    assert len(df.index) == len(df2.index)
+    assert len(df.columns) == len(df2.columns)
+
+    # UPSERT
+    path = f"s3://{bucket}/upsert/test_redshift_copy_upsert3/"
+    wr.db.copy_df_to_redshift(
+        df=df3,
+        path=path,
+        con=engine,
+        schema="public",
+        table="test_redshift_copy_upsert",
+        mode="upsert",
+        index=False,
+        primary_keys=["id"],
+        iam_role=parameters["redshift"]["role"],
+    )
+    path = f"s3://{bucket}/upsert/test_redshift_copy_upsert4/"
+    df4 = wr.db.unload_redshift_to_df(
+        sql="SELECT * FROM public.test_redshift_copy_upsert",
+        con=engine,
+        iam_role=parameters["redshift"]["role"],
+        path=path,
+        keep_files=False,
+    )
+    assert len(df.index) + len(df3.index) == len(df4.index)
+    assert len(df.columns) == len(df4.columns)
+
+    # UPSERT 2
+    wr.db.copy_df_to_redshift(
+        df=df3,
+        path=path,
+        con=engine,
+        schema="public",
+        table="test_redshift_copy_upsert",
+        mode="upsert",
+        index=False,
+        iam_role=parameters["redshift"]["role"],
+    )
+    path = f"s3://{bucket}/upsert/test_redshift_copy_upsert4/"
+    df4 = wr.db.unload_redshift_to_df(
+        sql="SELECT * FROM public.test_redshift_copy_upsert",
+        con=engine,
+        iam_role=parameters["redshift"]["role"],
+        path=path,
+        keep_files=False,
+    )
+    assert len(df.index) + len(df3.index) == len(df4.index)
+    assert len(df.columns) == len(df4.columns)
+
+    # CLEANING
+    wr.s3.delete_objects(path=f"s3://{bucket}/upsert/")
+
+
+@pytest.mark.parametrize(
+    "diststyle,distkey,exc,sortstyle,sortkey",
+    [
+        ("FOO", "name", wr.exceptions.InvalidRedshiftDiststyle, None, None),
+        ("KEY", "FOO", wr.exceptions.InvalidRedshiftDistkey, None, None),
+        ("KEY", None, wr.exceptions.InvalidRedshiftDistkey, None, None),
+        (None, None, wr.exceptions.InvalidRedshiftSortkey, None, ["foo"]),
+        (None, None, wr.exceptions.InvalidRedshiftSortkey, None, 1),
+        (None, None, wr.exceptions.InvalidRedshiftSortstyle, "foo", ["id"]),
+    ],
+)
+def test_redshift_exceptions(bucket, parameters, diststyle, distkey, sortstyle, sortkey, exc):
+    df = pd.DataFrame({"id": [1], "name": "joe"})
+    engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-redshift")
+    path = f"s3://{bucket}/test_redshift_exceptions_{random.randint(0, 1_000_000)}/"
+    with pytest.raises(exc):
+        wr.db.copy_df_to_redshift(
+            df=df,
+            path=path,
+            con=engine,
+            schema="public",
+            table="test_redshift_exceptions",
+            mode="overwrite",
+            diststyle=diststyle,
+            distkey=distkey,
+            sortstyle=sortstyle,
+            sortkey=sortkey,
+            iam_role=parameters["redshift"]["role"],
+            index=False,
+        )
+    wr.s3.delete_objects(path=path)

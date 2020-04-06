@@ -59,3 +59,27 @@ class InvalidConnection(Exception):
 
 class InvalidDatabaseType(Exception):
     """InvalidDatabaseEngine exception."""
+
+
+class RedshiftLoadError(Exception):
+    """RedshiftLoadError exception."""
+
+
+class InvalidRedshiftDiststyle(Exception):
+    """InvalidRedshiftDiststyle exception."""
+
+
+class InvalidRedshiftDistkey(Exception):
+    """InvalidRedshiftDistkey exception."""
+
+
+class InvalidRedshiftSortstyle(Exception):
+    """InvalidRedshiftSortstyle exception."""
+
+
+class InvalidRedshiftSortkey(Exception):
+    """InvalidRedshiftSortkey exception."""
+
+
+class InvalidRedshiftPrimaryKeys(Exception):
+    """InvalidRedshiftPrimaryKeys exception."""

@@ -435,7 +435,7 @@ def to_parquet(  # pylint: disable=too-many-arguments
     mode: Optional[str] = None,
     database: Optional[str] = None,
     table: Optional[str] = None,
-    cast_columns: Optional[Dict[str, str]] = None,
+    dtype: Optional[Dict[str, str]] = None,
     description: Optional[str] = None,
     parameters: Optional[Dict[str, str]] = None,
     columns_comments: Optional[Dict[str, str]] = None,
@@ -479,7 +479,7 @@ def to_parquet(  # pylint: disable=too-many-arguments
         Glue/Athena catalog: Database name.
     table : str
         Glue/Athena catalog: Table name.
-    cast_columns: Dict[str, str], optional
+    dtype: Dict[str, str], optional
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined or mixed data types.
         Only takes effect if dataset=True.
@@ -494,7 +494,7 @@ def to_parquet(  # pylint: disable=too-many-arguments
 
     Returns
     -------
-    Dict[str, Union[List[str],Dict[str, List[str]]]]
+    Dict[str, Union[List[str], Dict[str, List[str]]]]
         Dictionary with:
         'paths': List of all stored files paths on S3.
         'partitions_values': Dictionary of partitions added with keys as S3 path locations
@@ -590,7 +590,7 @@ def to_parquet(  # pylint: disable=too-many-arguments
     ...     dataset=True,
     ...     database='default',  # Athena/Glue database
     ...     table='my_table'  # Athena/Glue table
-    ...     cast_columns={'col3': 'date'}
+    ...     dtype={'col3': 'date'}
     ... )
     {
         'paths': ['s3://.../x.parquet'],
@@ -605,7 +605,7 @@ def to_parquet(  # pylint: disable=too-many-arguments
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
     partition_cols = partition_cols if partition_cols else []
-    cast_columns = cast_columns if cast_columns else {}
+    dtype = dtype if dtype else {}
     columns_comments = columns_comments if columns_comments else {}
     partitions_values: Dict[str, List[str]] = {}
     cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
@@ -626,14 +626,14 @@ def to_parquet(  # pylint: disable=too-many-arguments
             )
         paths = [
             _to_parquet_file(
-                df=df, path=path, schema=None, index=index, compression=compression, cpus=cpus, fs=fs, cast_columns={}
+                df=df, path=path, schema=None, index=index, compression=compression, cpus=cpus, fs=fs, dtype={}
             )
         ]
     else:
         if (database is not None) and (table is not None):  # Normalize table to respect Athena's standards
             df = catalog.normalize_dataframe_columns_names(df=df)
             partition_cols = [catalog.normalize_column_name(p) for p in partition_cols]
-            cast_columns = {catalog.normalize_column_name(k): v.lower() for k, v in cast_columns.items()}
+            dtype = {catalog.normalize_column_name(k): v.lower() for k, v in dtype.items()}
             columns_comments = {catalog.normalize_column_name(k): v for k, v in columns_comments.items()}
         df = catalog.drop_duplicated_columns(df=df)
         mode = "append" if mode is None else mode
@@ -647,13 +647,13 @@ def to_parquet(  # pylint: disable=too-many-arguments
             fs=fs,
             use_threads=use_threads,
             partition_cols=partition_cols,
-            cast_columns=cast_columns,
+            dtype=dtype,
             mode=mode,
             boto3_session=boto3_session,
         )
         if (database is not None) and (table is not None):
             columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
-                df=df, index=index, partition_cols=partition_cols, cast_columns=cast_columns
+                df=df, index=index, partition_cols=partition_cols, dtype=dtype
             )
             catalog.create_parquet_table(
                 database=database,
@@ -690,7 +690,7 @@ def _to_parquet_dataset(
     fs: s3fs.S3FileSystem,
     use_threads: bool,
     mode: str,
-    cast_columns: Dict[str, str],
+    dtype: Dict[str, str],
     partition_cols: Optional[List[str]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Tuple[List[str], Dict[str, List[str]]]:
@@ -703,22 +703,15 @@ def _to_parquet_dataset(
         )
     if (mode == "overwrite") or ((mode == "overwrite_partitions") and (not partition_cols)):
         delete_objects(path=path, use_threads=use_threads, boto3_session=boto3_session)
-    df = _data_types.cast_pandas_with_athena_types(df=df, cast_columns=cast_columns)
+    df = _data_types.cast_pandas_with_athena_types(df=df, dtype=dtype)
     schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(
-        df=df, index=index, ignore_cols=partition_cols, cast_columns=cast_columns
+        df=df, index=index, ignore_cols=partition_cols, dtype=dtype
     )
     _logger.debug(f"schema: {schema}")
     if not partition_cols:
         file_path: str = f"{path}{uuid.uuid4().hex}{compression_ext}.parquet"
         _to_parquet_file(
-            df=df,
-            schema=schema,
-            path=file_path,
-            index=index,
-            compression=compression,
-            cpus=cpus,
-            fs=fs,
-            cast_columns=cast_columns,
+            df=df, schema=schema, path=file_path, index=index, compression=compression, cpus=cpus, fs=fs, dtype=dtype
         )
         paths.append(file_path)
     else:
@@ -738,7 +731,7 @@ def _to_parquet_dataset(
                 compression=compression,
                 cpus=cpus,
                 fs=fs,
-                cast_columns=cast_columns,
+                dtype=dtype,
             )
             paths.append(file_path)
             partitions_values[prefix] = [str(k) for k in keys]
@@ -753,16 +746,16 @@ def _to_parquet_file(
     compression: Optional[str],
     cpus: int,
     fs: s3fs.S3FileSystem,
-    cast_columns: Dict[str, str],
+    dtype: Dict[str, str],
 ) -> str:
     table: pa.Table = pyarrow.Table.from_pandas(df=df, schema=schema, nthreads=cpus, preserve_index=index, safe=False)
-    for col_name, dtype in cast_columns.items():
+    for col_name, col_type in dtype.items():
         if col_name in table.column_names:
             col_index = table.column_names.index(col_name)
-            pyarrow_dtype = _data_types.athena2pyarrow(dtype)
+            pyarrow_dtype = _data_types.athena2pyarrow(col_type)
             field = pa.field(name=col_name, type=pyarrow_dtype)
             table = table.set_column(col_index, field, table.column(col_name).cast(pyarrow_dtype))
-            _logger.debug(f"Casting column {col_name} ({col_index}) to {dtype} ({pyarrow_dtype})")
+            _logger.debug(f"Casting column {col_name} ({col_index}) to {col_type} ({pyarrow_dtype})")
     pyarrow.parquet.write_table(
         table=table,
         where=path,

@@ -83,4 +83,8 @@ Databases (Redshift, PostgreSQL, MySQL)
     read_sql_table
     get_engine
     get_redshift_temp_engine
-
+    copy_df_to_redshift
+    copy_files_to_redshift
+    unload_redshift_to_df
+    unload_redshift_to_files
+    write_redshift_copy_manifest

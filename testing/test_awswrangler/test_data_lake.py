@@ -332,7 +332,7 @@ def test_parquet_catalog_casting(bucket, database):
         mode="overwrite",
         database=database,
         table="test_parquet_catalog_casting",
-        cast_columns={
+        dtype={
             "iint8": "tinyint",
             "iint16": "smallint",
             "iint32": "int",

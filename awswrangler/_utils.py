@@ -156,3 +156,8 @@ def ensure_postgresql_casts():
     typecast_bytea = lambda data, cur: None if data is None else bytes(psycopg2.BINARY(data, cur))  # noqa
     BYTEA = psycopg2.extensions.new_type(psycopg2.BINARY.values, "BYTEA", typecast_bytea)
     psycopg2.extensions.register_type(BYTEA)
+
+
+def get_directory(path: str) -> str:
+    """Extract directory path."""
+    return path.rsplit(sep="/", maxsplit=1)[0] + "/"
