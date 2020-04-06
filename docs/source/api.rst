@@ -15,6 +15,8 @@ Amazon S3
     get_bucket_region
     list_objects
     read_csv
+    read_fwf
+    read_json
     read_parquet
     read_parquet_table
     read_parquet_metadata

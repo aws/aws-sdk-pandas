@@ -189,6 +189,36 @@ def test_csv(bucket):
     wr.s3.wait_objects_not_exist(paths=paths, use_threads=False)
 
 
+def test_json(bucket):
+    df0 = pd.DataFrame({"id": [1, 2, 3]})
+    path0 = f"s3://{bucket}/test_json0.json"
+    path1 = f"s3://{bucket}/test_json1.json"
+    wr.s3.to_json(df=df0, path=path0)
+    wr.s3.to_json(df=df0, path=path1)
+    wr.s3.wait_objects_exist(paths=[path0, path1])
+    assert df0.equals(wr.s3.read_json(path=path0, use_threads=False))
+    df1 = pd.concat(objs=[df0, df0], sort=False, ignore_index=True)
+    assert df1.equals(wr.s3.read_json(path=[path0, path1], use_threads=True))
+    wr.s3.delete_objects(path=[path0, path1], use_threads=False)
+
+
+def test_fwf(bucket):
+    text = "1 Herfelingen27-12-18\n2   Lambusart14-06-18\n3Spormaggiore15-04-18"
+    path0 = f"s3://{bucket}/test_fwf0.txt"
+    path1 = f"s3://{bucket}/test_fwf1.txt"
+    client_s3 = boto3.client("s3")
+    client_s3.put_object(Body=text, Bucket=bucket, Key="test_fwf0.txt")
+    client_s3.put_object(Body=text, Bucket=bucket, Key="test_fwf1.txt")
+    wr.s3.wait_objects_exist(paths=[path0, path1])
+    df = wr.s3.read_fwf(path=path0, use_threads=False, widths=[1, 12, 8], names=["id", "name", "date"])
+    assert len(df.index) == 3
+    assert len(df.columns) == 3
+    df = wr.s3.read_fwf(path=[path0, path1], use_threads=True, widths=[1, 12, 8], names=["id", "name", "date"])
+    assert len(df.index) == 6
+    assert len(df.columns) == 3
+    wr.s3.delete_objects(path=[path0, path1], use_threads=False)
+
+
 def test_parquet(bucket):
     wr.s3.delete_objects(path=f"s3://{bucket}/test_parquet_file")
     wr.s3.delete_objects(path=f"s3://{bucket}/test_parquet_dataset")

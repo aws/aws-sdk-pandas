@@ -5,7 +5,7 @@ import logging
 import time
 import uuid
 from itertools import repeat
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3  # type: ignore
 import botocore.exceptions  # type: ignore
@@ -415,11 +415,96 @@ def to_csv(
     ... )
 
     """
+    return _to_text(
+        file_format="csv",
+        df=df,
+        path=path,
+        boto3_session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,
+        **pandas_kwargs,
+    )
+
+
+def to_json(
+    df: pd.DataFrame,
+    path: str,
+    boto3_session: Optional[boto3.Session] = None,
+    s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    **pandas_kwargs,
+) -> None:
+    """Write JSON file on Amazon S3.
+
+    Parameters
+    ----------
+    df: pandas.DataFrame
+        Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
+    path : str
+        Amazon S3 path (e.g. s3://bucket/filename.csv).
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
+    s3_additional_kwargs:
+        Forward to s3fs, useful for server side encryption
+        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
+    pandas_kwargs:
+        keyword arguments forwarded to pandas.DataFrame.to_csv()
+        https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_json.html
+
+    Returns
+    -------
+    None
+        None.
+
+    Examples
+    --------
+    Writing JSON file
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.s3.to_json(
+    ...     df=pd.DataFrame({'col': [1, 2, 3]}),
+    ...     path='s3://bucket/filename.json',
+    ... )
+
+    Writing CSV file encrypted with a KMS key
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.s3.to_json(
+    ...     df=pd.DataFrame({'col': [1, 2, 3]}),
+    ...     path='s3://bucket/filename.json',
+    ...     s3_additional_kwargs={
+    ...         'ServerSideEncryption': 'aws:kms',
+    ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
+    ...     }
+    ... )
+
+    """
+    return _to_text(
+        file_format="json",
+        df=df,
+        path=path,
+        boto3_session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,
+        **pandas_kwargs,
+    )
+
+
+def _to_text(
+    file_format: str,
+    df: pd.DataFrame,
+    path: str,
+    boto3_session: Optional[boto3.Session] = None,
+    s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    **pandas_kwargs,
+) -> None:
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
     fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
     with fs.open(path, "w") as f:
-        df.to_csv(path_or_buf=f, **pandas_kwargs)
+        if file_format == "csv":
+            df.to_csv(f, **pandas_kwargs)
+        elif file_format == "json":
+            df.to_json(f, **pandas_kwargs)
 
 
 def to_parquet(  # pylint: disable=too-many-arguments
@@ -841,11 +926,198 @@ def read_csv(
     >>>     print(df)  # 100 lines Pandas DataFrame
 
     """
+    return _read_text(
+        parser_func=pd.read_csv,
+        path=path,
+        use_threads=use_threads,
+        boto3_session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,
+        chunksize=chunksize,
+        **pandas_kwargs,
+    )
+
+
+def read_fwf(
+    path: Union[str, List[str]],
+    use_threads: bool = True,
+    boto3_session: Optional[boto3.Session] = None,
+    s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    chunksize: Optional[int] = None,
+    **pandas_kwargs,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    """Read fixed-width formatted file(s) from from a received S3 prefix or list of S3 objects paths.
+
+    Note
+    ----
+    For partial and gradual reading use the argument ``chunksize`` instead of ``iterator``.
+
+    Note
+    ----
+    In case of `use_threads=True` the number of process that will be spawned will be get from os.cpu_count().
+
+    Parameters
+    ----------
+    path : Union[str, List[str]]
+        S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. ``[s3://bucket/key0, s3://bucket/key1]``).
+    use_threads : bool
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    s3_additional_kwargs:
+        Forward to s3fs, useful for server side encryption
+        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
+    chunksize: int, optional
+        If specified, return an generator where chunksize is the number of rows to include in each chunk.
+    pandas_kwargs:
+        keyword arguments forwarded to pandas.read_fwf().
+        https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_fwf.html
+
+    Returns
+    -------
+    Union[pandas.DataFrame, Generator[pandas.DataFrame, None, None]]
+        Pandas DataFrame or a Generator in case of `chunksize != None`.
+
+    Examples
+    --------
+    Reading all fixed-width formatted (FWF) files under a prefix
+
+    >>> import awswrangler as wr
+    >>> df = wr.s3.read_fwf(path='s3://bucket/prefix/')
+
+    Reading all fixed-width formatted (FWF) files under a prefix encrypted with a KMS key
+
+    >>> import awswrangler as wr
+    >>> df = wr.s3.read_fwf(
+    ...     path='s3://bucket/prefix/',
+    ...     s3_additional_kwargs={
+    ...         'ServerSideEncryption': 'aws:kms',
+    ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
+    ...     }
+    ... )
+
+    Reading all fixed-width formatted (FWF) files from a list
+
+    >>> import awswrangler as wr
+    >>> df = wr.s3.read_fwf(path=['s3://bucket/filename0.txt', 's3://bucket/filename1.txt'])
+
+    Reading in chunks of 100 lines
+
+    >>> import awswrangler as wr
+    >>> dfs = wr.s3.read_fwf(path=['s3://bucket/filename0.txt', 's3://bucket/filename1.txt'], chunksize=100)
+    >>> for df in dfs:
+    >>>     print(df)  # 100 lines Pandas DataFrame
+
+    """
+    return _read_text(
+        parser_func=pd.read_fwf,
+        path=path,
+        use_threads=use_threads,
+        boto3_session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,
+        chunksize=chunksize,
+        **pandas_kwargs,
+    )
+
+
+def read_json(
+    path: Union[str, List[str]],
+    use_threads: bool = True,
+    boto3_session: Optional[boto3.Session] = None,
+    s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    chunksize: Optional[int] = None,
+    **pandas_kwargs,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    """Read JSON file(s) from from a received S3 prefix or list of S3 objects paths.
+
+    Note
+    ----
+    For partial and gradual reading use the argument ``chunksize`` instead of ``iterator``.
+
+    Note
+    ----
+    In case of `use_threads=True` the number of process that will be spawned will be get from os.cpu_count().
+
+    Parameters
+    ----------
+    path : Union[str, List[str]]
+        S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. ``[s3://bucket/key0, s3://bucket/key1]``).
+    use_threads : bool
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    s3_additional_kwargs:
+        Forward to s3fs, useful for server side encryption
+        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
+    chunksize: int, optional
+        If specified, return an generator where chunksize is the number of rows to include in each chunk.
+    pandas_kwargs:
+        keyword arguments forwarded to pandas.read_json().
+        https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_json.html
+
+    Returns
+    -------
+    Union[pandas.DataFrame, Generator[pandas.DataFrame, None, None]]
+        Pandas DataFrame or a Generator in case of `chunksize != None`.
+
+    Examples
+    --------
+    Reading all JSON files under a prefix
+
+    >>> import awswrangler as wr
+    >>> df = wr.s3.read_json(path='s3://bucket/prefix/')
+
+    Reading all JSON files under a prefix encrypted with a KMS key
+
+    >>> import awswrangler as wr
+    >>> df = wr.s3.read_json(
+    ...     path='s3://bucket/prefix/',
+    ...     s3_additional_kwargs={
+    ...         'ServerSideEncryption': 'aws:kms',
+    ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
+    ...     }
+    ... )
+
+    Reading all JSON files from a list
+
+    >>> import awswrangler as wr
+    >>> df = wr.s3.read_json(path=['s3://bucket/filename0.json', 's3://bucket/filename1.json'])
+
+    Reading in chunks of 100 lines
+
+    >>> import awswrangler as wr
+    >>> dfs = wr.s3.read_json(path=['s3://bucket/filename0.json', 's3://bucket/filename1.json'], chunksize=100)
+    >>> for df in dfs:
+    >>>     print(df)  # 100 lines Pandas DataFrame
+
+    """
+    return _read_text(
+        parser_func=pd.read_json,
+        path=path,
+        use_threads=use_threads,
+        boto3_session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,
+        chunksize=chunksize,
+        **pandas_kwargs,
+    )
+
+
+def _read_text(
+    parser_func: Callable,
+    path: Union[str, List[str]],
+    use_threads: bool = True,
+    boto3_session: Optional[boto3.Session] = None,
+    s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    chunksize: Optional[int] = None,
+    **pandas_kwargs,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     if "iterator" in pandas_kwargs:
         raise exceptions.InvalidArgument("Please, use chunksize instead of iterator.")
     paths: List[str] = _path2list(path=path, boto3_session=boto3_session)
     if chunksize is not None:
-        dfs: Iterator[pd.DataFrame] = _read_csv_chunksize(
+        dfs: Iterator[pd.DataFrame] = _read_text_chunksize(
+            parser_func=parser_func,
             paths=paths,
             boto3_session=boto3_session,
             chunksize=chunksize,
@@ -856,7 +1128,8 @@ def read_csv(
     if use_threads is False:
         df: pd.DataFrame = pd.concat(
             objs=[
-                _read_csv(
+                _read_text_full(
+                    parser_func=parser_func,
                     path=p,
                     boto3_session=boto3_session,
                     pandas_args=pandas_kwargs,
@@ -872,7 +1145,12 @@ def read_csv(
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
             df = pd.concat(
                 objs=executor.map(
-                    _read_csv, paths, repeat(boto3_session), repeat(pandas_kwargs), repeat(s3_additional_kwargs)
+                    _read_text_full,
+                    repeat(parser_func),
+                    paths,
+                    repeat(boto3_session),
+                    repeat(pandas_kwargs),
+                    repeat(s3_additional_kwargs),
                 ),
                 ignore_index=True,
                 sort=False,
@@ -880,7 +1158,8 @@ def read_csv(
     return df
 
 
-def _read_csv_chunksize(
+def _read_text_chunksize(
+    parser_func: Callable,
     paths: List[str],
     boto3_session: boto3.Session,
     chunksize: int,
@@ -891,14 +1170,13 @@ def _read_csv_chunksize(
     for path in paths:
         _logger.debug(f"path: {path}")
         with fs.open(path, "r") as f:
-            reader: pandas.io.parsers.TextFileReader = pd.read_csv(
-                filepath_or_buffer=f, chunksize=chunksize, **pandas_args
-            )
+            reader: pandas.io.parsers.TextFileReader = parser_func(f, chunksize=chunksize, **pandas_args)
             for df in reader:
                 yield df
 
 
-def _read_csv(
+def _read_text_full(
+    parser_func: Callable,
     path: str,
     boto3_session: boto3.Session,
     pandas_args: Dict[str, Any],
@@ -906,7 +1184,7 @@ def _read_csv(
 ) -> pd.DataFrame:
     fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
     with fs.open(path, "r") as f:
-        return pd.read_csv(filepath_or_buffer=f, **pandas_args)
+        return parser_func(f, **pandas_args)
 
 
 def _read_parquet_init(
