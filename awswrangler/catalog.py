@@ -145,7 +145,7 @@ def create_parquet_table(
     ... )
 
     """
-    table = normalize_table_name(table=table)
+    table = sanitize_table_name(table=table)
     partitions_types = {} if partitions_types is None else partitions_types
     table_input: Dict[str, Any] = _parquet_table_definition(
         table=table, path=path, columns_types=columns_types, partitions_types=partitions_types, compression=compression
@@ -729,7 +729,7 @@ def table(
     return pd.DataFrame(data=df_dict)
 
 
-def _normalize_name(name: str) -> str:
+def _sanitize_name(name: str) -> str:
     name = "".join(c for c in unicodedata.normalize("NFD", name) if unicodedata.category(c) != "Mn")
     name = name.replace("{", "_")
     name = name.replace("}", "_")
@@ -749,7 +749,7 @@ def _normalize_name(name: str) -> str:
     return name
 
 
-def normalize_column_name(column: str) -> str:
+def sanitize_column_name(column: str) -> str:
     """Convert the column name to be compatible with Amazon Athena.
 
     https://docs.aws.amazon.com/athena/latest/ug/tables-databases-columns-names.html
@@ -767,14 +767,14 @@ def normalize_column_name(column: str) -> str:
     Examples
     --------
     >>> import awswrangler as wr
-    >>> wr.catalog.normalize_column_name('MyNewColumn')
+    >>> wr.catalog.sanitize_column_name('MyNewColumn')
     'my_new_column'
 
     """
-    return _normalize_name(name=column)
+    return _sanitize_name(name=column)
 
 
-def normalize_dataframe_columns_names(df: pd.DataFrame) -> pd.DataFrame:
+def sanitize_dataframe_columns_names(df: pd.DataFrame) -> pd.DataFrame:
     """Normalize all columns names to be compatible with Amazon Athena.
 
     https://docs.aws.amazon.com/athena/latest/ug/tables-databases-columns-names.html
@@ -792,14 +792,14 @@ def normalize_dataframe_columns_names(df: pd.DataFrame) -> pd.DataFrame:
     Examples
     --------
     >>> import awswrangler as wr
-    >>> df_normalized = wr.catalog.normalize_dataframe_columns_names(df=pd.DataFrame({'A': [1, 2]}))
+    >>> df_normalized = wr.catalog.sanitize_dataframe_columns_names(df=pd.DataFrame({'A': [1, 2]}))
 
     """
-    df.columns = [normalize_column_name(x) for x in df.columns]
+    df.columns = [sanitize_column_name(x) for x in df.columns]
     return df
 
 
-def normalize_table_name(table: str) -> str:
+def sanitize_table_name(table: str) -> str:
     """Convert the table name to be compatible with Amazon Athena.
 
     https://docs.aws.amazon.com/athena/latest/ug/tables-databases-columns-names.html
@@ -817,15 +817,20 @@ def normalize_table_name(table: str) -> str:
     Examples
     --------
     >>> import awswrangler as wr
-    >>> wr.catalog.normalize_table_name('MyNewTable')
+    >>> wr.catalog.sanitize_table_name('MyNewTable')
     'my_new_table'
 
     """
-    return _normalize_name(name=table)
+    return _sanitize_name(name=table)
 
 
 def drop_duplicated_columns(df: pd.DataFrame) -> pd.DataFrame:
     """Drop all repeated columns (duplicated names).
+
+    Note
+    ----
+    It is different from Panda's drop_duplicates() function which considers the column values.
+    wr.catalog.drop_duplicated_columns() will deduplicate by column name.
 
     Parameters
     ----------
@@ -840,7 +845,12 @@ def drop_duplicated_columns(df: pd.DataFrame) -> pd.DataFrame:
     Examples
     --------
     >>> import awswrangler as wr
-    >>> df_dedup = wr.catalog.drop_duplicated_columns(df=pd.DataFrame({'A': [1, 2]}))
+    >>> df = pd.DataFrame({"A": [1, 2], "B": [3, 4]})
+    >>> df.columns = ["A", "A"]
+    >>> wr.catalog.drop_duplicated_columns(df=df)
+       A
+    0  1
+    1  2
 
     """
     duplicated_cols = df.columns.duplicated()

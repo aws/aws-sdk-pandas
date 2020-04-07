@@ -552,8 +552,8 @@ def test_athena_read_list(database):
 
 
 def test_normalize_column_name():
-    assert wr.catalog.normalize_column_name("foo()__Boo))))____BAR") == "foo_boo_bar"
-    assert wr.catalog.normalize_column_name("foo()__Boo))))_{}{}{{}{}{}{___BAR[][][][]") == "foo_boo_bar"
+    assert wr.catalog.sanitize_column_name("foo()__Boo))))____BAR") == "foo_boo_bar"
+    assert wr.catalog.sanitize_column_name("foo()__Boo))))_{}{}{{}{}{}{___BAR[][][][]") == "foo_boo_bar"
 
 
 def test_athena_ctas_empty(database):

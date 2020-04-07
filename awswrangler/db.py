@@ -24,10 +24,14 @@ _RS_SORTSTYLES = ["COMPOUND", "INTERLEAVED"]
 def to_sql(df: pd.DataFrame, con: sqlalchemy.engine.Engine, **pandas_kwargs) -> None:
     """Write records stored in a DataFrame to a SQL database.
 
-    Support for Redshift, PostgreSQL and MySQL.
+    Support for **Redshift**, **PostgreSQL** and **MySQL**.
 
     Support for all pandas to_sql() arguments:
     https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_sql.html
+
+    Note
+    ----
+    Redshift: For large DataFrames (1MM+ rows) consider the function **wr.db.copy_to_redshift()**.
 
     Parameters
     ----------
@@ -100,7 +104,11 @@ def read_sql_query(
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Return a DataFrame corresponding to the result set of the query string.
 
-    Support for Redshift, PostgreSQL and MySQL.
+    Support for **Redshift**, **PostgreSQL** and **MySQL**.
+
+    Note
+    ----
+    Redshift: For large extractions (1MM+ rows) consider the function **wr.db.unload_redshift()**.
 
     Parameters
     ----------
@@ -219,7 +227,11 @@ def read_sql_table(
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Return a DataFrame corresponding to the result set of the query string.
 
-    Support for Redshift, PostgreSQL and MySQL.
+    Support for **Redshift**, **PostgreSQL** and **MySQL**.
+
+    Note
+    ----
+    Redshift: For large extractions (1MM+ rows) consider the function `wr.db.unload_redshift()`.
 
     Parameters
     ----------
@@ -384,7 +396,7 @@ def get_engine(db_type: str, host: str, port: int, database: str, user: str, pas
     )
 
 
-def copy_df_to_redshift(  # pylint: disable=too-many-arguments
+def copy_to_redshift(  # pylint: disable=too-many-arguments
     df: pd.DataFrame,
     path: str,
     con: sqlalchemy.engine.Engine,
@@ -406,7 +418,23 @@ def copy_df_to_redshift(  # pylint: disable=too-many-arguments
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
 ) -> None:
-    """Load Pandas DataFrame as a Table on Amazon Redshift using parquet files on s3 as stage.
+    """Load Pandas DataFrame as a Table on Amazon Redshift using parquet files on S3 as stage.
+
+    This is a **HIGH** latency and **HIGH** throughput alternative to `wr.db.to_sql()` to load large
+    DataFrame into Amazon Redshift through the **COPY command**.
+
+    This function/strategy has more overhead and requires more privileges (`iam_role` argument)
+    than the regular `wr.db.to_sql()` function, so it is only recommended
+    to inserting +1MM rows at once.
+
+    https://docs.aws.amazon.com/redshift/latest/dg/r_COPY.html
+
+    Note
+    ----
+    If the table does not exist yet,
+    it will be automatically created for you
+    using the Parquet metadata to
+    infer the columns data types.
 
     Note
     ----
@@ -471,13 +499,13 @@ def copy_df_to_redshift(  # pylint: disable=too-many-arguments
     --------
     >>> import awswrangler as wr
     >>> import pandas as pd
-    >>> wr.db.copy_df_to_redshift(
+    >>> wr.db.copy_to_redshift(
     ...     df=pd.DataFrame({'col': [1, 2, 3]}),
-    ...     path="s3://...",
-    ...     con=wr.catalog.get_engine(connection="..."),
+    ...     path="s3://bucket/my_parquet_files/",
+    ...     con=wr.catalog.get_engine(connection="my_glue_conn_name"),
     ...     table="my_table",
     ...     schema="public"
-    ...     iam_role="..."
+    ...     iam_role="arn:aws:iam::XXX:role/XXX"
     ... )
 
     """
@@ -535,7 +563,16 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
-    """Load Parquet files from S3 to a Table on Amazon Redshift.
+    """Load Parquet files from S3 to a Table on Amazon Redshift (Through COPY command).
+
+    https://docs.aws.amazon.com/redshift/latest/dg/r_COPY.html
+
+    Note
+    ----
+    If the table does not exist yet,
+    it will be automatically created for you
+    using the Parquet metadata to
+    infer the columns data types.
 
     Note
     ----
@@ -588,14 +625,12 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
     Examples
     --------
     >>> import awswrangler as wr
-    >>> import pandas as pd
-    >>> wr.db.copy_df_to_redshift(
-    ...     df=pd.DataFrame({'col': [1, 2, 3]}),
-    ...     path="s3://...",
-    ...     con=wr.catalog.get_engine(connection="..."),
+    >>> wr.db.copy_files_to_redshift(
+    ...     path="s3://bucket/my_parquet_files/",
+    ...     con=wr.catalog.get_engine(connection="my_glue_conn_name"),
     ...     table="my_table",
     ...     schema="public"
-    ...     iam_role="..."
+    ...     iam_role="arn:aws:iam::XXX:role/XXX"
     ... )
 
     """
@@ -846,7 +881,7 @@ def _rs_does_table_exist(con: Any, schema: str, table: str) -> bool:
     return False  # pragma: no cover
 
 
-def unload_redshift_to_df(
+def unload_redshift(
     sql: str,
     path: str,
     con: sqlalchemy.engine.Engine,
@@ -857,7 +892,17 @@ def unload_redshift_to_df(
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    """Load Pandas DataFrame from a Amazon Redshift query result using parquet files on s3 as stage.
+    """Load Pandas DataFrame from a Amazon Redshift query result using Parquet files on s3 as stage.
+
+    This is a **HIGH** latency and **HIGH** throughput alternative to
+    `wr.db.read_sql_query()`/`wr.db.read_sql_table()` to extract large
+    Amazon Redshift data into a Pandas DataFrame through the **UNLOAD command**.
+
+    This function/strategy has more overhead and requires more privileges (`iam_role` argument)
+    than the regular `wr.db.read_sql_query()`/`wr.db.read_sql_table()` function,
+    so it is only recommended to fetch +1MM rows at once.
+
+    https://docs.aws.amazon.com/redshift/latest/dg/r_UNLOAD.html
 
     Note
     ----
@@ -896,11 +941,11 @@ def unload_redshift_to_df(
     --------
     >>> import awswrangler as wr
     >>> import pandas as pd
-    >>> df = wr.db.unload_redshift_to_df(
+    >>> df = wr.db.unload_redshift(
     ...     sql="SELECT * FROM public.mytable",
-    ...     path="s3://...",
-    ...     con=wr.catalog.get_engine(connection="..."),
-    ...     iam_role="..."
+    ...     path="s3://bucket/extracted_parquet_files/",
+    ...     con=wr.catalog.get_engine(connection="my_glue_connection"),
+    ...     iam_role="arn:aws:iam::XXX:role/XXX"
     ... )
 
     """
@@ -964,7 +1009,9 @@ def unload_redshift_to_files(
     partition_cols: Optional[List] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> List[str]:
-    """Unload Parquet files from a Amazon Redshift query result to parquet files on s3.
+    """Unload Parquet files from a Amazon Redshift query result to parquet files on s3 (Through UNLOAD command).
+
+    https://docs.aws.amazon.com/redshift/latest/dg/r_UNLOAD.html
 
     Note
     ----
@@ -1001,9 +1048,9 @@ def unload_redshift_to_files(
     >>> import awswrangler as wr
     >>> paths = wr.db.unload_redshift_to_files(
     ...     sql="SELECT * FROM public.mytable",
-    ...     path="s3://...",
-    ...     con=wr.catalog.get_engine(connection="..."),
-    ...     iam_role="..."
+    ...     path="s3://bucket/extracted_parquet_files/",
+    ...     con=wr.catalog.get_engine(connection="my_glue_connection"),
+    ...     iam_role="arn:aws:iam::XXX:role/XXX"
     ... )
 
     """

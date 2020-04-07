@@ -11,7 +11,7 @@ aws cloudformation deploy \
   --template-file cloudformation.yaml \
   --stack-name aws-data-wrangler-test \
   --capabilities CAPABILITY_IAM \
-  --parameter-overrides $(cat parameters-dev.properties)
+  --parameter-overrides $(cat parameters.properties)
 
 aws cloudformation update-termination-protection \
   --enable-termination-protection \

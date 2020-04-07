@@ -49,9 +49,9 @@ AWS Glue Catalog
     search_tables
     table
     tables
-    normalize_column_name
-    normalize_dataframe_columns_names
-    normalize_table_name
+    sanitize_column_name
+    sanitize_dataframe_columns_names
+    sanitize_table_name
     drop_duplicated_columns
     get_engine
 
@@ -86,9 +86,9 @@ Databases (Redshift, PostgreSQL, MySQL)
     read_sql_table
     get_engine
     get_redshift_temp_engine
-    copy_df_to_redshift
+    copy_to_redshift
     copy_files_to_redshift
-    unload_redshift_to_df
+    unload_redshift
     unload_redshift_to_files
     write_redshift_copy_manifest
 

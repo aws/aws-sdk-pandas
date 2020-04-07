@@ -716,10 +716,10 @@ def to_parquet(  # pylint: disable=too-many-arguments
         ]
     else:
         if (database is not None) and (table is not None):  # Normalize table to respect Athena's standards
-            df = catalog.normalize_dataframe_columns_names(df=df)
-            partition_cols = [catalog.normalize_column_name(p) for p in partition_cols]
-            dtype = {catalog.normalize_column_name(k): v.lower() for k, v in dtype.items()}
-            columns_comments = {catalog.normalize_column_name(k): v for k, v in columns_comments.items()}
+            df = catalog.sanitize_dataframe_columns_names(df=df)
+            partition_cols = [catalog.sanitize_column_name(p) for p in partition_cols]
+            dtype = {catalog.sanitize_column_name(k): v.lower() for k, v in dtype.items()}
+            columns_comments = {catalog.sanitize_column_name(k): v for k, v in columns_comments.items()}
         df = catalog.drop_duplicated_columns(df=df)
         mode = "append" if mode is None else mode
         paths, partitions_values = _to_parquet_dataset(

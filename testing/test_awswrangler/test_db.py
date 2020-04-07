@@ -145,7 +145,7 @@ def test_redshift_copy_unload(bucket, parameters):
     path = f"s3://{bucket}/test_redshift_copy/"
     df = get_df().drop(["iint8", "binary"], axis=1, inplace=False)
     engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-redshift")
-    wr.db.copy_df_to_redshift(
+    wr.db.copy_to_redshift(
         df=df,
         path=path,
         con=engine,
@@ -154,7 +154,7 @@ def test_redshift_copy_unload(bucket, parameters):
         mode="overwrite",
         iam_role=parameters["redshift"]["role"],
     )
-    df2 = wr.db.unload_redshift_to_df(
+    df2 = wr.db.unload_redshift(
         sql="SELECT * FROM public.test_redshift_copy",
         con=engine,
         iam_role=parameters["redshift"]["role"],
@@ -163,7 +163,7 @@ def test_redshift_copy_unload(bucket, parameters):
     )
     assert len(df2.index) == 3
     ensure_data_types(df=df2, has_list=False)
-    wr.db.copy_df_to_redshift(
+    wr.db.copy_to_redshift(
         df=df,
         path=path,
         con=engine,
@@ -172,7 +172,7 @@ def test_redshift_copy_unload(bucket, parameters):
         mode="append",
         iam_role=parameters["redshift"]["role"],
     )
-    df2 = wr.db.unload_redshift_to_df(
+    df2 = wr.db.unload_redshift(
         sql="SELECT * FROM public.test_redshift_copy",
         con=engine,
         iam_role=parameters["redshift"]["role"],
@@ -181,7 +181,7 @@ def test_redshift_copy_unload(bucket, parameters):
     )
     assert len(df2.index) == 6
     ensure_data_types(df=df2, has_list=False)
-    dfs = wr.db.unload_redshift_to_df(
+    dfs = wr.db.unload_redshift(
         sql="SELECT * FROM public.test_redshift_copy",
         con=engine,
         iam_role=parameters["redshift"]["role"],
@@ -202,7 +202,7 @@ def test_redshift_copy_upsert(bucket, parameters):
 
     # CREATE
     path = f"s3://{bucket}/upsert/test_redshift_copy_upsert/"
-    wr.db.copy_df_to_redshift(
+    wr.db.copy_to_redshift(
         df=df,
         path=path,
         con=engine,
@@ -214,7 +214,7 @@ def test_redshift_copy_upsert(bucket, parameters):
         iam_role=parameters["redshift"]["role"],
     )
     path = f"s3://{bucket}/upsert/test_redshift_copy_upsert2/"
-    df2 = wr.db.unload_redshift_to_df(
+    df2 = wr.db.unload_redshift(
         sql="SELECT * FROM public.test_redshift_copy_upsert",
         con=engine,
         iam_role=parameters["redshift"]["role"],
@@ -226,7 +226,7 @@ def test_redshift_copy_upsert(bucket, parameters):
 
     # UPSERT
     path = f"s3://{bucket}/upsert/test_redshift_copy_upsert3/"
-    wr.db.copy_df_to_redshift(
+    wr.db.copy_to_redshift(
         df=df3,
         path=path,
         con=engine,
@@ -238,7 +238,7 @@ def test_redshift_copy_upsert(bucket, parameters):
         iam_role=parameters["redshift"]["role"],
     )
     path = f"s3://{bucket}/upsert/test_redshift_copy_upsert4/"
-    df4 = wr.db.unload_redshift_to_df(
+    df4 = wr.db.unload_redshift(
         sql="SELECT * FROM public.test_redshift_copy_upsert",
         con=engine,
         iam_role=parameters["redshift"]["role"],
@@ -249,7 +249,7 @@ def test_redshift_copy_upsert(bucket, parameters):
     assert len(df.columns) == len(df4.columns)
 
     # UPSERT 2
-    wr.db.copy_df_to_redshift(
+    wr.db.copy_to_redshift(
         df=df3,
         path=path,
         con=engine,
@@ -260,7 +260,7 @@ def test_redshift_copy_upsert(bucket, parameters):
         iam_role=parameters["redshift"]["role"],
     )
     path = f"s3://{bucket}/upsert/test_redshift_copy_upsert4/"
-    df4 = wr.db.unload_redshift_to_df(
+    df4 = wr.db.unload_redshift(
         sql="SELECT * FROM public.test_redshift_copy_upsert",
         con=engine,
         iam_role=parameters["redshift"]["role"],
@@ -290,7 +290,7 @@ def test_redshift_exceptions(bucket, parameters, diststyle, distkey, sortstyle, 
     engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-redshift")
     path = f"s3://{bucket}/test_redshift_exceptions_{random.randint(0, 1_000_000)}/"
     with pytest.raises(exc):
-        wr.db.copy_df_to_redshift(
+        wr.db.copy_to_redshift(
             df=df,
             path=path,
             con=engine,
