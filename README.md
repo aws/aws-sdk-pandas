@@ -1,5 +1,5 @@
 # AWS Data Wrangler
-> Pandas on AWS
+*Pandas on AWS*
 ![AWS Data Wrangler](docs/source/_static/logo2.png?raw=true "AWS Data Wrangler")
 
 [![Release](https://img.shields.io/badge/release-1.0.0-brightgreen.svg)](https://pypi.org/project/awswrangler/)
