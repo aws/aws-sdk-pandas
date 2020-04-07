@@ -3,16 +3,16 @@
 
 AWS Data Wrangler
 =================
+*Pandas on AWS*
 
 .. image:: _static/logo_transparent.png
     :width: 40%
     :alt: AWS Data Wrangler
 
-*Pandas on AWS*
-
 .. toctree::
    :maxdepth: 2
 
+   what
    install
    Tutorials <https://github.com/awslabs/aws-data-wrangler/tree/dev-1.0.0/tutorials>
    api

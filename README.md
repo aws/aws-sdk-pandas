@@ -1,8 +1,6 @@
 # AWS Data Wrangler
-
-![AWS Data Wrangler](docs/source/_static/logo2.png?raw=true "AWS Data Wrangler")
-
 > Pandas on AWS
+![AWS Data Wrangler](docs/source/_static/logo2.png?raw=true "AWS Data Wrangler")
 
 [![Release](https://img.shields.io/badge/release-1.0.0-brightgreen.svg)](https://pypi.org/project/awswrangler/)
 [![Python Version](https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.8-brightgreen.svg)](https://anaconda.org/conda-forge/awswrangler)
@@ -20,6 +18,7 @@
 
 ## [Read The Docs](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/index.html)
 
+- [**What is AWS Data Wrangler?**](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/what.html)
 - [**Install**](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/install.html)
   - [PyPi (pip)](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/install.html#pypi-pip)
   - [Conda](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/install.html#conda)

@@ -81,6 +81,7 @@ html_theme_options = {
     # Note the "1" or "True" value above as the third argument to indicate
     # an arbitrary url.
     "navbar_links": [
+        ("What is Data Wrangler?", "what"),
         ("Install", "install"),
         ("Tutorials", "https://github.com/awslabs/aws-data-wrangler/tree/dev-1.0.0/tutorials", True),
         ("API Reference", "api"),
