@@ -8,6 +8,16 @@
 *Pandas on AWS*
 ---------------------
 
+.. warning:: Collecting feedback for 1.0.0 (Official release on April 10th)
+
+             We already have a full functional 1.0.0 version available for test!
+
+             Any feedback about the docs or the library itself will be very welcome (Through GitHub Issue/PR).
+
+             - Install: `pip install git+https://github.com/awslabs/aws-data-wrangler.git@dev-1.0.0`
+             - Docs: https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/
+             - Code: https://github.com/awslabs/aws-data-wrangler/tree/dev-1.0.0
+
 .. warning:: Version 1.0.0 coming soon with several breaking changes. Please, pin the version you are using on your environment.
 
              AWS Data Wrangler is completing 1 year, and the team is working to collect feedbacks and features requests to put in our 1.0.0 version. By now we have 3 major changes listed:
