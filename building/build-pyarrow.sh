@@ -39,7 +39,7 @@ make install
 popd
 
 # Build Pyarrow
-export ARROW_PRE_0_15_IPC_FORMAT=1
+export ARROW_PRE_0_15_IPC_FORMAT=0
 export PYARROW_WITH_HDFS=0
 export PYARROW_WITH_FLIGHT=0
 export PYARROW_WITH_GANDIVA=0

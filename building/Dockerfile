@@ -11,8 +11,11 @@ RUN yum install -y \
 RUN pip3 install --upgrade pip six cython pytest cmake wheel
 
 ADD requirements.txt /root/
-RUN pip3 install --upgrade -r /root/requirements.txt
+RUN pip3 install -r /root/requirements.txt
 RUN rm -rf /root/requirements.txt
+ADD requirements-dev.txt /root/
+RUN pip3 install -r /root/requirements-dev.txt
+RUN rm -rf /root/requirements-dev.txt
 
 RUN pip3 install boto3==1.10.34 botocore==1.13.34
 

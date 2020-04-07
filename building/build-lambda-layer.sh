@@ -2,10 +2,10 @@
 set -ex
 
 # Go back to AWSWRANGLER directory
-push /aws-data-wrangler
+pushd /aws-data-wrangler
 
 # Build PyArrow files
-push building
+pushd building
 ./build-pyarrow.sh
 popd
 
@@ -19,6 +19,9 @@ rm -f "dist/awswrangler-layer.zip"
 pip install . -t ./python
 rm -rf python/pyarrow*
 rm -rf python/boto*
+rm -f /aws-data-wrangler/dist/pyarrow_files/pyarrow/libarrow.so
+rm -f /aws-data-wrangler/dist/pyarrow_files/pyarrow/libparquet.so
+rm -f /aws-data-wrangler/dist/pyarrow_files/pyarrow/libarrow_python.so
 cp -r /aws-data-wrangler/dist/pyarrow_files/pyarrow* python/
 find python -wholename "*/tests/*" -type f -delete
 zip -r9 "awswrangler-layer.zip" ./python
