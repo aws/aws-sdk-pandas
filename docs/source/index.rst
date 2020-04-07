@@ -8,7 +8,7 @@
 *Pandas on AWS*
 ---------------------
 
-.. warning:: Collecting feedback for 1.0.0 (Official release on April 10th)
+.. note:: Collecting feedback for 1.0.0 (Official release on April 10th)
 
              We already have a full functional 1.0.0 version available for test!
 
