@@ -2,6 +2,16 @@
 
 > Pandas on AWS
 
+## Collecting feedback for 1.0.0 (Official release on April 10th)
+
+We already have a full functional 1.0.0 version available for test!
+
+Any feedback about the docs or the library itself will be very welcome (Through GitHub Issue/PR).
+
+- Install: `pip install git+https://github.com/awslabs/aws-data-wrangler.git@dev-1.0.0`
+- Docs: https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/
+- Code: https://github.com/awslabs/aws-data-wrangler/tree/dev-1.0.0
+
 ## IMPORTANT NOTE: Version 1.0.0 coming soon with several breaking changes.
 
 Please, pin the version you are using on your environment.
