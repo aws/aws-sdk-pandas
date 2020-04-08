@@ -26,6 +26,8 @@
   - [AWS Glue Wheel](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/install.html#aws-glue-wheel)
   - [Amazon SageMaker Notebook](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/install.html#amazon-sagemaker-notebook)
   - [Amazon SageMaker Notebook Lifecycle](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/install.html#amazon-sagemaker-notebook-lifecycle)
+  - [EMR](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/install.html#emr)
+  - [From source](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/install.html#from-source)
 - [**Tutorials**](https://github.com/awslabs/aws-data-wrangler/tree/dev-1.0.0/tutorials)
 - [**API Reference**](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/api.html)
   - [Amazon S3](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/api.html#amazon-s3)

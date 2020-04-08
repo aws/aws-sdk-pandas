@@ -5,6 +5,10 @@ Install
 and on several platforms (AWS Lambda, AWS Glue Python Shell, EMR, EC2,
 on-premises, Amazon SageMaker, local, etc).
 
+Some good practices for most of the methods bellow are:
+  - Use new and individual Virtual Environments for each project (`venv <https://docs.python.org/3/library/venv.html>`_).
+  - On Notebooks, always restart your kernel after installations.
+
 PyPI (pip)
 ----------
 
@@ -86,3 +90,48 @@ SageMaker kernels (`Reference <https://github.com/aws-samples/amazon-sagemaker-n
     done
 
     EOF
+
+EMR
+---
+
+Even not being a distributed library,
+AWS Data Wrangler could be a good helper to
+complement Big Data pipelines.
+
+- Configure Python 3 as the default interpreter for
+  PySpark under your cluster configuration
+
+    .. code-block:: json
+
+        [
+          {
+             "Classification": "spark-env",
+             "Configurations": [
+               {
+                 "Classification": "export",
+                 "Properties": {
+                    "PYSPARK_PYTHON": "/usr/bin/python3"
+                  }
+               }
+            ]
+          }
+        ]
+
+- Keep the bootstrap script above on S3 and reference it on your cluster.
+
+    .. code-block:: sh
+
+        #!/usr/bin/env bash
+        set -ex
+
+        sudo pip-3.6 install awswrangler
+
+.. note:: Make sure to freeze the Wrangler version in the bootstrap for productive
+          environments (e.g. awswrangler==1.0.0)
+
+From Source
+-----------
+
+    >>> git clone https://github.com/awslabs/aws-data-wrangler.git
+    >>> cd aws-data-wrangler
+    >>> pip install .

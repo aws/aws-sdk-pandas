@@ -1198,10 +1198,11 @@ def _read_parquet_init(
     """Encapsulate all initialization before the use of the pyarrow.parquet.ParquetDataset."""
     if dataset is False:
         path_or_paths: Union[str, List[str]] = _path2list(path=path, boto3_session=boto3_session)
+    elif isinstance(path, str):
+        path_or_paths = path[:-1] if path.endswith("/") else path
     else:
         path_or_paths = path
     _logger.debug(f"path_or_paths: {path_or_paths}")
-    print(f"path_or_paths: {path_or_paths}")
     fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
     cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
     data: pyarrow.parquet.ParquetDataset = pyarrow.parquet.ParquetDataset(
