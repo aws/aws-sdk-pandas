@@ -133,7 +133,7 @@ def get_fs(
         use_ssl=True,
         default_cache_type="none",
         default_fill_cache=False,
-        default_block_size=52_428_800,  # 50 MB (50 * 2**20)
+        default_block_size=134_217_728,  # 128 MB (50 * 2**20)
         config_kwargs={"retries": {"mode": "adaptive", "max_attempts": 10}},
         session=ensure_session(session=session)._session,  # pylint: disable=protected-access
         s3_additional_kwargs=s3_additional_kwargs,

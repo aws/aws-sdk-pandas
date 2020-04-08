@@ -340,15 +340,15 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
 
     1 - `ctas_approach=True` (`Default`):
     Wrap the query with a CTAS and then reads the table data as parquet directly from s3.
-    PROS: Faster and can handle some level of nested types
+    PROS: Faster and can handle some level of nested types.
     CONS: Requires create/delete table permissions on Glue and Does not support timestamp with time zone
     (A temporary table will be created and then deleted immediately).
 
     2 - `ctas_approach False`:
     Does a regular query on Athena and parse the regular CSV result on s3.
-    PROS: Does not require create/delete table permissions on Glue and give support timestamp with time zone.
+    PROS: Does not require create/delete table permissions on Glue and supports timestamp with time zone.
     CONS: Slower (But stills faster than other libraries that uses the regular Athena API)
-    and does not handle nested types at all
+    and does not handle nested types at all.
 
     Note
     ----
