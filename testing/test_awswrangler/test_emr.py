@@ -83,6 +83,7 @@ def test_cluster(bucket, cloudformation_outputs):
     step_state = wr.emr.get_step_state(cluster_id=cluster_id, step_id=step_id)
     assert step_state == "PENDING"
     wr.emr.terminate_cluster(cluster_id=cluster_id)
+    wr.s3.delete_objects(f"s3://{bucket}/emr-logs/")
 
 
 def test_cluster_single_node(bucket, cloudformation_outputs):
@@ -144,3 +145,4 @@ def test_cluster_single_node(bucket, cloudformation_outputs):
         steps.append(wr.emr.build_step(name=cmd, command=cmd))
     wr.emr.submit_steps(cluster_id=cluster_id, steps=steps)
     wr.emr.terminate_cluster(cluster_id=cluster_id)
+    wr.s3.delete_objects(f"s3://{bucket}/emr-logs/")
