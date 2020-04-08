@@ -522,7 +522,7 @@ def copy_to_redshift(  # pylint: disable=too-many-arguments
         boto3_session=session,
         s3_additional_kwargs=s3_additional_kwargs,
     )["paths"]
-    s3.wait_objects_exist(paths=paths, use_threads=use_threads, boto3_session=session)
+    s3.wait_objects_exist(paths=paths, use_threads=False, boto3_session=session)
     copy_files_to_redshift(
         path=paths,
         manifest_directory=_utils.get_directory(path=path),
@@ -642,6 +642,7 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
     write_redshift_copy_manifest(
         manifest_path=manifest_path, paths=paths, use_threads=use_threads, boto3_session=session
     )
+    s3.wait_objects_exist(paths=paths + [manifest_path], use_threads=False, boto3_session=session)
     athena_types, _ = s3.read_parquet_metadata(
         path=paths, dataset=False, use_threads=use_threads, boto3_session=session
     )
@@ -953,7 +954,7 @@ def unload_redshift(
     paths: List[str] = unload_redshift_to_files(
         sql=sql, path=path, con=con, iam_role=iam_role, use_threads=use_threads, boto3_session=session
     )
-    s3.wait_objects_exist(paths=paths, use_threads=use_threads, boto3_session=session)
+    s3.wait_objects_exist(paths=paths, use_threads=False, boto3_session=session)
     if chunked is False:
         if not paths:  # pragma: no cover
             return pd.DataFrame()

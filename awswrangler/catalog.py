@@ -742,11 +742,7 @@ def _sanitize_name(name: str) -> str:
     name = name.replace(".", "_")
     name = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
     name = re.sub("([a-z0-9])([A-Z])", r"\1_\2", name)
-    name = name.lower()
-    name = re.sub(r"(_)\1+", "\\1", name)  # remove repeated underscores
-    name = name[1:] if name.startswith("_") else name  # remove trailing underscores
-    name = name[:-1] if name.endswith("_") else name  # remove trailing underscores
-    return name
+    return name.lower()
 
 
 def sanitize_column_name(column: str) -> str:

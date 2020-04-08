@@ -150,12 +150,12 @@ def test_redshift_copy_unload(bucket, parameters):
         path=path,
         con=engine,
         schema="public",
-        table="test_redshift_copy",
+        table="__test_redshift_copy",
         mode="overwrite",
         iam_role=parameters["redshift"]["role"],
     )
     df2 = wr.db.unload_redshift(
-        sql="SELECT * FROM public.test_redshift_copy",
+        sql="SELECT * FROM public.__test_redshift_copy",
         con=engine,
         iam_role=parameters["redshift"]["role"],
         path=path,
@@ -168,12 +168,12 @@ def test_redshift_copy_unload(bucket, parameters):
         path=path,
         con=engine,
         schema="public",
-        table="test_redshift_copy",
+        table="__test_redshift_copy",
         mode="append",
         iam_role=parameters["redshift"]["role"],
     )
     df2 = wr.db.unload_redshift(
-        sql="SELECT * FROM public.test_redshift_copy",
+        sql="SELECT * FROM public.__test_redshift_copy",
         con=engine,
         iam_role=parameters["redshift"]["role"],
         path=path,
@@ -182,7 +182,7 @@ def test_redshift_copy_unload(bucket, parameters):
     assert len(df2.index) == 6
     ensure_data_types(df=df2, has_list=False)
     dfs = wr.db.unload_redshift(
-        sql="SELECT * FROM public.test_redshift_copy",
+        sql="SELECT * FROM public.__test_redshift_copy",
         con=engine,
         iam_role=parameters["redshift"]["role"],
         path=path,

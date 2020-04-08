@@ -130,12 +130,12 @@ def test_athena(bucket, database, kms_key, workgroup_secondary):
         dataset=True,
         mode="overwrite",
         database=database,
-        table="test_athena",
+        table="__test_athena",
         partition_cols=["par0", "par1"],
     )["paths"]
     wr.s3.wait_objects_exist(paths=paths, use_threads=False)
     dfs = wr.athena.read_sql_query(
-        sql="SELECT * FROM test_athena",
+        sql="SELECT * FROM __test_athena",
         database=database,
         ctas_approach=False,
         chunksize=1,
@@ -147,12 +147,12 @@ def test_athena(bucket, database, kms_key, workgroup_secondary):
         print(df2)
         ensure_data_types(df=df2)
     df = wr.athena.read_sql_query(
-        sql="SELECT * FROM test_athena", database=database, ctas_approach=False, workgroup=workgroup_secondary
+        sql="SELECT * FROM __test_athena", database=database, ctas_approach=False, workgroup=workgroup_secondary
     )
     assert len(df.index) == 3
     ensure_data_types(df=df)
-    wr.athena.repair_table(table="test_athena", database=database)
-    wr.catalog.delete_table_if_exists(database=database, table="test_athena")
+    wr.athena.repair_table(table="__test_athena", database=database)
+    wr.catalog.delete_table_if_exists(database=database, table="__test_athena")
     wr.s3.delete_objects(path=paths)
     wr.s3.wait_objects_not_exist(paths=paths)
     wr.s3.delete_objects(path=f"s3://{bucket}/athena_workgroup_secondary/")
@@ -361,7 +361,7 @@ def test_parquet_catalog_casting(bucket, database):
         dataset=True,
         mode="overwrite",
         database=database,
-        table="test_parquet_catalog_casting",
+        table="__test_parquet_catalog_casting",
         dtype={
             "iint8": "tinyint",
             "iint16": "smallint",
@@ -385,16 +385,16 @@ def test_parquet_catalog_casting(bucket, database):
     assert len(df.index) == 3
     assert len(df.columns) == 15
     ensure_data_types(df=df, has_list=False)
-    df = wr.athena.read_sql_table(table="test_parquet_catalog_casting", database=database, ctas_approach=True)
+    df = wr.athena.read_sql_table(table="__test_parquet_catalog_casting", database=database, ctas_approach=True)
     assert len(df.index) == 3
     assert len(df.columns) == 15
     ensure_data_types(df=df, has_list=False)
-    df = wr.athena.read_sql_table(table="test_parquet_catalog_casting", database=database, ctas_approach=False)
+    df = wr.athena.read_sql_table(table="__test_parquet_catalog_casting", database=database, ctas_approach=False)
     assert len(df.index) == 3
     assert len(df.columns) == 15
     ensure_data_types(df=df, has_list=False)
     wr.s3.delete_objects(path=path)
-    assert wr.catalog.delete_table_if_exists(database=database, table="test_parquet_catalog_casting") is True
+    assert wr.catalog.delete_table_if_exists(database=database, table="__test_parquet_catalog_casting") is True
 
 
 def test_catalog(bucket, database):
@@ -552,8 +552,11 @@ def test_athena_read_list(database):
 
 
 def test_normalize_column_name():
-    assert wr.catalog.sanitize_column_name("foo()__Boo))))____BAR") == "foo_boo_bar"
-    assert wr.catalog.sanitize_column_name("foo()__Boo))))_{}{}{{}{}{}{___BAR[][][][]") == "foo_boo_bar"
+    assert wr.catalog.sanitize_column_name("foo()__Boo))))____BAR") == "foo_____boo________bar"
+    assert (
+        wr.catalog.sanitize_column_name("foo()__Boo))))_{}{}{{}{}{}{___BAR[][][][]")
+        == "foo_____boo____________________bar________"
+    )
 
 
 def test_athena_ctas_empty(database):

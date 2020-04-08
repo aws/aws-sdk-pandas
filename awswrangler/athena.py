@@ -235,7 +235,7 @@ def repair_table(
     >>> query_final_state = wr.athena.repair_table(table='...', database='...')
 
     """
-    query = f"MSCK REPAIR TABLE {table};"
+    query = f"MSCK REPAIR TABLE `{table}`;"
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     query_id = start_query_execution(
         sql=query,
@@ -456,7 +456,7 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
             else:
                 dfs = _utils.empty_generator()
         else:
-            s3.wait_objects_exist(paths=paths, use_threads=use_threads, boto3_session=session)
+            s3.wait_objects_exist(paths=paths, use_threads=False, boto3_session=session)
             dfs = s3.read_parquet(path=paths, use_threads=use_threads, boto3_session=session, chunked=chunked)
         return dfs
     dtype, parse_timestamps, parse_dates, converters, binaries = _get_query_metadata(
@@ -633,7 +633,7 @@ def read_sql_table(
 
     """
     return read_sql_query(
-        sql=f"SELECT * FROM {table}",
+        sql=f'SELECT * FROM "{table}"',
         database=database,
         ctas_approach=ctas_approach,
         chunksize=chunksize,
