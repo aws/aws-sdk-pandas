@@ -459,7 +459,7 @@ def databases(
         df_dict["Database"].append(db["Name"])
         if "Description" in db:
             df_dict["Description"].append(db["Description"])
-        else:
+        else:  # pragma: no cover
             df_dict["Description"].append("")
     return pd.DataFrame(data=df_dict)
 

@@ -243,6 +243,7 @@ def test_parquet(bucket):
     assert len(wr.s3.read_parquet(path=[path_file], use_threads=False, boto3_session=boto3.Session()).index) == 3
     paths = wr.s3.to_parquet(df=df_dataset, path=path_dataset, dataset=True)["paths"]
     wr.s3.wait_objects_exist(paths=paths)
+    assert len(wr.s3.read_parquet(path=paths, dataset=True).index) == 3
     assert len(wr.s3.read_parquet(path=path_dataset, use_threads=True, boto3_session=boto3.Session()).index) == 3
     dataset_paths = wr.s3.to_parquet(
         df=df_dataset, path=path_dataset, dataset=True, partition_cols=["partition"], mode="overwrite"
