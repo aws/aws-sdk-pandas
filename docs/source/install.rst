@@ -87,8 +87,8 @@ SageMaker kernels (`Reference <https://github.com/aws-samples/amazon-sagemaker-n
     done
     EOF
 
-EMR
----
+EMR Cluster
+-----------
 
 Even not being a distributed library,
 AWS Data Wrangler could be a good helper to

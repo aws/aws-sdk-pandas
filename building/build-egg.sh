@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -ex
 
 pushd ..
 rm -rf *.egg-info build dist/*.egg

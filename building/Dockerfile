@@ -17,6 +17,6 @@ ADD requirements-dev.txt /root/
 RUN pip3 install -r /root/requirements-dev.txt
 RUN rm -rf /root/requirements-dev.txt
 
-RUN pip3 install boto3==1.12.22 botocore==1.15.22
+RUN pip3 install boto3==1.12.22 botocore==1.15.22 awscli==1.18.22
 
 ENTRYPOINT ["/bin/sh"]
