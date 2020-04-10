@@ -421,9 +421,9 @@ def copy_to_redshift(  # pylint: disable=too-many-arguments
     """Load Pandas DataFrame as a Table on Amazon Redshift using parquet files on S3 as stage.
 
     This is a **HIGH** latency and **HIGH** throughput alternative to `wr.db.to_sql()` to load large
-    DataFrame into Amazon Redshift through the **COPY command**.
+    DataFrames into Amazon Redshift through the ** SQL COPY command**.
 
-    This function/strategy has more overhead and requires more privileges (`iam_role` argument)
+    This strategy has more overhead and requires more IAM privileges
     than the regular `wr.db.to_sql()` function, so it is only recommended
     to inserting +1MM rows at once.
 
@@ -897,9 +897,9 @@ def unload_redshift(
 
     This is a **HIGH** latency and **HIGH** throughput alternative to
     `wr.db.read_sql_query()`/`wr.db.read_sql_table()` to extract large
-    Amazon Redshift data into a Pandas DataFrame through the **UNLOAD command**.
+    Amazon Redshift data into a Pandas DataFrames through the **UNLOAD command**.
 
-    This function/strategy has more overhead and requires more privileges (`iam_role` argument)
+    This strategy has more overhead and requires more IAM privileges
     than the regular `wr.db.read_sql_query()`/`wr.db.read_sql_table()` function,
     so it is only recommended to fetch +1MM rows at once.
 

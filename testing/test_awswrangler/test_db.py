@@ -56,6 +56,26 @@ def parameters(cloudformation_outputs):
     yield parameters
 
 
+@pytest.fixture(scope="module")
+def glue_database(cloudformation_outputs):
+    yield cloudformation_outputs["GlueDatabaseName"]
+
+
+@pytest.fixture(scope="module")
+def external_schema(cloudformation_outputs, parameters, glue_database):
+    region = cloudformation_outputs.get("Region")
+    sql = f"""
+    CREATE EXTERNAL SCHEMA IF NOT EXISTS aws_data_wrangler_external FROM data catalog
+    DATABASE '{glue_database}'
+    IAM_ROLE '{parameters["redshift"]["role"]}'
+    REGION '{region}';
+    """
+    engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-redshift")
+    with engine.connect() as con:
+        con.execute(sql)
+    yield "aws_data_wrangler_external"
+
+
 @pytest.mark.parametrize("db_type", ["mysql", "redshift", "postgresql"])
 def test_sql(parameters, db_type):
     df = get_df()
@@ -305,3 +325,26 @@ def test_redshift_exceptions(bucket, parameters, diststyle, distkey, sortstyle, 
             index=False,
         )
     wr.s3.delete_objects(path=path)
+
+
+def test_redshift_spectrum(bucket, glue_database, external_schema):
+    df = pd.DataFrame({"id": [1, 2, 3, 4, 5], "col_str": ["foo", None, "bar", None, "xoo"], "par_int": [0, 1, 0, 1, 1]})
+    path = f"s3://{bucket}/test_redshift_spectrum/"
+    paths = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        database=glue_database,
+        table="test_redshift_spectrum",
+        mode="overwrite",
+        index=False,
+        dataset=True,
+        partition_cols=["par_int"],
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-redshift")
+    with engine.connect() as con:
+        cursor = con.execute(f"SELECT * FROM {external_schema}.test_redshift_spectrum")
+        rows = cursor.fetchall()
+        assert len(rows) == len(df.index)
+        for row in rows:
+            assert len(row) == len(df.columns)
