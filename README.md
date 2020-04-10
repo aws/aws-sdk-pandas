@@ -16,6 +16,32 @@
 | **PyPi**  | [![PyPI Downloads](https://img.shields.io/pypi/dm/awswrangler.svg)](https://pypi.org/project/awswrangler/)                      | [Link](https://pypi.org/project/awswrangler/)        | `pip install awswrangler`                  |
 | **Conda** | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/awswrangler.svg)](https://anaconda.org/conda-forge/awswrangler) | [Link](https://anaconda.org/conda-forge/awswrangler) | `conda install -c conda-forge awswrangler` |
 
+## Quick Start
+
+Install the Wrangler with: ```pip install awswrangler```
+
+```py3
+import awswrangler as wr
+import pandas as pd
+
+df = pd.DataFrame({"id": [1, 2], "value": ["foo", "boo"]})
+
+# Storing data on Data Lake
+wr.s3.to_parquet(
+    df=df,
+    path="s3://bucket/dataset/",
+    dataset=True,
+    database="my_db",
+    table="my_table"
+)
+
+# Retrieving the data directly from Amazon S3
+df = wr.s3.read_parquet("s3://bucket/dataset/", dataset=True)
+
+# Retrieving the data from Amazon Athena
+df = wr.athena.read_sql_query("SELECT * FROM my_table", database="my_db")
+```
+
 ## [Read The Docs](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/index.html)
 
 - [**What is AWS Data Wrangler?**](https://aws-data-wrangler.readthedocs.io/en/dev-1.0.0/what.html)
