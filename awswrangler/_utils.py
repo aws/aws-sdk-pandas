@@ -26,7 +26,7 @@ def client(service_name: str, session: Optional[boto3.Session] = None) -> boto3.
     return ensure_session(session=session).client(
         service_name=service_name,
         use_ssl=True,
-        config=botocore.config.Config(retries={"mode": "adaptive", "max_attempts": 10}),
+        config=botocore.config.Config(retries={"max_attempts": 15}),
     )
 
 
@@ -134,7 +134,7 @@ def get_fs(
         default_cache_type="none",
         default_fill_cache=False,
         default_block_size=134_217_728,  # 128 MB (50 * 2**20)
-        config_kwargs={"retries": {"mode": "adaptive", "max_attempts": 10}},
+        config_kwargs={"retries": {"max_attempts": 15}},
         session=ensure_session(session=session)._session,  # pylint: disable=protected-access
         s3_additional_kwargs=s3_additional_kwargs,
         use_listings_cache=False,

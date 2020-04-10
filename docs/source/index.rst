@@ -33,8 +33,8 @@ Read The Docs
 
    what
    install
-   Tutorials <https://github.com/awslabs/aws-data-wrangler/tree/dev-1.0.0/tutorials>
+   Tutorials <https://github.com/awslabs/aws-data-wrangler/tree/latest/tutorials>
    api
-   License <https://github.com/awslabs/aws-data-wrangler/blob/dev-1.0.0/LICENSE>
-   Contributing <https://github.com/awslabs/aws-data-wrangler/blob/dev-1.0.0/CONTRIBUTING.md>
+   License <https://github.com/awslabs/aws-data-wrangler/blob/latest/LICENSE>
+   Contributing <https://github.com/awslabs/aws-data-wrangler/blob/latest/CONTRIBUTING.md>
 
