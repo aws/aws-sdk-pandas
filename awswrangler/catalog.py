@@ -730,25 +730,20 @@ def table(
 
 
 def _sanitize_name(name: str) -> str:
-    name = "".join(c for c in unicodedata.normalize("NFD", name) if unicodedata.category(c) != "Mn")
-    name = name.replace("{", "_")
-    name = name.replace("}", "_")
-    name = name.replace("]", "_")
-    name = name.replace("[", "_")
-    name = name.replace(")", "_")
-    name = name.replace("(", "_")
-    name = name.replace(" ", "_")
-    name = name.replace("-", "_")
-    name = name.replace(".", "_")
-    name = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
-    name = re.sub("([a-z0-9])([A-Z])", r"\1_\2", name)
-    return name.lower()
+    name = "".join(c for c in unicodedata.normalize("NFD", name) if unicodedata.category(c) != "Mn")  # strip accents
+    name = re.sub("[^A-Za-z0-9_]+", "_", name)  # Removing non alphanumeric characters
+    return re.sub("([a-z0-9])([A-Z])", r"\1_\2", name).lower()  # Converting CamelCase to snake_case
 
 
 def sanitize_column_name(column: str) -> str:
     """Convert the column name to be compatible with Amazon Athena.
 
     https://docs.aws.amazon.com/athena/latest/ug/tables-databases-columns-names.html
+
+    Possible transformations:
+    - Strip accents
+    - Remove non alphanumeric characters
+    - Convert CamelCase to snake_case
 
     Parameters
     ----------
@@ -775,6 +770,11 @@ def sanitize_dataframe_columns_names(df: pd.DataFrame) -> pd.DataFrame:
 
     https://docs.aws.amazon.com/athena/latest/ug/tables-databases-columns-names.html
 
+    Possible transformations:
+    - Strip accents
+    - Remove non alphanumeric characters
+    - Convert CamelCase to snake_case
+
     Parameters
     ----------
     df : pandas.DataFrame
@@ -799,6 +799,11 @@ def sanitize_table_name(table: str) -> str:
     """Convert the table name to be compatible with Amazon Athena.
 
     https://docs.aws.amazon.com/athena/latest/ug/tables-databases-columns-names.html
+
+    Possible transformations:
+    - Strip accents
+    - Remove non alphanumeric characters
+    - Convert CamelCase to snake_case
 
     Parameters
     ----------

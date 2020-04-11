@@ -553,12 +553,25 @@ def test_athena_read_list(database):
         wr.athena.read_sql_query(sql=f"SELECT ARRAY[1, 2, 3]", database=database, ctas_approach=False)
 
 
-def test_normalize_column_name():
-    assert wr.catalog.sanitize_column_name("foo()__Boo))))____BAR") == "foo_____boo________bar"
-    assert (
-        wr.catalog.sanitize_column_name("foo()__Boo))))_{}{}{{}{}{}{___BAR[][][][]")
-        == "foo_____boo____________________bar________"
-    )
+def test_sanitize_names():
+    assert wr.catalog.sanitize_column_name("CamelCase") == "camel_case"
+    assert wr.catalog.sanitize_column_name("CamelCase2") == "camel_case2"
+    assert wr.catalog.sanitize_column_name("Camel_Case3") == "camel_case3"
+    assert wr.catalog.sanitize_column_name("Cámël_Casë4仮") == "camel_case4_"
+    assert wr.catalog.sanitize_column_name("Camel__Case5") == "camel__case5"
+    assert wr.catalog.sanitize_column_name("Camel{}Case6") == "camel_case6"
+    assert wr.catalog.sanitize_column_name("Camel.Case7") == "camel_case7"
+    assert wr.catalog.sanitize_column_name("xyz_cd") == "xyz_cd"
+    assert wr.catalog.sanitize_column_name("xyz_Cd") == "xyz_cd"
+    assert wr.catalog.sanitize_table_name("CamelCase") == "camel_case"
+    assert wr.catalog.sanitize_table_name("CamelCase2") == "camel_case2"
+    assert wr.catalog.sanitize_table_name("Camel_Case3") == "camel_case3"
+    assert wr.catalog.sanitize_table_name("Cámël_Casë4仮") == "camel_case4_"
+    assert wr.catalog.sanitize_table_name("Camel__Case5") == "camel__case5"
+    assert wr.catalog.sanitize_table_name("Camel{}Case6") == "camel_case6"
+    assert wr.catalog.sanitize_table_name("Camel.Case7") == "camel_case7"
+    assert wr.catalog.sanitize_table_name("xyz_cd") == "xyz_cd"
+    assert wr.catalog.sanitize_table_name("xyz_Cd") == "xyz_cd"
 
 
 def test_athena_ctas_empty(database):
