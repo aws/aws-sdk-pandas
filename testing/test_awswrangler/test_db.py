@@ -9,7 +9,7 @@ import sqlalchemy
 
 import awswrangler as wr
 
-from ._utils import ensure_data_types, get_df
+from ._utils import ensure_data_types, ensure_data_types_category, get_df, get_df_category
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
@@ -348,3 +348,39 @@ def test_redshift_spectrum(bucket, glue_database, external_schema):
         assert len(rows) == len(df.index)
         for row in rows:
             assert len(row) == len(df.columns)
+
+
+def test_redshift_category(bucket, parameters):
+    path = f"s3://{bucket}/test_redshift_category/"
+    df = get_df_category().drop(["binary"], axis=1, inplace=False)
+    engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-redshift")
+    wr.db.copy_to_redshift(
+        df=df,
+        path=path,
+        con=engine,
+        schema="public",
+        table="test_redshift_category",
+        mode="overwrite",
+        iam_role=parameters["redshift"]["role"],
+    )
+    df2 = wr.db.unload_redshift(
+        sql="SELECT * FROM public.test_redshift_category",
+        con=engine,
+        iam_role=parameters["redshift"]["role"],
+        path=path,
+        keep_files=False,
+        categories=df.columns,
+    )
+    ensure_data_types_category(df2)
+    dfs = wr.db.unload_redshift(
+        sql="SELECT * FROM public.test_redshift_category",
+        con=engine,
+        iam_role=parameters["redshift"]["role"],
+        path=path,
+        keep_files=False,
+        categories=df.columns,
+        chunked=True,
+    )
+    for df2 in dfs:
+        ensure_data_types_category(df2)
+    wr.s3.delete_objects(path=path)
