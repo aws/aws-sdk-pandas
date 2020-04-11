@@ -26,43 +26,27 @@ def cloudformation_outputs():
 
 @pytest.fixture(scope="module")
 def region(cloudformation_outputs):
-    if "Region" in cloudformation_outputs:
-        region = cloudformation_outputs["Region"]
-    else:
-        raise Exception("You must deploy/update the test infrastructure (CloudFormation)!")
-    yield region
+    yield cloudformation_outputs["Region"]
 
 
 @pytest.fixture(scope="module")
 def bucket(cloudformation_outputs):
-    if "BucketName" in cloudformation_outputs:
-        bucket = cloudformation_outputs["BucketName"]
-    else:
-        raise Exception("You must deploy/update the test infrastructure (CloudFormation)")
-    yield bucket
+    yield cloudformation_outputs["BucketName"]
 
 
 @pytest.fixture(scope="module")
 def database(cloudformation_outputs):
-    if "GlueDatabaseName" in cloudformation_outputs:
-        database = cloudformation_outputs["GlueDatabaseName"]
-    else:
-        raise Exception("You must deploy the test infrastructure using Cloudformation!")
-    yield database
+    yield cloudformation_outputs["GlueDatabaseName"]
 
 
 @pytest.fixture(scope="module")
 def kms_key(cloudformation_outputs):
-    if "KmsKeyArn" in cloudformation_outputs:
-        key = cloudformation_outputs["KmsKeyArn"]
-    else:
-        raise Exception("You must deploy the test infrastructure using Cloudformation!")
-    yield key
+    yield cloudformation_outputs["KmsKeyArn"]
 
 
 @pytest.fixture(scope="module")
-def workgroup_secondary(bucket):
-    wkg_name = "awswrangler_test"
+def workgroup0(bucket):
+    wkg_name = "awswrangler_test_0"
     client = boto3.client("athena")
     wkgs = client.list_work_groups()
     wkgs = [x["Name"] for x in wkgs["WorkGroups"]]
@@ -71,7 +55,7 @@ def workgroup_secondary(bucket):
             Name=wkg_name,
             Configuration={
                 "ResultConfiguration": {
-                    "OutputLocation": f"s3://{bucket}/athena_workgroup_secondary/",
+                    "OutputLocation": f"s3://{bucket}/athena_workgroup0/",
                     "EncryptionConfiguration": {"EncryptionOption": "SSE_S3"},
                 },
                 "EnforceWorkGroupConfiguration": True,
@@ -79,7 +63,28 @@ def workgroup_secondary(bucket):
                 "BytesScannedCutoffPerQuery": 100_000_000,
                 "RequesterPaysEnabled": False,
             },
-            Description="AWS Data Wrangler Test WorkGroup",
+            Description="AWS Data Wrangler Test WorkGroup Number 0",
+        )
+    yield wkg_name
+
+
+@pytest.fixture(scope="module")
+def workgroup1(bucket):
+    wkg_name = "awswrangler_test_1"
+    client = boto3.client("athena")
+    wkgs = client.list_work_groups()
+    wkgs = [x["Name"] for x in wkgs["WorkGroups"]]
+    if wkg_name not in wkgs:
+        client.create_work_group(
+            Name=wkg_name,
+            Configuration={
+                "ResultConfiguration": {"OutputLocation": f"s3://{bucket}/athena_workgroup1/"},
+                "EnforceWorkGroupConfiguration": True,
+                "PublishCloudWatchMetricsEnabled": True,
+                "BytesScannedCutoffPerQuery": 100_000_000,
+                "RequesterPaysEnabled": False,
+            },
+            Description="AWS Data Wrangler Test WorkGroup Number 1",
         )
     yield wkg_name
 
@@ -121,7 +126,7 @@ def test_athena_ctas(bucket, database, kms_key):
     wr.s3.delete_objects(path=f"s3://{bucket}/test_athena_ctas_result/")
 
 
-def test_athena(bucket, database, kms_key, workgroup_secondary):
+def test_athena(bucket, database, kms_key, workgroup0, workgroup1):
     wr.s3.delete_objects(path=f"s3://{bucket}/test_athena/")
     paths = wr.s3.to_parquet(
         df=get_df(),
@@ -142,13 +147,13 @@ def test_athena(bucket, database, kms_key, workgroup_secondary):
         chunksize=1,
         encryption="SSE_KMS",
         kms_key=kms_key,
-        workgroup=workgroup_secondary,
+        workgroup=workgroup0,
     )
     for df2 in dfs:
         print(df2)
         ensure_data_types(df=df2)
     df = wr.athena.read_sql_query(
-        sql="SELECT * FROM __test_athena", database=database, ctas_approach=False, workgroup=workgroup_secondary
+        sql="SELECT * FROM __test_athena", database=database, ctas_approach=False, workgroup=workgroup1
     )
     assert len(df.index) == 3
     ensure_data_types(df=df)
@@ -156,7 +161,8 @@ def test_athena(bucket, database, kms_key, workgroup_secondary):
     wr.catalog.delete_table_if_exists(database=database, table="__test_athena")
     wr.s3.delete_objects(path=paths)
     wr.s3.wait_objects_not_exist(paths=paths)
-    wr.s3.delete_objects(path=f"s3://{bucket}/athena_workgroup_secondary/")
+    wr.s3.delete_objects(path=f"s3://{bucket}/athena_workgroup0/")
+    wr.s3.delete_objects(path=f"s3://{bucket}/athena_workgroup1/")
 
 
 def test_csv(bucket):
