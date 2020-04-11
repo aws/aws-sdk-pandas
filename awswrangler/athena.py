@@ -259,7 +259,7 @@ def _extract_ctas_manifest_paths(path: str, boto3_session: Optional[boto3.Sessio
 
 
 def _get_query_metadata(
-    query_execution_id: str, boto3_session: Optional[boto3.Session] = None
+    query_execution_id: str, categories: List[str] = None, boto3_session: Optional[boto3.Session] = None
 ) -> Tuple[Dict[str, str], List[str], List[str], Dict[str, Any], List[str]]:
     """Get query metadata."""
     cols_types: Dict[str, str] = get_query_columns_types(
@@ -285,7 +285,9 @@ def _get_query_metadata(
                 "Please use ctas_approach=True for Struct columns."
             )
         pandas_type: str = _data_types.athena2pandas(dtype=col_type)
-        if pandas_type in ["datetime64", "date"]:
+        if (categories is not None) and (col_name in categories):
+            dtype[col_name] = "category"
+        elif pandas_type in ["datetime64", "date"]:
             parse_timestamps.append(col_name)
             if pandas_type == "date":
                 parse_dates.append(col_name)
@@ -326,6 +328,7 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
     sql: str,
     database: str,
     ctas_approach: bool = True,
+    categories: List[str] = None,
     chunksize: Optional[int] = None,
     s3_output: Optional[str] = None,
     workgroup: Optional[str] = None,
@@ -377,6 +380,9 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
     ctas_approach: bool
         Wraps the query using a CTAS, and read the resulted parquet data on S3.
         If false, read the regular CSV on S3.
+    categories: List[str], optional
+        List of columns names that should be returned as pandas.Categorical.
+        Recommended for memory restricted environments.
     chunksize: int, optional
         If specified, return an generator where chunksize is the number of rows to include in each chunk.
     s3_output : str, optional
@@ -457,10 +463,12 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
                 dfs = _utils.empty_generator()
         else:
             s3.wait_objects_exist(paths=paths, use_threads=False, boto3_session=session)
-            dfs = s3.read_parquet(path=paths, use_threads=use_threads, boto3_session=session, chunked=chunked)
+            dfs = s3.read_parquet(
+                path=paths, use_threads=use_threads, boto3_session=session, chunked=chunked, categories=categories
+            )
         return dfs
     dtype, parse_timestamps, parse_dates, converters, binaries = _get_query_metadata(
-        query_execution_id=query_id, boto3_session=session
+        query_execution_id=query_id, categories=categories, boto3_session=session
     )
     path = f"{_s3_output}{query_id}.csv"
     s3.wait_objects_exist(paths=[path], use_threads=False, boto3_session=session)
@@ -539,12 +547,13 @@ def get_work_group(workgroup: str, boto3_session: Optional[boto3.Session] = None
 def _ensure_workgroup(
     session: boto3.Session, workgroup: Optional[str] = None
 ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
-    if workgroup:
+    if workgroup is not None:
         res: Dict[str, Any] = get_work_group(workgroup=workgroup, boto3_session=session)
         config: Dict[str, Any] = res["WorkGroup"]["Configuration"]["ResultConfiguration"]
         wg_s3_output: Optional[str] = config.get("OutputLocation")
-        wg_encryption: Optional[str] = config["EncryptionConfiguration"].get("EncryptionOption")
-        wg_kms_key: Optional[str] = config["EncryptionConfiguration"].get("KmsKey")
+        encrypt_config: Optional[Dict[str, str]] = config.get("EncryptionConfiguration")
+        wg_encryption: Optional[str] = None if encrypt_config is None else encrypt_config.get("EncryptionOption")
+        wg_kms_key: Optional[str] = None if encrypt_config is None else encrypt_config.get("KmsKey")
     else:
         wg_s3_output, wg_encryption, wg_kms_key = None, None, None
     return wg_s3_output, wg_encryption, wg_kms_key

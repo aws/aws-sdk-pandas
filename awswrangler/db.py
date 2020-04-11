@@ -887,6 +887,7 @@ def unload_redshift(
     path: str,
     con: sqlalchemy.engine.Engine,
     iam_role: str,
+    categories: List[str] = None,
     chunked: bool = False,
     keep_files: bool = False,
     use_threads: bool = True,
@@ -920,6 +921,9 @@ def unload_redshift(
         wr.db.get_engine(), wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()
     iam_role : str
         AWS IAM role with the related permissions.
+    categories: List[str], optional
+        List of columns names that should be returned as pandas.Categorical.
+        Recommended for memory restricted environments.
     keep_files : bool
         Should keep the stage files?
     chunked : bool
@@ -960,6 +964,7 @@ def unload_redshift(
             return pd.DataFrame()
         df: pd.DataFrame = s3.read_parquet(
             path=paths,
+            categories=categories,
             chunked=chunked,
             dataset=False,
             use_threads=use_threads,
@@ -973,6 +978,7 @@ def unload_redshift(
         return _utils.empty_generator()
     return _read_parquet_iterator(
         paths=paths,
+        categories=categories,
         use_threads=use_threads,
         boto3_session=session,
         s3_additional_kwargs=s3_additional_kwargs,
@@ -984,11 +990,13 @@ def _read_parquet_iterator(
     paths: List[str],
     keep_files: bool,
     use_threads: bool,
+    categories: List[str] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
 ) -> Iterator[pd.DataFrame]:
     dfs: Iterator[pd.DataFrame] = s3.read_parquet(
         path=paths,
+        categories=categories,
         chunked=True,
         dataset=False,
         use_threads=use_threads,

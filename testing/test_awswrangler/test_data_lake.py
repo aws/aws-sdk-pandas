@@ -7,7 +7,8 @@ import pytest
 
 import awswrangler as wr
 
-from ._utils import ensure_data_types, get_df, get_df_cast, get_df_list, get_query_long
+from ._utils import (ensure_data_types, ensure_data_types_category, get_df, get_df_cast, get_df_category, get_df_list,
+                     get_query_long)
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
@@ -25,43 +26,27 @@ def cloudformation_outputs():
 
 @pytest.fixture(scope="module")
 def region(cloudformation_outputs):
-    if "Region" in cloudformation_outputs:
-        region = cloudformation_outputs["Region"]
-    else:
-        raise Exception("You must deploy/update the test infrastructure (CloudFormation)!")
-    yield region
+    yield cloudformation_outputs["Region"]
 
 
 @pytest.fixture(scope="module")
 def bucket(cloudformation_outputs):
-    if "BucketName" in cloudformation_outputs:
-        bucket = cloudformation_outputs["BucketName"]
-    else:
-        raise Exception("You must deploy/update the test infrastructure (CloudFormation)")
-    yield bucket
+    yield cloudformation_outputs["BucketName"]
 
 
 @pytest.fixture(scope="module")
 def database(cloudformation_outputs):
-    if "GlueDatabaseName" in cloudformation_outputs:
-        database = cloudformation_outputs["GlueDatabaseName"]
-    else:
-        raise Exception("You must deploy the test infrastructure using Cloudformation!")
-    yield database
+    yield cloudformation_outputs["GlueDatabaseName"]
 
 
 @pytest.fixture(scope="module")
 def kms_key(cloudformation_outputs):
-    if "KmsKeyArn" in cloudformation_outputs:
-        key = cloudformation_outputs["KmsKeyArn"]
-    else:
-        raise Exception("You must deploy the test infrastructure using Cloudformation!")
-    yield key
+    yield cloudformation_outputs["KmsKeyArn"]
 
 
 @pytest.fixture(scope="module")
-def workgroup_secondary(bucket):
-    wkg_name = "awswrangler_test"
+def workgroup0(bucket):
+    wkg_name = "awswrangler_test_0"
     client = boto3.client("athena")
     wkgs = client.list_work_groups()
     wkgs = [x["Name"] for x in wkgs["WorkGroups"]]
@@ -70,7 +55,7 @@ def workgroup_secondary(bucket):
             Name=wkg_name,
             Configuration={
                 "ResultConfiguration": {
-                    "OutputLocation": f"s3://{bucket}/athena_workgroup_secondary/",
+                    "OutputLocation": f"s3://{bucket}/athena_workgroup0/",
                     "EncryptionConfiguration": {"EncryptionOption": "SSE_S3"},
                 },
                 "EnforceWorkGroupConfiguration": True,
@@ -78,7 +63,28 @@ def workgroup_secondary(bucket):
                 "BytesScannedCutoffPerQuery": 100_000_000,
                 "RequesterPaysEnabled": False,
             },
-            Description="AWS Data Wrangler Test WorkGroup",
+            Description="AWS Data Wrangler Test WorkGroup Number 0",
+        )
+    yield wkg_name
+
+
+@pytest.fixture(scope="module")
+def workgroup1(bucket):
+    wkg_name = "awswrangler_test_1"
+    client = boto3.client("athena")
+    wkgs = client.list_work_groups()
+    wkgs = [x["Name"] for x in wkgs["WorkGroups"]]
+    if wkg_name not in wkgs:
+        client.create_work_group(
+            Name=wkg_name,
+            Configuration={
+                "ResultConfiguration": {"OutputLocation": f"s3://{bucket}/athena_workgroup1/"},
+                "EnforceWorkGroupConfiguration": True,
+                "PublishCloudWatchMetricsEnabled": True,
+                "BytesScannedCutoffPerQuery": 100_000_000,
+                "RequesterPaysEnabled": False,
+            },
+            Description="AWS Data Wrangler Test WorkGroup Number 1",
         )
     yield wkg_name
 
@@ -120,7 +126,7 @@ def test_athena_ctas(bucket, database, kms_key):
     wr.s3.delete_objects(path=f"s3://{bucket}/test_athena_ctas_result/")
 
 
-def test_athena(bucket, database, kms_key, workgroup_secondary):
+def test_athena(bucket, database, kms_key, workgroup0, workgroup1):
     wr.s3.delete_objects(path=f"s3://{bucket}/test_athena/")
     paths = wr.s3.to_parquet(
         df=get_df(),
@@ -141,13 +147,13 @@ def test_athena(bucket, database, kms_key, workgroup_secondary):
         chunksize=1,
         encryption="SSE_KMS",
         kms_key=kms_key,
-        workgroup=workgroup_secondary,
+        workgroup=workgroup0,
     )
     for df2 in dfs:
         print(df2)
         ensure_data_types(df=df2)
     df = wr.athena.read_sql_query(
-        sql="SELECT * FROM __test_athena", database=database, ctas_approach=False, workgroup=workgroup_secondary
+        sql="SELECT * FROM __test_athena", database=database, ctas_approach=False, workgroup=workgroup1
     )
     assert len(df.index) == 3
     ensure_data_types(df=df)
@@ -155,7 +161,8 @@ def test_athena(bucket, database, kms_key, workgroup_secondary):
     wr.catalog.delete_table_if_exists(database=database, table="__test_athena")
     wr.s3.delete_objects(path=paths)
     wr.s3.wait_objects_not_exist(paths=paths)
-    wr.s3.delete_objects(path=f"s3://{bucket}/athena_workgroup_secondary/")
+    wr.s3.delete_objects(path=f"s3://{bucket}/athena_workgroup0/")
+    wr.s3.delete_objects(path=f"s3://{bucket}/athena_workgroup1/")
 
 
 def test_csv(bucket):
@@ -552,12 +559,25 @@ def test_athena_read_list(database):
         wr.athena.read_sql_query(sql=f"SELECT ARRAY[1, 2, 3]", database=database, ctas_approach=False)
 
 
-def test_normalize_column_name():
-    assert wr.catalog.sanitize_column_name("foo()__Boo))))____BAR") == "foo_____boo________bar"
-    assert (
-        wr.catalog.sanitize_column_name("foo()__Boo))))_{}{}{{}{}{}{___BAR[][][][]")
-        == "foo_____boo____________________bar________"
-    )
+def test_sanitize_names():
+    assert wr.catalog.sanitize_column_name("CamelCase") == "camel_case"
+    assert wr.catalog.sanitize_column_name("CamelCase2") == "camel_case2"
+    assert wr.catalog.sanitize_column_name("Camel_Case3") == "camel_case3"
+    assert wr.catalog.sanitize_column_name("Cámël_Casë4仮") == "camel_case4_"
+    assert wr.catalog.sanitize_column_name("Camel__Case5") == "camel__case5"
+    assert wr.catalog.sanitize_column_name("Camel{}Case6") == "camel_case6"
+    assert wr.catalog.sanitize_column_name("Camel.Case7") == "camel_case7"
+    assert wr.catalog.sanitize_column_name("xyz_cd") == "xyz_cd"
+    assert wr.catalog.sanitize_column_name("xyz_Cd") == "xyz_cd"
+    assert wr.catalog.sanitize_table_name("CamelCase") == "camel_case"
+    assert wr.catalog.sanitize_table_name("CamelCase2") == "camel_case2"
+    assert wr.catalog.sanitize_table_name("Camel_Case3") == "camel_case3"
+    assert wr.catalog.sanitize_table_name("Cámël_Casë4仮") == "camel_case4_"
+    assert wr.catalog.sanitize_table_name("Camel__Case5") == "camel__case5"
+    assert wr.catalog.sanitize_table_name("Camel{}Case6") == "camel_case6"
+    assert wr.catalog.sanitize_table_name("Camel.Case7") == "camel_case7"
+    assert wr.catalog.sanitize_table_name("xyz_cd") == "xyz_cd"
+    assert wr.catalog.sanitize_table_name("xyz_Cd") == "xyz_cd"
 
 
 def test_athena_ctas_empty(database):
@@ -614,3 +634,38 @@ def test_athena_time_zone(database):
     assert len(df.columns) == 2
     assert df["type"][0] == "timestamp with time zone"
     assert df["value"][0].year == datetime.datetime.utcnow().year
+
+
+def test_category(bucket, database):
+    df = get_df_category()
+    path = f"s3://{bucket}/test_category/"
+    paths = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        database=database,
+        table="test_category",
+        mode="overwrite",
+        partition_cols=["par0", "par1"],
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df2 = wr.s3.read_parquet(path=path, dataset=True, categories=[c for c in df.columns if c not in ["par0", "par1"]])
+    ensure_data_types_category(df2)
+    df2 = wr.athena.read_sql_query("SELECT * FROM test_category", database=database, categories=list(df.columns))
+    ensure_data_types_category(df2)
+    df2 = wr.athena.read_sql_query(
+        "SELECT * FROM test_category", database=database, categories=list(df.columns), ctas_approach=False
+    )
+    ensure_data_types_category(df2)
+    dfs = wr.athena.read_sql_query(
+        "SELECT * FROM test_category", database=database, categories=list(df.columns), ctas_approach=False, chunksize=1
+    )
+    for df2 in dfs:
+        ensure_data_types_category(df2)
+    dfs = wr.athena.read_sql_query(
+        "SELECT * FROM test_category", database=database, categories=list(df.columns), ctas_approach=True, chunksize=1
+    )
+    for df2 in dfs:
+        ensure_data_types_category(df2)
+    wr.s3.delete_objects(path=paths)
+    assert wr.catalog.delete_table_if_exists(database=database, table="test_category") is True

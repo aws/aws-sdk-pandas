@@ -94,6 +94,25 @@ def get_df_cast():
     return df
 
 
+def get_df_category():
+    df = pd.DataFrame(
+        {
+            "id": [1, 2, 3],
+            "string_object": ["foo", None, "boo"],
+            "string": ["foo", None, "boo"],
+            "binary": [b"1", None, b"2"],
+            "float": [1.0, None, 2.0],
+            "int": [1, None, 2],
+            "par0": [1, 1, 2],
+            "par1": ["a", "b", "b"],
+        }
+    )
+    df["string"] = df["string"].astype("string")
+    df["int"] = df["int"].astype("Int64")
+    df["par1"] = df["par1"].astype("string")
+    return df
+
+
 def get_query_long():
     return """
 SELECT
@@ -324,3 +343,16 @@ def ensure_data_types(df, has_list=False):
         if has_list is True:
             assert str(type(row["list"][0]).__name__) == "int64"
             assert str(type(row["list_list"][0][0]).__name__) == "int64"
+
+
+def ensure_data_types_category(df):
+    assert len(df.columns) in (7, 8)
+    assert str(df["id"].dtype) in ("category", "Int64")
+    assert str(df["string_object"].dtype) == "category"
+    assert str(df["string"].dtype) == "category"
+    if "binary" in df.columns:
+        assert str(df["binary"].dtype) == "category"
+    assert str(df["float"].dtype) == "category"
+    assert str(df["int"].dtype) in ("category", "Int64")
+    assert str(df["par0"].dtype) in ("category", "Int64")
+    assert str(df["par1"].dtype) == "category"
