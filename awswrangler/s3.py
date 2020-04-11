@@ -532,6 +532,11 @@ def to_parquet(  # pylint: disable=too-many-arguments
 
     Note
     ----
+    The table name and all column names will be automatically sanitize using
+    `wr.catalog.sanitize_table_name` and `wr.catalog.sanitize_column_name`.
+
+    Note
+    ----
     In case of `use_threads=True` the number of process that will be spawned will be get from os.cpu_count().
 
     Parameters
