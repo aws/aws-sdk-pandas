@@ -7,7 +7,8 @@ import pytest
 
 import awswrangler as wr
 
-from ._utils import ensure_data_types, get_df, get_df_cast, get_df_list, get_query_long
+from ._utils import (ensure_data_types, ensure_data_types_category, get_df, get_df_cast, get_df_category, get_df_list,
+                     get_query_long)
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
@@ -614,3 +615,38 @@ def test_athena_time_zone(database):
     assert len(df.columns) == 2
     assert df["type"][0] == "timestamp with time zone"
     assert df["value"][0].year == datetime.datetime.utcnow().year
+
+
+def test_category(bucket, database):
+    df = get_df_category()
+    path = f"s3://{bucket}/test_category/"
+    paths = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        database=database,
+        table="test_category",
+        mode="overwrite",
+        partition_cols=["par0", "par1"],
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df2 = wr.s3.read_parquet(path=path, dataset=True, categories=[c for c in df.columns if c not in ["par0", "par1"]])
+    ensure_data_types_category(df2)
+    df2 = wr.athena.read_sql_query("SELECT * FROM test_category", database=database, categories=list(df.columns))
+    ensure_data_types_category(df2)
+    df2 = wr.athena.read_sql_query(
+        "SELECT * FROM test_category", database=database, categories=list(df.columns), ctas_approach=False
+    )
+    ensure_data_types_category(df2)
+    dfs = wr.athena.read_sql_query(
+        "SELECT * FROM test_category", database=database, categories=list(df.columns), ctas_approach=False, chunksize=1
+    )
+    for df2 in dfs:
+        ensure_data_types_category(df2)
+    dfs = wr.athena.read_sql_query(
+        "SELECT * FROM test_category", database=database, categories=list(df.columns), ctas_approach=True, chunksize=1
+    )
+    for df2 in dfs:
+        ensure_data_types_category(df2)
+    wr.s3.delete_objects(path=paths)
+    assert wr.catalog.delete_table_if_exists(database=database, table="test_category") is True

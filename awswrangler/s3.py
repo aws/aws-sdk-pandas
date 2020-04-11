@@ -833,7 +833,7 @@ def _to_parquet_file(
     fs: s3fs.S3FileSystem,
     dtype: Dict[str, str],
 ) -> str:
-    table: pa.Table = pyarrow.Table.from_pandas(df=df, schema=schema, nthreads=cpus, preserve_index=index, safe=False)
+    table: pa.Table = pyarrow.Table.from_pandas(df=df, schema=schema, nthreads=cpus, preserve_index=index, safe=True)
     for col_name, col_type in dtype.items():
         if col_name in table.column_names:
             col_index = table.column_names.index(col_name)
@@ -1190,6 +1190,7 @@ def _read_text_full(
 def _read_parquet_init(
     path: Union[str, List[str]],
     filters: Optional[Union[List[Tuple], List[List[Tuple]]]] = None,
+    categories: List[str] = None,
     dataset: bool = False,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
@@ -1206,7 +1207,7 @@ def _read_parquet_init(
     fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
     cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
     data: pyarrow.parquet.ParquetDataset = pyarrow.parquet.ParquetDataset(
-        path_or_paths=path_or_paths, filesystem=fs, metadata_nthreads=cpus, filters=filters
+        path_or_paths=path_or_paths, filesystem=fs, metadata_nthreads=cpus, filters=filters, read_dictionary=categories
     )
     return data
 
@@ -1217,6 +1218,7 @@ def read_parquet(
     columns: Optional[List[str]] = None,
     chunked: bool = False,
     dataset: bool = False,
+    categories: List[str] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
@@ -1243,6 +1245,9 @@ def read_parquet(
         Otherwise return a single DataFrame with the whole data.
     dataset: bool
         If True read a parquet dataset instead of simple file(s) loading all the related partitions as columns.
+    categories: List[str], optional
+        List of columns names that should be returned as pandas.Categorical.
+        Recommended for memory restricted environments.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -1292,43 +1297,37 @@ def read_parquet(
         path=path,
         filters=filters,
         dataset=dataset,
+        categories=categories,
         use_threads=use_threads,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
     )
-    common_metadata = data.common_metadata
-    common_metadata = None if common_metadata is None else common_metadata.metadata.get(b"pandas", None)
     if chunked is False:
-        return _read_parquet(data=data, columns=columns, use_threads=use_threads, common_metadata=common_metadata)
-    return _read_parquet_chunked(data=data, columns=columns, use_threads=use_threads, common_metadata=common_metadata)
+        return _read_parquet(data=data, columns=columns, categories=categories, use_threads=use_threads)
+    return _read_parquet_chunked(data=data, columns=columns, categories=categories, use_threads=use_threads)
 
 
 def _read_parquet(
     data: pyarrow.parquet.ParquetDataset,
     columns: Optional[List[str]] = None,
+    categories: List[str] = None,
     use_threads: bool = True,
-    common_metadata: Any = None,
 ) -> pd.DataFrame:
-    # Data
     tables: List[pa.Table] = []
     for piece in data.pieces:
         table: pa.Table = piece.read(
-            columns=columns, use_threads=use_threads, partitions=data.partitions, use_pandas_metadata=True
+            columns=columns, use_threads=use_threads, partitions=data.partitions, use_pandas_metadata=False
         )
         tables.append(table)
     table = pa.lib.concat_tables(tables)
-
-    # Metadata
-    current_metadata = table.schema.metadata or {}
-    if common_metadata and b"pandas" not in current_metadata:  # pragma: no cover
-        table = table.replace_schema_metadata({b"pandas": common_metadata})
-
     return table.to_pandas(
         use_threads=use_threads,
         split_blocks=True,
         self_destruct=True,
         integer_object_nulls=False,
         date_as_object=True,
+        ignore_metadata=True,
+        categories=categories,
         types_mapper=_data_types.pyarrow2pandas_extension,
     )
 
@@ -1336,22 +1335,21 @@ def _read_parquet(
 def _read_parquet_chunked(
     data: pyarrow.parquet.ParquetDataset,
     columns: Optional[List[str]] = None,
+    categories: List[str] = None,
     use_threads: bool = True,
-    common_metadata: Any = None,
 ) -> Iterator[pd.DataFrame]:
     for piece in data.pieces:
         table: pa.Table = piece.read(
-            columns=columns, use_threads=use_threads, partitions=data.partitions, use_pandas_metadata=True
+            columns=columns, use_threads=use_threads, partitions=data.partitions, use_pandas_metadata=False
         )
-        current_metadata = table.schema.metadata or {}
-        if common_metadata and b"pandas" not in current_metadata:  # pragma: no cover
-            table = table.replace_schema_metadata({b"pandas": common_metadata})
         yield table.to_pandas(
             use_threads=use_threads,
             split_blocks=True,
             self_destruct=True,
             integer_object_nulls=False,
             date_as_object=True,
+            ignore_metadata=True,
+            categories=categories,
             types_mapper=_data_types.pyarrow2pandas_extension,
         )
 
@@ -1670,6 +1668,7 @@ def read_parquet_table(
     database: str,
     filters: Optional[Union[List[Tuple], List[List[Tuple]]]] = None,
     columns: Optional[List[str]] = None,
+    categories: List[str] = None,
     chunked: bool = False,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
@@ -1690,7 +1689,10 @@ def read_parquet_table(
     filters: Union[List[Tuple], List[List[Tuple]]], optional
         List of filters to apply, like ``[[('x', '=', 0), ...], ...]``.
     columns : List[str], optional
-        Names of columns to read from the file(s)
+        Names of columns to read from the file(s).
+    categories: List[str], optional
+        List of columns names that should be returned as pandas.Categorical.
+        Recommended for memory restricted environments.
     chunked : bool
         If True will break the data in smaller DataFrames (Non deterministic number of lines).
         Otherwise return a single DataFrame with the whole data.
@@ -1740,6 +1742,7 @@ def read_parquet_table(
         path=path,
         filters=filters,
         columns=columns,
+        categories=categories,
         chunked=chunked,
         dataset=True,
         use_threads=use_threads,
