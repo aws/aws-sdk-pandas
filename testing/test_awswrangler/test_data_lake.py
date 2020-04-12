@@ -520,13 +520,6 @@ def test_catalog(bucket, database):
     assert wr.catalog.delete_table_if_exists(database=database, table="test_catalog") is True
 
 
-def test_metadata():
-    assert wr.__version__ == "1.0.0"
-    assert wr.__title__ == "awswrangler"
-    assert wr.__description__ == "Pandas on AWS."
-    assert wr.__license__ == "Apache License 2.0"
-
-
 def test_s3_get_bucket_region(bucket, region):
     assert wr.s3.get_bucket_region(bucket=bucket) == region
     assert wr.s3.get_bucket_region(bucket=bucket, boto3_session=boto3.Session()) == region
