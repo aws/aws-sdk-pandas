@@ -62,9 +62,9 @@ We may ask you to sign a [Contributor License Agreement (CLA)](http://en.wikiped
 
 * AWS Data Wrangler practically only makes integrations. So we prefer to dedicate our energy / time writing integration tests instead of unit tests. We really like an end-to-end approach for all features.
 
-* All integration tests are between the local enviroment and a remote and real AWS service.
+* All integration tests are between the local environment and a remote and real AWS services.
 
-* We have a Cloudformation to set up the AWS end (testing/template.yaml).
+* We have a Cloudformation to set up the AWS end (testing/cloudformation.yaml).
 
 ## Step-by-step
 

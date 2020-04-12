@@ -1,4 +1,7 @@
-FROM lambci/lambda:build-python3.6
+ARG base_image
+ARG py_dev
+
+FROM ${base_image}
 
 RUN yum install -y \
     boost-devel \
@@ -6,17 +9,16 @@ RUN yum install -y \
     bison \
     flex \
     autoconf \
-    python36-devel
+    ${py_dev}
 
-RUN pip3 install --upgrade pip six cython pytest cmake wheel
+RUN pip3 install --upgrade pip six cython cmake
 
 ADD requirements.txt /root/
 RUN pip3 install -r /root/requirements.txt
-RUN rm -rf /root/requirements.txt
+
 ADD requirements-dev.txt /root/
 RUN pip3 install -r /root/requirements-dev.txt
-RUN rm -rf /root/requirements-dev.txt
 
-RUN pip3 install boto3==1.12.22 botocore==1.15.22 awscli==1.18.22
+RUN rm -rf /root/requirements*
 
 ENTRYPOINT ["/bin/sh"]
