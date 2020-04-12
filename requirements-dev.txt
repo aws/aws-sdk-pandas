@@ -17,5 +17,3 @@ twine~=3.1.1
 wheel~=0.34.2
 sphinx~=3.0.1
 sphinx_bootstrap_theme~=0.7.1
-jupyter~=1.0.0
-jupyterlab~=2.1.0
