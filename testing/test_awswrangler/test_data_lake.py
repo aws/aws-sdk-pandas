@@ -646,6 +646,8 @@ def test_category(bucket, database):
     ensure_data_types_category(df2)
     df2 = wr.athena.read_sql_query("SELECT * FROM test_category", database=database, categories=list(df.columns))
     ensure_data_types_category(df2)
+    df2 = wr.athena.read_sql_table(table="test_category", database=database, categories=list(df.columns))
+    ensure_data_types_category(df2)
     df2 = wr.athena.read_sql_query(
         "SELECT * FROM test_category", database=database, categories=list(df.columns), ctas_approach=False
     )
