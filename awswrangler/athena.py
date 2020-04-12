@@ -563,6 +563,7 @@ def read_sql_table(
     table: str,
     database: str,
     ctas_approach: bool = True,
+    categories: List[str] = None,
     chunksize: Optional[int] = None,
     s3_output: Optional[str] = None,
     workgroup: Optional[str] = None,
@@ -614,6 +615,9 @@ def read_sql_table(
     ctas_approach: bool
         Wraps the query using a CTAS, and read the resulted parquet data on S3.
         If false, read the regular CSV on S3.
+    categories: List[str], optional
+        List of columns names that should be returned as pandas.Categorical.
+        Recommended for memory restricted environments.
     chunksize: int, optional
         If specified, return an generator where chunksize is the number of rows to include in each chunk.
     s3_output : str, optional
@@ -645,6 +649,7 @@ def read_sql_table(
         sql=f'SELECT * FROM "{table}"',
         database=database,
         ctas_approach=ctas_approach,
+        categories=categories,
         chunksize=chunksize,
         s3_output=s3_output,
         workgroup=workgroup,
