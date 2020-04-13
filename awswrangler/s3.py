@@ -1196,6 +1196,7 @@ def _read_parquet_init(
     path: Union[str, List[str]],
     filters: Optional[Union[List[Tuple], List[List[Tuple]]]] = None,
     categories: List[str] = None,
+    validate_schema: bool = True,
     dataset: bool = False,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
@@ -1212,7 +1213,12 @@ def _read_parquet_init(
     fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
     cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
     data: pyarrow.parquet.ParquetDataset = pyarrow.parquet.ParquetDataset(
-        path_or_paths=path_or_paths, filesystem=fs, metadata_nthreads=cpus, filters=filters, read_dictionary=categories
+        path_or_paths=path_or_paths,
+        filesystem=fs,
+        metadata_nthreads=cpus,
+        filters=filters,
+        read_dictionary=categories,
+        validate_schema=validate_schema,
     )
     return data
 
@@ -1221,6 +1227,7 @@ def read_parquet(
     path: Union[str, List[str]],
     filters: Optional[Union[List[Tuple], List[List[Tuple]]]] = None,
     columns: Optional[List[str]] = None,
+    validate_schema: bool = True,
     chunked: bool = False,
     dataset: bool = False,
     categories: List[str] = None,
@@ -1244,7 +1251,11 @@ def read_parquet(
     filters: Union[List[Tuple], List[List[Tuple]]], optional
         List of filters to apply, like ``[[('x', '=', 0), ...], ...]``.
     columns : List[str], optional
-        Names of columns to read from the file(s)
+        Names of columns to read from the file(s).
+    validate_schema:
+        Check that individual file schemas are all the same / compatible. Schemas within a
+        folder prefix should all be the same. Disable if you have schemas that are different
+        and want to disable this check.
     chunked : bool
         If True will break the data in smaller DataFrames (Non deterministic number of lines).
         Otherwise return a single DataFrame with the whole data.
@@ -1306,9 +1317,12 @@ def read_parquet(
         use_threads=use_threads,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
+        validate_schema=validate_schema,
     )
     if chunked is False:
-        return _read_parquet(data=data, columns=columns, categories=categories, use_threads=use_threads)
+        return _read_parquet(
+            data=data, columns=columns, categories=categories, use_threads=use_threads, validate_schema=validate_schema
+        )
     return _read_parquet_chunked(data=data, columns=columns, categories=categories, use_threads=use_threads)
 
 
@@ -1317,6 +1331,7 @@ def _read_parquet(
     columns: Optional[List[str]] = None,
     categories: List[str] = None,
     use_threads: bool = True,
+    validate_schema: bool = True,
 ) -> pd.DataFrame:
     tables: List[pa.Table] = []
     for piece in data.pieces:
@@ -1324,7 +1339,8 @@ def _read_parquet(
             columns=columns, use_threads=use_threads, partitions=data.partitions, use_pandas_metadata=False
         )
         tables.append(table)
-    table = pa.lib.concat_tables(tables)
+    promote: bool = not validate_schema
+    table = pa.lib.concat_tables(tables, promote=promote)
     return table.to_pandas(
         use_threads=use_threads,
         split_blocks=True,

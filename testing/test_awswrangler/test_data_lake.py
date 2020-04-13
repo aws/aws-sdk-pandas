@@ -664,3 +664,30 @@ def test_category(bucket, database):
         ensure_data_types_category(df2)
     wr.s3.delete_objects(path=paths)
     assert wr.catalog.delete_table_if_exists(database=database, table="test_category") is True
+
+
+def test_parquet_validate_schema(bucket, database):
+    path = f"s3://{bucket}/test_parquet_file_validate/"
+    wr.s3.delete_objects(path=path)
+
+    df = pd.DataFrame({"id": [1, 2, 3]})
+    path_file = f"s3://{bucket}/test_parquet_file_validate/0.parquet"
+    wr.s3.to_parquet(df=df, path=path_file)
+    wr.s3.wait_objects_exist(paths=[path_file])
+
+    df2 = pd.DataFrame({"id2": [1, 2, 3], "val": ["foo", "boo", "bar"]})
+    path_file2 = f"s3://{bucket}/test_parquet_file_validate/1.parquet"
+    wr.s3.to_parquet(df=df2, path=path_file2)
+    wr.s3.wait_objects_exist(paths=[path_file2])
+
+    df3 = wr.s3.read_parquet(path=path, validate_schema=False)
+    assert len(df3.index) == 6
+    assert len(df3.columns) == 3
+
+    with pytest.raises(ValueError):
+        wr.s3.read_parquet(path=path, validate_schema=True)
+
+    with pytest.raises(ValueError):
+        wr.s3.store_parquet_metadata(path=path, database=database, table="test_parquet_validate_schema", dataset=True)
+
+    wr.s3.delete_objects(path=path)
