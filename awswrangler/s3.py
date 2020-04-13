@@ -694,12 +694,13 @@ def to_parquet(  # pylint: disable=too-many-arguments
         )
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     partition_cols = partition_cols if partition_cols else []
     dtype = dtype if dtype else {}
     columns_comments = columns_comments if columns_comments else {}
     partitions_values: Dict[str, List[str]] = {}
     cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
-    fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
+    fs: s3fs.S3FileSystem = _utils.get_fs(session=session, s3_additional_kwargs=s3_additional_kwargs)
     compression_ext: Optional[str] = _COMPRESSION_2_EXT.get(compression, None)
     if compression_ext is None:
         raise exceptions.InvalidCompression(f"{compression} is invalid, please use None, snappy or gzip.")
@@ -739,7 +740,7 @@ def to_parquet(  # pylint: disable=too-many-arguments
             partition_cols=partition_cols,
             dtype=dtype,
             mode=mode,
-            boto3_session=boto3_session,
+            boto3_session=session,
         )
         if (database is not None) and (table is not None):
             columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
@@ -755,7 +756,7 @@ def to_parquet(  # pylint: disable=too-many-arguments
                 description=description,
                 parameters=parameters,
                 columns_comments=columns_comments,
-                boto3_session=boto3_session,
+                boto3_session=session,
                 mode="overwrite",
             )
             if partitions_values:
@@ -765,7 +766,7 @@ def to_parquet(  # pylint: disable=too-many-arguments
                     table=table,
                     partitions_values=partitions_values,
                     compression=compression,
-                    boto3_session=boto3_session,
+                    boto3_session=session,
                 )
     return {"paths": paths, "partitions_values": partitions_values}
 
@@ -811,7 +812,7 @@ def _to_parquet_dataset(
             subdir = "/".join([f"{name}={val}" for name, val in zip(partition_cols, keys)])
             prefix: str = f"{path}{subdir}/"
             if mode == "overwrite_partitions":
-                delete_objects(path=prefix, use_threads=use_threads)
+                delete_objects(path=prefix, use_threads=use_threads, boto3_session=boto3_session)
             file_path = f"{prefix}{uuid.uuid4().hex}{compression_ext}.parquet"
             _to_parquet_file(
                 df=subgroup,
