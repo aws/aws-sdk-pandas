@@ -1,3 +1,5 @@
+.. note:: We just released a new major version `1.0` with breaking changes. Please make sure that all your old projects has dependencies frozen on the desired version (e.g. `pip install awswrangler==0.3.2`).
+
 Install
 =======
 

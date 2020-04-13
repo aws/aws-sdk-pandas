@@ -1,3 +1,5 @@
+.. note:: We just released a new major version `1.0` with breaking changes. Please make sure that all your old projects has dependencies frozen on the desired version (e.g. `pip install awswrangler==0.3.2`).
+
 Quick Start
 -----------
 
@@ -33,8 +35,7 @@ Read The Docs
 
    what
    install
-   Tutorials <https://github.com/awslabs/aws-data-wrangler/tree/latest/tutorials>
+   Tutorials <https://github.com/awslabs/aws-data-wrangler/tree/master/tutorials>
    api
-   License <https://github.com/awslabs/aws-data-wrangler/blob/latest/LICENSE>
-   Contributing <https://github.com/awslabs/aws-data-wrangler/blob/latest/CONTRIBUTING.md>
-
+   License <https://github.com/awslabs/aws-data-wrangler/blob/master/LICENSE>
+   Contributing <https://github.com/awslabs/aws-data-wrangler/blob/master/CONTRIBUTING.md>
