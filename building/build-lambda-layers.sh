@@ -2,34 +2,35 @@
 set -ex
 
 VERSION=$(python -c "import awswrangler as wr; print(wr.__version__)")
-echo "Building Lambda Layers for AWS Data Wrangler ${VERSION}"
 DIR_NAME=$(dirname "$PWD")
+
+echo "Building Lambda Layers for AWS Data Wrangler ${VERSION}"
 
 pushd lambda
 
 # Building all related docker images
 ./build-docker-images.sh
 
-# Building Apache Arrow binary artifacts
+# Python 3.6
 docker run \
-  --volume "$DIR_NAME":/aws-data-wrangler/ \
-  --workdir /aws-data-wrangler/building/lambda \
-  -it \
-  awswrangler-build-py36 \
-  build-apache-arrow.sh
+ --volume "$DIR_NAME":/aws-data-wrangler/ \
+ --workdir /aws-data-wrangler/building/lambda \
+ -it \
+ awswrangler-build-py36 \
+ build-lambda-layer.sh "${VERSION}-py3.6" "ninja"
 
-# Generating PyArrow Files for Python 3.6
-#docker run \
-#  --volume "$DIR_NAME":/aws-data-wrangler/ \
-#  --workdir /aws-data-wrangler/building/lambda \
-#  -it \
-#  awswrangler-build-py36 \
-#  build-pyarrow.sh
+# Python 3.7
+docker run \
+ --volume "$DIR_NAME":/aws-data-wrangler/ \
+ --workdir /aws-data-wrangler/building/lambda \
+ -it \
+ awswrangler-build-py37 \
+ build-lambda-layer.sh "${VERSION}-py3.7" "ninja"
 
-# Building the AWS Lambda Layer for Python 3.6
-#docker run \
-#  --volume "$DIR_NAME":/aws-data-wrangler/ \
-#  --workdir /aws-data-wrangler/building/lambda \
-#  -it \
-#  awswrangler-build-py36 \
-#  build-layer.sh "${VERSION}-py3.6"
+# Python 3.8
+docker run \
+ --volume "$DIR_NAME":/aws-data-wrangler/ \
+ --workdir /aws-data-wrangler/building/lambda \
+ -it \
+ awswrangler-build-py38 \
+ build-lambda-layer.sh "${VERSION}-py3.8" "ninja-build"

@@ -9,9 +9,10 @@ RUN yum install -y \
     bison \
     flex \
     autoconf \
+    ninja-build \
     ${py_dev}
 
-RUN pip3 install --upgrade pip six cython cmake
+RUN pip3 install --upgrade pip six cython cmake hypothesis
 
 ADD requirements.txt /root/
 RUN pip3 install -r /root/requirements.txt
