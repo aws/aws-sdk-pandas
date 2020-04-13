@@ -1213,7 +1213,12 @@ def _read_parquet_init(
     fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
     cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
     data: pyarrow.parquet.ParquetDataset = pyarrow.parquet.ParquetDataset(
-        path_or_paths=path_or_paths, filesystem=fs, metadata_nthreads=cpus, filters=filters, read_dictionary=categories, validate_schema=validate_schema
+        path_or_paths=path_or_paths,
+        filesystem=fs,
+        metadata_nthreads=cpus,
+        filters=filters,
+        read_dictionary=categories,
+        validate_schema=validate_schema,
     )
     return data
 
@@ -1228,7 +1233,7 @@ def read_parquet(
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
-    validate_schema: bool = True
+    validate_schema: bool = True,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read Apache Parquet file(s) from from a received S3 prefix or list of S3 objects paths.
 
@@ -1312,7 +1317,7 @@ def read_parquet(
         use_threads=use_threads,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
-        validate_schema=validate_schema
+        validate_schema=validate_schema,
     )
     if chunked is False:
         return _read_parquet(data=data, columns=columns, categories=categories, use_threads=use_threads)
