@@ -5,14 +5,14 @@ import itertools
 import logging
 import re
 import unicodedata
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 from urllib.parse import quote_plus
 
 import boto3  # type: ignore
 import pandas as pd  # type: ignore
 import sqlalchemy  # type: ignore
 
-from awswrangler import _utils, exceptions
+from awswrangler import _data_types, _utils, exceptions
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -150,24 +150,16 @@ def create_parquet_table(
     table_input: Dict[str, Any] = _parquet_table_definition(
         table=table, path=path, columns_types=columns_types, partitions_types=partitions_types, compression=compression
     )
-    if description is not None:
-        table_input["Description"] = description
-    if parameters is not None:
-        for k, v in parameters.items():
-            table_input["Parameters"][k] = v
-    if columns_comments is not None:
-        for col in table_input["StorageDescriptor"]["Columns"]:
-            name: str = col["Name"]
-            if name in columns_comments:
-                col["Comment"] = columns_comments[name]
-        for par in table_input["PartitionKeys"]:
-            name = par["Name"]
-            if name in columns_comments:
-                par["Comment"] = columns_comments[name]
-    if mode == "overwrite":
-        delete_table_if_exists(database=database, table=table, boto3_session=boto3_session)
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    client_glue.create_table(DatabaseName=database, TableInput=table_input)
+    _create_table(
+        database=database,
+        table=table,
+        description=description,
+        parameters=parameters,
+        columns_comments=columns_comments,
+        mode=mode,
+        boto3_session=boto3_session,
+        table_input=table_input,
+    )
 
 
 def _parquet_table_definition(
@@ -248,95 +240,7 @@ def add_parquet_partitions(
         _parquet_partition_definition(location=k, values=v, compression=compression)
         for k, v in partitions_values.items()
     ]
-    chunks: List[List[Dict[str, Any]]] = _utils.chunkify(lst=inputs, max_length=100)
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    for chunk in chunks:
-        res: Dict[str, Any] = client_glue.batch_create_partition(
-            DatabaseName=database, TableName=table, PartitionInputList=chunk
-        )
-        if ("Errors" in res) and res["Errors"]:  # pragma: no cover
-            raise exceptions.ServiceApiError(str(res["Errors"]))
-
-
-def get_parquet_partitions(
-    database: str,
-    table: str,
-    expression: Optional[str] = None,
-    catalog_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, List[str]]:
-    """Get all partitions from a Table in the AWS Glue Catalog.
-
-    Expression argument instructions:
-    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/glue.html#Glue.Client.get_partitions
-
-    Parameters
-    ----------
-    database : str
-        Database name.
-    table : str
-        Table name.
-    expression : str, optional
-        An expression that filters the partitions to be returned.
-    catalog_id : str, optional
-        The ID of the Data Catalog from which to retrieve Databases.
-        If none is provided, the AWS account ID is used by default.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-
-    Returns
-    -------
-    Dict[str, List[str]]
-        partitions_values: Dictionary with keys as S3 path locations and values as a
-        list of partitions values as str (e.g. {'s3://bucket/prefix/y=2020/m=10/': ['2020', '10']}).
-
-    Examples
-    --------
-    Fetch all partitions
-
-    >>> import awswrangler as wr
-    >>> wr.catalog.get_parquet_partitions(
-    ...     database='default',
-    ...     table='my_table',
-    ... )
-    {
-        's3://bucket/prefix/y=2020/m=10/': ['2020', '10'],
-        's3://bucket/prefix/y=2020/m=11/': ['2020', '11'],
-        's3://bucket/prefix/y=2020/m=12/': ['2020', '12']
-    }
-
-    Filtering partitions
-
-    >>> import awswrangler as wr
-    >>> wr.catalog.get_parquet_partitions(
-    ...     database='default',
-    ...     table='my_table',
-    ...     expression='m=10'
-    ... )
-    {
-        's3://bucket/prefix/y=2020/m=10/': ['2020', '10']
-    }
-
-    """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    paginator = client_glue.get_paginator("get_partitions")
-    args: Dict[str, Any] = {}
-    if expression is not None:
-        args["Expression"] = expression
-    if catalog_id is not None:
-        args["CatalogId"] = catalog_id
-    response_iterator = paginator.paginate(
-        DatabaseName=database, TableName=table, PaginationConfig={"PageSize": 1000}, **args
-    )
-    partitions_values: Dict[str, List[str]] = {}
-    for page in response_iterator:
-        if (page is not None) and ("Partitions" in page):
-            for partition in page["Partitions"]:
-                location: Optional[str] = partition["StorageDescriptor"].get("Location")
-                if location is not None:
-                    values: List[str] = partition["Values"]
-                    partitions_values[location] = values
-    return partitions_values
+    _add_partitions(database=database, table=table, boto3_session=boto3_session, inputs=inputs)
 
 
 def _parquet_partition_definition(location: str, values: List[str], compression: Optional[str]) -> Dict[str, Any]:
@@ -942,4 +846,465 @@ def get_engine(
         return sqlalchemy.create_engine(conn_str, echo=False)
     raise exceptions.InvalidDatabaseType(  # pragma: no cover
         f"{db_type} is not a valid Database type." f" Only Redshift, PostgreSQL and MySQL are supported."
+    )
+
+
+def create_csv_table(
+    database: str,
+    table: str,
+    path: str,
+    columns_types: Dict[str, str],
+    partitions_types: Optional[Dict[str, str]],
+    compression: Optional[str] = None,
+    description: Optional[str] = None,
+    parameters: Optional[Dict[str, str]] = None,
+    columns_comments: Optional[Dict[str, str]] = None,
+    mode: str = "overwrite",
+    sep: str = ",",
+    boto3_session: Optional[boto3.Session] = None,
+) -> None:
+    """Create a CSV Table (Metadata Only) in the AWS Glue Catalog.
+
+    'https://docs.aws.amazon.com/athena/latest/ug/data-types.html'
+
+    Parameters
+    ----------
+    database : str
+        Database name.
+    table : str
+        Table name.
+    path : str
+        Amazon S3 path (e.g. s3://bucket/prefix/).
+    columns_types: Dict[str, str]
+        Dictionary with keys as column names and vales as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
+    partitions_types: Dict[str, str], optional
+        Dictionary with keys as partition names and values as data types (e.g. {'col2': 'date'}).
+    compression: str, optional
+        Compression style (``None``, ``gzip``, etc).
+    description: str, optional
+        Table description
+    parameters: Dict[str, str], optional
+        Key/value pairs to tag the table.
+    columns_comments: Dict[str, str], optional
+        Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
+    mode: str
+        Only 'overwrite' available by now.
+    sep : str
+        String of length 1. Field delimiter for the output file.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    None
+        None.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> wr.catalog.create_csv_table(
+    ...     database='default',
+    ...     table='my_table',
+    ...     path='s3://bucket/prefix/',
+    ...     columns_types={'col0': 'bigint', 'col1': 'double'},
+    ...     partitions_types={'col2': 'date'},
+    ...     compression='gzip',
+    ...     description='My own table!',
+    ...     parameters={'source': 'postgresql'},
+    ...     columns_comments={'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}
+    ... )
+
+    """
+    table = sanitize_table_name(table=table)
+    partitions_types = {} if partitions_types is None else partitions_types
+    table_input: Dict[str, Any] = _csv_table_definition(
+        table=table,
+        path=path,
+        columns_types=columns_types,
+        partitions_types=partitions_types,
+        compression=compression,
+        sep=sep,
+    )
+    _create_table(
+        database=database,
+        table=table,
+        description=description,
+        parameters=parameters,
+        columns_comments=columns_comments,
+        mode=mode,
+        boto3_session=boto3_session,
+        table_input=table_input,
+    )
+
+
+def _create_table(
+    database: str,
+    table: str,
+    description: Optional[str],
+    parameters: Optional[Dict[str, str]],
+    columns_comments: Optional[Dict[str, str]],
+    mode: str,
+    boto3_session: Optional[boto3.Session],
+    table_input: Dict[str, Any],
+):
+    if description is not None:
+        table_input["Description"] = description
+    if parameters is not None:
+        for k, v in parameters.items():
+            table_input["Parameters"][k] = v
+    if columns_comments is not None:
+        for col in table_input["StorageDescriptor"]["Columns"]:
+            name: str = col["Name"]
+            if name in columns_comments:
+                col["Comment"] = columns_comments[name]
+        for par in table_input["PartitionKeys"]:
+            name = par["Name"]
+            if name in columns_comments:
+                par["Comment"] = columns_comments[name]
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    if mode == "overwrite":
+        delete_table_if_exists(database=database, table=table, boto3_session=session)
+    client_glue: boto3.client = _utils.client(service_name="glue", session=session)
+    client_glue.create_table(DatabaseName=database, TableInput=table_input)
+
+
+def _csv_table_definition(
+    table: str,
+    path: str,
+    columns_types: Dict[str, str],
+    partitions_types: Dict[str, str],
+    compression: Optional[str],
+    sep: str,
+) -> Dict[str, Any]:
+    compressed: bool = compression is not None
+    return {
+        "Name": table,
+        "PartitionKeys": [{"Name": cname, "Type": dtype} for cname, dtype in partitions_types.items()],
+        "TableType": "EXTERNAL_TABLE",
+        "Parameters": {
+            "classification": "csv",
+            "compressionType": str(compression).lower(),
+            "typeOfData": "file",
+            "delimiter": sep,
+            "columnsOrdered": "true",
+            "areColumnsQuoted": "false",
+        },
+        "StorageDescriptor": {
+            "Columns": [{"Name": cname, "Type": dtype} for cname, dtype in columns_types.items()],
+            "Location": path,
+            "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
+            "OutputFormat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+            "Compressed": compressed,
+            "NumberOfBuckets": -1,
+            "SerdeInfo": {
+                "Parameters": {"field.delim": sep, "escape.delim": "\\"},
+                "SerializationLibrary": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
+            },
+            "StoredAsSubDirectories": False,
+            "SortColumns": [],
+            "Parameters": {
+                "classification": "csv",
+                "compressionType": str(compression).lower(),
+                "typeOfData": "file",
+                "delimiter": sep,
+                "columnsOrdered": "true",
+                "areColumnsQuoted": "false",
+            },
+        },
+    }
+
+
+def add_csv_partitions(
+    database: str,
+    table: str,
+    partitions_values: Dict[str, List[str]],
+    compression: Optional[str] = None,
+    sep: str = ",",
+    boto3_session: Optional[boto3.Session] = None,
+) -> None:
+    """Add partitions (metadata) to a CSV Table in the AWS Glue Catalog.
+
+    Parameters
+    ----------
+    database : str
+        Database name.
+    table : str
+        Table name.
+    partitions_values: Dict[str, List[str]]
+        Dictionary with keys as S3 path locations and values as a list of partitions values as str
+        (e.g. {'s3://bucket/prefix/y=2020/m=10/': ['2020', '10']}).
+    compression: str, optional
+        Compression style (``None``, ``gzip``, etc).
+    sep : str
+        String of length 1. Field delimiter for the output file.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    None
+        None.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> wr.catalog.add_csv_partitions(
+    ...     database='default',
+    ...     table='my_table',
+    ...     partitions_values={
+    ...         's3://bucket/prefix/y=2020/m=10/': ['2020', '10'],
+    ...         's3://bucket/prefix/y=2020/m=11/': ['2020', '11'],
+    ...         's3://bucket/prefix/y=2020/m=12/': ['2020', '12']
+    ...     }
+    ... )
+
+    """
+    inputs: List[Dict[str, Any]] = [
+        _csv_partition_definition(location=k, values=v, compression=compression, sep=sep)
+        for k, v in partitions_values.items()
+    ]
+    _add_partitions(database=database, table=table, boto3_session=boto3_session, inputs=inputs)
+
+
+def _add_partitions(database: str, table: str, boto3_session: Optional[boto3.Session], inputs: List[Dict[str, Any]]):
+    chunks: List[List[Dict[str, Any]]] = _utils.chunkify(lst=inputs, max_length=100)
+    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    for chunk in chunks:  # pylint: disable=too-many-nested-blocks
+        res: Dict[str, Any] = client_glue.batch_create_partition(
+            DatabaseName=database, TableName=table, PartitionInputList=chunk
+        )
+        if ("Errors" in res) and res["Errors"]:
+            for error in res["Errors"]:
+                if "ErrorDetail" in error:
+                    if "ErrorCode" in error["ErrorDetail"]:
+                        if error["ErrorDetail"]["ErrorCode"] != "AlreadyExistsException":  # pragma: no cover
+                            raise exceptions.ServiceApiError(str(res["Errors"]))
+
+
+def _csv_partition_definition(location: str, values: List[str], compression: Optional[str], sep: str) -> Dict[str, Any]:
+    compressed: bool = compression is not None
+    return {
+        "StorageDescriptor": {
+            "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
+            "OutputFormat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+            "Location": location,
+            "Compressed": compressed,
+            "SerdeInfo": {
+                "Parameters": {"field.delim": sep, "escape.delim": "\\"},
+                "SerializationLibrary": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
+            },
+            "StoredAsSubDirectories": False,
+        },
+        "Values": values,
+    }
+
+
+def get_parquet_partitions(
+    database: str,
+    table: str,
+    expression: Optional[str] = None,
+    catalog_id: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> Dict[str, List[str]]:
+    """Get all partitions from a Table in the AWS Glue Catalog.
+
+    Expression argument instructions:
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/glue.html#Glue.Client.get_partitions
+
+    Parameters
+    ----------
+    database : str
+        Database name.
+    table : str
+        Table name.
+    expression : str, optional
+        An expression that filters the partitions to be returned.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    Dict[str, List[str]]
+        partitions_values: Dictionary with keys as S3 path locations and values as a
+        list of partitions values as str (e.g. {'s3://bucket/prefix/y=2020/m=10/': ['2020', '10']}).
+
+    Examples
+    --------
+    Fetch all partitions
+
+    >>> import awswrangler as wr
+    >>> wr.catalog.get_parquet_partitions(
+    ...     database='default',
+    ...     table='my_table',
+    ... )
+    {
+        's3://bucket/prefix/y=2020/m=10/': ['2020', '10'],
+        's3://bucket/prefix/y=2020/m=11/': ['2020', '11'],
+        's3://bucket/prefix/y=2020/m=12/': ['2020', '12']
+    }
+
+    Filtering partitions
+
+    >>> import awswrangler as wr
+    >>> wr.catalog.get_parquet_partitions(
+    ...     database='default',
+    ...     table='my_table',
+    ...     expression='m=10'
+    ... )
+    {
+        's3://bucket/prefix/y=2020/m=10/': ['2020', '10']
+    }
+
+    """
+    return _get_partitions(
+        database=database, table=table, expression=expression, catalog_id=catalog_id, boto3_session=boto3_session
+    )
+
+
+def get_csv_partitions(
+    database: str,
+    table: str,
+    expression: Optional[str] = None,
+    catalog_id: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> Dict[str, List[str]]:
+    """Get all partitions from a Table in the AWS Glue Catalog.
+
+    Expression argument instructions:
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/glue.html#Glue.Client.get_partitions
+
+    Parameters
+    ----------
+    database : str
+        Database name.
+    table : str
+        Table name.
+    expression : str, optional
+        An expression that filters the partitions to be returned.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    Dict[str, List[str]]
+        partitions_values: Dictionary with keys as S3 path locations and values as a
+        list of partitions values as str (e.g. {'s3://bucket/prefix/y=2020/m=10/': ['2020', '10']}).
+
+    Examples
+    --------
+    Fetch all partitions
+
+    >>> import awswrangler as wr
+    >>> wr.catalog.get_csv_partitions(
+    ...     database='default',
+    ...     table='my_table',
+    ... )
+    {
+        's3://bucket/prefix/y=2020/m=10/': ['2020', '10'],
+        's3://bucket/prefix/y=2020/m=11/': ['2020', '11'],
+        's3://bucket/prefix/y=2020/m=12/': ['2020', '12']
+    }
+
+    Filtering partitions
+
+    >>> import awswrangler as wr
+    >>> wr.catalog.get_csv_partitions(
+    ...     database='default',
+    ...     table='my_table',
+    ...     expression='m=10'
+    ... )
+    {
+        's3://bucket/prefix/y=2020/m=10/': ['2020', '10']
+    }
+
+    """
+    return _get_partitions(
+        database=database, table=table, expression=expression, catalog_id=catalog_id, boto3_session=boto3_session
+    )
+
+
+def _get_partitions(
+    database: str,
+    table: str,
+    expression: Optional[str] = None,
+    catalog_id: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> Dict[str, List[str]]:
+    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    paginator = client_glue.get_paginator("get_partitions")
+    args: Dict[str, Any] = {}
+    if expression is not None:
+        args["Expression"] = expression
+    if catalog_id is not None:
+        args["CatalogId"] = catalog_id
+    response_iterator = paginator.paginate(
+        DatabaseName=database, TableName=table, PaginationConfig={"PageSize": 1000}, **args
+    )
+    partitions_values: Dict[str, List[str]] = {}
+    for page in response_iterator:
+        if (page is not None) and ("Partitions" in page):
+            for partition in page["Partitions"]:
+                location: Optional[str] = partition["StorageDescriptor"].get("Location")
+                if location is not None:
+                    values: List[str] = partition["Values"]
+                    partitions_values[location] = values
+    return partitions_values
+
+
+def extract_athena_types(
+    df: pd.DataFrame,
+    index: bool = False,
+    partition_cols: Optional[List[str]] = None,
+    dtype: Optional[Dict[str, str]] = None,
+    file_format: str = "parquet",
+) -> Tuple[Dict[str, str], Dict[str, str]]:
+    """Extract columns and partitions types (Amazon Athena) from Pandas DataFrame.
+
+    https://docs.aws.amazon.com/athena/latest/ug/data-types.html
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Pandas DataFrame.
+    index : bool
+        Should consider the DataFrame index as a column?.
+    partition_cols : List[str], optional
+        List of partitions names.
+    dtype: Dict[str, str], optional
+        Dictionary of columns names and Athena/Glue types to be casted.
+        Useful when you have columns with undetermined or mixed data types.
+        (e.g. {'col name': 'bigint', 'col2 name': 'int'})
+    file_format : str, optional
+        File format to be consided to place the index column: "parquet" | "csv".
+
+    Returns
+    -------
+    Tuple[Dict[str, str], Optional[Dict[str, str]]]
+        columns_types: Dictionary with keys as column names and vales as
+        data types (e.g. {'col0': 'bigint', 'col1': 'double'}). /
+        partitions_types: Dictionary with keys as partition names
+        and values as data types (e.g. {'col2': 'date'}).
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> columns_types, partitions_types = wr.catalog.extract_athena_types(
+    ...     df=df, index=False, partition_cols=["par0", "par1"], file_format="csv"
+    ... )
+
+    """
+    if file_format == "parquet":
+        index_left: bool = False
+    elif file_format == "csv":
+        index_left = True
+    else:
+        raise exceptions.InvalidArgumentValue("file_format argument must be parquet or csv")
+    return _data_types.athena_types_from_pandas_partitioned(
+        df=df, index=index, partition_cols=partition_cols, dtype=dtype, index_left=index_left
     )

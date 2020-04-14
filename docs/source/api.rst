@@ -40,11 +40,14 @@ AWS Glue Catalog
 
     add_parquet_partitions
     create_parquet_table
+    add_csv_partitions
+    create_csv_table
     databases
     delete_table_if_exists
     does_table_exist
     get_databases
     get_parquet_partitions
+    get_csv_partitions
     get_table_location
     get_table_types
     get_tables
@@ -56,6 +59,7 @@ AWS Glue Catalog
     sanitize_table_name
     drop_duplicated_columns
     get_engine
+    extract_athena_types
 
 Amazon Athena
 -------------
