@@ -1,6 +1,7 @@
 """Amazon S3 Module."""
 
 import concurrent.futures
+import csv
 import logging
 import time
 import uuid
@@ -361,14 +362,39 @@ def size_objects(
     return size_list
 
 
-def to_csv(
+def to_csv(  # pylint: disable=too-many-arguments
     df: pd.DataFrame,
     path: str,
+    sep: str = ",",
+    index: bool = True,
+    columns: Optional[List[str]] = None,
+    use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    dataset: bool = False,
+    partition_cols: Optional[List[str]] = None,
+    mode: Optional[str] = None,
+    database: Optional[str] = None,
+    table: Optional[str] = None,
+    dtype: Optional[Dict[str, str]] = None,
+    description: Optional[str] = None,
+    parameters: Optional[Dict[str, str]] = None,
+    columns_comments: Optional[Dict[str, str]] = None,
     **pandas_kwargs,
-) -> None:
-    """Write CSV file on Amazon S3.
+) -> Dict[str, Union[List[str], Dict[str, List[str]]]]:
+    """Write CSV file or dataset on Amazon S3.
+
+    The concept of Dataset goes beyond the simple idea of files and enable more
+    complex features like partitioning, casting and catalog integration (Amazon Athena/AWS Glue Catalog).
+
+    Note
+    ----
+    The table name and all column names will be automatically sanitize using
+    `wr.catalog.sanitize_table_name` and `wr.catalog.sanitize_column_name`.
+
+    Note
+    ----
+    In case of `use_threads=True` the number of process that will be spawned will be get from os.cpu_count().
 
     Parameters
     ----------
@@ -376,11 +402,44 @@ def to_csv(
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
     path : str
         Amazon S3 path (e.g. s3://bucket/filename.csv).
+    sep : str
+        String of length 1. Field delimiter for the output file.
+    index : bool
+        Write row names (index).
+    columns : List[str], optional
+        Columns to write.
+    use_threads : bool
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
     s3_additional_kwargs:
         Forward to s3fs, useful for server side encryption
         https://s3fs.readthedocs.io/en/latest/#serverside-encryption
+    dataset: bool
+        If True store a parquet dataset instead of a single file.
+        If True, enable all follow arguments:
+        partition_cols, mode, database, table, description, parameters, columns_comments, .
+    partition_cols: List[str], optional
+        List of column names that will be used to create partitions. Only takes effect if dataset=True.
+    mode: str, optional
+        ``append`` (Default), ``overwrite``, ``overwrite_partitions``. Only takes effect if dataset=True.
+    database : str
+        Glue/Athena catalog: Database name.
+    table : str
+        Glue/Athena catalog: Table name.
+    dtype: Dict[str, str], optional
+        Dictionary of columns names and Athena/Glue types to be casted.
+        Useful when you have columns with undetermined or mixed data types.
+        Only takes effect if dataset=True.
+        (e.g. {'col name': 'bigint', 'col2 name': 'int'})
+    description: str, optional
+        Glue/Athena catalog: Table description
+    parameters: Dict[str, str], optional
+        Glue/Athena catalog: Key/value pairs to tag the table.
+    columns_comments: Dict[str, str], optional
+        Glue/Athena catalog:
+        Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
     pandas_kwargs:
         keyword arguments forwarded to pandas.DataFrame.to_csv()
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_csv.html
@@ -392,37 +451,245 @@ def to_csv(
 
     Examples
     --------
-    Writing CSV file
+    Writing single file
 
     >>> import awswrangler as wr
     >>> import pandas as pd
     >>> wr.s3.to_csv(
     ...     df=pd.DataFrame({'col': [1, 2, 3]}),
-    ...     path='s3://bucket/filename.csv',
+    ...     path='s3://bucket/prefix/my_file.csv',
     ... )
+    {
+        'paths': ['s3://bucket/prefix/my_file.csv'],
+        'partitions_values': {}
+    }
 
-    Writing CSV file encrypted with a KMS key
+    Writing single file encrypted with a KMS key
 
     >>> import awswrangler as wr
     >>> import pandas as pd
     >>> wr.s3.to_csv(
     ...     df=pd.DataFrame({'col': [1, 2, 3]}),
-    ...     path='s3://bucket/filename.csv',
+    ...     path='s3://bucket/prefix/my_file.csv',
     ...     s3_additional_kwargs={
     ...         'ServerSideEncryption': 'aws:kms',
     ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
     ...     }
     ... )
+    {
+        'paths': ['s3://bucket/prefix/my_file.csv'],
+        'partitions_values': {}
+    }
+
+    Writing partitioned dataset
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.s3.to_csv(
+    ...     df=pd.DataFrame({
+    ...         'col': [1, 2, 3],
+    ...         'col2': ['A', 'A', 'B']
+    ...     }),
+    ...     path='s3://bucket/prefix',
+    ...     dataset=True,
+    ...     partition_cols=['col2']
+    ... )
+    {
+        'paths': ['s3://.../col2=A/x.csv', 's3://.../col2=B/y.csv'],
+        'partitions_values: {
+            's3://.../col2=A/': ['A'],
+            's3://.../col2=B/': ['B']
+        }
+    }
+
+    Writing dataset to S3 with metadata on Athena/Glue Catalog.
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.s3.to_csv(
+    ...     df=pd.DataFrame({
+    ...         'col': [1, 2, 3],
+    ...         'col2': ['A', 'A', 'B']
+    ...     }),
+    ...     path='s3://bucket/prefix',
+    ...     dataset=True,
+    ...     partition_cols=['col2'],
+    ...     database='default',  # Athena/Glue database
+    ...     table='my_table'  # Athena/Glue table
+    ... )
+    {
+        'paths': ['s3://.../col2=A/x.csv', 's3://.../col2=B/y.csv'],
+        'partitions_values: {
+            's3://.../col2=A/': ['A'],
+            's3://.../col2=B/': ['B']
+        }
+    }
+
+    Writing dataset casting empty column data type
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.s3.to_csv(
+    ...     df=pd.DataFrame({
+    ...         'col': [1, 2, 3],
+    ...         'col2': ['A', 'A', 'B'],
+    ...         'col3': [None, None, None]
+    ...     }),
+    ...     path='s3://bucket/prefix',
+    ...     dataset=True,
+    ...     database='default',  # Athena/Glue database
+    ...     table='my_table'  # Athena/Glue table
+    ...     dtype={'col3': 'date'}
+    ... )
+    {
+        'paths': ['s3://.../x.csv'],
+        'partitions_values: {}
+    }
 
     """
-    return _to_text(
-        file_format="csv",
-        df=df,
-        path=path,
-        boto3_session=boto3_session,
-        s3_additional_kwargs=s3_additional_kwargs,
-        **pandas_kwargs,
-    )
+    if (database is None) ^ (table is None):
+        raise exceptions.InvalidArgumentCombination(
+            "Please pass database and table arguments to be able to store the metadata into the Athena/Glue Catalog."
+        )
+    if df.empty is True:
+        raise exceptions.EmptyDataFrame()
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    partition_cols = partition_cols if partition_cols else []
+    dtype = dtype if dtype else {}
+    columns_comments = columns_comments if columns_comments else {}
+    partitions_values: Dict[str, List[str]] = {}
+    fs: s3fs.S3FileSystem = _utils.get_fs(session=session, s3_additional_kwargs=s3_additional_kwargs)
+    if dataset is False:
+        if partition_cols:
+            raise exceptions.InvalidArgumentCombination("Please, pass dataset=True to be able to use partition_cols.")
+        if mode is not None:
+            raise exceptions.InvalidArgumentCombination("Please pass dataset=True to be able to use mode.")
+        if any(arg is not None for arg in (database, table, description, parameters)):
+            raise exceptions.InvalidArgumentCombination(
+                "Please pass dataset=True to be able to use any one of these "
+                "arguments: database, table, description, parameters, "
+                "columns_comments."
+            )
+        pandas_kwargs["sep"] = sep
+        pandas_kwargs["index"] = index
+        pandas_kwargs["columns"] = columns
+        _to_text(file_format="csv", df=df, path=path, fs=fs, **pandas_kwargs)
+        paths = [path]
+    else:
+        mode = "append" if mode is None else mode
+        exist: bool = False
+        if columns:
+            df = df[columns]
+        if (database is not None) and (table is not None):  # Normalize table to respect Athena's standards
+            df = catalog.sanitize_dataframe_columns_names(df=df)
+            partition_cols = [catalog.sanitize_column_name(p) for p in partition_cols]
+            dtype = {catalog.sanitize_column_name(k): v.lower() for k, v in dtype.items()}
+            columns_comments = {catalog.sanitize_column_name(k): v for k, v in columns_comments.items()}
+            exist = catalog.does_table_exist(database=database, table=table, boto3_session=session)
+            if (exist is True) and (mode in ("append", "overwrite_partitions")):
+                for k, v in catalog.get_table_types(database=database, table=table, boto3_session=session).items():
+                    dtype[k] = v
+        df = catalog.drop_duplicated_columns(df=df)
+        paths, partitions_values = _to_csv_dataset(
+            df=df,
+            path=path,
+            index=index,
+            sep=sep,
+            fs=fs,
+            use_threads=use_threads,
+            partition_cols=partition_cols,
+            dtype=dtype,
+            mode=mode,
+            boto3_session=session,
+        )
+        if (database is not None) and (table is not None):
+            columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
+                df=df, index=index, partition_cols=partition_cols, dtype=dtype, index_left=True
+            )
+            if (exist is False) or (mode == "overwrite"):
+                catalog.create_csv_table(
+                    database=database,
+                    table=table,
+                    path=path,
+                    columns_types=columns_types,
+                    partitions_types=partitions_types,
+                    description=description,
+                    parameters=parameters,
+                    columns_comments=columns_comments,
+                    boto3_session=session,
+                    mode="overwrite",
+                    sep=sep,
+                )
+            if partitions_values:
+                _logger.debug(f"partitions_values:\n{partitions_values}")
+                catalog.add_csv_partitions(
+                    database=database, table=table, partitions_values=partitions_values, boto3_session=session, sep=sep
+                )
+    return {"paths": paths, "partitions_values": partitions_values}
+
+
+def _to_csv_dataset(
+    df: pd.DataFrame,
+    path: str,
+    index: bool,
+    sep: str,
+    fs: s3fs.S3FileSystem,
+    use_threads: bool,
+    mode: str,
+    dtype: Dict[str, str],
+    partition_cols: Optional[List[str]] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> Tuple[List[str], Dict[str, List[str]]]:
+    paths: List[str] = []
+    partitions_values: Dict[str, List[str]] = {}
+    path = path if path[-1] == "/" else f"{path}/"
+    if mode not in ["append", "overwrite", "overwrite_partitions"]:
+        raise exceptions.InvalidArgumentValue(
+            f"{mode} is a invalid mode, please use append, overwrite or overwrite_partitions."
+        )
+    if (mode == "overwrite") or ((mode == "overwrite_partitions") and (not partition_cols)):
+        delete_objects(path=path, use_threads=use_threads, boto3_session=boto3_session)
+    df = _data_types.cast_pandas_with_athena_types(df=df, dtype=dtype)
+    _logger.debug(f"dtypes: {df.dtypes}")
+    if not partition_cols:
+        file_path: str = f"{path}{uuid.uuid4().hex}.csv"
+        _to_text(
+            file_format="csv",
+            df=df,
+            path=file_path,
+            fs=fs,
+            quoting=csv.QUOTE_NONE,
+            escapechar="\\",
+            header=False,
+            date_format="%Y-%m-%d %H:%M:%S.%f",
+            index=index,
+            sep=sep,
+        )
+        paths.append(file_path)
+    else:
+        for keys, subgroup in df.groupby(by=partition_cols, observed=True):
+            subgroup = subgroup.drop(partition_cols, axis="columns")
+            keys = (keys,) if not isinstance(keys, tuple) else keys
+            subdir = "/".join([f"{name}={val}" for name, val in zip(partition_cols, keys)])
+            prefix: str = f"{path}{subdir}/"
+            if mode == "overwrite_partitions":
+                delete_objects(path=prefix, use_threads=use_threads, boto3_session=boto3_session)
+            file_path = f"{prefix}{uuid.uuid4().hex}.csv"
+            _to_text(
+                file_format="csv",
+                df=subgroup,
+                path=file_path,
+                fs=fs,
+                quoting=csv.QUOTE_NONE,
+                escapechar="\\",
+                header=False,
+                date_format="%Y-%m-%d %H:%M:%S.%f",
+                index=index,
+                sep=sep,
+            )
+            paths.append(file_path)
+            partitions_values[prefix] = [str(k) for k in keys]
+    return paths, partitions_values
 
 
 def to_json(
@@ -493,13 +760,15 @@ def _to_text(
     file_format: str,
     df: pd.DataFrame,
     path: str,
+    fs: Optional[s3fs.S3FileSystem] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     **pandas_kwargs,
 ) -> None:
-    if df.empty is True:
+    if df.empty is True:  # pragma: no cover
         raise exceptions.EmptyDataFrame()
-    fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
+    if fs is None:
+        fs = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
     with fs.open(path, "w") as f:
         if file_format == "csv":
             df.to_csv(f, **pandas_kwargs)
@@ -690,7 +959,7 @@ def to_parquet(  # pylint: disable=too-many-arguments
     """
     if (database is None) ^ (table is None):
         raise exceptions.InvalidArgumentCombination(
-            "Please pass database and table arguments to be able to " "store the metadata into the Athena/Glue Catalog."
+            "Please pass database and table arguments to be able to store the metadata into the Athena/Glue Catalog."
         )
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
@@ -721,13 +990,18 @@ def to_parquet(  # pylint: disable=too-many-arguments
             )
         ]
     else:
+        mode = "append" if mode is None else mode
+        exist: bool = False
         if (database is not None) and (table is not None):  # Normalize table to respect Athena's standards
             df = catalog.sanitize_dataframe_columns_names(df=df)
             partition_cols = [catalog.sanitize_column_name(p) for p in partition_cols]
             dtype = {catalog.sanitize_column_name(k): v.lower() for k, v in dtype.items()}
             columns_comments = {catalog.sanitize_column_name(k): v for k, v in columns_comments.items()}
+            exist = catalog.does_table_exist(database=database, table=table, boto3_session=session)
+            if (exist is True) and (mode in ("append", "overwrite_partitions")):
+                for k, v in catalog.get_table_types(database=database, table=table, boto3_session=session).items():
+                    dtype[k] = v
         df = catalog.drop_duplicated_columns(df=df)
-        mode = "append" if mode is None else mode
         paths, partitions_values = _to_parquet_dataset(
             df=df,
             path=path,
@@ -746,19 +1020,20 @@ def to_parquet(  # pylint: disable=too-many-arguments
             columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
                 df=df, index=index, partition_cols=partition_cols, dtype=dtype
             )
-            catalog.create_parquet_table(
-                database=database,
-                table=table,
-                path=path,
-                columns_types=columns_types,
-                partitions_types=partitions_types,
-                compression=compression,
-                description=description,
-                parameters=parameters,
-                columns_comments=columns_comments,
-                boto3_session=session,
-                mode="overwrite",
-            )
+            if (exist is False) or (mode == "overwrite"):
+                catalog.create_parquet_table(
+                    database=database,
+                    table=table,
+                    path=path,
+                    columns_types=columns_types,
+                    partitions_types=partitions_types,
+                    compression=compression,
+                    description=description,
+                    parameters=parameters,
+                    columns_comments=columns_comments,
+                    boto3_session=session,
+                    mode="overwrite",
+                )
             if partitions_values:
                 _logger.debug(f"partitions_values:\n{partitions_values}")
                 catalog.add_parquet_partitions(

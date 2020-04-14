@@ -7,8 +7,8 @@ import pytest
 
 import awswrangler as wr
 
-from ._utils import (ensure_data_types, ensure_data_types_category, get_df, get_df_cast, get_df_category, get_df_list,
-                     get_query_long)
+from ._utils import (ensure_data_types, ensure_data_types_category, ensure_data_types_csv, get_df, get_df_cast,
+                     get_df_category, get_df_csv, get_df_list, get_query_long)
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
@@ -90,6 +90,12 @@ def workgroup1(bucket):
 
 
 def test_athena_ctas(bucket, database, kms_key):
+    df = get_df_list()
+    columns_types, partitions_types = wr.catalog.extract_athena_types(df=df, partition_cols=["par0", "par1"])
+    assert len(columns_types) == 16
+    assert len(partitions_types) == 2
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.catalog.extract_athena_types(df=df, file_format="avro")
     paths = wr.s3.to_parquet(
         df=get_df_list(),
         path=f"s3://{bucket}/test_athena_ctas",
@@ -669,25 +675,217 @@ def test_category(bucket, database):
 def test_parquet_validate_schema(bucket, database):
     path = f"s3://{bucket}/test_parquet_file_validate/"
     wr.s3.delete_objects(path=path)
-
     df = pd.DataFrame({"id": [1, 2, 3]})
     path_file = f"s3://{bucket}/test_parquet_file_validate/0.parquet"
     wr.s3.to_parquet(df=df, path=path_file)
     wr.s3.wait_objects_exist(paths=[path_file])
-
     df2 = pd.DataFrame({"id2": [1, 2, 3], "val": ["foo", "boo", "bar"]})
     path_file2 = f"s3://{bucket}/test_parquet_file_validate/1.parquet"
     wr.s3.to_parquet(df=df2, path=path_file2)
     wr.s3.wait_objects_exist(paths=[path_file2])
-
     df3 = wr.s3.read_parquet(path=path, validate_schema=False)
     assert len(df3.index) == 6
     assert len(df3.columns) == 3
-
     with pytest.raises(ValueError):
         wr.s3.read_parquet(path=path, validate_schema=True)
-
     with pytest.raises(ValueError):
         wr.s3.store_parquet_metadata(path=path, database=database, table="test_parquet_validate_schema", dataset=True)
+    wr.s3.delete_objects(path=path)
+
+
+def test_csv_dataset(bucket, database):
+    path = f"s3://{bucket}/test_csv_dataset/"
+    with pytest.raises(wr.exceptions.UndetectedType):
+        wr.s3.to_csv(pd.DataFrame({"A": [None]}), path, dataset=True, database=database, table="test_csv_dataset")
+    df = get_df_csv()
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.s3.to_csv(df, path, dataset=False, mode="overwrite", database=database, table="test_csv_dataset")
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.s3.to_csv(df, path, dataset=False, table="test_csv_dataset")
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.s3.to_csv(df, path, dataset=True, mode="overwrite", database=database)
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.s3.to_csv(df=df, path=path, mode="append")
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.s3.to_csv(df=df, path=path, partition_cols=["col2"])
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.s3.to_csv(df=df, path=path, description="foo")
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.s3.to_csv(df=df, path=path, partition_cols=["col2"], dataset=True, mode="WRONG")
+    paths = wr.s3.to_csv(
+        df=df,
+        path=path,
+        sep="|",
+        index=False,
+        use_threads=True,
+        boto3_session=None,
+        s3_additional_kwargs=None,
+        dataset=True,
+        partition_cols=["par0", "par1"],
+        mode="overwrite",
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    df2 = wr.s3.read_csv(path=paths, sep="|", header=None)
+    assert len(df2.index) == 3
+    assert len(df2.columns) == 8
+    assert df2[0].sum() == 6
+    wr.s3.delete_objects(path=paths)
+
+
+def test_csv_catalog(bucket, database):
+    path = f"s3://{bucket}/test_csv_catalog/"
+    df = get_df_csv()
+    paths = wr.s3.to_csv(
+        df=df,
+        path=path,
+        sep="\t",
+        index=True,
+        use_threads=True,
+        boto3_session=None,
+        s3_additional_kwargs=None,
+        dataset=True,
+        partition_cols=["par0", "par1"],
+        mode="overwrite",
+        table="test_csv_catalog",
+        database=database,
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    df2 = wr.athena.read_sql_table("test_csv_catalog", database)
+    assert len(df2.index) == 3
+    assert len(df2.columns) == 11
+    assert df2["id"].sum() == 6
+    ensure_data_types_csv(df2)
+    wr.s3.delete_objects(path=paths)
+    assert wr.catalog.delete_table_if_exists(database=database, table="test_csv_catalog") is True
+
+
+def test_csv_catalog_columns(bucket, database):
+    path = f"s3://{bucket}/test_csv_catalog_columns /"
+    paths = wr.s3.to_csv(
+        df=get_df_csv(),
+        path=path,
+        sep="|",
+        columns=["id", "date", "timestamp", "par0", "par1"],
+        index=False,
+        use_threads=False,
+        boto3_session=None,
+        s3_additional_kwargs=None,
+        dataset=True,
+        partition_cols=["par0", "par1"],
+        mode="overwrite",
+        table="test_csv_catalog_columns",
+        database=database,
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    df2 = wr.athena.read_sql_table("test_csv_catalog_columns", database)
+    assert len(df2.index) == 3
+    assert len(df2.columns) == 5
+    assert df2["id"].sum() == 6
+    ensure_data_types_csv(df2)
+
+    paths = wr.s3.to_csv(
+        df=pd.DataFrame({"id": [4], "date": [None], "timestamp": [None], "par0": [1], "par1": ["a"]}),
+        path=path,
+        sep="|",
+        index=False,
+        use_threads=False,
+        boto3_session=None,
+        s3_additional_kwargs=None,
+        dataset=True,
+        partition_cols=["par0", "par1"],
+        mode="overwrite_partitions",
+        table="test_csv_catalog_columns",
+        database=database,
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    df2 = wr.athena.read_sql_table("test_csv_catalog_columns", database)
+    assert len(df2.index) == 3
+    assert len(df2.columns) == 5
+    assert df2["id"].sum() == 9
+    ensure_data_types_csv(df2)
 
     wr.s3.delete_objects(path=path)
+    assert wr.catalog.delete_table_if_exists(database=database, table="test_csv_catalog_columns") is True
+
+
+def test_athena_types(bucket, database):
+    path = f"s3://{bucket}/test_athena_types/"
+    df = get_df_csv()
+    paths = wr.s3.to_csv(
+        df=df,
+        path=path,
+        sep=",",
+        index=False,
+        use_threads=True,
+        boto3_session=None,
+        s3_additional_kwargs=None,
+        dataset=True,
+        partition_cols=["par0", "par1"],
+        mode="overwrite",
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    columns_types, partitions_types = wr.catalog.extract_athena_types(
+        df=df, index=False, partition_cols=["par0", "par1"], file_format="csv"
+    )
+    wr.catalog.create_csv_table(
+        table="test_athena_types",
+        database=database,
+        path=path,
+        partitions_types=partitions_types,
+        columns_types=columns_types,
+    )
+    wr.athena.repair_table("test_athena_types", database)
+    assert len(wr.catalog.get_csv_partitions(database, "test_athena_types")) == 3
+    df2 = wr.athena.read_sql_table("test_athena_types", database)
+    assert len(df2.index) == 3
+    assert len(df2.columns) == 10
+    assert df2["id"].sum() == 6
+    ensure_data_types_csv(df2)
+    wr.s3.delete_objects(path=paths)
+    assert wr.catalog.delete_table_if_exists(database=database, table="test_athena_types") is True
+
+
+def test_parquet_catalog_columns(bucket, database):
+    path = f"s3://{bucket}/test_parquet_catalog_columns /"
+    paths = wr.s3.to_parquet(
+        df=get_df_csv()[["id", "date", "timestamp", "par0", "par1"]],
+        path=path,
+        index=False,
+        use_threads=False,
+        boto3_session=None,
+        s3_additional_kwargs=None,
+        dataset=True,
+        partition_cols=["par0", "par1"],
+        mode="overwrite",
+        table="test_parquet_catalog_columns",
+        database=database,
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    df2 = wr.athena.read_sql_table("test_parquet_catalog_columns", database)
+    assert len(df2.index) == 3
+    assert len(df2.columns) == 5
+    assert df2["id"].sum() == 6
+    ensure_data_types_csv(df2)
+
+    paths = wr.s3.to_parquet(
+        df=pd.DataFrame({"id": [4], "date": [None], "timestamp": [None], "par0": [1], "par1": ["a"]}),
+        path=path,
+        index=False,
+        use_threads=False,
+        boto3_session=None,
+        s3_additional_kwargs=None,
+        dataset=True,
+        partition_cols=["par0", "par1"],
+        mode="overwrite_partitions",
+        table="test_parquet_catalog_columns",
+        database=database,
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    df2 = wr.athena.read_sql_table("test_parquet_catalog_columns", database)
+    assert len(df2.index) == 3
+    assert len(df2.columns) == 5
+    assert df2["id"].sum() == 9
+    ensure_data_types_csv(df2)
+
+    wr.s3.delete_objects(path=path)
+    assert wr.catalog.delete_table_if_exists(database=database, table="test_parquet_catalog_columns") is True

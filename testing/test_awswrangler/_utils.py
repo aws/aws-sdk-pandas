@@ -94,6 +94,27 @@ def get_df_cast():
     return df
 
 
+def get_df_csv():
+    df = pd.DataFrame(
+        {
+            "id": [1, 2, 3],
+            "string_object": ["foo", None, "boo"],
+            "string": ["foo", None, "boo"],
+            "float": [1.0, None, 2.0],
+            "int": [1, None, 2],
+            "date": [dt("2020-01-01"), None, dt("2020-01-02")],
+            "timestamp": [ts("2020-01-01 00:00:00.0"), None, ts("2020-01-02 00:00:01.0")],
+            "bool": [True, None, False],
+            "par0": [1, 1, 2],
+            "par1": ["a", "b", "b"],
+        }
+    )
+    df["string"] = df["string"].astype("string")
+    df["int"] = df["int"].astype("Int64")
+    df["par1"] = df["par1"].astype("string")
+    return df
+
+
 def get_df_category():
     df = pd.DataFrame(
         {
@@ -356,3 +377,25 @@ def ensure_data_types_category(df):
     assert str(df["int"].dtype) in ("category", "Int64")
     assert str(df["par0"].dtype) in ("category", "Int64")
     assert str(df["par1"].dtype) == "category"
+
+
+def ensure_data_types_csv(df):
+    if "__index_level_0__" in df:
+        assert str(df["__index_level_0__"].dtype).startswith("Int")
+    assert str(df["id"].dtype).startswith("Int")
+    if "string_object" in df:
+        assert str(df["string_object"].dtype) == "string"
+    if "string" in df:
+        assert str(df["string"].dtype) == "string"
+    if "float" in df:
+        assert str(df["float"].dtype).startswith("float")
+    if "int" in df:
+        assert str(df["int"].dtype).startswith("Int")
+    assert str(df["date"].dtype) == "object"
+    assert str(df["timestamp"].dtype).startswith("datetime")
+    if "bool" in df:
+        assert str(df["bool"].dtype) == "boolean"
+    if "par0" in df:
+        assert str(df["par0"].dtype).startswith("Int")
+    if "par1" in df:
+        assert str(df["par1"].dtype) == "string"

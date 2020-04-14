@@ -348,6 +348,8 @@ def test_redshift_spectrum(bucket, glue_database, external_schema):
         assert len(rows) == len(df.index)
         for row in rows:
             assert len(row) == len(df.columns)
+    wr.s3.delete_objects(path=path)
+    assert wr.catalog.delete_table_if_exists(database=glue_database, table="test_redshift_spectrum") is True
 
 
 def test_redshift_category(bucket, parameters):
