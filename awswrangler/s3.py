@@ -16,6 +16,7 @@ import pyarrow as pa  # type: ignore
 import pyarrow.lib  # type: ignore
 import pyarrow.parquet  # type: ignore
 import s3fs  # type: ignore
+from pandas.io.common import infer_compression  # type: ignore
 
 from awswrangler import _data_types, _utils, catalog, exceptions
 
@@ -1450,7 +1451,9 @@ def _read_text_chunksize(
     fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
     for path in paths:
         _logger.debug(f"path: {path}")
-        with fs.open(path, "r") as f:
+        if pandas_args.get("compression", "infer") == "infer":
+            pandas_args["compression"] = infer_compression(path, compression="infer")
+        with fs.open(path, "rb") as f:
             reader: pandas.io.parsers.TextFileReader = parser_func(f, chunksize=chunksize, **pandas_args)
             for df in reader:
                 yield df
@@ -1464,7 +1467,9 @@ def _read_text_full(
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
 ) -> pd.DataFrame:
     fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
-    with fs.open(path, "r") as f:
+    if pandas_args.get("compression", "infer") == "infer":
+        pandas_args["compression"] = infer_compression(path, compression="infer")
+    with fs.open(path, "rb") as f:
         return parser_func(f, **pandas_args)
 
 
