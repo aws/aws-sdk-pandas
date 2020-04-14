@@ -470,7 +470,7 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
     dtype, parse_timestamps, parse_dates, converters, binaries = _get_query_metadata(
         query_execution_id=query_id, categories=categories, boto3_session=session
     )
-    path = f"{_s3_output}{query_id}.csv"
+    path = f"{_s3_output}/{query_id}.csv"
     s3.wait_objects_exist(paths=[path], use_threads=False, boto3_session=session)
     _logger.debug(f"Start CSV reading from {path}")
     ret = s3.read_csv(
@@ -484,6 +484,7 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
         chunksize=chunksize,
         skip_blank_lines=False,
         use_threads=False,
+        boto3_session=session,
     )
     _logger.debug("Start type casting...")
     if chunksize is None:
