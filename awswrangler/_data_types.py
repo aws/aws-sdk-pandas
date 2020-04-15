@@ -35,7 +35,7 @@ def athena2pyarrow(dtype: str) -> pa.DataType:  # pylint: disable=too-many-retur
         return pa.float64()
     if dtype == "boolean":
         return pa.bool_()
-    if dtype in ("string", "char", "varchar", "array", "row", "map"):
+    if (dtype == "string") or dtype.startswith("char") or dtype.startswith("varchar"):
         return pa.string()
     if dtype == "timestamp":
         return pa.timestamp(unit="ns")
@@ -66,7 +66,7 @@ def athena2pandas(dtype: str) -> str:  # pylint: disable=too-many-branches,too-m
         return "float64"
     if dtype == "boolean":
         return "boolean"
-    if dtype in ("string", "char", "varchar"):
+    if (dtype == "string") or dtype.startswith("char") or dtype.startswith("varchar"):
         return "string"
     if dtype in ("timestamp", "timestamp with time zone"):
         return "datetime64"
