@@ -419,10 +419,10 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
             _s3_output = wg_s3_output
     else:
         _s3_output = s3_output
+    _s3_output = _s3_output[:-1] if _s3_output[-1] == "/" else _s3_output
     name: str = ""
     if ctas_approach is True:
         name = f"temp_table_{pa.compat.guid()}"
-        _s3_output = _s3_output[:-1] if _s3_output[-1] == "/" else _s3_output
         path: str = f"{_s3_output}/{name}"
         sql = (
             f"CREATE TABLE {name}\n"
