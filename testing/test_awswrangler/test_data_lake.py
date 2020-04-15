@@ -978,11 +978,9 @@ def test_parquet_char_length(bucket, database, external_schema):
     path = f"s3://{bucket}/test_parquet_char_length/"
     table = "test_parquet_char_length"
 
-    df = pd.DataFrame({
-        "id": [1, 2],
-        "cchar": ["foo", "boo"],
-        "date": [datetime.date(2020, 1, 1), datetime.date(2020, 1, 2)]
-    })
+    df = pd.DataFrame(
+        {"id": [1, 2], "cchar": ["foo", "boo"], "date": [datetime.date(2020, 1, 1), datetime.date(2020, 1, 2)]}
+    )
     wr.s3.to_parquet(
         df=df,
         path=path,
@@ -991,7 +989,7 @@ def test_parquet_char_length(bucket, database, external_schema):
         table=table,
         mode="overwrite",
         partition_cols=["date"],
-        dtype={'cchar': 'char(3)'}
+        dtype={"cchar": "char(3)"},
     )
 
     df2 = wr.s3.read_parquet(path, dataset=True)

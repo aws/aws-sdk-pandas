@@ -1,10 +1,10 @@
-import pytest
 import boto3
 import moto
+import pytest
 
 import awswrangler as wr
 
-from ._utils import get_df_csv, get_df_list, ensure_data_types
+from ._utils import ensure_data_types, get_df_csv, get_df_list
 
 
 @pytest.fixture(scope="module")
