@@ -49,6 +49,21 @@ def kms_key(cloudformation_outputs):
 
 
 @pytest.fixture(scope="module")
+def external_schema(cloudformation_outputs, database):
+    region = cloudformation_outputs.get("Region")
+    sql = f"""
+    CREATE EXTERNAL SCHEMA IF NOT EXISTS aws_data_wrangler_external FROM data catalog
+    DATABASE '{database}'
+    IAM_ROLE '{cloudformation_outputs["RedshiftRole"]}'
+    REGION '{region}';
+    """
+    engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-redshift")
+    with engine.connect() as con:
+        con.execute(sql)
+    yield "aws_data_wrangler_external"
+
+
+@pytest.fixture(scope="module")
 def workgroup0(bucket):
     wkg_name = "awswrangler_test_0"
     client = boto3.client("athena")
@@ -957,3 +972,43 @@ def test_csv_compress(bucket, compression):
     for df3 in dfs:
         assert len(df3.columns) == 10
     wr.s3.delete_objects(path=path)
+
+
+def test_parquet_char_length(bucket, database, external_schema):
+    path = f"s3://{bucket}/test_parquet_char_length/"
+    table = "test_parquet_char_length"
+
+    df = pd.DataFrame({
+        "id": [1, 2],
+        "cchar": ["foo", "boo"],
+        "date": [datetime.date(2020, 1, 1), datetime.date(2020, 1, 2)]
+    })
+    wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        database=database,
+        table=table,
+        mode="overwrite",
+        partition_cols=["date"],
+        dtype={'cchar': 'char(3)'}
+    )
+
+    df2 = wr.s3.read_parquet(path, dataset=True)
+    assert len(df2.index) == 2
+    assert len(df2.columns) == 3
+    assert df2.id.sum() == 3
+
+    df2 = wr.athena.read_sql_table(table=table, database=database)
+    assert len(df2.index) == 2
+    assert len(df2.columns) == 3
+    assert df2.id.sum() == 3
+
+    engine = wr.catalog.get_engine("aws-data-wrangler-redshift")
+    df2 = wr.db.read_sql_table(con=engine, table=table, schema=external_schema)
+    assert len(df2.index) == 2
+    assert len(df2.columns) == 3
+    assert df2.id.sum() == 3
+
+    wr.s3.delete_objects(path=path)
+    assert wr.catalog.delete_table_if_exists(database=database, table=table) is True
