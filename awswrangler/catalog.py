@@ -679,8 +679,10 @@ def sanitize_dataframe_columns_names(df: pd.DataFrame) -> pd.DataFrame:
     - Remove non alphanumeric characters
     - Convert CamelCase to snake_case
 
-    Note: after transformation, some column names might not be unique anymore.
-        Example: the columns ["A", "a"] will be sanitized to ["a", "a"]
+    Note
+    ----
+    After transformation, some column names might not be unique anymore.
+    Example: the columns ["A", "a"] will be sanitized to ["a", "a"]
 
     Parameters
     ----------
