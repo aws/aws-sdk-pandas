@@ -29,6 +29,7 @@ Amazon S3
     to_parquet
     wait_objects_exist
     wait_objects_not_exist
+    copy_objects
 
 AWS Glue Catalog
 ----------------
