@@ -28,6 +28,13 @@ def client(service_name: str, session: Optional[boto3.Session] = None) -> boto3.
     )
 
 
+def resource(service_name: str, session: Optional[boto3.Session] = None) -> boto3.resource:
+    """Create a valid boto3.resource."""
+    return ensure_session(session=session).resource(
+        service_name=service_name, use_ssl=True, config=botocore.config.Config(retries={"max_attempts": 15})
+    )
+
+
 def parse_path(path: str) -> Tuple[str, str]:
     """Split a full S3 path in bucket and key strings.
 
