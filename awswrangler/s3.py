@@ -2126,7 +2126,9 @@ def merge_datasets(
     elif mode != "append":
         raise exceptions.InvalidArgumentValue(f"{mode} is a invalid mode option.")
 
-    new_objects: List[str] = copy_objects(paths=paths, source_path=source_path, target_path=target_path, use_threads=use_threads, boto3_session=session)
+    new_objects: List[str] = copy_objects(
+        paths=paths, source_path=source_path, target_path=target_path, use_threads=use_threads, boto3_session=session
+    )
     _logger.debug(f"len(new_objects): {len(new_objects)}")
     return new_objects
 
