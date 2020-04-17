@@ -369,7 +369,7 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
 
     Note
     ----
-    In case of `use_threads=True` the number of process that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
 
     Parameters
     ----------
@@ -605,7 +605,7 @@ def read_sql_table(
 
     Note
     ----
-    In case of `use_threads=True` the number of process that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
 
     Parameters
     ----------

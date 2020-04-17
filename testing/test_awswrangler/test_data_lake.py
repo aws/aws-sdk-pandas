@@ -1010,3 +1010,71 @@ def test_parquet_char_length(bucket, database, external_schema):
 
     wr.s3.delete_objects(path=path)
     assert wr.catalog.delete_table_if_exists(database=database, table=table) is True
+
+
+def test_merge(bucket):
+    path = f"s3://{bucket}/test_merge/"
+    df = pd.DataFrame({"id": [1, 2, 3], "par": [1, 2, 3]})
+    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, partition_cols=["par"], mode="overwrite")["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    df = wr.s3.read_parquet(path=path, dataset=True)
+    assert df.id.sum() == 6
+    assert df.par.astype("Int64").sum() == 6
+
+    path2 = f"s3://{bucket}/test_merge2/"
+    df = pd.DataFrame({"id": [1, 2, 3], "par": [1, 2, 3]})
+    paths = wr.s3.to_parquet(df=df, path=path2, dataset=True, partition_cols=["par"], mode="overwrite")["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    paths = wr.s3.merge_datasets(source_path=path2, target_path=path, mode="append", use_threads=True)
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df = wr.s3.read_parquet(path=path, dataset=True)
+    assert df.id.sum() == 12
+    assert df.par.astype("Int64").sum() == 12
+
+    paths = wr.s3.merge_datasets(source_path=path2, target_path=path, mode="overwrite", use_threads=False)
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df = wr.s3.read_parquet(path=path, dataset=True)
+    assert df.id.sum() == 6
+    assert df.par.astype("Int64").sum() == 6
+
+    df = pd.DataFrame({"id": [4], "par": [3]})
+    paths = wr.s3.to_parquet(df=df, path=path2, dataset=True, partition_cols=["par"], mode="overwrite")["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    paths = wr.s3.merge_datasets(source_path=path2, target_path=path, mode="overwrite_partitions", use_threads=True)
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df = wr.s3.read_parquet(path=path, dataset=True)
+    assert df.id.sum() == 7
+    assert df.par.astype("Int64").sum() == 6
+
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.s3.merge_datasets(source_path=path, target_path="bar", mode="WRONG")
+
+    assert len(wr.s3.merge_datasets(source_path=f"s3://{bucket}/empty/", target_path="bar")) == 0
+
+    wr.s3.delete_objects(path=path)
+    wr.s3.delete_objects(path=path2)
+
+
+def test_copy(bucket):
+    path = f"s3://{bucket}/test_copy/"
+    df = pd.DataFrame({"id": [1, 2, 3], "par": [1, 2, 3]})
+    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, partition_cols=["par"], mode="overwrite")["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    df = wr.s3.read_parquet(path=path, dataset=True)
+    assert df.id.sum() == 6
+    assert df.par.astype("Int64").sum() == 6
+
+    path2 = f"s3://{bucket}/test_copy2/"
+    df = pd.DataFrame({"id": [1, 2, 3], "par": [1, 2, 3]})
+    paths = wr.s3.to_parquet(df=df, path=path2, dataset=True, partition_cols=["par"], mode="overwrite")["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    paths = wr.s3.copy_objects(paths, source_path=path2, target_path=path, use_threads=True)
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df = wr.s3.read_parquet(path=path, dataset=True)
+    assert df.id.sum() == 12
+    assert df.par.astype("Int64").sum() == 12
+
+    assert len(wr.s3.copy_objects([], source_path="boo", target_path="bar")) == 0
+
+    wr.s3.delete_objects(path=path)
+    wr.s3.delete_objects(path=path2)
