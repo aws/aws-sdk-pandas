@@ -87,7 +87,7 @@ def create_parquet_table(
     table: str,
     path: str,
     columns_types: Dict[str, str],
-    partitions_types: Optional[Dict[str, str]],
+    partitions_types: Optional[Dict[str, str]] = None,
     compression: Optional[str] = None,
     description: Optional[str] = None,
     parameters: Optional[Dict[str, str]] = None,
@@ -120,7 +120,7 @@ def create_parquet_table(
     columns_comments: Dict[str, str], optional
         Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
     mode: str
-        Only 'overwrite' available by now.
+        'overwrite' to recreate any possible axisting table or 'append' to keep any possible axisting table.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -859,7 +859,7 @@ def create_csv_table(
     table: str,
     path: str,
     columns_types: Dict[str, str],
-    partitions_types: Optional[Dict[str, str]],
+    partitions_types: Optional[Dict[str, str]] = None,
     compression: Optional[str] = None,
     description: Optional[str] = None,
     parameters: Optional[Dict[str, str]] = None,
@@ -893,7 +893,7 @@ def create_csv_table(
     columns_comments: Dict[str, str], optional
         Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
     mode: str
-        Only 'overwrite' available by now.
+        'overwrite' to recreate any possible axisting table or 'append' to keep any possible axisting table.
     sep : str
         String of length 1. Field delimiter for the output file.
     boto3_session : boto3.Session(), optional
@@ -967,10 +967,11 @@ def _create_table(
             if name in columns_comments:
                 par["Comment"] = columns_comments[name]
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    if mode == "overwrite":
+    exist: bool = does_table_exist(database=database, table=table, boto3_session=session)
+    if (mode == "overwrite") or (exist is False):
         delete_table_if_exists(database=database, table=table, boto3_session=session)
-    client_glue: boto3.client = _utils.client(service_name="glue", session=session)
-    client_glue.create_table(DatabaseName=database, TableInput=table_input)
+        client_glue: boto3.client = _utils.client(service_name="glue", session=session)
+        client_glue.create_table(DatabaseName=database, TableInput=table_input)
 
 
 def _csv_table_definition(

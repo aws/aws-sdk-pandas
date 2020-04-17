@@ -443,6 +443,9 @@ def test_catalog(bucket, database):
         partitions_types={"y": "int", "m": "int"},
         compression="snappy",
     )
+    wr.catalog.create_parquet_table(
+        database=database, table="test_catalog", path=path, columns_types={"col0": "string"}, mode="append"
+    )
     assert wr.catalog.does_table_exist(database=database, table="test_catalog") is True
     assert wr.catalog.delete_table_if_exists(database=database, table="test_catalog") is True
     assert wr.catalog.delete_table_if_exists(database=database, table="test_catalog") is False
@@ -852,6 +855,9 @@ def test_athena_types(bucket, database):
         path=path,
         partitions_types=partitions_types,
         columns_types=columns_types,
+    )
+    wr.catalog.create_csv_table(
+        database=database, table="test_athena_types", path=path, columns_types={"col0": "string"}, mode="append"
     )
     wr.athena.repair_table("test_athena_types", database)
     assert len(wr.catalog.get_csv_partitions(database, "test_athena_types")) == 3
