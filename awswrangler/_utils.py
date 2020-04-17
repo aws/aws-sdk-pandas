@@ -69,7 +69,7 @@ def ensure_cpu_count(use_threads: bool = True) -> int:
 
     Note
     ----
-    In case of `use_threads=True` the number of process that could be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads that could be spawned will be get from os.cpu_count().
 
     Parameters
     ----------

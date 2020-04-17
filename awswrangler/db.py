@@ -438,7 +438,7 @@ def copy_to_redshift(  # pylint: disable=too-many-arguments
 
     Note
     ----
-    In case of `use_threads=True` the number of process that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
 
     Parameters
     ----------
@@ -576,7 +576,7 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
 
     Note
     ----
-    In case of `use_threads=True` the number of process that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
 
     Parameters
     ----------
@@ -798,7 +798,7 @@ def write_redshift_copy_manifest(
 
     Note
     ----
-    In case of `use_threads=True` the number of process that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
 
     Parameters
     ----------
@@ -908,7 +908,7 @@ def unload_redshift(
 
     Note
     ----
-    In case of `use_threads=True` the number of process that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
 
     Parameters
     ----------
@@ -1024,7 +1024,7 @@ def unload_redshift_to_files(
 
     Note
     ----
-    In case of `use_threads=True` the number of process that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
 
     Parameters
     ----------

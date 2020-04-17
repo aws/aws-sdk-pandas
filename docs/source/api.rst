@@ -30,6 +30,7 @@ Amazon S3
     wait_objects_exist
     wait_objects_not_exist
     copy_objects
+    merge_datasets
 
 AWS Glue Catalog
 ----------------
