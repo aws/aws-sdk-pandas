@@ -155,6 +155,18 @@ def read_sql_query(
     ... )
 
     """
+    return _read_sql_query(fn=_record2df, sql=sql, con=con, index_col=index_col, params=params, chunksize=chunksize, dtype=dtype)
+
+
+def _read_sql_query(
+    sql: str,
+    con: sqlalchemy.engine.Engine,
+    index_col: Optional[Union[str, List[str]]] = None,
+    params: Optional[Union[List, Tuple, Dict]] = None,
+    chunksize: Optional[int] = None,
+    dtype: Optional[Dict[str, pa.DataType]] = None,
+    fn: Callable,
+):
     if not isinstance(con, sqlalchemy.engine.Engine):  # pragma: no cover
         raise exceptions.InvalidConnection(
             "Invalid 'con' argument, please pass a "
@@ -165,19 +177,27 @@ def read_sql_query(
         args = _convert_params(sql, params)
         cursor = _con.execute(*args)
         if chunksize is None:
-            return _records2df(records=cursor.fetchall(), cols_names=cursor.keys(), index=index_col, dtype=dtype)
-        return _iterate_cursor(cursor=cursor, chunksize=chunksize, index=index_col, dtype=dtype)
+            return fn(records=cursor.fetchall(), cols_names=cursor.keys(), index=index_col, dtype=dtype)
+        return _iterate_cursor(fn=fn, cursor=cursor, chunksize=chunksize, index=index_col, dtype=dtype)
 
 
 def _iterate_cursor(
     cursor, chunksize: int, index: Optional[Union[str, List[str]]], dtype: Optional[Dict[str, pa.DataType]] = None
-) -> Iterator[pd.DataFrame]:
+) -> Iterator[Any]:
     while True:
         records = cursor.fetchmany(chunksize)
-        if not records:
-            break
-        df: pd.DataFrame = _records2df(records=records, cols_names=cursor.keys(), index=index, dtype=dtype)
-        yield df
+        if not records: break
+        yield fn(records=records, cols_names=cursor.keys(), index=index, dtype=dtype)
+
+
+def _records2numpy(
+    records: List[Tuple[Any]],
+    cols_names: List[str],
+    index: Optional[Union[str, List[str]]],
+    dtype: Optional[Dict[str, pa.DataType]] = None,
+) -> Iterator[np.ndarry]:
+    for record in records:
+        yield np.array(record, float)
 
 
 def _records2df(
@@ -191,7 +211,7 @@ def _records2df(
         if (dtype is None) or (col_name not in dtype):
             array: pa.Array = pa.array(obj=col_values, safe=True)  # Creating Arrow array
         else:
-            array = pa.array(obj=col_values, type=dtype[col_name], safe=True)  # Creating Arrow array with dtype
+            array: pa.Array = pa.array(obj=col_values, type=dtype[col_name], safe=True)  # Creating Arrow array with dtype
         arrays.append(array)
     table = pa.Table.from_arrays(arrays=arrays, names=cols_names)  # Creating arrow Table
     df: pd.DataFrame = table.to_pandas(  # Creating Pandas DataFrame
