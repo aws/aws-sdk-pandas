@@ -111,7 +111,7 @@ def does_object_exist(path: str, boto3_session: Optional[boto3.Session] = None) 
         raise ex  # pragma: no cover
 
 
-def list_objects(path: str, boto3_session: Optional[boto3.Session] = None) -> List[str]:
+def list_objects(path: str, suffix: Optional[str] = None, boto3_session: Optional[boto3.Session] = None) -> List[str]:
     """List Amazon S3 objects from a prefix.
 
     Parameters
@@ -155,15 +155,16 @@ def list_objects(path: str, boto3_session: Optional[boto3.Session] = None) -> Li
             for content in contents:
                 if (content is not None) and ("Key" in content):
                     key: str = content["Key"]
-                    paths.append(f"s3://{bucket}/{key}")
+                    if (suffix is None) or key.endswith(suffix):
+                        paths.append(f"s3://{bucket}/{key}")
     return paths
 
 
-def _path2list(path: Union[str, List[str]], boto3_session: Optional[boto3.Session]) -> List[str]:
+def _path2list(path: Union[str, List[str]], boto3_session: Optional[boto3.Session], suffix: Optional[str] = None) -> List[str]:
     if isinstance(path, str):  # prefix
         paths: List[str] = list_objects(path=path, boto3_session=boto3_session)
     elif isinstance(path, list):
-        paths = path
+        paths = path if suffix is None else [x for x in path if x.endswith(suffix)]
     else:
         raise exceptions.InvalidArgumentType(f"{type(path)} is not a valid path type. Please, use str or List[str].")
     return paths

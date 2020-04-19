@@ -198,9 +198,8 @@ def _iterate_cursor(
         yield fn(records=records, cols_names=cursor.keys(), index=index, dtype=dtype)
 
 
-def _records2numpy(records: List[Tuple[Any]], **kwargs) -> Iterator[np.ndarry]:  # pylint: disable=unused-argument
-    for record in records:
-        yield np.array(record, float)
+def _records2numpy(records: List[Tuple[Any]], **kwargs) -> Iterator[np.ndarray]:  # pylint: disable=unused-argument
+    return np.array(records, dtype=float)
 
 
 def _records2df(
