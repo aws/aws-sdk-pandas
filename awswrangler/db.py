@@ -2,10 +2,11 @@
 
 import json
 import logging
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 from urllib.parse import quote_plus
 
 import boto3  # type: ignore
+import numpy as np  # type: ignore
 import pandas as pd  # type: ignore
 import pyarrow as pa  # type: ignore
 import sqlalchemy  # type: ignore
@@ -155,17 +156,19 @@ def read_sql_query(
     ... )
 
     """
-    return _read_sql_query(fn=_record2df, sql=sql, con=con, index_col=index_col, params=params, chunksize=chunksize, dtype=dtype)
+    return _read_sql_query(
+        fn=_records2df, sql=sql, con=con, index_col=index_col, params=params, chunksize=chunksize, dtype=dtype
+    )
 
 
 def _read_sql_query(
+    fn: Callable,
     sql: str,
     con: sqlalchemy.engine.Engine,
     index_col: Optional[Union[str, List[str]]] = None,
     params: Optional[Union[List, Tuple, Dict]] = None,
     chunksize: Optional[int] = None,
     dtype: Optional[Dict[str, pa.DataType]] = None,
-    fn: Callable,
 ):
     if not isinstance(con, sqlalchemy.engine.Engine):  # pragma: no cover
         raise exceptions.InvalidConnection(
@@ -182,20 +185,20 @@ def _read_sql_query(
 
 
 def _iterate_cursor(
-    cursor, chunksize: int, index: Optional[Union[str, List[str]]], dtype: Optional[Dict[str, pa.DataType]] = None
+    fn: Callable,
+    cursor,
+    chunksize: int,
+    index: Optional[Union[str, List[str]]],
+    dtype: Optional[Dict[str, pa.DataType]] = None,
 ) -> Iterator[Any]:
     while True:
         records = cursor.fetchmany(chunksize)
-        if not records: break
+        if not records:
+            break
         yield fn(records=records, cols_names=cursor.keys(), index=index, dtype=dtype)
 
 
-def _records2numpy(
-    records: List[Tuple[Any]],
-    cols_names: List[str],
-    index: Optional[Union[str, List[str]]],
-    dtype: Optional[Dict[str, pa.DataType]] = None,
-) -> Iterator[np.ndarry]:
+def _records2numpy(records: List[Tuple[Any]], **kwargs) -> Iterator[np.ndarry]:  # pylint: disable=unused-argument
     for record in records:
         yield np.array(record, float)
 
@@ -211,7 +214,7 @@ def _records2df(
         if (dtype is None) or (col_name not in dtype):
             array: pa.Array = pa.array(obj=col_values, safe=True)  # Creating Arrow array
         else:
-            array: pa.Array = pa.array(obj=col_values, type=dtype[col_name], safe=True)  # Creating Arrow array with dtype
+            array = pa.array(obj=col_values, type=dtype[col_name], safe=True)  # Creating Arrow array with dtype
         arrays.append(array)
     table = pa.Table.from_arrays(arrays=arrays, names=cols_names)  # Creating arrow Table
     df: pd.DataFrame = table.to_pandas(  # Creating Pandas DataFrame
