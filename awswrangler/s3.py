@@ -120,6 +120,8 @@ def list_objects(path: str, suffix: Optional[str] = None, boto3_session: Optiona
         S3 path (e.g. s3://bucket/prefix).
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    suffix: str, optional
+        Suffix for filtering S3 keys
 
     Returns
     -------
@@ -160,7 +162,7 @@ def list_objects(path: str, suffix: Optional[str] = None, boto3_session: Optiona
     return paths
 
 
-def _path2list(path: Union[str, List[str]], boto3_session: Optional[boto3.Session], suffix: Optional[str] = None) -> List[str]:
+def _path2list(path: object, boto3_session: boto3.Session, suffix: str = None) -> List[str]:
     if isinstance(path, str):  # prefix
         paths: List[str] = list_objects(path=path, boto3_session=boto3_session)
     elif isinstance(path, list):

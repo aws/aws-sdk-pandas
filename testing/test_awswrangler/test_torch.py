@@ -81,19 +81,23 @@ def test_torch_sql(parameters, db_type, chunksize):
     assert torch.all(ds[2].eq(torch.tensor([3.0, 6.0])))
 
 
-def test_torch_sql(parameters, db_type, chunksize):
-    schema = parameters[db_type]["schema"]
-    table = "test_torch_sql"
-    engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-{db_type}")
-    wr.db.to_sql(
-        df=pd.DataFrame({"a": [1.0, 2.0, 3.0], "b": [4.0, 5.0, 6.0]}),
-        con=engine,
-        name=table,
-        schema=schema,
-        if_exists="replace",
-        index=False,
-        index_label=None,
-        chunksize=None,
-        method=None
+def test_torch_image_s3(bucket):
+    s3 = boto3.client('s3')
+    ref_label = 0
+    s3.put_object(
+        Body=open("../../docs/source/_static/logo.png"),
+        Bucket=bucket,
+        Key=f'class={ref_label}/logo.png',
     )
+    ds = wr.torch.ImageS3Dataset()
+    for image, label in ds:
+        assert image.shape == torch.Size([1, 28, 28])
+        assert label == torch.int(ref_label)
+        break
 
+
+# def test_torch_audio_s3(bucket):
+#     ds = wr.torch.AudioS3Dataset()
+#     for image, label in ds:
+#         assert image.shape == torch.Size([1, 28, 28])
+#         break
