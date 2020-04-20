@@ -1,190 +1,195 @@
 """PyTorch Module."""
 
+import re
 import logging
-# import re
-# from io import BytesIO
-from typing import Any, Iterator, List, Optional, Tuple, Union
 
-# import boto3  # type: ignore
+import torch  # type: ignore
+import boto3  # type: ignore
 import numpy as np  # type: ignore
 import sqlalchemy  # type: ignore
-import torch
-from torch.utils.data.dataset import IterableDataset
 
-from awswrangler import db  # , s3, _utils
+from PIL import Image
+from io import BytesIO
+from typing import Any, Iterator, List, Optional, Tuple, Union, Callable
+from torch.utils.data.dataset import Dataset, IterableDataset
+from torchvision.transforms.functional import to_tensor
+
+from awswrangler import db, s3, _utils
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-# class _BaseS3Dataset(Dataset):
-#     """PyTorch Map-Style S3 Dataset."""
-#
-#     def __init__(self, path: Union[str, List[str]], suffix: str, boto3_session):
-#         """Pytorch Map-Style S3 Dataset.
-#
-#         Parameters
-#         ----------
-#         path : Union[str, List[str]]
-#             S3 prefix (e.g. s3://bucket/prefix)
-#             or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
-#         boto3_session : boto3.Session(), optional
-#             Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-#
-#         Returns
-#         -------
-#         torch.utils.data.Dataset
-#
-#         """
-#         super().__init__()
-#         self.session = _utils.ensure_session(session=boto3_session)
-#         self.paths: List[str] = s3._path2list(path=path, suffix=suffix, boto3_session=self.session)
-#
-#     def __getitem__(self, index):
-#         path = self.paths[index]
-#         obj = self._fetch_obj(path)
-#         return [self.parser_fn(obj), self.label_fn(path)]
-#
-#     def __len__(self):
-#         return len(self.paths)
-#
-#     def _fetch_obj(self, path):
-#         bucket, key = _utils.parse_path(path=path)
-#         buff = BytesIO()
-#         client_s3: boto3.client = _utils.client(service_name="s3", session=self.session)
-#         client_s3.download_fileobj(Bucket=bucket, Key=key, Fileobj=buff)
-#         return buff.seek(0)
-#
-#     def parser_fn(self, obj):
-#         pass
-#
-#     def label_fn(self, path):
-#         pass
-#
-#
-# class _S3PartitionedDataset(_BaseS3Dataset):
-#     def label_fn(self, path):
-#         return int(re.findall(r"/(.*?)=(.*?)/", path)[-1][1])
+class _BaseS3Dataset(Dataset):
+    """PyTorch Map-Style S3 Dataset."""
+
+    def __init__(self, path: Union[str, List[str]], suffix: str, boto3_session: boto3.Session):
+        """PyTorch Map-Style S3 Dataset.
+
+        Parameters
+        ----------
+        path : Union[str, List[str]]
+            S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+        boto3_session : boto3.Session(), optional
+            Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+        Returns
+        -------
+        torch.utils.data.Dataset
+
+        """
+        super().__init__()
+        self.session = _utils.ensure_session(session=boto3_session)
+        self.paths: List[str] = s3._path2list(  # pylint: disable=protected-access
+            path=path,
+            suffix=suffix,
+            boto3_session=self.session,
+        )
+
+    def __getitem__(self, index):
+        path = self.paths[index]
+        data = self._fetch_data(path)
+        return [self.data_fn(data), self.label_fn(path)]
+
+    def __len__(self):
+        return len(self.paths)
+
+    def _fetch_data(self, path):
+        bucket, key = _utils.parse_path(path=path)
+        buff = BytesIO()
+        client_s3: boto3.client = _utils.client(service_name="s3", session=self.session)
+        client_s3.download_fileobj(Bucket=bucket, Key=key, Fileobj=buff)
+        buff.seek(0)
+        return buff
+
+    def data_fn(self, obj):
+        pass
+
+    def label_fn(self, path):
+        pass
 
 
-# class AudioS3Dataset(_S3PartitionedDataset):
-#
-#     def __init__(self):
-#         """Pytorch S3 Audio Dataset.
-#
-#         Assumes audio files are stored with the following structure:
-#
-#         bucket
-#         ├── class=0
-#         │   ├── audio0.wav
-#         │   └── audio1.wav
-#         └── class=1
-#             ├── audio2.wav
-#             └── audio3.wav
-#
-#         Parameters
-#         ----------
-#         path : Union[str, List[str]]
-#             S3 prefix (e.g. s3://bucket/prefix)
-#             or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
-#         boto3_session : boto3.Session(), optional
-#             Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-#
-#         Returns
-#         -------
-#         torch.utils.data.Dataset
-#
-#         Examples
-#         --------
-#         >>> import awswrangler as wr
-#         >>> import boto3
-#         >>> ds = wr.torch.AudioS3Dataset('s3://bucket/path', boto3.Session())
-#
-#         """
-#         super(AudioS3Dataset, self).__init__()
-#         import torchaudio
-#
-#     def parser_fn(self, obj):
-#         waveform, sample_rate = torchaudio.load(obj)
-#         return waveform, sample_rate
+class _S3PartitionedDataset(_BaseS3Dataset):
+
+    def label_fn(self, path):
+        return int(re.findall(r'/(.*?)=(.*?)/', path)[-1][1])
 
 
-# class LambdaS3Dataset(_BaseS3Dataset):
-#     """PyTorch S3 Audio Dataset.
-#
-#     Parameters
-#     ----------
-#     path : Union[str, List[str]]
-#         S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
-#     boto3_session : boto3.Session(), optional
-#         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-#
-#     Returns
-#     -------
-#     torch.utils.data.Dataset
-#
-#     Examples
-#     --------
-#     >>> import awswrangler as wr
-#     >>> import boto3
-#     >>> parse_fn = lambda x: torch.tensor(x)
-#     >>> label_fn = lambda x: x.split('.')[-1]
-#     >>> ds = wr.torch.LambdaS3Dataset('s3://bucket/path', boto3.Session(), parse_fn=parse_fn, label_fn=label_fn)
-#
-#     """
-#     def __init__(self, parse_fn, label_fn):
-#         self._parse_fn = parse_fn
-#         self._label_fn = label_fn
-#
-#     def label_fn(self, path):
-#         return self._label_fn(path)
-#
-#     def parse_fn(self, obj):
-#         return self._parse_fn(obj)
-#
-#
-# class ImageS3Dataset(_S3PartitionedDataset):
-#
-#     def __init__(self):
-#         """PyTorch Image S3 Dataset.
-#
-#         Assumes Images are stored with the following structure:
-#
-#         bucket
-#         ├── class=0
-#         │   ├── img0.jpeg
-#         │   └── img1.jpeg
-#         └── class=1
-#             ├── img2.jpeg
-#             └── img3.jpeg
-#
-#         Parameters
-#         ----------
-#         path : Union[str, List[str]]
-#             S3 prefix (e.g. s3://bucket/prefix)
-#             or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
-#         boto3_session : boto3.Session(), optional
-#             Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-#
-#         Returns
-#         -------
-#         torch.utils.data.Dataset
-#
-#         Examples
-#         --------
-#         >>> import awswrangler as wr
-#         >>> import boto3
-#         >>> ds = wr.torch.ImageS3Dataset('s3://bucket/path', boto3.Session())
-#
-#         """
-#         super(ImageS3Dataset, self).__init__()
-#         from PIL import Image
-#         from torchvision.transforms.functional import to_tensor
-#
-#     def parser_fn(self, obj):
-#         image = Image.open(obj)
-#         tensor = to_tensor(image)
-#         tensor.unsqueeze_(0)
-#         return tensor
+class LambdaS3Dataset(_BaseS3Dataset):
+
+    def __init__(self, path: Union[str, List[str]], suffix: str, boto3_session: boto3.Session, data_fn: Callable, label_fn: Callable):
+        """PyTorch S3 Audio Dataset.
+
+        Parameters
+        ----------
+        path : Union[str, List[str]]
+            S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+        boto3_session : boto3.Session(), optional
+            Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+        Returns
+        -------
+        torch.utils.data.Dataset
+
+        Examples
+        --------
+        >>> import awswrangler as wr
+        >>> import boto3
+        >>> data_fn = lambda x: torch.tensor(x)
+        >>> label_fn = lambda x: x.split('.')[-1]
+        >>> ds = wr.torch.LambdaS3Dataset('s3://bucket/path', boto3.Session(), data_fn=data_fn, label_fn=label_fn)
+
+        """
+        super(LambdaS3Dataset, self).__init__(path, suffix, boto3_session)
+        self._data_fn = data_fn
+        self._label_fn = label_fn
+
+    def label_fn(self, path):
+        return self._label_fn(path)
+
+    def data_fn(self, data):
+        print(type(data), data)
+        return self._data_fn(data)
+
+
+class AudioS3Dataset(_S3PartitionedDataset):
+
+    def __init__(self, path: Union[str, List[str]], suffix: str, boto3_session: boto3.Session):
+        """PyTorch S3 Audio Dataset.
+
+        Assumes audio files are stored with the following structure:
+
+        bucket
+        ├── class=0
+        │   ├── audio0.wav
+        │   └── audio1.wav
+        └── class=1
+            ├── audio2.wav
+            └── audio3.wav
+
+        Parameters
+        ----------
+        path : Union[str, List[str]]
+            S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+        boto3_session : boto3.Session(), optional
+            Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+        Returns
+        -------
+        torch.utils.data.Dataset
+
+        Examples
+        --------
+        >>> import awswrangler as wr
+        >>> import boto3
+        >>> ds = wr.torch.AudioS3Dataset('s3://bucket/path', boto3.Session())
+
+        """
+        super(AudioS3Dataset, self).__init__(path, suffix, boto3_session)
+
+    def data_fn(self, data):
+        waveform, sample_rate = torchaudio.load(data)
+        return waveform, sample_rate
+
+
+class ImageS3Dataset(_S3PartitionedDataset):
+
+    def __init__(self, path: Union[str, List[str]], suffix: str, boto3_session: boto3.Session):
+        """PyTorch Image S3 Dataset.
+
+        Assumes Images are stored with the following structure:
+
+        bucket
+        ├── class=0
+        │   ├── img0.jpeg
+        │   └── img1.jpeg
+        └── class=1
+            ├── img2.jpeg
+            └── img3.jpeg
+
+        Parameters
+        ----------
+        path : Union[str, List[str]]
+            S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+        boto3_session : boto3.Session(), optional
+            Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+        Returns
+        -------
+        torch.utils.data.Dataset
+
+        Examples
+        --------
+        >>> import awswrangler as wr
+        >>> import boto3
+        >>> ds = wr.torch.ImageS3Dataset('s3://bucket/path', boto3.Session())
+
+        """
+        super(ImageS3Dataset, self).__init__(path, suffix, boto3_session)
+
+    def data_fn(self, data):
+        image = Image.open(data)
+        tensor = to_tensor(image)
+        return tensor
 
 
 class SQLDataset(IterableDataset):  # pylint: disable=too-few-public-methods,abstract-method
@@ -232,7 +237,7 @@ class SQLDataset(IterableDataset):  # pylint: disable=too-few-public-methods,abs
         """Iterate over the Dataset."""
         if torch.utils.data.get_worker_info() is not None:  # type: ignore
             raise NotImplementedError()
-        db._validate_engine(con=self._con)
+        db._validate_engine(con=self._con)  # pylint: disable=protected-access
         with self._con.connect() as con:
             cursor: Any = con.execute(self._sql)
             if (self._label_col is not None) and isinstance(self._label_col, str):

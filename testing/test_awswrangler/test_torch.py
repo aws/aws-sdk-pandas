@@ -1,9 +1,15 @@
 import logging
 
+import re
 import boto3
+import numpy as np
 import pandas as pd
 import pytest
 import torch
+
+from PIL import Image
+from torch.utils.data import DataLoader
+from torchvision.transforms.functional import to_tensor
 
 import awswrangler as wr
 
@@ -101,16 +107,74 @@ def test_torch_sql_label(parameters, db_type, chunksize):
     assert torch.all(ts[2][1].eq(torch.tensor([9], dtype=torch.long)))
 
 
-# def test_torch_image_s3(bucket):
-#     s3 = boto3.client("s3")
-#     ref_label = 0
-#     s3.put_object(Body=open("../../docs/source/_static/logo.png"), Bucket=bucket, Key=f"class={ref_label}/logo.png")
-#     ds = wr.torch.ImageS3Dataset()
-#     for image, label in ds:
-#         assert image.shape == torch.Size([1, 28, 28])
-#         assert label == torch.int(ref_label)
-#         break
+def test_torch_image_s3(bucket):
+    wr.s3.delete_objects(path=bucket, boto3_session=boto3.Session())
 
+    s3 = boto3.client("s3")
+    ref_label = 0
+    s3.put_object(
+        Body=open("../../docs/source/_static/logo.png", "rb").read(),
+        Bucket=bucket,
+        Key=f"class={ref_label}/logo.png",
+        ContentType="image/png",
+    )
+    ds = wr.torch.ImageS3Dataset(path=bucket, suffix="png", boto3_session=boto3.Session())
+    image, label = ds[0]
+    assert image.shape == torch.Size([4, 494, 1636])
+    assert label == torch.tensor(ref_label, dtype=torch.int)
+
+    wr.s3.delete_objects(path=bucket, boto3_session=boto3.Session())
+
+
+def test_torch_image_s3_dataloader(bucket):
+    wr.s3.delete_objects(path=bucket, boto3_session=boto3.Session())
+
+    s3 = boto3.client("s3")
+    labels = np.random.randint(0, 4, size=(8,))
+    for i, label in enumerate(labels):
+        s3.put_object(
+            Body=open("../../docs/source/_static/logo.png", "rb").read(),
+            Bucket=bucket,
+            Key=f"class={label}/logo{i}.png",
+            ContentType="image/png",
+        )
+    ds = wr.torch.ImageS3Dataset(path=bucket, suffix="png", boto3_session=boto3.Session())
+    batch_size = 2
+    num_train = len(ds)
+    indices = list(range(num_train))
+    loader = DataLoader(
+        ds, batch_size=batch_size, num_workers=4, sampler=torch.utils.data.sampler.RandomSampler(indices)
+    )
+    for i, (image, label) in enumerate(loader):
+        assert image.shape == torch.Size([batch_size, 4, 494, 1636])
+        assert label.dtype == torch.int64
+
+    wr.s3.delete_objects(path=bucket, boto3_session=boto3.Session())
+
+
+def test_torch_lambda_s3(bucket):
+    wr.s3.delete_objects(path=bucket, boto3_session=boto3.Session())
+
+    s3 = boto3.client("s3")
+    ref_label = 0
+    s3.put_object(
+        Body=open("../../docs/source/_static/logo.png", "rb").read(),
+        Bucket=bucket,
+        Key=f"class={ref_label}/logo.png",
+        ContentType="image/png",
+    )
+    ds = wr.torch.LambdaS3Dataset(
+        path=bucket,
+        suffix="png",
+        boto3_session=boto3.Session(),
+        data_fn=lambda x: to_tensor(Image.open(x)),
+        label_fn=lambda x: int(re.findall(r'/class=(.*?)/', x)[-1]),
+    )
+    image, label = ds[0]
+    assert image.shape == torch.Size([4, 494, 1636])
+    assert label == torch.tensor(ref_label, dtype=torch.int)
+
+    wr.s3.delete_objects(path=bucket, boto3_session=boto3.Session())
 
 # def test_torch_audio_s3(bucket):
 #     ds = wr.torch.AudioS3Dataset()
