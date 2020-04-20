@@ -52,10 +52,8 @@ def parameters(cloudformation_outputs):
     yield parameters
 
 
-@pytest.mark.parametrize(
-    "db_type, chunksize",
-    [("mysql", None), ("redshift", None), ("postgresql", None), ("mysql", 1), ("redshift", 1), ("postgresql", 1)],
-)
+@pytest.mark.parametrize("chunksize", [None, 1, 10])
+@pytest.mark.parametrize("db_type", ["mysql", "redshift", "postgresql"])
 def test_torch_sql(parameters, db_type, chunksize):
     schema = parameters[db_type]["schema"]
     table = "test_torch_sql"
@@ -77,10 +75,8 @@ def test_torch_sql(parameters, db_type, chunksize):
     assert torch.all(ds[2].eq(torch.tensor([3.0, 6.0])))
 
 
-@pytest.mark.parametrize(
-    "db_type, chunksize",
-    [("mysql", None), ("redshift", None), ("postgresql", None), ("mysql", 1), ("redshift", 1), ("postgresql", 1)],
-)
+@pytest.mark.parametrize("chunksize", [None, 1, 10])
+@pytest.mark.parametrize("db_type", ["mysql", "redshift", "postgresql"])
 def test_torch_sql_label(parameters, db_type, chunksize):
     schema = parameters[db_type]["schema"]
     table = "test_torch_sql_label"
