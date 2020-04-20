@@ -1,12 +1,12 @@
 import logging
-
 import re
+
 import boto3
 import numpy as np
 import pandas as pd
 import pytest
 import torch
-
+import torchaudio
 from PIL import Image
 from torch.utils.data import DataLoader
 from torchvision.transforms.functional import to_tensor
@@ -108,91 +108,89 @@ def test_torch_sql_label(parameters, db_type, chunksize):
 
 
 def test_torch_image_s3(bucket):
-    wr.s3.delete_objects(path=bucket, boto3_session=boto3.Session())
-
+    path = f"s3://{bucket}/test_torch_image_s3/"
+    wr.s3.delete_objects(path=path, boto3_session=boto3.Session())
     s3 = boto3.client("s3")
     ref_label = 0
     s3.put_object(
-        Body=open("../../docs/source/_static/logo.png", "rb").read(),
+        Body=open("docs/source/_static/logo.png", "rb").read(),
         Bucket=bucket,
-        Key=f"class={ref_label}/logo.png",
+        Key=f"test_torch_image_s3/class={ref_label}/logo.png",
         ContentType="image/png",
     )
-    ds = wr.torch.ImageS3Dataset(path=bucket, suffix="png", boto3_session=boto3.Session())
+    ds = wr.torch.ImageS3Dataset(path=path, suffix="png", boto3_session=boto3.Session())
     image, label = ds[0]
     assert image.shape == torch.Size([4, 494, 1636])
     assert label == torch.tensor(ref_label, dtype=torch.int)
-
-    wr.s3.delete_objects(path=bucket, boto3_session=boto3.Session())
+    wr.s3.delete_objects(path=path)
 
 
 def test_torch_image_s3_dataloader(bucket):
-    wr.s3.delete_objects(path=bucket, boto3_session=boto3.Session())
-
+    path = f"s3://{bucket}/test_torch_image_s3_dataloader/"
+    wr.s3.delete_objects(path=path)
     s3 = boto3.client("s3")
     labels = np.random.randint(0, 4, size=(8,))
     for i, label in enumerate(labels):
         s3.put_object(
-            Body=open("../../docs/source/_static/logo.png", "rb").read(),
+            Body=open("./docs/source/_static/logo.png", "rb").read(),
             Bucket=bucket,
-            Key=f"class={label}/logo{i}.png",
+            Key=f"test_torch_image_s3_dataloader/class={label}/logo{i}.png",
             ContentType="image/png",
         )
-    ds = wr.torch.ImageS3Dataset(
-        path=bucket,
-        suffix="png",
-        boto3_session=boto3.Session(),
-    )
+    ds = wr.torch.ImageS3Dataset(path=path, suffix="png", boto3_session=boto3.Session())
     batch_size = 2
     num_train = len(ds)
     indices = list(range(num_train))
     loader = DataLoader(
-        ds,
-        batch_size=batch_size,
-        num_workers=4,
-        sampler=torch.utils.data.sampler.RandomSampler(indices),
+        ds, batch_size=batch_size, num_workers=4, sampler=torch.utils.data.sampler.RandomSampler(indices)
     )
     for i, (image, label) in enumerate(loader):
         assert image.shape == torch.Size([batch_size, 4, 494, 1636])
         assert label.dtype == torch.int64
-
-    wr.s3.delete_objects(path=bucket, boto3_session=boto3.Session())
+    wr.s3.delete_objects(path=path)
 
 
 def test_torch_lambda_s3(bucket):
-    wr.s3.delete_objects(path=bucket, boto3_session=boto3.Session())
-
+    path = f"s3://{bucket}/test_torch_lambda_s3/"
+    wr.s3.delete_objects(path=path)
     s3 = boto3.client("s3")
     ref_label = 0
     s3.put_object(
-        Body=open("../../docs/source/_static/logo.png", "rb").read(),
+        Body=open("./docs/source/_static/logo.png", "rb").read(),
         Bucket=bucket,
-        Key=f"class={ref_label}/logo.png",
+        Key=f"test_torch_lambda_s3/class={ref_label}/logo.png",
         ContentType="image/png",
     )
     ds = wr.torch.LambdaS3Dataset(
-        path=bucket,
+        path=path,
         suffix="png",
         boto3_session=boto3.Session(),
         data_fn=lambda x: to_tensor(Image.open(x)),
-        label_fn=lambda x: int(re.findall(r'/class=(.*?)/', x)[-1]),
+        label_fn=lambda x: int(re.findall(r"/class=(.*?)/", x)[-1]),
     )
     image, label = ds[0]
     assert image.shape == torch.Size([4, 494, 1636])
     assert label == torch.tensor(ref_label, dtype=torch.int)
-
-    wr.s3.delete_objects(path=bucket, boto3_session=boto3.Session())
+    wr.s3.delete_objects(path=path)
 
 
 def test_torch_audio_s3(bucket):
-    ds = wr.torch.AudioS3Dataset(
-        path="s3://multimedia-commons/data/videos/mp4/006/039/006039642c984a788569c7fea33ef3.mp4",
-        suffix="png",
-        boto3_session=boto3.Session(),
+    size = (1, 8_000 * 5)
+    audio = torch.randint(low=-25, high=25, size=size) / 100.0
+    audio_file = "/tmp/amazing_sound.wav"
+    torchaudio.save(audio_file, audio, 8_000)
+    path = f"s3://{bucket}/test_torch_audio_s3/"
+    wr.s3.delete_objects(path=path, boto3_session=boto3.Session())
+    s3 = boto3.client("s3")
+    ref_label = 0
+    s3.put_object(
+        Body=open(audio_file, "rb").read(),
+        Bucket=bucket,
+        Key=f"test_torch_audio_s3/class={ref_label}/amazing_sound.wav",
+        ContentType="audio/wav",
     )
-    loader = DataLoader(
-        ds,
-        batch_size=1,
-    )
-    for image, label in loader:
-        assert image.shape == torch.Size([1, 28, 28])
+    s3_audio_file = f"{bucket}/test_torch_audio_s3/class={ref_label}/amazing_sound.wav"
+    ds = wr.torch.AudioS3Dataset(path=s3_audio_file, suffix="wav")
+    loader = DataLoader(ds, batch_size=1)
+    for (audio, rate), label in loader:
+        assert audio.shape == torch.Size((1, *size))

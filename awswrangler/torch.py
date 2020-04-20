@@ -1,20 +1,21 @@
 """PyTorch Module."""
-import re
 import logging
+import os
+import pathlib
+import re
+from io import BytesIO
+from typing import Any, Callable, Iterator, List, Optional, Tuple, Union
 
-import torch  # type: ignore
 import boto3  # type: ignore
 import numpy as np  # type: ignore
 import sqlalchemy  # type: ignore
-import torchaudio
+import torch  # type: ignore
+import torchaudio  # type: ignore
+from PIL import Image  # type: ignore
+from torch.utils.data.dataset import Dataset, IterableDataset  # type: ignore
+from torchvision.transforms.functional import to_tensor  # type: ignore
 
-from PIL import Image
-from io import BytesIO
-from typing import Any, Iterator, List, Optional, Tuple, Union, Callable
-from torch.utils.data.dataset import Dataset, IterableDataset
-from torchvision.transforms.functional import to_tensor
-
-from awswrangler import db, s3, _utils
+from awswrangler import _utils, db, s3
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -22,7 +23,9 @@ _logger: logging.Logger = logging.getLogger(__name__)
 class _BaseS3Dataset(Dataset):
     """PyTorch Map-Style S3 Dataset."""
 
-    def __init__(self, path: Union[str, List[str]], suffix: str, boto3_session: boto3.Session):
+    def __init__(
+        self, path: Union[str, List[str]], suffix: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
+    ):
         """PyTorch Map-Style S3 Dataset.
 
         Parameters
@@ -38,46 +41,51 @@ class _BaseS3Dataset(Dataset):
 
         """
         super().__init__()
-        self.session = _utils.ensure_session(session=boto3_session)
-        self.paths: List[str] = s3._path2list(  # pylint: disable=protected-access
-            path=path,
-            suffix=suffix,
-            boto3_session=self.session,
+        self._session = _utils.ensure_session(session=boto3_session)
+        self._paths: List[str] = s3._path2list(  # pylint: disable=protected-access
+            path=path, suffix=suffix, boto3_session=self._session
         )
 
     def __getitem__(self, index):
-        path = self.paths[index]
+        path = self._paths[index]
         data = self._fetch_data(path)
-        return [self.data_fn(data), self.label_fn(path)]
+        return [self._data_fn(data), self._label_fn(path)]
 
     def __len__(self):
-        return len(self.paths)
+        return len(self._paths)
 
     def _fetch_data(self, path):
         bucket, key = _utils.parse_path(path=path)
         buff = BytesIO()
-        client_s3: boto3.client = _utils.client(service_name="s3", session=self.session)
+        client_s3: boto3.client = _utils.client(service_name="s3", session=self._session)
         client_s3.download_fileobj(Bucket=bucket, Key=key, Fileobj=buff)
         buff.seek(0)
         return buff
 
-    def data_fn(self, obj):
+    def _data_fn(self, data):
         pass
 
-    def label_fn(self, path):
+    def _label_fn(self, path: str):
         pass
 
 
 class _S3PartitionedDataset(_BaseS3Dataset):
-
-    def label_fn(self, path):
-        return int(re.findall(r'/(.*?)=(.*?)/', path)[-1][1])
+    def _label_fn(self, path: str):
+        return int(re.findall(r"/(.*?)=(.*?)/", path)[-1][1])
 
 
 class LambdaS3Dataset(_BaseS3Dataset):
+    """PyTorch S3 Lambda Dataset."""
 
-    def __init__(self, path: Union[str, List[str]], suffix: str, boto3_session: boto3.Session, data_fn: Callable, label_fn: Callable):
-        """PyTorch S3 Audio Dataset.
+    def __init__(
+        self,
+        path: Union[str, List[str]],
+        data_fn: Callable,
+        label_fn: Callable,
+        suffix: Optional[str] = None,
+        boto3_session: Optional[boto3.Session] = None,
+    ):
+        """PyTorch S3 Lambda Dataset.
 
         Parameters
         ----------
@@ -94,26 +102,33 @@ class LambdaS3Dataset(_BaseS3Dataset):
         --------
         >>> import awswrangler as wr
         >>> import boto3
-        >>> data_fn = lambda x: torch.tensor(x)
-        >>> label_fn = lambda x: x.split('.')[-1]
-        >>> ds = wr.torch.LambdaS3Dataset('s3://bucket/path', boto3.Session(), data_fn=data_fn, label_fn=label_fn)
+        >>> _data_fn = lambda x: torch.tensor(x)
+        >>> _label_fn = lambda x: x.split('.')[-1]
+        >>> ds = wr.torch.LambdaS3Dataset('s3://bucket/path', boto3.Session(), _data_fn=_data_fn, _label_fn=_label_fn)
 
         """
         super(LambdaS3Dataset, self).__init__(path, suffix, boto3_session)
-        self._data_fn = data_fn
-        self._label_fn = label_fn
+        self._data_func = data_fn
+        self._label_func = label_fn
 
-    def label_fn(self, path):
-        return self._label_fn(path)
+    def _label_fn(self, path: str):
+        return self._label_func(path)
 
-    def data_fn(self, data):
-        print(type(data), data)
-        return self._data_fn(data)
+    def _data_fn(self, data):
+        print(type(data))
+        return self._data_func(data)
 
 
 class AudioS3Dataset(_S3PartitionedDataset):
+    """PyTorch S3 Audio Dataset."""
 
-    def __init__(self, path: Union[str, List[str]], suffix: str, boto3_session: boto3.Session):
+    def __init__(
+        self,
+        path: Union[str, List[str]],
+        cache_dir: str = "/tmp/",
+        suffix: Optional[str] = None,
+        boto3_session: Optional[boto3.Session] = None,
+    ):
         """PyTorch S3 Audio Dataset.
 
         Assumes audio files are stored with the following structure:
@@ -145,17 +160,27 @@ class AudioS3Dataset(_S3PartitionedDataset):
 
         """
         super(AudioS3Dataset, self).__init__(path, suffix, boto3_session)
+        self._cache_dir: str = cache_dir[:-1] if cache_dir.endswith("/") else cache_dir
 
-    def data_fn(self, data):
-
-        waveform, sample_rate = torchaudio.load(data)
+    def _data_fn(self, filename: str) -> Tuple[Any, Any]:  # pylint: disable=arguments-differ
+        waveform, sample_rate = torchaudio.load(filename)
+        os.remove(path=filename)
         return waveform, sample_rate
+
+    def _fetch_data(self, path: str) -> str:
+        bucket, key = _utils.parse_path(path=path)
+        filename: str = f"{self._cache_dir}/{bucket}/{key}"
+        pathlib.Path(filename).parent.mkdir(parents=True, exist_ok=True)
+        client_s3 = _utils.client(service_name="s3", session=self._session)
+        client_s3.download_file(Bucket=bucket, Key=key, Filename=filename)
+        return filename
 
 
 class ImageS3Dataset(_S3PartitionedDataset):
+    """PyTorch S3 Image Dataset."""
 
     def __init__(self, path: Union[str, List[str]], suffix: str, boto3_session: boto3.Session):
-        """PyTorch Image S3 Dataset.
+        """PyTorch S3 Image Dataset.
 
         Assumes Images are stored with the following structure:
 
@@ -187,7 +212,7 @@ class ImageS3Dataset(_S3PartitionedDataset):
         """
         super(ImageS3Dataset, self).__init__(path, suffix, boto3_session)
 
-    def data_fn(self, data):
+    def _data_fn(self, data):
         image = Image.open(data)
         tensor = to_tensor(image)
         return tensor
