@@ -52,14 +52,10 @@ def parameters(cloudformation_outputs):
     yield parameters
 
 
-@pytest.mark.parametrize("db_type, chunksize", [
-    ("mysql", None),
-    ("redshift", None),
-    ("postgresql", None),
-    ("mysql", 1),
-    ("redshift", 1),
-    ("postgresql", 1),
-])
+@pytest.mark.parametrize(
+    "db_type, chunksize",
+    [("mysql", None), ("redshift", None), ("postgresql", None), ("mysql", 1), ("redshift", 1), ("postgresql", 1)],
+)
 def test_torch_sql(parameters, db_type, chunksize):
     schema = parameters[db_type]["schema"]
     table = "test_torch_sql"
@@ -73,7 +69,7 @@ def test_torch_sql(parameters, db_type, chunksize):
         index=False,
         index_label=None,
         chunksize=None,
-        method=None
+        method=None,
     )
     ds = list(wr.torch.SQLDataset(f"SELECT * FROM {schema}.{table}", con=engine, chunksize=chunksize))
     assert torch.all(ds[0].eq(torch.tensor([1.0, 4.0])))
@@ -81,14 +77,38 @@ def test_torch_sql(parameters, db_type, chunksize):
     assert torch.all(ds[2].eq(torch.tensor([3.0, 6.0])))
 
 
-def test_torch_image_s3(bucket):
-    s3 = boto3.client('s3')
-    ref_label = 0
-    s3.put_object(
-        Body=open("../../docs/source/_static/logo.png"),
-        Bucket=bucket,
-        Key=f'class={ref_label}/logo.png',
+@pytest.mark.parametrize(
+    "db_type, chunksize",
+    [("mysql", None), ("redshift", None), ("postgresql", None), ("mysql", 1), ("redshift", 1), ("postgresql", 1)],
+)
+def test_torch_sql_label(parameters, db_type, chunksize):
+    schema = parameters[db_type]["schema"]
+    table = "test_torch_sql_label"
+    engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-{db_type}")
+    wr.db.to_sql(
+        df=pd.DataFrame({"a": [1.0, 2.0, 3.0], "b": [4.0, 5.0, 6.0], "c": [7, 8, 9]}),
+        con=engine,
+        name=table,
+        schema=schema,
+        if_exists="replace",
+        index=False,
+        index_label=None,
+        chunksize=None,
+        method=None,
     )
+    ts = list(wr.torch.SQLDataset(f"SELECT * FROM {schema}.{table}", con=engine, chunksize=chunksize, label_col=2))
+    assert torch.all(ts[0][0].eq(torch.tensor([1.0, 4.0])))
+    assert torch.all(ts[0][1].eq(torch.tensor([7], dtype=torch.long)))
+    assert torch.all(ts[1][0].eq(torch.tensor([2.0, 5.0])))
+    assert torch.all(ts[1][1].eq(torch.tensor([8], dtype=torch.long)))
+    assert torch.all(ts[2][0].eq(torch.tensor([3.0, 6.0])))
+    assert torch.all(ts[2][1].eq(torch.tensor([9], dtype=torch.long)))
+
+
+def test_torch_image_s3(bucket):
+    s3 = boto3.client("s3")
+    ref_label = 0
+    s3.put_object(Body=open("../../docs/source/_static/logo.png"), Bucket=bucket, Key=f"class={ref_label}/logo.png")
     ds = wr.torch.ImageS3Dataset()
     for image, label in ds:
         assert image.shape == torch.Size([1, 28, 28])

@@ -121,7 +121,7 @@ def list_objects(path: str, suffix: Optional[str] = None, boto3_session: Optiona
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     suffix: str, optional
-        Suffix for filtering S3 keys
+        Suffix for filtering S3 keys.
 
     Returns
     -------

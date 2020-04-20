@@ -6,7 +6,6 @@ from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 from urllib.parse import quote_plus
 
 import boto3  # type: ignore
-import numpy as np  # type: ignore
 import pandas as pd  # type: ignore
 import pyarrow as pa  # type: ignore
 import sqlalchemy  # type: ignore
@@ -156,50 +155,15 @@ def read_sql_query(
     ... )
 
     """
-    return _read_sql_query(
-        fn=_records2df, sql=sql, con=con, index_col=index_col, params=params, chunksize=chunksize, dtype=dtype
-    )
-
-
-def _read_sql_query(
-    fn: Callable,
-    sql: str,
-    con: sqlalchemy.engine.Engine,
-    index_col: Optional[Union[str, List[str]]] = None,
-    params: Optional[Union[List, Tuple, Dict]] = None,
-    chunksize: Optional[int] = None,
-    dtype: Optional[Dict[str, pa.DataType]] = None,
-):
-    if not isinstance(con, sqlalchemy.engine.Engine):  # pragma: no cover
-        raise exceptions.InvalidConnection(
-            "Invalid 'con' argument, please pass a "
-            "SQLAlchemy Engine. Use wr.db.get_engine(), "
-            "wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()"
-        )
+    _validate_engine(con=con)
     with con.connect() as _con:
         args = _convert_params(sql, params)
         cursor = _con.execute(*args)
         if chunksize is None:
-            return fn(records=cursor.fetchall(), cols_names=cursor.keys(), index=index_col, dtype=dtype)
-        return _iterate_cursor(fn=fn, cursor=cursor, chunksize=chunksize, index=index_col, dtype=dtype)
-
-
-def _iterate_cursor(
-    fn: Callable,
-    cursor,
-    chunksize: int,
-    index: Optional[Union[str, List[str]]],
-    dtype: Optional[Dict[str, pa.DataType]] = None,
-) -> Iterator[Any]:
-    while True:
-        records = cursor.fetchmany(chunksize)
-        if not records:
-            break
-        yield fn(records=records, cols_names=cursor.keys(), index=index, dtype=dtype)
-
-
-def _records2numpy(records: List[Tuple[Any]], **kwargs) -> Iterator[np.ndarray]:  # pylint: disable=unused-argument
-    return np.array(records, dtype=float)
+            return _records2df(records=cursor.fetchall(), cols_names=cursor.keys(), index=index_col, dtype=dtype)
+        return _iterate_cursor(
+            fn=_records2df, cursor=cursor, chunksize=chunksize, cols_names=cursor.keys(), index=index_col, dtype=dtype
+        )
 
 
 def _records2df(
@@ -227,6 +191,14 @@ def _records2df(
     if index is not None:
         df.set_index(index, inplace=True)
     return df
+
+
+def _iterate_cursor(fn: Callable, cursor: Any, chunksize: int, **kwargs) -> Iterator[Any]:
+    while True:
+        records = cursor.fetchmany(chunksize)
+        if not records:
+            break
+        yield fn(records=records, **kwargs)
 
 
 def _convert_params(sql: str, params: Optional[Union[List, Tuple, Dict]]) -> List[Any]:
@@ -1109,3 +1081,12 @@ def unload_redshift_to_files(
         paths = [x[0].replace(" ", "") for x in _con.execute(sql).fetchall()]
         _logger.debug(f"paths: {paths}")
         return paths
+
+
+def _validate_engine(con: sqlalchemy.engine.Engine) -> None:  # pragma: no cover
+    if not isinstance(con, sqlalchemy.engine.Engine):
+        raise exceptions.InvalidConnection(
+            "Invalid 'con' argument, please pass a "
+            "SQLAlchemy Engine. Use wr.db.get_engine(), "
+            "wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()"
+        )
