@@ -101,15 +101,15 @@ def test_torch_sql_label(parameters, db_type, chunksize):
     assert torch.all(ts[2][1].eq(torch.tensor([9], dtype=torch.long)))
 
 
-def test_torch_image_s3(bucket):
-    s3 = boto3.client("s3")
-    ref_label = 0
-    s3.put_object(Body=open("../../docs/source/_static/logo.png"), Bucket=bucket, Key=f"class={ref_label}/logo.png")
-    ds = wr.torch.ImageS3Dataset()
-    for image, label in ds:
-        assert image.shape == torch.Size([1, 28, 28])
-        assert label == torch.int(ref_label)
-        break
+# def test_torch_image_s3(bucket):
+#     s3 = boto3.client("s3")
+#     ref_label = 0
+#     s3.put_object(Body=open("../../docs/source/_static/logo.png"), Bucket=bucket, Key=f"class={ref_label}/logo.png")
+#     ds = wr.torch.ImageS3Dataset()
+#     for image, label in ds:
+#         assert image.shape == torch.Size([1, 28, 28])
+#         assert label == torch.int(ref_label)
+#         break
 
 
 # def test_torch_audio_s3(bucket):

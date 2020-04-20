@@ -2,7 +2,7 @@
 
 import json
 import logging
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 from urllib.parse import quote_plus
 
 import boto3  # type: ignore
@@ -162,7 +162,7 @@ def read_sql_query(
         if chunksize is None:
             return _records2df(records=cursor.fetchall(), cols_names=cursor.keys(), index=index_col, dtype=dtype)
         return _iterate_cursor(
-            fn=_records2df, cursor=cursor, chunksize=chunksize, cols_names=cursor.keys(), index=index_col, dtype=dtype
+            cursor=cursor, chunksize=chunksize, cols_names=cursor.keys(), index=index_col, dtype=dtype
         )
 
 
@@ -193,12 +193,18 @@ def _records2df(
     return df
 
 
-def _iterate_cursor(fn: Callable, cursor: Any, chunksize: int, **kwargs) -> Iterator[Any]:
+def _iterate_cursor(
+    cursor: Any,
+    chunksize: int,
+    cols_names: List[str],
+    index: Optional[Union[str, List[str]]],
+    dtype: Optional[Dict[str, pa.DataType]] = None,
+) -> Iterator[pd.DataFrame]:
     while True:
         records = cursor.fetchmany(chunksize)
         if not records:
             break
-        yield fn(records=records, **kwargs)
+        yield _records2df(records=records, cols_names=cols_names, index=index, dtype=dtype)
 
 
 def _convert_params(sql: str, params: Optional[Union[List, Tuple, Dict]]) -> List[Any]:
