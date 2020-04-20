@@ -1,5 +1,4 @@
 """PyTorch Module."""
-
 import re
 import logging
 
@@ -7,6 +6,7 @@ import torch  # type: ignore
 import boto3  # type: ignore
 import numpy as np  # type: ignore
 import sqlalchemy  # type: ignore
+import torchaudio
 
 from PIL import Image
 from io import BytesIO
@@ -147,6 +147,7 @@ class AudioS3Dataset(_S3PartitionedDataset):
         super(AudioS3Dataset, self).__init__(path, suffix, boto3_session)
 
     def data_fn(self, data):
+
         waveform, sample_rate = torchaudio.load(data)
         return waveform, sample_rate
 

@@ -138,12 +138,19 @@ def test_torch_image_s3_dataloader(bucket):
             Key=f"class={label}/logo{i}.png",
             ContentType="image/png",
         )
-    ds = wr.torch.ImageS3Dataset(path=bucket, suffix="png", boto3_session=boto3.Session())
+    ds = wr.torch.ImageS3Dataset(
+        path=bucket,
+        suffix="png",
+        boto3_session=boto3.Session(),
+    )
     batch_size = 2
     num_train = len(ds)
     indices = list(range(num_train))
     loader = DataLoader(
-        ds, batch_size=batch_size, num_workers=4, sampler=torch.utils.data.sampler.RandomSampler(indices)
+        ds,
+        batch_size=batch_size,
+        num_workers=4,
+        sampler=torch.utils.data.sampler.RandomSampler(indices),
     )
     for i, (image, label) in enumerate(loader):
         assert image.shape == torch.Size([batch_size, 4, 494, 1636])
@@ -176,8 +183,16 @@ def test_torch_lambda_s3(bucket):
 
     wr.s3.delete_objects(path=bucket, boto3_session=boto3.Session())
 
-# def test_torch_audio_s3(bucket):
-#     ds = wr.torch.AudioS3Dataset()
-#     for image, label in ds:
-#         assert image.shape == torch.Size([1, 28, 28])
-#         break
+
+def test_torch_audio_s3(bucket):
+    ds = wr.torch.AudioS3Dataset(
+        path="s3://multimedia-commons/data/videos/mp4/006/039/006039642c984a788569c7fea33ef3.mp4",
+        suffix="png",
+        boto3_session=boto3.Session(),
+    )
+    loader = DataLoader(
+        ds,
+        batch_size=1,
+    )
+    for image, label in loader:
+        assert image.shape == torch.Size([1, 28, 28])
