@@ -1,5 +1,6 @@
-import logging
+import io
 import re
+import logging
 
 import boto3
 import numpy as np
@@ -125,13 +126,14 @@ def test_torch_image_s3(bucket):
     wr.s3.delete_objects(path=path)
 
 
-def test_torch_image_s3_dataloader(bucket):
+@pytest.mark.parametrize("drop_last", [True, False])
+def test_torch_image_s3_dataloader(bucket, drop_last):
     path = f"s3://{bucket}/test_torch_image_s3_dataloader/"
     wr.s3.delete_objects(path=path)
-    s3 = boto3.client("s3")
+    client_s3 = boto3.client("s3")
     labels = np.random.randint(0, 4, size=(8,))
     for i, label in enumerate(labels):
-        s3.put_object(
+        client_s3.put_object(
             Body=open("./docs/source/_static/logo.png", "rb").read(),
             Bucket=bucket,
             Key=f"test_torch_image_s3_dataloader/class={label}/logo{i}.png",
@@ -142,7 +144,7 @@ def test_torch_image_s3_dataloader(bucket):
     num_train = len(ds)
     indices = list(range(num_train))
     loader = DataLoader(
-        ds, batch_size=batch_size, num_workers=4, sampler=torch.utils.data.sampler.RandomSampler(indices)
+        ds, batch_size=batch_size, num_workers=4, sampler=torch.utils.data.sampler.RandomSampler(indices), drop_last=drop_last
     )
     for i, (image, label) in enumerate(loader):
         assert image.shape == torch.Size([batch_size, 4, 494, 1636])
@@ -194,3 +196,44 @@ def test_torch_audio_s3(bucket):
     loader = DataLoader(ds, batch_size=1)
     for (audio, rate), label in loader:
         assert audio.shape == torch.Size((1, *size))
+
+
+# def test_torch_s3_file_dataset(bucket):
+#     cifar10 = "s3://fast-ai-imageclas/cifar10.tgz"
+#     batch_size = 64
+#     for image, label in DataLoader(
+#         wr.torch.S3FilesDataset(cifar10),
+#         batch_size=batch_size,
+#     ):
+#         assert image.shape == torch.Size([batch_size, 3, 32, 32])
+#         assert label.dtype == torch.int64
+#         break
+
+
+@pytest.mark.parametrize("drop_last", [True, False])
+def test_torch_s3_iterable_dataset(bucket, drop_last):
+    folder = "test_torch_s3_iterable_dataset"
+    batch_size = 32
+    client_s3 = boto3.client("s3")
+    for i in range(3):
+        batch = torch.randn(100, 3, 32, 32)
+        buff = io.BytesIO()
+        torch.save(batch, buff)
+        buff.seek(0)
+        client_s3.put_object(
+            Body=buff.read(),
+            Bucket=bucket,
+            Key=f"{folder}/file{i}.pt",
+        )
+
+    for image in DataLoader(
+        wr.torch.S3IterableDataset(
+            path=f"s3://{bucket}/{folder}",
+        ),
+        batch_size=batch_size,
+        drop_last=drop_last,
+    ):
+        if drop_last:
+            assert image.shape == torch.Size([batch_size, 3, 32, 32])
+        else:
+            assert image[0].shape == torch.Size([3, 32, 32])
