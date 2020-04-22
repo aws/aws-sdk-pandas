@@ -1501,6 +1501,7 @@ def _read_parquet_init(
         filters=filters,
         read_dictionary=categories,
         validate_schema=validate_schema,
+        split_row_groups=False,
     )
     return data
 
@@ -1510,7 +1511,7 @@ def read_parquet(
     filters: Optional[Union[List[Tuple], List[List[Tuple]]]] = None,
     columns: Optional[List[str]] = None,
     validate_schema: bool = True,
-    chunked: bool = False,
+    chunked: Union[bool, int] = False,
     dataset: bool = False,
     categories: List[str] = None,
     use_threads: bool = True,
@@ -1521,6 +1522,22 @@ def read_parquet(
 
     The concept of Dataset goes beyond the simple idea of files and enable more
     complex features like partitioning and catalog integration (AWS Glue Catalog).
+
+    Note
+    ----
+    ``Batching`` (`chunked` argument) (Memory Friendly):
+
+    Will anable the function to return a Iterable of DataFrames instead of a regular DataFrame.
+
+    There are two batching strategies on Wrangler:
+
+    - If **chunked=True**, a new DataFrame will be returned for each file in your path/dataset.
+
+    - If **chunked=INTEGER**, Wrangler will iterate on the data by number of rows igual the received INTEGER.
+
+    `P.S.` `chunked=True` if faster and uses less memory while `chunked=INTEGER` is more precise
+    in number of rows for each Dataframe.
+
 
     Note
     ----
@@ -1538,11 +1555,12 @@ def read_parquet(
         Check that individual file schemas are all the same / compatible. Schemas within a
         folder prefix should all be the same. Disable if you have schemas that are different
         and want to disable this check.
-    chunked : bool
-        If True will break the data in smaller DataFrames (Non deterministic number of lines).
-        Otherwise return a single DataFrame with the whole data.
+    chunked : Union[int, bool]
+        If passed will split the data in a Iterable of DataFrames (Memory friendly).
+        If `True` wrangler will iterate on the data by files in the most efficient way without guarantee of chunksize.
+        If an `INTEGER` is passed Wrangler will iterate on the data by number of rows igual the received INTEGER.
     dataset: bool
-        If True read a parquet dataset instead of simple file(s) loading all the related partitions as columns.
+        If `True` read a parquet dataset instead of simple file(s) loading all the related partitions as columns.
     categories: List[str], optional
         List of columns names that should be returned as pandas.Categorical.
         Recommended for memory restricted environments.
@@ -1583,12 +1601,19 @@ def read_parquet(
     >>> import awswrangler as wr
     >>> df = wr.s3.read_parquet(path=['s3://bucket/filename0.parquet', 's3://bucket/filename1.parquet'])
 
-    Reading in chunks
+    Reading in chunks (Chunk by file)
 
     >>> import awswrangler as wr
     >>> dfs = wr.s3.read_parquet(path=['s3://bucket/filename0.csv', 's3://bucket/filename1.csv'], chunked=True)
     >>> for df in dfs:
     >>>     print(df)  # Smaller Pandas DataFrame
+
+    Reading in chunks (Chunk by 1MM rows)
+
+    >>> import awswrangler as wr
+    >>> dfs = wr.s3.read_parquet(path=['s3://bucket/filename0.csv', 's3://bucket/filename1.csv'], chunked=1_000_000)
+    >>> for df in dfs:
+    >>>     print(df)  # 1MM Pandas DataFrame
 
     """
     data: pyarrow.parquet.ParquetDataset = _read_parquet_init(
@@ -1596,16 +1621,23 @@ def read_parquet(
         filters=filters,
         dataset=dataset,
         categories=categories,
+        validate_schema=validate_schema,
         use_threads=use_threads,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
-        validate_schema=validate_schema,
     )
     if chunked is False:
         return _read_parquet(
             data=data, columns=columns, categories=categories, use_threads=use_threads, validate_schema=validate_schema
         )
-    return _read_parquet_chunked(data=data, columns=columns, categories=categories, use_threads=use_threads)
+    return _read_parquet_chunked(
+        data=data,
+        columns=columns,
+        categories=categories,
+        chunked=chunked,
+        use_threads=use_threads,
+        validate_schema=validate_schema,
+    )
 
 
 def _read_parquet(
@@ -1639,22 +1671,50 @@ def _read_parquet_chunked(
     data: pyarrow.parquet.ParquetDataset,
     columns: Optional[List[str]] = None,
     categories: List[str] = None,
+    validate_schema: bool = True,
+    chunked: Union[bool, int] = True,
     use_threads: bool = True,
 ) -> Iterator[pd.DataFrame]:
+    promote: bool = not validate_schema
+    next_slice: Optional[pa.Table] = None
     for piece in data.pieces:
         table: pa.Table = piece.read(
             columns=columns, use_threads=use_threads, partitions=data.partitions, use_pandas_metadata=False
         )
-        yield table.to_pandas(
-            use_threads=use_threads,
-            split_blocks=True,
-            self_destruct=True,
-            integer_object_nulls=False,
-            date_as_object=True,
-            ignore_metadata=True,
-            categories=categories,
-            types_mapper=_data_types.pyarrow2pandas_extension,
-        )
+        if chunked is True:
+            yield _table2df(table=table, categories=categories, use_threads=use_threads)
+        else:
+            if next_slice is not None:
+                table = pa.lib.concat_tables([next_slice, table], promote=promote)
+            length: int = len(table)
+            while True:
+                if length == chunked:
+                    yield _table2df(table=table, categories=categories, use_threads=use_threads)
+                    next_slice = None
+                    break
+                if length < chunked:
+                    next_slice = table
+                    break
+                yield _table2df(
+                    table=table.slice(offset=0, length=chunked), categories=categories, use_threads=use_threads
+                )
+                table = table.slice(offset=chunked, length=None)
+                length = len(table)
+    if next_slice is not None:
+        yield _table2df(table=next_slice, categories=categories, use_threads=use_threads)
+
+
+def _table2df(table: pa.Table, categories: List[str] = None, use_threads: bool = True) -> pd.DataFrame:
+    return table.to_pandas(
+        use_threads=use_threads,
+        split_blocks=True,
+        self_destruct=True,
+        integer_object_nulls=False,
+        date_as_object=True,
+        ignore_metadata=True,
+        categories=categories,
+        types_mapper=_data_types.pyarrow2pandas_extension,
+    )
 
 
 def read_parquet_metadata(
@@ -1972,12 +2032,29 @@ def read_parquet_table(
     filters: Optional[Union[List[Tuple], List[List[Tuple]]]] = None,
     columns: Optional[List[str]] = None,
     categories: List[str] = None,
-    chunked: bool = False,
+    chunked: Union[bool, int] = False,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read Apache Parquet table registered on AWS Glue Catalog.
+
+    Note
+    ----
+    ``Batching`` (`chunked` argument) (Memory Friendly):
+
+    Will anable the function to return a Iterable of DataFrames instead of a regular DataFrame.
+
+    There are two batching strategies on Wrangler:
+
+    - If **chunked=True**, a new DataFrame will be returned for each file in your path/dataset.
+
+    - If **chunked=INTEGER**, Wrangler will paginate through files slicing and concatenating
+      to return DataFrames with the number of row igual the received INTEGER.
+
+    `P.S.` `chunked=True` if faster and uses less memory while `chunked=INTEGER` is more precise
+    in number of rows for each Dataframe.
+
 
     Note
     ----
@@ -2032,12 +2109,19 @@ def read_parquet_table(
     ...     }
     ... )
 
-    Reading Parquet Table in chunks
+    Reading Parquet Table in chunks (Chunk by file)
 
     >>> import awswrangler as wr
     >>> dfs = wr.s3.read_parquet_table(database='...', table='...', chunked=True)
     >>> for df in dfs:
     >>>     print(df)  # Smaller Pandas DataFrame
+
+    Reading in chunks (Chunk by 1MM rows)
+
+    >>> import awswrangler as wr
+    >>> dfs = wr.s3.read_parquet(path=['s3://bucket/filename0.csv', 's3://bucket/filename1.csv'], chunked=1_000_000)
+    >>> for df in dfs:
+    >>>     print(df)  # 1MM Pandas DataFrame
 
     """
     path: str = catalog.get_table_location(database=database, table=table, boto3_session=boto3_session)
