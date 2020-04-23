@@ -211,8 +211,10 @@ def test_torch_audio_s3(bucket):
 
 
 @pytest.mark.parametrize("drop_last", [True, False])
-def test_torch_s3_iterable_dataset(bucket, drop_last):
-    folder = "test_torch_s3_iterable_dataset"
+def test_torch_s3_iterable(bucket, drop_last):
+    folder = "test_torch_s3_iterable"
+    path = f"s3://{bucket}/{folder}/"
+    wr.s3.delete_objects(path=path)
     batch_size = 32
     client_s3 = boto3.client("s3")
     for i in range(3):
@@ -241,7 +243,9 @@ def test_torch_s3_iterable_dataset(bucket, drop_last):
 
 @pytest.mark.parametrize("drop_last", [True, False])
 def test_torch_s3_iterable_with_labels(bucket, drop_last):
-    folder = "test_torch_s3_iterable_dataset"
+    folder = "test_torch_s3_iterable_with_labels"
+    path = f"s3://{bucket}/{folder}/"
+    wr.s3.delete_objects(path=path)
     batch_size = 32
     client_s3 = boto3.client("s3")
     for i in range(3):
@@ -268,9 +272,9 @@ def test_torch_s3_iterable_with_labels(bucket, drop_last):
         if drop_last:
             assert images.shape == torch.Size([batch_size, 3, 32, 32])
             assert labels.dtype == torch.int64
-            assert labels.size == torch.Size([batch_size, 1])
+            assert labels.shape == torch.Size([batch_size])
 
         else:
             assert images[0].shape == torch.Size([3, 32, 32])
-            assert labels.dtype == torch.int64
-            assert labels.size == torch.Size([1])
+            assert labels[0].dtype == torch.int64
+            assert labels[0].shape == torch.Size([])

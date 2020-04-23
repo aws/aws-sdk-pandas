@@ -336,7 +336,7 @@ class S3IterableDataset(_BaseS3Dataset, IterableDataset):
             if isinstance(data, torch.Tensor):
                 pass
             elif isinstance(data, Iterable) and all([isinstance(d, torch.Tensor) for d in data]):
-                data = zip(data)
+                data = zip(*data)
             else:
                 raise NotImplementedError(f"ERROR: Type: {type(data)} has not been implemented!")
 
