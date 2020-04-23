@@ -237,3 +237,40 @@ def test_torch_s3_iterable_dataset(bucket, drop_last):
             assert image.shape == torch.Size([batch_size, 3, 32, 32])
         else:
             assert image[0].shape == torch.Size([3, 32, 32])
+
+
+@pytest.mark.parametrize("drop_last", [True, False])
+def test_torch_s3_iterable_with_labels(bucket, drop_last):
+    folder = "test_torch_s3_iterable_dataset"
+    batch_size = 32
+    client_s3 = boto3.client("s3")
+    for i in range(3):
+        batch = (
+            torch.randn(100, 3, 32, 32),
+            torch.randint(2, size=(100,)),
+        )
+        buff = io.BytesIO()
+        torch.save(batch, buff)
+        buff.seek(0)
+        client_s3.put_object(
+            Body=buff.read(),
+            Bucket=bucket,
+            Key=f"{folder}/file{i}.pt",
+        )
+
+    for images, labels in DataLoader(
+        wr.torch.S3IterableDataset(
+            path=f"s3://{bucket}/{folder}",
+        ),
+        batch_size=batch_size,
+        drop_last=drop_last,
+    ):
+        if drop_last:
+            assert images.shape == torch.Size([batch_size, 3, 32, 32])
+            assert labels.dtype == torch.int64
+            assert labels.size == torch.Size([batch_size, 1])
+
+        else:
+            assert images[0].shape == torch.Size([3, 32, 32])
+            assert labels.dtype == torch.int64
+            assert labels.size == torch.Size([1])

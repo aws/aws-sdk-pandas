@@ -5,6 +5,7 @@ import os
 import tarfile
 import pathlib
 import re
+from collections import Iterable
 from io import BytesIO
 from typing import Any, Callable, Iterator, List, Optional, Tuple, Union
 
@@ -331,8 +332,18 @@ class S3IterableDataset(_BaseS3Dataset, IterableDataset):
         for path in self._paths:
             data = self._fetch_data(path)
             data = self._load_data(data, path)
+
+            if isinstance(data, torch.Tensor):
+                pass
+            elif isinstance(data, Iterable) and all([isinstance(d, torch.Tensor) for d in data]):
+                data = zip(data)
+            else:
+                raise NotImplementedError(f"ERROR: Type: {type(data)} has not been implemented!")
+
             for d in data:
                 yield d
+
+
 
 
 class SQLDataset(IterableDataset):  # pylint: disable=too-few-public-methods,abstract-method
