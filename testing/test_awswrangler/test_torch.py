@@ -63,7 +63,7 @@ def parameters(cloudformation_outputs):
 @pytest.mark.parametrize("db_type", ["mysql", "redshift", "postgresql"])
 def test_torch_sql(parameters, db_type, chunksize):
     schema = parameters[db_type]["schema"]
-    table = "test_torch_sql"
+    table = f"test_torch_sql_{db_type}_{str(chunksize).lower()}"
     engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-{db_type}")
     wr.db.to_sql(
         df=pd.DataFrame({"a": [1.0, 2.0, 3.0], "b": [4.0, 5.0, 6.0]}),
@@ -86,7 +86,7 @@ def test_torch_sql(parameters, db_type, chunksize):
 @pytest.mark.parametrize("db_type", ["mysql", "redshift", "postgresql"])
 def test_torch_sql_label(parameters, db_type, chunksize):
     schema = parameters[db_type]["schema"]
-    table = "test_torch_sql_label"
+    table = f"test_torch_sql_label_{db_type}_{str(chunksize).lower()}"
     engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-{db_type}")
     wr.db.to_sql(
         df=pd.DataFrame({"a": [1.0, 2.0, 3.0], "b": [4.0, 5.0, 6.0], "c": [7, 8, 9]}),
@@ -109,14 +109,15 @@ def test_torch_sql_label(parameters, db_type, chunksize):
 
 
 def test_torch_image_s3(bucket):
-    path = f"s3://{bucket}/test_torch_image_s3/"
+    folder = "test_torch_image_s3"
+    path = f"s3://{bucket}/{folder}/"
     wr.s3.delete_objects(path=path, boto3_session=boto3.Session())
     s3 = boto3.client("s3")
     ref_label = 0
     s3.put_object(
         Body=open("docs/source/_static/logo.png", "rb").read(),
         Bucket=bucket,
-        Key=f"test_torch_image_s3/class={ref_label}/logo.png",
+        Key=f"{folder}/class={ref_label}/logo.png",
         ContentType="image/png",
     )
     ds = wr.torch.ImageS3Dataset(path=path, suffix="png", boto3_session=boto3.Session())
@@ -127,8 +128,9 @@ def test_torch_image_s3(bucket):
 
 
 @pytest.mark.parametrize("drop_last", [True, False])
-def test_torch_image_s3_dataloader(bucket, drop_last):
-    path = f"s3://{bucket}/test_torch_image_s3_dataloader/"
+def test_torch_image_s3(bucket, drop_last):
+    folder = f"test_torch_image_s3_{str(drop_last).lower()}"
+    path = f"s3://{bucket}/{folder}/"
     wr.s3.delete_objects(path=path)
     client_s3 = boto3.client("s3")
     labels = np.random.randint(0, 4, size=(8,))
@@ -136,7 +138,7 @@ def test_torch_image_s3_dataloader(bucket, drop_last):
         client_s3.put_object(
             Body=open("./docs/source/_static/logo.png", "rb").read(),
             Bucket=bucket,
-            Key=f"test_torch_image_s3_dataloader/class={label}/logo{i}.png",
+            Key=f"{folder}/class={label}/logo{i}.png",
             ContentType="image/png",
         )
     ds = wr.torch.ImageS3Dataset(path=path, suffix="png", boto3_session=boto3.Session())
@@ -181,14 +183,15 @@ def test_torch_audio_s3(bucket):
     audio = torch.randint(low=-25, high=25, size=size) / 100.0
     audio_file = "/tmp/amazing_sound.wav"
     torchaudio.save(audio_file, audio, 8_000)
-    path = f"s3://{bucket}/test_torch_audio_s3/"
-    wr.s3.delete_objects(path=path, boto3_session=boto3.Session())
+    folder = "test_torch_audio_s3"
+    path = f"s3://{bucket}/{folder}/"
+    wr.s3.delete_objects(path=path)
     s3 = boto3.client("s3")
     ref_label = 0
     s3.put_object(
         Body=open(audio_file, "rb").read(),
         Bucket=bucket,
-        Key=f"test_torch_audio_s3/class={ref_label}/amazing_sound.wav",
+        Key=f"{folder}/class={ref_label}/amazing_sound.wav",
         ContentType="audio/wav",
     )
     s3_audio_file = f"{bucket}/test_torch_audio_s3/class={ref_label}/amazing_sound.wav"
@@ -196,6 +199,7 @@ def test_torch_audio_s3(bucket):
     loader = DataLoader(ds, batch_size=1)
     for (audio, rate), label in loader:
         assert audio.shape == torch.Size((1, *size))
+    wr.s3.delete_objects(path=path)
 
 
 # def test_torch_s3_file_dataset(bucket):
@@ -212,7 +216,7 @@ def test_torch_audio_s3(bucket):
 
 @pytest.mark.parametrize("drop_last", [True, False])
 def test_torch_s3_iterable(bucket, drop_last):
-    folder = "test_torch_s3_iterable"
+    folder = f"test_torch_s3_iterable_{str(drop_last).lower()}"
     path = f"s3://{bucket}/{folder}/"
     wr.s3.delete_objects(path=path)
     batch_size = 32
@@ -230,7 +234,7 @@ def test_torch_s3_iterable(bucket, drop_last):
 
     for image in DataLoader(
         wr.torch.S3IterableDataset(
-            path=f"s3://{bucket}/{folder}",
+            path=f"s3://{bucket}/{folder}/file",
         ),
         batch_size=batch_size,
         drop_last=drop_last,
@@ -240,10 +244,12 @@ def test_torch_s3_iterable(bucket, drop_last):
         else:
             assert image[0].shape == torch.Size([3, 32, 32])
 
+    wr.s3.delete_objects(path=path)
+
 
 @pytest.mark.parametrize("drop_last", [True, False])
 def test_torch_s3_iterable_with_labels(bucket, drop_last):
-    folder = "test_torch_s3_iterable_with_labels"
+    folder = f"test_torch_s3_iterable_with_labels_{str(drop_last).lower()}"
     path = f"s3://{bucket}/{folder}/"
     wr.s3.delete_objects(path=path)
     batch_size = 32
@@ -264,7 +270,7 @@ def test_torch_s3_iterable_with_labels(bucket, drop_last):
 
     for images, labels in DataLoader(
         wr.torch.S3IterableDataset(
-            path=f"s3://{bucket}/{folder}",
+            path=f"s3://{bucket}/{folder}/file",
         ),
         batch_size=batch_size,
         drop_last=drop_last,
@@ -278,3 +284,6 @@ def test_torch_s3_iterable_with_labels(bucket, drop_last):
             assert images[0].shape == torch.Size([3, 32, 32])
             assert labels[0].dtype == torch.int64
             assert labels[0].shape == torch.Size([])
+
+    wr.s3.delete_objects(path=path)
+

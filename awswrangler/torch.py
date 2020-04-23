@@ -113,49 +113,54 @@ class _ListS3Dataset(_BaseS3Dataset, Dataset):
 class _S3PartitionedDataset(_ListS3Dataset):
     """PyTorch Amazon S3 Map-Style Partitioned Dataset."""
 
-    def _label_fn(self, path: str):
-        return int(re.findall(r"/(.*?)=(.*?)/", path)[-1][1])
+    def _label_fn(self, path: str) -> torch.Tensor:
+        label = int(re.findall(r"/(.*?)=(.*?)/", path)[-1][1])
+        return torch.tensor([label])
 
 
-class S3FilesDataset(_BaseS3Dataset, Dataset):
-    """PyTorch Amazon S3 Files Map-Style Dataset."""
-
-    def __init__(
-        self, path: Union[str, List[str]], suffix: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
-    ):
-        """PyTorch S3 Files Map-Style Dataset.
-
-        Each file under Amazon S3 path would be handled as a batch of tensors.
-        All files will be loaded to memory since random access is needed.
-
-        Parameters
-        ----------
-        path : Union[str, List[str]]
-            S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
-        boto3_session : boto3.Session(), optional
-            Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-
-        Returns
-        -------
-        torch.utils.data.Dataset
-
-        """
-        super(S3FilesDataset, self).__init__(path, suffix, boto3_session)
-
-    def _download_files(self):
-        self._data = []
-        for path in self._paths:
-            data = self._fetch_data(path)
-            data = self._load_data(data, path)
-            self._data.append(data)
-
-        self.data = torch.tensor(self._data)
-
-    def __getitem__(self, index):
-        return self._data[index]
-
-    def __len__(self):
-        return len(self._data)
+# class S3FilesDataset(_BaseS3Dataset, Dataset):
+#     """PyTorch Amazon S3 Files Map-Style Dataset."""
+#
+#     def __init__(
+#         self, path: Union[str, List[str]], suffix: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
+#     ):
+#         """PyTorch S3 Files Map-Style Dataset.
+#
+#         Each file under Amazon S3 path would be handled as a tensor or batch of tensors.
+#
+#         Note
+#         ----
+#         All files will be loaded to memory since random access is needed.
+#
+#         Parameters
+#         ----------
+#         path : Union[str, List[str]]
+#             S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+#         boto3_session : boto3.Session(), optional
+#             Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+#
+#         Returns
+#         -------
+#         torch.utils.data.Dataset
+#
+#         """
+#         super(S3FilesDataset, self).__init__(path, suffix, boto3_session)
+#         self._download_files()
+#
+#     def _download_files(self) -> None:
+#         self._data = []
+#         for path in self._paths:
+#             data = self._fetch_data(path)
+#             data = self._load_data(data, path)
+#             self._data.append(data)
+#
+#         self.data = torch.cat(self._data, dim=0)
+#
+#     def __getitem__(self, index):
+#         return self._data[index]
+#
+#     def __len__(self):
+#         return len(self._data)
 
 
 class LambdaS3Dataset(_ListS3Dataset):
@@ -169,7 +174,7 @@ class LambdaS3Dataset(_ListS3Dataset):
         suffix: Optional[str] = None,
         boto3_session: Optional[boto3.Session] = None,
     ):
-        """PyTorch S3 Lambda Dataset.
+        """PyTorch Amazon S3 Lambda Dataset.
 
         Parameters
         ----------
@@ -184,22 +189,24 @@ class LambdaS3Dataset(_ListS3Dataset):
 
         Examples
         --------
+        >>> import re
+        >>> import torch
         >>> import awswrangler as wr
-        >>> import boto3
-        >>> _data_fn = lambda x: torch.tensor(x)
-        >>> _label_fn = lambda x: x.split('.')[-1]
-        >>> ds = wr.torch.LambdaS3Dataset('s3://bucket/path', boto3.Session(), _data_fn=_data_fn, _label_fn=_label_fn)
+        >>> ds = wr.torch.LambdaS3Dataset(
+        >>>     's3://bucket/path',
+        >>>     data_fn=lambda x: torch.load(x),
+        >>>     label_fn=lambda x: torch.Tensor(int(re.findall(r"/class=(.*?)/", x)[-1])),
+        >>> )
 
         """
         super(LambdaS3Dataset, self).__init__(path, suffix, boto3_session)
         self._data_func = data_fn
         self._label_func = label_fn
 
-    def _label_fn(self, path: str):
+    def _label_fn(self, path: str) -> torch.Tensor:
         return self._label_func(path)
 
-    def _data_fn(self, data):
-        print(type(data))
+    def _data_fn(self, data) -> torch.Tensor:
         return self._data_func(data)
 
 
@@ -213,17 +220,26 @@ class AudioS3Dataset(_S3PartitionedDataset):
         suffix: Optional[str] = None,
         boto3_session: Optional[boto3.Session] = None,
     ):
-        """PyTorch S3 Audio Dataset.
+        """PyTorch Amazon S3 Audio Dataset.
 
-        Assumes audio files are stored with the following structure:
+        Read individual WAV audio files stores in Amazon S3 and return
+        them as torch tensors.
 
-        bucket
-        ├── class=0
-        │   ├── audio0.wav
-        │   └── audio1.wav
-        └── class=1
-            ├── audio2.wav
-            └── audio3.wav
+        Note
+        ----
+
+        This dataset assumes audio files are stored with the following structure:
+
+
+        ::
+
+            bucket
+            ├── class=0
+            │   ├── audio0.wav
+            │   └── audio1.wav
+            └── class=1
+                ├── audio2.wav
+                └── audio3.wav
 
         Parameters
         ----------
@@ -238,9 +254,39 @@ class AudioS3Dataset(_S3PartitionedDataset):
 
         Examples
         --------
+
+        Create a Audio S3 Dataset
+
         >>> import awswrangler as wr
-        >>> import boto3
-        >>> ds = wr.torch.AudioS3Dataset('s3://bucket/path', boto3.Session())
+        >>> ds = wr.torch.AudioS3Dataset('s3://bucket/path')
+
+
+        Training a Model
+
+        >>> criterion = CrossEntropyLoss().to(device)
+        >>> opt = SGD(model.parameters(), 0.025)
+        >>> loader = DataLoader(dataset, batch_size=batch_size, num_workers=num_workers)
+        >>>
+        >>> for epoch in range(epochs):
+        >>>
+        >>>     correct = 0
+        >>>     model.train()
+        >>>     for i, (inputs, labels) in enumerate(loader):
+        >>>
+        >>>         # Forward Pass
+        >>>         outputs = model(inputs)
+        >>>
+        >>>         # Backward Pass
+        >>>         loss = criterion(outputs, labels)
+        >>>         loss.backward()
+        >>>         opt.step()
+        >>>         opt.zero_grad()
+        >>>
+        >>>         # Accuracy
+        >>>         _, predicted = torch.max(outputs.data, 1)
+        >>>         correct += (predicted == labels).sum().item()
+        >>>         accuracy = 100 * correct / ((i+1) * batch_size)
+        >>>         print(f'batch: {i} loss: {loss.mean().item():.4f} acc: {accuracy:.2f}')
 
         """
         super(AudioS3Dataset, self).__init__(path, suffix, boto3_session)
@@ -261,20 +307,28 @@ class AudioS3Dataset(_S3PartitionedDataset):
 
 
 class ImageS3Dataset(_S3PartitionedDataset):
-    """PyTorch S3 Image Dataset."""
+    """PyTorch Amazon S3 Image Dataset."""
 
     def __init__(self, path: Union[str, List[str]], suffix: str, boto3_session: boto3.Session):
-        """PyTorch S3 Image Dataset.
+        """PyTorch Amazon S3 Image Dataset.
 
+        ImageS3Dataset assumes images are patitioned (within class=<value> folders) in Amazon S3.
+        Each lisited object will be loaded by default Pillow library.
+
+        Note
+        ----
         Assumes Images are stored with the following structure:
 
-        bucket
-        ├── class=0
-        │   ├── img0.jpeg
-        │   └── img1.jpeg
-        └── class=1
-            ├── img2.jpeg
-            └── img3.jpeg
+
+        ::
+
+            bucket
+            ├── class=0
+            │   ├── img0.jpeg
+            │   └── img1.jpeg
+            └── class=1
+                ├── img2.jpeg
+                └── img3.jpeg
 
         Parameters
         ----------
@@ -290,13 +344,12 @@ class ImageS3Dataset(_S3PartitionedDataset):
         Examples
         --------
         >>> import awswrangler as wr
-        >>> import boto3
-        >>> ds = wr.torch.ImageS3Dataset('s3://bucket/path', boto3.Session())
+        >>> ds = wr.torch.ImageS3Dataset('s3://bucket/path')
 
         """
         super(ImageS3Dataset, self).__init__(path, suffix, boto3_session)
 
-    def _data_fn(self, data):
+    def _data_fn(self, data: io.BytesIO) -> torch.Tensor:
         image = Image.open(data)
         tensor = to_tensor(image)
         return tensor
@@ -324,9 +377,13 @@ class S3IterableDataset(_BaseS3Dataset, IterableDataset):
         -------
         torch.utils.data.Dataset
 
+        Examples
+        --------
+        >>> import awswrangler as wr
+        >>> ds = wr.torch.S3IterableDataset('s3://bucket/path')
+
         """
         super(S3IterableDataset, self).__init__(path, suffix, boto3_session)
-        self._paths_index = 0
 
     def __iter__(self) -> Union[Iterator[torch.Tensor], Iterator[Tuple[torch.Tensor, torch.Tensor]]]:
         for path in self._paths:
@@ -342,8 +399,6 @@ class S3IterableDataset(_BaseS3Dataset, IterableDataset):
 
             for d in data:
                 yield d
-
-
 
 
 class SQLDataset(IterableDataset):  # pylint: disable=too-few-public-methods,abstract-method
