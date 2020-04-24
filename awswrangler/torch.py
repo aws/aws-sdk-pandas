@@ -1,11 +1,11 @@
 """PyTorch Module."""
-import logging
 import io
+import logging
 import os
-import tarfile
 import pathlib
 import re
-from collections import Iterable
+import tarfile
+from collections.abc import Iterable
 from io import BytesIO
 from typing import Any, Callable, Iterator, List, Optional, Tuple, Union
 
@@ -49,8 +49,8 @@ class _BaseS3Dataset:
             path=path, suffix=suffix, boto3_session=self._session
         )
 
-    def _fetch_data(self, path: str):
-        """Add parquet and csv support"""
+    def _fetch_data(self, path: str) -> Any:
+        """Add parquet and csv support."""
         bucket, key = _utils.parse_path(path=path)
         buff = BytesIO()
         client_s3: boto3.client = _utils.client(service_name="s3", session=self._session)
@@ -59,41 +59,22 @@ class _BaseS3Dataset:
         return buff
 
     @staticmethod
-    def _load_data(data: io.BytesIO, path: str):
-        if path.endswith('.tar.gz') or path.endswith('.tgz'):
-            pass
-            # tarfile.open(fileobj=data)
+    def _load_data(data: io.BytesIO, path: str) -> Any:
+        if path.endswith(".pt"):
+            data = torch.load(data)
+        elif path.endswith(".tar.gz") or path.endswith(".tgz"):
+            tarfile.open(fileobj=data)
+            raise NotImplementedError("Tar loader not implemented!")
             # tar = tarfile.open(fileobj=data)
             # for member in tar.getmembers():
-            #     print('member', member)
-        elif path.endswith('.pt'):
-            data = torch.load(data)
+        else:
+            raise NotImplementedError()
+
         return data
 
 
 class _ListS3Dataset(_BaseS3Dataset, Dataset):
     """PyTorch Amazon S3 Map-Style List Dataset."""
-
-    def __init__(
-        self, path: Union[str, List[str]], suffix: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
-    ):
-        """PyTorch Map-Style List S3 Dataset.
-
-        Each file under path would be handle as a single tensor.
-
-        Parameters
-        ----------
-        path : Union[str, List[str]]
-            S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
-        boto3_session : boto3.Session(), optional
-            Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-
-        Returns
-        -------
-        torch.utils.data.Dataset
-
-        """
-        super(_ListS3Dataset, self).__init__(path, suffix, boto3_session)
 
     def __getitem__(self, index):
         path = self._paths[index]
@@ -103,10 +84,10 @@ class _ListS3Dataset(_BaseS3Dataset, Dataset):
     def __len__(self):
         return len(self._paths)
 
-    def _data_fn(self, data):
+    def _data_fn(self, data) -> Any:
         pass
 
-    def _label_fn(self, path: str):
+    def _label_fn(self, path: str) -> Any:
         pass
 
 
@@ -115,7 +96,7 @@ class _S3PartitionedDataset(_ListS3Dataset):
 
     def _label_fn(self, path: str) -> torch.Tensor:
         label = int(re.findall(r"/(.*?)=(.*?)/", path)[-1][1])
-        return torch.tensor([label])
+        return torch.tensor([label])  # pylint: disable=not-callable
 
 
 # class S3FilesDataset(_BaseS3Dataset, Dataset):
@@ -135,7 +116,8 @@ class _S3PartitionedDataset(_ListS3Dataset):
 #         Parameters
 #         ----------
 #         path : Union[str, List[str]]
-#             S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+#             S3 prefix (e.g. s3://bucket/prefix) or
+#             list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
 #         boto3_session : boto3.Session(), optional
 #             Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 #
@@ -227,7 +209,6 @@ class AudioS3Dataset(_S3PartitionedDataset):
 
         Note
         ----
-
         This dataset assumes audio files are stored with the following structure:
 
 
@@ -254,7 +235,6 @@ class AudioS3Dataset(_S3PartitionedDataset):
 
         Examples
         --------
-
         Create a Audio S3 Dataset
 
         >>> import awswrangler as wr
@@ -349,43 +329,35 @@ class ImageS3Dataset(_S3PartitionedDataset):
         """
         super(ImageS3Dataset, self).__init__(path, suffix, boto3_session)
 
-    def _data_fn(self, data: io.BytesIO) -> torch.Tensor:
+    def _data_fn(self, data: io.BytesIO) -> Any:
         image = Image.open(data)
         tensor = to_tensor(image)
         return tensor
 
 
-class S3IterableDataset(_BaseS3Dataset, IterableDataset):
-    """PyTorch Amazon S3 Iterable Dataset."""
+class S3IterableDataset(IterableDataset, _BaseS3Dataset):  # pylint: disable=abstract-method
+    """PyTorch Amazon S3 Iterable Dataset.
 
-    def __init__(
-        self,
-        path: Union[str, List[str]],
-        suffix: Optional[str] = None,
-        boto3_session: Optional[boto3.Session] = None,
-    ):
-        """PyTorch Amazon S3 Iterable Dataset.
+    Parameters
+    ----------
+    path : Union[str, List[str]]
+        S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
-        Parameters
-        ----------
-        path : Union[str, List[str]]
-            S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
-        boto3_session : boto3.Session(), optional
-            Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    Returns
+    -------
+    torch.utils.data.Dataset
 
-        Returns
-        -------
-        torch.utils.data.Dataset
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> ds = wr.torch.S3IterableDataset('s3://bucket/path')
 
-        Examples
-        --------
-        >>> import awswrangler as wr
-        >>> ds = wr.torch.S3IterableDataset('s3://bucket/path')
-
-        """
-        super(S3IterableDataset, self).__init__(path, suffix, boto3_session)
+    """
 
     def __iter__(self) -> Union[Iterator[torch.Tensor], Iterator[Tuple[torch.Tensor, torch.Tensor]]]:
+        """Iterate over data returning tensors or expanding Iterables."""
         for path in self._paths:
             data = self._fetch_data(path)
             data = self._load_data(data, path)

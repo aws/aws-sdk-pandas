@@ -1,6 +1,6 @@
 import io
-import re
 import logging
+import re
 
 import boto3
 import numpy as np
@@ -128,8 +128,8 @@ def test_torch_image_s3(bucket):
 
 
 @pytest.mark.parametrize("drop_last", [True, False])
-def test_torch_image_s3(bucket, drop_last):
-    folder = f"test_torch_image_s3_{str(drop_last).lower()}"
+def test_torch_image_s3_loader(bucket, drop_last):
+    folder = f"test_torch_image_s3_loader_{str(drop_last).lower()}"
     path = f"s3://{bucket}/{folder}/"
     wr.s3.delete_objects(path=path)
     client_s3 = boto3.client("s3")
@@ -146,7 +146,11 @@ def test_torch_image_s3(bucket, drop_last):
     num_train = len(ds)
     indices = list(range(num_train))
     loader = DataLoader(
-        ds, batch_size=batch_size, num_workers=4, sampler=torch.utils.data.sampler.RandomSampler(indices), drop_last=drop_last
+        ds,
+        batch_size=batch_size,
+        num_workers=4,
+        sampler=torch.utils.data.sampler.RandomSampler(indices),
+        drop_last=drop_last,
     )
     for i, (image, label) in enumerate(loader):
         assert image.shape == torch.Size([batch_size, 4, 494, 1636])
@@ -226,18 +230,10 @@ def test_torch_s3_iterable(bucket, drop_last):
         buff = io.BytesIO()
         torch.save(batch, buff)
         buff.seek(0)
-        client_s3.put_object(
-            Body=buff.read(),
-            Bucket=bucket,
-            Key=f"{folder}/file{i}.pt",
-        )
+        client_s3.put_object(Body=buff.read(), Bucket=bucket, Key=f"{folder}/file{i}.pt")
 
     for image in DataLoader(
-        wr.torch.S3IterableDataset(
-            path=f"s3://{bucket}/{folder}/file",
-        ),
-        batch_size=batch_size,
-        drop_last=drop_last,
+        wr.torch.S3IterableDataset(path=f"s3://{bucket}/{folder}/file"), batch_size=batch_size, drop_last=drop_last
     ):
         if drop_last:
             assert image.shape == torch.Size([batch_size, 3, 32, 32])
@@ -255,25 +251,14 @@ def test_torch_s3_iterable_with_labels(bucket, drop_last):
     batch_size = 32
     client_s3 = boto3.client("s3")
     for i in range(3):
-        batch = (
-            torch.randn(100, 3, 32, 32),
-            torch.randint(2, size=(100,)),
-        )
+        batch = (torch.randn(100, 3, 32, 32), torch.randint(2, size=(100,)))
         buff = io.BytesIO()
         torch.save(batch, buff)
         buff.seek(0)
-        client_s3.put_object(
-            Body=buff.read(),
-            Bucket=bucket,
-            Key=f"{folder}/file{i}.pt",
-        )
+        client_s3.put_object(Body=buff.read(), Bucket=bucket, Key=f"{folder}/file{i}.pt")
 
     for images, labels in DataLoader(
-        wr.torch.S3IterableDataset(
-            path=f"s3://{bucket}/{folder}/file",
-        ),
-        batch_size=batch_size,
-        drop_last=drop_last,
+        wr.torch.S3IterableDataset(path=f"s3://{bucket}/{folder}/file"), batch_size=batch_size, drop_last=drop_last
     ):
         if drop_last:
             assert images.shape == torch.Size([batch_size, 3, 32, 32])
@@ -286,4 +271,3 @@ def test_torch_s3_iterable_with_labels(bucket, drop_last):
             assert labels[0].shape == torch.Size([])
 
     wr.s3.delete_objects(path=path)
-
