@@ -120,7 +120,7 @@ def create_parquet_table(
     columns_comments: Dict[str, str], optional
         Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
     mode: str
-        'overwrite' to recreate any possible axisting table or 'append' to keep any possible axisting table.
+        'overwrite' to recreate any possible existing table or 'append' to keep any possible existing table.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -967,11 +967,11 @@ def _create_table(
             if name in columns_comments:
                 par["Comment"] = columns_comments[name]
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    exist: bool = does_table_exist(database=database, table=table, boto3_session=session)
-    if (mode == "overwrite") or (exist is False):
+
+    if mode == "overwrite":
         delete_table_if_exists(database=database, table=table, boto3_session=session)
-        client_glue: boto3.client = _utils.client(service_name="glue", session=session)
-        client_glue.create_table(DatabaseName=database, TableInput=table_input)
+    client_glue: boto3.client = _utils.client(service_name="glue", session=session)
+    client_glue.create_table(DatabaseName=database, TableInput=table_input)
 
 
 def _csv_table_definition(
