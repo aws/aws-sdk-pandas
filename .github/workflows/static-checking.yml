@@ -30,7 +30,7 @@ jobs:
     - name: CloudFormation Lint
       run: cfn-lint -t testing/cloudformation.yaml
     - name: Documentation Lint
-      run: pydocstyle awswrangler/ --add-ignore=D204
+      run: pydocstyle awswrangler/ --add-ignore=D204,D403
     - name: mypy check
       run: mypy awswrangler
     - name: Flake8 Lint
