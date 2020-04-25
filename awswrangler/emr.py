@@ -7,12 +7,76 @@ from typing import Any, Dict, List, Optional, Union
 
 import boto3  # type: ignore
 
-from awswrangler import _utils
+from awswrangler import _utils, exceptions
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
+def _get_default_logging_path(
+    subnet_id: Optional[str] = None,
+    account_id: Optional[str] = None,
+    region: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> str:
+    """Get EMR default logging path.
+
+    E.g. "s3://aws-logs-{account_id}-{region}/elasticmapreduce/"
+
+    Parameters
+    ----------
+    subnet_id : str, optional
+        Subnet ID. If not provided, you must pass `account_id` and `region` explicit.
+    account_id: str, optional
+        Account ID.
+    region: str, optional
+        Region e.g. 'us-east-1'
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    str
+        Default logging path.
+        E.g. "s3://aws-logs-{account_id}-{region}/elasticmapreduce/"
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> state = wr.emr._get_default_logging_path("subnet-id")
+    's3://aws-logs-{account_id}-{region}/elasticmapreduce/'
+
+    """
+    if account_id is None:
+        boto3_session = _utils.ensure_session(session=boto3_session)
+        _account_id: str = _utils.get_account_id(boto3_session=boto3_session)
+    else:
+        _account_id = account_id
+    if (region is None) and (subnet_id is not None):
+        boto3_session = _utils.ensure_session(session=boto3_session)
+        _region: str = _utils.get_region_from_subnet(subnet_id=subnet_id, boto3_session=boto3_session)
+    elif (region is None) and (subnet_id is None):
+        raise exceptions.InvalidArgumentCombination("You must pass region or subnet_id or both.")
+    else:
+        _region = region  # type: ignore
+    return f"s3://aws-logs-{_account_id}-{_region}/elasticmapreduce/"
+
+
+def _get_ecr_credentials_command() -> str:
+    return (
+        "sudo -s eval $(aws ecr get-login --region us-east-1 --no-include-email) && "
+        "sudo hdfs dfs -put -f /root/.docker/config.json /user/hadoop/"
+    )
+
+
 def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-statements
+    account_id: str = _utils.get_account_id(boto3_session=pars["boto3_session"])
+    region: str = _utils.get_region_from_subnet(subnet_id=pars["subnet_id"], boto3_session=pars["boto3_session"])
+
+    # S3 Logging path
+    if pars.get("logging_s3_path") is None:
+        pars["logging_s3_path"] = _get_default_logging_path(
+            subnet_id=None, account_id=account_id, region=region, boto3_session=pars["boto3_session"]
+        )
 
     spark_env: Optional[Dict[str, str]] = None
     yarn_env: Optional[Dict[str, str]] = None
@@ -20,25 +84,25 @@ def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-s
 
     if pars["spark_pyarrow"] is True:
         if pars["spark_defaults"] is None:
-            pars["spark_defaults"]: Dict[str, str] = {"spark.sql.execution.arrow.enabled": "true"}
+            pars["spark_defaults"] = {"spark.sql.execution.arrow.enabled": "true"}
         else:  # pragma: no cover
-            pars["spark_defaults"]["spark.sql.execution.arrow.enabled"]: str = "true"
+            pars["spark_defaults"]["spark.sql.execution.arrow.enabled"] = "true"
         spark_env = {"ARROW_PRE_0_15_IPC_FORMAT": "1"}
         yarn_env = {"ARROW_PRE_0_15_IPC_FORMAT": "1"}
         livy_env = {"ARROW_PRE_0_15_IPC_FORMAT": "1"}
 
     if pars["python3"] is True:
         if spark_env is None:
-            spark_env: Dict[str, str] = {"PYSPARK_PYTHON": "/usr/bin/python3"}  # pragma: no cover
+            spark_env = {"PYSPARK_PYTHON": "/usr/bin/python3"}  # pragma: no cover
         else:
-            spark_env["PYSPARK_PYTHON"]: str = "/usr/bin/python3"
+            spark_env["PYSPARK_PYTHON"] = "/usr/bin/python3"
 
     if pars["spark_jars_path"] is not None:
         paths: str = ",".join(pars["spark_jars_path"])
         if pars["spark_defaults"] is None:  # pragma: no cover
-            pars["spark_defaults"]: Dict[str, str] = {"spark.jars": paths}
+            pars["spark_defaults"] = {"spark.jars": paths}
         else:
-            pars["spark_defaults"]["spark.jars"]: str = paths
+            pars["spark_defaults"]["spark.jars"] = paths
 
     args: Dict[str, Any] = {
         "Name": pars["cluster_name"],
@@ -72,9 +136,52 @@ def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-s
         args["Instances"]["ServiceAccessSecurityGroup"] = pars["security_group_service_access"]
 
     # Configurations
-    args["Configurations"]: List[Dict[str, Any]] = [
+    args["Configurations"] = [
         {"Classification": "spark-log4j", "Properties": {"log4j.rootCategory": f"{pars['spark_log_level']}, console"}}
     ]
+    if (pars["docker"] is True) or (pars["spark_docker"] is True) or (pars["hive_docker"] is True):
+        if pars.get("extra_registries") is None:
+            extra_registries: List[str] = []
+        else:  # pragma: no cover
+            extra_registries = pars["extra_registries"]
+        registries: str = f"local,centos,{account_id}.dkr.ecr.{region}.amazonaws.com,{','.join(extra_registries)}"
+        registries = registries[:-1] if registries.endswith(",") else registries
+        args["Configurations"].append(
+            {
+                "Classification": "container-executor",
+                "Properties": {},
+                "Configurations": [
+                    {
+                        "Classification": "docker",
+                        "Properties": {
+                            "docker.privileged-containers.registries": registries,
+                            "docker.trusted.registries": registries,
+                        },
+                        "Configurations": [],
+                    }
+                ],
+            }
+        )
+    if pars["spark_docker"] is True:
+        if pars.get("spark_docker_image") is None:  # pragma: no cover
+            raise exceptions.InvalidArgumentCombination("You must pass a spark_docker_image if spark_docker is True.")
+        pars["spark_defaults"] = {} if pars["spark_defaults"] is None else pars["spark_defaults"]
+        pars["spark_defaults"]["spark.executorEnv.YARN_CONTAINER_RUNTIME_TYPE"] = "docker"
+        pars["spark_defaults"][
+            "spark.executorEnv.YARN_CONTAINER_RUNTIME_DOCKER_CLIENT_CONFIG"
+        ] = "hdfs:///user/hadoop/config.json"
+        pars["spark_defaults"]["spark.executorEnv.YARN_CONTAINER_RUNTIME_DOCKER_IMAGE"] = pars["spark_docker_image"]
+        pars["spark_defaults"]["spark.executorEnv.YARN_CONTAINER_RUNTIME_DOCKER_MOUNTS"] = "/etc/passwd:/etc/passwd:ro"
+        pars["spark_defaults"]["spark.yarn.appMasterEnv.YARN_CONTAINER_RUNTIME_TYPE"] = "docker"
+        pars["spark_defaults"][
+            "spark.yarn.appMasterEnv.YARN_CONTAINER_RUNTIME_DOCKER_CLIENT_CONFIG"
+        ] = "hdfs:///user/hadoop/config.json"
+        pars["spark_defaults"]["spark.yarn.appMasterEnv.YARN_CONTAINER_RUNTIME_DOCKER_IMAGE"] = pars[
+            "spark_docker_image"
+        ]
+        pars["spark_defaults"][
+            "spark.yarn.appMasterEnv.YARN_CONTAINER_RUNTIME_DOCKER_MOUNTS"
+        ] = "/etc/passwd:/etc/passwd:ro"
     if spark_env is not None:
         args["Configurations"].append(
             {
@@ -109,16 +216,21 @@ def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-s
                 "Configurations": [],
             }
         )
+
+    hive_conf: Optional[Dict[str, Any]] = None
+    if (pars["hive_glue_catalog"] is True) or (pars["hive_docker"] is True):
+        hive_conf: Optional[Dict[str, Any]] = {"Classification": "hive-site", "Properties": {}, "Configurations": []}
+
     if pars["hive_glue_catalog"] is True:
-        args["Configurations"].append(
-            {
-                "Classification": "hive-site",
-                "Properties": {
-                    "hive.metastore.client.factory.class": "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory"  # noqa
-                },
-                "Configurations": [],
-            }
-        )
+        hive_conf["Properties"][
+            "hive.metastore.client.factory.class"
+        ] = "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory"
+    if pars["hive_docker"] is True:
+        hive_conf["Properties"]["hive.execution.mode"] = "container"
+
+    if hive_conf is not None:
+        args["Configurations"].append(hive_conf)
+
     if pars["presto_glue_catalog"] is True:
         args["Configurations"].append(
             {
@@ -147,20 +259,21 @@ def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-s
             "Properties": pars["spark_defaults"],
         }
         args["Configurations"].append(spark_defaults)
+    if pars.get("custom_classifications") is not None:
+        for c in pars["custom_classifications"]:
+            args["Configurations"].append(c)
 
     # Applications
     if pars["applications"]:
-        args["Applications"]: List[Dict[str, str]] = [{"Name": x} for x in pars["applications"]]
+        args["Applications"] = [{"Name": x} for x in pars["applications"]]
 
     # Bootstraps
     if pars["bootstraps_paths"]:  # pragma: no cover
-        args["BootstrapActions"]: List[Dict] = [
-            {"Name": x, "ScriptBootstrapAction": {"Path": x}} for x in pars["bootstraps_paths"]
-        ]
+        args["BootstrapActions"] = [{"Name": x, "ScriptBootstrapAction": {"Path": x}} for x in pars["bootstraps_paths"]]
 
     # Debugging and Steps
     if (pars["debugging"] is True) or (pars["steps"] is not None):
-        args["Steps"]: List[Dict[str, Any]] = []
+        args["Steps"] = []
         if pars["debugging"] is True:
             args["Steps"].append(
                 {
@@ -168,6 +281,17 @@ def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-s
                     "ActionOnFailure": "TERMINATE_CLUSTER",
                     "HadoopJarStep": {"Jar": "command-runner.jar", "Args": ["state-pusher-script"]},
                 }
+            )
+        if pars["ecr_credentials_step"] is True:
+            args["Steps"].append(
+                build_step(
+                    name="ECR Credentials Setup",
+                    command=_get_ecr_credentials_command(),
+                    action_on_failure="TERMINATE_CLUSTER",
+                    script=False,
+                    region=region,
+                    boto3_session=pars["boto3_session"],
+                )
             )
         if pars["steps"] is not None:
             args["Steps"] += pars["steps"]
@@ -199,7 +323,7 @@ def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-s
         ],
     }
     if pars["instance_num_spot_master"] > 0:  # pragma: no cover
-        fleet_master["LaunchSpecifications"]: Dict = {
+        fleet_master["LaunchSpecifications"] = {
             "SpotSpecification": {
                 "TimeoutDurationMinutes": pars["spot_provisioning_timeout_master"],
                 "TimeoutAction": timeout_action_master,
@@ -236,7 +360,7 @@ def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-s
             ],
         }
         if pars["instance_num_spot_core"] > 0:
-            fleet_core["LaunchSpecifications"]: Dict = {
+            fleet_core["LaunchSpecifications"] = {
                 "SpotSpecification": {
                     "TimeoutDurationMinutes": pars["spot_provisioning_timeout_core"],
                     "TimeoutAction": timeout_action_core,
@@ -275,7 +399,7 @@ def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-s
             ],
         }
         if pars["instance_num_spot_task"] > 0:
-            fleet_task["LaunchSpecifications"]: Dict = {
+            fleet_task["LaunchSpecifications"] = {
                 "SpotSpecification": {
                     "TimeoutDurationMinutes": pars["spot_provisioning_timeout_task"],
                     "TimeoutAction": timeout_action_task,
@@ -292,30 +416,30 @@ def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-s
 
 
 def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused-argument
-    cluster_name: str,
-    logging_s3_path: str,
-    emr_release: str,
     subnet_id: str,
-    emr_ec2_role: str,
-    emr_role: str,
-    instance_type_master: str,
-    instance_type_core: str,
-    instance_type_task: str,
-    instance_ebs_size_master: int,
-    instance_ebs_size_core: int,
-    instance_ebs_size_task: int,
-    instance_num_on_demand_master: int,
-    instance_num_on_demand_core: int,
-    instance_num_on_demand_task: int,
-    instance_num_spot_master: int,
-    instance_num_spot_core: int,
-    instance_num_spot_task: int,
-    spot_bid_percentage_of_on_demand_master: int,
-    spot_bid_percentage_of_on_demand_core: int,
-    spot_bid_percentage_of_on_demand_task: int,
-    spot_provisioning_timeout_master: int,
-    spot_provisioning_timeout_core: int,
-    spot_provisioning_timeout_task: int,
+    cluster_name: str = "my-emr-cluster",
+    logging_s3_path: Optional[str] = None,
+    emr_release: str = "emr-6.0.0",
+    emr_ec2_role: str = "EMR_EC2_DefaultRole",
+    emr_role: str = "EMR_DefaultRole",
+    instance_type_master: str = "r5.xlarge",
+    instance_type_core: str = "r5.xlarge",
+    instance_type_task: str = "r5.xlarge",
+    instance_ebs_size_master: int = 64,
+    instance_ebs_size_core: int = 64,
+    instance_ebs_size_task: int = 64,
+    instance_num_on_demand_master: int = 1,
+    instance_num_on_demand_core: int = 0,
+    instance_num_on_demand_task: int = 0,
+    instance_num_spot_master: int = 0,
+    instance_num_spot_core: int = 0,
+    instance_num_spot_task: int = 0,
+    spot_bid_percentage_of_on_demand_master: int = 100,
+    spot_bid_percentage_of_on_demand_core: int = 100,
+    spot_bid_percentage_of_on_demand_task: int = 100,
+    spot_provisioning_timeout_master: int = 5,
+    spot_provisioning_timeout_core: int = 5,
+    spot_provisioning_timeout_task: int = 5,
     spot_timeout_to_on_demand_master: bool = True,
     spot_timeout_to_on_demand_core: bool = True,
     spot_timeout_to_on_demand_task: bool = True,
@@ -337,10 +461,17 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
     security_group_slave: Optional[str] = None,
     security_groups_slave_additional: Optional[List[str]] = None,
     security_group_service_access: Optional[str] = None,
+    docker: bool = False,
     spark_log_level: str = "WARN",
     spark_jars_path: Optional[List[str]] = None,
     spark_defaults: Optional[Dict[str, str]] = None,
     spark_pyarrow: bool = False,
+    spark_docker: bool = False,
+    spark_docker_image: str = None,
+    hive_docker: bool = False,
+    ecr_credentials_step: bool = False,
+    extra_public_registries: Optional[List[str]] = None,
+    custom_classifications: Optional[List[Dict[str, Any]]] = None,
     maximize_resource_allocation: bool = False,
     steps: Optional[List[Dict[str, Any]]] = None,
     keep_cluster_alive_when_no_steps: bool = True,
@@ -354,18 +485,19 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
 
     Parameters
     ----------
+    subnet_id : str
+        VPC subnet ID.
     cluster_name : str
         Cluster name.
-    logging_s3_path : str
+    logging_s3_path : str, optional
         Logging s3 path (e.g. s3://BUCKET_NAME/DIRECTORY_NAME/).
+        If None, the default is `s3://aws-logs-{AccountId}-{RegionId}/elasticmapreduce/`
     emr_release : str
         EMR release (e.g. emr-5.28.0).
     emr_ec2_role : str
         IAM role name.
     emr_role : str
         IAM role name.
-    subnet_id : str
-        VPC subnet ID.
     instance_type_master : str
         EC2 instance type.
     instance_type_core : str
@@ -448,6 +580,7 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
         Debugging enabled?
     applications : List[str], optional
         List of applications (e.g ["Hadoop", "Spark", "Ganglia", "Hive"]).
+        If None, ["Spark"] will be considered.
     visible_to_all_users : bool
         True or False.
     key_pair_name : str, optional
@@ -465,6 +598,8 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
     security_group_service_access : str, optional
         The identifier of the Amazon EC2 security group for the Amazon EMR
         service to access clusters in VPC private subnets.
+    docker : bool
+        Enable Docker Hub and ECR registries access.
     spark_log_level : str
         log4j.rootCategory log level (ALL, DEBUG, INFO, WARN, ERROR, FATAL, OFF, TRACE).
     spark_jars_path : List[str], optional
@@ -475,6 +610,18 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
     spark_pyarrow : bool
         Enable PySpark to use PyArrow behind the scenes.
         P.S. You must install pyarrow by your self via bootstrap
+    spark_docker : bool = False
+        Add necessary Spark Defaults to run on Docker
+    spark_docker_image : str, optional
+        E.g. {ACCOUNT_ID}.dkr.ecr.{REGION}.amazonaws.com/{IMAGE_NAME}:{TAG}
+    hive_docker : bool
+        Add necessary configurations to run on Docker
+    ecr_credentials_step : bool
+        Add a extra step during the Cluster launch to retrieve ECR auth files.
+    extra_public_registries: List[str], optional
+        Additional registries.
+    custom_classifications: List[Dict[str, Any]], optional
+        Extra classifications.
     maximize_resource_allocation : bool
         Configure your executors to utilize the maximum resources possible
         https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark-configure.html#emr-spark-maximizeresourceallocation
@@ -500,6 +647,21 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
 
     Examples
     --------
+    Minimal Example
+
+    >>> cluster_id = wr.emr.create_cluster("SUBNET_ID")
+
+    Minimal Exmaple on Docker
+
+    >>> cluster_id = wr.emr.create_cluster(
+    >>>     subnet_id="SUBNET_ID",
+    >>>     spark_docker=True,
+    >>>     spark_docker_image="{ACCOUNT_ID}.dkr.ecr.{REGION}.amazonaws.com/{IMAGE_NAME}:{TAG}",
+    >>>     ecr_credentials_step=True
+    >>> )
+
+    Full Example
+
     >>> import awswrangler as wr
     >>> cluster_id = wr.emr.create_cluster(
     ...     cluster_name="wrangler_cluster",
@@ -548,6 +710,8 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
     ...     })
 
     """
+    applications = ["Spark"] if applications is None else applications
+    boto3_session = _utils.ensure_session(session=boto3_session)
     args: Dict[str, Any] = _build_cluster_args(**locals())
     client_emr: boto3.client = _utils.client(service_name="emr", session=boto3_session)
     response: Dict[str, Any] = client_emr.run_job_flow(**args)
@@ -647,8 +811,8 @@ def submit_steps(
 
 def submit_step(
     cluster_id: str,
-    name: str,
     command: str,
+    name: str = "my-step",
     action_on_failure: str = "CONTINUE",
     script: bool = False,
     boto3_session: Optional[boto3.Session] = None,
@@ -659,11 +823,11 @@ def submit_step(
     ----------
     cluster_id : str
         Cluster ID.
-    name : str
-        Step name.
     command : str
         e.g. 'echo "Hello!"'
         e.g. for script 's3://.../script.sh arg1 arg2'
+    name : str, optional
+        Step name.
     action_on_failure : str
         'TERMINATE_JOB_FLOW', 'TERMINATE_CLUSTER', 'CANCEL_AND_WAIT', 'CONTINUE'
     script : bool
@@ -698,26 +862,29 @@ def submit_step(
 
 
 def build_step(
-    name: str,
     command: str,
+    name: str = "my-step",
     action_on_failure: str = "CONTINUE",
     script: bool = False,
+    region: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, Any]:
     """Build the Step structure (dictionary).
 
     Parameters
     ----------
-    name : str
-        Step name.
     command : str
         e.g. 'echo "Hello!"'
         e.g. for script 's3://.../script.sh arg1 arg2'
+    name : str, optional
+        Step name.
     action_on_failure : str
         'TERMINATE_JOB_FLOW', 'TERMINATE_CLUSTER', 'CANCEL_AND_WAIT', 'CONTINUE'
     script : bool
-        True for raw command or False for script runner.
+        False for raw command or True for script runner.
         https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-commandrunner.html
+    region: str, optional
+        Region name to not get it from boto3.Session. (e.g. `us-east-1`)
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -734,14 +901,17 @@ def build_step(
     >>> wr.emr.submit_steps(cluster_id="cluster-id", steps=steps)
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     jar: str = "command-runner.jar"
     if script is True:
-        if session.region_name is not None:
-            region: str = session.region_name
-        else:  # pragma: no cover
-            region = "us-east-1"
-        jar = f"s3://{region}.elasticmapreduce/libs/script-runner/script-runner.jar"
+        if region is not None:  # pragma: no cover
+            _region: str = region
+        else:
+            session: boto3.Session = _utils.ensure_session(session=boto3_session)
+            if session.region_name is not None:
+                _region = session.region_name
+            else:  # pragma: no cover
+                _region = "us-east-1"
+        jar = f"s3://{_region}.elasticmapreduce/libs/script-runner/script-runner.jar"
     step: Dict[str, Any] = {
         "Name": name,
         "ActionOnFailure": action_on_failure,
@@ -780,3 +950,40 @@ def get_step_state(cluster_id: str, step_id: str, boto3_session: Optional[boto3.
     response: Dict[str, Any] = client_emr.describe_step(ClusterId=cluster_id, StepId=step_id)
     _logger.debug(f"response: \n{json.dumps(response, default=str, indent=4)}")
     return response["Step"]["Status"]["State"]
+
+
+def update_ecr_credentials(
+    cluster_id: str, action_on_failure: str = "CONTINUE", boto3_session: Optional[boto3.Session] = None
+) -> str:
+    """Update internal ECR credentials.
+
+    Parameters
+    ----------
+    cluster_id : str
+        Cluster ID.
+    action_on_failure : str
+        'TERMINATE_JOB_FLOW', 'TERMINATE_CLUSTER', 'CANCEL_AND_WAIT', 'CONTINUE'
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    str
+        Step ID.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> step_id = wr.emr.update_ecr_credentials("cluster_id")
+
+    """
+    name: str = "Update ECR Credentials"
+    command: str = _get_ecr_credentials_command()
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    step: Dict[str, Any] = build_step(
+        name=name, command=command, action_on_failure=action_on_failure, script=False, boto3_session=session
+    )
+    client_emr: boto3.client = _utils.client(service_name="emr", session=session)
+    response: Dict[str, Any] = client_emr.add_job_flow_steps(JobFlowId=cluster_id, Steps=[step])
+    _logger.debug(f"response: \n{json.dumps(response, default=str, indent=4)}")
+    return response["StepIds"][0]
