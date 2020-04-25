@@ -649,10 +649,29 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
     --------
     Minimal Example
 
+    >>> import awswrangler as wr
     >>> cluster_id = wr.emr.create_cluster("SUBNET_ID")
 
-    Minimal Exmaple on Docker
+    Minimal Example With Custom Classification
 
+    >>> import awswrangler as wr
+    >>> cluster_id = wr.emr.create_cluster(
+    >>> subnet_id="SUBNET_ID",
+    >>> custom_classifications=[
+    >>>         {
+    >>>             "Classification": "livy-conf",
+    >>>             "Properties": {
+    >>>                 "livy.spark.master": "yarn",
+    >>>                 "livy.spark.deploy-mode": "cluster",
+    >>>                 "livy.server.session.timeout": "16h",
+    >>>             },
+    >>>         }
+    >>>     ],
+    >>> )
+
+    Minimal Example on Docker
+
+    >>> import awswrangler as wr
     >>> cluster_id = wr.emr.create_cluster(
     >>>     subnet_id="SUBNET_ID",
     >>>     spark_docker=True,

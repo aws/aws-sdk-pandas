@@ -161,7 +161,7 @@ def test_docker(cloudformation_outputs):
         subnet_id=cloudformation_outputs["SubnetId"],
         docker=True,
         spark_docker=True,
-        spark_docker_image="787535711150.dkr.ecr.us-east-1.amazonaws.com/docker-emr:docker-emr",
+        spark_docker_image="123456789123.dkr.ecr.us-east-1.amazonaws.com/docker-emr:docker-emr",
         hive_docker=True,
         ecr_credentials_step=True,
         custom_classifications=[
@@ -174,8 +174,8 @@ def test_docker(cloudformation_outputs):
                 },
             }
         ],
-        steps=[wr.emr.build_step("spark-submit --deploy-mode cluster s3://igor-tavares/emr.py")],
+        steps=[wr.emr.build_step("spark-submit --deploy-mode cluster s3://bucket/emr.py")],
     )
-    wr.emr.submit_step(cluster_id=cluster_id, command="spark-submit --deploy-mode cluster s3://igor-tavares/emr.py")
+    wr.emr.submit_step(cluster_id=cluster_id, command="spark-submit --deploy-mode cluster s3://bucket/emr.py")
     wr.emr.update_ecr_credentials(cluster_id=cluster_id)
     wr.emr.terminate_cluster(cluster_id=cluster_id)
