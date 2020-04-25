@@ -1730,6 +1730,7 @@ def store_parquet_metadata(
     parameters: Optional[Dict[str, str]] = None,
     columns_comments: Optional[Dict[str, str]] = None,
     compression: Optional[str] = None,
+    mode: str = "overwrite",
     boto3_session: Optional[boto3.Session] = None,
 ) -> Tuple[Dict[str, str], Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]:
     """Infer and store parquet metadata on AWS Glue Catalog.
@@ -1769,6 +1770,8 @@ def store_parquet_metadata(
         Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
     compression: str, optional
         Compression style (``None``, ``snappy``, ``gzip``, etc).
+    mode: str
+        'overwrite' to recreate any possible existing table or 'append' to keep any possible existing table.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -1813,6 +1816,7 @@ def store_parquet_metadata(
         description=description,
         parameters=parameters,
         columns_comments=columns_comments,
+        mode=mode,
         boto3_session=session,
     )
     partitions_values: Dict[str, List[str]] = _data_types.athena_partitions_from_pyarrow_partitions(
