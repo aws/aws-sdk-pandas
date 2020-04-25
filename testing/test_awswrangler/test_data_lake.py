@@ -127,6 +127,9 @@ def test_athena_ctas(bucket, database, kms_key):
         partition_cols=["par0", "par1"],
     )["paths"]
     wr.s3.wait_objects_exist(paths=paths)
+    dirs = wr.s3.list_directories(path=f"s3://{bucket}/test_athena_ctas/")
+    for d in dirs:
+        assert d.startswith(f"s3://{bucket}/test_athena_ctas/par0=")
     df = wr.s3.read_parquet_table(table="test_athena_ctas", database=database)
     assert len(df.index) == 3
     ensure_data_types(df=df, has_list=True)

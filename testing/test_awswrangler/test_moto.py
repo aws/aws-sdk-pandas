@@ -20,6 +20,21 @@ def emr():
         yield True
 
 
+@pytest.fixture(scope="module")
+def sts():
+    with moto.mock_sts():
+        yield True
+
+
+@pytest.fixture(scope="module")
+def subnet():
+    with moto.mock_ec2():
+        ec2 = boto3.resource("ec2", region_name="us-west-1")
+        vpc = ec2.create_vpc(CidrBlock="10.0.0.0/16")
+        subnet = ec2.create_subnet(VpcId=vpc.id, CidrBlock="10.0.0.0/24", AvailabilityZone="us-west-1a")
+        yield subnet.id
+
+
 def test_csv(s3):
     path = "s3://bucket/test.csv"
     wr.s3.to_csv(df=get_df_csv(), path=path, index=False)
@@ -37,12 +52,13 @@ def test_parquet(s3):
     assert len(df.columns) == 18
 
 
-def test_emr(s3, emr):
+def test_emr(s3, emr, sts, subnet):
+    session = boto3.Session(region_name="us-west-1")
     cluster_id = wr.emr.create_cluster(
         cluster_name="wrangler_cluster",
         logging_s3_path="s3://bucket/emr-logs/",
         emr_release="emr-5.29.0",
-        subnet_id="foo",
+        subnet_id=subnet,
         emr_ec2_role="EMR_EC2_DefaultRole",
         emr_role="EMR_DefaultRole",
         instance_type_master="m5.xlarge",
@@ -87,11 +103,12 @@ def test_emr(s3, emr):
         termination_protected=False,
         spark_pyarrow=False,
         tags={"foo": "boo", "bar": "xoo"},
+        boto3_session=session,
     )
-    wr.emr.get_cluster_state(cluster_id=cluster_id)
+    wr.emr.get_cluster_state(cluster_id=cluster_id, boto3_session=session)
     steps = []
     for cmd in ['echo "Hello"', "ls -la"]:
         steps.append(wr.emr.build_step(name=cmd, command=cmd))
-    wr.emr.submit_steps(cluster_id=cluster_id, steps=steps)
-    wr.emr.terminate_cluster(cluster_id=cluster_id)
+    wr.emr.submit_steps(cluster_id=cluster_id, steps=steps, boto3_session=session)
+    wr.emr.terminate_cluster(cluster_id=cluster_id, boto3_session=session)
     wr.s3.delete_objects("s3://bucket/emr-logs/")

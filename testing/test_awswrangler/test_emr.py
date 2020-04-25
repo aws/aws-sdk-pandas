@@ -146,3 +146,36 @@ def test_cluster_single_node(bucket, cloudformation_outputs):
     wr.emr.submit_steps(cluster_id=cluster_id, steps=steps)
     wr.emr.terminate_cluster(cluster_id=cluster_id)
     wr.s3.delete_objects(f"s3://{bucket}/emr-logs/")
+
+
+def test_default_logging_path(cloudformation_outputs):
+    path = wr.emr._get_default_logging_path(subnet_id=cloudformation_outputs["SubnetId"])
+    assert path.startswith("s3://aws-logs-")
+    assert path.endswith("/elasticmapreduce/")
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.emr._get_default_logging_path()
+
+
+def test_docker(cloudformation_outputs):
+    cluster_id = wr.emr.create_cluster(
+        subnet_id=cloudformation_outputs["SubnetId"],
+        docker=True,
+        spark_docker=True,
+        spark_docker_image="787535711150.dkr.ecr.us-east-1.amazonaws.com/docker-emr:docker-emr",
+        hive_docker=True,
+        ecr_credentials_step=True,
+        custom_classifications=[
+            {
+                "Classification": "livy-conf",
+                "Properties": {
+                    "livy.spark.master": "yarn",
+                    "livy.spark.deploy-mode": "cluster",
+                    "livy.server.session.timeout": "16h",
+                },
+            }
+        ],
+        steps=[wr.emr.build_step("spark-submit --deploy-mode cluster s3://igor-tavares/emr.py")],
+    )
+    wr.emr.submit_step(cluster_id=cluster_id, command="spark-submit --deploy-mode cluster s3://igor-tavares/emr.py")
+    wr.emr.update_ecr_credentials(cluster_id=cluster_id)
+    wr.emr.terminate_cluster(cluster_id=cluster_id)

@@ -48,7 +48,7 @@ def loggroup(cloudformation_outputs):
 def test_query_cancelled(loggroup):
     client_logs = boto3.client("logs")
     query_id = wr.cloudwatch.start_query(
-        log_group_names=[loggroup], query="fields @timestamp, @message | sort @timestamp desc | limit 5"
+        log_group_names=[loggroup], query="fields @timestamp, @message | sort @timestamp desc"
     )
     client_logs.stop_query(queryId=query_id)
     with pytest.raises(exceptions.QueryCancelled):
