@@ -61,13 +61,6 @@ def _get_default_logging_path(
     return f"s3://aws-logs-{_account_id}-{_region}/elasticmapreduce/"
 
 
-def _get_ecr_credentials_command() -> str:
-    return (
-        "sudo -s eval $(aws ecr get-login --region us-east-1 --no-include-email) && "
-        "sudo hdfs dfs -put -f /root/.docker/config.json /user/hadoop/"
-    )
-
-
 def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-statements
     account_id: str = _utils.get_account_id(boto3_session=pars["boto3_session"])
     region: str = _utils.get_region_from_subnet(subnet_id=pars["subnet_id"], boto3_session=pars["boto3_session"])
@@ -139,7 +132,7 @@ def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-s
     args["Configurations"] = [
         {"Classification": "spark-log4j", "Properties": {"log4j.rootCategory": f"{pars['spark_log_level']}, console"}}
     ]
-    if (pars["docker"] is True) or (pars["spark_docker"] is True) or (pars["hive_docker"] is True):
+    if pars["docker"] is True:
         if pars.get("extra_registries") is None:
             extra_registries: List[str] = []
         else:  # pragma: no cover
@@ -162,26 +155,6 @@ def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-s
                 ],
             }
         )
-    if pars["spark_docker"] is True:
-        if pars.get("spark_docker_image") is None:  # pragma: no cover
-            raise exceptions.InvalidArgumentCombination("You must pass a spark_docker_image if spark_docker is True.")
-        pars["spark_defaults"] = {} if pars["spark_defaults"] is None else pars["spark_defaults"]
-        pars["spark_defaults"]["spark.executorEnv.YARN_CONTAINER_RUNTIME_TYPE"] = "docker"
-        pars["spark_defaults"][
-            "spark.executorEnv.YARN_CONTAINER_RUNTIME_DOCKER_CLIENT_CONFIG"
-        ] = "hdfs:///user/hadoop/config.json"
-        pars["spark_defaults"]["spark.executorEnv.YARN_CONTAINER_RUNTIME_DOCKER_IMAGE"] = pars["spark_docker_image"]
-        pars["spark_defaults"]["spark.executorEnv.YARN_CONTAINER_RUNTIME_DOCKER_MOUNTS"] = "/etc/passwd:/etc/passwd:ro"
-        pars["spark_defaults"]["spark.yarn.appMasterEnv.YARN_CONTAINER_RUNTIME_TYPE"] = "docker"
-        pars["spark_defaults"][
-            "spark.yarn.appMasterEnv.YARN_CONTAINER_RUNTIME_DOCKER_CLIENT_CONFIG"
-        ] = "hdfs:///user/hadoop/config.json"
-        pars["spark_defaults"]["spark.yarn.appMasterEnv.YARN_CONTAINER_RUNTIME_DOCKER_IMAGE"] = pars[
-            "spark_docker_image"
-        ]
-        pars["spark_defaults"][
-            "spark.yarn.appMasterEnv.YARN_CONTAINER_RUNTIME_DOCKER_MOUNTS"
-        ] = "/etc/passwd:/etc/passwd:ro"
     if spark_env is not None:
         args["Configurations"].append(
             {
@@ -216,21 +189,12 @@ def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-s
                 "Configurations": [],
             }
         )
-
-    hive_conf: Optional[Dict[str, Any]] = None
-    if (pars["hive_glue_catalog"] is True) or (pars["hive_docker"] is True):
-        hive_conf: Optional[Dict[str, Any]] = {"Classification": "hive-site", "Properties": {}, "Configurations": []}
-
     if pars["hive_glue_catalog"] is True:
+        hive_conf: Optional[Dict[str, Any]] = {"Classification": "hive-site", "Properties": {}, "Configurations": []}
         hive_conf["Properties"][
             "hive.metastore.client.factory.class"
         ] = "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory"
-    if pars["hive_docker"] is True:
-        hive_conf["Properties"]["hive.execution.mode"] = "container"
-
-    if hive_conf is not None:
         args["Configurations"].append(hive_conf)
-
     if pars["presto_glue_catalog"] is True:
         args["Configurations"].append(
             {
@@ -281,17 +245,6 @@ def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-s
                     "ActionOnFailure": "TERMINATE_CLUSTER",
                     "HadoopJarStep": {"Jar": "command-runner.jar", "Args": ["state-pusher-script"]},
                 }
-            )
-        if pars["ecr_credentials_step"] is True:
-            args["Steps"].append(
-                build_step(
-                    name="ECR Credentials Setup",
-                    command=_get_ecr_credentials_command(),
-                    action_on_failure="TERMINATE_CLUSTER",
-                    script=False,
-                    region=region,
-                    boto3_session=pars["boto3_session"],
-                )
             )
         if pars["steps"] is not None:
             args["Steps"] += pars["steps"]
@@ -462,15 +415,11 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
     security_groups_slave_additional: Optional[List[str]] = None,
     security_group_service_access: Optional[str] = None,
     docker: bool = False,
+    extra_public_registries: Optional[List[str]] = None,
     spark_log_level: str = "WARN",
     spark_jars_path: Optional[List[str]] = None,
     spark_defaults: Optional[Dict[str, str]] = None,
     spark_pyarrow: bool = False,
-    spark_docker: bool = False,
-    spark_docker_image: str = None,
-    hive_docker: bool = False,
-    ecr_credentials_step: bool = False,
-    extra_public_registries: Optional[List[str]] = None,
     custom_classifications: Optional[List[Dict[str, Any]]] = None,
     maximize_resource_allocation: bool = False,
     steps: Optional[List[Dict[str, Any]]] = None,
@@ -600,6 +549,8 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
         service to access clusters in VPC private subnets.
     docker : bool
         Enable Docker Hub and ECR registries access.
+    extra_public_registries: List[str], optional
+        Additional docker registries.
     spark_log_level : str
         log4j.rootCategory log level (ALL, DEBUG, INFO, WARN, ERROR, FATAL, OFF, TRACE).
     spark_jars_path : List[str], optional
@@ -610,16 +561,6 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
     spark_pyarrow : bool
         Enable PySpark to use PyArrow behind the scenes.
         P.S. You must install pyarrow by your self via bootstrap
-    spark_docker : bool = False
-        Add necessary Spark Defaults to run on Docker
-    spark_docker_image : str, optional
-        E.g. {ACCOUNT_ID}.dkr.ecr.{REGION}.amazonaws.com/{IMAGE_NAME}:{TAG}
-    hive_docker : bool
-        Add necessary configurations to run on Docker
-    ecr_credentials_step : bool
-        Add a extra step during the Cluster launch to retrieve ECR auth files.
-    extra_public_registries: List[str], optional
-        Additional registries.
     custom_classifications: List[Dict[str, Any]], optional
         Extra classifications.
     maximize_resource_allocation : bool
@@ -667,16 +608,6 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
     >>>             },
     >>>         }
     >>>     ],
-    >>> )
-
-    Minimal Example on Docker
-
-    >>> import awswrangler as wr
-    >>> cluster_id = wr.emr.create_cluster(
-    >>>     subnet_id="SUBNET_ID",
-    >>>     spark_docker=True,
-    >>>     spark_docker_image="{ACCOUNT_ID}.dkr.ecr.{REGION}.amazonaws.com/{IMAGE_NAME}:{TAG}",
-    >>>     ecr_credentials_step=True
     >>> )
 
     Full Example
@@ -971,8 +902,8 @@ def get_step_state(cluster_id: str, step_id: str, boto3_session: Optional[boto3.
     return response["Step"]["Status"]["State"]
 
 
-def update_ecr_credentials(
-    cluster_id: str, action_on_failure: str = "CONTINUE", boto3_session: Optional[boto3.Session] = None
+def submit_ecr_credentials_refresh(
+    cluster_id: str, path: str, action_on_failure: str = "CONTINUE", boto3_session: Optional[boto3.Session] = None
 ) -> str:
     """Update internal ECR credentials.
 
@@ -980,6 +911,8 @@ def update_ecr_credentials(
     ----------
     cluster_id : str
         Cluster ID.
+    path : str
+        Amazon S3 path where Wrangler will stage the script ecr_credentials_refresh.py (e.g. s3://bucket/emr/)
     action_on_failure : str
         'TERMINATE_JOB_FLOW', 'TERMINATE_CLUSTER', 'CANCEL_AND_WAIT', 'CONTINUE'
     boto3_session : boto3.Session(), optional
@@ -993,12 +926,17 @@ def update_ecr_credentials(
     Examples
     --------
     >>> import awswrangler as wr
-    >>> step_id = wr.emr.update_ecr_credentials("cluster_id")
+    >>> step_id = wr.emr.submit_ecr_credentials_refresh("cluster_id", "s3://bucket/emr/")
 
     """
-    name: str = "Update ECR Credentials"
-    command: str = _get_ecr_credentials_command()
+    path = path[:-1] if path.endswith("/") else path
+    path_script: str = f"{path}/ecr_credentials_refresh.py"
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    client_s3: boto3.client = _utils.client(service_name="s3", session=session)
+    bucket, key = _utils.parse_path(path=path_script)
+    client_s3.put_object(Body=_get_ecr_credentials_refresh_content().encode(encoding="utf-8"), Bucket=bucket, Key=key)
+    command: str = f"spark-submit --deploy-mode cluster {path_script}"
+    name: str = "ECR Credentials Refresh"
     step: Dict[str, Any] = build_step(
         name=name, command=command, action_on_failure=action_on_failure, script=False, boto3_session=session
     )
@@ -1006,3 +944,91 @@ def update_ecr_credentials(
     response: Dict[str, Any] = client_emr.add_job_flow_steps(JobFlowId=cluster_id, Steps=[step])
     _logger.debug(f"response: \n{json.dumps(response, default=str, indent=4)}")
     return response["StepIds"][0]
+
+
+def _get_ecr_credentials_refresh_content() -> str:
+    return """
+import subprocess
+from pyspark.sql import SparkSession
+spark = SparkSession.builder.appName("ECR Setup Job").getOrCreate()
+
+COMMANDS = [
+    "sudo -s eval $(aws ecr get-login --region us-east-1 --no-include-email)",
+    "sudo hdfs dfs -put -f /root/.docker/config.json /user/hadoop/"
+]
+
+for command in COMMANDS:
+    subprocess.run(command.split(" "), timeout=6.0, check=True)
+
+print("done!")
+    """
+
+
+def build_spark_step(
+    path: str,
+    deploy_mode: str = "cluster",
+    docker_image: Optional[str] = None,
+    name: str = "my-step",
+    action_on_failure: str = "CONTINUE",
+    region: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> Dict[str, Any]:
+    """Build the Step structure (dictionary).
+
+    Parameters
+    ----------
+    path : str
+        Script path. (e.g. s3://bucket/app.py)
+    deploy_mode : str
+        "cluster" | "client"
+    docker_image : str, optional
+        e.g. "{ACCOUNT_ID}.dkr.ecr.{REGION}.amazonaws.com/{IMAGE_NAME}:{TAG}"
+    name : str, optional
+        Step name.
+    action_on_failure : str
+        'TERMINATE_JOB_FLOW', 'TERMINATE_CLUSTER', 'CANCEL_AND_WAIT', 'CONTINUE'
+    region: str, optional
+        Region name to not get it from boto3.Session. (e.g. `us-east-1`)
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    Dict[str, Any]
+        Step structure.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> step_id = wr.emr.submit_steps(
+    >>>     cluster_id="cluster-id",
+    >>>     steps=[
+    >>>         wr.emr.build_spark_step(path="s3://bucket/app.py")
+    >>>     ]
+    >>> )
+
+    """
+    if docker_image is None:  # pragma: no cover
+        cmd: str = f"spark-submit --deploy-mode {deploy_mode} {path}"
+    else:
+        config: str = "hdfs:///user/hadoop/config.json"
+        cmd = (
+            f"spark-submit --deploy-mode cluster "
+            f"--conf spark.executorEnv.YARN_CONTAINER_RUNTIME_TYPE=docker "
+            f"--conf spark.executorEnv.YARN_CONTAINER_RUNTIME_DOCKER_IMAGE={docker_image} "
+            f"--conf spark.executorEnv.YARN_CONTAINER_RUNTIME_DOCKER_CLIENT_CONFIG={config} "
+            f"--conf spark.executorEnv.YARN_CONTAINER_RUNTIME_DOCKER_MOUNTS=/etc/passwd:/etc/passwd:ro "
+            f"--conf spark.yarn.appMasterEnv.YARN_CONTAINER_RUNTIME_TYPE=docker "
+            f"--conf spark.yarn.appMasterEnv.YARN_CONTAINER_RUNTIME_DOCKER_IMAGE={docker_image} "
+            f"--conf spark.yarn.appMasterEnv.YARN_CONTAINER_RUNTIME_DOCKER_CLIENT_CONFIG={config} "
+            f"--conf spark.yarn.appMasterEnv.YARN_CONTAINER_RUNTIME_DOCKER_MOUNTS=/etc/passwd:/etc/passwd:ro "
+            f"{path}"
+        )
+    return build_step(
+        command=cmd,
+        name=name,
+        action_on_failure=action_on_failure,
+        script=False,
+        region=region,
+        boto3_session=boto3_session,
+    )

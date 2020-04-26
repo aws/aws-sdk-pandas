@@ -156,14 +156,10 @@ def test_default_logging_path(cloudformation_outputs):
         wr.emr._get_default_logging_path()
 
 
-def test_docker(cloudformation_outputs):
+def test_docker(bucket, cloudformation_outputs):
     cluster_id = wr.emr.create_cluster(
         subnet_id=cloudformation_outputs["SubnetId"],
         docker=True,
-        spark_docker=True,
-        spark_docker_image="123456789123.dkr.ecr.us-east-1.amazonaws.com/docker-emr:docker-emr",
-        hive_docker=True,
-        ecr_credentials_step=True,
         custom_classifications=[
             {
                 "Classification": "livy-conf",
@@ -176,6 +172,14 @@ def test_docker(cloudformation_outputs):
         ],
         steps=[wr.emr.build_step("spark-submit --deploy-mode cluster s3://bucket/emr.py")],
     )
-    wr.emr.submit_step(cluster_id=cluster_id, command="spark-submit --deploy-mode cluster s3://bucket/emr.py")
-    wr.emr.update_ecr_credentials(cluster_id=cluster_id)
+    wr.emr.submit_ecr_credentials_refresh(cluster_id, path=f"s3://{bucket}/emr/")
+    wr.emr.submit_steps(
+        cluster_id=cluster_id,
+        steps=[
+            wr.emr.build_spark_step(
+                path=f"s3://{bucket}/emr/test_docker.py",
+                docker_image="123456789123.dkr.ecr.us-east-1.amazonaws.com/docker-emr:docker-emr",
+            )
+        ],
+    )
     wr.emr.terminate_cluster(cluster_id=cluster_id)
