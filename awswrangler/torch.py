@@ -35,6 +35,8 @@ class _BaseS3Dataset:
         ----------
         path : Union[str, List[str]]
             S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+        suffix: str, optional
+            S3 suffix filtering of object keys (i.e. suffix=".png" -> s3://*.png).
         boto3_session : boto3.Session(), optional
             Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -85,10 +87,10 @@ class _ListS3Dataset(_BaseS3Dataset, Dataset):
         return len(self._paths)
 
     def _data_fn(self, data) -> Any:
-        pass
+        raise NotImplementedError()
 
     def _label_fn(self, path: str) -> Any:
-        pass
+        raise NotImplementedError()
 
 
 class _S3PartitionedDataset(_ListS3Dataset):
@@ -97,6 +99,9 @@ class _S3PartitionedDataset(_ListS3Dataset):
     def _label_fn(self, path: str) -> torch.Tensor:
         label = int(re.findall(r"/(.*?)=(.*?)/", path)[-1][1])
         return torch.tensor([label])  # pylint: disable=not-callable
+
+    def _data_fn(self, data) -> Any:
+        raise NotImplementedError()
 
 
 # class S3FilesDataset(_BaseS3Dataset, Dataset):
@@ -162,6 +167,12 @@ class LambdaS3Dataset(_ListS3Dataset):
         ----------
         path : Union[str, List[str]]
             S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+        data_fn: Callable
+            Function that receives a io.BytesIO object and returns a torch.Tensor
+        label_fn: Callable
+            Function that receives object path (str) and return a torch.Tensor
+        suffix: str, optional
+            S3 suffix filtering of object keys (i.e. suffix=".png" -> s3://*.png).
         boto3_session : boto3.Session(), optional
             Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -226,6 +237,8 @@ class AudioS3Dataset(_S3PartitionedDataset):
         ----------
         path : Union[str, List[str]]
             S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+        suffix: str, optional
+            S3 suffix filtering of object keys (i.e. suffix=".png" -> s3://*.png).
         boto3_session : boto3.Session(), optional
             Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -314,6 +327,8 @@ class ImageS3Dataset(_S3PartitionedDataset):
         ----------
         path : Union[str, List[str]]
             S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+        suffix: str, optional
+            S3 suffix filtering of object keys (i.e. suffix=".png" -> s3://*.png).
         boto3_session : boto3.Session(), optional
             Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -342,6 +357,8 @@ class S3IterableDataset(IterableDataset, _BaseS3Dataset):  # pylint: disable=abs
     ----------
     path : Union[str, List[str]]
         S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+    suffix: str, optional
+        S3 suffix filtering of object keys (i.e. suffix=".png" -> s3://*.png).
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -395,7 +412,9 @@ class SQLDataset(IterableDataset):  # pylint: disable=too-few-public-methods,abs
             SQLAlchemy Engine. Please use,
             wr.db.get_engine(), wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()
         label_col : int, optional
-            Label column number
+            Label column number.
+        chunksize : int, optional
+            The chunksize determines que number of rows to be retrived from the database at each time.
 
         Returns
         -------
@@ -425,7 +444,7 @@ class SQLDataset(IterableDataset):  # pylint: disable=too-few-public-methods,abs
                 label_col: Optional[int] = list(cursor.keys()).index(self._label_col)
             else:
                 label_col = self._label_col
-            _logger.debug(f"label_col: {label_col}")
+            _logger.debug("label_col: %s", label_col)
             if self._chunksize is None:
                 return SQLDataset._records2tensor(records=cursor.fetchall(), label_col=label_col)
             return self._iterate_cursor(cursor=cursor, chunksize=self._chunksize, label_col=label_col)
