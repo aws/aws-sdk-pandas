@@ -113,10 +113,12 @@ EMR
     get_cluster_state
     terminate_cluster
     submit_step
+    submit_spark_step
+    submit_ecr_credentials_refresh
     submit_steps
     build_step
+    build_spark_step
     get_step_state
-    update_ecr_credentials
 
 CloudWatch Logs
 ---------------

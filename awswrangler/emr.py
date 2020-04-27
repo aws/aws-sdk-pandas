@@ -1032,3 +1032,61 @@ def build_spark_step(
         region=region,
         boto3_session=boto3_session,
     )
+
+
+def submit_spark_step(
+    cluster_id: str,
+    path: str,
+    deploy_mode: str = "cluster",
+    docker_image: Optional[str] = None,
+    name: str = "my-step",
+    action_on_failure: str = "CONTINUE",
+    region: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> str:
+    """Submit Spark Step.
+
+    Parameters
+    ----------
+    cluster_id : str
+        Cluster ID.
+    path : str
+        Script path. (e.g. s3://bucket/app.py)
+    deploy_mode : str
+        "cluster" | "client"
+    docker_image : str, optional
+        e.g. "{ACCOUNT_ID}.dkr.ecr.{REGION}.amazonaws.com/{IMAGE_NAME}:{TAG}"
+    name : str, optional
+        Step name.
+    action_on_failure : str
+        'TERMINATE_JOB_FLOW', 'TERMINATE_CLUSTER', 'CANCEL_AND_WAIT', 'CONTINUE'
+    region: str, optional
+        Region name to not get it from boto3.Session. (e.g. `us-east-1`)
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    str
+        Step ID.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> step_id = wr.emr.submit_spark_step(
+    >>>     cluster_id="cluster-id",
+    >>>     path="s3://bucket/emr/app.py"
+    >>> )
+
+    """
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    step = build_spark_step(
+        path=path,
+        deploy_mode=deploy_mode,
+        docker_image=docker_image,
+        name=name,
+        action_on_failure=action_on_failure,
+        region=region,
+        boto3_session=session,
+    )
+    return submit_steps(cluster_id=cluster_id, steps=[step], boto3_session=session)[0]

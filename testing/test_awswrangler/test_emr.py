@@ -182,4 +182,5 @@ def test_docker(bucket, cloudformation_outputs):
             )
         ],
     )
+    wr.emr.submit_spark_step(cluster_id=cluster_id, path=f"s3://{bucket}/emr/test_docker.py")
     wr.emr.terminate_cluster(cluster_id=cluster_id)
