@@ -1684,23 +1684,15 @@ def _read_parquet_chunked(
         if chunked is True:
             yield _table2df(table=table, categories=categories, use_threads=use_threads)
         else:
-            if next_slice is not None:
+            if next_slice:
                 table = pa.lib.concat_tables([next_slice, table], promote=promote)
-            length: int = len(table)
-            while True:
-                if length == chunked:
-                    yield _table2df(table=table, categories=categories, use_threads=use_threads)
-                    next_slice = None
-                    break
-                if length < chunked:
-                    next_slice = table
-                    break
+            while len(table) >= chunked:
                 yield _table2df(
                     table=table.slice(offset=0, length=chunked), categories=categories, use_threads=use_threads
                 )
                 table = table.slice(offset=chunked, length=None)
-                length = len(table)
-    if next_slice is not None:
+            next_slice = table
+    if next_slice:
         yield _table2df(table=next_slice, categories=categories, use_threads=use_threads)
 
 
