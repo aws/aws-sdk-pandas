@@ -56,10 +56,10 @@ def get_bucket_region(bucket: str, boto3_session: Optional[boto3.Session] = None
 
     """
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
-    _logger.debug(f"bucket: {bucket}")
+    _logger.debug("bucket: %s", bucket)
     region: str = client_s3.get_bucket_location(Bucket=bucket)["LocationConstraint"]
     region = "us-east-1" if region is None else region
-    _logger.debug(f"region: {region}")
+    _logger.debug("region: %s", region)
     return region
 
 
@@ -145,13 +145,15 @@ def list_directories(path: str, boto3_session: Optional[boto3.Session] = None) -
     return _list_objects(path=path, delimiter="/", boto3_session=boto3_session)
 
 
-def list_objects(path: str, boto3_session: Optional[boto3.Session] = None) -> List[str]:
+def list_objects(path: str, suffix: Optional[str] = None, boto3_session: Optional[boto3.Session] = None) -> List[str]:
     """List Amazon S3 objects from a prefix.
 
     Parameters
     ----------
     path : str
         S3 path (e.g. s3://bucket/prefix).
+    suffix: str, optional
+        Suffix for filtering S3 keys.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -176,11 +178,14 @@ def list_objects(path: str, boto3_session: Optional[boto3.Session] = None) -> Li
     ['s3://bucket/prefix0', 's3://bucket/prefix1', 's3://bucket/prefix2']
 
     """
-    return _list_objects(path=path, delimiter=None, boto3_session=boto3_session)
+    return _list_objects(path=path, delimiter=None, suffix=suffix, boto3_session=boto3_session)
 
 
 def _list_objects(
-    path: str, delimiter: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
+    path: str,
+    delimiter: Optional[str] = None,
+    suffix: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
 ) -> List[str]:
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     paginator = client_s3.get_paginator("list_objects_v2")
@@ -192,14 +197,15 @@ def _list_objects(
         args["Delimiter"] = delimiter
     response_iterator = paginator.paginate(**args)
     paths: List[str] = []
-    for page in response_iterator:
+    for page in response_iterator:  # pylint: disable=too-many-nested-blocks
         if delimiter is None:
-            contents: Optional[List[Optional[Dict[str, str]]]] = page.get("Contents")
+            contents: Optional[List] = page.get("Contents")
             if contents is not None:
                 for content in contents:
                     if (content is not None) and ("Key" in content):
                         key: str = content["Key"]
-                        paths.append(f"s3://{bucket}/{key}")
+                        if (suffix is None) or key.endswith(suffix):
+                            paths.append(f"s3://{bucket}/{key}")
         else:
             prefixes: Optional[List[Optional[Dict[str, str]]]] = page.get("CommonPrefixes")
             if prefixes is not None:
@@ -210,11 +216,11 @@ def _list_objects(
     return paths
 
 
-def _path2list(path: Union[str, List[str]], boto3_session: Optional[boto3.Session]) -> List[str]:
+def _path2list(path: object, boto3_session: boto3.Session, suffix: str = None) -> List[str]:
     if isinstance(path, str):  # prefix
         paths: List[str] = list_objects(path=path, boto3_session=boto3_session)
     elif isinstance(path, list):
-        paths = path
+        paths = path if suffix is None else [x for x in path if x.endswith(suffix)]
     else:
         raise exceptions.InvalidArgumentType(f"{type(path)} is not a valid path type. Please, use str or List[str].")
     return paths
@@ -280,7 +286,7 @@ def _split_paths_by_bucket(paths: List[str]) -> Dict[str, List[str]]:
 
 
 def _delete_objects(bucket: str, keys: List[str], client_s3: boto3.client) -> None:
-    _logger.debug(f"len(keys): {len(keys)}")
+    _logger.debug("len(keys): %s", len(keys))
     batch: List[Dict[str, str]] = [{"Key": key} for key in keys]
     client_s3.delete_objects(Bucket=bucket, Delete={"Objects": batch})
 
@@ -360,7 +366,7 @@ def _describe_object(
             break
         except botocore.exceptions.ClientError as e:  # pragma: no cover
             if e.response["ResponseMetadata"]["HTTPStatusCode"] == 404:  # Not Found
-                _logger.debug(f"Object not found. {i} seconds remaining to wait.")
+                _logger.debug("Object not found. %s seconds remaining to wait.", i)
                 if i == 1:  # Last try, there is no more need to sleep
                     break
                 time.sleep(1)
@@ -674,7 +680,7 @@ def to_csv(  # pylint: disable=too-many-arguments
                     sep=sep,
                 )
             if partitions_values:
-                _logger.debug(f"partitions_values:\n{partitions_values}")
+                _logger.debug("partitions_values:\n%s", partitions_values)
                 catalog.add_csv_partitions(
                     database=database, table=table, partitions_values=partitions_values, boto3_session=session, sep=sep
                 )
@@ -703,7 +709,7 @@ def _to_csv_dataset(
     if (mode == "overwrite") or ((mode == "overwrite_partitions") and (not partition_cols)):
         delete_objects(path=path, use_threads=use_threads, boto3_session=boto3_session)
     df = _data_types.cast_pandas_with_athena_types(df=df, dtype=dtype)
-    _logger.debug(f"dtypes: {df.dtypes}")
+    _logger.debug("dtypes: %s", df.dtypes)
     if not partition_cols:
         file_path: str = f"{path}{uuid.uuid4().hex}.csv"
         _to_text(
@@ -1088,7 +1094,7 @@ def to_parquet(  # pylint: disable=too-many-arguments
                     mode="overwrite",
                 )
             if partitions_values:
-                _logger.debug(f"partitions_values:\n{partitions_values}")
+                _logger.debug("partitions_values:\n%s", partitions_values)
                 catalog.add_parquet_partitions(
                     database=database,
                     table=table,
@@ -1126,7 +1132,7 @@ def _to_parquet_dataset(
     schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(
         df=df, index=index, ignore_cols=partition_cols, dtype=dtype
     )
-    _logger.debug(f"schema: {schema}")
+    _logger.debug("schema: %s", schema)
     if not partition_cols:
         file_path: str = f"{path}{uuid.uuid4().hex}{compression_ext}.parquet"
         _to_parquet_file(
@@ -1174,7 +1180,7 @@ def _to_parquet_file(
             pyarrow_dtype = _data_types.athena2pyarrow(col_type)
             field = pa.field(name=col_name, type=pyarrow_dtype)
             table = table.set_column(col_index, field, table.column(col_name).cast(pyarrow_dtype))
-            _logger.debug(f"Casting column {col_name} ({col_index}) to {col_type} ({pyarrow_dtype})")
+            _logger.debug("Casting column %s (%s) to %s (%s)", col_name, col_index, col_type, pyarrow_dtype)
     pyarrow.parquet.write_table(
         table=table,
         where=path,
@@ -1502,7 +1508,7 @@ def _read_text_chunksize(
 ) -> Iterator[pd.DataFrame]:
     fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
     for path in paths:
-        _logger.debug(f"path: {path}")
+        _logger.debug("path: %s", path)
         if pandas_args.get("compression", "infer") == "infer":
             pandas_args["compression"] = infer_compression(path, compression="infer")
         with fs.open(path, "rb") as f:
@@ -1542,7 +1548,7 @@ def _read_parquet_init(
         path_or_paths = path[:-1] if path.endswith("/") else path
     else:
         path_or_paths = path
-    _logger.debug(f"path_or_paths: {path_or_paths}")
+    _logger.debug("path_or_paths: %s", path_or_paths)
     fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
     cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
     data: pyarrow.parquet.ParquetDataset = pyarrow.parquet.ParquetDataset(
@@ -2239,12 +2245,12 @@ def merge_datasets(
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
     paths: List[str] = list_objects(path=f"{source_path}/", boto3_session=session)
-    _logger.debug(f"len(paths): {len(paths)}")
+    _logger.debug("len(paths): %s", len(paths))
     if len(paths) < 1:
         return []
 
     if mode == "overwrite":
-        _logger.debug(f"Deleting to overwrite: {target_path}/")
+        _logger.debug("Deleting to overwrite: %s/", target_path)
         delete_objects(path=f"{target_path}/", use_threads=use_threads, boto3_session=session)
     elif mode == "overwrite_partitions":
         paths_wo_prefix: List[str] = [x.replace(f"{source_path}/", "") for x in paths]
@@ -2252,7 +2258,7 @@ def merge_datasets(
         partitions_paths: List[str] = list(set(paths_wo_filename))
         target_partitions_paths = [f"{target_path}/{x}" for x in partitions_paths]
         for path in target_partitions_paths:
-            _logger.debug(f"Deleting to overwrite_partitions: {path}")
+            _logger.debug("Deleting to overwrite_partitions: %s", path)
             delete_objects(path=path, use_threads=use_threads, boto3_session=session)
     elif mode != "append":
         raise exceptions.InvalidArgumentValue(f"{mode} is a invalid mode option.")
@@ -2260,7 +2266,7 @@ def merge_datasets(
     new_objects: List[str] = copy_objects(
         paths=paths, source_path=source_path, target_path=target_path, use_threads=use_threads, boto3_session=session
     )
-    _logger.debug(f"len(new_objects): {len(new_objects)}")
+    _logger.debug("len(new_objects): %s", len(new_objects))
     return new_objects
 
 
@@ -2307,7 +2313,7 @@ def copy_objects(
     ["s3://bucket1/dir1/key0", "s3://bucket1/dir1/key1"]
 
     """
-    _logger.debug(f"len(paths): {len(paths)}")
+    _logger.debug("len(paths): %s", len(paths))
     if len(paths) < 1:
         return []
     source_path = source_path[:-1] if source_path[-1] == "/" else source_path
@@ -2320,13 +2326,13 @@ def copy_objects(
         path_final: str = f"{target_path}/{path_wo_prefix}"
         new_objects.append(path_final)
         batch.append((path, path_final))
-    _logger.debug(f"len(new_objects): {len(new_objects)}")
+    _logger.debug("len(new_objects): %s", len(new_objects))
     _copy_objects(batch=batch, use_threads=use_threads, boto3_session=session)
     return new_objects
 
 
 def _copy_objects(batch: List[Tuple[str, str]], use_threads: bool, boto3_session: boto3.Session) -> None:
-    _logger.debug(f"len(batch): {len(batch)}")
+    _logger.debug("len(batch): %s", len(batch))
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     resource_s3: boto3.resource = _utils.resource(service_name="s3", session=boto3_session)
     for source, target in batch:

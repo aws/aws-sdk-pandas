@@ -364,7 +364,7 @@ def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-s
     if pars["tags"] is not None:
         args["Tags"] = [{"Key": k, "Value": v} for k, v in pars["tags"].items()]
 
-    _logger.info(f"args: \n{json.dumps(args, default=str, indent=4)}")
+    _logger.info("args: \n%s", json.dumps(args, default=str, indent=4))
     return args
 
 
@@ -665,7 +665,7 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
     args: Dict[str, Any] = _build_cluster_args(**locals())
     client_emr: boto3.client = _utils.client(service_name="emr", session=boto3_session)
     response: Dict[str, Any] = client_emr.run_job_flow(**args)
-    _logger.debug(f"response: \n{json.dumps(response, default=str, indent=4)}")
+    _logger.debug("response: \n%s", json.dumps(response, default=str, indent=4))
     return response["JobFlowId"]
 
 
@@ -696,7 +696,7 @@ def get_cluster_state(cluster_id: str, boto3_session: Optional[boto3.Session] = 
     """
     client_emr: boto3.client = _utils.client(service_name="emr", session=boto3_session)
     response: Dict[str, Any] = client_emr.describe_cluster(ClusterId=cluster_id)
-    _logger.debug(f"response: \n{json.dumps(response, default=str, indent=4)}")
+    _logger.debug("response: \n%s", json.dumps(response, default=str, indent=4))
     return response["Cluster"]["Status"]["State"]
 
 
@@ -723,7 +723,7 @@ def terminate_cluster(cluster_id: str, boto3_session: Optional[boto3.Session] = 
     """
     client_emr: boto3.client = _utils.client(service_name="emr", session=boto3_session)
     response: Dict[str, Any] = client_emr.terminate_job_flows(JobFlowIds=[cluster_id])
-    _logger.debug(f"response: \n{json.dumps(response, default=str, indent=4)}")
+    _logger.debug("response: \n%s", json.dumps(response, default=str, indent=4))
 
 
 def submit_steps(
@@ -755,7 +755,7 @@ def submit_steps(
     """
     client_emr: boto3.client = _utils.client(service_name="emr", session=boto3_session)
     response: Dict[str, Any] = client_emr.add_job_flow_steps(JobFlowId=cluster_id, Steps=steps)
-    _logger.debug(f"response: \n{json.dumps(response, default=str, indent=4)}")
+    _logger.debug("response: \n%s", json.dumps(response, default=str, indent=4))
     return response["StepIds"]
 
 
@@ -807,7 +807,7 @@ def submit_step(
     )
     client_emr: boto3.client = _utils.client(service_name="emr", session=session)
     response: Dict[str, Any] = client_emr.add_job_flow_steps(JobFlowId=cluster_id, Steps=[step])
-    _logger.debug(f"response: \n{json.dumps(response, default=str, indent=4)}")
+    _logger.debug("response: \n%s", json.dumps(response, default=str, indent=4))
     return response["StepIds"][0]
 
 
@@ -898,7 +898,7 @@ def get_step_state(cluster_id: str, step_id: str, boto3_session: Optional[boto3.
     """
     client_emr: boto3.client = _utils.client(service_name="emr", session=boto3_session)
     response: Dict[str, Any] = client_emr.describe_step(ClusterId=cluster_id, StepId=step_id)
-    _logger.debug(f"response: \n{json.dumps(response, default=str, indent=4)}")
+    _logger.debug("response: \n%s", json.dumps(response, default=str, indent=4))
     return response["Step"]["Status"]["State"]
 
 
@@ -942,7 +942,7 @@ def submit_ecr_credentials_refresh(
     )
     client_emr: boto3.client = _utils.client(service_name="emr", session=session)
     response: Dict[str, Any] = client_emr.add_job_flow_steps(JobFlowId=cluster_id, Steps=[step])
-    _logger.debug(f"response: \n{json.dumps(response, default=str, indent=4)}")
+    _logger.debug("response: \n%s", json.dumps(response, default=str, indent=4))
     return response["StepIds"][0]
 
 

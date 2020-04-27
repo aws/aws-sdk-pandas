@@ -155,29 +155,15 @@ def read_sql_query(
     ... )
 
     """
-    if not isinstance(con, sqlalchemy.engine.Engine):  # pragma: no cover
-        raise exceptions.InvalidConnection(
-            "Invalid 'con' argument, please pass a "
-            "SQLAlchemy Engine. Use wr.db.get_engine(), "
-            "wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()"
-        )
+    _validate_engine(con=con)
     with con.connect() as _con:
         args = _convert_params(sql, params)
         cursor = _con.execute(*args)
         if chunksize is None:
             return _records2df(records=cursor.fetchall(), cols_names=cursor.keys(), index=index_col, dtype=dtype)
-        return _iterate_cursor(cursor=cursor, chunksize=chunksize, index=index_col, dtype=dtype)
-
-
-def _iterate_cursor(
-    cursor, chunksize: int, index: Optional[Union[str, List[str]]], dtype: Optional[Dict[str, pa.DataType]] = None
-) -> Iterator[pd.DataFrame]:
-    while True:
-        records = cursor.fetchmany(chunksize)
-        if not records:
-            break
-        df: pd.DataFrame = _records2df(records=records, cols_names=cursor.keys(), index=index, dtype=dtype)
-        yield df
+        return _iterate_cursor(
+            cursor=cursor, chunksize=chunksize, cols_names=cursor.keys(), index=index_col, dtype=dtype
+        )
 
 
 def _records2df(
@@ -205,6 +191,20 @@ def _records2df(
     if index is not None:
         df.set_index(index, inplace=True)
     return df
+
+
+def _iterate_cursor(
+    cursor: Any,
+    chunksize: int,
+    cols_names: List[str],
+    index: Optional[Union[str, List[str]]],
+    dtype: Optional[Dict[str, pa.DataType]] = None,
+) -> Iterator[pd.DataFrame]:
+    while True:
+        records = cursor.fetchmany(chunksize)
+        if not records:
+            break
+        yield _records2df(records=records, cols_names=cols_names, index=index, dtype=dtype)
 
 
 def _convert_params(sql: str, params: Optional[Union[List, Tuple, Dict]]) -> List[Any]:
@@ -646,7 +646,7 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
     athena_types, _ = s3.read_parquet_metadata(
         path=paths, dataset=False, use_threads=use_threads, boto3_session=session
     )
-    _logger.debug(f"athena_types: {athena_types}")
+    _logger.debug("athena_types: %s", athena_types)
     redshift_types: Dict[str, str] = {}
     for col_name, col_type in athena_types.items():
         length: int = _varchar_lengths[col_name] if col_name in _varchar_lengths else varchar_lengths_default
@@ -680,7 +680,7 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
 def _rs_upsert(con: Any, table: str, temp_table: str, schema: str, primary_keys: Optional[List[str]] = None) -> None:
     if not primary_keys:
         primary_keys = _rs_get_primary_keys(con=con, schema=schema, table=table)
-    _logger.debug(f"primary_keys: {primary_keys}")
+    _logger.debug("primary_keys: %s", primary_keys)
     if not primary_keys:  # pragma: no cover
         raise exceptions.InvalidRedshiftPrimaryKeys()
     equals_clause: str = f"{table}.%s = {temp_table}.%s"
@@ -735,7 +735,7 @@ def _rs_create_table(
         f"{distkey_str}"
         f"{sortkey_str}"
     )
-    _logger.debug(f"Create table query:\n{sql}")
+    _logger.debug("Create table query:\n%s", sql)
     con.execute(sql)
     return table, schema
 
@@ -746,7 +746,7 @@ def _rs_validate_parameters(
     if diststyle not in _RS_DISTSTYLES:
         raise exceptions.InvalidRedshiftDiststyle(f"diststyle must be in {_RS_DISTSTYLES}")
     cols = list(redshift_types.keys())
-    _logger.debug(f"Redshift columns: {cols}")
+    _logger.debug("Redshift columns: %s", cols)
     if (diststyle == "KEY") and (not distkey):
         raise exceptions.InvalidRedshiftDistkey("You must pass a distkey if you intend to use KEY diststyle")
     if distkey and distkey not in cols:
@@ -775,13 +775,13 @@ def _rs_copy(
     sql: str = (
         f"COPY {table_name} FROM '{manifest_path}'\n" f"IAM_ROLE '{iam_role}'\n" "MANIFEST\n" "FORMAT AS PARQUET"
     )
-    _logger.debug(f"copy query:\n{sql}")
+    _logger.debug("copy query:\n%s", sql)
     con.execute(sql)
     sql = "SELECT pg_last_copy_id() AS query_id"
     query_id: int = con.execute(sql).fetchall()[0][0]
     sql = f"SELECT COUNT(DISTINCT filename) as num_files_loaded " f"FROM STL_LOAD_COMMITS WHERE query = {query_id}"
     num_files_loaded: int = con.execute(sql).fetchall()[0][0]
-    _logger.debug(f"{num_files_loaded} files counted. {num_files} expected.")
+    _logger.debug("%s files counted. %s expected.", num_files_loaded, num_files)
     if num_files_loaded != num_files:  # pragma: no cover
         raise exceptions.RedshiftLoadError(
             f"Redshift load rollbacked. {num_files_loaded} files counted. {num_files} expected."
@@ -846,17 +846,17 @@ def write_redshift_copy_manifest(
     payload: str = json.dumps(manifest)
     bucket: str
     bucket, key = _utils.parse_path(manifest_path)
-    _logger.debug(f"payload: {payload}")
+    _logger.debug("payload: %s", payload)
     client_s3: boto3.client = _utils.client(service_name="s3", session=session)
-    _logger.debug(f"bucket: {bucket}")
-    _logger.debug(f"key: {key}")
+    _logger.debug("bucket: %s", bucket)
+    _logger.debug("key: %s", key)
     client_s3.put_object(Body=payload, Bucket=bucket, Key=key)
     return manifest
 
 
 def _rs_drop_table(con: Any, schema: str, table: str) -> None:
     sql = f"DROP TABLE IF EXISTS {schema}.{table}"
-    _logger.debug(f"Drop table query:\n{sql}")
+    _logger.debug("Drop table query:\n%s", sql)
     con.execute(sql)
 
 
@@ -1104,5 +1104,14 @@ def unload_redshift_to_files(
         query_id: int = _con.execute(sql).fetchall()[0][0]
         sql = f"SELECT path FROM STL_UNLOAD_LOG WHERE query={query_id};"
         paths = [x[0].replace(" ", "") for x in _con.execute(sql).fetchall()]
-        _logger.debug(f"paths: {paths}")
+        _logger.debug("paths: %s", paths)
         return paths
+
+
+def _validate_engine(con: sqlalchemy.engine.Engine) -> None:  # pragma: no cover
+    if not isinstance(con, sqlalchemy.engine.Engine):
+        raise exceptions.InvalidConnection(
+            "Invalid 'con' argument, please pass a "
+            "SQLAlchemy Engine. Use wr.db.get_engine(), "
+            "wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()"
+        )

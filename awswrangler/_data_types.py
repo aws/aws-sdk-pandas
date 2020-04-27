@@ -207,7 +207,7 @@ def pyarrow2sqlalchemy(  # pylint: disable=too-many-branches,too-many-return-sta
         return sqlalchemy.types.Date
     if pa.types.is_binary(dtype):
         if db_type == "redshift":
-            raise exceptions.UnsupportedType(f"Binary columns are not supported for Redshift.")  # pragma: no cover
+            raise exceptions.UnsupportedType("Binary columns are not supported for Redshift.")  # pragma: no cover
         return sqlalchemy.types.Binary
     if pa.types.is_decimal(dtype):
         return sqlalchemy.types.Numeric(precision=dtype.precision, scale=dtype.scale)
@@ -257,7 +257,7 @@ def pyarrow_types_from_pandas(
     # Filling schema
     columns_types: Dict[str, pa.DataType]
     columns_types = {n: cols_dtypes[n] for n in sorted_cols}
-    _logger.debug(f"columns_types: {columns_types}")
+    _logger.debug("columns_types: %s", columns_types)
     return columns_types
 
 
@@ -275,7 +275,7 @@ def athena_types_from_pandas(
             athena_columns_types[k] = casts[k]
         else:
             athena_columns_types[k] = pyarrow2athena(dtype=v)
-    _logger.debug(f"athena_columns_types: {athena_columns_types}")
+    _logger.debug("athena_columns_types: %s", athena_columns_types)
     return athena_columns_types
 
 
@@ -315,7 +315,7 @@ def pyarrow_schema_from_pandas(
         if (k in df.columns) and (k not in ignore):
             columns_types[k] = athena2pyarrow(v)
     columns_types = {k: v for k, v in columns_types.items() if v is not None}
-    _logger.debug(f"columns_types: {columns_types}")
+    _logger.debug("columns_types: %s", columns_types)
     return pa.schema(fields=columns_types)
 
 
@@ -324,11 +324,11 @@ def athena_types_from_pyarrow_schema(
 ) -> Tuple[Dict[str, str], Optional[Dict[str, str]]]:
     """Extract the related Athena data types from any PyArrow Schema considering possible partitions."""
     columns_types: Dict[str, str] = {str(f.name): pyarrow2athena(dtype=f.type) for f in schema}
-    _logger.debug(f"columns_types: {columns_types}")
+    _logger.debug("columns_types: %s", columns_types)
     partitions_types: Optional[Dict[str, str]] = None
     if partitions is not None:
         partitions_types = {p.name: pyarrow2athena(p.dictionary.type) for p in partitions}
-    _logger.debug(f"partitions_types: {partitions_types}")
+    _logger.debug("partitions_types: %s", partitions_types)
     return columns_types, partitions_types
 
 
@@ -382,5 +382,5 @@ def sqlalchemy_types_from_pandas(
             sqlalchemy_columns_types[k] = casts[k]
         else:
             sqlalchemy_columns_types[k] = pyarrow2sqlalchemy(dtype=v, db_type=db_type)
-    _logger.debug(f"sqlalchemy_columns_types: {sqlalchemy_columns_types}")
+    _logger.debug("sqlalchemy_columns_types: %s", sqlalchemy_columns_types)
     return sqlalchemy_columns_types
