@@ -176,8 +176,8 @@ def wait_query(query_execution_id: str, boto3_session: Optional[boto3.Session] =
         time.sleep(_QUERY_WAIT_POLLING_DELAY)
         response = client_athena.get_query_execution(QueryExecutionId=query_execution_id)
         state = response["QueryExecution"]["Status"]["State"]
-    _logger.debug(f"state: {state}")
-    _logger.debug(f"StateChangeReason: {response['QueryExecution']['Status'].get('StateChangeReason')}")
+    _logger.debug("state: %s", state)
+    _logger.debug("StateChangeReason: %s", response["QueryExecution"]["Status"].get("StateChangeReason"))
     if state == "FAILED":
         raise exceptions.QueryFailed(response["QueryExecution"]["Status"].get("StateChangeReason"))
     if state == "CANCELLED":
@@ -265,7 +265,7 @@ def _get_query_metadata(
     cols_types: Dict[str, str] = get_query_columns_types(
         query_execution_id=query_execution_id, boto3_session=boto3_session
     )
-    _logger.debug(f"cols_types: {cols_types}")
+    _logger.debug("cols_types: %s", cols_types)
     dtype: Dict[str, str] = {}
     parse_timestamps: List[str] = []
     parse_dates: List[str] = []
@@ -298,11 +298,11 @@ def _get_query_metadata(
             converters[col_name] = lambda x: Decimal(str(x)) if str(x) not in ("", "none", " ", "<NA>") else None
         else:
             dtype[col_name] = pandas_type
-    _logger.debug(f"dtype: {dtype}")
-    _logger.debug(f"parse_timestamps: {parse_timestamps}")
-    _logger.debug(f"parse_dates: {parse_dates}")
-    _logger.debug(f"converters: {converters}")
-    _logger.debug(f"binaries: {binaries}")
+    _logger.debug("dtype: %s", dtype)
+    _logger.debug("parse_timestamps: %s", parse_timestamps)
+    _logger.debug("parse_dates: %s", parse_dates)
+    _logger.debug("converters: %s", converters)
+    _logger.debug("binaries: %s", binaries)
     return dtype, parse_timestamps, parse_dates, converters, binaries
 
 
@@ -446,7 +446,7 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
             f") AS\n"
             f"{sql}"
         )
-    _logger.debug(f"sql: {sql}")
+    _logger.debug("sql: %s", sql)
     query_id: str = start_query_execution(
         sql=sql,
         database=database,
@@ -456,7 +456,7 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
         kms_key=kms_key,
         boto3_session=session,
     )
-    _logger.debug(f"query_id: {query_id}")
+    _logger.debug("query_id: %s", query_id)
     query_response: Dict[str, Any] = wait_query(query_execution_id=query_id, boto3_session=session)
     if query_response["QueryExecution"]["Status"]["State"] in ["FAILED", "CANCELLED"]:  # pragma: no cover
         reason: str = query_response["QueryExecution"]["Status"]["StateChangeReason"]
@@ -468,7 +468,7 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
         manifest_path: str = f"{_s3_output}/tables/{query_id}-manifest.csv"
         paths: List[str] = _extract_ctas_manifest_paths(path=manifest_path, boto3_session=session)
         chunked: Union[bool, int] = False if chunksize is None else chunksize
-        _logger.debug(f"chunked: {chunked}")
+        _logger.debug("chunked: %s", chunked)
         if not paths:
             if chunked is False:
                 dfs = pd.DataFrame()
@@ -485,9 +485,9 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
     )
     path = f"{_s3_output}/{query_id}.csv"
     s3.wait_objects_exist(paths=[path], use_threads=False, boto3_session=session)
-    _logger.debug(f"Start CSV reading from {path}")
+    _logger.debug("Start CSV reading from %s", path)
     _chunksize: Optional[int] = chunksize if isinstance(chunksize, int) else None
-    _logger.debug(f"_chunksize: {_chunksize}")
+    _logger.debug("_chunksize: %s", _chunksize)
     ret = s3.read_csv(
         path=[path],
         dtype=dtype,

@@ -766,7 +766,7 @@ def drop_duplicated_columns(df: pd.DataFrame) -> pd.DataFrame:
     duplicated_cols = df.columns.duplicated()
     duplicated_cols_names: List[str] = list(df.columns[duplicated_cols])
     if len(duplicated_cols_names) > 0:
-        _logger.warning(f"Dropping repeated columns: {duplicated_cols_names}")
+        _logger.warning("Dropping repeated columns: %s", duplicated_cols_names)
     return df.loc[:, ~duplicated_cols]
 
 
@@ -967,11 +967,11 @@ def _create_table(
             if name in columns_comments:
                 par["Comment"] = columns_comments[name]
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-
-    if mode == "overwrite":
+    exist: bool = does_table_exist(database=database, table=table, boto3_session=session)
+    if (mode == "overwrite") or (exist is False):
         delete_table_if_exists(database=database, table=table, boto3_session=session)
-    client_glue: boto3.client = _utils.client(service_name="glue", session=session)
-    client_glue.create_table(DatabaseName=database, TableInput=table_input)
+        client_glue: boto3.client = _utils.client(service_name="glue", session=session)
+        client_glue.create_table(DatabaseName=database, TableInput=table_input)
 
 
 def _csv_table_definition(
