@@ -16,6 +16,7 @@ Amazon S3
     does_object_exist
     get_bucket_region
     list_objects
+    list_directories
     read_csv
     read_fwf
     read_json
@@ -112,8 +113,11 @@ EMR
     get_cluster_state
     terminate_cluster
     submit_step
+    submit_spark_step
+    submit_ecr_credentials_refresh
     submit_steps
     build_step
+    build_spark_step
     get_step_state
 
 CloudWatch Logs

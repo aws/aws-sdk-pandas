@@ -111,6 +111,40 @@ def does_object_exist(path: str, boto3_session: Optional[boto3.Session] = None) 
         raise ex  # pragma: no cover
 
 
+def list_directories(path: str, boto3_session: Optional[boto3.Session] = None) -> List[str]:
+    """List Amazon S3 objects from a prefix.
+
+    Parameters
+    ----------
+    path : str
+        S3 path (e.g. s3://bucket/prefix).
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    List[str]
+        List of objects paths.
+
+    Examples
+    --------
+    Using the default boto3 session
+
+    >>> import awswrangler as wr
+    >>> wr.s3.list_objects('s3://bucket/prefix/')
+    ['s3://bucket/prefix/dir0', 's3://bucket/prefix/dir1', 's3://bucket/prefix/dir2']
+
+    Using a custom boto3 session
+
+    >>> import boto3
+    >>> import awswrangler as wr
+    >>> wr.s3.list_objects('s3://bucket/prefix/', boto3_session=boto3.Session())
+    ['s3://bucket/prefix/dir0', 's3://bucket/prefix/dir1', 's3://bucket/prefix/dir2']
+
+    """
+    return _list_objects(path=path, delimiter="/", boto3_session=boto3_session)
+
+
 def list_objects(path: str, boto3_session: Optional[boto3.Session] = None) -> List[str]:
     """List Amazon S3 objects from a prefix.
 
@@ -142,20 +176,37 @@ def list_objects(path: str, boto3_session: Optional[boto3.Session] = None) -> Li
     ['s3://bucket/prefix0', 's3://bucket/prefix1', 's3://bucket/prefix2']
 
     """
+    return _list_objects(path=path, delimiter=None, boto3_session=boto3_session)
+
+
+def _list_objects(
+    path: str, delimiter: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
+) -> List[str]:
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     paginator = client_s3.get_paginator("list_objects_v2")
     bucket: str
     prefix: str
     bucket, prefix = _utils.parse_path(path=path)
-    response_iterator = paginator.paginate(Bucket=bucket, Prefix=prefix, PaginationConfig={"PageSize": 1000})
+    args: Dict[str, Any] = {"Bucket": bucket, "Prefix": prefix, "PaginationConfig": {"PageSize": 1000}}
+    if delimiter is not None:
+        args["Delimiter"] = delimiter
+    response_iterator = paginator.paginate(**args)
     paths: List[str] = []
     for page in response_iterator:
-        contents: Optional[List] = page.get("Contents")
-        if contents is not None:
-            for content in contents:
-                if (content is not None) and ("Key" in content):
-                    key: str = content["Key"]
-                    paths.append(f"s3://{bucket}/{key}")
+        if delimiter is None:
+            contents: Optional[List[Optional[Dict[str, str]]]] = page.get("Contents")
+            if contents is not None:
+                for content in contents:
+                    if (content is not None) and ("Key" in content):
+                        key: str = content["Key"]
+                        paths.append(f"s3://{bucket}/{key}")
+        else:
+            prefixes: Optional[List[Optional[Dict[str, str]]]] = page.get("CommonPrefixes")
+            if prefixes is not None:
+                for pfx in prefixes:
+                    if (pfx is not None) and ("Prefix" in pfx):
+                        key = pfx["Prefix"]
+                        paths.append(f"s3://{bucket}/{key}")
     return paths
 
 

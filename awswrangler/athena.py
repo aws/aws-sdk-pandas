@@ -68,7 +68,7 @@ def create_athena_bucket(boto3_session: Optional[boto3.Session] = None) -> str:
 
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    account_id: str = _utils.client(service_name="sts", session=session).get_caller_identity().get("Account")
+    account_id: str = _utils.get_account_id(boto3_session=session)
     region_name: str = str(session.region_name).lower()
     s3_output = f"s3://aws-athena-query-results-{account_id}-{region_name}/"
     s3_resource = session.resource("s3")
