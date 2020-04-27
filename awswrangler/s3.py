@@ -178,11 +178,14 @@ def list_objects(path: str, suffix: Optional[str] = None, boto3_session: Optiona
     ['s3://bucket/prefix0', 's3://bucket/prefix1', 's3://bucket/prefix2']
 
     """
-    return _list_objects(path=path, delimiter=None, boto3_session=boto3_session)
+    return _list_objects(path=path, delimiter=None, suffix=suffix, boto3_session=boto3_session)
 
 
 def _list_objects(
-    path: str, delimiter: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
+    path: str,
+    delimiter: Optional[str] = None,
+    suffix: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
 ) -> List[str]:
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     paginator = client_s3.get_paginator("list_objects_v2")
@@ -194,7 +197,7 @@ def _list_objects(
         args["Delimiter"] = delimiter
     response_iterator = paginator.paginate(**args)
     paths: List[str] = []
-    for page in response_iterator:
+    for page in response_iterator:  # pylint: disable=too-many-nested-blocks
         if delimiter is None:
             contents: Optional[List] = page.get("Contents")
             if contents is not None:
