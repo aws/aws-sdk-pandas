@@ -166,3 +166,16 @@ def ensure_postgresql_casts():
 def get_directory(path: str) -> str:
     """Extract directory path."""
     return path.rsplit(sep="/", maxsplit=1)[0] + "/"
+
+
+def get_account_id(boto3_session: Optional[boto3.Session] = None) -> str:
+    """Get Account ID."""
+    session: boto3.Session = ensure_session(session=boto3_session)
+    return client(service_name="sts", session=session).get_caller_identity().get("Account")
+
+
+def get_region_from_subnet(subnet_id: str, boto3_session: Optional[boto3.Session] = None) -> str:
+    """Extract region from Subnet ID."""
+    session: boto3.Session = ensure_session(session=boto3_session)
+    client_ec2: boto3.client = client(service_name="ec2", session=session)
+    return client_ec2.describe_subnets(SubnetIds=[subnet_id])["Subnets"][0]["AvailabilityZone"][:9]

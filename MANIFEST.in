@@ -1,4 +1,5 @@
 include README.md LICENSE requirements.txt
+include awswrangler/py.typed
 exclude .*
 exclude *.egg-info
 exclude data_samples*

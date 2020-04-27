@@ -10,6 +10,7 @@ import logging
 
 from awswrangler import athena, catalog, cloudwatch, db, emr, exceptions, s3  # noqa
 from awswrangler.__metadata__ import __description__, __license__, __title__, __version__  # noqa
+from awswrangler._utils import get_account_id  # noqa
 
 if (
     importlib.util.find_spec("torch")

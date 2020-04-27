@@ -888,7 +888,7 @@ def unload_redshift(
     con: sqlalchemy.engine.Engine,
     iam_role: str,
     categories: List[str] = None,
-    chunked: bool = False,
+    chunked: Union[bool, int] = False,
     keep_files: bool = False,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
@@ -905,6 +905,22 @@ def unload_redshift(
     so it is only recommended to fetch +1MM rows at once.
 
     https://docs.aws.amazon.com/redshift/latest/dg/r_UNLOAD.html
+
+    Note
+    ----
+    ``Batching`` (`chunked` argument) (Memory Friendly):
+
+    Will anable the function to return a Iterable of DataFrames instead of a regular DataFrame.
+
+    There are two batching strategies on Wrangler:
+
+    - If **chunked=True**, a new DataFrame will be returned for each file in your path/dataset.
+
+    - If **chunked=INTEGER**, Wrangler will iterate on the data by number of rows igual the received INTEGER.
+
+    `P.S.` `chunked=True` if faster and uses less memory while `chunked=INTEGER` is more precise
+    in number of rows for each Dataframe.
+
 
     Note
     ----
@@ -926,9 +942,10 @@ def unload_redshift(
         Recommended for memory restricted environments.
     keep_files : bool
         Should keep the stage files?
-    chunked : bool
-        If True will break the data in smaller DataFrames (Non deterministic number of lines).
-        Otherwise return a single DataFrame with the whole data.
+    chunked : Union[int, bool]
+        If passed will split the data in a Iterable of DataFrames (Memory friendly).
+        If `True` wrangler will iterate on the data by files in the most efficient way without guarantee of chunksize.
+        If an `INTEGER` is passed Wrangler will iterate on the data by number of rows igual the received INTEGER.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -979,6 +996,7 @@ def unload_redshift(
     return _read_parquet_iterator(
         paths=paths,
         categories=categories,
+        chunked=chunked,
         use_threads=use_threads,
         boto3_session=session,
         s3_additional_kwargs=s3_additional_kwargs,
@@ -991,13 +1009,14 @@ def _read_parquet_iterator(
     keep_files: bool,
     use_threads: bool,
     categories: List[str] = None,
+    chunked: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
 ) -> Iterator[pd.DataFrame]:
     dfs: Iterator[pd.DataFrame] = s3.read_parquet(
         path=paths,
         categories=categories,
-        chunked=True,
+        chunked=chunked,
         dataset=False,
         use_threads=use_threads,
         boto3_session=boto3_session,

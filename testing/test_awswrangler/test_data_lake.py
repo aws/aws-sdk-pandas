@@ -3,6 +3,7 @@ import datetime
 import gzip
 import logging
 import lzma
+import math
 from io import BytesIO, TextIOWrapper
 
 import boto3
@@ -127,6 +128,9 @@ def test_athena_ctas(bucket, database, kms_key):
         partition_cols=["par0", "par1"],
     )["paths"]
     wr.s3.wait_objects_exist(paths=paths)
+    dirs = wr.s3.list_directories(path=f"s3://{bucket}/test_athena_ctas/")
+    for d in dirs:
+        assert d.startswith(f"s3://{bucket}/test_athena_ctas/par0=")
     df = wr.s3.read_parquet_table(table="test_athena_ctas", database=database)
     assert len(df.index) == 3
     ensure_data_types(df=df, has_list=True)
@@ -1084,3 +1088,38 @@ def test_copy(bucket):
 
     wr.s3.delete_objects(path=path)
     wr.s3.delete_objects(path=path2)
+
+
+@pytest.mark.parametrize("col2", [[1, 1, 1, 1, 1], [1, 2, 3, 4, 5], [1, 1, 1, 1, 2], [1, 2, 2, 2, 2]])
+@pytest.mark.parametrize("chunked", [True, 1, 2, 100])
+def test_parquet_chunked(bucket, database, col2, chunked):
+    table = f"test_parquet_chunked_{chunked}_{''.join([str(x) for x in col2])}"
+    path = f"s3://{bucket}/{table}/"
+    wr.s3.delete_objects(path=path)
+    values = list(range(5))
+    df = pd.DataFrame({"col1": values, "col2": col2})
+    paths = wr.s3.to_parquet(
+        df, path, index=False, dataset=True, database=database, table=table, partition_cols=["col2"], mode="overwrite"
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+
+    dfs = list(wr.s3.read_parquet(path=path, dataset=True, chunked=chunked))
+    assert sum(values) == pd.concat(dfs, ignore_index=True).col1.sum()
+    if chunked is not True:
+        assert len(dfs) == int(math.ceil(len(df) / chunked))
+        for df2 in dfs[:-1]:
+            assert chunked == len(df2)
+        assert chunked >= len(dfs[-1])
+    else:
+        assert len(dfs) == len(set(col2))
+
+    dfs = list(wr.athena.read_sql_table(database=database, table=table, chunksize=chunked))
+    assert sum(values) == pd.concat(dfs, ignore_index=True).col1.sum()
+    if chunked is not True:
+        assert len(dfs) == int(math.ceil(len(df) / chunked))
+        for df2 in dfs[:-1]:
+            assert chunked == len(df2)
+        assert chunked >= len(dfs[-1])
+
+    wr.s3.delete_objects(path=paths)
+    assert wr.catalog.delete_table_if_exists(database=database, table=table) is True
