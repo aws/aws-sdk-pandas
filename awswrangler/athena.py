@@ -329,7 +329,7 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
     database: str,
     ctas_approach: bool = True,
     categories: List[str] = None,
-    chunksize: Optional[int] = None,
+    chunksize: Optional[Union[int, bool]] = None,
     s3_output: Optional[str] = None,
     workgroup: Optional[str] = None,
     encryption: Optional[str] = None,
@@ -355,10 +355,6 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
 
     Note
     ----
-    If `chunksize` is passed, then a Generator of DataFrames is returned.
-
-    Note
-    ----
     If `ctas_approach` is True, `chunksize` will return non deterministic chunks sizes,
     but it still useful to overcome memory limitation.
 
@@ -366,6 +362,21 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
     ----
     Create the default Athena bucket if it doesn't exist and s3_output is None.
     (E.g. s3://aws-athena-query-results-ACCOUNT-REGION/)
+
+    Note
+    ----
+    ``Batching`` (`chunksize` argument) (Memory Friendly):
+
+    Will anable the function to return a Iterable of DataFrames instead of a regular DataFrame.
+
+    There are two batching strategies on Wrangler:
+
+    - If **chunksize=True**, a new DataFrame will be returned for each file in the query result.
+
+    - If **chunked=INTEGER**, Wrangler will iterate on the data by number of rows igual the received INTEGER.
+
+    `P.S.` `chunksize=True` if faster and uses less memory while `chunksize=INTEGER` is more precise
+    in number of rows for each Dataframe.
 
     Note
     ----
@@ -383,8 +394,10 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
     categories: List[str], optional
         List of columns names that should be returned as pandas.Categorical.
         Recommended for memory restricted environments.
-    chunksize: int, optional
-        If specified, return an generator where chunksize is the number of rows to include in each chunk.
+    chunksize : Union[int, bool], optional
+        If passed will split the data in a Iterable of DataFrames (Memory friendly).
+        If `True` wrangler will iterate on the data by files in the most efficient way without guarantee of chunksize.
+        If an `INTEGER` is passed Wrangler will iterate on the data by number of rows igual the received INTEGER.
     s3_output : str, optional
         AWS S3 path.
     workgroup : str, optional
@@ -454,7 +467,7 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
         catalog.delete_table_if_exists(database=database, table=name, boto3_session=session)
         manifest_path: str = f"{_s3_output}/tables/{query_id}-manifest.csv"
         paths: List[str] = _extract_ctas_manifest_paths(path=manifest_path, boto3_session=session)
-        chunked: bool = chunksize is not None
+        chunked: Union[bool, int] = False if chunksize is None else chunksize
         _logger.debug(f"chunked: {chunked}")
         if not paths:
             if chunked is False:
@@ -473,6 +486,8 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
     path = f"{_s3_output}/{query_id}.csv"
     s3.wait_objects_exist(paths=[path], use_threads=False, boto3_session=session)
     _logger.debug(f"Start CSV reading from {path}")
+    _chunksize: Optional[int] = chunksize if isinstance(chunksize, int) else None
+    _logger.debug(f"_chunksize: {_chunksize}")
     ret = s3.read_csv(
         path=[path],
         dtype=dtype,
@@ -481,7 +496,7 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
         quoting=csv.QUOTE_ALL,
         keep_default_na=False,
         na_values=[""],
-        chunksize=chunksize,
+        chunksize=_chunksize,
         skip_blank_lines=False,
         use_threads=False,
         boto3_session=session,
@@ -565,7 +580,7 @@ def read_sql_table(
     database: str,
     ctas_approach: bool = True,
     categories: List[str] = None,
-    chunksize: Optional[int] = None,
+    chunksize: Optional[Union[int, bool]] = None,
     s3_output: Optional[str] = None,
     workgroup: Optional[str] = None,
     encryption: Optional[str] = None,
@@ -591,10 +606,6 @@ def read_sql_table(
 
     Note
     ----
-    If `chunksize` is passed, then a Generator of DataFrames is returned.
-
-    Note
-    ----
     If `ctas_approach` is True, `chunksize` will return non deterministic chunks sizes,
     but it still useful to overcome memory limitation.
 
@@ -602,6 +613,21 @@ def read_sql_table(
     ----
     Create the default Athena bucket if it doesn't exist and s3_output is None.
     (E.g. s3://aws-athena-query-results-ACCOUNT-REGION/)
+
+    Note
+    ----
+    ``Batching`` (`chunksize` argument) (Memory Friendly):
+
+    Will anable the function to return a Iterable of DataFrames instead of a regular DataFrame.
+
+    There are two batching strategies on Wrangler:
+
+    - If **chunksize=True**, a new DataFrame will be returned for each file in the query result.
+
+    - If **chunked=INTEGER**, Wrangler will iterate on the data by number of rows igual the received INTEGER.
+
+    `P.S.` `chunksize=True` if faster and uses less memory while `chunksize=INTEGER` is more precise
+    in number of rows for each Dataframe.
 
     Note
     ----
@@ -619,8 +645,10 @@ def read_sql_table(
     categories: List[str], optional
         List of columns names that should be returned as pandas.Categorical.
         Recommended for memory restricted environments.
-    chunksize: int, optional
-        If specified, return an generator where chunksize is the number of rows to include in each chunk.
+    chunksize : Union[int, bool], optional
+        If passed will split the data in a Iterable of DataFrames (Memory friendly).
+        If `True` wrangler will iterate on the data by files in the most efficient way without guarantee of chunksize.
+        If an `INTEGER` is passed Wrangler will iterate on the data by number of rows igual the received INTEGER.
     s3_output : str, optional
         AWS S3 path.
     workgroup : str, optional
@@ -646,6 +674,7 @@ def read_sql_table(
     >>> df = wr.athena.read_sql_table(table='...', database='...')
 
     """
+    table = catalog.sanitize_table_name(table=table)
     return read_sql_query(
         sql=f'SELECT * FROM "{table}"',
         database=database,
