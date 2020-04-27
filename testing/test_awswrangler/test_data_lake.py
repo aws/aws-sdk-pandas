@@ -708,7 +708,7 @@ def test_parquet_validate_schema(bucket, database):
     df2 = pd.DataFrame({"id2": [1, 2, 3], "val": ["foo", "boo", "bar"]})
     path_file2 = f"s3://{bucket}/test_parquet_file_validate/1.parquet"
     wr.s3.to_parquet(df=df2, path=path_file2)
-    wr.s3.wait_objects_exist(paths=[path_file2])
+    wr.s3.wait_objects_exist(paths=[path_file2], use_threads=False)
     df3 = wr.s3.read_parquet(path=path, validate_schema=False)
     assert len(df3.index) == 6
     assert len(df3.columns) == 3

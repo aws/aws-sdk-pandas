@@ -24,12 +24,8 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
-          pip install -r requirements-torch.txt
+      - name: Setup Environment
+        run: ./setup-dev-env.sh
       - name: CloudFormation Lint
         run: cfn-lint -t testing/cloudformation.yaml
       - name: Documentation Lint

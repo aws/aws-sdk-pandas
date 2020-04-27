@@ -4,7 +4,6 @@ import logging
 import os
 import pathlib
 import re
-import tarfile
 from collections.abc import Iterable
 from io import BytesIO
 from typing import Any, Callable, Iterator, List, Optional, Tuple, Union
@@ -64,12 +63,12 @@ class _BaseS3Dataset:
     def _load_data(data: io.BytesIO, path: str) -> Any:
         if path.endswith(".pt"):
             data = torch.load(data)
-        elif path.endswith(".tar.gz") or path.endswith(".tgz"):
-            tarfile.open(fileobj=data)
+        elif path.endswith(".tar.gz") or path.endswith(".tgz"):  # pragma: no cover
             raise NotImplementedError("Tar loader not implemented!")
+            # tarfile.open(fileobj=data)
             # tar = tarfile.open(fileobj=data)
             # for member in tar.getmembers():
-        else:
+        else:  # pragma: no cover
             raise NotImplementedError()
 
         return data
@@ -86,10 +85,10 @@ class _ListS3Dataset(_BaseS3Dataset, Dataset):
     def __len__(self):
         return len(self._paths)
 
-    def _data_fn(self, data) -> Any:
+    def _data_fn(self, data) -> Any:  # pragma: no cover
         raise NotImplementedError()
 
-    def _label_fn(self, path: str) -> Any:
+    def _label_fn(self, path: str) -> Any:  # pragma: no cover
         raise NotImplementedError()
 
 
@@ -100,7 +99,7 @@ class _S3PartitionedDataset(_ListS3Dataset):
         label = int(re.findall(r"/(.*?)=(.*?)/", path)[-1][1])
         return torch.tensor([label])  # pylint: disable=not-callable
 
-    def _data_fn(self, data) -> Any:
+    def _data_fn(self, data) -> Any:  # pragma: no cover
         raise NotImplementedError()
 
 
@@ -383,9 +382,8 @@ class S3IterableDataset(IterableDataset, _BaseS3Dataset):  # pylint: disable=abs
                 pass
             elif isinstance(data, Iterable) and all([isinstance(d, torch.Tensor) for d in data]):
                 data = zip(*data)
-            else:
+            else:  # pragma: no cover
                 raise NotImplementedError(f"ERROR: Type: {type(data)} has not been implemented!")
-
             for d in data:
                 yield d
 
@@ -436,7 +434,7 @@ class SQLDataset(IterableDataset):  # pylint: disable=too-few-public-methods,abs
     def __iter__(self) -> Union[Iterator[torch.Tensor], Iterator[Tuple[torch.Tensor, torch.Tensor]]]:
         """Iterate over the Dataset."""
         if torch.utils.data.get_worker_info() is not None:  # type: ignore
-            raise NotImplementedError()
+            raise NotImplementedError()  # pragma: no cover
         db._validate_engine(con=self._con)  # pylint: disable=protected-access
         with self._con.connect() as con:
             cursor: Any = con.execute(self._sql)

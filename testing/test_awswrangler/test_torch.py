@@ -84,7 +84,8 @@ def test_torch_sql(parameters, db_type, chunksize):
 
 @pytest.mark.parametrize("chunksize", [None, 1, 10])
 @pytest.mark.parametrize("db_type", ["mysql", "redshift", "postgresql"])
-def test_torch_sql_label(parameters, db_type, chunksize):
+@pytest.mark.parametrize("label_col", [2, "c"])
+def test_torch_sql_label(parameters, db_type, chunksize, label_col):
     schema = parameters[db_type]["schema"]
     table = f"test_torch_sql_label_{db_type}_{str(chunksize).lower()}"
     engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-{db_type}")
@@ -99,7 +100,9 @@ def test_torch_sql_label(parameters, db_type, chunksize):
         chunksize=None,
         method=None,
     )
-    ts = list(wr.torch.SQLDataset(f"SELECT * FROM {schema}.{table}", con=engine, chunksize=chunksize, label_col=2))
+    ts = list(
+        wr.torch.SQLDataset(f"SELECT * FROM {schema}.{table}", con=engine, chunksize=chunksize, label_col=label_col)
+    )
     assert torch.all(ts[0][0].eq(torch.tensor([1.0, 4.0])))
     assert torch.all(ts[0][1].eq(torch.tensor([7], dtype=torch.long)))
     assert torch.all(ts[1][0].eq(torch.tensor([2.0, 5.0])))
