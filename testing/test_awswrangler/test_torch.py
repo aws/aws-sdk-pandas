@@ -87,7 +87,7 @@ def test_torch_sql(parameters, db_type, chunksize):
 @pytest.mark.parametrize("label_col", [2, "c"])
 def test_torch_sql_label(parameters, db_type, chunksize, label_col):
     schema = parameters[db_type]["schema"]
-    table = f"test_torch_sql_label_{db_type}_{str(chunksize).lower()}"
+    table = f"test_torch_sql_label_{db_type}_{str(chunksize).lower()}_{label_col}"
     engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-{db_type}")
     wr.db.to_sql(
         df=pd.DataFrame({"a": [1.0, 2.0, 3.0], "b": [4.0, 5.0, 6.0], "c": [7, 8, 9]}),
@@ -123,6 +123,7 @@ def test_torch_image_s3(bucket):
         Key=f"{folder}/class={ref_label}/logo.png",
         ContentType="image/png",
     )
+    wr.s3.wait_objects_exist(paths=[f"s3://{bucket}/{folder}/class={ref_label}/logo.png"])
     ds = wr.torch.ImageS3Dataset(path=path, suffix="png", boto3_session=boto3.Session())
     image, label = ds[0]
     assert image.shape == torch.Size([4, 494, 1636])
@@ -144,6 +145,7 @@ def test_torch_image_s3_loader(bucket, drop_last):
             Key=f"{folder}/class={label}/logo{i}.png",
             ContentType="image/png",
         )
+        wr.s3.wait_objects_exist(paths=[f"s3://{bucket}/{folder}/class={label}/logo{i}.png"])
     ds = wr.torch.ImageS3Dataset(path=path, suffix="png", boto3_session=boto3.Session())
     batch_size = 2
     num_train = len(ds)
@@ -172,6 +174,7 @@ def test_torch_lambda_s3(bucket):
         Key=f"test_torch_lambda_s3/class={ref_label}/logo.png",
         ContentType="image/png",
     )
+    wr.s3.wait_objects_exist(paths=[f"s3://{bucket}/test_torch_lambda_s3/class={ref_label}/logo.png"])
     ds = wr.torch.LambdaS3Dataset(
         path=path,
         suffix="png",
@@ -201,6 +204,7 @@ def test_torch_audio_s3(bucket):
         Key=f"{folder}/class={ref_label}/amazing_sound.wav",
         ContentType="audio/wav",
     )
+    wr.s3.wait_objects_exist(paths=[f"s3://{bucket}/{folder}/class={ref_label}/amazing_sound.wav"])
     s3_audio_file = f"{bucket}/test_torch_audio_s3/class={ref_label}/amazing_sound.wav"
     ds = wr.torch.AudioS3Dataset(path=s3_audio_file, suffix="wav")
     loader = DataLoader(ds, batch_size=1)
@@ -234,6 +238,7 @@ def test_torch_s3_iterable(bucket, drop_last):
         torch.save(batch, buff)
         buff.seek(0)
         client_s3.put_object(Body=buff.read(), Bucket=bucket, Key=f"{folder}/file{i}.pt")
+        wr.s3.wait_objects_exist(paths=[f"s3://{bucket}/{folder}/file{i}.pt"])
 
     for image in DataLoader(
         wr.torch.S3IterableDataset(path=f"s3://{bucket}/{folder}/file"), batch_size=batch_size, drop_last=drop_last
@@ -259,6 +264,7 @@ def test_torch_s3_iterable_with_labels(bucket, drop_last):
         torch.save(batch, buff)
         buff.seek(0)
         client_s3.put_object(Body=buff.read(), Bucket=bucket, Key=f"{folder}/file{i}.pt")
+        wr.s3.wait_objects_exist(paths=[f"s3://{bucket}/{folder}/file{i}.pt"])
 
     for images, labels in DataLoader(
         wr.torch.S3IterableDataset(path=f"s3://{bucket}/{folder}/file"), batch_size=batch_size, drop_last=drop_last
