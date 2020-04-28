@@ -74,10 +74,7 @@ def workgroup0(bucket):
         client.create_work_group(
             Name=wkg_name,
             Configuration={
-                "ResultConfiguration": {
-                    "OutputLocation": f"s3://{bucket}/athena_workgroup0/",
-                    "EncryptionConfiguration": {"EncryptionOption": "SSE_S3"},
-                },
+                "ResultConfiguration": {"OutputLocation": f"s3://{bucket}/athena_workgroup0/"},
                 "EnforceWorkGroupConfiguration": True,
                 "PublishCloudWatchMetricsEnabled": True,
                 "BytesScannedCutoffPerQuery": 100_000_000,
@@ -98,7 +95,10 @@ def workgroup1(bucket):
         client.create_work_group(
             Name=wkg_name,
             Configuration={
-                "ResultConfiguration": {"OutputLocation": f"s3://{bucket}/athena_workgroup1/"},
+                "ResultConfiguration": {
+                    "OutputLocation": f"s3://{bucket}/athena_workgroup1/",
+                    "EncryptionConfiguration": {"EncryptionOption": "SSE_S3"},
+                },
                 "EnforceWorkGroupConfiguration": True,
                 "PublishCloudWatchMetricsEnabled": True,
                 "BytesScannedCutoffPerQuery": 100_000_000,
@@ -109,7 +109,57 @@ def workgroup1(bucket):
     yield wkg_name
 
 
+@pytest.fixture(scope="module")
+def workgroup2(bucket, kms_key):
+    wkg_name = "awswrangler_test_2"
+    client = boto3.client("athena")
+    wkgs = client.list_work_groups()
+    wkgs = [x["Name"] for x in wkgs["WorkGroups"]]
+    if wkg_name not in wkgs:
+        client.create_work_group(
+            Name=wkg_name,
+            Configuration={
+                "ResultConfiguration": {
+                    "OutputLocation": f"s3://{bucket}/athena_workgroup2/",
+                    "EncryptionConfiguration": {"EncryptionOption": "SSE_KMS", "KmsKey": kms_key},
+                },
+                "EnforceWorkGroupConfiguration": False,
+                "PublishCloudWatchMetricsEnabled": True,
+                "BytesScannedCutoffPerQuery": 100_000_000,
+                "RequesterPaysEnabled": False,
+            },
+            Description="AWS Data Wrangler Test WorkGroup Number 2",
+        )
+    yield wkg_name
+
+
+@pytest.fixture(scope="module")
+def workgroup3(bucket, kms_key):
+    wkg_name = "awswrangler_test_3"
+    client = boto3.client("athena")
+    wkgs = client.list_work_groups()
+    wkgs = [x["Name"] for x in wkgs["WorkGroups"]]
+    if wkg_name not in wkgs:
+        client.create_work_group(
+            Name=wkg_name,
+            Configuration={
+                "ResultConfiguration": {
+                    "OutputLocation": f"s3://{bucket}/athena_workgroup3/",
+                    "EncryptionConfiguration": {"EncryptionOption": "SSE_KMS", "KmsKey": kms_key},
+                },
+                "EnforceWorkGroupConfiguration": True,
+                "PublishCloudWatchMetricsEnabled": True,
+                "BytesScannedCutoffPerQuery": 100_000_000,
+                "RequesterPaysEnabled": False,
+            },
+            Description="AWS Data Wrangler Test WorkGroup Number 3",
+        )
+    yield wkg_name
+
+
 def test_athena_ctas(bucket, database, kms_key):
+    wr.s3.delete_objects(path=f"s3://{bucket}/test_athena_ctas/")
+    wr.s3.delete_objects(path=f"s3://{bucket}/test_athena_ctas_result/")
     df = get_df_list()
     columns_types, partitions_types = wr.catalog.extract_athena_types(df=df, partition_cols=["par0", "par1"])
     assert len(columns_types) == 16
@@ -256,13 +306,12 @@ def test_fwf(bucket):
 
 
 def test_parquet(bucket):
-    wr.s3.delete_objects(path=f"s3://{bucket}/test_parquet_file")
-    wr.s3.delete_objects(path=f"s3://{bucket}/test_parquet_dataset")
+    wr.s3.delete_objects(path=f"s3://{bucket}/test_parquet/")
     df_file = pd.DataFrame({"id": [1, 2, 3]})
-    path_file = f"s3://{bucket}/test_parquet_file.parquet"
+    path_file = f"s3://{bucket}/test_parquet/test_parquet_file.parquet"
     df_dataset = pd.DataFrame({"id": [1, 2, 3], "partition": ["A", "A", "B"]})
     df_dataset["partition"] = df_dataset["partition"].astype("category")
-    path_dataset = f"s3://{bucket}/test_parquet_dataset"
+    path_dataset = f"s3://{bucket}/test_parquet/test_parquet_dataset"
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
         wr.s3.to_parquet(df=df_file, path=path_file, mode="append")
     with pytest.raises(wr.exceptions.InvalidCompression):
@@ -292,8 +341,7 @@ def test_parquet(bucket):
     wr.s3.to_parquet(
         df=df_dataset, path=path_dataset, dataset=True, partition_cols=["partition"], mode="overwrite_partitions"
     )
-    wr.s3.delete_objects(path=f"s3://{bucket}/test_parquet_file")
-    wr.s3.delete_objects(path=f"s3://{bucket}/test_parquet_dataset")
+    wr.s3.delete_objects(path=f"s3://{bucket}/test_parquet/")
 
 
 def test_parquet_catalog(bucket, database):
@@ -1123,3 +1171,35 @@ def test_parquet_chunked(bucket, database, col2, chunked):
 
     wr.s3.delete_objects(path=paths)
     assert wr.catalog.delete_table_if_exists(database=database, table=table) is True
+
+
+@pytest.mark.parametrize("workgroup", [None, 0, 1, 2, 3])
+@pytest.mark.parametrize("encryption", [None, "SSE_S3", "SSE_KMS"])
+def test_athena_encryption(
+    bucket, database, kms_key, encryption, workgroup, workgroup0, workgroup1, workgroup2, workgroup3
+):
+    kms_key = None if (encryption == "SSE_S3") or (encryption is None) else kms_key
+    if workgroup == 0:
+        workgroup = workgroup0
+    elif workgroup == 1:
+        workgroup = workgroup1
+    elif workgroup == 2:
+        workgroup = workgroup2
+    elif workgroup == 3:
+        workgroup = workgroup3
+    table = f"test_athena_encryption_{str(encryption).lower()}_{str(workgroup).lower()}"
+    path = f"s3://{bucket}/{table}/"
+    wr.s3.delete_objects(path=path)
+    df = pd.DataFrame({"a": [1, 2], "b": ["foo", "boo"]})
+    paths = wr.s3.to_parquet(
+        df=df, path=path, dataset=True, mode="overwrite", database=database, table=table, s3_additional_kwargs=None
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df2 = wr.athena.read_sql_table(
+        table=table, ctas_approach=True, database=database, encryption=encryption, workgroup=workgroup, kms_key=kms_key
+    )
+    print(df2)
+    assert len(df2.index) == 2
+    assert len(df2.columns) == 2
+    wr.catalog.delete_table_if_exists(database=database, table=table)
+    wr.s3.delete_objects(path=paths)

@@ -2,6 +2,7 @@
 
 import csv
 import logging
+import pprint
 import time
 from decimal import Decimal
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
@@ -120,19 +121,49 @@ def start_query_execution(
     >>> query_exec_id = wr.athena.start_query_execution(sql='...', database='...')
 
     """
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    wg_config: Dict[str, Union[bool, Optional[str]]] = _get_workgroup_config(session=session, workgroup=workgroup)
+    return _start_query_execution(
+        sql=sql,
+        wg_config=wg_config,
+        database=database,
+        s3_output=s3_output,
+        workgroup=workgroup,
+        encryption=encryption,
+        kms_key=kms_key,
+        boto3_session=session,
+    )
+
+
+def _start_query_execution(
+    sql: str,
+    wg_config: Dict[str, Union[Optional[bool], Optional[str]]],
+    database: Optional[str] = None,
+    s3_output: Optional[str] = None,
+    workgroup: Optional[str] = None,
+    encryption: Optional[str] = None,
+    kms_key: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> str:
     args: Dict[str, Any] = {"QueryString": sql}
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
     # s3_output
-    if s3_output is None:  # pragma: no cover
-        s3_output = create_athena_bucket(boto3_session=session)
-    args["ResultConfiguration"] = {"OutputLocation": s3_output}
+    args["ResultConfiguration"] = {
+        "OutputLocation": _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=session)
+    }
 
     # encryption
-    if encryption is not None:
-        args["ResultConfiguration"]["EncryptionConfiguration"] = {"EncryptionOption": encryption}
-        if kms_key is not None:
-            args["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"] = kms_key
+    if wg_config["enforced"] is True:
+        if wg_config["encryption"] is not None:
+            args["ResultConfiguration"]["EncryptionConfiguration"] = {"EncryptionOption": wg_config["encryption"]}
+            if wg_config["kms_key"] is not None:
+                args["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"] = wg_config["kms_key"]
+    else:
+        if encryption is not None:
+            args["ResultConfiguration"]["EncryptionConfiguration"] = {"EncryptionOption": encryption}
+            if kms_key is not None:
+                args["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"] = kms_key
 
     # database
     if database is not None:
@@ -143,8 +174,23 @@ def start_query_execution(
         args["WorkGroup"] = workgroup
 
     client_athena: boto3.client = _utils.client(service_name="athena", session=session)
+    _logger.debug("args: \n%s", pprint.pformat(args))
     response = client_athena.start_query_execution(**args)
     return response["QueryExecutionId"]
+
+
+def _get_s3_output(
+    s3_output: Optional[str], wg_config: Dict[str, Union[bool, Optional[str]]], boto3_session: boto3.Session
+) -> str:
+    if s3_output is None:
+        _s3_output: Optional[str] = wg_config["s3_output"]  # type: ignore
+        if _s3_output is not None:
+            s3_output = _s3_output
+        else:
+            s3_output = create_athena_bucket(boto3_session=boto3_session)
+    elif wg_config["enforced"] is True:
+        s3_output = wg_config["s3_output"]  # type: ignore
+    return s3_output
 
 
 def wait_query(query_execution_id: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, Any]:
@@ -355,12 +401,14 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
 
     Note
     ----
-    If `ctas_approach` is True, `chunksize` will return non deterministic chunks sizes,
-    but it still useful to overcome memory limitation.
+    Valid encryption modes: [None, 'SSE_S3', 'SSE_KMS'].
+
+    `P.S. 'CSE_KMS' is not supported.`
 
     Note
     ----
     Create the default Athena bucket if it doesn't exist and s3_output is None.
+
     (E.g. s3://aws-athena-query-results-ACCOUNT-REGION/)
 
     Note
@@ -403,9 +451,9 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
     workgroup : str, optional
         Athena workgroup.
     encryption : str, optional
-        None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
+        Valid values: [None, 'SSE_S3', 'SSE_KMS']. Notice: 'CSE_KMS' is not supported.
     kms_key : str, optional
-        For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
+        For SSE-KMS, this is the KMS key ARN or ID.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -424,31 +472,27 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
 
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    wg_s3_output, _, _ = _ensure_workgroup(session=session, workgroup=workgroup)
-    if s3_output is None:
-        if wg_s3_output is None:
-            _s3_output: str = create_athena_bucket(boto3_session=session)
-        else:
-            _s3_output = wg_s3_output
-    else:
-        _s3_output = s3_output
+    wg_config: Dict[str, Union[bool, Optional[str]]] = _get_workgroup_config(session=session, workgroup=workgroup)
+    _s3_output: str = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=session)
     _s3_output = _s3_output[:-1] if _s3_output[-1] == "/" else _s3_output
     name: str = ""
     if ctas_approach is True:
         name = f"temp_table_{pa.compat.guid()}"
         path: str = f"{_s3_output}/{name}"
+        ext_location: str = "\n" if wg_config["enforced"] is True else f",\n    external_location = '{path}'\n"
         sql = (
             f"CREATE TABLE {name}\n"
             f"WITH(\n"
             f"    format = 'Parquet',\n"
-            f"    parquet_compression = 'SNAPPY',\n"
-            f"    external_location = '{path}'\n"
+            f"    parquet_compression = 'SNAPPY'"
+            f"{ext_location}"
             f") AS\n"
             f"{sql}"
         )
     _logger.debug("sql: %s", sql)
-    query_id: str = start_query_execution(
+    query_id: str = _start_query_execution(
         sql=sql,
+        wg_config=wg_config,
         database=database,
         s3_output=_s3_output,
         workgroup=workgroup,
@@ -466,6 +510,7 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
     if ctas_approach is True:
         catalog.delete_table_if_exists(database=database, table=name, boto3_session=session)
         manifest_path: str = f"{_s3_output}/tables/{query_id}-manifest.csv"
+        _logger.debug("manifest_path: %s", manifest_path)
         paths: List[str] = _extract_ctas_manifest_paths(path=manifest_path, boto3_session=session)
         chunked: Union[bool, int] = False if chunksize is None else chunksize
         _logger.debug("chunked: %s", chunked)
@@ -560,19 +605,27 @@ def get_work_group(workgroup: str, boto3_session: Optional[boto3.Session] = None
     return client_athena.get_work_group(WorkGroup=workgroup)
 
 
-def _ensure_workgroup(
+def _get_workgroup_config(
     session: boto3.Session, workgroup: Optional[str] = None
-) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+) -> Dict[str, Union[bool, Optional[str]]]:
     if workgroup is not None:
         res: Dict[str, Any] = get_work_group(workgroup=workgroup, boto3_session=session)
+        enforced: bool = res["WorkGroup"]["Configuration"]["EnforceWorkGroupConfiguration"]
         config: Dict[str, Any] = res["WorkGroup"]["Configuration"]["ResultConfiguration"]
         wg_s3_output: Optional[str] = config.get("OutputLocation")
         encrypt_config: Optional[Dict[str, str]] = config.get("EncryptionConfiguration")
         wg_encryption: Optional[str] = None if encrypt_config is None else encrypt_config.get("EncryptionOption")
         wg_kms_key: Optional[str] = None if encrypt_config is None else encrypt_config.get("KmsKey")
     else:
-        wg_s3_output, wg_encryption, wg_kms_key = None, None, None
-    return wg_s3_output, wg_encryption, wg_kms_key
+        enforced, wg_s3_output, wg_encryption, wg_kms_key = False, None, None, None
+    wg_config: Dict[str, Union[bool, Optional[str]]] = {
+        "enforced": enforced,
+        "s3_output": wg_s3_output,
+        "encryption": wg_encryption,
+        "kms_key": wg_kms_key,
+    }
+    _logger.debug("wg_config: \n%s", pprint.pformat(wg_config))
+    return wg_config
 
 
 def read_sql_table(
@@ -606,12 +659,14 @@ def read_sql_table(
 
     Note
     ----
-    If `ctas_approach` is True, `chunksize` will return non deterministic chunks sizes,
-    but it still useful to overcome memory limitation.
+    Valid encryption modes: [None, 'SSE_S3', 'SSE_KMS'].
+
+    `P.S. 'CSE_KMS' is not supported.`
 
     Note
     ----
     Create the default Athena bucket if it doesn't exist and s3_output is None.
+
     (E.g. s3://aws-athena-query-results-ACCOUNT-REGION/)
 
     Note
