@@ -1688,12 +1688,7 @@ def read_parquet(
             data=data, columns=columns, categories=categories, use_threads=use_threads, validate_schema=validate_schema
         )
     return _read_parquet_chunked(
-        data=data,
-        columns=columns,
-        categories=categories,
-        chunked=chunked,
-        use_threads=use_threads,
-        validate_schema=validate_schema,
+        data=data, columns=columns, categories=categories, chunked=chunked, use_threads=use_threads
     )
 
 
@@ -1728,22 +1723,17 @@ def _read_parquet_chunked(
     data: pyarrow.parquet.ParquetDataset,
     columns: Optional[List[str]] = None,
     categories: List[str] = None,
-    validate_schema: bool = True,
     chunked: Union[bool, int] = True,
     use_threads: bool = True,
 ) -> Iterator[pd.DataFrame]:
-    promote: bool = not validate_schema
     next_slice: Optional[pd.DataFrame] = None
     for piece in data.pieces:
         df: pd.DataFrame = _table2df(
             table=piece.read(
-                columns=columns,
-                use_threads=use_threads,
-                partitions=data.partitions,
-                use_pandas_metadata=False
+                columns=columns, use_threads=use_threads, partitions=data.partitions, use_pandas_metadata=False
             ),
             categories=categories,
-            use_threads=use_threads
+            use_threads=use_threads,
         )
         if chunked is True:
             yield df
