@@ -1132,7 +1132,7 @@ def _to_parquet_dataset(
     schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(
         df=df, index=index, ignore_cols=partition_cols, dtype=dtype
     )
-    _logger.debug("schema: %s", schema)
+    _logger.debug("schema: \n%s", schema)
     if not partition_cols:
         file_path: str = f"{path}{uuid.uuid4().hex}{compression_ext}.parquet"
         _to_parquet_file(
@@ -1688,12 +1688,7 @@ def read_parquet(
             data=data, columns=columns, categories=categories, use_threads=use_threads, validate_schema=validate_schema
         )
     return _read_parquet_chunked(
-        data=data,
-        columns=columns,
-        categories=categories,
-        chunked=chunked,
-        use_threads=use_threads,
-        validate_schema=validate_schema,
+        data=data, columns=columns, categories=categories, chunked=chunked, use_threads=use_threads
     )
 
 
@@ -1728,29 +1723,32 @@ def _read_parquet_chunked(
     data: pyarrow.parquet.ParquetDataset,
     columns: Optional[List[str]] = None,
     categories: List[str] = None,
-    validate_schema: bool = True,
     chunked: Union[bool, int] = True,
     use_threads: bool = True,
 ) -> Iterator[pd.DataFrame]:
-    promote: bool = not validate_schema
-    next_slice: Optional[pa.Table] = None
+    next_slice: Optional[pd.DataFrame] = None
     for piece in data.pieces:
-        table: pa.Table = piece.read(
-            columns=columns, use_threads=use_threads, partitions=data.partitions, use_pandas_metadata=False
+        df: pd.DataFrame = _table2df(
+            table=piece.read(
+                columns=columns, use_threads=use_threads, partitions=data.partitions, use_pandas_metadata=False
+            ),
+            categories=categories,
+            use_threads=use_threads,
         )
         if chunked is True:
-            yield _table2df(table=table, categories=categories, use_threads=use_threads)
+            yield df
         else:
-            if next_slice:
-                table = pa.lib.concat_tables([next_slice, table], promote=promote)
-            while len(table) >= chunked:
-                yield _table2df(
-                    table=table.slice(offset=0, length=chunked), categories=categories, use_threads=use_threads
-                )
-                table = table.slice(offset=chunked, length=None)
-            next_slice = table
-    if next_slice:
-        yield _table2df(table=next_slice, categories=categories, use_threads=use_threads)
+            if next_slice is not None:
+                df = pd.concat(objs=[next_slice, df], ignore_index=True, sort=False)
+            while len(df.index) >= chunked:
+                yield df.iloc[:chunked]
+                df = df.iloc[chunked:]
+            if df.empty:
+                next_slice = None
+            else:
+                next_slice = df
+    if next_slice is not None:
+        yield next_slice
 
 
 def _table2df(table: pa.Table, categories: List[str] = None, use_threads: bool = True) -> pd.DataFrame:

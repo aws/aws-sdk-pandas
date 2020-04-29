@@ -372,7 +372,7 @@ def sqlalchemy_types_from_pandas(
     df: pd.DataFrame, db_type: str, dtype: Optional[Dict[str, VisitableType]] = None
 ) -> Dict[str, VisitableType]:
     """Extract the related SQLAlchemy data types from any Pandas DataFrame."""
-    casts: Dict[str, VisitableType] = dtype if dtype else {}
+    casts: Dict[str, VisitableType] = dtype if dtype is not None else {}
     pa_columns_types: Dict[str, Optional[pa.DataType]] = pyarrow_types_from_pandas(
         df=df, index=False, ignore_cols=list(casts.keys())
     )
