@@ -2,6 +2,7 @@
 
 import json
 import logging
+import time
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 from urllib.parse import quote_plus
 
@@ -91,7 +92,16 @@ def to_sql(df: pd.DataFrame, con: sqlalchemy.engine.Engine, **pandas_kwargs) -> 
     )
     pandas_kwargs["dtype"] = dtypes
     pandas_kwargs["con"] = con
-    df.to_sql(**pandas_kwargs)
+    max_attempts: int = 3
+    for attempt in range(max_attempts):
+        try:
+            df.to_sql(**pandas_kwargs)
+        except sqlalchemy.exc.InternalError as ex:  # pragma: no cover
+            if attempt == (max_attempts - 1):
+                raise ex
+            time.sleep(1)
+        else:
+            break
 
 
 def read_sql_query(
@@ -887,6 +897,9 @@ def unload_redshift(
     path: str,
     con: sqlalchemy.engine.Engine,
     iam_role: str,
+    region: Optional[str] = None,
+    max_file_size: Optional[float] = None,
+    kms_key_id: Optional[str] = None,
     categories: List[str] = None,
     chunked: Union[bool, int] = False,
     keep_files: bool = False,
@@ -937,6 +950,19 @@ def unload_redshift(
         wr.db.get_engine(), wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()
     iam_role : str
         AWS IAM role with the related permissions.
+    region : str, optional
+        Specifies the AWS Region where the target Amazon S3 bucket is located.
+        REGION is required for UNLOAD to an Amazon S3 bucket that isn't in the
+        same AWS Region as the Amazon Redshift cluster. By default, UNLOAD
+        assumes that the target Amazon S3 bucket is located in the same AWS
+        Region as the Amazon Redshift cluster.
+    max_file_size : float, optional
+        Specifies the maximum size (MB) of files that UNLOAD creates in Amazon S3.
+        Specify a decimal value between 5.0 MB and 6200.0 MB. If None, the default
+        maximum file size is 6200.0 MB.
+    kms_key_id : str, optional
+        Specifies the key ID for an AWS Key Management Service (AWS KMS) key to be
+        used to encrypt data files on Amazon S3.
     categories: List[str], optional
         List of columns names that should be returned as pandas.Categorical.
         Recommended for memory restricted environments.
@@ -973,7 +999,15 @@ def unload_redshift(
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     paths: List[str] = unload_redshift_to_files(
-        sql=sql, path=path, con=con, iam_role=iam_role, use_threads=use_threads, boto3_session=session
+        sql=sql,
+        path=path,
+        con=con,
+        iam_role=iam_role,
+        region=region,
+        max_file_size=max_file_size,
+        kms_key_id=kms_key_id,
+        use_threads=use_threads,
+        boto3_session=session,
     )
     s3.wait_objects_exist(paths=paths, use_threads=False, boto3_session=session)
     if chunked is False:
@@ -1032,6 +1066,9 @@ def unload_redshift_to_files(
     path: str,
     con: sqlalchemy.engine.Engine,
     iam_role: str,
+    region: Optional[str] = None,
+    max_file_size: Optional[float] = None,
+    kms_key_id: Optional[str] = None,
     use_threads: bool = True,
     manifest: bool = False,
     partition_cols: Optional[List] = None,
@@ -1056,6 +1093,19 @@ def unload_redshift_to_files(
         wr.db.get_engine(), wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()
     iam_role : str
         AWS IAM role with the related permissions.
+    region : str, optional
+        Specifies the AWS Region where the target Amazon S3 bucket is located.
+        REGION is required for UNLOAD to an Amazon S3 bucket that isn't in the
+        same AWS Region as the Amazon Redshift cluster. By default, UNLOAD
+        assumes that the target Amazon S3 bucket is located in the same AWS
+        Region as the Amazon Redshift cluster.
+    max_file_size : float, optional
+        Specifies the maximum size (MB) of files that UNLOAD creates in Amazon S3.
+        Specify a decimal value between 5.0 MB and 6200.0 MB. If None, the default
+        maximum file size is 6200.0 MB.
+    kms_key_id : str, optional
+        Specifies the key ID for an AWS Key Management Service (AWS KMS) key to be
+        used to encrypt data files on Amazon S3.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -1086,19 +1136,26 @@ def unload_redshift_to_files(
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     s3.delete_objects(path=path, use_threads=use_threads, boto3_session=session)
     with con.connect() as _con:
-        partition_str: str = f"PARTITION BY ({','.join(partition_cols)})\n" if partition_cols else ""
+        partition_str: str = f"\nPARTITION BY ({','.join(partition_cols)})" if partition_cols else ""
         manifest_str: str = "\nmanifest" if manifest is True else ""
+        region_str: str = f"\nREGION AS '{region}'" if region is not None else ""
+        max_file_size_str: str = f"\nMAXFILESIZE AS {max_file_size} MB" if max_file_size is not None else ""
+        kms_key_id_str: str = f"\nKMS_KEY_ID '{kms_key_id}'" if kms_key_id is not None else ""
         sql = (
             f"UNLOAD ('{sql}')\n"
             f"TO '{path}'\n"
             f"IAM_ROLE '{iam_role}'\n"
             "ALLOWOVERWRITE\n"
             "PARALLEL ON\n"
-            "ENCRYPTED\n"
+            "FORMAT PARQUET\n"
+            "ENCRYPTED"
+            f"{kms_key_id_str}"
             f"{partition_str}"
-            "FORMAT PARQUET"
+            f"{region_str}"
+            f"{max_file_size_str}"
             f"{manifest_str};"
         )
+        _logger.debug("sql: \n%s", sql)
         _con.execute(sql)
         sql = "SELECT pg_last_query_id() AS query_id"
         query_id: int = _con.execute(sql).fetchall()[0][0]
