@@ -460,3 +460,69 @@ def test_to_sql_cast(parameters, db_type):
     )
     df2 = wr.db.read_sql_query(sql=f"SELECT * FROM {schema}.{table}", con=engine)
     assert df.equals(df2)
+
+
+def test_uuid(parameters):
+    table = "test_uuid"
+    schema = parameters["postgresql"]["schema"]
+    engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-postgresql")
+    df = pd.DataFrame(
+        {
+            "id": [1, 2, 3],
+            "uuid": [
+                "ec0f0482-8d3b-11ea-8b27-8c859043dd95",
+                "f56ff7c0-8d3b-11ea-be94-8c859043dd95",
+                "fa043e90-8d3b-11ea-b7e7-8c859043dd95",
+            ],
+        }
+    )
+    wr.db.to_sql(
+        df=df,
+        con=engine,
+        name=table,
+        schema=schema,
+        if_exists="replace",
+        index=False,
+        index_label=None,
+        chunksize=None,
+        method=None,
+        dtype={"uuid": sqlalchemy.dialects.postgresql.UUID},
+    )
+    df2 = wr.db.read_sql_table(table=table, schema=schema, con=engine)
+    df["id"] = df["id"].astype("Int64")
+    df["uuid"] = df["uuid"].astype("string")
+    assert df.equals(df2)
+
+
+@pytest.mark.parametrize("db_type", ["mysql", "redshift", "postgresql"])
+def test_null(parameters, db_type):
+    table = "test_null"
+    schema = parameters[db_type]["schema"]
+    engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-{db_type}")
+    df = pd.DataFrame({"id": [1, 2, 3], "nothing": [None, None, None]})
+    wr.db.to_sql(
+        df=df,
+        con=engine,
+        name=table,
+        schema=schema,
+        if_exists="replace",
+        index=False,
+        index_label=None,
+        chunksize=None,
+        method=None,
+        dtype={"nothing": sqlalchemy.types.Integer},
+    )
+    wr.db.to_sql(
+        df=df,
+        con=engine,
+        name=table,
+        schema=schema,
+        if_exists="append",
+        index=False,
+        index_label=None,
+        chunksize=None,
+        method=None,
+    )
+    df2 = wr.db.read_sql_table(table=table, schema=schema, con=engine)
+    df["id"] = df["id"].astype("Int64")
+    assert pd.concat(objs=[df, df], ignore_index=True).equals(df2)
