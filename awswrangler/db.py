@@ -185,7 +185,10 @@ def _records2df(
     arrays: List[pa.Array] = []
     for col_values, col_name in zip(tuple(zip(*records)), cols_names):  # Transposing
         if (dtype is None) or (col_name not in dtype):
-            array: pa.Array = pa.array(obj=col_values, safe=True)  # Creating Arrow array
+            try:
+                array: pa.Array = pa.array(obj=col_values, safe=True)  # Creating Arrow array
+            except pa.ArrowInvalid as ex:
+                array = _data_types.process_not_inferred_array(ex, values=col_values)  # Creating Arrow array
         else:
             array = pa.array(obj=col_values, type=dtype[col_name], safe=True)  # Creating Arrow array with dtype
         arrays.append(array)

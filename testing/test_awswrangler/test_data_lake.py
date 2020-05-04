@@ -1203,3 +1203,25 @@ def test_athena_encryption(
     assert len(df2.columns) == 2
     wr.catalog.delete_table_if_exists(database=database, table=table)
     wr.s3.delete_objects(path=paths)
+
+
+def test_athena_nested(bucket, database):
+    table = "test_athena_nested"
+    path = f"s3://{bucket}/{table}/"
+    df = pd.DataFrame(
+        {
+            "c0": [[1, 2, 3], [4, 5, 6]],
+            "c1": [[[1, 2], [3, 4]], [[5, 6], [7, 8]]],
+            "c2": [[["a", "b"], ["c", "d"]], [["e", "f"], ["g", "h"]]],
+            "c3": [[], [[[[[[[[1]]]]]]]]],
+            "c4": [{"a": 1}, {"a": 1}],
+            "c5": [{"a": {"b": {"c": [1, 2]}}}, {"a": {"b": {"c": [3, 4]}}}],
+        }
+    )
+    paths = wr.s3.to_parquet(
+        df=df, path=path, index=False, use_threads=True, dataset=True, mode="overwrite", database=database, table=table
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    df2 = wr.athena.read_sql_query(sql=f"SELECT c0, c1, c2, c4 FROM {table}", database=database)
+    assert len(df2.index) == 2
+    assert len(df2.columns) == 4
