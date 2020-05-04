@@ -370,7 +370,7 @@ def _fix_csv_types(df: pd.DataFrame, parse_dates: List[str], binaries: List[str]
     return df
 
 
-def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
+def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals,too-many-return-statements,too-many-statements
     sql: str,
     database: str,
     ctas_approach: bool = True,
@@ -380,6 +380,8 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
     workgroup: Optional[str] = None,
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
+    keep_files: bool = True,
+    ctas_temp_table_name: Optional[str] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
@@ -454,6 +456,12 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
         Valid values: [None, 'SSE_S3', 'SSE_KMS']. Notice: 'CSE_KMS' is not supported.
     kms_key : str, optional
         For SSE-KMS, this is the KMS key ARN or ID.
+    keep_files : bool
+        Should Wrangler delete or keep the staging files produced by Athena?
+    ctas_temp_table_name : str, optional
+        The name of the temporary table and also the directory name on S3 where the CTAS result is stored.
+        If None, it will use the follow random pattern: `f"temp_table_{pyarrow.compat.guid()}"`.
+        On S3 this directory will be under under the pattern: `f"{s3_output}/{ctas_temp_table_name}/"`.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -477,7 +485,10 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
     _s3_output = _s3_output[:-1] if _s3_output[-1] == "/" else _s3_output
     name: str = ""
     if ctas_approach is True:
-        name = f"temp_table_{pa.compat.guid()}"
+        if ctas_temp_table_name is not None:
+            name = catalog.sanitize_table_name(ctas_temp_table_name)
+        else:
+            name = f"temp_table_{pa.compat.guid()}"
         path: str = f"{_s3_output}/{name}"
         ext_location: str = "\n" if wg_config["enforced"] is True else f",\n    external_location = '{path}'\n"
         sql = (
@@ -506,25 +517,34 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
         reason: str = query_response["QueryExecution"]["Status"]["StateChangeReason"]
         message_error: str = f"Query error: {reason}"
         raise exceptions.AthenaQueryError(message_error)
-    dfs: Union[pd.DataFrame, Iterator[pd.DataFrame]]
+    ret: Union[pd.DataFrame, Iterator[pd.DataFrame]]
     if ctas_approach is True:
         catalog.delete_table_if_exists(database=database, table=name, boto3_session=session)
         manifest_path: str = f"{_s3_output}/tables/{query_id}-manifest.csv"
+        metadata_path: str = f"{_s3_output}/tables/{query_id}.metadata"
         _logger.debug("manifest_path: %s", manifest_path)
+        _logger.debug("metadata_path: %s", metadata_path)
+        s3.wait_objects_exist(paths=[manifest_path, metadata_path], use_threads=False, boto3_session=session)
         paths: List[str] = _extract_ctas_manifest_paths(path=manifest_path, boto3_session=session)
         chunked: Union[bool, int] = False if chunksize is None else chunksize
         _logger.debug("chunked: %s", chunked)
         if not paths:
             if chunked is False:
-                dfs = pd.DataFrame()
-            else:
-                dfs = _utils.empty_generator()
-        else:
-            s3.wait_objects_exist(paths=paths, use_threads=False, boto3_session=session)
-            dfs = s3.read_parquet(
-                path=paths, use_threads=use_threads, boto3_session=session, chunked=chunked, categories=categories
-            )
-        return dfs
+                return pd.DataFrame()
+            return _utils.empty_generator()
+        s3.wait_objects_exist(paths=paths, use_threads=False, boto3_session=session)
+        ret = s3.read_parquet(
+            path=paths, use_threads=use_threads, boto3_session=session, chunked=chunked, categories=categories
+        )
+        paths_delete: List[str] = paths + [manifest_path, metadata_path]
+        _logger.debug(type(ret))
+        if chunked is False:
+            if keep_files is False:
+                s3.delete_objects(path=paths_delete, use_threads=use_threads, boto3_session=session)
+            return ret
+        if keep_files is False:
+            return _delete_after_iterate(dfs=ret, paths=paths_delete, use_threads=use_threads, boto3_session=session)
+        return ret
     dtype, parse_timestamps, parse_dates, converters, binaries = _get_query_metadata(
         query_execution_id=query_id, categories=categories, boto3_session=session
     )
@@ -547,10 +567,26 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
         boto3_session=session,
     )
     _logger.debug("Start type casting...")
-    if chunksize is None:
-        return _fix_csv_types(df=ret, parse_dates=parse_dates, binaries=binaries)
     _logger.debug(type(ret))
-    return _fix_csv_types_generator(dfs=ret, parse_dates=parse_dates, binaries=binaries)
+    if chunksize is None:
+        df = _fix_csv_types(df=ret, parse_dates=parse_dates, binaries=binaries)
+        if keep_files is False:
+            s3.delete_objects(path=[path, f"{path}.metadata"], use_threads=use_threads, boto3_session=session)
+        return df
+    dfs = _fix_csv_types_generator(dfs=ret, parse_dates=parse_dates, binaries=binaries)
+    if keep_files is False:
+        return _delete_after_iterate(
+            dfs=dfs, paths=[path, f"{path}.metadata"], use_threads=use_threads, boto3_session=session
+        )
+    return dfs
+
+
+def _delete_after_iterate(
+    dfs: Iterator[pd.DataFrame], paths: List[str], use_threads: bool, boto3_session: boto3.Session
+) -> Iterator[pd.DataFrame]:
+    for df in dfs:
+        yield df
+    s3.delete_objects(path=paths, use_threads=use_threads, boto3_session=boto3_session)
 
 
 def stop_query_execution(query_execution_id: str, boto3_session: Optional[boto3.Session] = None) -> None:
@@ -638,6 +674,8 @@ def read_sql_table(
     workgroup: Optional[str] = None,
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
+    keep_files: bool = True,
+    ctas_temp_table_name: Optional[str] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
@@ -712,6 +750,12 @@ def read_sql_table(
         None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
     kms_key : str, optional
         For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
+    keep_files : bool
+        Should Wrangler delete or keep the staging files produced by Athena?
+    ctas_temp_table_name : str, optional
+        The name of the temporary table and also the directory name on S3 where the CTAS result is stored.
+        If None, it will use the follow random pattern: `f"temp_table_{pyarrow.compat.guid()}"`.
+        On S3 this directory will be under under the pattern: `f"{s3_output}/{ctas_temp_table_name}/"`.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -740,6 +784,8 @@ def read_sql_table(
         workgroup=workgroup,
         encryption=encryption,
         kms_key=kms_key,
+        keep_files=keep_files,
+        ctas_temp_table_name=ctas_temp_table_name,
         use_threads=use_threads,
         boto3_session=boto3_session,
     )

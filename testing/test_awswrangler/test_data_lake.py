@@ -191,14 +191,51 @@ def test_athena_ctas(bucket, database, kms_key):
         encryption="SSE_KMS",
         kms_key=kms_key,
         s3_output=f"s3://{bucket}/test_athena_ctas_result",
+        keep_files=False,
     )
     assert len(df.index) == 3
     ensure_data_types(df=df, has_list=True)
+    temp_table = "test_athena_ctas2"
+    s3_output = f"s3://{bucket}/s3_output/"
+    final_destination = f"{s3_output}{temp_table}/"
+
+    # keep_files=False
+    wr.s3.delete_objects(path=s3_output)
     dfs = wr.athena.read_sql_query(
-        sql=f"SELECT * FROM test_athena_ctas", database=database, ctas_approach=True, chunksize=1
+        sql=f"SELECT * FROM test_athena_ctas",
+        database=database,
+        ctas_approach=True,
+        chunksize=1,
+        keep_files=False,
+        ctas_temp_table_name=temp_table,
+        s3_output=s3_output,
     )
+    assert wr.catalog.does_table_exist(database=database, table=temp_table) is False
+    assert len(wr.s3.list_objects(path=s3_output)) > 2
+    assert len(wr.s3.list_objects(path=final_destination)) > 0
     for df in dfs:
         ensure_data_types(df=df, has_list=True)
+    assert len(wr.s3.list_objects(path=s3_output)) == 0
+
+    # keep_files=True
+    wr.s3.delete_objects(path=s3_output)
+    dfs = wr.athena.read_sql_query(
+        sql=f"SELECT * FROM test_athena_ctas",
+        database=database,
+        ctas_approach=True,
+        chunksize=2,
+        keep_files=True,
+        ctas_temp_table_name=temp_table,
+        s3_output=s3_output,
+    )
+    assert wr.catalog.does_table_exist(database=database, table=temp_table) is False
+    assert len(wr.s3.list_objects(path=s3_output)) > 2
+    assert len(wr.s3.list_objects(path=final_destination)) > 0
+    for df in dfs:
+        ensure_data_types(df=df, has_list=True)
+    assert len(wr.s3.list_objects(path=s3_output)) > 2
+
+    # Cleaning Up
     wr.catalog.delete_table_if_exists(database=database, table="test_athena_ctas")
     wr.s3.delete_objects(path=paths)
     wr.s3.wait_objects_not_exist(paths=paths)
@@ -227,12 +264,17 @@ def test_athena(bucket, database, kms_key, workgroup0, workgroup1):
         encryption="SSE_KMS",
         kms_key=kms_key,
         workgroup=workgroup0,
+        keep_files=False,
     )
     for df2 in dfs:
         print(df2)
         ensure_data_types(df=df2)
     df = wr.athena.read_sql_query(
-        sql="SELECT * FROM __test_athena", database=database, ctas_approach=False, workgroup=workgroup1
+        sql="SELECT * FROM __test_athena",
+        database=database,
+        ctas_approach=False,
+        workgroup=workgroup1,
+        keep_files=False,
     )
     assert len(df.index) == 3
     ensure_data_types(df=df)
@@ -1195,9 +1237,23 @@ def test_athena_encryption(
         df=df, path=path, dataset=True, mode="overwrite", database=database, table=table, s3_additional_kwargs=None
     )["paths"]
     wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    temp_table = table + "2"
+    s3_output = f"s3://{bucket}/encryptio_s3_output/"
+    final_destination = f"{s3_output}{temp_table}/"
+    wr.s3.delete_objects(path=final_destination)
     df2 = wr.athena.read_sql_table(
-        table=table, ctas_approach=True, database=database, encryption=encryption, workgroup=workgroup, kms_key=kms_key
+        table=table,
+        ctas_approach=True,
+        database=database,
+        encryption=encryption,
+        workgroup=workgroup,
+        kms_key=kms_key,
+        keep_files=True,
+        ctas_temp_table_name=temp_table,
+        s3_output=s3_output,
     )
+    assert wr.catalog.does_table_exist(database=database, table=temp_table) is False
+    assert len(wr.s3.list_objects(path=s3_output)) > 2
     print(df2)
     assert len(df2.index) == 2
     assert len(df2.columns) == 2
