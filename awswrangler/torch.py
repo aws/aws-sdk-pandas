@@ -28,14 +28,14 @@ class _BaseS3Dataset:
     def __init__(
         self, path: Union[str, List[str]], suffix: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
     ):
-        """PyTorch Map-Style S3 Dataset.
+        r"""PyTorch Map-Style S3 Dataset.
 
         Parameters
         ----------
         path : Union[str, List[str]]
             S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
         suffix: str, optional
-            S3 suffix filtering of object keys (i.e. suffix=".png" -> s3://*.png).
+            S3 suffix filtering of object keys (i.e. suffix=".png" -> s3://\*.png).
         boto3_session : boto3.Session(), optional
             Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -160,7 +160,7 @@ class LambdaS3Dataset(_ListS3Dataset):
         suffix: Optional[str] = None,
         boto3_session: Optional[boto3.Session] = None,
     ):
-        """PyTorch Amazon S3 Lambda Dataset.
+        r"""PyTorch Amazon S3 Lambda Dataset.
 
         Parameters
         ----------
@@ -171,7 +171,7 @@ class LambdaS3Dataset(_ListS3Dataset):
         label_fn: Callable
             Function that receives object path (str) and return a torch.Tensor
         suffix: str, optional
-            S3 suffix filtering of object keys (i.e. suffix=".png" -> s3://*.png).
+            S3 suffix filtering of object keys (i.e. suffix=".png" -> s3://\*.png).
         boto3_session : boto3.Session(), optional
             Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -212,7 +212,7 @@ class AudioS3Dataset(_S3PartitionedDataset):
         suffix: Optional[str] = None,
         boto3_session: Optional[boto3.Session] = None,
     ):
-        """PyTorch Amazon S3 Audio Dataset.
+        r"""PyTorch Amazon S3 Audio Dataset.
 
         Read individual WAV audio files stores in Amazon S3 and return
         them as torch tensors.
@@ -237,7 +237,7 @@ class AudioS3Dataset(_S3PartitionedDataset):
         path : Union[str, List[str]]
             S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
         suffix: str, optional
-            S3 suffix filtering of object keys (i.e. suffix=".png" -> s3://*.png).
+            S3 suffix filtering of object keys (i.e. suffix=".png" -> s3://\*.png).
         boto3_session : boto3.Session(), optional
             Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -302,7 +302,7 @@ class ImageS3Dataset(_S3PartitionedDataset):
     """PyTorch Amazon S3 Image Dataset."""
 
     def __init__(self, path: Union[str, List[str]], suffix: str, boto3_session: boto3.Session):
-        """PyTorch Amazon S3 Image Dataset.
+        r"""PyTorch Amazon S3 Image Dataset.
 
         ImageS3Dataset assumes images are patitioned (within class=<value> folders) in Amazon S3.
         Each lisited object will be loaded by default Pillow library.
@@ -327,7 +327,7 @@ class ImageS3Dataset(_S3PartitionedDataset):
         path : Union[str, List[str]]
             S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
         suffix: str, optional
-            S3 suffix filtering of object keys (i.e. suffix=".png" -> s3://*.png).
+            S3 suffix filtering of object keys (i.e. suffix=".png" -> s3://\*.png).
         boto3_session : boto3.Session(), optional
             Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -350,14 +350,14 @@ class ImageS3Dataset(_S3PartitionedDataset):
 
 
 class S3IterableDataset(IterableDataset, _BaseS3Dataset):  # pylint: disable=abstract-method
-    """PyTorch Amazon S3 Iterable Dataset.
+    r"""PyTorch Amazon S3 Iterable Dataset.
 
     Parameters
     ----------
     path : Union[str, List[str]]
         S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
     suffix: str, optional
-        S3 suffix filtering of object keys (i.e. suffix=".png" -> s3://*.png).
+        S3 suffix filtering of object keys (i.e. suffix=".png" -> s3://\*.png).
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
