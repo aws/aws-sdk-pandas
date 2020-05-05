@@ -3,19 +3,6 @@
 API Reference
 =============
 
-PyTorch
--------
-
-.. currentmodule:: awswrangler.torch
-
-.. autosummary::
-    :toctree: stubs
-
-    AudioS3Dataset
-    ImageS3Dataset
-    S3IterableDataset
-    SQLDataset
-
 Amazon S3
 ---------
 

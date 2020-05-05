@@ -23,8 +23,5 @@ setup(
     packages=find_packages(include=["awswrangler", "awswrangler.*"], exclude=["tests"]),
     include_package_data=True,
     python_requires=">=3.6, <3.9",
-    install_requires=[open("requirements.txt").read().strip().split("\n")],
-    extras_require={
-        "torch": open("requirements-torch.txt").read().strip().split("\n")
-    }
+    install_requires=[open("requirements.txt").read().strip().split("\n")]
 )
