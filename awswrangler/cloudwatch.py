@@ -56,11 +56,11 @@ def start_query(
     ... )
 
     """
-    _logger.debug(f"log_group_names: {log_group_names}")
+    _logger.debug("log_group_names: %s", log_group_names)
     start_timestamp: int = int(1000 * start_time.timestamp())
     end_timestamp: int = int(1000 * end_time.timestamp())
-    _logger.debug(f"start_timestamp: {start_timestamp}")
-    _logger.debug(f"end_timestamp: {end_timestamp}")
+    _logger.debug("start_timestamp: %s", start_timestamp)
+    _logger.debug("end_timestamp: %s", end_timestamp)
     args: Dict[str, Any] = {
         "logGroupNames": log_group_names,
         "startTime": start_timestamp,
@@ -109,7 +109,7 @@ def wait_query(query_id: str, boto3_session: Optional[boto3.Session] = None) -> 
         time.sleep(_QUERY_WAIT_POLLING_DELAY)
         response = client_logs.get_query_results(queryId=query_id)
         status = response["status"]
-    _logger.debug(f"status: {status}")
+    _logger.debug("status: %s", status)
     if status == "Failed":  # pragma: no cover
         raise exceptions.QueryFailed(f"query ID: {query_id}")
     if status == "Cancelled":

@@ -2,6 +2,7 @@
 
 import json
 import logging
+import time
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 from urllib.parse import quote_plus
 
@@ -91,7 +92,16 @@ def to_sql(df: pd.DataFrame, con: sqlalchemy.engine.Engine, **pandas_kwargs) -> 
     )
     pandas_kwargs["dtype"] = dtypes
     pandas_kwargs["con"] = con
-    df.to_sql(**pandas_kwargs)
+    max_attempts: int = 3
+    for attempt in range(max_attempts):
+        try:
+            df.to_sql(**pandas_kwargs)
+        except sqlalchemy.exc.InternalError as ex:  # pragma: no cover
+            if attempt == (max_attempts - 1):
+                raise ex
+            time.sleep(1)
+        else:
+            break
 
 
 def read_sql_query(
@@ -155,29 +165,15 @@ def read_sql_query(
     ... )
 
     """
-    if not isinstance(con, sqlalchemy.engine.Engine):  # pragma: no cover
-        raise exceptions.InvalidConnection(
-            "Invalid 'con' argument, please pass a "
-            "SQLAlchemy Engine. Use wr.db.get_engine(), "
-            "wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()"
-        )
+    _validate_engine(con=con)
     with con.connect() as _con:
         args = _convert_params(sql, params)
         cursor = _con.execute(*args)
         if chunksize is None:
             return _records2df(records=cursor.fetchall(), cols_names=cursor.keys(), index=index_col, dtype=dtype)
-        return _iterate_cursor(cursor=cursor, chunksize=chunksize, index=index_col, dtype=dtype)
-
-
-def _iterate_cursor(
-    cursor, chunksize: int, index: Optional[Union[str, List[str]]], dtype: Optional[Dict[str, pa.DataType]] = None
-) -> Iterator[pd.DataFrame]:
-    while True:
-        records = cursor.fetchmany(chunksize)
-        if not records:
-            break
-        df: pd.DataFrame = _records2df(records=records, cols_names=cursor.keys(), index=index, dtype=dtype)
-        yield df
+        return _iterate_cursor(
+            cursor=cursor, chunksize=chunksize, cols_names=cursor.keys(), index=index_col, dtype=dtype
+        )
 
 
 def _records2df(
@@ -189,7 +185,10 @@ def _records2df(
     arrays: List[pa.Array] = []
     for col_values, col_name in zip(tuple(zip(*records)), cols_names):  # Transposing
         if (dtype is None) or (col_name not in dtype):
-            array: pa.Array = pa.array(obj=col_values, safe=True)  # Creating Arrow array
+            try:
+                array: pa.Array = pa.array(obj=col_values, safe=True)  # Creating Arrow array
+            except pa.ArrowInvalid as ex:
+                array = _data_types.process_not_inferred_array(ex, values=col_values)  # Creating Arrow array
         else:
             array = pa.array(obj=col_values, type=dtype[col_name], safe=True)  # Creating Arrow array with dtype
         arrays.append(array)
@@ -205,6 +204,20 @@ def _records2df(
     if index is not None:
         df.set_index(index, inplace=True)
     return df
+
+
+def _iterate_cursor(
+    cursor: Any,
+    chunksize: int,
+    cols_names: List[str],
+    index: Optional[Union[str, List[str]]],
+    dtype: Optional[Dict[str, pa.DataType]] = None,
+) -> Iterator[pd.DataFrame]:
+    while True:
+        records = cursor.fetchmany(chunksize)
+        if not records:
+            break
+        yield _records2df(records=records, cols_names=cols_names, index=index, dtype=dtype)
 
 
 def _convert_params(sql: str, params: Optional[Union[List, Tuple, Dict]]) -> List[Any]:
@@ -646,7 +659,7 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
     athena_types, _ = s3.read_parquet_metadata(
         path=paths, dataset=False, use_threads=use_threads, boto3_session=session
     )
-    _logger.debug(f"athena_types: {athena_types}")
+    _logger.debug("athena_types: %s", athena_types)
     redshift_types: Dict[str, str] = {}
     for col_name, col_type in athena_types.items():
         length: int = _varchar_lengths[col_name] if col_name in _varchar_lengths else varchar_lengths_default
@@ -680,7 +693,7 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
 def _rs_upsert(con: Any, table: str, temp_table: str, schema: str, primary_keys: Optional[List[str]] = None) -> None:
     if not primary_keys:
         primary_keys = _rs_get_primary_keys(con=con, schema=schema, table=table)
-    _logger.debug(f"primary_keys: {primary_keys}")
+    _logger.debug("primary_keys: %s", primary_keys)
     if not primary_keys:  # pragma: no cover
         raise exceptions.InvalidRedshiftPrimaryKeys()
     equals_clause: str = f"{table}.%s = {temp_table}.%s"
@@ -735,7 +748,7 @@ def _rs_create_table(
         f"{distkey_str}"
         f"{sortkey_str}"
     )
-    _logger.debug(f"Create table query:\n{sql}")
+    _logger.debug("Create table query:\n%s", sql)
     con.execute(sql)
     return table, schema
 
@@ -746,7 +759,7 @@ def _rs_validate_parameters(
     if diststyle not in _RS_DISTSTYLES:
         raise exceptions.InvalidRedshiftDiststyle(f"diststyle must be in {_RS_DISTSTYLES}")
     cols = list(redshift_types.keys())
-    _logger.debug(f"Redshift columns: {cols}")
+    _logger.debug("Redshift columns: %s", cols)
     if (diststyle == "KEY") and (not distkey):
         raise exceptions.InvalidRedshiftDistkey("You must pass a distkey if you intend to use KEY diststyle")
     if distkey and distkey not in cols:
@@ -775,13 +788,13 @@ def _rs_copy(
     sql: str = (
         f"COPY {table_name} FROM '{manifest_path}'\n" f"IAM_ROLE '{iam_role}'\n" "MANIFEST\n" "FORMAT AS PARQUET"
     )
-    _logger.debug(f"copy query:\n{sql}")
+    _logger.debug("copy query:\n%s", sql)
     con.execute(sql)
     sql = "SELECT pg_last_copy_id() AS query_id"
     query_id: int = con.execute(sql).fetchall()[0][0]
     sql = f"SELECT COUNT(DISTINCT filename) as num_files_loaded " f"FROM STL_LOAD_COMMITS WHERE query = {query_id}"
     num_files_loaded: int = con.execute(sql).fetchall()[0][0]
-    _logger.debug(f"{num_files_loaded} files counted. {num_files} expected.")
+    _logger.debug("%s files counted. %s expected.", num_files_loaded, num_files)
     if num_files_loaded != num_files:  # pragma: no cover
         raise exceptions.RedshiftLoadError(
             f"Redshift load rollbacked. {num_files_loaded} files counted. {num_files} expected."
@@ -846,17 +859,17 @@ def write_redshift_copy_manifest(
     payload: str = json.dumps(manifest)
     bucket: str
     bucket, key = _utils.parse_path(manifest_path)
-    _logger.debug(f"payload: {payload}")
+    _logger.debug("payload: %s", payload)
     client_s3: boto3.client = _utils.client(service_name="s3", session=session)
-    _logger.debug(f"bucket: {bucket}")
-    _logger.debug(f"key: {key}")
+    _logger.debug("bucket: %s", bucket)
+    _logger.debug("key: %s", key)
     client_s3.put_object(Body=payload, Bucket=bucket, Key=key)
     return manifest
 
 
 def _rs_drop_table(con: Any, schema: str, table: str) -> None:
     sql = f"DROP TABLE IF EXISTS {schema}.{table}"
-    _logger.debug(f"Drop table query:\n{sql}")
+    _logger.debug("Drop table query:\n%s", sql)
     con.execute(sql)
 
 
@@ -887,8 +900,11 @@ def unload_redshift(
     path: str,
     con: sqlalchemy.engine.Engine,
     iam_role: str,
+    region: Optional[str] = None,
+    max_file_size: Optional[float] = None,
+    kms_key_id: Optional[str] = None,
     categories: List[str] = None,
-    chunked: bool = False,
+    chunked: Union[bool, int] = False,
     keep_files: bool = False,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
@@ -908,6 +924,22 @@ def unload_redshift(
 
     Note
     ----
+    ``Batching`` (`chunked` argument) (Memory Friendly):
+
+    Will anable the function to return a Iterable of DataFrames instead of a regular DataFrame.
+
+    There are two batching strategies on Wrangler:
+
+    - If **chunked=True**, a new DataFrame will be returned for each file in your path/dataset.
+
+    - If **chunked=INTEGER**, Wrangler will iterate on the data by number of rows igual the received INTEGER.
+
+    `P.S.` `chunked=True` if faster and uses less memory while `chunked=INTEGER` is more precise
+    in number of rows for each Dataframe.
+
+
+    Note
+    ----
     In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
 
     Parameters
@@ -921,14 +953,28 @@ def unload_redshift(
         wr.db.get_engine(), wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()
     iam_role : str
         AWS IAM role with the related permissions.
+    region : str, optional
+        Specifies the AWS Region where the target Amazon S3 bucket is located.
+        REGION is required for UNLOAD to an Amazon S3 bucket that isn't in the
+        same AWS Region as the Amazon Redshift cluster. By default, UNLOAD
+        assumes that the target Amazon S3 bucket is located in the same AWS
+        Region as the Amazon Redshift cluster.
+    max_file_size : float, optional
+        Specifies the maximum size (MB) of files that UNLOAD creates in Amazon S3.
+        Specify a decimal value between 5.0 MB and 6200.0 MB. If None, the default
+        maximum file size is 6200.0 MB.
+    kms_key_id : str, optional
+        Specifies the key ID for an AWS Key Management Service (AWS KMS) key to be
+        used to encrypt data files on Amazon S3.
     categories: List[str], optional
         List of columns names that should be returned as pandas.Categorical.
         Recommended for memory restricted environments.
     keep_files : bool
         Should keep the stage files?
-    chunked : bool
-        If True will break the data in smaller DataFrames (Non deterministic number of lines).
-        Otherwise return a single DataFrame with the whole data.
+    chunked : Union[int, bool]
+        If passed will split the data in a Iterable of DataFrames (Memory friendly).
+        If `True` wrangler will iterate on the data by files in the most efficient way without guarantee of chunksize.
+        If an `INTEGER` is passed Wrangler will iterate on the data by number of rows igual the received INTEGER.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -956,7 +1002,15 @@ def unload_redshift(
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     paths: List[str] = unload_redshift_to_files(
-        sql=sql, path=path, con=con, iam_role=iam_role, use_threads=use_threads, boto3_session=session
+        sql=sql,
+        path=path,
+        con=con,
+        iam_role=iam_role,
+        region=region,
+        max_file_size=max_file_size,
+        kms_key_id=kms_key_id,
+        use_threads=use_threads,
+        boto3_session=session,
     )
     s3.wait_objects_exist(paths=paths, use_threads=False, boto3_session=session)
     if chunked is False:
@@ -979,6 +1033,7 @@ def unload_redshift(
     return _read_parquet_iterator(
         paths=paths,
         categories=categories,
+        chunked=chunked,
         use_threads=use_threads,
         boto3_session=session,
         s3_additional_kwargs=s3_additional_kwargs,
@@ -991,13 +1046,14 @@ def _read_parquet_iterator(
     keep_files: bool,
     use_threads: bool,
     categories: List[str] = None,
+    chunked: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
 ) -> Iterator[pd.DataFrame]:
     dfs: Iterator[pd.DataFrame] = s3.read_parquet(
         path=paths,
         categories=categories,
-        chunked=True,
+        chunked=chunked,
         dataset=False,
         use_threads=use_threads,
         boto3_session=boto3_session,
@@ -1013,6 +1069,9 @@ def unload_redshift_to_files(
     path: str,
     con: sqlalchemy.engine.Engine,
     iam_role: str,
+    region: Optional[str] = None,
+    max_file_size: Optional[float] = None,
+    kms_key_id: Optional[str] = None,
     use_threads: bool = True,
     manifest: bool = False,
     partition_cols: Optional[List] = None,
@@ -1037,6 +1096,19 @@ def unload_redshift_to_files(
         wr.db.get_engine(), wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()
     iam_role : str
         AWS IAM role with the related permissions.
+    region : str, optional
+        Specifies the AWS Region where the target Amazon S3 bucket is located.
+        REGION is required for UNLOAD to an Amazon S3 bucket that isn't in the
+        same AWS Region as the Amazon Redshift cluster. By default, UNLOAD
+        assumes that the target Amazon S3 bucket is located in the same AWS
+        Region as the Amazon Redshift cluster.
+    max_file_size : float, optional
+        Specifies the maximum size (MB) of files that UNLOAD creates in Amazon S3.
+        Specify a decimal value between 5.0 MB and 6200.0 MB. If None, the default
+        maximum file size is 6200.0 MB.
+    kms_key_id : str, optional
+        Specifies the key ID for an AWS Key Management Service (AWS KMS) key to be
+        used to encrypt data files on Amazon S3.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -1067,23 +1139,39 @@ def unload_redshift_to_files(
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     s3.delete_objects(path=path, use_threads=use_threads, boto3_session=session)
     with con.connect() as _con:
-        partition_str: str = f"PARTITION BY ({','.join(partition_cols)})\n" if partition_cols else ""
+        partition_str: str = f"\nPARTITION BY ({','.join(partition_cols)})" if partition_cols else ""
         manifest_str: str = "\nmanifest" if manifest is True else ""
+        region_str: str = f"\nREGION AS '{region}'" if region is not None else ""
+        max_file_size_str: str = f"\nMAXFILESIZE AS {max_file_size} MB" if max_file_size is not None else ""
+        kms_key_id_str: str = f"\nKMS_KEY_ID '{kms_key_id}'" if kms_key_id is not None else ""
         sql = (
             f"UNLOAD ('{sql}')\n"
             f"TO '{path}'\n"
             f"IAM_ROLE '{iam_role}'\n"
             "ALLOWOVERWRITE\n"
             "PARALLEL ON\n"
-            "ENCRYPTED\n"
+            "FORMAT PARQUET\n"
+            "ENCRYPTED"
+            f"{kms_key_id_str}"
             f"{partition_str}"
-            "FORMAT PARQUET"
+            f"{region_str}"
+            f"{max_file_size_str}"
             f"{manifest_str};"
         )
+        _logger.debug("sql: \n%s", sql)
         _con.execute(sql)
         sql = "SELECT pg_last_query_id() AS query_id"
         query_id: int = _con.execute(sql).fetchall()[0][0]
         sql = f"SELECT path FROM STL_UNLOAD_LOG WHERE query={query_id};"
         paths = [x[0].replace(" ", "") for x in _con.execute(sql).fetchall()]
-        _logger.debug(f"paths: {paths}")
+        _logger.debug("paths: %s", paths)
         return paths
+
+
+def _validate_engine(con: sqlalchemy.engine.Engine) -> None:  # pragma: no cover
+    if not isinstance(con, sqlalchemy.engine.Engine):
+        raise exceptions.InvalidConnection(
+            "Invalid 'con' argument, please pass a "
+            "SQLAlchemy Engine. Use wr.db.get_engine(), "
+            "wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()"
+        )

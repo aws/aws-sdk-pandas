@@ -76,6 +76,11 @@ def external_schema(cloudformation_outputs, parameters, glue_database):
     yield "aws_data_wrangler_external"
 
 
+@pytest.fixture(scope="module")
+def kms_key_id(cloudformation_outputs):
+    yield cloudformation_outputs["KmsKeyArn"].split("/", 1)[1]
+
+
 @pytest.mark.parametrize("db_type", ["mysql", "redshift", "postgresql"])
 def test_sql(parameters, db_type):
     df = get_df()
@@ -386,3 +391,138 @@ def test_redshift_category(bucket, parameters):
     for df2 in dfs:
         ensure_data_types_category(df2)
     wr.s3.delete_objects(path=path)
+
+
+def test_redshift_unload_extras(bucket, parameters, kms_key_id):
+    table = "test_redshift_unload_extras"
+    schema = parameters["redshift"]["schema"]
+    path = f"s3://{bucket}/{table}/"
+    wr.s3.delete_objects(path=path)
+    engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-redshift")
+    df = pd.DataFrame({"id": [1, 2], "name": ["foo", "boo"]})
+    wr.db.to_sql(df=df, con=engine, name=table, schema=schema, if_exists="replace", index=False)
+    paths = wr.db.unload_redshift_to_files(
+        sql=f"SELECT * FROM {schema}.{table}",
+        path=path,
+        con=engine,
+        iam_role=parameters["redshift"]["role"],
+        region=wr.s3.get_bucket_region(bucket),
+        max_file_size=5.0,
+        kms_key_id=kms_key_id,
+        partition_cols=["name"],
+    )
+    wr.s3.wait_objects_exist(paths=paths)
+    df = wr.s3.read_parquet(path=path, dataset=True)
+    assert len(df.index) == 2
+    assert len(df.columns) == 2
+    wr.s3.delete_objects(path=path)
+    df = wr.db.unload_redshift(
+        sql=f"SELECT * FROM {schema}.{table}",
+        con=engine,
+        iam_role=parameters["redshift"]["role"],
+        path=path,
+        keep_files=False,
+        region=wr.s3.get_bucket_region(bucket),
+        max_file_size=5.0,
+        kms_key_id=kms_key_id,
+    )
+    assert len(df.index) == 2
+    assert len(df.columns) == 2
+    wr.s3.delete_objects(path=path)
+
+
+@pytest.mark.parametrize("db_type", ["mysql", "redshift", "postgresql"])
+def test_to_sql_cast(parameters, db_type):
+    table = "test_to_sql_cast"
+    schema = parameters[db_type]["schema"]
+    df = pd.DataFrame(
+        {
+            "col": [
+                "".join([str(i)[-1] for i in range(1_024)]),
+                "".join([str(i)[-1] for i in range(1_024)]),
+                "".join([str(i)[-1] for i in range(1_024)]),
+            ]
+        },
+        dtype="string",
+    )
+    engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-{db_type}")
+    wr.db.to_sql(
+        df=df,
+        con=engine,
+        name=table,
+        schema=schema,
+        if_exists="replace",
+        index=False,
+        index_label=None,
+        chunksize=None,
+        method=None,
+        dtype={"col": sqlalchemy.types.VARCHAR(length=1_024)},
+    )
+    df2 = wr.db.read_sql_query(sql=f"SELECT * FROM {schema}.{table}", con=engine)
+    assert df.equals(df2)
+
+
+def test_uuid(parameters):
+    table = "test_uuid"
+    schema = parameters["postgresql"]["schema"]
+    engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-postgresql")
+    df = pd.DataFrame(
+        {
+            "id": [1, 2, 3],
+            "uuid": [
+                "ec0f0482-8d3b-11ea-8b27-8c859043dd95",
+                "f56ff7c0-8d3b-11ea-be94-8c859043dd95",
+                "fa043e90-8d3b-11ea-b7e7-8c859043dd95",
+            ],
+        }
+    )
+    wr.db.to_sql(
+        df=df,
+        con=engine,
+        name=table,
+        schema=schema,
+        if_exists="replace",
+        index=False,
+        index_label=None,
+        chunksize=None,
+        method=None,
+        dtype={"uuid": sqlalchemy.dialects.postgresql.UUID},
+    )
+    df2 = wr.db.read_sql_table(table=table, schema=schema, con=engine)
+    df["id"] = df["id"].astype("Int64")
+    df["uuid"] = df["uuid"].astype("string")
+    assert df.equals(df2)
+
+
+@pytest.mark.parametrize("db_type", ["mysql", "redshift", "postgresql"])
+def test_null(parameters, db_type):
+    table = "test_null"
+    schema = parameters[db_type]["schema"]
+    engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-{db_type}")
+    df = pd.DataFrame({"id": [1, 2, 3], "nothing": [None, None, None]})
+    wr.db.to_sql(
+        df=df,
+        con=engine,
+        name=table,
+        schema=schema,
+        if_exists="replace",
+        index=False,
+        index_label=None,
+        chunksize=None,
+        method=None,
+        dtype={"nothing": sqlalchemy.types.Integer},
+    )
+    wr.db.to_sql(
+        df=df,
+        con=engine,
+        name=table,
+        schema=schema,
+        if_exists="append",
+        index=False,
+        index_label=None,
+        chunksize=None,
+        method=None,
+    )
+    df2 = wr.db.read_sql_table(table=table, schema=schema, con=engine)
+    df["id"] = df["id"].astype("Int64")
+    assert pd.concat(objs=[df, df], ignore_index=True).equals(df2)

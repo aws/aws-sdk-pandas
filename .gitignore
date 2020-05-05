@@ -138,6 +138,8 @@ testing/*parameters-*.properties
 testing/*requirements*.txt
 testing/coverage/*
 building/*requirements*.txt
+building/arrow
+building/lambda/arrow
 /docs/coverage/
 /docs/build/
 /docs/source/_build/

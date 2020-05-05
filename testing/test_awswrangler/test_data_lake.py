@@ -3,6 +3,7 @@ import datetime
 import gzip
 import logging
 import lzma
+import math
 from io import BytesIO, TextIOWrapper
 
 import boto3
@@ -73,10 +74,7 @@ def workgroup0(bucket):
         client.create_work_group(
             Name=wkg_name,
             Configuration={
-                "ResultConfiguration": {
-                    "OutputLocation": f"s3://{bucket}/athena_workgroup0/",
-                    "EncryptionConfiguration": {"EncryptionOption": "SSE_S3"},
-                },
+                "ResultConfiguration": {"OutputLocation": f"s3://{bucket}/athena_workgroup0/"},
                 "EnforceWorkGroupConfiguration": True,
                 "PublishCloudWatchMetricsEnabled": True,
                 "BytesScannedCutoffPerQuery": 100_000_000,
@@ -97,7 +95,10 @@ def workgroup1(bucket):
         client.create_work_group(
             Name=wkg_name,
             Configuration={
-                "ResultConfiguration": {"OutputLocation": f"s3://{bucket}/athena_workgroup1/"},
+                "ResultConfiguration": {
+                    "OutputLocation": f"s3://{bucket}/athena_workgroup1/",
+                    "EncryptionConfiguration": {"EncryptionOption": "SSE_S3"},
+                },
                 "EnforceWorkGroupConfiguration": True,
                 "PublishCloudWatchMetricsEnabled": True,
                 "BytesScannedCutoffPerQuery": 100_000_000,
@@ -108,7 +109,57 @@ def workgroup1(bucket):
     yield wkg_name
 
 
+@pytest.fixture(scope="module")
+def workgroup2(bucket, kms_key):
+    wkg_name = "awswrangler_test_2"
+    client = boto3.client("athena")
+    wkgs = client.list_work_groups()
+    wkgs = [x["Name"] for x in wkgs["WorkGroups"]]
+    if wkg_name not in wkgs:
+        client.create_work_group(
+            Name=wkg_name,
+            Configuration={
+                "ResultConfiguration": {
+                    "OutputLocation": f"s3://{bucket}/athena_workgroup2/",
+                    "EncryptionConfiguration": {"EncryptionOption": "SSE_KMS", "KmsKey": kms_key},
+                },
+                "EnforceWorkGroupConfiguration": False,
+                "PublishCloudWatchMetricsEnabled": True,
+                "BytesScannedCutoffPerQuery": 100_000_000,
+                "RequesterPaysEnabled": False,
+            },
+            Description="AWS Data Wrangler Test WorkGroup Number 2",
+        )
+    yield wkg_name
+
+
+@pytest.fixture(scope="module")
+def workgroup3(bucket, kms_key):
+    wkg_name = "awswrangler_test_3"
+    client = boto3.client("athena")
+    wkgs = client.list_work_groups()
+    wkgs = [x["Name"] for x in wkgs["WorkGroups"]]
+    if wkg_name not in wkgs:
+        client.create_work_group(
+            Name=wkg_name,
+            Configuration={
+                "ResultConfiguration": {
+                    "OutputLocation": f"s3://{bucket}/athena_workgroup3/",
+                    "EncryptionConfiguration": {"EncryptionOption": "SSE_KMS", "KmsKey": kms_key},
+                },
+                "EnforceWorkGroupConfiguration": True,
+                "PublishCloudWatchMetricsEnabled": True,
+                "BytesScannedCutoffPerQuery": 100_000_000,
+                "RequesterPaysEnabled": False,
+            },
+            Description="AWS Data Wrangler Test WorkGroup Number 3",
+        )
+    yield wkg_name
+
+
 def test_athena_ctas(bucket, database, kms_key):
+    wr.s3.delete_objects(path=f"s3://{bucket}/test_athena_ctas/")
+    wr.s3.delete_objects(path=f"s3://{bucket}/test_athena_ctas_result/")
     df = get_df_list()
     columns_types, partitions_types = wr.catalog.extract_athena_types(df=df, partition_cols=["par0", "par1"])
     assert len(columns_types) == 16
@@ -127,6 +178,9 @@ def test_athena_ctas(bucket, database, kms_key):
         partition_cols=["par0", "par1"],
     )["paths"]
     wr.s3.wait_objects_exist(paths=paths)
+    dirs = wr.s3.list_directories(path=f"s3://{bucket}/test_athena_ctas/")
+    for d in dirs:
+        assert d.startswith(f"s3://{bucket}/test_athena_ctas/par0=")
     df = wr.s3.read_parquet_table(table="test_athena_ctas", database=database)
     assert len(df.index) == 3
     ensure_data_types(df=df, has_list=True)
@@ -137,14 +191,51 @@ def test_athena_ctas(bucket, database, kms_key):
         encryption="SSE_KMS",
         kms_key=kms_key,
         s3_output=f"s3://{bucket}/test_athena_ctas_result",
+        keep_files=False,
     )
     assert len(df.index) == 3
     ensure_data_types(df=df, has_list=True)
+    temp_table = "test_athena_ctas2"
+    s3_output = f"s3://{bucket}/s3_output/"
+    final_destination = f"{s3_output}{temp_table}/"
+
+    # keep_files=False
+    wr.s3.delete_objects(path=s3_output)
     dfs = wr.athena.read_sql_query(
-        sql=f"SELECT * FROM test_athena_ctas", database=database, ctas_approach=True, chunksize=1
+        sql=f"SELECT * FROM test_athena_ctas",
+        database=database,
+        ctas_approach=True,
+        chunksize=1,
+        keep_files=False,
+        ctas_temp_table_name=temp_table,
+        s3_output=s3_output,
     )
+    assert wr.catalog.does_table_exist(database=database, table=temp_table) is False
+    assert len(wr.s3.list_objects(path=s3_output)) > 2
+    assert len(wr.s3.list_objects(path=final_destination)) > 0
     for df in dfs:
         ensure_data_types(df=df, has_list=True)
+    assert len(wr.s3.list_objects(path=s3_output)) == 0
+
+    # keep_files=True
+    wr.s3.delete_objects(path=s3_output)
+    dfs = wr.athena.read_sql_query(
+        sql=f"SELECT * FROM test_athena_ctas",
+        database=database,
+        ctas_approach=True,
+        chunksize=2,
+        keep_files=True,
+        ctas_temp_table_name=temp_table,
+        s3_output=s3_output,
+    )
+    assert wr.catalog.does_table_exist(database=database, table=temp_table) is False
+    assert len(wr.s3.list_objects(path=s3_output)) > 2
+    assert len(wr.s3.list_objects(path=final_destination)) > 0
+    for df in dfs:
+        ensure_data_types(df=df, has_list=True)
+    assert len(wr.s3.list_objects(path=s3_output)) > 2
+
+    # Cleaning Up
     wr.catalog.delete_table_if_exists(database=database, table="test_athena_ctas")
     wr.s3.delete_objects(path=paths)
     wr.s3.wait_objects_not_exist(paths=paths)
@@ -173,12 +264,17 @@ def test_athena(bucket, database, kms_key, workgroup0, workgroup1):
         encryption="SSE_KMS",
         kms_key=kms_key,
         workgroup=workgroup0,
+        keep_files=False,
     )
     for df2 in dfs:
         print(df2)
         ensure_data_types(df=df2)
     df = wr.athena.read_sql_query(
-        sql="SELECT * FROM __test_athena", database=database, ctas_approach=False, workgroup=workgroup1
+        sql="SELECT * FROM __test_athena",
+        database=database,
+        ctas_approach=False,
+        workgroup=workgroup1,
+        keep_files=False,
     )
     assert len(df.index) == 3
     ensure_data_types(df=df)
@@ -252,13 +348,12 @@ def test_fwf(bucket):
 
 
 def test_parquet(bucket):
-    wr.s3.delete_objects(path=f"s3://{bucket}/test_parquet_file")
-    wr.s3.delete_objects(path=f"s3://{bucket}/test_parquet_dataset")
+    wr.s3.delete_objects(path=f"s3://{bucket}/test_parquet/")
     df_file = pd.DataFrame({"id": [1, 2, 3]})
-    path_file = f"s3://{bucket}/test_parquet_file.parquet"
+    path_file = f"s3://{bucket}/test_parquet/test_parquet_file.parquet"
     df_dataset = pd.DataFrame({"id": [1, 2, 3], "partition": ["A", "A", "B"]})
     df_dataset["partition"] = df_dataset["partition"].astype("category")
-    path_dataset = f"s3://{bucket}/test_parquet_dataset"
+    path_dataset = f"s3://{bucket}/test_parquet/test_parquet_dataset"
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
         wr.s3.to_parquet(df=df_file, path=path_file, mode="append")
     with pytest.raises(wr.exceptions.InvalidCompression):
@@ -288,8 +383,7 @@ def test_parquet(bucket):
     wr.s3.to_parquet(
         df=df_dataset, path=path_dataset, dataset=True, partition_cols=["partition"], mode="overwrite_partitions"
     )
-    wr.s3.delete_objects(path=f"s3://{bucket}/test_parquet_file")
-    wr.s3.delete_objects(path=f"s3://{bucket}/test_parquet_dataset")
+    wr.s3.delete_objects(path=f"s3://{bucket}/test_parquet/")
 
 
 def test_parquet_catalog(bucket, database):
@@ -704,7 +798,7 @@ def test_parquet_validate_schema(bucket, database):
     df2 = pd.DataFrame({"id2": [1, 2, 3], "val": ["foo", "boo", "bar"]})
     path_file2 = f"s3://{bucket}/test_parquet_file_validate/1.parquet"
     wr.s3.to_parquet(df=df2, path=path_file2)
-    wr.s3.wait_objects_exist(paths=[path_file2])
+    wr.s3.wait_objects_exist(paths=[path_file2], use_threads=False)
     df3 = wr.s3.read_parquet(path=path, validate_schema=False)
     assert len(df3.index) == 6
     assert len(df3.columns) == 3
@@ -1082,5 +1176,194 @@ def test_copy(bucket):
 
     assert len(wr.s3.copy_objects([], source_path="boo", target_path="bar")) == 0
 
+    wr.s3.delete_objects(path=path)
+    wr.s3.delete_objects(path=path2)
+
+
+@pytest.mark.parametrize("col2", [[1, 1, 1, 1, 1], [1, 2, 3, 4, 5], [1, 1, 1, 1, 2], [1, 2, 2, 2, 2]])
+@pytest.mark.parametrize("chunked", [True, 1, 2, 100])
+def test_parquet_chunked(bucket, database, col2, chunked):
+    table = f"test_parquet_chunked_{chunked}_{''.join([str(x) for x in col2])}"
+    path = f"s3://{bucket}/{table}/"
+    wr.s3.delete_objects(path=path)
+    values = list(range(5))
+    df = pd.DataFrame({"col1": values, "col2": col2})
+    paths = wr.s3.to_parquet(
+        df, path, index=False, dataset=True, database=database, table=table, partition_cols=["col2"], mode="overwrite"
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+
+    dfs = list(wr.s3.read_parquet(path=path, dataset=True, chunked=chunked))
+    assert sum(values) == pd.concat(dfs, ignore_index=True).col1.sum()
+    if chunked is not True:
+        assert len(dfs) == int(math.ceil(len(df) / chunked))
+        for df2 in dfs[:-1]:
+            assert chunked == len(df2)
+        assert chunked >= len(dfs[-1])
+    else:
+        assert len(dfs) == len(set(col2))
+
+    dfs = list(wr.athena.read_sql_table(database=database, table=table, chunksize=chunked))
+    assert sum(values) == pd.concat(dfs, ignore_index=True).col1.sum()
+    if chunked is not True:
+        assert len(dfs) == int(math.ceil(len(df) / chunked))
+        for df2 in dfs[:-1]:
+            assert chunked == len(df2)
+        assert chunked >= len(dfs[-1])
+
+    wr.s3.delete_objects(path=paths)
+    assert wr.catalog.delete_table_if_exists(database=database, table=table) is True
+
+
+@pytest.mark.parametrize("workgroup", [None, 0, 1, 2, 3])
+@pytest.mark.parametrize("encryption", [None, "SSE_S3", "SSE_KMS"])
+def test_athena_encryption(
+    bucket, database, kms_key, encryption, workgroup, workgroup0, workgroup1, workgroup2, workgroup3
+):
+    kms_key = None if (encryption == "SSE_S3") or (encryption is None) else kms_key
+    if workgroup == 0:
+        workgroup = workgroup0
+    elif workgroup == 1:
+        workgroup = workgroup1
+    elif workgroup == 2:
+        workgroup = workgroup2
+    elif workgroup == 3:
+        workgroup = workgroup3
+    table = f"test_athena_encryption_{str(encryption).lower()}_{str(workgroup).lower()}"
+    path = f"s3://{bucket}/{table}/"
+    wr.s3.delete_objects(path=path)
+    df = pd.DataFrame({"a": [1, 2], "b": ["foo", "boo"]})
+    paths = wr.s3.to_parquet(
+        df=df, path=path, dataset=True, mode="overwrite", database=database, table=table, s3_additional_kwargs=None
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    temp_table = table + "2"
+    s3_output = f"s3://{bucket}/encryptio_s3_output/"
+    final_destination = f"{s3_output}{temp_table}/"
+    wr.s3.delete_objects(path=final_destination)
+    df2 = wr.athena.read_sql_table(
+        table=table,
+        ctas_approach=True,
+        database=database,
+        encryption=encryption,
+        workgroup=workgroup,
+        kms_key=kms_key,
+        keep_files=True,
+        ctas_temp_table_name=temp_table,
+        s3_output=s3_output,
+    )
+    assert wr.catalog.does_table_exist(database=database, table=temp_table) is False
+    assert len(wr.s3.list_objects(path=s3_output)) > 2
+    print(df2)
+    assert len(df2.index) == 2
+    assert len(df2.columns) == 2
+    wr.catalog.delete_table_if_exists(database=database, table=table)
+    wr.s3.delete_objects(path=paths)
+
+
+def test_athena_nested(bucket, database):
+    table = "test_athena_nested"
+    path = f"s3://{bucket}/{table}/"
+    df = pd.DataFrame(
+        {
+            "c0": [[1, 2, 3], [4, 5, 6]],
+            "c1": [[[1, 2], [3, 4]], [[5, 6], [7, 8]]],
+            "c2": [[["a", "b"], ["c", "d"]], [["e", "f"], ["g", "h"]]],
+            "c3": [[], [[[[[[[[1]]]]]]]]],
+            "c4": [{"a": 1}, {"a": 1}],
+            "c5": [{"a": {"b": {"c": [1, 2]}}}, {"a": {"b": {"c": [3, 4]}}}],
+        }
+    )
+    paths = wr.s3.to_parquet(
+        df=df, path=path, index=False, use_threads=True, dataset=True, mode="overwrite", database=database, table=table
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    df2 = wr.athena.read_sql_query(sql=f"SELECT c0, c1, c2, c4 FROM {table}", database=database)
+    assert len(df2.index) == 2
+    assert len(df2.columns) == 4
+
+
+def test_catalog_versioning(bucket, database):
+    table = "test_catalog_versioning"
+    wr.catalog.delete_table_if_exists(database=database, table=table)
+    path = f"s3://{bucket}/{table}/"
+    wr.s3.delete_objects(path=path)
+
+    # Version 0
+    df = pd.DataFrame({"c0": [1, 2]})
+    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, database=database, table=table, mode="overwrite")["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df = wr.athena.read_sql_table(table=table, database=database)
+    assert len(df.index) == 2
+    assert len(df.columns) == 1
+    assert str(df.c0.dtype).startswith("Int")
+
+    # Version 1
+    df = pd.DataFrame({"c1": ["foo", "boo"]})
+    paths = wr.s3.to_parquet(
+        df=df, path=path, dataset=True, database=database, table=table, mode="overwrite", catalog_versioning=True
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df = wr.athena.read_sql_table(table=table, database=database)
+    assert len(df.index) == 2
+    assert len(df.columns) == 1
+    assert str(df.c1.dtype) == "string"
+
+    # Version 2
+    df = pd.DataFrame({"c1": [1.0, 2.0]})
+    paths = wr.s3.to_csv(
+        df=df,
+        path=path,
+        dataset=True,
+        database=database,
+        table=table,
+        mode="overwrite",
+        catalog_versioning=True,
+        index=False,
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df = wr.athena.read_sql_table(table=table, database=database)
+    assert len(df.index) == 2
+    assert len(df.columns) == 1
+    assert str(df.c1.dtype).startswith("float")
+
+    # Version 3 (removing version 2)
+    df = pd.DataFrame({"c1": [True, False]})
+    paths = wr.s3.to_csv(
+        df=df,
+        path=path,
+        dataset=True,
+        database=database,
+        table=table,
+        mode="overwrite",
+        catalog_versioning=False,
+        index=False,
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df = wr.athena.read_sql_table(table=table, database=database)
+    assert len(df.index) == 2
+    assert len(df.columns) == 1
+    assert str(df.c1.dtype).startswith("boolean")
+
+    # Cleaning Up
+    wr.catalog.delete_table_if_exists(database=database, table=table)
+    wr.s3.delete_objects(path=path)
+
+
+def test_copy_replacing_filename(bucket):
+    path = f"s3://{bucket}/test_copy_replacing_filename/"
+    wr.s3.delete_objects(path=path)
+    df = pd.DataFrame({"c0": [1, 2]})
+    file_path = f"{path}myfile.parquet"
+    wr.s3.to_parquet(df=df, path=file_path)
+    wr.s3.wait_objects_exist(paths=[file_path], use_threads=False)
+    path2 = f"s3://{bucket}/test_copy_replacing_filename2/"
+    wr.s3.copy_objects(
+        paths=[file_path], source_path=path, target_path=path2, replace_filenames={"myfile.parquet": "myfile2.parquet"}
+    )
+    expected_file = f"{path2}myfile2.parquet"
+    wr.s3.wait_objects_exist(paths=[expected_file], use_threads=False)
+    objs = wr.s3.list_objects(path=path2)
+    assert objs[0] == expected_file
     wr.s3.delete_objects(path=path)
     wr.s3.delete_objects(path=path2)

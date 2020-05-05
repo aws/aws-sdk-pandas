@@ -56,10 +56,10 @@ def get_bucket_region(bucket: str, boto3_session: Optional[boto3.Session] = None
 
     """
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
-    _logger.debug(f"bucket: {bucket}")
+    _logger.debug("bucket: %s", bucket)
     region: str = client_s3.get_bucket_location(Bucket=bucket)["LocationConstraint"]
     region = "us-east-1" if region is None else region
-    _logger.debug(f"region: {region}")
+    _logger.debug("region: %s", region)
     return region
 
 
@@ -111,13 +111,49 @@ def does_object_exist(path: str, boto3_session: Optional[boto3.Session] = None) 
         raise ex  # pragma: no cover
 
 
-def list_objects(path: str, boto3_session: Optional[boto3.Session] = None) -> List[str]:
+def list_directories(path: str, boto3_session: Optional[boto3.Session] = None) -> List[str]:
     """List Amazon S3 objects from a prefix.
 
     Parameters
     ----------
     path : str
         S3 path (e.g. s3://bucket/prefix).
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    List[str]
+        List of objects paths.
+
+    Examples
+    --------
+    Using the default boto3 session
+
+    >>> import awswrangler as wr
+    >>> wr.s3.list_objects('s3://bucket/prefix/')
+    ['s3://bucket/prefix/dir0', 's3://bucket/prefix/dir1', 's3://bucket/prefix/dir2']
+
+    Using a custom boto3 session
+
+    >>> import boto3
+    >>> import awswrangler as wr
+    >>> wr.s3.list_objects('s3://bucket/prefix/', boto3_session=boto3.Session())
+    ['s3://bucket/prefix/dir0', 's3://bucket/prefix/dir1', 's3://bucket/prefix/dir2']
+
+    """
+    return _list_objects(path=path, delimiter="/", boto3_session=boto3_session)
+
+
+def list_objects(path: str, suffix: Optional[str] = None, boto3_session: Optional[boto3.Session] = None) -> List[str]:
+    """List Amazon S3 objects from a prefix.
+
+    Parameters
+    ----------
+    path : str
+        S3 path (e.g. s3://bucket/prefix).
+    suffix: str, optional
+        Suffix for filtering S3 keys.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -142,28 +178,49 @@ def list_objects(path: str, boto3_session: Optional[boto3.Session] = None) -> Li
     ['s3://bucket/prefix0', 's3://bucket/prefix1', 's3://bucket/prefix2']
 
     """
+    return _list_objects(path=path, delimiter=None, suffix=suffix, boto3_session=boto3_session)
+
+
+def _list_objects(
+    path: str,
+    delimiter: Optional[str] = None,
+    suffix: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> List[str]:
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     paginator = client_s3.get_paginator("list_objects_v2")
     bucket: str
     prefix: str
     bucket, prefix = _utils.parse_path(path=path)
-    response_iterator = paginator.paginate(Bucket=bucket, Prefix=prefix, PaginationConfig={"PageSize": 1000})
+    args: Dict[str, Any] = {"Bucket": bucket, "Prefix": prefix, "PaginationConfig": {"PageSize": 1000}}
+    if delimiter is not None:
+        args["Delimiter"] = delimiter
+    response_iterator = paginator.paginate(**args)
     paths: List[str] = []
-    for page in response_iterator:
-        contents: Optional[List] = page.get("Contents")
-        if contents is not None:
-            for content in contents:
-                if (content is not None) and ("Key" in content):
-                    key: str = content["Key"]
-                    paths.append(f"s3://{bucket}/{key}")
+    for page in response_iterator:  # pylint: disable=too-many-nested-blocks
+        if delimiter is None:
+            contents: Optional[List] = page.get("Contents")
+            if contents is not None:
+                for content in contents:
+                    if (content is not None) and ("Key" in content):
+                        key: str = content["Key"]
+                        if (suffix is None) or key.endswith(suffix):
+                            paths.append(f"s3://{bucket}/{key}")
+        else:
+            prefixes: Optional[List[Optional[Dict[str, str]]]] = page.get("CommonPrefixes")
+            if prefixes is not None:
+                for pfx in prefixes:
+                    if (pfx is not None) and ("Prefix" in pfx):
+                        key = pfx["Prefix"]
+                        paths.append(f"s3://{bucket}/{key}")
     return paths
 
 
-def _path2list(path: Union[str, List[str]], boto3_session: Optional[boto3.Session]) -> List[str]:
+def _path2list(path: object, boto3_session: boto3.Session, suffix: str = None) -> List[str]:
     if isinstance(path, str):  # prefix
         paths: List[str] = list_objects(path=path, boto3_session=boto3_session)
     elif isinstance(path, list):
-        paths = path
+        paths = path if suffix is None else [x for x in path if x.endswith(suffix)]
     else:
         raise exceptions.InvalidArgumentType(f"{type(path)} is not a valid path type. Please, use str or List[str].")
     return paths
@@ -229,7 +286,7 @@ def _split_paths_by_bucket(paths: List[str]) -> Dict[str, List[str]]:
 
 
 def _delete_objects(bucket: str, keys: List[str], client_s3: boto3.client) -> None:
-    _logger.debug(f"len(keys): {len(keys)}")
+    _logger.debug("len(keys): %s", len(keys))
     batch: List[Dict[str, str]] = [{"Key": key} for key in keys]
     client_s3.delete_objects(Bucket=bucket, Delete={"Objects": batch})
 
@@ -309,7 +366,7 @@ def _describe_object(
             break
         except botocore.exceptions.ClientError as e:  # pragma: no cover
             if e.response["ResponseMetadata"]["HTTPStatusCode"] == 404:  # Not Found
-                _logger.debug(f"Object not found. {i} seconds remaining to wait.")
+                _logger.debug("Object not found. %s seconds remaining to wait.", i)
                 if i == 1:  # Last try, there is no more need to sleep
                     break
                 time.sleep(1)
@@ -376,6 +433,7 @@ def to_csv(  # pylint: disable=too-many-arguments
     dataset: bool = False,
     partition_cols: Optional[List[str]] = None,
     mode: Optional[str] = None,
+    catalog_versioning: bool = False,
     database: Optional[str] = None,
     table: Optional[str] = None,
     dtype: Optional[Dict[str, str]] = None,
@@ -426,6 +484,8 @@ def to_csv(  # pylint: disable=too-many-arguments
         List of column names that will be used to create partitions. Only takes effect if dataset=True.
     mode: str, optional
         ``append`` (Default), ``overwrite``, ``overwrite_partitions``. Only takes effect if dataset=True.
+    catalog_versioning : bool
+        If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     database : str, optional
         Glue/Athena catalog: Database name.
     table : str, optional
@@ -620,10 +680,11 @@ def to_csv(  # pylint: disable=too-many-arguments
                     columns_comments=columns_comments,
                     boto3_session=session,
                     mode="overwrite",
+                    catalog_versioning=catalog_versioning,
                     sep=sep,
                 )
             if partitions_values:
-                _logger.debug(f"partitions_values:\n{partitions_values}")
+                _logger.debug("partitions_values:\n%s", partitions_values)
                 catalog.add_csv_partitions(
                     database=database, table=table, partitions_values=partitions_values, boto3_session=session, sep=sep
                 )
@@ -652,7 +713,7 @@ def _to_csv_dataset(
     if (mode == "overwrite") or ((mode == "overwrite_partitions") and (not partition_cols)):
         delete_objects(path=path, use_threads=use_threads, boto3_session=boto3_session)
     df = _data_types.cast_pandas_with_athena_types(df=df, dtype=dtype)
-    _logger.debug(f"dtypes: {df.dtypes}")
+    _logger.debug("dtypes: %s", df.dtypes)
     if not partition_cols:
         file_path: str = f"{path}{uuid.uuid4().hex}.csv"
         _to_text(
@@ -789,6 +850,7 @@ def to_parquet(  # pylint: disable=too-many-arguments
     dataset: bool = False,
     partition_cols: Optional[List[str]] = None,
     mode: Optional[str] = None,
+    catalog_versioning: bool = False,
     database: Optional[str] = None,
     table: Optional[str] = None,
     dtype: Optional[Dict[str, str]] = None,
@@ -836,6 +898,8 @@ def to_parquet(  # pylint: disable=too-many-arguments
         List of column names that will be used to create partitions. Only takes effect if dataset=True.
     mode: str, optional
         ``append`` (Default), ``overwrite``, ``overwrite_partitions``. Only takes effect if dataset=True.
+    catalog_versioning : bool
+        If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     database : str, optional
         Glue/Athena catalog: Database name.
     table : str, optional
@@ -1035,9 +1099,10 @@ def to_parquet(  # pylint: disable=too-many-arguments
                     columns_comments=columns_comments,
                     boto3_session=session,
                     mode="overwrite",
+                    catalog_versioning=catalog_versioning,
                 )
             if partitions_values:
-                _logger.debug(f"partitions_values:\n{partitions_values}")
+                _logger.debug("partitions_values:\n%s", partitions_values)
                 catalog.add_parquet_partitions(
                     database=database,
                     table=table,
@@ -1075,7 +1140,7 @@ def _to_parquet_dataset(
     schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(
         df=df, index=index, ignore_cols=partition_cols, dtype=dtype
     )
-    _logger.debug(f"schema: {schema}")
+    _logger.debug("schema: \n%s", schema)
     if not partition_cols:
         file_path: str = f"{path}{uuid.uuid4().hex}{compression_ext}.parquet"
         _to_parquet_file(
@@ -1123,7 +1188,7 @@ def _to_parquet_file(
             pyarrow_dtype = _data_types.athena2pyarrow(col_type)
             field = pa.field(name=col_name, type=pyarrow_dtype)
             table = table.set_column(col_index, field, table.column(col_name).cast(pyarrow_dtype))
-            _logger.debug(f"Casting column {col_name} ({col_index}) to {col_type} ({pyarrow_dtype})")
+            _logger.debug("Casting column %s (%s) to %s (%s)", col_name, col_index, col_type, pyarrow_dtype)
     pyarrow.parquet.write_table(
         table=table,
         where=path,
@@ -1451,7 +1516,7 @@ def _read_text_chunksize(
 ) -> Iterator[pd.DataFrame]:
     fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
     for path in paths:
-        _logger.debug(f"path: {path}")
+        _logger.debug("path: %s", path)
         if pandas_args.get("compression", "infer") == "infer":
             pandas_args["compression"] = infer_compression(path, compression="infer")
         with fs.open(path, "rb") as f:
@@ -1491,7 +1556,7 @@ def _read_parquet_init(
         path_or_paths = path[:-1] if path.endswith("/") else path
     else:
         path_or_paths = path
-    _logger.debug(f"path_or_paths: {path_or_paths}")
+    _logger.debug("path_or_paths: %s", path_or_paths)
     fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
     cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
     data: pyarrow.parquet.ParquetDataset = pyarrow.parquet.ParquetDataset(
@@ -1501,6 +1566,7 @@ def _read_parquet_init(
         filters=filters,
         read_dictionary=categories,
         validate_schema=validate_schema,
+        split_row_groups=False,
     )
     return data
 
@@ -1510,7 +1576,7 @@ def read_parquet(
     filters: Optional[Union[List[Tuple], List[List[Tuple]]]] = None,
     columns: Optional[List[str]] = None,
     validate_schema: bool = True,
-    chunked: bool = False,
+    chunked: Union[bool, int] = False,
     dataset: bool = False,
     categories: List[str] = None,
     use_threads: bool = True,
@@ -1521,6 +1587,22 @@ def read_parquet(
 
     The concept of Dataset goes beyond the simple idea of files and enable more
     complex features like partitioning and catalog integration (AWS Glue Catalog).
+
+    Note
+    ----
+    ``Batching`` (`chunked` argument) (Memory Friendly):
+
+    Will anable the function to return a Iterable of DataFrames instead of a regular DataFrame.
+
+    There are two batching strategies on Wrangler:
+
+    - If **chunked=True**, a new DataFrame will be returned for each file in your path/dataset.
+
+    - If **chunked=INTEGER**, Wrangler will iterate on the data by number of rows igual the received INTEGER.
+
+    `P.S.` `chunked=True` if faster and uses less memory while `chunked=INTEGER` is more precise
+    in number of rows for each Dataframe.
+
 
     Note
     ----
@@ -1538,11 +1620,12 @@ def read_parquet(
         Check that individual file schemas are all the same / compatible. Schemas within a
         folder prefix should all be the same. Disable if you have schemas that are different
         and want to disable this check.
-    chunked : bool
-        If True will break the data in smaller DataFrames (Non deterministic number of lines).
-        Otherwise return a single DataFrame with the whole data.
+    chunked : Union[int, bool]
+        If passed will split the data in a Iterable of DataFrames (Memory friendly).
+        If `True` wrangler will iterate on the data by files in the most efficient way without guarantee of chunksize.
+        If an `INTEGER` is passed Wrangler will iterate on the data by number of rows igual the received INTEGER.
     dataset: bool
-        If True read a parquet dataset instead of simple file(s) loading all the related partitions as columns.
+        If `True` read a parquet dataset instead of simple file(s) loading all the related partitions as columns.
     categories: List[str], optional
         List of columns names that should be returned as pandas.Categorical.
         Recommended for memory restricted environments.
@@ -1583,12 +1666,19 @@ def read_parquet(
     >>> import awswrangler as wr
     >>> df = wr.s3.read_parquet(path=['s3://bucket/filename0.parquet', 's3://bucket/filename1.parquet'])
 
-    Reading in chunks
+    Reading in chunks (Chunk by file)
 
     >>> import awswrangler as wr
     >>> dfs = wr.s3.read_parquet(path=['s3://bucket/filename0.csv', 's3://bucket/filename1.csv'], chunked=True)
     >>> for df in dfs:
     >>>     print(df)  # Smaller Pandas DataFrame
+
+    Reading in chunks (Chunk by 1MM rows)
+
+    >>> import awswrangler as wr
+    >>> dfs = wr.s3.read_parquet(path=['s3://bucket/filename0.csv', 's3://bucket/filename1.csv'], chunked=1_000_000)
+    >>> for df in dfs:
+    >>>     print(df)  # 1MM Pandas DataFrame
 
     """
     data: pyarrow.parquet.ParquetDataset = _read_parquet_init(
@@ -1596,16 +1686,18 @@ def read_parquet(
         filters=filters,
         dataset=dataset,
         categories=categories,
+        validate_schema=validate_schema,
         use_threads=use_threads,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
-        validate_schema=validate_schema,
     )
     if chunked is False:
         return _read_parquet(
             data=data, columns=columns, categories=categories, use_threads=use_threads, validate_schema=validate_schema
         )
-    return _read_parquet_chunked(data=data, columns=columns, categories=categories, use_threads=use_threads)
+    return _read_parquet_chunked(
+        data=data, columns=columns, categories=categories, chunked=chunked, use_threads=use_threads
+    )
 
 
 def _read_parquet(
@@ -1639,22 +1731,45 @@ def _read_parquet_chunked(
     data: pyarrow.parquet.ParquetDataset,
     columns: Optional[List[str]] = None,
     categories: List[str] = None,
+    chunked: Union[bool, int] = True,
     use_threads: bool = True,
 ) -> Iterator[pd.DataFrame]:
+    next_slice: Optional[pd.DataFrame] = None
     for piece in data.pieces:
-        table: pa.Table = piece.read(
-            columns=columns, use_threads=use_threads, partitions=data.partitions, use_pandas_metadata=False
-        )
-        yield table.to_pandas(
-            use_threads=use_threads,
-            split_blocks=True,
-            self_destruct=True,
-            integer_object_nulls=False,
-            date_as_object=True,
-            ignore_metadata=True,
+        df: pd.DataFrame = _table2df(
+            table=piece.read(
+                columns=columns, use_threads=use_threads, partitions=data.partitions, use_pandas_metadata=False
+            ),
             categories=categories,
-            types_mapper=_data_types.pyarrow2pandas_extension,
+            use_threads=use_threads,
         )
+        if chunked is True:
+            yield df
+        else:
+            if next_slice is not None:
+                df = pd.concat(objs=[next_slice, df], ignore_index=True, sort=False)
+            while len(df.index) >= chunked:
+                yield df.iloc[:chunked]
+                df = df.iloc[chunked:]
+            if df.empty:
+                next_slice = None
+            else:
+                next_slice = df
+    if next_slice is not None:
+        yield next_slice
+
+
+def _table2df(table: pa.Table, categories: List[str] = None, use_threads: bool = True) -> pd.DataFrame:
+    return table.to_pandas(
+        use_threads=use_threads,
+        split_blocks=True,
+        self_destruct=True,
+        integer_object_nulls=False,
+        date_as_object=True,
+        ignore_metadata=True,
+        categories=categories,
+        types_mapper=_data_types.pyarrow2pandas_extension,
+    )
 
 
 def read_parquet_metadata(
@@ -1731,6 +1846,7 @@ def store_parquet_metadata(
     columns_comments: Optional[Dict[str, str]] = None,
     compression: Optional[str] = None,
     mode: str = "overwrite",
+    catalog_versioning: bool = False,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Tuple[Dict[str, str], Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]:
     """Infer and store parquet metadata on AWS Glue Catalog.
@@ -1772,6 +1888,8 @@ def store_parquet_metadata(
         Compression style (``None``, ``snappy``, ``gzip``, etc).
     mode: str
         'overwrite' to recreate any possible existing table or 'append' to keep any possible existing table.
+    catalog_versioning : bool
+        If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -1817,6 +1935,7 @@ def store_parquet_metadata(
         parameters=parameters,
         columns_comments=columns_comments,
         mode=mode,
+        catalog_versioning=catalog_versioning,
         boto3_session=session,
     )
     partitions_values: Dict[str, List[str]] = _data_types.athena_partitions_from_pyarrow_partitions(
@@ -1976,12 +2095,29 @@ def read_parquet_table(
     filters: Optional[Union[List[Tuple], List[List[Tuple]]]] = None,
     columns: Optional[List[str]] = None,
     categories: List[str] = None,
-    chunked: bool = False,
+    chunked: Union[bool, int] = False,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read Apache Parquet table registered on AWS Glue Catalog.
+
+    Note
+    ----
+    ``Batching`` (`chunked` argument) (Memory Friendly):
+
+    Will anable the function to return a Iterable of DataFrames instead of a regular DataFrame.
+
+    There are two batching strategies on Wrangler:
+
+    - If **chunked=True**, a new DataFrame will be returned for each file in your path/dataset.
+
+    - If **chunked=INTEGER**, Wrangler will paginate through files slicing and concatenating
+      to return DataFrames with the number of row igual the received INTEGER.
+
+    `P.S.` `chunked=True` if faster and uses less memory while `chunked=INTEGER` is more precise
+    in number of rows for each Dataframe.
+
 
     Note
     ----
@@ -2036,12 +2172,19 @@ def read_parquet_table(
     ...     }
     ... )
 
-    Reading Parquet Table in chunks
+    Reading Parquet Table in chunks (Chunk by file)
 
     >>> import awswrangler as wr
     >>> dfs = wr.s3.read_parquet_table(database='...', table='...', chunked=True)
     >>> for df in dfs:
     >>>     print(df)  # Smaller Pandas DataFrame
+
+    Reading in chunks (Chunk by 1MM rows)
+
+    >>> import awswrangler as wr
+    >>> dfs = wr.s3.read_parquet(path=['s3://bucket/filename0.csv', 's3://bucket/filename1.csv'], chunked=1_000_000)
+    >>> for df in dfs:
+    >>>     print(df)  # 1MM Pandas DataFrame
 
     """
     path: str = catalog.get_table_location(database=database, table=table, boto3_session=boto3_session)
@@ -2112,12 +2255,12 @@ def merge_datasets(
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
     paths: List[str] = list_objects(path=f"{source_path}/", boto3_session=session)
-    _logger.debug(f"len(paths): {len(paths)}")
+    _logger.debug("len(paths): %s", len(paths))
     if len(paths) < 1:
         return []
 
     if mode == "overwrite":
-        _logger.debug(f"Deleting to overwrite: {target_path}/")
+        _logger.debug("Deleting to overwrite: %s/", target_path)
         delete_objects(path=f"{target_path}/", use_threads=use_threads, boto3_session=session)
     elif mode == "overwrite_partitions":
         paths_wo_prefix: List[str] = [x.replace(f"{source_path}/", "") for x in paths]
@@ -2125,7 +2268,7 @@ def merge_datasets(
         partitions_paths: List[str] = list(set(paths_wo_filename))
         target_partitions_paths = [f"{target_path}/{x}" for x in partitions_paths]
         for path in target_partitions_paths:
-            _logger.debug(f"Deleting to overwrite_partitions: {path}")
+            _logger.debug("Deleting to overwrite_partitions: %s", path)
             delete_objects(path=path, use_threads=use_threads, boto3_session=session)
     elif mode != "append":
         raise exceptions.InvalidArgumentValue(f"{mode} is a invalid mode option.")
@@ -2133,7 +2276,7 @@ def merge_datasets(
     new_objects: List[str] = copy_objects(
         paths=paths, source_path=source_path, target_path=target_path, use_threads=use_threads, boto3_session=session
     )
-    _logger.debug(f"len(new_objects): {len(new_objects)}")
+    _logger.debug("len(new_objects): %s", len(new_objects))
     return new_objects
 
 
@@ -2141,6 +2284,7 @@ def copy_objects(
     paths: List[str],
     source_path: str,
     target_path: str,
+    replace_filenames: Optional[Dict[str, str]] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
 ) -> List[str]:
@@ -2180,7 +2324,7 @@ def copy_objects(
     ["s3://bucket1/dir1/key0", "s3://bucket1/dir1/key1"]
 
     """
-    _logger.debug(f"len(paths): {len(paths)}")
+    _logger.debug("len(paths): %s", len(paths))
     if len(paths) < 1:
         return []
     source_path = source_path[:-1] if source_path[-1] == "/" else source_path
@@ -2191,15 +2335,24 @@ def copy_objects(
     for path in paths:
         path_wo_prefix: str = path.replace(f"{source_path}/", "")
         path_final: str = f"{target_path}/{path_wo_prefix}"
+        if replace_filenames is not None:
+            parts: List[str] = path_final.rsplit(sep="/", maxsplit=1)
+            if len(parts) == 2:
+                path_wo_filename: str = parts[0]
+                filename: str = parts[1]
+                if filename in replace_filenames:
+                    new_filename: str = replace_filenames[filename]
+                    _logger.debug("Replacing filename: %s -> %s", filename, new_filename)
+                    path_final = f"{path_wo_filename}/{new_filename}"
         new_objects.append(path_final)
         batch.append((path, path_final))
-    _logger.debug(f"len(new_objects): {len(new_objects)}")
+    _logger.debug("len(new_objects): %s", len(new_objects))
     _copy_objects(batch=batch, use_threads=use_threads, boto3_session=session)
     return new_objects
 
 
 def _copy_objects(batch: List[Tuple[str, str]], use_threads: bool, boto3_session: boto3.Session) -> None:
-    _logger.debug(f"len(batch): {len(batch)}")
+    _logger.debug("len(batch): %s", len(batch))
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     resource_s3: boto3.resource = _utils.resource(service_name="s3", session=boto3_session)
     for source, target in batch:

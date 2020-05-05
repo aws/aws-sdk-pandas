@@ -2,6 +2,7 @@
 
 import csv
 import logging
+import pprint
 import time
 from decimal import Decimal
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
@@ -68,7 +69,7 @@ def create_athena_bucket(boto3_session: Optional[boto3.Session] = None) -> str:
 
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    account_id: str = _utils.client(service_name="sts", session=session).get_caller_identity().get("Account")
+    account_id: str = _utils.get_account_id(boto3_session=session)
     region_name: str = str(session.region_name).lower()
     s3_output = f"s3://aws-athena-query-results-{account_id}-{region_name}/"
     s3_resource = session.resource("s3")
@@ -120,19 +121,49 @@ def start_query_execution(
     >>> query_exec_id = wr.athena.start_query_execution(sql='...', database='...')
 
     """
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    wg_config: Dict[str, Union[bool, Optional[str]]] = _get_workgroup_config(session=session, workgroup=workgroup)
+    return _start_query_execution(
+        sql=sql,
+        wg_config=wg_config,
+        database=database,
+        s3_output=s3_output,
+        workgroup=workgroup,
+        encryption=encryption,
+        kms_key=kms_key,
+        boto3_session=session,
+    )
+
+
+def _start_query_execution(
+    sql: str,
+    wg_config: Dict[str, Union[Optional[bool], Optional[str]]],
+    database: Optional[str] = None,
+    s3_output: Optional[str] = None,
+    workgroup: Optional[str] = None,
+    encryption: Optional[str] = None,
+    kms_key: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> str:
     args: Dict[str, Any] = {"QueryString": sql}
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
     # s3_output
-    if s3_output is None:  # pragma: no cover
-        s3_output = create_athena_bucket(boto3_session=session)
-    args["ResultConfiguration"] = {"OutputLocation": s3_output}
+    args["ResultConfiguration"] = {
+        "OutputLocation": _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=session)
+    }
 
     # encryption
-    if encryption is not None:
-        args["ResultConfiguration"]["EncryptionConfiguration"] = {"EncryptionOption": encryption}
-        if kms_key is not None:
-            args["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"] = kms_key
+    if wg_config["enforced"] is True:
+        if wg_config["encryption"] is not None:
+            args["ResultConfiguration"]["EncryptionConfiguration"] = {"EncryptionOption": wg_config["encryption"]}
+            if wg_config["kms_key"] is not None:
+                args["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"] = wg_config["kms_key"]
+    else:
+        if encryption is not None:
+            args["ResultConfiguration"]["EncryptionConfiguration"] = {"EncryptionOption": encryption}
+            if kms_key is not None:
+                args["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"] = kms_key
 
     # database
     if database is not None:
@@ -143,8 +174,23 @@ def start_query_execution(
         args["WorkGroup"] = workgroup
 
     client_athena: boto3.client = _utils.client(service_name="athena", session=session)
+    _logger.debug("args: \n%s", pprint.pformat(args))
     response = client_athena.start_query_execution(**args)
     return response["QueryExecutionId"]
+
+
+def _get_s3_output(
+    s3_output: Optional[str], wg_config: Dict[str, Union[bool, Optional[str]]], boto3_session: boto3.Session
+) -> str:
+    if s3_output is None:
+        _s3_output: Optional[str] = wg_config["s3_output"]  # type: ignore
+        if _s3_output is not None:
+            s3_output = _s3_output
+        else:
+            s3_output = create_athena_bucket(boto3_session=boto3_session)
+    elif wg_config["enforced"] is True:
+        s3_output = wg_config["s3_output"]  # type: ignore
+    return s3_output
 
 
 def wait_query(query_execution_id: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, Any]:
@@ -176,8 +222,8 @@ def wait_query(query_execution_id: str, boto3_session: Optional[boto3.Session] =
         time.sleep(_QUERY_WAIT_POLLING_DELAY)
         response = client_athena.get_query_execution(QueryExecutionId=query_execution_id)
         state = response["QueryExecution"]["Status"]["State"]
-    _logger.debug(f"state: {state}")
-    _logger.debug(f"StateChangeReason: {response['QueryExecution']['Status'].get('StateChangeReason')}")
+    _logger.debug("state: %s", state)
+    _logger.debug("StateChangeReason: %s", response["QueryExecution"]["Status"].get("StateChangeReason"))
     if state == "FAILED":
         raise exceptions.QueryFailed(response["QueryExecution"]["Status"].get("StateChangeReason"))
     if state == "CANCELLED":
@@ -265,7 +311,7 @@ def _get_query_metadata(
     cols_types: Dict[str, str] = get_query_columns_types(
         query_execution_id=query_execution_id, boto3_session=boto3_session
     )
-    _logger.debug(f"cols_types: {cols_types}")
+    _logger.debug("cols_types: %s", cols_types)
     dtype: Dict[str, str] = {}
     parse_timestamps: List[str] = []
     parse_dates: List[str] = []
@@ -298,11 +344,11 @@ def _get_query_metadata(
             converters[col_name] = lambda x: Decimal(str(x)) if str(x) not in ("", "none", " ", "<NA>") else None
         else:
             dtype[col_name] = pandas_type
-    _logger.debug(f"dtype: {dtype}")
-    _logger.debug(f"parse_timestamps: {parse_timestamps}")
-    _logger.debug(f"parse_dates: {parse_dates}")
-    _logger.debug(f"converters: {converters}")
-    _logger.debug(f"binaries: {binaries}")
+    _logger.debug("dtype: %s", dtype)
+    _logger.debug("parse_timestamps: %s", parse_timestamps)
+    _logger.debug("parse_dates: %s", parse_dates)
+    _logger.debug("converters: %s", converters)
+    _logger.debug("binaries: %s", binaries)
     return dtype, parse_timestamps, parse_dates, converters, binaries
 
 
@@ -324,16 +370,18 @@ def _fix_csv_types(df: pd.DataFrame, parse_dates: List[str], binaries: List[str]
     return df
 
 
-def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
+def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals,too-many-return-statements,too-many-statements
     sql: str,
     database: str,
     ctas_approach: bool = True,
     categories: List[str] = None,
-    chunksize: Optional[int] = None,
+    chunksize: Optional[Union[int, bool]] = None,
     s3_output: Optional[str] = None,
     workgroup: Optional[str] = None,
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
+    keep_files: bool = True,
+    ctas_temp_table_name: Optional[str] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
@@ -355,17 +403,30 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
 
     Note
     ----
-    If `chunksize` is passed, then a Generator of DataFrames is returned.
+    Valid encryption modes: [None, 'SSE_S3', 'SSE_KMS'].
 
-    Note
-    ----
-    If `ctas_approach` is True, `chunksize` will return non deterministic chunks sizes,
-    but it still useful to overcome memory limitation.
+    `P.S. 'CSE_KMS' is not supported.`
 
     Note
     ----
     Create the default Athena bucket if it doesn't exist and s3_output is None.
+
     (E.g. s3://aws-athena-query-results-ACCOUNT-REGION/)
+
+    Note
+    ----
+    ``Batching`` (`chunksize` argument) (Memory Friendly):
+
+    Will anable the function to return a Iterable of DataFrames instead of a regular DataFrame.
+
+    There are two batching strategies on Wrangler:
+
+    - If **chunksize=True**, a new DataFrame will be returned for each file in the query result.
+
+    - If **chunked=INTEGER**, Wrangler will iterate on the data by number of rows igual the received INTEGER.
+
+    `P.S.` `chunksize=True` if faster and uses less memory while `chunksize=INTEGER` is more precise
+    in number of rows for each Dataframe.
 
     Note
     ----
@@ -383,16 +444,24 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
     categories: List[str], optional
         List of columns names that should be returned as pandas.Categorical.
         Recommended for memory restricted environments.
-    chunksize: int, optional
-        If specified, return an generator where chunksize is the number of rows to include in each chunk.
+    chunksize : Union[int, bool], optional
+        If passed will split the data in a Iterable of DataFrames (Memory friendly).
+        If `True` wrangler will iterate on the data by files in the most efficient way without guarantee of chunksize.
+        If an `INTEGER` is passed Wrangler will iterate on the data by number of rows igual the received INTEGER.
     s3_output : str, optional
         AWS S3 path.
     workgroup : str, optional
         Athena workgroup.
     encryption : str, optional
-        None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
+        Valid values: [None, 'SSE_S3', 'SSE_KMS']. Notice: 'CSE_KMS' is not supported.
     kms_key : str, optional
-        For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
+        For SSE-KMS, this is the KMS key ARN or ID.
+    keep_files : bool
+        Should Wrangler delete or keep the staging files produced by Athena?
+    ctas_temp_table_name : str, optional
+        The name of the temporary table and also the directory name on S3 where the CTAS result is stored.
+        If None, it will use the follow random pattern: `f"temp_table_{pyarrow.compat.guid()}"`.
+        On S3 this directory will be under under the pattern: `f"{s3_output}/{ctas_temp_table_name}/"`.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -411,31 +480,30 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
 
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    wg_s3_output, _, _ = _ensure_workgroup(session=session, workgroup=workgroup)
-    if s3_output is None:
-        if wg_s3_output is None:
-            _s3_output: str = create_athena_bucket(boto3_session=session)
-        else:
-            _s3_output = wg_s3_output
-    else:
-        _s3_output = s3_output
+    wg_config: Dict[str, Union[bool, Optional[str]]] = _get_workgroup_config(session=session, workgroup=workgroup)
+    _s3_output: str = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=session)
     _s3_output = _s3_output[:-1] if _s3_output[-1] == "/" else _s3_output
     name: str = ""
     if ctas_approach is True:
-        name = f"temp_table_{pa.compat.guid()}"
+        if ctas_temp_table_name is not None:
+            name = catalog.sanitize_table_name(ctas_temp_table_name)
+        else:
+            name = f"temp_table_{pa.compat.guid()}"
         path: str = f"{_s3_output}/{name}"
+        ext_location: str = "\n" if wg_config["enforced"] is True else f",\n    external_location = '{path}'\n"
         sql = (
             f"CREATE TABLE {name}\n"
             f"WITH(\n"
             f"    format = 'Parquet',\n"
-            f"    parquet_compression = 'SNAPPY',\n"
-            f"    external_location = '{path}'\n"
+            f"    parquet_compression = 'SNAPPY'"
+            f"{ext_location}"
             f") AS\n"
             f"{sql}"
         )
-    _logger.debug(f"sql: {sql}")
-    query_id: str = start_query_execution(
+    _logger.debug("sql: %s", sql)
+    query_id: str = _start_query_execution(
         sql=sql,
+        wg_config=wg_config,
         database=database,
         s3_output=_s3_output,
         workgroup=workgroup,
@@ -443,36 +511,48 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
         kms_key=kms_key,
         boto3_session=session,
     )
-    _logger.debug(f"query_id: {query_id}")
+    _logger.debug("query_id: %s", query_id)
     query_response: Dict[str, Any] = wait_query(query_execution_id=query_id, boto3_session=session)
     if query_response["QueryExecution"]["Status"]["State"] in ["FAILED", "CANCELLED"]:  # pragma: no cover
         reason: str = query_response["QueryExecution"]["Status"]["StateChangeReason"]
         message_error: str = f"Query error: {reason}"
         raise exceptions.AthenaQueryError(message_error)
-    dfs: Union[pd.DataFrame, Iterator[pd.DataFrame]]
+    ret: Union[pd.DataFrame, Iterator[pd.DataFrame]]
     if ctas_approach is True:
         catalog.delete_table_if_exists(database=database, table=name, boto3_session=session)
         manifest_path: str = f"{_s3_output}/tables/{query_id}-manifest.csv"
+        metadata_path: str = f"{_s3_output}/tables/{query_id}.metadata"
+        _logger.debug("manifest_path: %s", manifest_path)
+        _logger.debug("metadata_path: %s", metadata_path)
+        s3.wait_objects_exist(paths=[manifest_path, metadata_path], use_threads=False, boto3_session=session)
         paths: List[str] = _extract_ctas_manifest_paths(path=manifest_path, boto3_session=session)
-        chunked: bool = chunksize is not None
-        _logger.debug(f"chunked: {chunked}")
+        chunked: Union[bool, int] = False if chunksize is None else chunksize
+        _logger.debug("chunked: %s", chunked)
         if not paths:
             if chunked is False:
-                dfs = pd.DataFrame()
-            else:
-                dfs = _utils.empty_generator()
-        else:
-            s3.wait_objects_exist(paths=paths, use_threads=False, boto3_session=session)
-            dfs = s3.read_parquet(
-                path=paths, use_threads=use_threads, boto3_session=session, chunked=chunked, categories=categories
-            )
-        return dfs
+                return pd.DataFrame()
+            return _utils.empty_generator()
+        s3.wait_objects_exist(paths=paths, use_threads=False, boto3_session=session)
+        ret = s3.read_parquet(
+            path=paths, use_threads=use_threads, boto3_session=session, chunked=chunked, categories=categories
+        )
+        paths_delete: List[str] = paths + [manifest_path, metadata_path]
+        _logger.debug(type(ret))
+        if chunked is False:
+            if keep_files is False:
+                s3.delete_objects(path=paths_delete, use_threads=use_threads, boto3_session=session)
+            return ret
+        if keep_files is False:
+            return _delete_after_iterate(dfs=ret, paths=paths_delete, use_threads=use_threads, boto3_session=session)
+        return ret
     dtype, parse_timestamps, parse_dates, converters, binaries = _get_query_metadata(
         query_execution_id=query_id, categories=categories, boto3_session=session
     )
     path = f"{_s3_output}/{query_id}.csv"
     s3.wait_objects_exist(paths=[path], use_threads=False, boto3_session=session)
-    _logger.debug(f"Start CSV reading from {path}")
+    _logger.debug("Start CSV reading from %s", path)
+    _chunksize: Optional[int] = chunksize if isinstance(chunksize, int) else None
+    _logger.debug("_chunksize: %s", _chunksize)
     ret = s3.read_csv(
         path=[path],
         dtype=dtype,
@@ -481,16 +561,32 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals
         quoting=csv.QUOTE_ALL,
         keep_default_na=False,
         na_values=[""],
-        chunksize=chunksize,
+        chunksize=_chunksize,
         skip_blank_lines=False,
         use_threads=False,
         boto3_session=session,
     )
     _logger.debug("Start type casting...")
-    if chunksize is None:
-        return _fix_csv_types(df=ret, parse_dates=parse_dates, binaries=binaries)
     _logger.debug(type(ret))
-    return _fix_csv_types_generator(dfs=ret, parse_dates=parse_dates, binaries=binaries)
+    if chunksize is None:
+        df = _fix_csv_types(df=ret, parse_dates=parse_dates, binaries=binaries)
+        if keep_files is False:
+            s3.delete_objects(path=[path, f"{path}.metadata"], use_threads=use_threads, boto3_session=session)
+        return df
+    dfs = _fix_csv_types_generator(dfs=ret, parse_dates=parse_dates, binaries=binaries)
+    if keep_files is False:
+        return _delete_after_iterate(
+            dfs=dfs, paths=[path, f"{path}.metadata"], use_threads=use_threads, boto3_session=session
+        )
+    return dfs
+
+
+def _delete_after_iterate(
+    dfs: Iterator[pd.DataFrame], paths: List[str], use_threads: bool, boto3_session: boto3.Session
+) -> Iterator[pd.DataFrame]:
+    for df in dfs:
+        yield df
+    s3.delete_objects(path=paths, use_threads=use_threads, boto3_session=boto3_session)
 
 
 def stop_query_execution(query_execution_id: str, boto3_session: Optional[boto3.Session] = None) -> None:
@@ -545,19 +641,27 @@ def get_work_group(workgroup: str, boto3_session: Optional[boto3.Session] = None
     return client_athena.get_work_group(WorkGroup=workgroup)
 
 
-def _ensure_workgroup(
+def _get_workgroup_config(
     session: boto3.Session, workgroup: Optional[str] = None
-) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+) -> Dict[str, Union[bool, Optional[str]]]:
     if workgroup is not None:
         res: Dict[str, Any] = get_work_group(workgroup=workgroup, boto3_session=session)
+        enforced: bool = res["WorkGroup"]["Configuration"]["EnforceWorkGroupConfiguration"]
         config: Dict[str, Any] = res["WorkGroup"]["Configuration"]["ResultConfiguration"]
         wg_s3_output: Optional[str] = config.get("OutputLocation")
         encrypt_config: Optional[Dict[str, str]] = config.get("EncryptionConfiguration")
         wg_encryption: Optional[str] = None if encrypt_config is None else encrypt_config.get("EncryptionOption")
         wg_kms_key: Optional[str] = None if encrypt_config is None else encrypt_config.get("KmsKey")
     else:
-        wg_s3_output, wg_encryption, wg_kms_key = None, None, None
-    return wg_s3_output, wg_encryption, wg_kms_key
+        enforced, wg_s3_output, wg_encryption, wg_kms_key = False, None, None, None
+    wg_config: Dict[str, Union[bool, Optional[str]]] = {
+        "enforced": enforced,
+        "s3_output": wg_s3_output,
+        "encryption": wg_encryption,
+        "kms_key": wg_kms_key,
+    }
+    _logger.debug("wg_config: \n%s", pprint.pformat(wg_config))
+    return wg_config
 
 
 def read_sql_table(
@@ -565,11 +669,13 @@ def read_sql_table(
     database: str,
     ctas_approach: bool = True,
     categories: List[str] = None,
-    chunksize: Optional[int] = None,
+    chunksize: Optional[Union[int, bool]] = None,
     s3_output: Optional[str] = None,
     workgroup: Optional[str] = None,
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
+    keep_files: bool = True,
+    ctas_temp_table_name: Optional[str] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
@@ -591,17 +697,30 @@ def read_sql_table(
 
     Note
     ----
-    If `chunksize` is passed, then a Generator of DataFrames is returned.
+    Valid encryption modes: [None, 'SSE_S3', 'SSE_KMS'].
 
-    Note
-    ----
-    If `ctas_approach` is True, `chunksize` will return non deterministic chunks sizes,
-    but it still useful to overcome memory limitation.
+    `P.S. 'CSE_KMS' is not supported.`
 
     Note
     ----
     Create the default Athena bucket if it doesn't exist and s3_output is None.
+
     (E.g. s3://aws-athena-query-results-ACCOUNT-REGION/)
+
+    Note
+    ----
+    ``Batching`` (`chunksize` argument) (Memory Friendly):
+
+    Will anable the function to return a Iterable of DataFrames instead of a regular DataFrame.
+
+    There are two batching strategies on Wrangler:
+
+    - If **chunksize=True**, a new DataFrame will be returned for each file in the query result.
+
+    - If **chunked=INTEGER**, Wrangler will iterate on the data by number of rows igual the received INTEGER.
+
+    `P.S.` `chunksize=True` if faster and uses less memory while `chunksize=INTEGER` is more precise
+    in number of rows for each Dataframe.
 
     Note
     ----
@@ -619,8 +738,10 @@ def read_sql_table(
     categories: List[str], optional
         List of columns names that should be returned as pandas.Categorical.
         Recommended for memory restricted environments.
-    chunksize: int, optional
-        If specified, return an generator where chunksize is the number of rows to include in each chunk.
+    chunksize : Union[int, bool], optional
+        If passed will split the data in a Iterable of DataFrames (Memory friendly).
+        If `True` wrangler will iterate on the data by files in the most efficient way without guarantee of chunksize.
+        If an `INTEGER` is passed Wrangler will iterate on the data by number of rows igual the received INTEGER.
     s3_output : str, optional
         AWS S3 path.
     workgroup : str, optional
@@ -629,6 +750,12 @@ def read_sql_table(
         None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
     kms_key : str, optional
         For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
+    keep_files : bool
+        Should Wrangler delete or keep the staging files produced by Athena?
+    ctas_temp_table_name : str, optional
+        The name of the temporary table and also the directory name on S3 where the CTAS result is stored.
+        If None, it will use the follow random pattern: `f"temp_table_{pyarrow.compat.guid()}"`.
+        On S3 this directory will be under under the pattern: `f"{s3_output}/{ctas_temp_table_name}/"`.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -646,6 +773,7 @@ def read_sql_table(
     >>> df = wr.athena.read_sql_table(table='...', database='...')
 
     """
+    table = catalog.sanitize_table_name(table=table)
     return read_sql_query(
         sql=f'SELECT * FROM "{table}"',
         database=database,
@@ -656,6 +784,8 @@ def read_sql_table(
         workgroup=workgroup,
         encryption=encryption,
         kms_key=kms_key,
+        keep_files=keep_files,
+        ctas_temp_table_name=ctas_temp_table_name,
         use_threads=use_threads,
         boto3_session=boto3_session,
     )

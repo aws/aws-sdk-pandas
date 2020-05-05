@@ -1,8 +1,9 @@
 """Internal (private) Data Types Module."""
 
 import logging
+import re
 from decimal import Decimal
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Match, Optional, Sequence, Tuple
 
 import pandas as pd  # type: ignore
 import pyarrow as pa  # type: ignore
@@ -139,8 +140,10 @@ def pyarrow2athena(dtype: pa.DataType) -> str:  # pylint: disable=too-many-branc
         return f"decimal({dtype.precision},{dtype.scale})"
     if pa.types.is_list(dtype):
         return f"array<{pyarrow2athena(dtype=dtype.value_type)}>"
-    if pa.types.is_struct(dtype):  # pragma: no cover
-        return f"struct<{', '.join([f'{f.name}: {pyarrow2athena(dtype=f.type)}' for f in dtype])}>"
+    if pa.types.is_struct(dtype):
+        return f"struct<{', '.join([f'{f.name}:{pyarrow2athena(dtype=f.type)}' for f in dtype])}>"
+    if pa.types.is_map(dtype):  # pragma: no cover
+        return f"map<{pyarrow2athena(dtype=dtype.key_type)},{pyarrow2athena(dtype=dtype.item_type)}>"
     if dtype == pa.null():
         raise exceptions.UndetectedType("We can not infer the data type from an entire null object column")
     raise exceptions.UnsupportedType(f"Unsupported Pyarrow type: {dtype}")  # pragma: no cover
@@ -167,7 +170,7 @@ def pyarrow2pandas_extension(  # pylint: disable=too-many-branches,too-many-retu
 
 def pyarrow2sqlalchemy(  # pylint: disable=too-many-branches,too-many-return-statements
     dtype: pa.DataType, db_type: str
-) -> VisitableType:
+) -> Optional[VisitableType]:
     """Pyarrow to Athena data types conversion."""
     if pa.types.is_int8(dtype):
         return sqlalchemy.types.SmallInteger
@@ -207,14 +210,14 @@ def pyarrow2sqlalchemy(  # pylint: disable=too-many-branches,too-many-return-sta
         return sqlalchemy.types.Date
     if pa.types.is_binary(dtype):
         if db_type == "redshift":
-            raise exceptions.UnsupportedType(f"Binary columns are not supported for Redshift.")  # pragma: no cover
+            raise exceptions.UnsupportedType("Binary columns are not supported for Redshift.")  # pragma: no cover
         return sqlalchemy.types.Binary
     if pa.types.is_decimal(dtype):
         return sqlalchemy.types.Numeric(precision=dtype.precision, scale=dtype.scale)
     if pa.types.is_dictionary(dtype):
         return pyarrow2sqlalchemy(dtype=dtype.value_type, db_type=db_type)
     if dtype == pa.null():  # pragma: no cover
-        raise exceptions.UndetectedType("We can not infer the data type from an entire null object column")
+        return None
     raise exceptions.UnsupportedType(f"Unsupported Pyarrow type: {dtype}")  # pragma: no cover
 
 
@@ -243,12 +246,23 @@ def pyarrow_types_from_pandas(
         else:
             cols.append(name)
 
-    # Filling cols_dtypes and indexes
+    # Filling cols_dtypes
+    for col in cols:
+        _logger.debug("Inferring PyArrow type from column: %s", col)
+        try:
+            schema: pa.Schema = pa.Schema.from_pandas(df=df[[col]], preserve_index=False)
+        except pa.ArrowInvalid as ex:  # pragma: no cover
+            cols_dtypes[col] = process_not_inferred_dtype(ex)
+        else:
+            cols_dtypes[col] = schema.field(col).type
+
+    # Filling indexes
     indexes: List[str] = []
-    for field in pa.Schema.from_pandas(df=df[cols], preserve_index=index):
-        name = str(field.name)
-        cols_dtypes[name] = field.type
-        if (name not in df.columns) and (index is True):
+    if index is True:
+        for field in pa.Schema.from_pandas(df=df[[]], preserve_index=True):
+            name = str(field.name)
+            _logger.debug("Inferring PyArrow type from index: %s", name)
+            cols_dtypes[name] = field.type
             indexes.append(name)
 
     # Merging Index
@@ -257,8 +271,41 @@ def pyarrow_types_from_pandas(
     # Filling schema
     columns_types: Dict[str, pa.DataType]
     columns_types = {n: cols_dtypes[n] for n in sorted_cols}
-    _logger.debug(f"columns_types: {columns_types}")
+    _logger.debug("columns_types: %s", columns_types)
     return columns_types
+
+
+def process_not_inferred_dtype(ex: pa.ArrowInvalid) -> pa.DataType:
+    """Infer data type from PyArrow inference exception."""
+    ex_str = str(ex)
+    _logger.debug("PyArrow was not able to infer data type:\n%s", ex_str)
+    match: Optional[Match] = re.search(
+        pattern="Could not convert (.*) with type (.*): did not recognize "
+        "Python value type when inferring an Arrow data type",
+        string=ex_str,
+    )
+    if match is None:
+        raise ex  # pragma: no cover
+    groups: Optional[Sequence[str]] = match.groups()
+    if groups is None:
+        raise ex  # pragma: no cover
+    if len(groups) != 2:
+        raise ex  # pragma: no cover
+    _logger.debug("groups: %s", groups)
+    type_str: str = groups[1]
+    if type_str == "UUID":
+        return pa.string()
+    raise ex  # pragma: no cover
+
+
+def process_not_inferred_array(ex: pa.ArrowInvalid, values: Any) -> pa.Array:
+    """Infer `pyarrow.array` from PyArrow inference exception."""
+    dtype = process_not_inferred_dtype(ex=ex)
+    if dtype == pa.string():
+        array: pa.Array = pa.array(obj=[str(x) for x in values], type=dtype, safe=True)
+    else:
+        raise ex  # pragma: no cover
+    return array
 
 
 def athena_types_from_pandas(
@@ -275,7 +322,7 @@ def athena_types_from_pandas(
             athena_columns_types[k] = casts[k]
         else:
             athena_columns_types[k] = pyarrow2athena(dtype=v)
-    _logger.debug(f"athena_columns_types: {athena_columns_types}")
+    _logger.debug("athena_columns_types: %s", athena_columns_types)
     return athena_columns_types
 
 
@@ -315,7 +362,7 @@ def pyarrow_schema_from_pandas(
         if (k in df.columns) and (k not in ignore):
             columns_types[k] = athena2pyarrow(v)
     columns_types = {k: v for k, v in columns_types.items() if v is not None}
-    _logger.debug(f"columns_types: {columns_types}")
+    _logger.debug("columns_types: %s", columns_types)
     return pa.schema(fields=columns_types)
 
 
@@ -324,11 +371,11 @@ def athena_types_from_pyarrow_schema(
 ) -> Tuple[Dict[str, str], Optional[Dict[str, str]]]:
     """Extract the related Athena data types from any PyArrow Schema considering possible partitions."""
     columns_types: Dict[str, str] = {str(f.name): pyarrow2athena(dtype=f.type) for f in schema}
-    _logger.debug(f"columns_types: {columns_types}")
+    _logger.debug("columns_types: %s", columns_types)
     partitions_types: Optional[Dict[str, str]] = None
     if partitions is not None:
         partitions_types = {p.name: pyarrow2athena(p.dictionary.type) for p in partitions}
-    _logger.debug(f"partitions_types: {partitions_types}")
+    _logger.debug("partitions_types: %s", partitions_types)
     return columns_types, partitions_types
 
 
@@ -372,7 +419,7 @@ def sqlalchemy_types_from_pandas(
     df: pd.DataFrame, db_type: str, dtype: Optional[Dict[str, VisitableType]] = None
 ) -> Dict[str, VisitableType]:
     """Extract the related SQLAlchemy data types from any Pandas DataFrame."""
-    casts: Dict[str, VisitableType] = dtype if dtype else {}
+    casts: Dict[str, VisitableType] = dtype if dtype is not None else {}
     pa_columns_types: Dict[str, Optional[pa.DataType]] = pyarrow_types_from_pandas(
         df=df, index=False, ignore_cols=list(casts.keys())
     )
@@ -382,5 +429,5 @@ def sqlalchemy_types_from_pandas(
             sqlalchemy_columns_types[k] = casts[k]
         else:
             sqlalchemy_columns_types[k] = pyarrow2sqlalchemy(dtype=v, db_type=db_type)
-    _logger.debug(f"sqlalchemy_columns_types: {sqlalchemy_columns_types}")
+    _logger.debug("sqlalchemy_columns_types: %s", sqlalchemy_columns_types)
     return sqlalchemy_columns_types
