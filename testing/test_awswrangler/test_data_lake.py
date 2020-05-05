@@ -1348,3 +1348,22 @@ def test_catalog_versioning(bucket, database):
     # Cleaning Up
     wr.catalog.delete_table_if_exists(database=database, table=table)
     wr.s3.delete_objects(path=path)
+
+
+def test_copy_replacing_filename(bucket):
+    path = f"s3://{bucket}/test_copy_replacing_filename/"
+    wr.s3.delete_objects(path=path)
+    df = pd.DataFrame({"c0": [1, 2]})
+    file_path = f"{path}myfile.parquet"
+    wr.s3.to_parquet(df=df, path=file_path)
+    wr.s3.wait_objects_exist(paths=[file_path], use_threads=False)
+    path2 = f"s3://{bucket}/test_copy_replacing_filename2/"
+    wr.s3.copy_objects(
+        paths=[file_path], source_path=path, target_path=path2, replace_filenames={"myfile.parquet": "myfile2.parquet"}
+    )
+    expected_file = f"{path2}myfile2.parquet"
+    wr.s3.wait_objects_exist(paths=[expected_file], use_threads=False)
+    objs = wr.s3.list_objects(path=path2)
+    assert objs[0] == expected_file
+    wr.s3.delete_objects(path=path)
+    wr.s3.delete_objects(path=path2)

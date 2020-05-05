@@ -2284,6 +2284,7 @@ def copy_objects(
     paths: List[str],
     source_path: str,
     target_path: str,
+    replace_filenames: Optional[Dict[str, str]] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
 ) -> List[str]:
@@ -2334,6 +2335,15 @@ def copy_objects(
     for path in paths:
         path_wo_prefix: str = path.replace(f"{source_path}/", "")
         path_final: str = f"{target_path}/{path_wo_prefix}"
+        if replace_filenames is not None:
+            parts: List[str] = path_final.rsplit(sep="/", maxsplit=1)
+            if len(parts) == 2:
+                path_wo_filename: str = parts[0]
+                filename: str = parts[1]
+                if filename in replace_filenames:
+                    new_filename: str = replace_filenames[filename]
+                    _logger.debug("Replacing filename: %s -> %s", filename, new_filename)
+                    path_final = f"{path_wo_filename}/{new_filename}"
         new_objects.append(path_final)
         batch.append((path, path_final))
     _logger.debug("len(new_objects): %s", len(new_objects))
