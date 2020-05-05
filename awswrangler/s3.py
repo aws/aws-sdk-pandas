@@ -433,6 +433,7 @@ def to_csv(  # pylint: disable=too-many-arguments
     dataset: bool = False,
     partition_cols: Optional[List[str]] = None,
     mode: Optional[str] = None,
+    catalog_versioning: bool = False,
     database: Optional[str] = None,
     table: Optional[str] = None,
     dtype: Optional[Dict[str, str]] = None,
@@ -483,6 +484,8 @@ def to_csv(  # pylint: disable=too-many-arguments
         List of column names that will be used to create partitions. Only takes effect if dataset=True.
     mode: str, optional
         ``append`` (Default), ``overwrite``, ``overwrite_partitions``. Only takes effect if dataset=True.
+    catalog_versioning : bool
+        If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     database : str, optional
         Glue/Athena catalog: Database name.
     table : str, optional
@@ -677,6 +680,7 @@ def to_csv(  # pylint: disable=too-many-arguments
                     columns_comments=columns_comments,
                     boto3_session=session,
                     mode="overwrite",
+                    catalog_versioning=catalog_versioning,
                     sep=sep,
                 )
             if partitions_values:
@@ -846,6 +850,7 @@ def to_parquet(  # pylint: disable=too-many-arguments
     dataset: bool = False,
     partition_cols: Optional[List[str]] = None,
     mode: Optional[str] = None,
+    catalog_versioning: bool = False,
     database: Optional[str] = None,
     table: Optional[str] = None,
     dtype: Optional[Dict[str, str]] = None,
@@ -893,6 +898,8 @@ def to_parquet(  # pylint: disable=too-many-arguments
         List of column names that will be used to create partitions. Only takes effect if dataset=True.
     mode: str, optional
         ``append`` (Default), ``overwrite``, ``overwrite_partitions``. Only takes effect if dataset=True.
+    catalog_versioning : bool
+        If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     database : str, optional
         Glue/Athena catalog: Database name.
     table : str, optional
@@ -1092,6 +1099,7 @@ def to_parquet(  # pylint: disable=too-many-arguments
                     columns_comments=columns_comments,
                     boto3_session=session,
                     mode="overwrite",
+                    catalog_versioning=catalog_versioning,
                 )
             if partitions_values:
                 _logger.debug("partitions_values:\n%s", partitions_values)
@@ -1838,6 +1846,7 @@ def store_parquet_metadata(
     columns_comments: Optional[Dict[str, str]] = None,
     compression: Optional[str] = None,
     mode: str = "overwrite",
+    catalog_versioning: bool = False,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Tuple[Dict[str, str], Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]:
     """Infer and store parquet metadata on AWS Glue Catalog.
@@ -1879,6 +1888,8 @@ def store_parquet_metadata(
         Compression style (``None``, ``snappy``, ``gzip``, etc).
     mode: str
         'overwrite' to recreate any possible existing table or 'append' to keep any possible existing table.
+    catalog_versioning : bool
+        If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -1924,6 +1935,7 @@ def store_parquet_metadata(
         parameters=parameters,
         columns_comments=columns_comments,
         mode=mode,
+        catalog_versioning=catalog_versioning,
         boto3_session=session,
     )
     partitions_values: Dict[str, List[str]] = _data_types.athena_partitions_from_pyarrow_partitions(

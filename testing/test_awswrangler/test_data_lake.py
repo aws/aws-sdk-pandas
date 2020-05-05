@@ -1281,3 +1281,70 @@ def test_athena_nested(bucket, database):
     df2 = wr.athena.read_sql_query(sql=f"SELECT c0, c1, c2, c4 FROM {table}", database=database)
     assert len(df2.index) == 2
     assert len(df2.columns) == 4
+
+
+def test_catalog_versioning(bucket, database):
+    table = "test_catalog_versioning"
+    wr.catalog.delete_table_if_exists(database=database, table=table)
+    path = f"s3://{bucket}/{table}/"
+    wr.s3.delete_objects(path=path)
+
+    # Version 0
+    df = pd.DataFrame({"c0": [1, 2]})
+    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, database=database, table=table, mode="overwrite")["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df = wr.athena.read_sql_table(table=table, database=database)
+    assert len(df.index) == 2
+    assert len(df.columns) == 1
+    assert str(df.c0.dtype).startswith("Int")
+
+    # Version 1
+    df = pd.DataFrame({"c1": ["foo", "boo"]})
+    paths = wr.s3.to_parquet(
+        df=df, path=path, dataset=True, database=database, table=table, mode="overwrite", catalog_versioning=True
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df = wr.athena.read_sql_table(table=table, database=database)
+    assert len(df.index) == 2
+    assert len(df.columns) == 1
+    assert str(df.c1.dtype) == "string"
+
+    # Version 2
+    df = pd.DataFrame({"c1": [1.0, 2.0]})
+    paths = wr.s3.to_csv(
+        df=df,
+        path=path,
+        dataset=True,
+        database=database,
+        table=table,
+        mode="overwrite",
+        catalog_versioning=True,
+        index=False,
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df = wr.athena.read_sql_table(table=table, database=database)
+    assert len(df.index) == 2
+    assert len(df.columns) == 1
+    assert str(df.c1.dtype).startswith("float")
+
+    # Version 3 (removing version 2)
+    df = pd.DataFrame({"c1": [True, False]})
+    paths = wr.s3.to_csv(
+        df=df,
+        path=path,
+        dataset=True,
+        database=database,
+        table=table,
+        mode="overwrite",
+        catalog_versioning=False,
+        index=False,
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df = wr.athena.read_sql_table(table=table, database=database)
+    assert len(df.index) == 2
+    assert len(df.columns) == 1
+    assert str(df.c1.dtype).startswith("boolean")
+
+    # Cleaning Up
+    wr.catalog.delete_table_if_exists(database=database, table=table)
+    wr.s3.delete_objects(path=path)

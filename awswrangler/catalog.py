@@ -93,6 +93,7 @@ def create_parquet_table(
     parameters: Optional[Dict[str, str]] = None,
     columns_comments: Optional[Dict[str, str]] = None,
     mode: str = "overwrite",
+    catalog_versioning: bool = False,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
     """Create a Parquet Table (Metadata Only) in the AWS Glue Catalog.
@@ -121,6 +122,8 @@ def create_parquet_table(
         Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
     mode: str
         'overwrite' to recreate any possible existing table or 'append' to keep any possible existing table.
+    catalog_versioning : bool
+        If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -157,6 +160,7 @@ def create_parquet_table(
         parameters=parameters,
         columns_comments=columns_comments,
         mode=mode,
+        catalog_versioning=catalog_versioning,
         boto3_session=boto3_session,
         table_input=table_input,
     )
@@ -865,6 +869,7 @@ def create_csv_table(
     parameters: Optional[Dict[str, str]] = None,
     columns_comments: Optional[Dict[str, str]] = None,
     mode: str = "overwrite",
+    catalog_versioning: bool = False,
     sep: str = ",",
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
@@ -884,16 +889,18 @@ def create_csv_table(
         Dictionary with keys as column names and vales as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
     partitions_types: Dict[str, str], optional
         Dictionary with keys as partition names and values as data types (e.g. {'col2': 'date'}).
-    compression: str, optional
+    compression : str, optional
         Compression style (``None``, ``gzip``, etc).
-    description: str, optional
+    description : str, optional
         Table description
-    parameters: Dict[str, str], optional
+    parameters : Dict[str, str], optional
         Key/value pairs to tag the table.
     columns_comments: Dict[str, str], optional
         Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
-    mode: str
+    mode : str
         'overwrite' to recreate any possible axisting table or 'append' to keep any possible axisting table.
+    catalog_versioning : bool
+        If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     sep : str
         String of length 1. Field delimiter for the output file.
     boto3_session : boto3.Session(), optional
@@ -937,6 +944,7 @@ def create_csv_table(
         parameters=parameters,
         columns_comments=columns_comments,
         mode=mode,
+        catalog_versioning=catalog_versioning,
         boto3_session=boto3_session,
         table_input=table_input,
     )
@@ -949,6 +957,7 @@ def _create_table(
     parameters: Optional[Dict[str, str]],
     columns_comments: Optional[Dict[str, str]],
     mode: str,
+    catalog_versioning: bool,
     boto3_session: Optional[boto3.Session],
     table_input: Dict[str, Any],
 ):
@@ -967,10 +976,14 @@ def _create_table(
             if name in columns_comments:
                 par["Comment"] = columns_comments[name]
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    client_glue: boto3.client = _utils.client(service_name="glue", session=session)
     exist: bool = does_table_exist(database=database, table=table, boto3_session=session)
-    if (mode == "overwrite") or (exist is False):
-        delete_table_if_exists(database=database, table=table, boto3_session=session)
-        client_glue: boto3.client = _utils.client(service_name="glue", session=session)
+    if mode not in ("overwrite", "append"):  # pragma: no cover
+        raise exceptions.InvalidArgument(f"{mode} is not a valid mode. It must be 'overwrite' or 'append'.")
+    if (exist is True) and (mode == "overwrite"):
+        skip_archive: bool = not catalog_versioning
+        client_glue.update_table(DatabaseName=database, TableInput=table_input, SkipArchive=skip_archive)
+    elif exist is False:
         client_glue.create_table(DatabaseName=database, TableInput=table_input)
 
 
