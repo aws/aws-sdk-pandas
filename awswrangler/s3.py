@@ -178,7 +178,8 @@ def list_objects(path: str, suffix: Optional[str] = None, boto3_session: Optiona
     ['s3://bucket/prefix0', 's3://bucket/prefix1', 's3://bucket/prefix2']
 
     """
-    return _list_objects(path=path, delimiter=None, suffix=suffix, boto3_session=boto3_session)
+    paths: List[str] = _list_objects(path=path, delimiter=None, suffix=suffix, boto3_session=boto3_session)
+    return [p for p in paths if not p.endswith("/")]
 
 
 def _list_objects(
@@ -218,7 +219,7 @@ def _list_objects(
 
 def _path2list(path: object, boto3_session: boto3.Session, suffix: str = None) -> List[str]:
     if isinstance(path, str):  # prefix
-        paths: List[str] = list_objects(path=path, boto3_session=boto3_session)
+        paths: List[str] = list_objects(path=path, suffix=suffix, boto3_session=boto3_session)
     elif isinstance(path, list):
         paths = path if suffix is None else [x for x in path if x.endswith(suffix)]
     else:
@@ -1463,6 +1464,7 @@ def _read_text(
     if "iterator" in pandas_kwargs:
         raise exceptions.InvalidArgument("Please, use chunksize instead of iterator.")
     paths: List[str] = _path2list(path=path, boto3_session=boto3_session)
+    _logger.debug("paths:\n%s", paths)
     if chunksize is not None:
         dfs: Iterator[pd.DataFrame] = _read_text_chunksize(
             parser_func=parser_func,
