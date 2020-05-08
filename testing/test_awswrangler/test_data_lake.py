@@ -1300,10 +1300,10 @@ def test_catalog_versioning(bucket, database):
 
     # Version 1
     df = pd.DataFrame({"c1": ["foo", "boo"]})
-    paths = wr.s3.to_parquet(
+    paths1 = wr.s3.to_parquet(
         df=df, path=path, dataset=True, database=database, table=table, mode="overwrite", catalog_versioning=True
     )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    wr.s3.wait_objects_exist(paths=paths1, use_threads=False)
     df = wr.athena.read_sql_table(table=table, database=database)
     assert len(df.index) == 2
     assert len(df.columns) == 1
@@ -1311,7 +1311,7 @@ def test_catalog_versioning(bucket, database):
 
     # Version 2
     df = pd.DataFrame({"c1": [1.0, 2.0]})
-    paths = wr.s3.to_csv(
+    paths2 = wr.s3.to_csv(
         df=df,
         path=path,
         dataset=True,
@@ -1321,7 +1321,8 @@ def test_catalog_versioning(bucket, database):
         catalog_versioning=True,
         index=False,
     )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    wr.s3.wait_objects_exist(paths=paths2, use_threads=False)
+    wr.s3.wait_objects_not_exist(paths=paths1, use_threads=False)
     df = wr.athena.read_sql_table(table=table, database=database)
     assert len(df.index) == 2
     assert len(df.columns) == 1
@@ -1329,7 +1330,7 @@ def test_catalog_versioning(bucket, database):
 
     # Version 3 (removing version 2)
     df = pd.DataFrame({"c1": [True, False]})
-    paths = wr.s3.to_csv(
+    paths3 = wr.s3.to_csv(
         df=df,
         path=path,
         dataset=True,
@@ -1339,7 +1340,8 @@ def test_catalog_versioning(bucket, database):
         catalog_versioning=False,
         index=False,
     )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    wr.s3.wait_objects_exist(paths=paths3, use_threads=False)
+    wr.s3.wait_objects_not_exist(paths=paths2, use_threads=False)
     df = wr.athena.read_sql_table(table=table, database=database)
     assert len(df.index) == 2
     assert len(df.columns) == 1

@@ -1693,6 +1693,7 @@ def read_parquet(
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
     )
+    _logger.debug("pyarrow.parquet.ParquetDataset initialized.")
     if chunked is False:
         return _read_parquet(
             data=data, columns=columns, categories=categories, use_threads=use_threads, validate_schema=validate_schema
@@ -1710,13 +1711,17 @@ def _read_parquet(
     validate_schema: bool = True,
 ) -> pd.DataFrame:
     tables: List[pa.Table] = []
+    _logger.debug("Reading pieces...")
     for piece in data.pieces:
         table: pa.Table = piece.read(
             columns=columns, use_threads=use_threads, partitions=data.partitions, use_pandas_metadata=False
         )
+        _logger.debug("Appending piece in the list...")
         tables.append(table)
     promote: bool = not validate_schema
+    _logger.debug("Concating pieces...")
     table = pa.lib.concat_tables(tables, promote=promote)
+    _logger.debug("Converting PyArrow table to Pandas DataFrame...")
     return table.to_pandas(
         use_threads=use_threads,
         split_blocks=True,

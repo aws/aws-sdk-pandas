@@ -136,9 +136,9 @@ def get_fs(
     fs: s3fs.S3FileSystem = s3fs.S3FileSystem(
         anon=False,
         use_ssl=True,
-        default_cache_type="none",
+        default_cache_type="readahead",
         default_fill_cache=False,
-        default_block_size=134_217_728,  # 128 MB (50 * 2**20)
+        default_block_size=1_073_741_824,  # 1024 MB (1024 * 2**20)
         config_kwargs={"retries": {"max_attempts": 15}},
         session=ensure_session(session=session)._session,  # pylint: disable=protected-access
         s3_additional_kwargs=s3_additional_kwargs,
