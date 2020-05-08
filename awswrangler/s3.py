@@ -455,6 +455,10 @@ def to_csv(  # pylint: disable=too-many-arguments
 
     Note
     ----
+    On `append` mode, the `parameters` will be upsert on an existing table.
+
+    Note
+    ----
     In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
 
     Parameters
@@ -640,7 +644,6 @@ def to_csv(  # pylint: disable=too-many-arguments
         paths = [path]
     else:
         mode = "append" if mode is None else mode
-        exist: bool = False
         if columns:
             df = df[columns]
         if (database is not None) and (table is not None):  # Normalize table to respect Athena's standards
@@ -648,7 +651,7 @@ def to_csv(  # pylint: disable=too-many-arguments
             partition_cols = [catalog.sanitize_column_name(p) for p in partition_cols]
             dtype = {catalog.sanitize_column_name(k): v.lower() for k, v in dtype.items()}
             columns_comments = {catalog.sanitize_column_name(k): v for k, v in columns_comments.items()}
-            exist = catalog.does_table_exist(database=database, table=table, boto3_session=session)
+            exist: bool = catalog.does_table_exist(database=database, table=table, boto3_session=session)
             if (exist is True) and (mode in ("append", "overwrite_partitions")):
                 for k, v in catalog.get_table_types(database=database, table=table, boto3_session=session).items():
                     dtype[k] = v
@@ -669,21 +672,20 @@ def to_csv(  # pylint: disable=too-many-arguments
             columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
                 df=df, index=index, partition_cols=partition_cols, dtype=dtype, index_left=True
             )
-            if (exist is False) or (mode == "overwrite"):
-                catalog.create_csv_table(
-                    database=database,
-                    table=table,
-                    path=path,
-                    columns_types=columns_types,
-                    partitions_types=partitions_types,
-                    description=description,
-                    parameters=parameters,
-                    columns_comments=columns_comments,
-                    boto3_session=session,
-                    mode="overwrite",
-                    catalog_versioning=catalog_versioning,
-                    sep=sep,
-                )
+            catalog.create_csv_table(
+                database=database,
+                table=table,
+                path=path,
+                columns_types=columns_types,
+                partitions_types=partitions_types,
+                description=description,
+                parameters=parameters,
+                columns_comments=columns_comments,
+                boto3_session=session,
+                mode=mode,
+                catalog_versioning=catalog_versioning,
+                sep=sep,
+            )
             if partitions_values:
                 _logger.debug("partitions_values:\n%s", partitions_values)
                 catalog.add_csv_partitions(
@@ -868,6 +870,10 @@ def to_parquet(  # pylint: disable=too-many-arguments
     ----
     The table name and all column names will be automatically sanitize using
     `wr.catalog.sanitize_table_name` and `wr.catalog.sanitize_column_name`.
+
+    Note
+    ----
+    On `append` mode, the `parameters` will be upsert on an existing table.
 
     Note
     ----
@@ -1058,13 +1064,12 @@ def to_parquet(  # pylint: disable=too-many-arguments
         ]
     else:
         mode = "append" if mode is None else mode
-        exist: bool = False
         if (database is not None) and (table is not None):  # Normalize table to respect Athena's standards
             df = catalog.sanitize_dataframe_columns_names(df=df)
             partition_cols = [catalog.sanitize_column_name(p) for p in partition_cols]
             dtype = {catalog.sanitize_column_name(k): v.lower() for k, v in dtype.items()}
             columns_comments = {catalog.sanitize_column_name(k): v for k, v in columns_comments.items()}
-            exist = catalog.does_table_exist(database=database, table=table, boto3_session=session)
+            exist: bool = catalog.does_table_exist(database=database, table=table, boto3_session=session)
             if (exist is True) and (mode in ("append", "overwrite_partitions")):
                 for k, v in catalog.get_table_types(database=database, table=table, boto3_session=session).items():
                     dtype[k] = v
@@ -1087,21 +1092,20 @@ def to_parquet(  # pylint: disable=too-many-arguments
             columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
                 df=df, index=index, partition_cols=partition_cols, dtype=dtype
             )
-            if (exist is False) or (mode == "overwrite"):
-                catalog.create_parquet_table(
-                    database=database,
-                    table=table,
-                    path=path,
-                    columns_types=columns_types,
-                    partitions_types=partitions_types,
-                    compression=compression,
-                    description=description,
-                    parameters=parameters,
-                    columns_comments=columns_comments,
-                    boto3_session=session,
-                    mode="overwrite",
-                    catalog_versioning=catalog_versioning,
-                )
+            catalog.create_parquet_table(
+                database=database,
+                table=table,
+                path=path,
+                columns_types=columns_types,
+                partitions_types=partitions_types,
+                compression=compression,
+                description=description,
+                parameters=parameters,
+                columns_comments=columns_comments,
+                boto3_session=session,
+                mode=mode,
+                catalog_versioning=catalog_versioning,
+            )
             if partitions_values:
                 _logger.debug("partitions_values:\n%s", partitions_values)
                 catalog.add_parquet_partitions(
@@ -1693,6 +1697,7 @@ def read_parquet(
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
     )
+    _logger.debug("pyarrow.parquet.ParquetDataset initialized.")
     if chunked is False:
         return _read_parquet(
             data=data, columns=columns, categories=categories, use_threads=use_threads, validate_schema=validate_schema
@@ -1710,13 +1715,17 @@ def _read_parquet(
     validate_schema: bool = True,
 ) -> pd.DataFrame:
     tables: List[pa.Table] = []
+    _logger.debug("Reading pieces...")
     for piece in data.pieces:
         table: pa.Table = piece.read(
             columns=columns, use_threads=use_threads, partitions=data.partitions, use_pandas_metadata=False
         )
+        _logger.debug("Appending piece in the list...")
         tables.append(table)
     promote: bool = not validate_schema
+    _logger.debug("Concating pieces...")
     table = pa.lib.concat_tables(tables, promote=promote)
+    _logger.debug("Converting PyArrow table to Pandas DataFrame...")
     return table.to_pandas(
         use_threads=use_threads,
         split_blocks=True,
@@ -1859,6 +1868,10 @@ def store_parquet_metadata(
 
     The concept of Dataset goes beyond the simple idea of files and enable more
     complex features like partitioning and catalog integration (AWS Glue Catalog).
+
+    Note
+    ----
+    On `append` mode, the `parameters` will be upsert on an existing table.
 
     Note
     ----

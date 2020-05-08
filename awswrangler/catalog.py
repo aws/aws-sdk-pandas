@@ -5,7 +5,7 @@ import itertools
 import logging
 import re
 import unicodedata
-from typing import Any, Dict, Iterator, List, Optional, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 from urllib.parse import quote_plus
 
 import boto3  # type: ignore
@@ -978,11 +978,21 @@ def _create_table(
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     client_glue: boto3.client = _utils.client(service_name="glue", session=session)
     exist: bool = does_table_exist(database=database, table=table, boto3_session=session)
-    if mode not in ("overwrite", "append"):  # pragma: no cover
-        raise exceptions.InvalidArgument(f"{mode} is not a valid mode. It must be 'overwrite' or 'append'.")
+    if mode not in ("overwrite", "append", "overwrite_partitions"):  # pragma: no cover
+        raise exceptions.InvalidArgument(
+            f"{mode} is not a valid mode. It must be 'overwrite', 'append' or 'overwrite_partitions'."
+        )
     if (exist is True) and (mode == "overwrite"):
         skip_archive: bool = not catalog_versioning
+        partitions_values: List[List[str]] = list(
+            _get_partitions(database=database, table=table, boto3_session=session).values()
+        )
+        client_glue.batch_delete_partition(
+            DatabaseName=database, TableName=table, PartitionsToDelete=[{"Values": v} for v in partitions_values]
+        )
         client_glue.update_table(DatabaseName=database, TableInput=table_input, SkipArchive=skip_archive)
+    elif (exist is True) and (mode in ("append", "overwrite_partitions")) and (parameters is not None):
+        upsert_table_parameters(parameters=parameters, database=database, table=table, boto3_session=session)
     elif exist is False:
         client_glue.create_table(DatabaseName=database, TableInput=table_input)
 
@@ -1327,3 +1337,155 @@ def extract_athena_types(
     return _data_types.athena_types_from_pandas_partitioned(
         df=df, index=index, partition_cols=partition_cols, dtype=dtype, index_left=index_left
     )
+
+
+def get_table_parameters(
+    database: str, table: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
+) -> Dict[str, str]:
+    """Get all parameters.
+
+    Parameters
+    ----------
+    database : str
+        Database name.
+    table : str
+        Table name.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    Dict[str, str]
+        Dictionary of parameters.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> pars = wr.catalog.get_table_parameters(database="...", table="...")
+
+    """
+    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    args: Dict[str, str] = {}
+    if catalog_id is not None:
+        args["CatalogId"] = catalog_id  # pragma: no cover
+    args["DatabaseName"] = database
+    args["Name"] = table
+    response: Dict[str, Any] = client_glue.get_table(**args)
+    parameters: Dict[str, str] = response["Table"]["Parameters"]
+    return parameters
+
+
+def upsert_table_parameters(
+    parameters: Dict[str, str],
+    database: str,
+    table: str,
+    catalog_id: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> Dict[str, str]:
+    """Insert or Update the received parameters.
+
+    Parameters
+    ----------
+    parameters : Dict[str, str]
+        e.g. {"source": "mysql", "destination":  "datalake"}
+    database : str
+        Database name.
+    table : str
+        Table name.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    Dict[str, str]
+       All parameters after the upsert.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> pars = wr.catalog.upsert_table_parameters(
+    ...     parameters={"source": "mysql", "destination":  "datalake"},
+    ...     database="...",
+    ...     table="...")
+
+    """
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    pars: Dict[str, str] = get_table_parameters(
+        database=database, table=table, catalog_id=catalog_id, boto3_session=session
+    )
+    for k, v in parameters.items():
+        pars[k] = v
+    overwrite_table_parameters(
+        parameters=pars, database=database, table=table, catalog_id=catalog_id, boto3_session=session
+    )
+    return pars
+
+
+def overwrite_table_parameters(
+    parameters: Dict[str, str],
+    database: str,
+    table: str,
+    catalog_id: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> Dict[str, str]:
+    """Overwrite all existing parameters.
+
+    Parameters
+    ----------
+    parameters : Dict[str, str]
+        e.g. {"source": "mysql", "destination":  "datalake"}
+    database : str
+        Database name.
+    table : str
+        Table name.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    Dict[str, str]
+       All parameters after the overwrite (The same received).
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> pars = wr.catalog.overwrite_table_parameters(
+    ...     parameters={"source": "mysql", "destination":  "datalake"},
+    ...     database="...",
+    ...     table="...")
+
+    """
+    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    args: Dict[str, str] = {}
+    if catalog_id is not None:
+        args["CatalogId"] = catalog_id  # pragma: no cover
+    args["DatabaseName"] = database
+    args["Name"] = table
+    response: Dict[str, Any] = client_glue.get_table(**args)
+    response["Table"]["Parameters"] = parameters
+    if "DatabaseName" in response["Table"]:
+        del response["Table"]["DatabaseName"]
+    if "CreateTime" in response["Table"]:
+        del response["Table"]["CreateTime"]
+    if "UpdateTime" in response["Table"]:
+        del response["Table"]["UpdateTime"]
+    if "CreatedBy" in response["Table"]:
+        del response["Table"]["CreatedBy"]
+    if "IsRegisteredWithLakeFormation" in response["Table"]:
+        del response["Table"]["IsRegisteredWithLakeFormation"]
+    args2: Dict[str, Union[str, Dict[str, Any]]] = {}
+    if catalog_id is not None:
+        args2["CatalogId"] = catalog_id  # pragma: no cover
+    args2["DatabaseName"] = database
+    args2["TableInput"] = response["Table"]
+    client_glue.update_table(**args2)
+    return parameters

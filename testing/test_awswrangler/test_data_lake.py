@@ -1300,10 +1300,10 @@ def test_catalog_versioning(bucket, database):
 
     # Version 1
     df = pd.DataFrame({"c1": ["foo", "boo"]})
-    paths = wr.s3.to_parquet(
+    paths1 = wr.s3.to_parquet(
         df=df, path=path, dataset=True, database=database, table=table, mode="overwrite", catalog_versioning=True
     )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    wr.s3.wait_objects_exist(paths=paths1, use_threads=False)
     df = wr.athena.read_sql_table(table=table, database=database)
     assert len(df.index) == 2
     assert len(df.columns) == 1
@@ -1311,7 +1311,7 @@ def test_catalog_versioning(bucket, database):
 
     # Version 2
     df = pd.DataFrame({"c1": [1.0, 2.0]})
-    paths = wr.s3.to_csv(
+    paths2 = wr.s3.to_csv(
         df=df,
         path=path,
         dataset=True,
@@ -1321,7 +1321,8 @@ def test_catalog_versioning(bucket, database):
         catalog_versioning=True,
         index=False,
     )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    wr.s3.wait_objects_exist(paths=paths2, use_threads=False)
+    wr.s3.wait_objects_not_exist(paths=paths1, use_threads=False)
     df = wr.athena.read_sql_table(table=table, database=database)
     assert len(df.index) == 2
     assert len(df.columns) == 1
@@ -1329,7 +1330,7 @@ def test_catalog_versioning(bucket, database):
 
     # Version 3 (removing version 2)
     df = pd.DataFrame({"c1": [True, False]})
-    paths = wr.s3.to_csv(
+    paths3 = wr.s3.to_csv(
         df=df,
         path=path,
         dataset=True,
@@ -1339,7 +1340,8 @@ def test_catalog_versioning(bucket, database):
         catalog_versioning=False,
         index=False,
     )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    wr.s3.wait_objects_exist(paths=paths3, use_threads=False)
+    wr.s3.wait_objects_not_exist(paths=paths2, use_threads=False)
     df = wr.athena.read_sql_table(table=table, database=database)
     assert len(df.index) == 2
     assert len(df.columns) == 1
@@ -1367,3 +1369,172 @@ def test_copy_replacing_filename(bucket):
     assert objs[0] == expected_file
     wr.s3.delete_objects(path=path)
     wr.s3.delete_objects(path=path2)
+
+
+def test_unsigned_parquet(bucket, database, external_schema):
+    table = "test_unsigned_parquet"
+    path = f"s3://{bucket}/{table}/"
+    wr.s3.delete_objects(path=path)
+    df = pd.DataFrame({"c0": [0, 0, (2 ** 8) - 1], "c1": [0, 0, (2 ** 16) - 1], "c2": [0, 0, (2 ** 32) - 1]})
+    df["c0"] = df.c0.astype("uint8")
+    df["c1"] = df.c1.astype("uint16")
+    df["c2"] = df.c2.astype("uint32")
+    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, database=database, table=table, mode="overwrite")["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df = wr.athena.read_sql_table(table=table, database=database)
+    assert df.c0.sum() == (2 ** 8) - 1
+    assert df.c1.sum() == (2 ** 16) - 1
+    assert df.c2.sum() == (2 ** 32) - 1
+    schema = wr.s3.read_parquet_metadata(path=path)[0]
+    assert schema["c0"] == "smallint"
+    assert schema["c1"] == "int"
+    assert schema["c2"] == "bigint"
+    df = wr.s3.read_parquet(path=path)
+    assert df.c0.sum() == (2 ** 8) - 1
+    assert df.c1.sum() == (2 ** 16) - 1
+    assert df.c2.sum() == (2 ** 32) - 1
+    engine = wr.catalog.get_engine("aws-data-wrangler-redshift")
+    df = wr.db.read_sql_table(con=engine, table=table, schema=external_schema)
+    assert df.c0.sum() == (2 ** 8) - 1
+    assert df.c1.sum() == (2 ** 16) - 1
+    assert df.c2.sum() == (2 ** 32) - 1
+
+    df = pd.DataFrame({"c0": [0, 0, (2 ** 64) - 1]})
+    df["c0"] = df.c0.astype("uint64")
+    with pytest.raises(wr.exceptions.UnsupportedType):
+        wr.s3.to_parquet(df=df, path=path, dataset=True, database=database, table=table, mode="overwrite")
+
+    wr.s3.delete_objects(path=path)
+    wr.catalog.delete_table_if_exists(database=database, table=table)
+
+
+def test_parquet_uint64(bucket):
+    path = f"s3://{bucket}/test_parquet_uint64/"
+    wr.s3.delete_objects(path=path)
+    df = pd.DataFrame(
+        {
+            "c0": [0, 0, (2 ** 8) - 1],
+            "c1": [0, 0, (2 ** 16) - 1],
+            "c2": [0, 0, (2 ** 32) - 1],
+            "c3": [0, 0, (2 ** 64) - 1],
+            "c4": [0, 1, 2],
+        }
+    )
+    print(df)
+    df["c0"] = df.c0.astype("uint8")
+    df["c1"] = df.c1.astype("uint16")
+    df["c2"] = df.c2.astype("uint32")
+    df["c3"] = df.c3.astype("uint64")
+    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, mode="overwrite", partition_cols=["c4"])["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df = wr.s3.read_parquet(path=path, dataset=True)
+    print(df)
+    print(df.dtypes)
+    assert len(df.index) == 3
+    assert len(df.columns) == 5
+    assert df.c0.max() == (2 ** 8) - 1
+    assert df.c1.max() == (2 ** 16) - 1
+    assert df.c2.max() == (2 ** 32) - 1
+    assert df.c3.max() == (2 ** 64) - 1
+    assert df.c4.astype("uint8").sum() == 3
+    wr.s3.delete_objects(path=path)
+
+
+def test_parquet_overwrite_partition_cols(bucket, database, external_schema):
+    table = "test_parquet_overwrite_partition_cols"
+    path = f"s3://{bucket}/{table}/"
+    wr.s3.delete_objects(path=path)
+    df = pd.DataFrame({"c0": [1, 2, 1, 2], "c1": [1, 2, 1, 2], "c2": [2, 1, 2, 1]})
+
+    paths = wr.s3.to_parquet(
+        df=df, path=path, dataset=True, database=database, table=table, mode="overwrite", partition_cols=["c2"]
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df = wr.athena.read_sql_table(table=table, database=database)
+    assert len(df.index) == 4
+    assert len(df.columns) == 3
+    assert df.c0.sum() == 6
+    assert df.c1.sum() == 6
+    assert df.c2.sum() == 6
+
+    paths = wr.s3.to_parquet(
+        df=df, path=path, dataset=True, database=database, table=table, mode="overwrite", partition_cols=["c1", "c2"]
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df = wr.athena.read_sql_table(table=table, database=database)
+    assert len(df.index) == 4
+    assert len(df.columns) == 3
+    assert df.c0.sum() == 6
+    assert df.c1.sum() == 6
+    assert df.c2.sum() == 6
+
+    engine = wr.catalog.get_engine("aws-data-wrangler-redshift")
+    df = wr.db.read_sql_table(con=engine, table=table, schema=external_schema)
+    assert len(df.index) == 4
+    assert len(df.columns) == 3
+    assert df.c0.sum() == 6
+    assert df.c1.sum() == 6
+    assert df.c2.sum() == 6
+
+    wr.s3.delete_objects(path=path)
+    wr.catalog.delete_table_if_exists(database=database, table=table)
+
+
+def test_catalog_parameters(bucket, database):
+    table = "test_catalog_parameters"
+    path = f"s3://{bucket}/{table}/"
+    wr.s3.delete_objects(path=path)
+    wr.catalog.delete_table_if_exists(database=database, table=table)
+
+    wr.s3.to_parquet(
+        df=pd.DataFrame({"c0": [1, 2]}),
+        path=path,
+        dataset=True,
+        database=database,
+        table=table,
+        mode="overwrite",
+        parameters={"a": "1", "b": "2"},
+    )
+    pars = wr.catalog.get_table_parameters(database=database, table=table)
+    assert pars["a"] == "1"
+    assert pars["b"] == "2"
+    pars["a"] = "0"
+    pars["c"] = "3"
+    wr.catalog.upsert_table_parameters(parameters=pars, database=database, table=table)
+    pars = wr.catalog.get_table_parameters(database=database, table=table)
+    assert pars["a"] == "0"
+    assert pars["b"] == "2"
+    assert pars["c"] == "3"
+    wr.catalog.overwrite_table_parameters(parameters={"d": "4"}, database=database, table=table)
+    pars = wr.catalog.get_table_parameters(database=database, table=table)
+    assert pars.get("a") is None
+    assert pars.get("b") is None
+    assert pars.get("c") is None
+    assert pars["d"] == "4"
+    df = wr.athena.read_sql_table(table=table, database=database)
+    assert len(df.index) == 2
+    assert len(df.columns) == 1
+    assert df.c0.sum() == 3
+
+    wr.s3.to_parquet(
+        df=pd.DataFrame({"c0": [3, 4]}),
+        path=path,
+        dataset=True,
+        database=database,
+        table=table,
+        mode="append",
+        parameters={"e": "5"},
+    )
+    pars = wr.catalog.get_table_parameters(database=database, table=table)
+    assert pars.get("a") is None
+    assert pars.get("b") is None
+    assert pars.get("c") is None
+    assert pars["d"] == "4"
+    assert pars["e"] == "5"
+    df = wr.athena.read_sql_table(table=table, database=database)
+    assert len(df.index) == 4
+    assert len(df.columns) == 1
+    assert df.c0.sum() == 10
+
+    wr.s3.delete_objects(path=path)
+    wr.catalog.delete_table_if_exists(database=database, table=table)
