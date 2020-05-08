@@ -65,7 +65,7 @@ AWS Glue Catalog
     extract_athena_types
     get_table_parameters
     upsert_table_parameters
-    upsert_table_parameters
+    overwrite_table_parameters
 
 Amazon Athena
 -------------
