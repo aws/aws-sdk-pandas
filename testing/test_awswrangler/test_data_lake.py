@@ -1369,7 +1369,7 @@ def test_copy_replacing_filename(bucket):
     wr.s3.delete_objects(path=path2)
 
 
-def test_unsigned_parquet(bucket, database):
+def test_unsigned_parquet(bucket, database, external_schema):
     path = f"s3://{bucket}/test_unsigned_parquet/"
     table = "test_unsigned_parquet"
     wr.s3.delete_objects(path=path)
@@ -1388,6 +1388,11 @@ def test_unsigned_parquet(bucket, database):
     assert schema["c1"] == "int"
     assert schema["c2"] == "bigint"
     df = wr.s3.read_parquet(path=path)
+    assert df.c0.sum() == (2 ** 8) - 1
+    assert df.c1.sum() == (2 ** 16) - 1
+    assert df.c2.sum() == (2 ** 32) - 1
+    engine = wr.catalog.get_engine("aws-data-wrangler-redshift")
+    df = wr.db.read_sql_table(con=engine, table=table, schema=external_schema)
     assert df.c0.sum() == (2 ** 8) - 1
     assert df.c1.sum() == (2 ** 16) - 1
     assert df.c2.sum() == (2 ** 32) - 1
