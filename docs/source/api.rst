@@ -63,6 +63,9 @@ AWS Glue Catalog
     drop_duplicated_columns
     get_engine
     extract_athena_types
+    get_table_parameters
+    upsert_table_parameters
+    upsert_table_parameters
 
 Amazon Athena
 -------------

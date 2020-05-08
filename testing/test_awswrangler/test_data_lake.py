@@ -1478,3 +1478,63 @@ def test_parquet_overwrite_partition_cols(bucket, database, external_schema):
 
     wr.s3.delete_objects(path=path)
     wr.catalog.delete_table_if_exists(database=database, table=table)
+
+
+def test_catalog_parameters(bucket, database):
+    table = "test_catalog_parameters"
+    path = f"s3://{bucket}/{table}/"
+    wr.s3.delete_objects(path=path)
+    wr.catalog.delete_table_if_exists(database=database, table=table)
+
+    wr.s3.to_parquet(
+        df=pd.DataFrame({"c0": [1, 2]}),
+        path=path,
+        dataset=True,
+        database=database,
+        table=table,
+        mode="overwrite",
+        parameters={"a": "1", "b": "2"},
+    )
+    pars = wr.catalog.get_table_parameters(database=database, table=table)
+    assert pars["a"] == "1"
+    assert pars["b"] == "2"
+    pars["a"] = "0"
+    pars["c"] = "3"
+    wr.catalog.upsert_table_parameters(parameters=pars, database=database, table=table)
+    pars = wr.catalog.get_table_parameters(database=database, table=table)
+    assert pars["a"] == "0"
+    assert pars["b"] == "2"
+    assert pars["c"] == "3"
+    wr.catalog.overwrite_table_parameters(parameters={"d": "4"}, database=database, table=table)
+    pars = wr.catalog.get_table_parameters(database=database, table=table)
+    assert pars.get("a") is None
+    assert pars.get("b") is None
+    assert pars.get("c") is None
+    assert pars["d"] == "4"
+    df = wr.athena.read_sql_table(table=table, database=database)
+    assert len(df.index) == 2
+    assert len(df.columns) == 1
+    assert df.c0.sum() == 3
+
+    wr.s3.to_parquet(
+        df=pd.DataFrame({"c0": [3, 4]}),
+        path=path,
+        dataset=True,
+        database=database,
+        table=table,
+        mode="append",
+        parameters={"e": "5"},
+    )
+    pars = wr.catalog.get_table_parameters(database=database, table=table)
+    assert pars.get("a") is None
+    assert pars.get("b") is None
+    assert pars.get("c") is None
+    assert pars["d"] == "4"
+    assert pars["e"] == "5"
+    df = wr.athena.read_sql_table(table=table, database=database)
+    assert len(df.index) == 4
+    assert len(df.columns) == 1
+    assert df.c0.sum() == 10
+
+    wr.s3.delete_objects(path=path)
+    wr.catalog.delete_table_if_exists(database=database, table=table)
