@@ -978,8 +978,10 @@ def _create_table(
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     client_glue: boto3.client = _utils.client(service_name="glue", session=session)
     exist: bool = does_table_exist(database=database, table=table, boto3_session=session)
-    if mode not in ("overwrite", "append"):  # pragma: no cover
-        raise exceptions.InvalidArgument(f"{mode} is not a valid mode. It must be 'overwrite' or 'append'.")
+    if mode not in ("overwrite", "append", "overwrite_partitions"):  # pragma: no cover
+        raise exceptions.InvalidArgument(
+            f"{mode} is not a valid mode. It must be 'overwrite', 'append' or 'overwrite_partitions'."
+        )
     if (exist is True) and (mode == "overwrite"):
         skip_archive: bool = not catalog_versioning
         partitions_values: List[List[str]] = list(
@@ -989,7 +991,7 @@ def _create_table(
             DatabaseName=database, TableName=table, PartitionsToDelete=[{"Values": v} for v in partitions_values]
         )
         client_glue.update_table(DatabaseName=database, TableInput=table_input, SkipArchive=skip_archive)
-    elif (exist is True) and (mode == "append") and (parameters is not None):
+    elif (exist is True) and (mode in ("append", "overwrite_partitions")) and (parameters is not None):
         upsert_table_parameters(parameters=parameters, database=database, table=table, boto3_session=session)
     elif exist is False:
         client_glue.create_table(DatabaseName=database, TableInput=table_input)
