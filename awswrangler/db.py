@@ -422,7 +422,7 @@ def copy_to_redshift(  # pylint: disable=too-many-arguments
     diststyle: str = "AUTO",
     distkey: Optional[str] = None,
     sortstyle: str = "COMPOUND",
-    sortkey: Optional[str] = None,
+    sortkey: Optional[List[str]] = None,
     primary_keys: Optional[List[str]] = None,
     varchar_lengths_default: int = 256,
     varchar_lengths: Optional[Dict[str, int]] = None,
@@ -485,7 +485,7 @@ def copy_to_redshift(  # pylint: disable=too-many-arguments
     sortstyle : str
         Sorting can be "COMPOUND" or "INTERLEAVED".
         https://docs.aws.amazon.com/redshift/latest/dg/t_Sorting_data.html
-    sortkey : str, optional
+    sortkey : List[str], optional
         List of columns to be sorted.
     primary_keys : List[str], optional
         Primary keys.
@@ -569,7 +569,7 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
     diststyle: str = "AUTO",
     distkey: Optional[str] = None,
     sortstyle: str = "COMPOUND",
-    sortkey: Optional[str] = None,
+    sortkey: Optional[List[str]] = None,
     primary_keys: Optional[List[str]] = None,
     varchar_lengths_default: int = 256,
     varchar_lengths: Optional[Dict[str, int]] = None,
@@ -616,7 +616,7 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
     sortstyle : str
         Sorting can be "COMPOUND" or "INTERLEAVED".
         https://docs.aws.amazon.com/redshift/latest/dg/t_Sorting_data.html
-    sortkey : str, optional
+    sortkey : List[str], optional
         List of columns to be sorted.
     primary_keys : List[str], optional
         Primary keys.
@@ -716,7 +716,7 @@ def _rs_create_table(
     diststyle: str,
     sortstyle: str,
     distkey: Optional[str] = None,
-    sortkey: Optional[str] = None,
+    sortkey: Optional[List[str]] = None,
     primary_keys: Optional[List[str]] = None,
 ) -> Tuple[str, Optional[str]]:
     if mode == "overwrite":
@@ -754,7 +754,7 @@ def _rs_create_table(
 
 
 def _rs_validate_parameters(
-    redshift_types: Dict[str, str], diststyle: str, distkey: Optional[str], sortstyle: str, sortkey: Optional[str]
+    redshift_types: Dict[str, str], diststyle: str, distkey: Optional[str], sortstyle: str, sortkey: Optional[List[str]]
 ) -> None:
     if diststyle not in _RS_DISTSTYLES:
         raise exceptions.InvalidRedshiftDiststyle(f"diststyle must be in {_RS_DISTSTYLES}")
