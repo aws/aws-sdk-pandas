@@ -982,6 +982,12 @@ def _create_table(
         raise exceptions.InvalidArgument(f"{mode} is not a valid mode. It must be 'overwrite' or 'append'.")
     if (exist is True) and (mode == "overwrite"):
         skip_archive: bool = not catalog_versioning
+        partitions_values: List[List[str]] = list(
+            _get_partitions(database=database, table=table, boto3_session=session).values()
+        )
+        client_glue.batch_delete_partition(
+            DatabaseName=database, TableName=table, PartitionsToDelete=[{"Values": v} for v in partitions_values]
+        )
         client_glue.update_table(DatabaseName=database, TableInput=table_input, SkipArchive=skip_archive)
     elif exist is False:
         client_glue.create_table(DatabaseName=database, TableInput=table_input)

@@ -1370,8 +1370,8 @@ def test_copy_replacing_filename(bucket):
 
 
 def test_unsigned_parquet(bucket, database, external_schema):
-    path = f"s3://{bucket}/test_unsigned_parquet/"
     table = "test_unsigned_parquet"
+    path = f"s3://{bucket}/{table}/"
     wr.s3.delete_objects(path=path)
     df = pd.DataFrame({"c0": [0, 0, (2 ** 8) - 1], "c1": [0, 0, (2 ** 16) - 1], "c2": [0, 0, (2 ** 32) - 1]})
     df["c0"] = df.c0.astype("uint8")
@@ -1436,3 +1436,43 @@ def test_parquet_uint64(bucket):
     assert df.c3.max() == (2 ** 64) - 1
     assert df.c4.astype("uint8").sum() == 3
     wr.s3.delete_objects(path=path)
+
+
+def test_parquet_overwrite_partition_cols(bucket, database, external_schema):
+    table = "test_parquet_overwrite_partition_cols"
+    path = f"s3://{bucket}/{table}/"
+    wr.s3.delete_objects(path=path)
+    df = pd.DataFrame({"c0": [1, 2, 1, 2], "c1": [1, 2, 1, 2], "c2": [2, 1, 2, 1]})
+
+    paths = wr.s3.to_parquet(
+        df=df, path=path, dataset=True, database=database, table=table, mode="overwrite", partition_cols=["c2"]
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df = wr.athena.read_sql_table(table=table, database=database)
+    assert len(df.index) == 4
+    assert len(df.columns) == 3
+    assert df.c0.sum() == 6
+    assert df.c1.sum() == 6
+    assert df.c2.sum() == 6
+
+    paths = wr.s3.to_parquet(
+        df=df, path=path, dataset=True, database=database, table=table, mode="overwrite", partition_cols=["c1", "c2"]
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df = wr.athena.read_sql_table(table=table, database=database)
+    assert len(df.index) == 4
+    assert len(df.columns) == 3
+    assert df.c0.sum() == 6
+    assert df.c1.sum() == 6
+    assert df.c2.sum() == 6
+
+    engine = wr.catalog.get_engine("aws-data-wrangler-redshift")
+    df = wr.db.read_sql_table(con=engine, table=table, schema=external_schema)
+    assert len(df.index) == 4
+    assert len(df.columns) == 3
+    assert df.c0.sum() == 6
+    assert df.c1.sum() == 6
+    assert df.c2.sum() == 6
+
+    wr.s3.delete_objects(path=path)
+    wr.catalog.delete_table_if_exists(database=database, table=table)
