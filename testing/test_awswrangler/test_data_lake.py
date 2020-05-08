@@ -1367,3 +1367,32 @@ def test_copy_replacing_filename(bucket):
     assert objs[0] == expected_file
     wr.s3.delete_objects(path=path)
     wr.s3.delete_objects(path=path2)
+
+
+def test_unsigned_parquet(bucket, database):
+    path = f"s3://{bucket}/test_unsigned_parquet/"
+    table = "test_unsigned_parquet"
+    wr.s3.delete_objects(path=path)
+    df = pd.DataFrame({"c0": [0, 0, (2 ** 8) - 1], "c1": [0, 0, (2 ** 16) - 1], "c2": [0, 0, (2 ** 32) - 1]})
+    df["c0"] = df.c0.astype("uint8")
+    df["c1"] = df.c1.astype("uint16")
+    df["c2"] = df.c2.astype("uint32")
+    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, database=database, table=table, mode="overwrite")["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df = wr.athena.read_sql_table(table=table, database=database)
+    assert df.c0.sum() == (2 ** 8) - 1
+    assert df.c1.sum() == (2 ** 16) - 1
+    assert df.c2.sum() == (2 ** 32) - 1
+    schema = wr.s3.read_parquet_metadata(path=path)[0]
+    assert schema["c0"] == "smallint"
+    assert schema["c1"] == "int"
+    assert schema["c2"] == "bigint"
+    df = wr.s3.read_parquet(path=path)
+    assert df.c0.sum() == (2 ** 8) - 1
+    assert df.c1.sum() == (2 ** 16) - 1
+    assert df.c2.sum() == (2 ** 32) - 1
+
+    df = pd.DataFrame({"c0": [0, 0, (2 ** 64) - 1]})
+    df["c0"] = df.c0.astype("uint64")
+    with pytest.raises(wr.exceptions.UnsupportedType):
+        wr.s3.to_parquet(df=df, path=path, dataset=True, database=database, table=table, mode="overwrite")

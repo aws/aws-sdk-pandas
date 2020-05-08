@@ -114,12 +114,14 @@ def pyarrow2athena(dtype: pa.DataType) -> str:  # pylint: disable=too-many-branc
     """Pyarrow to Athena data types conversion."""
     if pa.types.is_int8(dtype):
         return "tinyint"
-    if pa.types.is_int16(dtype):
+    if pa.types.is_int16(dtype) or pa.types.is_uint8(dtype):
         return "smallint"
-    if pa.types.is_int32(dtype):
+    if pa.types.is_int32(dtype) or pa.types.is_uint16(dtype):
         return "int"
-    if pa.types.is_int64(dtype):
+    if pa.types.is_int64(dtype) or pa.types.is_uint32(dtype):
         return "bigint"
+    if pa.types.is_uint64(dtype):
+        raise exceptions.UnsupportedType("There is no support for uint64, please consider int64 or uint32.")
     if pa.types.is_float32(dtype):
         return "float"
     if pa.types.is_float64(dtype):
