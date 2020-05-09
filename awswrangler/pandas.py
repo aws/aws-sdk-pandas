@@ -270,8 +270,8 @@ class Pandas:
         return dataframe
 
     @staticmethod
-    def _read_csv_once_remote(send_pipe: mp.connection.Connection, session_primitives: "SessionPrimitives",
-                              bucket_name: str, key_path: str, **pd_additional_kwargs):
+    def _read_csv_once_remote(send_pipe, session_primitives: "SessionPrimitives", bucket_name: str, key_path: str,
+                              **pd_additional_kwargs):
         df: pd.DataFrame = Pandas._read_csv_once(session_primitives=session_primitives,
                                                  bucket_name=bucket_name,
                                                  key_path=key_path,
@@ -1295,7 +1295,7 @@ class Pandas:
         return df
 
     @staticmethod
-    def _read_parquet_paths_remote(send_pipe: mp.connection.Connection,
+    def _read_parquet_paths_remote(send_pipe,
                                    session_primitives: "SessionPrimitives",
                                    path: Union[str, List[str]],
                                    columns: Optional[List[str]] = None,
@@ -1781,8 +1781,8 @@ class Pandas:
         return dataframe
 
     @staticmethod
-    def _read_fwf_remote(send_pipe: mp.connection.Connection, session_primitives: "SessionPrimitives", bucket_name: str,
-                         key_path: str, **pd_additional_kwargs):
+    def _read_fwf_remote(send_pipe, session_primitives: "SessionPrimitives", bucket_name: str, key_path: str,
+                         **pd_additional_kwargs):
         df: pd.DataFrame = Pandas._read_fwf(session_primitives=session_primitives,
                                             bucket_name=bucket_name,
                                             key_path=key_path,

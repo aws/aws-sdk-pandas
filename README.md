@@ -1,8 +1,10 @@
+# This is a legacy version, please check out the latest one [here](https://github.com/awslabs/aws-data-wrangler).
+
 ![AWS Data Wrangler](docs/source/_static/logo.png?raw=true "AWS Data Wrangler")
 
 > DataFrames on AWS
 
-[![Release](https://img.shields.io/badge/release-0.3.2-brightgreen.svg)](https://pypi.org/project/awswrangler/)
+[![Release](https://img.shields.io/badge/release-0.3.3-brightgreen.svg)](https://pypi.org/project/awswrangler/)
 [![Python Version](https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.8-brightgreen.svg)](https://anaconda.org/conda-forge/awswrangler)
 [![Documentation Status](https://readthedocs.org/projects/aws-data-wrangler/badge/?version=latest)](https://aws-data-wrangler.readthedocs.io/?badge=latest)
 [![Coverage](https://img.shields.io/badge/coverage-89%25-brightgreen.svg)](https://pypi.org/project/awswrangler/)

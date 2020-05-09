@@ -21,6 +21,6 @@ setup(
     long_description_content_type="text/markdown",
     license=about["__license__"],
     packages=find_packages(include=["awswrangler", "awswrangler.*"], exclude=["tests"]),
-    python_requires=">=3.6",
+    python_requires=">=3.6, <3.9",
     install_requires=[open("requirements.txt").read().strip().split("\n")],
 )

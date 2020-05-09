@@ -5,9 +5,9 @@ from logging import Logger, getLogger
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import pandas as pd  # type: ignore
-from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.functions import PandasUDFType, pandas_udf, spark_partition_id
-from pyspark.sql.types import TimestampType
+from pyspark.sql import DataFrame, SparkSession  # type: ignore
+from pyspark.sql.functions import PandasUDFType, pandas_udf, spark_partition_id  # type: ignore
+from pyspark.sql.types import TimestampType  # type: ignore
 
 from awswrangler.exceptions import MissingBatchDetected, UnsupportedFileFormat
 
