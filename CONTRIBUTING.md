@@ -94,7 +94,7 @@ We may ask you to sign a [Contributor License Agreement (CLA)](http://en.wikiped
 
 * Go to the `EC2 -> SecurityGroups` console, open the `aws-data-wrangler-*` security group and configure to accept your IP from any TCP port.
 
-``P.S Make sure that your security group will not be open for the World! Configure your security group to only give access for your IP.``
+``P.S Make sure that your security group will not be open to the World! Configure your security group to only give access for your IP.``
 
 * To run the validations:
 
