@@ -22,7 +22,7 @@ logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
 
 @pytest.fixture(scope="module")
 def cloudformation_outputs():
-    response = boto3.client("cloudformation").describe_stacks(StackName="aws-data-wrangler-test")
+    response = boto3.client("cloudformation").describe_stacks(StackName="aws-data-wrangler")
     outputs = {}
     for output in response.get("Stacks")[0].get("Outputs"):
         outputs[output.get("OutputKey")] = output.get("OutputValue")
@@ -66,7 +66,7 @@ def external_schema(cloudformation_outputs, database):
 
 @pytest.fixture(scope="module")
 def workgroup0(bucket):
-    wkg_name = "awswrangler_test_0"
+    wkg_name = "aws_data_wrangler_0"
     client = boto3.client("athena")
     wkgs = client.list_work_groups()
     wkgs = [x["Name"] for x in wkgs["WorkGroups"]]
@@ -87,7 +87,7 @@ def workgroup0(bucket):
 
 @pytest.fixture(scope="module")
 def workgroup1(bucket):
-    wkg_name = "awswrangler_test_1"
+    wkg_name = "aws_data_wrangler_1"
     client = boto3.client("athena")
     wkgs = client.list_work_groups()
     wkgs = [x["Name"] for x in wkgs["WorkGroups"]]
@@ -111,7 +111,7 @@ def workgroup1(bucket):
 
 @pytest.fixture(scope="module")
 def workgroup2(bucket, kms_key):
-    wkg_name = "awswrangler_test_2"
+    wkg_name = "aws_data_wrangler_2"
     client = boto3.client("athena")
     wkgs = client.list_work_groups()
     wkgs = [x["Name"] for x in wkgs["WorkGroups"]]
@@ -135,7 +135,7 @@ def workgroup2(bucket, kms_key):
 
 @pytest.fixture(scope="module")
 def workgroup3(bucket, kms_key):
-    wkg_name = "awswrangler_test_3"
+    wkg_name = "aws_data_wrangler_3"
     client = boto3.client("athena")
     wkgs = client.list_work_groups()
     wkgs = [x["Name"] for x in wkgs["WorkGroups"]]
