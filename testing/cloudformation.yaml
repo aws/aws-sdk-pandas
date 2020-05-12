@@ -1,31 +1,97 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: |
-  AWS Data Wrangler Test Infrastructure
+  AWS Data Wrangler Development Infrastructure
 Parameters:
-  VpcId:
-    Type: String
-    Description: Redshift VPC ID
-  SubnetId:
-    Type: String
-    Description: Redshift Subnet ID
-  SubnetId2:
-    Type: String
-    Description: Redshift Subnet ID
-  SubnetAz:
-    Type: String
-    Description: Subnet AZ
   DatabasesPassword:
     Type: String
     Description: Password for all databases
     NoEcho: true
-  AWSUserForTests:
-    Type: String
-    Description: AWS User that will running the tests on the CLI
 Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.19.224.0/19
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: aws-data-wrangler
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: aws-data-wrangler
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId:
+        Ref: InternetGateway
+      VpcId:
+        Ref: VPC
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: VPC
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ''
+      CidrBlock: 10.19.229.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: aws-data-wrangler Public Subnet (AZ1)
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: VPC
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ''
+      CidrBlock: 10.19.230.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: aws-data-wrangler Public Subnet (AZ2)
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value: aws-data-wrangler Public Routes
+  DefaultPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId:
+        Ref: PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: InternetGateway
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: PublicRouteTable
+      SubnetId:
+        Ref: PublicSubnet1
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: PublicRouteTable
+      SubnetId:
+        Ref: PublicSubnet2
   KmsKeyAlias:
     Type: AWS::KMS::Alias
     Properties:
-      AliasName: alias/aws-data-wrangler-test-key
+      AliasName: alias/aws-data-wrangler-key
       TargetKeyId:
         Ref: KmsKey
   KmsKey:
@@ -34,7 +100,7 @@ Resources:
       Description: Aws Data Wrangler Test Key.
       KeyPolicy:
         Version: '2012-10-17'
-        Id: aws-data-wrangler-test-key
+        Id: aws-data-wrangler-key
         Statement:
           - Sid: Enable IAM User Permissions
             Effect: Allow
@@ -46,8 +112,7 @@ Resources:
           - Sid: Allow administration of the key
             Effect: Allow
             Principal:
-              AWS:
-                Fn::Sub: arn:aws:iam::${AWS::AccountId}:user/${AWSUserForTests}
+              AWS: '*'
             Action:
               - kms:Create*
               - kms:Describe*
@@ -142,12 +207,12 @@ Resources:
     Properties:
       Description: AWS Data Wrangler Test Arena - Redshift Subnet Group
       SubnetIds:
-        - Ref: SubnetId
+        - Ref: PublicSubnet1
   DatabaseSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       VpcId:
-        Ref: VpcId
+        Ref: VPC
       GroupDescription: AWS Data Wrangler Test Arena - Redshift security group
   DatabaseSecurityGroupIngress:
     Type: AWS::EC2::SecurityGroupIngress
@@ -185,7 +250,7 @@ Resources:
       CatalogId:
         Ref: AWS::AccountId
       DatabaseInput:
-        Name: awswrangler_test
+        Name: aws_data_wrangler
         Description: AWS Data Wrangler Test Arena - Glue Database
   LogGroup:
     Type: AWS::Logs::LogGroup
@@ -201,8 +266,8 @@ Resources:
     Properties:
       DBSubnetGroupDescription: RDS Database Subnet Group
       SubnetIds:
-        - Ref: SubnetId
-        - Ref: SubnetId2
+        - Ref: PublicSubnet1
+        - Ref: PublicSubnet2
   AuroraRole:
     Type: AWS::IAM::Role
     Properties:
@@ -232,14 +297,15 @@ Resources:
   PostgresqlParameterGroup:
     Type: AWS::RDS::DBClusterParameterGroup
     Properties:
-      Description: Postgres 10
-      Family: aurora-postgresql10
+      Description: Postgres 11
+      Family: aurora-postgresql11
       Parameters:
         apg_plan_mgmt.capture_plan_baselines: 'off'
   AuroraClusterPostgresql:
     Type: AWS::RDS::DBCluster
     Properties:
       Engine: aurora-postgresql
+      EngineVersion: '11.6'
       DBClusterIdentifier: postgresql-cluster-wrangler
       MasterUsername: test
       MasterUserPassword:
@@ -261,6 +327,7 @@ Resources:
     Type: AWS::RDS::DBInstance
     Properties:
       Engine: aurora-postgresql
+      EngineVersion: '11.6'
       DBInstanceIdentifier: postgresql-instance-wrangler
       DBClusterIdentifier:
         Ref: AuroraClusterPostgresql
@@ -290,6 +357,7 @@ Resources:
     Type: AWS::RDS::DBCluster
     Properties:
       Engine: aurora-mysql
+      EngineVersion: '5.7'
       DBClusterIdentifier: mysql-cluster-wrangler
       MasterUsername: test
       MasterUserPassword:
@@ -311,6 +379,7 @@ Resources:
     Type: AWS::RDS::DBInstance
     Properties:
       Engine: aurora-mysql
+      EngineVersion: '5.7'
       DBInstanceIdentifier: mysql-instance-wrangler
       DBClusterIdentifier:
         Ref: AuroraClusterMysql
@@ -328,11 +397,13 @@ Resources:
         ConnectionType: JDBC
         PhysicalConnectionRequirements:
           AvailabilityZone:
-            Ref: SubnetAz
+            Fn::Select:
+              - 0
+              - Fn::GetAZs: ''
           SecurityGroupIdList:
             - Ref: DatabaseSecurityGroup
           SubnetId:
-            Ref: SubnetId
+            Ref: PublicSubnet1
         ConnectionProperties:
           JDBC_CONNECTION_URL:
             Fn::Sub: jdbc:redshift://${Redshift.Endpoint.Address}:${Redshift.Endpoint.Port}/test
@@ -350,11 +421,13 @@ Resources:
         ConnectionType: JDBC
         PhysicalConnectionRequirements:
           AvailabilityZone:
-            Ref: SubnetAz
+            Fn::Select:
+              - 0
+              - Fn::GetAZs: ''
           SecurityGroupIdList:
             - Ref: DatabaseSecurityGroup
           SubnetId:
-            Ref: SubnetId
+            Ref: PublicSubnet1
         ConnectionProperties:
           JDBC_CONNECTION_URL:
             Fn::Sub: jdbc:postgresql://${AuroraInstancePostgresql.Endpoint.Address}:${AuroraInstancePostgresql.Endpoint.Port}/postgres
@@ -372,11 +445,13 @@ Resources:
         ConnectionType: JDBC
         PhysicalConnectionRequirements:
           AvailabilityZone:
-            Ref: SubnetAz
+            Fn::Select:
+              - 0
+              - Fn::GetAZs: ''
           SecurityGroupIdList:
             - Ref: DatabaseSecurityGroup
           SubnetId:
-            Ref: SubnetId
+            Ref: PublicSubnet1
         ConnectionProperties:
           JDBC_CONNECTION_URL:
             Fn::Sub: jdbc:mysql://${AuroraInstanceMysql.Endpoint.Address}:${AuroraInstanceMysql.Endpoint.Port}/test
@@ -398,7 +473,7 @@ Resources:
         - AttributeName: attr_range
           KeyType: RANGE
       BillingMode: PAY_PER_REQUEST
-      TableName: aws-data-wrangler-test
+      TableName: aws-data-wrangler
 Outputs:
   BucketName:
     Value:
@@ -449,11 +524,11 @@ Outputs:
     Description: LogStream name.
   SubnetId:
     Value:
-      Ref: SubnetId
+      Ref: PublicSubnet1
     Description: Subnet ID
   SubnetId2:
     Value:
-      Ref: SubnetId2
+      Ref: PublicSubnet2
     Description: Subnet ID 2
   PostgresqlAddress:
     Value:

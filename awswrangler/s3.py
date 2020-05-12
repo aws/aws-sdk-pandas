@@ -271,7 +271,7 @@ def delete_objects(
         else:
             cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
             with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
-                executor.map(_delete_objects, repeat(bucket), chunks, repeat(client_s3))
+                list(executor.map(_delete_objects, repeat(bucket), chunks, repeat(client_s3)))
 
 
 def _split_paths_by_bucket(paths: List[str]) -> Dict[str, List[str]]:
