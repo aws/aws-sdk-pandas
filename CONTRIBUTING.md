@@ -60,25 +60,25 @@ We may ask you to sign a [Contributor License Agreement (CLA)](http://en.wikiped
 
 ## Environment
 
-* AWS Data Wrangler practically only makes integrations. So we prefer to dedicate our energy / time writing integration tests instead of unit tests. We really like an end-to-end approach for all features.
+* AWS Data Wrangler practically only makes integrations with Databases and AWS APIs. So we prefer to dedicate our energy / time writing integration tests instead of unit tests. We really like an end-to-end approach for all features.
 
-* All integration tests are between the local environment and a remote and real AWS services.
+* All integration tests are between the development environment and a remote and real AWS service.
 
 * We have a Cloudformation to set up the AWS end (testing/cloudformation.yaml).
 
 ## Step-by-step
 
-**DISCLAIMER**: Make sure to know what you are doing. This steps will charge some services on your AWS account. And requires a minimum security skills to keep your environment safe.
+**DISCLAIMER**: Make sure to know what you are doing. This steps will charge some services on your AWS account and requires a minimum security skill to keep your environment safe.
 
 * Pick up a Linux or MacOS.
 
-* Install Python 3.6
+* Install Python 3.6, 3.7 or 3.8
 
 * Fork the AWS Data Wrangler repository and clone that into your development environment
 
 * Go to the project's directory create a Python's virtual environment for the project
 
-`python -m venv venv && source venv/bin/activate`
+`python -m venv .venv && source .venv/bin/activate`
 
 * Then run the command bellow to install all dependencies:
 
@@ -86,12 +86,24 @@ We may ask you to sign a [Contributor License Agreement (CLA)](http://en.wikiped
 
 * Go to the ``testing`` directory
 
-* Configure the ``parameters.json`` file with your AWS environment infos (Make sure that your Redshift will not be open for the World! Configure your security group to only give access for your IP.)
+`cd testing`
 
 * Deploy the Cloudformation stack
 
-``./deploy-cloudformation.sh``
+``./cloudformation.sh``
+
+* Go to the `EC2 -> SecurityGroups` console, open the `aws-data-wrangler-*` security group and configure to accept your IP from any TCP port.
+
+``P.S Make sure that your security group will not be open for the World! Configure your security group to only give access for your IP.``
+
+* To run the validations:
+
+``./validations.sh``
 
 * To run the complete test:
 
-``./run-tests.sh``
+``./tests.sh``
+
+* To run a specific test:
+
+``pytest test_awswrangler/test_data_lake::test_athena_nested``
