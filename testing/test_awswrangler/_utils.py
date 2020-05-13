@@ -6,6 +6,8 @@ import pandas as pd
 ts = lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S.%f")  # noqa
 dt = lambda x: datetime.strptime(x, "%Y-%m-%d").date()  # noqa
 
+CFN_VALID_STATUS = ["CREATE_COMPLETE", "ROLLBACK_COMPLETE", "UPDATE_COMPLETE", "UPDATE_ROLLBACK_COMPLETE"]
+
 
 def get_df():
     df = pd.DataFrame(

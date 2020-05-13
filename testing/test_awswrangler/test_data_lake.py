@@ -12,8 +12,8 @@ import pytest
 
 import awswrangler as wr
 
-from ._utils import (ensure_data_types, ensure_data_types_category, ensure_data_types_csv, get_df, get_df_cast,
-                     get_df_category, get_df_csv, get_df_list, get_query_long)
+from ._utils import (CFN_VALID_STATUS, ensure_data_types, ensure_data_types_category, ensure_data_types_csv, get_df,
+                     get_df_cast, get_df_category, get_df_csv, get_df_list, get_query_long)
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
@@ -23,8 +23,9 @@ logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
 @pytest.fixture(scope="module")
 def cloudformation_outputs():
     response = boto3.client("cloudformation").describe_stacks(StackName="aws-data-wrangler")
+    stack = [x for x in response.get("Stacks") if x["StackStatus"] in CFN_VALID_STATUS][0]
     outputs = {}
-    for output in response.get("Stacks")[0].get("Outputs"):
+    for output in stack.get("Outputs"):
         outputs[output.get("OutputKey")] = output.get("OutputValue")
     yield outputs
 
@@ -70,18 +71,19 @@ def workgroup0(bucket):
     client = boto3.client("athena")
     wkgs = client.list_work_groups()
     wkgs = [x["Name"] for x in wkgs["WorkGroups"]]
-    if wkg_name not in wkgs:
-        client.create_work_group(
-            Name=wkg_name,
-            Configuration={
-                "ResultConfiguration": {"OutputLocation": f"s3://{bucket}/athena_workgroup0/"},
-                "EnforceWorkGroupConfiguration": True,
-                "PublishCloudWatchMetricsEnabled": True,
-                "BytesScannedCutoffPerQuery": 100_000_000,
-                "RequesterPaysEnabled": False,
-            },
-            Description="AWS Data Wrangler Test WorkGroup Number 0",
-        )
+    if wkg_name in wkgs:
+        client.delete_work_group(WorkGroup=wkg_name, RecursiveDeleteOption=True)
+    client.create_work_group(
+        Name=wkg_name,
+        Configuration={
+            "ResultConfiguration": {"OutputLocation": f"s3://{bucket}/athena_workgroup0/"},
+            "EnforceWorkGroupConfiguration": True,
+            "PublishCloudWatchMetricsEnabled": True,
+            "BytesScannedCutoffPerQuery": 100_000_000,
+            "RequesterPaysEnabled": False,
+        },
+        Description="AWS Data Wrangler Test WorkGroup Number 0",
+    )
     yield wkg_name
 
 
@@ -91,21 +93,22 @@ def workgroup1(bucket):
     client = boto3.client("athena")
     wkgs = client.list_work_groups()
     wkgs = [x["Name"] for x in wkgs["WorkGroups"]]
-    if wkg_name not in wkgs:
-        client.create_work_group(
-            Name=wkg_name,
-            Configuration={
-                "ResultConfiguration": {
-                    "OutputLocation": f"s3://{bucket}/athena_workgroup1/",
-                    "EncryptionConfiguration": {"EncryptionOption": "SSE_S3"},
-                },
-                "EnforceWorkGroupConfiguration": True,
-                "PublishCloudWatchMetricsEnabled": True,
-                "BytesScannedCutoffPerQuery": 100_000_000,
-                "RequesterPaysEnabled": False,
+    if wkg_name in wkgs:
+        client.delete_work_group(WorkGroup=wkg_name, RecursiveDeleteOption=True)
+    client.create_work_group(
+        Name=wkg_name,
+        Configuration={
+            "ResultConfiguration": {
+                "OutputLocation": f"s3://{bucket}/athena_workgroup1/",
+                "EncryptionConfiguration": {"EncryptionOption": "SSE_S3"},
             },
-            Description="AWS Data Wrangler Test WorkGroup Number 1",
-        )
+            "EnforceWorkGroupConfiguration": True,
+            "PublishCloudWatchMetricsEnabled": True,
+            "BytesScannedCutoffPerQuery": 100_000_000,
+            "RequesterPaysEnabled": False,
+        },
+        Description="AWS Data Wrangler Test WorkGroup Number 1",
+    )
     yield wkg_name
 
 
@@ -115,21 +118,22 @@ def workgroup2(bucket, kms_key):
     client = boto3.client("athena")
     wkgs = client.list_work_groups()
     wkgs = [x["Name"] for x in wkgs["WorkGroups"]]
-    if wkg_name not in wkgs:
-        client.create_work_group(
-            Name=wkg_name,
-            Configuration={
-                "ResultConfiguration": {
-                    "OutputLocation": f"s3://{bucket}/athena_workgroup2/",
-                    "EncryptionConfiguration": {"EncryptionOption": "SSE_KMS", "KmsKey": kms_key},
-                },
-                "EnforceWorkGroupConfiguration": False,
-                "PublishCloudWatchMetricsEnabled": True,
-                "BytesScannedCutoffPerQuery": 100_000_000,
-                "RequesterPaysEnabled": False,
+    if wkg_name in wkgs:
+        client.delete_work_group(WorkGroup=wkg_name, RecursiveDeleteOption=True)
+    client.create_work_group(
+        Name=wkg_name,
+        Configuration={
+            "ResultConfiguration": {
+                "OutputLocation": f"s3://{bucket}/athena_workgroup2/",
+                "EncryptionConfiguration": {"EncryptionOption": "SSE_KMS", "KmsKey": kms_key},
             },
-            Description="AWS Data Wrangler Test WorkGroup Number 2",
-        )
+            "EnforceWorkGroupConfiguration": False,
+            "PublishCloudWatchMetricsEnabled": True,
+            "BytesScannedCutoffPerQuery": 100_000_000,
+            "RequesterPaysEnabled": False,
+        },
+        Description="AWS Data Wrangler Test WorkGroup Number 2",
+    )
     yield wkg_name
 
 
@@ -139,21 +143,22 @@ def workgroup3(bucket, kms_key):
     client = boto3.client("athena")
     wkgs = client.list_work_groups()
     wkgs = [x["Name"] for x in wkgs["WorkGroups"]]
-    if wkg_name not in wkgs:
-        client.create_work_group(
-            Name=wkg_name,
-            Configuration={
-                "ResultConfiguration": {
-                    "OutputLocation": f"s3://{bucket}/athena_workgroup3/",
-                    "EncryptionConfiguration": {"EncryptionOption": "SSE_KMS", "KmsKey": kms_key},
-                },
-                "EnforceWorkGroupConfiguration": True,
-                "PublishCloudWatchMetricsEnabled": True,
-                "BytesScannedCutoffPerQuery": 100_000_000,
-                "RequesterPaysEnabled": False,
+    if wkg_name in wkgs:
+        client.delete_work_group(WorkGroup=wkg_name, RecursiveDeleteOption=True)
+    client.create_work_group(
+        Name=wkg_name,
+        Configuration={
+            "ResultConfiguration": {
+                "OutputLocation": f"s3://{bucket}/athena_workgroup3/",
+                "EncryptionConfiguration": {"EncryptionOption": "SSE_KMS", "KmsKey": kms_key},
             },
-            Description="AWS Data Wrangler Test WorkGroup Number 3",
-        )
+            "EnforceWorkGroupConfiguration": True,
+            "PublishCloudWatchMetricsEnabled": True,
+            "BytesScannedCutoffPerQuery": 100_000_000,
+            "RequesterPaysEnabled": False,
+        },
+        Description="AWS Data Wrangler Test WorkGroup Number 3",
+    )
     yield wkg_name
 
 
