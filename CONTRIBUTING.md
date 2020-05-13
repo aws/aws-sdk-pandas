@@ -82,7 +82,7 @@ We may ask you to sign a [Contributor License Agreement (CLA)](http://en.wikiped
 
 * Then run the command bellow to install all dependencies:
 
-`./setup-dev-env.sh`
+`./requirements.sh`
 
 * Go to the ``testing`` directory
 
