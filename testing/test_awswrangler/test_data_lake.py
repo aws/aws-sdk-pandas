@@ -62,7 +62,7 @@ def external_schema(cloudformation_outputs, database):
     IAM_ROLE '{cloudformation_outputs["RedshiftRole"]}'
     REGION '{region}';
     """
-    engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-redshift")
+    engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
     with engine.connect() as con:
         con.execute(sql)
     yield "aws_data_wrangler_external"
@@ -254,7 +254,7 @@ def test_athena_ctas(bucket, database, kms_key):
     # keep_files=False
     wr.s3.delete_objects(path=s3_output)
     dfs = wr.athena.read_sql_query(
-        sql=f"SELECT * FROM test_athena_ctas",
+        sql="SELECT * FROM test_athena_ctas",
         database=database,
         ctas_approach=True,
         chunksize=1,
@@ -272,7 +272,7 @@ def test_athena_ctas(bucket, database, kms_key):
     # keep_files=True
     wr.s3.delete_objects(path=s3_output)
     dfs = wr.athena.read_sql_query(
-        sql=f"SELECT * FROM test_athena_ctas",
+        sql="SELECT * FROM test_athena_ctas",
         database=database,
         ctas_approach=True,
         chunksize=2,
@@ -720,7 +720,7 @@ def test_athena_query_failed(database):
 
 def test_athena_read_list(database):
     with pytest.raises(wr.exceptions.UnsupportedType):
-        wr.athena.read_sql_query(sql=f"SELECT ARRAY[1, 2, 3]", database=database, ctas_approach=False)
+        wr.athena.read_sql_query(sql="SELECT ARRAY[1, 2, 3]", database=database, ctas_approach=False)
 
 
 def test_sanitize_names():
