@@ -1675,3 +1675,10 @@ def test_store_metadata_partitions_sample_dataset(database, table, path, partiti
     assert df.c0.sum() * num_files == df2.c0.sum()
     assert df.c1.sum() * num_files == df2.c1.sum()
     assert df.c2.sum() * num_files == df2.c2.sum()
+
+
+def test_athena_undefined_column(database):
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.athena.read_sql_query("SELECT 1", database)
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.athena.read_sql_query("SELECT NULL", database)
