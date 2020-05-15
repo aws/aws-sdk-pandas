@@ -19,6 +19,7 @@ import s3fs  # type: ignore
 from boto3.s3.transfer import TransferConfig  # type: ignore
 from pandas.io.common import infer_compression  # type: ignore
 
+
 from awswrangler import _data_types, _utils, catalog, exceptions
 
 _COMPRESSION_2_EXT: Dict[Optional[str], str] = {None: "", "gzip": ".gz", "snappy": ".snappy"}
@@ -289,7 +290,26 @@ def _split_paths_by_bucket(paths: List[str]) -> Dict[str, List[str]]:
 def _delete_objects(bucket: str, keys: List[str], client_s3: boto3.client) -> None:
     _logger.debug("len(keys): %s", len(keys))
     batch: List[Dict[str, str]] = [{"Key": key} for key in keys]
-    client_s3.delete_objects(Bucket=bucket, Delete={"Objects": batch})
+    res = client_s3.delete_objects(Bucket=bucket, Delete={"Objects": batch})
+    deleted = res.get('Deleted')
+    errors = res.get('Errors')
+    if errors:
+        for i in errors:
+            raise exceptions.ServiceApiError(
+                'Path: s3://{}/{}\n'
+                'Error Code: {}\n'
+                'Message: {}'.format(
+                    bucket,
+                    i.get('Key'),
+                    i.get('Code'),
+                    i.get('Message')
+                )
+            )
+    else:
+        for i in deleted:
+            _logger.debug(
+                's3://{}/{} has been deleted'.format(bucket, i.get('Key'))
+            )
 
 
 def describe_objects(
