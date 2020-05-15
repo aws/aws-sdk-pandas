@@ -19,7 +19,6 @@ import s3fs  # type: ignore
 from boto3.s3.transfer import TransferConfig  # type: ignore
 from pandas.io.common import infer_compression  # type: ignore
 
-
 from awswrangler import _data_types, _utils, catalog, exceptions
 
 _COMPRESSION_2_EXT: Dict[Optional[str], str] = {None: "", "gzip": ".gz", "snappy": ".snappy"}
@@ -291,25 +290,13 @@ def _delete_objects(bucket: str, keys: List[str], client_s3: boto3.client) -> No
     _logger.debug("len(keys): %s", len(keys))
     batch: List[Dict[str, str]] = [{"Key": key} for key in keys]
     res = client_s3.delete_objects(Bucket=bucket, Delete={"Objects": batch})
-    deleted = res.get('Deleted')
-    errors = res.get('Errors')
-    if errors:
-        for i in errors:
-            raise exceptions.ServiceApiError(
-                'Path: s3://{}/{}\n'
-                'Error Code: {}\n'
-                'Message: {}'.format(
-                    bucket,
-                    i.get('Key'),
-                    i.get('Code'),
-                    i.get('Message')
-                )
-            )
-    else:
+    deleted = res.get("Deleted")
+    if deleted is not None:
         for i in deleted:
-            _logger.debug(
-                's3://{}/{} has been deleted'.format(bucket, i.get('Key'))
-            )
+            _logger.debug("s3://%s/%s has been deleted.", bucket, i.get("Key"))
+    errors = res.get("Errors")
+    if errors is not None:  # pragma: no cover
+        raise exceptions.ServiceApiError(errors)
 
 
 def describe_objects(
@@ -1067,7 +1054,7 @@ def to_parquet(  # pylint: disable=too-many-arguments
     if compression_ext is None:
         raise exceptions.InvalidCompression(f"{compression} is invalid, please use None, snappy or gzip.")
     if dataset is False:
-        if path.endswith("/"):
+        if path.endswith("/"):  # pragma: no cover
             raise exceptions.InvalidArgumentValue(
                 "If <dataset=False>, the argument <path> should be a object path, not a directory."
             )
@@ -1890,7 +1877,7 @@ def _read_parquet_metadata(
         if isinstance(path, str):
             _path: Optional[str] = path if path.endswith("/") else f"{path}/"
             paths: List[str] = _path2list(path=_path, boto3_session=session)
-        else:
+        else:  # pragma: no cover
             raise exceptions.InvalidArgumentType("Argument <path> must be str if dataset=True.")
     else:
         if isinstance(path, str):
@@ -1899,7 +1886,7 @@ def _read_parquet_metadata(
         elif isinstance(path, list):
             _path = None
             paths = path
-        else:
+        else:  # pragma: no cover
             raise exceptions.InvalidArgumentType(f"Argument path must be str or List[str] instead of {type(path)}.")
     schemas: List[Dict[str, str]] = [
         _read_parquet_metadata_file(path=x, use_threads=use_threads, boto3_session=session)
@@ -1909,7 +1896,7 @@ def _read_parquet_metadata(
     columns_types: Dict[str, str] = {}
     for schema in schemas:
         for column, _dtype in schema.items():
-            if (column in columns_types) and (columns_types[column] != _dtype):
+            if (column in columns_types) and (columns_types[column] != _dtype):  # pragma: no cover
                 raise exceptions.InvalidSchemaConvergence(
                     f"Was detect at least 2 different types in column {column} ({columns_types[column]} and {dtype})."
                 )

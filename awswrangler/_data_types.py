@@ -376,7 +376,7 @@ def athena_types_from_pyarrow_schema(
     _logger.debug("columns_types: %s", columns_types)
     partitions_types: Optional[Dict[str, str]] = None
     if partitions is not None:
-        partitions_types = {p.name: pyarrow2athena(p.dictionary.type) for p in partitions}
+        partitions_types = {p.name: pyarrow2athena(p.dictionary.type) for p in partitions}  # pragma: no cover
     _logger.debug("partitions_types: %s", partitions_types)
     return columns_types, partitions_types
 

@@ -128,7 +128,7 @@ def chunkify(lst: List[Any], num_chunks: int = 1, max_length: Optional[int] = No
 
     """
     if not lst:
-        return []
+        return []  # pragma: no cover
     n: int = num_chunks if max_length is None else int(math.ceil((float(len(lst)) / float(max_length))))
     np_chunks = np.array_split(lst, n)
     return [arr.tolist() for arr in np_chunks if len(arr) > 0]
@@ -195,7 +195,9 @@ def extract_partitions_from_paths(
     partitions_values: Dict[str, List[str]] = {}
     for p in paths:
         if path not in p:
-            raise exceptions.InvalidArgumentValue(f"Object {p} is not under the root path ({path}).")
+            raise exceptions.InvalidArgumentValue(
+                f"Object {p} is not under the root path ({path})."
+            )  # pragma: no cover
         path_wo_filename: str = p.rpartition("/")[0] + "/"
         if path_wo_filename not in partitions_values:
             path_wo_prefix: str = p.replace(f"{path}/", "")
@@ -210,7 +212,7 @@ def extract_partitions_from_paths(
                 if p_values:
                     partitions_types = p_types
                     partitions_values[path_wo_filename] = p_values
-                elif p_types != partitions_types:
+                elif p_types != partitions_types:  # pragma: no cover
                     raise exceptions.InvalidSchemaConvergence(
                         f"At least two different partitions schema detected: {partitions_types} and {p_types}"
                     )
@@ -221,11 +223,11 @@ def extract_partitions_from_paths(
 
 def list_sampling(lst: List[Any], sampling: float) -> List[Any]:
     """Random List sampling."""
-    if sampling > 1.0 or sampling <= 0.0:
+    if sampling > 1.0 or sampling <= 0.0:  # pragma: no cover
         raise exceptions.InvalidArgumentValue(f"Argument <sampling> must be [0.0 < value <= 1.0]. {sampling} received.")
     _len: int = len(lst)
     if _len == 0:
-        return []
+        return []  # pragma: no cover
     num_samples: int = int(round(_len * sampling))
     num_samples = _len if num_samples > _len else num_samples
     num_samples = 1 if num_samples < 1 else num_samples
