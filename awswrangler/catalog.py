@@ -240,11 +240,12 @@ def add_parquet_partitions(
     ... )
 
     """
-    inputs: List[Dict[str, Any]] = [
-        _parquet_partition_definition(location=k, values=v, compression=compression)
-        for k, v in partitions_values.items()
-    ]
-    _add_partitions(database=database, table=table, boto3_session=boto3_session, inputs=inputs)
+    if partitions_values:
+        inputs: List[Dict[str, Any]] = [
+            _parquet_partition_definition(location=k, values=v, compression=compression)
+            for k, v in partitions_values.items()
+        ]
+        _add_partitions(database=database, table=table, boto3_session=boto3_session, inputs=inputs)
 
 
 def _parquet_partition_definition(location: str, values: List[str], compression: Optional[str]) -> Dict[str, Any]:

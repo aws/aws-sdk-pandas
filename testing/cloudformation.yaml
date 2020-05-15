@@ -330,6 +330,7 @@ Resources:
         apg_plan_mgmt.capture_plan_baselines: 'off'
   AuroraClusterPostgresql:
     Type: AWS::RDS::DBCluster
+    DeletionPolicy: Delete
     Properties:
       Tags:
         - Key: Env
@@ -355,6 +356,7 @@ Resources:
               - Arn
   AuroraInstancePostgresql:
     Type: AWS::RDS::DBInstance
+    DeletionPolicy: Delete
     Properties:
       Tags:
         - Key: Env
@@ -391,6 +393,7 @@ Resources:
             - Arn
   AuroraClusterMysql:
     Type: AWS::RDS::DBCluster
+    DeletionPolicy: Delete
     Properties:
       Tags:
         - Key: Env
@@ -416,6 +419,7 @@ Resources:
               - Arn
   AuroraInstanceMysql:
     Type: AWS::RDS::DBInstance
+    DeletionPolicy: Delete
     Properties:
       Tags:
         - Key: Env

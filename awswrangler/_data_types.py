@@ -381,20 +381,6 @@ def athena_types_from_pyarrow_schema(
     return columns_types, partitions_types
 
 
-def athena_partitions_from_pyarrow_partitions(
-    path: str, partitions: pyarrow.parquet.ParquetPartitions
-) -> Dict[str, List[str]]:
-    """Extract the related Athena partitions values from any PyArrow Partitions."""
-    path = path if path[-1] == "/" else f"{path}/"
-    partitions_values: Dict[str, List[str]] = {}
-    names: List[str] = [p.name for p in partitions]
-    for values in zip(*[p.keys for p in partitions]):
-        suffix: str = "/".join([f"{n}={v}" for n, v in zip(names, values)])
-        suffix = suffix if suffix[-1] == "/" else f"{suffix}/"
-        partitions_values[f"{path}{suffix}"] = list(values)
-    return partitions_values
-
-
 def cast_pandas_with_athena_types(df: pd.DataFrame, dtype: Dict[str, str]) -> pd.DataFrame:
     """Cast columns in a Pandas DataFrame."""
     for col, athena_type in dtype.items():
@@ -412,6 +398,12 @@ def cast_pandas_with_athena_types(df: pd.DataFrame, dtype: Dict[str, str]) -> pd
                     .astype("string")
                     .apply(lambda x: Decimal(str(x)) if str(x) not in ("", "none", " ", "<NA>") else None)
                 )
+            elif pandas_type == "string":
+                curr_type: str = str(df[col].dtypes)
+                if curr_type.startswith("int") or curr_type.startswith("float"):
+                    df[col] = df[col].astype(str).astype("string")
+                else:
+                    df[col] = df[col].astype("string")
             else:
                 df[col] = df[col].astype(pandas_type)
     return df

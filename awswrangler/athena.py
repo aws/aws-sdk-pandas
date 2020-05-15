@@ -282,6 +282,8 @@ def repair_table(
 
     """
     query = f"MSCK REPAIR TABLE `{table}`;"
+    if (database is not None) and (not database.startswith("`")):
+        database = f"`{database}`"
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     query_id = start_query_execution(
         sql=query,
@@ -492,7 +494,7 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals,too-man
         path: str = f"{_s3_output}/{name}"
         ext_location: str = "\n" if wg_config["enforced"] is True else f",\n    external_location = '{path}'\n"
         sql = (
-            f"CREATE TABLE {name}\n"
+            f'CREATE TABLE "{name}"\n'
             f"WITH(\n"
             f"    format = 'Parquet',\n"
             f"    parquet_compression = 'SNAPPY'"

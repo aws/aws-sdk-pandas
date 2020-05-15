@@ -1,3 +1,4 @@
+import random
 from datetime import datetime
 from decimal import Decimal
 
@@ -401,3 +402,8 @@ def ensure_data_types_csv(df):
         assert str(df["par0"].dtype).startswith("Int")
     if "par1" in df:
         assert str(df["par1"].dtype) == "string"
+
+
+def get_time_str_with_random_suffix():
+    time_str = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
+    return f"{time_str}_{random.randrange(16**4):04x}"
