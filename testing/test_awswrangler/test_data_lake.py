@@ -1681,4 +1681,17 @@ def test_athena_undefined_column(database):
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.athena.read_sql_query("SELECT 1", database)
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
-        wr.athena.read_sql_query("SELECT NULL", database)
+        wr.athena.read_sql_query("SELECT NULL AS my_null", database)
+
+
+def test_to_parquet_file_sanitize(path):
+    df = pd.DataFrame({"C0": [0, 1], "camelCase": [2, 3], "c**--2": [4, 5]})
+    path_file = f"{path}0.parquet"
+    wr.s3.to_parquet(df, path_file)
+    wr.s3.wait_objects_exist([path_file])
+    df2 = wr.s3.read_parquet(path_file)
+    assert df.shape == df2.shape
+    assert list(df2.columns) == ["c0", "camel_case", "c_2"]
+    assert df2.c0.sum() == 1
+    assert df2.camel_case.sum() == 5
+    assert df2.c_2.sum() == 9
