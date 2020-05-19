@@ -44,7 +44,7 @@ AWS Glue Wheel
 
 2 - Upload the wheel file to any Amazon S3 location.
 
-3 - Got to your Glue Python Shell job and point to the new file on s3.
+3 - Go to your Glue Python Shell job and point to the new file on S3.
 
 Amazon SageMaker Notebook
 -------------------------
