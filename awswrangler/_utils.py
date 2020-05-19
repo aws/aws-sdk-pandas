@@ -18,7 +18,9 @@ def ensure_session(session: Optional[boto3.Session] = None) -> boto3.Session:
     """Ensure that a valid boto3.Session will be returned."""
     if session is not None:
         return session
-    return boto3.Session()
+    # Ensure the boto3's default session is used so that its parameters can be
+    # set via boto3.setup_default_session()
+    return boto3._get_default_session()  # pylint: disable=protected-access
 
 
 def client(service_name: str, session: Optional[boto3.Session] = None) -> boto3.client:
