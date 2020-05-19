@@ -25,7 +25,7 @@ def ensure_session(session: Optional[boto3.Session] = None) -> boto3.Session:
     # set via boto3.setup_default_session()
     if boto3.DEFAULT_SESSION is not None:
         return boto3.DEFAULT_SESSION
-    return boto3.Session()
+    return boto3.Session()  # pragma: no cover
 
 
 def client(service_name: str, session: Optional[boto3.Session] = None) -> boto3.client:
