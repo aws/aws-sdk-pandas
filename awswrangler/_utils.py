@@ -23,7 +23,9 @@ def ensure_session(session: Optional[boto3.Session] = None) -> boto3.Session:
         return session
     # Ensure the boto3's default session is used so that its parameters can be
     # set via boto3.setup_default_session()
-    return boto3._get_default_session()  # pylint: disable=protected-access
+    if boto3.DEFAULT_SESSION is not None:
+        return boto3.DEFAULT_SESSION
+    return boto3.Session()
 
 
 def client(service_name: str, session: Optional[boto3.Session] = None) -> boto3.client:
