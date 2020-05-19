@@ -178,7 +178,7 @@ def path(bucket):
 
 @pytest.fixture(scope="function")
 def table(database):
-    name = get_time_str_with_random_suffix()
+    name = f"tbl_{get_time_str_with_random_suffix()}"
     print(f"Table name: {name}")
     wr.catalog.delete_table_if_exists(database=database, table=name)
     yield name
@@ -202,7 +202,7 @@ def path2(bucket):
 
 @pytest.fixture(scope="function")
 def table2(database):
-    name = get_time_str_with_random_suffix()
+    name = f"tbl_{get_time_str_with_random_suffix()}"
     print(f"Table name: {name}")
     wr.catalog.delete_table_if_exists(database=database, table=name)
     yield name
@@ -573,28 +573,27 @@ def test_parquet_catalog_casting(bucket, database):
     assert wr.catalog.delete_table_if_exists(database=database, table="__test_parquet_catalog_casting") is True
 
 
-def test_catalog(bucket, database):
+def test_catalog(path, database, table):
     account_id = boto3.client("sts").get_caller_identity().get("Account")
-    path = f"s3://{bucket}/test_catalog/"
-    wr.catalog.delete_table_if_exists(database=database, table="test_catalog")
-    assert wr.catalog.does_table_exist(database=database, table="test_catalog") is False
+    assert wr.catalog.does_table_exist(database=database, table=table) is False
     wr.catalog.create_parquet_table(
         database=database,
-        table="test_catalog",
+        table=table,
         path=path,
         columns_types={"col0": "int", "col1": "double"},
         partitions_types={"y": "int", "m": "int"},
         compression="snappy",
     )
-    wr.catalog.create_parquet_table(
-        database=database, table="test_catalog", path=path, columns_types={"col0": "string"}, mode="append"
-    )
-    assert wr.catalog.does_table_exist(database=database, table="test_catalog") is True
-    assert wr.catalog.delete_table_if_exists(database=database, table="test_catalog") is True
-    assert wr.catalog.delete_table_if_exists(database=database, table="test_catalog") is False
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.catalog.create_parquet_table(
+            database=database, table=table, path=path, columns_types={"col0": "string"}, mode="append"
+        )
+    assert wr.catalog.does_table_exist(database=database, table=table) is True
+    assert wr.catalog.delete_table_if_exists(database=database, table=table) is True
+    assert wr.catalog.delete_table_if_exists(database=database, table=table) is False
     wr.catalog.create_parquet_table(
         database=database,
-        table="test_catalog",
+        table=table,
         path=path,
         columns_types={"col0": "int", "col1": "double"},
         partitions_types={"y": "int", "m": "int"},
@@ -602,22 +601,23 @@ def test_catalog(bucket, database):
         description="Foo boo bar",
         parameters={"tag": "test"},
         columns_comments={"col0": "my int", "y": "year"},
+        mode="overwrite",
     )
     wr.catalog.add_parquet_partitions(
         database=database,
-        table="test_catalog",
+        table=table,
         partitions_values={f"{path}y=2020/m=1/": ["2020", "1"], f"{path}y=2021/m=2/": ["2021", "2"]},
         compression="snappy",
     )
-    assert wr.catalog.get_table_location(database=database, table="test_catalog") == path
-    partitions_values = wr.catalog.get_parquet_partitions(database=database, table="test_catalog")
+    assert wr.catalog.get_table_location(database=database, table=table) == path
+    partitions_values = wr.catalog.get_parquet_partitions(database=database, table=table)
     assert len(partitions_values) == 2
     partitions_values = wr.catalog.get_parquet_partitions(
-        database=database, table="test_catalog", catalog_id=account_id, expression="y = 2021 AND m = 2"
+        database=database, table=table, catalog_id=account_id, expression="y = 2021 AND m = 2"
     )
     assert len(partitions_values) == 1
     assert len(set(partitions_values[f"{path}y=2021/m=2/"]) & {"2021", "2"}) == 2
-    dtypes = wr.catalog.get_table_types(database=database, table="test_catalog")
+    dtypes = wr.catalog.get_table_types(database=database, table=table)
     assert dtypes["col0"] == "int"
     assert dtypes["col1"] == "double"
     assert dtypes["y"] == "int"
@@ -628,7 +628,7 @@ def test_catalog(bucket, database):
     tables = list(wr.catalog.get_tables())
     assert len(tables) > 0
     for tbl in tables:
-        if tbl["Name"] == "test_catalog":
+        if tbl["Name"] == table:
             assert tbl["TableType"] == "EXTERNAL_TABLE"
     tables = list(wr.catalog.get_tables(database=database))
     assert len(tables) > 0
@@ -638,37 +638,41 @@ def test_catalog(bucket, database):
     tables = list(wr.catalog.search_tables(text="parquet", catalog_id=account_id))
     assert len(tables) > 0
     for tbl in tables:
-        if tbl["Name"] == "test_catalog":
+        if tbl["Name"] == table:
             assert tbl["TableType"] == "EXTERNAL_TABLE"
     # prefix
-    tables = list(wr.catalog.get_tables(name_prefix="test_cat", catalog_id=account_id))
+    tables = list(wr.catalog.get_tables(name_prefix=table[:4], catalog_id=account_id))
     assert len(tables) > 0
     for tbl in tables:
-        if tbl["Name"] == "test_catalog":
+        if tbl["Name"] == table:
             assert tbl["TableType"] == "EXTERNAL_TABLE"
     # suffix
-    tables = list(wr.catalog.get_tables(name_suffix="_catalog", catalog_id=account_id))
+    tables = list(wr.catalog.get_tables(name_suffix=table[-4:], catalog_id=account_id))
     assert len(tables) > 0
     for tbl in tables:
-        if tbl["Name"] == "test_catalog":
+        if tbl["Name"] == table:
             assert tbl["TableType"] == "EXTERNAL_TABLE"
     # name_contains
-    tables = list(wr.catalog.get_tables(name_contains="cat", catalog_id=account_id))
+    tables = list(wr.catalog.get_tables(name_contains=table[4:-4], catalog_id=account_id))
     assert len(tables) > 0
     for tbl in tables:
-        if tbl["Name"] == "test_catalog":
+        if tbl["Name"] == table:
             assert tbl["TableType"] == "EXTERNAL_TABLE"
     # prefix & suffix & name_contains
-    tables = list(wr.catalog.get_tables(name_prefix="t", name_contains="_", name_suffix="g", catalog_id=account_id))
+    tables = list(
+        wr.catalog.get_tables(
+            name_prefix=table[0], name_contains=table[3], name_suffix=table[-1], catalog_id=account_id
+        )
+    )
     assert len(tables) > 0
     for tbl in tables:
-        if tbl["Name"] == "test_catalog":
+        if tbl["Name"] == table:
             assert tbl["TableType"] == "EXTERNAL_TABLE"
     # prefix & suffix
-    tables = list(wr.catalog.get_tables(name_prefix="t", name_suffix="g", catalog_id=account_id))
+    tables = list(wr.catalog.get_tables(name_prefix=table[0], name_suffix=table[-1], catalog_id=account_id))
     assert len(tables) > 0
     for tbl in tables:
-        if tbl["Name"] == "test_catalog":
+        if tbl["Name"] == table:
             assert tbl["TableType"] == "EXTERNAL_TABLE"
     # DataFrames
     assert len(wr.catalog.databases().index) > 0
@@ -678,17 +682,18 @@ def test_catalog(bucket, database):
             wr.catalog.tables(
                 database=database,
                 search_text="parquet",
-                name_prefix="t",
-                name_contains="_",
-                name_suffix="g",
+                name_prefix=table[0],
+                name_contains=table[3],
+                name_suffix=table[-1],
                 catalog_id=account_id,
             ).index
         )
         > 0
     )
-    assert len(wr.catalog.table(database=database, table="test_catalog").index) > 0
-    assert len(wr.catalog.table(database=database, table="test_catalog", catalog_id=account_id).index) > 0
-    assert wr.catalog.delete_table_if_exists(database=database, table="test_catalog") is True
+    assert len(wr.catalog.table(database=database, table=table).index) > 0
+    assert len(wr.catalog.table(database=database, table=table, catalog_id=account_id).index) > 0
+    with pytest.raises(wr.exceptions.InvalidTable):
+        wr.catalog.overwrite_table_parameters({"foo": "boo"}, database, "fake_table")
 
 
 def test_s3_get_bucket_region(bucket, region):
@@ -1118,10 +1123,7 @@ def test_csv_compress(bucket, compression):
     wr.s3.delete_objects(path=path)
 
 
-def test_parquet_char_length(bucket, database, external_schema):
-    path = f"s3://{bucket}/test_parquet_char_length/"
-    table = "test_parquet_char_length"
-
+def test_parquet_char_length(path, database, table, external_schema):
     df = pd.DataFrame(
         {"id": [1, 2], "cchar": ["foo", "boo"], "date": [datetime.date(2020, 1, 1), datetime.date(2020, 1, 2)]}
     )
@@ -1151,9 +1153,6 @@ def test_parquet_char_length(bucket, database, external_schema):
     assert len(df2.index) == 2
     assert len(df2.columns) == 3
     assert df2.id.sum() == 3
-
-    wr.s3.delete_objects(path=path)
-    assert wr.catalog.delete_table_if_exists(database=database, table=table) is True
 
 
 def test_merge(bucket):
@@ -1475,10 +1474,7 @@ def test_parquet_uint64(bucket):
     wr.s3.delete_objects(path=path)
 
 
-def test_parquet_overwrite_partition_cols(bucket, database, external_schema):
-    table = "test_parquet_overwrite_partition_cols"
-    path = f"s3://{bucket}/{table}/"
-    wr.s3.delete_objects(path=path)
+def test_parquet_overwrite_partition_cols(path, database, table, external_schema):
     df = pd.DataFrame({"c0": [1, 2, 1, 2], "c1": [1, 2, 1, 2], "c2": [2, 1, 2, 1]})
 
     paths = wr.s3.to_parquet(
@@ -1510,9 +1506,6 @@ def test_parquet_overwrite_partition_cols(bucket, database, external_schema):
     assert df.c0.sum() == 6
     assert df.c1.sum() == 6
     assert df.c2.sum() == 6
-
-    wr.s3.delete_objects(path=path)
-    wr.catalog.delete_table_if_exists(database=database, table=table)
 
 
 def test_catalog_parameters(bucket, database):
@@ -1695,3 +1688,443 @@ def test_to_parquet_file_sanitize(path):
     assert df2.c0.sum() == 1
     assert df2.camel_case.sum() == 5
     assert df2.c_2.sum() == 9
+
+
+def test_to_parquet_modes(database, table, path, external_schema):
+
+    # Round 1 - Warm up
+    df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
+    paths = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        mode="overwrite",
+        database=database,
+        table=table,
+        description="c0",
+        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
+        columns_comments={"c0": "0"},
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    df2 = wr.athena.read_sql_table(table, database)
+    assert df.shape == df2.shape
+    assert df.c0.sum() == df2.c0.sum()
+    parameters = wr.catalog.get_table_parameters(database, table)
+    assert len(parameters) == 5
+    assert parameters["num_cols"] == str(len(df2.columns))
+    assert parameters["num_rows"] == str(len(df2.index))
+    assert wr.catalog.get_table_description(database, table) == "c0"
+    comments = wr.catalog.get_columns_comments(database, table)
+    assert len(comments) == len(df.columns)
+    assert comments["c0"] == "0"
+
+    # Round 2 - Overwrite
+    df = pd.DataFrame({"c1": [None, 1, None]}, dtype="Int16")
+    paths = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        mode="overwrite",
+        database=database,
+        table=table,
+        description="c1",
+        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
+        columns_comments={"c1": "1"},
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    df2 = wr.athena.read_sql_table(table, database)
+    assert df.shape == df2.shape
+    assert df.c1.sum() == df2.c1.sum()
+    parameters = wr.catalog.get_table_parameters(database, table)
+    assert len(parameters) == 5
+    assert parameters["num_cols"] == str(len(df2.columns))
+    assert parameters["num_rows"] == str(len(df2.index))
+    assert wr.catalog.get_table_description(database, table) == "c1"
+    comments = wr.catalog.get_columns_comments(database, table)
+    assert len(comments) == len(df.columns)
+    assert comments["c1"] == "1"
+
+    # Round 3 - Append
+    df = pd.DataFrame({"c1": [None, 2, None]}, dtype="Int8")
+    paths = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        mode="append",
+        database=database,
+        table=table,
+        description="c1",
+        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index) * 2)},
+        columns_comments={"c1": "1"},
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    df2 = wr.athena.read_sql_table(table, database)
+    assert len(df.columns) == len(df2.columns)
+    assert len(df.index) * 2 == len(df2.index)
+    assert df.c1.sum() + 1 == df2.c1.sum()
+    parameters = wr.catalog.get_table_parameters(database, table)
+    assert len(parameters) == 5
+    assert parameters["num_cols"] == str(len(df2.columns))
+    assert parameters["num_rows"] == str(len(df2.index))
+    assert wr.catalog.get_table_description(database, table) == "c1"
+    comments = wr.catalog.get_columns_comments(database, table)
+    assert len(comments) == len(df.columns)
+    assert comments["c1"] == "1"
+
+    # Round 4 - Append + New Column
+    df = pd.DataFrame({"c2": ["a", None, "b"], "c1": [None, None, None]})
+    paths = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        mode="append",
+        database=database,
+        table=table,
+        description="c1+c2",
+        parameters={"num_cols": "2", "num_rows": "9"},
+        columns_comments={"c1": "1", "c2": "2"},
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    df2 = wr.athena.read_sql_table(table, database)
+    assert len(df2.columns) == 2
+    assert len(df2.index) == 9
+    assert df2.c1.sum() == 3
+    parameters = wr.catalog.get_table_parameters(database, table)
+    assert len(parameters) == 5
+    assert parameters["num_cols"] == "2"
+    assert parameters["num_rows"] == "9"
+    assert wr.catalog.get_table_description(database, table) == "c1+c2"
+    comments = wr.catalog.get_columns_comments(database, table)
+    assert len(comments) == len(df.columns)
+    assert comments["c1"] == "1"
+    assert comments["c2"] == "2"
+
+    # Round 5 - Append + New Column + Wrong Types
+    df = pd.DataFrame({"c2": [1], "c3": [True], "c1": ["1"]})
+    paths = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        mode="append",
+        database=database,
+        table=table,
+        description="c1+c2+c3",
+        parameters={"num_cols": "3", "num_rows": "10"},
+        columns_comments={"c1": "1!", "c2": "2!", "c3": "3"},
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    df2 = wr.athena.read_sql_table(table, database)
+    assert len(df2.columns) == 3
+    assert len(df2.index) == 10
+    assert df2.c1.sum() == 4
+    parameters = wr.catalog.get_table_parameters(database, table)
+    assert len(parameters) == 5
+    assert parameters["num_cols"] == "3"
+    assert parameters["num_rows"] == "10"
+    assert wr.catalog.get_table_description(database, table) == "c1+c2+c3"
+    comments = wr.catalog.get_columns_comments(database, table)
+    assert len(comments) == len(df.columns)
+    assert comments["c1"] == "1!"
+    assert comments["c2"] == "2!"
+    assert comments["c3"] == "3"
+    engine = wr.catalog.get_engine("aws-data-wrangler-redshift")
+    df3 = wr.db.read_sql_table(con=engine, table=table, schema=external_schema)
+    assert len(df3.columns) == 3
+    assert len(df3.index) == 10
+    assert df3.c1.sum() == 4
+
+    # Round 6 - Overwrite Partitioned
+    df = pd.DataFrame({"c0": ["foo", None], "c1": [0, 1]})
+    paths = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        mode="overwrite",
+        database=database,
+        table=table,
+        partition_cols=["c1"],
+        description="c0+c1",
+        parameters={"num_cols": "2", "num_rows": "2"},
+        columns_comments={"c0": "zero", "c1": "one"},
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    df2 = wr.athena.read_sql_table(table, database)
+    assert df.shape == df2.shape
+    assert df.c1.sum() == df2.c1.sum()
+    parameters = wr.catalog.get_table_parameters(database, table)
+    assert len(parameters) == 5
+    assert parameters["num_cols"] == "2"
+    assert parameters["num_rows"] == "2"
+    assert wr.catalog.get_table_description(database, table) == "c0+c1"
+    comments = wr.catalog.get_columns_comments(database, table)
+    assert len(comments) == len(df.columns)
+    assert comments["c0"] == "zero"
+    assert comments["c1"] == "one"
+
+    # Round 7 - Overwrite Partitions
+    df = pd.DataFrame({"c0": [None, None], "c1": [0, 2]})
+    paths = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        mode="overwrite_partitions",
+        database=database,
+        table=table,
+        partition_cols=["c1"],
+        description="c0+c1",
+        parameters={"num_cols": "2", "num_rows": "3"},
+        columns_comments={"c0": "zero", "c1": "one"},
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    df2 = wr.athena.read_sql_table(table, database)
+    assert len(df2.columns) == 2
+    assert len(df2.index) == 3
+    assert df2.c1.sum() == 3
+    parameters = wr.catalog.get_table_parameters(database, table)
+    assert len(parameters) == 5
+    assert parameters["num_cols"] == "2"
+    assert parameters["num_rows"] == "3"
+    assert wr.catalog.get_table_description(database, table) == "c0+c1"
+    comments = wr.catalog.get_columns_comments(database, table)
+    assert len(comments) == len(df.columns)
+    assert comments["c0"] == "zero"
+    assert comments["c1"] == "one"
+
+    # Round 8 - Overwrite Partitions + New Column + Wrong Type
+    df = pd.DataFrame({"c0": [1, 2], "c1": ["1", "3"], "c2": [True, False]})
+    paths = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        mode="overwrite_partitions",
+        database=database,
+        table=table,
+        partition_cols=["c1"],
+        description="c0+c1+c2",
+        parameters={"num_cols": "3", "num_rows": "4"},
+        columns_comments={"c0": "zero", "c1": "one", "c2": "two"},
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    df2 = wr.athena.read_sql_table(table, database)
+    assert len(df2.columns) == 3
+    assert len(df2.index) == 4
+    assert df2.c1.sum() == 6
+    parameters = wr.catalog.get_table_parameters(database, table)
+    assert len(parameters) == 5
+    assert parameters["num_cols"] == "3"
+    assert parameters["num_rows"] == "4"
+    assert wr.catalog.get_table_description(database, table) == "c0+c1+c2"
+    comments = wr.catalog.get_columns_comments(database, table)
+    assert len(comments) == len(df.columns)
+    assert comments["c0"] == "zero"
+    assert comments["c1"] == "one"
+    assert comments["c2"] == "two"
+    engine = wr.catalog.get_engine("aws-data-wrangler-redshift")
+    df3 = wr.db.read_sql_table(con=engine, table=table, schema=external_schema)
+    assert len(df3.columns) == 3
+    assert len(df3.index) == 4
+    assert df3.c1.sum() == 6
+
+
+def test_store_parquet_metadata_modes(database, table, path, external_schema):
+
+    # Round 1 - Warm up
+    df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
+    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, mode="overwrite")["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    wr.s3.store_parquet_metadata(
+        path=path,
+        dataset=True,
+        mode="overwrite",
+        database=database,
+        table=table,
+        description="c0",
+        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
+        columns_comments={"c0": "0"},
+    )
+    df2 = wr.athena.read_sql_table(table, database)
+    assert df.shape == df2.shape
+    assert df.c0.sum() == df2.c0.sum()
+    parameters = wr.catalog.get_table_parameters(database, table)
+    assert len(parameters) == 5
+    assert parameters["num_cols"] == str(len(df2.columns))
+    assert parameters["num_rows"] == str(len(df2.index))
+    assert wr.catalog.get_table_description(database, table) == "c0"
+    comments = wr.catalog.get_columns_comments(database, table)
+    assert len(comments) == len(df.columns)
+    assert comments["c0"] == "0"
+
+    # Round 2 - Overwrite
+    df = pd.DataFrame({"c1": [None, 1, None]}, dtype="Int16")
+    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, mode="overwrite")["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    wr.s3.store_parquet_metadata(
+        path=path,
+        dataset=True,
+        mode="overwrite",
+        database=database,
+        table=table,
+        description="c1",
+        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
+        columns_comments={"c1": "1"},
+    )
+    df2 = wr.athena.read_sql_table(table, database)
+    assert df.shape == df2.shape
+    assert df.c1.sum() == df2.c1.sum()
+    parameters = wr.catalog.get_table_parameters(database, table)
+    assert len(parameters) == 5
+    assert parameters["num_cols"] == str(len(df2.columns))
+    assert parameters["num_rows"] == str(len(df2.index))
+    assert wr.catalog.get_table_description(database, table) == "c1"
+    comments = wr.catalog.get_columns_comments(database, table)
+    assert len(comments) == len(df.columns)
+    assert comments["c1"] == "1"
+
+    # Round 3 - Append
+    df = pd.DataFrame({"c1": [None, 2, None]}, dtype="Int16")
+    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, mode="append")["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    wr.s3.store_parquet_metadata(
+        path=path,
+        dataset=True,
+        mode="append",
+        database=database,
+        table=table,
+        description="c1",
+        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index) * 2)},
+        columns_comments={"c1": "1"},
+    )
+    df2 = wr.athena.read_sql_table(table, database)
+    assert len(df.columns) == len(df2.columns)
+    assert len(df.index) * 2 == len(df2.index)
+    assert df.c1.sum() + 1 == df2.c1.sum()
+    parameters = wr.catalog.get_table_parameters(database, table)
+    assert len(parameters) == 5
+    assert parameters["num_cols"] == str(len(df2.columns))
+    assert parameters["num_rows"] == str(len(df2.index))
+    assert wr.catalog.get_table_description(database, table) == "c1"
+    comments = wr.catalog.get_columns_comments(database, table)
+    assert len(comments) == len(df.columns)
+    assert comments["c1"] == "1"
+
+    # Round 4 - Append + New Column
+    df = pd.DataFrame({"c2": ["a", None, "b"], "c1": [None, 1, None]})
+    df["c1"] = df["c1"].astype("Int16")
+    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, mode="append")["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    wr.s3.store_parquet_metadata(
+        path=path,
+        dataset=True,
+        mode="append",
+        database=database,
+        table=table,
+        description="c1+c2",
+        parameters={"num_cols": "2", "num_rows": "9"},
+        columns_comments={"c1": "1", "c2": "2"},
+    )
+    df2 = wr.athena.read_sql_table(table, database)
+    assert len(df2.columns) == 2
+    assert len(df2.index) == 9
+    assert df2.c1.sum() == 4
+    parameters = wr.catalog.get_table_parameters(database, table)
+    assert len(parameters) == 5
+    assert parameters["num_cols"] == "2"
+    assert parameters["num_rows"] == "9"
+    assert wr.catalog.get_table_description(database, table) == "c1+c2"
+    comments = wr.catalog.get_columns_comments(database, table)
+    assert len(comments) == len(df.columns)
+    assert comments["c1"] == "1"
+    assert comments["c2"] == "2"
+
+    # Round 5 - Overwrite Partitioned
+    df = pd.DataFrame({"c0": ["foo", None], "c1": [0, 1]})
+    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, mode="overwrite", partition_cols=["c1"])["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    wr.s3.store_parquet_metadata(
+        path=path,
+        dataset=True,
+        mode="overwrite",
+        database=database,
+        table=table,
+        description="c0+c1",
+        parameters={"num_cols": "2", "num_rows": "2"},
+        columns_comments={"c0": "zero", "c1": "one"},
+    )
+    df2 = wr.athena.read_sql_table(table, database)
+    assert df.shape == df2.shape
+    assert df.c1.sum() == df2.c1.astype(int).sum()
+    parameters = wr.catalog.get_table_parameters(database, table)
+    assert len(parameters) == 5
+    assert parameters["num_cols"] == "2"
+    assert parameters["num_rows"] == "2"
+    assert wr.catalog.get_table_description(database, table) == "c0+c1"
+    comments = wr.catalog.get_columns_comments(database, table)
+    assert len(comments) == len(df.columns)
+    assert comments["c0"] == "zero"
+    assert comments["c1"] == "one"
+
+    # Round 6 - Overwrite Partitions
+    df = pd.DataFrame({"c0": [None, "boo"], "c1": [0, 2]})
+    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, mode="overwrite_partitions", partition_cols=["c1"])[
+        "paths"
+    ]
+    wr.s3.wait_objects_exist(paths=paths)
+    wr.s3.store_parquet_metadata(
+        path=path,
+        dataset=True,
+        mode="append",
+        database=database,
+        table=table,
+        description="c0+c1",
+        parameters={"num_cols": "2", "num_rows": "3"},
+        columns_comments={"c0": "zero", "c1": "one"},
+    )
+    df2 = wr.athena.read_sql_table(table, database)
+    assert len(df2.columns) == 2
+    assert len(df2.index) == 3
+    assert df2.c1.astype(int).sum() == 3
+    parameters = wr.catalog.get_table_parameters(database, table)
+    assert len(parameters) == 5
+    assert parameters["num_cols"] == "2"
+    assert parameters["num_rows"] == "3"
+    assert wr.catalog.get_table_description(database, table) == "c0+c1"
+    comments = wr.catalog.get_columns_comments(database, table)
+    assert len(comments) == len(df.columns)
+    assert comments["c0"] == "zero"
+    assert comments["c1"] == "one"
+
+    # Round 7 - Overwrite Partitions + New Column
+    df = pd.DataFrame({"c0": ["bar", None], "c1": [1, 3], "c2": [True, False]})
+    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, mode="overwrite_partitions", partition_cols=["c1"])[
+        "paths"
+    ]
+    wr.s3.wait_objects_exist(paths=paths)
+    wr.s3.store_parquet_metadata(
+        path=path,
+        dataset=True,
+        mode="append",
+        database=database,
+        table=table,
+        description="c0+c1+c2",
+        parameters={"num_cols": "3", "num_rows": "4"},
+        columns_comments={"c0": "zero", "c1": "one", "c2": "two"},
+    )
+    df2 = wr.athena.read_sql_table(table, database)
+    assert len(df2.columns) == 3
+    assert len(df2.index) == 4
+    assert df2.c1.astype(int).sum() == 6
+    parameters = wr.catalog.get_table_parameters(database, table)
+    assert len(parameters) == 5
+    assert parameters["num_cols"] == "3"
+    assert parameters["num_rows"] == "4"
+    assert wr.catalog.get_table_description(database, table) == "c0+c1+c2"
+    comments = wr.catalog.get_columns_comments(database, table)
+    assert len(comments) == len(df.columns)
+    assert comments["c0"] == "zero"
+    assert comments["c1"] == "one"
+    assert comments["c2"] == "two"
+    engine = wr.catalog.get_engine("aws-data-wrangler-redshift")
+    df3 = wr.db.read_sql_table(con=engine, table=table, schema=external_schema)
+    assert len(df3.columns) == 3
+    assert len(df3.index) == 4
+    assert df3.c1.astype(int).sum() == 6

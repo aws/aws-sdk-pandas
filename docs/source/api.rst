@@ -64,6 +64,8 @@ AWS Glue Catalog
     get_engine
     extract_athena_types
     get_table_parameters
+    get_columns_comments
+    get_table_description
     upsert_table_parameters
     overwrite_table_parameters
 

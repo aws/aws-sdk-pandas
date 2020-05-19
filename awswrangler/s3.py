@@ -627,11 +627,18 @@ def to_csv(  # pylint: disable=too-many-arguments
         )
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+
+    # Sanitize table to respect Athena's standards
     partition_cols = partition_cols if partition_cols else []
     dtype = dtype if dtype else {}
     columns_comments = columns_comments if columns_comments else {}
     partitions_values: Dict[str, List[str]] = {}
+    df = catalog.sanitize_dataframe_columns_names(df=df)
+    partition_cols = [catalog.sanitize_column_name(p) for p in partition_cols]
+    dtype = {catalog.sanitize_column_name(k): v.lower() for k, v in dtype.items()}
+    columns_comments = {catalog.sanitize_column_name(k): v for k, v in columns_comments.items()}
+
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     fs: s3fs.S3FileSystem = _utils.get_fs(session=session, s3_additional_kwargs=s3_additional_kwargs)
     if dataset is False:
         if partition_cols:
@@ -653,14 +660,14 @@ def to_csv(  # pylint: disable=too-many-arguments
         mode = "append" if mode is None else mode
         if columns:
             df = df[columns]
-        if (database is not None) and (table is not None):  # Normalize table to respect Athena's standards
-            df = catalog.sanitize_dataframe_columns_names(df=df)
-            partition_cols = [catalog.sanitize_column_name(p) for p in partition_cols]
-            dtype = {catalog.sanitize_column_name(k): v.lower() for k, v in dtype.items()}
-            columns_comments = {catalog.sanitize_column_name(k): v for k, v in columns_comments.items()}
-            exist: bool = catalog.does_table_exist(database=database, table=table, boto3_session=session)
-            if (exist is True) and (mode in ("append", "overwrite_partitions")):
-                for k, v in catalog.get_table_types(database=database, table=table, boto3_session=session).items():
+        if (
+            (mode in ("append", "overwrite_partitions")) and (database is not None) and (table is not None)
+        ):  # Fetching Catalog Types
+            catalog_types: Optional[Dict[str, str]] = catalog.get_table_types(
+                database=database, table=table, boto3_session=session
+            )
+            if catalog_types is not None:
+                for k, v in catalog_types.items():
                     dtype[k] = v
         df = catalog.drop_duplicated_columns(df=df)
         paths, partitions_values = _to_csv_dataset(
@@ -1083,10 +1090,14 @@ def to_parquet(  # pylint: disable=too-many-arguments
         ]
     else:
         mode = "append" if mode is None else mode
-        if (database is not None) and (table is not None):
-            exist: bool = catalog.does_table_exist(database=database, table=table, boto3_session=session)
-            if (exist is True) and (mode in ("append", "overwrite_partitions")):
-                for k, v in catalog.get_table_types(database=database, table=table, boto3_session=session).items():
+        if (
+            (mode in ("append", "overwrite_partitions")) and (database is not None) and (table is not None)
+        ):  # Fetching Catalog Types
+            catalog_types: Optional[Dict[str, str]] = catalog.get_table_types(
+                database=database, table=table, boto3_session=session
+            )
+            if catalog_types is not None:
+                for k, v in catalog_types.items():
                     dtype[k] = v
         paths, partitions_values = _to_parquet_dataset(
             df=df,

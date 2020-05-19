@@ -175,15 +175,15 @@ def pyarrow2sqlalchemy(  # pylint: disable=too-many-branches,too-many-return-sta
 ) -> Optional[VisitableType]:
     """Pyarrow to Athena data types conversion."""
     if pa.types.is_int8(dtype):
-        return sqlalchemy.types.SMALLINT
+        return sqlalchemy.types.SmallInteger
     if pa.types.is_int16(dtype):
-        return sqlalchemy.types.SMALLINT
+        return sqlalchemy.types.SmallInteger
     if pa.types.is_int32(dtype):
-        return sqlalchemy.types.INTEGER
+        return sqlalchemy.types.Integer
     if pa.types.is_int64(dtype):
-        return sqlalchemy.types.BIGINT
+        return sqlalchemy.types.BigInteger
     if pa.types.is_float32(dtype):
-        return sqlalchemy.types.FLOAT
+        return sqlalchemy.types.Float
     if pa.types.is_float64(dtype):
         if db_type == "mysql":
             return sqlalchemy.dialects.mysql.DOUBLE
@@ -195,25 +195,25 @@ def pyarrow2sqlalchemy(  # pylint: disable=too-many-branches,too-many-return-sta
             f"{db_type} is a invalid database type, please choose between postgresql, mysql and redshift."
         )  # pragma: no cover
     if pa.types.is_boolean(dtype):
-        return sqlalchemy.types.BOOLEAN
+        return sqlalchemy.types.Boolean
     if pa.types.is_string(dtype):
         if db_type == "mysql":
-            return sqlalchemy.types.TEXT
+            return sqlalchemy.types.Text
         if db_type == "postgresql":
-            return sqlalchemy.types.TEXT
+            return sqlalchemy.types.Text
         if db_type == "redshift":
             return sqlalchemy.types.VARCHAR(length=256)
         raise exceptions.InvalidDatabaseType(
             f"{db_type} is a invalid database type. " f"Please choose between postgresql, mysql and redshift."
         )  # pragma: no cover
     if pa.types.is_timestamp(dtype):
-        return sqlalchemy.types.DATETIME
+        return sqlalchemy.types.DateTime
     if pa.types.is_date(dtype):
-        return sqlalchemy.types.DATE
+        return sqlalchemy.types.Date
     if pa.types.is_binary(dtype):
         if db_type == "redshift":
             raise exceptions.UnsupportedType("Binary columns are not supported for Redshift.")  # pragma: no cover
-        return sqlalchemy.types.BINARY
+        return sqlalchemy.types.Binary
     if pa.types.is_decimal(dtype):
         return sqlalchemy.types.Numeric(precision=dtype.precision, scale=dtype.scale)
     if pa.types.is_dictionary(dtype):
@@ -396,7 +396,7 @@ def cast_pandas_with_athena_types(df: pd.DataFrame, dtype: Dict[str, str]) -> pd
                 df[col] = (
                     df[col]
                     .astype("string")
-                    .apply(lambda x: Decimal(str(x)) if str(x) not in ("", "none", " ", "<NA>") else None)
+                    .apply(lambda x: Decimal(str(x)) if str(x) not in ("", "none", "None", " ", "<NA>") else None)
                 )
             elif pandas_type == "string":
                 curr_type: str = str(df[col].dtypes)
@@ -405,7 +405,16 @@ def cast_pandas_with_athena_types(df: pd.DataFrame, dtype: Dict[str, str]) -> pd
                 else:
                     df[col] = df[col].astype("string")
             else:
-                df[col] = df[col].astype(pandas_type)
+                try:
+                    df[col] = df[col].astype(pandas_type)
+                except TypeError as ex:
+                    if "object cannot be converted to an IntegerDtype" not in str(ex):
+                        raise ex  # pragma: no cover
+                    df[col] = (
+                        df[col]
+                        .apply(lambda x: int(x) if str(x) not in ("", "none", "None", " ", "<NA>") else None)
+                        .astype(pandas_type)
+                    )
     return df
 
 
