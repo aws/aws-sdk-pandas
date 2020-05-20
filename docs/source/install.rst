@@ -1,5 +1,3 @@
-.. note:: Due the new major version 1.0.0 with breaking changes, please make sure that all your old projects has dependencies frozen on the desired version (e.g. `pip install awswrangler==0.3.2`). You can always check the legacy docs `here <https://aws-data-wrangler.readthedocs.io/en/legacy/>`_.
-
 Install
 =======
 
@@ -44,7 +42,7 @@ AWS Glue Wheel
 
 2 - Upload the wheel file to any Amazon S3 location.
 
-3 - Got to your Glue Python Shell job and point to the new file on s3.
+3 - Go to your Glue Python Shell job and point to the new file on S3.
 
 Amazon SageMaker Notebook
 -------------------------

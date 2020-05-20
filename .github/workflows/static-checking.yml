@@ -25,7 +25,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Setup Environment
-        run: ./setup-dev-env.sh
+        run: ./requirements.sh
       - name: CloudFormation Lint
         run: cfn-lint -t testing/cloudformation.yaml
       - name: Documentation Lint

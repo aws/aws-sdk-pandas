@@ -1,5 +1,3 @@
-.. note:: Due the new major version 1.0.0 with breaking changes, please make sure that all your old projects has dependencies frozen on the desired version (e.g. `pip install awswrangler==0.3.2`). You can always check the legacy docs `here <https://aws-data-wrangler.readthedocs.io/en/legacy/>`_.
-
 API Reference
 =============
 
@@ -11,18 +9,20 @@ Amazon S3
 .. autosummary::
     :toctree: stubs
 
+    copy_objects
     delete_objects
     describe_objects
     does_object_exist
     get_bucket_region
-    list_objects
     list_directories
+    list_objects
+    merge_datasets
     read_csv
     read_fwf
     read_json
     read_parquet
-    read_parquet_table
     read_parquet_metadata
+    read_parquet_table
     size_objects
     store_parquet_metadata
     to_csv
@@ -30,8 +30,6 @@ Amazon S3
     to_parquet
     wait_objects_exist
     wait_objects_not_exist
-    copy_objects
-    merge_datasets
 
 AWS Glue Catalog
 ----------------
@@ -41,31 +39,33 @@ AWS Glue Catalog
 .. autosummary::
     :toctree: stubs
 
-    add_parquet_partitions
-    create_parquet_table
     add_csv_partitions
+    add_parquet_partitions
     create_csv_table
+    create_parquet_table
     databases
     delete_table_if_exists
     does_table_exist
-    get_databases
-    get_parquet_partitions
+    drop_duplicated_columns
+    extract_athena_types
+    get_columns_comments
     get_csv_partitions
+    get_databases
+    get_engine
+    get_parquet_partitions
+    get_table_description
     get_table_location
+    get_table_parameters
     get_table_types
     get_tables
-    search_tables
-    table
-    tables
+    overwrite_table_parameters
     sanitize_column_name
     sanitize_dataframe_columns_names
     sanitize_table_name
-    drop_duplicated_columns
-    get_engine
-    extract_athena_types
-    get_table_parameters
+    search_tables
+    table
+    tables
     upsert_table_parameters
-    overwrite_table_parameters
 
 Amazon Athena
 -------------
@@ -75,15 +75,15 @@ Amazon Athena
 .. autosummary::
     :toctree: stubs
 
+    create_athena_bucket
+    get_query_columns_types
+    get_work_group
     read_sql_query
     read_sql_table
     repair_table
     start_query_execution
     stop_query_execution
     wait_query
-    create_athena_bucket
-    get_query_columns_types
-    get_work_group
 
 Databases (Redshift, PostgreSQL, MySQL)
 ---------------------------------------
@@ -93,13 +93,13 @@ Databases (Redshift, PostgreSQL, MySQL)
 .. autosummary::
     :toctree: stubs
 
-    to_sql
-    read_sql_query
-    read_sql_table
+    copy_files_to_redshift
+    copy_to_redshift
     get_engine
     get_redshift_temp_engine
-    copy_to_redshift
-    copy_files_to_redshift
+    read_sql_query
+    read_sql_table
+    to_sql
     unload_redshift
     unload_redshift_to_files
     write_redshift_copy_manifest
@@ -112,16 +112,16 @@ EMR
 .. autosummary::
     :toctree: stubs
 
+    build_spark_step
+    build_step
     create_cluster
     get_cluster_state
-    terminate_cluster
-    submit_step
-    submit_spark_step
-    submit_ecr_credentials_refresh
-    submit_steps
-    build_step
-    build_spark_step
     get_step_state
+    submit_ecr_credentials_refresh
+    submit_spark_step
+    submit_step
+    submit_steps
+    terminate_cluster
 
 CloudWatch Logs
 ---------------

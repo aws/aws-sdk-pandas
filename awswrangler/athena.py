@@ -282,6 +282,8 @@ def repair_table(
 
     """
     query = f"MSCK REPAIR TABLE `{table}`;"
+    if (database is not None) and (not database.startswith("`")):
+        database = f"`{database}`"
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     query_id = start_query_execution(
         sql=query,
@@ -492,7 +494,7 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals,too-man
         path: str = f"{_s3_output}/{name}"
         ext_location: str = "\n" if wg_config["enforced"] is True else f",\n    external_location = '{path}'\n"
         sql = (
-            f"CREATE TABLE {name}\n"
+            f'CREATE TABLE "{name}"\n'
             f"WITH(\n"
             f"    format = 'Parquet',\n"
             f"    parquet_compression = 'SNAPPY'"
@@ -512,7 +514,20 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals,too-man
         boto3_session=session,
     )
     _logger.debug("query_id: %s", query_id)
-    query_response: Dict[str, Any] = wait_query(query_execution_id=query_id, boto3_session=session)
+    try:
+        query_response: Dict[str, Any] = wait_query(query_execution_id=query_id, boto3_session=session)
+    except exceptions.QueryFailed as ex:
+        if ctas_approach is True:
+            if "Column name not specified" in str(ex):
+                raise exceptions.InvalidArgumentValue(
+                    "Please, define all columns names in your query. (E.g. 'SELECT MAX(col1) AS max_col1, ...')"
+                )
+            if "Column type is unknown" in str(ex):
+                raise exceptions.InvalidArgumentValue(
+                    "Please, define all columns types in your query. "
+                    "(E.g. 'SELECT CAST(NULL AS INTEGER) AS MY_COL, ...')"
+                )
+        raise ex  # pragma: no cover
     if query_response["QueryExecution"]["Status"]["State"] in ["FAILED", "CANCELLED"]:  # pragma: no cover
         reason: str = query_response["QueryExecution"]["Status"]["StateChangeReason"]
         message_error: str = f"Query error: {reason}"

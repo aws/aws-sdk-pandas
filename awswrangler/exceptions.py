@@ -83,3 +83,7 @@ class InvalidRedshiftSortkey(Exception):
 
 class InvalidRedshiftPrimaryKeys(Exception):
     """InvalidRedshiftPrimaryKeys exception."""
+
+
+class InvalidSchemaConvergence(Exception):
+    """InvalidSchemaMerge exception."""

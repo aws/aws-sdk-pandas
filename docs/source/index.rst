@@ -1,5 +1,3 @@
-.. note:: Due the new major version 1.0.0 with breaking changes, please make sure that all your old projects has dependencies frozen on the desired version (e.g. `pip install awswrangler==0.3.2`). You can always check the legacy docs `here <https://aws-data-wrangler.readthedocs.io/en/legacy/>`_.
-
 Quick Start
 -----------
 
@@ -45,3 +43,4 @@ Read The Docs
    api
    License <https://github.com/awslabs/aws-data-wrangler/blob/master/LICENSE>
    Contributing <https://github.com/awslabs/aws-data-wrangler/blob/master/CONTRIBUTING.md>
+   Legacy Docs (pre-1.0.0) <https://aws-data-wrangler.readthedocs.io/en/legacy/>

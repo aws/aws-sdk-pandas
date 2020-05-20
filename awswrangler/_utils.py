@@ -3,6 +3,7 @@
 import logging
 import math
 import os
+import random
 from typing import Any, Dict, Generator, List, Optional, Tuple
 
 import boto3  # type: ignore
@@ -11,14 +12,20 @@ import numpy as np  # type: ignore
 import psycopg2  # type: ignore
 import s3fs  # type: ignore
 
-logger: logging.Logger = logging.getLogger(__name__)
+from awswrangler import exceptions
+
+_logger: logging.Logger = logging.getLogger(__name__)
 
 
 def ensure_session(session: Optional[boto3.Session] = None) -> boto3.Session:
     """Ensure that a valid boto3.Session will be returned."""
     if session is not None:
         return session
-    return boto3.Session()
+    # Ensure the boto3's default session is used so that its parameters can be
+    # set via boto3.setup_default_session()
+    if boto3.DEFAULT_SESSION is not None:
+        return boto3.DEFAULT_SESSION
+    return boto3.Session()  # pragma: no cover
 
 
 def client(service_name: str, session: Optional[boto3.Session] = None) -> boto3.client:
@@ -124,6 +131,8 @@ def chunkify(lst: List[Any], num_chunks: int = 1, max_length: Optional[int] = No
     [[0, 1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
 
     """
+    if not lst:
+        return []  # pragma: no cover
     n: int = num_chunks if max_length is None else int(math.ceil((float(len(lst)) / float(max_length))))
     np_chunks = np.array_split(lst, n)
     return [arr.tolist() for arr in np_chunks if len(arr) > 0]
@@ -179,3 +188,54 @@ def get_region_from_subnet(subnet_id: str, boto3_session: Optional[boto3.Session
     session: boto3.Session = ensure_session(session=boto3_session)
     client_ec2: boto3.client = client(service_name="ec2", session=session)
     return client_ec2.describe_subnets(SubnetIds=[subnet_id])["Subnets"][0]["AvailabilityZone"][:9]
+
+
+def extract_partitions_from_paths(
+    path: str, paths: List[str]
+) -> Tuple[Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]:
+    """Extract partitions from Amazon S3 paths."""
+    path = path if path.endswith("/") else f"{path}/"
+    partitions_types: Dict[str, str] = {}
+    partitions_values: Dict[str, List[str]] = {}
+    for p in paths:
+        if path not in p:
+            raise exceptions.InvalidArgumentValue(
+                f"Object {p} is not under the root path ({path})."
+            )  # pragma: no cover
+        path_wo_filename: str = p.rpartition("/")[0] + "/"
+        if path_wo_filename not in partitions_values:
+            path_wo_prefix: str = p.replace(f"{path}/", "")
+            dirs: List[str] = [x for x in path_wo_prefix.split("/") if (x != "") and ("=" in x)]
+            if dirs:
+                values_tups: List[Tuple[str, str]] = [tuple(x.split("=")[:2]) for x in dirs]  # type: ignore
+                values_dics: Dict[str, str] = dict(values_tups)
+                p_values: List[str] = list(values_dics.values())
+                p_types: Dict[str, str] = {x: "string" for x in values_dics.keys()}
+                if not partitions_types:
+                    partitions_types = p_types
+                if p_values:
+                    partitions_types = p_types
+                    partitions_values[path_wo_filename] = p_values
+                elif p_types != partitions_types:  # pragma: no cover
+                    raise exceptions.InvalidSchemaConvergence(
+                        f"At least two different partitions schema detected: {partitions_types} and {p_types}"
+                    )
+    if not partitions_types:
+        return None, None
+    return partitions_types, partitions_values
+
+
+def list_sampling(lst: List[Any], sampling: float) -> List[Any]:
+    """Random List sampling."""
+    if sampling > 1.0 or sampling <= 0.0:  # pragma: no cover
+        raise exceptions.InvalidArgumentValue(f"Argument <sampling> must be [0.0 < value <= 1.0]. {sampling} received.")
+    _len: int = len(lst)
+    if _len == 0:
+        return []  # pragma: no cover
+    num_samples: int = int(round(_len * sampling))
+    num_samples = _len if num_samples > _len else num_samples
+    num_samples = 1 if num_samples < 1 else num_samples
+    _logger.debug("_len: %s", _len)
+    _logger.debug("sampling: %s", sampling)
+    _logger.debug("num_samples: %s", num_samples)
+    return random.sample(population=lst, k=num_samples)

@@ -9,7 +9,7 @@ import sqlalchemy
 
 import awswrangler as wr
 
-from ._utils import ensure_data_types, ensure_data_types_category, get_df, get_df_category
+from ._utils import CFN_VALID_STATUS, ensure_data_types, ensure_data_types_category, get_df, get_df_category
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
@@ -19,8 +19,9 @@ logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
 @pytest.fixture(scope="module")
 def cloudformation_outputs():
     response = boto3.client("cloudformation").describe_stacks(StackName="aws-data-wrangler")
+    stack = [x for x in response.get("Stacks") if x["StackStatus"] in CFN_VALID_STATUS][0]
     outputs = {}
-    for output in response.get("Stacks")[0].get("Outputs"):
+    for output in stack.get("Outputs"):
         outputs[output.get("OutputKey")] = output.get("OutputValue")
     yield outputs
 
@@ -70,7 +71,7 @@ def external_schema(cloudformation_outputs, parameters, glue_database):
     IAM_ROLE '{parameters["redshift"]["role"]}'
     REGION '{region}';
     """
-    engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-redshift")
+    engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
     with engine.connect() as con:
         con.execute(sql)
     yield "aws_data_wrangler_external"
@@ -159,7 +160,7 @@ def test_redshift_temp_engine(parameters):
 
 
 def test_postgresql_param():
-    engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-postgresql")
+    engine = wr.catalog.get_engine(connection="aws-data-wrangler-postgresql")
     df = wr.db.read_sql_query(sql="SELECT %(value)s as col0", con=engine, params={"value": 1})
     assert df["col0"].iloc[0] == 1
     df = wr.db.read_sql_query(sql="SELECT %s as col0", con=engine, params=[1])
@@ -169,7 +170,7 @@ def test_postgresql_param():
 def test_redshift_copy_unload(bucket, parameters):
     path = f"s3://{bucket}/test_redshift_copy/"
     df = get_df().drop(["iint8", "binary"], axis=1, inplace=False)
-    engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-redshift")
+    engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
     wr.db.copy_to_redshift(
         df=df,
         path=path,
@@ -219,7 +220,7 @@ def test_redshift_copy_unload(bucket, parameters):
 
 
 def test_redshift_copy_upsert(bucket, parameters):
-    engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-redshift")
+    engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
     df = pd.DataFrame({"id": list((range(1_000))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(1_000)])})
     df3 = pd.DataFrame(
         {"id": list((range(1_000, 1_500))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(500)])}
@@ -312,7 +313,7 @@ def test_redshift_copy_upsert(bucket, parameters):
 )
 def test_redshift_exceptions(bucket, parameters, diststyle, distkey, sortstyle, sortkey, exc):
     df = pd.DataFrame({"id": [1], "name": "joe"})
-    engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-redshift")
+    engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
     path = f"s3://{bucket}/test_redshift_exceptions_{random.randint(0, 1_000_000)}/"
     with pytest.raises(exc):
         wr.db.copy_to_redshift(
@@ -346,7 +347,7 @@ def test_redshift_spectrum(bucket, glue_database, external_schema):
         partition_cols=["par_int"],
     )["paths"]
     wr.s3.wait_objects_exist(paths=paths, use_threads=False)
-    engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-redshift")
+    engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
     with engine.connect() as con:
         cursor = con.execute(f"SELECT * FROM {external_schema}.test_redshift_spectrum")
         rows = cursor.fetchall()
@@ -360,7 +361,7 @@ def test_redshift_spectrum(bucket, glue_database, external_schema):
 def test_redshift_category(bucket, parameters):
     path = f"s3://{bucket}/test_redshift_category/"
     df = get_df_category().drop(["binary"], axis=1, inplace=False)
-    engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-redshift")
+    engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
     wr.db.copy_to_redshift(
         df=df,
         path=path,
@@ -398,7 +399,7 @@ def test_redshift_unload_extras(bucket, parameters, kms_key_id):
     schema = parameters["redshift"]["schema"]
     path = f"s3://{bucket}/{table}/"
     wr.s3.delete_objects(path=path)
-    engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-redshift")
+    engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
     df = pd.DataFrame({"id": [1, 2], "name": ["foo", "boo"]})
     wr.db.to_sql(df=df, con=engine, name=table, schema=schema, if_exists="replace", index=False)
     paths = wr.db.unload_redshift_to_files(
@@ -465,7 +466,7 @@ def test_to_sql_cast(parameters, db_type):
 def test_uuid(parameters):
     table = "test_uuid"
     schema = parameters["postgresql"]["schema"]
-    engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-postgresql")
+    engine = wr.catalog.get_engine(connection="aws-data-wrangler-postgresql")
     df = pd.DataFrame(
         {
             "id": [1, 2, 3],

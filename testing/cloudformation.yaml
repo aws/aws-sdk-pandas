@@ -1,6 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: |
-  AWS Data Wrangler Development Infrastructure
+Description: AWS Data Wrangler Development Infrastructure
 Parameters:
   DatabasesPassword:
     Type: String
@@ -10,17 +9,17 @@ Resources:
   VPC:
     Type: AWS::EC2::VPC
     Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
       CidrBlock: 10.19.224.0/19
       EnableDnsSupport: true
       EnableDnsHostnames: true
-      Tags:
-        - Key: Name
-          Value: aws-data-wrangler
   InternetGateway:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
-        - Key: Name
+        - Key: Env
           Value: aws-data-wrangler
   InternetGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
@@ -32,6 +31,9 @@ Resources:
   PublicSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
       VpcId:
         Ref: VPC
       AvailabilityZone:
@@ -40,12 +42,12 @@ Resources:
           - Fn::GetAZs: ''
       CidrBlock: 10.19.229.0/24
       MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: aws-data-wrangler Public Subnet (AZ1)
   PublicSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
       VpcId:
         Ref: VPC
       AvailabilityZone:
@@ -54,17 +56,14 @@ Resources:
           - Fn::GetAZs: ''
       CidrBlock: 10.19.230.0/24
       MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: aws-data-wrangler Public Subnet (AZ2)
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
       VpcId:
         Ref: VPC
-      Tags:
-        - Key: Name
-          Value: aws-data-wrangler Public Routes
   DefaultPublicRoute:
     Type: AWS::EC2::Route
     DependsOn: InternetGatewayAttachment
@@ -97,6 +96,9 @@ Resources:
   KmsKey:
     Type: AWS::KMS::Key
     Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
       Description: Aws Data Wrangler Test Key.
       KeyPolicy:
         Version: '2012-10-17'
@@ -112,7 +114,8 @@ Resources:
           - Sid: Allow administration of the key
             Effect: Allow
             Principal:
-              AWS: '*'
+              AWS:
+                Ref: AWS::AccountId
             Action:
               - kms:Create*
               - kms:Describe*
@@ -130,6 +133,9 @@ Resources:
   Bucket:
     Type: AWS::S3::Bucket
     Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -146,6 +152,9 @@ Resources:
   RedshiftRole:
     Type: AWS::IAM::Role
     Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -205,12 +214,18 @@ Resources:
   RedshiftSubnetGroup:
     Type: AWS::Redshift::ClusterSubnetGroup
     Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
       Description: AWS Data Wrangler Test Arena - Redshift Subnet Group
       SubnetIds:
         - Ref: PublicSubnet1
   DatabaseSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
       VpcId:
         Ref: VPC
       GroupDescription: AWS Data Wrangler Test Arena - Redshift security group
@@ -228,6 +243,9 @@ Resources:
   Redshift:
     Type: AWS::Redshift::Cluster
     Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
       DBName: test
       MasterUsername: test
       MasterUserPassword:
@@ -264,6 +282,9 @@ Resources:
   RdsSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
       DBSubnetGroupDescription: RDS Database Subnet Group
       SubnetIds:
         - Ref: PublicSubnet1
@@ -271,6 +292,9 @@ Resources:
   AuroraRole:
     Type: AWS::IAM::Role
     Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -297,13 +321,20 @@ Resources:
   PostgresqlParameterGroup:
     Type: AWS::RDS::DBClusterParameterGroup
     Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
       Description: Postgres 11
       Family: aurora-postgresql11
       Parameters:
         apg_plan_mgmt.capture_plan_baselines: 'off'
   AuroraClusterPostgresql:
     Type: AWS::RDS::DBCluster
+    DeletionPolicy: Delete
     Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
       Engine: aurora-postgresql
       EngineVersion: '11.6'
       DBClusterIdentifier: postgresql-cluster-wrangler
@@ -325,7 +356,11 @@ Resources:
               - Arn
   AuroraInstancePostgresql:
     Type: AWS::RDS::DBInstance
+    DeletionPolicy: Delete
     Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
       Engine: aurora-postgresql
       EngineVersion: '11.6'
       DBInstanceIdentifier: postgresql-instance-wrangler
@@ -338,6 +373,9 @@ Resources:
   MysqlParameterGroup:
     Type: AWS::RDS::DBClusterParameterGroup
     Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
       Description: Mysql 5.7
       Family: aurora-mysql5.7
       Parameters:
@@ -355,7 +393,11 @@ Resources:
             - Arn
   AuroraClusterMysql:
     Type: AWS::RDS::DBCluster
+    DeletionPolicy: Delete
     Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
       Engine: aurora-mysql
       EngineVersion: '5.7'
       DBClusterIdentifier: mysql-cluster-wrangler
@@ -377,7 +419,11 @@ Resources:
               - Arn
   AuroraInstanceMysql:
     Type: AWS::RDS::DBInstance
+    DeletionPolicy: Delete
     Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
       Engine: aurora-mysql
       EngineVersion: '5.7'
       DBInstanceIdentifier: mysql-instance-wrangler
@@ -459,21 +505,6 @@ Resources:
           PASSWORD:
             Ref: DatabasesPassword
         Name: aws-data-wrangler-mysql
-  DynamoDBTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      AttributeDefinitions:
-        - AttributeName: attr_hash
-          AttributeType: S
-        - AttributeName: attr_range
-          AttributeType: S
-      KeySchema:
-        - AttributeName: attr_hash
-          KeyType: HASH
-        - AttributeName: attr_range
-          KeyType: RANGE
-      BillingMode: PAY_PER_REQUEST
-      TableName: aws-data-wrangler
 Outputs:
   BucketName:
     Value:
@@ -542,12 +573,6 @@ Outputs:
         - AuroraInstanceMysql
         - Endpoint.Address
     Description: Mysql Address
-  DynamoDbTableARN:
-    Value:
-      Fn::GetAtt:
-        - DynamoDBTable
-        - Arn
-    Description: DynamoDB table name
   Region:
     Value:
       Ref: AWS::Region

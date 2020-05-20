@@ -289,7 +289,14 @@ def _split_paths_by_bucket(paths: List[str]) -> Dict[str, List[str]]:
 def _delete_objects(bucket: str, keys: List[str], client_s3: boto3.client) -> None:
     _logger.debug("len(keys): %s", len(keys))
     batch: List[Dict[str, str]] = [{"Key": key} for key in keys]
-    client_s3.delete_objects(Bucket=bucket, Delete={"Objects": batch})
+    res = client_s3.delete_objects(Bucket=bucket, Delete={"Objects": batch})
+    deleted = res.get("Deleted")
+    if deleted is not None:
+        for i in deleted:
+            _logger.debug("s3://%s/%s has been deleted.", bucket, i.get("Key"))
+    errors = res.get("Errors")
+    if errors is not None:  # pragma: no cover
+        raise exceptions.ServiceApiError(errors)
 
 
 def describe_objects(
@@ -620,11 +627,18 @@ def to_csv(  # pylint: disable=too-many-arguments
         )
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+
+    # Sanitize table to respect Athena's standards
     partition_cols = partition_cols if partition_cols else []
     dtype = dtype if dtype else {}
     columns_comments = columns_comments if columns_comments else {}
     partitions_values: Dict[str, List[str]] = {}
+    df = catalog.sanitize_dataframe_columns_names(df=df)
+    partition_cols = [catalog.sanitize_column_name(p) for p in partition_cols]
+    dtype = {catalog.sanitize_column_name(k): v.lower() for k, v in dtype.items()}
+    columns_comments = {catalog.sanitize_column_name(k): v for k, v in columns_comments.items()}
+
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     fs: s3fs.S3FileSystem = _utils.get_fs(session=session, s3_additional_kwargs=s3_additional_kwargs)
     if dataset is False:
         if partition_cols:
@@ -646,14 +660,14 @@ def to_csv(  # pylint: disable=too-many-arguments
         mode = "append" if mode is None else mode
         if columns:
             df = df[columns]
-        if (database is not None) and (table is not None):  # Normalize table to respect Athena's standards
-            df = catalog.sanitize_dataframe_columns_names(df=df)
-            partition_cols = [catalog.sanitize_column_name(p) for p in partition_cols]
-            dtype = {catalog.sanitize_column_name(k): v.lower() for k, v in dtype.items()}
-            columns_comments = {catalog.sanitize_column_name(k): v for k, v in columns_comments.items()}
-            exist: bool = catalog.does_table_exist(database=database, table=table, boto3_session=session)
-            if (exist is True) and (mode in ("append", "overwrite_partitions")):
-                for k, v in catalog.get_table_types(database=database, table=table, boto3_session=session).items():
+        if (
+            (mode in ("append", "overwrite_partitions")) and (database is not None) and (table is not None)
+        ):  # Fetching Catalog Types
+            catalog_types: Optional[Dict[str, str]] = catalog.get_table_types(
+                database=database, table=table, boto3_session=session
+            )
+            if catalog_types is not None:
+                for k, v in catalog_types.items():
                     dtype[k] = v
         df = catalog.drop_duplicated_columns(df=df)
         paths, partitions_values = _to_csv_dataset(
@@ -1036,17 +1050,29 @@ def to_parquet(  # pylint: disable=too-many-arguments
         )
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+
+    # Sanitize table to respect Athena's standards
     partition_cols = partition_cols if partition_cols else []
     dtype = dtype if dtype else {}
     columns_comments = columns_comments if columns_comments else {}
     partitions_values: Dict[str, List[str]] = {}
+    df = catalog.sanitize_dataframe_columns_names(df=df)
+    partition_cols = [catalog.sanitize_column_name(p) for p in partition_cols]
+    dtype = {catalog.sanitize_column_name(k): v.lower() for k, v in dtype.items()}
+    columns_comments = {catalog.sanitize_column_name(k): v for k, v in columns_comments.items()}
+    df = catalog.drop_duplicated_columns(df=df)
+
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
     fs: s3fs.S3FileSystem = _utils.get_fs(session=session, s3_additional_kwargs=s3_additional_kwargs)
     compression_ext: Optional[str] = _COMPRESSION_2_EXT.get(compression, None)
     if compression_ext is None:
         raise exceptions.InvalidCompression(f"{compression} is invalid, please use None, snappy or gzip.")
     if dataset is False:
+        if path.endswith("/"):  # pragma: no cover
+            raise exceptions.InvalidArgumentValue(
+                "If <dataset=False>, the argument <path> should be a object path, not a directory."
+            )
         if partition_cols:
             raise exceptions.InvalidArgumentCombination("Please, pass dataset=True to be able to use partition_cols.")
         if mode is not None:
@@ -1059,21 +1085,20 @@ def to_parquet(  # pylint: disable=too-many-arguments
             )
         paths = [
             _to_parquet_file(
-                df=df, path=path, schema=None, index=index, compression=compression, cpus=cpus, fs=fs, dtype={}
+                df=df, path=path, schema=None, index=index, compression=compression, cpus=cpus, fs=fs, dtype=dtype
             )
         ]
     else:
         mode = "append" if mode is None else mode
-        if (database is not None) and (table is not None):  # Normalize table to respect Athena's standards
-            df = catalog.sanitize_dataframe_columns_names(df=df)
-            partition_cols = [catalog.sanitize_column_name(p) for p in partition_cols]
-            dtype = {catalog.sanitize_column_name(k): v.lower() for k, v in dtype.items()}
-            columns_comments = {catalog.sanitize_column_name(k): v for k, v in columns_comments.items()}
-            exist: bool = catalog.does_table_exist(database=database, table=table, boto3_session=session)
-            if (exist is True) and (mode in ("append", "overwrite_partitions")):
-                for k, v in catalog.get_table_types(database=database, table=table, boto3_session=session).items():
+        if (
+            (mode in ("append", "overwrite_partitions")) and (database is not None) and (table is not None)
+        ):  # Fetching Catalog Types
+            catalog_types: Optional[Dict[str, str]] = catalog.get_table_types(
+                database=database, table=table, boto3_session=session
+            )
+            if catalog_types is not None:
+                for k, v in catalog_types.items():
                     dtype[k] = v
-        df = catalog.drop_duplicated_columns(df=df)
         paths, partitions_values = _to_parquet_dataset(
             df=df,
             path=path,
@@ -1467,25 +1492,26 @@ def _read_text(
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     if "iterator" in pandas_kwargs:
         raise exceptions.InvalidArgument("Please, use chunksize instead of iterator.")
-    paths: List[str] = _path2list(path=path, boto3_session=boto3_session)
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    paths: List[str] = _path2list(path=path, boto3_session=session)
     _logger.debug("paths:\n%s", paths)
     if chunksize is not None:
         dfs: Iterator[pd.DataFrame] = _read_text_chunksize(
             parser_func=parser_func,
             paths=paths,
-            boto3_session=boto3_session,
+            boto3_session=session,
             chunksize=chunksize,
             pandas_args=pandas_kwargs,
             s3_additional_kwargs=s3_additional_kwargs,
         )
         return dfs
-    if use_threads is False:
+    if (use_threads is False) or (boto3_session is not None):
         df: pd.DataFrame = pd.concat(
             objs=[
                 _read_text_full(
                     parser_func=parser_func,
                     path=p,
-                    boto3_session=boto3_session,
+                    boto3_session=session,
                     pandas_args=pandas_kwargs,
                     s3_additional_kwargs=s3_additional_kwargs,
                 )
@@ -1502,7 +1528,7 @@ def _read_text(
                     _read_text_full,
                     repeat(parser_func),
                     paths,
-                    repeat(boto3_session),
+                    repeat(None),  # Boto3.Session
                     repeat(pandas_kwargs),
                     repeat(s3_additional_kwargs),
                 ),
@@ -1525,7 +1551,8 @@ def _read_text_chunksize(
         _logger.debug("path: %s", path)
         if pandas_args.get("compression", "infer") == "infer":
             pandas_args["compression"] = infer_compression(path, compression="infer")
-        with fs.open(path, "rb") as f:
+        mode: str = "r" if pandas_args.get("compression") is None else "rb"
+        with fs.open(path, mode) as f:
             reader: pandas.io.parsers.TextFileReader = parser_func(f, chunksize=chunksize, **pandas_args)
             for df in reader:
                 yield df
@@ -1541,7 +1568,8 @@ def _read_text_full(
     fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
     if pandas_args.get("compression", "infer") == "infer":
         pandas_args["compression"] = infer_compression(path, compression="infer")
-    with fs.open(path, "rb") as f:
+    mode: str = "r" if pandas_args.get("compression") is None else "rb"
+    with fs.open(path, mode) as f:
         return parser_func(f, **pandas_args)
 
 
@@ -1785,7 +1813,8 @@ def _table2df(table: pa.Table, categories: List[str] = None, use_threads: bool =
 
 def read_parquet_metadata(
     path: Union[str, List[str]],
-    filters: Optional[Union[List[Tuple], List[List[Tuple]]]] = None,
+    dtype: Optional[Dict[str, str]] = None,
+    sampling: float = 1.0,
     dataset: bool = False,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
@@ -1803,8 +1832,15 @@ def read_parquet_metadata(
     ----------
     path : Union[str, List[str]]
         S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
-    filters: Union[List[Tuple], List[List[Tuple]]], optional
-        List of filters to apply, like ``[[('x', '=', 0), ...], ...]``.
+    dtype : Dict[str, str], optional
+        Dictionary of columns names and Athena/Glue types to be casted.
+        Useful when you have columns with undetermined data types as partitions columns.
+        (e.g. {'col name': 'bigint', 'col2 name': 'int'})
+    sampling : float
+        Random sample ratio of files that will have the metadata inspected.
+        Must be `0.0 < sampling <= 1.0`.
+        The higher, the more accurate.
+        The lower, the faster.
     dataset: bool
         If True read a parquet dataset instead of simple file(s) loading all the related partitions as columns.
     use_threads : bool
@@ -1837,19 +1873,75 @@ def read_parquet_metadata(
     ... ])
 
     """
+    return _read_parquet_metadata(
+        path=path, dtype=dtype, sampling=sampling, dataset=dataset, use_threads=use_threads, boto3_session=boto3_session
+    )[:2]
+
+
+def _read_parquet_metadata(
+    path: Union[str, List[str]],
+    dtype: Optional[Dict[str, str]],
+    sampling: float,
+    dataset: bool,
+    use_threads: bool,
+    boto3_session: Optional[boto3.Session],
+) -> Tuple[Dict[str, str], Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]:
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    if dataset is True:
+        if isinstance(path, str):
+            _path: Optional[str] = path if path.endswith("/") else f"{path}/"
+            paths: List[str] = _path2list(path=_path, boto3_session=session)
+        else:  # pragma: no cover
+            raise exceptions.InvalidArgumentType("Argument <path> must be str if dataset=True.")
+    else:
+        if isinstance(path, str):
+            _path = None
+            paths = _path2list(path=path, boto3_session=session)
+        elif isinstance(path, list):
+            _path = None
+            paths = path
+        else:  # pragma: no cover
+            raise exceptions.InvalidArgumentType(f"Argument path must be str or List[str] instead of {type(path)}.")
+    schemas: List[Dict[str, str]] = [
+        _read_parquet_metadata_file(path=x, use_threads=use_threads, boto3_session=session)
+        for x in _utils.list_sampling(lst=paths, sampling=sampling)
+    ]
+    _logger.debug("schemas: %s", schemas)
+    columns_types: Dict[str, str] = {}
+    for schema in schemas:
+        for column, _dtype in schema.items():
+            if (column in columns_types) and (columns_types[column] != _dtype):  # pragma: no cover
+                raise exceptions.InvalidSchemaConvergence(
+                    f"Was detect at least 2 different types in column {column} ({columns_types[column]} and {dtype})."
+                )
+            columns_types[column] = _dtype
+    partitions_types: Optional[Dict[str, str]] = None
+    partitions_values: Optional[Dict[str, List[str]]] = None
+    if (dataset is True) and (_path is not None):
+        partitions_types, partitions_values = _utils.extract_partitions_from_paths(path=_path, paths=paths)
+    if dtype:
+        for k, v in dtype.items():
+            if columns_types and k in columns_types:
+                columns_types[k] = v
+            if partitions_types and k in partitions_types:
+                partitions_types[k] = v
+    _logger.debug("columns_types: %s", columns_types)
+    return columns_types, partitions_types, partitions_values
+
+
+def _read_parquet_metadata_file(path: str, use_threads: bool, boto3_session: boto3.Session) -> Dict[str, str]:
     data: pyarrow.parquet.ParquetDataset = _read_parquet_init(
-        path=path, filters=filters, dataset=dataset, use_threads=use_threads, boto3_session=boto3_session
+        path=path, filters=None, dataset=False, use_threads=use_threads, boto3_session=boto3_session
     )
-    return _data_types.athena_types_from_pyarrow_schema(
-        schema=data.schema.to_arrow_schema(), partitions=data.partitions
-    )
+    return _data_types.athena_types_from_pyarrow_schema(schema=data.schema.to_arrow_schema(), partitions=None)[0]
 
 
 def store_parquet_metadata(
     path: str,
     database: str,
     table: str,
-    filters: Optional[Union[List[Tuple], List[List[Tuple]]]] = None,
+    dtype: Optional[Dict[str, str]] = None,
+    sampling: float = 1.0,
     dataset: bool = False,
     use_threads: bool = True,
     description: Optional[str] = None,
@@ -1885,8 +1977,15 @@ def store_parquet_metadata(
         Glue/Athena catalog: Database name.
     table : str
         Glue/Athena catalog: Table name.
-    filters: Union[List[Tuple], List[List[Tuple]]], optional
-        List of filters to apply, like ``[[('x', '=', 0), ...], ...]``.
+    dtype : Dict[str, str], optional
+        Dictionary of columns names and Athena/Glue types to be casted.
+        Useful when you have columns with undetermined data types as partitions columns.
+        (e.g. {'col name': 'bigint', 'col2 name': 'int'})
+    sampling : float
+        Random sample ratio of files that will have the metadata inspected.
+        Must be `0.0 < sampling <= 1.0`.
+        The higher, the more accurate.
+        The lower, the faster.
     dataset: bool
         If True read a parquet dataset instead of simple file(s) loading all the related partitions as columns.
     use_threads : bool
@@ -1933,13 +2032,15 @@ def store_parquet_metadata(
 
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    data: pyarrow.parquet.ParquetDataset = _read_parquet_init(
-        path=path, filters=filters, dataset=dataset, use_threads=use_threads, boto3_session=session
+    columns_types: Dict[str, str]
+    partitions_types: Optional[Dict[str, str]]
+    partitions_values: Optional[Dict[str, List[str]]]
+    columns_types, partitions_types, partitions_values = _read_parquet_metadata(
+        path=path, dtype=dtype, sampling=sampling, dataset=dataset, use_threads=use_threads, boto3_session=session
     )
-    partitions: Optional[pyarrow.parquet.ParquetPartitions] = data.partitions
-    columns_types, partitions_types = _data_types.athena_types_from_pyarrow_schema(
-        schema=data.schema.to_arrow_schema(), partitions=partitions
-    )
+    _logger.debug("columns_types: %s", columns_types)
+    _logger.debug("partitions_types: %s", partitions_types)
+    _logger.debug("partitions_values: %s", partitions_values)
     catalog.create_parquet_table(
         database=database,
         table=table,
@@ -1953,16 +2054,14 @@ def store_parquet_metadata(
         catalog_versioning=catalog_versioning,
         boto3_session=session,
     )
-    partitions_values: Dict[str, List[str]] = _data_types.athena_partitions_from_pyarrow_partitions(
-        path=path, partitions=partitions
-    )
-    catalog.add_parquet_partitions(
-        database=database,
-        table=table,
-        partitions_values=partitions_values,
-        compression=compression,
-        boto3_session=session,
-    )
+    if (partitions_types is not None) and (partitions_values is not None):
+        catalog.add_parquet_partitions(
+            database=database,
+            table=table,
+            partitions_values=partitions_values,
+            compression=compression,
+            boto3_session=session,
+        )
     return columns_types, partitions_types, partitions_values
 
 
