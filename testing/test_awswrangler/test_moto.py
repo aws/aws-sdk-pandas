@@ -1,4 +1,7 @@
 import boto3
+import mock
+from botocore.exceptions import ClientError
+import botocore
 import moto
 import pytest
 
@@ -50,6 +53,36 @@ def test_parquet(s3):
     ensure_data_types(df, has_list=True)
     assert len(df.index) == 3
     assert len(df.columns) == 18
+
+
+def test_s3_delete_object_success(s3):
+    path = "s3://bucket/test.parquet"
+    wr.s3.to_parquet(df=get_df_list(), path=path, index=False, dataset=True, partition_cols=["par0", "par1"])
+    df = wr.s3.read_parquet(path=path, dataset=True)
+    ensure_data_types(df, has_list=True)
+
+    wr.s3.delete_objects(path=path)
+    with pytest.raises(OSError):
+        wr.s3.read_parquet(path=path, dataset=True)
+
+
+def test_s3_raise_delete_object_exception_success(s3):
+    path = "s3://bucket/test.parquet"
+    wr.s3.to_parquet(df=get_df_list(), path=path, index=False, dataset=True, partition_cols=["par0", "par1"])
+    df = wr.s3.read_parquet(path=path, dataset=True)
+    ensure_data_types(df, has_list=True)
+
+    call = botocore.client.BaseClient._make_api_call
+
+    def mock_make_api_call(self, operation_name, kwarg):
+        if operation_name == 'DeleteObjects':
+            parsed_response = {'Error': {'Code': '500', 'Message': 'Test Error'}}
+            raise ClientError(parsed_response, operation_name)
+        return call(self, operation_name, kwarg)
+
+    with mock.patch('botocore.client.BaseClient._make_api_call', new=mock_make_api_call):
+        with pytest.raises(ClientError):
+            wr.s3.delete_objects(path=path)
 
 
 def test_emr(s3, emr, sts, subnet):
