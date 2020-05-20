@@ -1,9 +1,9 @@
 import boto3
-import mock
-from botocore.exceptions import ClientError
 import botocore
+import mock
 import moto
 import pytest
+from botocore.exceptions import ClientError
 
 import awswrangler as wr
 
@@ -75,12 +75,12 @@ def test_s3_raise_delete_object_exception_success(s3):
     call = botocore.client.BaseClient._make_api_call
 
     def mock_make_api_call(self, operation_name, kwarg):
-        if operation_name == 'DeleteObjects':
-            parsed_response = {'Error': {'Code': '500', 'Message': 'Test Error'}}
+        if operation_name == "DeleteObjects":
+            parsed_response = {"Error": {"Code": "500", "Message": "Test Error"}}
             raise ClientError(parsed_response, operation_name)
         return call(self, operation_name, kwarg)
 
-    with mock.patch('botocore.client.BaseClient._make_api_call', new=mock_make_api_call):
+    with mock.patch("botocore.client.BaseClient._make_api_call", new=mock_make_api_call):
         with pytest.raises(ClientError):
             wr.s3.delete_objects(path=path)
 
