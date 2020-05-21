@@ -936,7 +936,8 @@ def submit_ecr_credentials_refresh(
     client_s3: boto3.client = _utils.client(service_name="s3", session=session)
     bucket, key = _utils.parse_path(path=path_script)
     region: str = _utils.get_region_from_session(boto3_session=boto3_session)
-    client_s3.put_object(Body=_get_ecr_credentials_refresh_content(region).encode(encoding="utf-8"), Bucket=bucket, Key=key)
+    client_s3.put_object(
+        Body=_get_ecr_credentials_refresh_content(region).encode(encoding="utf-8"), Bucket=bucket, Key=key)
     command: str = f"spark-submit --deploy-mode cluster {path_script}"
     name: str = "ECR Credentials Refresh"
     step: Dict[str, Any] = build_step(
