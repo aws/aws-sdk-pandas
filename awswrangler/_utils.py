@@ -187,7 +187,14 @@ def get_region_from_subnet(subnet_id: str, boto3_session: Optional[boto3.Session
     """Extract region from Subnet ID."""
     session: boto3.Session = ensure_session(session=boto3_session)
     client_ec2: boto3.client = client(service_name="ec2", session=session)
+    # This is wrong, when using region ap-south-1
     return client_ec2.describe_subnets(SubnetIds=[subnet_id])["Subnets"][0]["AvailabilityZone"][:9]
+
+
+def get_region_from_session(boto3_session: Optional[boto3.Session] = None) -> str:
+    """Extract region from session."""
+    session: boto3.Session = ensure_session(session=boto3_session)
+    return session.region_name
 
 
 def extract_partitions_from_paths(
