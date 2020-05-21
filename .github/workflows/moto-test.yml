@@ -1,0 +1,30 @@
+name: Moto Test
+
+on:
+  push:
+    branches:
+      - master
+      - dev
+  pull_request:
+    branches:
+      - master
+      - dev
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.6]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Setup Environment
+        run: ./requirements.sh
+      - name: Run moto tests (Minimal tests)
+        run: pytest --timeout=10 testing/test_awswrangler/test_moto.py
