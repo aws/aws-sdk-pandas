@@ -10,11 +10,12 @@ import awswrangler as wr
 from ._utils import ensure_data_types, get_df_csv, get_df_list
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def s3():
     with moto.mock_s3():
-        boto3.resource("s3").create_bucket(Bucket="bucket")
-        yield True
+        s3 = boto3.resource("s3")
+        s3.create_bucket(Bucket="bucket")
+        yield s3
 
 
 @pytest.fixture(scope="module")
@@ -36,6 +37,39 @@ def subnet():
         vpc = ec2.create_vpc(CidrBlock="10.0.0.0/16")
         subnet = ec2.create_subnet(VpcId=vpc.id, CidrBlock="10.0.0.0/24", AvailabilityZone="us-west-1a")
         yield subnet.id
+
+
+def test_get_bucket_region_succeed(s3):
+    region = wr.s3.get_bucket_region('bucket', boto3_session=boto3.Session())
+    assert region == 'us-east-1'
+
+
+def test_object_not_exist_succeed(s3):
+    result = wr.s3.does_object_exist('s3://bucket/test.csv')
+    assert result is False
+
+
+def test_object_exist_succeed(s3):
+    path = "s3://bucket/test.csv"
+    wr.s3.to_csv(df=get_df_csv(), path=path, index=False)
+    result = wr.s3.does_object_exist(path)
+    assert result is True
+
+
+def test_list_directories_succeed(s3):
+    path = "s3://bucket"
+    s3_object1 = s3.Object("bucket", "foo/foo.tmp")
+    s3_object2 = s3.Object("bucket", "bar/bar.tmp")
+    s3_object1.put(Body=b'foo')
+    s3_object2.put(Body=b'bar')
+
+    dirs = wr.s3.list_directories(path)
+    files = wr.s3.list_objects(path)
+
+    assert sorted(dirs) == sorted(["s3://bucket/foo/",
+                                   "s3://bucket/bar/"])
+    assert sorted(files) == sorted(["s3://bucket/foo/foo.tmp",
+                                    "s3://bucket/bar/bar.tmp"])
 
 
 def test_csv(s3):
