@@ -486,7 +486,7 @@ Resources:
       DBInstanceIdentifier: mysql-instance-wrangler
       DBClusterIdentifier:
         Ref: AuroraClusterMysql
-      DBInstanceClass: db.t3.medium
+      DBInstanceClass: db.t3.small
       DBSubnetGroupName:
         Ref: RdsSubnetGroup
       PubliclyAccessible: true
