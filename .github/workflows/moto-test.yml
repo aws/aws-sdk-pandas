@@ -27,4 +27,4 @@ jobs:
       - name: Setup Environment
         run: ./requirements.sh
       - name: Run moto tests (Minimal tests)
-        run: pytest --timeout=10 testing/test_awswrangler/test_moto.py
+        run: pytest testing/test_awswrangler/test_moto.py
