@@ -52,7 +52,6 @@ def _get_default_logging_path(
     else:
         _account_id = account_id
     if (region is None) and (subnet_id is not None):
-        boto3_session = _utils.ensure_session(session=boto3_session)
         _region: str = _utils.get_region_from_session(boto3_session=boto3_session)
     elif (region is None) and (subnet_id is None):
         raise exceptions.InvalidArgumentCombination("You must pass region or subnet_id or both.")
@@ -857,11 +856,7 @@ def build_step(
         if region is not None:  # pragma: no cover
             _region: str = region
         else:
-            session: boto3.Session = _utils.ensure_session(session=boto3_session)
-            if session.region_name is not None:
-                _region = session.region_name
-            else:  # pragma: no cover
-                _region = "us-east-1"
+            _region = _utils.get_region_from_session(boto3_session=boto3_session, default_region="us-east-1")
         jar = f"s3://{_region}.elasticmapreduce/libs/script-runner/script-runner.jar"
     step: Dict[str, Any] = {
         "Name": name,
@@ -937,7 +932,8 @@ def submit_ecr_credentials_refresh(
     bucket, key = _utils.parse_path(path=path_script)
     region: str = _utils.get_region_from_session(boto3_session=boto3_session)
     client_s3.put_object(
-        Body=_get_ecr_credentials_refresh_content(region).encode(encoding="utf-8"), Bucket=bucket, Key=key)
+        Body=_get_ecr_credentials_refresh_content(region=region).encode(encoding="utf-8"), Bucket=bucket, Key=key
+    )
     command: str = f"spark-submit --deploy-mode cluster {path_script}"
     name: str = "ECR Credentials Refresh"
     step: Dict[str, Any] = build_step(
@@ -949,7 +945,7 @@ def submit_ecr_credentials_refresh(
     return response["StepIds"][0]
 
 
-def _get_ecr_credentials_refresh_content(region) -> str:
+def _get_ecr_credentials_refresh_content(region: str) -> str:
     return f"""
 import subprocess
 from pyspark.sql import SparkSession
