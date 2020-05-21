@@ -26,5 +26,5 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Setup Environment
         run: ./requirements.sh
-      - name: Run moto tests (Minimal tests)
-        run: pytest testing/test_awswrangler/test_moto.py
+      - name: Run Moto test (Minimal test)
+        run: pytest -n 1 testing/test_awswrangler/test_moto.py
