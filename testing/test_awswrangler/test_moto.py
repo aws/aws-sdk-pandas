@@ -72,6 +72,14 @@ def test_list_directories_succeed(s3):
                                     "s3://bucket/bar/bar.tmp"])
 
 
+def test_describe_no_object_succeed(s3):
+
+    desc = wr.s3.describe_objects("s3://bucket")
+
+    assert isinstance(desc, dict)
+    assert desc == {}
+
+
 def test_describe_one_object_succeed(s3):
     bucket = "bucket"
     key = "foo/foo.tmp"
@@ -79,7 +87,7 @@ def test_describe_one_object_succeed(s3):
     s3_object.put(Body=b'foo')
 
     desc = wr.s3.describe_objects("s3://{}/{}".format(bucket, key))
-    print(desc)
+
     assert isinstance(desc, dict)
     assert list(desc.keys()) == ['s3://bucket/foo/foo.tmp']
 
