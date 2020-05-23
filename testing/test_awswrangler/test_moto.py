@@ -72,6 +72,62 @@ def test_list_directories_succeed(s3):
                                     "s3://bucket/bar/bar.tmp"])
 
 
+def test_describe_no_object_succeed(s3):
+
+    desc = wr.s3.describe_objects("s3://bucket")
+
+    assert isinstance(desc, dict)
+    assert desc == {}
+
+
+def test_describe_one_object_succeed(s3):
+    bucket = "bucket"
+    key = "foo/foo.tmp"
+    s3_object = s3.Object(bucket, key)
+    s3_object.put(Body=b'foo')
+
+    desc = wr.s3.describe_objects("s3://{}/{}".format(bucket, key))
+
+    assert isinstance(desc, dict)
+    assert list(desc.keys()) == ['s3://bucket/foo/foo.tmp']
+
+
+def test_describe_list_of_objects_succeed(s3):
+    bucket = "bucket"
+    keys = ["foo/foo.tmp",
+            "bar/bar.tmp"]
+
+    for key in keys:
+        s3_object = s3.Object(bucket, key)
+        s3_object.put(Body=b'test')
+
+    desc = wr.s3.describe_objects(
+        ["s3://{}/{}".format(bucket, key) for key in keys]
+    )
+
+    assert isinstance(desc, dict)
+    assert sorted(list(desc.keys())) == sorted(["s3://bucket/foo/foo.tmp",
+                                                "s3://bucket/bar/bar.tmp"])
+
+
+def test_describe_list_of_objects_under_same_prefix_succeed(s3):
+    bucket = "bucket"
+    keys = ["foo/foo.tmp",
+            "bar/bar.tmp"]
+
+    for key in keys:
+        s3_object = s3.Object(bucket, key)
+        s3_object.put(Body=b'test')
+
+    desc = wr.s3.describe_objects(
+        "s3://{}".format(bucket)
+    )
+
+    assert isinstance(desc, dict)
+    assert sorted(list(desc.keys())) == sorted(["s3://bucket/foo/foo.tmp",
+                                                "s3://bucket/bar/bar.tmp"])
+
+
 def test_csv(s3):
     path = "s3://bucket/test.csv"
     wr.s3.to_csv(df=get_df_csv(), path=path, index=False)
