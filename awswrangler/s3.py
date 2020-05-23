@@ -355,8 +355,8 @@ def describe_objects(
         cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
             resp_list = list(executor.map(_describe_object, paths, repeat(wait_time), repeat(client_s3)))
-    desc_list: Dict[str, Dict[str, Any]] = dict(resp_list)
-    return desc_list
+    desc_dict: Dict[str, Dict[str, Any]] = dict(resp_list)
+    return desc_dict
 
 
 def _describe_object(
