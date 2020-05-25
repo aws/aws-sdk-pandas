@@ -425,8 +425,8 @@ def size_objects(
     desc_list: Dict[str, Dict[str, Any]] = describe_objects(
         path=path, wait_time=wait_time, use_threads=use_threads, boto3_session=boto3_session
     )
-    size_list: Dict[str, Optional[int]] = {k: d.get("ContentLength", None) for k, d in desc_list.items()}
-    return size_list
+    size_dict: Dict[str, Optional[int]] = {k: d.get("ContentLength", None) for k, d in desc_list.items()}
+    return size_dict
 
 
 def to_csv(  # pylint: disable=too-many-arguments
