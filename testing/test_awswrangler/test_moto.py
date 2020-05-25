@@ -39,6 +39,14 @@ def subnet():
         yield subnet.id
 
 
+def get_content_md5(desc: dict):
+    result = desc\
+        .get('ResponseMetadata') \
+        .get('HTTPHeaders') \
+        .get('content-md5')
+    return result
+
+
 def test_get_bucket_region_succeed(s3):
     region = wr.s3.get_bucket_region('bucket', boto3_session=boto3.Session())
     assert region == 'us-east-1'
@@ -126,6 +134,93 @@ def test_describe_list_of_objects_under_same_prefix_succeed(s3):
     assert isinstance(desc, dict)
     assert sorted(list(desc.keys())) == sorted(["s3://bucket/foo/foo.tmp",
                                                 "s3://bucket/bar/bar.tmp"])
+
+
+def test_size_objects_without_object_succeed(s3):
+    size = wr.s3.size_objects("s3://bucket")
+
+    assert isinstance(size, dict)
+    assert size == {}
+
+
+def test_size_list_of_objects_succeed(s3):
+    bucket = "bucket"
+    s3_object1 = s3.Object(bucket, "foo/foo.tmp")
+    s3_object2 = s3.Object(bucket, "bar/bar.tmp")
+    s3_object1.put(Body=b'foofoo')
+    s3_object2.put(Body=b'bar')
+
+    size = wr.s3.size_objects("s3://{}".format(bucket))
+
+    assert isinstance(size, dict)
+    assert size == {"s3://bucket/foo/foo.tmp": 6,
+                    "s3://bucket/bar/bar.tmp": 3}
+
+
+def test_copy_one_object_without_replace_filename_succeed(s3):
+    bucket = "bucket"
+    key = "foo/foo.tmp"
+    s3_object = s3.Object(bucket, key)
+    s3_object.put(Body=b'foo')
+
+    wr.s3.copy_objects(paths=["s3://{}/{}".format(bucket, key)],
+                       source_path="s3://{}/foo".format(bucket),
+                       target_path="s3://bucket/bar")
+
+    desc_source = wr.s3.describe_objects("s3://bucket/foo/foo.tmp")
+    desc_target = wr.s3.describe_objects("s3://bucket/bar/foo.tmp")
+
+    assert get_content_md5(desc_target.get('s3://bucket/bar/foo.tmp')) == \
+           get_content_md5(desc_source.get('s3://bucket/foo/foo.tmp'))
+
+
+def test_copy_one_object_with_replace_filename_succeed(s3):
+    bucket = "bucket"
+    key = "foo/foo.tmp"
+    s3_object = s3.Object(bucket, key)
+    s3_object.put(Body=b'foo')
+
+    wr.s3.copy_objects(paths=["s3://{}/{}".format(bucket, key)],
+                       source_path="s3://{}/foo".format(bucket),
+                       target_path="s3://bucket/bar",
+                       replace_filenames={"foo.tmp": "bar.tmp"})
+
+    desc_source = wr.s3.describe_objects("s3://bucket/foo/foo.tmp")
+    desc_target = wr.s3.describe_objects("s3://bucket/bar/bar.tmp")
+
+    assert get_content_md5(desc_target.get('s3://bucket/bar/bar.tmp')) ==\
+           get_content_md5(desc_source.get('s3://bucket/foo/foo.tmp'))
+
+
+def test_copy_objects_without_replace_filename_succeed(s3):
+    bucket = "bucket"
+    keys = ["foo/foo1.tmp",
+            "foo/foo2.tmp",
+            "foo/foo3.tmp"]
+
+    for key in keys:
+        s3_object = s3.Object(bucket, key)
+        s3_object.put(Body=b'foo')
+
+    wr.s3.copy_objects(paths=["s3://{}/{}".format(bucket, key) for key in keys],
+                       source_path="s3://{}/foo".format(bucket),
+                       target_path="s3://bucket/bar")
+
+    desc_source = wr.s3.describe_objects(
+        "s3://{}/foo".format(bucket)
+    )
+    desc_target = wr.s3.describe_objects(
+        "s3://{}/bar".format(bucket)
+    )
+
+    assert isinstance(desc_target, dict)
+    assert len(desc_source) == 3
+    assert len(desc_target) == 3
+    assert sorted(list(desc_target.keys())) == sorted(
+        ["s3://bucket/bar/foo1.tmp",
+         "s3://bucket/bar/foo2.tmp",
+         "s3://bucket/bar/foo3.tmp"]
+    )
 
 
 def test_csv(s3):
