@@ -341,12 +341,12 @@ def athena_types_from_pandas_partitioned(
         df=df, index=index, dtype=dtype, index_left=index_left
     )
     columns_types: Dict[str, str] = {}
+    for col, typ in athena_columns_types.items():
+        if col not in partitions:
+            columns_types[col] = typ
     partitions_types: Dict[str, str] = {}
-    for k, v in athena_columns_types.items():
-        if k in partitions:
-            partitions_types[k] = v
-        else:
-            columns_types[k] = v
+    for par in partitions:
+        partitions_types[par] = athena_columns_types[par]
     return columns_types, partitions_types
 
 
