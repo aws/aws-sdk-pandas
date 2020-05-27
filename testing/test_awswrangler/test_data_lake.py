@@ -1295,9 +1295,7 @@ def test_athena_encryption(
     assert len(df2.columns) == 2
 
 
-def test_athena_nested(bucket, database):
-    table = "test_athena_nested"
-    path = f"s3://{bucket}/{table}/"
+def test_athena_nested(path, database, table):
     df = pd.DataFrame(
         {
             "c0": [[1, 2, 3], [4, 5, 6]],
@@ -2142,3 +2140,45 @@ def test_to_parquet_reverse_partitions(database, table, path, partition_cols):
     assert df.c0.sum() == df2.c0.sum()
     assert df.c1.sum() == df2.c1.sum()
     assert df.c2.sum() == df2.c2.sum()
+
+
+def test_to_parquet_nested_append(database, table, path):
+    df = pd.DataFrame(
+        {
+            "c0": [[1, 2, 3], [4, 5, 6]],
+            "c1": [[[1, 2], [3, 4]], [[5, 6], [7, 8]]],
+            "c2": [[["a", "b"], ["c", "d"]], [["e", "f"], ["g", "h"]]],
+            "c3": [[], [[[[[[[[1]]]]]]]]],
+            "c4": [{"a": 1}, {"a": 1}],
+            "c5": [{"a": {"b": {"c": [1, 2]}}}, {"a": {"b": {"c": [3, 4]}}}],
+        }
+    )
+    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, database=database, table=table)["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df2 = wr.athena.read_sql_query(sql=f"SELECT c0, c1, c2, c4 FROM {table}", database=database)
+    assert len(df2.index) == 2
+    assert len(df2.columns) == 4
+    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, database=database, table=table)["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df2 = wr.athena.read_sql_query(sql=f"SELECT c0, c1, c2, c4 FROM {table}", database=database)
+    assert len(df2.index) == 4
+    assert len(df2.columns) == 4
+
+
+def test_to_parquet_nested_cast(database, table, path):
+    df = pd.DataFrame({"c0": [[1, 2, 3], [4, 5, 6]], "c1": [[], []], "c2": [{"a": 1, "b": 2}, {"a": 3, "b": 4}]})
+    paths = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        database=database,
+        table=table,
+        dtype={"c0": "array<double>", "c1": "array<string>", "c2": "struct<a:bigint, b:double>"},
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df = pd.DataFrame({"c0": [[1, 2, 3], [4, 5, 6]], "c1": [["a"], ["b"]], "c2": [{"a": 1, "b": 2}, {"a": 3, "b": 4}]})
+    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, database=database, table=table)["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df2 = wr.athena.read_sql_query(sql=f"SELECT c0, c2 FROM {table}", database=database)
+    assert len(df2.index) == 4
+    assert len(df2.columns) == 2
