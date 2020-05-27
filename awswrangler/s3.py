@@ -502,19 +502,18 @@ def to_csv(  # pylint: disable=too-many-arguments
         Glue/Athena catalog: Database name.
     table : str, optional
         Glue/Athena catalog: Table name.
-    dtype: Dict[str, str], optional
+    dtype : Dict[str, str], optional
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined or mixed data types.
-        Only takes effect if dataset=True.
         (e.g. {'col name': 'bigint', 'col2 name': 'int'})
-    description: str, optional
+    description : str, optional
         Glue/Athena catalog: Table description
-    parameters: Dict[str, str], optional
+    parameters : Dict[str, str], optional
         Glue/Athena catalog: Key/value pairs to tag the table.
-    columns_comments: Dict[str, str], optional
+    columns_comments : Dict[str, str], optional
         Glue/Athena catalog:
         Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
-    pandas_kwargs:
+    pandas_kwargs :
         keyword arguments forwarded to pandas.DataFrame.to_csv()
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_csv.html
 
@@ -925,16 +924,15 @@ def to_parquet(  # pylint: disable=too-many-arguments
         Glue/Athena catalog: Database name.
     table : str, optional
         Glue/Athena catalog: Table name.
-    dtype: Dict[str, str], optional
+    dtype : Dict[str, str], optional
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined or mixed data types.
-        Only takes effect if dataset=True.
         (e.g. {'col name': 'bigint', 'col2 name': 'int'})
-    description: str, optional
+    description : str, optional
         Glue/Athena catalog: Table description
-    parameters: Dict[str, str], optional
+    parameters : Dict[str, str], optional
         Glue/Athena catalog: Key/value pairs to tag the table.
-    columns_comments: Dict[str, str], optional
+    columns_comments : Dict[str, str], optional
         Glue/Athena catalog:
         Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
 
