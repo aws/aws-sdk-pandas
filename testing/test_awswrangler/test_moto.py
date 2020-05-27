@@ -2,11 +2,12 @@ import boto3
 import botocore
 import mock
 import moto
+import pandas as pd
 import pytest
 from botocore.exceptions import ClientError
 
 import awswrangler as wr
-
+from awswrangler.exceptions import InvalidArgumentCombination, EmptyDataFrame
 from ._utils import ensure_data_types, get_df_csv, get_df_list
 
 
@@ -215,6 +216,21 @@ def test_csv(s3):
     df = wr.s3.read_csv(path=path)
     assert len(df.index) == 3
     assert len(df.columns) == 10
+
+
+def test_to_csv_invalid_argument_combination_raise(s3):
+    path = "s3://bucket/test.csv"
+    with pytest.raises(InvalidArgumentCombination):
+        wr.s3.to_csv(df=get_df_csv(), path=path, index=False, database='foo')
+
+    with pytest.raises(InvalidArgumentCombination):
+        wr.s3.to_csv(df=get_df_csv(), path=path, index=False, table='foo')
+
+
+def test_to_csv_data_empty_raise(s3):
+    path = "s3://bucket/test.csv"
+    with pytest.raises(EmptyDataFrame):
+        wr.s3.to_csv(df=pd.DataFrame(), path=path, index=False)
 
 
 def test_parquet(s3):
