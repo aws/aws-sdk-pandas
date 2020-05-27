@@ -2128,3 +2128,17 @@ def test_store_parquet_metadata_modes(database, table, path, external_schema):
     assert len(df3.columns) == 3
     assert len(df3.index) == 4
     assert df3.c1.astype(int).sum() == 6
+
+
+@pytest.mark.parametrize("partition_cols", [None, ["c1"], ["c2"], ["c1", "c2"], ["c2", "c1"]])
+def test_to_parquet_reverse_partitions(database, table, path, partition_cols):
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5], "c2": [6, 7, 8]})
+    paths = wr.s3.to_parquet(
+        df=df, path=path, dataset=True, database=database, table=table, partition_cols=partition_cols
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df2 = wr.athena.read_sql_table(table=table, database=database)
+    assert df.shape == df2.shape
+    assert df.c0.sum() == df2.c0.sum()
+    assert df.c1.sum() == df2.c1.sum()
+    assert df.c2.sum() == df2.c2.sum()
