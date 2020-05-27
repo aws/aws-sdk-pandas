@@ -1708,7 +1708,7 @@ def test_to_parquet_modes(database, table, path, external_schema):
     assert df.shape == df2.shape
     assert df.c0.sum() == df2.c0.sum()
     parameters = wr.catalog.get_table_parameters(database, table)
-    assert len(parameters) == 5
+    assert len(parameters) >= 5
     assert parameters["num_cols"] == str(len(df2.columns))
     assert parameters["num_rows"] == str(len(df2.index))
     assert wr.catalog.get_table_description(database, table) == "c0"
@@ -1734,7 +1734,7 @@ def test_to_parquet_modes(database, table, path, external_schema):
     assert df.shape == df2.shape
     assert df.c1.sum() == df2.c1.sum()
     parameters = wr.catalog.get_table_parameters(database, table)
-    assert len(parameters) == 5
+    assert len(parameters) >= 5
     assert parameters["num_cols"] == str(len(df2.columns))
     assert parameters["num_rows"] == str(len(df2.index))
     assert wr.catalog.get_table_description(database, table) == "c1"
@@ -1761,7 +1761,7 @@ def test_to_parquet_modes(database, table, path, external_schema):
     assert len(df.index) * 2 == len(df2.index)
     assert df.c1.sum() + 1 == df2.c1.sum()
     parameters = wr.catalog.get_table_parameters(database, table)
-    assert len(parameters) == 5
+    assert len(parameters) >= 5
     assert parameters["num_cols"] == str(len(df2.columns))
     assert parameters["num_rows"] == str(len(df2.index))
     assert wr.catalog.get_table_description(database, table) == "c1"
@@ -1788,7 +1788,7 @@ def test_to_parquet_modes(database, table, path, external_schema):
     assert len(df2.index) == 9
     assert df2.c1.sum() == 3
     parameters = wr.catalog.get_table_parameters(database, table)
-    assert len(parameters) == 5
+    assert len(parameters) >= 5
     assert parameters["num_cols"] == "2"
     assert parameters["num_rows"] == "9"
     assert wr.catalog.get_table_description(database, table) == "c1+c2"
@@ -1816,7 +1816,7 @@ def test_to_parquet_modes(database, table, path, external_schema):
     assert len(df2.index) == 10
     assert df2.c1.sum() == 4
     parameters = wr.catalog.get_table_parameters(database, table)
-    assert len(parameters) == 5
+    assert len(parameters) >= 5
     assert parameters["num_cols"] == "3"
     assert parameters["num_rows"] == "10"
     assert wr.catalog.get_table_description(database, table) == "c1+c2+c3"
@@ -1850,7 +1850,7 @@ def test_to_parquet_modes(database, table, path, external_schema):
     assert df.shape == df2.shape
     assert df.c1.sum() == df2.c1.sum()
     parameters = wr.catalog.get_table_parameters(database, table)
-    assert len(parameters) == 5
+    assert len(parameters) >= 5
     assert parameters["num_cols"] == "2"
     assert parameters["num_rows"] == "2"
     assert wr.catalog.get_table_description(database, table) == "c0+c1"
@@ -1879,7 +1879,7 @@ def test_to_parquet_modes(database, table, path, external_schema):
     assert len(df2.index) == 3
     assert df2.c1.sum() == 3
     parameters = wr.catalog.get_table_parameters(database, table)
-    assert len(parameters) == 5
+    assert len(parameters) >= 5
     assert parameters["num_cols"] == "2"
     assert parameters["num_rows"] == "3"
     assert wr.catalog.get_table_description(database, table) == "c0+c1"
@@ -1908,7 +1908,7 @@ def test_to_parquet_modes(database, table, path, external_schema):
     assert len(df2.index) == 4
     assert df2.c1.sum() == 6
     parameters = wr.catalog.get_table_parameters(database, table)
-    assert len(parameters) == 5
+    assert len(parameters) >= 5
     assert parameters["num_cols"] == "3"
     assert parameters["num_rows"] == "4"
     assert wr.catalog.get_table_description(database, table) == "c0+c1+c2"
@@ -1944,7 +1944,7 @@ def test_store_parquet_metadata_modes(database, table, path, external_schema):
     assert df.shape == df2.shape
     assert df.c0.sum() == df2.c0.sum()
     parameters = wr.catalog.get_table_parameters(database, table)
-    assert len(parameters) == 5
+    assert len(parameters) >= 5
     assert parameters["num_cols"] == str(len(df2.columns))
     assert parameters["num_rows"] == str(len(df2.index))
     assert wr.catalog.get_table_description(database, table) == "c0"
@@ -1970,7 +1970,7 @@ def test_store_parquet_metadata_modes(database, table, path, external_schema):
     assert df.shape == df2.shape
     assert df.c1.sum() == df2.c1.sum()
     parameters = wr.catalog.get_table_parameters(database, table)
-    assert len(parameters) == 5
+    assert len(parameters) >= 5
     assert parameters["num_cols"] == str(len(df2.columns))
     assert parameters["num_rows"] == str(len(df2.index))
     assert wr.catalog.get_table_description(database, table) == "c1"
@@ -1997,7 +1997,7 @@ def test_store_parquet_metadata_modes(database, table, path, external_schema):
     assert len(df.index) * 2 == len(df2.index)
     assert df.c1.sum() + 1 == df2.c1.sum()
     parameters = wr.catalog.get_table_parameters(database, table)
-    assert len(parameters) == 5
+    assert len(parameters) >= 5
     assert parameters["num_cols"] == str(len(df2.columns))
     assert parameters["num_rows"] == str(len(df2.index))
     assert wr.catalog.get_table_description(database, table) == "c1"
@@ -2025,7 +2025,7 @@ def test_store_parquet_metadata_modes(database, table, path, external_schema):
     assert len(df2.index) == 9
     assert df2.c1.sum() == 4
     parameters = wr.catalog.get_table_parameters(database, table)
-    assert len(parameters) == 5
+    assert len(parameters) >= 5
     assert parameters["num_cols"] == "2"
     assert parameters["num_rows"] == "9"
     assert wr.catalog.get_table_description(database, table) == "c1+c2"
@@ -2052,7 +2052,7 @@ def test_store_parquet_metadata_modes(database, table, path, external_schema):
     assert df.shape == df2.shape
     assert df.c1.sum() == df2.c1.astype(int).sum()
     parameters = wr.catalog.get_table_parameters(database, table)
-    assert len(parameters) == 5
+    assert len(parameters) >= 5
     assert parameters["num_cols"] == "2"
     assert parameters["num_rows"] == "2"
     assert wr.catalog.get_table_description(database, table) == "c0+c1"
@@ -2082,7 +2082,7 @@ def test_store_parquet_metadata_modes(database, table, path, external_schema):
     assert len(df2.index) == 3
     assert df2.c1.astype(int).sum() == 3
     parameters = wr.catalog.get_table_parameters(database, table)
-    assert len(parameters) == 5
+    assert len(parameters) >= 5
     assert parameters["num_cols"] == "2"
     assert parameters["num_rows"] == "3"
     assert wr.catalog.get_table_description(database, table) == "c0+c1"
@@ -2112,7 +2112,7 @@ def test_store_parquet_metadata_modes(database, table, path, external_schema):
     assert len(df2.index) == 4
     assert df2.c1.astype(int).sum() == 6
     parameters = wr.catalog.get_table_parameters(database, table)
-    assert len(parameters) == 5
+    assert len(parameters) >= 5
     assert parameters["num_cols"] == "3"
     assert parameters["num_rows"] == "4"
     assert wr.catalog.get_table_description(database, table) == "c0+c1+c2"
