@@ -7,7 +7,8 @@ import pytest
 from botocore.exceptions import ClientError
 
 import awswrangler as wr
-from awswrangler.exceptions import InvalidArgumentCombination, EmptyDataFrame
+from awswrangler.exceptions import EmptyDataFrame, InvalidArgumentCombination
+
 from ._utils import ensure_data_types, get_df_csv, get_df_list
 
 
@@ -221,94 +222,45 @@ def test_csv(s3):
 def test_to_csv_invalid_argument_combination_raise_when_dataset_false_succeed(s3):
     path = "s3://bucket/test.csv"
     with pytest.raises(InvalidArgumentCombination):
-        wr.s3.to_csv(df=get_df_csv(), path=path, index=False, database='foo')
+        wr.s3.to_csv(df=get_df_csv(), path=path, index=False, database="foo")
 
     with pytest.raises(InvalidArgumentCombination):
-        wr.s3.to_csv(df=get_df_csv(), path=path, index=False, table='foo')
+        wr.s3.to_csv(df=get_df_csv(), path=path, index=False, table="foo")
 
     with pytest.raises(InvalidArgumentCombination):
-        wr.s3.to_csv(df=get_df_csv(),
-                     path=path,
-                     index=False,
-                     dataset=False,
-                     partition_cols=["par0", "par1"])
+        wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=False, partition_cols=["par0", "par1"])
 
     with pytest.raises(InvalidArgumentCombination):
-        wr.s3.to_csv(df=get_df_csv(),
-                     path=path,
-                     index=False,
-                     dataset=False,
-                     mode='append')
+        wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=False, mode="append")
 
     with pytest.raises(InvalidArgumentCombination):
-        wr.s3.to_csv(df=get_df_csv(),
-                     path=path,
-                     index=False,
-                     dataset=False,
-                     partition_cols=["par0", "par1"])
+        wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=False, partition_cols=["par0", "par1"])
 
     with pytest.raises(InvalidArgumentCombination):
-        wr.s3.to_csv(df=get_df_csv(),
-                     path=path,
-                     index=False,
-                     dataset=False,
-                     database='default',
-                     table='test')
+        wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=False, database="default", table="test")
 
     with pytest.raises(InvalidArgumentCombination):
-        wr.s3.to_csv(df=get_df_csv(),
-                     path=path,
-                     index=False,
-                     dataset=False,
-                     description='raise exception')
+        wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=False, description="raise exception")
 
     with pytest.raises(InvalidArgumentCombination):
-        wr.s3.to_csv(df=get_df_csv(),
-                     path=path,
-                     index=False,
-                     dataset=False,
-                     parameters={'key': 'value'})
+        wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=False, parameters={"key": "value"})
 
     with pytest.raises(InvalidArgumentCombination):
-        wr.s3.to_csv(df=get_df_csv(),
-                     path=path,
-                     index=False,
-                     dataset=False,
-                     columns_comments={'col0': 'test'})
+        wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=False, columns_comments={"col0": "test"})
 
 
 def test_to_csv_valid_argument_combination_when_dataset_true_succeed(s3):
     path = "s3://bucket/test.csv"
     wr.s3.to_csv(df=get_df_csv(), path=path, index=False)
-    wr.s3.to_csv(df=get_df_csv(),
-                 path=path,
-                 index=False,
-                 dataset=True,
-                 partition_cols=["par0", "par1"])
+    wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=True, partition_cols=["par0", "par1"])
 
-    wr.s3.to_csv(df=get_df_csv(),
-                 path=path,
-                 index=False,
-                 dataset=True,
-                 mode='append')
+    wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=True, mode="append")
 
-    wr.s3.to_csv(df=get_df_csv(),
-                 path=path,
-                 index=False,
-                 dataset=True,
-                 description='raise exception')
+    wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=True, description="raise exception")
 
-    wr.s3.to_csv(df=get_df_csv(),
-                 path=path,
-                 index=False,
-                 dataset=True,
-                 parameters={'key': 'value'})
+    wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=True, parameters={"key": "value"})
 
-    wr.s3.to_csv(df=get_df_csv(),
-                 path=path,
-                 index=False,
-                 dataset=True,
-                 columns_comments={'col0': 'test'})
+    wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=True, columns_comments={"col0": "test"})
 
 
 def test_to_csv_data_empty_raise_succeed(s3):

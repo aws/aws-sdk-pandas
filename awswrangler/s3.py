@@ -1679,7 +1679,7 @@ def _read_parquet_init(
         read_dictionary=categories,
         validate_schema=validate_schema,
         split_row_groups=False,
-        use_legacy_dataset=True
+        use_legacy_dataset=True,
     )
     return data
 

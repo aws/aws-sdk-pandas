@@ -36,3 +36,7 @@ jobs:
         run: flake8 setup.py awswrangler testing/test_awswrangler
       - name: Pylint Lint
         run: pylint -j 0 awswrangler
+      - name: Black style
+        run: black --check --line-length 120 --target-version py36 awswrangler testing/test_awswrangler
+      - name: Imports order check (isort)
+        run: isort -rc --check-only awswrangler testing/test_awswrangler

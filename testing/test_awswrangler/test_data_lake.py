@@ -14,9 +14,19 @@ import pytest
 
 import awswrangler as wr
 
-from ._utils import (CFN_VALID_STATUS, ensure_data_types, ensure_data_types_category, ensure_data_types_csv, get_df,
-                     get_df_cast, get_df_category, get_df_csv, get_df_list, get_query_long,
-                     get_time_str_with_random_suffix)
+from ._utils import (
+    CFN_VALID_STATUS,
+    ensure_data_types,
+    ensure_data_types_category,
+    ensure_data_types_csv,
+    get_df,
+    get_df_cast,
+    get_df_category,
+    get_df_csv,
+    get_df_list,
+    get_query_long,
+    get_time_str_with_random_suffix,
+)
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
