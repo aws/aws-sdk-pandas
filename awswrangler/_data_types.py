@@ -21,7 +21,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 def athena2pyarrow(dtype: str) -> pa.DataType:  # pylint: disable=too-many-return-statements
     """Athena to PyArrow data types conversion."""
-    dtype = dtype.lower()
+    dtype = dtype.lower().replace(" ", "")
     if dtype == "tinyint":
         return pa.int8()
     if dtype == "smallint":
@@ -47,6 +47,12 @@ def athena2pyarrow(dtype: str) -> pa.DataType:  # pylint: disable=too-many-retur
     if dtype.startswith("decimal"):
         precision, scale = dtype.replace("decimal(", "").replace(")", "").split(sep=",")
         return pa.decimal128(precision=int(precision), scale=int(scale))
+    if dtype.startswith("array"):
+        return pa.large_list(athena2pyarrow(dtype=dtype[6:-1]))
+    if dtype.startswith("struct"):
+        return pa.struct([(f.split(":", 1)[0], athena2pyarrow(f.split(":", 1)[1])) for f in dtype[7:-1].split(",")])
+    if dtype.startswith("map"):  # pragma: no cover
+        return pa.map_(athena2pyarrow(dtype[4:-1].split(",", 1)[0]), athena2pyarrow(dtype[4:-1].split(",", 1)[1]))
     raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")  # pragma: no cover
 
 
@@ -77,8 +83,6 @@ def athena2pandas(dtype: str) -> str:  # pylint: disable=too-many-branches,too-m
         return "decimal"
     if dtype in ("binary", "varbinary"):
         return "bytes"
-    if dtype == "array":  # pragma: no cover
-        return "list"
     raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")  # pragma: no cover
 
 
@@ -143,9 +147,9 @@ def pyarrow2athena(dtype: pa.DataType) -> str:  # pylint: disable=too-many-branc
     if pa.types.is_list(dtype):
         return f"array<{pyarrow2athena(dtype=dtype.value_type)}>"
     if pa.types.is_struct(dtype):
-        return f"struct<{', '.join([f'{f.name}:{pyarrow2athena(dtype=f.type)}' for f in dtype])}>"
+        return f"struct<{','.join([f'{f.name}:{pyarrow2athena(dtype=f.type)}' for f in dtype])}>"
     if pa.types.is_map(dtype):  # pragma: no cover
-        return f"map<{pyarrow2athena(dtype=dtype.key_type)},{pyarrow2athena(dtype=dtype.item_type)}>"
+        return f"map<{pyarrow2athena(dtype=dtype.key_type)}, {pyarrow2athena(dtype=dtype.item_type)}>"
     if dtype == pa.null():
         raise exceptions.UndetectedType("We can not infer the data type from an entire null object column")
     raise exceptions.UnsupportedType(f"Unsupported Pyarrow type: {dtype}")  # pragma: no cover
@@ -321,7 +325,7 @@ def athena_types_from_pandas(
     athena_columns_types: Dict[str, str] = {}
     for k, v in pa_columns_types.items():
         if v is None:
-            athena_columns_types[k] = casts[k]
+            athena_columns_types[k] = casts[k].replace(" ", "")
         else:
             athena_columns_types[k] = pyarrow2athena(dtype=v)
     _logger.debug("athena_columns_types: %s", athena_columns_types)
@@ -384,7 +388,12 @@ def athena_types_from_pyarrow_schema(
 def cast_pandas_with_athena_types(df: pd.DataFrame, dtype: Dict[str, str]) -> pd.DataFrame:
     """Cast columns in a Pandas DataFrame."""
     for col, athena_type in dtype.items():
-        if col in df.columns:
+        if (
+            (col in df.columns)
+            and (not athena_type.startswith("array"))
+            and (not athena_type.startswith("struct"))
+            and (not athena_type.startswith("map"))
+        ):
             pandas_type: str = athena2pandas(dtype=athena_type)
             if pandas_type == "datetime64":
                 df[col] = pd.to_datetime(df[col])
