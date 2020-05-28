@@ -677,6 +677,8 @@ def to_csv(  # pylint: disable=too-many-arguments
             raise exceptions.InvalidArgumentCombination("Please, pass dataset=True to be able to use partition_cols.")
         if mode is not None:
             raise exceptions.InvalidArgumentCombination("Please pass dataset=True to be able to use mode.")
+        if columns_comments:
+            raise exceptions.InvalidArgumentCombination("Please pass dataset=True to be able to use columns_comments.")
         if any(arg is not None for arg in (database, table, description, parameters)):
             raise exceptions.InvalidArgumentCombination(
                 "Please pass dataset=True to be able to use any one of these "
