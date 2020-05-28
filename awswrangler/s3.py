@@ -1677,6 +1677,7 @@ def _read_parquet_init(
         read_dictionary=categories,
         validate_schema=validate_schema,
         split_row_groups=False,
+        use_legacy_dataset=True
     )
     return data
 
@@ -1723,7 +1724,7 @@ def read_parquet(
     path : Union[str, List[str]]
         S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
     filters: Union[List[Tuple], List[List[Tuple]]], optional
-        List of filters to apply, like ``[[('x', '=', 0), ...], ...]``.
+        List of filters to apply (Only on partition columns), like ``[[('x', '=', 0), ...], ...]``.
     columns : List[str], optional
         Names of columns to read from the file(s).
     validate_schema:
