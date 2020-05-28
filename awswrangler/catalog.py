@@ -94,6 +94,12 @@ def create_parquet_table(
     columns_comments: Optional[Dict[str, str]] = None,
     mode: str = "overwrite",
     catalog_versioning: bool = False,
+    projection_enabled: bool = False,
+    projection_types: Optional[Dict[str, str]] = None,
+    projection_ranges: Optional[Dict[str, str]] = None,
+    projection_values: Optional[Dict[str, str]] = None,
+    projection_intervals: Optional[Dict[str, str]] = None,
+    projection_digits: Optional[Dict[str, str]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
     """Create a Parquet Table (Metadata Only) in the AWS Glue Catalog.
@@ -124,6 +130,29 @@ def create_parquet_table(
         'overwrite' to recreate any possible existing table or 'append' to keep any possible existing table.
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
+    projection_enabled : bool
+        Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
+    projection_types : Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections types.
+        Valid types: "enum", "integer", "date", "injected"
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': 'enum', 'col2_name': 'integer'})
+    projection_ranges: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections ranges.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': '0,10', 'col2_name': '-1,8675309'})
+    projection_values: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections values.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': 'A,B,Unknown', 'col2_name': 'foo,boo,bar'})
+    projection_intervals: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections intervals.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': '1', 'col2_name': '5'})
+    projection_digits: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections digits.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': '1', 'col2_name': '2'})
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -150,6 +179,7 @@ def create_parquet_table(
     """
     table = sanitize_table_name(table=table)
     partitions_types = {} if partitions_types is None else partitions_types
+
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     cat_table_input: Optional[Dict[str, Any]] = _get_table_input(database=database, table=table, boto3_session=session)
     table_input: Dict[str, Any]
@@ -188,6 +218,13 @@ def create_parquet_table(
         boto3_session=session,
         table_input=table_input,
         table_exist=table_exist,
+        partitions_types=partitions_types,
+        projection_enabled=projection_enabled,
+        projection_types=projection_types,
+        projection_ranges=projection_ranges,
+        projection_values=projection_values,
+        projection_intervals=projection_intervals,
+        projection_digits=projection_digits,
     )
 
 
@@ -903,6 +940,12 @@ def create_csv_table(
     catalog_versioning: bool = False,
     sep: str = ",",
     boto3_session: Optional[boto3.Session] = None,
+    projection_enabled: bool = False,
+    projection_types: Optional[Dict[str, str]] = None,
+    projection_ranges: Optional[Dict[str, str]] = None,
+    projection_values: Optional[Dict[str, str]] = None,
+    projection_intervals: Optional[Dict[str, str]] = None,
+    projection_digits: Optional[Dict[str, str]] = None,
 ) -> None:
     """Create a CSV Table (Metadata Only) in the AWS Glue Catalog.
 
@@ -934,6 +977,29 @@ def create_csv_table(
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     sep : str
         String of length 1. Field delimiter for the output file.
+    projection_enabled : bool
+        Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
+    projection_types : Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections types.
+        Valid types: "enum", "integer", "date", "injected"
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': 'enum', 'col2_name': 'integer'})
+    projection_ranges: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections ranges.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': '0,10', 'col2_name': '-1,8675309'})
+    projection_values: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections values.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': 'A,B,Unknown', 'col2_name': 'foo,boo,bar'})
+    projection_intervals: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections intervals.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': '1', 'col2_name': '5'})
+    projection_digits: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections digits.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': '1', 'col2_name': '2'})
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -980,27 +1046,77 @@ def create_csv_table(
         boto3_session=session,
         table_input=table_input,
         table_exist=does_table_exist(database=database, table=table, boto3_session=session),
+        partitions_types=partitions_types,
+        projection_enabled=projection_enabled,
+        projection_types=projection_types,
+        projection_ranges=projection_ranges,
+        projection_values=projection_values,
+        projection_intervals=projection_intervals,
+        projection_digits=projection_digits,
     )
 
 
-def _create_table(
+def _create_table(  # pylint: disable=too-many-branches,too-many-statements
     database: str,
     table: str,
     description: Optional[str],
     parameters: Optional[Dict[str, str]],
-    columns_comments: Optional[Dict[str, str]],
     mode: str,
     catalog_versioning: bool,
     boto3_session: Optional[boto3.Session],
     table_input: Dict[str, Any],
     table_exist: bool,
+    projection_enabled: bool,
+    partitions_types: Optional[Dict[str, str]] = None,
+    columns_comments: Optional[Dict[str, str]] = None,
+    projection_types: Optional[Dict[str, str]] = None,
+    projection_ranges: Optional[Dict[str, str]] = None,
+    projection_values: Optional[Dict[str, str]] = None,
+    projection_intervals: Optional[Dict[str, str]] = None,
+    projection_digits: Optional[Dict[str, str]] = None,
 ):
+    # Description
     if description is not None:
         table_input["Description"] = description
-    if parameters is not None:
-        for k, v in parameters.items():
-            table_input["Parameters"][k] = v
-    if columns_comments is not None:
+
+    # Parameters & Projection
+    parameters = parameters if parameters else {}
+    partitions_types = partitions_types if partitions_types else {}
+    projection_types = projection_types if projection_types else {}
+    projection_ranges = projection_ranges if projection_ranges else {}
+    projection_values = projection_values if projection_values else {}
+    projection_intervals = projection_intervals if projection_intervals else {}
+    projection_digits = projection_digits if projection_digits else {}
+    projection_types = {sanitize_column_name(k): v for k, v in projection_types.items()}
+    projection_ranges = {sanitize_column_name(k): v for k, v in projection_ranges.items()}
+    projection_values = {sanitize_column_name(k): v for k, v in projection_values.items()}
+    projection_intervals = {sanitize_column_name(k): v for k, v in projection_intervals.items()}
+    projection_digits = {sanitize_column_name(k): v for k, v in projection_digits.items()}
+    for k, v in partitions_types.items():
+        if v == "date":
+            table_input["Parameters"][f"projection.{k}.format"] = "yyyy-MM-dd"
+        elif v == "timestamp":
+            table_input["Parameters"][f"projection.{k}.format"] = "yyyy-MM-dd HH:mm:ss"
+            table_input["Parameters"][f"projection.{k}.interval.unit"] = "SECONDS"
+            table_input["Parameters"][f"projection.{k}.interval"] = "1"
+    for k, v in projection_types.items():
+        table_input["Parameters"][f"projection.{k}.type"] = v
+    for k, v in projection_ranges.items():
+        table_input["Parameters"][f"projection.{k}.range"] = v
+    for k, v in projection_values.items():
+        table_input["Parameters"][f"projection.{k}.values"] = v
+    for k, v in projection_intervals.items():
+        table_input["Parameters"][f"projection.{k}.interval"] = str(v)
+    for k, v in projection_digits.items():
+        table_input["Parameters"][f"projection.{k}.digits"] = str(v)
+    parameters["projection.enabled"] = "true" if projection_enabled is True else "false"
+    for k, v in parameters.items():
+        table_input["Parameters"][k] = v
+
+    # Column comments
+    columns_comments = columns_comments if columns_comments else {}
+    columns_comments = {sanitize_column_name(k): v for k, v in columns_comments.items()}
+    if columns_comments:
         for col in table_input["StorageDescriptor"]["Columns"]:
             name: str = col["Name"]
             if name in columns_comments:
@@ -1009,6 +1125,7 @@ def _create_table(
             name = par["Name"]
             if name in columns_comments:
                 par["Comment"] = columns_comments[name]
+
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     client_glue: boto3.client = _utils.client(service_name="glue", session=session)
     skip_archive: bool = not catalog_versioning

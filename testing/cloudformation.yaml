@@ -56,6 +56,20 @@ Resources:
           - Fn::GetAZs: ''
       CidrBlock: 10.19.230.0/24
       MapPublicIpOnLaunch: true
+  PrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
+      VpcId:
+        Ref: VPC
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ''
+      CidrBlock: 10.19.231.0/24
+      MapPublicIpOnLaunch: false
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -87,6 +101,49 @@ Resources:
         Ref: PublicRouteTable
       SubnetId:
         Ref: PublicSubnet2
+  NatGatewayEIP:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
+      Domain: vpc
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
+      AllocationId:
+        Fn::GetAtt:
+          - NatGatewayEIP
+          - AllocationId
+      SubnetId:
+        Ref: PublicSubnet1
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
+      VpcId:
+        Ref: VPC
+  DefaultPrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: NatGateway
+  PrivateSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: PrivateRouteTable
+      SubnetId:
+        Ref: PrivateSubnet
   KmsKeyAlias:
     Type: AWS::KMS::Alias
     Properties:
@@ -429,7 +486,7 @@ Resources:
       DBInstanceIdentifier: mysql-instance-wrangler
       DBClusterIdentifier:
         Ref: AuroraClusterMysql
-      DBInstanceClass: db.t3.medium
+      DBInstanceClass: db.t3.small
       DBSubnetGroupName:
         Ref: RdsSubnetGroup
       PubliclyAccessible: true
@@ -449,7 +506,7 @@ Resources:
           SecurityGroupIdList:
             - Ref: DatabaseSecurityGroup
           SubnetId:
-            Ref: PublicSubnet1
+            Ref: PrivateSubnet
         ConnectionProperties:
           JDBC_CONNECTION_URL:
             Fn::Sub: jdbc:redshift://${Redshift.Endpoint.Address}:${Redshift.Endpoint.Port}/test
@@ -473,7 +530,7 @@ Resources:
           SecurityGroupIdList:
             - Ref: DatabaseSecurityGroup
           SubnetId:
-            Ref: PublicSubnet1
+            Ref: PrivateSubnet
         ConnectionProperties:
           JDBC_CONNECTION_URL:
             Fn::Sub: jdbc:postgresql://${AuroraInstancePostgresql.Endpoint.Address}:${AuroraInstancePostgresql.Endpoint.Port}/postgres
@@ -497,7 +554,7 @@ Resources:
           SecurityGroupIdList:
             - Ref: DatabaseSecurityGroup
           SubnetId:
-            Ref: PublicSubnet1
+            Ref: PrivateSubnet
         ConnectionProperties:
           JDBC_CONNECTION_URL:
             Fn::Sub: jdbc:mysql://${AuroraInstanceMysql.Endpoint.Address}:${AuroraInstanceMysql.Endpoint.Port}/test

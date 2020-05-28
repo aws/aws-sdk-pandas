@@ -52,8 +52,7 @@ def _get_default_logging_path(
     else:
         _account_id = account_id
     if (region is None) and (subnet_id is not None):
-        boto3_session = _utils.ensure_session(session=boto3_session)
-        _region: str = _utils.get_region_from_subnet(subnet_id=subnet_id, boto3_session=boto3_session)
+        _region: str = _utils.get_region_from_session(boto3_session=boto3_session)
     elif (region is None) and (subnet_id is None):
         raise exceptions.InvalidArgumentCombination("You must pass region or subnet_id or both.")
     else:
@@ -63,7 +62,7 @@ def _get_default_logging_path(
 
 def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-statements
     account_id: str = _utils.get_account_id(boto3_session=pars["boto3_session"])
-    region: str = _utils.get_region_from_subnet(subnet_id=pars["subnet_id"], boto3_session=pars["boto3_session"])
+    region: str = _utils.get_region_from_session(boto3_session=pars["boto3_session"])
 
     # S3 Logging path
     if pars.get("logging_s3_path") is None:
@@ -155,6 +154,7 @@ def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-s
                 ],
             }
         )
+
     if spark_env is not None:
         args["Configurations"].append(
             {
@@ -856,11 +856,7 @@ def build_step(
         if region is not None:  # pragma: no cover
             _region: str = region
         else:
-            session: boto3.Session = _utils.ensure_session(session=boto3_session)
-            if session.region_name is not None:
-                _region = session.region_name
-            else:  # pragma: no cover
-                _region = "us-east-1"
+            _region = _utils.get_region_from_session(boto3_session=boto3_session, default_region="us-east-1")
         jar = f"s3://{_region}.elasticmapreduce/libs/script-runner/script-runner.jar"
     step: Dict[str, Any] = {
         "Name": name,
@@ -934,7 +930,10 @@ def submit_ecr_credentials_refresh(
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     client_s3: boto3.client = _utils.client(service_name="s3", session=session)
     bucket, key = _utils.parse_path(path=path_script)
-    client_s3.put_object(Body=_get_ecr_credentials_refresh_content().encode(encoding="utf-8"), Bucket=bucket, Key=key)
+    region: str = _utils.get_region_from_session(boto3_session=boto3_session)
+    client_s3.put_object(
+        Body=_get_ecr_credentials_refresh_content(region=region).encode(encoding="utf-8"), Bucket=bucket, Key=key
+    )
     command: str = f"spark-submit --deploy-mode cluster {path_script}"
     name: str = "ECR Credentials Refresh"
     step: Dict[str, Any] = build_step(
@@ -946,14 +945,14 @@ def submit_ecr_credentials_refresh(
     return response["StepIds"][0]
 
 
-def _get_ecr_credentials_refresh_content() -> str:
-    return """
+def _get_ecr_credentials_refresh_content(region: str) -> str:
+    return f"""
 import subprocess
 from pyspark.sql import SparkSession
 spark = SparkSession.builder.appName("ECR Setup Job").getOrCreate()
 
 COMMANDS = [
-    "sudo -s eval $(aws ecr get-login --region us-east-1 --no-include-email)",
+    "sudo -s eval $(aws ecr get-login --region {region} --no-include-email)",
     "sudo hdfs dfs -put -f /root/.docker/config.json /user/hadoop/"
 ]
 

@@ -183,11 +183,24 @@ def get_account_id(boto3_session: Optional[boto3.Session] = None) -> str:
     return client(service_name="sts", session=session).get_caller_identity().get("Account")
 
 
-def get_region_from_subnet(subnet_id: str, boto3_session: Optional[boto3.Session] = None) -> str:
+def get_region_from_subnet(subnet_id: str, boto3_session: Optional[boto3.Session] = None) -> str:  # pragma: no cover
     """Extract region from Subnet ID."""
     session: boto3.Session = ensure_session(session=boto3_session)
     client_ec2: boto3.client = client(service_name="ec2", session=session)
-    return client_ec2.describe_subnets(SubnetIds=[subnet_id])["Subnets"][0]["AvailabilityZone"][:9]
+    return client_ec2.describe_subnets(SubnetIds=[subnet_id])["Subnets"][0]["AvailabilityZone"][:-1]
+
+
+def get_region_from_session(boto3_session: Optional[boto3.Session] = None, default_region: Optional[str] = None) -> str:
+    """Extract region from session."""
+    session: boto3.Session = ensure_session(session=boto3_session)
+    region: Optional[str] = session.region_name
+    if region is not None:
+        return region
+    if default_region is not None:  # pragma: no cover
+        return default_region
+    raise exceptions.InvalidArgument(
+        "There is no region_name defined on boto3, please configure it."
+    )  # pragma: no cover
 
 
 def extract_partitions_from_paths(

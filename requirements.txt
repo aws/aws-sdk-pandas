@@ -7,4 +7,4 @@ s3fs~=0.4.2
 psycopg2-binary~=2.8.0
 pymysql~=0.9.0
 sqlalchemy-redshift~=0.7.0
-SQLAlchemy==1.3.13
+SQLAlchemy>=1.3.10,<1.3.16

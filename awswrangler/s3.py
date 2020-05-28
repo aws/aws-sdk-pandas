@@ -355,8 +355,8 @@ def describe_objects(
         cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
             resp_list = list(executor.map(_describe_object, paths, repeat(wait_time), repeat(client_s3)))
-    desc_list: Dict[str, Dict[str, Any]] = dict(resp_list)
-    return desc_list
+    desc_dict: Dict[str, Dict[str, Any]] = dict(resp_list)
+    return desc_dict
 
 
 def _describe_object(
@@ -425,8 +425,8 @@ def size_objects(
     desc_list: Dict[str, Dict[str, Any]] = describe_objects(
         path=path, wait_time=wait_time, use_threads=use_threads, boto3_session=boto3_session
     )
-    size_list: Dict[str, Optional[int]] = {k: d.get("ContentLength", None) for k, d in desc_list.items()}
-    return size_list
+    size_dict: Dict[str, Optional[int]] = {k: d.get("ContentLength", None) for k, d in desc_list.items()}
+    return size_dict
 
 
 def to_csv(  # pylint: disable=too-many-arguments
@@ -448,6 +448,13 @@ def to_csv(  # pylint: disable=too-many-arguments
     description: Optional[str] = None,
     parameters: Optional[Dict[str, str]] = None,
     columns_comments: Optional[Dict[str, str]] = None,
+    regular_partitions: bool = True,
+    projection_enabled: bool = False,
+    projection_types: Optional[Dict[str, str]] = None,
+    projection_ranges: Optional[Dict[str, str]] = None,
+    projection_values: Optional[Dict[str, str]] = None,
+    projection_intervals: Optional[Dict[str, str]] = None,
+    projection_digits: Optional[Dict[str, str]] = None,
     **pandas_kwargs,
 ) -> Dict[str, Union[List[str], Dict[str, List[str]]]]:
     """Write CSV file or dataset on Amazon S3.
@@ -502,19 +509,46 @@ def to_csv(  # pylint: disable=too-many-arguments
         Glue/Athena catalog: Database name.
     table : str, optional
         Glue/Athena catalog: Table name.
-    dtype: Dict[str, str], optional
+    dtype : Dict[str, str], optional
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined or mixed data types.
-        Only takes effect if dataset=True.
         (e.g. {'col name': 'bigint', 'col2 name': 'int'})
-    description: str, optional
+    description : str, optional
         Glue/Athena catalog: Table description
-    parameters: Dict[str, str], optional
+    parameters : Dict[str, str], optional
         Glue/Athena catalog: Key/value pairs to tag the table.
-    columns_comments: Dict[str, str], optional
+    columns_comments : Dict[str, str], optional
         Glue/Athena catalog:
         Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
-    pandas_kwargs:
+    regular_partitions : bool
+        Create regular partitions (Non projected partitions) on Glue Catalog.
+        Disable when you will work only with Partition Projection.
+        Keep enabled even when working with projections is useful to keep
+        Redshift Spectrum working with the regular partitions.
+    projection_enabled : bool
+        Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
+    projection_types : Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections types.
+        Valid types: "enum", "integer", "date", "injected"
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': 'enum', 'col2_name': 'integer'})
+    projection_ranges: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections ranges.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': '0,10', 'col2_name': '-1,8675309'})
+    projection_values: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections values.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': 'A,B,Unknown', 'col2_name': 'foo,boo,bar'})
+    projection_intervals: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections intervals.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': '1', 'col2_name': '5'})
+    projection_digits: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections digits.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': '1', 'col2_name': '2'})
+    pandas_kwargs :
         keyword arguments forwarded to pandas.DataFrame.to_csv()
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_csv.html
 
@@ -631,12 +665,10 @@ def to_csv(  # pylint: disable=too-many-arguments
     # Sanitize table to respect Athena's standards
     partition_cols = partition_cols if partition_cols else []
     dtype = dtype if dtype else {}
-    columns_comments = columns_comments if columns_comments else {}
     partitions_values: Dict[str, List[str]] = {}
     df = catalog.sanitize_dataframe_columns_names(df=df)
     partition_cols = [catalog.sanitize_column_name(p) for p in partition_cols]
     dtype = {catalog.sanitize_column_name(k): v.lower() for k, v in dtype.items()}
-    columns_comments = {catalog.sanitize_column_name(k): v for k, v in columns_comments.items()}
 
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     fs: s3fs.S3FileSystem = _utils.get_fs(session=session, s3_additional_kwargs=s3_additional_kwargs)
@@ -699,8 +731,14 @@ def to_csv(  # pylint: disable=too-many-arguments
                 mode=mode,
                 catalog_versioning=catalog_versioning,
                 sep=sep,
+                projection_enabled=projection_enabled,
+                projection_types=projection_types,
+                projection_ranges=projection_ranges,
+                projection_values=projection_values,
+                projection_intervals=projection_intervals,
+                projection_digits=projection_digits,
             )
-            if partitions_values:
+            if partitions_values and (regular_partitions is True):
                 _logger.debug("partitions_values:\n%s", partitions_values)
                 catalog.add_csv_partitions(
                     database=database, table=table, partitions_values=partitions_values, boto3_session=session, sep=sep
@@ -874,6 +912,13 @@ def to_parquet(  # pylint: disable=too-many-arguments
     description: Optional[str] = None,
     parameters: Optional[Dict[str, str]] = None,
     columns_comments: Optional[Dict[str, str]] = None,
+    regular_partitions: bool = True,
+    projection_enabled: bool = False,
+    projection_types: Optional[Dict[str, str]] = None,
+    projection_ranges: Optional[Dict[str, str]] = None,
+    projection_values: Optional[Dict[str, str]] = None,
+    projection_intervals: Optional[Dict[str, str]] = None,
+    projection_digits: Optional[Dict[str, str]] = None,
 ) -> Dict[str, Union[List[str], Dict[str, List[str]]]]:
     """Write Parquet file or dataset on Amazon S3.
 
@@ -925,18 +970,45 @@ def to_parquet(  # pylint: disable=too-many-arguments
         Glue/Athena catalog: Database name.
     table : str, optional
         Glue/Athena catalog: Table name.
-    dtype: Dict[str, str], optional
+    dtype : Dict[str, str], optional
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined or mixed data types.
-        Only takes effect if dataset=True.
         (e.g. {'col name': 'bigint', 'col2 name': 'int'})
-    description: str, optional
+    description : str, optional
         Glue/Athena catalog: Table description
-    parameters: Dict[str, str], optional
+    parameters : Dict[str, str], optional
         Glue/Athena catalog: Key/value pairs to tag the table.
-    columns_comments: Dict[str, str], optional
+    columns_comments : Dict[str, str], optional
         Glue/Athena catalog:
         Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
+    regular_partitions : bool
+        Create regular partitions (Non projected partitions) on Glue Catalog.
+        Disable when you will work only with Partition Projection.
+        Keep enabled even when working with projections is useful to keep
+        Redshift Spectrum working with the regular partitions.
+    projection_enabled : bool
+        Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
+    projection_types : Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections types.
+        Valid types: "enum", "integer", "date", "injected"
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': 'enum', 'col2_name': 'integer'})
+    projection_ranges: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections ranges.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': '0,10', 'col2_name': '-1,8675309'})
+    projection_values: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections values.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': 'A,B,Unknown', 'col2_name': 'foo,boo,bar'})
+    projection_intervals: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections intervals.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': '1', 'col2_name': '5'})
+    projection_digits: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections digits.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': '1', 'col2_name': '2'})
 
     Returns
     -------
@@ -1054,12 +1126,10 @@ def to_parquet(  # pylint: disable=too-many-arguments
     # Sanitize table to respect Athena's standards
     partition_cols = partition_cols if partition_cols else []
     dtype = dtype if dtype else {}
-    columns_comments = columns_comments if columns_comments else {}
     partitions_values: Dict[str, List[str]] = {}
     df = catalog.sanitize_dataframe_columns_names(df=df)
     partition_cols = [catalog.sanitize_column_name(p) for p in partition_cols]
     dtype = {catalog.sanitize_column_name(k): v.lower() for k, v in dtype.items()}
-    columns_comments = {catalog.sanitize_column_name(k): v for k, v in columns_comments.items()}
     df = catalog.drop_duplicated_columns(df=df)
 
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
@@ -1130,8 +1200,14 @@ def to_parquet(  # pylint: disable=too-many-arguments
                 boto3_session=session,
                 mode=mode,
                 catalog_versioning=catalog_versioning,
+                projection_enabled=projection_enabled,
+                projection_types=projection_types,
+                projection_ranges=projection_ranges,
+                projection_values=projection_values,
+                projection_intervals=projection_intervals,
+                projection_digits=projection_digits,
             )
-            if partitions_values:
+            if partitions_values and (regular_partitions is True):
                 _logger.debug("partitions_values:\n%s", partitions_values)
                 catalog.add_parquet_partitions(
                     database=database,
@@ -1936,7 +2012,7 @@ def _read_parquet_metadata_file(path: str, use_threads: bool, boto3_session: bot
     return _data_types.athena_types_from_pyarrow_schema(schema=data.schema.to_arrow_schema(), partitions=None)[0]
 
 
-def store_parquet_metadata(
+def store_parquet_metadata(  # pylint: disable=too-many-arguments
     path: str,
     database: str,
     table: str,
@@ -1950,6 +2026,13 @@ def store_parquet_metadata(
     compression: Optional[str] = None,
     mode: str = "overwrite",
     catalog_versioning: bool = False,
+    regular_partitions: bool = True,
+    projection_enabled: bool = False,
+    projection_types: Optional[Dict[str, str]] = None,
+    projection_ranges: Optional[Dict[str, str]] = None,
+    projection_values: Optional[Dict[str, str]] = None,
+    projection_intervals: Optional[Dict[str, str]] = None,
+    projection_digits: Optional[Dict[str, str]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Tuple[Dict[str, str], Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]:
     """Infer and store parquet metadata on AWS Glue Catalog.
@@ -2004,6 +2087,34 @@ def store_parquet_metadata(
         'overwrite' to recreate any possible existing table or 'append' to keep any possible existing table.
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
+    regular_partitions : bool
+        Create regular partitions (Non projected partitions) on Glue Catalog.
+        Disable when you will work only with Partition Projection.
+        Keep enabled even when working with projections is useful to keep
+        Redshift Spectrum working with the regular partitions.
+    projection_enabled : bool
+        Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
+    projection_types : Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections types.
+        Valid types: "enum", "integer", "date", "injected"
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': 'enum', 'col2_name': 'integer'})
+    projection_ranges: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections ranges.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': '0,10', 'col2_name': '-1,8675309'})
+    projection_values: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections values.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': 'A,B,Unknown', 'col2_name': 'foo,boo,bar'})
+    projection_intervals: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections intervals.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': '1', 'col2_name': '5'})
+    projection_digits: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections digits.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': '1', 'col2_name': '2'})
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -2052,9 +2163,15 @@ def store_parquet_metadata(
         columns_comments=columns_comments,
         mode=mode,
         catalog_versioning=catalog_versioning,
+        projection_enabled=projection_enabled,
+        projection_types=projection_types,
+        projection_ranges=projection_ranges,
+        projection_values=projection_values,
+        projection_intervals=projection_intervals,
+        projection_digits=projection_digits,
         boto3_session=session,
     )
-    if (partitions_types is not None) and (partitions_values is not None):
+    if (partitions_types is not None) and (partitions_values is not None) and (regular_partitions is True):
         catalog.add_parquet_partitions(
             database=database,
             table=table,
