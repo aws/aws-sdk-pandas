@@ -889,7 +889,9 @@ def _to_text(
         raise exceptions.EmptyDataFrame()
     if fs is None:
         fs = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
-    with fs.open(path, "w") as f:
+    encoding: Optional[str] = pandas_kwargs.get("encoding", None)
+    newline: Optional[str] = pandas_kwargs.get("line_terminator", None)
+    with fs.open(path=path, mode="w", encoding=encoding, newline=newline) as f:
         if file_format == "csv":
             df.to_csv(f, **pandas_kwargs)
         elif file_format == "json":
@@ -1647,7 +1649,9 @@ def _read_text_full(
     if pandas_args.get("compression", "infer") == "infer":
         pandas_args["compression"] = infer_compression(path, compression="infer")
     mode: str = "r" if pandas_args.get("compression") is None else "rb"
-    with fs.open(path, mode) as f:
+    encoding: Optional[str] = pandas_args.get("encoding", None)
+    newline: Optional[str] = pandas_args.get("lineterminator", None)
+    with fs.open(path=path, mode=mode, encoding=encoding, newline=newline) as f:
         return parser_func(f, **pandas_args)
 
 

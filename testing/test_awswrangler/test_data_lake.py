@@ -2192,3 +2192,24 @@ def test_to_parquet_nested_cast(database, table, path):
     df2 = wr.athena.read_sql_query(sql=f"SELECT c0, c2 FROM {table}", database=database)
     assert len(df2.index) == 4
     assert len(df2.columns) == 2
+
+
+@pytest.mark.parametrize(
+    "encoding,strings,wrong_encoding,exception",
+    [
+        ("utf-8", ["漢字", "ãóú", "г, д, ж, з, к, л"], "ISO-8859-1", AssertionError),
+        ("ISO-8859-1", ["Ö, ö, Ü, ü", "ãóú", "øe"], "utf-8", UnicodeDecodeError),
+        ("ISO-8859-1", ["Ö, ö, Ü, ü", "ãóú", "øe"], None, UnicodeDecodeError),
+    ],
+)
+@pytest.mark.parametrize("line_terminator", ["\n", "\r"])
+def test_csv_encoding(path, encoding, strings, wrong_encoding, exception, line_terminator):
+    file_path = f"{path}0.csv"
+    df = pd.DataFrame({"c0": [1, 2, 3], "c1": strings})
+    wr.s3.to_csv(df, file_path, index=False, encoding=encoding, line_terminator=line_terminator)
+    wr.s3.wait_objects_exist(paths=[file_path])
+    df2 = wr.s3.read_csv(file_path, encoding=encoding, lineterminator=line_terminator)
+    assert df.equals(df2)
+    with pytest.raises(exception):
+        df2 = wr.s3.read_csv(file_path, encoding=wrong_encoding)
+        assert df.equals(df2)
