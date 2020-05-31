@@ -6,6 +6,7 @@ import pprint
 import time
 from decimal import Decimal
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from datetime import datetime, timezone
 
 import boto3  # type: ignore
 import pandas as pd  # type: ignore
@@ -16,6 +17,7 @@ from awswrangler import _data_types, _utils, catalog, exceptions, s3
 _logger: logging.Logger = logging.getLogger(__name__)
 
 _QUERY_WAIT_POLLING_DELAY: float = 0.2  # SECONDS
+_CACHE_PREVIOUS_QUERY_COUNT: int = 50 # number of past queries to scan for cached results
 
 
 def get_query_columns_types(query_execution_id: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, str]:
@@ -386,6 +388,7 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals,too-man
     ctas_temp_table_name: Optional[str] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
+    max_cache_seconds: int = 604800
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Execute any SQL query on AWS Athena and return the results as a Pandas DataFrame.
 
@@ -485,34 +488,46 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals,too-man
     wg_config: Dict[str, Union[bool, Optional[str]]] = _get_workgroup_config(session=session, workgroup=workgroup)
     _s3_output: str = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=session)
     _s3_output = _s3_output[:-1] if _s3_output[-1] == "/" else _s3_output
-    name: str = ""
-    if ctas_approach is True:
-        if ctas_temp_table_name is not None:
-            name = catalog.sanitize_table_name(ctas_temp_table_name)
-        else:
-            name = f"temp_table_{pa.compat.guid()}"
-        path: str = f"{_s3_output}/{name}"
-        ext_location: str = "\n" if wg_config["enforced"] is True else f",\n    external_location = '{path}'\n"
-        sql = (
-            f'CREATE TABLE "{name}"\n'
-            f"WITH(\n"
-            f"    format = 'Parquet',\n"
-            f"    parquet_compression = 'SNAPPY'"
-            f"{ext_location}"
-            f") AS\n"
-            f"{sql}"
-        )
-    _logger.debug("sql: %s", sql)
-    query_id: str = _start_query_execution(
+
+    # check for cached results
+    cache_info = _check_for_cached_results(
         sql=sql,
+        session=session,
         wg_config=wg_config,
-        database=database,
-        s3_output=_s3_output,
-        workgroup=workgroup,
-        encryption=encryption,
-        kms_key=kms_key,
-        boto3_session=session,
+        max_cache_seconds=max_cache_seconds
     )
+    query_id = None
+    if cache_info["has_valid_cache"]:
+        query_id = cache_info["query_execution_id"]
+    else:
+        name: str = ""
+        if ctas_approach is True:
+            if ctas_temp_table_name is not None:
+                name = catalog.sanitize_table_name(ctas_temp_table_name)
+            else:
+                name = f"temp_table_{pa.compat.guid()}"
+            path: str = f"{_s3_output}/{name}"
+            ext_location: str = "\n" if wg_config["enforced"] is True else f",\n    external_location = '{path}'\n"
+            sql = (
+                f'CREATE TABLE "{name}"\n'
+                f"WITH(\n"
+                f"    format = 'Parquet',\n"
+                f"    parquet_compression = 'SNAPPY'"
+                f"{ext_location}"
+                f") AS\n"
+                f"{sql}"
+            )
+        _logger.debug("sql: %s", sql)
+        query_id: str = _start_query_execution(
+            sql=sql,
+            wg_config=wg_config,
+            database=database,
+            s3_output=_s3_output,
+            workgroup=workgroup,
+            encryption=encryption,
+            kms_key=kms_key,
+            boto3_session=session,
+        )
     _logger.debug("query_id: %s", query_id)
     try:
         query_response: Dict[str, Any] = wait_query(query_execution_id=query_id, boto3_session=session)
@@ -804,3 +819,63 @@ def read_sql_table(
         use_threads=use_threads,
         boto3_session=boto3_session,
     )
+
+def _prepare_query_string_for_comparison(query_string: str):
+    # for now this is a simple complete strip, but it could grow into much more sophisticated
+    # query comparison data structures
+    return "".join(query_string.split())
+
+def _get_last_query_executions(boto3_session=None, client_athena=None):
+    if not client_athena:
+        client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
+    query_execution_list = client_athena.list_query_executions(
+        MaxResults=_CACHE_PREVIOUS_QUERY_COUNT
+    )
+    query_execution_id_list = query_execution_list["QueryExecutionIds"]
+    execution_data = client_athena.batch_get_query_execution(
+        QueryExecutionIds=query_execution_id_list
+    )
+    return execution_data.get("QueryExecutions")
+
+def _sort_successful_executions_data(query_executions):
+    filtered = [
+        query for query in query_executions if query["Status"].get("State") == "SUCCEEDED"
+    ]
+    return sorted(filtered, key=lambda e: e["Status"]["SubmissionDateTime"], reverse=True)
+
+def _check_for_cached_results(
+    sql: str,
+    session: boto3.Session,
+    wg_config: Dict[str, Union[bool, Optional[str]]],
+    max_cache_seconds: int
+) -> Dict[str, Union[bool, Optional[str]]]:
+    # TODO: do not ignore wg_config
+    if max_cache_seconds > 0:
+        last_query_executions = _get_last_query_executions(boto3_session=session)
+        cached_queries = _sort_successful_executions_data(query_executions=last_query_executions)
+        current_timestamp = datetime.now(timezone.utc)
+        comparable_sql: str = _prepare_query_string_for_comparison(sql)
+
+        # this could be mapreduced, but it is only 50 items long, tops
+        for query_info in cached_queries:
+            # TODO: check for timezone problems here
+            if (current_timestamp - query_info["Status"]["SubmissionDateTime"]).total_seconds() > max_cache_seconds:
+                break
+
+            if query_info["StatementType"] == "DDL" and query_info["Query"].startswith('CREATE TABLE'):
+                # we are going to need sqlparse here, cant solely rely on keywords
+                pass
+
+            elif query_info["StatementType"] == "DML":
+                comparison_query: str = _prepare_query_string_for_comparison(query_string=query_info["Query"])
+                if comparison_query == comparable_sql:
+                    data_type = 'csv'
+                    return {
+                        "has_valid_cache": True,
+                        "data_type": data_type,
+                        "query_execution_id": query_info["QueryExecutionId"]
+                    }
+
+    return {
+        "has_valid_cache": False
+    }
