@@ -1157,9 +1157,14 @@ def to_parquet(  # pylint: disable=too-many-arguments
                 "arguments: database, table, description, parameters, "
                 "columns_comments."
             )
+        df = _data_types.cast_pandas_with_athena_types(df=df, dtype=dtype)
+        schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(
+            df=df, index=index, ignore_cols=partition_cols, dtype=dtype
+        )
+        _logger.debug("schema: \n%s", schema)
         paths = [
             _to_parquet_file(
-                df=df, path=path, schema=None, index=index, compression=compression, cpus=cpus, fs=fs, dtype=dtype
+                df=df, path=path, schema=schema, index=index, compression=compression, cpus=cpus, fs=fs, dtype=dtype
             )
         ]
     else:
@@ -1666,14 +1671,15 @@ def _read_parquet_init(
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
 ) -> pyarrow.parquet.ParquetDataset:
     """Encapsulate all initialization before the use of the pyarrow.parquet.ParquetDataset."""
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if dataset is False:
-        path_or_paths: Union[str, List[str]] = _path2list(path=path, boto3_session=boto3_session)
+        path_or_paths: Union[str, List[str]] = _path2list(path=path, boto3_session=session)
     elif isinstance(path, str):
         path_or_paths = path[:-1] if path.endswith("/") else path
     else:
         path_or_paths = path
     _logger.debug("path_or_paths: %s", path_or_paths)
-    fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
+    fs: s3fs.S3FileSystem = _utils.get_fs(session=session, s3_additional_kwargs=s3_additional_kwargs)
     cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
     data: pyarrow.parquet.ParquetDataset = pyarrow.parquet.ParquetDataset(
         path_or_paths=path_or_paths,
@@ -1730,7 +1736,8 @@ def read_parquet(
     path : Union[str, List[str]]
         S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
     filters: Union[List[Tuple], List[List[Tuple]]], optional
-        List of filters to apply (Only on partition columns), like ``[[('x', '=', 0), ...], ...]``.
+        List of filters to apply on PARTITION columns (PUSH-DOWN filter), like ``[[('x', '=', 0), ...], ...]``.
+        Ignored if `dataset=False`.
     columns : List[str], optional
         Names of columns to read from the file(s).
     validate_schema:

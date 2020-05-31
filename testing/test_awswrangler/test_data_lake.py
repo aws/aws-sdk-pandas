@@ -2213,3 +2213,15 @@ def test_csv_encoding(path, encoding, strings, wrong_encoding, exception, line_t
     with pytest.raises(exception):
         df2 = wr.s3.read_csv(file_path, encoding=wrong_encoding)
         assert df.equals(df2)
+
+
+def test_to_parquet_file_dtype(path):
+    df = pd.DataFrame({"c0": [1.0, None, 2.0], "c1": [pd.NA, pd.NA, pd.NA]})
+    file_path = f"{path}0.parquet"
+    wr.s3.to_parquet(df, file_path, dtype={"c0": "bigint", "c1": "string"})
+    wr.s3.wait_objects_exist(paths=[file_path])
+    df2 = wr.s3.read_parquet(file_path)
+    assert df2.shape == df.shape
+    assert df2.c0.sum() == 3
+    assert str(df2.c0.dtype) == "Int64"
+    assert str(df2.c1.dtype) == "string"
