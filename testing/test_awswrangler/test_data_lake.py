@@ -2026,7 +2026,6 @@ def test_catalog_parameters(bucket, database):
     wr.s3.delete_objects(path=path)
     wr.catalog.delete_table_if_exists(database=database, table=table)
 
-
 def test_metadata_partitions(path):
     path = f"{path}0.parquet"
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": ["3", "4", "5"], "c2": [6.0, 7.0, 8.0]})
@@ -2037,3 +2036,18 @@ def test_metadata_partitions(path):
     assert columns_types.get("c0") == "bigint"
     assert columns_types.get("c1") == "string"
     assert columns_types.get("c2") == "double"
+
+def test_to_parquet_file_dtype(path):
+    df = pd.DataFrame({"c0": [1.0, None, 2.0], "c1": [pd.NA, pd.NA, pd.NA]})
+    file_path = f"{path}0.parquet"
+    wr.s3.to_parquet(df, file_path, dtype={"c0": "bigint", "c1": "string"})
+    wr.s3.wait_objects_exist(paths=[file_path])
+    df2 = wr.s3.read_parquet(file_path)
+    assert df2.shape == df.shape
+    assert df2.c0.sum() == 3
+    assert str(df2.c0.dtype) == "Int64"
+    assert str(df2.c1.dtype) == "string"
+
+# TODO: write real tests for final version, this is just for playing around
+def test_cache_simple(database, table, path): 
+    a = wr.athena.read_sql_query("SELECT id, dt FROM noaa limit 100", database="awswrangler_test", ctas_approach=False, max_cache_seconds=0)
