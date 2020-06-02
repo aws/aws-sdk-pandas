@@ -1,5 +1,4 @@
 import logging
-import time
 
 import boto3
 import pandas as pd
@@ -7,7 +6,7 @@ import pytest
 
 import awswrangler as wr
 
-from ._utils import CFN_VALID_STATUS, dt, get_time_str_with_random_suffix, ts
+from ._utils import dt, extract_cloudformation_outputs, get_time_str_with_random_suffix, path_generator, ts
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
@@ -16,22 +15,12 @@ logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
 
 @pytest.fixture(scope="module")
 def cloudformation_outputs():
-    response = boto3.client("cloudformation").describe_stacks(StackName="aws-data-wrangler")
-    stack = [x for x in response.get("Stacks") if x["StackStatus"] in CFN_VALID_STATUS][0]
-    outputs = {}
-    for output in stack.get("Outputs"):
-        outputs[output.get("OutputKey")] = output.get("OutputValue")
-    yield outputs
+    yield extract_cloudformation_outputs()
 
 
 @pytest.fixture(scope="module")
 def region(cloudformation_outputs):
     yield cloudformation_outputs["Region"]
-
-
-@pytest.fixture(scope="module")
-def bucket(cloudformation_outputs):
-    yield cloudformation_outputs["BucketName"]
 
 
 @pytest.fixture(scope="module")
@@ -55,18 +44,8 @@ def external_schema(cloudformation_outputs, database):
 
 
 @pytest.fixture(scope="function")
-def path(bucket):
-    s3_path = f"s3://{bucket}/{get_time_str_with_random_suffix()}/"
-    print(f"S3 Path: {s3_path}")
-    time.sleep(1)
-    objs = wr.s3.list_objects(s3_path)
-    wr.s3.delete_objects(path=objs)
-    wr.s3.wait_objects_not_exist(objs)
-    yield s3_path
-    time.sleep(1)
-    objs = wr.s3.list_objects(s3_path)
-    wr.s3.delete_objects(path=objs)
-    wr.s3.wait_objects_not_exist(objs)
+def path(cloudformation_outputs):
+    yield from path_generator(cloudformation_outputs["BucketName"])
 
 
 @pytest.fixture(scope="function")
@@ -168,3 +147,79 @@ def test_to_parquet_projection_injected(database, table, path):
     df2 = wr.athena.read_sql_query(f"SELECT * FROM {table} WHERE c1='foo' AND c2='0'", database)
     assert df2.shape == (1, 3)
     assert df2.c0.iloc[0] == 0
+
+
+def test_read_parquet_filter_partitions(path):
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 0, 1]})
+    paths = wr.s3.to_parquet(df, path, dataset=True, partition_cols=["c1", "c2"])["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df2 = wr.s3.read_parquet(path, dataset=True, filters=[("c1", "==", "0")])
+    assert df2.shape == (1, 3)
+    assert df2.c0.iloc[0] == 0
+    assert df2.c1.iloc[0] == 0
+    assert df2.c2.iloc[0] == 0
+    df2 = wr.s3.read_parquet(path, dataset=True, filters=[("c1", "==", "1"), ("c2", "==", "0")])
+    assert df2.shape == (1, 3)
+    assert df2.c0.iloc[0] == 1
+    assert df2.c1.iloc[0] == 1
+    assert df2.c2.iloc[0] == 0
+    df2 = wr.s3.read_parquet(path, dataset=True, filters=[("c2", "==", "0")])
+    assert df2.shape == (2, 3)
+    assert df2.c0.astype(int).sum() == 1
+    assert df2.c1.astype(int).sum() == 1
+    assert df2.c2.astype(int).sum() == 0
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("chunksize", [None, 1])
+def test_read_partitioned_json(path, use_threads, chunksize):
+    df = pd.DataFrame({"c0": [0, 1], "c1": ["foo", "boo"]})
+    paths = [f"{path}year={y}/month={m}/0.json" for y, m in [(2020, 1), (2020, 2), (2021, 1)]]
+    for p in paths:
+        wr.s3.to_json(df, p, orient="records", lines=True)
+    wr.s3.wait_objects_exist(paths, use_threads=False)
+    df2 = wr.s3.read_json(path, dataset=True, use_threads=use_threads, chunksize=chunksize)
+    if chunksize is None:
+        assert df2.shape == (6, 4)
+        assert df2.c0.sum() == 3
+    else:
+        for d in df2:
+            assert d.shape == (1, 4)
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("chunksize", [None, 1])
+def test_read_partitioned_csv(path, use_threads, chunksize):
+    df = pd.DataFrame({"c0": [0, 1], "c1": ["foo", "boo"]})
+    paths = [f"{path}year={y}/month={m}/0.csv" for y, m in [(2020, 1), (2020, 2), (2021, 1)]]
+    for p in paths:
+        wr.s3.to_csv(df, p, index=False)
+    wr.s3.wait_objects_exist(paths, use_threads=False)
+    df2 = wr.s3.read_csv(path, dataset=True, use_threads=use_threads, chunksize=chunksize)
+    if chunksize is None:
+        assert df2.shape == (6, 4)
+        assert df2.c0.sum() == 3
+    else:
+        for d in df2:
+            assert d.shape == (1, 4)
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("chunksize", [None, 1])
+def test_read_partitioned_fwf(path, use_threads, chunksize):
+    text = "0foo\n1boo"
+    client_s3 = boto3.client("s3")
+    paths = [f"{path}year={y}/month={m}/0.csv" for y, m in [(2020, 1), (2020, 2), (2021, 1)]]
+    for p in paths:
+        bucket, key = wr._utils.parse_path(p)
+        client_s3.put_object(Body=text, Bucket=bucket, Key=key)
+    wr.s3.wait_objects_exist(paths, use_threads=False)
+    df2 = wr.s3.read_fwf(
+        path, dataset=True, use_threads=use_threads, chunksize=chunksize, widths=[1, 3], names=["c0", "c1"]
+    )
+    if chunksize is None:
+        assert df2.shape == (6, 4)
+        assert df2.c0.sum() == 3
+    else:
+        for d in df2:
+            assert d.shape == (1, 4)

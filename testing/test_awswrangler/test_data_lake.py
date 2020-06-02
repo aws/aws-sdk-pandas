@@ -5,7 +5,6 @@ import itertools
 import logging
 import lzma
 import math
-import time
 from io import BytesIO, TextIOWrapper
 
 import boto3
@@ -15,10 +14,10 @@ import pytest
 import awswrangler as wr
 
 from ._utils import (
-    CFN_VALID_STATUS,
     ensure_data_types,
     ensure_data_types_category,
     ensure_data_types_csv,
+    extract_cloudformation_outputs,
     get_df,
     get_df_cast,
     get_df_category,
@@ -26,6 +25,7 @@ from ._utils import (
     get_df_list,
     get_query_long,
     get_time_str_with_random_suffix,
+    path_generator,
 )
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
@@ -35,12 +35,7 @@ logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
 
 @pytest.fixture(scope="module")
 def cloudformation_outputs():
-    response = boto3.client("cloudformation").describe_stacks(StackName="aws-data-wrangler")
-    stack = [x for x in response.get("Stacks") if x["StackStatus"] in CFN_VALID_STATUS][0]
-    outputs = {}
-    for output in stack.get("Outputs"):
-        outputs[output.get("OutputKey")] = output.get("OutputValue")
-    yield outputs
+    yield extract_cloudformation_outputs()
 
 
 @pytest.fixture(scope="module")
@@ -172,42 +167,12 @@ def workgroup3(bucket, kms_key):
 
 
 @pytest.fixture(scope="function")
-def path(bucket):
-    s3_path = f"s3://{bucket}/{get_time_str_with_random_suffix()}/"
-    print(f"S3 Path: {s3_path}")
-    time.sleep(1)
-    objs = wr.s3.list_objects(s3_path)
-    wr.s3.delete_objects(path=objs)
-    wr.s3.wait_objects_not_exist(objs)
-    yield s3_path
-    time.sleep(1)
-    objs = wr.s3.list_objects(s3_path)
-    wr.s3.delete_objects(path=objs)
-    wr.s3.wait_objects_not_exist(objs)
-
-
-@pytest.fixture(scope="function")
 def table(database):
     name = f"tbl_{get_time_str_with_random_suffix()}"
     print(f"Table name: {name}")
     wr.catalog.delete_table_if_exists(database=database, table=name)
     yield name
     wr.catalog.delete_table_if_exists(database=database, table=name)
-
-
-@pytest.fixture(scope="function")
-def path2(bucket):
-    s3_path = f"s3://{bucket}/{get_time_str_with_random_suffix()}/"
-    print(f"S3 Path: {s3_path}")
-    time.sleep(1)
-    objs = wr.s3.list_objects(s3_path)
-    wr.s3.delete_objects(path=objs)
-    wr.s3.wait_objects_not_exist(objs)
-    yield s3_path
-    time.sleep(1)
-    objs = wr.s3.list_objects(s3_path)
-    wr.s3.delete_objects(path=objs)
-    wr.s3.wait_objects_not_exist(objs)
 
 
 @pytest.fixture(scope="function")
@@ -219,9 +184,22 @@ def table2(database):
     wr.catalog.delete_table_if_exists(database=database, table=name)
 
 
-def test_athena_ctas(bucket, database, kms_key):
-    wr.s3.delete_objects(path=f"s3://{bucket}/test_athena_ctas/")
-    wr.s3.delete_objects(path=f"s3://{bucket}/test_athena_ctas_result/")
+@pytest.fixture(scope="function")
+def path(bucket):
+    yield from path_generator(bucket)
+
+
+@pytest.fixture(scope="function")
+def path2(bucket):
+    yield from path_generator(bucket)
+
+
+@pytest.fixture(scope="function")
+def path3(bucket):
+    yield from path_generator(bucket)
+
+
+def test_athena_ctas(path, path2, path3, table, table2, database, kms_key):
     df = get_df_list()
     columns_types, partitions_types = wr.catalog.extract_athena_types(df=df, partition_cols=["par0", "par1"])
     assert len(columns_types) == 16
@@ -230,78 +208,70 @@ def test_athena_ctas(bucket, database, kms_key):
         wr.catalog.extract_athena_types(df=df, file_format="avro")
     paths = wr.s3.to_parquet(
         df=get_df_list(),
-        path=f"s3://{bucket}/test_athena_ctas",
+        path=path,
         index=True,
         use_threads=True,
         dataset=True,
         mode="overwrite",
         database=database,
-        table="test_athena_ctas",
+        table=table,
         partition_cols=["par0", "par1"],
     )["paths"]
     wr.s3.wait_objects_exist(paths=paths)
-    dirs = wr.s3.list_directories(path=f"s3://{bucket}/test_athena_ctas/")
+    dirs = wr.s3.list_directories(path=path)
     for d in dirs:
-        assert d.startswith(f"s3://{bucket}/test_athena_ctas/par0=")
-    df = wr.s3.read_parquet_table(table="test_athena_ctas", database=database)
+        assert d.startswith(f"{path}par0=")
+    df = wr.s3.read_parquet_table(table=table, database=database)
     assert len(df.index) == 3
     ensure_data_types(df=df, has_list=True)
     df = wr.athena.read_sql_table(
-        table="test_athena_ctas",
+        table=table,
         database=database,
         ctas_approach=True,
         encryption="SSE_KMS",
         kms_key=kms_key,
-        s3_output=f"s3://{bucket}/test_athena_ctas_result",
+        s3_output=path2,
         keep_files=False,
     )
     assert len(df.index) == 3
     ensure_data_types(df=df, has_list=True)
-    temp_table = "test_athena_ctas2"
-    s3_output = f"s3://{bucket}/s3_output/"
-    final_destination = f"{s3_output}{temp_table}/"
+    final_destination = f"{path3}{table2}/"
 
     # keep_files=False
-    wr.s3.delete_objects(path=s3_output)
+    wr.s3.delete_objects(path=path3)
     dfs = wr.athena.read_sql_query(
-        sql="SELECT * FROM test_athena_ctas",
+        sql=f"SELECT * FROM {table}",
         database=database,
         ctas_approach=True,
         chunksize=1,
         keep_files=False,
-        ctas_temp_table_name=temp_table,
-        s3_output=s3_output,
+        ctas_temp_table_name=table2,
+        s3_output=path3,
     )
-    assert wr.catalog.does_table_exist(database=database, table=temp_table) is False
-    assert len(wr.s3.list_objects(path=s3_output)) > 2
+    assert wr.catalog.does_table_exist(database=database, table=table2) is False
+    assert len(wr.s3.list_objects(path=path3)) > 2
     assert len(wr.s3.list_objects(path=final_destination)) > 0
     for df in dfs:
         ensure_data_types(df=df, has_list=True)
-    assert len(wr.s3.list_objects(path=s3_output)) == 0
+    assert len(wr.s3.list_objects(path=path3)) == 0
 
     # keep_files=True
-    wr.s3.delete_objects(path=s3_output)
+    wr.s3.delete_objects(path=path3)
     dfs = wr.athena.read_sql_query(
-        sql="SELECT * FROM test_athena_ctas",
+        sql=f"SELECT * FROM {table}",
         database=database,
         ctas_approach=True,
         chunksize=2,
         keep_files=True,
-        ctas_temp_table_name=temp_table,
-        s3_output=s3_output,
+        ctas_temp_table_name=table2,
+        s3_output=path3,
     )
-    assert wr.catalog.does_table_exist(database=database, table=temp_table) is False
-    assert len(wr.s3.list_objects(path=s3_output)) > 2
+    assert wr.catalog.does_table_exist(database=database, table=table2) is False
+    assert len(wr.s3.list_objects(path=path3)) > 2
     assert len(wr.s3.list_objects(path=final_destination)) > 0
     for df in dfs:
         ensure_data_types(df=df, has_list=True)
-    assert len(wr.s3.list_objects(path=s3_output)) > 2
-
-    # Cleaning Up
-    wr.catalog.delete_table_if_exists(database=database, table="test_athena_ctas")
-    wr.s3.delete_objects(path=paths)
-    wr.s3.wait_objects_not_exist(paths=paths)
-    wr.s3.delete_objects(path=f"s3://{bucket}/test_athena_ctas_result/")
+    assert len(wr.s3.list_objects(path=path3)) > 2
 
 
 def test_athena(path, database, kms_key, workgroup0, workgroup1):

@@ -1,8 +1,12 @@
 import random
+import time
 from datetime import datetime
 from decimal import Decimal
 
+import boto3
 import pandas as pd
+
+import awswrangler as wr
 
 ts = lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S.%f")  # noqa
 dt = lambda x: datetime.strptime(x, "%Y-%m-%d").date()  # noqa
@@ -407,3 +411,26 @@ def ensure_data_types_csv(df):
 def get_time_str_with_random_suffix():
     time_str = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
     return f"{time_str}_{random.randrange(16**4):04x}"
+
+
+def path_generator(bucket):
+    s3_path = f"s3://{bucket}/{get_time_str_with_random_suffix()}/"
+    print(f"S3 Path: {s3_path}")
+    time.sleep(1)
+    objs = wr.s3.list_objects(s3_path)
+    wr.s3.delete_objects(path=objs)
+    wr.s3.wait_objects_not_exist(objs)
+    yield s3_path
+    time.sleep(1)
+    objs = wr.s3.list_objects(s3_path)
+    wr.s3.delete_objects(path=objs)
+    wr.s3.wait_objects_not_exist(objs)
+
+
+def extract_cloudformation_outputs():
+    response = boto3.client("cloudformation").describe_stacks(StackName="aws-data-wrangler")
+    stack = [x for x in response.get("Stacks") if x["StackStatus"] in CFN_VALID_STATUS][0]
+    outputs = {}
+    for output in stack.get("Outputs"):
+        outputs[output.get("OutputKey")] = output.get("OutputValue")
+    return outputs
