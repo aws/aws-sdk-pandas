@@ -677,6 +677,8 @@ def to_csv(  # pylint: disable=too-many-arguments
             raise exceptions.InvalidArgumentCombination("Please, pass dataset=True to be able to use partition_cols.")
         if mode is not None:
             raise exceptions.InvalidArgumentCombination("Please pass dataset=True to be able to use mode.")
+        if columns_comments:
+            raise exceptions.InvalidArgumentCombination("Please pass dataset=True to be able to use columns_comments.")
         if any(arg is not None for arg in (database, table, description, parameters)):
             raise exceptions.InvalidArgumentCombination(
                 "Please pass dataset=True to be able to use any one of these "
@@ -887,14 +889,16 @@ def _to_text(
         raise exceptions.EmptyDataFrame()
     if fs is None:
         fs = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
-    with fs.open(path, "w") as f:
+    encoding: Optional[str] = pandas_kwargs.get("encoding", None)
+    newline: Optional[str] = pandas_kwargs.get("line_terminator", None)
+    with fs.open(path=path, mode="w", encoding=encoding, newline=newline) as f:
         if file_format == "csv":
             df.to_csv(f, **pandas_kwargs)
         elif file_format == "json":
             df.to_json(f, **pandas_kwargs)
 
 
-def to_parquet(  # pylint: disable=too-many-arguments
+def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     df: pd.DataFrame,
     path: str,
     index: bool = False,
@@ -1153,9 +1157,14 @@ def to_parquet(  # pylint: disable=too-many-arguments
                 "arguments: database, table, description, parameters, "
                 "columns_comments."
             )
+        df = _data_types.cast_pandas_with_athena_types(df=df, dtype=dtype)
+        schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(
+            df=df, index=index, ignore_cols=partition_cols, dtype=dtype
+        )
+        _logger.debug("schema: \n%s", schema)
         paths = [
             _to_parquet_file(
-                df=df, path=path, schema=None, index=index, compression=compression, cpus=cpus, fs=fs, dtype=dtype
+                df=df, path=path, schema=schema, index=index, compression=compression, cpus=cpus, fs=fs, dtype=dtype
             )
         ]
     else:
@@ -1314,6 +1323,7 @@ def read_csv(
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     chunksize: Optional[int] = None,
+    dataset: bool = False,
     **pandas_kwargs,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read CSV file(s) from from a received S3 prefix or list of S3 objects paths.
@@ -1340,6 +1350,8 @@ def read_csv(
         https://s3fs.readthedocs.io/en/latest/#serverside-encryption
     chunksize: int, optional
         If specified, return an generator where chunksize is the number of rows to include in each chunk.
+    dataset: bool
+        If `True` read a CSV dataset instead of simple file(s) loading all the related partitions as columns.
     pandas_kwargs:
         keyword arguments forwarded to pandas.read_csv().
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
@@ -1387,6 +1399,7 @@ def read_csv(
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
         chunksize=chunksize,
+        dataset=dataset,
         **pandas_kwargs,
     )
 
@@ -1397,6 +1410,7 @@ def read_fwf(
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     chunksize: Optional[int] = None,
+    dataset: bool = False,
     **pandas_kwargs,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read fixed-width formatted file(s) from from a received S3 prefix or list of S3 objects paths.
@@ -1423,6 +1437,8 @@ def read_fwf(
         https://s3fs.readthedocs.io/en/latest/#serverside-encryption
     chunksize: int, optional
         If specified, return an generator where chunksize is the number of rows to include in each chunk.
+    dataset: bool
+        If `True` read a FWF dataset instead of simple file(s) loading all the related partitions as columns.
     pandas_kwargs:
         keyword arguments forwarded to pandas.read_fwf().
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_fwf.html
@@ -1470,6 +1486,7 @@ def read_fwf(
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
         chunksize=chunksize,
+        dataset=dataset,
         **pandas_kwargs,
     )
 
@@ -1480,6 +1497,7 @@ def read_json(
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     chunksize: Optional[int] = None,
+    dataset: bool = False,
     **pandas_kwargs,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read JSON file(s) from from a received S3 prefix or list of S3 objects paths.
@@ -1506,6 +1524,9 @@ def read_json(
         https://s3fs.readthedocs.io/en/latest/#serverside-encryption
     chunksize: int, optional
         If specified, return an generator where chunksize is the number of rows to include in each chunk.
+    dataset: bool
+        If `True` read a JSON dataset instead of simple file(s) loading all the related partitions as columns.
+        If `True`, the `lines=True` will be assumed by default.
     pandas_kwargs:
         keyword arguments forwarded to pandas.read_json().
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_json.html
@@ -1546,6 +1567,8 @@ def read_json(
     >>>     print(df)  # 100 lines Pandas DataFrame
 
     """
+    if (dataset is True) and ("lines" not in pandas_kwargs):
+        pandas_kwargs["lines"] = True
     return _read_text(
         parser_func=pd.read_json,
         path=path,
@@ -1553,6 +1576,7 @@ def read_json(
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
         chunksize=chunksize,
+        dataset=dataset,
         **pandas_kwargs,
     )
 
@@ -1564,11 +1588,18 @@ def _read_text(
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     chunksize: Optional[int] = None,
+    dataset: bool = False,
     **pandas_kwargs,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     if "iterator" in pandas_kwargs:
         raise exceptions.InvalidArgument("Please, use chunksize instead of iterator.")
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    if (dataset is True) and (not isinstance(path, str)):  # pragma: no cover
+        raise exceptions.InvalidArgument("The path argument must be a string Amazon S3 prefix if dataset=True.")
+    if dataset is True:
+        path_root: str = str(path)
+    else:
+        path_root = ""
     paths: List[str] = _path2list(path=path, boto3_session=session)
     _logger.debug("paths:\n%s", paths)
     if chunksize is not None:
@@ -1579,6 +1610,8 @@ def _read_text(
             chunksize=chunksize,
             pandas_args=pandas_kwargs,
             s3_additional_kwargs=s3_additional_kwargs,
+            dataset=dataset,
+            path_root=path_root,
         )
         return dfs
     if (use_threads is False) or (boto3_session is not None):
@@ -1590,6 +1623,8 @@ def _read_text(
                     boto3_session=session,
                     pandas_args=pandas_kwargs,
                     s3_additional_kwargs=s3_additional_kwargs,
+                    dataset=dataset,
+                    path_root=path_root,
                 )
                 for p in paths
             ],
@@ -1603,10 +1638,12 @@ def _read_text(
                 objs=executor.map(
                     _read_text_full,
                     repeat(parser_func),
+                    repeat(path_root),
                     paths,
                     repeat(None),  # Boto3.Session
                     repeat(pandas_kwargs),
                     repeat(s3_additional_kwargs),
+                    repeat(dataset),
                 ),
                 ignore_index=True,
                 sort=False,
@@ -1616,37 +1653,54 @@ def _read_text(
 
 def _read_text_chunksize(
     parser_func: Callable,
+    path_root: str,
     paths: List[str],
     boto3_session: boto3.Session,
     chunksize: int,
     pandas_args: Dict[str, Any],
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    dataset: bool = False,
 ) -> Iterator[pd.DataFrame]:
     fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
     for path in paths:
         _logger.debug("path: %s", path)
+        partitions: Dict[str, Any] = {}
+        if dataset is True:
+            partitions = _utils.extract_partitions_from_path(path_root=path_root, path=path)
         if pandas_args.get("compression", "infer") == "infer":
             pandas_args["compression"] = infer_compression(path, compression="infer")
         mode: str = "r" if pandas_args.get("compression") is None else "rb"
         with fs.open(path, mode) as f:
             reader: pandas.io.parsers.TextFileReader = parser_func(f, chunksize=chunksize, **pandas_args)
             for df in reader:
+                if dataset is True:
+                    for column_name, value in partitions.items():
+                        df[column_name] = value
                 yield df
 
 
 def _read_text_full(
     parser_func: Callable,
+    path_root: str,
     path: str,
     boto3_session: boto3.Session,
     pandas_args: Dict[str, Any],
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    dataset: bool = False,
 ) -> pd.DataFrame:
     fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
     if pandas_args.get("compression", "infer") == "infer":
         pandas_args["compression"] = infer_compression(path, compression="infer")
     mode: str = "r" if pandas_args.get("compression") is None else "rb"
-    with fs.open(path, mode) as f:
-        return parser_func(f, **pandas_args)
+    encoding: Optional[str] = pandas_args.get("encoding", None)
+    newline: Optional[str] = pandas_args.get("lineterminator", None)
+    with fs.open(path=path, mode=mode, encoding=encoding, newline=newline) as f:
+        df: pd.DataFrame = parser_func(f, **pandas_args)
+    if dataset is True:
+        partitions: Dict[str, Any] = _utils.extract_partitions_from_path(path_root=path_root, path=path)
+        for column_name, value in partitions.items():
+            df[column_name] = value
+    return df
 
 
 def _read_parquet_init(
@@ -1660,14 +1714,15 @@ def _read_parquet_init(
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
 ) -> pyarrow.parquet.ParquetDataset:
     """Encapsulate all initialization before the use of the pyarrow.parquet.ParquetDataset."""
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if dataset is False:
-        path_or_paths: Union[str, List[str]] = _path2list(path=path, boto3_session=boto3_session)
+        path_or_paths: Union[str, List[str]] = _path2list(path=path, boto3_session=session)
     elif isinstance(path, str):
         path_or_paths = path[:-1] if path.endswith("/") else path
     else:
         path_or_paths = path
     _logger.debug("path_or_paths: %s", path_or_paths)
-    fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
+    fs: s3fs.S3FileSystem = _utils.get_fs(session=session, s3_additional_kwargs=s3_additional_kwargs)
     cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
     data: pyarrow.parquet.ParquetDataset = pyarrow.parquet.ParquetDataset(
         path_or_paths=path_or_paths,
@@ -1677,6 +1732,7 @@ def _read_parquet_init(
         read_dictionary=categories,
         validate_schema=validate_schema,
         split_row_groups=False,
+        use_legacy_dataset=True,
     )
     return data
 
@@ -1723,7 +1779,8 @@ def read_parquet(
     path : Union[str, List[str]]
         S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
     filters: Union[List[Tuple], List[List[Tuple]]], optional
-        List of filters to apply, like ``[[('x', '=', 0), ...], ...]``.
+        List of filters to apply on PARTITION columns (PUSH-DOWN filter), like ``[[('x', '=', 0), ...], ...]``.
+        Ignored if `dataset=False`.
     columns : List[str], optional
         Names of columns to read from the file(s).
     validate_schema:
@@ -1994,7 +2051,7 @@ def _read_parquet_metadata(
     partitions_types: Optional[Dict[str, str]] = None
     partitions_values: Optional[Dict[str, List[str]]] = None
     if (dataset is True) and (_path is not None):
-        partitions_types, partitions_values = _utils.extract_partitions_from_paths(path=_path, paths=paths)
+        partitions_types, partitions_values = _utils.extract_partitions_metadata_from_paths(path=_path, paths=paths)
     if dtype:
         for k, v in dtype.items():
             if columns_types and k in columns_types:

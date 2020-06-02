@@ -203,10 +203,10 @@ def get_region_from_session(boto3_session: Optional[boto3.Session] = None, defau
     )  # pragma: no cover
 
 
-def extract_partitions_from_paths(
+def extract_partitions_metadata_from_paths(
     path: str, paths: List[str]
 ) -> Tuple[Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]:
-    """Extract partitions from Amazon S3 paths."""
+    """Extract partitions metadata from Amazon S3 paths."""
     path = path if path.endswith("/") else f"{path}/"
     partitions_types: Dict[str, str] = {}
     partitions_values: Dict[str, List[str]] = {}
@@ -217,7 +217,7 @@ def extract_partitions_from_paths(
             )  # pragma: no cover
         path_wo_filename: str = p.rpartition("/")[0] + "/"
         if path_wo_filename not in partitions_values:
-            path_wo_prefix: str = p.replace(f"{path}/", "")
+            path_wo_prefix: str = path_wo_filename.replace(f"{path}/", "")
             dirs: List[str] = [x for x in path_wo_prefix.split("/") if (x != "") and ("=" in x)]
             if dirs:
                 values_tups: List[Tuple[str, str]] = [tuple(x.split("=")[:2]) for x in dirs]  # type: ignore
@@ -236,6 +236,23 @@ def extract_partitions_from_paths(
     if not partitions_types:
         return None, None
     return partitions_types, partitions_values
+
+
+def extract_partitions_from_path(path_root: str, path: str) -> Dict[str, Any]:
+    """Extract partitions values and names from Amazon S3 path."""
+    path_root = path_root if path_root.endswith("/") else f"{path_root}/"
+    if path_root not in path:
+        raise exceptions.InvalidArgumentValue(
+            f"Object {path} is not under the root path ({path_root})."
+        )  # pragma: no cover
+    path_wo_filename: str = path.rpartition("/")[0] + "/"
+    path_wo_prefix: str = path_wo_filename.replace(f"{path_root}/", "")
+    dirs: List[str] = [x for x in path_wo_prefix.split("/") if (x != "") and ("=" in x)]
+    if not dirs:
+        return {}  # pragma: no cover
+    values_tups: List[Tuple[str, str]] = [tuple(x.split("=")[:2]) for x in dirs]  # type: ignore
+    values_dics: Dict[str, str] = dict(values_tups)
+    return values_dics
 
 
 def list_sampling(lst: List[Any], sampling: float) -> List[Any]:

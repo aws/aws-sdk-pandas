@@ -7,7 +7,7 @@ import pytest
 import awswrangler as wr
 from awswrangler import exceptions
 
-from ._utils import CFN_VALID_STATUS
+from ._utils import extract_cloudformation_outputs
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
@@ -16,12 +16,7 @@ logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
 
 @pytest.fixture(scope="module")
 def cloudformation_outputs():
-    response = boto3.client("cloudformation").describe_stacks(StackName="aws-data-wrangler")
-    stack = [x for x in response.get("Stacks") if x["StackStatus"] in CFN_VALID_STATUS][0]
-    outputs = {}
-    for output in stack.get("Outputs"):
-        outputs[output.get("OutputKey")] = output.get("OutputValue")
-    yield outputs
+    yield extract_cloudformation_outputs()
 
 
 @pytest.fixture(scope="module")
