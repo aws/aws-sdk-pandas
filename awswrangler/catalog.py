@@ -17,6 +17,81 @@ from awswrangler import _data_types, _utils, exceptions
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
+def create_glue_database(
+    name: str, description: str = "", catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
+) -> None:
+    """Create a database un AWS Glue Catalog.
+
+    Parameters
+    ----------
+    name : str
+        Database name.
+    description : str
+        A Descrption for the Database.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    None
+        None.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> wr.catalog.create_glue_database(
+    ...     name='awswrangler_test'
+    ... )
+    """
+    args = {}
+    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    args["Name"] = name
+    args["Description"] = description
+
+    if catalog_id is not None:
+        client_glue.create_database(CatalogId=catalog_id, DatabaseInput=args)
+    else:
+        client_glue.create_database(DatabaseInput=args)
+
+
+def delete_glue_database(
+    name: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
+) -> None:
+    """Create a database un AWS Glue Catalog.
+
+    Parameters
+    ----------
+    name : str
+        Database name.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    None
+        None.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> wr.catalog.delete_glue_database(
+    ...     name='awswrangler_test'
+    ... )
+    """
+    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+
+    if catalog_id is not None:
+        client_glue.delete_database(CatalogId=catalog_id, Name=name)
+    else:
+        client_glue.delete_database(Name=name)
+
+
 def delete_table_if_exists(database: str, table: str, boto3_session: Optional[boto3.Session] = None) -> bool:
     """Delete Glue table if exists.
 
