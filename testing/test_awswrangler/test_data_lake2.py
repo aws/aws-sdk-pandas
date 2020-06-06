@@ -423,3 +423,37 @@ def test_read_partitioned_fwf(path, use_threads, chunksize):
     else:
         for d in df2:
             assert d.shape == (1, 4)
+
+
+def test_glue_database():
+
+    # Round 1 - Create Database
+    database_name = f"database_{get_time_str_with_random_suffix()}"
+    print(f"Database Name: {database_name}")
+    wr.catalog.create_database(name=database_name, description="Database Description")
+    databases = wr.catalog.get_databases()
+    test_database_name = ""
+    test_database_description = ""
+
+    for database in databases:
+        if database["Name"] == database_name:
+            test_database_name = database["Name"]
+            test_database_description = database["Description"]
+
+    assert test_database_name == database_name
+    assert test_database_description == "Database Description"
+
+    # Round 2 - Delete Database
+    print(f"Database Name: {database_name}")
+    wr.catalog.delete_database(name=database_name)
+    databases = wr.catalog.get_databases()
+    test_database_name = ""
+    test_database_description = ""
+
+    for database in databases:
+        if database["Name"] == database_name:
+            test_database_name = database["Name"]
+            test_database_description = database["Description"]
+
+    assert test_database_name == ""
+    assert test_database_description == ""

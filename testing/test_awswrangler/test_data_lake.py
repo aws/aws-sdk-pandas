@@ -198,40 +198,6 @@ def path3(bucket):
     yield from path_generator(bucket)
 
 
-def test_glue_database():
-
-    # Round 1 - Create Database
-    database_name = f"database_{get_time_str_with_random_suffix()}"
-    print(f"Database Name: {database_name}")
-    wr.catalog.create_glue_database(name=database_name, description="Database Description")
-    databases = wr.catalog.get_databases()
-    test_database_name = ""
-    test_database_description = ""
-
-    for database in databases:
-        if database["Name"] == database_name:
-            test_database_name = database["Name"]
-            test_database_description = database["Description"]
-
-    assert test_database_name == database_name
-    assert test_database_description == "Database Description"
-
-    # Round 2 - Delete Database
-    print(f"Database Name: {database_name}")
-    wr.catalog.delete_glue_database(name=database_name)
-    databases = wr.catalog.get_databases()
-    test_database_name = ""
-    test_database_description = ""
-
-    for database in databases:
-        if database["Name"] == database_name:
-            test_database_name = database["Name"]
-            test_database_description = database["Description"]
-
-    assert test_database_name == ""
-    assert test_database_description == ""
-
-
 def test_to_parquet_modes(database, table, path, external_schema):
 
     # Round 1 - Warm up

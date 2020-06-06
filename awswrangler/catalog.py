@@ -17,16 +17,19 @@ from awswrangler import _data_types, _utils, exceptions
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def create_glue_database(
-    name: str, description: str = "", catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
+def create_database(
+    name: str,
+    description: Optional[str] = None,
+    catalog_id: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
 ) -> None:
-    """Create a database un AWS Glue Catalog.
+    """Create a database in AWS Glue Catalog.
 
     Parameters
     ----------
     name : str
         Database name.
-    description : str
+    description : str, optional
         A Descrption for the Database.
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
@@ -42,25 +45,24 @@ def create_glue_database(
     Examples
     --------
     >>> import awswrangler as wr
-    >>> wr.catalog.create_glue_database(
+    >>> wr.catalog.create_database(
     ...     name='awswrangler_test'
     ... )
     """
-    args = {}
+    args: Dict[str, str] = {}
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
     args["Name"] = name
-    args["Description"] = description
+    if description is not None:
+        args["Description"] = description
 
     if catalog_id is not None:
-        client_glue.create_database(CatalogId=catalog_id, DatabaseInput=args)
+        client_glue.create_database(CatalogId=catalog_id, DatabaseInput=args)  # pragma: no cover
     else:
         client_glue.create_database(DatabaseInput=args)
 
 
-def delete_glue_database(
-    name: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
-) -> None:
-    """Create a database un AWS Glue Catalog.
+def delete_database(name: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None) -> None:
+    """Create a database in AWS Glue Catalog.
 
     Parameters
     ----------
@@ -80,14 +82,14 @@ def delete_glue_database(
     Examples
     --------
     >>> import awswrangler as wr
-    >>> wr.catalog.delete_glue_database(
+    >>> wr.catalog.delete_database(
     ...     name='awswrangler_test'
     ... )
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
 
     if catalog_id is not None:
-        client_glue.delete_database(CatalogId=catalog_id, Name=name)
+        client_glue.delete_database(CatalogId=catalog_id, Name=name)  # pragma: no cover
     else:
         client_glue.delete_database(Name=name)
 
