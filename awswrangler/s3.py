@@ -1614,7 +1614,7 @@ def _read_text(
             path_root=path_root,
         )
         return dfs
-    if (use_threads is False) or (boto3_session is not None):
+    if use_threads is False:
         df: pd.DataFrame = pd.concat(
             objs=[
                 _read_text_full(
@@ -1640,7 +1640,7 @@ def _read_text(
                     repeat(parser_func),
                     repeat(path_root),
                     paths,
-                    repeat(None),  # Boto3.Session
+                    repeat(_utils.boto3_to_primitives(boto3_session=session)),  # Boto3.Session
                     repeat(pandas_kwargs),
                     repeat(s3_additional_kwargs),
                     repeat(dataset),
@@ -1683,7 +1683,7 @@ def _read_text_full(
     parser_func: Callable,
     path_root: str,
     path: str,
-    boto3_session: boto3.Session,
+    boto3_session: Union[boto3.Session, Dict[str, Optional[str]]],
     pandas_args: Dict[str, Any],
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     dataset: bool = False,
@@ -2354,27 +2354,36 @@ def _wait_objects(
     delay = 5 if delay is None else delay
     max_attempts = 20 if max_attempts is None else max_attempts
     _delay: int = int(delay) if isinstance(delay, float) else delay
-
     if len(paths) < 1:
         return None
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
-    waiter = client_s3.get_waiter(waiter_name)
     _paths: List[Tuple[str, str]] = [_utils.parse_path(path=p) for p in paths]
     if use_threads is False:
+        waiter = client_s3.get_waiter(waiter_name)
         for bucket, key in _paths:
             waiter.wait(Bucket=bucket, Key=key, WaiterConfig={"Delay": _delay, "MaxAttempts": max_attempts})
     else:
         cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
-            futures: List[concurrent.futures.Future] = []
-            for bucket, key in _paths:
-                future: concurrent.futures.Future = executor.submit(
-                    fn=waiter.wait, Bucket=bucket, Key=key, WaiterConfig={"Delay": _delay, "MaxAttempts": max_attempts}
+            list(
+                executor.map(
+                    _wait_objects_concurrent,
+                    _paths,
+                    repeat(waiter_name),
+                    repeat(client_s3),
+                    repeat(_delay),
+                    repeat(max_attempts),
                 )
-                futures.append(future)
-            for future in futures:
-                future.result()
+            )
     return None
+
+
+def _wait_objects_concurrent(
+    path: Tuple[str, str], waiter_name: str, client_s3: boto3.client, delay: int, max_attempts: int
+) -> None:
+    waiter = client_s3.get_waiter(waiter_name)
+    bucket, key = path
+    waiter.wait(Bucket=bucket, Key=key, WaiterConfig={"Delay": delay, "MaxAttempts": max_attempts})
 
 
 def read_parquet_table(

@@ -1,10 +1,11 @@
 """Internal (private) Utilities Module."""
 
+import copy
 import logging
 import math
 import os
 import random
-from typing import Any, Dict, Generator, List, Optional, Tuple
+from typing import Any, Dict, Generator, List, Optional, Tuple, Union
 
 import boto3  # type: ignore
 import botocore.config  # type: ignore
@@ -17,8 +18,10 @@ from awswrangler import exceptions
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def ensure_session(session: Optional[boto3.Session] = None) -> boto3.Session:
+def ensure_session(session: Optional[Union[boto3.Session, Dict[str, Optional[str]]]] = None) -> boto3.Session:
     """Ensure that a valid boto3.Session will be returned."""
+    if isinstance(session, dict):  # Primitives received
+        return boto3_from_primitives(primitives=session)
     if session is not None:
         return session
     # Ensure the boto3's default session is used so that its parameters can be
@@ -26,6 +29,30 @@ def ensure_session(session: Optional[boto3.Session] = None) -> boto3.Session:
     if boto3.DEFAULT_SESSION is not None:
         return boto3.DEFAULT_SESSION
     return boto3.Session()  # pragma: no cover
+
+
+def boto3_to_primitives(boto3_session: Optional[boto3.Session] = None) -> Dict[str, Optional[str]]:
+    """Convert Boto3 Session to Python primitives."""
+    _boto3_session: boto3.Session = ensure_session(session=boto3_session)
+    credentials = _boto3_session.get_credentials()
+    return {
+        "aws_access_key_id": getattr(credentials, "access_key", None),
+        "aws_secret_access_key": getattr(credentials, "secret_key", None),
+        "aws_session_token": getattr(credentials, "token", None),
+        "region_name": _boto3_session.region_name,
+        "profile_name": _boto3_session.profile_name,
+    }
+
+
+def boto3_from_primitives(primitives: Dict[str, Optional[str]] = None) -> boto3.Session:
+    """Convert Python primitives to Boto3 Session."""
+    if primitives is None:
+        return boto3.DEFAULT_SESSION  # pragma: no cover
+    _primitives: Dict[str, Optional[str]] = copy.deepcopy(primitives)
+    profile_name: Optional[str] = _primitives.get("profile_name", None)
+    _primitives["profile_name"] = None if profile_name in (None, "default") else profile_name
+    args: Dict[str, str] = {k: v for k, v in _primitives.items() if v is not None}
+    return boto3.Session(**args)
 
 
 def client(service_name: str, session: Optional[boto3.Session] = None) -> boto3.client:
@@ -139,7 +166,8 @@ def chunkify(lst: List[Any], num_chunks: int = 1, max_length: Optional[int] = No
 
 
 def get_fs(
-    session: Optional[boto3.Session] = None, s3_additional_kwargs: Optional[Dict[str, str]] = None
+    session: Optional[Union[boto3.Session, Dict[str, Optional[str]]]] = None,
+    s3_additional_kwargs: Optional[Dict[str, str]] = None,
 ) -> s3fs.S3FileSystem:
     """Build a S3FileSystem from a given boto3 session."""
     fs: s3fs.S3FileSystem = s3fs.S3FileSystem(
