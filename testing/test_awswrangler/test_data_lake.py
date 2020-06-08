@@ -2049,5 +2049,12 @@ def test_to_parquet_file_dtype(path):
     assert str(df2.c1.dtype) == "string"
 
 # TODO: write real tests for final version, this is just for playing around
-def test_cache_simple(database, table, path): 
-    a = wr.athena.read_sql_query("SELECT id, dt FROM noaa limit 100", database="awswrangler_test", ctas_approach=False, max_cache_seconds=0)
+# def test_cache_simple(database, table, path): 
+#     a = wr.athena.read_sql_query(
+#         "with a as (SELECT id, dt FROM noaa limit 10) select * from a order by id",
+#         database="awswrangler_test",
+#         ctas_approach=True,
+#         max_cache_seconds=604800)
+#     print(a)
+#     # b = wr.athena._parse_select_query_from_possible_ctas('''CREATE TABLE \"temp_table_ba5154a257184749b3b707c8c2bcb3d1\"\nWITH(\n    format = 'Parquet',\n    parquet_compression = 'SNAPPY',\n    external_location = 's3://aws-athena-query-results-143293740982-us-east-1/temp_table_ba5154a257184749b3b707c8c2bcb3d1'\n) AS\n(SELECT id, dt FROM noaa limit 10)''')
+#     # print(b)

@@ -4,6 +4,7 @@ import csv
 import logging
 import pprint
 import time
+import re
 from decimal import Decimal
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 from datetime import datetime, timezone
@@ -388,7 +389,7 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals,too-man
     ctas_temp_table_name: Optional[str] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
-    max_cache_seconds: int = 604800
+    max_cache_seconds: int = 0
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Execute any SQL query on AWS Athena and return the results as a Pandas DataFrame.
 
@@ -486,8 +487,6 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals,too-man
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     wg_config: Dict[str, Union[bool, Optional[str]]] = _get_workgroup_config(session=session, workgroup=workgroup)
-    _s3_output: str = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=session)
-    _s3_output = _s3_output[:-1] if _s3_output[-1] == "/" else _s3_output
 
     # check for cached results
     cache_info = _check_for_cached_results(
@@ -496,38 +495,51 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals,too-man
         wg_config=wg_config,
         max_cache_seconds=max_cache_seconds
     )
-    query_id = None
+
     if cache_info["has_valid_cache"]:
-        query_id = cache_info["query_execution_id"]
-    else:
-        name: str = ""
-        if ctas_approach is True:
-            if ctas_temp_table_name is not None:
-                name = catalog.sanitize_table_name(ctas_temp_table_name)
-            else:
-                name = f"temp_table_{pa.compat.guid()}"
-            path: str = f"{_s3_output}/{name}"
-            ext_location: str = "\n" if wg_config["enforced"] is True else f",\n    external_location = '{path}'\n"
-            sql = (
-                f'CREATE TABLE "{name}"\n'
-                f"WITH(\n"
-                f"    format = 'Parquet',\n"
-                f"    parquet_compression = 'SNAPPY'"
-                f"{ext_location}"
-                f") AS\n"
-                f"{sql}"
-            )
-        _logger.debug("sql: %s", sql)
-        query_id: str = _start_query_execution(
-            sql=sql,
-            wg_config=wg_config,
-            database=database,
-            s3_output=_s3_output,
-            workgroup=workgroup,
-            encryption=encryption,
-            kms_key=kms_key,
-            boto3_session=session,
+        _logger.debug('Valid cache found. Retrieving...')
+        cache_result: Union[pd.DataFrame, Iterator[pd.DataFrame]] = _resolve_using_cache(
+            cache_info=cache_info,
+            categories=categories,
+            chunksize=chunksize,
+            use_threads=use_threads,
+            session=session
         )
+        if cache_result is not None:
+            return cache_result
+        _logger.debug('Corrupt cache. Continuing to execute query...')
+
+    _s3_output: str = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=session)
+    _s3_output = _s3_output[:-1] if _s3_output[-1] == "/" else _s3_output
+
+    name: str = ""
+    if ctas_approach is True:
+        if ctas_temp_table_name is not None:
+            name = catalog.sanitize_table_name(ctas_temp_table_name)
+        else:
+            name = f"temp_table_{pa.compat.guid()}"
+        path: str = f"{_s3_output}/{name}"
+        ext_location: str = "\n" if wg_config["enforced"] is True else f",\n    external_location = '{path}'\n"
+        sql = (
+            f'CREATE TABLE "{name}"\n'
+            f"WITH(\n"
+            f"    format = 'Parquet',\n"
+            f"    parquet_compression = 'SNAPPY'"
+            f"{ext_location}"
+            f") AS\n"
+            f"{sql}"
+        )
+    _logger.debug("sql: %s", sql)
+    query_id: str = _start_query_execution(
+        sql=sql,
+        wg_config=wg_config,
+        database=database,
+        s3_output=_s3_output,
+        workgroup=workgroup,
+        encryption=encryption,
+        kms_key=kms_key,
+        boto3_session=session,
+    )
     _logger.debug("query_id: %s", query_id)
     try:
         query_response: Dict[str, Any] = wait_query(query_execution_id=query_id, boto3_session=session)
@@ -610,6 +622,66 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals,too-man
         )
     return dfs
 
+def _resolve_using_cache(
+    cache_info,
+    categories: List[str],
+    chunksize: Optional[Union[int, bool]],
+    use_threads: bool,
+    session: Optional[boto3.Session]
+):
+    if cache_info["data_type"] == 'parquet':
+        manifest_path = cache_info["query_execution_info"]["Statistics"]["DataManifestLocation"]
+        # this is needed just so we can access boto's modeled exceptions
+        client_s3: boto3.client = _utils.client(service_name="s3", session=session)
+        try:
+            paths: List[str] = _extract_ctas_manifest_paths(path=manifest_path, boto3_session=session)
+        except (client_s3.exceptions.NoSuchBucket, client_s3.exceptions.NoSuchKey):
+            return None
+        if all([s3.does_object_exist(path) for path in paths]):
+            chunked: Union[bool, int] = False if chunksize is None else chunksize
+            _logger.debug("chunked: %s", chunked)
+            if not paths:
+                if chunked is False:
+                    return pd.DataFrame()
+                return _utils.empty_generator()
+            ret = s3.read_parquet(
+                path=paths, use_threads=use_threads, boto3_session=session, chunked=chunked, categories=categories
+            )
+            _logger.debug(type(ret))
+            return ret
+    elif cache_info["data_type"] == 'csv':
+        dtype, parse_timestamps, parse_dates, converters, binaries = _get_query_metadata(
+            query_execution_id=cache_info["query_execution_info"]["QueryExecutionId"],
+            categories=categories,
+            boto3_session=session
+        )
+        path = cache_info["query_execution_info"]["ResultConfiguration"]["OutputLocation"]
+        if s3.does_object_exist(path=path, boto3_session=session):
+            _logger.debug("Start CSV reading from %s", path)
+            _chunksize: Optional[int] = chunksize if isinstance(chunksize, int) else None
+            _logger.debug("_chunksize: %s", _chunksize)
+            ret = s3.read_csv(
+                path=[path],
+                dtype=dtype,
+                parse_dates=parse_timestamps,
+                converters=converters,
+                quoting=csv.QUOTE_ALL,
+                keep_default_na=False,
+                na_values=[""],
+                chunksize=_chunksize,
+                skip_blank_lines=False,
+                use_threads=False,
+                boto3_session=session,
+            )
+            _logger.debug("Start type casting...")
+            _logger.debug(type(ret))
+            if chunksize is None:
+                df = _fix_csv_types(df=ret, parse_dates=parse_dates, binaries=binaries)
+                return df
+            dfs = _fix_csv_types_generator(dfs=ret, parse_dates=parse_dates, binaries=binaries)
+            return dfs
+
+    return None
 
 def _delete_after_iterate(
     dfs: Iterator[pd.DataFrame], paths: List[str], use_threads: bool, boto3_session: boto3.Session
@@ -823,7 +895,7 @@ def read_sql_table(
 def _prepare_query_string_for_comparison(query_string: str):
     # for now this is a simple complete strip, but it could grow into much more sophisticated
     # query comparison data structures
-    return "".join(query_string.split())
+    return "".join(query_string.split()).strip('()').lower()
 
 def _get_last_query_executions(boto3_session=None, client_athena=None):
     if not client_athena:
@@ -837,11 +909,24 @@ def _get_last_query_executions(boto3_session=None, client_athena=None):
     )
     return execution_data.get("QueryExecutions")
 
-def _sort_successful_executions_data(query_executions):
+def _sort_successful_executions_data(query_executions: List[]):
     filtered = [
         query for query in query_executions if query["Status"].get("State") == "SUCCEEDED"
     ]
     return sorted(filtered, key=lambda e: e["Status"]["SubmissionDateTime"], reverse=True)
+
+def _parse_select_query_from_possible_ctas(possible_ctas: str) -> str:
+    """ Checks if the possible_ctas string is a valid parquet-generating CTAS,
+        and if so, returns the full SELECT statement"""
+    possible_ctas = possible_ctas.lower()
+    parquet_format_regex = r'format\s*=\s*\'parquet\'\s*,'
+    is_parquet_format = re.search(parquet_format_regex, possible_ctas)
+    if is_parquet_format:
+        unstripped_select_statement_regex = r'\s+as\s+\(*(select|with).*'
+        unstripped_select_statement_match = re.search(unstripped_select_statement_regex, possible_ctas)
+        if unstripped_select_statement_match:
+            return re.search(r'(select|with).*', unstripped_select_statement_match.group(0)).group(0)
+    return None
 
 def _check_for_cached_results(
     sql: str,
@@ -858,22 +943,29 @@ def _check_for_cached_results(
 
         # this could be mapreduced, but it is only 50 items long, tops
         for query_info in cached_queries:
-            # TODO: check for timezone problems here
             if (current_timestamp - query_info["Status"]["SubmissionDateTime"]).total_seconds() > max_cache_seconds:
                 break
 
             if query_info["StatementType"] == "DDL" and query_info["Query"].startswith('CREATE TABLE'):
-                # we are going to need sqlparse here, cant solely rely on keywords
-                pass
+                parsed_query = _parse_select_query_from_possible_ctas(query_info["Query"])
+                if parsed_query:
+                    comparison_query: str = _prepare_query_string_for_comparison(query_string=parsed_query)
+                    if comparison_query == comparable_sql:
+                        data_type = 'parquet'
+                        return {
+                            "has_valid_cache": True,
+                            "data_type": data_type,
+                            "query_execution_info": query_info
+                        }
 
-            elif query_info["StatementType"] == "DML":
+            elif query_info["StatementType"] == "DML" and not query_info["Query"].startswith('INSERT'):
                 comparison_query: str = _prepare_query_string_for_comparison(query_string=query_info["Query"])
                 if comparison_query == comparable_sql:
                     data_type = 'csv'
                     return {
                         "has_valid_cache": True,
                         "data_type": data_type,
-                        "query_execution_id": query_info["QueryExecutionId"]
+                        "query_execution_info": query_info
                     }
 
     return {
