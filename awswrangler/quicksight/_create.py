@@ -7,8 +7,8 @@ from typing import Any, Dict, List, Optional, Union
 import boto3  # type: ignore
 
 from awswrangler import _utils, exceptions
-from awswrangler.quicksight import _get
-from awswrangler.quicksight import _utils as _qs_utils
+from awswrangler.quicksight._get_list import get_data_source_arn, get_dataset_id
+from awswrangler.quicksight._utils import extract_athena_query_columns, extract_athena_table_columns
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -279,14 +279,14 @@ def create_athena_dataset(
     if account_id is None:
         account_id = _utils.get_account_id(boto3_session=session)
     if (data_source_arn is None) and (data_source_name is not None):
-        data_source_arn = _get.get_data_source_arn(name=data_source_name, account_id=account_id, boto3_session=session)
+        data_source_arn = get_data_source_arn(name=data_source_name, account_id=account_id, boto3_session=session)
     if sql is not None:
         physical_table: Dict[str, Dict[str, Any]] = {
             "CustomSql": {
                 "DataSourceArn": data_source_arn,
                 "Name": sql_name,
                 "SqlQuery": sql,
-                "Columns": _qs_utils.extract_athena_query_columns(
+                "Columns": extract_athena_query_columns(
                     sql=sql,
                     data_source_arn=data_source_arn,  # type: ignore
                     account_id=account_id,
@@ -300,7 +300,7 @@ def create_athena_dataset(
                 "DataSourceArn": data_source_arn,
                 "Schema": database,
                 "Name": table,
-                "InputColumns": _qs_utils.extract_athena_table_columns(
+                "InputColumns": extract_athena_table_columns(
                     database=database,  # type: ignore
                     table=table,  # type: ignore
                     boto3_session=session,
@@ -378,7 +378,7 @@ def create_ingestion(
     if (dataset_name is None) and (dataset_id is None):
         raise exceptions.InvalidArgument("You must pass a not None dataset_name or dataset_id argument.")
     if (dataset_id is None) and (dataset_name is not None):
-        dataset_id = _get.get_dataset_id(name=dataset_name, account_id=account_id, boto3_session=session)
+        dataset_id = get_dataset_id(name=dataset_name, account_id=account_id, boto3_session=session)
     if ingestion_id is None:
         ingestion_id = uuid.uuid4().hex
     client: boto3.client = _utils.client(service_name="quicksight", session=session)

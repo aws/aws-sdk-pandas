@@ -6,7 +6,16 @@ from typing import Any, Callable, Dict, Optional
 import boto3  # type: ignore
 
 from awswrangler import _utils, exceptions
-from awswrangler.quicksight import _get, _list
+from awswrangler.quicksight._get_list import (
+    get_dashboard_id,
+    get_data_source_id,
+    get_dataset_id,
+    get_template_id,
+    list_dashboards,
+    list_data_sources,
+    list_datasets,
+    list_templates,
+)
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -63,7 +72,7 @@ def delete_dashboard(
         raise exceptions.InvalidArgument("You must pass a not None name or dashboard_id argument.")
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if (dashboard_id is None) and (name is not None):
-        dashboard_id = _get.get_dashboard_id(name=name, account_id=account_id, boto3_session=session)
+        dashboard_id = get_dashboard_id(name=name, account_id=account_id, boto3_session=session)
     args: Dict[str, Any] = {
         "func_name": "delete_dashboard",
         "account_id": account_id,
@@ -112,7 +121,7 @@ def delete_dataset(
         raise exceptions.InvalidArgument("You must pass a not None name or dataset_id argument.")
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if (dataset_id is None) and (name is not None):
-        dataset_id = _get.get_dataset_id(name=name, account_id=account_id, boto3_session=session)
+        dataset_id = get_dataset_id(name=name, account_id=account_id, boto3_session=session)
     args: Dict[str, Any] = {
         "func_name": "delete_data_set",
         "account_id": account_id,
@@ -159,7 +168,7 @@ def delete_data_source(
         raise exceptions.InvalidArgument("You must pass a not None name or data_source_id argument.")
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if (data_source_id is None) and (name is not None):
-        data_source_id = _get.get_data_source_id(name=name, account_id=account_id, boto3_session=session)
+        data_source_id = get_data_source_id(name=name, account_id=account_id, boto3_session=session)
     args: Dict[str, Any] = {
         "func_name": "delete_data_source",
         "account_id": account_id,
@@ -210,7 +219,7 @@ def delete_template(
         raise exceptions.InvalidArgument("You must pass a not None name or template_id argument.")
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if (template_id is None) and (name is not None):
-        template_id = _get.get_template_id(name=name, account_id=account_id, boto3_session=session)
+        template_id = get_template_id(name=name, account_id=account_id, boto3_session=session)
     args: Dict[str, Any] = {
         "func_name": "delete_template",
         "account_id": account_id,
@@ -245,7 +254,7 @@ def delete_all_dashboards(account_id: Optional[str] = None, boto3_session: Optio
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
         account_id = _utils.get_account_id(boto3_session=session)
-    for dashboard in _list.list_dashboards(account_id=account_id, boto3_session=session):
+    for dashboard in list_dashboards(account_id=account_id, boto3_session=session):
         delete_dashboard(dashboard_id=dashboard["DashboardId"], account_id=account_id, boto3_session=session)
 
 
@@ -272,7 +281,7 @@ def delete_all_datasets(account_id: Optional[str] = None, boto3_session: Optiona
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
         account_id = _utils.get_account_id(boto3_session=session)
-    for dataset in _list.list_datasets(account_id=account_id, boto3_session=session):
+    for dataset in list_datasets(account_id=account_id, boto3_session=session):
         delete_dataset(dataset_id=dataset["DataSetId"], account_id=account_id, boto3_session=session)
 
 
@@ -299,7 +308,7 @@ def delete_all_data_sources(account_id: Optional[str] = None, boto3_session: Opt
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
         account_id = _utils.get_account_id(boto3_session=session)
-    for data_source in _list.list_data_sources(account_id=account_id, boto3_session=session):
+    for data_source in list_data_sources(account_id=account_id, boto3_session=session):
         delete_data_source(data_source_id=data_source["DataSourceId"], account_id=account_id, boto3_session=session)
 
 
@@ -326,5 +335,5 @@ def delete_all_templates(account_id: Optional[str] = None, boto3_session: Option
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
         account_id = _utils.get_account_id(boto3_session=session)
-    for template in _list.list_templates(account_id=account_id, boto3_session=session):
+    for template in list_templates(account_id=account_id, boto3_session=session):
         delete_template(template_id=template["TemplateId"], account_id=account_id, boto3_session=session)

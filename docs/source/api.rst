@@ -173,3 +173,13 @@ Amazon QuickSight
     get_dataset_ids
     get_template_id
     get_template_ids
+    list_dashboards
+    list_data_sources
+    list_datasets
+    list_groups
+    list_group_memberships
+    list_iam_policy_assignments
+    list_iam_policy_assignments_for_user
+    list_ingestions
+    list_templates
+    list_users

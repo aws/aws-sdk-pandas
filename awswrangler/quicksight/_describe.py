@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional
 import boto3  # type: ignore
 
 from awswrangler import _utils, exceptions
-from awswrangler.quicksight import _get
+from awswrangler.quicksight._get_list import get_dashboard_id, get_data_source_id, get_dataset_id
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ def describe_dashboard(
     if account_id is None:
         account_id = _utils.get_account_id(boto3_session=session)
     if (dashboard_id is None) and (name is not None):
-        dashboard_id = _get.get_dashboard_id(name=name, account_id=account_id, boto3_session=session)
+        dashboard_id = get_dashboard_id(name=name, account_id=account_id, boto3_session=session)
     client: boto3.client = _utils.client(service_name="quicksight", session=session)
     return client.describe_dashboard(AwsAccountId=account_id, DashboardId=dashboard_id)["Dashboard"]
 
@@ -94,7 +94,7 @@ def describe_data_source(
     if account_id is None:
         account_id = _utils.get_account_id(boto3_session=session)
     if (data_source_id is None) and (name is not None):
-        data_source_id = _get.get_data_source_id(name=name, account_id=account_id, boto3_session=session)
+        data_source_id = get_data_source_id(name=name, account_id=account_id, boto3_session=session)
     client: boto3.client = _utils.client(service_name="quicksight", session=session)
     return client.describe_data_source(AwsAccountId=account_id, DataSourceId=data_source_id)["DataSource"]
 
@@ -138,7 +138,7 @@ def describe_data_source_permissions(
     if account_id is None:
         account_id = _utils.get_account_id(boto3_session=session)
     if (data_source_id is None) and (name is not None):
-        data_source_id = _get.get_data_source_id(name=name, account_id=account_id, boto3_session=session)
+        data_source_id = get_data_source_id(name=name, account_id=account_id, boto3_session=session)
     client: boto3.client = _utils.client(service_name="quicksight", session=session)
     return client.describe_data_source_permissions(AwsAccountId=account_id, DataSourceId=data_source_id)["Permissions"]
 
@@ -182,7 +182,7 @@ def describe_dataset(
     if account_id is None:
         account_id = _utils.get_account_id(boto3_session=session)
     if (dataset_id is None) and (name is not None):
-        dataset_id = _get.get_dataset_id(name=name, account_id=account_id, boto3_session=session)
+        dataset_id = get_dataset_id(name=name, account_id=account_id, boto3_session=session)
     client: boto3.client = _utils.client(service_name="quicksight", session=session)
     return client.describe_data_set(AwsAccountId=account_id, DataSetId=dataset_id)["DataSet"]
 
@@ -229,7 +229,7 @@ def describe_ingestion(
     if account_id is None:
         account_id = _utils.get_account_id(boto3_session=session)
     if (dataset_id is None) and (dataset_name is not None):
-        dataset_id = _get.get_dataset_id(name=dataset_name, account_id=account_id, boto3_session=session)
+        dataset_id = get_dataset_id(name=dataset_name, account_id=account_id, boto3_session=session)
     client: boto3.client = _utils.client(service_name="quicksight", session=session)
     return client.describe_ingestion(IngestionId=ingestion_id, AwsAccountId=account_id, DataSetId=dataset_id)[
         "Ingestion"

@@ -6,7 +6,7 @@ from typing import Optional
 import boto3  # type: ignore
 
 from awswrangler import _utils, exceptions
-from awswrangler.quicksight import _get
+from awswrangler.quicksight._get_list import get_dataset_id
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -53,6 +53,6 @@ def cancel_ingestion(
     if account_id is None:
         account_id = _utils.get_account_id(boto3_session=session)
     if (dataset_id is None) and (dataset_name is not None):
-        dataset_id = _get.get_dataset_id(name=dataset_name, account_id=account_id, boto3_session=session)
+        dataset_id = get_dataset_id(name=dataset_name, account_id=account_id, boto3_session=session)
     client: boto3.client = _utils.client(service_name="quicksight", session=session)
     client.cancel_ingestion(IngestionId=ingestion_id, AwsAccountId=account_id, DataSetId=dataset_id)
