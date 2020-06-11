@@ -34,6 +34,10 @@ def to_sql(df: pd.DataFrame, con: sqlalchemy.engine.Engine, **pandas_kwargs) -> 
     ----
     Redshift: For large DataFrames (1MM+ rows) consider the function **wr.db.copy_to_redshift()**.
 
+    Note
+    ----
+    Redshift: `index=False` will be forced.
+
     Parameters
     ----------
     df : pandas.DataFrame
@@ -92,6 +96,8 @@ def to_sql(df: pd.DataFrame, con: sqlalchemy.engine.Engine, **pandas_kwargs) -> 
     )
     pandas_kwargs["dtype"] = dtypes
     pandas_kwargs["con"] = con
+    if pandas_kwargs["con"].name.lower() == "redshift":  # Redshift does not accept index
+        pandas_kwargs["index"] = False
     max_attempts: int = 3
     for attempt in range(max_attempts):
         try:

@@ -89,13 +89,14 @@ def test_sql(parameters, db_type):
     if db_type == "redshift":
         df.drop(["binary"], axis=1, inplace=True)
     engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-{db_type}")
+    index = True if engine.name == "redshift" else False
     wr.db.to_sql(
         df=df,
         con=engine,
         name="test_sql",
         schema=parameters[db_type]["schema"],
         if_exists="replace",
-        index=False,
+        index=index,
         index_label=None,
         chunksize=None,
         method=None,
