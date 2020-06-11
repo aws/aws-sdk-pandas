@@ -457,3 +457,9 @@ def test_glue_database():
 
     assert test_database_name == ""
     assert test_database_description == ""
+
+
+def test_list_wrong_path(path):
+    wrong_path = path.replace("s3://", "")
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.s3.list_objects(wrong_path)

@@ -90,6 +90,8 @@ def parse_path(path: str) -> Tuple[str, str]:
     >>> bucket, key = parse_path('s3://bucket/key')
 
     """
+    if path.startswith("s3://") is False:
+        raise exceptions.InvalidArgumentValue(f"'{path}' is not a valid path. It MUST start with 's3://'")
     parts = path.replace("s3://", "").split("/", 1)
     bucket: str = parts[0]
     key: str = ""

@@ -188,11 +188,11 @@ def _list_objects(
     suffix: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> List[str]:
-    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
-    paginator = client_s3.get_paginator("list_objects_v2")
     bucket: str
     prefix: str
     bucket, prefix = _utils.parse_path(path=path)
+    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    paginator = client_s3.get_paginator("list_objects_v2")
     args: Dict[str, Any] = {"Bucket": bucket, "Prefix": prefix, "PaginationConfig": {"PageSize": 1000}}
     if delimiter is not None:
         args["Delimiter"] = delimiter
