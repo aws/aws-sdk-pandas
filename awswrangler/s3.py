@@ -429,7 +429,7 @@ def size_objects(
     return size_dict
 
 
-def to_csv(  # pylint: disable=too-many-arguments
+def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
     df: pd.DataFrame,
     path: str,
     sep: str = ",",
@@ -438,6 +438,7 @@ def to_csv(  # pylint: disable=too-many-arguments
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    sanitize_columns: bool = False,
     dataset: bool = False,
     partition_cols: Optional[List[str]] = None,
     mode: Optional[str] = None,
@@ -464,8 +465,9 @@ def to_csv(  # pylint: disable=too-many-arguments
 
     Note
     ----
-    The table name and all column names will be automatically sanitize using
+    If `dataset=True` The table name and all column names will be automatically sanitized using
     `wr.catalog.sanitize_table_name` and `wr.catalog.sanitize_column_name`.
+    Please, pass `sanitize_columns=True` to force the same behaviour for `dataset=False`.
 
     Note
     ----
@@ -495,13 +497,16 @@ def to_csv(  # pylint: disable=too-many-arguments
     s3_additional_kwargs:
         Forward to s3fs, useful for server side encryption
         https://s3fs.readthedocs.io/en/latest/#serverside-encryption
-    dataset: bool
+    sanitize_columns : bool
+        True to sanitize columns names or False to keep it as is.
+        True value is forced if `dataset=True`.
+    dataset : bool
         If True store a parquet dataset instead of a single file.
         If True, enable all follow arguments:
         partition_cols, mode, database, table, description, parameters, columns_comments, .
     partition_cols: List[str], optional
         List of column names that will be used to create partitions. Only takes effect if dataset=True.
-    mode: str, optional
+    mode : str, optional
         ``append`` (Default), ``overwrite``, ``overwrite_partitions``. Only takes effect if dataset=True.
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
@@ -662,13 +667,16 @@ def to_csv(  # pylint: disable=too-many-arguments
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
 
-    # Sanitize table to respect Athena's standards
     partition_cols = partition_cols if partition_cols else []
     dtype = dtype if dtype else {}
     partitions_values: Dict[str, List[str]] = {}
-    df = catalog.sanitize_dataframe_columns_names(df=df)
-    partition_cols = [catalog.sanitize_column_name(p) for p in partition_cols]
-    dtype = {catalog.sanitize_column_name(k): v.lower() for k, v in dtype.items()}
+
+    # Sanitize table to respect Athena's standards
+    if (sanitize_columns is True) or (dataset is True):
+        df = catalog.sanitize_dataframe_columns_names(df=df)
+        partition_cols = [catalog.sanitize_column_name(p) for p in partition_cols]
+        dtype = {catalog.sanitize_column_name(k): v.lower() for k, v in dtype.items()}
+        df = catalog.drop_duplicated_columns(df=df)
 
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     fs: s3fs.S3FileSystem = _utils.get_fs(session=session, s3_additional_kwargs=s3_additional_kwargs)
@@ -703,7 +711,6 @@ def to_csv(  # pylint: disable=too-many-arguments
             if catalog_types is not None:
                 for k, v in catalog_types.items():
                     dtype[k] = v
-        df = catalog.drop_duplicated_columns(df=df)
         paths, partitions_values = _to_csv_dataset(
             df=df,
             path=path,
@@ -906,6 +913,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    sanitize_columns: bool = False,
     dataset: bool = False,
     partition_cols: Optional[List[str]] = None,
     mode: Optional[str] = None,
@@ -931,8 +939,9 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
 
     Note
     ----
-    The table name and all column names will be automatically sanitize using
+    If `dataset=True` The table name and all column names will be automatically sanitized using
     `wr.catalog.sanitize_table_name` and `wr.catalog.sanitize_column_name`.
+    Please, pass `sanitize_columns=True` to force the same behaviour for `dataset=False`.
 
     Note
     ----
@@ -960,7 +969,10 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     s3_additional_kwargs:
         Forward to s3fs, useful for server side encryption
         https://s3fs.readthedocs.io/en/latest/#serverside-encryption
-    dataset: bool
+    sanitize_columns : bool
+        True to sanitize columns names or False to keep it as is.
+        True value is forced if `dataset=True`.
+    dataset : bool
         If True store a parquet dataset instead of a single file.
         If True, enable all follow arguments:
         partition_cols, mode, database, table, description, parameters, columns_comments, .
@@ -1127,14 +1139,16 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
 
-    # Sanitize table to respect Athena's standards
     partition_cols = partition_cols if partition_cols else []
     dtype = dtype if dtype else {}
     partitions_values: Dict[str, List[str]] = {}
-    df = catalog.sanitize_dataframe_columns_names(df=df)
-    partition_cols = [catalog.sanitize_column_name(p) for p in partition_cols]
-    dtype = {catalog.sanitize_column_name(k): v.lower() for k, v in dtype.items()}
-    df = catalog.drop_duplicated_columns(df=df)
+
+    # Sanitize table to respect Athena's standards
+    if (sanitize_columns is True) or (dataset is True):
+        df = catalog.sanitize_dataframe_columns_names(df=df)
+        partition_cols = [catalog.sanitize_column_name(p) for p in partition_cols]
+        dtype = {catalog.sanitize_column_name(k): v.lower() for k, v in dtype.items()}
+        df = catalog.drop_duplicated_columns(df=df)
 
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)

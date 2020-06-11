@@ -463,3 +463,26 @@ def test_list_wrong_path(path):
     wrong_path = path.replace("s3://", "")
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.s3.list_objects(wrong_path)
+
+
+@pytest.mark.parametrize("sanitize_columns,col", [(True, "foo_boo"), (False, "FooBoo")])
+def test_sanitize_columns(path, sanitize_columns, col):
+    df = pd.DataFrame({"FooBoo": [1, 2, 3]})
+
+    # Parquet
+    file_path = f"{path}0.parquet"
+    wr.s3.to_parquet(df, path=file_path, sanitize_columns=sanitize_columns)
+    wr.s3.wait_objects_exist([file_path])
+    df = wr.s3.read_parquet(file_path)
+    assert len(df.index) == 3
+    assert len(df.columns) == 1
+    assert df.columns == [col]
+
+    # CSV
+    file_path = f"{path}0.csv"
+    wr.s3.to_csv(df, path=file_path, sanitize_columns=sanitize_columns, index=False)
+    wr.s3.wait_objects_exist([file_path])
+    df = wr.s3.read_csv(file_path)
+    assert len(df.index) == 3
+    assert len(df.columns) == 1
+    assert df.columns == [col]
