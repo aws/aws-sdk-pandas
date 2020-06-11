@@ -17,7 +17,7 @@ from ._utils import (
     get_df,
     get_df_category,
     get_time_str_with_random_suffix,
-    path_generator
+    path_generator,
 )
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
@@ -549,21 +549,17 @@ def test_null(parameters, db_type):
 
 
 def test_redshift_spectrum_long_string(path, glue_table, glue_database, external_schema):
-    df = pd.DataFrame({
-        "id": [1, 2],
-        "col_str": [
-            ''.join(random.choice(string.ascii_letters) for _ in range(300)),
-            ''.join(random.choice(string.ascii_letters) for _ in range(300))
-        ]
-    })
+    df = pd.DataFrame(
+        {
+            "id": [1, 2],
+            "col_str": [
+                "".join(random.choice(string.ascii_letters) for _ in range(300)),
+                "".join(random.choice(string.ascii_letters) for _ in range(300)),
+            ],
+        }
+    )
     paths = wr.s3.to_parquet(
-        df=df,
-        path=path,
-        database=glue_database,
-        table=glue_table,
-        mode="overwrite",
-        index=False,
-        dataset=True,
+        df=df, path=path, database=glue_database, table=glue_table, mode="overwrite", index=False, dataset=True
     )["paths"]
     wr.s3.wait_objects_exist(paths=paths, use_threads=False)
     engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
@@ -576,13 +572,15 @@ def test_redshift_spectrum_long_string(path, glue_table, glue_database, external
 
 
 def test_redshift_copy_unload_long_string(path, parameters):
-    df = pd.DataFrame({
-        "id": [1, 2],
-        "col_str": [
-            ''.join(random.choice(string.ascii_letters) for _ in range(300)),
-            ''.join(random.choice(string.ascii_letters) for _ in range(300))
-        ]
-    })
+    df = pd.DataFrame(
+        {
+            "id": [1, 2],
+            "col_str": [
+                "".join(random.choice(string.ascii_letters) for _ in range(300)),
+                "".join(random.choice(string.ascii_letters) for _ in range(300)),
+            ],
+        }
+    )
     engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
     wr.db.copy_to_redshift(
         df=df,
