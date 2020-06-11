@@ -13,6 +13,7 @@ import sqlalchemy  # type: ignore
 from sqlalchemy.sql.visitors import VisitableType  # type: ignore
 
 from awswrangler import _data_types, _utils, exceptions, s3
+from awswrangler.s3._list import path2list  # noqa
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -655,7 +656,7 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
     """
     _varchar_lengths: Dict[str, int] = {} if varchar_lengths is None else varchar_lengths
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    paths: List[str] = s3._path2list(path=path, boto3_session=session)  # pylint: disable=protected-access
+    paths: List[str] = path2list(path=path, boto3_session=session)  # pylint: disable=protected-access
     manifest_directory = manifest_directory if manifest_directory.endswith("/") else f"{manifest_directory}/"
     manifest_path: str = f"{manifest_directory}manifest.json"
     write_redshift_copy_manifest(
