@@ -53,8 +53,7 @@ _ALLOWED_ACTIONS: Dict[str, Dict[str, List[str]]] = {
 
 
 def _generate_principal(user_name: str, account_id: str, region: str) -> str:
-    user_name = user_name if "/" in user_name else f"default/{user_name}"
-    return f"arn:aws:quicksight:{region}:{account_id}:user/{user_name}"
+    return f"arn:aws:quicksight:{region}:{account_id}:user/default/{user_name}"
 
 
 def _generate_permissions(
