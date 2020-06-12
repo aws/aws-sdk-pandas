@@ -44,10 +44,30 @@ df = wr.s3.read_parquet("s3://bucket/dataset/", dataset=True)
 df = wr.athena.read_sql_query("SELECT * FROM my_table", database="my_db")
 
 # Getting Redshift connection (SQLAlchemy) from Glue Catalog Connections
-engine = wr.catalog.get_engine("my-redshift-connection")
-
 # Retrieving the data from Amazon Redshift Spectrum
+engine = wr.catalog.get_engine("my-redshift-connection")
 df = wr.db.read_sql_query("SELECT * FROM external_schema.my_table", con=engine)
+
+# Creating QuickSight Data Source and Dataset to reflect our new table
+wr.quicksight.create_athena_data_source("athena-source", allowed_to_manage=["username"])
+wr.quicksight.create_athena_dataset(
+    name="my-dataset",
+    database="my_db",
+    table="my_table",
+    data_source_name="athena-source",
+    allowed_to_manage=["username"]
+)
+
+# Getting MySQL connection (SQLAlchemy) from Glue Catalog Connections
+# Load the data into MySQL
+engine = wr.catalog.get_engine("my-mysql-connection")
+wr.db.to_sql(df, engine, schema="test", name="my_table") 
+
+# Getting PostgreSQL connection (SQLAlchemy) from Glue Catalog Connections
+# Load the data into PostgreSQL
+engine = wr.catalog.get_engine("my-postgresql-connection")
+wr.db.to_sql(df, engine, schema="test", name="my_table") 
+
 ```
 
 ## [Read The Docs](https://aws-data-wrangler.readthedocs.io/)
@@ -80,6 +100,7 @@ df = wr.db.read_sql_query("SELECT * FROM external_schema.my_table", con=engine)
   - [015 - EMR](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/015%20-%20EMR.ipynb)
   - [016 - EMR & Docker](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/016%20-%20EMR%20%26%20Docker.ipynb)
   - [017 - Partition Projection](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/017%20-%20Partition%20Projection.ipynb)
+  - [018 - QuickSight](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/018%20-%20QuickSight.ipynb)
 - [**API Reference**](https://aws-data-wrangler.readthedocs.io/en/latest/api.html)
   - [Amazon S3](https://aws-data-wrangler.readthedocs.io/en/latest/api.html#amazon-s3)
   - [AWS Glue Catalog](https://aws-data-wrangler.readthedocs.io/en/latest/api.html#aws-glue-catalog)
@@ -87,6 +108,7 @@ df = wr.db.read_sql_query("SELECT * FROM external_schema.my_table", con=engine)
   - [Databases (Redshift, PostgreSQL, MySQL)](https://aws-data-wrangler.readthedocs.io/en/latest/api.html#databases-redshift-postgresql-mysql)
   - [EMR Cluster](https://aws-data-wrangler.readthedocs.io/en/latest/api.html#emr-cluster)
   - [CloudWatch Logs](https://aws-data-wrangler.readthedocs.io/en/latest/api.html#cloudwatch-logs)
+  - [QuickSight](https://aws-data-wrangler.readthedocs.io/en/latest/api.html#quicksight)
 - [**License**](https://github.com/awslabs/aws-data-wrangler/blob/master/LICENSE)
 - [**Contributing**](https://github.com/awslabs/aws-data-wrangler/blob/master/CONTRIBUTING.md)
 - [**Legacy Docs** (pre-1.0.0)](https://aws-data-wrangler.readthedocs.io/en/legacy/)

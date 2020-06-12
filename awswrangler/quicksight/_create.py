@@ -53,7 +53,8 @@ _ALLOWED_ACTIONS: Dict[str, Dict[str, List[str]]] = {
 
 
 def _generate_principal(user_name: str, account_id: str, region: str) -> str:
-    return f"arn:aws:quicksight:{region}:{account_id}:user/default/{user_name}"
+    user_name = user_name if "/" in user_name else f"default/{user_name}"
+    return f"arn:aws:quicksight:{region}:{account_id}:user/{user_name}"
 
 
 def _generate_permissions(
@@ -273,6 +274,8 @@ def create_athena_dataset(
         raise exceptions.InvalidArgument("You must pass a not None data_source_name or data_source_arn argument.")
     if ((database is None) and (table is None)) and (sql is None):
         raise exceptions.InvalidArgument("You must pass database/table OR sql argument.")
+    if (database is not None) and (sql is not None):
+        raise exceptions.InvalidArgument("If you provide sql argument, please include the database name inside the sql statement. Do NOT pass in with database argument.")
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     client: boto3.client = _utils.client(service_name="quicksight", session=session)
     if account_id is None:
@@ -363,8 +366,8 @@ def create_ingestion(
 
     Returns
     -------
-    Current status
-        'INITIALIZED'|'QUEUED'|'RUNNING'|'FAILED'|'COMPLETED'|'CANCELLED'
+    str
+        Ingestion ID
 
     Examples
     --------
@@ -384,4 +387,4 @@ def create_ingestion(
     response: Dict[str, Any] = client.create_ingestion(
         DataSetId=dataset_id, IngestionId=ingestion_id, AwsAccountId=account_id
     )
-    return response["IngestionStatus"]
+    return response["IngestionId"]
