@@ -888,6 +888,10 @@ def drop_duplicated_columns(df: pd.DataFrame) -> pd.DataFrame:
 
     Note
     ----
+    This transformation will run `inplace` and will make changes in the original DataFrame.
+
+    Note
+    ----
     It is different from Panda's drop_duplicates() function which considers the column values.
     wr.catalog.drop_duplicated_columns() will deduplicate by column name.
 
@@ -912,11 +916,14 @@ def drop_duplicated_columns(df: pd.DataFrame) -> pd.DataFrame:
     1  2
 
     """
-    duplicated_cols = df.columns.duplicated()
-    duplicated_cols_names: List[str] = list(df.columns[duplicated_cols])
-    if len(duplicated_cols_names) > 0:
-        _logger.warning("Dropping repeated columns: %s", duplicated_cols_names)
-    return df.loc[:, ~duplicated_cols]
+    duplicated = df.columns.duplicated()
+    if duplicated.any():
+        _logger.warning("Dropping duplicated columns...")
+        columns = df.columns.values
+        columns[duplicated] = "AWSDataWranglerDuplicatedMarker"
+        df.columns = columns
+        df.drop(columns="AWSDataWranglerDuplicatedMarker", inplace=True)
+    return df
 
 
 def get_connection(

@@ -103,11 +103,10 @@ def test_json_chunksize(path):
 def test_parquet_cast_string(path):
     df = pd.DataFrame({"id": [1, 2, 3], "value": ["foo", "boo", "bar"]})
     path_file = f"{path}0.parquet"
-    wr.s3.to_parquet(df, path_file, dtype={"id": "string"})
+    wr.s3.to_parquet(df, path_file, dtype={"id": "string"}, sanitize_columns=False)
     wr.s3.wait_objects_exist([path_file])
     df2 = wr.s3.read_parquet(path_file)
     assert str(df2.id.dtypes) == "string"
-    df2["id"] = df2["id"].astype(int)
     assert df.shape == df2.shape
     for col, row in tuple(itertools.product(df.columns, range(3))):
         assert df[col].iloc[row] == df2[col].iloc[row]
@@ -123,8 +122,6 @@ def test_parquet_cast_string_dataset(path, partition_cols):
     df2 = wr.s3.read_parquet(path, dataset=True).sort_values("id", ignore_index=True)
     assert str(df2.id.dtypes) == "string"
     assert str(df2.c3.dtypes) == "string"
-    df2["id"] = df2["id"].astype(int)
-    df2["c3"] = df2["c3"].astype(float)
     assert df.shape == df2.shape
     for col, row in tuple(itertools.product(df.columns, range(3))):
         assert df[col].iloc[row] == df2[col].iloc[row]
@@ -158,7 +155,7 @@ def test_athena_undefined_column(database):
 def test_to_parquet_file_sanitize(path):
     df = pd.DataFrame({"C0": [0, 1], "camelCase": [2, 3], "c**--2": [4, 5]})
     path_file = f"{path}0.parquet"
-    wr.s3.to_parquet(df, path_file)
+    wr.s3.to_parquet(df, path_file, sanitize_columns=True)
     wr.s3.wait_objects_exist([path_file])
     df2 = wr.s3.read_parquet(path_file)
     assert df.shape == df2.shape

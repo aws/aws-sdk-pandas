@@ -443,7 +443,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
         df = catalog.sanitize_dataframe_columns_names(df=df)
         partition_cols = [catalog.sanitize_column_name(p) for p in partition_cols]
         dtype = {catalog.sanitize_column_name(k): v.lower() for k, v in dtype.items()}
-        df = catalog.drop_duplicated_columns(df=df)
+        catalog.drop_duplicated_columns(df=df)
 
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     fs: s3fs.S3FileSystem = _utils.get_fs(session=session, s3_additional_kwargs=s3_additional_kwargs)
@@ -829,7 +829,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
         df = catalog.sanitize_dataframe_columns_names(df=df)
         partition_cols = [catalog.sanitize_column_name(p) for p in partition_cols]
         dtype = {catalog.sanitize_column_name(k): v.lower() for k, v in dtype.items()}
-        df = catalog.drop_duplicated_columns(df=df)
+        catalog.drop_duplicated_columns(df=df)
 
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
