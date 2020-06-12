@@ -439,8 +439,9 @@ def get_table_types(
     dtypes: Dict[str, str] = {}
     for col in response["Table"]["StorageDescriptor"]["Columns"]:
         dtypes[col["Name"]] = col["Type"]
-    for par in response["Table"]["PartitionKeys"]:
-        dtypes[par["Name"]] = par["Type"]
+    if "PartitionKeys" in response["Table"]:
+        for par in response["Table"]["PartitionKeys"]:
+            dtypes[par["Name"]] = par["Type"]
     return dtypes
 
 
@@ -527,6 +528,11 @@ def get_tables(
 ) -> Iterator[Dict[str, Any]]:
     """Get an iterator of tables.
 
+    Note
+    ----
+    Please, does not filter using name_contains and name_prefix/name_suffix at the same time.
+    Only name_prefix and name_suffix can be combined together.
+
     Parameters
     ----------
     catalog_id : str, optional
@@ -560,15 +566,17 @@ def get_tables(
     if catalog_id is not None:
         args["CatalogId"] = catalog_id
     if (name_prefix is not None) and (name_suffix is not None) and (name_contains is not None):
-        args["Expression"] = f"{name_prefix}.*{name_contains}.*{name_suffix}"
+        raise exceptions.InvalidArgumentCombination("Please, does not filter using name_contains and "
+                                                    "name_prefix/name_suffix at the same time. Only "
+                                                    "name_prefix and name_suffix can be combined together.")
     elif (name_prefix is not None) and (name_suffix is not None):
-        args["Expression"] = f"{name_prefix}.*{name_suffix}"
+        args["Expression"] = f"{name_prefix}*{name_suffix}"
     elif name_contains is not None:
-        args["Expression"] = f".*{name_contains}.*"
+        args["Expression"] = f"*{name_contains}*"
     elif name_prefix is not None:
-        args["Expression"] = f"{name_prefix}.*"
+        args["Expression"] = f"{name_prefix}*"
     elif name_suffix is not None:
-        args["Expression"] = f".*{name_suffix}"
+        args["Expression"] = f"*{name_suffix}"
     if database is not None:
         dbs: List[str] = [database]
     else:
@@ -647,15 +655,21 @@ def tables(
         tbls = tbls[:limit]
 
     df_dict: Dict[str, List] = {"Database": [], "Table": [], "Description": [], "Columns": [], "Partitions": []}
-    for table in tbls:
-        df_dict["Database"].append(table["DatabaseName"])
-        df_dict["Table"].append(table["Name"])
-        if "Description" in table:
-            df_dict["Description"].append(table["Description"])
+    for tbl in tbls:
+        df_dict["Database"].append(tbl["DatabaseName"])
+        df_dict["Table"].append(tbl["Name"])
+        if "Description" in tbl:
+            df_dict["Description"].append(tbl["Description"])
         else:
             df_dict["Description"].append("")
-        df_dict["Columns"].append(", ".join([x["Name"] for x in table["StorageDescriptor"]["Columns"]]))
-        df_dict["Partitions"].append(", ".join([x["Name"] for x in table["PartitionKeys"]]))
+        if "Columns" in tbl["StorageDescriptor"]:
+            df_dict["Columns"].append(", ".join([x["Name"] for x in tbl["StorageDescriptor"]["Columns"]]))
+        else:
+            df_dict["Columns"].append("")
+        if "PartitionKeys" in tbl:
+            df_dict["Partitions"].append(", ".join([x["Name"] for x in tbl["PartitionKeys"]]))
+        else:
+            df_dict["Partitions"].append("")
     return pd.DataFrame(data=df_dict)
 
 
@@ -771,14 +785,15 @@ def table(
             df_dict["Comment"].append(col["Comment"])
         else:
             df_dict["Comment"].append("")
-    for col in tbl["PartitionKeys"]:
-        df_dict["Column Name"].append(col["Name"])
-        df_dict["Type"].append(col["Type"])
-        df_dict["Partition"].append(True)
-        if "Comment" in col:
-            df_dict["Comment"].append(col["Comment"])
-        else:
-            df_dict["Comment"].append("")
+    if "PartitionKeys" in tbl:
+        for col in tbl["PartitionKeys"]:
+            df_dict["Column Name"].append(col["Name"])
+            df_dict["Type"].append(col["Type"])
+            df_dict["Partition"].append(True)
+            if "Comment" in col:
+                df_dict["Comment"].append(col["Comment"])
+            else:
+                df_dict["Comment"].append("")
     return pd.DataFrame(data=df_dict)
 
 
@@ -1692,8 +1707,9 @@ def get_columns_comments(
     comments: Dict[str, str] = {}
     for c in response["Table"]["StorageDescriptor"]["Columns"]:
         comments[c["Name"]] = c["Comment"]
-    for p in response["Table"]["PartitionKeys"]:
-        comments[p["Name"]] = p["Comment"]
+    if "PartitionKeys" in response["Table"]:
+        for p in response["Table"]["PartitionKeys"]:
+            comments[p["Name"]] = p["Comment"]
     return comments
 
 

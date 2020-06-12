@@ -42,8 +42,10 @@ AWS Glue Catalog
     add_csv_partitions
     add_parquet_partitions
     create_csv_table
+    create_database
     create_parquet_table
     databases
+    delete_database
     delete_table_if_exists
     does_table_exist
     drop_duplicated_columns
@@ -135,3 +137,49 @@ CloudWatch Logs
     run_query
     start_query
     wait_query
+
+Amazon QuickSight
+-----------------
+
+.. currentmodule:: awswrangler.quicksight
+
+.. autosummary::
+    :toctree: stubs
+
+    cancel_ingestion
+    create_athena_data_source
+    create_athena_dataset
+    create_ingestion
+    delete_all_dashboards
+    delete_all_data_sources
+    delete_all_datasets
+    delete_all_templates
+    delete_dashboard
+    delete_data_source
+    delete_dataset
+    delete_template
+    describe_dashboard
+    describe_data_source
+    describe_data_source_permissions
+    describe_dataset
+    describe_ingestion
+    get_dashboard_id
+    get_dashboard_ids
+    get_data_source_arn
+    get_data_source_arns
+    get_data_source_id
+    get_data_source_ids
+    get_dataset_id
+    get_dataset_ids
+    get_template_id
+    get_template_ids
+    list_dashboards
+    list_data_sources
+    list_datasets
+    list_groups
+    list_group_memberships
+    list_iam_policy_assignments
+    list_iam_policy_assignments_for_user
+    list_ingestions
+    list_templates
+    list_users
