@@ -4,7 +4,9 @@ import gzip
 import logging
 import lzma
 import math
+import mock
 from io import BytesIO, TextIOWrapper
+from mock import patch
 
 import boto3
 import pandas as pd
@@ -2037,24 +2039,56 @@ def test_metadata_partitions(path):
     assert columns_types.get("c1") == "string"
     assert columns_types.get("c2") == "double"
 
-def test_to_parquet_file_dtype(path):
-    df = pd.DataFrame({"c0": [1.0, None, 2.0], "c1": [pd.NA, pd.NA, pd.NA]})
-    file_path = f"{path}0.parquet"
-    wr.s3.to_parquet(df, file_path, dtype={"c0": "bigint", "c1": "string"})
-    wr.s3.wait_objects_exist(paths=[file_path])
-    df2 = wr.s3.read_parquet(file_path)
-    assert df2.shape == df.shape
-    assert df2.c0.sum() == 3
-    assert str(df2.c0.dtype) == "Int64"
-    assert str(df2.c1.dtype) == "string"
+def test_cache_query_ctas_approach_true(path, database, table):
+    df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
+    paths = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        mode="overwrite",
+        database=database,
+        table=table,
+        description="c0",
+        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
+        columns_comments={"c0": "0"},
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
 
-# TODO: write real tests for final version, this is just for playing around
-# def test_cache_simple(database, table, path): 
-#     a = wr.athena.read_sql_query(
-#         "with a as (SELECT id, dt FROM noaa limit 10) select * from a order by id",
-#         database="awswrangler_test",
-#         ctas_approach=True,
-#         max_cache_seconds=604800)
-#     print(a)
-#     # b = wr.athena._parse_select_query_from_possible_ctas('''CREATE TABLE \"temp_table_ba5154a257184749b3b707c8c2bcb3d1\"\nWITH(\n    format = 'Parquet',\n    parquet_compression = 'SNAPPY',\n    external_location = 's3://aws-athena-query-results-143293740982-us-east-1/temp_table_ba5154a257184749b3b707c8c2bcb3d1'\n) AS\n(SELECT id, dt FROM noaa limit 10)''')
-#     # print(b)
+    with patch(
+            'awswrangler.athena._check_for_cached_results',
+            return_value={'has_valid_cache':False}
+    ) as mocked_cache_attempt:
+        df2 = wr.athena.read_sql_table(table, database, ctas_approach=True, max_cache_seconds=0)
+        mocked_cache_attempt.assert_called()
+
+    with patch('awswrangler.athena._resolve_query_without_cache') as resolve_no_cache:
+        df3 = wr.athena.read_sql_table(table, database, ctas_approach=True, max_cache_seconds=900)
+        resolve_no_cache.assert_not_called()
+
+def test_cache_query_ctas_approach_false(path, database, table):
+    df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
+    paths = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        mode="overwrite",
+        database=database,
+        table=table,
+        description="c0",
+        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
+        columns_comments={"c0": "0"},
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+
+    with patch(
+            'awswrangler.athena._check_for_cached_results',
+            return_value={'has_valid_cache':False}
+    ) as mocked_cache_attempt:
+        df2 = wr.athena.read_sql_table(table, database, ctas_approach=False, max_cache_seconds=0)
+        mocked_cache_attempt.assert_called()
+
+    with patch('awswrangler.athena._resolve_query_without_cache') as resolve_no_cache:
+        df3 = wr.athena.read_sql_table(table, database, ctas_approach=False, max_cache_seconds=900)
+        resolve_no_cache.assert_not_called()
+
+# TODO: write workgroup tests
