@@ -6,7 +6,7 @@ import logging
 import re
 import unicodedata
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus as _quote_plus
 
 import boto3  # type: ignore
 import pandas as pd  # type: ignore
@@ -15,6 +15,83 @@ import sqlalchemy  # type: ignore
 from awswrangler import _data_types, _utils, exceptions
 
 _logger: logging.Logger = logging.getLogger(__name__)
+
+
+def create_database(
+    name: str,
+    description: Optional[str] = None,
+    catalog_id: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> None:
+    """Create a database in AWS Glue Catalog.
+
+    Parameters
+    ----------
+    name : str
+        Database name.
+    description : str, optional
+        A Descrption for the Database.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    None
+        None.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> wr.catalog.create_database(
+    ...     name='awswrangler_test'
+    ... )
+    """
+    args: Dict[str, str] = {}
+    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    args["Name"] = name
+    if description is not None:
+        args["Description"] = description
+
+    if catalog_id is not None:
+        client_glue.create_database(CatalogId=catalog_id, DatabaseInput=args)  # pragma: no cover
+    else:
+        client_glue.create_database(DatabaseInput=args)
+
+
+def delete_database(name: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None) -> None:
+    """Create a database in AWS Glue Catalog.
+
+    Parameters
+    ----------
+    name : str
+        Database name.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    None
+        None.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> wr.catalog.delete_database(
+    ...     name='awswrangler_test'
+    ... )
+    """
+    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+
+    if catalog_id is not None:
+        client_glue.delete_database(CatalogId=catalog_id, Name=name)  # pragma: no cover
+    else:
+        client_glue.delete_database(Name=name)
 
 
 def delete_table_if_exists(database: str, table: str, boto3_session: Optional[boto3.Session] = None) -> bool:
@@ -362,8 +439,9 @@ def get_table_types(
     dtypes: Dict[str, str] = {}
     for col in response["Table"]["StorageDescriptor"]["Columns"]:
         dtypes[col["Name"]] = col["Type"]
-    for par in response["Table"]["PartitionKeys"]:
-        dtypes[par["Name"]] = par["Type"]
+    if "PartitionKeys" in response["Table"]:
+        for par in response["Table"]["PartitionKeys"]:
+            dtypes[par["Name"]] = par["Type"]
     return dtypes
 
 
@@ -450,6 +528,11 @@ def get_tables(
 ) -> Iterator[Dict[str, Any]]:
     """Get an iterator of tables.
 
+    Note
+    ----
+    Please, does not filter using name_contains and name_prefix/name_suffix at the same time.
+    Only name_prefix and name_suffix can be combined together.
+
     Parameters
     ----------
     catalog_id : str, optional
@@ -483,15 +566,19 @@ def get_tables(
     if catalog_id is not None:
         args["CatalogId"] = catalog_id
     if (name_prefix is not None) and (name_suffix is not None) and (name_contains is not None):
-        args["Expression"] = f"{name_prefix}.*{name_contains}.*{name_suffix}"
-    elif (name_prefix is not None) and (name_suffix is not None):
-        args["Expression"] = f"{name_prefix}.*{name_suffix}"
+        raise exceptions.InvalidArgumentCombination(
+            "Please, does not filter using name_contains and "
+            "name_prefix/name_suffix at the same time. Only "
+            "name_prefix and name_suffix can be combined together."
+        )
+    if (name_prefix is not None) and (name_suffix is not None):
+        args["Expression"] = f"{name_prefix}*{name_suffix}"
     elif name_contains is not None:
-        args["Expression"] = f".*{name_contains}.*"
+        args["Expression"] = f"*{name_contains}*"
     elif name_prefix is not None:
-        args["Expression"] = f"{name_prefix}.*"
+        args["Expression"] = f"{name_prefix}*"
     elif name_suffix is not None:
-        args["Expression"] = f".*{name_suffix}"
+        args["Expression"] = f"*{name_suffix}"
     if database is not None:
         dbs: List[str] = [database]
     else:
@@ -570,15 +657,21 @@ def tables(
         tbls = tbls[:limit]
 
     df_dict: Dict[str, List] = {"Database": [], "Table": [], "Description": [], "Columns": [], "Partitions": []}
-    for table in tbls:
-        df_dict["Database"].append(table["DatabaseName"])
-        df_dict["Table"].append(table["Name"])
-        if "Description" in table:
-            df_dict["Description"].append(table["Description"])
+    for tbl in tbls:
+        df_dict["Database"].append(tbl["DatabaseName"])
+        df_dict["Table"].append(tbl["Name"])
+        if "Description" in tbl:
+            df_dict["Description"].append(tbl["Description"])
         else:
             df_dict["Description"].append("")
-        df_dict["Columns"].append(", ".join([x["Name"] for x in table["StorageDescriptor"]["Columns"]]))
-        df_dict["Partitions"].append(", ".join([x["Name"] for x in table["PartitionKeys"]]))
+        if "Columns" in tbl["StorageDescriptor"]:
+            df_dict["Columns"].append(", ".join([x["Name"] for x in tbl["StorageDescriptor"]["Columns"]]))
+        else:
+            df_dict["Columns"].append("")  # pragma: no cover
+        if "PartitionKeys" in tbl:
+            df_dict["Partitions"].append(", ".join([x["Name"] for x in tbl["PartitionKeys"]]))
+        else:
+            df_dict["Partitions"].append("")
     return pd.DataFrame(data=df_dict)
 
 
@@ -694,14 +787,15 @@ def table(
             df_dict["Comment"].append(col["Comment"])
         else:
             df_dict["Comment"].append("")
-    for col in tbl["PartitionKeys"]:
-        df_dict["Column Name"].append(col["Name"])
-        df_dict["Type"].append(col["Type"])
-        df_dict["Partition"].append(True)
-        if "Comment" in col:
-            df_dict["Comment"].append(col["Comment"])
-        else:
-            df_dict["Comment"].append("")
+    if "PartitionKeys" in tbl:
+        for col in tbl["PartitionKeys"]:
+            df_dict["Column Name"].append(col["Name"])
+            df_dict["Type"].append(col["Type"])
+            df_dict["Partition"].append(True)
+            if "Comment" in col:
+                df_dict["Comment"].append(col["Comment"])
+            else:
+                df_dict["Comment"].append("")
     return pd.DataFrame(data=df_dict)
 
 
@@ -811,6 +905,10 @@ def drop_duplicated_columns(df: pd.DataFrame) -> pd.DataFrame:
 
     Note
     ----
+    This transformation will run `inplace` and will make changes in the original DataFrame.
+
+    Note
+    ----
     It is different from Panda's drop_duplicates() function which considers the column values.
     wr.catalog.drop_duplicated_columns() will deduplicate by column name.
 
@@ -835,11 +933,14 @@ def drop_duplicated_columns(df: pd.DataFrame) -> pd.DataFrame:
     1  2
 
     """
-    duplicated_cols = df.columns.duplicated()
-    duplicated_cols_names: List[str] = list(df.columns[duplicated_cols])
-    if len(duplicated_cols_names) > 0:
-        _logger.warning("Dropping repeated columns: %s", duplicated_cols_names)
-    return df.loc[:, ~duplicated_cols]
+    duplicated = df.columns.duplicated()
+    if duplicated.any():
+        _logger.warning("Dropping duplicated columns...")
+        columns = df.columns.values
+        columns[duplicated] = "AWSDataWranglerDuplicatedMarker"
+        df.columns = columns
+        df.drop(columns="AWSDataWranglerDuplicatedMarker", inplace=True)
+    return df
 
 
 def get_connection(
@@ -909,8 +1010,8 @@ def get_engine(
     db_type: str = details["JDBC_CONNECTION_URL"].split(":")[1].lower()
     host: str = details["JDBC_CONNECTION_URL"].split(":")[2].replace("/", "")
     port, database = details["JDBC_CONNECTION_URL"].split(":")[3].split("/")
-    user: str = quote_plus(details["USERNAME"])
-    password: str = quote_plus(details["PASSWORD"])
+    user: str = _quote_plus(details["USERNAME"])
+    password: str = _quote_plus(details["PASSWORD"])
     if db_type == "postgresql":
         _utils.ensure_postgresql_casts()
     if db_type in ("redshift", "postgresql"):
@@ -1608,8 +1709,9 @@ def get_columns_comments(
     comments: Dict[str, str] = {}
     for c in response["Table"]["StorageDescriptor"]["Columns"]:
         comments[c["Name"]] = c["Comment"]
-    for p in response["Table"]["PartitionKeys"]:
-        comments[p["Name"]] = p["Comment"]
+    if "PartitionKeys" in response["Table"]:
+        for p in response["Table"]["PartitionKeys"]:
+            comments[p["Name"]] = p["Comment"]
     return comments
 
 

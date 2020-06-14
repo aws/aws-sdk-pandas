@@ -1078,15 +1078,12 @@ def test_catalog(path, database, table):
         if tbl["Name"] == table:
             assert tbl["TableType"] == "EXTERNAL_TABLE"
     # prefix & suffix & name_contains
-    tables = list(
-        wr.catalog.get_tables(
-            name_prefix=table[0], name_contains=table[3], name_suffix=table[-1], catalog_id=account_id
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        list(
+            wr.catalog.get_tables(
+                name_prefix=table[0], name_contains=table[3], name_suffix=table[-1], catalog_id=account_id
+            )
         )
-    )
-    assert len(tables) > 0
-    for tbl in tables:
-        if tbl["Name"] == table:
-            assert tbl["TableType"] == "EXTERNAL_TABLE"
     # prefix & suffix
     tables = list(wr.catalog.get_tables(name_prefix=table[0], name_suffix=table[-1], catalog_id=account_id))
     assert len(tables) > 0

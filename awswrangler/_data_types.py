@@ -114,6 +114,34 @@ def athena2redshift(  # pylint: disable=too-many-branches,too-many-return-statem
     raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")  # pragma: no cover
 
 
+def athena2quicksight(dtype: str) -> str:  # pylint: disable=too-many-branches,too-many-return-statements
+    """Athena to Quicksight data types conversion."""
+    dtype = dtype.lower()
+    if dtype == "smallint":
+        return "INTEGER"
+    if dtype in ("int", "integer"):
+        return "INTEGER"
+    if dtype == "bigint":
+        return "INTEGER"
+    if dtype == "float":
+        return "DECIMAL"
+    if dtype == "double":
+        return "DECIMAL"
+    if dtype in ("boolean", "bool"):
+        return "BOOLEAN"
+    if dtype in ("string", "char", "varchar"):
+        return "STRING"
+    if dtype == "timestamp":
+        return "DATETIME"
+    if dtype == "date":
+        return "DATETIME"
+    if dtype.startswith("decimal"):
+        return "DECIMAL"
+    if dtype in ("binary" or "varbinary"):
+        return "BIT"
+    raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")  # pragma: no cover
+
+
 def pyarrow2athena(dtype: pa.DataType) -> str:  # pylint: disable=too-many-branches,too-many-return-statements
     """Pyarrow to Athena data types conversion."""
     if pa.types.is_int8(dtype):

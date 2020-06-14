@@ -1,8 +1,8 @@
 """CloudWatch Logs module."""
 
+import datetime
 import logging
 import time
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import boto3  # type: ignore
@@ -18,8 +18,8 @@ _QUERY_WAIT_POLLING_DELAY: float = 0.2  # SECONDS
 def start_query(
     query: str,
     log_group_names: List[str],
-    start_time: datetime = datetime(year=1970, month=1, day=1),
-    end_time: datetime = datetime.now(),
+    start_time: datetime.datetime = datetime.datetime(year=1970, month=1, day=1),
+    end_time: datetime.datetime = datetime.datetime.now(),
     limit: Optional[int] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
@@ -120,8 +120,8 @@ def wait_query(query_id: str, boto3_session: Optional[boto3.Session] = None) -> 
 def run_query(
     query: str,
     log_group_names: List[str],
-    start_time: datetime = datetime(year=1970, month=1, day=1),
-    end_time: datetime = datetime.now(),
+    start_time: datetime.datetime = datetime.datetime(year=1970, month=1, day=1),
+    end_time: datetime.datetime = datetime.datetime.now(),
     limit: Optional[int] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> List[List[Dict[str, str]]]:
@@ -174,8 +174,8 @@ def run_query(
 def read_logs(
     query: str,
     log_group_names: List[str],
-    start_time: datetime = datetime(year=1970, month=1, day=1),
-    end_time: datetime = datetime.now(),
+    start_time: datetime.datetime = datetime.datetime(year=1970, month=1, day=1),
+    end_time: datetime.datetime = datetime.datetime.now(),
     limit: Optional[int] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> pd.DataFrame:

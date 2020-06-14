@@ -1,5 +1,6 @@
 import logging
 import random
+import string
 
 import boto3
 import pandas as pd
@@ -15,6 +16,8 @@ from ._utils import (
     extract_cloudformation_outputs,
     get_df,
     get_df_category,
+    get_time_str_with_random_suffix,
+    path_generator,
 )
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
@@ -25,6 +28,11 @@ logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
 @pytest.fixture(scope="module")
 def cloudformation_outputs():
     yield extract_cloudformation_outputs()
+
+
+@pytest.fixture(scope="function")
+def path(bucket):
+    yield from path_generator(bucket)
 
 
 @pytest.fixture(scope="module")
@@ -63,6 +71,15 @@ def glue_database(cloudformation_outputs):
     yield cloudformation_outputs["GlueDatabaseName"]
 
 
+@pytest.fixture(scope="function")
+def glue_table(glue_database):
+    name = f"tbl_{get_time_str_with_random_suffix()}"
+    print(f"Table name: {name}")
+    wr.catalog.delete_table_if_exists(database=glue_database, table=name)
+    yield name
+    wr.catalog.delete_table_if_exists(database=glue_database, table=name)
+
+
 @pytest.fixture(scope="module")
 def external_schema(cloudformation_outputs, parameters, glue_database):
     region = cloudformation_outputs.get("Region")
@@ -89,13 +106,14 @@ def test_sql(parameters, db_type):
     if db_type == "redshift":
         df.drop(["binary"], axis=1, inplace=True)
     engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-{db_type}")
+    index = True if engine.name == "redshift" else False
     wr.db.to_sql(
         df=df,
         con=engine,
         name="test_sql",
         schema=parameters[db_type]["schema"],
         if_exists="replace",
-        index=False,
+        index=index,
         index_label=None,
         chunksize=None,
         method=None,
@@ -528,3 +546,58 @@ def test_null(parameters, db_type):
     df2 = wr.db.read_sql_table(table=table, schema=schema, con=engine)
     df["id"] = df["id"].astype("Int64")
     assert pd.concat(objs=[df, df], ignore_index=True).equals(df2)
+
+
+def test_redshift_spectrum_long_string(path, glue_table, glue_database, external_schema):
+    df = pd.DataFrame(
+        {
+            "id": [1, 2],
+            "col_str": [
+                "".join(random.choice(string.ascii_letters) for _ in range(300)),
+                "".join(random.choice(string.ascii_letters) for _ in range(300)),
+            ],
+        }
+    )
+    paths = wr.s3.to_parquet(
+        df=df, path=path, database=glue_database, table=glue_table, mode="overwrite", index=False, dataset=True
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
+    with engine.connect() as con:
+        cursor = con.execute(f"SELECT * FROM {external_schema}.{glue_table}")
+        rows = cursor.fetchall()
+        assert len(rows) == len(df.index)
+        for row in rows:
+            assert len(row) == len(df.columns)
+
+
+def test_redshift_copy_unload_long_string(path, parameters):
+    df = pd.DataFrame(
+        {
+            "id": [1, 2],
+            "col_str": [
+                "".join(random.choice(string.ascii_letters) for _ in range(300)),
+                "".join(random.choice(string.ascii_letters) for _ in range(300)),
+            ],
+        }
+    )
+    engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
+    wr.db.copy_to_redshift(
+        df=df,
+        path=path,
+        con=engine,
+        schema="public",
+        table="test_redshift_copy_unload_long_string",
+        mode="overwrite",
+        varchar_lengths={"col_str": 300},
+        iam_role=parameters["redshift"]["role"],
+    )
+    df2 = wr.db.unload_redshift(
+        sql="SELECT * FROM public.test_redshift_copy_unload_long_string",
+        con=engine,
+        iam_role=parameters["redshift"]["role"],
+        path=path,
+        keep_files=False,
+    )
+    assert len(df2.index) == 2
+    assert len(df2.columns) == 2

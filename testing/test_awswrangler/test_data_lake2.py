@@ -103,11 +103,10 @@ def test_json_chunksize(path):
 def test_parquet_cast_string(path):
     df = pd.DataFrame({"id": [1, 2, 3], "value": ["foo", "boo", "bar"]})
     path_file = f"{path}0.parquet"
-    wr.s3.to_parquet(df, path_file, dtype={"id": "string"})
+    wr.s3.to_parquet(df, path_file, dtype={"id": "string"}, sanitize_columns=False)
     wr.s3.wait_objects_exist([path_file])
     df2 = wr.s3.read_parquet(path_file)
     assert str(df2.id.dtypes) == "string"
-    df2["id"] = df2["id"].astype(int)
     assert df.shape == df2.shape
     for col, row in tuple(itertools.product(df.columns, range(3))):
         assert df[col].iloc[row] == df2[col].iloc[row]
@@ -123,8 +122,6 @@ def test_parquet_cast_string_dataset(path, partition_cols):
     df2 = wr.s3.read_parquet(path, dataset=True).sort_values("id", ignore_index=True)
     assert str(df2.id.dtypes) == "string"
     assert str(df2.c3.dtypes) == "string"
-    df2["id"] = df2["id"].astype(int)
-    df2["c3"] = df2["c3"].astype(float)
     assert df.shape == df2.shape
     for col, row in tuple(itertools.product(df.columns, range(3))):
         assert df[col].iloc[row] == df2[col].iloc[row]
@@ -158,7 +155,7 @@ def test_athena_undefined_column(database):
 def test_to_parquet_file_sanitize(path):
     df = pd.DataFrame({"C0": [0, 1], "camelCase": [2, 3], "c**--2": [4, 5]})
     path_file = f"{path}0.parquet"
-    wr.s3.to_parquet(df, path_file)
+    wr.s3.to_parquet(df, path_file, sanitize_columns=True)
     wr.s3.wait_objects_exist([path_file])
     df2 = wr.s3.read_parquet(path_file)
     assert df.shape == df2.shape
@@ -423,3 +420,66 @@ def test_read_partitioned_fwf(path, use_threads, chunksize):
     else:
         for d in df2:
             assert d.shape == (1, 4)
+
+
+def test_glue_database():
+
+    # Round 1 - Create Database
+    database_name = f"database_{get_time_str_with_random_suffix()}"
+    print(f"Database Name: {database_name}")
+    wr.catalog.create_database(name=database_name, description="Database Description")
+    databases = wr.catalog.get_databases()
+    test_database_name = ""
+    test_database_description = ""
+
+    for database in databases:
+        if database["Name"] == database_name:
+            test_database_name = database["Name"]
+            test_database_description = database["Description"]
+
+    assert test_database_name == database_name
+    assert test_database_description == "Database Description"
+
+    # Round 2 - Delete Database
+    print(f"Database Name: {database_name}")
+    wr.catalog.delete_database(name=database_name)
+    databases = wr.catalog.get_databases()
+    test_database_name = ""
+    test_database_description = ""
+
+    for database in databases:
+        if database["Name"] == database_name:
+            test_database_name = database["Name"]
+            test_database_description = database["Description"]
+
+    assert test_database_name == ""
+    assert test_database_description == ""
+
+
+def test_list_wrong_path(path):
+    wrong_path = path.replace("s3://", "")
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.s3.list_objects(wrong_path)
+
+
+@pytest.mark.parametrize("sanitize_columns,col", [(True, "foo_boo"), (False, "FooBoo")])
+def test_sanitize_columns(path, sanitize_columns, col):
+    df = pd.DataFrame({"FooBoo": [1, 2, 3]})
+
+    # Parquet
+    file_path = f"{path}0.parquet"
+    wr.s3.to_parquet(df, path=file_path, sanitize_columns=sanitize_columns)
+    wr.s3.wait_objects_exist([file_path])
+    df = wr.s3.read_parquet(file_path)
+    assert len(df.index) == 3
+    assert len(df.columns) == 1
+    assert df.columns == [col]
+
+    # CSV
+    file_path = f"{path}0.csv"
+    wr.s3.to_csv(df, path=file_path, sanitize_columns=sanitize_columns, index=False)
+    wr.s3.wait_objects_exist([file_path])
+    df = wr.s3.read_csv(file_path)
+    assert len(df.index) == 3
+    assert len(df.columns) == 1
+    assert df.columns == [col]

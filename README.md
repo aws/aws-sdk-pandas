@@ -3,13 +3,13 @@
 
 ![AWS Data Wrangler](docs/source/_static/logo2.png?raw=true "AWS Data Wrangler")
 
-[![Release](https://img.shields.io/badge/release-1.4.0-brightgreen.svg)](https://pypi.org/project/awswrangler/)
+[![Release](https://img.shields.io/badge/release-1.5.0-brightgreen.svg)](https://pypi.org/project/awswrangler/)
 [![Python Version](https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.8-brightgreen.svg)](https://anaconda.org/conda-forge/awswrangler)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 [![Checked with mypy](http://www.mypy-lang.org/static/mypy_badge.svg)](http://mypy-lang.org/)
-[![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](https://pypi.org/project/awswrangler/)
+[![Coverage](https://img.shields.io/badge/coverage-90%25-brightgreen.svg)](https://pypi.org/project/awswrangler/)
 ![Static Checking](https://github.com/awslabs/aws-data-wrangler/workflows/Static%20Checking/badge.svg?branch=master)
 [![Documentation Status](https://readthedocs.org/projects/aws-data-wrangler/badge/?version=latest)](https://aws-data-wrangler.readthedocs.io/?badge=latest)
 
@@ -43,11 +43,27 @@ df = wr.s3.read_parquet("s3://bucket/dataset/", dataset=True)
 # Retrieving the data from Amazon Athena
 df = wr.athena.read_sql_query("SELECT * FROM my_table", database="my_db")
 
-# Getting Redshift connection (SQLAlchemy) from Glue Catalog Connections
+# Get Redshift connection (SQLAlchemy) from Glue and retrieving data from Redshift Spectrum
 engine = wr.catalog.get_engine("my-redshift-connection")
-
-# Retrieving the data from Amazon Redshift Spectrum
 df = wr.db.read_sql_query("SELECT * FROM external_schema.my_table", con=engine)
+
+# Creating QuickSight Data Source and Dataset to reflect our new table
+wr.quicksight.create_athena_data_source("athena-source", allowed_to_manage=["username"])
+wr.quicksight.create_athena_dataset(
+    name="my-dataset",
+    database="my_db",
+    table="my_table",
+    data_source_name="athena-source",
+    allowed_to_manage=["username"]
+)
+
+# Get MySQL connection (SQLAlchemy) from Glue Catalog and LOAD the data into MySQL
+engine = wr.catalog.get_engine("my-mysql-connection")
+wr.db.to_sql(df, engine, schema="test", name="my_table")
+
+# Get PostgreSQL connection (SQLAlchemy) from Glue Catalog and LOAD the data into PostgreSQL
+engine = wr.catalog.get_engine("my-postgresql-connection")
+wr.db.to_sql(df, engine, schema="test", name="my_table")
 ```
 
 ## [Read The Docs](https://aws-data-wrangler.readthedocs.io/)
@@ -80,6 +96,7 @@ df = wr.db.read_sql_query("SELECT * FROM external_schema.my_table", con=engine)
   - [015 - EMR](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/015%20-%20EMR.ipynb)
   - [016 - EMR & Docker](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/016%20-%20EMR%20%26%20Docker.ipynb)
   - [017 - Partition Projection](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/017%20-%20Partition%20Projection.ipynb)
+  - [018 - QuickSight](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/018%20-%20QuickSight.ipynb)
 - [**API Reference**](https://aws-data-wrangler.readthedocs.io/en/latest/api.html)
   - [Amazon S3](https://aws-data-wrangler.readthedocs.io/en/latest/api.html#amazon-s3)
   - [AWS Glue Catalog](https://aws-data-wrangler.readthedocs.io/en/latest/api.html#aws-glue-catalog)
@@ -87,6 +104,7 @@ df = wr.db.read_sql_query("SELECT * FROM external_schema.my_table", con=engine)
   - [Databases (Redshift, PostgreSQL, MySQL)](https://aws-data-wrangler.readthedocs.io/en/latest/api.html#databases-redshift-postgresql-mysql)
   - [EMR Cluster](https://aws-data-wrangler.readthedocs.io/en/latest/api.html#emr-cluster)
   - [CloudWatch Logs](https://aws-data-wrangler.readthedocs.io/en/latest/api.html#cloudwatch-logs)
+  - [QuickSight](https://aws-data-wrangler.readthedocs.io/en/latest/api.html#quicksight)
 - [**License**](https://github.com/awslabs/aws-data-wrangler/blob/master/LICENSE)
 - [**Contributing**](https://github.com/awslabs/aws-data-wrangler/blob/master/CONTRIBUTING.md)
 - [**Legacy Docs** (pre-1.0.0)](https://aws-data-wrangler.readthedocs.io/en/legacy/)

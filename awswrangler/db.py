@@ -4,7 +4,7 @@ import json
 import logging
 import time
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus as _quote_plus
 
 import boto3  # type: ignore
 import pandas as pd  # type: ignore
@@ -13,6 +13,7 @@ import sqlalchemy  # type: ignore
 from sqlalchemy.sql.visitors import VisitableType  # type: ignore
 
 from awswrangler import _data_types, _utils, exceptions, s3
+from awswrangler.s3._list import path2list  # noqa
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -33,6 +34,10 @@ def to_sql(df: pd.DataFrame, con: sqlalchemy.engine.Engine, **pandas_kwargs) -> 
     Note
     ----
     Redshift: For large DataFrames (1MM+ rows) consider the function **wr.db.copy_to_redshift()**.
+
+    Note
+    ----
+    Redshift: `index=False` will be forced.
 
     Parameters
     ----------
@@ -92,6 +97,8 @@ def to_sql(df: pd.DataFrame, con: sqlalchemy.engine.Engine, **pandas_kwargs) -> 
     )
     pandas_kwargs["dtype"] = dtypes
     pandas_kwargs["con"] = con
+    if pandas_kwargs["con"].name.lower() == "redshift":  # Redshift does not accept index
+        pandas_kwargs["index"] = False
     max_attempts: int = 3
     for attempt in range(max_attempts):
         try:
@@ -343,8 +350,8 @@ def get_redshift_temp_engine(
     res: Dict[str, Any] = client_redshift.get_cluster_credentials(
         DbUser=user, ClusterIdentifier=cluster_identifier, DurationSeconds=duration, AutoCreate=False
     )
-    _user: str = quote_plus(res["DbUser"])
-    password: str = quote_plus(res["DbPassword"])
+    _user: str = _quote_plus(res["DbUser"])
+    password: str = _quote_plus(res["DbPassword"])
     cluster: Dict[str, Any] = client_redshift.describe_clusters(ClusterIdentifier=cluster_identifier)["Clusters"][0]
     host: str = cluster["Endpoint"]["Address"]
     port: str = cluster["Endpoint"]["Port"]
@@ -649,7 +656,7 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
     """
     _varchar_lengths: Dict[str, int] = {} if varchar_lengths is None else varchar_lengths
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    paths: List[str] = s3._path2list(path=path, boto3_session=session)  # pylint: disable=protected-access
+    paths: List[str] = path2list(path=path, boto3_session=session)  # pylint: disable=protected-access
     manifest_directory = manifest_directory if manifest_directory.endswith("/") else f"{manifest_directory}/"
     manifest_path: str = f"{manifest_directory}manifest.json"
     write_redshift_copy_manifest(
