@@ -4,6 +4,8 @@ import concurrent.futures
 import itertools
 import logging
 import time
+from datetime import datetime
+from itertools import repeat
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import boto3  # type: ignore
@@ -44,6 +46,8 @@ def describe_objects(
     wait_time: Optional[Union[int, float]] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
+    lastModified_begin: Optional[datetime] = None,
+    lastModified_end: Optional[datetime] = None,
 ) -> Dict[str, Dict[str, Any]]:
     """Describe Amazon S3 objects from a received S3 prefix or list of S3 objects paths.
 
@@ -84,7 +88,9 @@ def describe_objects(
     >>> descs2 = wr.s3.describe_objects('s3://bucket/prefix', wait_time=30)  # Overcoming eventual consistence issues
 
     """
-    paths: List[str] = path2list(path=path, boto3_session=boto3_session)
+    paths: List[str] = path2list(
+        path=path, boto3_session=boto3_session, lastModified_begin=lastModified_begin, lastModified_end=lastModified_end
+    )
     if len(paths) < 1:
         return {}
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)

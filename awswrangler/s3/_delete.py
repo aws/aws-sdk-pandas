@@ -3,6 +3,8 @@
 import concurrent.futures
 import itertools
 import logging
+from datetime import datetime
+from itertools import repeat
 from typing import Dict, List, Optional, Union
 
 import boto3  # type: ignore
@@ -39,7 +41,11 @@ def _delete_objects(bucket: str, keys: List[str], client_s3: boto3.client) -> No
 
 
 def delete_objects(
-    path: Union[str, List[str]], use_threads: bool = True, boto3_session: Optional[boto3.Session] = None
+    path: Union[str, List[str]],
+    use_threads: bool = True,
+    boto3_session: Optional[boto3.Session] = None,
+    lastModified_begin: Optional[datetime] = None,
+    lastModified_end: Optional[datetime] = None,
 ) -> None:
     """Delete Amazon S3 objects from a received S3 prefix or list of S3 objects paths.
 
@@ -69,7 +75,9 @@ def delete_objects(
     >>> wr.s3.delete_objects('s3://bucket/prefix')  # Delete all objects under the received prefix
 
     """
-    paths: List[str] = path2list(path=path, boto3_session=boto3_session)
+    paths: List[str] = path2list(
+        path=path, boto3_session=boto3_session, lastModified_begin=lastModified_begin, lastModified_end=lastModified_end
+    )
     if len(paths) < 1:
         return
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
