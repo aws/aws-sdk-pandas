@@ -509,6 +509,40 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals,too-man
             return cache_result
         _logger.debug('Corrupt cache. Continuing to execute query...')
 
+    return _resolve_query_without_cache(
+        sql=sql,
+        database=database,
+        ctas_approach=ctas_approach,
+        categories=categories,
+        chunksize=chunksize,
+        s3_output=s3_output,
+        workgroup=workgroup,
+        wg_config=wg_config,
+        encryption=encryption,
+        kms_key=kms_key,
+        keep_files=keep_files,
+        ctas_temp_table_name=ctas_temp_table_name,
+        use_threads=use_threads,
+        session=session,
+    )
+
+def _resolve_query_without_cache(
+    sql: str,
+    database: str,
+    ctas_approach: bool,
+    categories: List[str],
+    chunksize: Optional[Union[int, bool]],
+    s3_output: Optional[str],
+    workgroup: Optional[str],
+    wg_config: Dict[str, Union[bool, Optional[str]]],
+    encryption: Optional[str],
+    kms_key: Optional[str],
+    keep_files: bool,
+    ctas_temp_table_name: Optional[str],
+    use_threads: bool,
+    session: Optional[boto3.Session]
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+
     _s3_output: str = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=session)
     _s3_output = _s3_output[:-1] if _s3_output[-1] == "/" else _s3_output
 
@@ -780,6 +814,7 @@ def read_sql_table(
     ctas_temp_table_name: Optional[str] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
+    max_cache_seconds: int = 0
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Extract the full table AWS Athena and return the results as a Pandas DataFrame.
 
@@ -890,30 +925,31 @@ def read_sql_table(
         ctas_temp_table_name=ctas_temp_table_name,
         use_threads=use_threads,
         boto3_session=boto3_session,
+        max_cache_seconds=max_cache_seconds
     )
 
-def _prepare_query_string_for_comparison(query_string: str):
+def _prepare_query_string_for_comparison(query_string: str) -> str:
     # for now this is a simple complete strip, but it could grow into much more sophisticated
     # query comparison data structures
     return "".join(query_string.split()).strip('()').lower()
 
-def _get_last_query_executions(boto3_session=None, client_athena=None):
-    if not client_athena:
-        client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
-    query_execution_list = client_athena.list_query_executions(
+def _get_last_query_executions(boto3_session: Optional[boto3.Session] = None
+) -> List[Dict[str, Any]]:
+    client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
+    query_execution_list: List[Dict[str, Any]] = client_athena.list_query_executions(
         MaxResults=_CACHE_PREVIOUS_QUERY_COUNT
     )
-    query_execution_id_list = query_execution_list["QueryExecutionIds"]
+    query_execution_id_list: List[str] = query_execution_list["QueryExecutionIds"]
     execution_data = client_athena.batch_get_query_execution(
         QueryExecutionIds=query_execution_id_list
     )
     return execution_data.get("QueryExecutions")
 
-def _sort_successful_executions_data(query_executions: List[]):
+def _sort_successful_executions_data(query_executions: List[Dict[str, Any]]):
     filtered = [
         query for query in query_executions if query["Status"].get("State") == "SUCCEEDED"
     ]
-    return sorted(filtered, key=lambda e: e["Status"]["SubmissionDateTime"], reverse=True)
+    return sorted(filtered, key=lambda e: e["Status"]["CompletionDateTime"], reverse=True)
 
 def _parse_select_query_from_possible_ctas(possible_ctas: str) -> str:
     """ Checks if the possible_ctas string is a valid parquet-generating CTAS,
@@ -923,9 +959,16 @@ def _parse_select_query_from_possible_ctas(possible_ctas: str) -> str:
     is_parquet_format = re.search(parquet_format_regex, possible_ctas)
     if is_parquet_format:
         unstripped_select_statement_regex = r'\s+as\s+\(*(select|with).*'
-        unstripped_select_statement_match = re.search(unstripped_select_statement_regex, possible_ctas)
+        unstripped_select_statement_match = re.search(
+            unstripped_select_statement_regex,
+            possible_ctas,
+            re.DOTALL)
         if unstripped_select_statement_match:
-            return re.search(r'(select|with).*', unstripped_select_statement_match.group(0)).group(0)
+            return re.search(
+                r'(select|with).*', 
+                unstripped_select_statement_match.group(0),
+                re.DOTALL
+            ).group(0)
     return None
 
 def _check_for_cached_results(
@@ -933,7 +976,7 @@ def _check_for_cached_results(
     session: boto3.Session,
     wg_config: Dict[str, Union[bool, Optional[str]]],
     max_cache_seconds: int
-) -> Dict[str, Union[bool, Optional[str]]]:
+) -> Dict[str, Any]:
     # TODO: do not ignore wg_config
     if max_cache_seconds > 0:
         last_query_executions = _get_last_query_executions(boto3_session=session)
