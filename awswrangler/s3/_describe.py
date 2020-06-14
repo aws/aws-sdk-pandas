@@ -58,6 +58,10 @@ def describe_objects(
     ----
     In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
 
+    Note
+    ----
+    The filter by lastModified begin lastModified end is applied after list all S3 files
+
     Parameters
     ----------
     path : Union[str, List[str]]
@@ -71,6 +75,8 @@ def describe_objects(
         If enabled os.cpu_count() will be used as the max number of threads.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    lastModified_begin lastModified_end: datetime, optional
+        Filter the s3 files by the Last modified date of the object
 
     Returns
     -------

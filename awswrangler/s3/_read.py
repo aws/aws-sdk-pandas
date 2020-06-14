@@ -347,6 +347,10 @@ def read_csv(
     ----
     In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
 
+    Note
+    ----
+    The filter by lastModified begin lastModified end is applied after list all S3 files
+
     Parameters
     ----------
     path : Union[str, List[str]]
@@ -366,6 +370,8 @@ def read_csv(
     pandas_kwargs:
         keyword arguments forwarded to pandas.read_csv().
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
+    lastModified_begin lastModified_end: datetime, optional
+        Filter the s3 files by the Last modified date of the object
 
     Returns
     -------
@@ -438,6 +444,10 @@ def read_fwf(
     ----
     In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
 
+    Note
+    ----
+    The filter by lastModified begin lastModified end is applied after list all S3 files
+
     Parameters
     ----------
     path : Union[str, List[str]]
@@ -454,6 +464,8 @@ def read_fwf(
         If specified, return an generator where chunksize is the number of rows to include in each chunk.
     dataset: bool
         If `True` read a FWF dataset instead of simple file(s) loading all the related partitions as columns.
+    lastModified_begin lastModified_end: datetime, optional
+        Filter the s3 files by the Last modified date of the object
     pandas_kwargs:
         keyword arguments forwarded to pandas.read_fwf().
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_fwf.html
@@ -529,6 +541,10 @@ def read_json(
     ----
     In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
 
+    Note
+    ----
+    The filter by lastModified begin lastModified end is applied after list all S3 files
+
     Parameters
     ----------
     path : Union[str, List[str]]
@@ -546,6 +562,8 @@ def read_json(
     dataset: bool
         If `True` read a JSON dataset instead of simple file(s) loading all the related partitions as columns.
         If `True`, the `lines=True` will be assumed by default.
+    lastModified_begin lastModified_end: datetime, optional
+        Filter the s3 files by the Last modified date of the object
     pandas_kwargs:
         keyword arguments forwarded to pandas.read_json().
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_json.html
@@ -636,10 +654,13 @@ def read_parquet(
     `P.S.` `chunked=True` if faster and uses less memory while `chunked=INTEGER` is more precise
     in number of rows for each Dataframe.
 
-
     Note
     ----
     In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
+
+    Note
+    ----
+    The filter by lastModified begin lastModified end is applied after list all S3 files
 
     Parameters
     ----------
@@ -671,6 +692,8 @@ def read_parquet(
     s3_additional_kwargs:
         Forward to s3fs, useful for server side encryption
         https://s3fs.readthedocs.io/en/latest/#serverside-encryption
+    lastModified_begin lastModified_end: datetime, optional
+        Filter the s3 files by the Last modified date of the object
 
     Returns
     -------
