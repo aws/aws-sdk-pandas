@@ -43,7 +43,7 @@ df = wr.s3.read_parquet("s3://bucket/dataset/", dataset=True)
 # Retrieving the data from Amazon Athena
 df = wr.athena.read_sql_query("SELECT * FROM my_table", database="my_db")
 
-# Get Redshift connection (SQLAlchemy) from Glue Catalog and retrieving data from Redshift Spectrum
+# Get Redshift connection (SQLAlchemy) from Glue and retrieving data from Redshift Spectrum
 engine = wr.catalog.get_engine("my-redshift-connection")
 df = wr.db.read_sql_query("SELECT * FROM external_schema.my_table", con=engine)
 
