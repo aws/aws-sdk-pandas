@@ -5,7 +5,9 @@ import logging
 import lzma
 import math
 from io import BytesIO, TextIOWrapper
+from datetime import datetime
 
+import pytz
 import boto3
 import pandas as pd
 import pytest
@@ -813,6 +815,47 @@ def test_fwf(path):
     df = wr.s3.read_fwf(path=[path0, path1], use_threads=True, widths=[1, 12, 8], names=["id", "name", "date"])
     assert len(df.index) == 6
     assert len(df.columns) == 3
+
+def test_list_by_lastModified_date(bucket):
+
+    df0 = pd.DataFrame({"id": [1, 2, 3]})
+    begin = datetime.strptime("05/06/20 16:30", "%d/%m/%y %H:%M")
+    end = datetime.strptime("10/06/20 16:30", "%d/%m/%y %H:%M")
+    begin_utc = pytz.utc.localize(begin)
+    end_utc = pytz.utc.localize(end)
+
+    # Test JSON
+    path0 = f"s3://{bucket}/test_json0.json"
+    path1 = f"s3://{bucket}/test_json1.json"
+    wr.s3.to_json(df=df0, path=path0)
+    wr.s3.to_json(df=df0, path=path1)
+    wr.s3.wait_objects_exist(paths=[path0, path1])
+    assert df0.equals(wr.s3.read_json(path=path0, use_threads=False))
+    with pytest.raises(wr.exceptions.InvalidArgument):
+        wr.s3.read_json(path=path0, lastModified_begin=begin_utc, lastModified_end=end_utc)
+    wr.s3.delete_objects(path=[path0, path1], use_threads=False)
+
+    # Test CSV
+    path0 = f"s3://{bucket}/test_csv0.csv"
+    path1 = f"s3://{bucket}/test_csv1.csv"
+    wr.s3.to_csv(df=df0, path=path0)
+    wr.s3.to_csv(df=df0, path=path1)
+    wr.s3.wait_objects_exist(paths=[path0, path1])
+    dfs = wr.s3.read_csv(path=path0, use_threads=False)
+    assert len(dfs) == 3
+    with pytest.raises(wr.exceptions.InvalidArgument):
+        wr.s3.read_csv(path=path0, lastModified_begin=begin_utc, lastModified_end=end_utc)
+    wr.s3.delete_objects(path=[path0, path1], use_threads=False)
+
+    # Test Parquet
+    path0 = f"s3://{bucket}/test_parquet/test_parquet_file.parquet"
+    wr.s3.to_parquet(df=df0, path=path0)
+    wr.s3.wait_objects_exist(paths=[path0])
+    dfs = wr.s3.read_parquet(path=path0, use_threads=False)
+    assert len(dfs) == 3
+    with pytest.raises(wr.exceptions.InvalidArgumentType):
+        wr.s3.read_parquet(path=path0, lastModified_begin=begin_utc, lastModified_end=end_utc)
+    wr.s3.delete_objects(path=[path0], use_threads=False)
 
 
 def test_parquet(bucket):
