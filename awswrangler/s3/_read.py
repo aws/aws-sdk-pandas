@@ -4,7 +4,6 @@ import concurrent.futures
 import itertools
 import logging
 from datetime import datetime
-from itertools import repeat
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3  # type: ignore

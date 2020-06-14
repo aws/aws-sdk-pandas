@@ -5,7 +5,6 @@ import itertools
 import logging
 import time
 from datetime import datetime
-from itertools import repeat
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import boto3  # type: ignore
