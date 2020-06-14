@@ -1,16 +1,15 @@
 import bz2
-import datetime
+from datetime import datetime
 import gzip
 import logging
 import lzma
 import math
 from io import BytesIO, TextIOWrapper
-from datetime import datetime
 
-import pytz
 import boto3
 import pandas as pd
 import pytest
+import pytz
 
 import awswrangler as wr
 
@@ -815,6 +814,7 @@ def test_fwf(path):
     df = wr.s3.read_fwf(path=[path0, path1], use_threads=True, widths=[1, 12, 8], names=["id", "name", "date"])
     assert len(df.index) == 6
     assert len(df.columns) == 3
+
 
 def test_list_by_lastModified_date(bucket):
 
