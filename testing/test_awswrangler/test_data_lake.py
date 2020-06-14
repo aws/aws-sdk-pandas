@@ -1,5 +1,5 @@
 import bz2
-from datetime import datetime
+import datetime
 import gzip
 import logging
 import lzma
@@ -766,7 +766,9 @@ def test_csv(bucket):
     assert wr.s3.size_objects(path=[path0], use_threads=False)[path0] == 9
     assert wr.s3.size_objects(path=[path0], use_threads=True)[path0] == 9
     wr.s3.to_csv(df=df, path=path1, index=False, boto3_session=None)
+    wr.s3.wait_objects_exist(paths=[path1])
     wr.s3.to_csv(df=df, path=path2, index=False, boto3_session=session)
+    wr.s3.wait_objects_exist(paths=[path2])
     assert df.equals(wr.s3.read_csv(path=path0, use_threads=False))
     assert df.equals(wr.s3.read_csv(path=path0, use_threads=True))
     assert df.equals(wr.s3.read_csv(path=path0, use_threads=False, boto3_session=session))
@@ -819,8 +821,8 @@ def test_fwf(path):
 def test_list_by_lastModified_date(bucket):
 
     df0 = pd.DataFrame({"id": [1, 2, 3]})
-    begin = datetime.strptime("05/06/20 16:30", "%d/%m/%y %H:%M")
-    end = datetime.strptime("10/06/20 16:30", "%d/%m/%y %H:%M")
+    begin = datetime.datetime.strptime("05/06/20 16:30", "%d/%m/%y %H:%M")
+    end = datetime.datetime.strptime("10/06/20 16:30", "%d/%m/%y %H:%M")
     begin_utc = pytz.utc.localize(begin)
     end_utc = pytz.utc.localize(end)
 
