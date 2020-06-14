@@ -1,9 +1,9 @@
 """Amazon S3 Describe Module (INTERNAL)."""
 
 import concurrent.futures
+import itertools
 import logging
 import time
-from itertools import repeat
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import boto3  # type: ignore
@@ -94,7 +94,9 @@ def describe_objects(
     else:
         cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
-            resp_list = list(executor.map(_describe_object, paths, repeat(wait_time), repeat(client_s3)))
+            resp_list = list(
+                executor.map(_describe_object, paths, itertools.repeat(wait_time), itertools.repeat(client_s3))
+            )
     desc_dict: Dict[str, Dict[str, Any]] = dict(resp_list)
     return desc_dict
 

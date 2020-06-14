@@ -1,8 +1,8 @@
 """Amazon S3 CopDeletey Module (PRIVATE)."""
 
 import concurrent.futures
+import itertools
 import logging
-from itertools import repeat
 from typing import Dict, List, Optional, Union
 
 import boto3  # type: ignore
@@ -82,4 +82,4 @@ def delete_objects(
         else:
             cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
             with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
-                list(executor.map(_delete_objects, repeat(bucket), chunks, repeat(client_s3)))
+                list(executor.map(_delete_objects, itertools.repeat(bucket), chunks, itertools.repeat(client_s3)))

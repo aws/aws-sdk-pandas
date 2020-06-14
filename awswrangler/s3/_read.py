@@ -1,8 +1,8 @@
 """Amazon S3 Read Module (PRIVATE)."""
 
 import concurrent.futures
+import itertools
 import logging
-from itertools import repeat
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3  # type: ignore
@@ -128,13 +128,13 @@ def _read_text(
             df = pd.concat(
                 objs=executor.map(
                     _read_text_full,
-                    repeat(parser_func),
-                    repeat(path_root),
+                    itertools.repeat(parser_func),
+                    itertools.repeat(path_root),
                     paths,
-                    repeat(_utils.boto3_to_primitives(boto3_session=session)),  # Boto3.Session
-                    repeat(pandas_kwargs),
-                    repeat(s3_additional_kwargs),
-                    repeat(dataset),
+                    itertools.repeat(_utils.boto3_to_primitives(boto3_session=session)),  # Boto3.Session
+                    itertools.repeat(pandas_kwargs),
+                    itertools.repeat(s3_additional_kwargs),
+                    itertools.repeat(dataset),
                 ),
                 ignore_index=True,
                 sort=False,

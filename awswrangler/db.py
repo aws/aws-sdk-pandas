@@ -4,7 +4,7 @@ import json
 import logging
 import time
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus as _quote_plus
 
 import boto3  # type: ignore
 import pandas as pd  # type: ignore
@@ -350,8 +350,8 @@ def get_redshift_temp_engine(
     res: Dict[str, Any] = client_redshift.get_cluster_credentials(
         DbUser=user, ClusterIdentifier=cluster_identifier, DurationSeconds=duration, AutoCreate=False
     )
-    _user: str = quote_plus(res["DbUser"])
-    password: str = quote_plus(res["DbPassword"])
+    _user: str = _quote_plus(res["DbUser"])
+    password: str = _quote_plus(res["DbPassword"])
     cluster: Dict[str, Any] = client_redshift.describe_clusters(ClusterIdentifier=cluster_identifier)["Clusters"][0]
     host: str = cluster["Endpoint"]["Address"]
     port: str = cluster["Endpoint"]["Port"]

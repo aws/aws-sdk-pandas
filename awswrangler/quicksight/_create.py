@@ -275,7 +275,10 @@ def create_athena_dataset(
     if ((database is None) and (table is None)) and (sql is None):
         raise exceptions.InvalidArgument("You must pass database/table OR sql argument.")
     if (database is not None) and (sql is not None):
-        raise exceptions.InvalidArgument("If you provide sql argument, please include the database name inside the sql statement. Do NOT pass in with database argument.")
+        raise exceptions.InvalidArgument(
+            "If you provide sql argument, please include the database name inside the sql statement."
+            "Do NOT pass in with database argument."
+        )
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     client: boto3.client = _utils.client(service_name="quicksight", session=session)
     if account_id is None:

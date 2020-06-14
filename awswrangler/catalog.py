@@ -6,7 +6,7 @@ import logging
 import re
 import unicodedata
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus as _quote_plus
 
 import boto3  # type: ignore
 import pandas as pd  # type: ignore
@@ -566,10 +566,12 @@ def get_tables(
     if catalog_id is not None:
         args["CatalogId"] = catalog_id
     if (name_prefix is not None) and (name_suffix is not None) and (name_contains is not None):
-        raise exceptions.InvalidArgumentCombination("Please, does not filter using name_contains and "
-                                                    "name_prefix/name_suffix at the same time. Only "
-                                                    "name_prefix and name_suffix can be combined together.")
-    elif (name_prefix is not None) and (name_suffix is not None):
+        raise exceptions.InvalidArgumentCombination(
+            "Please, does not filter using name_contains and "
+            "name_prefix/name_suffix at the same time. Only "
+            "name_prefix and name_suffix can be combined together."
+        )
+    if (name_prefix is not None) and (name_suffix is not None):
         args["Expression"] = f"{name_prefix}*{name_suffix}"
     elif name_contains is not None:
         args["Expression"] = f"*{name_contains}*"
@@ -665,7 +667,7 @@ def tables(
         if "Columns" in tbl["StorageDescriptor"]:
             df_dict["Columns"].append(", ".join([x["Name"] for x in tbl["StorageDescriptor"]["Columns"]]))
         else:
-            df_dict["Columns"].append("")
+            df_dict["Columns"].append("")  # pragma: no cover
         if "PartitionKeys" in tbl:
             df_dict["Partitions"].append(", ".join([x["Name"] for x in tbl["PartitionKeys"]]))
         else:
@@ -1008,8 +1010,8 @@ def get_engine(
     db_type: str = details["JDBC_CONNECTION_URL"].split(":")[1].lower()
     host: str = details["JDBC_CONNECTION_URL"].split(":")[2].replace("/", "")
     port, database = details["JDBC_CONNECTION_URL"].split(":")[3].split("/")
-    user: str = quote_plus(details["USERNAME"])
-    password: str = quote_plus(details["PASSWORD"])
+    user: str = _quote_plus(details["USERNAME"])
+    password: str = _quote_plus(details["PASSWORD"])
     if db_type == "postgresql":
         _utils.ensure_postgresql_casts()
     if db_type in ("redshift", "postgresql"):

@@ -39,5 +39,6 @@ from awswrangler.quicksight._get_list import (  # noqa
     list_iam_policy_assignments_for_user,
     list_ingestions,
     list_templates,
+    list_user_groups,
     list_users,
 )

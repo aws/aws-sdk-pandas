@@ -183,3 +183,4 @@ Amazon QuickSight
     list_ingestions
     list_templates
     list_users
+    list_user_groups

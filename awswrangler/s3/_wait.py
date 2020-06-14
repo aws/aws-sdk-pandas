@@ -1,8 +1,8 @@
 """Amazon S3 Wait Module (PRIVATE)."""
 
 import concurrent.futures
+import itertools
 import logging
-from itertools import repeat
 from typing import List, Optional, Tuple, Union
 
 import boto3  # type: ignore
@@ -38,10 +38,10 @@ def _wait_objects(
                 executor.map(
                     _wait_objects_concurrent,
                     _paths,
-                    repeat(waiter_name),
-                    repeat(client_s3),
-                    repeat(_delay),
-                    repeat(max_attempts),
+                    itertools.repeat(waiter_name),
+                    itertools.repeat(client_s3),
+                    itertools.repeat(_delay),
+                    itertools.repeat(max_attempts),
                 )
             )
     return None
