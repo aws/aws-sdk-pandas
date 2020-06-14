@@ -3,11 +3,11 @@
 import csv
 import logging
 import pprint
-import time
 import re
+import time
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
-from datetime import datetime, timezone
 
 import boto3  # type: ignore
 import pandas as pd  # type: ignore
@@ -18,7 +18,7 @@ from awswrangler import _data_types, _utils, catalog, exceptions, s3
 _logger: logging.Logger = logging.getLogger(__name__)
 
 _QUERY_WAIT_POLLING_DELAY: float = 0.2  # SECONDS
-_CACHE_PREVIOUS_QUERY_COUNT: int = 50 # number of past queries to scan for cached results
+_CACHE_PREVIOUS_QUERY_COUNT: int = 50  # number of past queries to scan for cached results
 
 
 def get_query_columns_types(query_execution_id: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, str]:
@@ -379,7 +379,7 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals,too-man
     sql: str,
     database: str,
     ctas_approach: bool = True,
-    categories: List[str] = None,
+    categories: Optional[List[str]] = None,
     chunksize: Optional[Union[int, bool]] = None,
     s3_output: Optional[str] = None,
     workgroup: Optional[str] = None,
@@ -389,7 +389,7 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals,too-man
     ctas_temp_table_name: Optional[str] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
-    max_cache_seconds: int = 0
+    max_cache_seconds: int = 0,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Execute any SQL query on AWS Athena and return the results as a Pandas DataFrame.
 
@@ -473,6 +473,13 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals,too-man
         If enabled os.cpu_count() will be used as the max number of threads.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    max_cache_seconds: int, optional
+        Wrangler can look up in Athena's history if this query has been run before.
+        If so, and its completion time is less than `max_cache_seconds` before now, wrangler
+        skips query execution and just returns the same results as last time.
+        If cached results are valid, wrangler ignores the `ctas_approach`, `s3_output`, `encryption`, `kms_key`,
+        `keep_files` and `ctas_temp_table_name` params.
+        If reading cached data fails for any reason, execution falls back to the usual query run path.
 
     Returns
     -------
@@ -486,28 +493,29 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals,too-man
 
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    wg_config: Dict[str, Union[bool, Optional[str]]] = _get_workgroup_config(session=session, workgroup=workgroup)
 
     # check for cached results
     cache_info = _check_for_cached_results(
-        sql=sql,
-        session=session,
-        wg_config=wg_config,
-        max_cache_seconds=max_cache_seconds
+        sql=sql, session=session, workgroup=workgroup, max_cache_seconds=max_cache_seconds
     )
 
     if cache_info["has_valid_cache"]:
-        _logger.debug('Valid cache found. Retrieving...')
-        cache_result: Union[pd.DataFrame, Iterator[pd.DataFrame]] = _resolve_using_cache(
-            cache_info=cache_info,
-            categories=categories,
-            chunksize=chunksize,
-            use_threads=use_threads,
-            session=session
-        )
+        _logger.debug("Valid cache found. Retrieving...")
+        cache_result: Union[pd.DataFrame, Iterator[pd.DataFrame]] = None
+        try:
+            cache_result = _resolve_query_with_cache(
+                cache_info=cache_info,
+                categories=categories,
+                chunksize=chunksize,
+                use_threads=use_threads,
+                session=session,
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            _logger.error(e)
+            # if there is anything wrong with the cache, just fallback to the usual path
         if cache_result is not None:
             return cache_result
-        _logger.debug('Corrupt cache. Continuing to execute query...')
+        _logger.debug("Corrupt cache. Continuing to execute query...")
 
     return _resolve_query_without_cache(
         sql=sql,
@@ -517,7 +525,6 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals,too-man
         chunksize=chunksize,
         s3_output=s3_output,
         workgroup=workgroup,
-        wg_config=wg_config,
         encryption=encryption,
         kms_key=kms_key,
         keep_files=keep_files,
@@ -526,23 +533,29 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals,too-man
         session=session,
     )
 
+
 def _resolve_query_without_cache(
+    # pylint: disable=too-many-branches,too-many-locals,too-many-return-statements,too-many-statements
     sql: str,
     database: str,
     ctas_approach: bool,
-    categories: List[str],
+    categories: Optional[List[str]],
     chunksize: Optional[Union[int, bool]],
     s3_output: Optional[str],
     workgroup: Optional[str],
-    wg_config: Dict[str, Union[bool, Optional[str]]],
     encryption: Optional[str],
     kms_key: Optional[str],
     keep_files: bool,
     ctas_temp_table_name: Optional[str],
     use_threads: bool,
-    session: Optional[boto3.Session]
+    session: Optional[boto3.Session],
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    """
+    Execute any query in Athena and returns results as Dataframe, back to `read_sql_query`.
 
+    Usually called by `read_sql_query` when using cache is not possible.
+    """
+    wg_config: Dict[str, Union[bool, Optional[str]]] = _get_workgroup_config(session=session, workgroup=workgroup)
     _s3_output: str = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=session)
     _s3_output = _s3_output[:-1] if _s3_output[-1] == "/" else _s3_output
 
@@ -656,14 +669,16 @@ def _resolve_query_without_cache(
         )
     return dfs
 
-def _resolve_using_cache(
+
+def _resolve_query_with_cache(  # pylint: disable=too-many-return-statements
     cache_info,
-    categories: List[str],
+    categories: Optional[List[str]],
     chunksize: Optional[Union[int, bool]],
     use_threads: bool,
-    session: Optional[boto3.Session]
+    session: Optional[boto3.Session],
 ):
-    if cache_info["data_type"] == 'parquet':
+    """Fetch cached data and return it as a pandas Dataframe (or list of Dataframes)."""
+    if cache_info["data_type"] == "parquet":
         manifest_path = cache_info["query_execution_info"]["Statistics"]["DataManifestLocation"]
         # this is needed just so we can access boto's modeled exceptions
         client_s3: boto3.client = _utils.client(service_name="s3", session=session)
@@ -683,11 +698,11 @@ def _resolve_using_cache(
             )
             _logger.debug(type(ret))
             return ret
-    elif cache_info["data_type"] == 'csv':
+    elif cache_info["data_type"] == "csv":
         dtype, parse_timestamps, parse_dates, converters, binaries = _get_query_metadata(
             query_execution_id=cache_info["query_execution_info"]["QueryExecutionId"],
             categories=categories,
-            boto3_session=session
+            boto3_session=session,
         )
         path = cache_info["query_execution_info"]["ResultConfiguration"]["OutputLocation"]
         if s3.does_object_exist(path=path, boto3_session=session):
@@ -716,6 +731,7 @@ def _resolve_using_cache(
             return dfs
 
     return None
+
 
 def _delete_after_iterate(
     dfs: Iterator[pd.DataFrame], paths: List[str], use_threads: bool, boto3_session: boto3.Session
@@ -814,7 +830,7 @@ def read_sql_table(
     ctas_temp_table_name: Optional[str] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
-    max_cache_seconds: int = 0
+    max_cache_seconds: int = 0,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Extract the full table AWS Athena and return the results as a Pandas DataFrame.
 
@@ -898,6 +914,13 @@ def read_sql_table(
         If enabled os.cpu_count() will be used as the max number of threads.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    max_cache_seconds: int, optional
+        Wrangler can look up in Athena's history if this table has been read before.
+        If so, and its completion time is less than `max_cache_seconds` before now, wrangler
+        skips query execution and just returns the same results as last time.
+        If cached results are valid, wrangler ignores the `ctas_approach`, `s3_output`, `encryption`, `kms_key`,
+        `keep_files` and `ctas_temp_table_name` params.
+        If reading cached data fails for any reason, execution falls back to the usual query run path.
 
     Returns
     -------
@@ -925,92 +948,91 @@ def read_sql_table(
         ctas_temp_table_name=ctas_temp_table_name,
         use_threads=use_threads,
         boto3_session=boto3_session,
-        max_cache_seconds=max_cache_seconds
+        max_cache_seconds=max_cache_seconds,
     )
+
 
 def _prepare_query_string_for_comparison(query_string: str) -> str:
+    """To use cached data, we need to compare queries. Returns a query string in canonical form."""
     # for now this is a simple complete strip, but it could grow into much more sophisticated
     # query comparison data structures
-    return "".join(query_string.split()).strip('()').lower()
+    return "".join(query_string.split()).strip("()").lower()
 
-def _get_last_query_executions(boto3_session: Optional[boto3.Session] = None
+
+def _get_last_query_executions(
+    boto3_session: Optional[boto3.Session] = None, workgroup: Optional[str] = None
 ) -> List[Dict[str, Any]]:
+    """Return the last 50 `query_execution_info`s run by the workgroup in Athena."""
     client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
-    query_execution_list: List[Dict[str, Any]] = client_athena.list_query_executions(
-        MaxResults=_CACHE_PREVIOUS_QUERY_COUNT
-    )
+
+    args: Dict[str, Any] = {"MaxResults": _CACHE_PREVIOUS_QUERY_COUNT}
+    if workgroup:
+        args["WorkGroup"] = workgroup
+    query_execution_list: Dict[str, Any] = client_athena.list_query_executions(**args)
     query_execution_id_list: List[str] = query_execution_list["QueryExecutionIds"]
-    execution_data = client_athena.batch_get_query_execution(
-        QueryExecutionIds=query_execution_id_list
-    )
+    execution_data = client_athena.batch_get_query_execution(QueryExecutionIds=query_execution_id_list)
     return execution_data.get("QueryExecutions")
 
+
 def _sort_successful_executions_data(query_executions: List[Dict[str, Any]]):
-    filtered = [
-        query for query in query_executions if query["Status"].get("State") == "SUCCEEDED"
-    ]
+    """
+    Sorts `_get_last_query_executions`'s results based on query Completion DateTime.
+
+    This is useful to guarantee LRU caching rules.
+    """
+    filtered = [query for query in query_executions if query["Status"].get("State") == "SUCCEEDED"]
     return sorted(filtered, key=lambda e: e["Status"]["CompletionDateTime"], reverse=True)
 
-def _parse_select_query_from_possible_ctas(possible_ctas: str) -> str:
-    """ Checks if the possible_ctas string is a valid parquet-generating CTAS,
-        and if so, returns the full SELECT statement"""
+
+def _parse_select_query_from_possible_ctas(possible_ctas: str) -> Optional[str]:
+    """Check if `possible_ctas` is a valid parquet-generating CTAS and returns the full SELECT statement."""
     possible_ctas = possible_ctas.lower()
-    parquet_format_regex = r'format\s*=\s*\'parquet\'\s*,'
+    parquet_format_regex = r"format\s*=\s*\'parquet\'\s*,"
     is_parquet_format = re.search(parquet_format_regex, possible_ctas)
     if is_parquet_format:
-        unstripped_select_statement_regex = r'\s+as\s+\(*(select|with).*'
-        unstripped_select_statement_match = re.search(
-            unstripped_select_statement_regex,
-            possible_ctas,
-            re.DOTALL)
+        unstripped_select_statement_regex = r"\s+as\s+\(*(select|with).*"
+        unstripped_select_statement_match = re.search(unstripped_select_statement_regex, possible_ctas, re.DOTALL)
         if unstripped_select_statement_match:
-            return re.search(
-                r'(select|with).*', 
-                unstripped_select_statement_match.group(0),
-                re.DOTALL
-            ).group(0)
+            stripped_select_statement_match = re.search(
+                r"(select|with).*", unstripped_select_statement_match.group(0), re.DOTALL
+            )
+            if stripped_select_statement_match:
+                return stripped_select_statement_match.group(0)
     return None
 
+
 def _check_for_cached_results(
-    sql: str,
-    session: boto3.Session,
-    wg_config: Dict[str, Union[bool, Optional[str]]],
-    max_cache_seconds: int
+    sql: str, session: boto3.Session, workgroup: Optional[str], max_cache_seconds: int
 ) -> Dict[str, Any]:
-    # TODO: do not ignore wg_config
+    """
+    Check wether `sql` has been run before, within the `max_cache_seconds` window, by the `workgroup`.
+
+    If so, returns a dict with Athena's `query_execution_info` and the data format.
+    """
     if max_cache_seconds > 0:
-        last_query_executions = _get_last_query_executions(boto3_session=session)
+        last_query_executions = _get_last_query_executions(boto3_session=session, workgroup=workgroup)
         cached_queries = _sort_successful_executions_data(query_executions=last_query_executions)
         current_timestamp = datetime.now(timezone.utc)
         comparable_sql: str = _prepare_query_string_for_comparison(sql)
 
         # this could be mapreduced, but it is only 50 items long, tops
         for query_info in cached_queries:
-            if (current_timestamp - query_info["Status"]["SubmissionDateTime"]).total_seconds() > max_cache_seconds:
+            if (current_timestamp - query_info["Status"]["CompletionDateTime"]).total_seconds() > max_cache_seconds:
                 break
 
-            if query_info["StatementType"] == "DDL" and query_info["Query"].startswith('CREATE TABLE'):
+            comparison_query: Optional[str] = None
+            if query_info["StatementType"] == "DDL" and query_info["Query"].startswith("CREATE TABLE"):
                 parsed_query = _parse_select_query_from_possible_ctas(query_info["Query"])
                 if parsed_query:
-                    comparison_query: str = _prepare_query_string_for_comparison(query_string=parsed_query)
+                    comparison_query = _prepare_query_string_for_comparison(query_string=parsed_query)
                     if comparison_query == comparable_sql:
-                        data_type = 'parquet'
-                        return {
-                            "has_valid_cache": True,
-                            "data_type": data_type,
-                            "query_execution_info": query_info
-                        }
+                        data_type = "parquet"
+                        return {"has_valid_cache": True, "data_type": data_type, "query_execution_info": query_info}
 
-            elif query_info["StatementType"] == "DML" and not query_info["Query"].startswith('INSERT'):
-                comparison_query: str = _prepare_query_string_for_comparison(query_string=query_info["Query"])
+            elif query_info["StatementType"] == "DML" and not query_info["Query"].startswith("INSERT"):
+                comparison_query = _prepare_query_string_for_comparison(query_string=query_info["Query"])
                 if comparison_query == comparable_sql:
-                    data_type = 'csv'
-                    return {
-                        "has_valid_cache": True,
-                        "data_type": data_type,
-                        "query_execution_info": query_info
-                    }
+                    data_type = "csv"
+                    return {"has_valid_cache": True, "data_type": data_type, "query_execution_info": query_info}
 
-    return {
-        "has_valid_cache": False
-    }
+    return {"has_valid_cache": False}

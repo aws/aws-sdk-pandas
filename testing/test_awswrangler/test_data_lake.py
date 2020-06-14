@@ -4,14 +4,13 @@ import gzip
 import logging
 import lzma
 import math
-import mock
 from io import BytesIO, TextIOWrapper
-from mock import patch
 
 import boto3
 import pandas as pd
 import pytest
 import pytz
+from mock import patch
 
 import awswrangler as wr
 
@@ -2028,6 +2027,7 @@ def test_catalog_parameters(bucket, database):
     wr.s3.delete_objects(path=path)
     wr.catalog.delete_table_if_exists(database=database, table=table)
 
+
 def test_metadata_partitions(path):
     path = f"{path}0.parquet"
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": ["3", "4", "5"], "c2": [6.0, 7.0, 8.0]})
@@ -2038,6 +2038,7 @@ def test_metadata_partitions(path):
     assert columns_types.get("c0") == "bigint"
     assert columns_types.get("c1") == "string"
     assert columns_types.get("c2") == "double"
+
 
 def test_cache_query_ctas_approach_true(path, database, table):
     df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
@@ -2055,15 +2056,19 @@ def test_cache_query_ctas_approach_true(path, database, table):
     wr.s3.wait_objects_exist(paths=paths)
 
     with patch(
-            'awswrangler.athena._check_for_cached_results',
-            return_value={'has_valid_cache':False}
+        "awswrangler.athena._check_for_cached_results", return_value={"has_valid_cache": False}
     ) as mocked_cache_attempt:
         df2 = wr.athena.read_sql_table(table, database, ctas_approach=True, max_cache_seconds=0)
         mocked_cache_attempt.assert_called()
+        assert df.shape == df2.shape
+        assert df.c0.sum() == df2.c0.sum()
 
-    with patch('awswrangler.athena._resolve_query_without_cache') as resolve_no_cache:
+    with patch("awswrangler.athena._resolve_query_without_cache") as resolve_no_cache:
         df3 = wr.athena.read_sql_table(table, database, ctas_approach=True, max_cache_seconds=900)
         resolve_no_cache.assert_not_called()
+        assert df.shape == df3.shape
+        assert df.c0.sum() == df3.c0.sum()
+
 
 def test_cache_query_ctas_approach_false(path, database, table):
     df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
@@ -2081,14 +2086,15 @@ def test_cache_query_ctas_approach_false(path, database, table):
     wr.s3.wait_objects_exist(paths=paths)
 
     with patch(
-            'awswrangler.athena._check_for_cached_results',
-            return_value={'has_valid_cache':False}
+        "awswrangler.athena._check_for_cached_results", return_value={"has_valid_cache": False}
     ) as mocked_cache_attempt:
         df2 = wr.athena.read_sql_table(table, database, ctas_approach=False, max_cache_seconds=0)
         mocked_cache_attempt.assert_called()
+        assert df.shape == df2.shape
+        assert df.c0.sum() == df2.c0.sum()
 
-    with patch('awswrangler.athena._resolve_query_without_cache') as resolve_no_cache:
+    with patch("awswrangler.athena._resolve_query_without_cache") as resolve_no_cache:
         df3 = wr.athena.read_sql_table(table, database, ctas_approach=False, max_cache_seconds=900)
         resolve_no_cache.assert_not_called()
-
-# TODO: write workgroup tests
+        assert df.shape == df3.shape
+        assert df.c0.sum() == df3.c0.sum()
