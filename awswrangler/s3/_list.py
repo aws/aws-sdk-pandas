@@ -1,6 +1,7 @@
 """Amazon S3 List Module (PRIVATE)."""
 
 import logging
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import boto3  # type: ignore
@@ -11,11 +12,25 @@ from awswrangler import _utils, exceptions
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def path2list(path: object, boto3_session: boto3.Session, suffix: str = None) -> List[str]:
+def path2list(
+    path: object,
+    boto3_session: boto3.Session,
+    suffix: str = None,
+    lastModified_begin: Optional[datetime] = None,
+    lastModified_end: Optional[datetime] = None,
+) -> List[str]:
     """Convert Amazon S3 path to list of objects."""
     if isinstance(path, str):  # prefix
-        paths: List[str] = list_objects(path=path, suffix=suffix, boto3_session=boto3_session)
+        paths: List[str] = list_objects(
+            path=path,
+            suffix=suffix,
+            boto3_session=boto3_session,
+            lastModified_begin=lastModified_begin,
+            lastModified_end=lastModified_end,
+        )
     elif isinstance(path, list):
+        if lastModified_begin or lastModified_end:
+            raise exceptions.InvalidArgumentType("Specify a list of files or (lastModified_begin and lastModified_end)")
         paths = path if suffix is None else [x for x in path if x.endswith(suffix)]
     else:
         raise exceptions.InvalidArgumentType(f"{type(path)} is not a valid path type. Please, use str or List[str].")
@@ -27,6 +42,8 @@ def _list_objects(
     delimiter: Optional[str] = None,
     suffix: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
+    lastModified_begin: Optional[datetime] = None,
+    lastModified_end: Optional[datetime] = None,
 ) -> List[str]:
     bucket: str
     prefix: str
@@ -38,15 +55,36 @@ def _list_objects(
         args["Delimiter"] = delimiter
     response_iterator = paginator.paginate(**args)
     paths: List[str] = []
+
+    # validations for lastModified_begin and lastModified_end
+    filtering_by_date = False
+    if lastModified_begin or lastModified_end:
+        if not (hasattr(lastModified_begin, "tzinfo") and hasattr(lastModified_begin, "tzinfo")):
+            raise exceptions.InvalidArgumentType("Timezone is not defined")
+        if not lastModified_begin or not lastModified_end:
+            raise exceptions.InvalidArgumentType("Both lastModified_begin and lastModified_end needs to be provided.")
+        if lastModified_begin > lastModified_end:
+            raise exceptions.InvalidArgumentType("lastModified_begin is bigger than lastModified_end.")
+        filtering_by_date = True
+
     for page in response_iterator:  # pylint: disable=too-many-nested-blocks
         if delimiter is None:
             contents: Optional[List] = page.get("Contents")
             if contents is not None:
                 for content in contents:
-                    if (content is not None) and ("Key" in content):
-                        key: str = content["Key"]
-                        if (suffix is None) or key.endswith(suffix):
-                            paths.append(f"s3://{bucket}/{key}")
+                    key: str = content["Key"]
+                    if filtering_by_date:
+                        if (
+                            content["LastModified"] >= lastModified_begin
+                            and content["LastModified"] <= lastModified_end
+                        ):
+                            if (content is not None) and ("Key" in content):
+                                if (suffix is None) or key.endswith(suffix):
+                                    paths.append(f"s3://{bucket}/{key}")
+                    else:
+                        if (content is not None) and ("Key" in content):
+                            if (suffix is None) or key.endswith(suffix):
+                                paths.append(f"s3://{bucket}/{key}")
         else:
             prefixes: Optional[List[Optional[Dict[str, str]]]] = page.get("CommonPrefixes")
             if prefixes is not None:
@@ -139,7 +177,13 @@ def list_directories(path: str, boto3_session: Optional[boto3.Session] = None) -
     return _list_objects(path=path, delimiter="/", boto3_session=boto3_session)
 
 
-def list_objects(path: str, suffix: Optional[str] = None, boto3_session: Optional[boto3.Session] = None) -> List[str]:
+def list_objects(
+    path: str,
+    suffix: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+    lastModified_begin: Optional[datetime] = None,
+    lastModified_end: Optional[datetime] = None,
+) -> List[str]:
     """List Amazon S3 objects from a prefix.
 
     Parameters
@@ -172,5 +216,12 @@ def list_objects(path: str, suffix: Optional[str] = None, boto3_session: Optiona
     ['s3://bucket/prefix0', 's3://bucket/prefix1', 's3://bucket/prefix2']
 
     """
-    paths: List[str] = _list_objects(path=path, delimiter=None, suffix=suffix, boto3_session=boto3_session)
+    paths: List[str] = _list_objects(
+        path=path,
+        delimiter=None,
+        suffix=suffix,
+        boto3_session=boto3_session,
+        lastModified_begin=lastModified_begin,
+        lastModified_end=lastModified_end,
+    )
     return [p for p in paths if not p.endswith("/")]

@@ -3,6 +3,8 @@
 import concurrent.futures
 import itertools
 import logging
+from datetime import datetime
+from itertools import repeat
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3  # type: ignore
@@ -80,6 +82,8 @@ def _read_text(
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     chunksize: Optional[int] = None,
     dataset: bool = False,
+    lastModified_begin: Optional[datetime] = None,
+    lastModified_end: Optional[datetime] = None,
     **pandas_kwargs,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     if "iterator" in pandas_kwargs:
@@ -91,7 +95,12 @@ def _read_text(
         path_root: str = str(path)
     else:
         path_root = ""
-    paths: List[str] = path2list(path=path, boto3_session=session)
+    paths: List[str] = path2list(
+        path=path, boto3_session=session, lastModified_begin=lastModified_begin, lastModified_end=lastModified_end
+    )
+    if len(paths) < 1:
+        raise exceptions.InvalidArgument("No files Found.")
+
     _logger.debug("paths:\n%s", paths)
     if chunksize is not None:
         dfs: Iterator[pd.DataFrame] = _read_text_chunksize(
@@ -203,16 +212,23 @@ def _read_parquet_init(
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    lastModified_begin: Optional[datetime] = None,
+    lastModified_end: Optional[datetime] = None,
 ) -> pyarrow.parquet.ParquetDataset:
     """Encapsulate all initialization before the use of the pyarrow.parquet.ParquetDataset."""
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if dataset is False:
-        path_or_paths: Union[str, List[str]] = path2list(path=path, boto3_session=session)
+        path_or_paths: Union[str, List[str]] = path2list(
+            path=path, boto3_session=session, lastModified_begin=lastModified_begin, lastModified_end=lastModified_end
+        )
     elif isinstance(path, str):
         path_or_paths = path[:-1] if path.endswith("/") else path
     else:
         path_or_paths = path
     _logger.debug("path_or_paths: %s", path_or_paths)
+    if len(path_or_paths) < 1:
+        raise exceptions.InvalidArgumentType("No Files Found")
+
     fs: s3fs.S3FileSystem = _utils.get_fs(session=session, s3_additional_kwargs=s3_additional_kwargs)
     cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
     data: pyarrow.parquet.ParquetDataset = pyarrow.parquet.ParquetDataset(
@@ -318,6 +334,8 @@ def read_csv(
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     chunksize: Optional[int] = None,
     dataset: bool = False,
+    lastModified_begin: Optional[datetime] = None,
+    lastModified_end: Optional[datetime] = None,
     **pandas_kwargs,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read CSV file(s) from from a received S3 prefix or list of S3 objects paths.
@@ -394,6 +412,8 @@ def read_csv(
         s3_additional_kwargs=s3_additional_kwargs,
         chunksize=chunksize,
         dataset=dataset,
+        lastModified_begin=lastModified_begin,
+        lastModified_end=lastModified_end,
         **pandas_kwargs,
     )
 
@@ -405,6 +425,8 @@ def read_fwf(
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     chunksize: Optional[int] = None,
     dataset: bool = False,
+    lastModified_begin: Optional[datetime] = None,
+    lastModified_end: Optional[datetime] = None,
     **pandas_kwargs,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read fixed-width formatted file(s) from from a received S3 prefix or list of S3 objects paths.
@@ -481,6 +503,8 @@ def read_fwf(
         s3_additional_kwargs=s3_additional_kwargs,
         chunksize=chunksize,
         dataset=dataset,
+        lastModified_begin=lastModified_begin,
+        lastModified_end=lastModified_end,
         **pandas_kwargs,
     )
 
@@ -492,6 +516,8 @@ def read_json(
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     chunksize: Optional[int] = None,
     dataset: bool = False,
+    lastModified_begin: Optional[datetime] = None,
+    lastModified_end: Optional[datetime] = None,
     **pandas_kwargs,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read JSON file(s) from from a received S3 prefix or list of S3 objects paths.
@@ -571,6 +597,8 @@ def read_json(
         s3_additional_kwargs=s3_additional_kwargs,
         chunksize=chunksize,
         dataset=dataset,
+        lastModified_begin=lastModified_begin,
+        lastModified_end=lastModified_end,
         **pandas_kwargs,
     )
 
@@ -586,6 +614,8 @@ def read_parquet(
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    lastModified_begin: Optional[datetime] = None,
+    lastModified_end: Optional[datetime] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read Apache Parquet file(s) from from a received S3 prefix or list of S3 objects paths.
 
@@ -695,6 +725,8 @@ def read_parquet(
         use_threads=use_threads,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
+        lastModified_begin=lastModified_begin,
+        lastModified_end=lastModified_end,
     )
     _logger.debug("pyarrow.parquet.ParquetDataset initialized.")
     if chunked is False:
