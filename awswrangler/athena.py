@@ -451,7 +451,7 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals,too-man
         If `True` wrangler will iterate on the data by files in the most efficient way without guarantee of chunksize.
         If an `INTEGER` is passed Wrangler will iterate on the data by number of rows igual the received INTEGER.
     s3_output : str, optional
-        AWS S3 path.
+        Amazon S3 path.
     workgroup : str, optional
         Athena workgroup.
     encryption : str, optional
