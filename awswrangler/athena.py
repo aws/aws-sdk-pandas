@@ -473,7 +473,7 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals,too-man
         If enabled os.cpu_count() will be used as the max number of threads.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    max_cache_seconds: int, optional
+    max_cache_seconds: int
         Wrangler can look up in Athena's history if this query has been run before.
         If so, and its completion time is less than `max_cache_seconds` before now, wrangler
         skips query execution and just returns the same results as last time.
@@ -495,11 +495,11 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals,too-man
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
     # check for cached results
-    cache_info = _check_for_cached_results(
+    cache_info: Dict[str, Any] = _check_for_cached_results(
         sql=sql, session=session, workgroup=workgroup, max_cache_seconds=max_cache_seconds
     )
 
-    if cache_info["has_valid_cache"]:
+    if cache_info["has_valid_cache"] is True:
         _logger.debug("Valid cache found. Retrieving...")
         cache_result: Union[pd.DataFrame, Iterator[pd.DataFrame]] = None
         try:
@@ -914,7 +914,7 @@ def read_sql_table(
         If enabled os.cpu_count() will be used as the max number of threads.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    max_cache_seconds: int, optional
+    max_cache_seconds: int
         Wrangler can look up in Athena's history if this table has been read before.
         If so, and its completion time is less than `max_cache_seconds` before now, wrangler
         skips query execution and just returns the same results as last time.
@@ -989,14 +989,14 @@ def _parse_select_query_from_possible_ctas(possible_ctas: str) -> Optional[str]:
     possible_ctas = possible_ctas.lower()
     parquet_format_regex = r"format\s*=\s*\'parquet\'\s*,"
     is_parquet_format = re.search(parquet_format_regex, possible_ctas)
-    if is_parquet_format:
+    if is_parquet_format is not None:
         unstripped_select_statement_regex = r"\s+as\s+\(*(select|with).*"
         unstripped_select_statement_match = re.search(unstripped_select_statement_regex, possible_ctas, re.DOTALL)
-        if unstripped_select_statement_match:
+        if unstripped_select_statement_match is not None:
             stripped_select_statement_match = re.search(
                 r"(select|with).*", unstripped_select_statement_match.group(0), re.DOTALL
             )
-            if stripped_select_statement_match:
+            if stripped_select_statement_match is not None:
                 return stripped_select_statement_match.group(0)
     return None
 
@@ -1022,8 +1022,8 @@ def _check_for_cached_results(
 
             comparison_query: Optional[str] = None
             if query_info["StatementType"] == "DDL" and query_info["Query"].startswith("CREATE TABLE"):
-                parsed_query = _parse_select_query_from_possible_ctas(query_info["Query"])
-                if parsed_query:
+                parsed_query: Optional[str] = _parse_select_query_from_possible_ctas(query_info["Query"])
+                if parsed_query is not None:
                     comparison_query = _prepare_query_string_for_comparison(query_string=parsed_query)
                     if comparison_query == comparable_sql:
                         data_type = "parquet"
