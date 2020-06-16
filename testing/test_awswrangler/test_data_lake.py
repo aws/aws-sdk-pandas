@@ -839,8 +839,8 @@ def test_list_by_lastModified_date(bucket):
     wr.s3.delete_objects(path=[path0, path1], use_threads=False)
 
     # Test CSV
-    path0 = f"s3://{bucket}/test_csv0.csv"
-    path1 = f"s3://{bucket}/test_csv1.csv"
+    path0 = f"s3://{bucket}/test_csv4.csv"
+    path1 = f"s3://{bucket}/test_csv5.csv"
     wr.s3.to_csv(df=df0, path=path0)
     wr.s3.to_csv(df=df0, path=path1)
     wr.s3.wait_objects_exist(paths=[path0, path1])
