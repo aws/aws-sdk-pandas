@@ -221,6 +221,15 @@ def test_csv(s3):
     assert len(df.columns) == 10
 
 
+def test_read_csv_with_chucksize_and_pandas_arguments(s3):
+    path = "s3://bucket/test.csv"
+    wr.s3.to_csv(df=get_df_csv(), path=path, index=False)
+    dfs = [dfs for dfs in wr.s3.read_csv(path=path, chunksize=1, usecols=['id', 'string'])]
+    assert len(dfs) == 3
+    for df in dfs:
+        assert len(df.columns) == 2
+
+
 @mock.patch("pandas.read_csv")
 @mock.patch("s3fs.S3FileSystem.open")
 def test_read_csv_pass_pandas_arguments_and_encoding_succeed(mock_open, mock_read_csv, s3):
