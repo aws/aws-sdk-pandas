@@ -170,7 +170,7 @@ def _read_text_chunksize(
             pandas_kwargs["compression"] = infer_compression(path, compression="infer")
         mode: str = "r" if pandas_kwargs.get("compression") is None else "rb"
         with fs.open(path, mode) as f:
-            reader: pandas.io.parsers.TextFileReader = parser_func(f, chunksize=chunksize, **pandas_args)
+            reader: pandas.io.parsers.TextFileReader = parser_func(f, chunksize=chunksize, **pandas_kwargs)
             for df in reader:
                 if dataset is True:
                     for column_name, value in partitions.items():
