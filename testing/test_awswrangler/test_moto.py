@@ -224,7 +224,7 @@ def test_csv(s3):
 def test_read_csv_with_chucksize_and_pandas_arguments(s3):
     path = "s3://bucket/test.csv"
     wr.s3.to_csv(df=get_df_csv(), path=path, index=False)
-    dfs = [dfs for dfs in wr.s3.read_csv(path=path, chunksize=1, usecols=['id', 'string'])]
+    dfs = [dfs for dfs in wr.s3.read_csv(path=path, chunksize=1, usecols=["id", "string"])]
     assert len(dfs) == 3
     for df in dfs:
         assert len(df.columns) == 2
