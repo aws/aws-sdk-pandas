@@ -107,7 +107,7 @@ def _read_text(
             paths=paths,
             boto3_session=session,
             chunksize=chunksize,
-            pandas_args=pandas_kwargs,
+            pandas_kwargs=pandas_kwargs,
             s3_additional_kwargs=s3_additional_kwargs,
             dataset=dataset,
             path_root=path_root,
@@ -120,7 +120,7 @@ def _read_text(
                     parser_func=parser_func,
                     path=p,
                     boto3_session=session,
-                    pandas_args=pandas_kwargs,
+                    pandas_kwargs=pandas_kwargs,
                     s3_additional_kwargs=s3_additional_kwargs,
                     dataset=dataset,
                     path_root=path_root,
@@ -156,7 +156,7 @@ def _read_text_chunksize(
     paths: List[str],
     boto3_session: boto3.Session,
     chunksize: int,
-    pandas_args: Dict[str, Any],
+    pandas_kwargs: Dict[str, Any],
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     dataset: bool = False,
 ) -> Iterator[pd.DataFrame]:
@@ -166,9 +166,9 @@ def _read_text_chunksize(
         partitions: Dict[str, Any] = {}
         if dataset is True:
             partitions = _utils.extract_partitions_from_path(path_root=path_root, path=path)
-        if pandas_args.get("compression", "infer") == "infer":
-            pandas_args["compression"] = infer_compression(path, compression="infer")
-        mode: str = "r" if pandas_args.get("compression") is None else "rb"
+        if pandas_kwargs.get("compression", "infer") == "infer":
+            pandas_kwargs["compression"] = infer_compression(path, compression="infer")
+        mode: str = "r" if pandas_kwargs.get("compression") is None else "rb"
         with fs.open(path, mode) as f:
             reader: pandas.io.parsers.TextFileReader = parser_func(f, chunksize=chunksize, **pandas_args)
             for df in reader:
@@ -183,18 +183,18 @@ def _read_text_full(
     path_root: str,
     path: str,
     boto3_session: Union[boto3.Session, Dict[str, Optional[str]]],
-    pandas_args: Dict[str, Any],
+    pandas_kwargs: Dict[str, Any],
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     dataset: bool = False,
 ) -> pd.DataFrame:
     fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
-    if pandas_args.get("compression", "infer") == "infer":
-        pandas_args["compression"] = infer_compression(path, compression="infer")
-    mode: str = "r" if pandas_args.get("compression") is None else "rb"
-    encoding: Optional[str] = pandas_args.get("encoding", None)
-    newline: Optional[str] = pandas_args.get("lineterminator", None)
+    if pandas_kwargs.get("compression", "infer") == "infer":
+        pandas_kwargs["compression"] = infer_compression(path, compression="infer")
+    mode: str = "r" if pandas_kwargs.get("compression") is None else "rb"
+    encoding: Optional[str] = pandas_kwargs.get("encoding", None)
+    newline: Optional[str] = pandas_kwargs.get("lineterminator", None)
     with fs.open(path=path, mode=mode, encoding=encoding, newline=newline) as f:
-        df: pd.DataFrame = parser_func(f, **pandas_args)
+        df: pd.DataFrame = parser_func(f, **pandas_kwargs)
     if dataset is True:
         partitions: Dict[str, Any] = _utils.extract_partitions_from_path(path_root=path_root, path=path)
         for column_name, value in partitions.items():
