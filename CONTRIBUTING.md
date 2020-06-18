@@ -108,7 +108,7 @@ You can choose from three different environments to test your fixes/changes, bas
 
 ### Data Lake test environment
 
-**DISCLAIMER**: Make sure to know what you are doing. This steps will charge some services on your AWS account and requires a minimum security skill to keep your environment safe.
+**DISCLAIMER**: Make sure you know what you are doing. These steps will charge some services on your AWS account and require a minimum security skill to keep your environment safe.
 
 * Pick up a Linux or MacOS.
 * Install Python 3.6, 3.7 or 3.8
@@ -147,7 +147,7 @@ You can choose from three different environments to test your fixes/changes, bas
 
 ### Full test environment
 
-**DISCLAIMER**: Make sure to know what you are doing. This steps will charge some services on your AWS account and requires a minimum security skill to keep your environment safe.
+**DISCLAIMER**: Make sure you know what you are doing. These steps will charge some services on your AWS account and require a minimum security skill to keep your environment safe.
 
 * Pick up a Linux or MacOS.
 * Install Python 3.6, 3.7 and 3.8
