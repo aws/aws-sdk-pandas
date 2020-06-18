@@ -1,0 +1,276 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  AWS Data Wrangler Development Base Data Lake Infrastructure. VPC, Subnets, S3 Bucket, Glue Database, etc.
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
+      CidrBlock: 10.19.224.0/19
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId:
+        Ref: InternetGateway
+      VpcId:
+        Ref: VPC
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
+      VpcId:
+        Ref: VPC
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ''
+      CidrBlock: 10.19.229.0/24
+      MapPublicIpOnLaunch: true
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
+      VpcId:
+        Ref: VPC
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ''
+      CidrBlock: 10.19.230.0/24
+      MapPublicIpOnLaunch: true
+  PrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
+      VpcId:
+        Ref: VPC
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ''
+      CidrBlock: 10.19.231.0/24
+      MapPublicIpOnLaunch: false
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
+      VpcId:
+        Ref: VPC
+  DefaultPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId:
+        Ref: PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: InternetGateway
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: PublicRouteTable
+      SubnetId:
+        Ref: PublicSubnet1
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: PublicRouteTable
+      SubnetId:
+        Ref: PublicSubnet2
+  NatGatewayEIP:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
+      Domain: vpc
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
+      AllocationId:
+        Fn::GetAtt:
+          - NatGatewayEIP
+          - AllocationId
+      SubnetId:
+        Ref: PublicSubnet1
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
+      VpcId:
+        Ref: VPC
+  DefaultPrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: NatGateway
+  PrivateSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: PrivateRouteTable
+      SubnetId:
+        Ref: PrivateSubnet
+  KmsKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/aws-data-wrangler-key
+      TargetKeyId:
+        Ref: KmsKey
+  KmsKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
+      Description: Aws Data Wrangler Test Key.
+      KeyPolicy:
+        Version: '2012-10-17'
+        Id: aws-data-wrangler-key
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Sub: arn:aws:iam::${AWS::AccountId}:root
+            Action: kms:*
+            Resource: '*'
+          - Sid: Allow administration of the key
+            Effect: Allow
+            Principal:
+              AWS:
+                Ref: AWS::AccountId
+            Action:
+              - kms:Create*
+              - kms:Describe*
+              - kms:Enable*
+              - kms:List*
+              - kms:Put*
+              - kms:Update*
+              - kms:Revoke*
+              - kms:Disable*
+              - kms:Get*
+              - kms:Delete*
+              - kms:ScheduleKeyDeletion
+              - kms:CancelKeyDeletion
+            Resource: '*'
+  Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: CleaningUp
+            Status: Enabled
+            ExpirationInDays: 1
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+            NoncurrentVersionExpirationInDays: 1
+  GlueDatabase:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId:
+        Ref: AWS::AccountId
+      DatabaseInput:
+        Name: aws_data_wrangler
+        Description: AWS Data Wrangler Test Arena - Glue Database
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 30
+  LogStream:
+    Type: AWS::Logs::LogStream
+    Properties:
+      LogGroupName:
+        Ref: LogGroup
+Outputs:
+  Region:
+    Value:
+      Ref: AWS::Region
+    Description: AWS Region
+  VPC:
+    Value:
+      Ref: VPC
+    Export:
+      Name: aws-data-wrangler-base-VPC
+    Description: VPC ID
+  PublicSubnet1:
+    Value:
+      Ref: PublicSubnet1
+    Export:
+      Name: aws-data-wrangler-base-PublicSubnet1
+    Description: Subnet ID
+  PublicSubnet2:
+    Value:
+      Ref: PublicSubnet2
+    Export:
+      Name: aws-data-wrangler-base-PublicSubnet2
+    Description: Subnet ID 2
+  PrivateSubnet:
+    Value:
+      Ref: PrivateSubnet
+    Export:
+      Name: aws-data-wrangler-base-PrivateSubnet
+    Description: Private Subnet ID
+  KmsKeyArn:
+    Value:
+      Fn::GetAtt:
+        - KmsKey
+        - Arn
+    Export:
+      Name: aws-data-wrangler-base-KmsKeyArn
+    Description: KMS Key ARN.
+  BucketName:
+    Value:
+      Ref: Bucket
+    Export:
+      Name: aws-data-wrangler-base-BucketName
+    Description: Name of the S3 Bucket used for tests.
+  GlueDatabaseName:
+    Value:
+      Ref: GlueDatabase
+    Description: Glue Database Name.
+  LogGroupName:
+    Value:
+      Ref: LogGroup
+    Description: LogGroup name.
+  LogStream:
+    Value:
+      Ref: LogStream
+    Description: LogStream name.

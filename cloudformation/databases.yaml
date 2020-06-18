@@ -1,211 +1,12 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: AWS Data Wrangler Development Infrastructure
+Description: |
+  AWS Data Wrangler Development Databases Infrastructure Redshift, Aurora PostgreSQL, Aurora MySQL
 Parameters:
   DatabasesPassword:
     Type: String
     Description: Password for all databases
     NoEcho: true
 Resources:
-  VPC:
-    Type: AWS::EC2::VPC
-    Properties:
-      Tags:
-        - Key: Env
-          Value: aws-data-wrangler
-      CidrBlock: 10.19.224.0/19
-      EnableDnsSupport: true
-      EnableDnsHostnames: true
-  InternetGateway:
-    Type: AWS::EC2::InternetGateway
-    Properties:
-      Tags:
-        - Key: Env
-          Value: aws-data-wrangler
-  InternetGatewayAttachment:
-    Type: AWS::EC2::VPCGatewayAttachment
-    Properties:
-      InternetGatewayId:
-        Ref: InternetGateway
-      VpcId:
-        Ref: VPC
-  PublicSubnet1:
-    Type: AWS::EC2::Subnet
-    Properties:
-      Tags:
-        - Key: Env
-          Value: aws-data-wrangler
-      VpcId:
-        Ref: VPC
-      AvailabilityZone:
-        Fn::Select:
-          - 0
-          - Fn::GetAZs: ''
-      CidrBlock: 10.19.229.0/24
-      MapPublicIpOnLaunch: true
-  PublicSubnet2:
-    Type: AWS::EC2::Subnet
-    Properties:
-      Tags:
-        - Key: Env
-          Value: aws-data-wrangler
-      VpcId:
-        Ref: VPC
-      AvailabilityZone:
-        Fn::Select:
-          - 1
-          - Fn::GetAZs: ''
-      CidrBlock: 10.19.230.0/24
-      MapPublicIpOnLaunch: true
-  PrivateSubnet:
-    Type: AWS::EC2::Subnet
-    Properties:
-      Tags:
-        - Key: Env
-          Value: aws-data-wrangler
-      VpcId:
-        Ref: VPC
-      AvailabilityZone:
-        Fn::Select:
-          - 0
-          - Fn::GetAZs: ''
-      CidrBlock: 10.19.231.0/24
-      MapPublicIpOnLaunch: false
-  PublicRouteTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      Tags:
-        - Key: Env
-          Value: aws-data-wrangler
-      VpcId:
-        Ref: VPC
-  DefaultPublicRoute:
-    Type: AWS::EC2::Route
-    DependsOn: InternetGatewayAttachment
-    Properties:
-      RouteTableId:
-        Ref: PublicRouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      GatewayId:
-        Ref: InternetGateway
-  PublicSubnet1RouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      RouteTableId:
-        Ref: PublicRouteTable
-      SubnetId:
-        Ref: PublicSubnet1
-  PublicSubnet2RouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      RouteTableId:
-        Ref: PublicRouteTable
-      SubnetId:
-        Ref: PublicSubnet2
-  NatGatewayEIP:
-    Type: AWS::EC2::EIP
-    DependsOn: InternetGatewayAttachment
-    Properties:
-      Tags:
-        - Key: Env
-          Value: aws-data-wrangler
-      Domain: vpc
-  NatGateway:
-    Type: AWS::EC2::NatGateway
-    Properties:
-      Tags:
-        - Key: Env
-          Value: aws-data-wrangler
-      AllocationId:
-        Fn::GetAtt:
-          - NatGatewayEIP
-          - AllocationId
-      SubnetId:
-        Ref: PublicSubnet1
-  PrivateRouteTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      Tags:
-        - Key: Env
-          Value: aws-data-wrangler
-      VpcId:
-        Ref: VPC
-  DefaultPrivateRoute:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId:
-        Ref: PrivateRouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId:
-        Ref: NatGateway
-  PrivateSubnetRouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      RouteTableId:
-        Ref: PrivateRouteTable
-      SubnetId:
-        Ref: PrivateSubnet
-  KmsKeyAlias:
-    Type: AWS::KMS::Alias
-    Properties:
-      AliasName: alias/aws-data-wrangler-key
-      TargetKeyId:
-        Ref: KmsKey
-  KmsKey:
-    Type: AWS::KMS::Key
-    Properties:
-      Tags:
-        - Key: Env
-          Value: aws-data-wrangler
-      Description: Aws Data Wrangler Test Key.
-      KeyPolicy:
-        Version: '2012-10-17'
-        Id: aws-data-wrangler-key
-        Statement:
-          - Sid: Enable IAM User Permissions
-            Effect: Allow
-            Principal:
-              AWS:
-                Fn::Sub: arn:aws:iam::${AWS::AccountId}:root
-            Action: kms:*
-            Resource: '*'
-          - Sid: Allow administration of the key
-            Effect: Allow
-            Principal:
-              AWS:
-                Ref: AWS::AccountId
-            Action:
-              - kms:Create*
-              - kms:Describe*
-              - kms:Enable*
-              - kms:List*
-              - kms:Put*
-              - kms:Update*
-              - kms:Revoke*
-              - kms:Disable*
-              - kms:Get*
-              - kms:Delete*
-              - kms:ScheduleKeyDeletion
-              - kms:CancelKeyDeletion
-            Resource: '*'
-  Bucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      Tags:
-        - Key: Env
-          Value: aws-data-wrangler
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      LifecycleConfiguration:
-        Rules:
-          - Id: CleaningUp
-            Status: Enabled
-            ExpirationInDays: 1
-            AbortIncompleteMultipartUpload:
-              DaysAfterInitiation: 1
-            NoncurrentVersionExpirationInDays: 1
   RedshiftRole:
     Type: AWS::IAM::Role
     Properties:
@@ -233,17 +34,21 @@ Resources:
                   - kms:Decrypt
                   - kms:GenerateDataKey
                 Resource:
-                  - Fn::GetAtt:
-                      - KmsKey
-                      - Arn
+                  - Fn::ImportValue: aws-data-wrangler-base-KmsKeyArn
               - Effect: Allow
                 Action:
                   - s3:Get*
                   - s3:List*
                   - s3:Put*
                 Resource:
-                  - Fn::Sub: arn:aws:s3:::${Bucket}
-                  - Fn::Sub: arn:aws:s3:::${Bucket}/*
+                  - Fn::Sub:
+                      - arn:aws:s3:::${Bucket}
+                      - Bucket:
+                          Fn::ImportValue: aws-data-wrangler-base-BucketName
+                  - Fn::Sub:
+                      - arn:aws:s3:::${Bucket}/*
+                      - Bucket:
+                          Fn::ImportValue: aws-data-wrangler-base-BucketName
               - Effect: Allow
                 Action:
                   - lakeformation:GrantPermissions
@@ -276,7 +81,7 @@ Resources:
           Value: aws-data-wrangler
       Description: AWS Data Wrangler Test Arena - Redshift Subnet Group
       SubnetIds:
-        - Ref: PublicSubnet1
+        - Fn::ImportValue: aws-data-wrangler-base-PublicSubnet1
   DatabaseSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -284,7 +89,7 @@ Resources:
         - Key: Env
           Value: aws-data-wrangler
       VpcId:
-        Ref: VPC
+        Fn::ImportValue: aws-data-wrangler-base-VPC
       GroupDescription: AWS Data Wrangler Test Arena - Redshift security group
   DatabaseSecurityGroupIngress:
     Type: AWS::EC2::SecurityGroupIngress
@@ -319,23 +124,6 @@ Resources:
         - Fn::GetAtt:
             - RedshiftRole
             - Arn
-  GlueDatabase:
-    Type: AWS::Glue::Database
-    Properties:
-      CatalogId:
-        Ref: AWS::AccountId
-      DatabaseInput:
-        Name: aws_data_wrangler
-        Description: AWS Data Wrangler Test Arena - Glue Database
-  LogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      RetentionInDays: 30
-  LogStream:
-    Type: AWS::Logs::LogStream
-    Properties:
-      LogGroupName:
-        Ref: LogGroup
   RdsSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
@@ -344,8 +132,8 @@ Resources:
           Value: aws-data-wrangler
       DBSubnetGroupDescription: RDS Database Subnet Group
       SubnetIds:
-        - Ref: PublicSubnet1
-        - Ref: PublicSubnet2
+        - Fn::ImportValue: aws-data-wrangler-base-PublicSubnet1
+        - Fn::ImportValue: aws-data-wrangler-base-PublicSubnet2
   AuroraRole:
     Type: AWS::IAM::Role
     Properties:
@@ -373,8 +161,14 @@ Resources:
                   - s3:List*
                   - s3:Put*
                 Resource:
-                  - Fn::Sub: arn:aws:s3:::${Bucket}
-                  - Fn::Sub: arn:aws:s3:::${Bucket}/*
+                  - Fn::Sub:
+                      - arn:aws:s3:::${Bucket}
+                      - Bucket:
+                          Fn::ImportValue: aws-data-wrangler-base-BucketName
+                  - Fn::Sub:
+                      - arn:aws:s3:::${Bucket}/*
+                      - Bucket:
+                          Fn::ImportValue: aws-data-wrangler-base-BucketName
   PostgresqlParameterGroup:
     Type: AWS::RDS::DBClusterParameterGroup
     Properties:
@@ -506,7 +300,7 @@ Resources:
           SecurityGroupIdList:
             - Ref: DatabaseSecurityGroup
           SubnetId:
-            Ref: PrivateSubnet
+            Fn::ImportValue: aws-data-wrangler-base-PrivateSubnet
         ConnectionProperties:
           JDBC_CONNECTION_URL:
             Fn::Sub: jdbc:redshift://${Redshift.Endpoint.Address}:${Redshift.Endpoint.Port}/test
@@ -530,7 +324,7 @@ Resources:
           SecurityGroupIdList:
             - Ref: DatabaseSecurityGroup
           SubnetId:
-            Ref: PrivateSubnet
+            Fn::ImportValue: aws-data-wrangler-base-PrivateSubnet
         ConnectionProperties:
           JDBC_CONNECTION_URL:
             Fn::Sub: jdbc:postgresql://${AuroraInstancePostgresql.Endpoint.Address}:${AuroraInstancePostgresql.Endpoint.Port}/postgres
@@ -554,7 +348,7 @@ Resources:
           SecurityGroupIdList:
             - Ref: DatabaseSecurityGroup
           SubnetId:
-            Ref: PrivateSubnet
+            Fn::ImportValue: aws-data-wrangler-base-PrivateSubnet
         ConnectionProperties:
           JDBC_CONNECTION_URL:
             Fn::Sub: jdbc:mysql://${AuroraInstanceMysql.Endpoint.Address}:${AuroraInstanceMysql.Endpoint.Port}/test
@@ -563,10 +357,10 @@ Resources:
             Ref: DatabasesPassword
         Name: aws-data-wrangler-mysql
 Outputs:
-  BucketName:
+  DatabasesPassword:
     Value:
-      Ref: Bucket
-    Description: Name of the S3 Bucket used for tests.
+      Ref: DatabasesPassword
+    Description: Password.
   RedshiftIdentifier:
     Value:
       Ref: Redshift
@@ -582,42 +376,12 @@ Outputs:
         - Redshift
         - Endpoint.Port
     Description: Redshift Endpoint Port.
-  DatabasesPassword:
-    Value:
-      Ref: DatabasesPassword
-    Description: Password.
   RedshiftRole:
     Value:
       Fn::GetAtt:
         - RedshiftRole
         - Arn
     Description: Redshift IAM role.
-  GlueDatabaseName:
-    Value:
-      Ref: GlueDatabase
-    Description: Glue Database Name.
-  KmsKeyArn:
-    Value:
-      Fn::GetAtt:
-        - KmsKey
-        - Arn
-    Description: KMS Key ARN.
-  LogGroupName:
-    Value:
-      Ref: LogGroup
-    Description: LogGroup name.
-  LogStream:
-    Value:
-      Ref: LogStream
-    Description: LogStream name.
-  SubnetId:
-    Value:
-      Ref: PublicSubnet1
-    Description: Subnet ID
-  SubnetId2:
-    Value:
-      Ref: PublicSubnet2
-    Description: Subnet ID 2
   PostgresqlAddress:
     Value:
       Fn::GetAtt:
@@ -630,7 +394,3 @@ Outputs:
         - AuroraInstanceMysql
         - Endpoint.Address
     Description: Mysql Address
-  Region:
-    Value:
-      Ref: AWS::Region
-    Description: AWS Region

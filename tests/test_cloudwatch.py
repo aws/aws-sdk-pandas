@@ -38,7 +38,7 @@ def loggroup(cloudformation_outputs):
         pass  # Concurrency
     while True:
         results = wr.cloudwatch.run_query(log_group_names=[loggroup_name], query="fields @timestamp | limit 5")
-        if len(results) == 5:
+        if len(results) >= 5:
             break
     yield loggroup_name
 

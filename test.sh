@@ -7,10 +7,9 @@ microtime() {
 
 START=$(microtime)
 
-./validations.sh
-pushd ..
-tox --recreate --develop -e py36
-coverage html --directory testing/coverage
-rm -rf .coverage* testing/Running Running
+./validation.sh
+tox -e ALL
+coverage html --directory coverage
+rm -rf .coverage* Running
 
 echo "Time elapsed: $(echo "scale=1; ($(microtime) - $START) / 60" | bc) minutes"

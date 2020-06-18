@@ -134,9 +134,7 @@ python/
 
 # SAM
 .aws-sam
-testing/*parameters-*.properties
-testing/*requirements*.txt
-testing/coverage/*
+coverage/*
 building/*requirements*.txt
 building/arrow
 building/lambda/arrow

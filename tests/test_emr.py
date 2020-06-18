@@ -34,7 +34,7 @@ def test_cluster(bucket, cloudformation_outputs):
         cluster_name="wrangler_cluster",
         logging_s3_path=f"s3://{bucket}/emr-logs/",
         emr_release="emr-5.29.0",
-        subnet_id=cloudformation_outputs["SubnetId"],
+        subnet_id=cloudformation_outputs["PublicSubnet1"],
         emr_ec2_role="EMR_EC2_DefaultRole",
         emr_role="EMR_DefaultRole",
         instance_type_master="m5.xlarge",
@@ -88,7 +88,7 @@ def test_cluster_single_node(bucket, cloudformation_outputs):
         cluster_name="wrangler_cluster",
         logging_s3_path=f"s3://{bucket}/emr-logs/",
         emr_release="emr-5.29.0",
-        subnet_id=cloudformation_outputs["SubnetId"],
+        subnet_id=cloudformation_outputs["PublicSubnet1"],
         emr_ec2_role="EMR_EC2_DefaultRole",
         emr_role="EMR_DefaultRole",
         instance_type_master="m5.xlarge",
@@ -146,7 +146,7 @@ def test_cluster_single_node(bucket, cloudformation_outputs):
 
 
 def test_default_logging_path(cloudformation_outputs):
-    path = wr.emr._get_default_logging_path(subnet_id=cloudformation_outputs["SubnetId"])
+    path = wr.emr._get_default_logging_path(subnet_id=cloudformation_outputs["PublicSubnet1"])
     assert path.startswith("s3://aws-logs-")
     assert path.endswith("/elasticmapreduce/")
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
@@ -155,7 +155,7 @@ def test_default_logging_path(cloudformation_outputs):
 
 def test_docker(bucket, cloudformation_outputs):
     cluster_id = wr.emr.create_cluster(
-        subnet_id=cloudformation_outputs["SubnetId"],
+        subnet_id=cloudformation_outputs["PublicSubnet1"],
         docker=True,
         custom_classifications=[
             {
