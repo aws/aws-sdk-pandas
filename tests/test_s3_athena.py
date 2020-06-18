@@ -1,6 +1,7 @@
 import bz2
 import datetime
 import gzip
+import itertools
 import logging
 import lzma
 import math
@@ -15,6 +16,7 @@ from mock import patch
 import awswrangler as wr
 
 from ._utils import (
+    dt,
     ensure_data_types,
     ensure_data_types_category,
     ensure_data_types_csv,
@@ -27,6 +29,7 @@ from ._utils import (
     get_query_long,
     get_time_str_with_random_suffix,
     path_generator,
+    ts,
 )
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
@@ -34,47 +37,32 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def cloudformation_outputs():
     yield extract_cloudformation_outputs()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def region(cloudformation_outputs):
     yield cloudformation_outputs["Region"]
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def bucket(cloudformation_outputs):
     yield cloudformation_outputs["BucketName"]
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def database(cloudformation_outputs):
     yield cloudformation_outputs["GlueDatabaseName"]
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def kms_key(cloudformation_outputs):
     yield cloudformation_outputs["KmsKeyArn"]
 
 
-@pytest.fixture(scope="module")
-def external_schema(cloudformation_outputs, database):
-    region = cloudformation_outputs.get("Region")
-    sql = f"""
-    CREATE EXTERNAL SCHEMA IF NOT EXISTS aws_data_wrangler_external FROM data catalog
-    DATABASE '{database}'
-    IAM_ROLE '{cloudformation_outputs["RedshiftRole"]}'
-    REGION '{region}';
-    """
-    engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
-    with engine.connect() as con:
-        con.execute(sql)
-    yield "aws_data_wrangler_external"
-
-
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def workgroup0(bucket):
     wkg_name = "aws_data_wrangler_0"
     client = boto3.client("athena")
@@ -95,7 +83,7 @@ def workgroup0(bucket):
     yield wkg_name
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def workgroup1(bucket):
     wkg_name = "aws_data_wrangler_1"
     client = boto3.client("athena")
@@ -119,7 +107,7 @@ def workgroup1(bucket):
     yield wkg_name
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def workgroup2(bucket, kms_key):
     wkg_name = "aws_data_wrangler_2"
     client = boto3.client("athena")
@@ -143,7 +131,7 @@ def workgroup2(bucket, kms_key):
     yield wkg_name
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def workgroup3(bucket, kms_key):
     wkg_name = "aws_data_wrangler_3"
     client = boto3.client("athena")
@@ -200,7 +188,7 @@ def path3(bucket):
     yield from path_generator(bucket)
 
 
-def test_to_parquet_modes(database, table, path, external_schema):
+def test_to_parquet_modes(database, table, path):
 
     # Round 1 - Warm up
     df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
@@ -215,7 +203,7 @@ def test_to_parquet_modes(database, table, path, external_schema):
         parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
         columns_comments={"c0": "0"},
     )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
     df2 = wr.athena.read_sql_table(table, database)
     assert df.shape == df2.shape
     assert df.c0.sum() == df2.c0.sum()
@@ -241,7 +229,7 @@ def test_to_parquet_modes(database, table, path, external_schema):
         parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
         columns_comments={"c1": "1"},
     )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
     df2 = wr.athena.read_sql_table(table, database)
     assert df.shape == df2.shape
     assert df.c1.sum() == df2.c1.sum()
@@ -267,7 +255,7 @@ def test_to_parquet_modes(database, table, path, external_schema):
         parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index) * 2)},
         columns_comments={"c1": "1"},
     )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
     df2 = wr.athena.read_sql_table(table, database)
     assert len(df.columns) == len(df2.columns)
     assert len(df.index) * 2 == len(df2.index)
@@ -322,7 +310,7 @@ def test_to_parquet_modes(database, table, path, external_schema):
         parameters={"num_cols": "3", "num_rows": "10"},
         columns_comments={"c1": "1!", "c2": "2!", "c3": "3"},
     )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
     df2 = wr.athena.read_sql_table(table, database)
     assert len(df2.columns) == 3
     assert len(df2.index) == 10
@@ -337,11 +325,6 @@ def test_to_parquet_modes(database, table, path, external_schema):
     assert comments["c1"] == "1!"
     assert comments["c2"] == "2!"
     assert comments["c3"] == "3"
-    engine = wr.catalog.get_engine("aws-data-wrangler-redshift")
-    df3 = wr.db.read_sql_table(con=engine, table=table, schema=external_schema)
-    assert len(df3.columns) == 3
-    assert len(df3.index) == 10
-    assert df3.c1.sum() == 4
 
     # Round 6 - Overwrite Partitioned
     df = pd.DataFrame({"c0": ["foo", None], "c1": [0, 1]})
@@ -385,7 +368,7 @@ def test_to_parquet_modes(database, table, path, external_schema):
         parameters={"num_cols": "2", "num_rows": "3"},
         columns_comments={"c0": "zero", "c1": "one"},
     )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
     df2 = wr.athena.read_sql_table(table, database)
     assert len(df2.columns) == 2
     assert len(df2.index) == 3
@@ -414,7 +397,7 @@ def test_to_parquet_modes(database, table, path, external_schema):
         parameters={"num_cols": "3", "num_rows": "4"},
         columns_comments={"c0": "zero", "c1": "one", "c2": "two"},
     )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
     df2 = wr.athena.read_sql_table(table, database)
     assert len(df2.columns) == 3
     assert len(df2.index) == 4
@@ -429,14 +412,9 @@ def test_to_parquet_modes(database, table, path, external_schema):
     assert comments["c0"] == "zero"
     assert comments["c1"] == "one"
     assert comments["c2"] == "two"
-    engine = wr.catalog.get_engine("aws-data-wrangler-redshift")
-    df3 = wr.db.read_sql_table(con=engine, table=table, schema=external_schema)
-    assert len(df3.columns) == 3
-    assert len(df3.index) == 4
-    assert df3.c1.sum() == 6
 
 
-def test_store_parquet_metadata_modes(database, table, path, external_schema):
+def test_store_parquet_metadata_modes(database, table, path):
 
     # Round 1 - Warm up
     df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
@@ -633,11 +611,6 @@ def test_store_parquet_metadata_modes(database, table, path, external_schema):
     assert comments["c0"] == "zero"
     assert comments["c1"] == "one"
     assert comments["c2"] == "two"
-    engine = wr.catalog.get_engine("aws-data-wrangler-redshift")
-    df3 = wr.db.read_sql_table(con=engine, table=table, schema=external_schema)
-    assert len(df3.columns) == 3
-    assert len(df3.index) == 4
-    assert df3.c1.astype(int).sum() == 6
 
 
 def test_athena_ctas(path, path2, path3, table, table2, database, kms_key):
@@ -788,26 +761,25 @@ def test_csv(bucket):
     wr.s3.wait_objects_not_exist(paths=paths, use_threads=False)
 
 
-def test_json(bucket):
+def test_json(path):
     df0 = pd.DataFrame({"id": [1, 2, 3]})
-    path0 = f"s3://{bucket}/test_json0.json"
-    path1 = f"s3://{bucket}/test_json1.json"
+    path0 = f"{path}test_json0.json"
+    path1 = f"{path}test_json1.json"
     wr.s3.to_json(df=df0, path=path0)
     wr.s3.to_json(df=df0, path=path1)
-    wr.s3.wait_objects_exist(paths=[path0, path1])
+    wr.s3.wait_objects_exist(paths=[path0, path1], use_threads=False)
     assert df0.equals(wr.s3.read_json(path=path0, use_threads=False))
     df1 = pd.concat(objs=[df0, df0], sort=False, ignore_index=True)
     assert df1.equals(wr.s3.read_json(path=[path0, path1], use_threads=True))
-    wr.s3.delete_objects(path=[path0, path1], use_threads=False)
 
 
 def test_fwf(path):
     text = "1 Herfelingen27-12-18\n2   Lambusart14-06-18\n3Spormaggiore15-04-18"
     client_s3 = boto3.client("s3")
-    path0 = f"{path}/0.txt"
+    path0 = f"{path}0.txt"
     bucket, key = wr._utils.parse_path(path0)
     client_s3.put_object(Body=text, Bucket=bucket, Key=key)
-    path1 = f"{path}/1.txt"
+    path1 = f"{path}1.txt"
     bucket, key = wr._utils.parse_path(path1)
     client_s3.put_object(Body=text, Bucket=bucket, Key=key)
     wr.s3.wait_objects_exist(paths=[path0, path1])
@@ -819,7 +791,7 @@ def test_fwf(path):
     assert len(df.columns) == 3
 
 
-def test_list_by_lastModified_date(bucket):
+def test_list_by_last_modified_date(bucket):
 
     df0 = pd.DataFrame({"id": [1, 2, 3]})
     begin = datetime.datetime.strptime("05/06/20 16:30", "%d/%m/%y %H:%M")
@@ -881,11 +853,11 @@ def test_parquet(bucket):
     paths = wr.s3.to_parquet(df=df_file, path=path_file)["paths"]
     wr.s3.wait_objects_exist(paths=paths)
     assert len(wr.s3.read_parquet(path=path_file, use_threads=True, boto3_session=None).index) == 3
-    assert len(wr.s3.read_parquet(path=[path_file], use_threads=False, boto3_session=boto3.Session()).index) == 3
+    assert len(wr.s3.read_parquet(path=[path_file], use_threads=False, boto3_session=boto3.DEFAULT_SESSION).index) == 3
     paths = wr.s3.to_parquet(df=df_dataset, path=path_dataset, dataset=True)["paths"]
     wr.s3.wait_objects_exist(paths=paths)
     assert len(wr.s3.read_parquet(path=paths, dataset=True).index) == 3
-    assert len(wr.s3.read_parquet(path=path_dataset, use_threads=True, boto3_session=boto3.Session()).index) == 3
+    assert len(wr.s3.read_parquet(path=path_dataset, use_threads=True, boto3_session=boto3.DEFAULT_SESSION).index) == 3
     dataset_paths = wr.s3.to_parquet(
         df=df_dataset, path=path_dataset, dataset=True, partition_cols=["partition"], mode="overwrite"
     )["paths"]
@@ -1160,7 +1132,7 @@ def test_catalog(path, database, table):
 
 def test_s3_get_bucket_region(bucket, region):
     assert wr.s3.get_bucket_region(bucket=bucket) == region
-    assert wr.s3.get_bucket_region(bucket=bucket, boto3_session=boto3.Session()) == region
+    assert wr.s3.get_bucket_region(bucket=bucket, boto3_session=boto3.DEFAULT_SESSION) == region
 
 
 def test_catalog_get_databases(database):
@@ -1172,7 +1144,7 @@ def test_catalog_get_databases(database):
 
 
 def test_athena_query_cancelled(database):
-    session = boto3.Session()
+    session = boto3.DEFAULT_SESSION
     query_execution_id = wr.athena.start_query_execution(sql=get_query_long(), database=database, boto3_session=session)
     wr.athena.stop_query_execution(query_execution_id=query_execution_id, boto3_session=session)
     with pytest.raises(wr.exceptions.QueryCancelled):
@@ -1585,7 +1557,7 @@ def test_csv_compress(bucket, compression):
     wr.s3.delete_objects(path=path)
 
 
-def test_parquet_char_length(path, database, table, external_schema):
+def test_parquet_char_length(path, database, table):
     df = pd.DataFrame(
         {"id": [1, 2], "cchar": ["foo", "boo"], "date": [datetime.date(2020, 1, 1), datetime.date(2020, 1, 2)]}
     )
@@ -1606,12 +1578,6 @@ def test_parquet_char_length(path, database, table, external_schema):
     assert df2.id.sum() == 3
 
     df2 = wr.athena.read_sql_table(table=table, database=database)
-    assert len(df2.index) == 2
-    assert len(df2.columns) == 3
-    assert df2.id.sum() == 3
-
-    engine = wr.catalog.get_engine("aws-data-wrangler-redshift")
-    df2 = wr.db.read_sql_table(con=engine, table=table, schema=external_schema)
     assert len(df2.index) == 2
     assert len(df2.columns) == 3
     assert df2.id.sum() == 3
@@ -1865,7 +1831,7 @@ def test_copy_replacing_filename(bucket):
     wr.s3.delete_objects(path=path2)
 
 
-def test_unsigned_parquet(bucket, database, external_schema):
+def test_unsigned_parquet(bucket, database):
     table = "test_unsigned_parquet"
     path = f"s3://{bucket}/{table}/"
     wr.s3.delete_objects(path=path)
@@ -1884,11 +1850,6 @@ def test_unsigned_parquet(bucket, database, external_schema):
     assert schema["c1"] == "int"
     assert schema["c2"] == "bigint"
     df = wr.s3.read_parquet(path=path)
-    assert df.c0.sum() == (2 ** 8) - 1
-    assert df.c1.sum() == (2 ** 16) - 1
-    assert df.c2.sum() == (2 ** 32) - 1
-    engine = wr.catalog.get_engine("aws-data-wrangler-redshift")
-    df = wr.db.read_sql_table(con=engine, table=table, schema=external_schema)
     assert df.c0.sum() == (2 ** 8) - 1
     assert df.c1.sum() == (2 ** 16) - 1
     assert df.c2.sum() == (2 ** 32) - 1
@@ -1934,7 +1895,7 @@ def test_parquet_uint64(bucket):
     wr.s3.delete_objects(path=path)
 
 
-def test_parquet_overwrite_partition_cols(path, database, table, external_schema):
+def test_parquet_overwrite_partition_cols(path, database, table):
     df = pd.DataFrame({"c0": [1, 2, 1, 2], "c1": [1, 2, 1, 2], "c2": [2, 1, 2, 1]})
 
     paths = wr.s3.to_parquet(
@@ -1953,14 +1914,6 @@ def test_parquet_overwrite_partition_cols(path, database, table, external_schema
     )["paths"]
     wr.s3.wait_objects_exist(paths=paths, use_threads=False)
     df = wr.athena.read_sql_table(table=table, database=database)
-    assert len(df.index) == 4
-    assert len(df.columns) == 3
-    assert df.c0.sum() == 6
-    assert df.c1.sum() == 6
-    assert df.c2.sum() == 6
-
-    engine = wr.catalog.get_engine("aws-data-wrangler-redshift")
-    df = wr.db.read_sql_table(con=engine, table=table, schema=external_schema)
     assert len(df.index) == 4
     assert len(df.columns) == 3
     assert df.c0.sum() == 6
@@ -2098,3 +2051,430 @@ def test_cache_query_ctas_approach_false(path, database, table):
         resolve_no_cache.assert_not_called()
         assert df.shape == df3.shape
         assert df.c0.sum() == df3.c0.sum()
+
+
+@pytest.mark.parametrize("partition_cols", [None, ["c2"], ["c1", "c2"]])
+def test_metadata_partitions_dataset(path, partition_cols):
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5], "c2": [6, 7, 8]})
+    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, partition_cols=partition_cols)["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    columns_types, partitions_types = wr.s3.read_parquet_metadata(path=path, dataset=True)
+    partitions_types = partitions_types if partitions_types is not None else {}
+    assert len(columns_types) + len(partitions_types) == len(df.columns)
+    assert columns_types.get("c0") == "bigint"
+    assert (columns_types.get("c1") == "bigint") or (partitions_types.get("c1") == "string")
+    assert (columns_types.get("c1") == "bigint") or (partitions_types.get("c1") == "string")
+
+
+@pytest.mark.parametrize("partition_cols", [None, ["c2"], ["c1", "c2"]])
+def test_store_metadata_partitions_dataset(database, table, path, partition_cols):
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5], "c2": [6, 7, 8]})
+    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, partition_cols=partition_cols)["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    wr.s3.store_parquet_metadata(path=path, database=database, table=table, dataset=True)
+    df2 = wr.athena.read_sql_table(table=table, database=database)
+    assert len(df.index) == len(df2.index)
+    assert len(df.columns) == len(df2.columns)
+    assert df.c0.sum() == df2.c0.sum()
+    assert df.c1.sum() == df2.c1.astype(int).sum()
+    assert df.c2.sum() == df2.c2.astype(int).sum()
+
+
+def test_json_chunksize(path):
+    num_files = 10
+    df = pd.DataFrame({"id": [1, 2, 3], "value": ["foo", "boo", "bar"]})
+    paths = [f"{path}{i}.json" for i in range(num_files)]
+    for p in paths:
+        wr.s3.to_json(df, p, orient="records", lines=True)
+    wr.s3.wait_objects_exist(paths)
+    dfs = list(wr.s3.read_json(paths, lines=True, chunksize=1))
+    assert len(dfs) == (3 * num_files)
+    for d in dfs:
+        assert len(d.columns) == 2
+        assert d.id.iloc[0] in (1, 2, 3)
+        assert d.value.iloc[0] in ("foo", "boo", "bar")
+
+
+def test_parquet_cast_string(path):
+    df = pd.DataFrame({"id": [1, 2, 3], "value": ["foo", "boo", "bar"]})
+    path_file = f"{path}0.parquet"
+    wr.s3.to_parquet(df, path_file, dtype={"id": "string"}, sanitize_columns=False)
+    wr.s3.wait_objects_exist([path_file])
+    df2 = wr.s3.read_parquet(path_file)
+    assert str(df2.id.dtypes) == "string"
+    assert df.shape == df2.shape
+    for col, row in tuple(itertools.product(df.columns, range(3))):
+        assert df[col].iloc[row] == df2[col].iloc[row]
+
+
+@pytest.mark.parametrize("partition_cols", [None, ["c2"], ["value", "c2"]])
+def test_parquet_cast_string_dataset(path, partition_cols):
+    df = pd.DataFrame({"id": [1, 2, 3], "value": ["foo", "boo", "bar"], "c2": [4, 5, 6], "c3": [7.0, 8.0, 9.0]})
+    paths = wr.s3.to_parquet(
+        df, path, dataset=True, partition_cols=partition_cols, dtype={"id": "string", "c3": "string"}
+    )["paths"]
+    wr.s3.wait_objects_exist(paths)
+    df2 = wr.s3.read_parquet(path, dataset=True).sort_values("id", ignore_index=True)
+    assert str(df2.id.dtypes) == "string"
+    assert str(df2.c3.dtypes) == "string"
+    assert df.shape == df2.shape
+    for col, row in tuple(itertools.product(df.columns, range(3))):
+        assert df[col].iloc[row] == df2[col].iloc[row]
+
+
+@pytest.mark.parametrize("partition_cols", [None, ["c2"], ["c1", "c2"]])
+def test_store_metadata_partitions_sample_dataset(database, table, path, partition_cols):
+    num_files = 10
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5], "c2": [6, 7, 8]})
+    for _ in range(num_files):
+        paths = wr.s3.to_parquet(df=df, path=path, dataset=True, partition_cols=partition_cols)["paths"]
+        wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    wr.s3.store_parquet_metadata(
+        path=path, database=database, table=table, dtype={"c1": "bigint", "c2": "smallint"}, sampling=0.25, dataset=True
+    )
+    df2 = wr.athena.read_sql_table(table=table, database=database)
+    assert len(df.index) * num_files == len(df2.index)
+    assert len(df.columns) == len(df2.columns)
+    assert df.c0.sum() * num_files == df2.c0.sum()
+    assert df.c1.sum() * num_files == df2.c1.sum()
+    assert df.c2.sum() * num_files == df2.c2.sum()
+
+
+def test_athena_undefined_column(database):
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.athena.read_sql_query("SELECT 1", database)
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.athena.read_sql_query("SELECT NULL AS my_null", database)
+
+
+def test_to_parquet_file_sanitize(path):
+    df = pd.DataFrame({"C0": [0, 1], "camelCase": [2, 3], "c**--2": [4, 5]})
+    path_file = f"{path}0.parquet"
+    wr.s3.to_parquet(df, path_file, sanitize_columns=True)
+    wr.s3.wait_objects_exist([path_file])
+    df2 = wr.s3.read_parquet(path_file)
+    assert df.shape == df2.shape
+    assert list(df2.columns) == ["c0", "camel_case", "c_2"]
+    assert df2.c0.sum() == 1
+    assert df2.camel_case.sum() == 5
+    assert df2.c_2.sum() == 9
+
+
+@pytest.mark.parametrize("partition_cols", [None, ["c1"], ["c2"], ["c1", "c2"], ["c2", "c1"]])
+def test_to_parquet_reverse_partitions(database, table, path, partition_cols):
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5], "c2": [6, 7, 8]})
+    paths = wr.s3.to_parquet(
+        df=df, path=path, dataset=True, database=database, table=table, partition_cols=partition_cols
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df2 = wr.athena.read_sql_table(table=table, database=database)
+    assert df.shape == df2.shape
+    assert df.c0.sum() == df2.c0.sum()
+    assert df.c1.sum() == df2.c1.sum()
+    assert df.c2.sum() == df2.c2.sum()
+
+
+def test_to_parquet_nested_append(database, table, path):
+    df = pd.DataFrame(
+        {
+            "c0": [[1, 2, 3], [4, 5, 6]],
+            "c1": [[[1, 2], [3, 4]], [[5, 6], [7, 8]]],
+            "c2": [[["a", "b"], ["c", "d"]], [["e", "f"], ["g", "h"]]],
+            "c3": [[], [[[[[[[[1]]]]]]]]],
+            "c4": [{"a": 1}, {"a": 1}],
+            "c5": [{"a": {"b": {"c": [1, 2]}}}, {"a": {"b": {"c": [3, 4]}}}],
+        }
+    )
+    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, database=database, table=table)["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df2 = wr.athena.read_sql_query(sql=f"SELECT c0, c1, c2, c4 FROM {table}", database=database)
+    assert len(df2.index) == 2
+    assert len(df2.columns) == 4
+    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, database=database, table=table)["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df2 = wr.athena.read_sql_query(sql=f"SELECT c0, c1, c2, c4 FROM {table}", database=database)
+    assert len(df2.index) == 4
+    assert len(df2.columns) == 4
+
+
+def test_to_parquet_nested_cast(database, table, path):
+    df = pd.DataFrame({"c0": [[1, 2, 3], [4, 5, 6]], "c1": [[], []], "c2": [{"a": 1, "b": 2}, {"a": 3, "b": 4}]})
+    paths = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        database=database,
+        table=table,
+        dtype={"c0": "array<double>", "c1": "array<string>", "c2": "struct<a:bigint, b:double>"},
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df = pd.DataFrame({"c0": [[1, 2, 3], [4, 5, 6]], "c1": [["a"], ["b"]], "c2": [{"a": 1, "b": 2}, {"a": 3, "b": 4}]})
+    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, database=database, table=table)["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df2 = wr.athena.read_sql_query(sql=f"SELECT c0, c2 FROM {table}", database=database)
+    assert len(df2.index) == 4
+    assert len(df2.columns) == 2
+
+
+@pytest.mark.parametrize(
+    "encoding,strings,wrong_encoding,exception",
+    [
+        ("utf-8", ["漢字", "ãóú", "г, д, ж, з, к, л"], "ISO-8859-1", AssertionError),
+        ("ISO-8859-1", ["Ö, ö, Ü, ü", "ãóú", "øe"], "utf-8", UnicodeDecodeError),
+        ("ISO-8859-1", ["Ö, ö, Ü, ü", "ãóú", "øe"], None, UnicodeDecodeError),
+    ],
+)
+@pytest.mark.parametrize("line_terminator", ["\n", "\r"])
+def test_csv_encoding(path, encoding, strings, wrong_encoding, exception, line_terminator):
+    file_path = f"{path}0.csv"
+    df = pd.DataFrame({"c0": [1, 2, 3], "c1": strings})
+    wr.s3.to_csv(df, file_path, index=False, encoding=encoding, line_terminator=line_terminator)
+    wr.s3.wait_objects_exist(paths=[file_path])
+    df2 = wr.s3.read_csv(file_path, encoding=encoding, lineterminator=line_terminator)
+    assert df.equals(df2)
+    with pytest.raises(exception):
+        df2 = wr.s3.read_csv(file_path, encoding=wrong_encoding)
+        assert df.equals(df2)
+
+
+def test_to_parquet_file_dtype(path):
+    df = pd.DataFrame({"c0": [1.0, None, 2.0], "c1": [pd.NA, pd.NA, pd.NA]})
+    file_path = f"{path}0.parquet"
+    wr.s3.to_parquet(df, file_path, dtype={"c0": "bigint", "c1": "string"})
+    wr.s3.wait_objects_exist(paths=[file_path])
+    df2 = wr.s3.read_parquet(file_path)
+    assert df2.shape == df.shape
+    assert df2.c0.sum() == 3
+    assert str(df2.c0.dtype) == "Int64"
+    assert str(df2.c1.dtype) == "string"
+
+
+def test_to_parquet_projection_integer(database, table, path):
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 100, 200], "c3": [0, 1, 2]})
+    paths = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        database=database,
+        table=table,
+        partition_cols=["c1", "c2", "c3"],
+        regular_partitions=False,
+        projection_enabled=True,
+        projection_types={"c1": "integer", "c2": "integer", "c3": "integer"},
+        projection_ranges={"c1": "0,2", "c2": "0,200", "c3": "0,2"},
+        projection_intervals={"c2": "100"},
+        projection_digits={"c3": "1"},
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df2 = wr.athena.read_sql_table(table, database)
+    assert df.shape == df2.shape
+    assert df.c0.sum() == df2.c0.sum()
+    assert df.c1.sum() == df2.c1.sum()
+    assert df.c2.sum() == df2.c2.sum()
+    assert df.c3.sum() == df2.c3.sum()
+
+
+def test_to_parquet_projection_enum(database, table, path):
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [1, 2, 3], "c2": ["foo", "boo", "bar"]})
+    paths = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        database=database,
+        table=table,
+        partition_cols=["c1", "c2"],
+        regular_partitions=False,
+        projection_enabled=True,
+        projection_types={"c1": "enum", "c2": "enum"},
+        projection_values={"c1": "1,2,3", "c2": "foo,boo,bar"},
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df2 = wr.athena.read_sql_table(table, database)
+    assert df.shape == df2.shape
+    assert df.c0.sum() == df2.c0.sum()
+    assert df.c1.sum() == df2.c1.sum()
+
+
+def test_to_parquet_projection_date(database, table, path):
+    df = pd.DataFrame(
+        {
+            "c0": [0, 1, 2],
+            "c1": [dt("2020-01-01"), dt("2020-01-02"), dt("2020-01-03")],
+            "c2": [ts("2020-01-01 01:01:01.0"), ts("2020-01-01 01:01:02.0"), ts("2020-01-01 01:01:03.0")],
+        }
+    )
+    paths = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        database=database,
+        table=table,
+        partition_cols=["c1", "c2"],
+        regular_partitions=False,
+        projection_enabled=True,
+        projection_types={"c1": "date", "c2": "date"},
+        projection_ranges={"c1": "2020-01-01,2020-01-03", "c2": "2020-01-01 01:01:00,2020-01-01 01:01:03"},
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df2 = wr.athena.read_sql_table(table, database)
+    print(df2)
+    assert df.shape == df2.shape
+    assert df.c0.sum() == df2.c0.sum()
+
+
+def test_to_parquet_projection_injected(database, table, path):
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": ["foo", "boo", "bar"], "c2": ["0", "1", "2"]})
+    paths = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        database=database,
+        table=table,
+        partition_cols=["c1", "c2"],
+        regular_partitions=False,
+        projection_enabled=True,
+        projection_types={"c1": "injected", "c2": "injected"},
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df2 = wr.athena.read_sql_query(f"SELECT * FROM {table} WHERE c1='foo' AND c2='0'", database)
+    assert df2.shape == (1, 3)
+    assert df2.c0.iloc[0] == 0
+
+
+def test_read_parquet_filter_partitions(path):
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 0, 1]})
+    paths = wr.s3.to_parquet(df, path, dataset=True, partition_cols=["c1", "c2"])["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df2 = wr.s3.read_parquet(path, dataset=True, filters=[("c1", "==", "0")])
+    assert df2.shape == (1, 3)
+    assert df2.c0.iloc[0] == 0
+    assert df2.c1.iloc[0] == 0
+    assert df2.c2.iloc[0] == 0
+    df2 = wr.s3.read_parquet(path, dataset=True, filters=[("c1", "==", "1"), ("c2", "==", "0")])
+    assert df2.shape == (1, 3)
+    assert df2.c0.iloc[0] == 1
+    assert df2.c1.iloc[0] == 1
+    assert df2.c2.iloc[0] == 0
+    df2 = wr.s3.read_parquet(path, dataset=True, filters=[("c2", "==", "0")])
+    assert df2.shape == (2, 3)
+    assert df2.c0.astype(int).sum() == 1
+    assert df2.c1.astype(int).sum() == 1
+    assert df2.c2.astype(int).sum() == 0
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("chunksize", [None, 1])
+def test_read_partitioned_json(path, use_threads, chunksize):
+    df = pd.DataFrame({"c0": [0, 1], "c1": ["foo", "boo"]})
+    paths = [f"{path}year={y}/month={m}/0.json" for y, m in [(2020, 1), (2020, 2), (2021, 1)]]
+    for p in paths:
+        wr.s3.to_json(df, p, orient="records", lines=True)
+    wr.s3.wait_objects_exist(paths, use_threads=False)
+    df2 = wr.s3.read_json(path, dataset=True, use_threads=use_threads, chunksize=chunksize)
+    if chunksize is None:
+        assert df2.shape == (6, 4)
+        assert df2.c0.sum() == 3
+    else:
+        for d in df2:
+            assert d.shape == (1, 4)
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("chunksize", [None, 1])
+def test_read_partitioned_csv(path, use_threads, chunksize):
+    df = pd.DataFrame({"c0": [0, 1], "c1": ["foo", "boo"]})
+    paths = [f"{path}year={y}/month={m}/0.csv" for y, m in [(2020, 1), (2020, 2), (2021, 1)]]
+    for p in paths:
+        wr.s3.to_csv(df, p, index=False)
+    wr.s3.wait_objects_exist(paths, use_threads=False)
+    df2 = wr.s3.read_csv(path, dataset=True, use_threads=use_threads, chunksize=chunksize)
+    if chunksize is None:
+        assert df2.shape == (6, 4)
+        assert df2.c0.sum() == 3
+    else:
+        for d in df2:
+            assert d.shape == (1, 4)
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("chunksize", [None, 1])
+def test_read_partitioned_fwf(path, use_threads, chunksize):
+    text = "0foo\n1boo"
+    client_s3 = boto3.client("s3")
+    paths = [f"{path}year={y}/month={m}/0.csv" for y, m in [(2020, 1), (2020, 2), (2021, 1)]]
+    for p in paths:
+        bucket, key = wr._utils.parse_path(p)
+        client_s3.put_object(Body=text, Bucket=bucket, Key=key)
+    wr.s3.wait_objects_exist(paths, use_threads=False)
+    df2 = wr.s3.read_fwf(
+        path, dataset=True, use_threads=use_threads, chunksize=chunksize, widths=[1, 3], names=["c0", "c1"]
+    )
+    if chunksize is None:
+        assert df2.shape == (6, 4)
+        assert df2.c0.sum() == 3
+    else:
+        for d in df2:
+            assert d.shape == (1, 4)
+
+
+def test_glue_database():
+
+    # Round 1 - Create Database
+    database_name = f"database_{get_time_str_with_random_suffix()}"
+    print(f"Database Name: {database_name}")
+    wr.catalog.create_database(name=database_name, description="Database Description")
+    databases = wr.catalog.get_databases()
+    test_database_name = ""
+    test_database_description = ""
+
+    for database in databases:
+        if database["Name"] == database_name:
+            test_database_name = database["Name"]
+            test_database_description = database["Description"]
+
+    assert test_database_name == database_name
+    assert test_database_description == "Database Description"
+
+    # Round 2 - Delete Database
+    print(f"Database Name: {database_name}")
+    wr.catalog.delete_database(name=database_name)
+    databases = wr.catalog.get_databases()
+    test_database_name = ""
+    test_database_description = ""
+
+    for database in databases:
+        if database["Name"] == database_name:
+            test_database_name = database["Name"]
+            test_database_description = database["Description"]
+
+    assert test_database_name == ""
+    assert test_database_description == ""
+
+
+def test_list_wrong_path(path):
+    wrong_path = path.replace("s3://", "")
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.s3.list_objects(wrong_path)
+
+
+@pytest.mark.parametrize("sanitize_columns,col", [(True, "foo_boo"), (False, "FooBoo")])
+def test_sanitize_columns(path, sanitize_columns, col):
+    df = pd.DataFrame({"FooBoo": [1, 2, 3]})
+
+    # Parquet
+    file_path = f"{path}0.parquet"
+    wr.s3.to_parquet(df, path=file_path, sanitize_columns=sanitize_columns)
+    wr.s3.wait_objects_exist([file_path])
+    df = wr.s3.read_parquet(file_path)
+    assert len(df.index) == 3
+    assert len(df.columns) == 1
+    assert df.columns == [col]
+
+    # CSV
+    file_path = f"{path}0.csv"
+    wr.s3.to_csv(df, path=file_path, sanitize_columns=sanitize_columns, index=False)
+    wr.s3.wait_objects_exist([file_path])
+    df = wr.s3.read_csv(file_path)
+    assert len(df.index) == 3
+    assert len(df.columns) == 1
+    assert df.columns == [col]

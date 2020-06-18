@@ -58,52 +58,134 @@ See the [LICENSE](https://github.com/awslabs/aws-data-wrangler/blob/master/LICEN
 
 We may ask you to sign a [Contributor License Agreement (CLA)](http://en.wikipedia.org/wiki/Contributor_License_Agreement) for larger changes.
 
-## Environment
+## Environments
 
-* AWS Data Wrangler practically only makes integrations with Databases and AWS APIs. So we prefer to dedicate our energy / time writing integration tests instead of unit tests. We really like an end-to-end approach for all features.
+We have hundreds of test functions that runs against several AWS Services. You don't need to test everything to open a Pull Request.
+You can choose from three different environments to test your fixes/changes, based on what makes sense for your case.
 
-* All integration tests are between the development environment and a remote and real AWS service.
+* [Mocked test environment](#mocked-test-environment)
+    * Based on [moto](https://github.com/spulec/moto).
+    * Does not require real AWS resources
+    * Fastest approach
+    * Basically Limited only for Amazon S3 tests
 
-* We have a Cloudformation to set up the AWS end (testing/cloudformation.yaml).
+* [Data Lake test environment](#data-lake-test-environment)
+    * Requires some AWS services.
+    * Amazon S3, Amazon Athena, AWS Glue Catalog, AWS KMS
+    * Enable real tests on typical Data Lake cases
+
+* [Full test environment](#full-test-environment)
+    * Requires a bunch of real AWS services
+    * Amazon S3, Amazon Athena, AWS Glue Catalog, AWS KMS, Amazon Redshift, Aurora PostgreSQL, Aurora MySQL, etc
+    * Enable real tests on all use cases.
 
 ## Step-by-step
 
-**DISCLAIMER**: Make sure to know what you are doing. This steps will charge some services on your AWS account and requires a minimum security skill to keep your environment safe.
+### Mocked test environment
 
 * Pick up a Linux or MacOS.
-
 * Install Python 3.6, 3.7 or 3.8
-
 * Fork the AWS Data Wrangler repository and clone that into your development environment
-
 * Go to the project's directory create a Python's virtual environment for the project
 
 `python -m venv .venv && source .venv/bin/activate`
 
 * Then run the command bellow to install all dependencies:
 
-`./requirements.sh`
+``./requirements.sh``
 
-* Go to the ``testing`` directory
+* Run the validation script:
 
-`cd testing`
+``./validation.sh``
 
-* Deploy the Cloudformation stack
+* To run a specific test function:
 
-``./cloudformation.sh``
+``pytest tests/test_moto::test_get_bucket_region_succeed``
+
+* To run all mocked test functions (Using 8 parallel processes):
+
+``pytest -n 8 tests/test_moto``
+
+### Data Lake test environment
+
+**DISCLAIMER**: Make sure to know what you are doing. This steps will charge some services on your AWS account and requires a minimum security skill to keep your environment safe.
+
+* Pick up a Linux or MacOS.
+* Install Python 3.6, 3.7 or 3.8
+* Fork the AWS Data Wrangler repository and clone that into your development environment
+* Go to the project's directory create a Python's virtual environment for the project
+
+`python -m venv .venv && source .venv/bin/activate`
+
+* Then run the command bellow to install all dependencies:
+
+``./requirements.sh``
+
+* Go to the ``cloudformation`` directory
+
+``cd cloudformation``
+
+* Deploy the Cloudformation template `base.yaml`
+
+``./deploy-base.sh``
+
+* Return to the project root directory
+
+``cd ..``
+
+* Run the validation script:
+
+``./validation.sh``
+
+* To run a specific test function:
+
+``pytest tests/test_s3_athena::test_to_parquet_modes``
+
+* To run all data lake test functions (Using 8 parallel processes):
+
+``pytest -n 8 tests/test_s3_athena``
+
+### Full test environment
+
+**DISCLAIMER**: Make sure to know what you are doing. This steps will charge some services on your AWS account and requires a minimum security skill to keep your environment safe.
+
+* Pick up a Linux or MacOS.
+* Install Python 3.6, 3.7 and 3.8
+* Fork the AWS Data Wrangler repository and clone that into your development environment
+* Go to the project's directory create a Python's virtual environment for the project
+
+`python -m venv .venv && source .venv/bin/activate`
+
+* Then run the command bellow to install all dependencies:
+
+``./requirements.sh``
+
+* Go to the ``cloudformation`` directory
+
+``cd cloudformation``
+
+* Deploy the Cloudformation templates `base.yaml` and `databases.yaml`
+
+``./deploy-base.sh``
+``./deploy-databases.sh``
 
 * Go to the `EC2 -> SecurityGroups` console, open the `aws-data-wrangler-*` security group and configure to accept your IP from any TCP port.
 
 ``P.S Make sure that your security group will not be open to the World! Configure your security group to only give access for your IP.``
 
-* To run the validations:
+* Return to the project root directory
 
-``./validations.sh``
+``cd ..``
 
-* To run the complete test:
+* Run the validation script:
 
-``./tests.sh``
+``./validation.sh``
 
-* To run a specific test:
+* To run a specific test function:
 
-``pytest test_awswrangler/test_data_lake::test_athena_nested``
+``pytest tests/test_s3_athena::test_to_parquet_modes``
+
+* To run all data lake test functions for all python versions:
+
+``./test.sh``
+
