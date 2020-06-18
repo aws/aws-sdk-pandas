@@ -26,17 +26,19 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Setup Environment
         run: ./requirements.sh
-      - name: CloudFormation Lint
-        run: cfn-lint -t testing/cloudformation.yaml
+      - name: CloudFormation Lint - Base
+        run: cfn-lint -t cloudformation/base.yaml
+      - name: CloudFormation Lint - Databases
+        run: cfn-lint -t cloudformation/databases.yaml
       - name: Documentation Lint
         run: pydocstyle awswrangler/ --add-ignore=D204,D403
       - name: mypy check
         run: mypy awswrangler
       - name: Flake8 Lint
-        run: flake8 setup.py awswrangler testing/test_awswrangler
+        run: flake8 setup.py awswrangler tests
       - name: Pylint Lint
         run: pylint -j 0 awswrangler
       - name: Black style
-        run: black --check --line-length 120 --target-version py36 awswrangler testing/test_awswrangler
+        run: black --check --line-length 120 --target-version py36 awswrangler tests
       - name: Imports order check (isort)
-        run: isort -rc --check-only awswrangler testing/test_awswrangler
+        run: isort -rc --check-only awswrangler tests
