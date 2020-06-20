@@ -807,7 +807,7 @@ def test_list_by_last_modified_date(bucket):
     wr.s3.wait_objects_exist(paths=[path0, path1])
     assert df0.equals(wr.s3.read_json(path=path0, use_threads=False))
     with pytest.raises(wr.exceptions.InvalidArgument):
-        wr.s3.read_json(path=path0, lastModified_begin=begin_utc, lastModified_end=end_utc)
+        wr.s3.read_json(path=path0, last_modified_begin=begin_utc, last_modified_end=end_utc)
     wr.s3.delete_objects(path=[path0, path1], use_threads=False)
 
     # Test CSV
@@ -819,7 +819,7 @@ def test_list_by_last_modified_date(bucket):
     dfs = wr.s3.read_csv(path=path0, use_threads=False)
     assert len(dfs) == 3
     with pytest.raises(wr.exceptions.InvalidArgument):
-        wr.s3.read_csv(path=path0, lastModified_begin=begin_utc, lastModified_end=end_utc)
+        wr.s3.read_csv(path=path0, last_modified_begin=begin_utc, last_modified_end=end_utc)
     wr.s3.delete_objects(path=[path0, path1], use_threads=False)
 
     # Test Parquet
@@ -829,7 +829,7 @@ def test_list_by_last_modified_date(bucket):
     dfs = wr.s3.read_parquet(path=path0, use_threads=False)
     assert len(dfs) == 3
     with pytest.raises(wr.exceptions.InvalidArgumentType):
-        wr.s3.read_parquet(path=path0, lastModified_begin=begin_utc, lastModified_end=end_utc)
+        wr.s3.read_parquet(path=path0, last_modified_begin=begin_utc, last_modified_end=end_utc)
     wr.s3.delete_objects(path=[path0], use_threads=False)
 
 

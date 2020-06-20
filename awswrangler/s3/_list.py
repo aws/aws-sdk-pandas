@@ -1,7 +1,7 @@
 """Amazon S3 List Module (PRIVATE)."""
 
+import datetime
 import logging
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import boto3  # type: ignore
@@ -15,9 +15,9 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def path2list(
     path: object,
     boto3_session: boto3.Session,
+    last_modified_begin: Optional[datetime.datetime] = None,
+    last_modified_end: Optional[datetime.datetime] = None,
     suffix: str = None,
-    lastModified_begin: Optional[datetime] = None,
-    lastModified_end: Optional[datetime] = None,
 ) -> List[str]:
     """Convert Amazon S3 path to list of objects."""
     if isinstance(path, str):  # prefix
@@ -25,12 +25,14 @@ def path2list(
             path=path,
             suffix=suffix,
             boto3_session=boto3_session,
-            lastModified_begin=lastModified_begin,
-            lastModified_end=lastModified_end,
+            last_modified_begin=last_modified_begin,
+            last_modified_end=last_modified_end,
         )
     elif isinstance(path, list):
-        if lastModified_begin or lastModified_end:
-            raise exceptions.InvalidArgumentType("Specify a list of files or (lastModified_begin and lastModified_end)")
+        if last_modified_begin or last_modified_end:
+            raise exceptions.InvalidArgumentType(
+                "Specify a list of files or (last_modified_begin and last_modified_end)"
+            )
         paths = path if suffix is None else [x for x in path if x.endswith(suffix)]
     else:
         raise exceptions.InvalidArgumentType(f"{type(path)} is not a valid path type. Please, use str or List[str].")
@@ -41,9 +43,9 @@ def _list_objects(
     path: str,
     delimiter: Optional[str] = None,
     suffix: Optional[str] = None,
+    last_modified_begin: Optional[datetime.datetime] = None,
+    last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
-    lastModified_begin: Optional[datetime] = None,
-    lastModified_end: Optional[datetime] = None,
 ) -> List[str]:
     bucket: str
     prefix: str
@@ -56,15 +58,15 @@ def _list_objects(
     response_iterator = paginator.paginate(**args)
     paths: List[str] = []
 
-    # validations for lastModified_begin and lastModified_end
+    # validations for last_modified_begin and last_modified_end
     filtering_by_date = False
-    if lastModified_begin or lastModified_end:
-        if not (hasattr(lastModified_begin, "tzinfo") and hasattr(lastModified_begin, "tzinfo")):
+    if last_modified_begin or last_modified_end:
+        if hasattr(last_modified_begin, "tzinfo") is None or hasattr(last_modified_begin, "tzinfo") is None:
             raise exceptions.InvalidArgumentType("Timezone is not defined")
-        if not lastModified_begin or not lastModified_end:
-            raise exceptions.InvalidArgumentType("Both lastModified_begin and lastModified_end needs to be provided.")
-        if lastModified_begin > lastModified_end:
-            raise exceptions.InvalidArgumentType("lastModified_begin is bigger than lastModified_end.")
+        if last_modified_begin is None or last_modified_end is None:
+            raise exceptions.InvalidArgumentType("Both last_modified_begin and last_modified_end needs to be provided.")
+        if last_modified_begin > last_modified_end:
+            raise exceptions.InvalidArgumentType("last_modified_begin is bigger than last_modified_end.")
         filtering_by_date = True
 
     for page in response_iterator:  # pylint: disable=too-many-nested-blocks
@@ -75,8 +77,8 @@ def _list_objects(
                     key: str = content["Key"]
                     if filtering_by_date:
                         if (
-                            content["LastModified"] >= lastModified_begin
-                            and content["LastModified"] <= lastModified_end
+                            content["LastModified"] >= last_modified_begin
+                            and content["LastModified"] <= last_modified_end
                         ):
                             if (content is not None) and ("Key" in content):
                                 if (suffix is None) or key.endswith(suffix):
@@ -180,15 +182,15 @@ def list_directories(path: str, boto3_session: Optional[boto3.Session] = None) -
 def list_objects(
     path: str,
     suffix: Optional[str] = None,
+    last_modified_begin: Optional[datetime.datetime] = None,
+    last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
-    lastModified_begin: Optional[datetime] = None,
-    lastModified_end: Optional[datetime] = None,
 ) -> List[str]:
     """List Amazon S3 objects from a prefix.
 
     Note
     ----
-    The filter by lastModified begin lastModified end is applied after list all S3 files
+    The filter by last_modified begin last_modified end is applied after list all S3 files
 
     Parameters
     ----------
@@ -196,10 +198,14 @@ def list_objects(
         S3 path (e.g. s3://bucket/prefix).
     suffix: str, optional
         Suffix for filtering S3 keys.
+    last_modified_begin
+        Filter the s3 files by the Last modified date of the object.
+        The filter is applied only after list all s3 files.
+    last_modified_end: datetime, optional
+        Filter the s3 files by the Last modified date of the object.
+        The filter is applied only after list all s3 files.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    lastModified_begin lastModified_end: datetime, optional
-        Filter the s3 files by the Last modified date of the object
 
     Returns
     -------
@@ -227,7 +233,7 @@ def list_objects(
         delimiter=None,
         suffix=suffix,
         boto3_session=boto3_session,
-        lastModified_begin=lastModified_begin,
-        lastModified_end=lastModified_end,
+        last_modified_begin=last_modified_begin,
+        last_modified_end=last_modified_end,
     )
     return [p for p in paths if not p.endswith("/")]
