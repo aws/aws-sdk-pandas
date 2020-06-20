@@ -1,9 +1,9 @@
 """Amazon S3 CopDeletey Module (PRIVATE)."""
 
 import concurrent.futures
+import datetime
 import itertools
 import logging
-from datetime import datetime
 from typing import Dict, List, Optional, Union
 
 import boto3  # type: ignore
@@ -42,9 +42,9 @@ def _delete_objects(bucket: str, keys: List[str], client_s3: boto3.client) -> No
 def delete_objects(
     path: Union[str, List[str]],
     use_threads: bool = True,
+    last_modified_begin: Optional[datetime.datetime] = None,
+    last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
-    lastModified_begin: Optional[datetime] = None,
-    lastModified_end: Optional[datetime] = None,
 ) -> None:
     """Delete Amazon S3 objects from a received S3 prefix or list of S3 objects paths.
 
@@ -54,7 +54,7 @@ def delete_objects(
 
     Note
     ----
-    The filter by lastModified begin lastModified end is applied after list all S3 files
+    The filter by last_modified begin last_modified end is applied after list all S3 files
 
     Parameters
     ----------
@@ -63,10 +63,14 @@ def delete_objects(
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+    last_modified_begin
+        Filter the s3 files by the Last modified date of the object.
+        The filter is applied only after list all s3 files.
+    last_modified_end: datetime, optional
+        Filter the s3 files by the Last modified date of the object.
+        The filter is applied only after list all s3 files.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    lastModified_begin lastModified_end: datetime, optional
-        Filter the s3 files by the Last modified date of the object
 
     Returns
     -------
@@ -81,7 +85,10 @@ def delete_objects(
 
     """
     paths: List[str] = path2list(
-        path=path, boto3_session=boto3_session, lastModified_begin=lastModified_begin, lastModified_end=lastModified_end
+        path=path,
+        boto3_session=boto3_session,
+        last_modified_begin=last_modified_begin,
+        last_modified_end=last_modified_end,
     )
     if len(paths) < 1:
         return
