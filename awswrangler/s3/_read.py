@@ -1,9 +1,9 @@
 """Amazon S3 Read Module (PRIVATE)."""
 
 import concurrent.futures
+import datetime
 import itertools
 import logging
-from datetime import datetime
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3  # type: ignore
@@ -77,12 +77,12 @@ def _read_text(
     parser_func: Callable,
     path: Union[str, List[str]],
     use_threads: bool = True,
+    last_modified_begin: Optional[datetime.datetime] = None,
+    last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     chunksize: Optional[int] = None,
     dataset: bool = False,
-    lastModified_begin: Optional[datetime] = None,
-    lastModified_end: Optional[datetime] = None,
     **pandas_kwargs,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     if "iterator" in pandas_kwargs:
@@ -95,7 +95,7 @@ def _read_text(
     else:
         path_root = ""
     paths: List[str] = path2list(
-        path=path, boto3_session=session, lastModified_begin=lastModified_begin, lastModified_end=lastModified_end
+        path=path, boto3_session=session, last_modified_begin=last_modified_begin, last_modified_end=last_modified_end
     )
     if len(paths) < 1:
         raise exceptions.InvalidArgument("No files Found.")
@@ -209,16 +209,19 @@ def _read_parquet_init(
     validate_schema: bool = True,
     dataset: bool = False,
     use_threads: bool = True,
+    last_modified_begin: Optional[datetime.datetime] = None,
+    last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
-    lastModified_begin: Optional[datetime] = None,
-    lastModified_end: Optional[datetime] = None,
 ) -> pyarrow.parquet.ParquetDataset:
     """Encapsulate all initialization before the use of the pyarrow.parquet.ParquetDataset."""
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if dataset is False:
         path_or_paths: Union[str, List[str]] = path2list(
-            path=path, boto3_session=session, lastModified_begin=lastModified_begin, lastModified_end=lastModified_end
+            path=path,
+            boto3_session=session,
+            last_modified_begin=last_modified_begin,
+            last_modified_end=last_modified_end,
         )
     elif isinstance(path, str):
         path_or_paths = path[:-1] if path.endswith("/") else path
@@ -329,12 +332,12 @@ def _read_parquet_metadata_file(path: str, use_threads: bool, boto3_session: bot
 def read_csv(
     path: Union[str, List[str]],
     use_threads: bool = True,
+    last_modified_begin: Optional[datetime.datetime] = None,
+    last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     chunksize: Optional[int] = None,
     dataset: bool = False,
-    lastModified_begin: Optional[datetime] = None,
-    lastModified_end: Optional[datetime] = None,
     **pandas_kwargs,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read CSV file(s) from from a received S3 prefix or list of S3 objects paths.
@@ -349,7 +352,7 @@ def read_csv(
 
     Note
     ----
-    The filter by lastModified begin lastModified end is applied after list all S3 files
+    The filter by last_modified begin last_modified end is applied after list all S3 files
 
     Parameters
     ----------
@@ -358,6 +361,12 @@ def read_csv(
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+    last_modified_begin
+        Filter the s3 files by the Last modified date of the object.
+        The filter is applied only after list all s3 files.
+    last_modified_end: datetime, optional
+        Filter the s3 files by the Last modified date of the object.
+        The filter is applied only after list all s3 files.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
@@ -370,8 +379,6 @@ def read_csv(
     pandas_kwargs:
         keyword arguments forwarded to pandas.read_csv().
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
-    lastModified_begin lastModified_end: datetime, optional
-        Filter the s3 files by the Last modified date of the object
 
     Returns
     -------
@@ -417,8 +424,8 @@ def read_csv(
         s3_additional_kwargs=s3_additional_kwargs,
         chunksize=chunksize,
         dataset=dataset,
-        lastModified_begin=lastModified_begin,
-        lastModified_end=lastModified_end,
+        last_modified_begin=last_modified_begin,
+        last_modified_end=last_modified_end,
         **pandas_kwargs,
     )
 
@@ -426,12 +433,12 @@ def read_csv(
 def read_fwf(
     path: Union[str, List[str]],
     use_threads: bool = True,
+    last_modified_begin: Optional[datetime.datetime] = None,
+    last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     chunksize: Optional[int] = None,
     dataset: bool = False,
-    lastModified_begin: Optional[datetime] = None,
-    lastModified_end: Optional[datetime] = None,
     **pandas_kwargs,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read fixed-width formatted file(s) from from a received S3 prefix or list of S3 objects paths.
@@ -446,7 +453,7 @@ def read_fwf(
 
     Note
     ----
-    The filter by lastModified begin lastModified end is applied after list all S3 files
+    The filter by last_modified begin last_modified end is applied after list all S3 files
 
     Parameters
     ----------
@@ -455,6 +462,12 @@ def read_fwf(
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+    last_modified_begin
+        Filter the s3 files by the Last modified date of the object.
+        The filter is applied only after list all s3 files.
+    last_modified_end: datetime, optional
+        Filter the s3 files by the Last modified date of the object.
+        The filter is applied only after list all s3 files.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
@@ -464,8 +477,6 @@ def read_fwf(
         If specified, return an generator where chunksize is the number of rows to include in each chunk.
     dataset: bool
         If `True` read a FWF dataset instead of simple file(s) loading all the related partitions as columns.
-    lastModified_begin lastModified_end: datetime, optional
-        Filter the s3 files by the Last modified date of the object
     pandas_kwargs:
         keyword arguments forwarded to pandas.read_fwf().
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_fwf.html
@@ -514,8 +525,8 @@ def read_fwf(
         s3_additional_kwargs=s3_additional_kwargs,
         chunksize=chunksize,
         dataset=dataset,
-        lastModified_begin=lastModified_begin,
-        lastModified_end=lastModified_end,
+        last_modified_begin=last_modified_begin,
+        last_modified_end=last_modified_end,
         **pandas_kwargs,
     )
 
@@ -523,12 +534,12 @@ def read_fwf(
 def read_json(
     path: Union[str, List[str]],
     use_threads: bool = True,
+    last_modified_begin: Optional[datetime.datetime] = None,
+    last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     chunksize: Optional[int] = None,
     dataset: bool = False,
-    lastModified_begin: Optional[datetime] = None,
-    lastModified_end: Optional[datetime] = None,
     **pandas_kwargs,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read JSON file(s) from from a received S3 prefix or list of S3 objects paths.
@@ -543,7 +554,7 @@ def read_json(
 
     Note
     ----
-    The filter by lastModified begin lastModified end is applied after list all S3 files
+    The filter by last_modified begin last_modified end is applied after list all S3 files
 
     Parameters
     ----------
@@ -552,6 +563,12 @@ def read_json(
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+    last_modified_begin
+        Filter the s3 files by the Last modified date of the object.
+        The filter is applied only after list all s3 files.
+    last_modified_end: datetime, optional
+        Filter the s3 files by the Last modified date of the object.
+        The filter is applied only after list all s3 files.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
@@ -562,8 +579,6 @@ def read_json(
     dataset: bool
         If `True` read a JSON dataset instead of simple file(s) loading all the related partitions as columns.
         If `True`, the `lines=True` will be assumed by default.
-    lastModified_begin lastModified_end: datetime, optional
-        Filter the s3 files by the Last modified date of the object
     pandas_kwargs:
         keyword arguments forwarded to pandas.read_json().
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_json.html
@@ -614,8 +629,8 @@ def read_json(
         s3_additional_kwargs=s3_additional_kwargs,
         chunksize=chunksize,
         dataset=dataset,
-        lastModified_begin=lastModified_begin,
-        lastModified_end=lastModified_end,
+        last_modified_begin=last_modified_begin,
+        last_modified_end=last_modified_end,
         **pandas_kwargs,
     )
 
@@ -629,10 +644,10 @@ def read_parquet(
     dataset: bool = False,
     categories: List[str] = None,
     use_threads: bool = True,
+    last_modified_begin: Optional[datetime.datetime] = None,
+    last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
-    lastModified_begin: Optional[datetime] = None,
-    lastModified_end: Optional[datetime] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read Apache Parquet file(s) from from a received S3 prefix or list of S3 objects paths.
 
@@ -660,7 +675,7 @@ def read_parquet(
 
     Note
     ----
-    The filter by lastModified begin lastModified end is applied after list all S3 files
+    The filter by last_modified begin last_modified end is applied after list all S3 files
 
     Parameters
     ----------
@@ -687,13 +702,17 @@ def read_parquet(
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+    last_modified_begin
+        Filter the s3 files by the Last modified date of the object.
+        The filter is applied only after list all s3 files.
+    last_modified_end: datetime, optional
+        Filter the s3 files by the Last modified date of the object.
+        The filter is applied only after list all s3 files.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
         Forward to s3fs, useful for server side encryption
         https://s3fs.readthedocs.io/en/latest/#serverside-encryption
-    lastModified_begin lastModified_end: datetime, optional
-        Filter the s3 files by the Last modified date of the object
 
     Returns
     -------
@@ -747,8 +766,8 @@ def read_parquet(
         use_threads=use_threads,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
-        lastModified_begin=lastModified_begin,
-        lastModified_end=lastModified_end,
+        last_modified_begin=last_modified_begin,
+        last_modified_end=last_modified_end,
     )
     _logger.debug("pyarrow.parquet.ParquetDataset initialized.")
     if chunked is False:

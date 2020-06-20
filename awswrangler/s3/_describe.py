@@ -1,10 +1,10 @@
 """Amazon S3 Describe Module (INTERNAL)."""
 
 import concurrent.futures
+import datetime
 import itertools
 import logging
 import time
-from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import boto3  # type: ignore
@@ -44,13 +44,13 @@ def describe_objects(
     path: Union[str, List[str]],
     wait_time: Optional[Union[int, float]] = None,
     use_threads: bool = True,
+    last_modified_begin: Optional[datetime.datetime] = None,
+    last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
-    lastModified_begin: Optional[datetime] = None,
-    lastModified_end: Optional[datetime] = None,
 ) -> Dict[str, Dict[str, Any]]:
     """Describe Amazon S3 objects from a received S3 prefix or list of S3 objects paths.
 
-    Fetch attributes like ContentLength, DeleteMarker, LastModified, ContentType, etc
+    Fetch attributes like ContentLength, DeleteMarker, last_modified, ContentType, etc
     The full list of attributes can be explored under the boto3 head_object documentation:
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.head_object
 
@@ -60,7 +60,7 @@ def describe_objects(
 
     Note
     ----
-    The filter by lastModified begin lastModified end is applied after list all S3 files
+    The filter by last_modified begin last_modified end is applied after list all S3 files
 
     Parameters
     ----------
@@ -73,10 +73,14 @@ def describe_objects(
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+    last_modified_begin
+        Filter the s3 files by the Last modified date of the object.
+        The filter is applied only after list all s3 files.
+    last_modified_end: datetime, optional
+        Filter the s3 files by the Last modified date of the object.
+        The filter is applied only after list all s3 files.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    lastModified_begin lastModified_end: datetime, optional
-        Filter the s3 files by the Last modified date of the object
 
     Returns
     -------
@@ -94,7 +98,10 @@ def describe_objects(
 
     """
     paths: List[str] = path2list(
-        path=path, boto3_session=boto3_session, lastModified_begin=lastModified_begin, lastModified_end=lastModified_end
+        path=path,
+        boto3_session=boto3_session,
+        last_modified_begin=last_modified_begin,
+        last_modified_end=last_modified_end,
     )
     if len(paths) < 1:
         return {}
