@@ -207,12 +207,6 @@ def get_directory(path: str) -> str:
     return path.rsplit(sep="/", maxsplit=1)[0] + "/"
 
 
-def get_account_id(boto3_session: Optional[boto3.Session] = None) -> str:
-    """Get Account ID."""
-    session: boto3.Session = ensure_session(session=boto3_session)
-    return client(service_name="sts", session=session).get_caller_identity().get("Account")
-
-
 def get_region_from_subnet(subnet_id: str, boto3_session: Optional[boto3.Session] = None) -> str:  # pragma: no cover
     """Extract region from Subnet ID."""
     session: boto3.Session = ensure_session(session=boto3_session)

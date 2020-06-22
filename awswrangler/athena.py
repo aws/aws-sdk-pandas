@@ -13,7 +13,7 @@ import boto3  # type: ignore
 import pandas as pd  # type: ignore
 import pyarrow as pa  # type: ignore
 
-from awswrangler import _data_types, _utils, catalog, exceptions, s3
+from awswrangler import _data_types, _utils, catalog, exceptions, s3, sts
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -72,7 +72,7 @@ def create_athena_bucket(boto3_session: Optional[boto3.Session] = None) -> str:
 
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    account_id: str = _utils.get_account_id(boto3_session=session)
+    account_id: str = sts.get_account_id(boto3_session=session)
     region_name: str = str(session.region_name).lower()
     s3_output = f"s3://aws-athena-query-results-{account_id}-{region_name}/"
     s3_resource = session.resource("s3")
@@ -501,7 +501,7 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals,too-man
 
     if cache_info["has_valid_cache"] is True:
         _logger.debug("Valid cache found. Retrieving...")
-        cache_result: Union[pd.DataFrame, Iterator[pd.DataFrame]] = None
+        cache_result: Union[pd.DataFrame, Iterator[pd.DataFrame], None] = None
         try:
             cache_result = _resolve_query_with_cache(
                 cache_info=cache_info,
@@ -1020,7 +1020,7 @@ def _check_for_cached_results(
             if (current_timestamp - query_info["Status"]["CompletionDateTime"]).total_seconds() > max_cache_seconds:
                 break
 
-            comparison_query: Optional[str] = None
+            comparison_query: Optional[str]
             if query_info["StatementType"] == "DDL" and query_info["Query"].startswith("CREATE TABLE"):
                 parsed_query: Optional[str] = _parse_select_query_from_possible_ctas(query_info["Query"])
                 if parsed_query is not None:
