@@ -75,8 +75,8 @@ You can choose from three different environments to test your fixes/changes, bas
     * Enable real tests on typical Data Lake cases
 
 * [Full test environment](#full-test-environment)
-    * Requires a bunch of real AWS services
-    * Amazon S3, Amazon Athena, AWS Glue Catalog, AWS KMS, Amazon Redshift, Aurora PostgreSQL, Aurora MySQL, etc
+    * Requires a bunch of real AWS services.
+    * Amazon S3, Amazon Athena, AWS Glue Catalog, AWS KMS, Amazon Redshift, Aurora PostgreSQL, Aurora MySQL, Amazon Quicksight, etc
     * Enable real tests on all use cases.
 
 ## Step-by-step
@@ -177,6 +177,8 @@ You can choose from three different environments to test your fixes/changes, bas
 
 ``cd ..``
 
+* [OPTIONAL] If you intend to run all test, you also need to make sure that you have Amazon QuickSight activated and your AWS user must be register on that.
+
 * Run the validation script:
 
 ``./validation.sh``
@@ -185,7 +187,7 @@ You can choose from three different environments to test your fixes/changes, bas
 
 ``pytest tests/test_s3_athena::test_to_parquet_modes``
 
-* To run all data lake test functions for all python versions:
+* To run all data lake test functions for all python versions (Only if Amazon QuickSight is activated):
 
 ``./test.sh``
 
