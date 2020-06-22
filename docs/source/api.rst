@@ -87,8 +87,8 @@ Amazon Athena
     stop_query_execution
     wait_query
 
-Databases (Redshift, PostgreSQL, MySQL)
----------------------------------------
+Databases (Amazon Redshift, PostgreSQL, MySQL)
+----------------------------------------------
 
 .. currentmodule:: awswrangler.db
 
@@ -106,8 +106,8 @@ Databases (Redshift, PostgreSQL, MySQL)
     unload_redshift_to_files
     write_redshift_copy_manifest
 
-EMR
----
+Amazon EMR
+----------
 
 .. currentmodule:: awswrangler.emr
 
@@ -125,8 +125,8 @@ EMR
     submit_steps
     terminate_cluster
 
-CloudWatch Logs
----------------
+Amazon CloudWatch Logs
+----------------------
 
 .. currentmodule:: awswrangler.cloudwatch
 
@@ -184,3 +184,15 @@ Amazon QuickSight
     list_templates
     list_users
     list_user_groups
+
+AWS STS
+-----------------
+
+.. currentmodule:: awswrangler.sts
+
+.. autosummary::
+    :toctree: stubs
+
+    get_account_id
+    get_current_identity_arn
+    get_current_identity_name
