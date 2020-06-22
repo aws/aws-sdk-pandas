@@ -1,8 +1,8 @@
+from unittest import mock
 from unittest.mock import ANY
 
 import boto3
 import botocore
-from unittest import mock
 import moto
 import pandas as pd
 import pytest
