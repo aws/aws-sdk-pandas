@@ -9,7 +9,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 import boto3  # type: ignore
 
-from awswrangler import _utils, exceptions
+from awswrangler import _utils, exceptions, sts
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ def _list(
 ) -> List[Dict[str, Any]]:
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
-        account_id = _utils.get_account_id(boto3_session=session)
+        account_id = sts.get_account_id(boto3_session=session)
     client: boto3.client = _utils.client(service_name="quicksight", session=session)
     func: Callable = getattr(client, func_name)
     response = func(AwsAccountId=account_id, **kwargs)
@@ -408,7 +408,7 @@ def list_ingestions(
         raise exceptions.InvalidArgument("You must pass a not None name or dataset_id argument.")
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
-        account_id = _utils.get_account_id(boto3_session=session)
+        account_id = sts.get_account_id(boto3_session=session)
     if (dataset_id is None) and (dataset_name is not None):
         dataset_id = get_dataset_id(name=dataset_name, account_id=account_id, boto3_session=session)
     return _list(

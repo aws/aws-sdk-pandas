@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import boto3  # type: ignore
 
-from awswrangler import _utils, exceptions
+from awswrangler import _utils, exceptions, sts
 from awswrangler.quicksight._get_list import get_data_source_arn, get_dataset_id
 from awswrangler.quicksight._utils import extract_athena_query_columns, extract_athena_table_columns
 
@@ -157,7 +157,7 @@ def create_athena_data_source(
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     client: boto3.client = _utils.client(service_name="quicksight", session=session)
     if account_id is None:
-        account_id = _utils.get_account_id(boto3_session=session)
+        account_id = sts.get_account_id(boto3_session=session)
     args: Dict[str, Any] = {
         "AwsAccountId": account_id,
         "DataSourceId": name,
@@ -282,7 +282,7 @@ def create_athena_dataset(
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     client: boto3.client = _utils.client(service_name="quicksight", session=session)
     if account_id is None:
-        account_id = _utils.get_account_id(boto3_session=session)
+        account_id = sts.get_account_id(boto3_session=session)
     if (data_source_arn is None) and (data_source_name is not None):
         data_source_arn = get_data_source_arn(name=data_source_name, account_id=account_id, boto3_session=session)
     if sql is not None:
@@ -379,7 +379,7 @@ def create_ingestion(
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
-        account_id = _utils.get_account_id(boto3_session=session)
+        account_id = sts.get_account_id(boto3_session=session)
     if (dataset_name is None) and (dataset_id is None):
         raise exceptions.InvalidArgument("You must pass a not None dataset_name or dataset_id argument.")
     if (dataset_id is None) and (dataset_name is not None):

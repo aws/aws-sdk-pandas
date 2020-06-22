@@ -5,7 +5,7 @@ from typing import Any, Callable, Dict, Optional
 
 import boto3  # type: ignore
 
-from awswrangler import _utils, exceptions
+from awswrangler import _utils, exceptions, sts
 from awswrangler.quicksight._get_list import (
     get_dashboard_id,
     get_data_source_id,
@@ -25,7 +25,7 @@ def _delete(
 ) -> None:
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
-        account_id = _utils.get_account_id(boto3_session=session)
+        account_id = sts.get_account_id(boto3_session=session)
     client: boto3.client = _utils.client(service_name="quicksight", session=session)
     func: Callable = getattr(client, func_name)
     func(AwsAccountId=account_id, **kwargs)
@@ -253,7 +253,7 @@ def delete_all_dashboards(account_id: Optional[str] = None, boto3_session: Optio
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
-        account_id = _utils.get_account_id(boto3_session=session)
+        account_id = sts.get_account_id(boto3_session=session)
     for dashboard in list_dashboards(account_id=account_id, boto3_session=session):
         delete_dashboard(dashboard_id=dashboard["DashboardId"], account_id=account_id, boto3_session=session)
 
@@ -280,7 +280,7 @@ def delete_all_datasets(account_id: Optional[str] = None, boto3_session: Optiona
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
-        account_id = _utils.get_account_id(boto3_session=session)
+        account_id = sts.get_account_id(boto3_session=session)
     for dataset in list_datasets(account_id=account_id, boto3_session=session):
         delete_dataset(dataset_id=dataset["DataSetId"], account_id=account_id, boto3_session=session)
 
@@ -307,7 +307,7 @@ def delete_all_data_sources(account_id: Optional[str] = None, boto3_session: Opt
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
-        account_id = _utils.get_account_id(boto3_session=session)
+        account_id = sts.get_account_id(boto3_session=session)
     for data_source in list_data_sources(account_id=account_id, boto3_session=session):
         delete_data_source(data_source_id=data_source["DataSourceId"], account_id=account_id, boto3_session=session)
 
@@ -334,6 +334,6 @@ def delete_all_templates(account_id: Optional[str] = None, boto3_session: Option
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
-        account_id = _utils.get_account_id(boto3_session=session)
+        account_id = sts.get_account_id(boto3_session=session)
     for template in list_templates(account_id=account_id, boto3_session=session):
         delete_template(template_id=template["TemplateId"], account_id=account_id, boto3_session=session)

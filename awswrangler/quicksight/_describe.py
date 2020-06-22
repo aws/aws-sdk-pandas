@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional
 
 import boto3  # type: ignore
 
-from awswrangler import _utils, exceptions
+from awswrangler import _utils, exceptions, sts
 from awswrangler.quicksight._get_list import get_dashboard_id, get_data_source_id, get_dataset_id
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -48,7 +48,7 @@ def describe_dashboard(
         raise exceptions.InvalidArgument("You must pass a not None name or dashboard_id argument.")
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
-        account_id = _utils.get_account_id(boto3_session=session)
+        account_id = sts.get_account_id(boto3_session=session)
     if (dashboard_id is None) and (name is not None):
         dashboard_id = get_dashboard_id(name=name, account_id=account_id, boto3_session=session)
     client: boto3.client = _utils.client(service_name="quicksight", session=session)
@@ -92,7 +92,7 @@ def describe_data_source(
         raise exceptions.InvalidArgument("You must pass a not None name or data_source_id argument.")
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
-        account_id = _utils.get_account_id(boto3_session=session)
+        account_id = sts.get_account_id(boto3_session=session)
     if (data_source_id is None) and (name is not None):
         data_source_id = get_data_source_id(name=name, account_id=account_id, boto3_session=session)
     client: boto3.client = _utils.client(service_name="quicksight", session=session)
@@ -136,7 +136,7 @@ def describe_data_source_permissions(
         raise exceptions.InvalidArgument("You must pass a not None name or data_source_id argument.")
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
-        account_id = _utils.get_account_id(boto3_session=session)
+        account_id = sts.get_account_id(boto3_session=session)
     if (data_source_id is None) and (name is not None):
         data_source_id = get_data_source_id(name=name, account_id=account_id, boto3_session=session)
     client: boto3.client = _utils.client(service_name="quicksight", session=session)
@@ -180,7 +180,7 @@ def describe_dataset(
         raise exceptions.InvalidArgument("You must pass a not None name or dataset_id argument.")
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
-        account_id = _utils.get_account_id(boto3_session=session)
+        account_id = sts.get_account_id(boto3_session=session)
     if (dataset_id is None) and (name is not None):
         dataset_id = get_dataset_id(name=name, account_id=account_id, boto3_session=session)
     client: boto3.client = _utils.client(service_name="quicksight", session=session)
@@ -227,7 +227,7 @@ def describe_ingestion(
         raise exceptions.InvalidArgument("You must pass a not None name or dataset_id argument.")
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
-        account_id = _utils.get_account_id(boto3_session=session)
+        account_id = sts.get_account_id(boto3_session=session)
     if (dataset_id is None) and (dataset_name is not None):
         dataset_id = get_dataset_id(name=dataset_name, account_id=account_id, boto3_session=session)
     client: boto3.client = _utils.client(service_name="quicksight", session=session)

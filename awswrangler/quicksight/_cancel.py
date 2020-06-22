@@ -5,7 +5,7 @@ from typing import Optional
 
 import boto3  # type: ignore
 
-from awswrangler import _utils, exceptions
+from awswrangler import _utils, exceptions, sts
 from awswrangler.quicksight._get_list import get_dataset_id
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -51,7 +51,7 @@ def cancel_ingestion(
         raise exceptions.InvalidArgument("You must pass a not None name or dataset_id argument.")
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
-        account_id = _utils.get_account_id(boto3_session=session)
+        account_id = sts.get_account_id(boto3_session=session)
     if (dataset_id is None) and (dataset_name is not None):
         dataset_id = get_dataset_id(name=dataset_name, account_id=account_id, boto3_session=session)
     client: boto3.client = _utils.client(service_name="quicksight", session=session)

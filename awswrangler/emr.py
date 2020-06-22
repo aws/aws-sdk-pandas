@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import boto3  # type: ignore
 
-from awswrangler import _utils, exceptions
+from awswrangler import _utils, exceptions, sts
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ def _get_default_logging_path(
     """
     if account_id is None:
         boto3_session = _utils.ensure_session(session=boto3_session)
-        _account_id: str = _utils.get_account_id(boto3_session=boto3_session)
+        _account_id: str = sts.get_account_id(boto3_session=boto3_session)
     else:
         _account_id = account_id
     if (region is None) and (subnet_id is not None):
@@ -61,7 +61,7 @@ def _get_default_logging_path(
 
 
 def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-statements
-    account_id: str = _utils.get_account_id(boto3_session=pars["boto3_session"])
+    account_id: str = sts.get_account_id(boto3_session=pars["boto3_session"])
     region: str = _utils.get_region_from_session(boto3_session=pars["boto3_session"])
 
     # S3 Logging path
@@ -846,6 +846,7 @@ def build_step(
     Examples
     --------
     >>> import awswrangler as wr
+    >>> steps = []
     >>> for cmd in ['echo "Hello"', "ls -la"]:
     ...     steps.append(wr.emr.build_step(name=cmd, command=cmd))
     >>> wr.emr.submit_steps(cluster_id="cluster-id", steps=steps)
