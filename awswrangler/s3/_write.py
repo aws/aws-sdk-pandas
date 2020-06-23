@@ -1059,7 +1059,13 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
     partitions_types: Optional[Dict[str, str]]
     partitions_values: Optional[Dict[str, List[str]]]
     columns_types, partitions_types, partitions_values = read_parquet_metadata_internal(
-        path=path, dtype=dtype, sampling=sampling, dataset=dataset, path_suffix=path_suffix, use_threads=use_threads, boto3_session=session
+        path=path,
+        dtype=dtype,
+        sampling=sampling,
+        dataset=dataset,
+        path_suffix=path_suffix,
+        use_threads=use_threads,
+        boto3_session=session,
     )
     _logger.debug("columns_types: %s", columns_types)
     _logger.debug("partitions_types: %s", partitions_types)
