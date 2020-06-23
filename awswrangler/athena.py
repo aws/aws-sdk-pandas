@@ -375,7 +375,8 @@ def _fix_csv_types(df: pd.DataFrame, parse_dates: List[str], binaries: List[str]
     return df
 
 
-def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals,too-many-return-statements,too-many-statements
+# pylint: disable=too-many-branches,too-many-locals,too-many-return-statements,too-many-statements,broad-except
+def read_sql_query(
     sql: str,
     database: str,
     ctas_approach: bool = True,
@@ -510,12 +511,12 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals,too-man
                 use_threads=use_threads,
                 session=session,
             )
-        except Exception as e:  # pylint: disable=broad-except
+        except Exception as e:  # pragma: no cover
             _logger.error(e)
             # if there is anything wrong with the cache, just fallback to the usual path
         if cache_result is not None:
             return cache_result
-        _logger.debug("Corrupt cache. Continuing to execute query...")
+        _logger.debug("Corrupt cache. Continuing to execute query...")  # pragma: no cover
 
     return _resolve_query_without_cache(
         sql=sql,
@@ -684,12 +685,12 @@ def _resolve_query_with_cache(  # pylint: disable=too-many-return-statements
         client_s3: boto3.client = _utils.client(service_name="s3", session=session)
         try:
             paths: List[str] = _extract_ctas_manifest_paths(path=manifest_path, boto3_session=session)
-        except (client_s3.exceptions.NoSuchBucket, client_s3.exceptions.NoSuchKey):
+        except (client_s3.exceptions.NoSuchBucket, client_s3.exceptions.NoSuchKey):  # pragma: no cover
             return None
         if all([s3.does_object_exist(path) for path in paths]):
             chunked: Union[bool, int] = False if chunksize is None else chunksize
             _logger.debug("chunked: %s", chunked)
-            if not paths:
+            if not paths:  # pragma: no cover
                 if chunked is False:
                     return pd.DataFrame()
                 return _utils.empty_generator()
@@ -729,8 +730,7 @@ def _resolve_query_with_cache(  # pylint: disable=too-many-return-statements
                 return df
             dfs = _fix_csv_types_generator(dfs=ret, parse_dates=parse_dates, binaries=binaries)
             return dfs
-
-    return None
+    raise exceptions.InvalidArgumentValue(f"Invalid data type: {cache_info['data_type']}.")  # pragma: no cover
 
 
 def _delete_after_iterate(
@@ -998,7 +998,7 @@ def _parse_select_query_from_possible_ctas(possible_ctas: str) -> Optional[str]:
             )
             if stripped_select_statement_match is not None:
                 return stripped_select_statement_match.group(0)
-    return None
+    return None  # pragma: no cover
 
 
 def _check_for_cached_results(
@@ -1018,7 +1018,7 @@ def _check_for_cached_results(
         # this could be mapreduced, but it is only 50 items long, tops
         for query_info in cached_queries:
             if (current_timestamp - query_info["Status"]["CompletionDateTime"]).total_seconds() > max_cache_seconds:
-                break
+                break  # pragma: no cover
 
             comparison_query: Optional[str]
             if query_info["StatementType"] == "DDL" and query_info["Query"].startswith("CREATE TABLE"):

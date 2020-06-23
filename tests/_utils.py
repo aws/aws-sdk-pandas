@@ -141,6 +141,36 @@ def get_df_category():
     return df
 
 
+def get_df_quicksight():
+    df = pd.DataFrame(
+        {
+            "iint8": [1, None, 2],
+            "iint16": [1, None, 2],
+            "iint32": [1, None, 2],
+            "iint64": [1, None, 2],
+            "float": [0.0, None, 1.1],
+            "double": [0.0, None, 1.1],
+            "decimal": [Decimal((0, (1, 9, 9), -2)), None, Decimal((0, (1, 9, 0), -2))],
+            "string_object": ["foo", None, "boo"],
+            "string": ["foo", None, "boo"],
+            "date": [dt("2020-01-01"), None, dt("2020-01-02")],
+            "timestamp": [ts("2020-01-01 00:00:00.0"), None, ts("2020-01-02 00:00:01.0")],
+            "bool": [True, None, False],
+            "category": [1.0, None, 2.0],
+            "par0": [1, 1, 2],
+            "par1": ["a", "b", "b"],
+        }
+    )
+    df["iint8"] = df["iint8"].astype("Int8")
+    df["iint16"] = df["iint16"].astype("Int16")
+    df["iint32"] = df["iint32"].astype("Int32")
+    df["iint64"] = df["iint64"].astype("Int64")
+    df["float"] = df["float"].astype("float32")
+    df["string"] = df["string"].astype("string")
+    df["category"] = df["category"].astype("category")
+    return df
+
+
 def get_query_long():
     return """
 SELECT

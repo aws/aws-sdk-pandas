@@ -23,13 +23,13 @@ def _list(
 ) -> List[Dict[str, Any]]:
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
-        account_id = sts.get_account_id(boto3_session=session)
+        account_id = sts.get_account_id(boto3_session=session)  # pragma: no cover
     client: boto3.client = _utils.client(service_name="quicksight", session=session)
     func: Callable = getattr(client, func_name)
     response = func(AwsAccountId=account_id, **kwargs)
     next_token: str = response.get("NextToken", None)
     result: List[Dict[str, Any]] = response[attr_name]
-    while next_token is not None:
+    while next_token is not None:  # pragma: no cover
         response = func(AwsAccountId=account_id, NextToken=next_token, **kwargs)
         next_token = response.get("NextToken", None)
         result += response[attr_name]
@@ -152,7 +152,7 @@ def list_group_memberships(
     namespace: str = "default",
     account_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
-) -> List[Dict[str, Any]]:
+) -> List[Dict[str, Any]]:  # pragma: no cover
     """List all QuickSight Group memberships.
 
     Parameters
@@ -257,7 +257,7 @@ def list_iam_policy_assignments(
         "Namespace": namespace,
     }
     if status is not None:
-        args["AssignmentStatus"] = status
+        args["AssignmentStatus"] = status  # pragma: no cover
     return _list(**args)
 
 
@@ -405,7 +405,7 @@ def list_ingestions(
     >>> ingestions = wr.quicksight.list_ingestions()
     """
     if (dataset_name is None) and (dataset_id is None):
-        raise exceptions.InvalidArgument("You must pass a not None name or dataset_id argument.")
+        raise exceptions.InvalidArgument("You must pass a not None name or dataset_id argument.")  # pragma: no cover
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
         account_id = sts.get_account_id(boto3_session=session)
@@ -445,9 +445,9 @@ def _get_id(
         name=name, func=func, attr_name=attr_name, account_id=account_id, boto3_session=boto3_session
     )
     if len(ids) == 0:
-        raise exceptions.InvalidArgument(f"There is no {attr_name} related with name {name}")
+        raise exceptions.InvalidArgument(f"There is no {attr_name} related with name {name}")  # pragma: no cover
     if len(ids) > 1:
-        raise exceptions.InvalidArgument(
+        raise exceptions.InvalidArgument(  # pragma: no cover
             f"There is {len(ids)} {attr_name} with name {name}. "
             f"Please pass the id argument to specify "
             f"which one you would like to describe."
@@ -457,7 +457,7 @@ def _get_id(
 
 def get_dashboard_ids(
     name: str, account_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
-) -> List[str]:
+) -> List[str]:  # pragma: no cover
     """Get QuickSight dashboard IDs given a name.
 
     Note
@@ -489,7 +489,9 @@ def get_dashboard_ids(
     )
 
 
-def get_dashboard_id(name: str, account_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None) -> str:
+def get_dashboard_id(
+    name: str, account_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
+) -> str:  # pragma: no cover
     """Get QuickSight dashboard ID given a name and fails if there is more than 1 ID associated with this name.
 
     Parameters
@@ -642,7 +644,7 @@ def get_data_source_id(
 
 def get_template_ids(
     name: str, account_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
-) -> List[str]:
+) -> List[str]:  # pragma: no cover
     """Get QuickSight template IDs given a name.
 
     Note
@@ -674,7 +676,9 @@ def get_template_ids(
     )
 
 
-def get_template_id(name: str, account_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None) -> str:
+def get_template_id(
+    name: str, account_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
+) -> str:  # pragma: no cover
     """Get QuickSight template ID given a name and fails if there is more than 1 ID associated with this name.
 
     Parameters
@@ -768,9 +772,9 @@ def get_data_source_arn(
     """
     arns: List[str] = get_data_source_arns(name=name, account_id=account_id, boto3_session=boto3_session)
     if len(arns) == 0:
-        raise exceptions.InvalidArgument(f"There is not data source with name {name}")
+        raise exceptions.InvalidArgument(f"There is not data source with name {name}")  # pragma: no cover
     if len(arns) > 1:
-        raise exceptions.InvalidArgument(
+        raise exceptions.InvalidArgument(  # pragma: no cover
             f"There is more than 1 data source with name {name}. "
             f"Please pass the data_source_arn argument to specify "
             f"which one you would like to describe."

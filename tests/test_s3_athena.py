@@ -5,13 +5,14 @@ import itertools
 import logging
 import lzma
 import math
+import time
 from io import BytesIO, TextIOWrapper
+from unittest.mock import patch
 
 import boto3
 import pandas as pd
 import pytest
 import pytz
-from mock import patch
 
 import awswrangler as wr
 
@@ -791,46 +792,32 @@ def test_fwf(path):
     assert len(df.columns) == 3
 
 
-def test_list_by_last_modified_date(bucket):
+def test_list_by_last_modified_date(path):
+    df = pd.DataFrame({"id": [1, 2, 3]})
+    path0 = f"s3://{path}0.json"
+    path1 = f"s3://{path}1.json"
 
-    df0 = pd.DataFrame({"id": [1, 2, 3]})
-    begin = datetime.datetime.strptime("05/06/20 16:30", "%d/%m/%y %H:%M")
-    end = datetime.datetime.strptime("10/06/20 16:30", "%d/%m/%y %H:%M")
-    begin_utc = pytz.utc.localize(begin)
-    end_utc = pytz.utc.localize(end)
+    begin_utc = pytz.utc.localize(datetime.datetime.utcnow())
+    time.sleep(2)
+    wr.s3.to_json(df, path0)
+    time.sleep(2)
+    mid_utc = pytz.utc.localize(datetime.datetime.utcnow())
+    time.sleep(2)
+    wr.s3.to_json(df, path1)
+    time.sleep(2)
+    end_utc = pytz.utc.localize(datetime.datetime.utcnow())
+    wr.s3.wait_objects_exist(paths=[path0, path1], use_threads=False)
 
-    # Test JSON
-    path0 = f"s3://{bucket}/test_json0.json"
-    path1 = f"s3://{bucket}/test_json1.json"
-    wr.s3.to_json(df=df0, path=path0)
-    wr.s3.to_json(df=df0, path=path1)
-    wr.s3.wait_objects_exist(paths=[path0, path1])
-    assert df0.equals(wr.s3.read_json(path=path0, use_threads=False))
+    assert len(wr.s3.read_json(path).index) == 6
+    assert len(wr.s3.read_json(path, last_modified_begin=mid_utc).index) == 3
+    assert len(wr.s3.read_json(path, last_modified_end=mid_utc).index) == 3
     with pytest.raises(wr.exceptions.InvalidArgument):
-        wr.s3.read_json(path=path0, last_modified_begin=begin_utc, last_modified_end=end_utc)
-    wr.s3.delete_objects(path=[path0, path1], use_threads=False)
-
-    # Test CSV
-    path0 = f"s3://{bucket}/test_csv4.csv"
-    path1 = f"s3://{bucket}/test_csv5.csv"
-    wr.s3.to_csv(df=df0, path=path0)
-    wr.s3.to_csv(df=df0, path=path1)
-    wr.s3.wait_objects_exist(paths=[path0, path1])
-    dfs = wr.s3.read_csv(path=path0, use_threads=False)
-    assert len(dfs) == 3
+        wr.s3.read_json(path, last_modified_begin=end_utc)
     with pytest.raises(wr.exceptions.InvalidArgument):
-        wr.s3.read_csv(path=path0, last_modified_begin=begin_utc, last_modified_end=end_utc)
-    wr.s3.delete_objects(path=[path0, path1], use_threads=False)
-
-    # Test Parquet
-    path0 = f"s3://{bucket}/test_parquet/test_parquet_file.parquet"
-    wr.s3.to_parquet(df=df0, path=path0)
-    wr.s3.wait_objects_exist(paths=[path0])
-    dfs = wr.s3.read_parquet(path=path0, use_threads=False)
-    assert len(dfs) == 3
-    with pytest.raises(wr.exceptions.InvalidArgumentType):
-        wr.s3.read_parquet(path=path0, last_modified_begin=begin_utc, last_modified_end=end_utc)
-    wr.s3.delete_objects(path=[path0], use_threads=False)
+        wr.s3.read_json(path, last_modified_end=begin_utc)
+    assert len(wr.s3.read_json(path, last_modified_begin=mid_utc, last_modified_end=end_utc).index) == 3
+    assert len(wr.s3.read_json(path, last_modified_begin=begin_utc, last_modified_end=mid_utc).index) == 3
+    assert len(wr.s3.read_json(path, last_modified_begin=begin_utc, last_modified_end=end_utc).index) == 6
 
 
 def test_parquet(bucket):
@@ -965,8 +952,7 @@ def test_parquet_catalog_duplicated(bucket, database):
     assert wr.catalog.delete_table_if_exists(database=database, table="test_parquet_catalog_dedup") is True
 
 
-def test_parquet_catalog_casting(bucket, database):
-    path = f"s3://{bucket}/test_parquet_catalog_casting/"
+def test_parquet_catalog_casting(path, database):
     paths = wr.s3.to_parquet(
         df=get_df_cast(),
         path=path,
@@ -1991,6 +1977,25 @@ def test_metadata_partitions(path):
     assert columns_types.get("c0") == "bigint"
     assert columns_types.get("c1") == "string"
     assert columns_types.get("c2") == "double"
+
+
+def test_athena_cache(path, database, table, workgroup1):
+    df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
+    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, mode="overwrite", database=database, table=table)["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+
+    df2 = wr.athena.read_sql_table(table, database, ctas_approach=False, max_cache_seconds=1, workgroup=workgroup1)
+    assert df.shape == df2.shape
+    assert df.c0.sum() == df2.c0.sum()
+
+    df2 = wr.athena.read_sql_table(table, database, ctas_approach=False, max_cache_seconds=900, workgroup=workgroup1)
+    assert df.shape == df2.shape
+    assert df.c0.sum() == df2.c0.sum()
+
+    dfs = wr.athena.read_sql_table(
+        table, database, ctas_approach=False, max_cache_seconds=900, workgroup=workgroup1, chunksize=1
+    )
+    assert len(list(dfs)) == 2
 
 
 def test_cache_query_ctas_approach_true(path, database, table):
