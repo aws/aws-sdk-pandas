@@ -229,7 +229,7 @@ def _read_parquet_init(
         path_or_paths = path
     _logger.debug("path_or_paths: %s", path_or_paths)
     if len(path_or_paths) < 1:
-        raise exceptions.InvalidArgumentType("No Files Found")
+        raise exceptions.InvalidArgumentType("No Files Found")  # pragma: no cover
 
     fs: s3fs.S3FileSystem = _utils.get_fs(session=session, s3_additional_kwargs=s3_additional_kwargs)
     cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)

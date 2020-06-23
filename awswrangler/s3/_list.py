@@ -30,13 +30,31 @@ def path2list(
         )
     elif isinstance(path, list):
         if last_modified_begin or last_modified_end:
-            raise exceptions.InvalidArgumentType(
+            raise exceptions.InvalidArgumentCombination(
                 "Specify a list of files or (last_modified_begin and last_modified_end)"
-            )
+            )  # pragma: no cover
         paths = path if suffix is None else [x for x in path if x.endswith(suffix)]
     else:
         raise exceptions.InvalidArgumentType(f"{type(path)} is not a valid path type. Please, use str or List[str].")
     return paths
+
+
+def _validate_datetimes(
+    last_modified_begin: Optional[datetime.datetime] = None, last_modified_end: Optional[datetime.datetime] = None
+) -> None:
+    if last_modified_begin is not None:
+        if hasattr(last_modified_begin, "tzinfo") is None:
+            raise exceptions.InvalidArgumentValue(
+                "Timezone is not defined for last_modified_begin."
+            )  # pragma: no cover
+    if last_modified_end is not None:
+        if hasattr(last_modified_end, "tzinfo") is None:
+            raise exceptions.InvalidArgumentValue("Timezone is not defined for last_modified_end.")  # pragma: no cover
+    if (last_modified_begin is not None) and (last_modified_end is not None):
+        if last_modified_begin > last_modified_end:
+            raise exceptions.InvalidArgumentValue(
+                "last_modified_begin is bigger than last_modified_end."
+            )  # pragma: no cover
 
 
 def _list_objects(
@@ -58,16 +76,7 @@ def _list_objects(
     response_iterator = paginator.paginate(**args)
     paths: List[str] = []
 
-    # validations for last_modified_begin and last_modified_end
-    filtering_by_date = False
-    if last_modified_begin or last_modified_end:
-        if hasattr(last_modified_begin, "tzinfo") is None or hasattr(last_modified_begin, "tzinfo") is None:
-            raise exceptions.InvalidArgumentType("Timezone is not defined")
-        if last_modified_begin is None or last_modified_end is None:
-            raise exceptions.InvalidArgumentType("Both last_modified_begin and last_modified_end needs to be provided.")
-        if last_modified_begin > last_modified_end:
-            raise exceptions.InvalidArgumentType("last_modified_begin is bigger than last_modified_end.")
-        filtering_by_date = True
+    _validate_datetimes(last_modified_begin=last_modified_begin, last_modified_end=last_modified_end)
 
     for page in response_iterator:  # pylint: disable=too-many-nested-blocks
         if delimiter is None:
@@ -75,18 +84,15 @@ def _list_objects(
             if contents is not None:
                 for content in contents:
                     key: str = content["Key"]
-                    if filtering_by_date:
-                        if (
-                            content["LastModified"] >= last_modified_begin
-                            and content["LastModified"] <= last_modified_end
-                        ):
-                            if (content is not None) and ("Key" in content):
-                                if (suffix is None) or key.endswith(suffix):
-                                    paths.append(f"s3://{bucket}/{key}")
-                    else:
-                        if (content is not None) and ("Key" in content):
-                            if (suffix is None) or key.endswith(suffix):
-                                paths.append(f"s3://{bucket}/{key}")
+                    if (content is not None) and ("Key" in content):
+                        if (suffix is None) or key.endswith(suffix):
+                            if last_modified_begin is not None:
+                                if content["LastModified"] < last_modified_begin:
+                                    continue
+                            if last_modified_end is not None:
+                                if content["LastModified"] > last_modified_end:
+                                    continue
+                            paths.append(f"s3://{bucket}/{key}")
         else:
             prefixes: Optional[List[Optional[Dict[str, str]]]] = page.get("CommonPrefixes")
             if prefixes is not None:

@@ -30,7 +30,7 @@ def athena2pyarrow(dtype: str) -> pa.DataType:  # pylint: disable=too-many-retur
         return pa.int32()
     if dtype == "bigint":
         return pa.int64()
-    if dtype == "float":
+    if dtype in ("float", "real"):
         return pa.float32()
     if dtype == "double":
         return pa.float64()
@@ -67,7 +67,7 @@ def athena2pandas(dtype: str) -> str:  # pylint: disable=too-many-branches,too-m
         return "Int32"
     if dtype == "bigint":
         return "Int64"
-    if dtype == "float":
+    if dtype in ("float", "real"):
         return "float32"
     if dtype == "double":
         return "float64"
@@ -97,7 +97,7 @@ def athena2redshift(  # pylint: disable=too-many-branches,too-many-return-statem
         return "INTEGER"
     if dtype == "bigint":
         return "BIGINT"
-    if dtype == "float":
+    if dtype in ("float", "real"):
         return "FLOAT4"
     if dtype == "double":
         return "FLOAT8"
@@ -117,13 +117,15 @@ def athena2redshift(  # pylint: disable=too-many-branches,too-many-return-statem
 def athena2quicksight(dtype: str) -> str:  # pylint: disable=too-many-branches,too-many-return-statements
     """Athena to Quicksight data types conversion."""
     dtype = dtype.lower()
+    if dtype == "tinyint":
+        return "INTEGER"
     if dtype == "smallint":
         return "INTEGER"
     if dtype in ("int", "integer"):
         return "INTEGER"
     if dtype == "bigint":
         return "INTEGER"
-    if dtype == "float":
+    if dtype in ("float", "real"):
         return "DECIMAL"
     if dtype == "double":
         return "DECIMAL"
@@ -137,7 +139,7 @@ def athena2quicksight(dtype: str) -> str:  # pylint: disable=too-many-branches,t
         return "DATETIME"
     if dtype.startswith("decimal"):
         return "DECIMAL"
-    if dtype in ("binary" or "varbinary"):
+    if dtype == "binary":  # pragma: no cover
         return "BIT"
     raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")  # pragma: no cover
 

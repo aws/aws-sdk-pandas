@@ -671,7 +671,7 @@ def tables(
         if "PartitionKeys" in tbl:
             df_dict["Partitions"].append(", ".join([x["Name"] for x in tbl["PartitionKeys"]]))
         else:
-            df_dict["Partitions"].append("")
+            df_dict["Partitions"].append("")  # pragma: no cover
     return pd.DataFrame(data=df_dict)
 
 
