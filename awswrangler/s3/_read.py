@@ -861,6 +861,7 @@ def read_parquet_table(
     database: str,
     filters: Optional[Union[List[Tuple], List[List[Tuple]]]] = None,
     columns: Optional[List[str]] = None,
+    validate_schema: bool = True,
     categories: List[str] = None,
     chunked: Union[bool, int] = False,
     use_threads: bool = True,
@@ -900,6 +901,10 @@ def read_parquet_table(
         List of filters to apply, like ``[[('x', '=', 0), ...], ...]``.
     columns : List[str], optional
         Names of columns to read from the file(s).
+    validate_schema:
+        Check that individual file schemas are all the same / compatible. Schemas within a
+        folder prefix should all be the same. Disable if you have schemas that are different
+        and want to disable this check.
     categories: List[str], optional
         List of columns names that should be returned as pandas.Categorical.
         Recommended for memory restricted environments.
@@ -959,6 +964,7 @@ def read_parquet_table(
         path=path,
         filters=filters,
         columns=columns,
+        validate_schema=validate_schema,
         categories=categories,
         chunked=chunked,
         dataset=True,
