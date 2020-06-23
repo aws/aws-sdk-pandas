@@ -1,11 +1,11 @@
 """Amazon Athena Module."""
 
 import csv
+import datetime
 import logging
 import pprint
 import re
 import time
-from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
@@ -18,7 +18,6 @@ from awswrangler import _data_types, _utils, catalog, exceptions, s3, sts
 _logger: logging.Logger = logging.getLogger(__name__)
 
 _QUERY_WAIT_POLLING_DELAY: float = 0.2  # SECONDS
-_CACHE_PREVIOUS_QUERY_COUNT: int = 50  # number of past queries to scan for cached results
 
 
 def get_query_columns_types(query_execution_id: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, str]:
@@ -391,6 +390,7 @@ def read_sql_query(
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     max_cache_seconds: int = 0,
+    max_cache_query_inspections: int = 50,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Execute any SQL query on AWS Athena and return the results as a Pandas DataFrame.
 
@@ -474,13 +474,17 @@ def read_sql_query(
         If enabled os.cpu_count() will be used as the max number of threads.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    max_cache_seconds: int
+    max_cache_seconds : int
         Wrangler can look up in Athena's history if this query has been run before.
         If so, and its completion time is less than `max_cache_seconds` before now, wrangler
         skips query execution and just returns the same results as last time.
         If cached results are valid, wrangler ignores the `ctas_approach`, `s3_output`, `encryption`, `kms_key`,
         `keep_files` and `ctas_temp_table_name` params.
         If reading cached data fails for any reason, execution falls back to the usual query run path.
+    max_cache_query_inspections : int
+        Max number of queries that will be inspected from the history to try to find some result to reuse.
+        The bigger the number of inspection, the bigger will be the latency for not cached queries.
+        Only takes effect if max_cache_seconds > 0.
 
     Returns
     -------
@@ -497,7 +501,11 @@ def read_sql_query(
 
     # check for cached results
     cache_info: Dict[str, Any] = _check_for_cached_results(
-        sql=sql, session=session, workgroup=workgroup, max_cache_seconds=max_cache_seconds
+        sql=sql,
+        session=session,
+        workgroup=workgroup,
+        max_cache_seconds=max_cache_seconds,
+        max_cache_query_inspections=max_cache_query_inspections,
     )
 
     if cache_info["has_valid_cache"] is True:
@@ -961,17 +969,17 @@ def _prepare_query_string_for_comparison(query_string: str) -> str:
 
 def _get_last_query_executions(
     boto3_session: Optional[boto3.Session] = None, workgroup: Optional[str] = None
-) -> List[Dict[str, Any]]:
-    """Return the last 50 `query_execution_info`s run by the workgroup in Athena."""
+) -> Iterator[List[Dict[str, Any]]]:
+    """Return an iterator of `query_execution_info`s run by the workgroup in Athena."""
     client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
-
-    args: Dict[str, Any] = {"MaxResults": _CACHE_PREVIOUS_QUERY_COUNT}
-    if workgroup:
+    args: Dict[str, str] = {}
+    if workgroup is not None:
         args["WorkGroup"] = workgroup
-    query_execution_list: Dict[str, Any] = client_athena.list_query_executions(**args)
-    query_execution_id_list: List[str] = query_execution_list["QueryExecutionIds"]
-    execution_data = client_athena.batch_get_query_execution(QueryExecutionIds=query_execution_id_list)
-    return execution_data.get("QueryExecutions")
+    paginator = client_athena.get_paginator("get_query_results")
+    for page in paginator.paginate(**args):
+        query_execution_id_list: List[str] = page["QueryExecutionIds"]
+        execution_data = client_athena.batch_get_query_execution(QueryExecutionIds=query_execution_id_list)
+        yield execution_data.get("QueryExecutions")
 
 
 def _sort_successful_executions_data(query_executions: List[Dict[str, Any]]):
@@ -1002,37 +1010,42 @@ def _parse_select_query_from_possible_ctas(possible_ctas: str) -> Optional[str]:
 
 
 def _check_for_cached_results(
-    sql: str, session: boto3.Session, workgroup: Optional[str], max_cache_seconds: int
+    sql: str, session: boto3.Session, workgroup: Optional[str], max_cache_seconds: int, max_cache_query_inspections: int
 ) -> Dict[str, Any]:
     """
-    Check wether `sql` has been run before, within the `max_cache_seconds` window, by the `workgroup`.
+    Check whether `sql` has been run before, within the `max_cache_seconds` window, by the `workgroup`.
 
     If so, returns a dict with Athena's `query_execution_info` and the data format.
     """
-    if max_cache_seconds > 0:
-        last_query_executions = _get_last_query_executions(boto3_session=session, workgroup=workgroup)
-        cached_queries = _sort_successful_executions_data(query_executions=last_query_executions)
-        current_timestamp = datetime.now(timezone.utc)
-        comparable_sql: str = _prepare_query_string_for_comparison(sql)
+    num_executions_inspected: int = 0
+    if max_cache_seconds > 0:  # pylint: disable=too-many-nested-blocks
+        for query_executions in _get_last_query_executions(boto3_session=session, workgroup=workgroup):
+            cached_queries: List[Dict[str, Any]] = _sort_successful_executions_data(query_executions=query_executions)
+            current_timestamp = datetime.datetime.utcnow()
+            comparable_sql: str = _prepare_query_string_for_comparison(sql)
 
-        # this could be mapreduced, but it is only 50 items long, tops
-        for query_info in cached_queries:
-            if (current_timestamp - query_info["Status"]["CompletionDateTime"]).total_seconds() > max_cache_seconds:
-                break  # pragma: no cover
+            # this could be mapreduced, but it is only 50 items long, tops
+            for query_info in cached_queries:
+                if (current_timestamp - query_info["Status"]["CompletionDateTime"]).total_seconds() > max_cache_seconds:
+                    break  # pragma: no cover
 
-            comparison_query: Optional[str]
-            if query_info["StatementType"] == "DDL" and query_info["Query"].startswith("CREATE TABLE"):
-                parsed_query: Optional[str] = _parse_select_query_from_possible_ctas(query_info["Query"])
-                if parsed_query is not None:
-                    comparison_query = _prepare_query_string_for_comparison(query_string=parsed_query)
+                comparison_query: Optional[str]
+                if query_info["StatementType"] == "DDL" and query_info["Query"].startswith("CREATE TABLE"):
+                    parsed_query: Optional[str] = _parse_select_query_from_possible_ctas(query_info["Query"])
+                    if parsed_query is not None:
+                        comparison_query = _prepare_query_string_for_comparison(query_string=parsed_query)
+                        if comparison_query == comparable_sql:
+                            data_type = "parquet"
+                            return {"has_valid_cache": True, "data_type": data_type, "query_execution_info": query_info}
+
+                elif query_info["StatementType"] == "DML" and not query_info["Query"].startswith("INSERT"):
+                    comparison_query = _prepare_query_string_for_comparison(query_string=query_info["Query"])
                     if comparison_query == comparable_sql:
-                        data_type = "parquet"
+                        data_type = "csv"
                         return {"has_valid_cache": True, "data_type": data_type, "query_execution_info": query_info}
 
-            elif query_info["StatementType"] == "DML" and not query_info["Query"].startswith("INSERT"):
-                comparison_query = _prepare_query_string_for_comparison(query_string=query_info["Query"])
-                if comparison_query == comparable_sql:
-                    data_type = "csv"
-                    return {"has_valid_cache": True, "data_type": data_type, "query_execution_info": query_info}
+                num_executions_inspected += 1
+                if num_executions_inspected >= max_cache_query_inspections:
+                    break
 
     return {"has_valid_cache": False}
