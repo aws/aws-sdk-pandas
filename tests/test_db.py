@@ -178,6 +178,15 @@ def test_redshift_temp_engine(parameters):
         assert cursor.fetchall()[0][0] == 1
 
 
+def test_redshift_temp_engine2(parameters):
+    engine = wr.db.get_redshift_temp_engine(
+        cluster_identifier=parameters["redshift"]["identifier"], user="john_doe", duration=900, db_groups=[]
+    )
+    with engine.connect() as con:
+        cursor = con.execute("SELECT 1")
+        assert cursor.fetchall()[0][0] == 1
+
+
 def test_postgresql_param():
     engine = wr.catalog.get_engine(connection="aws-data-wrangler-postgresql")
     df = wr.db.read_sql_query(sql="SELECT %(value)s as col0", con=engine, params={"value": 1})
