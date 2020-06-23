@@ -511,10 +511,7 @@ def databases(
     df_dict: Dict[str, List] = {"Database": [], "Description": []}
     for db in dbs:
         df_dict["Database"].append(db["Name"])
-        if "Description" in db:
-            df_dict["Description"].append(db["Description"])
-        else:  # pragma: no cover
-            df_dict["Description"].append("")
+        df_dict["Description"].append(db.get("Description", ""))
     return pd.DataFrame(data=df_dict)
 
 
@@ -660,10 +657,7 @@ def tables(
     for tbl in tbls:
         df_dict["Database"].append(tbl["DatabaseName"])
         df_dict["Table"].append(tbl["Name"])
-        if "Description" in tbl:
-            df_dict["Description"].append(tbl["Description"])
-        else:
-            df_dict["Description"].append("")
+        df_dict["Description"].append(tbl.get("Description", ""))
         if "Columns" in tbl["StorageDescriptor"]:
             df_dict["Columns"].append(", ".join([x["Name"] for x in tbl["StorageDescriptor"]["Columns"]]))
         else:
@@ -1634,7 +1628,7 @@ def get_table_parameters(
 
 def get_table_description(
     database: str, table: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
-) -> str:
+) -> Optional[str]:
     """Get table description.
 
     Parameters
@@ -1651,8 +1645,8 @@ def get_table_description(
 
     Returns
     -------
-    str
-        Description.
+    Optional[str]
+        Description if exists.
 
     Examples
     --------
@@ -1667,7 +1661,7 @@ def get_table_description(
     args["DatabaseName"] = database
     args["Name"] = table
     response: Dict[str, Any] = client_glue.get_table(**args)
-    desc: str = response["Table"]["Description"]
+    desc: Optional[str] = response["Table"].get("Description", None)
     return desc
 
 
