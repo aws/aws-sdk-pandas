@@ -26,6 +26,7 @@ def read_parquet_metadata_internal(
     dtype: Optional[Dict[str, str]],
     sampling: float,
     dataset: bool,
+    path_suffix: Optional[str],
     use_threads: bool,
     boto3_session: Optional[boto3.Session],
 ) -> Tuple[Dict[str, str], Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]:
@@ -34,13 +35,13 @@ def read_parquet_metadata_internal(
     if dataset is True:
         if isinstance(path, str):
             _path: Optional[str] = path if path.endswith("/") else f"{path}/"
-            paths: List[str] = path2list(path=_path, boto3_session=session)
+            paths: List[str] = path2list(path=_path, boto3_session=session, suffix=path_suffix)
         else:  # pragma: no cover
             raise exceptions.InvalidArgumentType("Argument <path> must be str if dataset=True.")
     else:
         if isinstance(path, str):
             _path = None
-            paths = path2list(path=path, boto3_session=session)
+            paths = path2list(path=path, boto3_session=session, suffix=path_suffix)
         elif isinstance(path, list):
             _path = None
             paths = path
