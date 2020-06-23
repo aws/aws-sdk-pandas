@@ -315,6 +315,8 @@ def get_redshift_temp_engine(
     user: str,
     database: Optional[str] = None,
     duration: int = 900,
+    auto_create: bool = True,
+    db_groups: Optional[List[str]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> sqlalchemy.engine.Engine:
     """Get Glue connection details.
@@ -332,6 +334,12 @@ def get_redshift_temp_engine(
         The number of seconds until the returned temporary password expires.
         Constraint: minimum 900, maximum 3600.
         Default: 900
+    auto_create : bool
+        Create a database user with the name specified for the user named in user if one does not exist.
+    db_groups: List[str], optinal
+        A list of the names of existing database groups that the user named in DbUser will join for the current session,
+        in addition to any group memberships for an existing user.
+        If not specified, a new user is added only to PUBLIC.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -347,9 +355,15 @@ def get_redshift_temp_engine(
 
     """
     client_redshift: boto3.client = _utils.client(service_name="redshift", session=boto3_session)
-    res: Dict[str, Any] = client_redshift.get_cluster_credentials(
-        DbUser=user, ClusterIdentifier=cluster_identifier, DurationSeconds=duration, AutoCreate=False
-    )
+    args: Dict[str, Any] = {
+        "DbUser": user,
+        "ClusterIdentifier": cluster_identifier,
+        "DurationSeconds": duration,
+        "AutoCreate": auto_create,
+    }
+    if db_groups is not None:
+        args["DbGroups"] = db_groups
+    res: Dict[str, Any] = client_redshift.get_cluster_credentials(**args)
     _user: str = _quote_plus(res["DbUser"])
     password: str = _quote_plus(res["DbPassword"])
     cluster: Dict[str, Any] = client_redshift.describe_clusters(ClusterIdentifier=cluster_identifier)["Clusters"][0]
