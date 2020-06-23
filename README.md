@@ -97,6 +97,8 @@ wr.db.to_sql(df, engine, schema="test", name="my_table")
   - [016 - EMR & Docker](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/016%20-%20EMR%20%26%20Docker.ipynb)
   - [017 - Partition Projection](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/017%20-%20Partition%20Projection.ipynb)
   - [018 - QuickSight](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/018%20-%20QuickSight.ipynb)
+  - [019 - Athena Cache](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/019%20-%20athena%20cache.ipynb)
+  
 - [**API Reference**](https://aws-data-wrangler.readthedocs.io/en/latest/api.html)
   - [Amazon S3](https://aws-data-wrangler.readthedocs.io/en/latest/api.html#amazon-s3)
   - [AWS Glue Catalog](https://aws-data-wrangler.readthedocs.io/en/latest/api.html#aws-glue-catalog)
