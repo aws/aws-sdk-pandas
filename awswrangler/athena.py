@@ -374,8 +374,7 @@ def _fix_csv_types(df: pd.DataFrame, parse_dates: List[str], binaries: List[str]
     return df
 
 
-# pylint: disable=too-many-branches,too-many-locals,too-many-return-statements,too-many-statements,broad-except
-def read_sql_query(
+def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals,too-many-return-statements,too-many-statements
     sql: str,
     database: str,
     ctas_approach: bool = True,
@@ -519,6 +518,7 @@ def read_sql_query(
                 use_threads=use_threads,
                 session=session,
             )
+        # pylint: disable=broad-except
         except Exception as e:  # pragma: no cover
             _logger.error(e)
             # if there is anything wrong with the cache, just fallback to the usual path
@@ -839,6 +839,7 @@ def read_sql_table(
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     max_cache_seconds: int = 0,
+    max_cache_query_inspections: int = 50,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Extract the full table AWS Athena and return the results as a Pandas DataFrame.
 
@@ -929,6 +930,10 @@ def read_sql_table(
         If cached results are valid, wrangler ignores the `ctas_approach`, `s3_output`, `encryption`, `kms_key`,
         `keep_files` and `ctas_temp_table_name` params.
         If reading cached data fails for any reason, execution falls back to the usual query run path.
+    max_cache_query_inspections : int
+        Max number of queries that will be inspected from the history to try to find some result to reuse.
+        The bigger the number of inspection, the bigger will be the latency for not cached queries.
+        Only takes effect if max_cache_seconds > 0.
 
     Returns
     -------
@@ -957,6 +962,7 @@ def read_sql_table(
         use_threads=use_threads,
         boto3_session=boto3_session,
         max_cache_seconds=max_cache_seconds,
+        max_cache_query_inspections=max_cache_query_inspections,
     )
 
 
@@ -975,7 +981,7 @@ def _get_last_query_executions(
     args: Dict[str, str] = {}
     if workgroup is not None:
         args["WorkGroup"] = workgroup
-    paginator = client_athena.get_paginator("get_query_results")
+    paginator = client_athena.get_paginator("list_query_executions")
     for page in paginator.paginate(**args):
         query_execution_id_list: List[str] = page["QueryExecutionIds"]
         execution_data = client_athena.batch_get_query_execution(QueryExecutionIds=query_execution_id_list)
@@ -1019,9 +1025,10 @@ def _check_for_cached_results(
     """
     num_executions_inspected: int = 0
     if max_cache_seconds > 0:  # pylint: disable=too-many-nested-blocks
+        current_timestamp = datetime.datetime.now(datetime.timezone.utc)
+        print(current_timestamp)
         for query_executions in _get_last_query_executions(boto3_session=session, workgroup=workgroup):
             cached_queries: List[Dict[str, Any]] = _sort_successful_executions_data(query_executions=query_executions)
-            current_timestamp = datetime.datetime.utcnow()
             comparable_sql: str = _prepare_query_string_for_comparison(sql)
 
             # this could be mapreduced, but it is only 50 items long, tops
