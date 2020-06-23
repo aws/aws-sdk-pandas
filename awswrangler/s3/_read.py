@@ -785,6 +785,7 @@ def read_parquet_metadata(
     dtype: Optional[Dict[str, str]] = None,
     sampling: float = 1.0,
     dataset: bool = False,
+    path_suffix: Optional[str] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Tuple[Dict[str, str], Optional[Dict[str, str]]]:
@@ -812,6 +813,8 @@ def read_parquet_metadata(
         The lower, the faster.
     dataset: bool
         If True read a parquet dataset instead of simple file(s) loading all the related partitions as columns.
+    path_suffix : str
+        Suffix to filter S3 objects found according to the path parameter.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -843,7 +846,7 @@ def read_parquet_metadata(
 
     """
     return read_parquet_metadata_internal(
-        path=path, dtype=dtype, sampling=sampling, dataset=dataset, use_threads=use_threads, boto3_session=boto3_session
+        path=path, dtype=dtype, sampling=sampling, dataset=dataset, path_suffix=path_suffix, use_threads=use_threads, boto3_session=boto3_session
     )[:2]
 
 
