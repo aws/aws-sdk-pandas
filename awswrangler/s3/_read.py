@@ -846,7 +846,13 @@ def read_parquet_metadata(
 
     """
     return read_parquet_metadata_internal(
-        path=path, dtype=dtype, sampling=sampling, dataset=dataset, path_suffix=path_suffix, use_threads=use_threads, boto3_session=boto3_session
+        path=path,
+        dtype=dtype,
+        sampling=sampling,
+        dataset=dataset,
+        path_suffix=path_suffix,
+        use_threads=use_threads,
+        boto3_session=boto3_session,
     )[:2]
 
 
