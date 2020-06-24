@@ -1053,6 +1053,6 @@ def _check_for_cached_results(
 
                 num_executions_inspected += 1
                 if num_executions_inspected >= max_cache_query_inspections:
-                    break
+                    break  # pragma: no cover
 
     return {"has_valid_cache": False}
