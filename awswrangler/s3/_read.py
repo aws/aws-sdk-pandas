@@ -251,6 +251,7 @@ def _read_parquet(
     data: pyarrow.parquet.ParquetDataset,
     columns: Optional[List[str]] = None,
     categories: List[str] = None,
+    safe: bool = True,
     use_threads: bool = True,
     validate_schema: bool = True,
 ) -> pd.DataFrame:
@@ -274,6 +275,7 @@ def _read_parquet(
         date_as_object=True,
         ignore_metadata=True,
         categories=categories,
+        safe=safe,
         types_mapper=_data_types.pyarrow2pandas_extension,
     )
 
@@ -282,6 +284,7 @@ def _read_parquet_chunked(
     data: pyarrow.parquet.ParquetDataset,
     columns: Optional[List[str]] = None,
     categories: List[str] = None,
+    safe: bool = True,
     chunked: Union[bool, int] = True,
     use_threads: bool = True,
 ) -> Iterator[pd.DataFrame]:
@@ -292,6 +295,7 @@ def _read_parquet_chunked(
                 columns=columns, use_threads=use_threads, partitions=data.partitions, use_pandas_metadata=False
             ),
             categories=categories,
+            safe=safe,
             use_threads=use_threads,
         )
         if chunked is True:
@@ -310,7 +314,9 @@ def _read_parquet_chunked(
         yield next_slice
 
 
-def _table2df(table: pa.Table, categories: List[str] = None, use_threads: bool = True) -> pd.DataFrame:
+def _table2df(
+    table: pa.Table, categories: List[str] = None, safe: bool = True, use_threads: bool = True
+) -> pd.DataFrame:
     return table.to_pandas(
         use_threads=use_threads,
         split_blocks=True,
@@ -319,6 +325,7 @@ def _table2df(table: pa.Table, categories: List[str] = None, use_threads: bool =
         date_as_object=True,
         ignore_metadata=True,
         categories=categories,
+        safe=safe,
         types_mapper=_data_types.pyarrow2pandas_extension,
     )
 
@@ -644,6 +651,7 @@ def read_parquet(
     chunked: Union[bool, int] = False,
     dataset: bool = False,
     categories: List[str] = None,
+    safe: bool = True,
     use_threads: bool = True,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
@@ -700,6 +708,11 @@ def read_parquet(
     categories: List[str], optional
         List of columns names that should be returned as pandas.Categorical.
         Recommended for memory restricted environments.
+    safe : bool, default True
+        For certain data types, a cast is needed in order to store the
+        data in a pandas DataFrame or Series (e.g. timestamps are always
+        stored as nanoseconds in pandas). This option controls whether it
+        is a safe cast or not.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -773,10 +786,15 @@ def read_parquet(
     _logger.debug("pyarrow.parquet.ParquetDataset initialized.")
     if chunked is False:
         return _read_parquet(
-            data=data, columns=columns, categories=categories, use_threads=use_threads, validate_schema=validate_schema
+            data=data,
+            columns=columns,
+            categories=categories,
+            safe=safe,
+            use_threads=use_threads,
+            validate_schema=validate_schema,
         )
     return _read_parquet_chunked(
-        data=data, columns=columns, categories=categories, chunked=chunked, use_threads=use_threads
+        data=data, columns=columns, categories=categories, safe=safe, chunked=chunked, use_threads=use_threads
     )
 
 
@@ -863,6 +881,7 @@ def read_parquet_table(
     columns: Optional[List[str]] = None,
     validate_schema: bool = True,
     categories: List[str] = None,
+    safe: bool = True,
     chunked: Union[bool, int] = False,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
@@ -908,6 +927,11 @@ def read_parquet_table(
     categories: List[str], optional
         List of columns names that should be returned as pandas.Categorical.
         Recommended for memory restricted environments.
+    safe : bool, default True
+        For certain data types, a cast is needed in order to store the
+        data in a pandas DataFrame or Series (e.g. timestamps are always
+        stored as nanoseconds in pandas). This option controls whether it
+        is a safe cast or not.
     chunked : bool
         If True will break the data in smaller DataFrames (Non deterministic number of lines).
         Otherwise return a single DataFrame with the whole data.
@@ -966,6 +990,7 @@ def read_parquet_table(
         columns=columns,
         validate_schema=validate_schema,
         categories=categories,
+        safe=safe,
         chunked=chunked,
         dataset=True,
         use_threads=use_threads,
