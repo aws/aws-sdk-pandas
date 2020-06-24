@@ -8,6 +8,8 @@ Resources:
       Tags:
         - Key: Env
           Value: aws-data-wrangler
+        - Key: Name
+          Value: aws-data-wrangler
       CidrBlock: 10.19.224.0/19
       EnableDnsSupport: true
       EnableDnsHostnames: true
@@ -30,6 +32,8 @@ Resources:
       Tags:
         - Key: Env
           Value: aws-data-wrangler
+        - Key: Name
+          Value: aws-data-wrangler-public1
       VpcId:
         Ref: VPC
       AvailabilityZone:
@@ -44,6 +48,8 @@ Resources:
       Tags:
         - Key: Env
           Value: aws-data-wrangler
+        - Key: Name
+          Value: aws-data-wrangler-public2
       VpcId:
         Ref: VPC
       AvailabilityZone:
@@ -58,6 +64,8 @@ Resources:
       Tags:
         - Key: Env
           Value: aws-data-wrangler
+        - Key: Name
+          Value: aws-data-wrangler-private
       VpcId:
         Ref: VPC
       AvailabilityZone:
