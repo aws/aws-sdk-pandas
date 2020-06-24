@@ -38,17 +38,16 @@ def path2list(
         raise exceptions.InvalidArgumentType(f"{type(path)} is not a valid path type. Please, use str or List[str].")
     return paths
 
-
 def _validate_datetimes(
     last_modified_begin: Optional[datetime.datetime] = None, last_modified_end: Optional[datetime.datetime] = None
 ) -> None:
     if last_modified_begin is not None:
-        if hasattr(last_modified_begin, "tzinfo") is None:
+        if last_modified_begin.tzinfo is None  is None:
             raise exceptions.InvalidArgumentValue(
                 "Timezone is not defined for last_modified_begin."
             )  # pragma: no cover
     if last_modified_end is not None:
-        if hasattr(last_modified_end, "tzinfo") is None:
+        if last_modified_begin.tzinfo is None:
             raise exceptions.InvalidArgumentValue("Timezone is not defined for last_modified_end.")  # pragma: no cover
     if (last_modified_begin is not None) and (last_modified_end is not None):
         if last_modified_begin > last_modified_end:
