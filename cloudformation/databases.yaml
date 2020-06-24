@@ -88,6 +88,8 @@ Resources:
       Tags:
         - Key: Env
           Value: aws-data-wrangler
+        - Key: Name
+          Value: aws-data-wrangler
       VpcId:
         Fn::ImportValue: aws-data-wrangler-base-VPC
       GroupDescription: AWS Data Wrangler Test Arena - Redshift security group
