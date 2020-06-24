@@ -42,7 +42,7 @@ def _validate_datetimes(
     last_modified_begin: Optional[datetime.datetime] = None, last_modified_end: Optional[datetime.datetime] = None
 ) -> None:
     if last_modified_begin is not None:
-        if last_modified_begin.tzinfo is None  is None:
+        if last_modified_begin.tzinfo is None:
             raise exceptions.InvalidArgumentValue(
                 "Timezone is not defined for last_modified_begin."
             )  # pragma: no cover
