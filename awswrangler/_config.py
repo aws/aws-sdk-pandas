@@ -1,7 +1,4 @@
-"""
-Configuration file for awswrangler
-
-"""
+"""Configuration file for awswrangler."""
 import json
 import logging
 import os
@@ -23,9 +20,29 @@ config_logger.setLevel(getattr(logging, os.getenv("LOG_LEVEL", "INFO")))
 
 
 class Config:
+    """Wrangler's Configuration class."""
+
     __slots__ = list([f"_{attr}" for attr, _ in CONFIG_DEFAULTS.items()])
 
     def __init__(self, config_file: str = CONFIG_FILE):
+        """Instatiate a Config object.
+
+        Parameters
+        ----------
+        config_file : str
+            Configuration file path.
+
+        Returns
+        -------
+        Config
+            Config object.
+
+        Examples
+        --------
+        >>> import awswrangler as wr
+        >>> config = wr.config.Config()
+
+        """
         if os.path.exists(config_file):
             with open(config_file, "r", encoding="utf-8") as f:
                 json_values = json.load(f)
@@ -43,12 +60,14 @@ class Config:
             super(Config, self).__setattr__(f"_{attr}", value)
 
     def __getattr__(self, item):
+        """Get a configuration item."""
         if item in CONFIG_DEFAULTS.keys():
             return super(Config, self).__getattribute__(f"_{item}")
         else:
             raise AttributeError
 
     def __setattr__(self, key, value):
+        """Set a configuration item."""
         if key in CONFIG_DEFAULTS.keys() and isinstance(value, CONFIG_DEFAULTS[key].cast):
             super(Config, self).__setattr__(f"_{key}", value)
         else:
