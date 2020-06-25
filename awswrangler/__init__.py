@@ -9,6 +9,6 @@ import logging as _logging
 
 from awswrangler import athena, catalog, cloudwatch, db, emr, exceptions, quicksight, s3, sts  # noqa
 from awswrangler.__metadata__ import __description__, __license__, __title__, __version__  # noqa
-from awswrangler._config import config
+from awswrangler._config import config  # noqa
 
 _logging.getLogger("awswrangler").addHandler(_logging.NullHandler())
