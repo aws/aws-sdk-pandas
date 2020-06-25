@@ -2058,6 +2058,33 @@ def test_cache_query_ctas_approach_false(path, database, table):
         assert df.c0.sum() == df3.c0.sum()
 
 
+def test_cache_query_semicolon(path, database, table):
+    df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
+    paths = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        mode="overwrite",
+        database=database,
+        table=table,
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+
+    with patch(
+        "awswrangler.athena._check_for_cached_results", return_value={"has_valid_cache": False}
+    ) as mocked_cache_attempt:
+        df2 = wr.athena.read_sql_query(f"SELECT * FROM {table}", database=database, ctas_approach=True, max_cache_seconds=0)
+        mocked_cache_attempt.assert_called()
+        assert df.shape == df2.shape
+        assert df.c0.sum() == df2.c0.sum()
+
+    with patch("awswrangler.athena._resolve_query_without_cache") as resolve_no_cache:
+        df3 = wr.athena.read_sql_query(f"SELECT * FROM {table};", database=database, ctas_approach=True, max_cache_seconds=900)
+        resolve_no_cache.assert_not_called()
+        assert df.shape == df3.shape
+        assert df.c0.sum() == df3.c0.sum()
+
+
 @pytest.mark.parametrize("partition_cols", [None, ["c2"], ["c1", "c2"]])
 def test_metadata_partitions_dataset(path, partition_cols):
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5], "c2": [6, 7, 8]})
@@ -2483,3 +2510,42 @@ def test_sanitize_columns(path, sanitize_columns, col):
     assert len(df.index) == 3
     assert len(df.columns) == 1
     assert df.columns == [col]
+
+
+def test_parquet_catalog_casting_to_string(path, table, database):
+    paths = wr.s3.to_parquet(
+        df=get_df_cast(),
+        path=path,
+        index=False,
+        dataset=True,
+        mode="overwrite",
+        database=database,
+        table=table,
+        dtype={
+            "iint8": "string",
+            "iint16": "string",
+            "iint32": "string",
+            "iint64": "string",
+            "float": "string",
+            "double": "double",
+            "decimal": "string",
+            "string": "string",
+            "date": "string",
+            "timestamp": "string",
+            "bool": "string",
+            "binary": "string",
+            "category": "string",
+            "par0": "string",
+            "par1": "string",
+        },
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    df = wr.s3.read_parquet(path=path)
+    assert len(df.index) == 3
+    assert len(df.columns) == 15
+    df = wr.athena.read_sql_table(table=table, database=database, ctas_approach=True)
+    assert len(df.index) == 3
+    assert len(df.columns) == 15
+    df = wr.athena.read_sql_table(table=table, database=database, ctas_approach=False)
+    assert len(df.index) == 3
+    assert len(df.columns) == 15

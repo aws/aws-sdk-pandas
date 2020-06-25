@@ -506,6 +506,7 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals,too-man
         max_cache_seconds=max_cache_seconds,
         max_cache_query_inspections=max_cache_query_inspections,
     )
+    _logger.debug("cache_info: %s", cache_info)
 
     if cache_info["has_valid_cache"] is True:
         _logger.debug("Valid cache found. Retrieving...")
@@ -687,6 +688,7 @@ def _resolve_query_with_cache(  # pylint: disable=too-many-return-statements
     session: Optional[boto3.Session],
 ):
     """Fetch cached data and return it as a pandas Dataframe (or list of Dataframes)."""
+    _logger.debug("cache_info: %s", cache_info)
     if cache_info["data_type"] == "parquet":
         manifest_path = cache_info["query_execution_info"]["Statistics"]["DataManifestLocation"]
         # this is needed just so we can access boto's modeled exceptions
@@ -970,7 +972,9 @@ def _prepare_query_string_for_comparison(query_string: str) -> str:
     """To use cached data, we need to compare queries. Returns a query string in canonical form."""
     # for now this is a simple complete strip, but it could grow into much more sophisticated
     # query comparison data structures
-    return "".join(query_string.split()).strip("()").lower()
+    query_string = "".join(query_string.split()).strip("()").lower()
+    query_string = query_string[:-1] if query_string.endswith(";") is True else query_string
+    return query_string
 
 
 def _get_last_query_executions(
@@ -983,6 +987,7 @@ def _get_last_query_executions(
         args["WorkGroup"] = workgroup
     paginator = client_athena.get_paginator("list_query_executions")
     for page in paginator.paginate(**args):
+        _logger.debug("paginating Athena's queries history...")
         query_execution_id_list: List[str] = page["QueryExecutionIds"]
         execution_data = client_athena.batch_get_query_execution(QueryExecutionIds=query_execution_id_list)
         yield execution_data.get("QueryExecutions")
@@ -1026,33 +1031,45 @@ def _check_for_cached_results(
     num_executions_inspected: int = 0
     if max_cache_seconds > 0:  # pylint: disable=too-many-nested-blocks
         current_timestamp = datetime.datetime.now(datetime.timezone.utc)
-        print(current_timestamp)
         for query_executions in _get_last_query_executions(boto3_session=session, workgroup=workgroup):
+
+            _logger.debug("len(query_executions): %s", len(query_executions))
             cached_queries: List[Dict[str, Any]] = _sort_successful_executions_data(query_executions=query_executions)
             comparable_sql: str = _prepare_query_string_for_comparison(sql)
+            _logger.debug("len(cached_queries): %s", len(cached_queries))
 
             # this could be mapreduced, but it is only 50 items long, tops
             for query_info in cached_queries:
-                if (current_timestamp - query_info["Status"]["CompletionDateTime"]).total_seconds() > max_cache_seconds:
-                    break  # pragma: no cover
+
+                query_timestamp: datetime.datetime = query_info["Status"]["CompletionDateTime"]
+                _logger.debug("current_timestamp: %s", current_timestamp)
+                _logger.debug("query_timestamp: %s", query_timestamp)
+                if (current_timestamp - query_timestamp).total_seconds() > max_cache_seconds:
+                    return {"has_valid_cache": False}  # pragma: no cover
 
                 comparison_query: Optional[str]
                 if query_info["StatementType"] == "DDL" and query_info["Query"].startswith("CREATE TABLE"):
                     parsed_query: Optional[str] = _parse_select_query_from_possible_ctas(query_info["Query"])
                     if parsed_query is not None:
                         comparison_query = _prepare_query_string_for_comparison(query_string=parsed_query)
+                        _logger.debug("DDL - comparison_query: %s", comparison_query)
+                        _logger.debug("DDL - comparable_sql: %s", comparable_sql)
                         if comparison_query == comparable_sql:
                             data_type = "parquet"
                             return {"has_valid_cache": True, "data_type": data_type, "query_execution_info": query_info}
 
                 elif query_info["StatementType"] == "DML" and not query_info["Query"].startswith("INSERT"):
                     comparison_query = _prepare_query_string_for_comparison(query_string=query_info["Query"])
+                    _logger.debug("DML - comparison_query: %s", comparison_query)
+                    _logger.debug("DML - comparable_sql: %s", comparable_sql)
                     if comparison_query == comparable_sql:
                         data_type = "csv"
                         return {"has_valid_cache": True, "data_type": data_type, "query_execution_info": query_info}
 
                 num_executions_inspected += 1
+                _logger.debug("num_executions_inspected: %s", num_executions_inspected)
+                _logger.debug("max_cache_query_inspections: %s", max_cache_query_inspections)
                 if num_executions_inspected >= max_cache_query_inspections:
-                    break  # pragma: no cover
+                    return {"has_valid_cache": False}  # pragma: no cover
 
     return {"has_valid_cache": False}
