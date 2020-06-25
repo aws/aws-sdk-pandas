@@ -727,7 +727,7 @@ def get_table_location(database: str, table: str, boto3_session: Optional[boto3.
     Examples
     --------
     >>> import awswrangler as wr
-    >>> wr.catalog.get_table_location(database='default', name='my_table')
+    >>> wr.catalog.get_table_location(database='default', table='my_table')
     's3://bucket/prefix/'
 
     """
