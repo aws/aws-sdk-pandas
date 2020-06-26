@@ -300,8 +300,7 @@ def test_parquet(s3):
     wr.s3.to_parquet(df=get_df_list(), path=path, index=False, dataset=True, partition_cols=["par0", "par1"])
     df = wr.s3.read_parquet(path=path, dataset=True)
     ensure_data_types(df, has_list=True)
-    assert len(df.index) == 3
-    assert len(df.columns) == 18
+    assert df.shape == (3, 19)
 
 
 def test_s3_delete_object_success(s3):

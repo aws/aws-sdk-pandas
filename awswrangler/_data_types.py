@@ -439,13 +439,13 @@ def cast_pandas_with_athena_types(df: pd.DataFrame, dtype: Dict[str, str]) -> pd
                 )
             elif pandas_type == "string":
                 curr_type: str = str(df[col].dtypes)
-                print(curr_type)
-                if (curr_type.lower().startswith("int") is True) or (curr_type.startswith("float") is True):
+                if curr_type.lower().startswith("int") is True:
                     df[col] = df[col].astype(str).astype("string")
-                elif curr_type.startswith("object") is True:
-                    df[col] = df[col].astype(str)
+                elif curr_type.startswith("float") is True:
+                    df[col] = df[col].astype(str).astype("string")
+                elif curr_type in ("object", "category"):
+                    df[col] = df[col].astype(str).astype("string")
                 else:
-                    print(col)
                     df[col] = df[col].astype("string")
             else:
                 try:
