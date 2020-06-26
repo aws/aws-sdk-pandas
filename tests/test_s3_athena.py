@@ -617,7 +617,7 @@ def test_store_parquet_metadata_modes(database, table, path):
 def test_athena_ctas(path, path2, path3, table, table2, database, kms_key):
     df = get_df_list()
     columns_types, partitions_types = wr.catalog.extract_athena_types(df=df, partition_cols=["par0", "par1"])
-    assert len(columns_types) == 16
+    assert len(columns_types) == 17
     assert len(partitions_types) == 2
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.catalog.extract_athena_types(df=df, file_format="avro")
@@ -714,7 +714,6 @@ def test_athena(path, database, kms_key, workgroup0, workgroup1):
         keep_files=False,
     )
     for df2 in dfs:
-        print(df2)
         ensure_data_types(df=df2)
     df = wr.athena.read_sql_query(
         sql="SELECT * FROM __test_athena",
@@ -729,12 +728,12 @@ def test_athena(path, database, kms_key, workgroup0, workgroup1):
     wr.catalog.delete_table_if_exists(database=database, table="__test_athena")
 
 
-def test_csv(bucket):
+def test_csv(path):
     session = boto3.Session()
     df = pd.DataFrame({"id": [1, 2, 3]})
-    path0 = f"s3://{bucket}/test_csv0.csv"
-    path1 = f"s3://{bucket}/test_csv1.csv"
-    path2 = f"s3://{bucket}/test_csv2.csv"
+    path0 = f"{path}test_csv0.csv"
+    path1 = f"{path}test_csv1.csv"
+    path2 = f"{path}test_csv2.csv"
     wr.s3.to_csv(df=df, path=path0, index=False)
     wr.s3.wait_objects_exist(paths=[path0])
     assert wr.s3.does_object_exist(path=path0) is True
@@ -820,13 +819,12 @@ def test_list_by_last_modified_date(path):
     assert len(wr.s3.read_json(path, last_modified_begin=begin_utc, last_modified_end=end_utc).index) == 6
 
 
-def test_parquet(bucket):
-    wr.s3.delete_objects(path=f"s3://{bucket}/test_parquet/")
+def test_parquet(path):
     df_file = pd.DataFrame({"id": [1, 2, 3]})
-    path_file = f"s3://{bucket}/test_parquet/test_parquet_file.parquet"
+    path_file = f"{path}test_parquet_file.parquet"
     df_dataset = pd.DataFrame({"id": [1, 2, 3], "partition": ["A", "A", "B"]})
     df_dataset["partition"] = df_dataset["partition"].astype("category")
-    path_dataset = f"s3://{bucket}/test_parquet/test_parquet_dataset"
+    path_dataset = f"{path}test_parquet_dataset"
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
         wr.s3.to_parquet(df=df_file, path=path_file, mode="append")
     with pytest.raises(wr.exceptions.InvalidCompression):
@@ -856,7 +854,6 @@ def test_parquet(bucket):
     wr.s3.to_parquet(
         df=df_dataset, path=path_dataset, dataset=True, partition_cols=["partition"], mode="overwrite_partitions"
     )
-    wr.s3.delete_objects(path=f"s3://{bucket}/test_parquet/")
 
 
 def test_parquet_catalog(bucket, database):
@@ -919,12 +916,12 @@ def test_parquet_catalog(bucket, database):
     columns_types, partitions_types = wr.s3.read_parquet_metadata(
         path=f"s3://{bucket}/test_parquet_catalog2", dataset=True
     )
-    assert len(columns_types) == 17
+    assert len(columns_types) == 18
     assert len(partitions_types) == 2
     columns_types, partitions_types, partitions_values = wr.s3.store_parquet_metadata(
         path=f"s3://{bucket}/test_parquet_catalog2", database=database, table="test_parquet_catalog2", dataset=True
     )
-    assert len(columns_types) == 17
+    assert len(columns_types) == 18
     assert len(partitions_types) == 2
     assert len(partitions_values) == 2
     wr.s3.delete_objects(path=f"s3://{bucket}/test_parquet_catalog/")
@@ -933,23 +930,11 @@ def test_parquet_catalog(bucket, database):
     assert wr.catalog.delete_table_if_exists(database=database, table="test_parquet_catalog2") is True
 
 
-def test_parquet_catalog_duplicated(bucket, database):
-    path = f"s3://{bucket}/test_parquet_catalog_dedup/"
+def test_parquet_catalog_duplicated(path, table, database):
     df = pd.DataFrame({"A": [1], "a": [1]})
-    wr.s3.to_parquet(
-        df=df,
-        path=path,
-        index=False,
-        dataset=True,
-        mode="overwrite",
-        database=database,
-        table="test_parquet_catalog_dedup",
-    )
+    wr.s3.to_parquet(df=df, path=path, index=False, dataset=True, mode="overwrite", database=database, table=table)
     df = wr.s3.read_parquet(path=path)
-    assert len(df.index) == 1
-    assert len(df.columns) == 1
-    wr.s3.delete_objects(path=path)
-    assert wr.catalog.delete_table_if_exists(database=database, table="test_parquet_catalog_dedup") is True
+    assert df.shape == (1, 1)
 
 
 def test_parquet_catalog_casting(path, database):
@@ -981,16 +966,13 @@ def test_parquet_catalog_casting(path, database):
     )["paths"]
     wr.s3.wait_objects_exist(paths=paths)
     df = wr.s3.read_parquet(path=path)
-    assert len(df.index) == 3
-    assert len(df.columns) == 15
+    assert df.shape == (3, 16)
     ensure_data_types(df=df, has_list=False)
     df = wr.athena.read_sql_table(table="__test_parquet_catalog_casting", database=database, ctas_approach=True)
-    assert len(df.index) == 3
-    assert len(df.columns) == 15
+    assert df.shape == (3, 16)
     ensure_data_types(df=df, has_list=False)
     df = wr.athena.read_sql_table(table="__test_parquet_catalog_casting", database=database, ctas_approach=False)
-    assert len(df.index) == 3
-    assert len(df.columns) == 15
+    assert df.shape == (3, 16)
     ensure_data_types(df=df, has_list=False)
     wr.s3.delete_objects(path=path)
     assert wr.catalog.delete_table_if_exists(database=database, table="__test_parquet_catalog_casting") is True
@@ -1278,8 +1260,7 @@ def test_parquet_validate_schema(path):
         wr.s3.read_parquet(path=path, validate_schema=True)
 
 
-def test_csv_dataset(bucket, database):
-    path = f"s3://{bucket}/test_csv_dataset/"
+def test_csv_dataset(path, database):
     with pytest.raises(wr.exceptions.UndetectedType):
         wr.s3.to_csv(pd.DataFrame({"A": [None]}), path, dataset=True, database=database, table="test_csv_dataset")
     df = get_df_csv()
@@ -1317,8 +1298,7 @@ def test_csv_dataset(bucket, database):
     wr.s3.delete_objects(path=paths)
 
 
-def test_csv_catalog(bucket, database):
-    path = f"s3://{bucket}/test_csv_catalog/"
+def test_csv_catalog(path, table, database):
     df = get_df_csv()
     paths = wr.s3.to_csv(
         df=df,
@@ -1331,17 +1311,17 @@ def test_csv_catalog(bucket, database):
         dataset=True,
         partition_cols=["par0", "par1"],
         mode="overwrite",
-        table="test_csv_catalog",
+        table=table,
         database=database,
     )["paths"]
     wr.s3.wait_objects_exist(paths=paths)
-    df2 = wr.athena.read_sql_table("test_csv_catalog", database)
+    df2 = wr.athena.read_sql_table(table, database)
     assert len(df2.index) == 3
     assert len(df2.columns) == 11
     assert df2["id"].sum() == 6
     ensure_data_types_csv(df2)
     wr.s3.delete_objects(path=paths)
-    assert wr.catalog.delete_table_if_exists(database=database, table="test_csv_catalog") is True
+    assert wr.catalog.delete_table_if_exists(database=database, table=table) is True
 
 
 def test_csv_catalog_columns(bucket, database):
@@ -2060,26 +2040,23 @@ def test_cache_query_ctas_approach_false(path, database, table):
 
 def test_cache_query_semicolon(path, database, table):
     df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
-    paths = wr.s3.to_parquet(
-        df=df,
-        path=path,
-        dataset=True,
-        mode="overwrite",
-        database=database,
-        table=table,
-    )["paths"]
+    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, mode="overwrite", database=database, table=table)["paths"]
     wr.s3.wait_objects_exist(paths=paths)
 
     with patch(
         "awswrangler.athena._check_for_cached_results", return_value={"has_valid_cache": False}
     ) as mocked_cache_attempt:
-        df2 = wr.athena.read_sql_query(f"SELECT * FROM {table}", database=database, ctas_approach=True, max_cache_seconds=0)
+        df2 = wr.athena.read_sql_query(
+            f"SELECT * FROM {table}", database=database, ctas_approach=True, max_cache_seconds=0
+        )
         mocked_cache_attempt.assert_called()
         assert df.shape == df2.shape
         assert df.c0.sum() == df2.c0.sum()
 
     with patch("awswrangler.athena._resolve_query_without_cache") as resolve_no_cache:
-        df3 = wr.athena.read_sql_query(f"SELECT * FROM {table};", database=database, ctas_approach=True, max_cache_seconds=900)
+        df3 = wr.athena.read_sql_query(
+            f"SELECT * FROM {table};", database=database, ctas_approach=True, max_cache_seconds=900
+        )
         resolve_no_cache.assert_not_called()
         assert df.shape == df3.shape
         assert df.c0.sum() == df3.c0.sum()
@@ -2513,39 +2490,44 @@ def test_sanitize_columns(path, sanitize_columns, col):
 
 
 def test_parquet_catalog_casting_to_string(path, table, database):
-    paths = wr.s3.to_parquet(
-        df=get_df_cast(),
-        path=path,
-        index=False,
-        dataset=True,
-        mode="overwrite",
-        database=database,
-        table=table,
-        dtype={
-            "iint8": "string",
-            "iint16": "string",
-            "iint32": "string",
-            "iint64": "string",
-            "float": "string",
-            "double": "double",
-            "decimal": "string",
-            "string": "string",
-            "date": "string",
-            "timestamp": "string",
-            "bool": "string",
-            "binary": "string",
-            "category": "string",
-            "par0": "string",
-            "par1": "string",
-        },
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
-    df = wr.s3.read_parquet(path=path)
-    assert len(df.index) == 3
-    assert len(df.columns) == 15
-    df = wr.athena.read_sql_table(table=table, database=database, ctas_approach=True)
-    assert len(df.index) == 3
-    assert len(df.columns) == 15
-    df = wr.athena.read_sql_table(table=table, database=database, ctas_approach=False)
-    assert len(df.index) == 3
-    assert len(df.columns) == 15
+    for df in [get_df(), get_df_cast()]:
+        paths = wr.s3.to_parquet(
+            df=df,
+            path=path,
+            index=False,
+            dataset=True,
+            mode="overwrite",
+            database=database,
+            table=table,
+            dtype={
+                "iint8": "string",
+                "iint16": "string",
+                "iint32": "string",
+                "iint64": "string",
+                "float": "string",
+                "double": "string",
+                "decimal": "string",
+                "string": "string",
+                "date": "string",
+                "timestamp": "string",
+                "timestamp2": "string",
+                "bool": "string",
+                "binary": "string",
+                "category": "string",
+                "par0": "string",
+                "par1": "string",
+            },
+        )["paths"]
+        wr.s3.wait_objects_exist(paths=paths)
+        df = wr.s3.read_parquet(path=path)
+        assert df.shape == (3, 16)
+        for dtype in df.dtypes.values:
+            assert str(dtype) == "string"
+        df = wr.athena.read_sql_table(table=table, database=database, ctas_approach=True)
+        assert df.shape == (3, 16)
+        for dtype in df.dtypes.values:
+            assert str(dtype) == "string"
+        df = wr.athena.read_sql_table(table=table, database=database, ctas_approach=False)
+        assert df.shape == (3, 16)
+        for dtype in df.dtypes.values:
+            assert str(dtype) == "string"
