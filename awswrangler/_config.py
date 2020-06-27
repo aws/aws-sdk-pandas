@@ -59,6 +59,25 @@ class _Config:
         super().__setattr__(f"_{key}", value)
 
     def reset(self, item: Optional[str] = None) -> None:
+        """Reset one or all (if None is received) configuration values.
+
+        Parameters
+        ----------
+        item : str, optional
+            Configuration item name.
+
+        Returns
+        -------
+        None
+            None.
+
+        Examples
+        --------
+        >>> import awswrangler as wr
+        >>> wr.config.reset("database")  # Reset one specific configuration
+        >>> wr.config.reset()  # Reset all
+
+        """
         if item is None:
             for name, conf in _CONFIG_DEFAULTS.items():
                 delattr(self, f"_{name}")
