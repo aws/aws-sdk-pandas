@@ -7,4 +7,4 @@ assignees: ''
 
 ---
 
-
+*P.S. Don't attach file. Please, prefer add code snippets directly in the message body.*
