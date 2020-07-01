@@ -10,6 +10,7 @@ from typing import Any, Dict, Generator, List, Optional, Tuple, Union
 import boto3  # type: ignore
 import botocore.config  # type: ignore
 import numpy as np  # type: ignore
+import pandas as pd  # type: ignore
 import psycopg2  # type: ignore
 import s3fs  # type: ignore
 
@@ -293,3 +294,14 @@ def list_sampling(lst: List[Any], sampling: float) -> List[Any]:
     _logger.debug("sampling: %s", sampling)
     _logger.debug("num_samples: %s", num_samples)
     return random.sample(population=lst, k=num_samples)
+
+
+def ensure_df_is_mutable(df: pd.DataFrame) -> pd.DataFrame:
+    """Ensure that all columns has the writeable flag True."""
+    columns: List[str] = df.columns.to_list()
+    for column in columns:
+        if hasattr(df[column].values, "flags") is True:
+            if df[column].values.flags.writeable is False:  # pragma: no cover
+                df = df.copy(deep=True)
+                break
+    return df
