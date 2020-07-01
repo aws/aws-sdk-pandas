@@ -4,7 +4,9 @@ import concurrent.futures
 import datetime
 import itertools
 import logging
-from typing import Dict, List, Optional, Union
+import time
+from typing import Any, Dict, List, Optional, Union
+from urllib.parse import unquote_plus as _unquote_plus
 
 import boto3  # type: ignore
 
@@ -26,17 +28,24 @@ def _split_paths_by_bucket(paths: List[str]) -> Dict[str, List[str]]:
     return buckets
 
 
-def _delete_objects(bucket: str, keys: List[str], client_s3: boto3.client) -> None:
+def _delete_objects(bucket: str, keys: List[str], client_s3: boto3.client, attempt: int = 1) -> None:
     _logger.debug("len(keys): %s", len(keys))
     batch: List[Dict[str, str]] = [{"Key": key} for key in keys]
     res = client_s3.delete_objects(Bucket=bucket, Delete={"Objects": batch})
-    deleted = res.get("Deleted")
-    if deleted is not None:
-        for i in deleted:
-            _logger.debug("s3://%s/%s has been deleted.", bucket, i.get("Key"))
-    errors = res.get("Errors")
-    if errors is not None:  # pragma: no cover
-        raise exceptions.ServiceApiError(errors)
+    deleted: List[Dict[str, Any]] = res.get("Deleted", [])
+    for obj in deleted:
+        _logger.debug("s3://%s/%s has been deleted.", bucket, obj.get("Key"))
+    errors: List[Dict[str, Any]] = res.get("Errors", [])
+    internal_errors: List[str] = []
+    for error in errors:
+        if error["Code"] != "InternalError":
+            raise exceptions.ServiceApiError(errors)
+        internal_errors.append(_unquote_plus(error["Key"]))
+    if len(internal_errors) > 0:
+        if attempt > 5:  # Maximum of 5 attempts
+            raise exceptions.ServiceApiError(errors)
+        time.sleep(attempt)  # Incremental delay (linear)
+        _delete_objects(bucket=bucket, keys=internal_errors, client_s3=client_s3, attempt=(attempt + 1))
 
 
 def delete_objects(
