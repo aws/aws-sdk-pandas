@@ -259,6 +259,7 @@ def create_parquet_table(
 
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     cat_table_input: Optional[Dict[str, Any]] = _get_table_input(database=database, table=table, boto3_session=session)
+    _logger.debug("cat_table_input: %s", cat_table_input)
     table_input: Dict[str, Any]
     if (cat_table_input is not None) and (mode in ("append", "overwrite_partitions")):
         table_input = cat_table_input
@@ -284,6 +285,7 @@ def create_parquet_table(
             compression=compression,
         )
     table_exist: bool = cat_table_input is not None
+    _logger.debug("table_exist: %s", table_exist)
     _create_table(
         database=database,
         table=table,
@@ -1221,6 +1223,8 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
             if name in columns_comments:
                 par["Comment"] = columns_comments[name]
 
+    _logger.debug("table_input: %s", table_input)
+
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     client_glue: boto3.client = _utils.client(service_name="glue", session=session)
     skip_archive: bool = not catalog_versioning
@@ -1229,12 +1233,16 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
             f"{mode} is not a valid mode. It must be 'overwrite', 'append' or 'overwrite_partitions'."
         )
     if (table_exist is True) and (mode == "overwrite"):
+        _logger.debug("Fetching existing partitions...")
         partitions_values: List[List[str]] = list(
             _get_partitions(database=database, table=table, boto3_session=session).values()
         )
+        _logger.debug("Number of old partitions: %s", len(partitions_values))
+        _logger.debug("Deleting existing partitions...")
         client_glue.batch_delete_partition(
             DatabaseName=database, TableName=table, PartitionsToDelete=[{"Values": v} for v in partitions_values]
         )
+        _logger.debug("Updating table...")
         client_glue.update_table(DatabaseName=database, TableInput=table_input, SkipArchive=skip_archive)
     elif (table_exist is True) and (mode in ("append", "overwrite_partitions", "update")):
         if parameters is not None:
@@ -1514,24 +1522,44 @@ def _get_partitions(
     boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, List[str]]:
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    paginator = client_glue.get_paginator("get_partitions")
-    args: Dict[str, Any] = {}
+
+    args: Dict[str, Any] = {
+        "DatabaseName": database,
+        "TableName": table,
+        "MaxResults": 1_000,
+        "Segment": {"SegmentNumber": 0, "TotalSegments": 1},
+    }
     if expression is not None:
         args["Expression"] = expression
     if catalog_id is not None:
         args["CatalogId"] = catalog_id
-    response_iterator = paginator.paginate(
-        DatabaseName=database, TableName=table, PaginationConfig={"PageSize": 1000}, **args
-    )
+
     partitions_values: Dict[str, List[str]] = {}
-    for page in response_iterator:
-        if (page is not None) and ("Partitions" in page):
-            for partition in page["Partitions"]:
-                location: Optional[str] = partition["StorageDescriptor"].get("Location")
-                if location is not None:
-                    values: List[str] = partition["Values"]
-                    partitions_values[location] = values
+    _logger.debug("Starting pagination...")
+
+    response: Dict[str, Any] = client_glue.get_partitions(**args)
+    token: Optional[str] = _append_partitions(partitions_values=partitions_values, response=response)
+    while token is not None:
+        args["NextToken"] = response["NextToken"]
+        response = client_glue.get_partitions(**args)
+        token = _append_partitions(partitions_values=partitions_values, response=response)
+
+    _logger.debug("Pagination done.")
     return partitions_values
+
+
+def _append_partitions(partitions_values: Dict[str, List[str]], response: Dict[str, Any]) -> Optional[str]:
+    _logger.debug("response: %s", response)
+    token: Optional[str] = response.get("NextToken", None)
+    if (response is not None) and ("Partitions" in response):
+        for partition in response["Partitions"]:
+            location: Optional[str] = partition["StorageDescriptor"].get("Location")
+            if location is not None:
+                values: List[str] = partition["Values"]
+                partitions_values[location] = values
+    else:
+        token = None  # pragma: no cover
+    return token
 
 
 def extract_athena_types(
