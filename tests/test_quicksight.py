@@ -1,53 +1,18 @@
 import logging
 
-import pytest
-
 import awswrangler as wr
 
-from ._utils import extract_cloudformation_outputs, get_df_quicksight, get_time_str_with_random_suffix, path_generator
+from ._utils import get_df_quicksight
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
 
 
-@pytest.fixture(scope="module")
-def cloudformation_outputs():
-    yield extract_cloudformation_outputs()
-
-
-@pytest.fixture(scope="module")
-def bucket(cloudformation_outputs):
-    if "BucketName" in cloudformation_outputs:
-        bucket = cloudformation_outputs["BucketName"]
-    else:
-        raise Exception("You must deploy/update the test infrastructure (CloudFormation)")
-    yield bucket
-
-
-@pytest.fixture(scope="module")
-def database(cloudformation_outputs):
-    yield cloudformation_outputs["GlueDatabaseName"]
-
-
-@pytest.fixture(scope="function")
-def table(database):
-    name = f"tbl_{get_time_str_with_random_suffix()}"
-    print(f"Table name: {name}")
-    wr.catalog.delete_table_if_exists(database=database, table=name)
-    yield name
-    wr.catalog.delete_table_if_exists(database=database, table=name)
-
-
-@pytest.fixture(scope="function")
-def path(bucket):
-    yield from path_generator(bucket)
-
-
-def test_quicksight(path, database, table):
+def test_quicksight(path, glue_database, glue_table):
     df = get_df_quicksight()
     paths = wr.s3.to_parquet(
-        df=df, path=path, dataset=True, database=database, table=table, partition_cols=["par0", "par1"]
+        df=df, path=path, dataset=True, database=glue_database, table=glue_table, partition_cols=["par0", "par1"]
     )["paths"]
     wr.s3.wait_objects_exist(paths, use_threads=False)
 
@@ -69,8 +34,8 @@ def test_quicksight(path, database, table):
 
     wr.quicksight.create_athena_dataset(
         name="test-table",
-        database=database,
-        table=table,
+        database=glue_database,
+        table=glue_table,
         data_source_name="test",
         allowed_to_manage=[wr.sts.get_current_identity_name()],
         rename_columns={"iint16": "new_col"},
@@ -80,7 +45,7 @@ def test_quicksight(path, database, table):
 
     wr.quicksight.create_athena_dataset(
         name="test-sql",
-        sql=f"SELECT * FROM {database}.{table}",
+        sql=f"SELECT * FROM {glue_database}.{glue_table}",
         data_source_name="test",
         import_mode="SPICE",
         allowed_to_use=[wr.sts.get_current_identity_name()],

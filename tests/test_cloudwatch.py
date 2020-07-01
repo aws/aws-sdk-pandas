@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime
 
 import boto3
 import pytest
@@ -7,40 +6,9 @@ import pytest
 import awswrangler as wr
 from awswrangler import exceptions
 
-from ._utils import extract_cloudformation_outputs
-
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
-
-
-@pytest.fixture(scope="module")
-def cloudformation_outputs():
-    yield extract_cloudformation_outputs()
-
-
-@pytest.fixture(scope="module")
-def loggroup(cloudformation_outputs):
-    loggroup_name = cloudformation_outputs["LogGroupName"]
-    logstream_name = cloudformation_outputs["LogStream"]
-    client = boto3.client("logs")
-    response = client.describe_log_streams(logGroupName=loggroup_name, logStreamNamePrefix=logstream_name)
-    token = response["logStreams"][0].get("uploadSequenceToken")
-    events = []
-    for i in range(5):
-        events.append({"timestamp": int(1000 * datetime.now().timestamp()), "message": str(i)})
-    args = {"logGroupName": loggroup_name, "logStreamName": logstream_name, "logEvents": events}
-    if token:
-        args["sequenceToken"] = token
-    try:
-        client.put_log_events(**args)
-    except client.exceptions.DataAlreadyAcceptedException:
-        pass  # Concurrency
-    while True:
-        results = wr.cloudwatch.run_query(log_group_names=[loggroup_name], query="fields @timestamp | limit 5")
-        if len(results) >= 5:
-            break
-    yield loggroup_name
 
 
 def test_query_cancelled(loggroup):

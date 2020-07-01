@@ -5,25 +5,9 @@ import pytest
 
 import awswrangler as wr
 
-from ._utils import extract_cloudformation_outputs
-
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
-
-
-@pytest.fixture(scope="module")
-def cloudformation_outputs():
-    yield extract_cloudformation_outputs()
-
-
-@pytest.fixture(scope="module")
-def bucket(cloudformation_outputs):
-    if "BucketName" in cloudformation_outputs:
-        bucket = cloudformation_outputs["BucketName"]
-    else:
-        raise Exception("You must deploy/update the test infrastructure (CloudFormation)")
-    yield bucket
 
 
 def test_cluster(bucket, cloudformation_outputs):

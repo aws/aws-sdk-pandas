@@ -10,98 +10,15 @@ import sqlalchemy
 
 import awswrangler as wr
 
-from ._utils import (
-    ensure_data_types,
-    ensure_data_types_category,
-    extract_cloudformation_outputs,
-    get_df,
-    get_df_category,
-    get_time_str_with_random_suffix,
-    path_generator,
-)
+from ._utils import ensure_data_types, ensure_data_types_category, get_df, get_df_category
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
 
 
-@pytest.fixture(scope="module")
-def cloudformation_outputs():
-    yield extract_cloudformation_outputs()
-
-
-@pytest.fixture(scope="function")
-def path(bucket):
-    yield from path_generator(bucket)
-
-
-@pytest.fixture(scope="module")
-def bucket(cloudformation_outputs):
-    if "BucketName" in cloudformation_outputs:
-        bucket = cloudformation_outputs["BucketName"]
-    else:
-        raise Exception("You must deploy/update the test infrastructure (CloudFormation)")
-    yield bucket
-
-
-@pytest.fixture(scope="module")
-def parameters(cloudformation_outputs):
-    parameters = dict(postgresql={}, mysql={}, redshift={})
-    parameters["postgresql"]["host"] = cloudformation_outputs["PostgresqlAddress"]
-    parameters["postgresql"]["port"] = 3306
-    parameters["postgresql"]["schema"] = "public"
-    parameters["postgresql"]["database"] = "postgres"
-    parameters["mysql"]["host"] = cloudformation_outputs["MysqlAddress"]
-    parameters["mysql"]["port"] = 3306
-    parameters["mysql"]["schema"] = "test"
-    parameters["mysql"]["database"] = "test"
-    parameters["redshift"]["host"] = cloudformation_outputs["RedshiftAddress"]
-    parameters["redshift"]["port"] = cloudformation_outputs["RedshiftPort"]
-    parameters["redshift"]["identifier"] = cloudformation_outputs["RedshiftIdentifier"]
-    parameters["redshift"]["schema"] = "public"
-    parameters["redshift"]["database"] = "test"
-    parameters["redshift"]["role"] = cloudformation_outputs["RedshiftRole"]
-    parameters["password"] = cloudformation_outputs["DatabasesPassword"]
-    parameters["user"] = "test"
-    yield parameters
-
-
-@pytest.fixture(scope="module")
-def glue_database(cloudformation_outputs):
-    yield cloudformation_outputs["GlueDatabaseName"]
-
-
-@pytest.fixture(scope="function")
-def glue_table(glue_database):
-    name = f"tbl_{get_time_str_with_random_suffix()}"
-    print(f"Table name: {name}")
-    wr.catalog.delete_table_if_exists(database=glue_database, table=name)
-    yield name
-    wr.catalog.delete_table_if_exists(database=glue_database, table=name)
-
-
-@pytest.fixture(scope="module")
-def external_schema(cloudformation_outputs, parameters, glue_database):
-    region = cloudformation_outputs.get("Region")
-    sql = f"""
-    CREATE EXTERNAL SCHEMA IF NOT EXISTS aws_data_wrangler_external FROM data catalog
-    DATABASE '{glue_database}'
-    IAM_ROLE '{parameters["redshift"]["role"]}'
-    REGION '{region}';
-    """
-    engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
-    with engine.connect() as con:
-        con.execute(sql)
-    yield "aws_data_wrangler_external"
-
-
-@pytest.fixture(scope="module")
-def kms_key_id(cloudformation_outputs):
-    yield cloudformation_outputs["KmsKeyArn"].split("/", 1)[1]
-
-
 @pytest.mark.parametrize("db_type", ["mysql", "redshift", "postgresql"])
-def test_sql(parameters, db_type):
+def test_sql(databases_parameters, db_type):
     df = get_df()
     if db_type == "redshift":
         df.drop(["binary"], axis=1, inplace=True)
@@ -111,7 +28,7 @@ def test_sql(parameters, db_type):
         df=df,
         con=engine,
         name="test_sql",
-        schema=parameters[db_type]["schema"],
+        schema=databases_parameters[db_type]["schema"],
         if_exists="replace",
         index=index,
         index_label=None,
@@ -119,18 +36,18 @@ def test_sql(parameters, db_type):
         method=None,
         dtype={"iint32": sqlalchemy.types.Integer},
     )
-    df = wr.db.read_sql_query(sql=f"SELECT * FROM {parameters[db_type]['schema']}.test_sql", con=engine)
+    df = wr.db.read_sql_query(sql=f"SELECT * FROM {databases_parameters[db_type]['schema']}.test_sql", con=engine)
     ensure_data_types(df, has_list=False)
     engine = wr.db.get_engine(
         db_type=db_type,
-        host=parameters[db_type]["host"],
-        port=parameters[db_type]["port"],
-        database=parameters[db_type]["database"],
-        user=parameters["user"],
-        password=parameters["password"],
+        host=databases_parameters[db_type]["host"],
+        port=databases_parameters[db_type]["port"],
+        database=databases_parameters[db_type]["database"],
+        user=databases_parameters["user"],
+        password=databases_parameters["password"],
     )
     dfs = wr.db.read_sql_query(
-        sql=f"SELECT * FROM {parameters[db_type]['schema']}.test_sql",
+        sql=f"SELECT * FROM {databases_parameters[db_type]['schema']}.test_sql",
         con=engine,
         chunksize=1,
         dtype={
@@ -158,29 +75,31 @@ def test_sql(parameters, db_type):
             df=pd.DataFrame({"col0": [1, 2, 3]}, dtype="Int32"),
             con=engine,
             name="test_sql",
-            schema=parameters[db_type]["schema"],
+            schema=databases_parameters[db_type]["schema"],
             if_exists="replace",
             index=True,
             index_label="index",
         )
         schema = None
         if db_type == "postgresql":
-            schema = parameters[db_type]["schema"]
+            schema = databases_parameters[db_type]["schema"]
         df = wr.db.read_sql_table(con=engine, table="test_sql", schema=schema, index_col="index")
         assert len(df.index) == 3
         assert len(df.columns) == 1
 
 
-def test_redshift_temp_engine(parameters):
-    engine = wr.db.get_redshift_temp_engine(cluster_identifier=parameters["redshift"]["identifier"], user="test")
+def test_redshift_temp_engine(databases_parameters):
+    engine = wr.db.get_redshift_temp_engine(
+        cluster_identifier=databases_parameters["redshift"]["identifier"], user="test"
+    )
     with engine.connect() as con:
         cursor = con.execute("SELECT 1")
         assert cursor.fetchall()[0][0] == 1
 
 
-def test_redshift_temp_engine2(parameters):
+def test_redshift_temp_engine2(databases_parameters):
     engine = wr.db.get_redshift_temp_engine(
-        cluster_identifier=parameters["redshift"]["identifier"], user="john_doe", duration=900, db_groups=[]
+        cluster_identifier=databases_parameters["redshift"]["identifier"], user="john_doe", duration=900, db_groups=[]
     )
     with engine.connect() as con:
         cursor = con.execute("SELECT 1")
@@ -195,7 +114,7 @@ def test_postgresql_param():
     assert df["col0"].iloc[0] == 1
 
 
-def test_redshift_copy_unload(bucket, parameters):
+def test_redshift_copy_unload(bucket, databases_parameters):
     path = f"s3://{bucket}/test_redshift_copy/"
     df = get_df().drop(["iint8", "binary"], axis=1, inplace=False)
     engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
@@ -206,12 +125,12 @@ def test_redshift_copy_unload(bucket, parameters):
         schema="public",
         table="__test_redshift_copy",
         mode="overwrite",
-        iam_role=parameters["redshift"]["role"],
+        iam_role=databases_parameters["redshift"]["role"],
     )
     df2 = wr.db.unload_redshift(
         sql="SELECT * FROM public.__test_redshift_copy",
         con=engine,
-        iam_role=parameters["redshift"]["role"],
+        iam_role=databases_parameters["redshift"]["role"],
         path=path,
         keep_files=False,
     )
@@ -224,12 +143,12 @@ def test_redshift_copy_unload(bucket, parameters):
         schema="public",
         table="__test_redshift_copy",
         mode="append",
-        iam_role=parameters["redshift"]["role"],
+        iam_role=databases_parameters["redshift"]["role"],
     )
     df2 = wr.db.unload_redshift(
         sql="SELECT * FROM public.__test_redshift_copy",
         con=engine,
-        iam_role=parameters["redshift"]["role"],
+        iam_role=databases_parameters["redshift"]["role"],
         path=path,
         keep_files=False,
     )
@@ -238,7 +157,7 @@ def test_redshift_copy_unload(bucket, parameters):
     dfs = wr.db.unload_redshift(
         sql="SELECT * FROM public.__test_redshift_copy",
         con=engine,
-        iam_role=parameters["redshift"]["role"],
+        iam_role=databases_parameters["redshift"]["role"],
         path=path,
         keep_files=False,
         chunked=True,
@@ -247,7 +166,7 @@ def test_redshift_copy_unload(bucket, parameters):
         ensure_data_types(df=chunk, has_list=False)
 
 
-def test_redshift_copy_upsert(bucket, parameters):
+def test_redshift_copy_upsert(bucket, databases_parameters):
     engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
     df = pd.DataFrame({"id": list((range(1_000))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(1_000)])})
     df3 = pd.DataFrame(
@@ -265,13 +184,13 @@ def test_redshift_copy_upsert(bucket, parameters):
         mode="overwrite",
         index=False,
         primary_keys=["id"],
-        iam_role=parameters["redshift"]["role"],
+        iam_role=databases_parameters["redshift"]["role"],
     )
     path = f"s3://{bucket}/upsert/test_redshift_copy_upsert2/"
     df2 = wr.db.unload_redshift(
         sql="SELECT * FROM public.test_redshift_copy_upsert",
         con=engine,
-        iam_role=parameters["redshift"]["role"],
+        iam_role=databases_parameters["redshift"]["role"],
         path=path,
         keep_files=False,
     )
@@ -289,13 +208,13 @@ def test_redshift_copy_upsert(bucket, parameters):
         mode="upsert",
         index=False,
         primary_keys=["id"],
-        iam_role=parameters["redshift"]["role"],
+        iam_role=databases_parameters["redshift"]["role"],
     )
     path = f"s3://{bucket}/upsert/test_redshift_copy_upsert4/"
     df4 = wr.db.unload_redshift(
         sql="SELECT * FROM public.test_redshift_copy_upsert",
         con=engine,
-        iam_role=parameters["redshift"]["role"],
+        iam_role=databases_parameters["redshift"]["role"],
         path=path,
         keep_files=False,
     )
@@ -311,13 +230,13 @@ def test_redshift_copy_upsert(bucket, parameters):
         table="test_redshift_copy_upsert",
         mode="upsert",
         index=False,
-        iam_role=parameters["redshift"]["role"],
+        iam_role=databases_parameters["redshift"]["role"],
     )
     path = f"s3://{bucket}/upsert/test_redshift_copy_upsert4/"
     df4 = wr.db.unload_redshift(
         sql="SELECT * FROM public.test_redshift_copy_upsert",
         con=engine,
-        iam_role=parameters["redshift"]["role"],
+        iam_role=databases_parameters["redshift"]["role"],
         path=path,
         keep_files=False,
     )
@@ -339,7 +258,7 @@ def test_redshift_copy_upsert(bucket, parameters):
         (None, None, wr.exceptions.InvalidRedshiftSortstyle, "foo", ["id"]),
     ],
 )
-def test_redshift_exceptions(bucket, parameters, diststyle, distkey, sortstyle, sortkey, exc):
+def test_redshift_exceptions(bucket, databases_parameters, diststyle, distkey, sortstyle, sortkey, exc):
     df = pd.DataFrame({"id": [1], "name": "joe"})
     engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
     path = f"s3://{bucket}/test_redshift_exceptions_{random.randint(0, 1_000_000)}/"
@@ -355,13 +274,13 @@ def test_redshift_exceptions(bucket, parameters, diststyle, distkey, sortstyle, 
             distkey=distkey,
             sortstyle=sortstyle,
             sortkey=sortkey,
-            iam_role=parameters["redshift"]["role"],
+            iam_role=databases_parameters["redshift"]["role"],
             index=False,
         )
     wr.s3.delete_objects(path=path)
 
 
-def test_redshift_spectrum(bucket, glue_database, external_schema):
+def test_redshift_spectrum(bucket, glue_database, redshift_external_schema):
     df = pd.DataFrame({"id": [1, 2, 3, 4, 5], "col_str": ["foo", None, "bar", None, "xoo"], "par_int": [0, 1, 0, 1, 1]})
     path = f"s3://{bucket}/test_redshift_spectrum/"
     paths = wr.s3.to_parquet(
@@ -377,7 +296,7 @@ def test_redshift_spectrum(bucket, glue_database, external_schema):
     wr.s3.wait_objects_exist(paths=paths, use_threads=False)
     engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
     with engine.connect() as con:
-        cursor = con.execute(f"SELECT * FROM {external_schema}.test_redshift_spectrum")
+        cursor = con.execute(f"SELECT * FROM {redshift_external_schema}.test_redshift_spectrum")
         rows = cursor.fetchall()
         assert len(rows) == len(df.index)
         for row in rows:
@@ -386,7 +305,7 @@ def test_redshift_spectrum(bucket, glue_database, external_schema):
     assert wr.catalog.delete_table_if_exists(database=glue_database, table="test_redshift_spectrum") is True
 
 
-def test_redshift_category(bucket, parameters):
+def test_redshift_category(bucket, databases_parameters):
     path = f"s3://{bucket}/test_redshift_category/"
     df = get_df_category().drop(["binary"], axis=1, inplace=False)
     engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
@@ -397,12 +316,12 @@ def test_redshift_category(bucket, parameters):
         schema="public",
         table="test_redshift_category",
         mode="overwrite",
-        iam_role=parameters["redshift"]["role"],
+        iam_role=databases_parameters["redshift"]["role"],
     )
     df2 = wr.db.unload_redshift(
         sql="SELECT * FROM public.test_redshift_category",
         con=engine,
-        iam_role=parameters["redshift"]["role"],
+        iam_role=databases_parameters["redshift"]["role"],
         path=path,
         keep_files=False,
         categories=df.columns,
@@ -411,7 +330,7 @@ def test_redshift_category(bucket, parameters):
     dfs = wr.db.unload_redshift(
         sql="SELECT * FROM public.test_redshift_category",
         con=engine,
-        iam_role=parameters["redshift"]["role"],
+        iam_role=databases_parameters["redshift"]["role"],
         path=path,
         keep_files=False,
         categories=df.columns,
@@ -422,9 +341,9 @@ def test_redshift_category(bucket, parameters):
     wr.s3.delete_objects(path=path)
 
 
-def test_redshift_unload_extras(bucket, parameters, kms_key_id):
+def test_redshift_unload_extras(bucket, databases_parameters, kms_key_id):
     table = "test_redshift_unload_extras"
-    schema = parameters["redshift"]["schema"]
+    schema = databases_parameters["redshift"]["schema"]
     path = f"s3://{bucket}/{table}/"
     wr.s3.delete_objects(path=path)
     engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
@@ -434,7 +353,7 @@ def test_redshift_unload_extras(bucket, parameters, kms_key_id):
         sql=f"SELECT * FROM {schema}.{table}",
         path=path,
         con=engine,
-        iam_role=parameters["redshift"]["role"],
+        iam_role=databases_parameters["redshift"]["role"],
         region=wr.s3.get_bucket_region(bucket),
         max_file_size=5.0,
         kms_key_id=kms_key_id,
@@ -448,7 +367,7 @@ def test_redshift_unload_extras(bucket, parameters, kms_key_id):
     df = wr.db.unload_redshift(
         sql=f"SELECT * FROM {schema}.{table}",
         con=engine,
-        iam_role=parameters["redshift"]["role"],
+        iam_role=databases_parameters["redshift"]["role"],
         path=path,
         keep_files=False,
         region=wr.s3.get_bucket_region(bucket),
@@ -461,9 +380,9 @@ def test_redshift_unload_extras(bucket, parameters, kms_key_id):
 
 
 @pytest.mark.parametrize("db_type", ["mysql", "redshift", "postgresql"])
-def test_to_sql_cast(parameters, db_type):
+def test_to_sql_cast(databases_parameters, db_type):
     table = "test_to_sql_cast"
-    schema = parameters[db_type]["schema"]
+    schema = databases_parameters[db_type]["schema"]
     df = pd.DataFrame(
         {
             "col": [
@@ -491,9 +410,9 @@ def test_to_sql_cast(parameters, db_type):
     assert df.equals(df2)
 
 
-def test_uuid(parameters):
+def test_uuid(databases_parameters):
     table = "test_uuid"
-    schema = parameters["postgresql"]["schema"]
+    schema = databases_parameters["postgresql"]["schema"]
     engine = wr.catalog.get_engine(connection="aws-data-wrangler-postgresql")
     df = pd.DataFrame(
         {
@@ -524,9 +443,9 @@ def test_uuid(parameters):
 
 
 @pytest.mark.parametrize("db_type", ["mysql", "redshift", "postgresql"])
-def test_null(parameters, db_type):
+def test_null(databases_parameters, db_type):
     table = "test_null"
-    schema = parameters[db_type]["schema"]
+    schema = databases_parameters[db_type]["schema"]
     engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-{db_type}")
     df = pd.DataFrame({"id": [1, 2, 3], "nothing": [None, None, None]})
     wr.db.to_sql(
@@ -557,7 +476,7 @@ def test_null(parameters, db_type):
     assert pd.concat(objs=[df, df], ignore_index=True).equals(df2)
 
 
-def test_redshift_spectrum_long_string(path, glue_table, glue_database, external_schema):
+def test_redshift_spectrum_long_string(path, glue_table, glue_database, redshift_external_schema):
     df = pd.DataFrame(
         {
             "id": [1, 2],
@@ -573,14 +492,14 @@ def test_redshift_spectrum_long_string(path, glue_table, glue_database, external
     wr.s3.wait_objects_exist(paths=paths, use_threads=False)
     engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
     with engine.connect() as con:
-        cursor = con.execute(f"SELECT * FROM {external_schema}.{glue_table}")
+        cursor = con.execute(f"SELECT * FROM {redshift_external_schema}.{glue_table}")
         rows = cursor.fetchall()
         assert len(rows) == len(df.index)
         for row in rows:
             assert len(row) == len(df.columns)
 
 
-def test_redshift_copy_unload_long_string(path, parameters):
+def test_redshift_copy_unload_long_string(path, databases_parameters):
     df = pd.DataFrame(
         {
             "id": [1, 2],
@@ -599,12 +518,12 @@ def test_redshift_copy_unload_long_string(path, parameters):
         table="test_redshift_copy_unload_long_string",
         mode="overwrite",
         varchar_lengths={"col_str": 300},
-        iam_role=parameters["redshift"]["role"],
+        iam_role=databases_parameters["redshift"]["role"],
     )
     df2 = wr.db.unload_redshift(
         sql="SELECT * FROM public.test_redshift_copy_unload_long_string",
         con=engine,
-        iam_role=parameters["redshift"]["role"],
+        iam_role=databases_parameters["redshift"]["role"],
         path=path,
         keep_files=False,
     )
