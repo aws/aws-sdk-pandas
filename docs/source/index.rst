@@ -29,16 +29,6 @@ Quick Start
     engine = wr.catalog.get_engine("my-redshift-connection")
     df = wr.db.read_sql_query("SELECT * FROM external_schema.my_table", con=engine)
 
-    # Creating QuickSight Data Source and Dataset to reflect our new table
-    wr.quicksight.create_athena_data_source("athena-source", allowed_to_manage=["username"])
-    wr.quicksight.create_athena_dataset(
-        name="my-dataset",
-        database="my_db",
-        table="my_table",
-        data_source_name="athena-source",
-        allowed_to_manage=["username"]
-    )
-
     # Get MySQL connection (SQLAlchemy) from Glue Catalog and LOAD the data into MySQL
     engine = wr.catalog.get_engine("my-mysql-connection")
     wr.db.to_sql(df, engine, schema="test", name="my_table")

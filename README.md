@@ -3,7 +3,7 @@
 
 ![AWS Data Wrangler](docs/source/_static/logo2.png?raw=true "AWS Data Wrangler")
 
-[![Release](https://img.shields.io/badge/release-1.6.1-brightgreen.svg)](https://pypi.org/project/awswrangler/)
+[![Release](https://img.shields.io/badge/release-1.6.2-brightgreen.svg)](https://pypi.org/project/awswrangler/)
 [![Python Version](https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.8-brightgreen.svg)](https://anaconda.org/conda-forge/awswrangler)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -46,16 +46,6 @@ df = wr.athena.read_sql_query("SELECT * FROM my_table", database="my_db")
 # Get Redshift connection (SQLAlchemy) from Glue and retrieving data from Redshift Spectrum
 engine = wr.catalog.get_engine("my-redshift-connection")
 df = wr.db.read_sql_query("SELECT * FROM external_schema.my_table", con=engine)
-
-# Creating QuickSight Data Source and Dataset to reflect our new table
-wr.quicksight.create_athena_data_source("athena-source", allowed_to_manage=["username"])
-wr.quicksight.create_athena_dataset(
-    name="my-dataset",
-    database="my_db",
-    table="my_table",
-    data_source_name="athena-source",
-    allowed_to_manage=["username"]
-)
 
 # Get MySQL connection (SQLAlchemy) from Glue Catalog and LOAD the data into MySQL
 engine = wr.catalog.get_engine("my-mysql-connection")
