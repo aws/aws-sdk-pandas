@@ -42,7 +42,7 @@ def _delete_objects(bucket: str, keys: List[str], client_s3: boto3.client, attem
             raise exceptions.ServiceApiError(errors)
         internal_errors.append(_unquote_plus(error["Key"]))
     if len(internal_errors) > 0:
-        if attempt > 5:  # Maximum of 5 attempts
+        if attempt > 5:  # Maximum of 5 attempts (Total of 15 seconds)
             raise exceptions.ServiceApiError(errors)
         time.sleep(attempt)  # Incremental delay (linear)
         _delete_objects(bucket=bucket, keys=internal_errors, client_s3=client_s3, attempt=(attempt + 1))
