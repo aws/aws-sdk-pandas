@@ -16,37 +16,13 @@ import pytz
 
 import awswrangler as wr
 
-from ._utils import extract_cloudformation_outputs, get_df_csv, path_generator
+from ._utils import get_df_csv
 
 API_CALL = botocore.client.BaseClient._make_api_call
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
-
-
-@pytest.fixture(scope="module")
-def cloudformation_outputs():
-    yield extract_cloudformation_outputs()
-
-
-@pytest.fixture(scope="module")
-def region(cloudformation_outputs):
-    yield cloudformation_outputs["Region"]
-
-
-@pytest.fixture(scope="module")
-def bucket(cloudformation_outputs):
-    if "BucketName" in cloudformation_outputs:
-        bucket = cloudformation_outputs["BucketName"]
-    else:
-        raise Exception("You must deploy/update the test infrastructure (CloudFormation)")
-    yield bucket
-
-
-@pytest.fixture(scope="function")
-def path(bucket):
-    yield from path_generator(bucket)
 
 
 def test_delete_internal_error(bucket):
@@ -223,10 +199,10 @@ def test_s3_empty_dfs():
         wr.s3.to_csv(df=df, path="")
 
 
-def test_absent_object(bucket):
-    path = f"s3://{bucket}/test_absent_object"
-    assert wr.s3.does_object_exist(path=path) is False
-    assert len(wr.s3.size_objects(path=path)) == 0
+def test_absent_object(path):
+    path_file = f"{path}test_absent_object"
+    assert wr.s3.does_object_exist(path=path_file) is False
+    assert len(wr.s3.size_objects(path=path_file)) == 0
     assert wr.s3.wait_objects_exist(paths=[]) is None
 
 
@@ -376,8 +352,7 @@ def test_copy_replacing_filename(bucket):
     wr.s3.delete_objects(path=path2)
 
 
-def test_parquet_uint64(bucket):
-    path = f"s3://{bucket}/test_parquet_uint64/"
+def test_parquet_uint64(path):
     wr.s3.delete_objects(path=path)
     df = pd.DataFrame(
         {
@@ -396,8 +371,6 @@ def test_parquet_uint64(bucket):
     paths = wr.s3.to_parquet(df=df, path=path, dataset=True, mode="overwrite", partition_cols=["c4"])["paths"]
     wr.s3.wait_objects_exist(paths=paths, use_threads=False)
     df = wr.s3.read_parquet(path=path, dataset=True)
-    print(df)
-    print(df.dtypes)
     assert len(df.index) == 3
     assert len(df.columns) == 5
     assert df.c0.max() == (2 ** 8) - 1
