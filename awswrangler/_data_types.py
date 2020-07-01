@@ -14,7 +14,7 @@ import sqlalchemy.dialects.postgresql  # type: ignore
 import sqlalchemy_redshift.dialect  # type: ignore
 from sqlalchemy.sql.visitors import VisitableType  # type: ignore
 
-from awswrangler import exceptions
+from awswrangler import _utils, exceptions
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -44,14 +44,14 @@ def athena2pyarrow(dtype: str) -> pa.DataType:  # pylint: disable=too-many-retur
         return pa.date32()
     if dtype in ("binary" or "varbinary"):
         return pa.binary()
-    if dtype.startswith("decimal"):
+    if dtype.startswith("decimal") is True:
         precision, scale = dtype.replace("decimal(", "").replace(")", "").split(sep=",")
         return pa.decimal128(precision=int(precision), scale=int(scale))
-    if dtype.startswith("array"):
-        return pa.large_list(athena2pyarrow(dtype=dtype[6:-1]))
-    if dtype.startswith("struct"):
+    if dtype.startswith("array") is True:
+        return pa.list_(value_type=athena2pyarrow(dtype=dtype[6:-1]), list_size=-1)
+    if dtype.startswith("struct") is True:
         return pa.struct([(f.split(":", 1)[0], athena2pyarrow(f.split(":", 1)[1])) for f in dtype[7:-1].split(",")])
-    if dtype.startswith("map"):  # pragma: no cover
+    if dtype.startswith("map") is True:  # pragma: no cover
         return pa.map_(athena2pyarrow(dtype[4:-1].split(",", 1)[0]), athena2pyarrow(dtype[4:-1].split(",", 1)[1]))
     raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")  # pragma: no cover
 
@@ -396,7 +396,7 @@ def pyarrow_schema_from_pandas(
     )
     for k, v in casts.items():
         if (k in df.columns) and (k not in ignore):
-            columns_types[k] = athena2pyarrow(v)
+            columns_types[k] = athena2pyarrow(dtype=v)
     columns_types = {k: v for k, v in columns_types.items() if v is not None}
     _logger.debug("columns_types: %s", columns_types)
     return pa.schema(fields=columns_types)
@@ -417,47 +417,67 @@ def athena_types_from_pyarrow_schema(
 
 def cast_pandas_with_athena_types(df: pd.DataFrame, dtype: Dict[str, str]) -> pd.DataFrame:
     """Cast columns in a Pandas DataFrame."""
+    mutable_ensured: bool = False
     for col, athena_type in dtype.items():
         if (
             (col in df.columns)
-            and (not athena_type.startswith("array"))
-            and (not athena_type.startswith("struct"))
-            and (not athena_type.startswith("map"))
+            and (athena_type.startswith("array") is False)
+            and (athena_type.startswith("struct") is False)
+            and (athena_type.startswith("map") is False)
         ):
-            pandas_type: str = athena2pandas(dtype=athena_type)
-            if pandas_type == "datetime64":
-                df[col] = pd.to_datetime(df[col])
-            elif pandas_type == "date":
-                df[col] = pd.to_datetime(df[col]).dt.date.replace(to_replace={pd.NaT: None})
-            elif pandas_type == "bytes":
-                df[col] = df[col].astype("string").str.encode(encoding="utf-8").replace(to_replace={pd.NA: None})
-            elif pandas_type == "decimal":
-                df[col] = (
-                    df[col]
-                    .astype("string")
-                    .apply(lambda x: Decimal(str(x)) if str(x) not in ("", "none", "None", " ", "<NA>") else None)
-                )
-            elif pandas_type == "string":
-                curr_type: str = str(df[col].dtypes)
-                if curr_type.lower().startswith("int") is True:
-                    df[col] = df[col].astype(str).astype("string")
-                elif curr_type.startswith("float") is True:
-                    df[col] = df[col].astype(str).astype("string")
-                elif curr_type in ("object", "category"):
-                    df[col] = df[col].astype(str).astype("string")
-                else:
-                    df[col] = df[col].astype("string")
-            else:
-                try:
-                    df[col] = df[col].astype(pandas_type)
-                except TypeError as ex:
-                    if "object cannot be converted to an IntegerDtype" not in str(ex):
-                        raise ex  # pragma: no cover
-                    df[col] = (
-                        df[col]
-                        .apply(lambda x: int(x) if str(x) not in ("", "none", "None", " ", "<NA>") else None)
-                        .astype(pandas_type)
-                    )
+            desired_type: str = athena2pandas(dtype=athena_type)
+            current_type: str = _normalize_pandas_dtype_name(dtype=str(df[col].dtypes))
+            if desired_type != current_type:  # Needs conversion
+                _logger.debug("current_type: %s -> desired_type: %s", current_type, desired_type)
+                if mutable_ensured is False:
+                    df = _utils.ensure_df_is_mutable(df=df)
+                    mutable_ensured = True
+                _cast_pandas_column(df=df, col=col, current_type=current_type, desired_type=desired_type)
+
+    return df
+
+
+def _normalize_pandas_dtype_name(dtype: str) -> str:
+    if dtype.startswith("datetime64") is True:
+        return "datetime64"
+    if dtype.startswith("decimal") is True:
+        return "decimal"  # pragma: no cover
+    return dtype
+
+
+def _cast_pandas_column(df: pd.DataFrame, col: str, current_type: str, desired_type: str) -> pd.DataFrame:
+    if desired_type == "datetime64":
+        df[col] = pd.to_datetime(df[col])
+    elif desired_type == "date":
+        df[col] = pd.to_datetime(df[col]).dt.date.replace(to_replace={pd.NaT: None})
+    elif desired_type == "bytes":
+        df[col] = df[col].astype("string").str.encode(encoding="utf-8").replace(to_replace={pd.NA: None})
+    elif desired_type == "decimal":
+        df[col] = (
+            df[col]
+            .astype("string")
+            .apply(lambda x: Decimal(str(x)) if str(x) not in ("", "none", "None", " ", "<NA>") else None)
+        )
+    elif desired_type == "string":
+        if current_type.lower().startswith("int") is True:
+            df[col] = df[col].astype(str).astype("string")
+        elif current_type.startswith("float") is True:
+            df[col] = df[col].astype(str).astype("string")
+        elif current_type in ("object", "category"):
+            df[col] = df[col].astype(str).astype("string")
+        else:
+            df[col] = df[col].astype("string")
+    else:
+        try:
+            df[col] = df[col].astype(desired_type)
+        except TypeError as ex:
+            if "object cannot be converted to an IntegerDtype" not in str(ex):
+                raise ex  # pragma: no cover
+            df[col] = (
+                df[col]
+                .apply(lambda x: int(x) if str(x) not in ("", "none", "None", " ", "<NA>") else None)
+                .astype(desired_type)
+            )
     return df
 
 
