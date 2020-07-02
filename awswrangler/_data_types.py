@@ -455,7 +455,7 @@ def _cast_pandas_column(df: pd.DataFrame, col: str, current_type: str, desired_t
     elif desired_type == "decimal":
         df[col] = (
             df[col]
-            .astype("string")
+            .astype("str")
             .apply(lambda x: Decimal(str(x)) if str(x) not in ("", "none", "None", " ", "<NA>") else None)
         )
     elif desired_type == "string":
