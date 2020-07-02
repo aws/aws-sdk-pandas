@@ -729,13 +729,23 @@ def test_catalog(path, glue_database, glue_table):
         compression="snappy",
     )
     assert wr.catalog.get_table_location(database=glue_database, table=glue_table) == path
-    partitions_values = wr.catalog.get_parquet_partitions(database=glue_database, table=glue_table)
+    # get_parquet_partitions
+    parquet_partitions_values = wr.catalog.get_parquet_partitions(database=glue_database, table=glue_table)
+    assert len(parquet_partitions_values) == 2
+    parquet_partitions_values = wr.catalog.get_parquet_partitions(
+        database=glue_database, table=glue_table, catalog_id=account_id, expression="y = 2021 AND m = 2"
+    )
+    assert len(parquet_partitions_values) == 1
+    assert len(set(parquet_partitions_values[f"{path}y=2021/m=2/"]) & {"2021", "2"}) == 2
+    # get_partitions
+    partitions_values = wr.catalog.get_partitions(database=glue_database, table=glue_table)
     assert len(partitions_values) == 2
-    partitions_values = wr.catalog.get_parquet_partitions(
+    partitions_values = wr.catalog.get_partitions(
         database=glue_database, table=glue_table, catalog_id=account_id, expression="y = 2021 AND m = 2"
     )
     assert len(partitions_values) == 1
     assert len(set(partitions_values[f"{path}y=2021/m=2/"]) & {"2021", "2"}) == 2
+
     dtypes = wr.catalog.get_table_types(database=glue_database, table=glue_table)
     assert dtypes["col0"] == "int"
     assert dtypes["col1"] == "double"
