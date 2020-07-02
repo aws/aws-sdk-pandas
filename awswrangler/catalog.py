@@ -1514,6 +1514,71 @@ def get_csv_partitions(
     )
 
 
+def get_partitions(
+    database: str,
+    table: str,
+    expression: Optional[str] = None,
+    catalog_id: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> Dict[str, List[str]]:
+    """Get all partitions from a Table in the AWS Glue Catalog.
+
+    Expression argument instructions:
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/glue.html#Glue.Client.get_partitions
+
+    Parameters
+    ----------
+    database : str
+        Database name.
+    table : str
+        Table name.
+    expression : str, optional
+        An expression that filters the partitions to be returned.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    Dict[str, List[str]]
+        partitions_values: Dictionary with keys as S3 path locations and values as a
+        list of partitions values as str (e.g. {'s3://bucket/prefix/y=2020/m=10/': ['2020', '10']}).
+
+    Examples
+    --------
+    Fetch all partitions
+
+    >>> import awswrangler as wr
+    >>> wr.catalog.get_partitions(
+    ...     database='default',
+    ...     table='my_table',
+    ... )
+    {
+        's3://bucket/prefix/y=2020/m=10/': ['2020', '10'],
+        's3://bucket/prefix/y=2020/m=11/': ['2020', '11'],
+        's3://bucket/prefix/y=2020/m=12/': ['2020', '12']
+    }
+
+    Filtering partitions
+
+    >>> import awswrangler as wr
+    >>> wr.catalog.get_partitions(
+    ...     database='default',
+    ...     table='my_table',
+    ...     expression='m=10'
+    ... )
+    {
+        's3://bucket/prefix/y=2020/m=10/': ['2020', '10']
+    }
+
+    """
+    return _get_partitions(
+        database=database, table=table, expression=expression, catalog_id=catalog_id, boto3_session=boto3_session
+    )
+
+
 def _get_partitions(
     database: str,
     table: str,
