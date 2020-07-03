@@ -1,12 +1,15 @@
-include README.md LICENSE requirements.txt NOTICE THIRD_PARTY
+include README.md
+include LICENSE.txt
+include NOTICE.txt
+include THIRD_PARTY.txt
+include requirements.txt
 include awswrangler/py.typed
-exclude .*
-exclude *.egg-info
-exclude data_samples*
-exclude dist*
-exclude docs*
-exclude dev*
-exclude htmlcov*
-exclude testing*
-exclude building*
-exclude tutorials*
+
+global-exclude *.so
+global-exclude *.pyc
+global-exclude *~
+global-exclude \#*
+global-exclude .git*
+global-exclude .coverage*
+global-exclude .DS_Store
+global-exclude __pycache__

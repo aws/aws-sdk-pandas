@@ -1,6 +1,6 @@
 import os
 from io import open
-from setuptools import setup, find_packages
+from setuptools import setup
 
 here = os.path.abspath(os.path.dirname(__file__))
 about = {}
@@ -20,8 +20,13 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     license=about["__license__"],
-    packages=find_packages(include=["awswrangler", "awswrangler.*"], exclude=["tests"]),
+    packages=["awswrangler"],
     include_package_data=True,
     python_requires=">=3.6, <3.9",
-    install_requires=[open("requirements.txt").read().strip().split("\n")]
+    install_requires=[open("requirements.txt").read().strip().split("\n")],
+    classifiers=[
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+    ]
 )
