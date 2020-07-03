@@ -417,7 +417,7 @@ def athena_types_from_pyarrow_schema(
 
 def cast_pandas_with_athena_types(df: pd.DataFrame, dtype: Dict[str, str]) -> pd.DataFrame:
     """Cast columns in a Pandas DataFrame."""
-    mutable_ensured: bool = False
+    mutability_ensured: bool = False
     for col, athena_type in dtype.items():
         if (
             (col in df.columns)
@@ -429,9 +429,9 @@ def cast_pandas_with_athena_types(df: pd.DataFrame, dtype: Dict[str, str]) -> pd
             current_type: str = _normalize_pandas_dtype_name(dtype=str(df[col].dtypes))
             if desired_type != current_type:  # Needs conversion
                 _logger.debug("current_type: %s -> desired_type: %s", current_type, desired_type)
-                if mutable_ensured is False:
+                if mutability_ensured is False:
                     df = _utils.ensure_df_is_mutable(df=df)
-                    mutable_ensured = True
+                    mutability_ensured = True
                 _cast_pandas_column(df=df, col=col, current_type=current_type, desired_type=desired_type)
 
     return df
@@ -453,11 +453,10 @@ def _cast_pandas_column(df: pd.DataFrame, col: str, current_type: str, desired_t
     elif desired_type == "bytes":
         df[col] = df[col].astype("string").str.encode(encoding="utf-8").replace(to_replace={pd.NA: None})
     elif desired_type == "decimal":
-        df[col] = (
-            df[col]
-            .astype("str")
-            .apply(lambda x: Decimal(str(x)) if str(x) not in ("", "none", "None", " ", "<NA>") else None)
-        )
+        # First cast to string
+        df = _cast_pandas_column(df=df, col=col, current_type=current_type, desired_type="string")
+        # Then cast to decimal
+        df[col] = df[col].apply(lambda x: Decimal(str(x)) if str(x) not in ("", "none", "None", " ", "<NA>") else None)
     elif desired_type == "string":
         if current_type.lower().startswith("int") is True:
             df[col] = df[col].astype(str).astype("string")

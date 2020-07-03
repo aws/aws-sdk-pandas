@@ -1,6 +1,7 @@
 import logging
 import random
 import string
+from decimal import Decimal
 
 import boto3
 import pandas as pd
@@ -114,8 +115,7 @@ def test_postgresql_param():
     assert df["col0"].iloc[0] == 1
 
 
-def test_redshift_copy_unload(bucket, databases_parameters):
-    path = f"s3://{bucket}/test_redshift_copy/"
+def test_redshift_copy_unload(path, databases_parameters):
     df = get_df().drop(["iint8", "binary"], axis=1, inplace=False)
     engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
     wr.db.copy_to_redshift(
@@ -258,10 +258,9 @@ def test_redshift_copy_upsert(bucket, databases_parameters):
         (None, None, wr.exceptions.InvalidRedshiftSortstyle, "foo", ["id"]),
     ],
 )
-def test_redshift_exceptions(bucket, databases_parameters, diststyle, distkey, sortstyle, sortkey, exc):
+def test_redshift_exceptions(path, databases_parameters, diststyle, distkey, sortstyle, sortkey, exc):
     df = pd.DataFrame({"id": [1], "name": "joe"})
     engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
-    path = f"s3://{bucket}/test_redshift_exceptions_{random.randint(0, 1_000_000)}/"
     with pytest.raises(exc):
         wr.db.copy_to_redshift(
             df=df,
@@ -280,9 +279,8 @@ def test_redshift_exceptions(bucket, databases_parameters, diststyle, distkey, s
     wr.s3.delete_objects(path=path)
 
 
-def test_redshift_spectrum(bucket, glue_database, redshift_external_schema):
+def test_redshift_spectrum(path, glue_database, redshift_external_schema):
     df = pd.DataFrame({"id": [1, 2, 3, 4, 5], "col_str": ["foo", None, "bar", None, "xoo"], "par_int": [0, 1, 0, 1, 1]})
-    path = f"s3://{bucket}/test_redshift_spectrum/"
     paths = wr.s3.to_parquet(
         df=df,
         path=path,
@@ -305,8 +303,7 @@ def test_redshift_spectrum(bucket, glue_database, redshift_external_schema):
     assert wr.catalog.delete_table_if_exists(database=glue_database, table="test_redshift_spectrum") is True
 
 
-def test_redshift_category(bucket, databases_parameters):
-    path = f"s3://{bucket}/test_redshift_category/"
+def test_redshift_category(path, databases_parameters):
     df = get_df_category().drop(["binary"], axis=1, inplace=False)
     engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
     wr.db.copy_to_redshift(
@@ -341,10 +338,9 @@ def test_redshift_category(bucket, databases_parameters):
     wr.s3.delete_objects(path=path)
 
 
-def test_redshift_unload_extras(bucket, databases_parameters, kms_key_id):
+def test_redshift_unload_extras(bucket, path, databases_parameters, kms_key_id):
     table = "test_redshift_unload_extras"
     schema = databases_parameters["redshift"]["schema"]
-    path = f"s3://{bucket}/{table}/"
     wr.s3.delete_objects(path=path)
     engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
     df = pd.DataFrame({"id": [1, 2], "name": ["foo", "boo"]})
@@ -529,3 +525,52 @@ def test_redshift_copy_unload_long_string(path, databases_parameters):
     )
     assert len(df2.index) == 2
     assert len(df2.columns) == 2
+
+
+def test_spectrum_decimal_cast(path, path2, glue_table, glue_database, redshift_external_schema, databases_parameters):
+    df = pd.DataFrame(
+        {"c0": [1, 2], "c1": [1, None], "c2": [2.22222, None], "c3": ["3.33333", None], "c4": [None, None]}
+    )
+    paths = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        database=glue_database,
+        table=glue_table,
+        dataset=True,
+        dtype={"c1": "decimal(11,5)", "c2": "decimal(11,5)", "c3": "decimal(11,5)", "c4": "decimal(11,5)"},
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+
+    # Athena
+    df2 = wr.athena.read_sql_table(table=glue_table, database=glue_database)
+    assert df2.shape == (2, 5)
+    df2 = df2.drop(df2[df2.c0 == 2].index)
+    assert df2.c1[0] == Decimal((0, (1, 0, 0, 0, 0, 0), -5))
+    assert df2.c2[0] == Decimal((0, (2, 2, 2, 2, 2, 2), -5))
+    assert df2.c3[0] == Decimal((0, (3, 3, 3, 3, 3, 3), -5))
+    assert df2.c4[0] is None
+
+    # Redshift Spectrum
+    engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
+    df2 = wr.db.read_sql_table(table=glue_table, schema=redshift_external_schema, con=engine)
+    assert df2.shape == (2, 5)
+    df2 = df2.drop(df2[df2.c0 == 2].index)
+    assert df2.c1[0] == Decimal((0, (1, 0, 0, 0, 0, 0), -5))
+    assert df2.c2[0] == Decimal((0, (2, 2, 2, 2, 2, 2), -5))
+    assert df2.c3[0] == Decimal((0, (3, 3, 3, 3, 3, 3), -5))
+    assert df2.c4[0] is None
+
+    # Redshift Spectrum Unload
+    engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
+    df2 = wr.db.unload_redshift(
+        sql=f"SELECT * FROM {redshift_external_schema}.{glue_table}",
+        con=engine,
+        iam_role=databases_parameters["redshift"]["role"],
+        path=path2,
+    )
+    assert df2.shape == (2, 5)
+    df2 = df2.drop(df2[df2.c0 == 2].index)
+    assert df2.c1[0] == Decimal((0, (1, 0, 0, 0, 0, 0), -5))
+    assert df2.c2[0] == Decimal((0, (2, 2, 2, 2, 2, 2), -5))
+    assert df2.c3[0] == Decimal((0, (3, 3, 3, 3, 3, 3), -5))
+    assert df2.c4[0] is None
