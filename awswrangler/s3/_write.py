@@ -238,6 +238,17 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
 
     Note
     ----
+    If `dataset=True`, `pandas_kwargs` will be ignored due
+    restrictive quoting, date_format, escapechar, encoding, etc required by Athena/Glue Catalog.
+
+    Note
+    ----
+    By now Pandas does not support in-memory CSV compression.
+    https://github.com/pandas-dev/pandas/issues/22555
+    So the `compression` will not be supported on Wrangler too.
+
+    Note
+    ----
     On `append` mode, the `parameters` will be upsert on an existing table.
 
     Note
