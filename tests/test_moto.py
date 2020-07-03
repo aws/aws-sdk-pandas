@@ -1,3 +1,4 @@
+import os
 from unittest import mock
 from unittest.mock import ANY
 
@@ -41,6 +42,15 @@ def moto_s3():
         s3 = boto3.resource("s3")
         s3.create_bucket(Bucket="bucket")
         yield s3
+
+
+@pytest.fixture(scope="module")
+def moto_glue():
+    with moto.mock_glue():
+        region_name = "us-east-1"
+        os.environ["AWS_DEFAULT_REGION"] = region_name
+        glue = boto3.client("glue", region_name=region_name)
+        yield glue
 
 
 def get_content_md5(desc: dict):
@@ -393,3 +403,24 @@ def test_emr(moto_s3, moto_emr, moto_sts, moto_subnet):
     wr.emr.submit_steps(cluster_id=cluster_id, steps=steps, boto3_session=session)
     wr.emr.terminate_cluster(cluster_id=cluster_id, boto3_session=session)
     wr.s3.delete_objects("s3://bucket/emr-logs/")
+
+
+def test_glue_get_partition(moto_glue):
+    database_name = "mydb"
+    table_name = "mytable"
+    values = {"s3://bucket/prefix/dt=2020-01-01": ["2020-01-01"]}
+
+    wr.catalog.create_database(name=database_name)
+    wr.catalog.create_parquet_table(
+        database=database_name,
+        table=table_name,
+        path="s3://bucket/prefix/",
+        columns_types={"col0": "bigint", "col1": "double"},
+        partitions_types={"dt": "date"},
+    )
+    wr.catalog.add_parquet_partitions(database=database_name, table=table_name, partitions_values=values)
+
+    partition_value = wr.catalog.get_partitions(database_name, table_name)
+    assert partition_value == values
+    parquet_partition_value = wr.catalog.get_parquet_partitions(database_name, table_name)
+    assert parquet_partition_value == values
