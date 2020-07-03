@@ -1,4 +1,4 @@
-include README.md LICENSE requirements.txt
+include README.md LICENSE requirements.txt NOTICE THIRD_PARTY
 include awswrangler/py.typed
 exclude .*
 exclude *.egg-info
