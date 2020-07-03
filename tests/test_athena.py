@@ -1,7 +1,5 @@
 import datetime
 import logging
-import math
-from unittest.mock import patch
 
 import boto3
 import pandas as pd
@@ -10,448 +8,20 @@ import pytest
 import awswrangler as wr
 
 from ._utils import (
-    dt,
     ensure_data_types,
     ensure_data_types_category,
     ensure_data_types_csv,
     get_df,
-    get_df_cast,
     get_df_category,
     get_df_csv,
     get_df_list,
     get_query_long,
     get_time_str_with_random_suffix,
-    ts,
 )
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
-
-
-def test_to_parquet_modes(glue_database, glue_table, path):
-
-    # Round 1 - Warm up
-    df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
-    paths = wr.s3.to_parquet(
-        df=df,
-        path=path,
-        dataset=True,
-        mode="overwrite",
-        database=glue_database,
-        table=glue_table,
-        description="c0",
-        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
-        columns_comments={"c0": "0"},
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
-    df2 = wr.athena.read_sql_table(glue_table, glue_database)
-    assert df.shape == df2.shape
-    assert df.c0.sum() == df2.c0.sum()
-    parameters = wr.catalog.get_table_parameters(glue_database, glue_table)
-    assert len(parameters) >= 5
-    assert parameters["num_cols"] == str(len(df2.columns))
-    assert parameters["num_rows"] == str(len(df2.index))
-    assert wr.catalog.get_table_description(glue_database, glue_table) == "c0"
-    comments = wr.catalog.get_columns_comments(glue_database, glue_table)
-    assert len(comments) == len(df.columns)
-    assert comments["c0"] == "0"
-
-    # Round 2 - Overwrite
-    df = pd.DataFrame({"c1": [None, 1, None]}, dtype="Int16")
-    paths = wr.s3.to_parquet(
-        df=df,
-        path=path,
-        dataset=True,
-        mode="overwrite",
-        database=glue_database,
-        table=glue_table,
-        description="c1",
-        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
-        columns_comments={"c1": "1"},
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
-    df2 = wr.athena.read_sql_table(glue_table, glue_database)
-    assert df.shape == df2.shape
-    assert df.c1.sum() == df2.c1.sum()
-    parameters = wr.catalog.get_table_parameters(glue_database, glue_table)
-    assert len(parameters) >= 5
-    assert parameters["num_cols"] == str(len(df2.columns))
-    assert parameters["num_rows"] == str(len(df2.index))
-    assert wr.catalog.get_table_description(glue_database, glue_table) == "c1"
-    comments = wr.catalog.get_columns_comments(glue_database, glue_table)
-    assert len(comments) == len(df.columns)
-    assert comments["c1"] == "1"
-
-    # Round 3 - Append
-    df = pd.DataFrame({"c1": [None, 2, None]}, dtype="Int8")
-    paths = wr.s3.to_parquet(
-        df=df,
-        path=path,
-        dataset=True,
-        mode="append",
-        database=glue_database,
-        table=glue_table,
-        description="c1",
-        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index) * 2)},
-        columns_comments={"c1": "1"},
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
-    df2 = wr.athena.read_sql_table(glue_table, glue_database)
-    assert len(df.columns) == len(df2.columns)
-    assert len(df.index) * 2 == len(df2.index)
-    assert df.c1.sum() + 1 == df2.c1.sum()
-    parameters = wr.catalog.get_table_parameters(glue_database, glue_table)
-    assert len(parameters) >= 5
-    assert parameters["num_cols"] == str(len(df2.columns))
-    assert parameters["num_rows"] == str(len(df2.index))
-    assert wr.catalog.get_table_description(glue_database, glue_table) == "c1"
-    comments = wr.catalog.get_columns_comments(glue_database, glue_table)
-    assert len(comments) == len(df.columns)
-    assert comments["c1"] == "1"
-
-    # Round 4 - Append + New Column
-    df = pd.DataFrame({"c2": ["a", None, "b"], "c1": [None, None, None]})
-    paths = wr.s3.to_parquet(
-        df=df,
-        path=path,
-        dataset=True,
-        mode="append",
-        database=glue_database,
-        table=glue_table,
-        description="c1+c2",
-        parameters={"num_cols": "2", "num_rows": "9"},
-        columns_comments={"c1": "1", "c2": "2"},
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
-    df2 = wr.athena.read_sql_table(glue_table, glue_database)
-    assert len(df2.columns) == 2
-    assert len(df2.index) == 9
-    assert df2.c1.sum() == 3
-    parameters = wr.catalog.get_table_parameters(glue_database, glue_table)
-    assert len(parameters) >= 5
-    assert parameters["num_cols"] == "2"
-    assert parameters["num_rows"] == "9"
-    assert wr.catalog.get_table_description(glue_database, glue_table) == "c1+c2"
-    comments = wr.catalog.get_columns_comments(glue_database, glue_table)
-    assert len(comments) == len(df.columns)
-    assert comments["c1"] == "1"
-    assert comments["c2"] == "2"
-
-    # Round 5 - Append + New Column + Wrong Types
-    df = pd.DataFrame({"c2": [1], "c3": [True], "c1": ["1"]})
-    paths = wr.s3.to_parquet(
-        df=df,
-        path=path,
-        dataset=True,
-        mode="append",
-        database=glue_database,
-        table=glue_table,
-        description="c1+c2+c3",
-        parameters={"num_cols": "3", "num_rows": "10"},
-        columns_comments={"c1": "1!", "c2": "2!", "c3": "3"},
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
-    df2 = wr.athena.read_sql_table(glue_table, glue_database)
-    assert len(df2.columns) == 3
-    assert len(df2.index) == 10
-    assert df2.c1.sum() == 4
-    parameters = wr.catalog.get_table_parameters(glue_database, glue_table)
-    assert len(parameters) >= 5
-    assert parameters["num_cols"] == "3"
-    assert parameters["num_rows"] == "10"
-    assert wr.catalog.get_table_description(glue_database, glue_table) == "c1+c2+c3"
-    comments = wr.catalog.get_columns_comments(glue_database, glue_table)
-    assert len(comments) == len(df.columns)
-    assert comments["c1"] == "1!"
-    assert comments["c2"] == "2!"
-    assert comments["c3"] == "3"
-
-    # Round 6 - Overwrite Partitioned
-    df = pd.DataFrame({"c0": ["foo", None], "c1": [0, 1]})
-    paths = wr.s3.to_parquet(
-        df=df,
-        path=path,
-        dataset=True,
-        mode="overwrite",
-        database=glue_database,
-        table=glue_table,
-        partition_cols=["c1"],
-        description="c0+c1",
-        parameters={"num_cols": "2", "num_rows": "2"},
-        columns_comments={"c0": "zero", "c1": "one"},
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
-    df2 = wr.athena.read_sql_table(glue_table, glue_database)
-    assert df.shape == df2.shape
-    assert df.c1.sum() == df2.c1.sum()
-    parameters = wr.catalog.get_table_parameters(glue_database, glue_table)
-    assert len(parameters) >= 5
-    assert parameters["num_cols"] == "2"
-    assert parameters["num_rows"] == "2"
-    assert wr.catalog.get_table_description(glue_database, glue_table) == "c0+c1"
-    comments = wr.catalog.get_columns_comments(glue_database, glue_table)
-    assert len(comments) == len(df.columns)
-    assert comments["c0"] == "zero"
-    assert comments["c1"] == "one"
-
-    # Round 7 - Overwrite Partitions
-    df = pd.DataFrame({"c0": [None, None], "c1": [0, 2]})
-    paths = wr.s3.to_parquet(
-        df=df,
-        path=path,
-        dataset=True,
-        mode="overwrite_partitions",
-        database=glue_database,
-        table=glue_table,
-        partition_cols=["c1"],
-        description="c0+c1",
-        parameters={"num_cols": "2", "num_rows": "3"},
-        columns_comments={"c0": "zero", "c1": "one"},
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
-    df2 = wr.athena.read_sql_table(glue_table, glue_database)
-    assert len(df2.columns) == 2
-    assert len(df2.index) == 3
-    assert df2.c1.sum() == 3
-    parameters = wr.catalog.get_table_parameters(glue_database, glue_table)
-    assert len(parameters) >= 5
-    assert parameters["num_cols"] == "2"
-    assert parameters["num_rows"] == "3"
-    assert wr.catalog.get_table_description(glue_database, glue_table) == "c0+c1"
-    comments = wr.catalog.get_columns_comments(glue_database, glue_table)
-    assert len(comments) == len(df.columns)
-    assert comments["c0"] == "zero"
-    assert comments["c1"] == "one"
-
-    # Round 8 - Overwrite Partitions + New Column + Wrong Type
-    df = pd.DataFrame({"c0": [1, 2], "c1": ["1", "3"], "c2": [True, False]})
-    paths = wr.s3.to_parquet(
-        df=df,
-        path=path,
-        dataset=True,
-        mode="overwrite_partitions",
-        database=glue_database,
-        table=glue_table,
-        partition_cols=["c1"],
-        description="c0+c1+c2",
-        parameters={"num_cols": "3", "num_rows": "4"},
-        columns_comments={"c0": "zero", "c1": "one", "c2": "two"},
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
-    df2 = wr.athena.read_sql_table(glue_table, glue_database)
-    assert len(df2.columns) == 3
-    assert len(df2.index) == 4
-    assert df2.c1.sum() == 6
-    parameters = wr.catalog.get_table_parameters(glue_database, glue_table)
-    assert len(parameters) >= 5
-    assert parameters["num_cols"] == "3"
-    assert parameters["num_rows"] == "4"
-    assert wr.catalog.get_table_description(glue_database, glue_table) == "c0+c1+c2"
-    comments = wr.catalog.get_columns_comments(glue_database, glue_table)
-    assert len(comments) == len(df.columns)
-    assert comments["c0"] == "zero"
-    assert comments["c1"] == "one"
-    assert comments["c2"] == "two"
-
-
-def test_store_parquet_metadata_modes(glue_database, glue_table, path):
-
-    # Round 1 - Warm up
-    df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
-    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, mode="overwrite")["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
-    wr.s3.store_parquet_metadata(
-        path=path,
-        dataset=True,
-        mode="overwrite",
-        database=glue_database,
-        table=glue_table,
-        description="c0",
-        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
-        columns_comments={"c0": "0"},
-    )
-    df2 = wr.athena.read_sql_table(glue_table, glue_database)
-    assert df.shape == df2.shape
-    assert df.c0.sum() == df2.c0.sum()
-    parameters = wr.catalog.get_table_parameters(glue_database, glue_table)
-    assert len(parameters) >= 5
-    assert parameters["num_cols"] == str(len(df2.columns))
-    assert parameters["num_rows"] == str(len(df2.index))
-    assert wr.catalog.get_table_description(glue_database, glue_table) == "c0"
-    comments = wr.catalog.get_columns_comments(glue_database, glue_table)
-    assert len(comments) == len(df.columns)
-    assert comments["c0"] == "0"
-
-    # Round 2 - Overwrite
-    df = pd.DataFrame({"c1": [None, 1, None]}, dtype="Int16")
-    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, mode="overwrite")["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
-    wr.s3.store_parquet_metadata(
-        path=path,
-        dataset=True,
-        mode="overwrite",
-        database=glue_database,
-        table=glue_table,
-        description="c1",
-        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
-        columns_comments={"c1": "1"},
-    )
-    df2 = wr.athena.read_sql_table(glue_table, glue_database)
-    assert df.shape == df2.shape
-    assert df.c1.sum() == df2.c1.sum()
-    parameters = wr.catalog.get_table_parameters(glue_database, glue_table)
-    assert len(parameters) >= 5
-    assert parameters["num_cols"] == str(len(df2.columns))
-    assert parameters["num_rows"] == str(len(df2.index))
-    assert wr.catalog.get_table_description(glue_database, glue_table) == "c1"
-    comments = wr.catalog.get_columns_comments(glue_database, glue_table)
-    assert len(comments) == len(df.columns)
-    assert comments["c1"] == "1"
-
-    # Round 3 - Append
-    df = pd.DataFrame({"c1": [None, 2, None]}, dtype="Int16")
-    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, mode="append")["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
-    wr.s3.store_parquet_metadata(
-        path=path,
-        dataset=True,
-        mode="append",
-        database=glue_database,
-        table=glue_table,
-        description="c1",
-        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index) * 2)},
-        columns_comments={"c1": "1"},
-    )
-    df2 = wr.athena.read_sql_table(glue_table, glue_database)
-    assert len(df.columns) == len(df2.columns)
-    assert len(df.index) * 2 == len(df2.index)
-    assert df.c1.sum() + 1 == df2.c1.sum()
-    parameters = wr.catalog.get_table_parameters(glue_database, glue_table)
-    assert len(parameters) >= 5
-    assert parameters["num_cols"] == str(len(df2.columns))
-    assert parameters["num_rows"] == str(len(df2.index))
-    assert wr.catalog.get_table_description(glue_database, glue_table) == "c1"
-    comments = wr.catalog.get_columns_comments(glue_database, glue_table)
-    assert len(comments) == len(df.columns)
-    assert comments["c1"] == "1"
-
-    # Round 4 - Append + New Column
-    df = pd.DataFrame({"c2": ["a", None, "b"], "c1": [None, 1, None]})
-    df["c1"] = df["c1"].astype("Int16")
-    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, mode="append")["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
-    wr.s3.store_parquet_metadata(
-        path=path,
-        dataset=True,
-        mode="append",
-        database=glue_database,
-        table=glue_table,
-        description="c1+c2",
-        parameters={"num_cols": "2", "num_rows": "9"},
-        columns_comments={"c1": "1", "c2": "2"},
-    )
-    df2 = wr.athena.read_sql_table(glue_table, glue_database)
-    assert len(df2.columns) == 2
-    assert len(df2.index) == 9
-    assert df2.c1.sum() == 4
-    parameters = wr.catalog.get_table_parameters(glue_database, glue_table)
-    assert len(parameters) >= 5
-    assert parameters["num_cols"] == "2"
-    assert parameters["num_rows"] == "9"
-    assert wr.catalog.get_table_description(glue_database, glue_table) == "c1+c2"
-    comments = wr.catalog.get_columns_comments(glue_database, glue_table)
-    assert len(comments) == len(df.columns)
-    assert comments["c1"] == "1"
-    assert comments["c2"] == "2"
-
-    # Round 5 - Overwrite Partitioned
-    df = pd.DataFrame({"c0": ["foo", None], "c1": [0, 1]})
-    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, mode="overwrite", partition_cols=["c1"])["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
-    wr.s3.store_parquet_metadata(
-        path=path,
-        dataset=True,
-        mode="overwrite",
-        database=glue_database,
-        table=glue_table,
-        description="c0+c1",
-        parameters={"num_cols": "2", "num_rows": "2"},
-        columns_comments={"c0": "zero", "c1": "one"},
-    )
-    df2 = wr.athena.read_sql_table(glue_table, glue_database)
-    assert df.shape == df2.shape
-    assert df.c1.sum() == df2.c1.astype(int).sum()
-    parameters = wr.catalog.get_table_parameters(glue_database, glue_table)
-    assert len(parameters) >= 5
-    assert parameters["num_cols"] == "2"
-    assert parameters["num_rows"] == "2"
-    assert wr.catalog.get_table_description(glue_database, glue_table) == "c0+c1"
-    comments = wr.catalog.get_columns_comments(glue_database, glue_table)
-    assert len(comments) == len(df.columns)
-    assert comments["c0"] == "zero"
-    assert comments["c1"] == "one"
-
-    # Round 6 - Overwrite Partitions
-    df = pd.DataFrame({"c0": [None, "boo"], "c1": [0, 2]})
-    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, mode="overwrite_partitions", partition_cols=["c1"])[
-        "paths"
-    ]
-    wr.s3.wait_objects_exist(paths=paths)
-    wr.s3.store_parquet_metadata(
-        path=path,
-        dataset=True,
-        mode="append",
-        database=glue_database,
-        table=glue_table,
-        description="c0+c1",
-        parameters={"num_cols": "2", "num_rows": "3"},
-        columns_comments={"c0": "zero", "c1": "one"},
-    )
-    df2 = wr.athena.read_sql_table(glue_table, glue_database)
-    assert len(df2.columns) == 2
-    assert len(df2.index) == 3
-    assert df2.c1.astype(int).sum() == 3
-    parameters = wr.catalog.get_table_parameters(glue_database, glue_table)
-    assert len(parameters) >= 5
-    assert parameters["num_cols"] == "2"
-    assert parameters["num_rows"] == "3"
-    assert wr.catalog.get_table_description(glue_database, glue_table) == "c0+c1"
-    comments = wr.catalog.get_columns_comments(glue_database, glue_table)
-    assert len(comments) == len(df.columns)
-    assert comments["c0"] == "zero"
-    assert comments["c1"] == "one"
-
-    # Round 7 - Overwrite Partitions + New Column
-    df = pd.DataFrame({"c0": ["bar", None], "c1": [1, 3], "c2": [True, False]})
-    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, mode="overwrite_partitions", partition_cols=["c1"])[
-        "paths"
-    ]
-    wr.s3.wait_objects_exist(paths=paths)
-    wr.s3.store_parquet_metadata(
-        path=path,
-        dataset=True,
-        mode="append",
-        database=glue_database,
-        table=glue_table,
-        description="c0+c1+c2",
-        parameters={"num_cols": "3", "num_rows": "4"},
-        columns_comments={"c0": "zero", "c1": "one", "c2": "two"},
-    )
-    df2 = wr.athena.read_sql_table(glue_table, glue_database)
-    assert len(df2.columns) == 3
-    assert len(df2.index) == 4
-    assert df2.c1.astype(int).sum() == 6
-    parameters = wr.catalog.get_table_parameters(glue_database, glue_table)
-    assert len(parameters) >= 5
-    assert parameters["num_cols"] == "3"
-    assert parameters["num_rows"] == "4"
-    assert wr.catalog.get_table_description(glue_database, glue_table) == "c0+c1+c2"
-    comments = wr.catalog.get_columns_comments(glue_database, glue_table)
-    assert len(comments) == len(df.columns)
-    assert comments["c0"] == "zero"
-    assert comments["c1"] == "one"
-    assert comments["c2"] == "two"
 
 
 def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database, kms_key):
@@ -566,130 +136,6 @@ def test_athena(path, glue_database, kms_key, workgroup0, workgroup1):
     ensure_data_types(df=df)
     wr.athena.repair_table(table="__test_athena", database=glue_database)
     wr.catalog.delete_table_if_exists(database=glue_database, table="__test_athena")
-
-
-def test_parquet_catalog(bucket, glue_database):
-    with pytest.raises(wr.exceptions.UndetectedType):
-        wr.s3.to_parquet(
-            df=pd.DataFrame({"A": [None]}),
-            path=f"s3://{bucket}/test_parquet_catalog",
-            dataset=True,
-            database=glue_database,
-            table="test_parquet_catalog",
-        )
-    df = get_df_list()
-    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.s3.to_parquet(
-            df=df,
-            path=f"s3://{bucket}/test_parquet_catalog",
-            use_threads=True,
-            dataset=False,
-            mode="overwrite",
-            database=glue_database,
-            table="test_parquet_catalog",
-        )
-    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.s3.to_parquet(
-            df=df,
-            path=f"s3://{bucket}/test_parquet_catalog",
-            use_threads=True,
-            dataset=False,
-            table="test_parquet_catalog",
-        )
-    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.s3.to_parquet(
-            df=df,
-            path=f"s3://{bucket}/test_parquet_catalog",
-            use_threads=True,
-            dataset=True,
-            mode="overwrite",
-            database=glue_database,
-        )
-    wr.s3.to_parquet(
-        df=df,
-        path=f"s3://{bucket}/test_parquet_catalog",
-        use_threads=True,
-        dataset=True,
-        mode="overwrite",
-        database=glue_database,
-        table="test_parquet_catalog",
-    )
-    wr.s3.to_parquet(
-        df=df,
-        path=f"s3://{bucket}/test_parquet_catalog2",
-        index=True,
-        use_threads=True,
-        dataset=True,
-        mode="overwrite",
-        database=glue_database,
-        table="test_parquet_catalog2",
-        partition_cols=["iint8", "iint16"],
-    )
-    columns_types, partitions_types = wr.s3.read_parquet_metadata(
-        path=f"s3://{bucket}/test_parquet_catalog2", dataset=True
-    )
-    assert len(columns_types) == 18
-    assert len(partitions_types) == 2
-    columns_types, partitions_types, partitions_values = wr.s3.store_parquet_metadata(
-        path=f"s3://{bucket}/test_parquet_catalog2", database=glue_database, table="test_parquet_catalog2", dataset=True
-    )
-    assert len(columns_types) == 18
-    assert len(partitions_types) == 2
-    assert len(partitions_values) == 2
-    wr.s3.delete_objects(path=f"s3://{bucket}/test_parquet_catalog/")
-    wr.s3.delete_objects(path=f"s3://{bucket}/test_parquet_catalog2/")
-    assert wr.catalog.delete_table_if_exists(database=glue_database, table="test_parquet_catalog") is True
-    assert wr.catalog.delete_table_if_exists(database=glue_database, table="test_parquet_catalog2") is True
-
-
-def test_parquet_catalog_duplicated(path, glue_table, glue_database):
-    df = pd.DataFrame({"A": [1], "a": [1]})
-    wr.s3.to_parquet(
-        df=df, path=path, index=False, dataset=True, mode="overwrite", database=glue_database, table=glue_table
-    )
-    df = wr.s3.read_parquet(path=path)
-    assert df.shape == (1, 1)
-
-
-def test_parquet_catalog_casting(path, glue_database):
-    paths = wr.s3.to_parquet(
-        df=get_df_cast(),
-        path=path,
-        index=False,
-        dataset=True,
-        mode="overwrite",
-        database=glue_database,
-        table="__test_parquet_catalog_casting",
-        dtype={
-            "iint8": "tinyint",
-            "iint16": "smallint",
-            "iint32": "int",
-            "iint64": "bigint",
-            "float": "float",
-            "double": "double",
-            "decimal": "decimal(3,2)",
-            "string": "string",
-            "date": "date",
-            "timestamp": "timestamp",
-            "bool": "boolean",
-            "binary": "binary",
-            "category": "double",
-            "par0": "bigint",
-            "par1": "string",
-        },
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
-    df = wr.s3.read_parquet(path=path)
-    assert df.shape == (3, 16)
-    ensure_data_types(df=df, has_list=False)
-    df = wr.athena.read_sql_table(table="__test_parquet_catalog_casting", database=glue_database, ctas_approach=True)
-    assert df.shape == (3, 16)
-    ensure_data_types(df=df, has_list=False)
-    df = wr.athena.read_sql_table(table="__test_parquet_catalog_casting", database=glue_database, ctas_approach=False)
-    assert df.shape == (3, 16)
-    ensure_data_types(df=df, has_list=False)
-    wr.s3.delete_objects(path=path)
-    assert wr.catalog.delete_table_if_exists(database=glue_database, table="__test_parquet_catalog_casting") is True
 
 
 def test_catalog(path, glue_database, glue_table):
@@ -916,31 +362,30 @@ def test_athena_time_zone(glue_database):
     assert df["value"][0].year == datetime.datetime.utcnow().year
 
 
-def test_category(bucket, glue_database):
+def test_category(path, glue_table, glue_database):
     df = get_df_category()
-    path = f"s3://{bucket}/test_category/"
     paths = wr.s3.to_parquet(
         df=df,
         path=path,
         dataset=True,
         database=glue_database,
-        table="test_category",
+        table=glue_table,
         mode="overwrite",
         partition_cols=["par0", "par1"],
     )["paths"]
     wr.s3.wait_objects_exist(paths=paths, use_threads=False)
     df2 = wr.s3.read_parquet(path=path, dataset=True, categories=[c for c in df.columns if c not in ["par0", "par1"]])
     ensure_data_types_category(df2)
-    df2 = wr.athena.read_sql_query("SELECT * FROM test_category", database=glue_database, categories=list(df.columns))
+    df2 = wr.athena.read_sql_query(f"SELECT * FROM {glue_table}", database=glue_database, categories=list(df.columns))
     ensure_data_types_category(df2)
-    df2 = wr.athena.read_sql_table(table="test_category", database=glue_database, categories=list(df.columns))
+    df2 = wr.athena.read_sql_table(table=glue_table, database=glue_database, categories=list(df.columns))
     ensure_data_types_category(df2)
     df2 = wr.athena.read_sql_query(
-        "SELECT * FROM test_category", database=glue_database, categories=list(df.columns), ctas_approach=False
+        f"SELECT * FROM {glue_table}", database=glue_database, categories=list(df.columns), ctas_approach=False
     )
     ensure_data_types_category(df2)
     dfs = wr.athena.read_sql_query(
-        "SELECT * FROM test_category",
+        f"SELECT * FROM {glue_table}",
         database=glue_database,
         categories=list(df.columns),
         ctas_approach=False,
@@ -949,7 +394,7 @@ def test_category(bucket, glue_database):
     for df2 in dfs:
         ensure_data_types_category(df2)
     dfs = wr.athena.read_sql_query(
-        "SELECT * FROM test_category",
+        f"SELECT * FROM {glue_table}",
         database=glue_database,
         categories=list(df.columns),
         ctas_approach=True,
@@ -957,294 +402,6 @@ def test_category(bucket, glue_database):
     )
     for df2 in dfs:
         ensure_data_types_category(df2)
-    wr.s3.delete_objects(path=paths)
-    assert wr.catalog.delete_table_if_exists(database=glue_database, table="test_category") is True
-
-
-def test_csv_dataset(path, glue_database):
-    with pytest.raises(wr.exceptions.UndetectedType):
-        wr.s3.to_csv(pd.DataFrame({"A": [None]}), path, dataset=True, database=glue_database, table="test_csv_dataset")
-    df = get_df_csv()
-    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.s3.to_csv(df, path, dataset=False, mode="overwrite", database=glue_database, table="test_csv_dataset")
-    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.s3.to_csv(df, path, dataset=False, table="test_csv_dataset")
-    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.s3.to_csv(df, path, dataset=True, mode="overwrite", database=glue_database)
-    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.s3.to_csv(df=df, path=path, mode="append")
-    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.s3.to_csv(df=df, path=path, partition_cols=["col2"])
-    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.s3.to_csv(df=df, path=path, description="foo")
-    with pytest.raises(wr.exceptions.InvalidArgumentValue):
-        wr.s3.to_csv(df=df, path=path, partition_cols=["col2"], dataset=True, mode="WRONG")
-    paths = wr.s3.to_csv(
-        df=df,
-        path=path,
-        sep="|",
-        index=False,
-        use_threads=True,
-        boto3_session=None,
-        s3_additional_kwargs=None,
-        dataset=True,
-        partition_cols=["par0", "par1"],
-        mode="overwrite",
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
-    df2 = wr.s3.read_csv(path=paths, sep="|", header=None)
-    assert len(df2.index) == 3
-    assert len(df2.columns) == 8
-    assert df2[0].sum() == 6
-    wr.s3.delete_objects(path=paths)
-
-
-def test_csv_catalog(path, glue_table, glue_database):
-    df = get_df_csv()
-    paths = wr.s3.to_csv(
-        df=df,
-        path=path,
-        sep="\t",
-        index=True,
-        use_threads=True,
-        boto3_session=None,
-        s3_additional_kwargs=None,
-        dataset=True,
-        partition_cols=["par0", "par1"],
-        mode="overwrite",
-        table=glue_table,
-        database=glue_database,
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
-    df2 = wr.athena.read_sql_table(glue_table, glue_database)
-    assert len(df2.index) == 3
-    assert len(df2.columns) == 11
-    assert df2["id"].sum() == 6
-    ensure_data_types_csv(df2)
-    wr.s3.delete_objects(path=paths)
-    assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table) is True
-
-
-def test_csv_catalog_columns(bucket, glue_database):
-    path = f"s3://{bucket}/test_csv_catalog_columns /"
-    paths = wr.s3.to_csv(
-        df=get_df_csv(),
-        path=path,
-        sep="|",
-        columns=["id", "date", "timestamp", "par0", "par1"],
-        index=False,
-        use_threads=False,
-        boto3_session=None,
-        s3_additional_kwargs=None,
-        dataset=True,
-        partition_cols=["par0", "par1"],
-        mode="overwrite",
-        table="test_csv_catalog_columns",
-        database=glue_database,
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
-    df2 = wr.athena.read_sql_table("test_csv_catalog_columns", glue_database)
-    assert len(df2.index) == 3
-    assert len(df2.columns) == 5
-    assert df2["id"].sum() == 6
-    ensure_data_types_csv(df2)
-
-    paths = wr.s3.to_csv(
-        df=pd.DataFrame({"id": [4], "date": [None], "timestamp": [None], "par0": [1], "par1": ["a"]}),
-        path=path,
-        sep="|",
-        index=False,
-        use_threads=False,
-        boto3_session=None,
-        s3_additional_kwargs=None,
-        dataset=True,
-        partition_cols=["par0", "par1"],
-        mode="overwrite_partitions",
-        table="test_csv_catalog_columns",
-        database=glue_database,
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
-    df2 = wr.athena.read_sql_table("test_csv_catalog_columns", glue_database)
-    assert len(df2.index) == 3
-    assert len(df2.columns) == 5
-    assert df2["id"].sum() == 9
-    ensure_data_types_csv(df2)
-
-    wr.s3.delete_objects(path=path)
-    assert wr.catalog.delete_table_if_exists(database=glue_database, table="test_csv_catalog_columns") is True
-
-
-def test_athena_types(bucket, glue_database):
-    path = f"s3://{bucket}/test_athena_types/"
-    df = get_df_csv()
-    paths = wr.s3.to_csv(
-        df=df,
-        path=path,
-        sep=",",
-        index=False,
-        use_threads=True,
-        boto3_session=None,
-        s3_additional_kwargs=None,
-        dataset=True,
-        partition_cols=["par0", "par1"],
-        mode="overwrite",
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
-    columns_types, partitions_types = wr.catalog.extract_athena_types(
-        df=df, index=False, partition_cols=["par0", "par1"], file_format="csv"
-    )
-    wr.catalog.create_csv_table(
-        table="test_athena_types",
-        database=glue_database,
-        path=path,
-        partitions_types=partitions_types,
-        columns_types=columns_types,
-    )
-    wr.catalog.create_csv_table(
-        database=glue_database, table="test_athena_types", path=path, columns_types={"col0": "string"}, mode="append"
-    )
-    wr.athena.repair_table("test_athena_types", glue_database)
-    assert len(wr.catalog.get_csv_partitions(glue_database, "test_athena_types")) == 3
-    df2 = wr.athena.read_sql_table("test_athena_types", glue_database)
-    assert len(df2.index) == 3
-    assert len(df2.columns) == 10
-    assert df2["id"].sum() == 6
-    ensure_data_types_csv(df2)
-    wr.s3.delete_objects(path=paths)
-    assert wr.catalog.delete_table_if_exists(database=glue_database, table="test_athena_types") is True
-
-
-def test_parquet_catalog_columns(bucket, glue_database):
-    path = f"s3://{bucket}/test_parquet_catalog_columns/"
-    paths = wr.s3.to_parquet(
-        df=get_df_csv()[["id", "date", "timestamp", "par0", "par1"]],
-        path=path,
-        index=False,
-        use_threads=False,
-        boto3_session=None,
-        s3_additional_kwargs=None,
-        dataset=True,
-        partition_cols=["par0", "par1"],
-        mode="overwrite",
-        table="test_parquet_catalog_columns",
-        database=glue_database,
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
-    df2 = wr.athena.read_sql_table("test_parquet_catalog_columns", glue_database)
-    assert len(df2.index) == 3
-    assert len(df2.columns) == 5
-    assert df2["id"].sum() == 6
-    ensure_data_types_csv(df2)
-
-    paths = wr.s3.to_parquet(
-        df=pd.DataFrame({"id": [4], "date": [None], "timestamp": [None], "par0": [1], "par1": ["a"]}),
-        path=path,
-        index=False,
-        use_threads=False,
-        boto3_session=None,
-        s3_additional_kwargs=None,
-        dataset=True,
-        partition_cols=["par0", "par1"],
-        mode="overwrite_partitions",
-        table="test_parquet_catalog_columns",
-        database=glue_database,
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
-    df2 = wr.athena.read_sql_table("test_parquet_catalog_columns", glue_database)
-    assert len(df2.index) == 3
-    assert len(df2.columns) == 5
-    assert df2["id"].sum() == 9
-    ensure_data_types_csv(df2)
-
-    wr.s3.delete_objects(path=path)
-    assert wr.catalog.delete_table_if_exists(database=glue_database, table="test_parquet_catalog_columns") is True
-
-
-@pytest.mark.parametrize("compression", [None, "gzip", "snappy"])
-def test_parquet_compress(bucket, glue_database, compression):
-    path = f"s3://{bucket}/test_parquet_compress_{compression}/"
-    paths = wr.s3.to_parquet(
-        df=get_df(),
-        path=path,
-        compression=compression,
-        dataset=True,
-        database=glue_database,
-        table=f"test_parquet_compress_{compression}",
-        mode="overwrite",
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
-    df2 = wr.athena.read_sql_table(f"test_parquet_compress_{compression}", glue_database)
-    ensure_data_types(df2)
-    df2 = wr.s3.read_parquet(path=path)
-    wr.s3.delete_objects(path=path)
-    assert (
-        wr.catalog.delete_table_if_exists(database=glue_database, table=f"test_parquet_compress_{compression}") is True
-    )
-    ensure_data_types(df2)
-
-
-def test_parquet_char_length(path, glue_database, glue_table):
-    df = pd.DataFrame(
-        {"id": [1, 2], "cchar": ["foo", "boo"], "date": [datetime.date(2020, 1, 1), datetime.date(2020, 1, 2)]}
-    )
-    wr.s3.to_parquet(
-        df=df,
-        path=path,
-        dataset=True,
-        database=glue_database,
-        table=glue_table,
-        mode="overwrite",
-        partition_cols=["date"],
-        dtype={"cchar": "char(3)"},
-    )
-
-    df2 = wr.s3.read_parquet(path, dataset=True)
-    assert len(df2.index) == 2
-    assert len(df2.columns) == 3
-    assert df2.id.sum() == 3
-
-    df2 = wr.athena.read_sql_table(table=glue_table, database=glue_database)
-    assert len(df2.index) == 2
-    assert len(df2.columns) == 3
-    assert df2.id.sum() == 3
-
-
-@pytest.mark.parametrize("col2", [[1, 1, 1, 1, 1], [1, 2, 3, 4, 5], [1, 1, 1, 1, 2], [1, 2, 2, 2, 2]])
-@pytest.mark.parametrize("chunked", [True, 1, 2, 100])
-def test_parquet_chunked(path, glue_database, glue_table, col2, chunked):
-    wr.s3.delete_objects(path=path)
-    values = list(range(5))
-    df = pd.DataFrame({"col1": values, "col2": col2})
-    paths = wr.s3.to_parquet(
-        df,
-        path,
-        index=False,
-        dataset=True,
-        database=glue_database,
-        table=glue_table,
-        partition_cols=["col2"],
-        mode="overwrite",
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
-
-    dfs = list(wr.s3.read_parquet(path=path, dataset=True, chunked=chunked))
-    assert sum(values) == pd.concat(dfs, ignore_index=True).col1.sum()
-    if chunked is not True:
-        assert len(dfs) == int(math.ceil(len(df) / chunked))
-        for df2 in dfs[:-1]:
-            assert chunked == len(df2)
-        assert chunked >= len(dfs[-1])
-    else:
-        assert len(dfs) == len(set(col2))
-
-    dfs = list(wr.athena.read_sql_table(database=glue_database, table=glue_table, chunksize=chunked))
-    assert sum(values) == pd.concat(dfs, ignore_index=True).col1.sum()
-    if chunked is not True:
-        assert len(dfs) == int(math.ceil(len(df) / chunked))
-        for df2 in dfs[:-1]:
-            assert chunked == len(df2)
-        assert chunked >= len(dfs[-1])
-
     wr.s3.delete_objects(path=paths)
     assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table) is True
 
@@ -1399,76 +556,6 @@ def test_catalog_versioning(path, glue_database, glue_table):
     assert str(df.c1.dtype).startswith("boolean")
 
 
-def test_unsigned_parquet(path, glue_database, glue_table):
-    wr.s3.delete_objects(path=path)
-    df = pd.DataFrame({"c0": [0, 0, (2 ** 8) - 1], "c1": [0, 0, (2 ** 16) - 1], "c2": [0, 0, (2 ** 32) - 1]})
-    df["c0"] = df.c0.astype("uint8")
-    df["c1"] = df.c1.astype("uint16")
-    df["c2"] = df.c2.astype("uint32")
-    paths = wr.s3.to_parquet(
-        df=df, path=path, dataset=True, database=glue_database, table=glue_table, mode="overwrite"
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
-    df = wr.athena.read_sql_table(table=glue_table, database=glue_database)
-    assert df.c0.sum() == (2 ** 8) - 1
-    assert df.c1.sum() == (2 ** 16) - 1
-    assert df.c2.sum() == (2 ** 32) - 1
-    schema = wr.s3.read_parquet_metadata(path=path)[0]
-    assert schema["c0"] == "smallint"
-    assert schema["c1"] == "int"
-    assert schema["c2"] == "bigint"
-    df = wr.s3.read_parquet(path=path)
-    assert df.c0.sum() == (2 ** 8) - 1
-    assert df.c1.sum() == (2 ** 16) - 1
-    assert df.c2.sum() == (2 ** 32) - 1
-
-    df = pd.DataFrame({"c0": [0, 0, (2 ** 64) - 1]})
-    df["c0"] = df.c0.astype("uint64")
-    with pytest.raises(wr.exceptions.UnsupportedType):
-        wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table, mode="overwrite")
-
-    wr.s3.delete_objects(path=path)
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
-
-
-def test_parquet_overwrite_partition_cols(path, glue_database, glue_table):
-    df = pd.DataFrame({"c0": [1, 2, 1, 2], "c1": [1, 2, 1, 2], "c2": [2, 1, 2, 1]})
-
-    paths = wr.s3.to_parquet(
-        df=df,
-        path=path,
-        dataset=True,
-        database=glue_database,
-        table=glue_table,
-        mode="overwrite",
-        partition_cols=["c2"],
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
-    df = wr.athena.read_sql_table(table=glue_table, database=glue_database)
-    assert len(df.index) == 4
-    assert len(df.columns) == 3
-    assert df.c0.sum() == 6
-    assert df.c1.sum() == 6
-    assert df.c2.sum() == 6
-
-    paths = wr.s3.to_parquet(
-        df=df,
-        path=path,
-        dataset=True,
-        database=glue_database,
-        table=glue_table,
-        mode="overwrite",
-        partition_cols=["c1", "c2"],
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
-    df = wr.athena.read_sql_table(table=glue_table, database=glue_database)
-    assert len(df.index) == 4
-    assert len(df.columns) == 3
-    assert df.c0.sum() == 6
-    assert df.c1.sum() == 6
-    assert df.c2.sum() == 6
-
-
 def test_catalog_parameters(path, glue_database, glue_table):
     wr.s3.to_parquet(
         df=pd.DataFrame({"c0": [1, 2]}),
@@ -1521,307 +608,11 @@ def test_catalog_parameters(path, glue_database, glue_table):
     assert df.c0.sum() == 10
 
 
-def test_athena_cache(path, glue_database, glue_table, workgroup1):
-    df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
-    paths = wr.s3.to_parquet(
-        df=df, path=path, dataset=True, mode="overwrite", database=glue_database, table=glue_table
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
-
-    df2 = wr.athena.read_sql_table(
-        glue_table, glue_database, ctas_approach=False, max_cache_seconds=1, workgroup=workgroup1
-    )
-    assert df.shape == df2.shape
-    assert df.c0.sum() == df2.c0.sum()
-
-    df2 = wr.athena.read_sql_table(
-        glue_table, glue_database, ctas_approach=False, max_cache_seconds=900, workgroup=workgroup1
-    )
-    assert df.shape == df2.shape
-    assert df.c0.sum() == df2.c0.sum()
-
-    dfs = wr.athena.read_sql_table(
-        glue_table, glue_database, ctas_approach=False, max_cache_seconds=900, workgroup=workgroup1, chunksize=1
-    )
-    assert len(list(dfs)) == 2
-
-
-def test_cache_query_ctas_approach_true(path, glue_database, glue_table):
-    df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
-    paths = wr.s3.to_parquet(
-        df=df,
-        path=path,
-        dataset=True,
-        mode="overwrite",
-        database=glue_database,
-        table=glue_table,
-        description="c0",
-        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
-        columns_comments={"c0": "0"},
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
-
-    with patch(
-        "awswrangler.athena._check_for_cached_results", return_value={"has_valid_cache": False}
-    ) as mocked_cache_attempt:
-        df2 = wr.athena.read_sql_table(glue_table, glue_database, ctas_approach=True, max_cache_seconds=0)
-        mocked_cache_attempt.assert_called()
-        assert df.shape == df2.shape
-        assert df.c0.sum() == df2.c0.sum()
-
-    with patch("awswrangler.athena._resolve_query_without_cache") as resolve_no_cache:
-        df3 = wr.athena.read_sql_table(glue_table, glue_database, ctas_approach=True, max_cache_seconds=900)
-        resolve_no_cache.assert_not_called()
-        assert df.shape == df3.shape
-        assert df.c0.sum() == df3.c0.sum()
-
-
-def test_cache_query_ctas_approach_false(path, glue_database, glue_table):
-    df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
-    paths = wr.s3.to_parquet(
-        df=df,
-        path=path,
-        dataset=True,
-        mode="overwrite",
-        database=glue_database,
-        table=glue_table,
-        description="c0",
-        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
-        columns_comments={"c0": "0"},
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
-
-    with patch(
-        "awswrangler.athena._check_for_cached_results", return_value={"has_valid_cache": False}
-    ) as mocked_cache_attempt:
-        df2 = wr.athena.read_sql_table(glue_table, glue_database, ctas_approach=False, max_cache_seconds=0)
-        mocked_cache_attempt.assert_called()
-        assert df.shape == df2.shape
-        assert df.c0.sum() == df2.c0.sum()
-
-    with patch("awswrangler.athena._resolve_query_without_cache") as resolve_no_cache:
-        df3 = wr.athena.read_sql_table(glue_table, glue_database, ctas_approach=False, max_cache_seconds=900)
-        resolve_no_cache.assert_not_called()
-        assert df.shape == df3.shape
-        assert df.c0.sum() == df3.c0.sum()
-
-
-def test_cache_query_semicolon(path, glue_database, glue_table):
-    df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
-    paths = wr.s3.to_parquet(
-        df=df, path=path, dataset=True, mode="overwrite", database=glue_database, table=glue_table
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
-
-    with patch(
-        "awswrangler.athena._check_for_cached_results", return_value={"has_valid_cache": False}
-    ) as mocked_cache_attempt:
-        df2 = wr.athena.read_sql_query(
-            f"SELECT * FROM {glue_table}", database=glue_database, ctas_approach=True, max_cache_seconds=0
-        )
-        mocked_cache_attempt.assert_called()
-        assert df.shape == df2.shape
-        assert df.c0.sum() == df2.c0.sum()
-
-    with patch("awswrangler.athena._resolve_query_without_cache") as resolve_no_cache:
-        df3 = wr.athena.read_sql_query(
-            f"SELECT * FROM {glue_table};", database=glue_database, ctas_approach=True, max_cache_seconds=900
-        )
-        resolve_no_cache.assert_not_called()
-        assert df.shape == df3.shape
-        assert df.c0.sum() == df3.c0.sum()
-
-
-@pytest.mark.parametrize("partition_cols", [None, ["c2"], ["c1", "c2"]])
-def test_store_metadata_partitions_dataset(glue_database, glue_table, path, partition_cols):
-    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5], "c2": [6, 7, 8]})
-    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, partition_cols=partition_cols)["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
-    wr.s3.store_parquet_metadata(path=path, database=glue_database, table=glue_table, dataset=True)
-    df2 = wr.athena.read_sql_table(table=glue_table, database=glue_database)
-    assert len(df.index) == len(df2.index)
-    assert len(df.columns) == len(df2.columns)
-    assert df.c0.sum() == df2.c0.sum()
-    assert df.c1.sum() == df2.c1.astype(int).sum()
-    assert df.c2.sum() == df2.c2.astype(int).sum()
-
-
-@pytest.mark.parametrize("partition_cols", [None, ["c2"], ["c1", "c2"]])
-def test_store_metadata_partitions_sample_dataset(glue_database, glue_table, path, partition_cols):
-    num_files = 10
-    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5], "c2": [6, 7, 8]})
-    for _ in range(num_files):
-        paths = wr.s3.to_parquet(df=df, path=path, dataset=True, partition_cols=partition_cols)["paths"]
-        wr.s3.wait_objects_exist(paths=paths, use_threads=False)
-    wr.s3.store_parquet_metadata(
-        path=path,
-        database=glue_database,
-        table=glue_table,
-        dtype={"c1": "bigint", "c2": "smallint"},
-        sampling=0.25,
-        dataset=True,
-    )
-    df2 = wr.athena.read_sql_table(table=glue_table, database=glue_database)
-    assert len(df.index) * num_files == len(df2.index)
-    assert len(df.columns) == len(df2.columns)
-    assert df.c0.sum() * num_files == df2.c0.sum()
-    assert df.c1.sum() * num_files == df2.c1.sum()
-    assert df.c2.sum() * num_files == df2.c2.sum()
-
-
 def test_athena_undefined_column(glue_database):
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.athena.read_sql_query("SELECT 1", glue_database)
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.athena.read_sql_query("SELECT NULL AS my_null", glue_database)
-
-
-@pytest.mark.parametrize("partition_cols", [None, ["c1"], ["c2"], ["c1", "c2"], ["c2", "c1"]])
-def test_to_parquet_reverse_partitions(glue_database, glue_table, path, partition_cols):
-    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5], "c2": [6, 7, 8]})
-    paths = wr.s3.to_parquet(
-        df=df, path=path, dataset=True, database=glue_database, table=glue_table, partition_cols=partition_cols
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
-    df2 = wr.athena.read_sql_table(table=glue_table, database=glue_database)
-    assert df.shape == df2.shape
-    assert df.c0.sum() == df2.c0.sum()
-    assert df.c1.sum() == df2.c1.sum()
-    assert df.c2.sum() == df2.c2.sum()
-
-
-def test_to_parquet_nested_append(glue_database, glue_table, path):
-    df = pd.DataFrame(
-        {
-            "c0": [[1, 2, 3], [4, 5, 6]],
-            "c1": [[[1, 2], [3, 4]], [[5, 6], [7, 8]]],
-            "c2": [[["a", "b"], ["c", "d"]], [["e", "f"], ["g", "h"]]],
-            "c3": [[], [[[[[[[[1]]]]]]]]],
-            "c4": [{"a": 1}, {"a": 1}],
-            "c5": [{"a": {"b": {"c": [1, 2]}}}, {"a": {"b": {"c": [3, 4]}}}],
-        }
-    )
-    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table)["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
-    df2 = wr.athena.read_sql_query(sql=f"SELECT c0, c1, c2, c4 FROM {glue_table}", database=glue_database)
-    assert len(df2.index) == 2
-    assert len(df2.columns) == 4
-    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table)["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
-    df2 = wr.athena.read_sql_query(sql=f"SELECT c0, c1, c2, c4 FROM {glue_table}", database=glue_database)
-    assert len(df2.index) == 4
-    assert len(df2.columns) == 4
-
-
-def test_to_parquet_nested_cast(glue_database, glue_table, path):
-    df = pd.DataFrame({"c0": [[1, 2, 3], [4, 5, 6]], "c1": [[], []], "c2": [{"a": 1, "b": 2}, {"a": 3, "b": 4}]})
-    paths = wr.s3.to_parquet(
-        df=df,
-        path=path,
-        dataset=True,
-        database=glue_database,
-        table=glue_table,
-        dtype={"c0": "array<double>", "c1": "array<string>", "c2": "struct<a:bigint, b:double>"},
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
-    df = pd.DataFrame({"c0": [[1, 2, 3], [4, 5, 6]], "c1": [["a"], ["b"]], "c2": [{"a": 1, "b": 2}, {"a": 3, "b": 4}]})
-    paths = wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table)["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
-    df2 = wr.athena.read_sql_query(sql=f"SELECT c0, c2 FROM {glue_table}", database=glue_database)
-    assert len(df2.index) == 4
-    assert len(df2.columns) == 2
-
-
-def test_to_parquet_projection_integer(glue_database, glue_table, path):
-    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 100, 200], "c3": [0, 1, 2]})
-    paths = wr.s3.to_parquet(
-        df=df,
-        path=path,
-        dataset=True,
-        database=glue_database,
-        table=glue_table,
-        partition_cols=["c1", "c2", "c3"],
-        regular_partitions=False,
-        projection_enabled=True,
-        projection_types={"c1": "integer", "c2": "integer", "c3": "integer"},
-        projection_ranges={"c1": "0,2", "c2": "0,200", "c3": "0,2"},
-        projection_intervals={"c2": "100"},
-        projection_digits={"c3": "1"},
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
-    df2 = wr.athena.read_sql_table(glue_table, glue_database)
-    assert df.shape == df2.shape
-    assert df.c0.sum() == df2.c0.sum()
-    assert df.c1.sum() == df2.c1.sum()
-    assert df.c2.sum() == df2.c2.sum()
-    assert df.c3.sum() == df2.c3.sum()
-
-
-def test_to_parquet_projection_enum(glue_database, glue_table, path):
-    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [1, 2, 3], "c2": ["foo", "boo", "bar"]})
-    paths = wr.s3.to_parquet(
-        df=df,
-        path=path,
-        dataset=True,
-        database=glue_database,
-        table=glue_table,
-        partition_cols=["c1", "c2"],
-        regular_partitions=False,
-        projection_enabled=True,
-        projection_types={"c1": "enum", "c2": "enum"},
-        projection_values={"c1": "1,2,3", "c2": "foo,boo,bar"},
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
-    df2 = wr.athena.read_sql_table(glue_table, glue_database)
-    assert df.shape == df2.shape
-    assert df.c0.sum() == df2.c0.sum()
-    assert df.c1.sum() == df2.c1.sum()
-
-
-def test_to_parquet_projection_date(glue_database, glue_table, path):
-    df = pd.DataFrame(
-        {
-            "c0": [0, 1, 2],
-            "c1": [dt("2020-01-01"), dt("2020-01-02"), dt("2020-01-03")],
-            "c2": [ts("2020-01-01 01:01:01.0"), ts("2020-01-01 01:01:02.0"), ts("2020-01-01 01:01:03.0")],
-        }
-    )
-    paths = wr.s3.to_parquet(
-        df=df,
-        path=path,
-        dataset=True,
-        database=glue_database,
-        table=glue_table,
-        partition_cols=["c1", "c2"],
-        regular_partitions=False,
-        projection_enabled=True,
-        projection_types={"c1": "date", "c2": "date"},
-        projection_ranges={"c1": "2020-01-01,2020-01-03", "c2": "2020-01-01 01:01:00,2020-01-01 01:01:03"},
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
-    df2 = wr.athena.read_sql_table(glue_table, glue_database)
-    print(df2)
-    assert df.shape == df2.shape
-    assert df.c0.sum() == df2.c0.sum()
-
-
-def test_to_parquet_projection_injected(glue_database, glue_table, path):
-    df = pd.DataFrame({"c0": [0, 1, 2], "c1": ["foo", "boo", "bar"], "c2": ["0", "1", "2"]})
-    paths = wr.s3.to_parquet(
-        df=df,
-        path=path,
-        dataset=True,
-        database=glue_database,
-        table=glue_table,
-        partition_cols=["c1", "c2"],
-        regular_partitions=False,
-        projection_enabled=True,
-        projection_types={"c1": "injected", "c2": "injected"},
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
-    df2 = wr.athena.read_sql_query(f"SELECT * FROM {glue_table} WHERE c1='foo' AND c2='0'", glue_database)
-    assert df2.shape == (1, 3)
-    assert df2.c0.iloc[0] == 0
 
 
 def test_glue_database():
@@ -1858,45 +649,45 @@ def test_glue_database():
     assert test_database_description == ""
 
 
-def test_parquet_catalog_casting_to_string(path, glue_table, glue_database):
-    for df in [get_df(), get_df_cast()]:
-        paths = wr.s3.to_parquet(
-            df=df,
-            path=path,
-            index=False,
-            dataset=True,
-            mode="overwrite",
-            database=glue_database,
-            table=glue_table,
-            dtype={
-                "iint8": "string",
-                "iint16": "string",
-                "iint32": "string",
-                "iint64": "string",
-                "float": "string",
-                "double": "string",
-                "decimal": "string",
-                "string": "string",
-                "date": "string",
-                "timestamp": "string",
-                "timestamp2": "string",
-                "bool": "string",
-                "binary": "string",
-                "category": "string",
-                "par0": "string",
-                "par1": "string",
-            },
-        )["paths"]
-        wr.s3.wait_objects_exist(paths=paths)
-        df = wr.s3.read_parquet(path=path)
-        assert df.shape == (3, 16)
-        for dtype in df.dtypes.values:
-            assert str(dtype) == "string"
-        df = wr.athena.read_sql_table(table=glue_table, database=glue_database, ctas_approach=True)
-        assert df.shape == (3, 16)
-        for dtype in df.dtypes.values:
-            assert str(dtype) == "string"
-        df = wr.athena.read_sql_table(table=glue_table, database=glue_database, ctas_approach=False)
-        assert df.shape == (3, 16)
-        for dtype in df.dtypes.values:
-            assert str(dtype) == "string"
+def test_catalog_columns(path, glue_table, glue_database):
+    paths = wr.s3.to_parquet(
+        df=get_df_csv()[["id", "date", "timestamp", "par0", "par1"]],
+        path=path,
+        index=False,
+        use_threads=False,
+        boto3_session=None,
+        s3_additional_kwargs=None,
+        dataset=True,
+        partition_cols=["par0", "par1"],
+        mode="overwrite",
+        table=glue_table,
+        database=glue_database,
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    df2 = wr.athena.read_sql_table(glue_table, glue_database)
+    assert len(df2.index) == 3
+    assert len(df2.columns) == 5
+    assert df2["id"].sum() == 6
+    ensure_data_types_csv(df2)
+
+    paths = wr.s3.to_parquet(
+        df=pd.DataFrame({"id": [4], "date": [None], "timestamp": [None], "par0": [1], "par1": ["a"]}),
+        path=path,
+        index=False,
+        use_threads=False,
+        boto3_session=None,
+        s3_additional_kwargs=None,
+        dataset=True,
+        partition_cols=["par0", "par1"],
+        mode="overwrite_partitions",
+        table=glue_table,
+        database=glue_database,
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    df2 = wr.athena.read_sql_table(glue_table, glue_database)
+    assert len(df2.index) == 3
+    assert len(df2.columns) == 5
+    assert df2["id"].sum() == 9
+    ensure_data_types_csv(df2)
+
+    assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table) is True

@@ -5,7 +5,7 @@ import pytest
 
 import awswrangler as wr
 
-from ._utils import extract_cloudformation_outputs, get_time_str_with_random_suffix, path_generator
+from ._utils import extract_cloudformation_outputs, get_time_str_with_random_suffix, list_workgroups, path_generator
 
 
 @pytest.fixture(scope="session")
@@ -66,7 +66,7 @@ def loggroup(cloudformation_outputs):
 def workgroup0(bucket):
     wkg_name = "aws_data_wrangler_0"
     client = boto3.client("athena")
-    wkgs = client.list_work_groups()
+    wkgs = list_workgroups()
     wkgs = [x["Name"] for x in wkgs["WorkGroups"]]
     if wkg_name not in wkgs:
         client.create_work_group(
@@ -87,7 +87,7 @@ def workgroup0(bucket):
 def workgroup1(bucket):
     wkg_name = "aws_data_wrangler_1"
     client = boto3.client("athena")
-    wkgs = client.list_work_groups()
+    wkgs = list_workgroups()
     wkgs = [x["Name"] for x in wkgs["WorkGroups"]]
     if wkg_name not in wkgs:
         client.create_work_group(
@@ -111,7 +111,7 @@ def workgroup1(bucket):
 def workgroup2(bucket, kms_key):
     wkg_name = "aws_data_wrangler_2"
     client = boto3.client("athena")
-    wkgs = client.list_work_groups()
+    wkgs = list_workgroups()
     wkgs = [x["Name"] for x in wkgs["WorkGroups"]]
     if wkg_name not in wkgs:
         client.create_work_group(
@@ -135,7 +135,7 @@ def workgroup2(bucket, kms_key):
 def workgroup3(bucket, kms_key):
     wkg_name = "aws_data_wrangler_3"
     client = boto3.client("athena")
-    wkgs = client.list_work_groups()
+    wkgs = list_workgroups()
     wkgs = [x["Name"] for x in wkgs["WorkGroups"]]
     if wkg_name not in wkgs:
         client.create_work_group(
@@ -199,6 +199,7 @@ def glue_table(glue_database):
     wr.catalog.delete_table_if_exists(database=glue_database, table=name)
     yield name
     wr.catalog.delete_table_if_exists(database=glue_database, table=name)
+    print(f"Table {glue_database}.{name} deleted.")
 
 
 @pytest.fixture(scope="function")
