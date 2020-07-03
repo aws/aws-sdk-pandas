@@ -4,6 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 
 import boto3
+import botocore.exceptions
 import pandas as pd
 
 import awswrangler as wr
@@ -470,3 +471,17 @@ def extract_cloudformation_outputs():
             for output in stack.get("Outputs"):
                 outputs[output.get("OutputKey")] = output.get("OutputValue")
     return outputs
+
+
+def list_workgroups():
+    client = boto3.client("athena")
+    attempt = 1
+    while True:
+        try:
+            return client.list_work_groups()
+        except botocore.exceptions.ClientError as ex:
+            if ex.response["Error"]["Code"] != "ThrottlingException":
+                raise ex
+            if attempt > 5:
+                raise ex
+            time.sleep(attempt + random.randrange(start=0, stop=3, step=1))
