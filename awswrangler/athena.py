@@ -1,6 +1,7 @@
 """Amazon Athena Module."""
 
 import csv
+import uuid
 import datetime
 import logging
 import pprint
@@ -11,7 +12,6 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3  # type: ignore
 import pandas as pd  # type: ignore
-import pyarrow as pa  # type: ignore
 
 from awswrangler import _data_types, _utils, catalog, exceptions, s3, sts
 
@@ -574,7 +574,7 @@ def _resolve_query_without_cache(
         if ctas_temp_table_name is not None:
             name = catalog.sanitize_table_name(ctas_temp_table_name)
         else:
-            name = f"temp_table_{pa.compat.guid()}"
+            name = f"temp_table_{uuid.uuid4().hex}"
         path: str = f"{_s3_output}/{name}"
         ext_location: str = "\n" if wg_config["enforced"] is True else f",\n    external_location = '{path}'\n"
         sql = (
