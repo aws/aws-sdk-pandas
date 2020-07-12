@@ -1,12 +1,12 @@
 """Amazon Athena Module."""
 
 import csv
-import uuid
 import datetime
 import logging
 import pprint
 import re
 import time
+import uuid
 from decimal import Decimal
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
