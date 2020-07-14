@@ -672,9 +672,7 @@ def tables(
 
 
 def search_tables(
-    text: str,
-    catalog_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None
+    text: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
 ) -> Iterator[Dict[str, Any]]:
     """Get Pandas DataFrame of tables filtered by a search string.
 
