@@ -55,6 +55,7 @@ AWS Glue Catalog
     get_databases
     get_engine
     get_parquet_partitions
+    get_partitions
     get_table_description
     get_table_location
     get_table_parameters
