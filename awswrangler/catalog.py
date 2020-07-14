@@ -128,7 +128,7 @@ def delete_table_if_exists(database: str, table: str, boto3_session: Optional[bo
         return False
 
 
-def does_table_exist(database: str, table: str, boto3_session: Optional[boto3.Session] = None):
+def does_table_exist(database: str, table: str, boto3_session: Optional[boto3.Session] = None) -> bool:
     """Check if the table exists.
 
     Parameters
@@ -624,7 +624,7 @@ def tables(
 
     Returns
     -------
-    Iterator[Dict[str, Any]]
+    pandas.DataFrame
         Pandas Dataframe filled by formatted infos.
 
     Examples
@@ -671,7 +671,11 @@ def tables(
     return pd.DataFrame(data=df_dict)
 
 
-def search_tables(text: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None):
+def search_tables(
+    text: str,
+    catalog_id: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None
+) -> Iterator[Dict[str, Any]]:
     """Get Pandas DataFrame of tables filtered by a search string.
 
     Parameters
@@ -1655,7 +1659,7 @@ def extract_athena_types(
 
     Returns
     -------
-    Tuple[Dict[str, str], Optional[Dict[str, str]]]
+    Tuple[Dict[str, str], Dict[str, str]]
         columns_types: Dictionary with keys as column names and vales as
         data types (e.g. {'col0': 'bigint', 'col1': 'double'}). /
         partitions_types: Dictionary with keys as partition names

@@ -1004,10 +1004,11 @@ def unload_redshift(
     s3_additional_kwargs:
         Forward to s3fs, useful for server side encryption
         https://s3fs.readthedocs.io/en/latest/#serverside-encryption
+
     Returns
     -------
-    pandas.DataFrame
-        Pandas DataFrame
+    Union[pandas.DataFrame, Iterator[pandas.DataFrame]]
+        Result as Pandas DataFrame(s).
 
     Examples
     --------
