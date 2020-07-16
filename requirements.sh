@@ -2,5 +2,5 @@
 set -ex
 
 pip install --upgrade pip
-pip install --upgrade -r requirements-dev.txt
-pip install --upgrade -e .
+pip install --upgrade --requirement requirements-dev.txt
+pip install --upgrade --editable .

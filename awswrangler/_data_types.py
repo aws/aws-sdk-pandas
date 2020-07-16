@@ -186,7 +186,7 @@ def pyarrow2athena(dtype: pa.DataType) -> str:  # pylint: disable=too-many-branc
 
 
 def pyarrow2pandas_extension(  # pylint: disable=too-many-branches,too-many-return-statements
-    dtype: pa.DataType
+    dtype: pa.DataType,
 ) -> Optional[pd.api.extensions.ExtensionDtype]:
     """Pyarrow to Pandas data types conversion."""
     if pa.types.is_int8(dtype):  # pragma: no cover
