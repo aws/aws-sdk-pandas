@@ -8,6 +8,7 @@ import uuid
 from typing import Any, Dict, Iterator, List, NamedTuple, Optional, Union
 
 import boto3  # type: ignore
+import botocore.exceptions  # type: ignore
 import pandas as pd  # type: ignore
 
 from awswrangler import _utils, catalog, exceptions, s3
@@ -233,8 +234,8 @@ def _fetch_csv_result(
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     _chunksize: Optional[int] = chunksize if isinstance(chunksize, int) else None
     _logger.debug("_chunksize: %s", _chunksize)
-    if query_metadata.output_location is None:
-        return pd.DataFrame() if chunksize is None is False else _utils.empty_generator()
+    if query_metadata.output_location is None or query_metadata.output_location.endswith(".csv") is False:
+        return pd.DataFrame() if _chunksize is None else _utils.empty_generator()
     path: str = query_metadata.output_location
     s3.wait_objects_exist(paths=[path], use_threads=False, boto3_session=boto3_session)
     _logger.debug("Start CSV reading from %s", path)
@@ -253,7 +254,7 @@ def _fetch_csv_result(
     )
     _logger.debug("Start type casting...")
     _logger.debug(type(ret))
-    if chunksize is None:
+    if _chunksize is None:
         df = _fix_csv_types(df=ret, parse_dates=query_metadata.parse_dates, binaries=query_metadata.binaries)
         if keep_files is False:
             s3.delete_objects(path=[path, f"{path}.metadata"], use_threads=use_threads, boto3_session=boto3_session)
@@ -274,7 +275,7 @@ def _resolve_query_with_cache(  # pylint: disable=too-many-return-statements
     session: Optional[boto3.Session],
 ):
     """Fetch cached data and return it as a pandas DataFrame (or list of DataFrames)."""
-    _logger.debug("cache_info: %s", cache_info)
+    _logger.debug("cache_info:\n%s", cache_info)
     query_metadata: _QueryMetadata = _get_query_metadata(
         query_execution_id=cache_info.query_execution_id,
         boto3_session=session,
@@ -328,16 +329,23 @@ def _resolve_query_without_cache_ctas(
         f"{sql}"
     )
     _logger.debug("sql: %s", sql)
-    query_id: str = _start_query_execution(
-        sql=sql,
-        wg_config=wg_config,
-        database=database,
-        s3_output=s3_output,
-        workgroup=workgroup,
-        encryption=encryption,
-        kms_key=kms_key,
-        boto3_session=boto3_session,
-    )
+    try:
+        query_id: str = _start_query_execution(
+            sql=sql,
+            wg_config=wg_config,
+            database=database,
+            s3_output=s3_output,
+            workgroup=workgroup,
+            encryption=encryption,
+            kms_key=kms_key,
+            boto3_session=boto3_session,
+        )
+    except botocore.exceptions.ClientError as ex:
+        error: Dict[str, Any] = ex.response['Error']
+        if error['Code'] == 'InvalidRequestException' and "extraneous input" in error['Message']:
+            raise exceptions.InvalidCtasApproachQuery("Is not possible to wrap this query into a CTAS statement. "
+                                                      "Please use ctas_approach=False.")
+        raise ex
     _logger.debug("query_id: %s", query_id)
     try:
         query_metadata: _QueryMetadata = _get_query_metadata(
@@ -596,7 +604,7 @@ def read_sql_query(
         max_cache_seconds=max_cache_seconds,
         max_cache_query_inspections=max_cache_query_inspections,
     )
-    _logger.debug("cache_info: %s", cache_info)
+    _logger.debug("cache_info:\n%s", cache_info)
     if cache_info.has_valid_cache is True:
         _logger.debug("Valid cache found. Retrieving...")
         try:

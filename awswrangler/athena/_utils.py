@@ -164,7 +164,7 @@ def _get_query_metadata(
     if "Statistics" in _query_execution_payload:
         if "DataManifestLocation" in _query_execution_payload["Statistics"]:
             manifest_location = _query_execution_payload["Statistics"]["DataManifestLocation"]
-    return _QueryMetadata(
+    query_metadata: _QueryMetadata = _QueryMetadata(
         execution_id=query_execution_id,
         dtype=dtype,
         parse_timestamps=parse_timestamps,
@@ -174,6 +174,8 @@ def _get_query_metadata(
         output_location=output_location,
         manifest_location=manifest_location,
     )
+    _logger.debug("query_metadata:\n%s", query_metadata)
+    return query_metadata
 
 
 def get_query_columns_types(query_execution_id: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, str]:
