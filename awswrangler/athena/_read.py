@@ -341,10 +341,11 @@ def _resolve_query_without_cache_ctas(
             boto3_session=boto3_session,
         )
     except botocore.exceptions.ClientError as ex:
-        error: Dict[str, Any] = ex.response['Error']
-        if error['Code'] == 'InvalidRequestException' and "extraneous input" in error['Message']:
-            raise exceptions.InvalidCtasApproachQuery("Is not possible to wrap this query into a CTAS statement. "
-                                                      "Please use ctas_approach=False.")
+        error: Dict[str, Any] = ex.response["Error"]
+        if error["Code"] == "InvalidRequestException" and "extraneous input" in error["Message"]:
+            raise exceptions.InvalidCtasApproachQuery(
+                "Is not possible to wrap this query into a CTAS statement. Please use ctas_approach=False."
+            )
         raise ex
     _logger.debug("query_id: %s", query_id)
     try:
@@ -352,11 +353,16 @@ def _resolve_query_without_cache_ctas(
             query_execution_id=query_id, boto3_session=boto3_session, categories=categories,
         )
     except exceptions.QueryFailed as ex:
-        if "Column name not specified" in str(ex):
+        msg: str = str(ex)
+        if "Column name" in msg and "specified more than once." in msg:
+            raise exceptions.InvalidCtasApproachQuery(
+                f"Please, define distinct names for your columns OR pass ctas_approach=False. Root error message: {msg}"
+            )
+        if "Column name not specified" in msg:
             raise exceptions.InvalidArgumentValue(
                 "Please, define all columns names in your query. (E.g. 'SELECT MAX(col1) AS max_col1, ...')"
             )
-        if "Column type is unknown" in str(ex):
+        if "Column type is unknown" in msg:
             raise exceptions.InvalidArgumentValue(
                 "Please, don't leave undefined columns types in your query. You can cast to ensure it. "
                 "(E.g. 'SELECT CAST(NULL AS INTEGER) AS MY_COL, ...')"
@@ -494,17 +500,37 @@ def read_sql_query(
 
     There are two approaches to be defined through ctas_approach parameter:
 
-    1 - `ctas_approach=True` (`Default`):
-    Wrap the query with a CTAS and then reads the table data as parquet directly from s3.
-    PROS: Faster and can handle some level of nested types.
-    CONS: Requires create/delete table permissions on Glue and Does not support timestamp with time zone
-    (A temporary table will be created and then deleted immediately).
+    **1 - ctas_approach=True (Default):**
 
-    2 - `ctas_approach False`:
+    Wrap the query with a CTAS and then reads the table data as parquet directly from s3.
+
+    PROS:
+
+    - Faster for mid and big result sizes.
+    - Can handle some level of nested types.
+
+    CONS:
+
+    - Requires create/delete table permissions on Glue.
+    - Does not support timestamp with time zone
+    - Does not support columns with repeated names.
+    - Does not support columns with undefined data types.
+    - A temporary table will be created and then deleted immediately.
+
+    **2 - ctas_approach=False:**
+
     Does a regular query on Athena and parse the regular CSV result on s3.
-    PROS: Does not require create/delete table permissions on Glue and supports timestamp with time zone.
-    CONS: Slower (But stills faster than other libraries that uses the regular Athena API)
-    and does not handle nested types at all.
+
+    PROS:
+
+    - Faster for small result sizes (less latency).
+    - Does not require create/delete table permissions on Glue
+    - Supports timestamp with time zone.
+
+    CONS:
+
+    - Slower for big results (But stills faster than other libraries that uses the regular Athena's API)
+    - Does not handle nested types at all.
 
     Note
     ----
@@ -656,17 +682,37 @@ def read_sql_table(
 
     There are two approaches to be defined through ctas_approach parameter:
 
-    1 - `ctas_approach=True` (`Default`):
-    Wrap the query with a CTAS and then reads the table data as parquet directly from s3.
-    PROS: Faster and can handle some level of nested types
-    CONS: Requires create/delete table permissions on Glue and Does not support timestamp with time zone
-    (A temporary table will be created and then deleted immediately).
+    **1 - ctas_approach=True (Default):**
 
-    2 - `ctas_approach False`:
+    Wrap the query with a CTAS and then reads the table data as parquet directly from s3.
+
+    PROS:
+
+    - Faster for mid and big result sizes.
+    - Can handle some level of nested types.
+
+    CONS:
+
+    - Requires create/delete table permissions on Glue.
+    - Does not support timestamp with time zone
+    - Does not support columns with repeated names.
+    - Does not support columns with undefined data types.
+    - A temporary table will be created and then deleted immediately.
+
+    **2 - ctas_approach=False:**
+
     Does a regular query on Athena and parse the regular CSV result on s3.
-    PROS: Does not require create/delete table permissions on Glue and give support timestamp with time zone.
-    CONS: Slower (But stills faster than other libraries that uses the regular Athena API)
-    and does not handle nested types at all
+
+    PROS:
+
+    - Faster for small result sizes (less latency).
+    - Does not require create/delete table permissions on Glue
+    - Supports timestamp with time zone.
+
+    CONS:
+
+    - Slower for big results (But stills faster than other libraries that uses the regular Athena's API)
+    - Does not handle nested types at all.
 
     Note
     ----

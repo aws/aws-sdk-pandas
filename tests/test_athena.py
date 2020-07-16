@@ -694,24 +694,27 @@ def test_catalog_columns(path, glue_table, glue_database):
 
 
 def test_read_sql_query_wo_results(path, glue_database, glue_table):
-    wr.catalog.create_parquet_table(
-        database=glue_database,
-        table=glue_table,
-        path=path,
-        columns_types={"c0": "int"}
-    )
+    wr.catalog.create_parquet_table(database=glue_database, table=glue_table, path=path, columns_types={"c0": "int"})
     sql = f"ALTER TABLE {glue_database}.{glue_table} SET LOCATION '{path}dir/'"
     df = wr.athena.read_sql_query(sql, database=glue_database, ctas_approach=False)
     assert df.empty
 
 
 def test_read_sql_query_wo_results_ctas(path, glue_database, glue_table):
-    wr.catalog.create_parquet_table(
-        database=glue_database,
-        table=glue_table,
-        path=path,
-        columns_types={"c0": "int"}
-    )
+    wr.catalog.create_parquet_table(database=glue_database, table=glue_table, path=path, columns_types={"c0": "int"})
     sql = f"ALTER TABLE {glue_database}.{glue_table} SET LOCATION '{path}dir/'"
+    with pytest.raises(wr.exceptions.InvalidCtasApproachQuery):
+        wr.athena.read_sql_query(sql, database=glue_database, ctas_approach=True)
+
+
+def test_read_sql_query_duplicated_col_name(glue_database):
+    sql = "SELECT 1 AS foo, 2 AS foo"
+    df = wr.athena.read_sql_query(sql, database=glue_database, ctas_approach=False)
+    assert df.shape == (1, 2)
+    assert df.columns.to_list() == ["foo", "foo.1"]
+
+
+def test_read_sql_query_duplicated_col_name_ctas(glue_database):
+    sql = "SELECT 1 AS foo, 2 AS foo"
     with pytest.raises(wr.exceptions.InvalidCtasApproachQuery):
         wr.athena.read_sql_query(sql, database=glue_database, ctas_approach=True)
