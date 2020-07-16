@@ -87,10 +87,10 @@ def _get_last_query_executions(
 ) -> Iterator[List[Dict[str, Any]]]:
     """Return an iterator of `query_execution_info`s run by the workgroup in Athena."""
     client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
-    args: Dict[str, str] = {}
+    args: Dict[str, Union[str, Dict[str, int]]] = {"PaginationConfig": {"MaxItems": 50, "PageSize": 50}}
     if workgroup is not None:
         args["WorkGroup"] = workgroup
-    paginator = client_athena.get_paginator("list_query_executions", PaginationConfig={"MaxItems": 50, "PageSize": 50})
+    paginator = client_athena.get_paginator("list_query_executions")
     for page in paginator.paginate(**args):
         _logger.debug("paginating Athena's queries history...")
         query_execution_id_list: List[str] = page["QueryExecutionIds"]

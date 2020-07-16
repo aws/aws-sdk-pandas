@@ -585,9 +585,12 @@ def get_tables(
     for db in dbs:
         args["DatabaseName"] = db
         response_iterator = paginator.paginate(**args)
-        for page in response_iterator:
-            for tbl in page["TableList"]:
-                yield tbl
+        try:
+            for page in response_iterator:
+                for tbl in page["TableList"]:
+                    yield tbl
+        except client_glue.exceptions.EntityNotFoundException:
+            continue
 
 
 def tables(
