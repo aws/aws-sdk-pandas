@@ -83,3 +83,7 @@ class InvalidRedshiftPrimaryKeys(Exception):
 
 class InvalidSchemaConvergence(Exception):
     """InvalidSchemaMerge exception."""
+
+
+class InvalidCtasApproachQuery(Exception):
+    """InvalidCtasApproachQuery exception."""
