@@ -5,7 +5,7 @@ import datetime
 import logging
 import re
 import uuid
-from typing import Any, Dict, Iterator, List, Optional, Union
+from typing import Any, Dict, Iterator, List, NamedTuple, Optional, Union
 
 import boto3  # type: ignore
 import pandas as pd  # type: ignore
@@ -15,11 +15,19 @@ from awswrangler.athena._utils import (
     _get_query_metadata,
     _get_s3_output,
     _get_workgroup_config,
+    _QueryMetadata,
     _start_query_execution,
-    wait_query,
+    _WorkGroupConfig,
 )
 
 _logger: logging.Logger = logging.getLogger(__name__)
+
+
+class _CacheInfo(NamedTuple):
+    has_valid_cache: bool
+    file_format: Optional[str] = None
+    query_execution_id: Optional[str] = None
+    query_execution_payload: Optional[Dict[str, Any]] = None
 
 
 def _extract_ctas_manifest_paths(path: str, boto3_session: Optional[boto3.Session] = None) -> List[str]:
@@ -48,205 +56,6 @@ def _fix_csv_types(df: pd.DataFrame, parse_dates: List[str], binaries: List[str]
     return df
 
 
-def _resolve_query_without_cache(
-    # pylint: disable=too-many-branches,too-many-locals,too-many-return-statements,too-many-statements
-    sql: str,
-    database: str,
-    ctas_approach: bool,
-    categories: Optional[List[str]],
-    chunksize: Optional[Union[int, bool]],
-    s3_output: Optional[str],
-    workgroup: Optional[str],
-    encryption: Optional[str],
-    kms_key: Optional[str],
-    keep_files: bool,
-    ctas_temp_table_name: Optional[str],
-    use_threads: bool,
-    session: Optional[boto3.Session],
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    """
-    Execute any query in Athena and returns results as DataFrame, back to `read_sql_query`.
-
-    Usually called by `read_sql_query` when using cache is not possible.
-    """
-    wg_config: Dict[str, Union[bool, Optional[str]]] = _get_workgroup_config(session=session, workgroup=workgroup)
-    _s3_output: str = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=session)
-    _s3_output = _s3_output[:-1] if _s3_output[-1] == "/" else _s3_output
-
-    name: str = ""
-    if ctas_approach is True:
-        if ctas_temp_table_name is not None:
-            name = catalog.sanitize_table_name(ctas_temp_table_name)
-        else:
-            name = f"temp_table_{uuid.uuid4().hex}"
-        path: str = f"{_s3_output}/{name}"
-        ext_location: str = "\n" if wg_config["enforced"] is True else f",\n    external_location = '{path}'\n"
-        sql = (
-            f'CREATE TABLE "{name}"\n'
-            f"WITH(\n"
-            f"    format = 'Parquet',\n"
-            f"    parquet_compression = 'SNAPPY'"
-            f"{ext_location}"
-            f") AS\n"
-            f"{sql}"
-        )
-    _logger.debug("sql: %s", sql)
-    query_id: str = _start_query_execution(
-        sql=sql,
-        wg_config=wg_config,
-        database=database,
-        s3_output=_s3_output,
-        workgroup=workgroup,
-        encryption=encryption,
-        kms_key=kms_key,
-        boto3_session=session,
-    )
-    _logger.debug("query_id: %s", query_id)
-    try:
-        query_response: Dict[str, Any] = wait_query(query_execution_id=query_id, boto3_session=session)
-    except exceptions.QueryFailed as ex:
-        if ctas_approach is True:
-            if "Column name not specified" in str(ex):
-                raise exceptions.InvalidArgumentValue(
-                    "Please, define all columns names in your query. (E.g. 'SELECT MAX(col1) AS max_col1, ...')"
-                )
-            if "Column type is unknown" in str(ex):
-                raise exceptions.InvalidArgumentValue(
-                    "Please, define all columns types in your query. "
-                    "(E.g. 'SELECT CAST(NULL AS INTEGER) AS MY_COL, ...')"
-                )
-        raise ex  # pragma: no cover
-    if query_response["QueryExecution"]["Status"]["State"] in ["FAILED", "CANCELLED"]:  # pragma: no cover
-        reason: str = query_response["QueryExecution"]["Status"]["StateChangeReason"]
-        message_error: str = f"Query error: {reason}"
-        raise exceptions.AthenaQueryError(message_error)
-    ret: Union[pd.DataFrame, Iterator[pd.DataFrame]]
-    if ctas_approach is True:
-        catalog.delete_table_if_exists(database=database, table=name, boto3_session=session)
-        manifest_path: str = f"{_s3_output}/tables/{query_id}-manifest.csv"
-        metadata_path: str = f"{_s3_output}/tables/{query_id}.metadata"
-        _logger.debug("manifest_path: %s", manifest_path)
-        _logger.debug("metadata_path: %s", metadata_path)
-        s3.wait_objects_exist(paths=[manifest_path, metadata_path], use_threads=False, boto3_session=session)
-        paths: List[str] = _extract_ctas_manifest_paths(path=manifest_path, boto3_session=session)
-        chunked: Union[bool, int] = False if chunksize is None else chunksize
-        _logger.debug("chunked: %s", chunked)
-        if not paths:
-            if chunked is False:
-                return pd.DataFrame()
-            return _utils.empty_generator()
-        s3.wait_objects_exist(paths=paths, use_threads=False, boto3_session=session)
-        ret = s3.read_parquet(
-            path=paths, use_threads=use_threads, boto3_session=session, chunked=chunked, categories=categories
-        )
-        paths_delete: List[str] = paths + [manifest_path, metadata_path]
-        _logger.debug(type(ret))
-        if chunked is False:
-            if keep_files is False:
-                s3.delete_objects(path=paths_delete, use_threads=use_threads, boto3_session=session)
-            return ret
-        if keep_files is False:
-            return _delete_after_iterate(dfs=ret, paths=paths_delete, use_threads=use_threads, boto3_session=session)
-        return ret
-    dtype, parse_timestamps, parse_dates, converters, binaries = _get_query_metadata(
-        query_execution_id=query_id, categories=categories, boto3_session=session
-    )
-    path = f"{_s3_output}/{query_id}.csv"
-    s3.wait_objects_exist(paths=[path], use_threads=False, boto3_session=session)
-    _logger.debug("Start CSV reading from %s", path)
-    _chunksize: Optional[int] = chunksize if isinstance(chunksize, int) else None
-    _logger.debug("_chunksize: %s", _chunksize)
-    ret = s3.read_csv(
-        path=[path],
-        dtype=dtype,
-        parse_dates=parse_timestamps,
-        converters=converters,
-        quoting=csv.QUOTE_ALL,
-        keep_default_na=False,
-        na_values=[""],
-        chunksize=_chunksize,
-        skip_blank_lines=False,
-        use_threads=False,
-        boto3_session=session,
-    )
-    _logger.debug("Start type casting...")
-    _logger.debug(type(ret))
-    if chunksize is None:
-        df = _fix_csv_types(df=ret, parse_dates=parse_dates, binaries=binaries)
-        if keep_files is False:
-            s3.delete_objects(path=[path, f"{path}.metadata"], use_threads=use_threads, boto3_session=session)
-        return df
-    dfs = _fix_csv_types_generator(dfs=ret, parse_dates=parse_dates, binaries=binaries)
-    if keep_files is False:
-        return _delete_after_iterate(
-            dfs=dfs, paths=[path, f"{path}.metadata"], use_threads=use_threads, boto3_session=session
-        )
-    return dfs
-
-
-def _resolve_query_with_cache(  # pylint: disable=too-many-return-statements
-    cache_info,
-    categories: Optional[List[str]],
-    chunksize: Optional[Union[int, bool]],
-    use_threads: bool,
-    session: Optional[boto3.Session],
-):
-    """Fetch cached data and return it as a pandas Dataframe (or list of Dataframes)."""
-    _logger.debug("cache_info: %s", cache_info)
-    if cache_info["data_type"] == "parquet":
-        manifest_path = cache_info["query_execution_info"]["Statistics"]["DataManifestLocation"]
-        # this is needed just so we can access boto's modeled exceptions
-        client_s3: boto3.client = _utils.client(service_name="s3", session=session)
-        try:
-            paths: List[str] = _extract_ctas_manifest_paths(path=manifest_path, boto3_session=session)
-        except (client_s3.exceptions.NoSuchBucket, client_s3.exceptions.NoSuchKey):  # pragma: no cover
-            return None
-        if all([s3.does_object_exist(path) for path in paths]):
-            chunked: Union[bool, int] = False if chunksize is None else chunksize
-            _logger.debug("chunked: %s", chunked)
-            if not paths:  # pragma: no cover
-                if chunked is False:
-                    return pd.DataFrame()
-                return _utils.empty_generator()
-            ret = s3.read_parquet(
-                path=paths, use_threads=use_threads, boto3_session=session, chunked=chunked, categories=categories
-            )
-            _logger.debug(type(ret))
-            return ret
-    elif cache_info["data_type"] == "csv":
-        dtype, parse_timestamps, parse_dates, converters, binaries = _get_query_metadata(
-            query_execution_id=cache_info["query_execution_info"]["QueryExecutionId"],
-            categories=categories,
-            boto3_session=session,
-        )
-        path = cache_info["query_execution_info"]["ResultConfiguration"]["OutputLocation"]
-        if s3.does_object_exist(path=path, boto3_session=session):
-            _logger.debug("Start CSV reading from %s", path)
-            _chunksize: Optional[int] = chunksize if isinstance(chunksize, int) else None
-            _logger.debug("_chunksize: %s", _chunksize)
-            ret = s3.read_csv(
-                path=[path],
-                dtype=dtype,
-                parse_dates=parse_timestamps,
-                converters=converters,
-                quoting=csv.QUOTE_ALL,
-                keep_default_na=False,
-                na_values=[""],
-                chunksize=_chunksize,
-                skip_blank_lines=False,
-                use_threads=False,
-                boto3_session=session,
-            )
-            _logger.debug("Start type casting...")
-            _logger.debug(type(ret))
-            if chunksize is None:
-                df = _fix_csv_types(df=ret, parse_dates=parse_dates, binaries=binaries)
-                return df
-            dfs = _fix_csv_types_generator(dfs=ret, parse_dates=parse_dates, binaries=binaries)
-            return dfs
-    raise exceptions.InvalidArgumentValue(f"Invalid data type: {cache_info['data_type']}.")  # pragma: no cover
-
-
 def _delete_after_iterate(
     dfs: Iterator[pd.DataFrame], paths: List[str], use_threads: bool, boto3_session: boto3.Session
 ) -> Iterator[pd.DataFrame]:
@@ -260,8 +69,17 @@ def _prepare_query_string_for_comparison(query_string: str) -> str:
     # for now this is a simple complete strip, but it could grow into much more sophisticated
     # query comparison data structures
     query_string = "".join(query_string.split()).strip("()").lower()
-    query_string = query_string[:-1] if query_string.endswith(";") is True else query_string
+    query_string = query_string[:-1] if query_string.endswith(";") else query_string
     return query_string
+
+
+def _compare_query_string(sql: str, other: str) -> bool:
+    comparison_query = _prepare_query_string_for_comparison(query_string=other)
+    _logger.debug("sql: %s", sql)
+    _logger.debug("comparison_query: %s", comparison_query)
+    if sql == comparison_query:
+        return True
+    return False
 
 
 def _get_last_query_executions(
@@ -272,7 +90,7 @@ def _get_last_query_executions(
     args: Dict[str, str] = {}
     if workgroup is not None:
         args["WorkGroup"] = workgroup
-    paginator = client_athena.get_paginator("list_query_executions")
+    paginator = client_athena.get_paginator("list_query_executions", PaginationConfig={"MaxItems": 50, "PageSize": 50})
     for page in paginator.paginate(**args):
         _logger.debug("paginating Athena's queries history...")
         query_execution_id_list: List[str] = page["QueryExecutionIds"]
@@ -286,17 +104,20 @@ def _sort_successful_executions_data(query_executions: List[Dict[str, Any]]):
 
     This is useful to guarantee LRU caching rules.
     """
-    filtered = [query for query in query_executions if query["Status"].get("State") == "SUCCEEDED"]
+    filtered: List[Dict[str, Any]] = []
+    for query in query_executions:
+        if (query["Status"].get("State") == "SUCCEEDED") and (query.get("StatementType") in ["DDL", "DML"]):
+            filtered.append(query)
     return sorted(filtered, key=lambda e: e["Status"]["CompletionDateTime"], reverse=True)
 
 
 def _parse_select_query_from_possible_ctas(possible_ctas: str) -> Optional[str]:
     """Check if `possible_ctas` is a valid parquet-generating CTAS and returns the full SELECT statement."""
     possible_ctas = possible_ctas.lower()
-    parquet_format_regex = r"format\s*=\s*\'parquet\'\s*,"
-    is_parquet_format = re.search(parquet_format_regex, possible_ctas)
+    parquet_format_regex: str = r"format\s*=\s*\'parquet\'\s*,"
+    is_parquet_format = re.search(pattern=parquet_format_regex, string=possible_ctas)
     if is_parquet_format is not None:
-        unstripped_select_statement_regex = r"\s+as\s+\(*(select|with).*"
+        unstripped_select_statement_regex: str = r"\s+as\s+\(*(select|with).*"
         unstripped_select_statement_match = re.search(unstripped_select_statement_regex, possible_ctas, re.DOTALL)
         if unstripped_select_statement_match is not None:
             stripped_select_statement_match = re.search(
@@ -304,65 +125,347 @@ def _parse_select_query_from_possible_ctas(possible_ctas: str) -> Optional[str]:
             )
             if stripped_select_statement_match is not None:
                 return stripped_select_statement_match.group(0)
-    return None  # pragma: no cover
+    return None
 
 
 def _check_for_cached_results(
-    sql: str, session: boto3.Session, workgroup: Optional[str], max_cache_seconds: int, max_cache_query_inspections: int
-) -> Dict[str, Any]:
+    sql: str,
+    boto3_session: boto3.Session,
+    workgroup: Optional[str],
+    max_cache_seconds: int,
+    max_cache_query_inspections: int,
+) -> _CacheInfo:
     """
     Check whether `sql` has been run before, within the `max_cache_seconds` window, by the `workgroup`.
 
     If so, returns a dict with Athena's `query_execution_info` and the data format.
     """
+    if max_cache_seconds <= 0:
+        return _CacheInfo(has_valid_cache=False)
     num_executions_inspected: int = 0
-    if max_cache_seconds > 0:  # pylint: disable=too-many-nested-blocks
-        current_timestamp = datetime.datetime.now(datetime.timezone.utc)
-        for query_executions in _get_last_query_executions(boto3_session=session, workgroup=workgroup):
+    comparable_sql: str = _prepare_query_string_for_comparison(sql)
+    current_timestamp: datetime.datetime = datetime.datetime.now(datetime.timezone.utc)
+    _logger.debug("current_timestamp: %s", current_timestamp)
+    for query_executions in _get_last_query_executions(boto3_session=boto3_session, workgroup=workgroup):
+        _logger.debug("len(query_executions): %s", len(query_executions))
+        cached_queries: List[Dict[str, Any]] = _sort_successful_executions_data(query_executions=query_executions)
+        _logger.debug("len(cached_queries): %s", len(cached_queries))
+        for query_info in cached_queries:
+            query_execution_id: str = query_info["QueryExecutionId"]
+            query_timestamp: datetime.datetime = query_info["Status"]["CompletionDateTime"]
+            _logger.debug("query_timestamp: %s", query_timestamp)
 
-            _logger.debug("len(query_executions): %s", len(query_executions))
-            cached_queries: List[Dict[str, Any]] = _sort_successful_executions_data(query_executions=query_executions)
-            comparable_sql: str = _prepare_query_string_for_comparison(sql)
-            _logger.debug("len(cached_queries): %s", len(cached_queries))
+            if (current_timestamp - query_timestamp).total_seconds() > max_cache_seconds:
+                return _CacheInfo(
+                    has_valid_cache=False, query_execution_id=query_execution_id, query_execution_payload=query_info
+                )
 
-            # this could be mapreduced, but it is only 50 items long, tops
-            for query_info in cached_queries:
+            statement_type: Optional[str] = query_info.get("StatementType")
+            if statement_type == "DDL" and query_info["Query"].startswith("CREATE TABLE"):
+                parsed_query: Optional[str] = _parse_select_query_from_possible_ctas(possible_ctas=query_info["Query"])
+                if parsed_query is not None:
+                    if _compare_query_string(sql=comparable_sql, other=parsed_query):
+                        return _CacheInfo(
+                            has_valid_cache=True,
+                            file_format="parquet",
+                            query_execution_id=query_execution_id,
+                            query_execution_payload=query_info,
+                        )
+            elif statement_type == "DML" and not query_info["Query"].startswith("INSERT"):
+                if _compare_query_string(sql=comparable_sql, other=query_info["Query"]):
+                    return _CacheInfo(
+                        has_valid_cache=True,
+                        file_format="csv",
+                        query_execution_id=query_execution_id,
+                        query_execution_payload=query_info,
+                    )
 
-                query_timestamp: datetime.datetime = query_info["Status"]["CompletionDateTime"]
-                _logger.debug("current_timestamp: %s", current_timestamp)
-                _logger.debug("query_timestamp: %s", query_timestamp)
-                if (current_timestamp - query_timestamp).total_seconds() > max_cache_seconds:
-                    return {"has_valid_cache": False}  # pragma: no cover
+            num_executions_inspected += 1
+            _logger.debug("num_executions_inspected: %s", num_executions_inspected)
+            if num_executions_inspected >= max_cache_query_inspections:
+                return _CacheInfo(has_valid_cache=False)
 
-                comparison_query: Optional[str]
-                if query_info["StatementType"] == "DDL" and query_info["Query"].startswith("CREATE TABLE"):
-                    parsed_query: Optional[str] = _parse_select_query_from_possible_ctas(query_info["Query"])
-                    if parsed_query is not None:
-                        comparison_query = _prepare_query_string_for_comparison(query_string=parsed_query)
-                        _logger.debug("DDL - comparison_query: %s", comparison_query)
-                        _logger.debug("DDL - comparable_sql: %s", comparable_sql)
-                        if comparison_query == comparable_sql:
-                            data_type = "parquet"
-                            return {"has_valid_cache": True, "data_type": data_type, "query_execution_info": query_info}
-
-                elif query_info["StatementType"] == "DML" and not query_info["Query"].startswith("INSERT"):
-                    comparison_query = _prepare_query_string_for_comparison(query_string=query_info["Query"])
-                    _logger.debug("DML - comparison_query: %s", comparison_query)
-                    _logger.debug("DML - comparable_sql: %s", comparable_sql)
-                    if comparison_query == comparable_sql:
-                        data_type = "csv"
-                        return {"has_valid_cache": True, "data_type": data_type, "query_execution_info": query_info}
-
-                num_executions_inspected += 1
-                _logger.debug("num_executions_inspected: %s", num_executions_inspected)
-                _logger.debug("max_cache_query_inspections: %s", max_cache_query_inspections)
-                if num_executions_inspected >= max_cache_query_inspections:
-                    return {"has_valid_cache": False}  # pragma: no cover
-
-    return {"has_valid_cache": False}
+    return _CacheInfo(has_valid_cache=False)
 
 
-def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals,too-many-return-statements,too-many-statements
+def _fetch_parquet_result(
+    query_metadata: _QueryMetadata,
+    keep_files: bool,
+    categories: Optional[List[str]],
+    chunksize: Optional[int],
+    use_threads: bool,
+    boto3_session: boto3.Session,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ret: Union[pd.DataFrame, Iterator[pd.DataFrame]]
+    chunked: Union[bool, int] = False if chunksize is None else chunksize
+    _logger.debug("chunked: %s", chunked)
+    if query_metadata.manifest_location is None:
+        return pd.DataFrame() if chunked is False else _utils.empty_generator()
+    manifest_path: str = query_metadata.manifest_location
+    metadata_path: str = manifest_path.replace("-manifest.csv", ".metadata")
+    _logger.debug("manifest_path: %s", manifest_path)
+    _logger.debug("metadata_path: %s", metadata_path)
+    s3.wait_objects_exist(paths=[manifest_path], use_threads=False, boto3_session=boto3_session)
+    paths: List[str] = _extract_ctas_manifest_paths(path=manifest_path, boto3_session=boto3_session)
+    if not paths:
+        return pd.DataFrame() if chunked is False else _utils.empty_generator()
+    s3.wait_objects_exist(paths=paths, use_threads=False, boto3_session=boto3_session)
+    ret = s3.read_parquet(
+        path=paths, use_threads=use_threads, boto3_session=boto3_session, chunked=chunked, categories=categories
+    )
+    paths_delete: List[str] = paths + [manifest_path, metadata_path]
+    _logger.debug("type(ret): %s", type(ret))
+    if chunked is False:
+        if keep_files is False:
+            s3.delete_objects(path=paths_delete, use_threads=use_threads, boto3_session=boto3_session)
+        return ret
+    if keep_files is False:
+        return _delete_after_iterate(dfs=ret, paths=paths_delete, use_threads=use_threads, boto3_session=boto3_session)
+    return ret
+
+
+def _fetch_csv_result(
+    query_metadata: _QueryMetadata,
+    keep_files: bool,
+    chunksize: Optional[int],
+    use_threads: bool,
+    boto3_session: boto3.Session,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    _chunksize: Optional[int] = chunksize if isinstance(chunksize, int) else None
+    _logger.debug("_chunksize: %s", _chunksize)
+    if query_metadata.output_location is None:
+        return pd.DataFrame() if chunksize is None is False else _utils.empty_generator()
+    path: str = query_metadata.output_location
+    s3.wait_objects_exist(paths=[path], use_threads=False, boto3_session=boto3_session)
+    _logger.debug("Start CSV reading from %s", path)
+    ret = s3.read_csv(
+        path=[path],
+        dtype=query_metadata.dtype,
+        parse_dates=query_metadata.parse_timestamps,
+        converters=query_metadata.converters,
+        quoting=csv.QUOTE_ALL,
+        keep_default_na=False,
+        na_values=[""],
+        chunksize=_chunksize,
+        skip_blank_lines=False,
+        use_threads=False,
+        boto3_session=boto3_session,
+    )
+    _logger.debug("Start type casting...")
+    _logger.debug(type(ret))
+    if chunksize is None:
+        df = _fix_csv_types(df=ret, parse_dates=query_metadata.parse_dates, binaries=query_metadata.binaries)
+        if keep_files is False:
+            s3.delete_objects(path=[path, f"{path}.metadata"], use_threads=use_threads, boto3_session=boto3_session)
+        return df
+    dfs = _fix_csv_types_generator(dfs=ret, parse_dates=query_metadata.parse_dates, binaries=query_metadata.binaries)
+    if keep_files is False:
+        return _delete_after_iterate(
+            dfs=dfs, paths=[path, f"{path}.metadata"], use_threads=use_threads, boto3_session=boto3_session
+        )
+    return dfs
+
+
+def _resolve_query_with_cache(  # pylint: disable=too-many-return-statements
+    cache_info,
+    categories: Optional[List[str]],
+    chunksize: Optional[Union[int, bool]],
+    use_threads: bool,
+    session: Optional[boto3.Session],
+):
+    """Fetch cached data and return it as a pandas DataFrame (or list of DataFrames)."""
+    _logger.debug("cache_info: %s", cache_info)
+    query_metadata: _QueryMetadata = _get_query_metadata(
+        query_execution_id=cache_info.query_execution_id,
+        boto3_session=session,
+        categories=categories,
+        query_execution_payload=cache_info.query_execution_payload,
+    )
+    if cache_info.file_format == "parquet":
+        return _fetch_parquet_result(
+            query_metadata=query_metadata,
+            keep_files=True,
+            categories=categories,
+            chunksize=chunksize,
+            use_threads=use_threads,
+            boto3_session=session,
+        )
+    if cache_info.file_format == "csv":
+        return _fetch_csv_result(
+            query_metadata=query_metadata,
+            keep_files=True,
+            chunksize=chunksize,
+            use_threads=use_threads,
+            boto3_session=session,
+        )
+    raise exceptions.InvalidArgumentValue(f"Invalid data type: {cache_info.file_format}.")  # pragma: no cover
+
+
+def _resolve_query_without_cache_ctas(
+    sql: str,
+    database: Optional[str],
+    s3_output: Optional[str],
+    keep_files: bool,
+    chunksize: Union[int, bool, None],
+    categories: Optional[List[str]],
+    encryption,
+    workgroup: Optional[str],
+    kms_key: Optional[str],
+    wg_config: _WorkGroupConfig,
+    name: Optional[str],
+    use_threads: bool,
+    boto3_session: boto3.Session,
+):
+    path: str = f"{s3_output}/{name}"
+    ext_location: str = "\n" if wg_config.enforced is True else f",\n    external_location = '{path}'\n"
+    sql = (
+        f'CREATE TABLE "{name}"\n'
+        f"WITH(\n"
+        f"    format = 'Parquet',\n"
+        f"    parquet_compression = 'SNAPPY'"
+        f"{ext_location}"
+        f") AS\n"
+        f"{sql}"
+    )
+    _logger.debug("sql: %s", sql)
+    query_id: str = _start_query_execution(
+        sql=sql,
+        wg_config=wg_config,
+        database=database,
+        s3_output=s3_output,
+        workgroup=workgroup,
+        encryption=encryption,
+        kms_key=kms_key,
+        boto3_session=boto3_session,
+    )
+    _logger.debug("query_id: %s", query_id)
+    try:
+        query_metadata: _QueryMetadata = _get_query_metadata(
+            query_execution_id=query_id, boto3_session=boto3_session, categories=categories,
+        )
+    except exceptions.QueryFailed as ex:
+        if "Column name not specified" in str(ex):
+            raise exceptions.InvalidArgumentValue(
+                "Please, define all columns names in your query. (E.g. 'SELECT MAX(col1) AS max_col1, ...')"
+            )
+        if "Column type is unknown" in str(ex):
+            raise exceptions.InvalidArgumentValue(
+                "Please, don't leave undefined columns types in your query. You can cast to ensure it. "
+                "(E.g. 'SELECT CAST(NULL AS INTEGER) AS MY_COL, ...')"
+            )
+        raise ex  # pragma: no cover
+    return _fetch_parquet_result(
+        query_metadata=query_metadata,
+        keep_files=keep_files,
+        categories=categories,
+        chunksize=chunksize,
+        use_threads=use_threads,
+        boto3_session=boto3_session,
+    )
+
+
+def _resolve_query_without_cache_regular(
+    sql: str,
+    database: Optional[str],
+    s3_output: Optional[str],
+    keep_files: bool,
+    chunksize: Union[int, bool, None],
+    categories: Optional[List[str]],
+    encryption,
+    workgroup: Optional[str],
+    kms_key: Optional[str],
+    wg_config: _WorkGroupConfig,
+    use_threads: bool,
+    boto3_session: boto3.Session,
+):
+    _logger.debug("sql: %s", sql)
+    query_id: str = _start_query_execution(
+        sql=sql,
+        wg_config=wg_config,
+        database=database,
+        s3_output=s3_output,
+        workgroup=workgroup,
+        encryption=encryption,
+        kms_key=kms_key,
+        boto3_session=boto3_session,
+    )
+    _logger.debug("query_id: %s", query_id)
+    query_metadata: _QueryMetadata = _get_query_metadata(
+        query_execution_id=query_id, boto3_session=boto3_session, categories=categories,
+    )
+    return _fetch_csv_result(
+        query_metadata=query_metadata,
+        keep_files=keep_files,
+        chunksize=chunksize,
+        use_threads=use_threads,
+        boto3_session=boto3_session,
+    )
+
+
+def _resolve_query_without_cache(
+    # pylint: disable=too-many-branches,too-many-locals,too-many-return-statements,too-many-statements
+    sql: str,
+    database: str,
+    ctas_approach: bool,
+    categories: Optional[List[str]],
+    chunksize: Union[int, bool, None],
+    s3_output: Optional[str],
+    workgroup: Optional[str],
+    encryption: Optional[str],
+    kms_key: Optional[str],
+    keep_files: bool,
+    ctas_temp_table_name: Optional[str],
+    use_threads: bool,
+    boto3_session: boto3.Session,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    """
+    Execute a query in Athena and returns results as DataFrame, back to `read_sql_query`.
+
+    Usually called by `read_sql_query` when using cache is not possible.
+    """
+    wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
+    _s3_output: str = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=boto3_session)
+    _s3_output = _s3_output[:-1] if _s3_output[-1] == "/" else _s3_output
+    if ctas_approach is True:
+        if ctas_temp_table_name is not None:
+            name: str = catalog.sanitize_table_name(ctas_temp_table_name)
+        else:
+            name = f"temp_table_{uuid.uuid4().hex}"
+        try:
+            return _resolve_query_without_cache_ctas(
+                sql=sql,
+                database=database,
+                s3_output=_s3_output,
+                keep_files=keep_files,
+                chunksize=chunksize,
+                categories=categories,
+                encryption=encryption,
+                workgroup=workgroup,
+                kms_key=kms_key,
+                wg_config=wg_config,
+                name=name,
+                use_threads=use_threads,
+                boto3_session=boto3_session,
+            )
+        finally:
+            catalog.delete_table_if_exists(database=database, table=name, boto3_session=boto3_session)
+    return _resolve_query_without_cache_regular(
+        sql=sql,
+        database=database,
+        s3_output=_s3_output,
+        keep_files=keep_files,
+        chunksize=chunksize,
+        categories=categories,
+        encryption=encryption,
+        workgroup=workgroup,
+        kms_key=kms_key,
+        wg_config=wg_config,
+        use_threads=use_threads,
+        boto3_session=boto3_session,
+    )
+
+
+def read_sql_query(
     sql: str,
     database: str,
     ctas_approach: bool = True,
@@ -486,35 +589,27 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals,too-man
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
-    # check for cached results
-    cache_info: Dict[str, Any] = _check_for_cached_results(
+    cache_info: _CacheInfo = _check_for_cached_results(
         sql=sql,
-        session=session,
+        boto3_session=session,
         workgroup=workgroup,
         max_cache_seconds=max_cache_seconds,
         max_cache_query_inspections=max_cache_query_inspections,
     )
     _logger.debug("cache_info: %s", cache_info)
-
-    if cache_info["has_valid_cache"] is True:
+    if cache_info.has_valid_cache is True:
         _logger.debug("Valid cache found. Retrieving...")
-        cache_result: Union[pd.DataFrame, Iterator[pd.DataFrame], None] = None
         try:
-            cache_result = _resolve_query_with_cache(
+            return _resolve_query_with_cache(
                 cache_info=cache_info,
                 categories=categories,
                 chunksize=chunksize,
                 use_threads=use_threads,
                 session=session,
             )
-        # pylint: disable=broad-except
-        except Exception as e:  # pragma: no cover
-            _logger.error(e)
-            # if there is anything wrong with the cache, just fallback to the usual path
-        if cache_result is not None:
-            return cache_result
-        _logger.debug("Corrupt cache. Continuing to execute query...")  # pragma: no cover
-
+        except Exception as e:  # pylint: disable=broad-except
+            _logger.error(e)  # if there is anything wrong with the cache, just fallback to the usual path
+            _logger.debug("Corrupted cache. Continuing to execute query...")
     return _resolve_query_without_cache(
         sql=sql,
         database=database,
@@ -528,7 +623,7 @@ def read_sql_query(  # pylint: disable=too-many-branches,too-many-locals,too-man
         keep_files=keep_files,
         ctas_temp_table_name=ctas_temp_table_name,
         use_threads=use_threads,
-        session=session,
+        boto3_session=session,
     )
 
 

@@ -4,34 +4,49 @@ import logging
 import pprint
 import time
 from decimal import Decimal
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, NamedTuple, Optional
 
 import boto3  # type: ignore
 
 from awswrangler import _data_types, _utils, exceptions, sts
 
+_QUERY_FINAL_STATES: List[str] = ["FAILED", "SUCCEEDED", "CANCELLED"]
 _QUERY_WAIT_POLLING_DELAY: float = 0.2  # SECONDS
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _get_s3_output(
-    s3_output: Optional[str], wg_config: Dict[str, Union[bool, Optional[str]]], boto3_session: boto3.Session
-) -> str:
-    if s3_output is None:
-        _s3_output: Optional[str] = wg_config["s3_output"]  # type: ignore
-        if _s3_output is not None:
-            s3_output = _s3_output
-        else:
-            s3_output = create_athena_bucket(boto3_session=boto3_session)
-    elif wg_config["enforced"] is True:
-        s3_output = wg_config["s3_output"]  # type: ignore
-    return s3_output
+class _QueryMetadata(NamedTuple):
+    execution_id: str
+    dtype: Dict[str, str]
+    parse_timestamps: List[str]
+    parse_dates: List[str]
+    converters: Dict[str, Any]
+    binaries: List[str]
+    output_location: Optional[str]
+    manifest_location: Optional[str]
+
+
+class _WorkGroupConfig(NamedTuple):
+    enforced: bool
+    s3_output: Optional[str]
+    encryption: Optional[str]
+    kms_key: Optional[str]
+
+
+def _get_s3_output(s3_output: Optional[str], wg_config: _WorkGroupConfig, boto3_session: boto3.Session) -> str:
+    if wg_config.enforced and wg_config.s3_output is not None:
+        return wg_config.s3_output
+    if s3_output is not None:
+        return s3_output
+    if wg_config.s3_output is not None:
+        return wg_config.s3_output
+    return create_athena_bucket(boto3_session=boto3_session)
 
 
 def _start_query_execution(
     sql: str,
-    wg_config: Dict[str, Union[Optional[bool], Optional[str]]],
+    wg_config: _WorkGroupConfig,
     database: Optional[str] = None,
     s3_output: Optional[str] = None,
     workgroup: Optional[str] = None,
@@ -48,11 +63,11 @@ def _start_query_execution(
     }
 
     # encryption
-    if wg_config["enforced"] is True:
-        if wg_config["encryption"] is not None:
-            args["ResultConfiguration"]["EncryptionConfiguration"] = {"EncryptionOption": wg_config["encryption"]}
-            if wg_config["kms_key"] is not None:
-                args["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"] = wg_config["kms_key"]
+    if wg_config.enforced is True:
+        if wg_config.encryption is not None:
+            args["ResultConfiguration"]["EncryptionConfiguration"] = {"EncryptionOption": wg_config.encryption}
+            if wg_config.kms_key is not None:
+                args["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"] = wg_config.kms_key
     else:
         if encryption is not None:
             args["ResultConfiguration"]["EncryptionConfiguration"] = {"EncryptionOption": encryption}
@@ -73,9 +88,7 @@ def _start_query_execution(
     return response["QueryExecutionId"]
 
 
-def _get_workgroup_config(
-    session: boto3.Session, workgroup: Optional[str] = None
-) -> Dict[str, Union[bool, Optional[str]]]:
+def _get_workgroup_config(session: boto3.Session, workgroup: Optional[str] = None) -> _WorkGroupConfig:
     if workgroup is not None:
         res: Dict[str, Any] = get_work_group(workgroup=workgroup, boto3_session=session)
         enforced: bool = res["WorkGroup"]["Configuration"]["EnforceWorkGroupConfiguration"]
@@ -86,20 +99,27 @@ def _get_workgroup_config(
         wg_kms_key: Optional[str] = None if encrypt_config is None else encrypt_config.get("KmsKey")
     else:
         enforced, wg_s3_output, wg_encryption, wg_kms_key = False, None, None, None
-    wg_config: Dict[str, Union[bool, Optional[str]]] = {
-        "enforced": enforced,
-        "s3_output": wg_s3_output,
-        "encryption": wg_encryption,
-        "kms_key": wg_kms_key,
-    }
-    _logger.debug("wg_config: \n%s", pprint.pformat(wg_config))
+    wg_config: _WorkGroupConfig = _WorkGroupConfig(
+        enforced=enforced, s3_output=wg_s3_output, encryption=wg_encryption, kms_key=wg_kms_key
+    )
+    _logger.debug("wg_config:\n%s", wg_config)
     return wg_config
 
 
 def _get_query_metadata(
-    query_execution_id: str, categories: List[str] = None, boto3_session: Optional[boto3.Session] = None
-) -> Tuple[Dict[str, str], List[str], List[str], Dict[str, Any], List[str]]:
+    query_execution_id: str,
+    boto3_session: boto3.Session,
+    categories: List[str] = None,
+    query_execution_payload: Optional[Dict[str, Any]] = None,
+) -> _QueryMetadata:
     """Get query metadata."""
+    if (query_execution_payload is not None) and (query_execution_payload["Status"]["State"] in _QUERY_FINAL_STATES):
+        if query_execution_payload["Status"]["State"] != "SUCCEEDED":
+            reason: str = query_execution_payload["Status"]["StateChangeReason"]
+            raise exceptions.QueryFailed(f"Query error: {reason}")
+        _query_execution_payload: Dict[str, Any] = query_execution_payload
+    else:
+        _query_execution_payload = wait_query(query_execution_id=query_execution_id, boto3_session=boto3_session)
     cols_types: Dict[str, str] = get_query_columns_types(
         query_execution_id=query_execution_id, boto3_session=boto3_session
     )
@@ -136,12 +156,24 @@ def _get_query_metadata(
             converters[col_name] = lambda x: Decimal(str(x)) if str(x) not in ("", "none", " ", "<NA>") else None
         else:
             dtype[col_name] = pandas_type
-    _logger.debug("dtype: %s", dtype)
-    _logger.debug("parse_timestamps: %s", parse_timestamps)
-    _logger.debug("parse_dates: %s", parse_dates)
-    _logger.debug("converters: %s", converters)
-    _logger.debug("binaries: %s", binaries)
-    return dtype, parse_timestamps, parse_dates, converters, binaries
+    output_location: Optional[str] = None
+    if "ResultConfiguration" in _query_execution_payload:
+        if "OutputLocation" in _query_execution_payload["ResultConfiguration"]:
+            output_location = _query_execution_payload["ResultConfiguration"]["OutputLocation"]
+    manifest_location: Optional[str] = None
+    if "Statistics" in _query_execution_payload:
+        if "DataManifestLocation" in _query_execution_payload["Statistics"]:
+            manifest_location = _query_execution_payload["Statistics"]["DataManifestLocation"]
+    return _QueryMetadata(
+        execution_id=query_execution_id,
+        dtype=dtype,
+        parse_timestamps=parse_timestamps,
+        parse_dates=parse_dates,
+        converters=converters,
+        binaries=binaries,
+        output_location=output_location,
+        manifest_location=manifest_location,
+    )
 
 
 def get_query_columns_types(query_execution_id: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, str]:
@@ -169,7 +201,7 @@ def get_query_columns_types(query_execution_id: str, boto3_session: Optional[bot
 
     """
     client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
-    response: Dict = client_athena.get_query_results(QueryExecutionId=query_execution_id, MaxResults=1)
+    response: Dict[str, Any] = client_athena.get_query_results(QueryExecutionId=query_execution_id, MaxResults=1)
     col_info: List[Dict[str, str]] = response["ResultSet"]["ResultSetMetadata"]["ColumnInfo"]
     return {x["Name"]: x["Type"] for x in col_info}
 
@@ -248,7 +280,7 @@ def start_query_execution(
 
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    wg_config: Dict[str, Union[bool, Optional[str]]] = _get_workgroup_config(session=session, workgroup=workgroup)
+    wg_config: _WorkGroupConfig = _get_workgroup_config(session=session, workgroup=workgroup)
     return _start_query_execution(
         sql=sql,
         wg_config=wg_config,
@@ -325,7 +357,7 @@ def repair_table(
         boto3_session=session,
     )
     response: Dict[str, Any] = wait_query(query_execution_id=query_id, boto3_session=session)
-    return response["QueryExecution"]["Status"]["State"]
+    return response["Status"]["State"]
 
 
 def get_work_group(workgroup: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, Any]:
@@ -401,11 +433,10 @@ def wait_query(query_execution_id: str, boto3_session: Optional[boto3.Session] =
     >>> res = wr.athena.wait_query(query_execution_id='query-execution-id')
 
     """
-    final_states: List[str] = ["FAILED", "SUCCEEDED", "CANCELLED"]
     client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
     response: Dict[str, Any] = client_athena.get_query_execution(QueryExecutionId=query_execution_id)
     state: str = response["QueryExecution"]["Status"]["State"]
-    while state not in final_states:
+    while state not in _QUERY_FINAL_STATES:
         time.sleep(_QUERY_WAIT_POLLING_DELAY)
         response = client_athena.get_query_execution(QueryExecutionId=query_execution_id)
         state = response["QueryExecution"]["Status"]["State"]
@@ -415,4 +446,32 @@ def wait_query(query_execution_id: str, boto3_session: Optional[boto3.Session] =
         raise exceptions.QueryFailed(response["QueryExecution"]["Status"].get("StateChangeReason"))
     if state == "CANCELLED":
         raise exceptions.QueryCancelled(response["QueryExecution"]["Status"].get("StateChangeReason"))
-    return response
+    return response["QueryExecution"]
+
+
+def get_query_execution(query_execution_id: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, Any]:
+    """Fetch query execution details.
+
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/athena.html#Athena.Client.get_query_execution
+
+    Parameters
+    ----------
+    query_execution_id : str
+        Athena query execution ID.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    Dict[str, Any]
+        Dictionary with the get_query_execution response.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> res = wr.athena.get_query_execution(query_execution_id='query-execution-id')
+
+    """
+    client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
+    response: Dict[str, Any] = client_athena.get_query_execution(QueryExecutionId=query_execution_id)
+    return response["QueryExecution"]
