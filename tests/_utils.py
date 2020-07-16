@@ -443,7 +443,7 @@ def ensure_data_types_csv(df):
 
 def get_time_str_with_random_suffix():
     time_str = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
-    return f"{time_str}_{random.randrange(16**4):04x}"
+    return f"{time_str}_{random.randrange(16**6):06x}"
 
 
 def path_generator(bucket):
@@ -485,3 +485,33 @@ def list_workgroups():
             if attempt > 5:
                 raise ex
             time.sleep(attempt + random.randrange(start=0, stop=3, step=1))
+
+
+def validate_workgroup_key(workgroup):
+    if "ResultConfiguration" in workgroup["Configuration"]:
+        if "EncryptionConfiguration" in workgroup["Configuration"]["ResultConfiguration"]:
+            if "KmsKey" in workgroup["Configuration"]["ResultConfiguration"]["EncryptionConfiguration"]:
+                kms_client = boto3.client("kms")
+                key = kms_client.describe_key(
+                    KeyId=workgroup["Configuration"]["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"]
+                )["KeyMetadata"]
+                if key["KeyState"] != "Enabled":
+                    return False
+    return True
+
+
+def create_workgroup(wkg_name, config):
+    client = boto3.client("athena")
+    wkgs = list_workgroups()
+    wkgs = [x["Name"] for x in wkgs["WorkGroups"]]
+    deleted = False
+    if wkg_name in wkgs:
+        wkg = client.get_work_group(WorkGroup=wkg_name)["WorkGroup"]
+        if validate_workgroup_key(workgroup=wkg) is False:
+            client.delete_work_group(WorkGroup=wkg_name, RecursiveDeleteOption=True)
+            deleted = True
+    if wkg_name not in wkgs or deleted is True:
+        client.create_work_group(
+            Name=wkg_name, Configuration=config, Description=f"AWS Data Wrangler Test - {wkg_name}",
+        )
+    return wkg_name
