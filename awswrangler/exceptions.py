@@ -45,10 +45,6 @@ class QueryCancelled(Exception):
     """QueryCancelled exception."""
 
 
-class AthenaQueryError(Exception):
-    """AthenaQueryError exception."""
-
-
 class EmptyDataFrame(Exception):
     """EmptyDataFrame exception."""
 
