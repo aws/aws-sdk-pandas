@@ -377,7 +377,7 @@ def get_redshift_temp_engine(
     )
 
 
-def get_engine(db_type: str, host: str, port: int, database: str, user: str, password: str) -> sqlalchemy.engine.Engine:
+def get_engine(db_type: str, host: str, port: int, database: str, user: str, password: str, **sqlalchemy_kwargs) -> sqlalchemy.engine.Engine:
     """Return a SQLAlchemy Engine from the given arguments.
 
     Only Redshift, PostgreSQL and MySQL are supported.
@@ -396,6 +396,9 @@ def get_engine(db_type: str, host: str, port: int, database: str, user: str, pas
         Username.
     password : str
         Password.
+    sqlalchemy_kwargs
+        keyword arguments forwarded to sqlalchemy.create_engine().
+        https://docs.sqlalchemy.org/en/13/core/engines.html
 
     Returns
     -------
@@ -424,7 +427,7 @@ def get_engine(db_type: str, host: str, port: int, database: str, user: str, pas
         )
     if db_type == "mysql":
         conn_str = f"mysql+pymysql://{user}:{password}@{host}:{port}/{database}"
-        return sqlalchemy.create_engine(conn_str, echo=False)
+        return sqlalchemy.create_engine(conn_str, **sqlalchemy_kwargs)
     raise exceptions.InvalidDatabaseType(  # pragma: no cover
         f"{db_type} is not a valid Database type." f" Only Redshift, PostgreSQL and MySQL are supported."
     )
