@@ -408,6 +408,7 @@ def test_category(path, glue_table, glue_database):
 
 @pytest.mark.parametrize("workgroup", [None, 0, 1, 2, 3])
 @pytest.mark.parametrize("encryption", [None, "SSE_S3", "SSE_KMS"])
+@pytest.mark.parametrize("ctas_approach", [False, True])
 def test_athena_encryption(
     path,
     path2,
@@ -415,6 +416,7 @@ def test_athena_encryption(
     glue_table,
     glue_table2,
     kms_key,
+    ctas_approach,
     encryption,
     workgroup,
     workgroup0,
@@ -444,7 +446,7 @@ def test_athena_encryption(
     wr.s3.wait_objects_exist(paths=paths, use_threads=False)
     df2 = wr.athena.read_sql_table(
         table=glue_table,
-        ctas_approach=True,
+        ctas_approach=ctas_approach,
         database=glue_database,
         encryption=encryption,
         workgroup=workgroup,
@@ -454,8 +456,7 @@ def test_athena_encryption(
         s3_output=path2,
     )
     assert wr.catalog.does_table_exist(database=glue_database, table=glue_table2) is False
-    assert len(df2.index) == 2
-    assert len(df2.columns) == 2
+    assert df2.shape == (2, 2)
 
 
 def test_athena_nested(path, glue_database, glue_table):
