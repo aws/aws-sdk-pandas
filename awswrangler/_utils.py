@@ -305,3 +305,9 @@ def ensure_df_is_mutable(df: pd.DataFrame) -> pd.DataFrame:
                 df = df.copy(deep=True)
                 break
     return df
+
+
+def insert_str(text: str, token: str, insert: str) -> str:
+    """Insert string into other."""
+    index: int = text.find(token)
+    return text[:index] + insert + text[index:]

@@ -9,6 +9,7 @@ from typing import Any, Dict, List, NamedTuple, Optional
 import boto3  # type: ignore
 
 from awswrangler import _data_types, _utils, exceptions, sts
+from awswrangler._config import apply_configs
 
 _QUERY_FINAL_STATES: List[str] = ["FAILED", "SUCCEEDED", "CANCELLED"]
 _QUERY_WAIT_POLLING_DELAY: float = 0.2  # SECONDS
@@ -237,6 +238,7 @@ def create_athena_bucket(boto3_session: Optional[boto3.Session] = None) -> str:
     return s3_output
 
 
+@apply_configs
 def start_query_execution(
     sql: str,
     database: Optional[str] = None,
@@ -295,6 +297,7 @@ def start_query_execution(
     )
 
 
+@apply_configs
 def repair_table(
     table: str,
     database: Optional[str] = None,
