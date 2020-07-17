@@ -13,6 +13,7 @@ import pandas as pd  # type: ignore
 import sqlalchemy  # type: ignore
 
 from awswrangler import _data_types, _utils, exceptions
+from awswrangler._config import apply_configs
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -128,6 +129,7 @@ def delete_table_if_exists(database: str, table: str, boto3_session: Optional[bo
         return False
 
 
+@apply_configs
 def does_table_exist(database: str, table: str, boto3_session: Optional[boto3.Session] = None) -> bool:
     """Check if the table exists.
 
@@ -159,6 +161,7 @@ def does_table_exist(database: str, table: str, boto3_session: Optional[boto3.Se
         return False
 
 
+@apply_configs
 def create_parquet_table(
     database: str,
     table: str,
