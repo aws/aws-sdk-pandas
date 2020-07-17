@@ -981,7 +981,7 @@ def get_connection(
 
 
 def get_engine(
-    connection: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
+    connection: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None, **sqlalchemy_kwargs
 ) -> sqlalchemy.engine.Engine:
     """Return a SQLAlchemy Engine from a Glue Catalog Connection.
 
@@ -996,6 +996,9 @@ def get_engine(
         If none is provided, the AWS account ID is used by default.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    sqlalchemy_kwargs
+        keyword arguments forwarded to sqlalchemy.create_engine().
+        https://docs.sqlalchemy.org/en/13/core/engines.html
 
     Returns
     -------
@@ -1025,7 +1028,7 @@ def get_engine(
         )
     if db_type == "mysql":
         conn_str = f"mysql+pymysql://{user}:{password}@{host}:{port}/{database}"
-        return sqlalchemy.create_engine(conn_str, echo=False)
+        return sqlalchemy.create_engine(conn_str, **sqlalchemy_kwargs)
     raise exceptions.InvalidDatabaseType(  # pragma: no cover
         f"{db_type} is not a valid Database type." f" Only Redshift, PostgreSQL and MySQL are supported."
     )

@@ -23,7 +23,7 @@ def test_sql(databases_parameters, db_type):
     df = get_df()
     if db_type == "redshift":
         df.drop(["binary"], axis=1, inplace=True)
-    engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-{db_type}")
+    engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-{db_type}", echo=False)
     index = True if engine.name == "redshift" else False
     wr.db.to_sql(
         df=df,
@@ -46,6 +46,7 @@ def test_sql(databases_parameters, db_type):
         database=databases_parameters[db_type]["database"],
         user=databases_parameters["user"],
         password=databases_parameters["password"],
+        echo=False
     )
     dfs = wr.db.read_sql_query(
         sql=f"SELECT * FROM {databases_parameters[db_type]['schema']}.test_sql",
