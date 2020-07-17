@@ -21,12 +21,13 @@ from awswrangler.s3._list import path2list
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def read_parquet_metadata_internal(
+def _read_parquet_metadata(
     path: Union[str, List[str]],
+    key_suffix: Optional[str],
+    key_ignore_suffix: Optional[str],
     dtype: Optional[Dict[str, str]],
     sampling: float,
     dataset: bool,
-    path_suffix: Optional[str],
     use_threads: bool,
     boto3_session: Optional[boto3.Session],
 ) -> Tuple[Dict[str, str], Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]:
@@ -35,20 +36,28 @@ def read_parquet_metadata_internal(
     if dataset is True:
         if isinstance(path, str):
             _path: Optional[str] = path if path.endswith("/") else f"{path}/"
-            paths: List[str] = path2list(path=_path, boto3_session=session, suffix=path_suffix)
+            paths: List[str] = path2list(
+                path=_path, boto3_session=session, suffix=key_suffix, ignore_suffix=key_ignore_suffix
+            )
         else:  # pragma: no cover
             raise exceptions.InvalidArgumentType("Argument <path> must be str if dataset=True.")
     else:
         if isinstance(path, str):
             _path = None
-            paths = path2list(path=path, boto3_session=session, suffix=path_suffix)
+            paths = path2list(path=path, boto3_session=session, suffix=key_suffix, ignore_suffix=key_ignore_suffix)
         elif isinstance(path, list):
             _path = None
             paths = path
         else:  # pragma: no cover
             raise exceptions.InvalidArgumentType(f"Argument path must be str or List[str] instead of {type(path)}.")
     schemas: List[Dict[str, str]] = [
-        _read_parquet_metadata_file(path=x, use_threads=use_threads, boto3_session=session)
+        _read_parquet_metadata_file(
+            path=x,
+            use_threads=use_threads,
+            boto3_session=session,
+            key_suffix=key_suffix,
+            key_ignore_suffix=key_ignore_suffix,
+        )
         for x in _utils.list_sampling(lst=paths, sampling=sampling)
     ]
     _logger.debug("schemas: %s", schemas)
@@ -77,6 +86,8 @@ def read_parquet_metadata_internal(
 def _read_text(
     parser_func: Callable,
     path: Union[str, List[str]],
+    key_suffix: Optional[str] = None,
+    key_ignore_suffix: Optional[str] = None,
     use_threads: bool = True,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
@@ -98,7 +109,12 @@ def _read_text(
     else:
         path_root = ""
     paths: List[str] = path2list(
-        path=path, boto3_session=session, last_modified_begin=last_modified_begin, last_modified_end=last_modified_end
+        path=path,
+        boto3_session=session,
+        suffix=key_suffix,
+        ignore_suffix=key_ignore_suffix,
+        last_modified_begin=last_modified_begin,
+        last_modified_end=last_modified_end,
     )
     if len(paths) < 1:
         raise exceptions.InvalidArgument("No files Found.")
@@ -216,6 +232,8 @@ def _read_text_full(
 
 def _read_parquet_init(
     path: Union[str, List[str]],
+    key_suffix: Optional[str],
+    key_ignore_suffix: Optional[str],
     filters: Optional[Union[List[Tuple], List[List[Tuple]]]] = None,
     categories: List[str] = None,
     validate_schema: bool = True,
@@ -231,6 +249,8 @@ def _read_parquet_init(
     if dataset is False:
         path_or_paths: Union[str, List[str]] = path2list(
             path=path,
+            suffix=key_suffix,
+            ignore_suffix=key_ignore_suffix,
             boto3_session=session,
             last_modified_begin=last_modified_begin,
             last_modified_end=last_modified_end,
@@ -341,15 +361,29 @@ def _table2df(
     )
 
 
-def _read_parquet_metadata_file(path: str, use_threads: bool, boto3_session: boto3.Session) -> Dict[str, str]:
+def _read_parquet_metadata_file(
+    path: str,
+    key_suffix: Optional[str],
+    key_ignore_suffix: Optional[str],
+    use_threads: bool,
+    boto3_session: boto3.Session,
+) -> Dict[str, str]:
     data: pyarrow.parquet.ParquetDataset = _read_parquet_init(
-        path=path, filters=None, dataset=False, use_threads=use_threads, boto3_session=boto3_session
+        path=path,
+        key_suffix=key_suffix,
+        key_ignore_suffix=key_ignore_suffix,
+        filters=None,
+        dataset=False,
+        use_threads=use_threads,
+        boto3_session=boto3_session,
     )
     return _data_types.athena_types_from_pyarrow_schema(schema=data.schema.to_arrow_schema(), partitions=None)[0]
 
 
 def read_csv(
     path: Union[str, List[str]],
+    key_suffix: Optional[str] = None,
+    key_ignore_suffix: Optional[str] = None,
     use_threads: bool = True,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
@@ -377,6 +411,10 @@ def read_csv(
     ----------
     path : Union[str, List[str]]
         S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. ``[s3://bucket/key0, s3://bucket/key1]``).
+    key_suffix: str, optional
+        Suffix for filtering S3 keys.
+    key_ignore_suffix: str, optional
+        Ignore all S3 keys that ends with it.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -444,6 +482,8 @@ def read_csv(
     return _read_text(
         parser_func=pd.read_csv,
         path=path,
+        key_suffix=key_suffix,
+        key_ignore_suffix=key_ignore_suffix,
         use_threads=use_threads,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
@@ -459,6 +499,8 @@ def read_csv(
 
 def read_fwf(
     path: Union[str, List[str]],
+    key_suffix: Optional[str] = None,
+    key_ignore_suffix: Optional[str] = None,
     use_threads: bool = True,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
@@ -486,6 +528,10 @@ def read_fwf(
     ----------
     path : Union[str, List[str]]
         S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. ``[s3://bucket/key0, s3://bucket/key1]``).
+    key_suffix: str, optional
+        Suffix for filtering S3 keys.
+    key_ignore_suffix: str, optional
+        Ignore all S3 keys that ends with it.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -547,6 +593,8 @@ def read_fwf(
     return _read_text(
         parser_func=pd.read_fwf,
         path=path,
+        key_suffix=key_suffix,
+        key_ignore_suffix=key_ignore_suffix,
         use_threads=use_threads,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
@@ -562,6 +610,8 @@ def read_fwf(
 
 def read_json(
     path: Union[str, List[str]],
+    key_suffix: Optional[str] = None,
+    key_ignore_suffix: Optional[str] = None,
     orient: str = "columns",
     use_threads: bool = True,
     last_modified_begin: Optional[datetime.datetime] = None,
@@ -590,6 +640,10 @@ def read_json(
     ----------
     path : Union[str, List[str]]
         S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. ``[s3://bucket/key0, s3://bucket/key1]``).
+    key_suffix: str, optional
+        Suffix for filtering S3 keys.
+    key_ignore_suffix: str, optional
+        Ignore all S3 keys that ends with it.
     orient : str
         Same as Pandas: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_json.html
     use_threads : bool
@@ -663,6 +717,8 @@ def read_json(
     return _read_text(
         parser_func=pd.read_json,
         path=path,
+        key_suffix=key_suffix,
+        key_ignore_suffix=key_ignore_suffix,
         use_threads=use_threads,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
@@ -678,6 +734,8 @@ def read_json(
 
 def read_parquet(
     path: Union[str, List[str]],
+    key_suffix: Optional[str] = None,
+    key_ignore_suffix: Optional[str] = None,
     filters: Optional[Union[List[Tuple], List[List[Tuple]]]] = None,
     columns: Optional[List[str]] = None,
     validate_schema: bool = True,
@@ -723,6 +781,10 @@ def read_parquet(
     ----------
     path : Union[str, List[str]]
         S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+    key_suffix: str, optional
+        Suffix for filtering S3 keys.
+    key_ignore_suffix: str, optional
+        Ignore all S3 keys that ends with it.
     filters: Union[List[Tuple], List[List[Tuple]]], optional
         List of filters to apply on PARTITION columns (PUSH-DOWN filter), like ``[[('x', '=', 0), ...], ...]``.
         Ignored if `dataset=False`.
@@ -806,6 +868,8 @@ def read_parquet(
     """
     data: pyarrow.parquet.ParquetDataset = _read_parquet_init(
         path=path,
+        key_suffix=key_suffix,
+        key_ignore_suffix=key_ignore_suffix,
         filters=filters,
         dataset=dataset,
         categories=categories,
@@ -833,10 +897,11 @@ def read_parquet(
 
 def read_parquet_metadata(
     path: Union[str, List[str]],
+    key_suffix: Optional[str] = None,
+    key_ignore_suffix: Optional[str] = None,
     dtype: Optional[Dict[str, str]] = None,
     sampling: float = 1.0,
     dataset: bool = False,
-    path_suffix: Optional[str] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Tuple[Dict[str, str], Optional[Dict[str, str]]]:
@@ -853,6 +918,10 @@ def read_parquet_metadata(
     ----------
     path : Union[str, List[str]]
         S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+    key_suffix: str, optional
+        Suffix for filtering S3 keys.
+    key_ignore_suffix: str, optional
+        Ignore all S3 keys that ends with it.
     dtype : Dict[str, str], optional
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined data types as partitions columns.
@@ -864,8 +933,6 @@ def read_parquet_metadata(
         The lower, the faster.
     dataset: bool
         If True read a parquet dataset instead of simple file(s) loading all the related partitions as columns.
-    path_suffix : str
-        Suffix to filter S3 objects found according to the path parameter.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -896,12 +963,13 @@ def read_parquet_metadata(
     ... ])
 
     """
-    return read_parquet_metadata_internal(
+    return _read_parquet_metadata(
         path=path,
+        key_suffix=key_suffix,
+        key_ignore_suffix=key_ignore_suffix,
         dtype=dtype,
         sampling=sampling,
         dataset=dataset,
-        path_suffix=path_suffix,
         use_threads=use_threads,
         boto3_session=boto3_session,
     )[:2]

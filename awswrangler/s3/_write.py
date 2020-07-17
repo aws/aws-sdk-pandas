@@ -14,7 +14,7 @@ import s3fs  # type: ignore
 
 from awswrangler import _data_types, _utils, catalog, exceptions
 from awswrangler.s3._delete import delete_objects
-from awswrangler.s3._read import read_parquet_metadata_internal
+from awswrangler.s3._read import _read_parquet_metadata
 
 _COMPRESSION_2_EXT: Dict[Optional[str], str] = {None: "", "gzip": ".gz", "snappy": ".snappy"}
 
@@ -936,12 +936,13 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
 
 def store_parquet_metadata(  # pylint: disable=too-many-arguments
     path: str,
+    key_suffix: Optional[str],
+    key_ignore_suffix: Optional[str],
     database: str,
     table: str,
     dtype: Optional[Dict[str, str]] = None,
     sampling: float = 1.0,
     dataset: bool = False,
-    path_suffix: Optional[str] = None,
     use_threads: bool = True,
     description: Optional[str] = None,
     parameters: Optional[Dict[str, str]] = None,
@@ -979,6 +980,10 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
     ----------
     path : Union[str, List[str]]
         S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+    key_suffix: str, optional
+        Suffix for filtering S3 keys.
+    key_ignore_suffix: str, optional
+        Ignore all S3 keys that ends with it.
     database : str
         Glue/Athena catalog: Database name.
     table : str
@@ -1069,12 +1074,13 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
     columns_types: Dict[str, str]
     partitions_types: Optional[Dict[str, str]]
     partitions_values: Optional[Dict[str, List[str]]]
-    columns_types, partitions_types, partitions_values = read_parquet_metadata_internal(
+    columns_types, partitions_types, partitions_values = _read_parquet_metadata(
         path=path,
         dtype=dtype,
         sampling=sampling,
         dataset=dataset,
-        path_suffix=path_suffix,
+        key_suffix=key_suffix,
+        key_ignore_suffix=key_ignore_suffix,
         use_threads=use_threads,
         boto3_session=session,
     )

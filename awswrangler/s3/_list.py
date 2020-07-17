@@ -18,12 +18,14 @@ def path2list(
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     suffix: str = None,
+    ignore_suffix: Optional[str] = None,
 ) -> List[str]:
     """Convert Amazon S3 path to list of objects."""
     if isinstance(path, str):  # prefix
         paths: List[str] = list_objects(
             path=path,
             suffix=suffix,
+            ignore_suffix=ignore_suffix,
             boto3_session=boto3_session,
             last_modified_begin=last_modified_begin,
             last_modified_end=last_modified_end,
@@ -34,6 +36,7 @@ def path2list(
                 "Specify a list of files or (last_modified_begin and last_modified_end)"
             )  # pragma: no cover
         paths = path if suffix is None else [x for x in path if x.endswith(suffix)]
+        paths = path if ignore_suffix is None else [x for x in paths if x.endswith(ignore_suffix) is False]
     else:
         raise exceptions.InvalidArgumentType(f"{type(path)} is not a valid path type. Please, use str or List[str].")
     return paths
@@ -57,6 +60,7 @@ def _list_objects(
     path: str,
     delimiter: Optional[str] = None,
     suffix: Optional[str] = None,
+    ignore_suffix: Optional[str] = None,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
@@ -96,7 +100,7 @@ def _list_objects(
                     if (pfx is not None) and ("Prefix" in pfx):
                         key = pfx["Prefix"]
                         paths.append(f"s3://{bucket}/{key}")
-    return paths
+    return paths if ignore_suffix is None else [p for p in paths if p.endswith(ignore_suffix) is False]
 
 
 def does_object_exist(path: str, boto3_session: Optional[boto3.Session] = None) -> bool:
@@ -184,6 +188,7 @@ def list_directories(path: str, boto3_session: Optional[boto3.Session] = None) -
 def list_objects(
     path: str,
     suffix: Optional[str] = None,
+    ignore_suffix: Optional[str] = None,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
@@ -200,6 +205,8 @@ def list_objects(
         S3 path (e.g. s3://bucket/prefix).
     suffix: str, optional
         Suffix for filtering S3 keys.
+    ignore_suffix: str, optional
+        Ignore all S3 keys that ends with it.
     last_modified_begin
         Filter the s3 files by the Last modified date of the object.
         The filter is applied only after list all s3 files.
@@ -234,6 +241,7 @@ def list_objects(
         path=path,
         delimiter=None,
         suffix=suffix,
+        ignore_suffix=ignore_suffix,
         boto3_session=boto3_session,
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
