@@ -5,13 +5,14 @@ import datetime
 import logging
 import re
 import uuid
-from typing import Any, Dict, Iterator, List, NamedTuple, Optional, Union
+from typing import Any, Dict, Iterator, List, Match, NamedTuple, Optional, Union
 
 import boto3  # type: ignore
 import botocore.exceptions  # type: ignore
 import pandas as pd  # type: ignore
 
 from awswrangler import _utils, catalog, exceptions, s3
+from awswrangler._config import apply_configs
 from awswrangler.athena._utils import (
     _get_query_metadata,
     _get_s3_output,
@@ -116,12 +117,14 @@ def _parse_select_query_from_possible_ctas(possible_ctas: str) -> Optional[str]:
     """Check if `possible_ctas` is a valid parquet-generating CTAS and returns the full SELECT statement."""
     possible_ctas = possible_ctas.lower()
     parquet_format_regex: str = r"format\s*=\s*\'parquet\'\s*,"
-    is_parquet_format = re.search(pattern=parquet_format_regex, string=possible_ctas)
+    is_parquet_format: Optional[Match[str]] = re.search(pattern=parquet_format_regex, string=possible_ctas)
     if is_parquet_format is not None:
         unstripped_select_statement_regex: str = r"\s+as\s+\(*(select|with).*"
-        unstripped_select_statement_match = re.search(unstripped_select_statement_regex, possible_ctas, re.DOTALL)
+        unstripped_select_statement_match: Optional[Match[str]] = re.search(
+            unstripped_select_statement_regex, possible_ctas, re.DOTALL
+        )
         if unstripped_select_statement_match is not None:
-            stripped_select_statement_match = re.search(
+            stripped_select_statement_match: Optional[Match[str]] = re.search(
                 r"(select|with).*", unstripped_select_statement_match.group(0), re.DOTALL
             )
             if stripped_select_statement_match is not None:
@@ -267,7 +270,7 @@ def _fetch_csv_result(
     return dfs
 
 
-def _resolve_query_with_cache(  # pylint: disable=too-many-return-statements
+def _resolve_query_with_cache(
     cache_info,
     categories: Optional[List[str]],
     chunksize: Optional[Union[int, bool]],
@@ -479,6 +482,7 @@ def _resolve_query_without_cache(
     )
 
 
+@apply_configs
 def read_sql_query(
     sql: str,
     database: str,
@@ -661,6 +665,7 @@ def read_sql_query(
     )
 
 
+@apply_configs
 def read_sql_table(
     table: str,
     database: str,
@@ -766,9 +771,9 @@ def read_sql_table(
     workgroup : str, optional
         Athena workgroup.
     encryption : str, optional
-        None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
+        Valid values: [None, 'SSE_S3', 'SSE_KMS']. Notice: 'CSE_KMS' is not supported.
     kms_key : str, optional
-        For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
+        For SSE-KMS, this is the KMS key ARN or ID.
     keep_files : bool
         Should Wrangler delete or keep the staging files produced by Athena?
     ctas_temp_table_name : str, optional

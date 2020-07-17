@@ -89,7 +89,7 @@ wr.db.to_sql(df, engine, schema="test", name="my_table")
   - [018 - QuickSight](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/018%20-%20QuickSight.ipynb)
   - [019 - Athena Cache](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/019%20-%20Athena%20Cache.ipynb)
   - [020 - Spark Table Interoperability](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/020%20-%20Spark%20Table%20Interoperability.ipynb)
-  
+  - [021 - Global Configurations](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/021%20-%20Global%20Configurations.ipynb)
 - [**API Reference**](https://aws-data-wrangler.readthedocs.io/en/latest/api.html)
   - [Amazon S3](https://aws-data-wrangler.readthedocs.io/en/latest/api.html#amazon-s3)
   - [AWS Glue Catalog](https://aws-data-wrangler.readthedocs.io/en/latest/api.html#aws-glue-catalog)

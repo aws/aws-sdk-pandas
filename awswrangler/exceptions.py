@@ -87,3 +87,7 @@ class InvalidSchemaConvergence(Exception):
 
 class InvalidCtasApproachQuery(Exception):
     """InvalidCtasApproachQuery exception."""
+
+
+class InvalidConfiguration(Exception):
+    """InvalidConfiguration exception."""
