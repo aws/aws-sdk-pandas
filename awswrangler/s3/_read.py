@@ -84,6 +84,8 @@ def _read_text(
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     chunksize: Optional[int] = None,
     dataset: bool = False,
+    ignore_index: bool = True,
+    sort_index: bool = False,
     **pandas_kwargs,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     if "iterator" in pandas_kwargs:
@@ -103,7 +105,7 @@ def _read_text(
 
     _logger.debug("paths:\n%s", paths)
     if chunksize is not None:
-        dfs: Iterator[pd.DataFrame] = _read_text_chunksize(
+        return _read_text_chunksize(
             parser_func=parser_func,
             paths=paths,
             boto3_session=session,
@@ -113,28 +115,20 @@ def _read_text(
             dataset=dataset,
             path_root=path_root,
         )
-        return dfs
-    if use_threads is False:
-        df: pd.DataFrame = pd.concat(
-            objs=[
-                _read_text_full(
-                    parser_func=parser_func,
-                    path=p,
-                    boto3_session=session,
-                    pandas_kwargs=pandas_kwargs,
-                    s3_additional_kwargs=s3_additional_kwargs,
-                    dataset=dataset,
-                    path_root=path_root,
-                )
-                for p in paths
-            ],
-            ignore_index=True,
-            sort=False,
+    if len(paths) == 1:
+        return _read_text_full(
+            parser_func=parser_func,
+            path=paths[0],
+            boto3_session=session,
+            pandas_kwargs=pandas_kwargs,
+            s3_additional_kwargs=s3_additional_kwargs,
+            dataset=dataset,
+            path_root=path_root,
         )
-    else:
+    if use_threads is True:
         cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
-            df = pd.concat(
+            return pd.concat(
                 objs=executor.map(
                     _read_text_full,
                     itertools.repeat(parser_func),
@@ -145,10 +139,27 @@ def _read_text(
                     itertools.repeat(s3_additional_kwargs),
                     itertools.repeat(dataset),
                 ),
-                ignore_index=True,
-                sort=False,
+                ignore_index=ignore_index,
+                sort=sort_index,
+                copy=False,
             )
-    return df
+    return pd.concat(
+        objs=[
+            _read_text_full(
+                parser_func=parser_func,
+                path=p,
+                boto3_session=session,
+                pandas_kwargs=pandas_kwargs,
+                s3_additional_kwargs=s3_additional_kwargs,
+                dataset=dataset,
+                path_root=path_root,
+            )
+            for p in paths
+        ],
+        ignore_index=ignore_index,
+        sort=sort_index,
+        copy=False,
+    )
 
 
 def _read_text_chunksize(
@@ -424,6 +435,12 @@ def read_csv(
     >>>     print(df)  # 100 lines Pandas DataFrame
 
     """
+    if "index_col" in pandas_kwargs:
+        ignore_index: bool = False
+        sort_index: bool = True
+    else:
+        ignore_index = True
+        sort_index = False
     return _read_text(
         parser_func=pd.read_csv,
         path=path,
@@ -434,6 +451,8 @@ def read_csv(
         dataset=dataset,
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
+        ignore_index=ignore_index,
+        sort_index=sort_index,
         **pandas_kwargs,
     )
 
@@ -535,12 +554,15 @@ def read_fwf(
         dataset=dataset,
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
+        ignore_index=True,
+        sort_index=False,
         **pandas_kwargs,
     )
 
 
 def read_json(
     path: Union[str, List[str]],
+    orient: str = "columns",
     use_threads: bool = True,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
@@ -568,6 +590,8 @@ def read_json(
     ----------
     path : Union[str, List[str]]
         S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. ``[s3://bucket/key0, s3://bucket/key1]``).
+    orient : str
+        Same as Pandas: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_json.html
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -629,6 +653,13 @@ def read_json(
     """
     if (dataset is True) and ("lines" not in pandas_kwargs):
         pandas_kwargs["lines"] = True
+    pandas_kwargs["orient"] = orient
+    if orient in ("split", "index", "columns"):
+        ignore_index: bool = False
+        sort_index: bool = True
+    else:
+        ignore_index = True
+        sort_index = False
     return _read_text(
         parser_func=pd.read_json,
         path=path,
@@ -639,6 +670,8 @@ def read_json(
         dataset=dataset,
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
+        ignore_index=ignore_index,
+        sort_index=sort_index,
         **pandas_kwargs,
     )
 

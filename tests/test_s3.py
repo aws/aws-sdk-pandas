@@ -104,7 +104,7 @@ def test_json(path):
     wr.s3.to_json(df=df0, path=path1)
     wr.s3.wait_objects_exist(paths=[path0, path1], use_threads=False)
     assert df0.equals(wr.s3.read_json(path=path0, use_threads=False))
-    df1 = pd.concat(objs=[df0, df0], sort=False, ignore_index=True)
+    df1 = pd.concat(objs=[df0, df0], sort=False, ignore_index=False)
     assert df1.equals(wr.s3.read_json(path=[path0, path1], use_threads=True))
 
 
@@ -602,3 +602,29 @@ def test_sanitize_columns(path, sanitize_columns, col):
 def test_s3_get_bucket_region(bucket, region):
     assert wr.s3.get_bucket_region(bucket=bucket) == region
     assert wr.s3.get_bucket_region(bucket=bucket, boto3_session=boto3.DEFAULT_SESSION) == region
+
+
+def test_read_csv_index(path):
+    df0 = pd.DataFrame({"id": [4, 5, 6], "value": ["foo", "boo", "bar"]})
+    df1 = pd.DataFrame({"id": [1, 2, 3], "value": ["a", "b", "c"]})
+    path0 = f"{path}test_csv0.csv"
+    path1 = f"{path}test_csv1.csv"
+    paths = [path0, path1]
+    wr.s3.to_csv(df=df0, path=path0, index=False)
+    wr.s3.to_csv(df=df1, path=path1, index=False)
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df = wr.s3.read_csv(paths, index_col=["id"])
+    assert df.shape == (6, 1)
+
+
+def test_read_json_index(path):
+    df0 = pd.DataFrame({"id": [4, 5, 6], "value": ["foo", "boo", "bar"]})
+    df1 = pd.DataFrame({"id": [1, 2, 3], "value": ["a", "b", "c"]})
+    path0 = f"{path}test0.csv"
+    path1 = f"{path}test1.csv"
+    paths = [path0, path1]
+    wr.s3.to_json(df=df0, path=path0, orient="index")
+    wr.s3.to_json(df=df1, path=path1, orient="index")
+    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    df = wr.s3.read_json(paths, orient="index")
+    assert df.shape == (6, 2)
