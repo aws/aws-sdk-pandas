@@ -377,7 +377,9 @@ def get_redshift_temp_engine(
     )
 
 
-def get_engine(db_type: str, host: str, port: int, database: str, user: str, password: str, **sqlalchemy_kwargs) -> sqlalchemy.engine.Engine:
+def get_engine(
+    db_type: str, host: str, port: int, database: str, user: str, password: str, **sqlalchemy_kwargs
+) -> sqlalchemy.engine.Engine:
     """Return a SQLAlchemy Engine from the given arguments.
 
     Only Redshift, PostgreSQL and MySQL are supported.
