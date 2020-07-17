@@ -46,7 +46,7 @@ def test_sql(databases_parameters, db_type):
         database=databases_parameters[db_type]["database"],
         user=databases_parameters["user"],
         password=databases_parameters["password"],
-        echo=False
+        echo=False,
     )
     dfs = wr.db.read_sql_query(
         sql=f"SELECT * FROM {databases_parameters[db_type]['schema']}.test_sql",

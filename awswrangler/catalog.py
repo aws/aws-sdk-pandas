@@ -981,7 +981,10 @@ def get_connection(
 
 
 def get_engine(
-    connection: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None, **sqlalchemy_kwargs
+    connection: str,
+    catalog_id: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+    **sqlalchemy_kwargs,
 ) -> sqlalchemy.engine.Engine:
     """Return a SQLAlchemy Engine from a Glue Catalog Connection.
 
