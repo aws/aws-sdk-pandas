@@ -318,6 +318,7 @@ def get_redshift_temp_engine(
     auto_create: bool = True,
     db_groups: Optional[List[str]] = None,
     boto3_session: Optional[boto3.Session] = None,
+    **sqlalchemy_kwargs,
 ) -> sqlalchemy.engine.Engine:
     """Get Glue connection details.
 
@@ -342,6 +343,9 @@ def get_redshift_temp_engine(
         If not specified, a new user is added only to PUBLIC.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    sqlalchemy_kwargs
+        keyword arguments forwarded to sqlalchemy.create_engine().
+        https://docs.sqlalchemy.org/en/13/core/engines.html
 
     Returns
     -------
@@ -372,9 +376,9 @@ def get_redshift_temp_engine(
     if database is None:
         database = cluster["DBName"]
     conn_str: str = f"redshift+psycopg2://{_user}:{password}@{host}:{port}/{database}"
-    return sqlalchemy.create_engine(
-        conn_str, echo=False, executemany_mode="values", executemany_values_page_size=100_000
-    )
+    sqlalchemy_kwargs["executemany_mode"] = "values"
+    sqlalchemy_kwargs["executemany_values_page_size"] = 100_000
+    return sqlalchemy.create_engine(conn_str, **sqlalchemy_kwargs)
 
 
 def get_engine(
@@ -424,9 +428,9 @@ def get_engine(
         _utils.ensure_postgresql_casts()
     if db_type in ("redshift", "postgresql"):
         conn_str: str = f"{db_type}+psycopg2://{user}:{password}@{host}:{port}/{database}"
-        return sqlalchemy.create_engine(
-            conn_str, echo=False, executemany_mode="values", executemany_values_page_size=100_000
-        )
+        sqlalchemy_kwargs["executemany_mode"] = "values"
+        sqlalchemy_kwargs["executemany_values_page_size"] = 100_000
+        return sqlalchemy.create_engine(conn_str, **sqlalchemy_kwargs)
     if db_type == "mysql":
         conn_str = f"mysql+pymysql://{user}:{password}@{host}:{port}/{database}"
         return sqlalchemy.create_engine(conn_str, **sqlalchemy_kwargs)

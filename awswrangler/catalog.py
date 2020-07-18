@@ -1026,9 +1026,9 @@ def get_engine(
         _utils.ensure_postgresql_casts()
     if db_type in ("redshift", "postgresql"):
         conn_str: str = f"{db_type}+psycopg2://{user}:{password}@{host}:{port}/{database}"
-        return sqlalchemy.create_engine(
-            conn_str, echo=False, executemany_mode="values", executemany_values_page_size=100_000
-        )
+        sqlalchemy_kwargs["executemany_mode"] = "values"
+        sqlalchemy_kwargs["executemany_values_page_size"] = 100_000
+        return sqlalchemy.create_engine(conn_str, **sqlalchemy_kwargs)
     if db_type == "mysql":
         conn_str = f"mysql+pymysql://{user}:{password}@{host}:{port}/{database}"
         return sqlalchemy.create_engine(conn_str, **sqlalchemy_kwargs)
