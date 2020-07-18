@@ -1,30 +1,21 @@
 """Amazon S3 PARALLEL Read Module (PRIVATE)."""
 
-import concurrent.futures
-import datetime
-import itertools
-import multiprocessing as mp
 import io
-import math
 import logging
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
+import math
+import multiprocessing as mp
+from typing import Any, Callable, Dict, Iterator, List, cast
 
 import boto3  # type: ignore
 import pandas as pd  # type: ignore
-import pandas.io.parsers  # type: ignore
 import pyarrow as pa  # type: ignore
-import pyarrow.lib  # type: ignore
-import pyarrow.parquet  # type: ignore
-import s3fs  # type: ignore
-from pandas.io.common import infer_compression  # type: ignore
 
-from awswrangler import _data_types, _utils, catalog, exceptions
-from awswrangler.s3._list import path2list
+from awswrangler import _utils
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _calculate_sizes(total_size: int, max_size: int) -> Iterator[int]:
+def _calculate_chunks_sizes(total_size: int, max_size: int) -> Iterator[int]:
     num: int = int(math.ceil(float(total_size) / float(max_size)))
     min_size: int = int(total_size / num)
     rest: int = total_size % num
@@ -36,62 +27,73 @@ def _calculate_sizes(total_size: int, max_size: int) -> Iterator[int]:
             yield min_size
 
 
-def _remote_parser(send_end, parser_func: Callable, nthreads: int, kwargs) -> None:
-    df: pd.DataFrame = pa.serialize(parser_func(**kwargs)).to_buffer(nthreads=nthreads)
+def _calculate_nthreads(paths: List[str], cpus: int) -> int:
+    nthreads: int = int(len(paths) / cpus)
+    return nthreads if nthreads > 0 else 1
+
+
+def _remote_parser(
+    send_end, func: Callable, nthreads: int, boto3_primitives: _utils.Boto3PrimitivesType, func_kwargs: Dict[str, Any]
+) -> None:
+    boto3_session: boto3.Session = _utils.boto3_from_primitives(primitives=boto3_primitives)
+    func_kwargs["boto3_session"] = boto3_session
+    df: pd.DataFrame = pa.serialize(func(**func_kwargs)).to_buffer(nthreads=nthreads)
     offset: int = 0
-    for size in _calculate_sizes(total_size=df.size, max_size=100_000):
+    for size in _calculate_chunks_sizes(total_size=df.size, max_size=100_000):
         send_end.send_bytes(df, offset=offset, size=size)
         offset += size
     send_end.close()
 
 
 def _launcher(
-    parser_func: Callable,
-    boto3_session: boto3.Session,
-    **parser_kwargs,
-) -> List[pd.DataFrame]:
-    cpus: int = _utils.ensure_cpu_count(use_threads=True)
-    readers = []
-    buffers = {}
-    for _ in range(cpus):
+    func: Callable, paths: List[str], cpus: int, boto3_session: boto3.Session, **func_kwargs,
+) -> Iterator[mp.connection.Connection]:
+    nthreads: int = _calculate_nthreads(paths=paths, cpus=cpus)
+    for path in paths:
         recv_end, send_end = mp.Pipe(duplex=False)
-        process = mp.Process(target=_remote_parser, args=(
-            send_end,
-            parser_func,
-            parser_kwargs,
-
-        ))
+        func_kwargs["path"] = path
+        process = mp.Process(
+            target=_remote_parser,
+            args=(send_end, func, nthreads, _utils.boto3_to_primitives(boto3_session=boto3_session), func_kwargs),
+        )
         process.start()
         send_end.close()
-        readers.append(recv_end)
-        descriptor = str(recv_end.fileno())
-        buffers[descriptor] = io.BytesIO()
+        yield recv_end
 
-    dfs = []
-    while readers:
-        for reader in mp.connection.wait(readers):
-            buffer = buffers[str(reader.fileno())]
-            try:
-                buffer.write(reader.recv_bytes())
-            except EOFError:
-                readers.remove(reader)
-                dfs.append(pa.deserialize(buffer.getbuffer()))
 
+def _read_pipes(pipes: List[mp.connection.Connection], buffers: Dict[int, io.BytesIO], dfs: List[pd.DataFrame]):
+    for pipe in mp.connection.wait(pipes):
+        pipe = cast(mp.connection.Connection, pipe)
+        buffer: io.BytesIO = buffers[pipe.fileno()]
+        try:
+            buffer.write(pipe.recv_bytes())
+        except EOFError:
+            pipes.remove(pipe)
+            dfs.append(cast(pd.DataFrame, pa.deserialize(buffer.getbuffer())))
+
+
+def _process_manager(
+    func: Callable, paths: List[str], boto3_session: boto3.Session, **func_kwargs,
+) -> List[pd.DataFrame]:
+    cpus: int = _utils.ensure_cpu_count(use_threads=True)
+    dfs: List[pd.DataFrame] = []
+    pipes: List[mp.connection.Connection] = []
+    buffers: Dict[int, io.BytesIO] = {}
+    for pipe in _launcher(func=func, paths=paths, cpus=cpus, boto3_session=boto3_session, **func_kwargs):
+        pipes.append(pipe)
+        buffers[pipe.fileno()] = io.BytesIO()
+        while len(pipes) >= cpus:
+            _read_pipes(pipes=pipes, buffers=buffers, dfs=dfs)
+    while pipes:
+        _read_pipes(pipes=pipes, buffers=buffers, dfs=dfs)
     return dfs
 
 
 def _read_parallel(
-    parser_func: Callable,
-    ignore_index: bool,
-    boto3_session: boto3.Session,
-    **parser_kwargs,
+    func: Callable, paths: List[str], ignore_index: bool, boto3_session: boto3.Session, **func_kwargs,
 ) -> pd.DataFrame:
     return pd.concat(
-        objs=_launcher(
-            parser_func=parser_func,
-            boto3_session=boto3_session,
-            **parser_kwargs
-        ),
+        objs=_process_manager(func=func, paths=paths, boto3_session=boto3_session, **func_kwargs),
         ignore_index=ignore_index,
         sort=False,
         copy=False,

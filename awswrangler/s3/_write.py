@@ -253,7 +253,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
 
     Note
     ----
-    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads/processes that will be spawned will be gotten from os.cpu_count().
 
     Parameters
     ----------
@@ -641,7 +641,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
 
     Note
     ----
-    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads/processes that will be spawned will be gotten from os.cpu_count().
 
     Parameters
     ----------
@@ -974,7 +974,7 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
 
     Note
     ----
-    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads/processes that will be spawned will be gotten from os.cpu_count().
 
     Parameters
     ----------

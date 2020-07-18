@@ -18,8 +18,10 @@ from awswrangler import exceptions
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
+Boto3PrimitivesType = Dict[str, Optional[str]]
 
-def ensure_session(session: Optional[Union[boto3.Session, Dict[str, Optional[str]]]] = None) -> boto3.Session:
+
+def ensure_session(session: Union[None, boto3.Session, Boto3PrimitivesType] = None) -> boto3.Session:
     """Ensure that a valid boto3.Session will be returned."""
     if isinstance(session, dict):  # Primitives received
         return boto3_from_primitives(primitives=session)
@@ -32,7 +34,7 @@ def ensure_session(session: Optional[Union[boto3.Session, Dict[str, Optional[str
     return boto3.Session()  # pragma: no cover
 
 
-def boto3_to_primitives(boto3_session: Optional[boto3.Session] = None) -> Dict[str, Optional[str]]:
+def boto3_to_primitives(boto3_session: Optional[boto3.Session] = None) -> Boto3PrimitivesType:
     """Convert Boto3 Session to Python primitives."""
     _boto3_session: boto3.Session = ensure_session(session=boto3_session)
     credentials = _boto3_session.get_credentials()
@@ -45,11 +47,11 @@ def boto3_to_primitives(boto3_session: Optional[boto3.Session] = None) -> Dict[s
     }
 
 
-def boto3_from_primitives(primitives: Dict[str, Optional[str]] = None) -> boto3.Session:
+def boto3_from_primitives(primitives: Optional[Boto3PrimitivesType] = None) -> boto3.Session:
     """Convert Python primitives to Boto3 Session."""
     if primitives is None:
-        return boto3.DEFAULT_SESSION  # pragma: no cover
-    _primitives: Dict[str, Optional[str]] = copy.deepcopy(primitives)
+        return ensure_session()
+    _primitives: Boto3PrimitivesType = copy.deepcopy(primitives)
     profile_name: Optional[str] = _primitives.get("profile_name", None)
     _primitives["profile_name"] = None if profile_name in (None, "default") else profile_name
     args: Dict[str, str] = {k: v for k, v in _primitives.items() if v is not None}

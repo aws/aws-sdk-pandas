@@ -132,13 +132,13 @@ def test_list_by_last_modified_date(path):
     path1 = f"s3://{path}1.json"
 
     begin_utc = pytz.utc.localize(datetime.datetime.utcnow())
-    time.sleep(2)
+    time.sleep(5)
     wr.s3.to_json(df, path0)
-    time.sleep(2)
+    time.sleep(5)
     mid_utc = pytz.utc.localize(datetime.datetime.utcnow())
-    time.sleep(2)
+    time.sleep(5)
     wr.s3.to_json(df, path1)
-    time.sleep(2)
+    time.sleep(5)
     end_utc = pytz.utc.localize(datetime.datetime.utcnow())
     wr.s3.wait_objects_exist(paths=[path0, path1], use_threads=False)
 

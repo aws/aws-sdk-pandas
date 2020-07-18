@@ -1,8 +1,6 @@
 """Amazon S3 Read Module (PRIVATE)."""
 
-import concurrent.futures
 import datetime
-import itertools
 import logging
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
@@ -17,6 +15,7 @@ from pandas.io.common import infer_compression  # type: ignore
 
 from awswrangler import _data_types, _utils, catalog, exceptions
 from awswrangler.s3._list import path2list
+from awswrangler.s3._read_parallel import _read_parallel
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -96,7 +95,6 @@ def _read_text(
     chunksize: Optional[int] = None,
     dataset: bool = False,
     ignore_index: bool = True,
-    sort_index: bool = False,
     **pandas_kwargs,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     if "iterator" in pandas_kwargs:
@@ -142,23 +140,17 @@ def _read_text(
             path_root=path_root,
         )
     if use_threads is True:
-        cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
-        with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
-            return pd.concat(
-                objs=executor.map(
-                    _read_text_full,
-                    itertools.repeat(parser_func),
-                    itertools.repeat(path_root),
-                    paths,
-                    itertools.repeat(_utils.boto3_to_primitives(boto3_session=session)),  # Boto3.Session
-                    itertools.repeat(pandas_kwargs),
-                    itertools.repeat(s3_additional_kwargs),
-                    itertools.repeat(dataset),
-                ),
-                ignore_index=ignore_index,
-                sort=sort_index,
-                copy=False,
-            )
+        _read_parallel(
+            func=_read_text_full,
+            paths=paths,
+            ignore_index=ignore_index,
+            boto3_session=session,
+            parser_func=parser_func,
+            pandas_kwargs=pandas_kwargs,
+            s3_additional_kwargs=s3_additional_kwargs,
+            dataset=dataset,
+            path_root=path_root,
+        )
     return pd.concat(
         objs=[
             _read_text_full(
@@ -173,7 +165,7 @@ def _read_text(
             for p in paths
         ],
         ignore_index=ignore_index,
-        sort=sort_index,
+        sort=False,
         copy=False,
     )
 
@@ -401,7 +393,7 @@ def read_csv(
 
     Note
     ----
-    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads/processes that will be spawned will be gotten from os.cpu_count().
 
     Note
     ----
@@ -473,12 +465,7 @@ def read_csv(
     >>>     print(df)  # 100 lines Pandas DataFrame
 
     """
-    if "index_col" in pandas_kwargs:
-        ignore_index: bool = False
-        sort_index: bool = True
-    else:
-        ignore_index = True
-        sort_index = False
+    ignore_index: bool = "index_col" not in pandas_kwargs
     return _read_text(
         parser_func=pd.read_csv,
         path=path,
@@ -492,7 +479,6 @@ def read_csv(
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
         ignore_index=ignore_index,
-        sort_index=sort_index,
         **pandas_kwargs,
     )
 
@@ -518,7 +504,7 @@ def read_fwf(
 
     Note
     ----
-    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads/processes that will be spawned will be gotten from os.cpu_count().
 
     Note
     ----
@@ -630,7 +616,7 @@ def read_json(
 
     Note
     ----
-    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads/processes that will be spawned will be gotten from os.cpu_count().
 
     Note
     ----
@@ -708,12 +694,7 @@ def read_json(
     if (dataset is True) and ("lines" not in pandas_kwargs):
         pandas_kwargs["lines"] = True
     pandas_kwargs["orient"] = orient
-    if orient in ("split", "index", "columns"):
-        ignore_index: bool = False
-        sort_index: bool = True
-    else:
-        ignore_index = True
-        sort_index = False
+    ignore_index: bool = orient not in ("split", "index", "columns")
     return _read_text(
         parser_func=pd.read_json,
         path=path,
@@ -727,7 +708,6 @@ def read_json(
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
         ignore_index=ignore_index,
-        sort_index=sort_index,
         **pandas_kwargs,
     )
 
@@ -771,7 +751,7 @@ def read_parquet(
 
     Note
     ----
-    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads/processes that will be spawned will be gotten from os.cpu_count().
 
     Note
     ----
@@ -912,7 +892,7 @@ def read_parquet_metadata(
 
     Note
     ----
-    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads/processes that will be spawned will be gotten from os.cpu_count().
 
     Parameters
     ----------
@@ -1009,7 +989,7 @@ def read_parquet_table(
 
     Note
     ----
-    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads/processes that will be spawned will be gotten from os.cpu_count().
 
     Parameters
     ----------
