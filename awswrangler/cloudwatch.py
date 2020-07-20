@@ -110,7 +110,7 @@ def wait_query(query_id: str, boto3_session: Optional[boto3.Session] = None) -> 
         response = client_logs.get_query_results(queryId=query_id)
         status = response["status"]
     _logger.debug("status: %s", status)
-    if status == "Failed":  # pragma: no cover
+    if status == "Failed":
         raise exceptions.QueryFailed(f"query ID: {query_id}")
     if status == "Cancelled":
         raise exceptions.QueryCancelled(f"query ID: {query_id}")
@@ -226,7 +226,7 @@ def read_logs(
         for col in row:
             if col["field"].startswith("@"):
                 col_name = col["field"].replace("@", "", 1)
-            else:  # pragma: no cover
+            else:
                 col_name = col["field"]
             new_row[col_name] = col["value"]
         pre_df.append(new_row)

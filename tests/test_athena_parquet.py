@@ -488,11 +488,10 @@ def test_parquet_catalog(path, path2, glue_table, glue_table2, glue_database):
 
 def test_parquet_catalog_duplicated(path, glue_table, glue_database):
     df = pd.DataFrame({"A": [1], "a": [1]})
-    wr.s3.to_parquet(
-        df=df, path=path, index=False, dataset=True, mode="overwrite", database=glue_database, table=glue_table
-    )
-    df = wr.s3.read_parquet(path=path)
-    assert df.shape == (1, 1)
+    with pytest.raises(wr.exceptions.InvalidDataFrame):
+        wr.s3.to_parquet(
+            df=df, path=path, index=False, dataset=True, mode="overwrite", database=glue_database, table=glue_table
+        )
 
 
 def test_parquet_catalog_casting(path, glue_database):
