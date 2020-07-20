@@ -47,7 +47,9 @@ def _read_text_chunked(
     for path in paths:
         _logger.debug("path: %s", path)
         fs: s3fs.S3FileSystem = _utils.get_fs(
-            block_size=8_388_608, session=boto3_session, s3_additional_kwargs=s3_additional_kwargs,  # 8 MB (8 * 2**20)
+            s3fs_block_size=8_388_608,
+            session=boto3_session,
+            s3_additional_kwargs=s3_additional_kwargs,  # 8 MB (8 * 2**20)
         )
         mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
         with _utils.open_file(fs=fs, path=path, mode=mode, encoding=encoding, newline=newline) as f:
@@ -66,7 +68,9 @@ def _read_text_file(
     dataset: bool,
 ) -> pd.DataFrame:
     fs: s3fs.S3FileSystem = _utils.get_fs(
-        block_size=134_217_728, session=boto3_session, s3_additional_kwargs=s3_additional_kwargs  # 128 MB (128 * 2**20)
+        s3fs_block_size=134_217_728,
+        session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,  # 128 MB (128 * 2**20)
     )
     mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
     with _utils.open_file(fs=fs, path=path, mode=mode, encoding=encoding, newline=newline) as f:

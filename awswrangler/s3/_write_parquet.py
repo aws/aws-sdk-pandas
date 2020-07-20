@@ -41,7 +41,9 @@ def _to_parquet_file(
             table = table.set_column(col_index, field, table.column(col_name).cast(pyarrow_dtype))
             _logger.debug("Casting column %s (%s) to %s (%s)", col_name, col_index, col_type, pyarrow_dtype)
     fs: s3fs.S3FileSystem = _utils.get_fs(
-        block_size=33_554_432, session=boto3_session, s3_additional_kwargs=s3_additional_kwargs  # 32 MB (32 * 2**20)
+        s3fs_block_size=33_554_432,
+        session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,  # 32 MB (32 * 2**20)
     )
     with pyarrow.parquet.ParquetWriter(
         where=path,

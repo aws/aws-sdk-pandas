@@ -27,7 +27,9 @@ def _to_text(
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
     fs: s3fs.S3FileSystem = _utils.get_fs(
-        block_size=33_554_432, session=boto3_session, s3_additional_kwargs=s3_additional_kwargs  # 32 MB (32 * 2**20)
+        s3fs_block_size=33_554_432,
+        session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,  # 32 MB (32 * 2**20)
     )
     encoding: Optional[str] = pandas_kwargs.get("encoding", None)
     newline: Optional[str] = pandas_kwargs.get("line_terminator", None)

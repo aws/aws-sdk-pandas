@@ -16,6 +16,7 @@ import psycopg2  # type: ignore
 import s3fs  # type: ignore
 
 from awswrangler import exceptions
+from awswrangler._config import apply_configs
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -171,8 +172,9 @@ def chunkify(lst: List[Any], num_chunks: int = 1, max_length: Optional[int] = No
     return [arr.tolist() for arr in np_chunks if len(arr) > 0]
 
 
+@apply_configs
 def get_fs(
-    block_size: int,
+    s3fs_block_size: int,
     session: Optional[Union[boto3.Session, Dict[str, Optional[str]]]] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
 ) -> s3fs.S3FileSystem:
@@ -182,7 +184,7 @@ def get_fs(
         use_ssl=True,
         default_cache_type="readahead",
         default_fill_cache=False,
-        default_block_size=block_size,
+        default_block_size=s3fs_block_size,
         config_kwargs={"retries": {"max_attempts": 15}},
         session=ensure_session(session=session)._session,  # pylint: disable=protected-access
         s3_additional_kwargs=s3_additional_kwargs,

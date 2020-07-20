@@ -28,7 +28,8 @@ def _split_paths_by_bucket(paths: List[str]) -> Dict[str, List[str]]:
     return buckets
 
 
-def _delete_objects(bucket: str, keys: List[str], client_s3: boto3.client, attempt: int = 1) -> None:
+def _delete_objects(bucket: str, keys: List[str], boto3_session: boto3.Session, attempt: int = 1) -> None:
+    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     _logger.debug("len(keys): %s", len(keys))
     batch: List[Dict[str, str]] = [{"Key": key} for key in keys]
     res = client_s3.delete_objects(Bucket=bucket, Delete={"Objects": batch})
@@ -38,14 +39,20 @@ def _delete_objects(bucket: str, keys: List[str], client_s3: boto3.client, attem
     errors: List[Dict[str, Any]] = res.get("Errors", [])
     internal_errors: List[str] = []
     for error in errors:
-        if error["Code"] != "InternalError":
+        _logger.debug("error: %s", error)
+        if "Code" not in error or error["Code"] != "InternalError":
             raise exceptions.ServiceApiError(errors)
         internal_errors.append(_unquote_plus(error["Key"]))
     if len(internal_errors) > 0:
         if attempt > 5:  # Maximum of 5 attempts (Total of 15 seconds)
             raise exceptions.ServiceApiError(errors)
         time.sleep(attempt)  # Incremental delay (linear)
-        _delete_objects(bucket=bucket, keys=internal_errors, client_s3=client_s3, attempt=(attempt + 1))
+        _delete_objects(bucket=bucket, keys=internal_errors, boto3_session=boto3_session, attempt=(attempt + 1))
+
+
+def _delete_objects_concurrent(bucket: str, keys: List[str], boto3_primitives: _utils.Boto3PrimitivesType) -> None:
+    boto3_session = _utils.boto3_from_primitives(primitives=boto3_primitives)
+    return _delete_objects(bucket=bucket, keys=keys, boto3_session=boto3_session)
 
 
 def delete_objects(
@@ -102,14 +109,22 @@ def delete_objects(
     )
     if len(paths) < 1:
         return
-    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     buckets: Dict[str, List[str]] = _split_paths_by_bucket(paths=paths)
     for bucket, keys in buckets.items():
         chunks: List[List[str]] = _utils.chunkify(lst=keys, max_length=1_000)
-        if use_threads is False:
+        if len(chunks) == 1:
+            _delete_objects(bucket=bucket, keys=chunks[0], boto3_session=boto3_session)
+        elif use_threads is False:
             for chunk in chunks:
-                _delete_objects(bucket=bucket, keys=chunk, client_s3=client_s3)
+                _delete_objects(bucket=bucket, keys=chunk, boto3_session=boto3_session)
         else:
             cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
             with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
-                list(executor.map(_delete_objects, itertools.repeat(bucket), chunks, itertools.repeat(client_s3)))
+                list(
+                    executor.map(
+                        _delete_objects_concurrent,
+                        itertools.repeat(bucket),
+                        chunks,
+                        itertools.repeat(_utils.boto3_to_primitives(boto3_session=boto3_session)),
+                    )
+                )
