@@ -116,7 +116,7 @@ def test_athena(path, glue_database, kms_key, workgroup0, workgroup1):
     )["paths"]
     wr.s3.wait_objects_exist(paths=paths, use_threads=False)
     dfs = wr.athena.read_sql_query(
-        sql="SELECT * FROM {}".format(table),
+        sql=f"SELECT * FROM {table}",
         database=glue_database,
         ctas_approach=False,
         chunksize=1,
@@ -128,7 +128,7 @@ def test_athena(path, glue_database, kms_key, workgroup0, workgroup1):
     for df2 in dfs:
         ensure_data_types(df=df2)
     df = wr.athena.read_sql_query(
-        sql="SELECT * FROM {}".format(table),
+        sql=f"SELECT * FROM {table}",
         database=glue_database,
         ctas_approach=False,
         workgroup=workgroup1,
