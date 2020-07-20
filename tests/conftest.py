@@ -196,3 +196,10 @@ def path2(bucket):
 @pytest.fixture(scope="function")
 def path3(bucket):
     yield from path_generator(bucket)
+
+
+@pytest.fixture(scope="function")
+def redshift_table():
+    name = f"tbl_{get_time_str_with_random_suffix()}"
+    print(f"Table name: {name}")
+    yield name
