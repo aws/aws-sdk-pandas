@@ -574,6 +574,7 @@ def copy_to_redshift(  # pylint: disable=too-many-arguments
         varchar_lengths=varchar_lengths,
         use_threads=use_threads,
         boto3_session=session,
+        s3_additional_kwargs=s3_additional_kwargs,
     )
     if keep_files is False:
         s3.delete_objects(path=paths, use_threads=use_threads, boto3_session=session)
@@ -596,6 +597,7 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
     varchar_lengths: Optional[Dict[str, int]] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
+    s3_additional_kwargs: Optional[Dict[str, str]] = None,
 ) -> None:
     """Load Parquet files from S3 to a Table on Amazon Redshift (Through COPY command).
 
@@ -651,6 +653,8 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
         If enabled os.cpu_count() will be used as the max number of threads.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    s3_additional_kwargs:
+        Forward to boto3.client('s3').put_object when writing manifest, useful for server side encryption
 
     Returns
     -------
@@ -675,7 +679,11 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
     manifest_directory = manifest_directory if manifest_directory.endswith("/") else f"{manifest_directory}/"
     manifest_path: str = f"{manifest_directory}manifest.json"
     write_redshift_copy_manifest(
-        manifest_path=manifest_path, paths=paths, use_threads=use_threads, boto3_session=session
+        manifest_path=manifest_path,
+        paths=paths,
+        use_threads=use_threads,
+        boto3_session=session,
+        s3_additional_kwargs=s3_additional_kwargs,
     )
     s3.wait_objects_exist(paths=paths + [manifest_path], use_threads=False, boto3_session=session)
     athena_types, _ = s3.read_parquet_metadata(
@@ -825,7 +833,11 @@ def _rs_copy(
 
 
 def write_redshift_copy_manifest(
-    manifest_path: str, paths: List[str], use_threads: bool = True, boto3_session: Optional[boto3.Session] = None
+    manifest_path: str,
+    paths: List[str],
+    use_threads: bool = True,
+    boto3_session: Optional[boto3.Session] = None,
+    s3_additional_kwargs: Optional[Dict[str, str]] = None,
 ) -> Dict[str, List[Dict[str, Union[str, bool, Dict[str, int]]]]]:
     """Write Redshift copy manifest and return its structure.
 
@@ -847,6 +859,8 @@ def write_redshift_copy_manifest(
         If enabled os.cpu_count() will be used as the max number of threads.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    s3_additional_kwargs:
+        Forward to boto3.client('s3').put_object when writing manifest, useful for server side encryption
 
     Returns
     -------
@@ -882,11 +896,12 @@ def write_redshift_copy_manifest(
     payload: str = json.dumps(manifest)
     bucket: str
     bucket, key = _utils.parse_path(manifest_path)
+    additional_kwargs: Dict[str, str] = {} if s3_additional_kwargs is None else s3_additional_kwargs
     _logger.debug("payload: %s", payload)
     client_s3: boto3.client = _utils.client(service_name="s3", session=session)
     _logger.debug("bucket: %s", bucket)
     _logger.debug("key: %s", key)
-    client_s3.put_object(Body=payload, Bucket=bucket, Key=key)
+    client_s3.put_object(Body=payload, Bucket=bucket, Key=key, **additional_kwargs)
     return manifest
 
 
