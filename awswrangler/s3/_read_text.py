@@ -34,7 +34,7 @@ def _get_read_details(path: str, pandas_kwargs: Dict[str, Any]) -> Tuple[str, Op
     return mode, encoding, newline
 
 
-def _read_text_chunksize(
+def _read_text_chunked(
     paths: List[str],
     chunksize: int,
     parser_func: Callable,
@@ -47,9 +47,7 @@ def _read_text_chunksize(
     for path in paths:
         _logger.debug("path: %s", path)
         fs: s3fs.S3FileSystem = _utils.get_fs(
-            block_size=33_554_432,  # 32 MB (32 * 2**20)
-            session=boto3_session,
-            s3_additional_kwargs=s3_additional_kwargs,
+            block_size=8_388_608, session=boto3_session, s3_additional_kwargs=s3_additional_kwargs,  # 8 MB (8 * 2**20)
         )
         mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
         with _utils.open_file(fs=fs, path=path, mode=mode, encoding=encoding, newline=newline) as f:
@@ -58,7 +56,7 @@ def _read_text_chunksize(
                 yield _apply_partitions(df=df, dataset=dataset, path=path, path_root=path_root)
 
 
-def _read_text_full(
+def _read_text_file(
     path: str,
     parser_func: Callable,
     path_root: Optional[str],
@@ -74,10 +72,6 @@ def _read_text_full(
     with _utils.open_file(fs=fs, path=path, mode=mode, encoding=encoding, newline=newline) as f:
         df: pd.DataFrame = parser_func(f, **pandas_kwargs)
     return _apply_partitions(df=df, dataset=dataset, path=path, path_root=path_root)
-
-
-def _read_text_full_sequential(paths: List[str], ignore_index: bool, **kwargs) -> pd.DataFrame:
-    return _union(dfs=[_read_text_full(path=p, **kwargs) for p in paths], ignore_index=ignore_index)
 
 
 def _read_text(
@@ -125,13 +119,13 @@ def _read_text(
     _logger.debug("args:\n%s", pprint.pformat(args))
     ret: Union[pd.DataFrame, Iterator[pd.DataFrame]]
     if chunksize is not None:
-        ret = _read_text_chunksize(paths=paths, chunksize=chunksize, **args)
+        ret = _read_text_chunked(paths=paths, chunksize=chunksize, **args)
     elif len(paths) == 1:
-        ret = _read_text_full(path=paths[0], **args)
+        ret = _read_text_file(path=paths[0], **args)
     elif use_threads is True:
-        ret = _read_concurrent(func=_read_text_full, paths=paths, ignore_index=ignore_index, **args)
+        ret = _read_concurrent(func=_read_text_file, paths=paths, ignore_index=ignore_index, **args)
     else:
-        ret = _read_text_full_sequential(paths=paths, ignore_index=ignore_index, **args)
+        ret = _union(dfs=[_read_text_file(path=p, **args) for p in paths], ignore_index=ignore_index)
     return ret
 
 

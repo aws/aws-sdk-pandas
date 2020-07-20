@@ -83,6 +83,23 @@ def _validate_schemas(schemas: Tuple[Dict[str, str], ...]) -> None:
     return None
 
 
+def _validate_schemas_from_files(
+    paths: List[str],
+    sampling: float,
+    use_threads: bool,
+    boto3_session: boto3.Session,
+    s3_additional_kwargs: Optional[Dict[str, str]],
+) -> None:
+    schemas: Tuple[Dict[str, str], ...] = _read_schemas_from_files(
+        paths=paths,
+        sampling=sampling,
+        use_threads=use_threads,
+        boto3_session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,
+    )
+    _validate_schemas(schemas=schemas)
+
+
 def _merge_schemas(schemas: Tuple[Dict[str, str], ...]) -> Dict[str, str]:
     columns_types: Dict[str, str] = {}
     for schema in schemas:
@@ -184,7 +201,7 @@ def _read_parquet_chunked(
 ) -> Iterator[pd.DataFrame]:
     next_slice: Optional[pd.DataFrame] = None
     fs: s3fs.S3FileSystem = _utils.get_fs(
-        block_size=33_554_432, session=boto3_session, s3_additional_kwargs=s3_additional_kwargs  # 32 MB (32 * 2**20)
+        block_size=8_388_608, session=boto3_session, s3_additional_kwargs=s3_additional_kwargs  # 8 MB (8 * 2**20)
     )
     last_schema: Optional[Dict[str, str]] = None
     last_path: str = ""
@@ -236,7 +253,7 @@ def _read_parquet_chunked(
         yield next_slice
 
 
-def _read_parquet_full_row_group_single_thread(
+def _read_parquet_file_single_thread(
     path: str,
     columns: Optional[List[str]],
     categories: Optional[List[str]],
@@ -265,7 +282,7 @@ def _count_row_groups(
         return pq_file.num_row_groups
 
 
-def _read_parquet_full_row_group_multithreaded(
+def _read_parquet_file_multi_thread(
     row_group: int,
     path: str,
     columns: Optional[List[str]],
@@ -284,11 +301,10 @@ def _read_parquet_full_row_group_multithreaded(
         return pq_file.read_row_group(i=row_group, columns=columns, use_threads=False, use_pandas_metadata=False)
 
 
-def _read_parquet_full(
+def _read_parquet_file(
     path: str,
     columns: Optional[List[str]],
     categories: Optional[List[str]],
-    validate_schema: bool,
     safe: bool,
     boto3_session: boto3.Session,
     dataset: bool,
@@ -297,7 +313,7 @@ def _read_parquet_full(
     use_threads: bool,
 ) -> pd.DataFrame:
     if use_threads is False:
-        table: pa.Table = _read_parquet_full_row_group_single_thread(
+        table: pa.Table = _read_parquet_file_single_thread(
             path=path,
             columns=columns,
             categories=categories,
@@ -312,7 +328,7 @@ def _read_parquet_full(
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
             tables: Tuple[pa.Table, ...] = tuple(
                 executor.map(
-                    _read_parquet_full_row_group_multithreaded,
+                    _read_parquet_file_multi_thread,
                     range(num_row_groups),
                     itertools.repeat(path),
                     itertools.repeat(columns),
@@ -321,8 +337,7 @@ def _read_parquet_full(
                     itertools.repeat(s3_additional_kwargs),
                 )
             )
-            promote: bool = not validate_schema
-            table = pa.lib.concat_tables(tables, promote=promote)
+            table = pa.lib.concat_tables(tables, promote=False)
     _logger.debug("Converting PyArrow Table to Pandas DataFrame...")
     return _arrowtable2df(
         table=table,
@@ -333,10 +348,6 @@ def _read_parquet_full(
         path=path,
         path_root=path_root,
     )
-
-
-def _read_parquet_full_sequential(paths: List[str], **kwargs) -> pd.DataFrame:
-    return _union(dfs=[_read_parquet_full(path=p, **kwargs) for p in paths], ignore_index=True)
 
 
 def read_parquet(
@@ -502,29 +513,24 @@ def read_parquet(
         "path_root": path_root,
         "s3_additional_kwargs": s3_additional_kwargs,
         "use_threads": use_threads,
-        "validate_schema": validate_schema,
     }
     _logger.debug("args:\n%s", pprint.pformat(args))
-    ret: Union[pd.DataFrame, Iterator[pd.DataFrame]]
     if chunked is not False:
-        ret = _read_parquet_chunked(paths=paths, chunked=chunked, **args)
-    elif len(paths) == 1:
-        ret = _read_parquet_full(path=paths[0], **args)
-    elif use_threads is True:
+        return _read_parquet_chunked(paths=paths, chunked=chunked, validate_schema=validate_schema, **args)
+    if len(paths) == 1:
+        return _read_parquet_file(path=paths[0], **args)
+    if validate_schema is True:
+        _validate_schemas_from_files(
+            paths=paths,
+            sampling=1.0,
+            use_threads=True,
+            boto3_session=boto3_session,
+            s3_additional_kwargs=s3_additional_kwargs,
+        )
+    if use_threads is True:
         args["use_threads"] = True
-        if validate_schema is True:
-            schemas: Tuple[Dict[str, str], ...] = _read_schemas_from_files(
-                paths=paths,
-                sampling=1.0,
-                use_threads=True,
-                boto3_session=boto3_session,
-                s3_additional_kwargs=s3_additional_kwargs,
-            )
-            _validate_schemas(schemas=schemas)
-        ret = _read_concurrent(func=_read_parquet_full, ignore_index=True, paths=paths, **args)
-    else:
-        ret = _read_parquet_full_sequential(paths=paths, **args)
-    return ret
+        return _read_concurrent(func=_read_parquet_file, ignore_index=True, paths=paths, **args)
+    return _union(dfs=[_read_parquet_file(path=p, **args) for p in paths], ignore_index=True)
 
 
 def read_parquet_table(
