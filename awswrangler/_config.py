@@ -34,7 +34,14 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
 class _Config:
     """Wrangler's Configuration class."""
 
-    __slots__ = ("_loaded_values", "database", "ctas_approach", "max_cache_seconds", "max_cache_query_inspections", "s3fs_block_size")
+    __slots__ = (
+        "_loaded_values",
+        "database",
+        "ctas_approach",
+        "max_cache_seconds",
+        "max_cache_query_inspections",
+        "s3fs_block_size",
+    )
 
     def __init__(self):
         self._loaded_values: Dict[str, _ConfigValueType] = {}
