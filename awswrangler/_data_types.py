@@ -51,9 +51,9 @@ def athena2pyarrow(dtype: str) -> pa.DataType:  # pylint: disable=too-many-retur
         return pa.list_(value_type=athena2pyarrow(dtype=dtype[6:-1]), list_size=-1)
     if dtype.startswith("struct") is True:
         return pa.struct([(f.split(":", 1)[0], athena2pyarrow(f.split(":", 1)[1])) for f in dtype[7:-1].split(",")])
-    if dtype.startswith("map") is True:  # pragma: no cover
+    if dtype.startswith("map") is True:
         return pa.map_(athena2pyarrow(dtype[4:-1].split(",", 1)[0]), athena2pyarrow(dtype[4:-1].split(",", 1)[1]))
-    raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")  # pragma: no cover
+    raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")
 
 
 def athena2pandas(dtype: str) -> str:  # pylint: disable=too-many-branches,too-many-return-statements
@@ -83,7 +83,7 @@ def athena2pandas(dtype: str) -> str:  # pylint: disable=too-many-branches,too-m
         return "decimal"
     if dtype in ("binary", "varbinary"):
         return "bytes"
-    raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")  # pragma: no cover
+    raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")
 
 
 def athena2redshift(  # pylint: disable=too-many-branches,too-many-return-statements
@@ -111,7 +111,7 @@ def athena2redshift(  # pylint: disable=too-many-branches,too-many-return-statem
         return "DATE"
     if dtype.startswith("decimal"):
         return dtype.upper()
-    raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")  # pragma: no cover
+    raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")
 
 
 def athena2quicksight(dtype: str) -> str:  # pylint: disable=too-many-branches,too-many-return-statements
@@ -139,9 +139,9 @@ def athena2quicksight(dtype: str) -> str:  # pylint: disable=too-many-branches,t
         return "DATETIME"
     if dtype.startswith("decimal"):
         return "DECIMAL"
-    if dtype == "binary":  # pragma: no cover
+    if dtype == "binary":
         return "BIT"
-    raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")  # pragma: no cover
+    raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")
 
 
 def pyarrow2athena(dtype: pa.DataType) -> str:  # pylint: disable=too-many-branches,too-many-return-statements
@@ -178,20 +178,20 @@ def pyarrow2athena(dtype: pa.DataType) -> str:  # pylint: disable=too-many-branc
         return f"array<{pyarrow2athena(dtype=dtype.value_type)}>"
     if pa.types.is_struct(dtype):
         return f"struct<{','.join([f'{f.name}:{pyarrow2athena(dtype=f.type)}' for f in dtype])}>"
-    if pa.types.is_map(dtype):  # pragma: no cover
+    if pa.types.is_map(dtype):
         return f"map<{pyarrow2athena(dtype=dtype.key_type)}, {pyarrow2athena(dtype=dtype.item_type)}>"
     if dtype == pa.null():
         raise exceptions.UndetectedType("We can not infer the data type from an entire null object column")
-    raise exceptions.UnsupportedType(f"Unsupported Pyarrow type: {dtype}")  # pragma: no cover
+    raise exceptions.UnsupportedType(f"Unsupported Pyarrow type: {dtype}")
 
 
 def pyarrow2pandas_extension(  # pylint: disable=too-many-branches,too-many-return-statements
     dtype: pa.DataType,
 ) -> Optional[pd.api.extensions.ExtensionDtype]:
     """Pyarrow to Pandas data types conversion."""
-    if pa.types.is_int8(dtype):  # pragma: no cover
+    if pa.types.is_int8(dtype):
         return pd.Int8Dtype()
-    if pa.types.is_int16(dtype):  # pragma: no cover
+    if pa.types.is_int16(dtype):
         return pd.Int16Dtype()
     if pa.types.is_int32(dtype):
         return pd.Int32Dtype()
@@ -227,7 +227,7 @@ def pyarrow2sqlalchemy(  # pylint: disable=too-many-branches,too-many-return-sta
             return sqlalchemy_redshift.dialect.DOUBLE_PRECISION
         raise exceptions.InvalidDatabaseType(
             f"{db_type} is a invalid database type, please choose between postgresql, mysql and redshift."
-        )  # pragma: no cover
+        )
     if pa.types.is_boolean(dtype):
         return sqlalchemy.types.Boolean
     if pa.types.is_string(dtype):
@@ -239,22 +239,22 @@ def pyarrow2sqlalchemy(  # pylint: disable=too-many-branches,too-many-return-sta
             return sqlalchemy.types.VARCHAR(length=256)
         raise exceptions.InvalidDatabaseType(
             f"{db_type} is a invalid database type. " f"Please choose between postgresql, mysql and redshift."
-        )  # pragma: no cover
+        )
     if pa.types.is_timestamp(dtype):
         return sqlalchemy.types.DateTime
     if pa.types.is_date(dtype):
         return sqlalchemy.types.Date
     if pa.types.is_binary(dtype):
         if db_type == "redshift":
-            raise exceptions.UnsupportedType("Binary columns are not supported for Redshift.")  # pragma: no cover
+            raise exceptions.UnsupportedType("Binary columns are not supported for Redshift.")
         return sqlalchemy.types.Binary
     if pa.types.is_decimal(dtype):
         return sqlalchemy.types.Numeric(precision=dtype.precision, scale=dtype.scale)
     if pa.types.is_dictionary(dtype):
         return pyarrow2sqlalchemy(dtype=dtype.value_type, db_type=db_type)
-    if dtype == pa.null():  # pragma: no cover
+    if dtype == pa.null():
         return None
-    raise exceptions.UnsupportedType(f"Unsupported Pyarrow type: {dtype}")  # pragma: no cover
+    raise exceptions.UnsupportedType(f"Unsupported Pyarrow type: {dtype}")
 
 
 def pyarrow_types_from_pandas(
@@ -287,7 +287,7 @@ def pyarrow_types_from_pandas(
         _logger.debug("Inferring PyArrow type from column: %s", col)
         try:
             schema: pa.Schema = pa.Schema.from_pandas(df=df[[col]], preserve_index=False)
-        except pa.ArrowInvalid as ex:  # pragma: no cover
+        except pa.ArrowInvalid as ex:
             cols_dtypes[col] = process_not_inferred_dtype(ex)
         else:
             cols_dtypes[col] = schema.field(col).type
@@ -321,17 +321,17 @@ def process_not_inferred_dtype(ex: pa.ArrowInvalid) -> pa.DataType:
         string=ex_str,
     )
     if match is None:
-        raise ex  # pragma: no cover
+        raise ex
     groups: Optional[Sequence[str]] = match.groups()
     if groups is None:
-        raise ex  # pragma: no cover
+        raise ex
     if len(groups) != 2:
-        raise ex  # pragma: no cover
+        raise ex
     _logger.debug("groups: %s", groups)
     type_str: str = groups[1]
     if type_str == "UUID":
         return pa.string()
-    raise ex  # pragma: no cover
+    raise ex
 
 
 def process_not_inferred_array(ex: pa.ArrowInvalid, values: Any) -> pa.Array:
@@ -340,7 +340,7 @@ def process_not_inferred_array(ex: pa.ArrowInvalid, values: Any) -> pa.Array:
     if dtype == pa.string():
         array: pa.Array = pa.array(obj=[str(x) for x in values], type=dtype, safe=True)
     else:
-        raise ex  # pragma: no cover
+        raise ex
     return array
 
 
@@ -410,7 +410,7 @@ def athena_types_from_pyarrow_schema(
     _logger.debug("columns_types: %s", columns_types)
     partitions_types: Optional[Dict[str, str]] = None
     if partitions is not None:
-        partitions_types = {p.name: pyarrow2athena(p.dictionary.type) for p in partitions}  # pragma: no cover
+        partitions_types = {p.name: pyarrow2athena(p.dictionary.type) for p in partitions}
     _logger.debug("partitions_types: %s", partitions_types)
     return columns_types, partitions_types
 
@@ -433,7 +433,6 @@ def cast_pandas_with_athena_types(df: pd.DataFrame, dtype: Dict[str, str]) -> pd
                     df = _utils.ensure_df_is_mutable(df=df)
                     mutability_ensured = True
                 _cast_pandas_column(df=df, col=col, current_type=current_type, desired_type=desired_type)
-
     return df
 
 
@@ -441,7 +440,7 @@ def _normalize_pandas_dtype_name(dtype: str) -> str:
     if dtype.startswith("datetime64") is True:
         return "datetime64"
     if dtype.startswith("decimal") is True:
-        return "decimal"  # pragma: no cover
+        return "decimal"
     return dtype
 
 
@@ -471,7 +470,7 @@ def _cast_pandas_column(df: pd.DataFrame, col: str, current_type: str, desired_t
             df[col] = df[col].astype(desired_type)
         except TypeError as ex:
             if "object cannot be converted to an IntegerDtype" not in str(ex):
-                raise ex  # pragma: no cover
+                raise ex
             df[col] = (
                 df[col]
                 .apply(lambda x: int(x) if str(x) not in ("", "none", "None", " ", "<NA>") else None)

@@ -91,3 +91,11 @@ class InvalidCtasApproachQuery(Exception):
 
 class InvalidConfiguration(Exception):
     """InvalidConfiguration exception."""
+
+
+class NoFilesFound(Exception):
+    """NoFilesFound exception."""
+
+
+class InvalidDataFrame(Exception):
+    """InvalidDataFrame."""

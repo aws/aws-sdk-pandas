@@ -302,7 +302,7 @@ def _resolve_query_with_cache(
             use_threads=use_threads,
             boto3_session=session,
         )
-    raise exceptions.InvalidArgumentValue(f"Invalid data type: {cache_info.file_format}.")  # pragma: no cover
+    raise exceptions.InvalidArgumentValue(f"Invalid data type: {cache_info.file_format}.")
 
 
 def _resolve_query_without_cache_ctas(
@@ -370,7 +370,7 @@ def _resolve_query_without_cache_ctas(
                 "Please, don't leave undefined columns types in your query. You can cast to ensure it. "
                 "(E.g. 'SELECT CAST(NULL AS INTEGER) AS MY_COL, ...')"
             )
-        raise ex  # pragma: no cover
+        raise ex
     return _fetch_parquet_result(
         query_metadata=query_metadata,
         keep_files=keep_files,
@@ -565,7 +565,8 @@ def read_sql_query(
 
     Note
     ----
-    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads
+    that will be spawned will be gotten from os.cpu_count().
 
     Parameters
     ----------
@@ -748,7 +749,8 @@ def read_sql_table(
 
     Note
     ----
-    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads
+    that will be spawned will be gotten from os.cpu_count().
 
     Parameters
     ----------

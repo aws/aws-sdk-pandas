@@ -1,1032 +1,116 @@
 """Amazon S3 Read Module (PRIVATE)."""
 
-import concurrent.futures
-import datetime
-import itertools
 import logging
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union, cast
 
-import boto3  # type: ignore
+import numpy as np  # type: ignore
 import pandas as pd  # type: ignore
-import pandas.io.parsers  # type: ignore
-import pyarrow as pa  # type: ignore
-import pyarrow.lib  # type: ignore
-import pyarrow.parquet  # type: ignore
-import s3fs  # type: ignore
-from pandas.io.common import infer_compression  # type: ignore
+from pandas.api.types import union_categoricals  # type: ignore
 
-from awswrangler import _data_types, _utils, catalog, exceptions
-from awswrangler.s3._list import path2list
+from awswrangler import exceptions
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def read_parquet_metadata_internal(
-    path: Union[str, List[str]],
-    dtype: Optional[Dict[str, str]],
-    sampling: float,
-    dataset: bool,
-    path_suffix: Optional[str],
-    use_threads: bool,
-    boto3_session: Optional[boto3.Session],
-) -> Tuple[Dict[str, str], Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]:
-    """Handle wr.s3.read_parquet_metadata internally."""
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    if dataset is True:
-        if isinstance(path, str):
-            _path: Optional[str] = path if path.endswith("/") else f"{path}/"
-            paths: List[str] = path2list(path=_path, boto3_session=session, suffix=path_suffix)
-        else:  # pragma: no cover
-            raise exceptions.InvalidArgumentType("Argument <path> must be str if dataset=True.")
+def _get_path_root(path: Union[str, List[str]], dataset: bool) -> Optional[str]:
+    if (dataset is True) and (not isinstance(path, str)):
+        raise exceptions.InvalidArgument("The path argument must be a string if dataset=True (Amazon S3 prefix).")
+    return str(path) if dataset is True else None
+
+
+def _get_path_ignore_suffix(path_ignore_suffix: Union[str, List[str], None]) -> Union[List[str], None]:
+    if isinstance(path_ignore_suffix, str):
+        path_ignore_suffix = [path_ignore_suffix, "/_SUCCESS"]
+    elif path_ignore_suffix is None:
+        path_ignore_suffix = ["/_SUCCESS"]
     else:
-        if isinstance(path, str):
-            _path = None
-            paths = path2list(path=path, boto3_session=session, suffix=path_suffix)
-        elif isinstance(path, list):
-            _path = None
-            paths = path
-        else:  # pragma: no cover
-            raise exceptions.InvalidArgumentType(f"Argument path must be str or List[str] instead of {type(path)}.")
-    schemas: List[Dict[str, str]] = [
-        _read_parquet_metadata_file(path=x, use_threads=use_threads, boto3_session=session)
-        for x in _utils.list_sampling(lst=paths, sampling=sampling)
-    ]
-    _logger.debug("schemas: %s", schemas)
-    columns_types: Dict[str, str] = {}
-    for schema in schemas:
-        for column, _dtype in schema.items():
-            if (column in columns_types) and (columns_types[column] != _dtype):  # pragma: no cover
-                raise exceptions.InvalidSchemaConvergence(
-                    f"Was detect at least 2 different types in column {column} ({columns_types[column]} and {dtype})."
-                )
-            columns_types[column] = _dtype
-    partitions_types: Optional[Dict[str, str]] = None
-    partitions_values: Optional[Dict[str, List[str]]] = None
-    if (dataset is True) and (_path is not None):
-        partitions_types, partitions_values = _utils.extract_partitions_metadata_from_paths(path=_path, paths=paths)
-    if dtype:
-        for k, v in dtype.items():
-            if columns_types and k in columns_types:
-                columns_types[k] = v
-            if partitions_types and k in partitions_types:
-                partitions_types[k] = v
-    _logger.debug("columns_types: %s", columns_types)
-    return columns_types, partitions_types, partitions_values
+        path_ignore_suffix = path_ignore_suffix + ["/_SUCCESS"]
+    return path_ignore_suffix
 
 
-def _read_text(
-    parser_func: Callable,
-    path: Union[str, List[str]],
-    use_threads: bool = True,
-    last_modified_begin: Optional[datetime.datetime] = None,
-    last_modified_end: Optional[datetime.datetime] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
-    chunksize: Optional[int] = None,
-    dataset: bool = False,
-    ignore_index: bool = True,
-    sort_index: bool = False,
-    **pandas_kwargs,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    if "iterator" in pandas_kwargs:
-        raise exceptions.InvalidArgument("Please, use chunksize instead of iterator.")
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    if (dataset is True) and (not isinstance(path, str)):  # pragma: no cover
-        raise exceptions.InvalidArgument("The path argument must be a string Amazon S3 prefix if dataset=True.")
-    if dataset is True:
-        path_root: str = str(path)
-    else:
-        path_root = ""
-    paths: List[str] = path2list(
-        path=path, boto3_session=session, last_modified_begin=last_modified_begin, last_modified_end=last_modified_end
-    )
-    if len(paths) < 1:
-        raise exceptions.InvalidArgument("No files Found.")
-
-    _logger.debug("paths:\n%s", paths)
-    if chunksize is not None:
-        return _read_text_chunksize(
-            parser_func=parser_func,
-            paths=paths,
-            boto3_session=session,
-            chunksize=chunksize,
-            pandas_kwargs=pandas_kwargs,
-            s3_additional_kwargs=s3_additional_kwargs,
-            dataset=dataset,
-            path_root=path_root,
-        )
-    if len(paths) == 1:
-        return _read_text_full(
-            parser_func=parser_func,
-            path=paths[0],
-            boto3_session=session,
-            pandas_kwargs=pandas_kwargs,
-            s3_additional_kwargs=s3_additional_kwargs,
-            dataset=dataset,
-            path_root=path_root,
-        )
-    if use_threads is True:
-        cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
-        with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
-            return pd.concat(
-                objs=executor.map(
-                    _read_text_full,
-                    itertools.repeat(parser_func),
-                    itertools.repeat(path_root),
-                    paths,
-                    itertools.repeat(_utils.boto3_to_primitives(boto3_session=session)),  # Boto3.Session
-                    itertools.repeat(pandas_kwargs),
-                    itertools.repeat(s3_additional_kwargs),
-                    itertools.repeat(dataset),
-                ),
-                ignore_index=ignore_index,
-                sort=sort_index,
-                copy=False,
-            )
-    return pd.concat(
-        objs=[
-            _read_text_full(
-                parser_func=parser_func,
-                path=p,
-                boto3_session=session,
-                pandas_kwargs=pandas_kwargs,
-                s3_additional_kwargs=s3_additional_kwargs,
-                dataset=dataset,
-                path_root=path_root,
-            )
-            for p in paths
-        ],
-        ignore_index=ignore_index,
-        sort=sort_index,
-        copy=False,
-    )
+def _extract_partitions_metadata_from_paths(
+    path: str, paths: List[str]
+) -> Tuple[Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]:
+    """Extract partitions metadata from Amazon S3 paths."""
+    path = path if path.endswith("/") else f"{path}/"
+    partitions_types: Dict[str, str] = {}
+    partitions_values: Dict[str, List[str]] = {}
+    for p in paths:
+        if path not in p:
+            raise exceptions.InvalidArgumentValue(f"Object {p} is not under the root path ({path}).")
+        path_wo_filename: str = p.rpartition("/")[0] + "/"
+        if path_wo_filename not in partitions_values:
+            path_wo_prefix: str = path_wo_filename.replace(f"{path}/", "")
+            dirs: Tuple[str, ...] = tuple(x for x in path_wo_prefix.split("/") if (x != "") and (x.count("=") == 1))
+            if dirs:
+                values_tups = cast(Tuple[Tuple[str, str]], tuple(tuple(x.split("=")[:2]) for x in dirs))
+                values_dics: Dict[str, str] = dict(values_tups)
+                p_values: List[str] = list(values_dics.values())
+                p_types: Dict[str, str] = {x: "string" for x in values_dics.keys()}
+                if not partitions_types:
+                    partitions_types = p_types
+                if p_values:
+                    partitions_types = p_types
+                    partitions_values[path_wo_filename] = p_values
+                elif p_types != partitions_types:
+                    raise exceptions.InvalidSchemaConvergence(
+                        f"At least two different partitions schema detected: {partitions_types} and {p_types}"
+                    )
+    if not partitions_types:
+        return None, None
+    return partitions_types, partitions_values
 
 
-def _read_text_chunksize(
-    parser_func: Callable,
-    path_root: str,
-    paths: List[str],
-    boto3_session: boto3.Session,
-    chunksize: int,
-    pandas_kwargs: Dict[str, Any],
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
-    dataset: bool = False,
-) -> Iterator[pd.DataFrame]:
-    fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
-    for path in paths:
-        _logger.debug("path: %s", path)
-        partitions: Dict[str, Any] = {}
-        if dataset is True:
-            partitions = _utils.extract_partitions_from_path(path_root=path_root, path=path)
-        if pandas_kwargs.get("compression", "infer") == "infer":
-            pandas_kwargs["compression"] = infer_compression(path, compression="infer")
-        mode: str = "r" if pandas_kwargs.get("compression") is None else "rb"
-        with fs.open(path, mode) as f:
-            reader: pandas.io.parsers.TextFileReader = parser_func(f, chunksize=chunksize, **pandas_kwargs)
-            for df in reader:
-                if dataset is True:
-                    for column_name, value in partitions.items():
-                        df[column_name] = value
-                yield df
+def _extract_partitions_from_path(path_root: str, path: str) -> Dict[str, str]:
+    """Extract partitions values and names from Amazon S3 path."""
+    path_root = path_root if path_root.endswith("/") else f"{path_root}/"
+    if path_root not in path:
+        raise exceptions.InvalidArgumentValue(f"Object {path} is not under the root path ({path_root}).")
+    path_wo_filename: str = path.rpartition("/")[0] + "/"
+    path_wo_prefix: str = path_wo_filename.replace(f"{path_root}/", "")
+    dirs: Tuple[str, ...] = tuple(x for x in path_wo_prefix.split("/") if (x != "") and (x.count("=") == 1))
+    if not dirs:
+        return {}
+    values_tups = cast(Tuple[Tuple[str, str]], tuple(tuple(x.split("=")[:2]) for x in dirs))
+    values_dics: Dict[str, str] = dict(values_tups)
+    return values_dics
 
 
-def _read_text_full(
-    parser_func: Callable,
-    path_root: str,
-    path: str,
-    boto3_session: Union[boto3.Session, Dict[str, Optional[str]]],
-    pandas_kwargs: Dict[str, Any],
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
-    dataset: bool = False,
-) -> pd.DataFrame:
-    fs: s3fs.S3FileSystem = _utils.get_fs(session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
-    if pandas_kwargs.get("compression", "infer") == "infer":
-        pandas_kwargs["compression"] = infer_compression(path, compression="infer")
-    mode: str = "r" if pandas_kwargs.get("compression") is None else "rb"
-    encoding: Optional[str] = pandas_kwargs.get("encoding", None)
-    newline: Optional[str] = pandas_kwargs.get("lineterminator", None)
-    with fs.open(path=path, mode=mode, encoding=encoding, newline=newline) as f:
-        df: pd.DataFrame = parser_func(f, **pandas_kwargs)
-    if dataset is True:
-        partitions: Dict[str, Any] = _utils.extract_partitions_from_path(path_root=path_root, path=path)
-        for column_name, value in partitions.items():
-            df[column_name] = value
+def _apply_partition_filter(
+    path_root: str, paths: List[str], filter_func: Optional[Callable[[Dict[str, str]], bool]]
+) -> List[str]:
+    if filter_func is None:
+        return paths
+    return [p for p in paths if filter_func(_extract_partitions_from_path(path_root=path_root, path=p)) is True]
+
+
+def _apply_partitions(df: pd.DataFrame, dataset: bool, path: str, path_root: Optional[str]) -> pd.DataFrame:
+    if dataset is False:
+        return df
+    if dataset is True and path_root is None:
+        raise exceptions.InvalidArgument("A path_root is required when dataset=True.")
+    path_root = cast(str, path_root)
+    partitions: Dict[str, str] = _extract_partitions_from_path(path_root=path_root, path=path)
+    _logger.debug("partitions: %s", partitions)
+    count: int = len(df.index)
+    _logger.debug("count: %s", count)
+    for name, value in partitions.items():
+        df[name] = pd.Categorical.from_codes(np.repeat([0], count), categories=[value])
     return df
 
 
-def _read_parquet_init(
-    path: Union[str, List[str]],
-    filters: Optional[Union[List[Tuple], List[List[Tuple]]]] = None,
-    categories: List[str] = None,
-    validate_schema: bool = True,
-    dataset: bool = False,
-    use_threads: bool = True,
-    last_modified_begin: Optional[datetime.datetime] = None,
-    last_modified_end: Optional[datetime.datetime] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
-) -> pyarrow.parquet.ParquetDataset:
-    """Encapsulate all initialization before the use of the pyarrow.parquet.ParquetDataset."""
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    if dataset is False:
-        path_or_paths: Union[str, List[str]] = path2list(
-            path=path,
-            boto3_session=session,
-            last_modified_begin=last_modified_begin,
-            last_modified_end=last_modified_end,
-        )
-    elif isinstance(path, str):
-        path_or_paths = path[:-1] if path.endswith("/") else path
-    else:
-        path_or_paths = path
-    _logger.debug("path_or_paths: %s", path_or_paths)
-    if len(path_or_paths) < 1:
-        raise exceptions.InvalidArgumentType("No Files Found")  # pragma: no cover
-
-    fs: s3fs.S3FileSystem = _utils.get_fs(session=session, s3_additional_kwargs=s3_additional_kwargs)
-    cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
-    data: pyarrow.parquet.ParquetDataset = pyarrow.parquet.ParquetDataset(
-        path_or_paths=path_or_paths,
-        filesystem=fs,
-        metadata_nthreads=cpus,
-        filters=filters,
-        read_dictionary=categories,
-        validate_schema=validate_schema,
-        split_row_groups=False,
-        use_legacy_dataset=True,
-    )
-    return data
-
-
-def _read_parquet(
-    data: pyarrow.parquet.ParquetDataset,
-    columns: Optional[List[str]] = None,
-    categories: List[str] = None,
-    safe: bool = True,
-    use_threads: bool = True,
-    validate_schema: bool = True,
-) -> pd.DataFrame:
-    tables: List[pa.Table] = []
-    _logger.debug("Reading pieces...")
-    for piece in data.pieces:
-        table: pa.Table = piece.read(
-            columns=columns, use_threads=use_threads, partitions=data.partitions, use_pandas_metadata=False
-        )
-        _logger.debug("Appending piece in the list...")
-        tables.append(table)
-    promote: bool = not validate_schema
-    _logger.debug("Concating pieces...")
-    table = pa.lib.concat_tables(tables, promote=promote)
-    _logger.debug("Converting PyArrow table to Pandas DataFrame...")
-    return table.to_pandas(
-        use_threads=use_threads,
-        split_blocks=True,
-        self_destruct=True,
-        integer_object_nulls=False,
-        date_as_object=True,
-        ignore_metadata=True,
-        categories=categories,
-        safe=safe,
-        types_mapper=_data_types.pyarrow2pandas_extension,
-    )
-
-
-def _read_parquet_chunked(
-    data: pyarrow.parquet.ParquetDataset,
-    columns: Optional[List[str]] = None,
-    categories: List[str] = None,
-    safe: bool = True,
-    chunked: Union[bool, int] = True,
-    use_threads: bool = True,
-) -> Iterator[pd.DataFrame]:
-    next_slice: Optional[pd.DataFrame] = None
-    for piece in data.pieces:
-        df: pd.DataFrame = _table2df(
-            table=piece.read(
-                columns=columns, use_threads=use_threads, partitions=data.partitions, use_pandas_metadata=False
-            ),
-            categories=categories,
-            safe=safe,
-            use_threads=use_threads,
-        )
-        if chunked is True:
-            yield df
-        else:
-            if next_slice is not None:
-                df = pd.concat(objs=[next_slice, df], ignore_index=True, sort=False)
-            while len(df.index) >= chunked:
-                yield df.iloc[:chunked]
-                df = df.iloc[chunked:]
-            if df.empty:
-                next_slice = None
-            else:
-                next_slice = df
-    if next_slice is not None:
-        yield next_slice
-
-
-def _table2df(
-    table: pa.Table, categories: List[str] = None, safe: bool = True, use_threads: bool = True
-) -> pd.DataFrame:
-    return table.to_pandas(
-        use_threads=use_threads,
-        split_blocks=True,
-        self_destruct=True,
-        integer_object_nulls=False,
-        date_as_object=True,
-        ignore_metadata=True,
-        categories=categories,
-        safe=safe,
-        types_mapper=_data_types.pyarrow2pandas_extension,
-    )
-
-
-def _read_parquet_metadata_file(path: str, use_threads: bool, boto3_session: boto3.Session) -> Dict[str, str]:
-    data: pyarrow.parquet.ParquetDataset = _read_parquet_init(
-        path=path, filters=None, dataset=False, use_threads=use_threads, boto3_session=boto3_session
-    )
-    return _data_types.athena_types_from_pyarrow_schema(schema=data.schema.to_arrow_schema(), partitions=None)[0]
-
-
-def read_csv(
-    path: Union[str, List[str]],
-    use_threads: bool = True,
-    last_modified_begin: Optional[datetime.datetime] = None,
-    last_modified_end: Optional[datetime.datetime] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
-    chunksize: Optional[int] = None,
-    dataset: bool = False,
-    **pandas_kwargs,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    """Read CSV file(s) from from a received S3 prefix or list of S3 objects paths.
-
-    Note
-    ----
-    For partial and gradual reading use the argument ``chunksize`` instead of ``iterator``.
-
-    Note
-    ----
-    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
-
-    Note
-    ----
-    The filter by last_modified begin last_modified end is applied after list all S3 files
-
-    Parameters
-    ----------
-    path : Union[str, List[str]]
-        S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. ``[s3://bucket/key0, s3://bucket/key1]``).
-    use_threads : bool
-        True to enable concurrent requests, False to disable multiple threads.
-        If enabled os.cpu_count() will be used as the max number of threads.
-    last_modified_begin
-        Filter the s3 files by the Last modified date of the object.
-        The filter is applied only after list all s3 files.
-    last_modified_end: datetime, optional
-        Filter the s3 files by the Last modified date of the object.
-        The filter is applied only after list all s3 files.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs:
-        Forward to s3fs, useful for server side encryption
-        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
-    chunksize: int, optional
-        If specified, return an generator where chunksize is the number of rows to include in each chunk.
-    dataset: bool
-        If `True` read a CSV dataset instead of simple file(s) loading all the related partitions as columns.
-    pandas_kwargs:
-        keyword arguments forwarded to pandas.read_csv().
-        https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
-
-    Returns
-    -------
-    Union[pandas.DataFrame, Generator[pandas.DataFrame, None, None]]
-        Pandas DataFrame or a Generator in case of `chunksize != None`.
-
-    Examples
-    --------
-    Reading all CSV files under a prefix
-
-    >>> import awswrangler as wr
-    >>> df = wr.s3.read_csv(path='s3://bucket/prefix/')
-
-    Reading all CSV files under a prefix encrypted with a KMS key
-
-    >>> import awswrangler as wr
-    >>> df = wr.s3.read_csv(
-    ...     path='s3://bucket/prefix/',
-    ...     s3_additional_kwargs={
-    ...         'ServerSideEncryption': 'aws:kms',
-    ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
-    ...     }
-    ... )
-
-    Reading all CSV files from a list
-
-    >>> import awswrangler as wr
-    >>> df = wr.s3.read_csv(path=['s3://bucket/filename0.csv', 's3://bucket/filename1.csv'])
-
-    Reading in chunks of 100 lines
-
-    >>> import awswrangler as wr
-    >>> dfs = wr.s3.read_csv(path=['s3://bucket/filename0.csv', 's3://bucket/filename1.csv'], chunksize=100)
-    >>> for df in dfs:
-    >>>     print(df)  # 100 lines Pandas DataFrame
-
-    """
-    if "index_col" in pandas_kwargs:
-        ignore_index: bool = False
-        sort_index: bool = True
-    else:
-        ignore_index = True
-        sort_index = False
-    return _read_text(
-        parser_func=pd.read_csv,
-        path=path,
-        use_threads=use_threads,
-        boto3_session=boto3_session,
-        s3_additional_kwargs=s3_additional_kwargs,
-        chunksize=chunksize,
-        dataset=dataset,
-        last_modified_begin=last_modified_begin,
-        last_modified_end=last_modified_end,
-        ignore_index=ignore_index,
-        sort_index=sort_index,
-        **pandas_kwargs,
-    )
-
-
-def read_fwf(
-    path: Union[str, List[str]],
-    use_threads: bool = True,
-    last_modified_begin: Optional[datetime.datetime] = None,
-    last_modified_end: Optional[datetime.datetime] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
-    chunksize: Optional[int] = None,
-    dataset: bool = False,
-    **pandas_kwargs,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    """Read fixed-width formatted file(s) from from a received S3 prefix or list of S3 objects paths.
-
-    Note
-    ----
-    For partial and gradual reading use the argument ``chunksize`` instead of ``iterator``.
-
-    Note
-    ----
-    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
-
-    Note
-    ----
-    The filter by last_modified begin last_modified end is applied after list all S3 files
-
-    Parameters
-    ----------
-    path : Union[str, List[str]]
-        S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. ``[s3://bucket/key0, s3://bucket/key1]``).
-    use_threads : bool
-        True to enable concurrent requests, False to disable multiple threads.
-        If enabled os.cpu_count() will be used as the max number of threads.
-    last_modified_begin
-        Filter the s3 files by the Last modified date of the object.
-        The filter is applied only after list all s3 files.
-    last_modified_end: datetime, optional
-        Filter the s3 files by the Last modified date of the object.
-        The filter is applied only after list all s3 files.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs:
-        Forward to s3fs, useful for server side encryption
-        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
-    chunksize: int, optional
-        If specified, return an generator where chunksize is the number of rows to include in each chunk.
-    dataset: bool
-        If `True` read a FWF dataset instead of simple file(s) loading all the related partitions as columns.
-    pandas_kwargs:
-        keyword arguments forwarded to pandas.read_fwf().
-        https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_fwf.html
-
-    Returns
-    -------
-    Union[pandas.DataFrame, Generator[pandas.DataFrame, None, None]]
-        Pandas DataFrame or a Generator in case of `chunksize != None`.
-
-    Examples
-    --------
-    Reading all fixed-width formatted (FWF) files under a prefix
-
-    >>> import awswrangler as wr
-    >>> df = wr.s3.read_fwf(path='s3://bucket/prefix/')
-
-    Reading all fixed-width formatted (FWF) files under a prefix encrypted with a KMS key
-
-    >>> import awswrangler as wr
-    >>> df = wr.s3.read_fwf(
-    ...     path='s3://bucket/prefix/',
-    ...     s3_additional_kwargs={
-    ...         'ServerSideEncryption': 'aws:kms',
-    ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
-    ...     }
-    ... )
-
-    Reading all fixed-width formatted (FWF) files from a list
-
-    >>> import awswrangler as wr
-    >>> df = wr.s3.read_fwf(path=['s3://bucket/filename0.txt', 's3://bucket/filename1.txt'])
-
-    Reading in chunks of 100 lines
-
-    >>> import awswrangler as wr
-    >>> dfs = wr.s3.read_fwf(path=['s3://bucket/filename0.txt', 's3://bucket/filename1.txt'], chunksize=100)
-    >>> for df in dfs:
-    >>>     print(df)  # 100 lines Pandas DataFrame
-
-    """
-    return _read_text(
-        parser_func=pd.read_fwf,
-        path=path,
-        use_threads=use_threads,
-        boto3_session=boto3_session,
-        s3_additional_kwargs=s3_additional_kwargs,
-        chunksize=chunksize,
-        dataset=dataset,
-        last_modified_begin=last_modified_begin,
-        last_modified_end=last_modified_end,
-        ignore_index=True,
-        sort_index=False,
-        **pandas_kwargs,
-    )
-
-
-def read_json(
-    path: Union[str, List[str]],
-    orient: str = "columns",
-    use_threads: bool = True,
-    last_modified_begin: Optional[datetime.datetime] = None,
-    last_modified_end: Optional[datetime.datetime] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
-    chunksize: Optional[int] = None,
-    dataset: bool = False,
-    **pandas_kwargs,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    """Read JSON file(s) from from a received S3 prefix or list of S3 objects paths.
-
-    Note
-    ----
-    For partial and gradual reading use the argument ``chunksize`` instead of ``iterator``.
-
-    Note
-    ----
-    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
-
-    Note
-    ----
-    The filter by last_modified begin last_modified end is applied after list all S3 files
-
-    Parameters
-    ----------
-    path : Union[str, List[str]]
-        S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. ``[s3://bucket/key0, s3://bucket/key1]``).
-    orient : str
-        Same as Pandas: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_json.html
-    use_threads : bool
-        True to enable concurrent requests, False to disable multiple threads.
-        If enabled os.cpu_count() will be used as the max number of threads.
-    last_modified_begin
-        Filter the s3 files by the Last modified date of the object.
-        The filter is applied only after list all s3 files.
-    last_modified_end: datetime, optional
-        Filter the s3 files by the Last modified date of the object.
-        The filter is applied only after list all s3 files.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs:
-        Forward to s3fs, useful for server side encryption
-        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
-    chunksize: int, optional
-        If specified, return an generator where chunksize is the number of rows to include in each chunk.
-    dataset: bool
-        If `True` read a JSON dataset instead of simple file(s) loading all the related partitions as columns.
-        If `True`, the `lines=True` will be assumed by default.
-    pandas_kwargs:
-        keyword arguments forwarded to pandas.read_json().
-        https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_json.html
-
-    Returns
-    -------
-    Union[pandas.DataFrame, Generator[pandas.DataFrame, None, None]]
-        Pandas DataFrame or a Generator in case of `chunksize != None`.
-
-    Examples
-    --------
-    Reading all JSON files under a prefix
-
-    >>> import awswrangler as wr
-    >>> df = wr.s3.read_json(path='s3://bucket/prefix/')
-
-    Reading all JSON files under a prefix encrypted with a KMS key
-
-    >>> import awswrangler as wr
-    >>> df = wr.s3.read_json(
-    ...     path='s3://bucket/prefix/',
-    ...     s3_additional_kwargs={
-    ...         'ServerSideEncryption': 'aws:kms',
-    ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
-    ...     }
-    ... )
-
-    Reading all JSON files from a list
-
-    >>> import awswrangler as wr
-    >>> df = wr.s3.read_json(path=['s3://bucket/filename0.json', 's3://bucket/filename1.json'])
-
-    Reading in chunks of 100 lines
-
-    >>> import awswrangler as wr
-    >>> dfs = wr.s3.read_json(path=['s3://bucket/filename0.json', 's3://bucket/filename1.json'], chunksize=100)
-    >>> for df in dfs:
-    >>>     print(df)  # 100 lines Pandas DataFrame
-
-    """
-    if (dataset is True) and ("lines" not in pandas_kwargs):
-        pandas_kwargs["lines"] = True
-    pandas_kwargs["orient"] = orient
-    if orient in ("split", "index", "columns"):
-        ignore_index: bool = False
-        sort_index: bool = True
-    else:
-        ignore_index = True
-        sort_index = False
-    return _read_text(
-        parser_func=pd.read_json,
-        path=path,
-        use_threads=use_threads,
-        boto3_session=boto3_session,
-        s3_additional_kwargs=s3_additional_kwargs,
-        chunksize=chunksize,
-        dataset=dataset,
-        last_modified_begin=last_modified_begin,
-        last_modified_end=last_modified_end,
-        ignore_index=ignore_index,
-        sort_index=sort_index,
-        **pandas_kwargs,
-    )
-
-
-def read_parquet(
-    path: Union[str, List[str]],
-    filters: Optional[Union[List[Tuple], List[List[Tuple]]]] = None,
-    columns: Optional[List[str]] = None,
-    validate_schema: bool = True,
-    chunked: Union[bool, int] = False,
-    dataset: bool = False,
-    categories: List[str] = None,
-    safe: bool = True,
-    use_threads: bool = True,
-    last_modified_begin: Optional[datetime.datetime] = None,
-    last_modified_end: Optional[datetime.datetime] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    """Read Apache Parquet file(s) from from a received S3 prefix or list of S3 objects paths.
-
-    The concept of Dataset goes beyond the simple idea of files and enable more
-    complex features like partitioning and catalog integration (AWS Glue Catalog).
-
-    Note
-    ----
-    ``Batching`` (`chunked` argument) (Memory Friendly):
-
-    Will anable the function to return a Iterable of DataFrames instead of a regular DataFrame.
-
-    There are two batching strategies on Wrangler:
-
-    - If **chunked=True**, a new DataFrame will be returned for each file in your path/dataset.
-
-    - If **chunked=INTEGER**, Wrangler will iterate on the data by number of rows igual the received INTEGER.
-
-    `P.S.` `chunked=True` if faster and uses less memory while `chunked=INTEGER` is more precise
-    in number of rows for each Dataframe.
-
-    Note
-    ----
-    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
-
-    Note
-    ----
-    The filter by last_modified begin last_modified end is applied after list all S3 files
-
-    Parameters
-    ----------
-    path : Union[str, List[str]]
-        S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
-    filters: Union[List[Tuple], List[List[Tuple]]], optional
-        List of filters to apply on PARTITION columns (PUSH-DOWN filter), like ``[[('x', '=', 0), ...], ...]``.
-        Ignored if `dataset=False`.
-    columns : List[str], optional
-        Names of columns to read from the file(s).
-    validate_schema:
-        Check that individual file schemas are all the same / compatible. Schemas within a
-        folder prefix should all be the same. Disable if you have schemas that are different
-        and want to disable this check.
-    chunked : Union[int, bool]
-        If passed will split the data in a Iterable of DataFrames (Memory friendly).
-        If `True` wrangler will iterate on the data by files in the most efficient way without guarantee of chunksize.
-        If an `INTEGER` is passed Wrangler will iterate on the data by number of rows igual the received INTEGER.
-    dataset: bool
-        If `True` read a parquet dataset instead of simple file(s) loading all the related partitions as columns.
-    categories: List[str], optional
-        List of columns names that should be returned as pandas.Categorical.
-        Recommended for memory restricted environments.
-    safe : bool, default True
-        For certain data types, a cast is needed in order to store the
-        data in a pandas DataFrame or Series (e.g. timestamps are always
-        stored as nanoseconds in pandas). This option controls whether it
-        is a safe cast or not.
-    use_threads : bool
-        True to enable concurrent requests, False to disable multiple threads.
-        If enabled os.cpu_count() will be used as the max number of threads.
-    last_modified_begin
-        Filter the s3 files by the Last modified date of the object.
-        The filter is applied only after list all s3 files.
-    last_modified_end: datetime, optional
-        Filter the s3 files by the Last modified date of the object.
-        The filter is applied only after list all s3 files.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs:
-        Forward to s3fs, useful for server side encryption
-        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
-
-    Returns
-    -------
-    Union[pandas.DataFrame, Generator[pandas.DataFrame, None, None]]
-        Pandas DataFrame or a Generator in case of `chunked=True`.
-
-    Examples
-    --------
-    Reading all Parquet files under a prefix
-
-    >>> import awswrangler as wr
-    >>> df = wr.s3.read_parquet(path='s3://bucket/prefix/')
-
-    Reading all Parquet files under a prefix encrypted with a KMS key
-
-    >>> import awswrangler as wr
-    >>> df = wr.s3.read_parquet(
-    ...     path='s3://bucket/prefix/',
-    ...     s3_additional_kwargs={
-    ...         'ServerSideEncryption': 'aws:kms',
-    ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
-    ...     }
-    ... )
-
-    Reading all Parquet files from a list
-
-    >>> import awswrangler as wr
-    >>> df = wr.s3.read_parquet(path=['s3://bucket/filename0.parquet', 's3://bucket/filename1.parquet'])
-
-    Reading in chunks (Chunk by file)
-
-    >>> import awswrangler as wr
-    >>> dfs = wr.s3.read_parquet(path=['s3://bucket/filename0.csv', 's3://bucket/filename1.csv'], chunked=True)
-    >>> for df in dfs:
-    >>>     print(df)  # Smaller Pandas DataFrame
-
-    Reading in chunks (Chunk by 1MM rows)
-
-    >>> import awswrangler as wr
-    >>> dfs = wr.s3.read_parquet(path=['s3://bucket/filename0.csv', 's3://bucket/filename1.csv'], chunked=1_000_000)
-    >>> for df in dfs:
-    >>>     print(df)  # 1MM Pandas DataFrame
-
-    """
-    data: pyarrow.parquet.ParquetDataset = _read_parquet_init(
-        path=path,
-        filters=filters,
-        dataset=dataset,
-        categories=categories,
-        validate_schema=validate_schema,
-        use_threads=use_threads,
-        boto3_session=boto3_session,
-        s3_additional_kwargs=s3_additional_kwargs,
-        last_modified_begin=last_modified_begin,
-        last_modified_end=last_modified_end,
-    )
-    _logger.debug("pyarrow.parquet.ParquetDataset initialized.")
-    if chunked is False:
-        return _read_parquet(
-            data=data,
-            columns=columns,
-            categories=categories,
-            safe=safe,
-            use_threads=use_threads,
-            validate_schema=validate_schema,
-        )
-    return _read_parquet_chunked(
-        data=data, columns=columns, categories=categories, safe=safe, chunked=chunked, use_threads=use_threads
-    )
-
-
-def read_parquet_metadata(
-    path: Union[str, List[str]],
-    dtype: Optional[Dict[str, str]] = None,
-    sampling: float = 1.0,
-    dataset: bool = False,
-    path_suffix: Optional[str] = None,
-    use_threads: bool = True,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Tuple[Dict[str, str], Optional[Dict[str, str]]]:
-    """Read Apache Parquet file(s) metadata from from a received S3 prefix or list of S3 objects paths.
-
-    The concept of Dataset goes beyond the simple idea of files and enable more
-    complex features like partitioning and catalog integration (AWS Glue Catalog).
-
-    Note
-    ----
-    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
-
-    Parameters
-    ----------
-    path : Union[str, List[str]]
-        S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
-    dtype : Dict[str, str], optional
-        Dictionary of columns names and Athena/Glue types to be casted.
-        Useful when you have columns with undetermined data types as partitions columns.
-        (e.g. {'col name': 'bigint', 'col2 name': 'int'})
-    sampling : float
-        Random sample ratio of files that will have the metadata inspected.
-        Must be `0.0 < sampling <= 1.0`.
-        The higher, the more accurate.
-        The lower, the faster.
-    dataset: bool
-        If True read a parquet dataset instead of simple file(s) loading all the related partitions as columns.
-    path_suffix : str
-        Suffix to filter S3 objects found according to the path parameter.
-    use_threads : bool
-        True to enable concurrent requests, False to disable multiple threads.
-        If enabled os.cpu_count() will be used as the max number of threads.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-
-    Returns
-    -------
-    Tuple[Dict[str, str], Optional[Dict[str, str]]]
-        columns_types: Dictionary with keys as column names and vales as
-        data types (e.g. {'col0': 'bigint', 'col1': 'double'}). /
-        partitions_types: Dictionary with keys as partition names
-        and values as data types (e.g. {'col2': 'date'}).
-
-    Examples
-    --------
-    Reading all Parquet files (with partitions) metadata under a prefix
-
-    >>> import awswrangler as wr
-    >>> columns_types, partitions_types = wr.s3.read_parquet_metadata(path='s3://bucket/prefix/', dataset=True)
-
-    Reading all Parquet files metadata from a list
-
-    >>> import awswrangler as wr
-    >>> columns_types, partitions_types = wr.s3.read_parquet_metadata(path=[
-    ...     's3://bucket/filename0.parquet',
-    ...     's3://bucket/filename1.parquet'
-    ... ])
-
-    """
-    return read_parquet_metadata_internal(
-        path=path,
-        dtype=dtype,
-        sampling=sampling,
-        dataset=dataset,
-        path_suffix=path_suffix,
-        use_threads=use_threads,
-        boto3_session=boto3_session,
-    )[:2]
-
-
-def read_parquet_table(
-    table: str,
-    database: str,
-    filters: Optional[Union[List[Tuple], List[List[Tuple]]]] = None,
-    columns: Optional[List[str]] = None,
-    validate_schema: bool = True,
-    categories: List[str] = None,
-    safe: bool = True,
-    chunked: Union[bool, int] = False,
-    use_threads: bool = True,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    """Read Apache Parquet table registered on AWS Glue Catalog.
-
-    Note
-    ----
-    ``Batching`` (`chunked` argument) (Memory Friendly):
-
-    Will anable the function to return a Iterable of DataFrames instead of a regular DataFrame.
-
-    There are two batching strategies on Wrangler:
-
-    - If **chunked=True**, a new DataFrame will be returned for each file in your path/dataset.
-
-    - If **chunked=INTEGER**, Wrangler will paginate through files slicing and concatenating
-      to return DataFrames with the number of row igual the received INTEGER.
-
-    `P.S.` `chunked=True` if faster and uses less memory while `chunked=INTEGER` is more precise
-    in number of rows for each Dataframe.
-
-
-    Note
-    ----
-    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
-
-    Parameters
-    ----------
-    table : str
-        AWS Glue Catalog table name.
-    database : str
-        AWS Glue Catalog database name.
-    filters: Union[List[Tuple], List[List[Tuple]]], optional
-        List of filters to apply, like ``[[('x', '=', 0), ...], ...]``.
-    columns : List[str], optional
-        Names of columns to read from the file(s).
-    validate_schema:
-        Check that individual file schemas are all the same / compatible. Schemas within a
-        folder prefix should all be the same. Disable if you have schemas that are different
-        and want to disable this check.
-    categories: List[str], optional
-        List of columns names that should be returned as pandas.Categorical.
-        Recommended for memory restricted environments.
-    safe : bool, default True
-        For certain data types, a cast is needed in order to store the
-        data in a pandas DataFrame or Series (e.g. timestamps are always
-        stored as nanoseconds in pandas). This option controls whether it
-        is a safe cast or not.
-    chunked : bool
-        If True will break the data in smaller DataFrames (Non deterministic number of lines).
-        Otherwise return a single DataFrame with the whole data.
-    use_threads : bool
-        True to enable concurrent requests, False to disable multiple threads.
-        If enabled os.cpu_count() will be used as the max number of threads.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs:
-        Forward to s3fs, useful for server side encryption
-        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
-
-    Returns
-    -------
-    Union[pandas.DataFrame, Generator[pandas.DataFrame, None, None]]
-        Pandas DataFrame or a Generator in case of `chunked=True`.
-
-    Examples
-    --------
-    Reading Parquet Table
-
-    >>> import awswrangler as wr
-    >>> df = wr.s3.read_parquet_table(database='...', table='...')
-
-    Reading Parquet Table encrypted
-
-    >>> import awswrangler as wr
-    >>> df = wr.s3.read_parquet_table(
-    ...     database='...',
-    ...     table='...'
-    ...     s3_additional_kwargs={
-    ...         'ServerSideEncryption': 'aws:kms',
-    ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
-    ...     }
-    ... )
-
-    Reading Parquet Table in chunks (Chunk by file)
-
-    >>> import awswrangler as wr
-    >>> dfs = wr.s3.read_parquet_table(database='...', table='...', chunked=True)
-    >>> for df in dfs:
-    >>>     print(df)  # Smaller Pandas DataFrame
-
-    Reading in chunks (Chunk by 1MM rows)
-
-    >>> import awswrangler as wr
-    >>> dfs = wr.s3.read_parquet(path=['s3://bucket/filename0.csv', 's3://bucket/filename1.csv'], chunked=1_000_000)
-    >>> for df in dfs:
-    >>>     print(df)  # 1MM Pandas DataFrame
-
-    """
-    path: str = catalog.get_table_location(database=database, table=table, boto3_session=boto3_session)
-    return read_parquet(
-        path=path,
-        filters=filters,
-        columns=columns,
-        validate_schema=validate_schema,
-        categories=categories,
-        safe=safe,
-        chunked=chunked,
-        dataset=True,
-        use_threads=use_threads,
-        boto3_session=boto3_session,
-        s3_additional_kwargs=s3_additional_kwargs,
-    )
+def _extract_partitions_dtypes_from_table_details(response: Dict[str, Any]) -> Dict[str, str]:
+    dtypes: Dict[str, str] = {}
+    if "PartitionKeys" in response["Table"]:
+        for par in response["Table"]["PartitionKeys"]:
+            dtypes[par["Name"]] = par["Type"]
+    return dtypes
+
+
+def _union(dfs: List[pd.DataFrame], ignore_index: bool) -> pd.DataFrame:
+    cats: Tuple[Set[str], ...] = tuple(set(df.select_dtypes(include="category").columns) for df in dfs)
+    for col in set.intersection(*cats):
+        cat = union_categoricals([df[col] for df in dfs])
+        for df in dfs:
+            df[col] = pd.Categorical(df[col].values, categories=cat.categories)
+    return pd.concat(objs=dfs, sort=False, copy=False, ignore_index=ignore_index)

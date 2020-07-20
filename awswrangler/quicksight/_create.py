@@ -66,7 +66,7 @@ def _generate_permissions(
 ) -> List[Dict[str, Union[str, List[str]]]]:
     permissions: List[Dict[str, Union[str, List[str]]]] = []
     if (allowed_to_use is None) and (allowed_to_manage is None):
-        return permissions  # pragma: no cover
+        return permissions
 
     # Forcing same principal not be in both lists at the same time.
     if (allowed_to_use is not None) and (allowed_to_manage is not None):
@@ -80,7 +80,7 @@ def _generate_permissions(
                 "Actions": _ALLOWED_ACTIONS[resource]["allowed_to_use"],
             }
             for user_name in allowed_to_use
-        ]  # pragma: no cover
+        ]
     if allowed_to_manage is not None:
         permissions += [
             {
@@ -271,16 +271,14 @@ def create_athena_dataset(
     ... )
     """
     if (data_source_name is None) and (data_source_arn is None):
-        raise exceptions.InvalidArgument(
-            "You must pass a not None data_source_name or data_source_arn argument."
-        )  # pragma: no cover
+        raise exceptions.InvalidArgument("You must pass a not None data_source_name or data_source_arn argument.")
     if ((database is None) and (table is None)) and (sql is None):
-        raise exceptions.InvalidArgument("You must pass database/table OR sql argument.")  # pragma: no cover
+        raise exceptions.InvalidArgument("You must pass database/table OR sql argument.")
     if (database is not None) and (sql is not None):
         raise exceptions.InvalidArgument(
             "If you provide sql argument, please include the database name inside the sql statement."
             "Do NOT pass in with database argument."
-        )  # pragma: no cover
+        )
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     client: boto3.client = _utils.client(service_name="quicksight", session=session)
     if account_id is None:
@@ -385,9 +383,7 @@ def create_ingestion(
     if account_id is None:
         account_id = sts.get_account_id(boto3_session=session)
     if (dataset_name is None) and (dataset_id is None):
-        raise exceptions.InvalidArgument(
-            "You must pass a not None dataset_name or dataset_id argument."
-        )  # pragma: no cover
+        raise exceptions.InvalidArgument("You must pass a not None dataset_name or dataset_id argument.")
     if (dataset_id is None) and (dataset_name is not None):
         dataset_id = get_dataset_id(name=dataset_name, account_id=account_id, boto3_session=session)
     if ingestion_id is None:
