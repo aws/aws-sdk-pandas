@@ -100,8 +100,8 @@ def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database,
     assert len(wr.s3.list_objects(path=path3)) > 2
 
 
-def test_athena(path, glue_database, kms_key, workgroup0, workgroup1):
-    table = "__test_athena"
+def test_athena(path, glue_database, glue_table, kms_key, workgroup0, workgroup1):
+    table = f"__{glue_table}"
     wr.catalog.delete_table_if_exists(database=glue_database, table=table)
     paths = wr.s3.to_parquet(
         df=get_df(),
