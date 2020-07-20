@@ -5,7 +5,8 @@ import logging
 import math
 import os
 import random
-from typing import Any, Dict, Generator, List, Optional, Tuple, Union
+import time
+from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
 
 import boto3  # type: ignore
 import botocore.config  # type: ignore
@@ -18,8 +19,10 @@ from awswrangler import exceptions
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
+Boto3PrimitivesType = Dict[str, Optional[str]]
 
-def ensure_session(session: Optional[Union[boto3.Session, Dict[str, Optional[str]]]] = None) -> boto3.Session:
+
+def ensure_session(session: Union[None, boto3.Session, Boto3PrimitivesType] = None) -> boto3.Session:
     """Ensure that a valid boto3.Session will be returned."""
     if isinstance(session, dict):  # Primitives received
         return boto3_from_primitives(primitives=session)
@@ -29,10 +32,10 @@ def ensure_session(session: Optional[Union[boto3.Session, Dict[str, Optional[str
     # set via boto3.setup_default_session()
     if boto3.DEFAULT_SESSION is not None:
         return boto3.DEFAULT_SESSION
-    return boto3.Session()  # pragma: no cover
+    return boto3.Session()
 
 
-def boto3_to_primitives(boto3_session: Optional[boto3.Session] = None) -> Dict[str, Optional[str]]:
+def boto3_to_primitives(boto3_session: Optional[boto3.Session] = None) -> Boto3PrimitivesType:
     """Convert Boto3 Session to Python primitives."""
     _boto3_session: boto3.Session = ensure_session(session=boto3_session)
     credentials = _boto3_session.get_credentials()
@@ -45,11 +48,11 @@ def boto3_to_primitives(boto3_session: Optional[boto3.Session] = None) -> Dict[s
     }
 
 
-def boto3_from_primitives(primitives: Dict[str, Optional[str]] = None) -> boto3.Session:
+def boto3_from_primitives(primitives: Optional[Boto3PrimitivesType] = None) -> boto3.Session:
     """Convert Python primitives to Boto3 Session."""
     if primitives is None:
-        return boto3.DEFAULT_SESSION  # pragma: no cover
-    _primitives: Dict[str, Optional[str]] = copy.deepcopy(primitives)
+        return ensure_session()
+    _primitives: Boto3PrimitivesType = copy.deepcopy(primitives)
     profile_name: Optional[str] = _primitives.get("profile_name", None)
     _primitives["profile_name"] = None if profile_name in (None, "default") else profile_name
     args: Dict[str, str] = {k: v for k, v in _primitives.items() if v is not None}
@@ -162,13 +165,14 @@ def chunkify(lst: List[Any], num_chunks: int = 1, max_length: Optional[int] = No
 
     """
     if not lst:
-        return []  # pragma: no cover
+        return []
     n: int = num_chunks if max_length is None else int(math.ceil((float(len(lst)) / float(max_length))))
     np_chunks = np.array_split(lst, n)
     return [arr.tolist() for arr in np_chunks if len(arr) > 0]
 
 
 def get_fs(
+    block_size: int,
     session: Optional[Union[boto3.Session, Dict[str, Optional[str]]]] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
 ) -> s3fs.S3FileSystem:
@@ -178,7 +182,7 @@ def get_fs(
         use_ssl=True,
         default_cache_type="readahead",
         default_fill_cache=False,
-        default_block_size=1_073_741_824,  # 1024 MB (1024 * 2**20)
+        default_block_size=block_size,
         config_kwargs={"retries": {"max_attempts": 15}},
         session=ensure_session(session=session)._session,  # pylint: disable=protected-access
         s3_additional_kwargs=s3_additional_kwargs,
@@ -188,6 +192,13 @@ def get_fs(
     fs.invalidate_cache()
     fs.clear_instance_cache()
     return fs
+
+
+def open_file(fs: s3fs.S3FileSystem, **kwargs) -> Any:
+    """Open s3fs file with retries to overcome eventual consistency."""
+    fs.invalidate_cache()
+    fs.clear_instance_cache()
+    return try_it(f=fs.open, ex=FileNotFoundError, **kwargs)
 
 
 def empty_generator() -> Generator:
@@ -208,7 +219,7 @@ def get_directory(path: str) -> str:
     return path.rsplit(sep="/", maxsplit=1)[0] + "/"
 
 
-def get_region_from_subnet(subnet_id: str, boto3_session: Optional[boto3.Session] = None) -> str:  # pragma: no cover
+def get_region_from_subnet(subnet_id: str, boto3_session: Optional[boto3.Session] = None) -> str:
     """Extract region from Subnet ID."""
     session: boto3.Session = ensure_session(session=boto3_session)
     client_ec2: boto3.client = client(service_name="ec2", session=session)
@@ -221,72 +232,18 @@ def get_region_from_session(boto3_session: Optional[boto3.Session] = None, defau
     region: Optional[str] = session.region_name
     if region is not None:
         return region
-    if default_region is not None:  # pragma: no cover
+    if default_region is not None:
         return default_region
-    raise exceptions.InvalidArgument(
-        "There is no region_name defined on boto3, please configure it."
-    )  # pragma: no cover
-
-
-def extract_partitions_metadata_from_paths(
-    path: str, paths: List[str]
-) -> Tuple[Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]:
-    """Extract partitions metadata from Amazon S3 paths."""
-    path = path if path.endswith("/") else f"{path}/"
-    partitions_types: Dict[str, str] = {}
-    partitions_values: Dict[str, List[str]] = {}
-    for p in paths:
-        if path not in p:
-            raise exceptions.InvalidArgumentValue(
-                f"Object {p} is not under the root path ({path})."
-            )  # pragma: no cover
-        path_wo_filename: str = p.rpartition("/")[0] + "/"
-        if path_wo_filename not in partitions_values:
-            path_wo_prefix: str = path_wo_filename.replace(f"{path}/", "")
-            dirs: List[str] = [x for x in path_wo_prefix.split("/") if (x != "") and ("=" in x)]
-            if dirs:
-                values_tups: List[Tuple[str, str]] = [tuple(x.split("=")[:2]) for x in dirs]  # type: ignore
-                values_dics: Dict[str, str] = dict(values_tups)
-                p_values: List[str] = list(values_dics.values())
-                p_types: Dict[str, str] = {x: "string" for x in values_dics.keys()}
-                if not partitions_types:
-                    partitions_types = p_types
-                if p_values:
-                    partitions_types = p_types
-                    partitions_values[path_wo_filename] = p_values
-                elif p_types != partitions_types:  # pragma: no cover
-                    raise exceptions.InvalidSchemaConvergence(
-                        f"At least two different partitions schema detected: {partitions_types} and {p_types}"
-                    )
-    if not partitions_types:
-        return None, None
-    return partitions_types, partitions_values
-
-
-def extract_partitions_from_path(path_root: str, path: str) -> Dict[str, Any]:
-    """Extract partitions values and names from Amazon S3 path."""
-    path_root = path_root if path_root.endswith("/") else f"{path_root}/"
-    if path_root not in path:
-        raise exceptions.InvalidArgumentValue(
-            f"Object {path} is not under the root path ({path_root})."
-        )  # pragma: no cover
-    path_wo_filename: str = path.rpartition("/")[0] + "/"
-    path_wo_prefix: str = path_wo_filename.replace(f"{path_root}/", "")
-    dirs: List[str] = [x for x in path_wo_prefix.split("/") if (x != "") and ("=" in x)]
-    if not dirs:
-        return {}  # pragma: no cover
-    values_tups: List[Tuple[str, str]] = [tuple(x.split("=")[:2]) for x in dirs]  # type: ignore
-    values_dics: Dict[str, str] = dict(values_tups)
-    return values_dics
+    raise exceptions.InvalidArgument("There is no region_name defined on boto3, please configure it.")
 
 
 def list_sampling(lst: List[Any], sampling: float) -> List[Any]:
     """Random List sampling."""
-    if sampling > 1.0 or sampling <= 0.0:  # pragma: no cover
+    if sampling > 1.0 or sampling <= 0.0:
         raise exceptions.InvalidArgumentValue(f"Argument <sampling> must be [0.0 < value <= 1.0]. {sampling} received.")
     _len: int = len(lst)
     if _len == 0:
-        return []  # pragma: no cover
+        return []
     num_samples: int = int(round(_len * sampling))
     num_samples = _len if num_samples > _len else num_samples
     num_samples = 1 if num_samples < 1 else num_samples
@@ -301,7 +258,7 @@ def ensure_df_is_mutable(df: pd.DataFrame) -> pd.DataFrame:
     columns: List[str] = df.columns.to_list()
     for column in columns:
         if hasattr(df[column].values, "flags") is True:
-            if df[column].values.flags.writeable is False:  # pragma: no cover
+            if df[column].values.flags.writeable is False:
                 df = df.copy(deep=True)
                 break
     return df
@@ -311,3 +268,27 @@ def insert_str(text: str, token: str, insert: str) -> str:
     """Insert string into other."""
     index: int = text.find(token)
     return text[:index] + insert + text[index:]
+
+
+def check_duplicated_columns(df: pd.DataFrame) -> Any:
+    """Raise an exception if there are duplicated columns names."""
+    duplicated: List[str] = df.loc[:, df.columns.duplicated()].columns.to_list()
+    if duplicated:
+        raise exceptions.InvalidDataFrame(f"There is duplicated column names in your DataFrame: {duplicated}")
+
+
+def try_it(f: Callable, ex, base: float = 1.0, max_num_tries: int = 3, **kwargs) -> Any:
+    """Run function with decorrelated Jitter.
+
+    Reference: https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
+    """
+    delay: float = base
+    for i in range(max_num_tries):
+        try:
+            return f(**kwargs)
+        except ex as exception:
+            if i == (max_num_tries - 1):
+                raise exception
+            delay = random.uniform(base, delay * 3)
+            _logger.error("Retrying %s | Fail number %s/%s | Exception: %s", f, i + 1, max_num_tries, exception)
+            time.sleep(delay)

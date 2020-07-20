@@ -70,7 +70,8 @@ def wait_objects_exist(
 
     Note
     ----
-    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads
+    that will be spawned will be gotten from os.cpu_count().
 
     Parameters
     ----------
@@ -122,7 +123,8 @@ def wait_objects_not_exist(
 
     Note
     ----
-    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads
+    that will be spawned will be gotten from os.cpu_count().
 
     Parameters
     ----------

@@ -2,7 +2,6 @@
 
 import json
 import logging
-import time
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 from urllib.parse import quote_plus as _quote_plus
 
@@ -13,7 +12,7 @@ import sqlalchemy  # type: ignore
 from sqlalchemy.sql.visitors import VisitableType  # type: ignore
 
 from awswrangler import _data_types, _utils, exceptions, s3
-from awswrangler.s3._list import path2list  # noqa
+from awswrangler.s3._list import _path2list  # noqa
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -80,9 +79,9 @@ def to_sql(df: pd.DataFrame, con: sqlalchemy.engine.Engine, **pandas_kwargs) -> 
     ... )
 
     """
-    if df.empty is True:  # pragma: no cover
+    if df.empty is True:
         raise exceptions.EmptyDataFrame()
-    if not isinstance(con, sqlalchemy.engine.Engine):  # pragma: no cover
+    if not isinstance(con, sqlalchemy.engine.Engine):
         raise exceptions.InvalidConnection(
             "Invalid 'con' argument, please pass a "
             "SQLAlchemy Engine. Use wr.db.get_engine(), "
@@ -99,16 +98,7 @@ def to_sql(df: pd.DataFrame, con: sqlalchemy.engine.Engine, **pandas_kwargs) -> 
     pandas_kwargs["con"] = con
     if pandas_kwargs["con"].name.lower() == "redshift":  # Redshift does not accept index
         pandas_kwargs["index"] = False
-    max_attempts: int = 3
-    for attempt in range(max_attempts):
-        try:
-            df.to_sql(**pandas_kwargs)
-        except sqlalchemy.exc.InternalError as ex:  # pragma: no cover
-            if attempt == (max_attempts - 1):
-                raise ex
-            time.sleep(1)
-        else:
-            break
+    _utils.try_it(f=df.to_sql, ex=sqlalchemy.exc.InternalError, **pandas_kwargs)
 
 
 def read_sql_query(
@@ -434,7 +424,7 @@ def get_engine(
     if db_type == "mysql":
         conn_str = f"mysql+pymysql://{user}:{password}@{host}:{port}/{database}"
         return sqlalchemy.create_engine(conn_str, **sqlalchemy_kwargs)
-    raise exceptions.InvalidDatabaseType(  # pragma: no cover
+    raise exceptions.InvalidDatabaseType(
         f"{db_type} is not a valid Database type." f" Only Redshift, PostgreSQL and MySQL are supported."
     )
 
@@ -481,7 +471,8 @@ def copy_to_redshift(  # pylint: disable=too-many-arguments
 
     Note
     ----
-    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads
+    that will be spawned will be gotten from os.cpu_count().
 
     Parameters
     ----------
@@ -619,7 +610,8 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
 
     Note
     ----
-    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads
+    that will be spawned will be gotten from os.cpu_count().
 
     Parameters
     ----------
@@ -679,7 +671,7 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
     """
     _varchar_lengths: Dict[str, int] = {} if varchar_lengths is None else varchar_lengths
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    paths: List[str] = path2list(path=path, boto3_session=session)  # pylint: disable=protected-access
+    paths: List[str] = _path2list(path=path, boto3_session=session)  # pylint: disable=protected-access
     manifest_directory = manifest_directory if manifest_directory.endswith("/") else f"{manifest_directory}/"
     manifest_path: str = f"{manifest_directory}manifest.json"
     write_redshift_copy_manifest(
@@ -724,7 +716,7 @@ def _rs_upsert(con: Any, table: str, temp_table: str, schema: str, primary_keys:
     if not primary_keys:
         primary_keys = _rs_get_primary_keys(con=con, schema=schema, table=table)
     _logger.debug("primary_keys: %s", primary_keys)
-    if not primary_keys:  # pragma: no cover
+    if not primary_keys:
         raise exceptions.InvalidRedshiftPrimaryKeys()
     equals_clause: str = f"{table}.%s = {temp_table}.%s"
     join_clause: str = " AND ".join([equals_clause % (pk, pk) for pk in primary_keys])
@@ -825,7 +817,7 @@ def _rs_copy(
     sql = f"SELECT COUNT(DISTINCT filename) as num_files_loaded " f"FROM STL_LOAD_COMMITS WHERE query = {query_id}"
     num_files_loaded: int = con.execute(sql).fetchall()[0][0]
     _logger.debug("%s files counted. %s expected.", num_files_loaded, num_files)
-    if num_files_loaded != num_files:  # pragma: no cover
+    if num_files_loaded != num_files:
         raise exceptions.RedshiftLoadError(
             f"Redshift load rollbacked. {num_files_loaded} files counted. {num_files} expected."
         )
@@ -841,7 +833,8 @@ def write_redshift_copy_manifest(
 
     Note
     ----
-    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads
+    that will be spawned will be gotten from os.cpu_count().
 
     Parameters
     ----------
@@ -922,7 +915,7 @@ def _rs_does_table_exist(con: Any, schema: str, table: str) -> bool:
     )
     if len(cursor.fetchall()) > 0:
         return True
-    return False  # pragma: no cover
+    return False
 
 
 def unload_redshift(
@@ -970,7 +963,8 @@ def unload_redshift(
 
     Note
     ----
-    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads
+    that will be spawned will be gotten from os.cpu_count().
 
     Parameters
     ----------
@@ -1045,7 +1039,7 @@ def unload_redshift(
     )
     s3.wait_objects_exist(paths=paths, use_threads=False, boto3_session=session)
     if chunked is False:
-        if not paths:  # pragma: no cover
+        if not paths:
             return pd.DataFrame()
         df: pd.DataFrame = s3.read_parquet(
             path=paths,
@@ -1059,7 +1053,7 @@ def unload_redshift(
         if keep_files is False:
             s3.delete_objects(path=paths, use_threads=use_threads, boto3_session=session)
         return df
-    if not paths:  # pragma: no cover
+    if not paths:
         return _utils.empty_generator()
     return _read_parquet_iterator(
         paths=paths,
@@ -1114,7 +1108,8 @@ def unload_redshift_to_files(
 
     Note
     ----
-    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads
+    that will be spawned will be gotten from os.cpu_count().
 
     Parameters
     ----------
@@ -1199,7 +1194,7 @@ def unload_redshift_to_files(
         return paths
 
 
-def _validate_engine(con: sqlalchemy.engine.Engine) -> None:  # pragma: no cover
+def _validate_engine(con: sqlalchemy.engine.Engine) -> None:
     if not isinstance(con, sqlalchemy.engine.Engine):
         raise exceptions.InvalidConnection(
             "Invalid 'con' argument, please pass a "

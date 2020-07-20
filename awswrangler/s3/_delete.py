@@ -11,7 +11,7 @@ from urllib.parse import unquote_plus as _unquote_plus
 import boto3  # type: ignore
 
 from awswrangler import _utils, exceptions
-from awswrangler.s3._list import path2list
+from awswrangler.s3._list import _path2list
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -59,7 +59,8 @@ def delete_objects(
 
     Note
     ----
-    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads
+    that will be spawned will be gotten from os.cpu_count().
 
     Note
     ----
@@ -93,7 +94,7 @@ def delete_objects(
     >>> wr.s3.delete_objects('s3://bucket/prefix')  # Delete all objects under the received prefix
 
     """
-    paths: List[str] = path2list(
+    paths: List[str] = _path2list(
         path=path,
         boto3_session=boto3_session,
         last_modified_begin=last_modified_begin,

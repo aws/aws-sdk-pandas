@@ -13,12 +13,18 @@ logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
 
 def test_query_cancelled(loggroup):
     client_logs = boto3.client("logs")
-    query_id = wr.cloudwatch.start_query(
-        log_group_names=[loggroup], query="fields @timestamp, @message | sort @timestamp desc"
-    )
-    client_logs.stop_query(queryId=query_id)
     with pytest.raises(exceptions.QueryCancelled):
-        assert wr.cloudwatch.wait_query(query_id=query_id)
+        while True:
+            query_id = wr.cloudwatch.start_query(
+                log_group_names=[loggroup], query="fields @timestamp, @message | sort @timestamp desc"
+            )
+            try:
+                client_logs.stop_query(queryId=query_id)
+                break
+            except Exception as ex:
+                if "is not in Running or Scheduled state" not in str(ex):
+                    raise ex
+        wr.cloudwatch.wait_query(query_id=query_id)
 
 
 def test_start_and_wait_query(loggroup):

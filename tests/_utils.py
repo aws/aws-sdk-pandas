@@ -8,6 +8,7 @@ import botocore.exceptions
 import pandas as pd
 
 import awswrangler as wr
+from awswrangler._utils import try_it
 
 ts = lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S.%f")  # noqa
 dt = lambda x: datetime.strptime(x, "%Y-%m-%d").date()  # noqa
@@ -492,8 +493,10 @@ def validate_workgroup_key(workgroup):
         if "EncryptionConfiguration" in workgroup["Configuration"]["ResultConfiguration"]:
             if "KmsKey" in workgroup["Configuration"]["ResultConfiguration"]["EncryptionConfiguration"]:
                 kms_client = boto3.client("kms")
-                key = kms_client.describe_key(
-                    KeyId=workgroup["Configuration"]["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"]
+                key = try_it(
+                    kms_client.describe_key,
+                    kms_client.exceptions.NotFoundException,
+                    KeyId=workgroup["Configuration"]["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"],
                 )["KeyMetadata"]
                 if key["KeyState"] != "Enabled":
                     return False

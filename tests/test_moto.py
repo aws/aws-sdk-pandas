@@ -248,11 +248,9 @@ def test_read_csv_pass_pandas_arguments_and_encoding_succeed(mock_open, mock_rea
     path = "s3://{}/{}".format(bucket, key)
     s3_object = moto_s3.Object(bucket, key)
     s3_object.put(Body=b"foo")
-
-    with pytest.raises(TypeError):
-        wr.s3.read_csv(path=path, encoding="ISO-8859-1", sep=",", lineterminator="\r\n")
-        mock_open.assert_called_with(path="s3://bucket/foo/foo.csv", mode="r", encoding="ISO-8859-1", newline="\r\n")
-        mock_read_csv.assert_called_with(ANY, compression=None, encoding="ISO-8859-1", sep=",", lineterminator="\r\n")
+    wr.s3.read_csv(path=path, encoding="ISO-8859-1", sep=",", lineterminator="\r\n")
+    mock_open.assert_called_with(path="s3://bucket/foo/foo.csv", mode="r", encoding="ISO-8859-1", newline="\r\n")
+    mock_read_csv.assert_called_with(ANY, compression=None, encoding="ISO-8859-1", sep=",", lineterminator="\r\n")
 
 
 def test_to_csv_invalid_argument_combination_raise_when_dataset_false_succeed(moto_s3):
@@ -318,9 +316,8 @@ def test_s3_delete_object_success(moto_s3):
     wr.s3.to_parquet(df=get_df_list(), path=path, index=False, dataset=True, partition_cols=["par0", "par1"])
     df = wr.s3.read_parquet(path=path, dataset=True)
     ensure_data_types(df, has_list=True)
-
     wr.s3.delete_objects(path=path)
-    with pytest.raises(OSError):
+    with pytest.raises(wr.exceptions.NoFilesFound):
         wr.s3.read_parquet(path=path, dataset=True)
 
 
