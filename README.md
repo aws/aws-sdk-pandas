@@ -20,7 +20,7 @@
 
 ## Quick Start
 
-Install the Wrangler with: `pip install awswrangler`
+Installation command: `pip install awswrangler`
 
 ```py3
 import awswrangler as wr
