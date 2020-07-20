@@ -1,14 +1,15 @@
 """Utilities Module for Amazon Athena."""
-
+import csv
 import logging
 import pprint
 import time
 from decimal import Decimal
-from typing import Any, Dict, List, NamedTuple, Optional
+from typing import Any, Dict, Iterator, List, NamedTuple, Optional, Union
 
 import boto3  # type: ignore
+import pandas as pd  # type: ignore
 
-from awswrangler import _data_types, _utils, exceptions, sts
+from awswrangler import _data_types, _utils, exceptions, s3, sts
 from awswrangler._config import apply_configs
 
 _QUERY_FINAL_STATES: List[str] = ["FAILED", "SUCCEEDED", "CANCELLED"]
@@ -105,6 +106,51 @@ def _get_workgroup_config(session: boto3.Session, workgroup: Optional[str] = Non
     )
     _logger.debug("wg_config:\n%s", wg_config)
     return wg_config
+
+
+def _fetch_txt_result(
+    query_metadata: _QueryMetadata, keep_files: bool, boto3_session: boto3.Session,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    if query_metadata.output_location is None or query_metadata.output_location.endswith(".txt") is False:
+        return pd.DataFrame()
+    path: str = query_metadata.output_location
+    s3.wait_objects_exist(paths=[path], use_threads=False, boto3_session=boto3_session)
+    _logger.debug("Start TXT reading from %s", path)
+    df = s3.read_csv(
+        path=[path],
+        dtype=query_metadata.dtype,
+        parse_dates=query_metadata.parse_timestamps,
+        converters=query_metadata.converters,
+        quoting=csv.QUOTE_ALL,
+        keep_default_na=False,
+        skip_blank_lines=True,
+        na_values=[],
+        use_threads=False,
+        boto3_session=boto3_session,
+        names=query_metadata.dtype.keys(),
+        sep="\t",
+    )
+    if keep_files is False:
+        s3.delete_objects(path=[path, f"{path}.metadata"], use_threads=False, boto3_session=boto3_session)
+    return df
+
+
+def _parse_describe_table(df: pd.DataFrame) -> pd.DataFrame:
+    origin_df_dict = df.to_dict()
+    target_df_dict: Dict[str, List] = {"Column Name": [], "Type": [], "Partition": [], "Comment": []}
+    for index, col_name in origin_df_dict["col_name"].items():
+        col_name = col_name.strip()
+        if col_name.startswith("#") or col_name == "":
+            pass
+        elif col_name in target_df_dict["Column Name"]:
+            index_col_name = target_df_dict["Column Name"].index(col_name)
+            target_df_dict["Partition"][index_col_name] = True
+        else:
+            target_df_dict["Column Name"].append(col_name)
+            target_df_dict["Type"].append(origin_df_dict["data_type"][index].strip())
+            target_df_dict["Partition"].append(False)
+            target_df_dict["Comment"].append(origin_df_dict["comment"][index].strip())
+    return pd.DataFrame(data=target_df_dict)
 
 
 def _get_query_metadata(
@@ -363,6 +409,71 @@ def repair_table(
     )
     response: Dict[str, Any] = wait_query(query_execution_id=query_id, boto3_session=session)
     return response["Status"]["State"]
+
+
+@apply_configs
+def describe_table(
+    table: str,
+    database: Optional[str] = None,
+    s3_output: Optional[str] = None,
+    workgroup: Optional[str] = None,
+    encryption: Optional[str] = None,
+    kms_key: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> pd.DataFrame:
+    """Show the list of columns, including partition columns: 'DESCRIBE table;'.
+
+    Shows the list of columns, including partition columns, for the named column.
+
+    Note
+    ----
+    Create the default Athena bucket if it doesn't exist and s3_output is None.
+    (E.g. s3://aws-athena-query-results-ACCOUNT-REGION/)
+
+    Parameters
+    ----------
+    table : str
+        Table name.
+    database : str, optional
+        AWS Glue/Athena database name.
+    s3_output : str, optional
+        AWS S3 path.
+    workgroup : str, optional
+        Athena workgroup.
+    encryption : str, optional
+        None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
+    kms_key : str, optional
+        For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Pandas DataFrame filled by formatted infos.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> df_table = wr.athena.describe_table(table='my_table', database='default')
+
+    """
+    query = f"DESCRIBE `{table}`;"
+    if (database is not None) and (not database.startswith("`")):
+        database = f"`{database}`"
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    query_id = start_query_execution(
+        sql=query,
+        database=database,
+        s3_output=s3_output,
+        workgroup=workgroup,
+        encryption=encryption,
+        kms_key=kms_key,
+        boto3_session=session,
+    )
+    query_metadata: _QueryMetadata = _get_query_metadata(query_execution_id=query_id, boto3_session=session)
+    raw_result = _fetch_txt_result(query_metadata=query_metadata, keep_files=True, boto3_session=session,)
+    return _parse_describe_table(raw_result)
 
 
 def get_work_group(workgroup: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, Any]:

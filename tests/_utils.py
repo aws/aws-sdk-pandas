@@ -126,6 +126,53 @@ def get_df_csv():
     return df
 
 
+def get_df_txt():
+    df = pd.DataFrame(
+        {
+            "col_name": [
+                "iint8               ",
+                "iint16              ",
+                "iint32              ",
+                "par0                ",
+                "par1                ",
+                "",
+                "# Partition Information",
+                "# col_name            ",
+                "",
+                "par0                ",
+                "par1                ",
+            ],
+            "data_type": [
+                "tinyint             ",
+                "smallint            ",
+                "int                 ",
+                "bigint              ",
+                "string              ",
+                " ",
+                " ",
+                "data_type           ",
+                " ",
+                "bigint              ",
+                "string              ",
+            ],
+            "comment": [
+                "                    ",
+                "                    ",
+                "                    ",
+                "                    ",
+                "                    ",
+                "                    ",
+                " ",
+                "comment             ",
+                " ",
+                "                    ",
+                "                    ",
+            ],
+        }
+    )
+    return df
+
+
 def get_df_category():
     df = pd.DataFrame(
         {
