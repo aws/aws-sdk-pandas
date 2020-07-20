@@ -18,20 +18,23 @@ _ConfigValueType = Union[str, bool, int, None]
 class _ConfigArg(NamedTuple):
     dtype: Type
     nullable: bool
+    enforced: bool = False
 
 
+# Please, also add any new argument to _Config.__slots__
 _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "database": _ConfigArg(dtype=str, nullable=True),
     "ctas_approach": _ConfigArg(dtype=bool, nullable=False),
     "max_cache_seconds": _ConfigArg(dtype=int, nullable=False),
     "max_cache_query_inspections": _ConfigArg(dtype=int, nullable=False),
+    "s3fs_block_size": _ConfigArg(dtype=int, nullable=False, enforced=True),
 }
 
 
 class _Config:
     """Wrangler's Configuration class."""
 
-    __slots__ = tuple(attr for attr in _CONFIG_ARGS) + ("_loaded_values",)
+    __slots__ = ("_loaded_values", "database", "ctas_approach", "max_cache_seconds", "max_cache_query_inspections", "s3fs_block_size")
 
     def __init__(self):
         self._loaded_values: Dict[str, _ConfigValueType] = {}
@@ -111,6 +114,7 @@ class _Config:
                 "Env. Variable": f"WR_{k.upper()}",
                 "type": v.dtype,
                 "nullable": v.nullable,
+                "enforced": v.enforced,
             }
             if k in self._loaded_values:
                 arg["configured"] = True
@@ -152,6 +156,8 @@ class _Config:
 
 
 def _inject_config_doc(doc: str, available_configs: Tuple[str, ...]) -> str:
+    if "\n    Parameters" not in doc:
+        return doc
     header: str = (
         "\n    Note\n    ----"
         "\n    This functions has arguments that can has default values configured globally through "
@@ -176,11 +182,16 @@ def apply_configs(function) -> Callable:
     available_configs: Tuple[str, ...] = tuple(x for x in _CONFIG_ARGS if x in args_names)
 
     def wrapper(*args, **kwargs):
-        received_args: Dict[str, Any] = signature.bind_partial(*args, **kwargs).arguments
-        activated_configs = [x for x in available_configs if (x not in received_args) and (hasattr(config, x) is True)]
-        missing_args: Dict[str, _ConfigValueType] = {x: config[x] for x in activated_configs}
-        final_args: Dict[str, Any] = {**received_args, **missing_args}
-        return function(**final_args)
+        args: Dict[str, Any] = signature.bind_partial(*args, **kwargs).arguments
+        for name in available_configs:
+            if hasattr(config, name) is True:
+                value: _ConfigValueType = config[name]
+                if name not in args:
+                    _logger.debug("Applying default config argument %s with value %s.", name, value)
+                elif _CONFIG_ARGS[name].enforced is True:
+                    _logger.debug("Applying ENFORCED config argument %s with value %s.", name, value)
+                args[name] = value
+        return function(**args)
 
     wrapper.__doc__ = _inject_config_doc(doc=function.__doc__, available_configs=available_configs)
     wrapper.__name__ = function.__name__

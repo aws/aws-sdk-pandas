@@ -34,7 +34,7 @@ def _read_parquet_metadata_file(
     path: str, boto3_session: boto3.Session, s3_additional_kwargs: Optional[Dict[str, str]],
 ) -> Dict[str, str]:
     fs: s3fs.S3FileSystem = _utils.get_fs(
-        block_size=4_194_304, session=boto3_session, s3_additional_kwargs=s3_additional_kwargs  # 4 MB (4 * 2**20)
+        s3fs_block_size=4_194_304, session=boto3_session, s3_additional_kwargs=s3_additional_kwargs  # 4 MB (4 * 2**20)
     )
     with _utils.open_file(fs=fs, path=path, mode="rb") as f:
         pq_file: pyarrow.parquet.ParquetFile = pyarrow.parquet.ParquetFile(source=f)
@@ -201,7 +201,7 @@ def _read_parquet_chunked(
 ) -> Iterator[pd.DataFrame]:
     next_slice: Optional[pd.DataFrame] = None
     fs: s3fs.S3FileSystem = _utils.get_fs(
-        block_size=8_388_608, session=boto3_session, s3_additional_kwargs=s3_additional_kwargs  # 8 MB (8 * 2**20)
+        s3fs_block_size=8_388_608, session=boto3_session, s3_additional_kwargs=s3_additional_kwargs  # 8 MB (8 * 2**20)
     )
     last_schema: Optional[Dict[str, str]] = None
     last_path: str = ""
@@ -261,7 +261,9 @@ def _read_parquet_file_single_thread(
     s3_additional_kwargs: Optional[Dict[str, str]],
 ) -> pa.Table:
     fs: s3fs.S3FileSystem = _utils.get_fs(
-        block_size=134_217_728, session=boto3_session, s3_additional_kwargs=s3_additional_kwargs  # 128 MB (128 * 2**20)
+        s3fs_block_size=134_217_728,
+        session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,  # 128 MB (128 * 2**20)
     )
     with _utils.open_file(fs=fs, path=path, mode="rb") as f:
         pq_file: pyarrow.parquet.ParquetFile = pyarrow.parquet.ParquetFile(source=f, read_dictionary=categories)
@@ -275,7 +277,7 @@ def _count_row_groups(
     s3_additional_kwargs: Optional[Dict[str, str]],
 ) -> int:
     fs: s3fs.S3FileSystem = _utils.get_fs(
-        block_size=4_194_304, session=boto3_session, s3_additional_kwargs=s3_additional_kwargs  # 4 MB (4 * 2**20)
+        s3fs_block_size=4_194_304, session=boto3_session, s3_additional_kwargs=s3_additional_kwargs  # 4 MB (4 * 2**20)
     )
     with _utils.open_file(fs=fs, path=path, mode="rb") as f:
         pq_file: pyarrow.parquet.ParquetFile = pyarrow.parquet.ParquetFile(source=f, read_dictionary=categories)
@@ -292,7 +294,9 @@ def _read_parquet_file_multi_thread(
 ) -> pa.Table:
     boto3_session: boto3.Session = _utils.boto3_from_primitives(primitives=boto3_primitives)
     fs: s3fs.S3FileSystem = _utils.get_fs(
-        block_size=134_217_728, session=boto3_session, s3_additional_kwargs=s3_additional_kwargs  # 128 MB (128 * 2**20)
+        s3fs_block_size=134_217_728,
+        session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,  # 128 MB (128 * 2**20)
     )
     with _utils.open_file(fs=fs, path=path, mode="rb") as f:
         pq_file: pyarrow.parquet.ParquetFile = pyarrow.parquet.ParquetFile(source=f, read_dictionary=categories)

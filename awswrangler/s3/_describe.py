@@ -14,7 +14,8 @@ from awswrangler.s3._list import _path2list
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _describe_object(path: str, client_s3: boto3.client) -> Tuple[str, Dict[str, Any]]:
+def _describe_object(path: str, boto3_session: boto3.Session) -> Tuple[str, Dict[str, Any]]:
+    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     bucket: str
     key: str
     bucket, key = _utils.parse_path(path=path)
@@ -22,6 +23,11 @@ def _describe_object(path: str, client_s3: boto3.client) -> Tuple[str, Dict[str,
         f=client_s3.head_object, ex=client_s3.exceptions.NoSuchKey, Bucket=bucket, Key=key
     )
     return path, desc
+
+
+def _describe_object_concurrent(path: str, boto3_primitives: _utils.Boto3PrimitivesType) -> Tuple[str, Dict[str, Any]]:
+    boto3_session = _utils.boto3_from_primitives(primitives=boto3_primitives)
+    return _describe_object(path=path, boto3_session=boto3_session)
 
 
 def describe_objects(
@@ -84,14 +90,21 @@ def describe_objects(
     )
     if len(paths) < 1:
         return {}
-    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     resp_list: List[Tuple[str, Dict[str, Any]]]
-    if use_threads is False:
-        resp_list = [_describe_object(path=p, client_s3=client_s3) for p in paths]
+    if len(paths) == 1:
+        resp_list = [_describe_object(path=paths[0], boto3_session=boto3_session)]
+    elif use_threads is False:
+        resp_list = [_describe_object(path=p, boto3_session=boto3_session) for p in paths]
     else:
         cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
-            resp_list = list(executor.map(_describe_object, paths, itertools.repeat(client_s3)))
+            resp_list = list(
+                executor.map(
+                    _describe_object_concurrent,
+                    paths,
+                    itertools.repeat(_utils.boto3_to_primitives(boto3_session=boto3_session)),
+                )
+            )
     desc_dict: Dict[str, Dict[str, Any]] = dict(resp_list)
     return desc_dict
 

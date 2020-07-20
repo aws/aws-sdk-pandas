@@ -12,6 +12,24 @@ from awswrangler import _utils
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
+def _wait_object(
+    path: Tuple[str, str], waiter_name: str, delay: int, max_attempts: int, boto3_session: boto3.Session
+) -> None:
+    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    waiter = client_s3.get_waiter(waiter_name)
+    bucket, key = path
+    waiter.wait(Bucket=bucket, Key=key, WaiterConfig={"Delay": delay, "MaxAttempts": max_attempts})
+
+
+def _wait_object_concurrent(
+    path: Tuple[str, str], waiter_name: str, delay: int, max_attempts: int, boto3_primitives: _utils.Boto3PrimitivesType
+) -> None:
+    boto3_session = _utils.boto3_from_primitives(primitives=boto3_primitives)
+    _wait_object(
+        path=path, waiter_name=waiter_name, delay=delay, max_attempts=max_attempts, boto3_session=boto3_session
+    )
+
+
 def _wait_objects(
     waiter_name: str,
     paths: List[str],
@@ -25,34 +43,34 @@ def _wait_objects(
     _delay: int = int(delay) if isinstance(delay, float) else delay
     if len(paths) < 1:
         return None
-    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     _paths: List[Tuple[str, str]] = [_utils.parse_path(path=p) for p in paths]
-    if use_threads is False:
-        waiter = client_s3.get_waiter(waiter_name)
-        for bucket, key in _paths:
-            waiter.wait(Bucket=bucket, Key=key, WaiterConfig={"Delay": _delay, "MaxAttempts": max_attempts})
+    if len(_paths) == 1:
+        _wait_object(
+            path=_paths[0],
+            waiter_name=waiter_name,
+            delay=_delay,
+            max_attempts=max_attempts,
+            boto3_session=boto3_session,
+        )
+    elif use_threads is False:
+        for path in _paths:
+            _wait_object(
+                path=path, waiter_name=waiter_name, delay=_delay, max_attempts=max_attempts, boto3_session=boto3_session
+            )
     else:
         cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
             list(
                 executor.map(
-                    _wait_objects_concurrent,
+                    _wait_object_concurrent,
                     _paths,
                     itertools.repeat(waiter_name),
-                    itertools.repeat(client_s3),
                     itertools.repeat(_delay),
                     itertools.repeat(max_attempts),
+                    itertools.repeat(_utils.boto3_to_primitives(boto3_session=boto3_session)),
                 )
             )
     return None
-
-
-def _wait_objects_concurrent(
-    path: Tuple[str, str], waiter_name: str, client_s3: boto3.client, delay: int, max_attempts: int
-) -> None:
-    waiter = client_s3.get_waiter(waiter_name)
-    bucket, key = path
-    waiter.wait(Bucket=bucket, Key=key, WaiterConfig={"Delay": delay, "MaxAttempts": max_attempts})
 
 
 def wait_objects_exist(
