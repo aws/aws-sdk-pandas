@@ -23,10 +23,11 @@ class _ConfigArg(NamedTuple):
 
 # Please, also add any new argument to _Config.__slots__
 _CONFIG_ARGS: Dict[str, _ConfigArg] = {
-    "database": _ConfigArg(dtype=str, nullable=True),
+    "concurrent_partitioning": _ConfigArg(dtype=bool, nullable=False),
     "ctas_approach": _ConfigArg(dtype=bool, nullable=False),
-    "max_cache_seconds": _ConfigArg(dtype=int, nullable=False),
+    "database": _ConfigArg(dtype=str, nullable=True),
     "max_cache_query_inspections": _ConfigArg(dtype=int, nullable=False),
+    "max_cache_seconds": _ConfigArg(dtype=int, nullable=False),
     "s3fs_block_size": _ConfigArg(dtype=int, nullable=False, enforced=True),
 }
 
@@ -36,10 +37,11 @@ class _Config:
 
     __slots__ = (
         "_loaded_values",
-        "database",
+        "concurrent_partitioning",
         "ctas_approach",
-        "max_cache_seconds",
+        "database",
         "max_cache_query_inspections",
+        "max_cache_seconds",
         "s3fs_block_size",
     )
 
@@ -198,6 +200,14 @@ def apply_configs(function) -> Callable:
                 elif _CONFIG_ARGS[name].enforced is True:
                     _logger.debug("Applying ENFORCED config argument %s with value %s.", name, value)
                 args[name] = value
+        for name, param in signature.parameters.items():
+            if param.kind == param.VAR_KEYWORD and name in args:
+                if isinstance(args[name], dict) is False:
+                    raise RuntimeError(f"Argument {name} ({args[name]}) is a non dictionary keyword argument.")
+                keywords: Dict[str, Any] = args[name]
+                del args[name]
+                args = {**args, **keywords}
+        _logger.debug("args: %s", args)
         return function(**args)
 
     wrapper.__doc__ = _inject_config_doc(doc=function.__doc__, available_configs=available_configs)

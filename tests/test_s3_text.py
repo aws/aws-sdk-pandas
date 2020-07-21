@@ -25,16 +25,26 @@ logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
         ("ISO-8859-1", ["Ö, ö, Ü, ü", "ãóú", "øe"], None, UnicodeDecodeError),
     ],
 )
+@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("chunksize", [None, 2])
 @pytest.mark.parametrize("line_terminator", ["\n", "\r"])
-def test_csv_encoding(path, encoding, strings, wrong_encoding, exception, line_terminator):
+def test_csv_encoding(path, encoding, strings, wrong_encoding, exception, line_terminator, chunksize, use_threads):
     file_path = f"{path}0.csv"
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": strings})
-    wr.s3.to_csv(df, file_path, index=False, encoding=encoding, line_terminator=line_terminator)
-    wr.s3.wait_objects_exist(paths=[file_path])
-    df2 = wr.s3.read_csv(file_path, encoding=encoding, lineterminator=line_terminator)
+    wr.s3.to_csv(
+        df, file_path, index=False, encoding=encoding, line_terminator=line_terminator, use_threads=use_threads
+    )
+    wr.s3.wait_objects_exist(paths=[file_path], use_threads=use_threads)
+    df2 = wr.s3.read_csv(
+        file_path, encoding=encoding, lineterminator=line_terminator, use_threads=use_threads, chunksize=chunksize
+    )
+    if isinstance(df2, pd.DataFrame) is False:
+        df2 = pd.concat(df2, ignore_index=True)
     assert df.equals(df2)
     with pytest.raises(exception):
-        df2 = wr.s3.read_csv(file_path, encoding=wrong_encoding)
+        df2 = wr.s3.read_csv(file_path, encoding=wrong_encoding, use_threads=use_threads, chunksize=chunksize)
+        if isinstance(df2, pd.DataFrame) is False:
+            df2 = pd.concat(df2, ignore_index=True)
         assert df.equals(df2)
 
 

@@ -95,7 +95,7 @@ def _read_text(
     **pandas_kwargs,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     if "iterator" in pandas_kwargs:
-        raise exceptions.InvalidArgument("Please, use chunksize instead of iterator.")
+        raise exceptions.InvalidArgument("Please, use the chunksize argument instead of iterator.")
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     paths: List[str] = _path2list(
         path=path,

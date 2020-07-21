@@ -540,6 +540,7 @@ def read_parquet(
 def read_parquet_table(
     table: str,
     database: str,
+    catalog_id: Optional[str] = None,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
     columns: Optional[List[str]] = None,
     validate_schema: bool = True,
@@ -580,6 +581,9 @@ def read_parquet_table(
         AWS Glue Catalog table name.
     database : str
         AWS Glue Catalog database name.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
     partition_filter: Optional[Callable[[Dict[str, str]], bool]]
         Callback Function filters to apply on PARTITION columns (PUSH-DOWN filter).
         This function MUST receive a single argument (Dict[str, str]) where keys are partitions
@@ -653,7 +657,10 @@ def read_parquet_table(
 
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    res: Dict[str, Any] = client_glue.get_table(DatabaseName=database, Name=table)
+    args: Dict[str, Any] = {"DatabaseName": database, "Name": table}
+    if catalog_id is not None:
+        args["CatalogId"] = catalog_id
+    res: Dict[str, Any] = client_glue.get_table(**args)
     try:
         path: str = res["Table"]["StorageDescriptor"]["Location"]
     except KeyError:
