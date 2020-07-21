@@ -14,7 +14,9 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
 
 
-def test_to_parquet_modes(glue_database, glue_table, path):
+@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("concurrent_partitioning", [True, False])
+def test_to_parquet_modes(glue_database, glue_table, path, use_threads, concurrent_partitioning):
 
     # Round 1 - Warm up
     df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
@@ -28,9 +30,11 @@ def test_to_parquet_modes(glue_database, glue_table, path):
         description="c0",
         parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
         columns_comments={"c0": "0"},
+        use_threads=use_threads,
+        concurrent_partitioning=concurrent_partitioning,
     )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
-    df2 = wr.athena.read_sql_table(glue_table, glue_database)
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
     assert df.shape == df2.shape
     assert df.c0.sum() == df2.c0.sum()
     parameters = wr.catalog.get_table_parameters(glue_database, glue_table)
@@ -54,9 +58,11 @@ def test_to_parquet_modes(glue_database, glue_table, path):
         description="c1",
         parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
         columns_comments={"c1": "1"},
+        use_threads=use_threads,
+        concurrent_partitioning=concurrent_partitioning,
     )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
-    df2 = wr.athena.read_sql_table(glue_table, glue_database)
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
     assert df.shape == df2.shape
     assert df.c1.sum() == df2.c1.sum()
     parameters = wr.catalog.get_table_parameters(glue_database, glue_table)
@@ -80,9 +86,11 @@ def test_to_parquet_modes(glue_database, glue_table, path):
         description="c1",
         parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index) * 2)},
         columns_comments={"c1": "1"},
+        use_threads=use_threads,
+        concurrent_partitioning=concurrent_partitioning,
     )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
-    df2 = wr.athena.read_sql_table(glue_table, glue_database)
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
     assert len(df.columns) == len(df2.columns)
     assert len(df.index) * 2 == len(df2.index)
     assert df.c1.sum() + 1 == df2.c1.sum()
@@ -107,9 +115,11 @@ def test_to_parquet_modes(glue_database, glue_table, path):
         description="c1+c2",
         parameters={"num_cols": "2", "num_rows": "9"},
         columns_comments={"c1": "1", "c2": "2"},
+        use_threads=use_threads,
+        concurrent_partitioning=concurrent_partitioning,
     )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
-    df2 = wr.athena.read_sql_table(glue_table, glue_database)
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
     assert len(df2.columns) == 2
     assert len(df2.index) == 9
     assert df2.c1.sum() == 3
@@ -135,9 +145,11 @@ def test_to_parquet_modes(glue_database, glue_table, path):
         description="c1+c2+c3",
         parameters={"num_cols": "3", "num_rows": "10"},
         columns_comments={"c1": "1!", "c2": "2!", "c3": "3"},
+        use_threads=use_threads,
+        concurrent_partitioning=concurrent_partitioning,
     )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
-    df2 = wr.athena.read_sql_table(glue_table, glue_database)
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
     assert len(df2.columns) == 3
     assert len(df2.index) == 10
     assert df2.c1.sum() == 4
@@ -165,9 +177,11 @@ def test_to_parquet_modes(glue_database, glue_table, path):
         description="c0+c1",
         parameters={"num_cols": "2", "num_rows": "2"},
         columns_comments={"c0": "zero", "c1": "one"},
+        use_threads=use_threads,
+        concurrent_partitioning=concurrent_partitioning,
     )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
-    df2 = wr.athena.read_sql_table(glue_table, glue_database)
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
     assert df.shape == df2.shape
     assert df.c1.sum() == df2.c1.sum()
     parameters = wr.catalog.get_table_parameters(glue_database, glue_table)
@@ -193,9 +207,11 @@ def test_to_parquet_modes(glue_database, glue_table, path):
         description="c0+c1",
         parameters={"num_cols": "2", "num_rows": "3"},
         columns_comments={"c0": "zero", "c1": "one"},
+        concurrent_partitioning=concurrent_partitioning,
+        use_threads=use_threads,
     )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
-    df2 = wr.athena.read_sql_table(glue_table, glue_database)
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
     assert len(df2.columns) == 2
     assert len(df2.index) == 3
     assert df2.c1.sum() == 3
@@ -222,9 +238,11 @@ def test_to_parquet_modes(glue_database, glue_table, path):
         description="c0+c1+c2",
         parameters={"num_cols": "3", "num_rows": "4"},
         columns_comments={"c0": "zero", "c1": "one", "c2": "two"},
+        use_threads=use_threads,
+        concurrent_partitioning=concurrent_partitioning,
     )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
-    df2 = wr.athena.read_sql_table(glue_table, glue_database)
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
     assert len(df2.columns) == 3
     assert len(df2.index) == 4
     assert df2.c1.sum() == 6
@@ -455,10 +473,6 @@ def test_parquet_catalog(path, path2, glue_table, glue_table2, glue_database):
             database=glue_database,
             table=glue_table,
         )
-    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.s3.to_parquet(df=df, path=path, use_threads=True, dataset=False, table=glue_table)
-    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.s3.to_parquet(df=df, path=path, use_threads=True, dataset=True, mode="overwrite", database=glue_database)
     wr.s3.to_parquet(
         df=df, path=path, use_threads=True, dataset=True, mode="overwrite", database=glue_database, table=glue_table
     )

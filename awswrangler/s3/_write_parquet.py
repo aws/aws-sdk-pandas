@@ -1,4 +1,4 @@
-"""Amazon PARQUET S3 Write Module (PRIVATE)."""
+"""Amazon PARQUET S3 Parquet Write Module (PRIVATE)."""
 
 import logging
 import uuid
@@ -12,26 +12,34 @@ import pyarrow.parquet  # type: ignore
 import s3fs  # type: ignore
 
 from awswrangler import _data_types, _utils, catalog, exceptions
-from awswrangler.s3._delete import delete_objects
+from awswrangler._config import apply_configs
 from awswrangler.s3._read_parquet import _read_parquet_metadata
-from awswrangler.s3._write import _COMPRESSION_2_EXT
-from awswrangler.s3._write_concurrent import _write_proxy, _WriteProxy
+from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
+from awswrangler.s3._write_dataset import _to_dataset
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _to_parquet_file(
     df: pd.DataFrame,
-    path: str,
     schema: pa.Schema,
     index: bool,
     compression: Optional[str],
+    compression_ext: str,
     cpus: int,
     dtype: Dict[str, str],
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
+    path: Optional[str] = None,
+    path_root: Optional[str] = None,
 ) -> str:
-    _logger.debug("path: %s", path)
+    if path is None and path_root is not None:
+        file_path: str = f"{path_root}{uuid.uuid4().hex}{compression_ext}.parquet"
+    elif path is not None and path_root is None:
+        file_path = path
+    else:
+        raise RuntimeError("path and path_root received at the same time.")
+    _logger.debug("file_path: %s", file_path)
     table: pa.Table = pyarrow.Table.from_pandas(df=df, schema=schema, nthreads=cpus, preserve_index=index, safe=True)
     for col_name, col_type in dtype.items():
         if col_name in table.column_names:
@@ -46,7 +54,7 @@ def _to_parquet_file(
         s3_additional_kwargs=s3_additional_kwargs,  # 32 MB (32 * 2**20)
     )
     with pyarrow.parquet.ParquetWriter(
-        where=path,
+        where=file_path,
         write_statistics=True,
         use_dictionary=True,
         filesystem=fs,
@@ -56,79 +64,10 @@ def _to_parquet_file(
         schema=table.schema,
     ) as writer:
         writer.write_table(table)
-    return path
+    return file_path
 
 
-def _to_parquet_dataset(
-    df: pd.DataFrame,
-    path: str,
-    index: bool,
-    compression: Optional[str],
-    compression_ext: str,
-    cpus: int,
-    use_threads: bool,
-    mode: str,
-    dtype: Dict[str, str],
-    partition_cols: Optional[List[str]],
-    boto3_session: Optional[boto3.Session],
-    s3_additional_kwargs: Optional[Dict[str, str]],
-) -> Tuple[List[str], Dict[str, List[str]]]:
-    paths: List[str] = []
-    partitions_values: Dict[str, List[str]] = {}
-    path = path if path[-1] == "/" else f"{path}/"
-    if mode not in ["append", "overwrite", "overwrite_partitions"]:
-        raise exceptions.InvalidArgumentValue(
-            f"{mode} is a invalid mode, please use append, overwrite or overwrite_partitions."
-        )
-    if (mode == "overwrite") or ((mode == "overwrite_partitions") and (not partition_cols)):
-        delete_objects(path=path, use_threads=use_threads, boto3_session=boto3_session)
-    df = _data_types.cast_pandas_with_athena_types(df=df, dtype=dtype)
-    schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(
-        df=df, index=index, ignore_cols=partition_cols, dtype=dtype
-    )
-    _logger.debug("schema: \n%s", schema)
-    if not partition_cols:
-        file_path: str = f"{path}{uuid.uuid4().hex}{compression_ext}.parquet"
-        _to_parquet_file(
-            df=df,
-            schema=schema,
-            path=file_path,
-            index=index,
-            compression=compression,
-            cpus=cpus,
-            boto3_session=boto3_session,
-            s3_additional_kwargs=s3_additional_kwargs,
-            dtype=dtype,
-        )
-        paths.append(file_path)
-    else:
-        proxy: _WriteProxy
-        with _write_proxy(use_threads=use_threads) as proxy:
-            for keys, subgroup in df.groupby(by=partition_cols, observed=True):
-                subgroup = subgroup.drop(partition_cols, axis="columns")
-                keys = (keys,) if not isinstance(keys, tuple) else keys
-                subdir = "/".join([f"{name}={val}" for name, val in zip(partition_cols, keys)])
-                prefix: str = f"{path}{subdir}/"
-                if mode == "overwrite_partitions":
-                    delete_objects(path=prefix, use_threads=use_threads, boto3_session=boto3_session)
-                file_path = f"{prefix}{uuid.uuid4().hex}{compression_ext}.parquet"
-                proxy.write(
-                    func=_to_parquet_file,
-                    boto3_session=boto3_session,
-                    df=subgroup,
-                    schema=schema,
-                    path=file_path,
-                    index=index,
-                    compression=compression,
-                    cpus=cpus,
-                    dtype=dtype,
-                    s3_additional_kwargs=s3_additional_kwargs,
-                )
-                paths.append(file_path)
-                partitions_values[prefix] = [str(k) for k in keys]
-    return paths, partitions_values
-
-
+@apply_configs
 def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     df: pd.DataFrame,
     path: str,
@@ -140,6 +79,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     sanitize_columns: bool = False,
     dataset: bool = False,
     partition_cols: Optional[List[str]] = None,
+    concurrent_partitioning: bool = False,
     mode: Optional[str] = None,
     catalog_versioning: bool = False,
     database: Optional[str] = None,
@@ -203,6 +143,9 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
         partition_cols, mode, database, table, description, parameters, columns_comments, .
     partition_cols: List[str], optional
         List of column names that will be used to create partitions. Only takes effect if dataset=True.
+    concurrent_partitioning: bool
+        If True will increase the parallelism level during the partitions writing. It will decrease the
+        writing time and increase the memory usage.
     mode: str, optional
         ``append`` (Default), ``overwrite``, ``overwrite_partitions``. Only takes effect if dataset=True.
     catalog_versioning : bool
@@ -357,76 +300,63 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     }
 
     """
-    if (database is None) ^ (table is None):
-        raise exceptions.InvalidArgumentCombination(
-            "Please pass database and table arguments to be able to store the metadata into the Athena/Glue Catalog."
-        )
-    if df.empty is True:
-        raise exceptions.EmptyDataFrame()
+    _validate_args(
+        df=df,
+        table=table,
+        dataset=dataset,
+        path=path,
+        partition_cols=partition_cols,
+        mode=mode,
+        description=description,
+        parameters=parameters,
+        columns_comments=columns_comments,
+    )
 
+    # Evaluating compression
+    if _COMPRESSION_2_EXT.get(compression, None) is None:
+        raise exceptions.InvalidCompression(f"{compression} is invalid, please use None, 'snappy' or 'gzip'.")
+    compression_ext: str = _COMPRESSION_2_EXT[compression]
+
+    # Initializing defaults
     partition_cols = partition_cols if partition_cols else []
     dtype = dtype if dtype else {}
     partitions_values: Dict[str, List[str]] = {}
+    mode = "append" if mode is None else mode
+    cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
     # Sanitize table to respect Athena's standards
     if (sanitize_columns is True) or (dataset is True):
-        df = catalog.sanitize_dataframe_columns_names(df=df)
-        partition_cols = [catalog.sanitize_column_name(p) for p in partition_cols]
-        dtype = {catalog.sanitize_column_name(k): v.lower() for k, v in dtype.items()}
-        _utils.check_duplicated_columns(df=df)
+        df, dtype, partition_cols = _sanitize(df=df, dtype=dtype, partition_cols=partition_cols)
 
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
-    compression_ext: Optional[str] = _COMPRESSION_2_EXT.get(compression, None)
-    if compression_ext is None:
-        raise exceptions.InvalidCompression(f"{compression} is invalid, please use None, snappy or gzip.")
+    # Evaluating dtype
+    df = _apply_dtype(df=df, mode=mode, database=database, table=table, dtype=dtype, boto3_session=session)
+    schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(
+        df=df, index=index, ignore_cols=partition_cols, dtype=dtype
+    )
+    _logger.debug("schema: \n%s", schema)
+
     if dataset is False:
-        if path.endswith("/"):
-            raise exceptions.InvalidArgumentValue(
-                "If <dataset=False>, the argument <path> should be a object path, not a directory."
-            )
-        if partition_cols:
-            raise exceptions.InvalidArgumentCombination("Please, pass dataset=True to be able to use partition_cols.")
-        if mode is not None:
-            raise exceptions.InvalidArgumentCombination("Please pass dataset=True to be able to use mode.")
-        if any(arg is not None for arg in (database, table, description, parameters)):
-            raise exceptions.InvalidArgumentCombination(
-                "Please pass dataset=True to be able to use any one of these "
-                "arguments: database, table, description, parameters, "
-                "columns_comments."
-            )
-        df = _data_types.cast_pandas_with_athena_types(df=df, dtype=dtype)
-        schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(
-            df=df, index=index, ignore_cols=partition_cols, dtype=dtype
-        )
-        _logger.debug("schema: \n%s", schema)
         paths = [
             _to_parquet_file(
                 df=df,
                 path=path,
                 schema=schema,
                 index=index,
-                compression=compression,
                 cpus=cpus,
-                boto3_session=boto3_session,
+                compression=compression,
+                compression_ext=compression_ext,
+                boto3_session=session,
                 s3_additional_kwargs=s3_additional_kwargs,
                 dtype=dtype,
             )
         ]
     else:
-        mode = "append" if mode is None else mode
-        if (
-            (mode in ("append", "overwrite_partitions")) and (database is not None) and (table is not None)
-        ):  # Fetching Catalog Types
-            catalog_types: Optional[Dict[str, str]] = catalog.get_table_types(
-                database=database, table=table, boto3_session=session
-            )
-            if catalog_types is not None:
-                for k, v in catalog_types.items():
-                    dtype[k] = v
-        paths, partitions_values = _to_parquet_dataset(
+        paths, partitions_values = _to_dataset(
+            func=_to_parquet_file,
+            concurrent_partitioning=concurrent_partitioning,
             df=df,
-            path=path,
+            path_root=path,
             index=index,
             compression=compression,
             compression_ext=compression_ext,
@@ -435,8 +365,9 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
             partition_cols=partition_cols,
             dtype=dtype,
             mode=mode,
-            boto3_session=boto3_session,
+            boto3_session=session,
             s3_additional_kwargs=s3_additional_kwargs,
+            schema=schema,
         )
         if (database is not None) and (table is not None):
             columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
@@ -478,6 +409,7 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
     path: str,
     database: str,
     table: str,
+    catalog_id: Optional[str] = None,
     path_suffix: Optional[str] = None,
     path_ignore_suffix: Optional[str] = None,
     dtype: Optional[Dict[str, str]] = None,
@@ -522,14 +454,19 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
     ----------
     path : Union[str, List[str]]
         S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+        database : str
+        Glue/Athena catalog: Database name.
+    table : str
+        Glue/Athena catalog: Table name.
+    database : str
+        AWS Glue Catalog database name.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
     path_suffix: Union[str, List[str], None]
         Suffix or List of suffixes for filtering S3 keys.
     path_ignore_suffix: Union[str, List[str], None]
         Suffix or List of suffixes for S3 keys to be ignored.
-    database : str
-        Glue/Athena catalog: Database name.
-    table : str
-        Glue/Athena catalog: Table name.
     dtype : Dict[str, str], optional
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined data types as partitions columns.
@@ -651,6 +588,7 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
         projection_intervals=projection_intervals,
         projection_digits=projection_digits,
         boto3_session=session,
+        catalog_id=catalog_id,
     )
     if (partitions_types is not None) and (partitions_values is not None) and (regular_partitions is True):
         catalog.add_parquet_partitions(
@@ -659,5 +597,6 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
             partitions_values=partitions_values,
             compression=compression,
             boto3_session=session,
+            catalog_id=catalog_id,
         )
     return columns_types, partitions_types, partitions_values

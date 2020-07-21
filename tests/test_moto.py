@@ -260,11 +260,6 @@ def test_read_csv_pass_pandas_arguments_and_encoding_succeed(mock_open, mock_rea
 
 def test_to_csv_invalid_argument_combination_raise_when_dataset_false_succeed(moto_s3):
     path = "s3://bucket/test.csv"
-    with pytest.raises(InvalidArgumentCombination):
-        wr.s3.to_csv(df=get_df_csv(), path=path, index=False, database="foo")
-
-    with pytest.raises(InvalidArgumentCombination):
-        wr.s3.to_csv(df=get_df_csv(), path=path, index=False, table="foo")
 
     with pytest.raises(InvalidArgumentCombination):
         wr.s3.to_csv(df=get_df_csv(), path=path, index=False, dataset=False, partition_cols=["par0", "par1"])
