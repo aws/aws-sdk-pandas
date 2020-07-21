@@ -23,6 +23,7 @@ class _ConfigArg(NamedTuple):
 
 # Please, also add any new argument to _Config.__slots__
 _CONFIG_ARGS: Dict[str, _ConfigArg] = {
+    "catalog_id": _ConfigArg(dtype=str, nullable=True),
     "concurrent_partitioning": _ConfigArg(dtype=bool, nullable=False),
     "ctas_approach": _ConfigArg(dtype=bool, nullable=False),
     "database": _ConfigArg(dtype=str, nullable=True),
@@ -37,6 +38,7 @@ class _Config:
 
     __slots__ = (
         "_loaded_values",
+        "catalog_id",
         "concurrent_partitioning",
         "ctas_approach",
         "database",

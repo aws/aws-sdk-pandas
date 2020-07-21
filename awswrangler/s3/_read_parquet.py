@@ -15,6 +15,7 @@ import pyarrow.parquet  # type: ignore
 import s3fs  # type: ignore
 
 from awswrangler import _data_types, _utils, exceptions
+from awswrangler._config import apply_configs
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import (
     _apply_partition_filter,
@@ -537,6 +538,7 @@ def read_parquet(
     return _union(dfs=[_read_parquet_file(path=p, **args) for p in paths], ignore_index=True)
 
 
+@apply_configs
 def read_parquet_table(
     table: str,
     database: str,
@@ -683,6 +685,7 @@ def read_parquet_table(
     )
 
 
+@apply_configs
 def read_parquet_metadata(
     path: Union[str, List[str]],
     path_suffix: Optional[str] = None,

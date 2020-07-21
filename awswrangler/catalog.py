@@ -24,6 +24,7 @@ def _catalog_id(catalog_id: Optional[str] = None, **kwargs) -> Dict[str, Any]:
     return kwargs
 
 
+@apply_configs
 def create_database(
     name: str,
     description: Optional[str] = None,
@@ -68,6 +69,7 @@ def create_database(
         client_glue.create_database(DatabaseInput=args)
 
 
+@apply_configs
 def delete_database(name: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None) -> None:
     """Create a database in AWS Glue Catalog.
 
@@ -101,6 +103,7 @@ def delete_database(name: str, catalog_id: Optional[str] = None, boto3_session: 
         client_glue.delete_database(Name=name)
 
 
+@apply_configs
 def delete_table_if_exists(
     database: str, table: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
 ) -> bool:
@@ -513,6 +516,7 @@ def get_databases(
             yield db
 
 
+@apply_configs
 def databases(
     limit: int = 100, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
 ) -> pd.DataFrame:
@@ -548,6 +552,7 @@ def databases(
     return pd.DataFrame(data=df_dict)
 
 
+@apply_configs
 def get_tables(
     catalog_id: Optional[str] = None,
     database: Optional[str] = None,
@@ -624,6 +629,7 @@ def get_tables(
             continue
 
 
+@apply_configs
 def tables(
     limit: int = 100,
     catalog_id: Optional[str] = None,
@@ -745,6 +751,7 @@ def search_tables(
             yield tbl
 
 
+@apply_configs
 def get_table_location(database: str, table: str, boto3_session: Optional[boto3.Session] = None) -> str:
     """Get table's location on Glue catalog.
 
@@ -777,6 +784,7 @@ def get_table_location(database: str, table: str, boto3_session: Optional[boto3.
         raise exceptions.InvalidTable(f"{database}.{table}")
 
 
+@apply_configs
 def table(
     database: str, table: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
 ) -> pd.DataFrame:
