@@ -405,6 +405,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     return {"paths": paths, "partitions_values": partitions_values}
 
 
+@apply_configs
 def store_parquet_metadata(  # pylint: disable=too-many-arguments
     path: str,
     database: str,
