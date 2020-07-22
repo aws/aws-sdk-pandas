@@ -493,6 +493,12 @@ def read_parquet(
     >>> for df in dfs:
     >>>     print(df)  # 1MM Pandas DataFrame
 
+    Reading Parquet Dataset with PUSH-DOWN filter over partitions
+
+    >>> import awswrangler as wr
+    >>> my_filter = lambda x: True if x["city"].startswith("new") else False
+    >>> df = wr.s3.read_parquet(path, dataset=True, partition_filter=my_filter)
+
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     paths: List[str] = _path2list(
@@ -593,6 +599,7 @@ def read_parquet_table(
         This function MUST return a bool, True to read the partition or False to ignore it.
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
+        https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/023%20-%20Flexible%20Partitions%20Filter.ipynb
     columns : List[str], optional
         Names of columns to read from the file(s).
     validate_schema:
@@ -650,12 +657,11 @@ def read_parquet_table(
     >>> for df in dfs:
     >>>     print(df)  # Smaller Pandas DataFrame
 
-    Reading in chunks (Chunk by 1MM rows)
+    Reading Parquet Dataset with PUSH-DOWN filter over partitions
 
     >>> import awswrangler as wr
-    >>> dfs = wr.s3.read_parquet(path=['s3://bucket/filename0.csv', 's3://bucket/filename1.csv'], chunked=1_000_000)
-    >>> for df in dfs:
-    >>>     print(df)  # 1MM Pandas DataFrame
+    >>> my_filter = lambda x: True if x["city"].startswith("new") else False
+    >>> df = wr.s3.read_parquet_table(path, dataset=True, partition_filter=my_filter)
 
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
