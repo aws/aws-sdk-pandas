@@ -5,6 +5,8 @@ import pandas as pd
 
 import awswrangler as wr
 
+from ._utils import ensure_athena_query_metadata
+
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
@@ -64,6 +66,7 @@ def test_cache_query_ctas_approach_true(path, glue_database, glue_table):
         resolve_no_cache.assert_not_called()
         assert df.shape == df3.shape
         assert df.c0.sum() == df3.c0.sum()
+        ensure_athena_query_metadata(df=df3, ctas_approach=True, encrypted=False)
 
 
 def test_cache_query_ctas_approach_false(path, glue_database, glue_table):
@@ -95,6 +98,7 @@ def test_cache_query_ctas_approach_false(path, glue_database, glue_table):
         resolve_no_cache.assert_not_called()
         assert df.shape == df3.shape
         assert df.c0.sum() == df3.c0.sum()
+        ensure_athena_query_metadata(df=df3, ctas_approach=False, encrypted=False)
 
 
 def test_cache_query_semicolon(path, glue_database, glue_table):

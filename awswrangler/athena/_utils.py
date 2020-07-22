@@ -3,9 +3,9 @@ import csv
 import logging
 import pprint
 import time
+from datetime import datetime
 from decimal import Decimal
 from typing import Any, Dict, Iterator, List, NamedTuple, Optional, Union
-from datetime import datetime
 
 import boto3  # type: ignore
 import pandas as pd  # type: ignore
@@ -162,7 +162,7 @@ def _parse_describe_table(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(data=target_df_dict)
 
 
-def _get_query_metadata(
+def _get_query_metadata(  # pylint: disable=too-many-statements
     query_execution_id: str,
     boto3_session: boto3.Session,
     categories: List[str] = None,
@@ -229,11 +229,11 @@ def _get_query_metadata(
             manifest_location = _query_execution_payload["Statistics"]["DataManifestLocation"]
             del athena_statistics["DataManifestLocation"]
 
-    athena_submission_datetime: Optional[datetime] = _query_execution_payload["Status"].get("SubmissionDateTime")
-    athena_completion_datetime: Optional[datetime] =  _query_execution_payload["Status"].get("CompletionDateTime")
+    athena_submission_datetime: datetime = _query_execution_payload["Status"].get("SubmissionDateTime")
+    athena_completion_datetime: datetime = _query_execution_payload["Status"].get("CompletionDateTime")
     query_execution_context: Optional[Dict[str, str]] = _query_execution_payload.get("QueryExecutionContext")
     query: str = _query_execution_payload["Query"]
-    statement_type: str = _query_execution_payload["StatementType"]    
+    statement_type: str = _query_execution_payload["StatementType"]
     workgroup: str = _query_execution_payload["WorkGroup"]
 
     query_metadata: _QueryMetadata = _QueryMetadata(
@@ -257,14 +257,15 @@ def _get_query_metadata(
     _logger.debug("query_metadata:\n%s", query_metadata)
     return query_metadata
 
+
 def _empty_dataframe_response(chunked: bool, query_metadata: _QueryMetadata):
-    # TODO: test this
-    "Generate an empty dataframe response"
+    """Generate an empty dataframe response."""
     if chunked is False:
         df = pd.DataFrame()
         df.query_metadata = query_metadata
         return df
     return _utils.empty_generator()
+
 
 def get_query_columns_types(query_execution_id: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, str]:
     """Get the data type of all columns queried.

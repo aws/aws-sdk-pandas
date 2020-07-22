@@ -14,13 +14,13 @@ import pandas as pd  # type: ignore
 from awswrangler import _utils, catalog, exceptions, s3
 from awswrangler._config import apply_configs
 from awswrangler.athena._utils import (
+    _empty_dataframe_response,
     _get_query_metadata,
     _get_s3_output,
     _get_workgroup_config,
     _QueryMetadata,
     _start_query_execution,
     _WorkGroupConfig,
-    _empty_dataframe_response,
 )
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -48,6 +48,7 @@ def _fix_csv_types_generator(
     for df in dfs:
         yield _fix_csv_types(df=df, parse_dates=parse_dates, binaries=binaries)
 
+
 def _add_query_metadata_generator(
     dfs: Iterator[pd.DataFrame], query_metadata: _QueryMetadata
 ) -> Iterator[pd.DataFrame]:
@@ -55,6 +56,7 @@ def _add_query_metadata_generator(
     for df in dfs:
         df.query_metadata = query_metadata
         yield df
+
 
 def _fix_csv_types(df: pd.DataFrame, parse_dates: List[str], binaries: List[str]) -> pd.DataFrame:
     """Apply data types cast to a Pandas DataFrames."""
@@ -212,7 +214,7 @@ def _fetch_parquet_result(
     chunked: Union[bool, int] = False if chunksize is None else chunksize
     _logger.debug("chunked: %s", chunked)
     if query_metadata.manifest_location is None:
-        return _empty_dataframe_response(chunked, query_metadata)
+        return _empty_dataframe_response(bool(chunked), query_metadata)
     manifest_path: str = query_metadata.manifest_location
     metadata_path: str = manifest_path.replace("-manifest.csv", ".metadata")
     _logger.debug("manifest_path: %s", manifest_path)
@@ -220,13 +222,13 @@ def _fetch_parquet_result(
     s3.wait_objects_exist(paths=[manifest_path], use_threads=False, boto3_session=boto3_session)
     paths: List[str] = _extract_ctas_manifest_paths(path=manifest_path, boto3_session=boto3_session)
     if not paths:
-        return _empty_dataframe_response(chunked, query_metadata)
+        return _empty_dataframe_response(bool(chunked), query_metadata)
     s3.wait_objects_exist(paths=paths, use_threads=False, boto3_session=boto3_session)
     ret = s3.read_parquet(
         path=paths, use_threads=use_threads, boto3_session=boto3_session, chunked=chunked, categories=categories
     )
     if chunked is False:
-        ret.query_metadata = query_metadata
+        ret.query_metadata = query_metadata  # type: ignore
     else:
         ret = _add_query_metadata_generator(dfs=ret, query_metadata=query_metadata)
     paths_delete: List[str] = paths + [manifest_path, metadata_path]
