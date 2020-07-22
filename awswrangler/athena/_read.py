@@ -357,7 +357,7 @@ def _resolve_query_without_cache_ctas(
         )
     except exceptions.QueryFailed as ex:
         msg: str = str(ex)
-        if "Column name" in msg and "specified more than once." in msg:
+        if "Column name" in msg and "specified more than once" in msg:
             raise exceptions.InvalidCtasApproachQuery(
                 f"Please, define distinct names for your columns OR pass ctas_approach=False. Root error message: {msg}"
             )

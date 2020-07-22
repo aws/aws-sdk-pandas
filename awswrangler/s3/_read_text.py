@@ -195,6 +195,7 @@ def read_csv(
         This function MUST return a bool, True to read the partition or False to ignore it.
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
+        https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/023%20-%20Flexible%20Partitions%20Filter.ipynb
     pandas_kwargs:
         keyword arguments forwarded to pandas.read_csv().
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
@@ -233,6 +234,12 @@ def read_csv(
     >>> dfs = wr.s3.read_csv(path=['s3://bucket/filename0.csv', 's3://bucket/filename1.csv'], chunksize=100)
     >>> for df in dfs:
     >>>     print(df)  # 100 lines Pandas DataFrame
+
+    Reading CSV Dataset with PUSH-DOWN filter over partitions
+
+    >>> import awswrangler as wr
+    >>> my_filter = lambda x: True if x["city"].startswith("new") else False
+    >>> df = wr.s3.read_csv(path, dataset=True, partition_filter=my_filter)
 
     """
     ignore_index: bool = "index_col" not in pandas_kwargs
@@ -316,6 +323,7 @@ def read_fwf(
         This function MUST return a bool, True to read the partition or False to ignore it.
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
+        https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/023%20-%20Flexible%20Partitions%20Filter.ipynb
     pandas_kwargs:
         keyword arguments forwarded to pandas.read_fwf().
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_fwf.html
@@ -354,6 +362,12 @@ def read_fwf(
     >>> dfs = wr.s3.read_fwf(path=['s3://bucket/filename0.txt', 's3://bucket/filename1.txt'], chunksize=100)
     >>> for df in dfs:
     >>>     print(df)  # 100 lines Pandas DataFrame
+
+    Reading FWF Dataset with PUSH-DOWN filter over partitions
+
+    >>> import awswrangler as wr
+    >>> my_filter = lambda x: True if x["city"].startswith("new") else False
+    >>> df = wr.s3.read_fwf(path, dataset=True, partition_filter=my_filter)
 
     """
     return _read_text(
@@ -441,6 +455,7 @@ def read_json(
         This function MUST return a bool, True to read the partition or False to ignore it.
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
+        https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/023%20-%20Flexible%20Partitions%20Filter.ipynb
     pandas_kwargs:
         keyword arguments forwarded to pandas.read_json().
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_json.html
@@ -479,6 +494,12 @@ def read_json(
     >>> dfs = wr.s3.read_json(path=['s3://bucket/filename0.json', 's3://bucket/filename1.json'], chunksize=100)
     >>> for df in dfs:
     >>>     print(df)  # 100 lines Pandas DataFrame
+
+    Reading JSON Dataset with PUSH-DOWN filter over partitions
+
+    >>> import awswrangler as wr
+    >>> my_filter = lambda x: True if x["city"].startswith("new") else False
+    >>> df = wr.s3.read_json(path, dataset=True, partition_filter=my_filter)
 
     """
     if (dataset is True) and ("lines" not in pandas_kwargs):
