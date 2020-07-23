@@ -8,6 +8,7 @@ import pytest
 import awswrangler as wr
 
 from ._utils import (
+    ensure_athena_query_metadata,
     ensure_data_types,
     ensure_data_types_category,
     ensure_data_types_csv,
@@ -61,6 +62,7 @@ def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database,
     )
     assert len(df.index) == 3
     ensure_data_types(df=df, has_list=True)
+    ensure_athena_query_metadata(df=df, ctas_approach=True, encrypted=True)
     final_destination = f"{path3}{glue_table2}/"
 
     # keep_files=False
@@ -79,6 +81,7 @@ def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database,
     assert len(wr.s3.list_objects(path=final_destination)) > 0
     for df in dfs:
         ensure_data_types(df=df, has_list=True)
+        ensure_athena_query_metadata(df=df, ctas_approach=True, encrypted=False)
     assert len(wr.s3.list_objects(path=path3)) == 0
 
     # keep_files=True
@@ -97,6 +100,7 @@ def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database,
     assert len(wr.s3.list_objects(path=final_destination)) > 0
     for df in dfs:
         ensure_data_types(df=df, has_list=True)
+        ensure_athena_query_metadata(df=df, ctas_approach=True, encrypted=False)
     assert len(wr.s3.list_objects(path=path3)) > 2
 
 
@@ -127,6 +131,7 @@ def test_athena(path, glue_database, glue_table, kms_key, workgroup0, workgroup1
     )
     for df2 in dfs:
         ensure_data_types(df=df2)
+        ensure_athena_query_metadata(df=df2, ctas_approach=False, encrypted=False)
     df = wr.athena.read_sql_query(
         sql=f"SELECT * FROM {table}",
         database=glue_database,
@@ -136,6 +141,7 @@ def test_athena(path, glue_database, glue_table, kms_key, workgroup0, workgroup1
     )
     assert len(df.index) == 3
     ensure_data_types(df=df)
+    ensure_athena_query_metadata(df=df, ctas_approach=False, encrypted=False)
     wr.athena.repair_table(table=table, database=glue_database)
     assert len(wr.athena.describe_table(database=glue_database, table=table).index) > 0
     assert (
@@ -337,7 +343,9 @@ def test_athena_ctas_empty(glue_database):
         FROM dataset
         WHERE id != 0
     """
-    assert wr.athena.read_sql_query(sql=sql, database=glue_database).empty is True
+    df1 = wr.athena.read_sql_query(sql=sql, database=glue_database)
+    assert df1.empty is True
+    ensure_athena_query_metadata(df=df1, ctas_approach=True, encrypted=False)
     assert len(list(wr.athena.read_sql_query(sql=sql, database=glue_database, chunksize=1))) == 0
 
 
@@ -706,6 +714,7 @@ def test_read_sql_query_wo_results(path, glue_database, glue_table):
     sql = f"ALTER TABLE {glue_database}.{glue_table} SET LOCATION '{path}dir/'"
     df = wr.athena.read_sql_query(sql, database=glue_database, ctas_approach=False)
     assert df.empty
+    ensure_athena_query_metadata(df=df, ctas_approach=False, encrypted=False)
 
 
 def test_read_sql_query_wo_results_ctas(path, glue_database, glue_table):
