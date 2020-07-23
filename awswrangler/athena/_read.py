@@ -14,6 +14,7 @@ import pandas as pd  # type: ignore
 from awswrangler import _utils, catalog, exceptions, s3
 from awswrangler._config import apply_configs
 from awswrangler.athena._utils import (
+    _apply_query_metadata,
     _empty_dataframe_response,
     _get_query_metadata,
     _get_s3_output,
@@ -54,7 +55,7 @@ def _add_query_metadata_generator(
 ) -> Iterator[pd.DataFrame]:
     """Add Query Execution metadata to every DF in iterator."""
     for df in dfs:
-        df.query_metadata = query_metadata
+        df = _apply_query_metadata(df=df, query_metadata=query_metadata)
         yield df
 
 
@@ -228,7 +229,7 @@ def _fetch_parquet_result(
         path=paths, use_threads=use_threads, boto3_session=boto3_session, chunked=chunked, categories=categories
     )
     if chunked is False:
-        ret.query_metadata = query_metadata  # type: ignore
+        ret = _apply_query_metadata(df=ret, query_metadata=query_metadata)
     else:
         ret = _add_query_metadata_generator(dfs=ret, query_metadata=query_metadata)
     paths_delete: List[str] = paths + [manifest_path, metadata_path]
@@ -274,7 +275,7 @@ def _fetch_csv_result(
     _logger.debug(type(ret))
     if _chunksize is None:
         df = _fix_csv_types(df=ret, parse_dates=query_metadata.parse_dates, binaries=query_metadata.binaries)
-        df.query_metadata = query_metadata
+        df = _apply_query_metadata(df=df, query_metadata=query_metadata)
         if keep_files is False:
             s3.delete_objects(path=[path, f"{path}.metadata"], use_threads=use_threads, boto3_session=boto3_session)
         return df
@@ -553,6 +554,14 @@ def read_sql_query(
     - Slower for big results (But stills faster than other libraries that uses the regular Athena's API)
     - Does not handle nested types at all.
 
+
+    Note
+    ----
+    The resulting DataFrame (or every DataFrame in the returned Iterator for chunked queries) have a
+    `query_metadata` attribute, which brings the query result metadata returned by Boto3/Athena.
+    The expected `query_metadata` format is the same as returned by:
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/athena.html#Athena.Client.get_query_execution
+
     Note
     ----
     Valid encryption modes: [None, 'SSE_S3', 'SSE_KMS'].
@@ -640,7 +649,8 @@ def read_sql_query(
     Examples
     --------
     >>> import awswrangler as wr
-    >>> df = wr.athena.read_sql_query(sql='...', database='...')
+    >>> df = wr.athena.read_sql_query(sql="...", database="...")
+    >>> scanned_bytes = df.query_metadata["Statistics"]["DataScannedInBytes"]
 
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
@@ -739,6 +749,13 @@ def read_sql_table(
 
     Note
     ----
+    The resulting DataFrame (or every DataFrame in the returned Iterator for chunked queries) have a
+    `query_metadata` attribute, which brings the query result metadata returned by Boto3/Athena.
+    The expected `query_metadata` format is the same as returned by:
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/athena.html#Athena.Client.get_query_execution
+
+    Note
+    ----
     Valid encryption modes: [None, 'SSE_S3', 'SSE_KMS'].
 
     `P.S. 'CSE_KMS' is not supported.`
@@ -824,7 +841,8 @@ def read_sql_table(
     Examples
     --------
     >>> import awswrangler as wr
-    >>> df = wr.athena.read_sql_table(table='...', database='...')
+    >>> df = wr.athena.read_sql_table(table="...", database="...")
+    >>> scanned_bytes = df.query_metadata["Statistics"]["DataScannedInBytes"]
 
     """
     table = catalog.sanitize_table_name(table=table)
