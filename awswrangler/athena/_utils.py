@@ -4,7 +4,6 @@ import logging
 import pprint
 import time
 import warnings
-from datetime import datetime
 from decimal import Decimal
 from typing import Any, Dict, List, NamedTuple, Optional, Union
 
@@ -22,14 +21,6 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 class _QueryMetadata(NamedTuple):
     execution_id: str
-    query: str
-    statement_type: str
-    encryption_configuration: Optional[Dict[str, str]]
-    query_execution_context: Optional[Dict[str, str]]
-    athena_submission_datetime: datetime
-    athena_completion_datetime: datetime
-    athena_statistics: Dict[str, Union[int, str]]
-    workgroup: str
     dtype: Dict[str, str]
     parse_timestamps: List[str]
     parse_dates: List[str]
@@ -214,30 +205,14 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
             dtype[col_name] = pandas_type
 
     output_location: Optional[str] = None
-    encryption_configuration: Optional[Dict[str, str]] = {}
     if "ResultConfiguration" in _query_execution_payload:
         output_location = _query_execution_payload["ResultConfiguration"].get("OutputLocation")
-        encryption_configuration = _query_execution_payload["ResultConfiguration"].get("EncryptionConfiguration", {})
 
     athena_statistics: Dict[str, Union[int, str]] = _query_execution_payload.get("Statistics", {})
     manifest_location: Optional[str] = str(athena_statistics.get("DataManifestLocation"))
-    athena_submission_datetime: datetime = _query_execution_payload["Status"].get("SubmissionDateTime")
-    athena_completion_datetime: datetime = _query_execution_payload["Status"].get("CompletionDateTime")
-    query_execution_context: Optional[Dict[str, str]] = _query_execution_payload.get("QueryExecutionContext")
-    query: str = _query_execution_payload["Query"]
-    statement_type: str = _query_execution_payload["StatementType"]
-    workgroup: str = _query_execution_payload["WorkGroup"]
 
     query_metadata: _QueryMetadata = _QueryMetadata(
         execution_id=query_execution_id,
-        query=query,
-        statement_type=statement_type,
-        encryption_configuration=encryption_configuration,
-        query_execution_context=query_execution_context,
-        athena_submission_datetime=athena_submission_datetime,
-        athena_completion_datetime=athena_completion_datetime,
-        athena_statistics=athena_statistics,
-        workgroup=workgroup,
         dtype=dtype,
         parse_timestamps=parse_timestamps,
         parse_dates=parse_dates,
