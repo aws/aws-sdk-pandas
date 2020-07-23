@@ -21,7 +21,7 @@ class _ConfigArg(NamedTuple):
     enforced: bool = False
 
 
-# Please, also add any new argument to _Config.__slots__
+# Please, also add any new argument as a property in the _Config class
 _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "catalog_id": _ConfigArg(dtype=str, nullable=True),
     "concurrent_partitioning": _ConfigArg(dtype=bool, nullable=False),
@@ -36,73 +36,37 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
 class _Config:
     """Wrangler's Configuration class."""
 
-    __slots__ = (
-        "_loaded_values",
-        "catalog_id",
-        "concurrent_partitioning",
-        "ctas_approach",
-        "database",
-        "max_cache_query_inspections",
-        "max_cache_seconds",
-        "s3fs_block_size",
-    )
-
     def __init__(self):
         self._loaded_values: Dict[str, _ConfigValueType] = {}
         name: str
         for name in _CONFIG_ARGS:
             self._load_config(name=name)
 
-    @staticmethod
-    def _apply_type(name: str, value: Any, dtype: Type, nullable: bool) -> _ConfigValueType:
-        if _Config._is_null(value=value):
-            if nullable is True:
-                return None
-            exceptions.InvalidArgumentValue(f"{name} configuration does not accept a null value. Please pass {dtype}.")
-        try:
-            return dtype(value) if isinstance(value, dtype) is False else value
-        except ValueError:
-            raise exceptions.InvalidConfiguration(f"Config {name} must receive a {dtype} value.")
+    def reset(self, item: Optional[str] = None) -> None:
+        """Reset one or all (if None is received) configuration values.
 
-    @staticmethod
-    def _is_null(value: _ConfigValueType) -> bool:
-        if value is None:
-            return True
-        if isinstance(value, str) is True:
-            value = cast(str, value)
-            if value.lower() in ("none", "null", "nil"):
-                return True
-        return False
+        Parameters
+        ----------
+        item : str, optional
+            Configuration item name.
 
-    def _load_config(self, name: str) -> bool:
-        env_var: Optional[str] = os.getenv(f"WR_{name.upper()}")
-        if env_var is not None:
-            self.__setattr__(name, env_var)
-            return True
-        return False
+        Returns
+        -------
+        None
+            None.
 
-    def __setattr__(self, key: str, value: Any) -> None:
-        if key == "_loaded_values":
-            super().__setattr__(key, value)
+        Examples
+        --------
+        >>> import awswrangler as wr
+        >>> wr.config.reset("database")  # Reset one specific configuration
+        >>> wr.config.reset()  # Reset all
+
+        """
+        if item is None:
+            for name in _CONFIG_ARGS:
+                self._reset_item(item=name)
         else:
-            if key not in _CONFIG_ARGS:
-                raise exceptions.InvalidArgumentValue(
-                    f"{key} is not a valid configuration. Please use: {list(_CONFIG_ARGS.keys())}"
-                )
-            value_casted: _ConfigValueType = self._apply_type(
-                name=key, value=value, dtype=_CONFIG_ARGS[key].dtype, nullable=_CONFIG_ARGS[key].nullable
-            )
-            super().__setattr__(key, value_casted)
-            self._loaded_values[key] = value_casted
-
-    def __getitem__(self, item: str) -> _ConfigValueType:
-        return getattr(self, item)
-
-    def _reset_item(self, item: str) -> None:
-        if hasattr(self, item):
-            delattr(self, item)
-            del self._loaded_values[item]
-        self._load_config(name=item)
+            self._reset_item(item=item)
 
     def to_pandas(self) -> pd.DataFrame:
         """Load all configurations on a Pandas DataFrame.
@@ -136,34 +100,119 @@ class _Config:
             args.append(arg)
         return pd.DataFrame(args)
 
+    def _load_config(self, name: str) -> bool:
+        env_var: Optional[str] = os.getenv(f"WR_{name.upper()}")
+        if env_var is not None:
+            self._set_config_value(key=name, value=env_var)
+            return True
+        return False
+
+    def _set_config_value(self, key: str, value: Any) -> None:
+        if key not in _CONFIG_ARGS:
+            raise exceptions.InvalidArgumentValue(
+                f"{key} is not a valid configuration. Please use: {list(_CONFIG_ARGS.keys())}"
+            )
+        value_casted: _ConfigValueType = self._apply_type(
+            name=key, value=value, dtype=_CONFIG_ARGS[key].dtype, nullable=_CONFIG_ARGS[key].nullable
+        )
+        self._loaded_values[key] = value_casted
+
+    def __getitem__(self, item: str) -> _ConfigValueType:
+        if item not in self._loaded_values:
+            raise AttributeError(f"{item} not configured yet.")
+        return self._loaded_values[item]
+
+    def _reset_item(self, item: str) -> None:
+        if item in self._loaded_values:
+            del self._loaded_values[item]
+        self._load_config(name=item)
+
     def _repr_html_(self):
         return self.to_pandas().to_html()
 
-    def reset(self, item: Optional[str] = None) -> None:
-        """Reset one or all (if None is received) configuration values.
+    @staticmethod
+    def _apply_type(name: str, value: Any, dtype: Type, nullable: bool) -> _ConfigValueType:
+        if _Config._is_null(value=value):
+            if nullable is True:
+                return None
+            exceptions.InvalidArgumentValue(f"{name} configuration does not accept a null value. Please pass {dtype}.")
+        try:
+            return dtype(value) if isinstance(value, dtype) is False else value
+        except ValueError:
+            raise exceptions.InvalidConfiguration(f"Config {name} must receive a {dtype} value.")
 
-        Parameters
-        ----------
-        item : str, optional
-            Configuration item name.
+    @staticmethod
+    def _is_null(value: _ConfigValueType) -> bool:
+        if value is None:
+            return True
+        if isinstance(value, str) is True:
+            value = cast(str, value)
+            if value.lower() in ("none", "null", "nil"):
+                return True
+        return False
 
-        Returns
-        -------
-        None
-            None.
+    @property
+    def catalog_id(self) -> Optional[str]:
+        """Property catalog_id."""
+        return cast(Optional[str], self["catalog_id"])
 
-        Examples
-        --------
-        >>> import awswrangler as wr
-        >>> wr.config.reset("database")  # Reset one specific configuration
-        >>> wr.config.reset()  # Reset all
+    @catalog_id.setter
+    def catalog_id(self, value: Optional[str]) -> None:
+        self._set_config_value(key="catalog_id", value=value)
 
-        """
-        if item is None:
-            for name in _CONFIG_ARGS:
-                self._reset_item(item=name)
-        else:
-            self._reset_item(item=item)
+    @property
+    def concurrent_partitioning(self) -> bool:
+        """Property concurrent_partitioning."""
+        return cast(bool, self["concurrent_partitioning"])
+
+    @concurrent_partitioning.setter
+    def concurrent_partitioning(self, value: bool) -> None:
+        self._set_config_value(key="concurrent_partitioning", value=value)
+
+    @property
+    def ctas_approach(self) -> bool:
+        """Property ctas_approach."""
+        return cast(bool, self["ctas_approach"])
+
+    @ctas_approach.setter
+    def ctas_approach(self, value: bool) -> None:
+        self._set_config_value(key="ctas_approach", value=value)
+
+    @property
+    def database(self) -> Optional[str]:
+        """Property database."""
+        return cast(Optional[str], self["database"])
+
+    @database.setter
+    def database(self, value: Optional[str]) -> None:
+        self._set_config_value(key="database", value=value)
+
+    @property
+    def max_cache_query_inspections(self) -> int:
+        """Property max_cache_query_inspections."""
+        return cast(int, self["max_cache_query_inspections"])
+
+    @max_cache_query_inspections.setter
+    def max_cache_query_inspections(self, value: int) -> None:
+        self._set_config_value(key="max_cache_query_inspections", value=value)
+
+    @property
+    def max_cache_seconds(self) -> int:
+        """Property max_cache_seconds."""
+        return cast(int, self["max_cache_seconds"])
+
+    @max_cache_seconds.setter
+    def max_cache_seconds(self, value: int) -> None:
+        self._set_config_value(key="max_cache_seconds", value=value)
+
+    @property
+    def s3fs_block_size(self) -> int:
+        """Property s3fs_block_size."""
+        return cast(int, self["s3fs_block_size"])
+
+    @s3fs_block_size.setter
+    def s3fs_block_size(self, value: int) -> None:
+        self._set_config_value(key="s3fs_block_size", value=value)
 
 
 def _inject_config_doc(doc: str, available_configs: Tuple[str, ...]) -> str:
