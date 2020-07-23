@@ -3,6 +3,7 @@ import csv
 import logging
 import pprint
 import time
+import warnings
 from datetime import datetime
 from decimal import Decimal
 from typing import Any, Dict, Iterator, List, NamedTuple, Optional, Union
@@ -36,6 +37,7 @@ class _QueryMetadata(NamedTuple):
     binaries: List[str]
     output_location: Optional[str]
     manifest_location: Optional[str]
+    raw_payload: Dict[str, Any]
 
 
 class _WorkGroupConfig(NamedTuple):
@@ -216,19 +218,11 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
     output_location: Optional[str] = None
     encryption_configuration: Optional[Dict[str, str]] = {}
     if "ResultConfiguration" in _query_execution_payload:
-        if "OutputLocation" in _query_execution_payload["ResultConfiguration"]:
-            output_location = _query_execution_payload["ResultConfiguration"]["OutputLocation"]
-        if "EncryptionConfiguration" in _query_execution_payload["ResultConfiguration"]:
-            encryption_configuration = _query_execution_payload["ResultConfiguration"]["EncryptionConfiguration"]
+        output_location = _query_execution_payload["ResultConfiguration"].get("OutputLocation")
+        encryption_configuration = _query_execution_payload["ResultConfiguration"].get("EncryptionConfiguration", {})
 
-    manifest_location: Optional[str] = None
-    athena_statistics: Dict[str, Union[int, str]] = {}
-    if "Statistics" in _query_execution_payload:
-        athena_statistics = _query_execution_payload["Statistics"]
-        if "DataManifestLocation" in _query_execution_payload["Statistics"]:
-            manifest_location = _query_execution_payload["Statistics"]["DataManifestLocation"]
-            del athena_statistics["DataManifestLocation"]
-
+    athena_statistics: Dict[str, Union[int, str]] = _query_execution_payload.get("Statistics", {})
+    manifest_location: Optional[str] = str(athena_statistics.get("DataManifestLocation"))
     athena_submission_datetime: datetime = _query_execution_payload["Status"].get("SubmissionDateTime")
     athena_completion_datetime: datetime = _query_execution_payload["Status"].get("CompletionDateTime")
     query_execution_context: Optional[Dict[str, str]] = _query_execution_payload.get("QueryExecutionContext")
@@ -253,6 +247,7 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
         binaries=binaries,
         output_location=output_location,
         manifest_location=manifest_location,
+        raw_payload=_query_execution_payload,
     )
     _logger.debug("query_metadata:\n%s", query_metadata)
     return query_metadata
@@ -262,9 +257,16 @@ def _empty_dataframe_response(chunked: bool, query_metadata: _QueryMetadata):
     """Generate an empty dataframe response."""
     if chunked is False:
         df = pd.DataFrame()
-        df.query_metadata = query_metadata
+        df = _apply_query_metadata(df=df, query_metadata=query_metadata)
         return df
     return _utils.empty_generator()
+
+
+def _apply_query_metadata(df: pd.DataFrame, query_metadata: _QueryMetadata) -> pd.DataFrame:
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=UserWarning)
+        df.query_metadata = query_metadata.raw_payload
+    return df
 
 
 def get_query_columns_types(query_execution_id: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, str]:
