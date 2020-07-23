@@ -8,6 +8,8 @@ import botocore.exceptions
 import pandas as pd
 
 import awswrangler as wr
+from awswrangler._utils import try_it
+from awswrangler.athena._utils import _QueryMetadata
 
 ts = lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S.%f")  # noqa
 dt = lambda x: datetime.strptime(x, "%Y-%m-%d").date()  # noqa
@@ -122,6 +124,53 @@ def get_df_csv():
     df["string"] = df["string"].astype("string")
     df["int"] = df["int"].astype("Int64")
     df["par1"] = df["par1"].astype("string")
+    return df
+
+
+def get_df_txt():
+    df = pd.DataFrame(
+        {
+            "col_name": [
+                "iint8               ",
+                "iint16              ",
+                "iint32              ",
+                "par0                ",
+                "par1                ",
+                "",
+                "# Partition Information",
+                "# col_name            ",
+                "",
+                "par0                ",
+                "par1                ",
+            ],
+            "data_type": [
+                "tinyint             ",
+                "smallint            ",
+                "int                 ",
+                "bigint              ",
+                "string              ",
+                " ",
+                " ",
+                "data_type           ",
+                " ",
+                "bigint              ",
+                "string              ",
+            ],
+            "comment": [
+                "                    ",
+                "                    ",
+                "                    ",
+                "                    ",
+                "                    ",
+                "                    ",
+                " ",
+                "comment             ",
+                " ",
+                "                    ",
+                "                    ",
+            ],
+        }
+    )
     return df
 
 
@@ -441,9 +490,27 @@ def ensure_data_types_csv(df):
         assert str(df["par1"].dtype) == "string"
 
 
+def ensure_athena_query_metadata(df, ctas_approach=True, encrypted=False):
+    assert df.query_metadata is not None
+    assert isinstance(df.query_metadata, _QueryMetadata)
+    assert df.query_metadata.execution_id is not None
+    assert df.query_metadata.query is not None
+    assert df.query_metadata.statement_type is not None
+    if encrypted:
+        assert df.query_metadata.encryption_configuration
+    assert df.query_metadata.query_execution_context is not None
+    assert df.query_metadata.athena_submission_datetime is not None
+    assert df.query_metadata.athena_completion_datetime is not None
+    assert df.query_metadata.athena_statistics is not None
+    assert df.query_metadata.workgroup is not None
+    assert df.query_metadata.output_location is not None
+    if ctas_approach:
+        assert df.query_metadata.manifest_location is not None
+
+
 def get_time_str_with_random_suffix():
     time_str = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
-    return f"{time_str}_{random.randrange(16**4):04x}"
+    return f"{time_str}_{random.randrange(16**6):06x}"
 
 
 def path_generator(bucket):
@@ -485,3 +552,35 @@ def list_workgroups():
             if attempt > 5:
                 raise ex
             time.sleep(attempt + random.randrange(start=0, stop=3, step=1))
+
+
+def validate_workgroup_key(workgroup):
+    if "ResultConfiguration" in workgroup["Configuration"]:
+        if "EncryptionConfiguration" in workgroup["Configuration"]["ResultConfiguration"]:
+            if "KmsKey" in workgroup["Configuration"]["ResultConfiguration"]["EncryptionConfiguration"]:
+                kms_client = boto3.client("kms")
+                key = try_it(
+                    kms_client.describe_key,
+                    kms_client.exceptions.NotFoundException,
+                    KeyId=workgroup["Configuration"]["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"],
+                )["KeyMetadata"]
+                if key["KeyState"] != "Enabled":
+                    return False
+    return True
+
+
+def create_workgroup(wkg_name, config):
+    client = boto3.client("athena")
+    wkgs = list_workgroups()
+    wkgs = [x["Name"] for x in wkgs["WorkGroups"]]
+    deleted = False
+    if wkg_name in wkgs:
+        wkg = client.get_work_group(WorkGroup=wkg_name)["WorkGroup"]
+        if validate_workgroup_key(workgroup=wkg) is False:
+            client.delete_work_group(WorkGroup=wkg_name, RecursiveDeleteOption=True)
+            deleted = True
+    if wkg_name not in wkgs or deleted is True:
+        client.create_work_group(
+            Name=wkg_name, Configuration=config, Description=f"AWS Data Wrangler Test - {wkg_name}",
+        )
+    return wkg_name

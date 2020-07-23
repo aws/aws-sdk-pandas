@@ -12,24 +12,178 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
 
 
+@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("concurrent_partitioning", [True, False])
+def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_partitioning):
+
+    # Round 1 - Warm up
+    df = pd.DataFrame({"c0": [0, 1]}, dtype="Int64")
+    paths = wr.s3.to_csv(
+        df=df,
+        path=path,
+        dataset=True,
+        mode="overwrite",
+        database=glue_database,
+        table=glue_table,
+        description="c0",
+        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
+        columns_comments={"c0": "0"},
+        use_threads=use_threads,
+        concurrent_partitioning=concurrent_partitioning,
+        index=False,
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
+    assert df.shape == df2.shape
+    assert df.c0.sum() == df2.c0.sum()
+    parameters = wr.catalog.get_table_parameters(glue_database, glue_table)
+    assert len(parameters) >= 5
+    assert parameters["num_cols"] == str(len(df2.columns))
+    assert parameters["num_rows"] == str(len(df2.index))
+    assert wr.catalog.get_table_description(glue_database, glue_table) == "c0"
+    comments = wr.catalog.get_columns_comments(glue_database, glue_table)
+    assert len(comments) == len(df.columns)
+    assert comments["c0"] == "0"
+
+    # Round 2 - Overwrite
+    df = pd.DataFrame({"c1": [0, 1, 2]}, dtype="Int16")
+    paths = wr.s3.to_csv(
+        df=df,
+        path=path,
+        dataset=True,
+        mode="overwrite",
+        database=glue_database,
+        table=glue_table,
+        description="c1",
+        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
+        columns_comments={"c1": "1"},
+        use_threads=use_threads,
+        concurrent_partitioning=concurrent_partitioning,
+        index=False,
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
+    assert df.shape == df2.shape
+    assert df.c1.sum() == df2.c1.sum()
+    parameters = wr.catalog.get_table_parameters(glue_database, glue_table)
+    assert len(parameters) >= 5
+    assert parameters["num_cols"] == str(len(df2.columns))
+    assert parameters["num_rows"] == str(len(df2.index))
+    assert wr.catalog.get_table_description(glue_database, glue_table) == "c1"
+    comments = wr.catalog.get_columns_comments(glue_database, glue_table)
+    assert len(comments) == len(df.columns)
+    assert comments["c1"] == "1"
+
+    # Round 3 - Append
+    df = pd.DataFrame({"c1": [0, 1, 2]}, dtype="Int8")
+    paths = wr.s3.to_csv(
+        df=df,
+        path=path,
+        dataset=True,
+        mode="append",
+        database=glue_database,
+        table=glue_table,
+        description="c1",
+        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index) * 2)},
+        columns_comments={"c1": "1"},
+        use_threads=use_threads,
+        concurrent_partitioning=concurrent_partitioning,
+        index=False,
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
+    assert len(df.columns) == len(df2.columns)
+    assert len(df.index) * 2 == len(df2.index)
+    assert df.c1.sum() + 3 == df2.c1.sum()
+    parameters = wr.catalog.get_table_parameters(glue_database, glue_table)
+    assert len(parameters) >= 5
+    assert parameters["num_cols"] == str(len(df2.columns))
+    assert parameters["num_rows"] == str(len(df2.index))
+    assert wr.catalog.get_table_description(glue_database, glue_table) == "c1"
+    comments = wr.catalog.get_columns_comments(glue_database, glue_table)
+    assert len(comments) == len(df.columns)
+    assert comments["c1"] == "1"
+
+    # Round 4 - Overwrite Partitioned
+    df = pd.DataFrame({"c0": ["foo", "boo"], "c1": [0, 1]})
+    paths = wr.s3.to_csv(
+        df=df,
+        path=path,
+        dataset=True,
+        mode="overwrite",
+        database=glue_database,
+        table=glue_table,
+        partition_cols=["c1"],
+        description="c0+c1",
+        parameters={"num_cols": "2", "num_rows": "2"},
+        columns_comments={"c0": "zero", "c1": "one"},
+        use_threads=use_threads,
+        concurrent_partitioning=concurrent_partitioning,
+        index=False,
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
+    assert df.shape == df2.shape
+    assert df.c1.sum() == df2.c1.sum()
+    parameters = wr.catalog.get_table_parameters(glue_database, glue_table)
+    assert len(parameters) >= 5
+    assert parameters["num_cols"] == "2"
+    assert parameters["num_rows"] == "2"
+    assert wr.catalog.get_table_description(glue_database, glue_table) == "c0+c1"
+    comments = wr.catalog.get_columns_comments(glue_database, glue_table)
+    assert len(comments) == len(df.columns)
+    assert comments["c0"] == "zero"
+    assert comments["c1"] == "one"
+
+    # Round 5 - Overwrite Partitions
+    df = pd.DataFrame({"c0": ["bar", "abc"], "c1": [0, 2]})
+    paths = wr.s3.to_csv(
+        df=df,
+        path=path,
+        dataset=True,
+        mode="overwrite_partitions",
+        database=glue_database,
+        table=glue_table,
+        partition_cols=["c1"],
+        description="c0+c1",
+        parameters={"num_cols": "2", "num_rows": "3"},
+        columns_comments={"c0": "zero", "c1": "one"},
+        concurrent_partitioning=concurrent_partitioning,
+        use_threads=use_threads,
+        index=False,
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
+    assert len(df2.columns) == 2
+    assert len(df2.index) == 3
+    assert df2.c1.sum() == 3
+    parameters = wr.catalog.get_table_parameters(glue_database, glue_table)
+    assert len(parameters) >= 5
+    assert parameters["num_cols"] == "2"
+    assert parameters["num_rows"] == "3"
+    assert wr.catalog.get_table_description(glue_database, glue_table) == "c0+c1"
+    comments = wr.catalog.get_columns_comments(glue_database, glue_table)
+    assert len(comments) == len(df.columns)
+    assert comments["c0"] == "zero"
+    assert comments["c1"] == "one"
+
+
 def test_csv_dataset(path, glue_database):
     with pytest.raises(wr.exceptions.UndetectedType):
         wr.s3.to_csv(pd.DataFrame({"A": [None]}), path, dataset=True, database=glue_database, table="test_csv_dataset")
     df = get_df_csv()
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.s3.to_csv(df, path, dataset=False, mode="overwrite", database=glue_database, table="test_csv_dataset")
+        wr.s3.to_csv(df, path + "0", dataset=False, mode="overwrite", database=glue_database, table="test_csv_dataset")
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.s3.to_csv(df, path, dataset=False, table="test_csv_dataset")
+        wr.s3.to_csv(df, path + "0", dataset=False, table="test_csv_dataset")
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.s3.to_csv(df, path, dataset=True, mode="overwrite", database=glue_database)
+        wr.s3.to_csv(df=df, path=path + "0", mode="append")
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.s3.to_csv(df=df, path=path, mode="append")
+        wr.s3.to_csv(df=df, path=path + "0", partition_cols=["col2"])
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.s3.to_csv(df=df, path=path, partition_cols=["col2"])
-    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.s3.to_csv(df=df, path=path, description="foo")
+        wr.s3.to_csv(df=df, path=path + "0", description="foo")
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
-        wr.s3.to_csv(df=df, path=path, partition_cols=["col2"], dataset=True, mode="WRONG")
+        wr.s3.to_csv(df=df, path=path + "0", partition_cols=["col2"], dataset=True, mode="WRONG")
     paths = wr.s3.to_csv(
         df=df,
         path=path,
@@ -50,14 +204,16 @@ def test_csv_dataset(path, glue_database):
     wr.s3.delete_objects(path=paths)
 
 
-def test_csv_catalog(path, glue_table, glue_database):
+@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("concurrent_partitioning", [True, False])
+def test_csv_catalog(path, glue_table, glue_database, use_threads, concurrent_partitioning):
     df = get_df_csv()
     paths = wr.s3.to_csv(
         df=df,
         path=path,
         sep="\t",
         index=True,
-        use_threads=True,
+        use_threads=use_threads,
         boto3_session=None,
         s3_additional_kwargs=None,
         dataset=True,
@@ -65,6 +221,7 @@ def test_csv_catalog(path, glue_table, glue_database):
         mode="overwrite",
         table=glue_table,
         database=glue_database,
+        concurrent_partitioning=concurrent_partitioning,
     )["paths"]
     wr.s3.wait_objects_exist(paths=paths)
     df2 = wr.athena.read_sql_table(glue_table, glue_database)
@@ -76,14 +233,16 @@ def test_csv_catalog(path, glue_table, glue_database):
     assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table) is True
 
 
-def test_csv_catalog_columns(path, glue_database, glue_table):
+@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("concurrent_partitioning", [True, False])
+def test_csv_catalog_columns(path, glue_database, glue_table, use_threads, concurrent_partitioning):
     paths = wr.s3.to_csv(
         df=get_df_csv(),
         path=path,
         sep="|",
         columns=["id", "date", "timestamp", "par0", "par1"],
         index=False,
-        use_threads=False,
+        use_threads=use_threads,
         boto3_session=None,
         s3_additional_kwargs=None,
         dataset=True,
@@ -91,9 +250,10 @@ def test_csv_catalog_columns(path, glue_database, glue_table):
         mode="overwrite",
         table=glue_table,
         database=glue_database,
+        concurrent_partitioning=concurrent_partitioning,
     )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
-    df2 = wr.athena.read_sql_table(glue_table, glue_database)
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
     assert len(df2.index) == 3
     assert len(df2.columns) == 5
     assert df2["id"].sum() == 6
@@ -104,7 +264,7 @@ def test_csv_catalog_columns(path, glue_database, glue_table):
         path=path,
         sep="|",
         index=False,
-        use_threads=False,
+        use_threads=use_threads,
         boto3_session=None,
         s3_additional_kwargs=None,
         dataset=True,
@@ -112,9 +272,10 @@ def test_csv_catalog_columns(path, glue_database, glue_table):
         mode="overwrite_partitions",
         table=glue_table,
         database=glue_database,
+        concurrent_partitioning=concurrent_partitioning,
     )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
-    df2 = wr.athena.read_sql_table(glue_table, glue_database)
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
     assert len(df2.index) == 3
     assert len(df2.columns) == 5
     assert df2["id"].sum() == 9

@@ -17,7 +17,7 @@ def extract_athena_table_columns(database: str, table: str, boto3_session: boto3
         database=database, table=table, boto3_session=boto3_session
     )
     if dtypes is None:
-        raise exceptions.InvalidArgument(f"{database}.{table} does not exist on Athena.")  # pragma: no cover
+        raise exceptions.InvalidArgument(f"{database}.{table} does not exist on Athena.")
     return [{"Name": name, "Type": _data_types.athena2quicksight(dtype=dtype)} for name, dtype in dtypes.items()]
 
 
