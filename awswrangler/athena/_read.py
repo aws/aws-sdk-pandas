@@ -14,6 +14,7 @@ import pandas as pd  # type: ignore
 from awswrangler import _utils, catalog, exceptions, s3
 from awswrangler._config import apply_configs
 from awswrangler.athena._utils import (
+    _empty_dataframe_response,
     _get_query_metadata,
     _get_s3_output,
     _get_workgroup_config,
@@ -46,6 +47,15 @@ def _fix_csv_types_generator(
     """Apply data types cast to a Pandas DataFrames Generator."""
     for df in dfs:
         yield _fix_csv_types(df=df, parse_dates=parse_dates, binaries=binaries)
+
+
+def _add_query_metadata_generator(
+    dfs: Iterator[pd.DataFrame], query_metadata: _QueryMetadata
+) -> Iterator[pd.DataFrame]:
+    """Add Query Execution metadata to every DF in iterator."""
+    for df in dfs:
+        df.query_metadata = query_metadata
+        yield df
 
 
 def _fix_csv_types(df: pd.DataFrame, parse_dates: List[str], binaries: List[str]) -> pd.DataFrame:
@@ -204,7 +214,7 @@ def _fetch_parquet_result(
     chunked: Union[bool, int] = False if chunksize is None else chunksize
     _logger.debug("chunked: %s", chunked)
     if query_metadata.manifest_location is None:
-        return pd.DataFrame() if chunked is False else _utils.empty_generator()
+        return _empty_dataframe_response(bool(chunked), query_metadata)
     manifest_path: str = query_metadata.manifest_location
     metadata_path: str = manifest_path.replace("-manifest.csv", ".metadata")
     _logger.debug("manifest_path: %s", manifest_path)
@@ -212,11 +222,15 @@ def _fetch_parquet_result(
     s3.wait_objects_exist(paths=[manifest_path], use_threads=False, boto3_session=boto3_session)
     paths: List[str] = _extract_ctas_manifest_paths(path=manifest_path, boto3_session=boto3_session)
     if not paths:
-        return pd.DataFrame() if chunked is False else _utils.empty_generator()
+        return _empty_dataframe_response(bool(chunked), query_metadata)
     s3.wait_objects_exist(paths=paths, use_threads=False, boto3_session=boto3_session)
     ret = s3.read_parquet(
         path=paths, use_threads=use_threads, boto3_session=boto3_session, chunked=chunked, categories=categories
     )
+    if chunked is False:
+        ret.query_metadata = query_metadata  # type: ignore
+    else:
+        ret = _add_query_metadata_generator(dfs=ret, query_metadata=query_metadata)
     paths_delete: List[str] = paths + [manifest_path, metadata_path]
     _logger.debug("type(ret): %s", type(ret))
     if chunked is False:
@@ -238,7 +252,8 @@ def _fetch_csv_result(
     _chunksize: Optional[int] = chunksize if isinstance(chunksize, int) else None
     _logger.debug("_chunksize: %s", _chunksize)
     if query_metadata.output_location is None or query_metadata.output_location.endswith(".csv") is False:
-        return pd.DataFrame() if _chunksize is None else _utils.empty_generator()
+        chunked = _chunksize is not None
+        return _empty_dataframe_response(chunked, query_metadata)
     path: str = query_metadata.output_location
     s3.wait_objects_exist(paths=[path], use_threads=False, boto3_session=boto3_session)
     _logger.debug("Start CSV reading from %s", path)
@@ -259,10 +274,12 @@ def _fetch_csv_result(
     _logger.debug(type(ret))
     if _chunksize is None:
         df = _fix_csv_types(df=ret, parse_dates=query_metadata.parse_dates, binaries=query_metadata.binaries)
+        df.query_metadata = query_metadata
         if keep_files is False:
             s3.delete_objects(path=[path, f"{path}.metadata"], use_threads=use_threads, boto3_session=boto3_session)
         return df
     dfs = _fix_csv_types_generator(dfs=ret, parse_dates=query_metadata.parse_dates, binaries=query_metadata.binaries)
+    dfs = _add_query_metadata_generator(dfs=dfs, query_metadata=query_metadata)
     if keep_files is False:
         return _delete_after_iterate(
             dfs=dfs, paths=[path, f"{path}.metadata"], use_threads=use_threads, boto3_session=boto3_session
