@@ -468,6 +468,7 @@ def describe_table(
     """Show the list of columns, including partition columns: 'DESCRIBE table;'.
 
     Shows the list of columns, including partition columns, for the named column.
+    The result of this function will be equal to `wr.catalog.table`.
 
     Note
     ----
