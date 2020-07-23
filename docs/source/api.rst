@@ -1,6 +1,16 @@
 API Reference
 =============
 
+* `Amazon S3`_
+* `AWS Glue Catalog`_
+* `Amazon Athena`_
+* `Databases (Amazon Redshift, PostgreSQL, MySQL)`_
+* `Amazon EMR`_
+* `Amazon CloudWatch Logs`_
+* `Amazon QuickSight`_
+* `AWS STS`_
+* `Global Configurations`_
+
 Amazon S3
 ---------
 
@@ -188,7 +198,7 @@ Amazon QuickSight
     list_user_groups
 
 AWS STS
------------------
+-------
 
 .. currentmodule:: awswrangler.sts
 
@@ -198,3 +208,15 @@ AWS STS
     get_account_id
     get_current_identity_arn
     get_current_identity_name
+
+
+Global Configurations
+---------------------
+
+.. currentmodule:: awswrangler.config
+
+.. autosummary::
+    :toctree: stubs
+
+    reset
+    to_pandas
