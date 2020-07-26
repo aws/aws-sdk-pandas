@@ -258,7 +258,6 @@ def apply_configs(function) -> Callable:
                 keywords: Dict[str, Any] = args[name]
                 del args[name]
                 args = {**args, **keywords}
-        _logger.debug("args: %s", args)
         return function(**args)
 
     wrapper.__doc__ = _inject_config_doc(doc=function.__doc__, available_configs=available_configs)
