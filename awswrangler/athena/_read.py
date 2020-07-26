@@ -622,7 +622,7 @@ def read_sql_query(
         Should Wrangler delete or keep the staging files produced by Athena?
     ctas_temp_table_name : str, optional
         The name of the temporary table and also the directory name on S3 where the CTAS result is stored.
-        If None, it will use the follow random pattern: `f"temp_table_{pyarrow.compat.guid()}"`.
+        If None, it will use the follow random pattern: `f"temp_table_{uuid.uuid4().hex()}"`.
         On S3 this directory will be under under the pattern: `f"{s3_output}/{ctas_temp_table_name}/"`.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
@@ -814,7 +814,7 @@ def read_sql_table(
         Should Wrangler delete or keep the staging files produced by Athena?
     ctas_temp_table_name : str, optional
         The name of the temporary table and also the directory name on S3 where the CTAS result is stored.
-        If None, it will use the follow random pattern: `f"temp_table_{pyarrow.compat.guid()}"`.
+        If None, it will use the follow random pattern: `f"temp_table_{uuid.uuid4().hex}"`.
         On S3 this directory will be under under the pattern: `f"{s3_output}/{ctas_temp_table_name}/"`.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
