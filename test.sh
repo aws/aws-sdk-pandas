@@ -7,7 +7,7 @@ microtime() {
 
 START=$(microtime)
 
-./validation.sh
+./validate.sh
 tox -e ALL
 coverage html --directory coverage
 rm -rf .coverage* Running

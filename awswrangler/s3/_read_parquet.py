@@ -169,7 +169,7 @@ def _arrowtable2df(
     path: str,
     path_root: Optional[str],
 ) -> pd.DataFrame:
-    return _apply_partitions(
+    df: pd.DataFrame = _apply_partitions(
         df=table.to_pandas(
             use_threads=use_threads,
             split_blocks=True,
@@ -185,6 +185,7 @@ def _arrowtable2df(
         path=path,
         path_root=path_root,
     )
+    return _utils.ensure_df_is_mutable(df=df)
 
 
 def _read_parquet_chunked(
@@ -254,7 +255,7 @@ def _read_parquet_chunked(
         yield next_slice
 
 
-def _read_parquet_file_single_thread(
+def _read_parquet_file(
     path: str,
     columns: Optional[List[str]],
     categories: Optional[List[str]],
@@ -285,7 +286,7 @@ def _count_row_groups(
         return pq_file.num_row_groups
 
 
-def _read_parquet_file_multi_thread(
+def _read_parquet_row_group(
     row_group: int,
     path: str,
     columns: Optional[List[str]],
@@ -306,7 +307,7 @@ def _read_parquet_file_multi_thread(
         return pq_file.read_row_group(i=row_group, columns=columns, use_threads=False, use_pandas_metadata=False)
 
 
-def _read_parquet_file(
+def _read_parquet(
     path: str,
     columns: Optional[List[str]],
     categories: Optional[List[str]],
@@ -318,7 +319,7 @@ def _read_parquet_file(
     use_threads: bool,
 ) -> pd.DataFrame:
     if use_threads is False:
-        table: pa.Table = _read_parquet_file_single_thread(
+        table: pa.Table = _read_parquet_file(
             path=path,
             columns=columns,
             categories=categories,
@@ -333,7 +334,7 @@ def _read_parquet_file(
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
             tables: Tuple[pa.Table, ...] = tuple(
                 executor.map(
-                    _read_parquet_file_multi_thread,
+                    _read_parquet_row_group,
                     range(num_row_groups),
                     itertools.repeat(path),
                     itertools.repeat(columns),
@@ -529,7 +530,7 @@ def read_parquet(
     if chunked is not False:
         return _read_parquet_chunked(paths=paths, chunked=chunked, validate_schema=validate_schema, **args)
     if len(paths) == 1:
-        return _read_parquet_file(path=paths[0], **args)
+        return _read_parquet(path=paths[0], **args)
     if validate_schema is True:
         _validate_schemas_from_files(
             paths=paths,
@@ -540,8 +541,8 @@ def read_parquet(
         )
     if use_threads is True:
         args["use_threads"] = True
-        return _read_concurrent(func=_read_parquet_file, ignore_index=True, paths=paths, **args)
-    return _union(dfs=[_read_parquet_file(path=p, **args) for p in paths], ignore_index=True)
+        return _read_concurrent(func=_read_parquet, ignore_index=True, paths=paths, **args)
+    return _union(dfs=[_read_parquet(path=p, **args) for p in paths], ignore_index=True)
 
 
 @apply_configs
