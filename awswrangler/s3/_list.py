@@ -2,6 +2,7 @@
 
 import datetime
 import logging
+import fnmatch
 from typing import Any, Dict, List, Optional
 
 import boto3  # type: ignore
@@ -60,10 +61,12 @@ def _list_objects(
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
+    wildcard: Optional[str] = '*',
 ) -> List[str]:
+    wildcard_prefix: Optional[List] = path.split(wildcard)[0]
     bucket: str
     prefix: str
-    bucket, prefix = _utils.parse_path(path=path)
+    bucket, prefix = _utils.parse_path(path=wildcard_prefix)
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     paginator = client_s3.get_paginator("list_objects_v2")
     args: Dict[str, Any] = {"Bucket": bucket, "Prefix": prefix, "PaginationConfig": {"PageSize": 1000}}
@@ -74,9 +77,10 @@ def _list_objects(
 
     _validate_datetimes(last_modified_begin=last_modified_begin, last_modified_end=last_modified_end)
 
+
     for page in response_iterator:  # pylint: disable=too-many-nested-blocks
         if delimiter is None:
-            contents: Optional[List] = page.get("Contents")
+            contents: Optional[List] = wildcard_prefix.get("Contents")
             if contents is not None:
                 for content in contents:
                     key: str = content["Key"]
@@ -90,13 +94,16 @@ def _list_objects(
                                     continue
                             paths.append(f"s3://{bucket}/{key}")
         else:
-            prefixes: Optional[List[Optional[Dict[str, str]]]] = page.get("CommonPrefixes")
+            prefixes: Optional[List[Optional[Dict[str, str]]]] = wildcard_prefix.get("CommonPrefixes")
             if prefixes is not None:
                 for pfx in prefixes:
                     if (pfx is not None) and ("Prefix" in pfx):
                         key = pfx["Prefix"]
                         paths.append(f"s3://{bucket}/{key}")
-    return paths
+
+    fnmatch_path = path + "*"
+    filtered_paths = fnmatch.filter(paths, fnmatch_path)
+    return filtered_paths
 
 
 def does_object_exist(path: str, boto3_session: Optional[boto3.Session] = None) -> bool:
