@@ -79,7 +79,7 @@ def _list_objects(
 
     for page in response_iterator:  # pylint: disable=too-many-nested-blocks
         if delimiter is None:
-            contents: Optional[List] = wildcard_prefix.get("Contents")
+            contents: Optional[List] = page.get("Contents")
             if contents is not None:
                 for content in contents:
                     key: str = content["Key"]
@@ -93,7 +93,7 @@ def _list_objects(
                                     continue
                             paths.append(f"s3://{bucket}/{key}")
         else:
-            prefixes: Optional[List[Optional[Dict[str, str]]]] = wildcard_prefix.get("CommonPrefixes")
+            prefixes: Optional[List[Optional[Dict[str, str]]]] = page.get("CommonPrefixes")
             if prefixes is not None:
                 for pfx in prefixes:
                     if (pfx is not None) and ("Prefix" in pfx):
