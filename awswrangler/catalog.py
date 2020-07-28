@@ -1342,7 +1342,7 @@ def _csv_table_definition(
     partitions_types: Dict[str, str],
     compression: Optional[str],
     sep: str,
-    skip_header_line_count: Optional[int]
+    skip_header_line_count: Optional[int],
 ) -> Dict[str, Any]:
     compressed: bool = compression is not None
     parameters: Dict[str, str] = {
