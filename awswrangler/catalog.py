@@ -1087,6 +1087,7 @@ def create_csv_table(
     mode: str = "overwrite",
     catalog_versioning: bool = False,
     sep: str = ",",
+    skip_header_line_count: Optional[int] = None,
     boto3_session: Optional[boto3.Session] = None,
     projection_enabled: bool = False,
     projection_types: Optional[Dict[str, str]] = None,
@@ -1125,6 +1126,8 @@ def create_csv_table(
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     sep : str
         String of length 1. Field delimiter for the output file.
+    skip_header_line_count : Optional[int]
+        Number of Lines to skip regarding to the header.
     projection_enabled : bool
         Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
     projection_types : Optional[Dict[str, str]]
@@ -1181,6 +1184,7 @@ def create_csv_table(
         partitions_types=partitions_types,
         compression=compression,
         sep=sep,
+        skip_header_line_count=skip_header_line_count,
     )
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     _create_table(
@@ -1338,20 +1342,24 @@ def _csv_table_definition(
     partitions_types: Dict[str, str],
     compression: Optional[str],
     sep: str,
+    skip_header_line_count: Optional[int]
 ) -> Dict[str, Any]:
     compressed: bool = compression is not None
+    parameters: Dict[str, str] = {
+        "classification": "csv",
+        "compressionType": str(compression).lower(),
+        "typeOfData": "file",
+        "delimiter": sep,
+        "columnsOrdered": "true",
+        "areColumnsQuoted": "false",
+    }
+    if skip_header_line_count is not None:
+        parameters["skip.header.line.count"] = "1"
     return {
         "Name": table,
         "PartitionKeys": [{"Name": cname, "Type": dtype} for cname, dtype in partitions_types.items()],
         "TableType": "EXTERNAL_TABLE",
-        "Parameters": {
-            "classification": "csv",
-            "compressionType": str(compression).lower(),
-            "typeOfData": "file",
-            "delimiter": sep,
-            "columnsOrdered": "true",
-            "areColumnsQuoted": "false",
-        },
+        "Parameters": parameters,
         "StorageDescriptor": {
             "Columns": [{"Name": cname, "Type": dtype} for cname, dtype in columns_types.items()],
             "Location": path,

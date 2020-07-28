@@ -319,3 +319,29 @@ def test_athena_csv_types(path, glue_database, glue_table):
     ensure_data_types_csv(df2)
     wr.s3.delete_objects(path=paths)
     assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table) is True
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("ctas_approach", [True, False])
+def test_skip_header(path, glue_database, glue_table, use_threads, ctas_approach):
+    df = pd.DataFrame({"c0": [1, 2], "c1": [3.3, 4.4], "c2": ["foo", "boo"]})
+    df["c0"] = df["c0"].astype("Int64")
+    df["c2"] = df["c2"].astype("string")
+    paths = wr.s3.to_csv(
+        df=df,
+        path=f"{path}0.csv",
+        sep=",",
+        index=False,
+        header=True,
+        use_threads=use_threads
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    wr.catalog.create_csv_table(
+        database=glue_database,
+        table=glue_table,
+        path=path,
+        columns_types={"c0": "bigint", "c1": "double", "c2": "string"},
+        skip_header_line_count=1
+    )
+    df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads, ctas_approach=ctas_approach)
+    assert df.equals(df2)
