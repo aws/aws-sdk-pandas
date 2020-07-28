@@ -1,8 +1,8 @@
 """Amazon S3 List Module (PRIVATE)."""
 
 import datetime
-import logging
 import fnmatch
+import logging
 from typing import Any, Dict, List, Optional
 
 import boto3  # type: ignore
@@ -61,9 +61,9 @@ def _list_objects(
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
-    wildcard_character: Optional[str] = '*',
+    wildcard_character: Optional[str] = "*",
 ) -> List[str]:
-    wildcard_prefix: Optional[str] = path.split(wildcard_character)[0]
+    wildcard_prefix: str = path.split(wildcard_character)[0]
     bucket: str
     prefix: str
     bucket, prefix = _utils.parse_path(path=wildcard_prefix)
