@@ -77,7 +77,6 @@ def _list_objects(
 
     _validate_datetimes(last_modified_begin=last_modified_begin, last_modified_end=last_modified_end)
 
-
     for page in response_iterator:  # pylint: disable=too-many-nested-blocks
         if delimiter is None:
             contents: Optional[List] = wildcard_prefix.get("Contents")
