@@ -61,7 +61,7 @@ def _list_objects(
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
-    wildcard_character: Optional[str] = "*",
+    wildcard_character: str = "*",
 ) -> List[str]:
     wildcard_prefix: str = path.split(wildcard_character)[0]
     bucket: str
