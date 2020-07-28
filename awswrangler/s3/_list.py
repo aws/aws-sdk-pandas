@@ -63,7 +63,7 @@ def _list_objects(
     boto3_session: Optional[boto3.Session] = None,
     wildcard: Optional[str] = '*',
 ) -> List[str]:
-    wildcard_prefix: Optional[List] = path.split(wildcard)[0]
+    wildcard_prefix: Optional[str] = path.split(wildcard)[0]
     bucket: str
     prefix: str
     bucket, prefix = _utils.parse_path(path=wildcard_prefix)
