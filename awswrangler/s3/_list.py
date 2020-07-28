@@ -61,9 +61,9 @@ def _list_objects(
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
-    wildcard: Optional[str] = '*',
+    wildcard_character: Optional[str] = '*',
 ) -> List[str]:
-    wildcard_prefix: Optional[str] = path.split(wildcard)[0]
+    wildcard_prefix: Optional[str] = path.split(wildcard_character)[0]
     bucket: str
     prefix: str
     bucket, prefix = _utils.parse_path(path=wildcard_prefix)
@@ -100,9 +100,11 @@ def _list_objects(
                         key = pfx["Prefix"]
                         paths.append(f"s3://{bucket}/{key}")
 
-    fnmatch_path = path + "*"
-    filtered_paths = fnmatch.filter(paths, fnmatch_path)
-    return filtered_paths
+    if wildcard_character in path:
+        filtered_paths = fnmatch.filter(paths, path)
+        return filtered_paths
+
+    return paths
 
 
 def does_object_exist(path: str, boto3_session: Optional[boto3.Session] = None) -> bool:
