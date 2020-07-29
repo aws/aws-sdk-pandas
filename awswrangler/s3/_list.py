@@ -2,7 +2,7 @@
 
 import datetime
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 import boto3  # type: ignore
 import botocore.exceptions  # type: ignore
@@ -13,7 +13,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _path2list(
-    path: object,
+    path: Union[str, Sequence[str]],
     boto3_session: boto3.Session,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
@@ -21,8 +21,8 @@ def _path2list(
     ignore_suffix: Union[str, List[str], None] = None,
 ) -> List[str]:
     """Convert Amazon S3 path to list of objects."""
-    _suffix: Union[List[str], None] = [suffix] if isinstance(suffix, str) else suffix
-    _ignore_suffix: Union[List[str], None] = [ignore_suffix] if isinstance(ignore_suffix, str) else ignore_suffix
+    _suffix: Optional[List[str]] = [suffix] if isinstance(suffix, str) else suffix
+    _ignore_suffix: Optional[List[str]] = [ignore_suffix] if isinstance(ignore_suffix, str) else ignore_suffix
     if isinstance(path, str):  # prefix
         paths: List[str] = list_objects(
             path=path,

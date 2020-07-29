@@ -2,6 +2,7 @@
 
 import json
 import logging
+import uuid
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 from urllib.parse import quote_plus as _quote_plus
 
@@ -754,7 +755,7 @@ def _rs_create_table(
     else:
         if _rs_does_table_exist(con=con, schema=schema, table=table) is True:
             if mode == "upsert":
-                guid: str = pa.compat.guid()
+                guid: str = uuid.uuid4().hex
                 temp_table: str = f"temp_redshift_{guid}"
                 sql: str = f"CREATE TEMPORARY TABLE {temp_table} (LIKE {schema}.{table})"
                 _logger.debug(sql)

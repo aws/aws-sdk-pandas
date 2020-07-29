@@ -257,12 +257,12 @@ def list_sampling(lst: List[Any], sampling: float) -> List[Any]:
 
 def ensure_df_is_mutable(df: pd.DataFrame) -> pd.DataFrame:
     """Ensure that all columns has the writeable flag True."""
-    columns: List[str] = df.columns.to_list()
-    for column in columns:
+    for column in df.columns.to_list():
         if hasattr(df[column].values, "flags") is True:
             if df[column].values.flags.writeable is False:
-                df = df.copy(deep=True)
-                break
+                s: pd.Series = df[column]
+                df[column] = None
+                df[column] = s
     return df
 
 

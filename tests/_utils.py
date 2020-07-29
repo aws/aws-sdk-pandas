@@ -9,7 +9,6 @@ import pandas as pd
 
 import awswrangler as wr
 from awswrangler._utils import try_it
-from awswrangler.athena._utils import _QueryMetadata
 
 ts = lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S.%f")  # noqa
 dt = lambda x: datetime.strptime(x, "%Y-%m-%d").date()  # noqa
@@ -492,20 +491,20 @@ def ensure_data_types_csv(df):
 
 def ensure_athena_query_metadata(df, ctas_approach=True, encrypted=False):
     assert df.query_metadata is not None
-    assert isinstance(df.query_metadata, _QueryMetadata)
-    assert df.query_metadata.execution_id is not None
-    assert df.query_metadata.query is not None
-    assert df.query_metadata.statement_type is not None
+    assert isinstance(df.query_metadata, dict)
+    assert df.query_metadata["QueryExecutionId"] is not None
+    assert df.query_metadata["Query"] is not None
+    assert df.query_metadata["StatementType"] is not None
     if encrypted:
-        assert df.query_metadata.encryption_configuration
-    assert df.query_metadata.query_execution_context is not None
-    assert df.query_metadata.athena_submission_datetime is not None
-    assert df.query_metadata.athena_completion_datetime is not None
-    assert df.query_metadata.athena_statistics is not None
-    assert df.query_metadata.workgroup is not None
-    assert df.query_metadata.output_location is not None
+        assert df.query_metadata["ResultConfiguration"]["EncryptionConfiguration"]
+    assert df.query_metadata["QueryExecutionContext"] is not None
+    assert df.query_metadata["Status"]["SubmissionDateTime"] is not None
+    assert df.query_metadata["Status"]["CompletionDateTime"] is not None
+    assert df.query_metadata["Statistics"] is not None
+    assert df.query_metadata["WorkGroup"] is not None
+    assert df.query_metadata["ResultConfiguration"]["OutputLocation"] is not None
     if ctas_approach:
-        assert df.query_metadata.manifest_location is not None
+        assert df.query_metadata["Statistics"]["DataManifestLocation"] is not None
 
 
 def get_time_str_with_random_suffix():

@@ -3,9 +3,9 @@ import csv
 import logging
 import pprint
 import time
-from datetime import datetime
+import warnings
 from decimal import Decimal
-from typing import Any, Dict, Iterator, List, NamedTuple, Optional, Union
+from typing import Any, Dict, List, NamedTuple, Optional, Union
 
 import boto3  # type: ignore
 import pandas as pd  # type: ignore
@@ -21,14 +21,6 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 class _QueryMetadata(NamedTuple):
     execution_id: str
-    query: str
-    statement_type: str
-    encryption_configuration: Optional[Dict[str, str]]
-    query_execution_context: Optional[Dict[str, str]]
-    athena_submission_datetime: datetime
-    athena_completion_datetime: datetime
-    athena_statistics: Dict[str, Union[int, str]]
-    workgroup: str
     dtype: Dict[str, str]
     parse_timestamps: List[str]
     parse_dates: List[str]
@@ -36,6 +28,7 @@ class _QueryMetadata(NamedTuple):
     binaries: List[str]
     output_location: Optional[str]
     manifest_location: Optional[str]
+    raw_payload: Dict[str, Any]
 
 
 class _WorkGroupConfig(NamedTuple):
@@ -117,9 +110,7 @@ def _get_workgroup_config(session: boto3.Session, workgroup: Optional[str] = Non
     return wg_config
 
 
-def _fetch_txt_result(
-    query_metadata: _QueryMetadata, keep_files: bool, boto3_session: boto3.Session,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+def _fetch_txt_result(query_metadata: _QueryMetadata, keep_files: bool, boto3_session: boto3.Session,) -> pd.DataFrame:
     if query_metadata.output_location is None or query_metadata.output_location.endswith(".txt") is False:
         return pd.DataFrame()
     path: str = query_metadata.output_location
@@ -214,38 +205,14 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
             dtype[col_name] = pandas_type
 
     output_location: Optional[str] = None
-    encryption_configuration: Optional[Dict[str, str]] = {}
     if "ResultConfiguration" in _query_execution_payload:
-        if "OutputLocation" in _query_execution_payload["ResultConfiguration"]:
-            output_location = _query_execution_payload["ResultConfiguration"]["OutputLocation"]
-        if "EncryptionConfiguration" in _query_execution_payload["ResultConfiguration"]:
-            encryption_configuration = _query_execution_payload["ResultConfiguration"]["EncryptionConfiguration"]
+        output_location = _query_execution_payload["ResultConfiguration"].get("OutputLocation")
 
-    manifest_location: Optional[str] = None
-    athena_statistics: Dict[str, Union[int, str]] = {}
-    if "Statistics" in _query_execution_payload:
-        athena_statistics = _query_execution_payload["Statistics"]
-        if "DataManifestLocation" in _query_execution_payload["Statistics"]:
-            manifest_location = _query_execution_payload["Statistics"]["DataManifestLocation"]
-            del athena_statistics["DataManifestLocation"]
-
-    athena_submission_datetime: datetime = _query_execution_payload["Status"].get("SubmissionDateTime")
-    athena_completion_datetime: datetime = _query_execution_payload["Status"].get("CompletionDateTime")
-    query_execution_context: Optional[Dict[str, str]] = _query_execution_payload.get("QueryExecutionContext")
-    query: str = _query_execution_payload["Query"]
-    statement_type: str = _query_execution_payload["StatementType"]
-    workgroup: str = _query_execution_payload["WorkGroup"]
+    athena_statistics: Dict[str, Union[int, str]] = _query_execution_payload.get("Statistics", {})
+    manifest_location: Optional[str] = str(athena_statistics.get("DataManifestLocation"))
 
     query_metadata: _QueryMetadata = _QueryMetadata(
         execution_id=query_execution_id,
-        query=query,
-        statement_type=statement_type,
-        encryption_configuration=encryption_configuration,
-        query_execution_context=query_execution_context,
-        athena_submission_datetime=athena_submission_datetime,
-        athena_completion_datetime=athena_completion_datetime,
-        athena_statistics=athena_statistics,
-        workgroup=workgroup,
         dtype=dtype,
         parse_timestamps=parse_timestamps,
         parse_dates=parse_dates,
@@ -253,6 +220,7 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
         binaries=binaries,
         output_location=output_location,
         manifest_location=manifest_location,
+        raw_payload=_query_execution_payload,
     )
     _logger.debug("query_metadata:\n%s", query_metadata)
     return query_metadata
@@ -262,9 +230,16 @@ def _empty_dataframe_response(chunked: bool, query_metadata: _QueryMetadata):
     """Generate an empty dataframe response."""
     if chunked is False:
         df = pd.DataFrame()
-        df.query_metadata = query_metadata
+        df = _apply_query_metadata(df=df, query_metadata=query_metadata)
         return df
     return _utils.empty_generator()
+
+
+def _apply_query_metadata(df: pd.DataFrame, query_metadata: _QueryMetadata) -> pd.DataFrame:
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=UserWarning)
+        df.query_metadata = query_metadata.raw_payload
+    return df
 
 
 def get_query_columns_types(query_execution_id: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, str]:
@@ -466,6 +441,7 @@ def describe_table(
     """Show the list of columns, including partition columns: 'DESCRIBE table;'.
 
     Shows the list of columns, including partition columns, for the named column.
+    The result of this function will be equal to `wr.catalog.table`.
 
     Note
     ----
@@ -516,6 +492,71 @@ def describe_table(
     query_metadata: _QueryMetadata = _get_query_metadata(query_execution_id=query_id, boto3_session=session)
     raw_result = _fetch_txt_result(query_metadata=query_metadata, keep_files=True, boto3_session=session,)
     return _parse_describe_table(raw_result)
+
+
+@apply_configs
+def show_create_table(
+    table: str,
+    database: Optional[str] = None,
+    s3_output: Optional[str] = None,
+    workgroup: Optional[str] = None,
+    encryption: Optional[str] = None,
+    kms_key: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> str:
+    """Generate the query that created it: 'SHOW CREATE TABLE table;'.
+
+    Analyzes an existing table named table_name to generate the query that created it.
+
+    Note
+    ----
+    Create the default Athena bucket if it doesn't exist and s3_output is None.
+    (E.g. s3://aws-athena-query-results-ACCOUNT-REGION/)
+
+    Parameters
+    ----------
+    table : str
+        Table name.
+    database : str, optional
+        AWS Glue/Athena database name.
+    s3_output : str, optional
+        AWS S3 path.
+    workgroup : str, optional
+        Athena workgroup.
+    encryption : str, optional
+        None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
+    kms_key : str, optional
+        For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    str
+        The query that created the table.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> df_table = wr.athena.show_create_table(table='my_table', database='default')
+
+    """
+    query = f"SHOW CREATE TABLE `{table}`;"
+    if (database is not None) and (not database.startswith("`")):
+        database = f"`{database}`"
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    query_id = start_query_execution(
+        sql=query,
+        database=database,
+        s3_output=s3_output,
+        workgroup=workgroup,
+        encryption=encryption,
+        kms_key=kms_key,
+        boto3_session=session,
+    )
+    query_metadata: _QueryMetadata = _get_query_metadata(query_execution_id=query_id, boto3_session=session)
+    raw_result = _fetch_txt_result(query_metadata=query_metadata, keep_files=True, boto3_session=session,)
+    return raw_result.createtab_stmt.str.strip().str.cat(sep=" ")
 
 
 def get_work_group(workgroup: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, Any]:

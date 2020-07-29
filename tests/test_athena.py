@@ -148,6 +148,29 @@ def test_athena(path, glue_database, glue_table, kms_key, workgroup0, workgroup1
         wr.catalog.table(database=glue_database, table=table).to_dict()
         == wr.athena.describe_table(database=glue_database, table=table).to_dict()
     )
+    query = wr.athena.show_create_table(database=glue_database, table=table)
+    assert (
+        query.split("LOCATION")[0] == f"CREATE EXTERNAL TABLE `{table}`"
+        f"( `iint8` tinyint,"
+        f" `iint16` smallint,"
+        f" `iint32` int,"
+        f" `iint64` bigint,"
+        f" `float` float,"
+        f" `double` double,"
+        f" `decimal` decimal(3,2),"
+        f" `string_object` string,"
+        f" `string` string,"
+        f" `date` date,"
+        f" `timestamp` timestamp,"
+        f" `bool` boolean,"
+        f" `binary` binary,"
+        f" `category` double,"
+        f" `__index_level_0__` bigint) "
+        f"PARTITIONED BY ( `par0` bigint, `par1` string) "
+        f"ROW FORMAT SERDE 'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' "
+        f"STORED AS INPUTFORMAT 'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat' "
+        f"OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat' "
+    )
     wr.catalog.delete_table_if_exists(database=glue_database, table=table)
 
 
