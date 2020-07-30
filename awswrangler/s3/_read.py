@@ -263,7 +263,7 @@ def _read_parquet(
             columns=columns,
             use_threads=use_threads,
             partitions=data.partitions,
-            use_pandas_metadata=use_pandas_metadata
+            use_pandas_metadata=use_pandas_metadata,
         )
         _logger.debug("Appending piece in the list...")
         tables.append(table)
@@ -277,7 +277,7 @@ def _read_parquet(
         self_destruct=True,
         integer_object_nulls=False,
         date_as_object=True,
-        ignore_metadata=True,
+        ignore_metadata=not use_pandas_metadata,
         categories=categories,
         safe=safe,
         types_mapper=_data_types.pyarrow2pandas_extension,
@@ -300,7 +300,7 @@ def _read_parquet_chunked(
                 columns=columns,
                 use_threads=use_threads,
                 partitions=data.partitions,
-                use_pandas_metadata=use_pandas_metadata
+                use_pandas_metadata=use_pandas_metadata,
             ),
             categories=categories,
             safe=safe,
@@ -810,7 +810,7 @@ def read_parquet(
         safe=safe,
         use_pandas_metadata=use_pandas_metadata,
         chunked=chunked,
-        use_threads=use_threads
+        use_threads=use_threads,
     )
 
 
