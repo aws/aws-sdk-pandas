@@ -127,7 +127,7 @@ def _fetch_txt_result(query_metadata: _QueryMetadata, keep_files: bool, boto3_se
         na_values=[],
         use_threads=False,
         boto3_session=boto3_session,
-        names=query_metadata.dtype.keys(),
+        names=list(query_metadata.dtype.keys()),
         sep="\t",
     )
     if keep_files is False:
