@@ -254,12 +254,13 @@ def _read_parquet(
     safe: bool = True,
     use_threads: bool = True,
     validate_schema: bool = True,
+    use_pandas_metadata: bool = False,
 ) -> pd.DataFrame:
     tables: List[pa.Table] = []
     _logger.debug("Reading pieces...")
     for piece in data.pieces:
         table: pa.Table = piece.read(
-            columns=columns, use_threads=use_threads, partitions=data.partitions, use_pandas_metadata=False
+            columns=columns, use_threads=use_threads, partitions=data.partitions, use_pandas_metadata=use_pandas_metadata
         )
         _logger.debug("Appending piece in the list...")
         tables.append(table)
@@ -287,12 +288,13 @@ def _read_parquet_chunked(
     safe: bool = True,
     chunked: Union[bool, int] = True,
     use_threads: bool = True,
+    use_pandas_metadata: bool = False,
 ) -> Iterator[pd.DataFrame]:
     next_slice: Optional[pd.DataFrame] = None
     for piece in data.pieces:
         df: pd.DataFrame = _table2df(
             table=piece.read(
-                columns=columns, use_threads=use_threads, partitions=data.partitions, use_pandas_metadata=False
+                columns=columns, use_threads=use_threads, partitions=data.partitions, use_pandas_metadata=use_pandas_metadata
             ),
             categories=categories,
             safe=safe,
@@ -652,6 +654,7 @@ def read_parquet(
     dataset: bool = False,
     categories: List[str] = None,
     safe: bool = True,
+    use_pandas_metadata: bool = False,
     use_threads: bool = True,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
@@ -792,9 +795,10 @@ def read_parquet(
             safe=safe,
             use_threads=use_threads,
             validate_schema=validate_schema,
+            use_pandas_metadata=use_pandas_metadata,
         )
     return _read_parquet_chunked(
-        data=data, columns=columns, categories=categories, safe=safe, chunked=chunked, use_threads=use_threads
+        data=data, columns=columns, categories=categories, safe=safe, use_pandas_metadata=use_pandas_metadata, chunked=chunked, use_threads=use_threads
     )
 
 
