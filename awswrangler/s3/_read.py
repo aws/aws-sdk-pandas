@@ -260,7 +260,10 @@ def _read_parquet(
     _logger.debug("Reading pieces...")
     for piece in data.pieces:
         table: pa.Table = piece.read(
-            columns=columns, use_threads=use_threads, partitions=data.partitions, use_pandas_metadata=use_pandas_metadata
+            columns=columns,
+            use_threads=use_threads,
+            partitions=data.partitions,
+            use_pandas_metadata=use_pandas_metadata
         )
         _logger.debug("Appending piece in the list...")
         tables.append(table)
@@ -294,7 +297,10 @@ def _read_parquet_chunked(
     for piece in data.pieces:
         df: pd.DataFrame = _table2df(
             table=piece.read(
-                columns=columns, use_threads=use_threads, partitions=data.partitions, use_pandas_metadata=use_pandas_metadata
+                columns=columns,
+                use_threads=use_threads,
+                partitions=data.partitions,
+                use_pandas_metadata=use_pandas_metadata
             ),
             categories=categories,
             safe=safe,
@@ -798,7 +804,13 @@ def read_parquet(
             use_pandas_metadata=use_pandas_metadata,
         )
     return _read_parquet_chunked(
-        data=data, columns=columns, categories=categories, safe=safe, use_pandas_metadata=use_pandas_metadata, chunked=chunked, use_threads=use_threads
+        data=data,
+        columns=columns,
+        categories=categories,
+        safe=safe,
+        use_pandas_metadata=use_pandas_metadata,
+        chunked=chunked,
+        use_threads=use_threads
     )
 
 
