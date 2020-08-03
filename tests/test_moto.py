@@ -316,7 +316,7 @@ def test_parquet_with_size(moto_s3):
     df = get_df_list()
     for i in range(20):
         df = pd.concat([df, get_df_list()])
-    wr.s3.to_parquet(df=df, path=path, index=False, dataset=False, max_file_size=1*2**10)
+    wr.s3.to_parquet(df=df, path=path, index=False, dataset=False, max_file_size=1 * 2 ** 10)
     df = wr.s3.read_parquet(path="s3://bucket/", dataset=False)
     ensure_data_types(df, has_list=True)
     assert df.shape == (63, 19)
