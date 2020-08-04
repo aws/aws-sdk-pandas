@@ -765,3 +765,8 @@ def test_parse_describe_table():
     parsed_df = wr.athena._utils._parse_describe_table(df)
     assert parsed_df["Partition"].to_list() == [False, False, False, True, True]
     assert parsed_df["Column Name"].to_list() == ["iint8", "iint16", "iint32", "par0", "par1"]
+
+
+def test_describe_table(path, glue_database, glue_table):
+    wr.catalog.create_parquet_table(database=glue_database, table=glue_table, path=path, columns_types={"c0": "int"})
+    assert wr.athena.describe_table(database=glue_database, table=glue_table).shape == (1, 4)

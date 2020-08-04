@@ -1,7 +1,7 @@
 from datetime import datetime
 
-import boto3
-import pytest
+import boto3  # type: ignore
+import pytest  # type: ignore
 
 import awswrangler as wr
 
@@ -199,7 +199,10 @@ def path3(bucket):
 
 
 @pytest.fixture(scope="function")
-def redshift_table():
+def redshift_table(databases_parameters):
     name = f"tbl_{get_time_str_with_random_suffix()}"
     print(f"Table name: {name}")
     yield name
+    engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
+    with engine.connect() as con:
+        con.execute(f"DROP TABLE IF EXISTS public.{name}")

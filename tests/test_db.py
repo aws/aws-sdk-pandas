@@ -11,7 +11,7 @@ import sqlalchemy
 
 import awswrangler as wr
 
-from ._utils import ensure_data_types, ensure_data_types_category, get_df, get_df_category
+from ._utils import dt, ensure_data_types, ensure_data_types_category, get_df, get_df_category, ts
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
@@ -641,3 +641,51 @@ def test_redshift_copy_unload_kms(
         s3_additional_kwargs=s3_additional_kwargs,
     )
     assert df.shape == df2.shape
+
+
+@pytest.mark.parametrize("parquet_infer_sampling", [1.0, 0.00000000000001])
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_redshift_copy_extras(path, redshift_table, databases_parameters, use_threads, parquet_infer_sampling):
+    df = pd.DataFrame(
+        {
+            "int16": [1, None, 2],
+            "int32": [1, None, 2],
+            "int64": [1, None, 2],
+            "float": [0.0, None, 1.1],
+            "double": [0.0, None, 1.1],
+            "decimal": [Decimal((0, (1, 9, 9), -2)), None, Decimal((0, (1, 9, 0), -2))],
+            "string": ["foo", None, "boo"],
+            "date": [dt("2020-01-01"), None, dt("2020-01-02")],
+            "timestamp": [ts("2020-01-01 00:00:00.0"), None, ts("2020-01-02 00:00:01.0")],
+            "bool": [True, None, False],
+        }
+    )
+    df["int16"] = df["int16"].astype("Int16")
+    df["int32"] = df["int32"].astype("Int32")
+    df["int64"] = df["int64"].astype("Int64")
+    df["float"] = df["float"].astype("float32")
+    df["string"] = df["string"].astype("string")
+    paths = []
+    num = 3
+    for i in range(num):
+        p = f"{path}data/{i}.parquet"
+        wr.s3.to_parquet(df, p, use_threads=use_threads)
+        paths.append(p)
+    engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
+    wr.db.copy_files_to_redshift(
+        path=paths,
+        con=engine,
+        schema="public",
+        table=redshift_table,
+        mode="overwrite",
+        iam_role=databases_parameters["redshift"]["role"],
+        manifest_directory=f"{path}manifest/",
+        use_threads=use_threads,
+        parquet_infer_sampling=parquet_infer_sampling,
+    )
+    df2 = wr.db.read_sql_table(schema="public", table=redshift_table, con=engine)
+    assert len(df.columns) == len(df2.columns)
+    assert len(df.index) * num == len(df2.index)
+    assert df.int16.sum() * num == df2.int16.sum()
+    assert df.int32.sum() * num == df2.int32.sum()
+    assert df.int64.sum() * num == df2.int64.sum()

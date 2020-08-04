@@ -111,7 +111,7 @@ def athena2redshift(  # pylint: disable=too-many-branches,too-many-return-statem
         return "DATE"
     if dtype.startswith("decimal"):
         return dtype.upper()
-    raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")
+    raise exceptions.UnsupportedType(f"Unsupported Redshift type: {dtype}")
 
 
 def athena2quicksight(dtype: str) -> str:  # pylint: disable=too-many-branches,too-many-return-statements

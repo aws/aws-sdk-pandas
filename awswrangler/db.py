@@ -588,6 +588,7 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
     table: str,
     schema: str,
     iam_role: str,
+    parquet_infer_sampling: float = 1.0,
     mode: str = "append",
     diststyle: str = "AUTO",
     distkey: Optional[str] = None,
@@ -631,6 +632,11 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
         Schema name
     iam_role : str
         AWS IAM role with the related permissions.
+    parquet_infer_sampling : float
+        Random sample ratio of files that will have the metadata inspected.
+        Must be `0.0 < sampling <= 1.0`.
+        The higher, the more accurate.
+        The lower, the faster.
     mode : str
         Append, overwrite or upsert.
     diststyle : str
@@ -688,7 +694,7 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
     )
     s3.wait_objects_exist(paths=paths + [manifest_path], use_threads=False, boto3_session=session)
     athena_types, _ = s3.read_parquet_metadata(
-        path=paths, dataset=False, use_threads=use_threads, boto3_session=session
+        path=paths, sampling=parquet_infer_sampling, dataset=False, use_threads=use_threads, boto3_session=session
     )
     _logger.debug("athena_types: %s", athena_types)
     redshift_types: Dict[str, str] = {}
@@ -765,7 +771,7 @@ def _rs_create_table(
     diststyle = diststyle.upper() if diststyle else "AUTO"
     sortstyle = sortstyle.upper() if sortstyle else "COMPOUND"
     _rs_validate_parameters(
-        redshift_types=redshift_types, diststyle=diststyle, distkey=distkey, sortstyle=sortstyle, sortkey=sortkey
+        redshift_types=redshift_types, diststyle=diststyle, distkey=distkey, sortstyle=sortstyle, sortkey=sortkey,
     )
     cols_str: str = "".join([f"{k} {v},\n" for k, v in redshift_types.items()])[:-2]
     primary_keys_str: str = f",\nPRIMARY KEY ({', '.join(primary_keys)})" if primary_keys else ""
@@ -785,7 +791,11 @@ def _rs_create_table(
 
 
 def _rs_validate_parameters(
-    redshift_types: Dict[str, str], diststyle: str, distkey: Optional[str], sortstyle: str, sortkey: Optional[List[str]]
+    redshift_types: Dict[str, str],
+    diststyle: str,
+    distkey: Optional[str],
+    sortstyle: str,
+    sortkey: Optional[List[str]],
 ) -> None:
     if diststyle not in _RS_DISTSTYLES:
         raise exceptions.InvalidRedshiftDiststyle(f"diststyle must be in {_RS_DISTSTYLES}")
@@ -810,20 +820,18 @@ def _rs_validate_parameters(
 
 
 def _rs_copy(
-    con: Any, table: str, manifest_path: str, iam_role: str, num_files: int, schema: Optional[str] = None
+    con: Any, table: str, manifest_path: str, iam_role: str, num_files: int, schema: Optional[str] = None,
 ) -> int:
     if schema is None:
         table_name: str = table
     else:
         table_name = f"{schema}.{table}"
-    sql: str = (
-        f"COPY {table_name} FROM '{manifest_path}'\n" f"IAM_ROLE '{iam_role}'\n" "MANIFEST\n" "FORMAT AS PARQUET"
-    )
+    sql: str = (f"COPY {table_name} FROM '{manifest_path}'\nIAM_ROLE '{iam_role}'\nFORMAT AS PARQUET\nMANIFEST")
     _logger.debug("copy query:\n%s", sql)
     con.execute(sql)
     sql = "SELECT pg_last_copy_id() AS query_id"
     query_id: int = con.execute(sql).fetchall()[0][0]
-    sql = f"SELECT COUNT(DISTINCT filename) as num_files_loaded " f"FROM STL_LOAD_COMMITS WHERE query = {query_id}"
+    sql = f"SELECT COUNT(DISTINCT filename) as num_files_loaded FROM STL_LOAD_COMMITS WHERE query = {query_id}"
     num_files_loaded: int = con.execute(sql).fetchall()[0][0]
     _logger.debug("%s files counted. %s expected.", num_files_loaded, num_files)
     if num_files_loaded != num_files:
