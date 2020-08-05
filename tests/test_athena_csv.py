@@ -307,9 +307,11 @@ def test_athena_csv_types(path, glue_database, glue_table):
         partitions_types=partitions_types,
         columns_types=columns_types,
     )
-    wr.catalog.create_csv_table(
-        database=glue_database, table=glue_table, path=path, columns_types={"col0": "string"}, mode="append"
-    )
+    columns_types["col0"] = "string"
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.catalog.create_csv_table(
+            database=glue_database, table=glue_table, path=path, columns_types=columns_types, mode="append"
+        )
     wr.athena.repair_table(glue_table, glue_database)
     assert len(wr.catalog.get_csv_partitions(glue_database, glue_table)) == 3
     df2 = wr.athena.read_sql_table(glue_table, glue_database)

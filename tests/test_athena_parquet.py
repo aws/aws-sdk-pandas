@@ -432,3 +432,12 @@ def test_read_parquet_mutability(path, glue_table, glue_database, use_threads):
     df = wr.athena.read_sql_query(sql, "default", use_threads=use_threads)
     df["c0"] = df["c0"] + pd.DateOffset(months=-2)
     assert df.c0[0].value == 1339117200000000000
+
+
+def test_glue_number_of_versions_created(path, glue_table, glue_database):
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2]})
+    for _ in range(5):
+        wr.s3.to_parquet(
+            df, path, dataset=True, table=glue_table, database=glue_database,
+        )
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 1

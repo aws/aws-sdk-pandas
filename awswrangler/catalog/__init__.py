@@ -2,6 +2,8 @@
 
 from awswrangler.catalog._add import add_csv_partitions, add_parquet_partitions  # noqa
 from awswrangler.catalog._create import (  # noqa
+    _create_csv_table,
+    _create_parquet_table,
     create_csv_table,
     create_database,
     create_parquet_table,
@@ -10,6 +12,7 @@ from awswrangler.catalog._create import (  # noqa
 )
 from awswrangler.catalog._delete import delete_database, delete_table_if_exists  # noqa
 from awswrangler.catalog._get import (  # noqa
+    _get_table_input,
     databases,
     get_columns_comments,
     get_connection,
@@ -20,8 +23,10 @@ from awswrangler.catalog._get import (  # noqa
     get_partitions,
     get_table_description,
     get_table_location,
+    get_table_number_of_versions,
     get_table_parameters,
     get_table_types,
+    get_table_versions,
     get_tables,
     search_tables,
     table,

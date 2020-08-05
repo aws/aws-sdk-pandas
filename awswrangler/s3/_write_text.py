@@ -3,7 +3,7 @@
 import csv
 import logging
 import uuid
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import boto3  # type: ignore
 import pandas as pd  # type: ignore
@@ -79,6 +79,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
     projection_values: Optional[Dict[str, str]] = None,
     projection_intervals: Optional[Dict[str, str]] = None,
     projection_digits: Optional[Dict[str, str]] = None,
+    catalog_id: Optional[str] = None,
     **pandas_kwargs,
 ) -> Dict[str, Union[List[str], Dict[str, List[str]]]]:
     """Write CSV file or dataset on Amazon S3.
@@ -194,6 +195,9 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
         Dictionary of partitions names and Athena projections digits.
         https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
         (e.g. {'col_name': '1', 'col2_name': '2'})
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
     pandas_kwargs :
         keyword arguments forwarded to pandas.DataFrame.to_csv()
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_csv.html
@@ -328,7 +332,12 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
         df, dtype, partition_cols = _sanitize(df=df, dtype=dtype, partition_cols=partition_cols)
 
     # Evaluating dtype
-    df = _apply_dtype(df=df, mode=mode, database=database, table=table, dtype=dtype, boto3_session=session)
+    catalog_table_input: Optional[Dict[str, Any]] = None
+    if database is not None and table is not None:
+        catalog_table_input: Optional[Dict[str, Any]] = catalog._get_table_input(  # pylint: disable=protected-access
+            database=database, table=table, boto3_session=session, catalog_id=catalog_id
+        )
+    df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
 
     if dataset is False:
         pandas_kwargs["sep"] = sep
@@ -367,7 +376,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
             columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
                 df=df, index=index, partition_cols=partition_cols, dtype=dtype, index_left=True
             )
-            catalog.create_csv_table(
+            catalog._create_csv_table(  # pylint: disable=protected-access
                 database=database,
                 table=table,
                 path=path,
@@ -386,6 +395,10 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
                 projection_values=projection_values,
                 projection_intervals=projection_intervals,
                 projection_digits=projection_digits,
+                catalog_table_input=catalog_table_input,
+                catalog_id=catalog_id,
+                compression=None,
+                skip_header_line_count=None,
             )
             if partitions_values and (regular_partitions is True):
                 _logger.debug("partitions_values:\n%s", partitions_values)

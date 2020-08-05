@@ -1,7 +1,7 @@
 """AWS Glue Catalog Module."""
 
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 import boto3  # type: ignore
 
@@ -9,10 +9,19 @@ from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
 from awswrangler.catalog._definitions import _csv_table_definition, _parquet_table_definition
 from awswrangler.catalog._delete import delete_table_if_exists
-from awswrangler.catalog._get import _get_partitions, _get_table_input, get_table_parameters
-from awswrangler.catalog._utils import _catalog_id, does_table_exist, sanitize_column_name, sanitize_table_name
+from awswrangler.catalog._get import _get_partitions, _get_table_input
+from awswrangler.catalog._utils import _catalog_id, sanitize_column_name, sanitize_table_name
 
 _logger: logging.Logger = logging.getLogger(__name__)
+
+
+def _update_if_necessary(dic: Dict[str, str], key: str, value: Optional[str], mode: str) -> str:
+    if value is not None:
+        if key not in dic or dic[key] != value:
+            dic[key] = value
+            if mode in ("append", "overwrite_partitions"):
+                return "update"
+    return mode
 
 
 def _create_table(  # pylint: disable=too-many-branches,too-many-statements
@@ -26,52 +35,65 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
     table_input: Dict[str, Any],
     table_exist: bool,
     projection_enabled: bool,
-    partitions_types: Optional[Dict[str, str]] = None,
-    columns_comments: Optional[Dict[str, str]] = None,
-    projection_types: Optional[Dict[str, str]] = None,
-    projection_ranges: Optional[Dict[str, str]] = None,
-    projection_values: Optional[Dict[str, str]] = None,
-    projection_intervals: Optional[Dict[str, str]] = None,
-    projection_digits: Optional[Dict[str, str]] = None,
-    catalog_id: Optional[str] = None,
+    partitions_types: Optional[Dict[str, str]],
+    columns_comments: Optional[Dict[str, str]],
+    projection_types: Optional[Dict[str, str]],
+    projection_ranges: Optional[Dict[str, str]],
+    projection_values: Optional[Dict[str, str]],
+    projection_intervals: Optional[Dict[str, str]],
+    projection_digits: Optional[Dict[str, str]],
+    catalog_id: Optional[str],
 ):
     # Description
-    if description is not None:
-        table_input["Description"] = description
+    mode = _update_if_necessary(dic=table_input, key="Description", value=description, mode=mode)
 
-    # Parameters & Projection
+    # Parameters
     parameters = parameters if parameters else {}
-    partitions_types = partitions_types if partitions_types else {}
-    projection_types = projection_types if projection_types else {}
-    projection_ranges = projection_ranges if projection_ranges else {}
-    projection_values = projection_values if projection_values else {}
-    projection_intervals = projection_intervals if projection_intervals else {}
-    projection_digits = projection_digits if projection_digits else {}
-    projection_types = {sanitize_column_name(k): v for k, v in projection_types.items()}
-    projection_ranges = {sanitize_column_name(k): v for k, v in projection_ranges.items()}
-    projection_values = {sanitize_column_name(k): v for k, v in projection_values.items()}
-    projection_intervals = {sanitize_column_name(k): v for k, v in projection_intervals.items()}
-    projection_digits = {sanitize_column_name(k): v for k, v in projection_digits.items()}
-    for k, v in partitions_types.items():
-        if v == "date":
-            table_input["Parameters"][f"projection.{k}.format"] = "yyyy-MM-dd"
-        elif v == "timestamp":
-            table_input["Parameters"][f"projection.{k}.format"] = "yyyy-MM-dd HH:mm:ss"
-            table_input["Parameters"][f"projection.{k}.interval.unit"] = "SECONDS"
-            table_input["Parameters"][f"projection.{k}.interval"] = "1"
-    for k, v in projection_types.items():
-        table_input["Parameters"][f"projection.{k}.type"] = v
-    for k, v in projection_ranges.items():
-        table_input["Parameters"][f"projection.{k}.range"] = v
-    for k, v in projection_values.items():
-        table_input["Parameters"][f"projection.{k}.values"] = v
-    for k, v in projection_intervals.items():
-        table_input["Parameters"][f"projection.{k}.interval"] = str(v)
-    for k, v in projection_digits.items():
-        table_input["Parameters"][f"projection.{k}.digits"] = str(v)
-    parameters["projection.enabled"] = "true" if projection_enabled is True else "false"
     for k, v in parameters.items():
-        table_input["Parameters"][k] = v
+        mode = _update_if_necessary(dic=table_input["Parameters"], key=k, value=v, mode=mode)
+
+    # Projection
+    if projection_enabled is True:
+        table_input["Parameters"]["projection.enabled"] = "true"
+        partitions_types = partitions_types if partitions_types else {}
+        projection_types = projection_types if projection_types else {}
+        projection_ranges = projection_ranges if projection_ranges else {}
+        projection_values = projection_values if projection_values else {}
+        projection_intervals = projection_intervals if projection_intervals else {}
+        projection_digits = projection_digits if projection_digits else {}
+        projection_types = {sanitize_column_name(k): v for k, v in projection_types.items()}
+        projection_ranges = {sanitize_column_name(k): v for k, v in projection_ranges.items()}
+        projection_values = {sanitize_column_name(k): v for k, v in projection_values.items()}
+        projection_intervals = {sanitize_column_name(k): v for k, v in projection_intervals.items()}
+        projection_digits = {sanitize_column_name(k): v for k, v in projection_digits.items()}
+        for k, v in projection_types.items():
+            dtype: Optional[str] = partitions_types.get(k)
+            if dtype is None:
+                raise exceptions.InvalidArgumentCombination(
+                    f"Column {k} appears as projected column but not as partitioned column."
+                )
+            if dtype == "date":
+                table_input["Parameters"][f"projection.{k}.format"] = "yyyy-MM-dd"
+            elif dtype == "timestamp":
+                table_input["Parameters"][f"projection.{k}.format"] = "yyyy-MM-dd HH:mm:ss"
+                table_input["Parameters"][f"projection.{k}.interval.unit"] = "SECONDS"
+                table_input["Parameters"][f"projection.{k}.interval"] = "1"
+        for k, v in projection_types.items():
+            mode = _update_if_necessary(dic=table_input["Parameters"], key=f"projection.{k}.type", value=v, mode=mode)
+        for k, v in projection_ranges.items():
+            mode = _update_if_necessary(dic=table_input["Parameters"], key=f"projection.{k}.range", value=v, mode=mode)
+        for k, v in projection_values.items():
+            mode = _update_if_necessary(dic=table_input["Parameters"], key=f"projection.{k}.values", value=v, mode=mode)
+        for k, v in projection_intervals.items():
+            mode = _update_if_necessary(
+                dic=table_input["Parameters"], key=f"projection.{k}.interval", value=str(v), mode=mode
+            )
+        for k, v in projection_digits.items():
+            mode = _update_if_necessary(
+                dic=table_input["Parameters"], key=f"projection.{k}.digits", value=str(v), mode=mode
+            )
+    else:
+        table_input["Parameters"]["projection.enabled"] = "false"
 
     # Column comments
     columns_comments = columns_comments if columns_comments else {}
@@ -80,11 +102,11 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
         for col in table_input["StorageDescriptor"]["Columns"]:
             name: str = col["Name"]
             if name in columns_comments:
-                col["Comment"] = columns_comments[name]
+                mode = _update_if_necessary(dic=col, key="Comment", value=columns_comments[name], mode=mode)
         for par in table_input["PartitionKeys"]:
             name = par["Name"]
             if name in columns_comments:
-                par["Comment"] = columns_comments[name]
+                mode = _update_if_necessary(dic=par, key="Comment", value=columns_comments[name], mode=mode)
 
     _logger.debug("table_input: %s", table_input)
 
@@ -95,7 +117,7 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
         raise exceptions.InvalidArgument(
             f"{mode} is not a valid mode. It must be 'overwrite', 'append' or 'overwrite_partitions'."
         )
-    if (table_exist is True) and (mode == "overwrite"):
+    if table_exist is True and mode == "overwrite":
         _logger.debug("Fetching existing partitions...")
         partitions_values: List[List[str]] = list(
             _get_partitions(database=database, table=table, boto3_session=session, catalog_id=catalog_id).values()
@@ -117,10 +139,6 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
             )
         )
     elif (table_exist is True) and (mode in ("append", "overwrite_partitions", "update")):
-        if parameters is not None:
-            upsert_table_parameters(
-                parameters=parameters, database=database, table=table, boto3_session=session, catalog_id=catalog_id
-            )
         if mode == "update":
             client_glue.update_table(
                 **_catalog_id(
@@ -130,16 +148,295 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
     elif table_exist is False:
         try:
             client_glue.create_table(
-                **_catalog_id(catalog_id=catalog_id, DatabaseName=database, TableInput=table_input,)
+                **_catalog_id(catalog_id=catalog_id, DatabaseName=database, TableInput=table_input)
             )
         except client_glue.exceptions.AlreadyExistsException as ex:
             if mode == "overwrite":
                 delete_table_if_exists(database=database, table=table, boto3_session=session, catalog_id=catalog_id)
                 client_glue.create_table(
-                    **_catalog_id(catalog_id=catalog_id, DatabaseName=database, TableInput=table_input,)
+                    **_catalog_id(catalog_id=catalog_id, DatabaseName=database, TableInput=table_input)
                 )
             else:
                 raise ex
+
+
+def _upsert_table_parameters(
+    parameters: Dict[str, str],
+    database: str,
+    catalog_id: Optional[str],
+    table_input: Dict[str, Any],
+    boto3_session: Optional[boto3.Session],
+) -> Dict[str, str]:
+    pars: Dict[str, str] = table_input["Parameters"]
+    update: bool = False
+    for k, v in parameters.items():
+        if k not in pars or v != pars[k]:
+            pars[k] = v
+            update = True
+    if update is True:
+        _overwrite_table_parameters(
+            parameters=pars,
+            database=database,
+            catalog_id=catalog_id,
+            boto3_session=boto3_session,
+            table_input=table_input,
+        )
+    return pars
+
+
+def _overwrite_table_parameters(
+    parameters: Dict[str, str],
+    database: str,
+    catalog_id: Optional[str],
+    table_input: Dict[str, Any],
+    boto3_session: Optional[boto3.Session],
+) -> Dict[str, str]:
+    table_input["Parameters"] = parameters
+    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue.update_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, TableInput=table_input))
+    return parameters
+
+
+def _create_parquet_table(
+    database: str,
+    table: str,
+    path: str,
+    columns_types: Dict[str, str],
+    partitions_types: Optional[Dict[str, str]],
+    catalog_id: Optional[str],
+    compression: Optional[str],
+    description: Optional[str],
+    parameters: Optional[Dict[str, str]],
+    columns_comments: Optional[Dict[str, str]],
+    mode: str,
+    catalog_versioning: bool,
+    projection_enabled: bool,
+    projection_types: Optional[Dict[str, str]],
+    projection_ranges: Optional[Dict[str, str]],
+    projection_values: Optional[Dict[str, str]],
+    projection_intervals: Optional[Dict[str, str]],
+    projection_digits: Optional[Dict[str, str]],
+    boto3_session: Optional[boto3.Session],
+    catalog_table_input: Optional[Dict[str, Any]],
+) -> None:
+    table = sanitize_table_name(table=table)
+    partitions_types = {} if partitions_types is None else partitions_types
+    _logger.debug("catalog_table_input: %s", catalog_table_input)
+    table_input: Dict[str, Any]
+    if (catalog_table_input is not None) and (mode in ("append", "overwrite_partitions")):
+        table_input = catalog_table_input
+        updated: bool = False
+        catalog_cols: Dict[str, str] = {x["Name"]: x["Type"] for x in table_input["StorageDescriptor"]["Columns"]}
+        for c, t in columns_types.items():
+            if c not in catalog_cols:
+                _logger.debug("New column %s with type %s.", c, t)
+                table_input["StorageDescriptor"]["Columns"].append({"Name": c, "Type": t})
+                updated = True
+            elif t != catalog_cols[c]:  # Data type change detected!
+                raise exceptions.InvalidArgumentValue(
+                    f"Data type change detected on column {c}. Old type: {catalog_cols[c]}. New type {t}."
+                )
+        if updated is True:
+            mode = "update"
+    else:
+        table_input = _parquet_table_definition(
+            table=table,
+            path=path,
+            columns_types=columns_types,
+            partitions_types=partitions_types,
+            compression=compression,
+        )
+    table_exist: bool = catalog_table_input is not None
+    _logger.debug("table_exist: %s", table_exist)
+    _create_table(
+        database=database,
+        table=table,
+        description=description,
+        parameters=parameters,
+        columns_comments=columns_comments,
+        mode=mode,
+        catalog_versioning=catalog_versioning,
+        boto3_session=boto3_session,
+        table_input=table_input,
+        table_exist=table_exist,
+        partitions_types=partitions_types,
+        projection_enabled=projection_enabled,
+        projection_types=projection_types,
+        projection_ranges=projection_ranges,
+        projection_values=projection_values,
+        projection_intervals=projection_intervals,
+        projection_digits=projection_digits,
+        catalog_id=catalog_id,
+    )
+
+
+def _create_csv_table(
+    database: str,
+    table: str,
+    path: str,
+    columns_types: Dict[str, str],
+    partitions_types: Optional[Dict[str, str]],
+    description: Optional[str],
+    compression: Optional[str],
+    parameters: Optional[Dict[str, str]],
+    columns_comments: Optional[Dict[str, str]],
+    mode: str,
+    catalog_versioning: bool,
+    sep: str,
+    skip_header_line_count: Optional[int],
+    boto3_session: Optional[boto3.Session],
+    projection_enabled: bool,
+    projection_types: Optional[Dict[str, str]],
+    projection_ranges: Optional[Dict[str, str]],
+    projection_values: Optional[Dict[str, str]],
+    projection_intervals: Optional[Dict[str, str]],
+    projection_digits: Optional[Dict[str, str]],
+    catalog_table_input: Optional[Dict[str, Any]],
+    catalog_id: Optional[str],
+) -> None:
+    table = sanitize_table_name(table=table)
+    partitions_types = {} if partitions_types is None else partitions_types
+    _logger.debug("catalog_table_input: %s", catalog_table_input)
+    table_input: Dict[str, Any]
+    if (catalog_table_input is not None) and (mode in ("append", "overwrite_partitions")):
+        table_input = catalog_table_input
+        catalog_cols: Dict[str, str] = {x["Name"]: x["Type"] for x in table_input["StorageDescriptor"]["Columns"]}
+        for c, t in columns_types.items():
+            if c not in catalog_cols:
+                _logger.debug("New column %s with type %s.", c, t)
+                raise exceptions.InvalidArgumentValue(
+                    f"Schema change detected - New column {c}. Schema evolution is not supported for CSV tables."
+                )
+    else:
+        table_input = _csv_table_definition(
+            table=table,
+            path=path,
+            columns_types=columns_types,
+            partitions_types=partitions_types,
+            compression=compression,
+            sep=sep,
+            skip_header_line_count=skip_header_line_count,
+        )
+    table_exist: bool = catalog_table_input is not None
+    _logger.debug("table_exist: %s", table_exist)
+    _create_table(
+        database=database,
+        table=table,
+        description=description,
+        parameters=parameters,
+        columns_comments=columns_comments,
+        mode=mode,
+        catalog_versioning=catalog_versioning,
+        boto3_session=boto3_session,
+        table_input=table_input,
+        table_exist=table_exist,
+        partitions_types=partitions_types,
+        projection_enabled=projection_enabled,
+        projection_types=projection_types,
+        projection_ranges=projection_ranges,
+        projection_values=projection_values,
+        projection_intervals=projection_intervals,
+        projection_digits=projection_digits,
+        catalog_id=catalog_id,
+    )
+
+
+@apply_configs
+def upsert_table_parameters(
+    parameters: Dict[str, str],
+    database: str,
+    table: str,
+    catalog_id: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> Dict[str, str]:
+    """Insert or Update the received parameters.
+
+    Parameters
+    ----------
+    parameters : Dict[str, str]
+        e.g. {"source": "mysql", "destination":  "datalake"}
+    database : str
+        Database name.
+    table : str
+        Table name.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    Dict[str, str]
+       All parameters after the upsert.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> pars = wr.catalog.upsert_table_parameters(
+    ...     parameters={"source": "mysql", "destination":  "datalake"},
+    ...     database="...",
+    ...     table="...")
+
+    """
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    table_input: Optional[Dict[str, str]] = _get_table_input(
+        database=database, table=table, boto3_session=session, catalog_id=catalog_id
+    )
+    if table_input is None:
+        raise exceptions.InvalidArgumentValue(f"Table {database}.{table} does not exist.")
+    return _upsert_table_parameters(
+        parameters=parameters, database=database, boto3_session=session, catalog_id=catalog_id, table_input=table_input,
+    )
+
+
+@apply_configs
+def overwrite_table_parameters(
+    parameters: Dict[str, str],
+    database: str,
+    table: str,
+    catalog_id: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> Dict[str, str]:
+    """Overwrite all existing parameters.
+
+    Parameters
+    ----------
+    parameters : Dict[str, str]
+        e.g. {"source": "mysql", "destination":  "datalake"}
+    database : str
+        Database name.
+    table : str
+        Table name.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    Dict[str, str]
+       All parameters after the overwrite (The same received).
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> pars = wr.catalog.overwrite_table_parameters(
+    ...     parameters={"source": "mysql", "destination":  "datalake"},
+    ...     database="...",
+    ...     table="...")
+
+    """
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    table_input: Optional[Dict[str, Any]] = _get_table_input(
+        database=database, table=table, catalog_id=catalog_id, boto3_session=session
+    )
+    if table_input is None:
+        raise exceptions.InvalidTable(f"Table {table} does not exist on database {database}.")
+    return _overwrite_table_parameters(
+        parameters=parameters, database=database, catalog_id=catalog_id, table_input=table_input, boto3_session=session,
+    )
 
 
 @apply_configs
@@ -287,59 +584,31 @@ def create_parquet_table(
     ... )
 
     """
-    table = sanitize_table_name(table=table)
-    partitions_types = {} if partitions_types is None else partitions_types
-
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    cat_table_input: Optional[Dict[str, Any]] = _get_table_input(
+    catalog_table_input: Optional[Dict[str, Any]] = _get_table_input(
         database=database, table=table, boto3_session=session, catalog_id=catalog_id
     )
-    _logger.debug("cat_table_input: %s", cat_table_input)
-    table_input: Dict[str, Any]
-    if (cat_table_input is not None) and (mode in ("append", "overwrite_partitions")):
-        table_input = cat_table_input
-        updated: bool = False
-        cat_cols: Dict[str, str] = {x["Name"]: x["Type"] for x in table_input["StorageDescriptor"]["Columns"]}
-        for c, t in columns_types.items():
-            if c not in cat_cols:
-                _logger.debug("New column %s with type %s.", c, t)
-                table_input["StorageDescriptor"]["Columns"].append({"Name": c, "Type": t})
-                updated = True
-            elif t != cat_cols[c]:  # Data type change detected!
-                raise exceptions.InvalidArgumentValue(
-                    f"Data type change detected on column {c}. Old type: {cat_cols[c]}. New type {t}."
-                )
-        if updated is True:
-            mode = "update"
-    else:
-        table_input = _parquet_table_definition(
-            table=table,
-            path=path,
-            columns_types=columns_types,
-            partitions_types=partitions_types,
-            compression=compression,
-        )
-    table_exist: bool = cat_table_input is not None
-    _logger.debug("table_exist: %s", table_exist)
-    _create_table(
+    _create_parquet_table(
         database=database,
         table=table,
+        path=path,
+        columns_types=columns_types,
+        partitions_types=partitions_types,
+        catalog_id=catalog_id,
+        compression=compression,
         description=description,
         parameters=parameters,
         columns_comments=columns_comments,
         mode=mode,
         catalog_versioning=catalog_versioning,
-        boto3_session=session,
-        table_input=table_input,
-        table_exist=table_exist,
-        partitions_types=partitions_types,
         projection_enabled=projection_enabled,
         projection_types=projection_types,
         projection_ranges=projection_ranges,
         projection_values=projection_values,
         projection_intervals=projection_intervals,
         projection_digits=projection_digits,
-        catalog_id=catalog_id,
+        boto3_session=boto3_session,
+        catalog_table_input=catalog_table_input,
     )
 
 
@@ -365,6 +634,7 @@ def create_csv_table(
     projection_values: Optional[Dict[str, str]] = None,
     projection_intervals: Optional[Dict[str, str]] = None,
     projection_digits: Optional[Dict[str, str]] = None,
+    catalog_id: Optional[str] = None,
 ) -> None:
     """Create a CSV Table (Metadata Only) in the AWS Glue Catalog.
 
@@ -423,6 +693,9 @@ def create_csv_table(
         (e.g. {'col_name': '1', 'col2_name': '2'})
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
 
     Returns
     -------
@@ -445,139 +718,31 @@ def create_csv_table(
     ... )
 
     """
-    table = sanitize_table_name(table=table)
-    partitions_types = {} if partitions_types is None else partitions_types
-    table_input: Dict[str, Any] = _csv_table_definition(
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    catalog_table_input: Optional[Dict[str, Any]] = _get_table_input(
+        database=database, table=table, boto3_session=session, catalog_id=catalog_id
+    )
+    _create_csv_table(
+        database=database,
         table=table,
         path=path,
         columns_types=columns_types,
         partitions_types=partitions_types,
+        catalog_id=catalog_id,
         compression=compression,
-        sep=sep,
-        skip_header_line_count=skip_header_line_count,
-    )
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    _create_table(
-        database=database,
-        table=table,
         description=description,
         parameters=parameters,
         columns_comments=columns_comments,
         mode=mode,
         catalog_versioning=catalog_versioning,
-        boto3_session=session,
-        table_input=table_input,
-        table_exist=does_table_exist(database=database, table=table, boto3_session=session),
-        partitions_types=partitions_types,
         projection_enabled=projection_enabled,
         projection_types=projection_types,
         projection_ranges=projection_ranges,
         projection_values=projection_values,
         projection_intervals=projection_intervals,
         projection_digits=projection_digits,
+        boto3_session=boto3_session,
+        catalog_table_input=catalog_table_input,
+        sep=sep,
+        skip_header_line_count=skip_header_line_count,
     )
-
-
-@apply_configs
-def upsert_table_parameters(
-    parameters: Dict[str, str],
-    database: str,
-    table: str,
-    catalog_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, str]:
-    """Insert or Update the received parameters.
-
-    Parameters
-    ----------
-    parameters : Dict[str, str]
-        e.g. {"source": "mysql", "destination":  "datalake"}
-    database : str
-        Database name.
-    table : str
-        Table name.
-    catalog_id : str, optional
-        The ID of the Data Catalog from which to retrieve Databases.
-        If none is provided, the AWS account ID is used by default.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-
-    Returns
-    -------
-    Dict[str, str]
-       All parameters after the upsert.
-
-    Examples
-    --------
-    >>> import awswrangler as wr
-    >>> pars = wr.catalog.upsert_table_parameters(
-    ...     parameters={"source": "mysql", "destination":  "datalake"},
-    ...     database="...",
-    ...     table="...")
-
-    """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    pars: Dict[str, str] = get_table_parameters(
-        database=database, table=table, catalog_id=catalog_id, boto3_session=session
-    )
-    for k, v in parameters.items():
-        pars[k] = v
-    overwrite_table_parameters(
-        parameters=pars, database=database, table=table, catalog_id=catalog_id, boto3_session=session
-    )
-    return pars
-
-
-@apply_configs
-def overwrite_table_parameters(
-    parameters: Dict[str, str],
-    database: str,
-    table: str,
-    catalog_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, str]:
-    """Overwrite all existing parameters.
-
-    Parameters
-    ----------
-    parameters : Dict[str, str]
-        e.g. {"source": "mysql", "destination":  "datalake"}
-    database : str
-        Database name.
-    table : str
-        Table name.
-    catalog_id : str, optional
-        The ID of the Data Catalog from which to retrieve Databases.
-        If none is provided, the AWS account ID is used by default.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-
-    Returns
-    -------
-    Dict[str, str]
-       All parameters after the overwrite (The same received).
-
-    Examples
-    --------
-    >>> import awswrangler as wr
-    >>> pars = wr.catalog.overwrite_table_parameters(
-    ...     parameters={"source": "mysql", "destination":  "datalake"},
-    ...     database="...",
-    ...     table="...")
-
-    """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    table_input: Optional[Dict[str, Any]] = _get_table_input(
-        database=database, table=table, catalog_id=catalog_id, boto3_session=session
-    )
-    if table_input is None:
-        raise exceptions.InvalidTable(f"Table {table} does not exist on database {database}.")
-    table_input["Parameters"] = parameters
-    args2: Dict[str, Union[str, Dict[str, Any]]] = {}
-    if catalog_id is not None:
-        args2["CatalogId"] = catalog_id
-    args2["DatabaseName"] = database
-    args2["TableInput"] = table_input
-    client_glue: boto3.client = _utils.client(service_name="glue", session=session)
-    client_glue.update_table(**args2)
-    return parameters

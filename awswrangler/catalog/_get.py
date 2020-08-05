@@ -12,7 +12,7 @@ import sqlalchemy  # type: ignore
 
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
-from awswrangler.catalog._utils import _extract_dtypes_from_table_details
+from awswrangler.catalog._utils import _catalog_id, _extract_dtypes_from_table_details
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -21,16 +21,12 @@ def _get_table_input(
     database: str, table: str, boto3_session: Optional[boto3.Session], catalog_id: Optional[str] = None
 ) -> Optional[Dict[str, Any]]:
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    args: Dict[str, str] = {}
-    if catalog_id is not None:
-        args["CatalogId"] = catalog_id
-    args["DatabaseName"] = database
-    args["Name"] = table
     try:
-        response: Dict[str, Any] = client_glue.get_table(**args)
+        response: Dict[str, Any] = client_glue.get_table(
+            **_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table)
+        )
     except client_glue.exceptions.EntityNotFoundException:
         return None
-
     table_input: Dict[str, Any] = {}
     for k, v in response["Table"].items():
         if k in [
@@ -49,7 +45,6 @@ def _get_table_input(
             "TargetTable",
         ]:
             table_input[k] = v
-
     return table_input
 
 
@@ -162,10 +157,7 @@ def get_databases(
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
     paginator = client_glue.get_paginator("get_databases")
-    if catalog_id is None:
-        response_iterator: Iterator = paginator.paginate()
-    else:
-        response_iterator = paginator.paginate(CatalogId=catalog_id)
+    response_iterator = paginator.paginate(**_catalog_id(catalog_id=catalog_id))
     for page in response_iterator:
         for db in page["DatabaseList"]:
             yield db
@@ -436,10 +428,7 @@ def table(
 
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    if catalog_id is None:
-        tbl: Dict[str, Any] = client_glue.get_table(DatabaseName=database, Name=table)["Table"]
-    else:
-        tbl = client_glue.get_table(CatalogId=catalog_id, DatabaseName=database, Name=table)["Table"]
+    tbl = client_glue.get_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table))["Table"]
     df_dict: Dict[str, List] = {"Column Name": [], "Type": [], "Partition": [], "Comment": []}
     for col in tbl["StorageDescriptor"]["Columns"]:
         df_dict["Column Name"].append(col["Name"])
@@ -522,10 +511,7 @@ def get_connection(
 
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    args: Dict[str, Any] = {"Name": name, "HidePassword": False}
-    if catalog_id is not None:
-        args["CatalogId"] = catalog_id
-    return client_glue.get_connection(**args)["Connection"]
+    return client_glue.get_connection(**_catalog_id(catalog_id=catalog_id, Name=name, HidePassword=False))["Connection"]
 
 
 def get_engine(
@@ -812,12 +798,9 @@ def get_table_parameters(
 
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    args: Dict[str, str] = {}
-    if catalog_id is not None:
-        args["CatalogId"] = catalog_id
-    args["DatabaseName"] = database
-    args["Name"] = table
-    response: Dict[str, Any] = client_glue.get_table(**args)
+    response: Dict[str, Any] = client_glue.get_table(
+        **_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table)
+    )
     parameters: Dict[str, str] = response["Table"]["Parameters"]
     return parameters
 
@@ -851,16 +834,14 @@ def get_table_description(
 
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    args: Dict[str, str] = {}
-    if catalog_id is not None:
-        args["CatalogId"] = catalog_id
-    args["DatabaseName"] = database
-    args["Name"] = table
-    response: Dict[str, Any] = client_glue.get_table(**args)
+    response: Dict[str, Any] = client_glue.get_table(
+        **_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table)
+    )
     desc: Optional[str] = response["Table"].get("Description", None)
     return desc
 
 
+@apply_configs
 def get_columns_comments(
     database: str, table: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
 ) -> Dict[str, str]:
@@ -890,12 +871,9 @@ def get_columns_comments(
 
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    args: Dict[str, str] = {}
-    if catalog_id is not None:
-        args["CatalogId"] = catalog_id
-    args["DatabaseName"] = database
-    args["Name"] = table
-    response: Dict[str, Any] = client_glue.get_table(**args)
+    response: Dict[str, Any] = client_glue.get_table(
+        **_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table)
+    )
     comments: Dict[str, str] = {}
     for c in response["Table"]["StorageDescriptor"]["Columns"]:
         comments[c["Name"]] = c["Comment"]
@@ -903,3 +881,81 @@ def get_columns_comments(
         for p in response["Table"]["PartitionKeys"]:
             comments[p["Name"]] = p["Comment"]
     return comments
+
+
+@apply_configs
+def get_table_versions(
+    database: str, table: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
+) -> List[Dict[str, Any]]:
+    """Get all versions.
+
+    Parameters
+    ----------
+    database : str
+        Database name.
+    table : str
+        Table name.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    List[Dict[str, Any]
+        List of table inputs:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/glue.html#Glue.Client.get_table_versions
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> tables_versions = wr.catalog.get_table_versions(database="...", table="...")
+
+    """
+    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    paginator = client_glue.get_paginator("get_table_versions")
+    versions: List[Dict[str, Any]] = []
+    response_iterator = paginator.paginate(**_catalog_id(DatabaseName=database, TableName=table, catalog_id=catalog_id))
+    for page in response_iterator:
+        for tbl in page["TableVersions"]:
+            versions.append(tbl)
+    return versions
+
+
+@apply_configs
+def get_table_number_of_versions(
+    database: str, table: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
+) -> int:
+    """Get tatal number of versions.
+
+    Parameters
+    ----------
+    database : str
+        Database name.
+    table : str
+        Table name.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    int
+        Total number of versions.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> num = wr.catalog.get_table_number_of_versions(database="...", table="...")
+
+    """
+    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    paginator = client_glue.get_paginator("get_table_versions")
+    count: int = 0
+    response_iterator = paginator.paginate(**_catalog_id(DatabaseName=database, TableName=table, catalog_id=catalog_id))
+    for page in response_iterator:
+        count += len(page["TableVersions"])
+    return count
