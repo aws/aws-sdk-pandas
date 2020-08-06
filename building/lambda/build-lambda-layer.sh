@@ -14,7 +14,7 @@ export ARROW_HOME=$(pwd)/dist
 export LD_LIBRARY_PATH=$(pwd)/dist/lib:$LD_LIBRARY_PATH
 
 git clone \
-  --branch apache-arrow-0.17.1 \
+  --branch apache-arrow-1.0.0 \
   --single-branch \
   https://github.com/apache/arrow.git
 
@@ -25,15 +25,19 @@ pushd arrow/cpp/build
 cmake \
     -DCMAKE_INSTALL_PREFIX=$ARROW_HOME \
     -DCMAKE_INSTALL_LIBDIR=lib \
+    -DARROW_PYTHON=ON \
+    -DARROW_PARQUET=ON \
+    -DARROW_WITH_SNAPPY=ON \
+    -DARROW_WITH_ZLIB=ON \
     -DARROW_FLIGHT=OFF \
     -DARROW_GANDIVA=OFF \
     -DARROW_ORC=OFF \
-    -DARROW_WITH_SNAPPY=ON \
-    -DARROW_WITH_ZLIB=ON \
-    -DARROW_PARQUET=ON \
     -DARROW_CSV=OFF \
-    -DARROW_PYTHON=ON \
     -DARROW_PLASMA=OFF \
+    -DARROW_WITH_BZ2=OFF \
+    -DARROW_WITH_ZSTD=OFF \
+    -DARROW_WITH_LZ4=OFF \
+    -DARROW_WITH_BROTLI=OFF \
     -DARROW_BUILD_TESTS=OFF \
     -GNinja \
     ..

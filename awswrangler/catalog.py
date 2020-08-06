@@ -13,10 +13,18 @@ import pandas as pd  # type: ignore
 import sqlalchemy  # type: ignore
 
 from awswrangler import _data_types, _utils, exceptions
+from awswrangler._config import apply_configs
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
+def _catalog_id(catalog_id: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+    if catalog_id is not None:
+        kwargs["CatalogId"] = catalog_id
+    return kwargs
+
+
+@apply_configs
 def create_database(
     name: str,
     description: Optional[str] = None,
@@ -56,11 +64,12 @@ def create_database(
         args["Description"] = description
 
     if catalog_id is not None:
-        client_glue.create_database(CatalogId=catalog_id, DatabaseInput=args)  # pragma: no cover
+        client_glue.create_database(CatalogId=catalog_id, DatabaseInput=args)
     else:
         client_glue.create_database(DatabaseInput=args)
 
 
+@apply_configs
 def delete_database(name: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None) -> None:
     """Create a database in AWS Glue Catalog.
 
@@ -89,12 +98,15 @@ def delete_database(name: str, catalog_id: Optional[str] = None, boto3_session: 
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
 
     if catalog_id is not None:
-        client_glue.delete_database(CatalogId=catalog_id, Name=name)  # pragma: no cover
+        client_glue.delete_database(CatalogId=catalog_id, Name=name)
     else:
         client_glue.delete_database(Name=name)
 
 
-def delete_table_if_exists(database: str, table: str, boto3_session: Optional[boto3.Session] = None) -> bool:
+@apply_configs
+def delete_table_if_exists(
+    database: str, table: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
+) -> bool:
     """Delete Glue table if exists.
 
     Parameters
@@ -103,6 +115,9 @@ def delete_table_if_exists(database: str, table: str, boto3_session: Optional[bo
         Database name.
     table : str
         Table name.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -122,13 +137,14 @@ def delete_table_if_exists(database: str, table: str, boto3_session: Optional[bo
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
     try:
-        client_glue.delete_table(DatabaseName=database, Name=table)
+        client_glue.delete_table(**_catalog_id(DatabaseName=database, Name=table, catalog_id=catalog_id))
         return True
     except client_glue.exceptions.EntityNotFoundException:
         return False
 
 
-def does_table_exist(database: str, table: str, boto3_session: Optional[boto3.Session] = None):
+@apply_configs
+def does_table_exist(database: str, table: str, boto3_session: Optional[boto3.Session] = None) -> bool:
     """Check if the table exists.
 
     Parameters
@@ -159,12 +175,14 @@ def does_table_exist(database: str, table: str, boto3_session: Optional[boto3.Se
         return False
 
 
+@apply_configs
 def create_parquet_table(
     database: str,
     table: str,
     path: str,
     columns_types: Dict[str, str],
     partitions_types: Optional[Dict[str, str]] = None,
+    catalog_id: Optional[str] = None,
     compression: Optional[str] = None,
     description: Optional[str] = None,
     parameters: Optional[Dict[str, str]] = None,
@@ -195,6 +213,9 @@ def create_parquet_table(
         Dictionary with keys as column names and vales as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
     partitions_types: Dict[str, str], optional
         Dictionary with keys as partition names and values as data types (e.g. {'col2': 'date'}).
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
     compression: str, optional
         Compression style (``None``, ``snappy``, ``gzip``, etc).
     description: str, optional
@@ -258,7 +279,9 @@ def create_parquet_table(
     partitions_types = {} if partitions_types is None else partitions_types
 
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    cat_table_input: Optional[Dict[str, Any]] = _get_table_input(database=database, table=table, boto3_session=session)
+    cat_table_input: Optional[Dict[str, Any]] = _get_table_input(
+        database=database, table=table, boto3_session=session, catalog_id=catalog_id
+    )
     _logger.debug("cat_table_input: %s", cat_table_input)
     table_input: Dict[str, Any]
     if (cat_table_input is not None) and (mode in ("append", "overwrite_partitions")):
@@ -304,6 +327,7 @@ def create_parquet_table(
         projection_values=projection_values,
         projection_intervals=projection_intervals,
         projection_digits=projection_digits,
+        catalog_id=catalog_id,
     )
 
 
@@ -343,6 +367,7 @@ def add_parquet_partitions(
     database: str,
     table: str,
     partitions_values: Dict[str, List[str]],
+    catalog_id: Optional[str] = None,
     compression: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
@@ -357,6 +382,9 @@ def add_parquet_partitions(
     partitions_values: Dict[str, List[str]]
         Dictionary with keys as S3 path locations and values as a list of partitions values as str
         (e.g. {'s3://bucket/prefix/y=2020/m=10/': ['2020', '10']}).
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
     compression: str, optional
         Compression style (``None``, ``snappy``, ``gzip``, etc).
     boto3_session : boto3.Session(), optional
@@ -386,7 +414,9 @@ def add_parquet_partitions(
             _parquet_partition_definition(location=k, values=v, compression=compression)
             for k, v in partitions_values.items()
         ]
-        _add_partitions(database=database, table=table, boto3_session=boto3_session, inputs=inputs)
+        _add_partitions(
+            database=database, table=table, boto3_session=boto3_session, inputs=inputs, catalog_id=catalog_id
+        )
 
 
 def _parquet_partition_definition(location: str, values: List[str], compression: Optional[str]) -> Dict[str, Any]:
@@ -405,6 +435,16 @@ def _parquet_partition_definition(location: str, values: List[str], compression:
         },
         "Values": values,
     }
+
+
+def _extract_dtypes_from_table_details(response: Dict[str, Any]) -> Dict[str, str]:
+    dtypes: Dict[str, str] = {}
+    for col in response["Table"]["StorageDescriptor"]["Columns"]:
+        dtypes[col["Name"]] = col["Type"]
+    if "PartitionKeys" in response["Table"]:
+        for par in response["Table"]["PartitionKeys"]:
+            dtypes[par["Name"]] = par["Type"]
+    return dtypes
 
 
 def get_table_types(
@@ -438,13 +478,7 @@ def get_table_types(
         response: Dict[str, Any] = client_glue.get_table(DatabaseName=database, Name=table)
     except client_glue.exceptions.EntityNotFoundException:
         return None
-    dtypes: Dict[str, str] = {}
-    for col in response["Table"]["StorageDescriptor"]["Columns"]:
-        dtypes[col["Name"]] = col["Type"]
-    if "PartitionKeys" in response["Table"]:
-        for par in response["Table"]["PartitionKeys"]:
-            dtypes[par["Name"]] = par["Type"]
-    return dtypes
+    return _extract_dtypes_from_table_details(response=response)
 
 
 def get_databases(
@@ -482,6 +516,7 @@ def get_databases(
             yield db
 
 
+@apply_configs
 def databases(
     limit: int = 100, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
 ) -> pd.DataFrame:
@@ -517,6 +552,7 @@ def databases(
     return pd.DataFrame(data=df_dict)
 
 
+@apply_configs
 def get_tables(
     catalog_id: Optional[str] = None,
     database: Optional[str] = None,
@@ -585,11 +621,15 @@ def get_tables(
     for db in dbs:
         args["DatabaseName"] = db
         response_iterator = paginator.paginate(**args)
-        for page in response_iterator:
-            for tbl in page["TableList"]:
-                yield tbl
+        try:
+            for page in response_iterator:
+                for tbl in page["TableList"]:
+                    yield tbl
+        except client_glue.exceptions.EntityNotFoundException:
+            continue
 
 
+@apply_configs
 def tables(
     limit: int = 100,
     catalog_id: Optional[str] = None,
@@ -624,7 +664,7 @@ def tables(
 
     Returns
     -------
-    Iterator[Dict[str, Any]]
+    pandas.DataFrame
         Pandas Dataframe filled by formatted infos.
 
     Examples
@@ -663,15 +703,17 @@ def tables(
         if "Columns" in tbl["StorageDescriptor"]:
             df_dict["Columns"].append(", ".join([x["Name"] for x in tbl["StorageDescriptor"]["Columns"]]))
         else:
-            df_dict["Columns"].append("")  # pragma: no cover
+            df_dict["Columns"].append("")
         if "PartitionKeys" in tbl:
             df_dict["Partitions"].append(", ".join([x["Name"] for x in tbl["PartitionKeys"]]))
         else:
-            df_dict["Partitions"].append("")  # pragma: no cover
+            df_dict["Partitions"].append("")
     return pd.DataFrame(data=df_dict)
 
 
-def search_tables(text: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None):
+def search_tables(
+    text: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
+) -> Iterator[Dict[str, Any]]:
     """Get Pandas DataFrame of tables filtered by a search string.
 
     Parameters
@@ -702,13 +744,14 @@ def search_tables(text: str, catalog_id: Optional[str] = None, boto3_session: Op
     response: Dict[str, Any] = client_glue.search_tables(**args)
     for tbl in response["TableList"]:
         yield tbl
-    while "NextToken" in response:  # pragma: no cover
+    while "NextToken" in response:
         args["NextToken"] = response["NextToken"]
         response = client_glue.search_tables(**args)
         for tbl in response["TableList"]:
             yield tbl
 
 
+@apply_configs
 def get_table_location(database: str, table: str, boto3_session: Optional[boto3.Session] = None) -> str:
     """Get table's location on Glue catalog.
 
@@ -737,10 +780,11 @@ def get_table_location(database: str, table: str, boto3_session: Optional[boto3.
     res: Dict[str, Any] = client_glue.get_table(DatabaseName=database, Name=table)
     try:
         return res["Table"]["StorageDescriptor"]["Location"]
-    except KeyError:  # pragma: no cover
+    except KeyError:
         raise exceptions.InvalidTable(f"{database}.{table}")
 
 
+@apply_configs
 def table(
     database: str, table: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
 ) -> pd.DataFrame:
@@ -967,13 +1011,17 @@ def get_connection(
 
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    if catalog_id is None:
-        return client_glue.get_connection(Name=name, HidePassword=False)["Connection"]
-    return client_glue.get_connection(CatalogId=catalog_id, Name=name, HidePassword=False)["Connection"]
+    args: Dict[str, Any] = {"Name": name, "HidePassword": False}
+    if catalog_id is not None:
+        args["CatalogId"] = catalog_id
+    return client_glue.get_connection(**args)["Connection"]
 
 
 def get_engine(
-    connection: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
+    connection: str,
+    catalog_id: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+    **sqlalchemy_kwargs,
 ) -> sqlalchemy.engine.Engine:
     """Return a SQLAlchemy Engine from a Glue Catalog Connection.
 
@@ -988,6 +1036,9 @@ def get_engine(
         If none is provided, the AWS account ID is used by default.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    sqlalchemy_kwargs
+        keyword arguments forwarded to sqlalchemy.create_engine().
+        https://docs.sqlalchemy.org/en/13/core/engines.html
 
     Returns
     -------
@@ -1012,13 +1063,13 @@ def get_engine(
         _utils.ensure_postgresql_casts()
     if db_type in ("redshift", "postgresql"):
         conn_str: str = f"{db_type}+psycopg2://{user}:{password}@{host}:{port}/{database}"
-        return sqlalchemy.create_engine(
-            conn_str, echo=False, executemany_mode="values", executemany_values_page_size=100_000
-        )
+        sqlalchemy_kwargs["executemany_mode"] = "values"
+        sqlalchemy_kwargs["executemany_values_page_size"] = 100_000
+        return sqlalchemy.create_engine(conn_str, **sqlalchemy_kwargs)
     if db_type == "mysql":
         conn_str = f"mysql+pymysql://{user}:{password}@{host}:{port}/{database}"
-        return sqlalchemy.create_engine(conn_str, echo=False)
-    raise exceptions.InvalidDatabaseType(  # pragma: no cover
+        return sqlalchemy.create_engine(conn_str, **sqlalchemy_kwargs)
+    raise exceptions.InvalidDatabaseType(
         f"{db_type} is not a valid Database type." f" Only Redshift, PostgreSQL and MySQL are supported."
     )
 
@@ -1036,6 +1087,7 @@ def create_csv_table(
     mode: str = "overwrite",
     catalog_versioning: bool = False,
     sep: str = ",",
+    skip_header_line_count: Optional[int] = None,
     boto3_session: Optional[boto3.Session] = None,
     projection_enabled: bool = False,
     projection_types: Optional[Dict[str, str]] = None,
@@ -1074,6 +1126,8 @@ def create_csv_table(
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     sep : str
         String of length 1. Field delimiter for the output file.
+    skip_header_line_count : Optional[int]
+        Number of Lines to skip regarding to the header.
     projection_enabled : bool
         Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
     projection_types : Optional[Dict[str, str]]
@@ -1130,6 +1184,7 @@ def create_csv_table(
         partitions_types=partitions_types,
         compression=compression,
         sep=sep,
+        skip_header_line_count=skip_header_line_count,
     )
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     _create_table(
@@ -1171,6 +1226,7 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
     projection_values: Optional[Dict[str, str]] = None,
     projection_intervals: Optional[Dict[str, str]] = None,
     projection_digits: Optional[Dict[str, str]] = None,
+    catalog_id: Optional[str] = None,
 ):
     # Description
     if description is not None:
@@ -1228,29 +1284,55 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     client_glue: boto3.client = _utils.client(service_name="glue", session=session)
     skip_archive: bool = not catalog_versioning
-    if mode not in ("overwrite", "append", "overwrite_partitions", "update"):  # pragma: no cover
+    if mode not in ("overwrite", "append", "overwrite_partitions", "update"):
         raise exceptions.InvalidArgument(
             f"{mode} is not a valid mode. It must be 'overwrite', 'append' or 'overwrite_partitions'."
         )
     if (table_exist is True) and (mode == "overwrite"):
         _logger.debug("Fetching existing partitions...")
         partitions_values: List[List[str]] = list(
-            _get_partitions(database=database, table=table, boto3_session=session).values()
+            _get_partitions(database=database, table=table, boto3_session=session, catalog_id=catalog_id).values()
         )
         _logger.debug("Number of old partitions: %s", len(partitions_values))
         _logger.debug("Deleting existing partitions...")
         client_glue.batch_delete_partition(
-            DatabaseName=database, TableName=table, PartitionsToDelete=[{"Values": v} for v in partitions_values]
+            **_catalog_id(
+                catalog_id=catalog_id,
+                DatabaseName=database,
+                TableName=table,
+                PartitionsToDelete=[{"Values": v} for v in partitions_values],
+            )
         )
         _logger.debug("Updating table...")
-        client_glue.update_table(DatabaseName=database, TableInput=table_input, SkipArchive=skip_archive)
+        client_glue.update_table(
+            **_catalog_id(
+                catalog_id=catalog_id, DatabaseName=database, TableInput=table_input, SkipArchive=skip_archive
+            )
+        )
     elif (table_exist is True) and (mode in ("append", "overwrite_partitions", "update")):
         if parameters is not None:
-            upsert_table_parameters(parameters=parameters, database=database, table=table, boto3_session=session)
+            upsert_table_parameters(
+                parameters=parameters, database=database, table=table, boto3_session=session, catalog_id=catalog_id
+            )
         if mode == "update":
-            client_glue.update_table(DatabaseName=database, TableInput=table_input, SkipArchive=skip_archive)
+            client_glue.update_table(
+                **_catalog_id(
+                    catalog_id=catalog_id, DatabaseName=database, TableInput=table_input, SkipArchive=skip_archive
+                )
+            )
     elif table_exist is False:
-        client_glue.create_table(DatabaseName=database, TableInput=table_input)
+        try:
+            client_glue.create_table(
+                **_catalog_id(catalog_id=catalog_id, DatabaseName=database, TableInput=table_input,)
+            )
+        except client_glue.exceptions.AlreadyExistsException as ex:
+            if mode == "overwrite":
+                delete_table_if_exists(database=database, table=table, boto3_session=session, catalog_id=catalog_id)
+                client_glue.create_table(
+                    **_catalog_id(catalog_id=catalog_id, DatabaseName=database, TableInput=table_input,)
+                )
+            else:
+                raise ex
 
 
 def _csv_table_definition(
@@ -1260,20 +1342,24 @@ def _csv_table_definition(
     partitions_types: Dict[str, str],
     compression: Optional[str],
     sep: str,
+    skip_header_line_count: Optional[int],
 ) -> Dict[str, Any]:
     compressed: bool = compression is not None
+    parameters: Dict[str, str] = {
+        "classification": "csv",
+        "compressionType": str(compression).lower(),
+        "typeOfData": "file",
+        "delimiter": sep,
+        "columnsOrdered": "true",
+        "areColumnsQuoted": "false",
+    }
+    if skip_header_line_count is not None:
+        parameters["skip.header.line.count"] = "1"
     return {
         "Name": table,
         "PartitionKeys": [{"Name": cname, "Type": dtype} for cname, dtype in partitions_types.items()],
         "TableType": "EXTERNAL_TABLE",
-        "Parameters": {
-            "classification": "csv",
-            "compressionType": str(compression).lower(),
-            "typeOfData": "file",
-            "delimiter": sep,
-            "columnsOrdered": "true",
-            "areColumnsQuoted": "false",
-        },
+        "Parameters": parameters,
         "StorageDescriptor": {
             "Columns": [{"Name": cname, "Type": dtype} for cname, dtype in columns_types.items()],
             "Location": path,
@@ -1351,18 +1437,24 @@ def add_csv_partitions(
     _add_partitions(database=database, table=table, boto3_session=boto3_session, inputs=inputs)
 
 
-def _add_partitions(database: str, table: str, boto3_session: Optional[boto3.Session], inputs: List[Dict[str, Any]]):
+def _add_partitions(
+    database: str,
+    table: str,
+    boto3_session: Optional[boto3.Session],
+    inputs: List[Dict[str, Any]],
+    catalog_id: Optional[str] = None,
+):
     chunks: List[List[Dict[str, Any]]] = _utils.chunkify(lst=inputs, max_length=100)
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
     for chunk in chunks:  # pylint: disable=too-many-nested-blocks
         res: Dict[str, Any] = client_glue.batch_create_partition(
-            DatabaseName=database, TableName=table, PartitionInputList=chunk
+            **_catalog_id(catalog_id=catalog_id, DatabaseName=database, TableName=table, PartitionInputList=chunk)
         )
         if ("Errors" in res) and res["Errors"]:
             for error in res["Errors"]:
                 if "ErrorDetail" in error:
                     if "ErrorCode" in error["ErrorDetail"]:
-                        if error["ErrorDetail"]["ErrorCode"] != "AlreadyExistsException":  # pragma: no cover
+                        if error["ErrorDetail"]["ErrorCode"] != "AlreadyExistsException":
                             raise exceptions.ServiceApiError(str(res["Errors"]))
 
 
@@ -1623,7 +1715,7 @@ def _append_partitions(partitions_values: Dict[str, List[str]], response: Dict[s
                 values: List[str] = partition["Values"]
                 partitions_values[location] = values
     else:
-        token = None  # pragma: no cover
+        token = None
     return token
 
 
@@ -1655,7 +1747,7 @@ def extract_athena_types(
 
     Returns
     -------
-    Tuple[Dict[str, str], Optional[Dict[str, str]]]
+    Tuple[Dict[str, str], Dict[str, str]]
         columns_types: Dictionary with keys as column names and vales as
         data types (e.g. {'col0': 'bigint', 'col1': 'double'}). /
         partitions_types: Dictionary with keys as partition names
@@ -1711,7 +1803,7 @@ def get_table_parameters(
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
     args: Dict[str, str] = {}
     if catalog_id is not None:
-        args["CatalogId"] = catalog_id  # pragma: no cover
+        args["CatalogId"] = catalog_id
     args["DatabaseName"] = database
     args["Name"] = table
     response: Dict[str, Any] = client_glue.get_table(**args)
@@ -1750,7 +1842,7 @@ def get_table_description(
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
     args: Dict[str, str] = {}
     if catalog_id is not None:
-        args["CatalogId"] = catalog_id  # pragma: no cover
+        args["CatalogId"] = catalog_id
     args["DatabaseName"] = database
     args["Name"] = table
     response: Dict[str, Any] = client_glue.get_table(**args)
@@ -1789,7 +1881,7 @@ def get_columns_comments(
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
     args: Dict[str, str] = {}
     if catalog_id is not None:
-        args["CatalogId"] = catalog_id  # pragma: no cover
+        args["CatalogId"] = catalog_id
     args["DatabaseName"] = database
     args["Name"] = table
     response: Dict[str, Any] = client_glue.get_table(**args)
@@ -1897,7 +1989,7 @@ def overwrite_table_parameters(
     table_input["Parameters"] = parameters
     args2: Dict[str, Union[str, Dict[str, Any]]] = {}
     if catalog_id is not None:
-        args2["CatalogId"] = catalog_id  # pragma: no cover
+        args2["CatalogId"] = catalog_id
     args2["DatabaseName"] = database
     args2["TableInput"] = table_input
     client_glue: boto3.client = _utils.client(service_name="glue", session=session)
@@ -1911,7 +2003,7 @@ def _get_table_input(
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
     args: Dict[str, str] = {}
     if catalog_id is not None:
-        args["CatalogId"] = catalog_id  # pragma: no cover
+        args["CatalogId"] = catalog_id
     args["DatabaseName"] = database
     args["Name"] = table
     try:

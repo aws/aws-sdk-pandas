@@ -8,6 +8,7 @@ import pytest
 import awswrangler as wr
 
 from ._utils import (
+    ensure_athena_query_metadata,
     ensure_data_types,
     ensure_data_types_category,
     ensure_data_types_csv,
@@ -15,6 +16,7 @@ from ._utils import (
     get_df_category,
     get_df_csv,
     get_df_list,
+    get_df_txt,
     get_query_long,
     get_time_str_with_random_suffix,
 )
@@ -60,6 +62,7 @@ def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database,
     )
     assert len(df.index) == 3
     ensure_data_types(df=df, has_list=True)
+    ensure_athena_query_metadata(df=df, ctas_approach=True, encrypted=True)
     final_destination = f"{path3}{glue_table2}/"
 
     # keep_files=False
@@ -78,6 +81,7 @@ def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database,
     assert len(wr.s3.list_objects(path=final_destination)) > 0
     for df in dfs:
         ensure_data_types(df=df, has_list=True)
+        ensure_athena_query_metadata(df=df, ctas_approach=True, encrypted=False)
     assert len(wr.s3.list_objects(path=path3)) == 0
 
     # keep_files=True
@@ -96,11 +100,13 @@ def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database,
     assert len(wr.s3.list_objects(path=final_destination)) > 0
     for df in dfs:
         ensure_data_types(df=df, has_list=True)
+        ensure_athena_query_metadata(df=df, ctas_approach=True, encrypted=False)
     assert len(wr.s3.list_objects(path=path3)) > 2
 
 
-def test_athena(path, glue_database, kms_key, workgroup0, workgroup1):
-    wr.catalog.delete_table_if_exists(database=glue_database, table="__test_athena")
+def test_athena(path, glue_database, glue_table, kms_key, workgroup0, workgroup1):
+    table = f"__{glue_table}"
+    wr.catalog.delete_table_if_exists(database=glue_database, table=table)
     paths = wr.s3.to_parquet(
         df=get_df(),
         path=path,
@@ -109,12 +115,12 @@ def test_athena(path, glue_database, kms_key, workgroup0, workgroup1):
         dataset=True,
         mode="overwrite",
         database=glue_database,
-        table="__test_athena",
+        table=table,
         partition_cols=["par0", "par1"],
     )["paths"]
     wr.s3.wait_objects_exist(paths=paths, use_threads=False)
     dfs = wr.athena.read_sql_query(
-        sql="SELECT * FROM __test_athena",
+        sql=f"SELECT * FROM {table}",
         database=glue_database,
         ctas_approach=False,
         chunksize=1,
@@ -125,8 +131,9 @@ def test_athena(path, glue_database, kms_key, workgroup0, workgroup1):
     )
     for df2 in dfs:
         ensure_data_types(df=df2)
+        ensure_athena_query_metadata(df=df2, ctas_approach=False, encrypted=False)
     df = wr.athena.read_sql_query(
-        sql="SELECT * FROM __test_athena",
+        sql=f"SELECT * FROM {table}",
         database=glue_database,
         ctas_approach=False,
         workgroup=workgroup1,
@@ -134,8 +141,37 @@ def test_athena(path, glue_database, kms_key, workgroup0, workgroup1):
     )
     assert len(df.index) == 3
     ensure_data_types(df=df)
-    wr.athena.repair_table(table="__test_athena", database=glue_database)
-    wr.catalog.delete_table_if_exists(database=glue_database, table="__test_athena")
+    ensure_athena_query_metadata(df=df, ctas_approach=False, encrypted=False)
+    wr.athena.repair_table(table=table, database=glue_database)
+    assert len(wr.athena.describe_table(database=glue_database, table=table).index) > 0
+    assert (
+        wr.catalog.table(database=glue_database, table=table).to_dict()
+        == wr.athena.describe_table(database=glue_database, table=table).to_dict()
+    )
+    query = wr.athena.show_create_table(database=glue_database, table=table)
+    assert (
+        query.split("LOCATION")[0] == f"CREATE EXTERNAL TABLE `{table}`"
+        f"( `iint8` tinyint,"
+        f" `iint16` smallint,"
+        f" `iint32` int,"
+        f" `iint64` bigint,"
+        f" `float` float,"
+        f" `double` double,"
+        f" `decimal` decimal(3,2),"
+        f" `string_object` string,"
+        f" `string` string,"
+        f" `date` date,"
+        f" `timestamp` timestamp,"
+        f" `bool` boolean,"
+        f" `binary` binary,"
+        f" `category` double,"
+        f" `__index_level_0__` bigint) "
+        f"PARTITIONED BY ( `par0` bigint, `par1` string) "
+        f"ROW FORMAT SERDE 'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' "
+        f"STORED AS INPUTFORMAT 'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat' "
+        f"OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat' "
+    )
+    wr.catalog.delete_table_if_exists(database=glue_database, table=table)
 
 
 def test_catalog(path, glue_database, glue_table):
@@ -330,7 +366,9 @@ def test_athena_ctas_empty(glue_database):
         FROM dataset
         WHERE id != 0
     """
-    assert wr.athena.read_sql_query(sql=sql, database=glue_database).empty is True
+    df1 = wr.athena.read_sql_query(sql=sql, database=glue_database)
+    assert df1.empty is True
+    ensure_athena_query_metadata(df=df1, ctas_approach=True, encrypted=False)
     assert len(list(wr.athena.read_sql_query(sql=sql, database=glue_database, chunksize=1))) == 0
 
 
@@ -408,6 +446,7 @@ def test_category(path, glue_table, glue_database):
 
 @pytest.mark.parametrize("workgroup", [None, 0, 1, 2, 3])
 @pytest.mark.parametrize("encryption", [None, "SSE_S3", "SSE_KMS"])
+@pytest.mark.parametrize("ctas_approach", [False, True])
 def test_athena_encryption(
     path,
     path2,
@@ -415,6 +454,7 @@ def test_athena_encryption(
     glue_table,
     glue_table2,
     kms_key,
+    ctas_approach,
     encryption,
     workgroup,
     workgroup0,
@@ -444,7 +484,7 @@ def test_athena_encryption(
     wr.s3.wait_objects_exist(paths=paths, use_threads=False)
     df2 = wr.athena.read_sql_table(
         table=glue_table,
-        ctas_approach=True,
+        ctas_approach=ctas_approach,
         database=glue_database,
         encryption=encryption,
         workgroup=workgroup,
@@ -454,8 +494,7 @@ def test_athena_encryption(
         s3_output=path2,
     )
     assert wr.catalog.does_table_exist(database=glue_database, table=glue_table2) is False
-    assert len(df2.index) == 2
-    assert len(df2.columns) == 2
+    assert df2.shape == (2, 2)
 
 
 def test_athena_nested(path, glue_database, glue_table):
@@ -691,3 +730,43 @@ def test_catalog_columns(path, glue_table, glue_database):
     ensure_data_types_csv(df2)
 
     assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table) is True
+
+
+def test_read_sql_query_wo_results(path, glue_database, glue_table):
+    wr.catalog.create_parquet_table(database=glue_database, table=glue_table, path=path, columns_types={"c0": "int"})
+    sql = f"ALTER TABLE {glue_database}.{glue_table} SET LOCATION '{path}dir/'"
+    df = wr.athena.read_sql_query(sql, database=glue_database, ctas_approach=False)
+    assert df.empty
+    ensure_athena_query_metadata(df=df, ctas_approach=False, encrypted=False)
+
+
+def test_read_sql_query_wo_results_ctas(path, glue_database, glue_table):
+    wr.catalog.create_parquet_table(database=glue_database, table=glue_table, path=path, columns_types={"c0": "int"})
+    sql = f"ALTER TABLE {glue_database}.{glue_table} SET LOCATION '{path}dir/'"
+    with pytest.raises(wr.exceptions.InvalidCtasApproachQuery):
+        wr.athena.read_sql_query(sql, database=glue_database, ctas_approach=True)
+
+
+def test_read_sql_query_duplicated_col_name(glue_database):
+    sql = "SELECT 1 AS foo, 2 AS foo"
+    df = wr.athena.read_sql_query(sql, database=glue_database, ctas_approach=False)
+    assert df.shape == (1, 2)
+    assert df.columns.to_list() == ["foo", "foo.1"]
+
+
+def test_read_sql_query_duplicated_col_name_ctas(glue_database):
+    sql = "SELECT 1 AS foo, 2 AS foo"
+    with pytest.raises(wr.exceptions.InvalidCtasApproachQuery):
+        wr.athena.read_sql_query(sql, database=glue_database, ctas_approach=True)
+
+
+def test_parse_describe_table():
+    df = get_df_txt()
+    parsed_df = wr.athena._utils._parse_describe_table(df)
+    assert parsed_df["Partition"].to_list() == [False, False, False, True, True]
+    assert parsed_df["Column Name"].to_list() == ["iint8", "iint16", "iint32", "par0", "par1"]
+
+
+def test_describe_table(path, glue_database, glue_table):
+    wr.catalog.create_parquet_table(database=glue_database, table=glue_table, path=path, columns_types={"c0": "int"})
+    assert wr.athena.describe_table(database=glue_database, table=glue_table).shape == (1, 4)

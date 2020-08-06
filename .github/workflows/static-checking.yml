@@ -31,7 +31,7 @@ jobs:
       - name: CloudFormation Lint - Databases
         run: cfn-lint -t cloudformation/databases.yaml
       - name: Documentation Lint
-        run: pydocstyle awswrangler/ --add-ignore=D204,D403
+        run: pydocstyle awswrangler/ --convention=numpy
       - name: mypy check
         run: mypy awswrangler
       - name: Flake8 Lint

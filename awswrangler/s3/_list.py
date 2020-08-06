@@ -3,7 +3,7 @@
 import datetime
 import fnmatch
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 import boto3  # type: ignore
 import botocore.exceptions  # type: ignore
@@ -13,18 +13,22 @@ from awswrangler import _utils, exceptions
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def path2list(
-    path: object,
+def _path2list(
+    path: Union[str, Sequence[str]],
     boto3_session: boto3.Session,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
-    suffix: str = None,
+    suffix: Union[str, List[str], None] = None,
+    ignore_suffix: Union[str, List[str], None] = None,
 ) -> List[str]:
     """Convert Amazon S3 path to list of objects."""
+    _suffix: Optional[List[str]] = [suffix] if isinstance(suffix, str) else suffix
+    _ignore_suffix: Optional[List[str]] = [ignore_suffix] if isinstance(ignore_suffix, str) else ignore_suffix
     if isinstance(path, str):  # prefix
         paths: List[str] = list_objects(
             path=path,
-            suffix=suffix,
+            suffix=_suffix,
+            ignore_suffix=_ignore_suffix,
             boto3_session=boto3_session,
             last_modified_begin=last_modified_begin,
             last_modified_end=last_modified_end,
@@ -33,8 +37,9 @@ def path2list(
         if last_modified_begin or last_modified_end:
             raise exceptions.InvalidArgumentCombination(
                 "Specify a list of files or (last_modified_begin and last_modified_end)"
-            )  # pragma: no cover
-        paths = path if suffix is None else [x for x in path if x.endswith(suffix)]
+            )
+        paths = path if _suffix is None else [x for x in path if x.endswith(tuple(_suffix))]
+        paths = path if _ignore_suffix is None else [x for x in paths if x.endswith(tuple(_ignore_suffix)) is False]
     else:
         raise exceptions.InvalidArgumentType(f"{type(path)} is not a valid path type. Please, use str or List[str].")
     return paths
@@ -44,20 +49,19 @@ def _validate_datetimes(
     last_modified_begin: Optional[datetime.datetime] = None, last_modified_end: Optional[datetime.datetime] = None
 ) -> None:
     if (last_modified_begin is not None) and (last_modified_begin.tzinfo is None):
-        raise exceptions.InvalidArgumentValue("Timezone is not defined for last_modified_begin.")  # pragma: no cover
+        raise exceptions.InvalidArgumentValue("Timezone is not defined for last_modified_begin.")
     if (last_modified_end is not None) and (last_modified_end.tzinfo is None):
-        raise exceptions.InvalidArgumentValue("Timezone is not defined for last_modified_end.")  # pragma: no cover
+        raise exceptions.InvalidArgumentValue("Timezone is not defined for last_modified_end.")
     if (last_modified_begin is not None) and (last_modified_end is not None):
         if last_modified_begin > last_modified_end:
-            raise exceptions.InvalidArgumentValue(
-                "last_modified_begin is bigger than last_modified_end."
-            )  # pragma: no cover
+            raise exceptions.InvalidArgumentValue("last_modified_begin is bigger than last_modified_end.")
 
 
 def _list_objects(
     path: str,
     delimiter: Optional[str] = None,
-    suffix: Optional[str] = None,
+    suffix: Union[str, List[str], None] = None,
+    ignore_suffix: Union[str, List[str], None] = None,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
@@ -67,6 +71,8 @@ def _list_objects(
     bucket: str
     prefix: str
     bucket, prefix = _utils.parse_path(path=wildcard_prefix)
+    _suffix: Union[List[str], None] = [suffix] if isinstance(suffix, str) else suffix
+    _ignore_suffix: Union[List[str], None] = [ignore_suffix] if isinstance(ignore_suffix, str) else ignore_suffix
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     paginator = client_s3.get_paginator("list_objects_v2")
     args: Dict[str, Any] = {"Bucket": bucket, "Prefix": prefix, "PaginationConfig": {"PageSize": 1000}}
@@ -74,7 +80,6 @@ def _list_objects(
         args["Delimiter"] = delimiter
     response_iterator = paginator.paginate(**args)
     paths: List[str] = []
-
     _validate_datetimes(last_modified_begin=last_modified_begin, last_modified_end=last_modified_end)
 
     for page in response_iterator:  # pylint: disable=too-many-nested-blocks
@@ -84,7 +89,7 @@ def _list_objects(
                 for content in contents:
                     key: str = content["Key"]
                     if (content is not None) and ("Key" in content):
-                        if (suffix is None) or key.endswith(suffix):
+                        if (_suffix is None) or key.endswith(tuple(_suffix)):
                             if last_modified_begin is not None:
                                 if content["LastModified"] < last_modified_begin:
                                     continue
@@ -101,10 +106,9 @@ def _list_objects(
                         paths.append(f"s3://{bucket}/{key}")
 
     if wildcard_character in path:
-        filtered_paths = fnmatch.filter(paths, path)
-        return filtered_paths
+        paths = fnmatch.filter(paths, path)
 
-    return paths
+    return paths if _ignore_suffix is None else [p for p in paths if p.endswith(tuple(_ignore_suffix)) is False]
 
 
 def does_object_exist(path: str, boto3_session: Optional[boto3.Session] = None) -> bool:
@@ -152,7 +156,7 @@ def does_object_exist(path: str, boto3_session: Optional[boto3.Session] = None) 
     except botocore.exceptions.ClientError as ex:
         if ex.response["ResponseMetadata"]["HTTPStatusCode"] == 404:
             return False
-        raise ex  # pragma: no cover
+        raise ex
 
 
 def list_directories(path: str, boto3_session: Optional[boto3.Session] = None) -> List[str]:
@@ -191,7 +195,8 @@ def list_directories(path: str, boto3_session: Optional[boto3.Session] = None) -
 
 def list_objects(
     path: str,
-    suffix: Optional[str] = None,
+    suffix: Union[str, List[str], None] = None,
+    ignore_suffix: Union[str, List[str], None] = None,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
@@ -206,8 +211,10 @@ def list_objects(
     ----------
     path : str
         S3 path (e.g. s3://bucket/prefix).
-    suffix: str, optional
-        Suffix for filtering S3 keys.
+    suffix: Union[str, List[str], None]
+        Suffix or List of suffixes for filtering S3 keys.
+    ignore_suffix: Union[str, List[str], None]
+        Suffix or List of suffixes for S3 keys to be ignored.
     last_modified_begin
         Filter the s3 files by the Last modified date of the object.
         The filter is applied only after list all s3 files.
@@ -242,6 +249,7 @@ def list_objects(
         path=path,
         delimiter=None,
         suffix=suffix,
+        ignore_suffix=ignore_suffix,
         boto3_session=boto3_session,
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,

@@ -5,6 +5,8 @@ import pandas as pd
 
 import awswrangler as wr
 
+from ._utils import ensure_athena_query_metadata
+
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
@@ -51,18 +53,20 @@ def test_cache_query_ctas_approach_true(path, glue_database, glue_table):
     wr.s3.wait_objects_exist(paths=paths)
 
     with patch(
-        "awswrangler.athena._check_for_cached_results", return_value={"has_valid_cache": False}
+        "awswrangler.athena._read._check_for_cached_results",
+        return_value=wr.athena._read._CacheInfo(has_valid_cache=False),
     ) as mocked_cache_attempt:
         df2 = wr.athena.read_sql_table(glue_table, glue_database, ctas_approach=True, max_cache_seconds=0)
         mocked_cache_attempt.assert_called()
         assert df.shape == df2.shape
         assert df.c0.sum() == df2.c0.sum()
 
-    with patch("awswrangler.athena._resolve_query_without_cache") as resolve_no_cache:
+    with patch("awswrangler.athena._read._resolve_query_without_cache") as resolve_no_cache:
         df3 = wr.athena.read_sql_table(glue_table, glue_database, ctas_approach=True, max_cache_seconds=900)
         resolve_no_cache.assert_not_called()
         assert df.shape == df3.shape
         assert df.c0.sum() == df3.c0.sum()
+        ensure_athena_query_metadata(df=df3, ctas_approach=True, encrypted=False)
 
 
 def test_cache_query_ctas_approach_false(path, glue_database, glue_table):
@@ -81,18 +85,20 @@ def test_cache_query_ctas_approach_false(path, glue_database, glue_table):
     wr.s3.wait_objects_exist(paths=paths)
 
     with patch(
-        "awswrangler.athena._check_for_cached_results", return_value={"has_valid_cache": False}
+        "awswrangler.athena._read._check_for_cached_results",
+        return_value=wr.athena._read._CacheInfo(has_valid_cache=False),
     ) as mocked_cache_attempt:
         df2 = wr.athena.read_sql_table(glue_table, glue_database, ctas_approach=False, max_cache_seconds=0)
         mocked_cache_attempt.assert_called()
         assert df.shape == df2.shape
         assert df.c0.sum() == df2.c0.sum()
 
-    with patch("awswrangler.athena._resolve_query_without_cache") as resolve_no_cache:
+    with patch("awswrangler.athena._read._resolve_query_without_cache") as resolve_no_cache:
         df3 = wr.athena.read_sql_table(glue_table, glue_database, ctas_approach=False, max_cache_seconds=900)
         resolve_no_cache.assert_not_called()
         assert df.shape == df3.shape
         assert df.c0.sum() == df3.c0.sum()
+        ensure_athena_query_metadata(df=df3, ctas_approach=False, encrypted=False)
 
 
 def test_cache_query_semicolon(path, glue_database, glue_table):
@@ -103,7 +109,8 @@ def test_cache_query_semicolon(path, glue_database, glue_table):
     wr.s3.wait_objects_exist(paths=paths)
 
     with patch(
-        "awswrangler.athena._check_for_cached_results", return_value={"has_valid_cache": False}
+        "awswrangler.athena._read._check_for_cached_results",
+        return_value=wr.athena._read._CacheInfo(has_valid_cache=False),
     ) as mocked_cache_attempt:
         df2 = wr.athena.read_sql_query(
             f"SELECT * FROM {glue_table}", database=glue_database, ctas_approach=True, max_cache_seconds=0
@@ -112,7 +119,7 @@ def test_cache_query_semicolon(path, glue_database, glue_table):
         assert df.shape == df2.shape
         assert df.c0.sum() == df2.c0.sum()
 
-    with patch("awswrangler.athena._resolve_query_without_cache") as resolve_no_cache:
+    with patch("awswrangler.athena._read._resolve_query_without_cache") as resolve_no_cache:
         df3 = wr.athena.read_sql_query(
             f"SELECT * FROM {glue_table};", database=glue_database, ctas_approach=True, max_cache_seconds=900
         )
