@@ -129,6 +129,7 @@ def sanitize_dataframe_columns_names(df: pd.DataFrame) -> pd.DataFrame:
 
     """
     df.columns = [sanitize_column_name(x) for x in df.columns]
+    df.index.names = [None if x is None else sanitize_column_name(x) for x in df.index.names]
     return df
 
 

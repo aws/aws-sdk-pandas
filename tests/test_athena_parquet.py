@@ -439,3 +439,16 @@ def test_glue_number_of_versions_created(path, glue_table, glue_database):
             df, path, dataset=True, table=glue_table, database=glue_database,
         )
     assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 1
+
+
+def test_sanitize_index(path, glue_table, glue_database):
+    df = pd.DataFrame({"id": [1, 2], "DATE": [datetime.date(2020, 1, 1), datetime.date(2020, 1, 2)]})
+    df.set_index("DATE", inplace=True, verify_integrity=True)
+    wr.s3.to_parquet(df, path, dataset=True, index=True, database=glue_database, table=glue_table, mode="overwrite")
+    df = pd.DataFrame({"id": [1, 2], "DATE": [datetime.date(2020, 1, 1), datetime.date(2020, 1, 2)]})
+    df.set_index("DATE", inplace=True, verify_integrity=True)
+    wr.s3.to_parquet(df, path, dataset=True, index=True, database=glue_database, table=glue_table, mode="append")
+    df2 = wr.athena.read_sql_table(database=glue_database, table=glue_table)
+    assert df2.shape == (4, 2)
+    assert df2.id.sum() == 6
+    assert list(df2.columns) == ["id", "date"]
