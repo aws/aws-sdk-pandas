@@ -48,7 +48,7 @@ def cancel_ingestion(
     >>>  wr.quicksight.cancel_ingestion(ingestion_id="...", dataset_name="...")
     """
     if (dataset_name is None) and (dataset_id is None):
-        raise exceptions.InvalidArgument("You must pass a not None name or dataset_id argument.")  # pragma: no cover
+        raise exceptions.InvalidArgument("You must pass a not None name or dataset_id argument.")
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
         account_id = sts.get_account_id(boto3_session=session)

@@ -39,6 +39,10 @@ def merge_datasets(
 ) -> List[str]:
     """Merge a source dataset into a target dataset.
 
+    This function accepts Unix shell-style wildcards in the source_path argument.
+    * (matches everything), ? (matches any single character),
+    [seq] (matches any character in seq), [!seq] (matches any character not in seq).
+
     Note
     ----
     If you are merging tables (S3 datasets + Glue Catalog metadata),
@@ -47,7 +51,8 @@ def merge_datasets(
 
     Note
     ----
-    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads
+    that will be spawned will be gotten from os.cpu_count().
 
     Parameters
     ----------
@@ -121,7 +126,8 @@ def copy_objects(
 
     Note
     ----
-    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads
+    that will be spawned will be gotten from os.cpu_count().
 
     Parameters
     ----------

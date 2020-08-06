@@ -20,10 +20,10 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     license=about["__license__"],
-    packages=["awswrangler", "awswrangler.s3", "awswrangler.quicksight"],
+    packages=["awswrangler", "awswrangler.s3", "awswrangler.quicksight", "awswrangler.athena", "awswrangler.catalog"],
     include_package_data=True,
     python_requires=">=3.6, <3.9",
-    install_requires=[open("requirements.txt").read().strip().split("\n")],
+    install_requires=open("requirements.txt").read().strip().split("\n"),
     classifiers=[
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',

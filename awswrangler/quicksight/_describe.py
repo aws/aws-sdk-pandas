@@ -16,7 +16,7 @@ def describe_dashboard(
     dashboard_id: Optional[str] = None,
     account_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, Any]:  # pragma: no cover
+) -> Dict[str, Any]:
     """Describe a QuickSight dashboard by name or ID.
 
     Note
@@ -88,7 +88,7 @@ def describe_data_source(
     >>> import awswrangler as wr
     >>> description = wr.quicksight.describe_data_source("...")
     """
-    if (name is None) and (data_source_id is None):  # pragma: no cover
+    if (name is None) and (data_source_id is None):
         raise exceptions.InvalidArgument("You must pass a not None name or data_source_id argument.")
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
@@ -132,7 +132,7 @@ def describe_data_source_permissions(
     >>> import awswrangler as wr
     >>> description = wr.quicksight.describe_data_source_permissions("my-data-source")
     """
-    if (name is None) and (data_source_id is None):  # pragma: no cover
+    if (name is None) and (data_source_id is None):
         raise exceptions.InvalidArgument("You must pass a not None name or data_source_id argument.")
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
@@ -177,7 +177,7 @@ def describe_dataset(
     >>> description = wr.quicksight.describe_dataset("my-dataset")
     """
     if (name is None) and (dataset_id is None):
-        raise exceptions.InvalidArgument("You must pass a not None name or dataset_id argument.")  # pragma: no cover
+        raise exceptions.InvalidArgument("You must pass a not None name or dataset_id argument.")
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
         account_id = sts.get_account_id(boto3_session=session)
@@ -224,7 +224,7 @@ def describe_ingestion(
     >>> description = wr.quicksight.describe_dataset(ingestion_id="...", dataset_name="...")
     """
     if (dataset_name is None) and (dataset_id is None):
-        raise exceptions.InvalidArgument("You must pass a not None name or dataset_id argument.")  # pragma: no cover
+        raise exceptions.InvalidArgument("You must pass a not None name or dataset_id argument.")
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
         account_id = sts.get_account_id(boto3_session=session)

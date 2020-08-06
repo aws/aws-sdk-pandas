@@ -4,45 +4,34 @@ import concurrent.futures
 import datetime
 import itertools
 import logging
-import time
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import boto3  # type: ignore
-import botocore.exceptions  # type: ignore
 
 from awswrangler import _utils
-from awswrangler.s3._list import path2list
+from awswrangler.s3._list import _path2list
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _describe_object(
-    path: str, wait_time: Optional[Union[int, float]], client_s3: boto3.client
-) -> Tuple[str, Dict[str, Any]]:
-    wait_time = int(wait_time) if isinstance(wait_time, float) else wait_time
-    tries: int = wait_time if (wait_time is not None) and (wait_time > 0) else 1
+def _describe_object(path: str, boto3_session: boto3.Session) -> Tuple[str, Dict[str, Any]]:
+    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     bucket: str
     key: str
     bucket, key = _utils.parse_path(path=path)
-    desc: Dict[str, Any] = {}
-    for i in range(tries, 0, -1):
-        try:
-            desc = client_s3.head_object(Bucket=bucket, Key=key)
-            break
-        except botocore.exceptions.ClientError as e:  # pragma: no cover
-            if e.response["ResponseMetadata"]["HTTPStatusCode"] == 404:  # Not Found
-                _logger.debug("Object not found. %s seconds remaining to wait.", i)
-                if i == 1:  # Last try, there is no more need to sleep
-                    break
-                time.sleep(1)
-            else:
-                raise e
+    desc: Dict[str, Any] = _utils.try_it(
+        f=client_s3.head_object, ex=client_s3.exceptions.NoSuchKey, Bucket=bucket, Key=key
+    )
     return path, desc
+
+
+def _describe_object_concurrent(path: str, boto3_primitives: _utils.Boto3PrimitivesType) -> Tuple[str, Dict[str, Any]]:
+    boto3_session = _utils.boto3_from_primitives(primitives=boto3_primitives)
+    return _describe_object(path=path, boto3_session=boto3_session)
 
 
 def describe_objects(
     path: Union[str, List[str]],
-    wait_time: Optional[Union[int, float]] = None,
     use_threads: bool = True,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
@@ -54,9 +43,14 @@ def describe_objects(
     The full list of attributes can be explored under the boto3 head_object documentation:
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.head_object
 
+    This function accepts Unix shell-style wildcards in the path argument.
+    * (matches everything), ? (matches any single character),
+    [seq] (matches any character in seq), [!seq] (matches any character not in seq).
+
     Note
     ----
-    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads
+    that will be spawned will be gotten from os.cpu_count().
 
     Note
     ----
@@ -65,11 +59,8 @@ def describe_objects(
     Parameters
     ----------
     path : Union[str, List[str]]
-        S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
-    wait_time : Union[int,float], optional
-        How much time (seconds) should Wrangler try to reach this objects.
-        Very useful to overcome eventual consistence issues.
-        `None` means only a single try will be done.
+        S3 prefix (accepts Unix shell-style wildcards)
+        (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -94,10 +85,9 @@ def describe_objects(
     >>> import awswrangler as wr
     >>> descs0 = wr.s3.describe_objects(['s3://bucket/key0', 's3://bucket/key1'])  # Describe both objects
     >>> descs1 = wr.s3.describe_objects('s3://bucket/prefix')  # Describe all objects under the prefix
-    >>> descs2 = wr.s3.describe_objects('s3://bucket/prefix', wait_time=30)  # Overcoming eventual consistence issues
 
     """
-    paths: List[str] = path2list(
+    paths: List[str] = _path2list(
         path=path,
         boto3_session=boto3_session,
         last_modified_begin=last_modified_begin,
@@ -105,40 +95,44 @@ def describe_objects(
     )
     if len(paths) < 1:
         return {}
-    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     resp_list: List[Tuple[str, Dict[str, Any]]]
-    if use_threads is False:
-        resp_list = [_describe_object(path=p, wait_time=wait_time, client_s3=client_s3) for p in paths]
+    if len(paths) == 1:
+        resp_list = [_describe_object(path=paths[0], boto3_session=boto3_session)]
+    elif use_threads is False:
+        resp_list = [_describe_object(path=p, boto3_session=boto3_session) for p in paths]
     else:
         cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
             resp_list = list(
-                executor.map(_describe_object, paths, itertools.repeat(wait_time), itertools.repeat(client_s3))
+                executor.map(
+                    _describe_object_concurrent,
+                    paths,
+                    itertools.repeat(_utils.boto3_to_primitives(boto3_session=boto3_session)),
+                )
             )
     desc_dict: Dict[str, Dict[str, Any]] = dict(resp_list)
     return desc_dict
 
 
 def size_objects(
-    path: Union[str, List[str]],
-    wait_time: Optional[Union[int, float]] = None,
-    use_threads: bool = True,
-    boto3_session: Optional[boto3.Session] = None,
+    path: Union[str, List[str]], use_threads: bool = True, boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, Optional[int]]:
     """Get the size (ContentLength) in bytes of Amazon S3 objects from a received S3 prefix or list of S3 objects paths.
 
+    This function accepts Unix shell-style wildcards in the path argument.
+    * (matches everything), ? (matches any single character),
+    [seq] (matches any character in seq), [!seq] (matches any character not in seq).
+
     Note
     ----
-    In case of `use_threads=True` the number of threads that will be spawned will be get from os.cpu_count().
+    In case of `use_threads=True` the number of threads
+    that will be spawned will be gotten from os.cpu_count().
 
     Parameters
     ----------
     path : Union[str, List[str]]
-        S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
-    wait_time : Union[int,float], optional
-        How much time (seconds) should Wrangler try to reach this objects.
-        Very useful to overcome eventual consistence issues.
-        `None` means only a single try will be done.
+        S3 prefix (accepts Unix shell-style wildcards)
+        (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -155,11 +149,10 @@ def size_objects(
     >>> import awswrangler as wr
     >>> sizes0 = wr.s3.size_objects(['s3://bucket/key0', 's3://bucket/key1'])  # Get the sizes of both objects
     >>> sizes1 = wr.s3.size_objects('s3://bucket/prefix')  # Get the sizes of all objects under the received prefix
-    >>> sizes2 = wr.s3.size_objects('s3://bucket/prefix', wait_time=30)  # Overcoming eventual consistence issues
 
     """
     desc_list: Dict[str, Dict[str, Any]] = describe_objects(
-        path=path, wait_time=wait_time, use_threads=use_threads, boto3_session=boto3_session
+        path=path, use_threads=use_threads, boto3_session=boto3_session
     )
     size_dict: Dict[str, Optional[int]] = {k: d.get("ContentLength", None) for k, d in desc_list.items()}
     return size_dict

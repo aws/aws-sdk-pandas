@@ -77,7 +77,7 @@ def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-s
     if pars["spark_pyarrow"] is True:
         if pars["spark_defaults"] is None:
             pars["spark_defaults"] = {"spark.sql.execution.arrow.enabled": "true"}
-        else:  # pragma: no cover
+        else:
             pars["spark_defaults"]["spark.sql.execution.arrow.enabled"] = "true"
         spark_env = {"ARROW_PRE_0_15_IPC_FORMAT": "1"}
         yarn_env = {"ARROW_PRE_0_15_IPC_FORMAT": "1"}
@@ -85,13 +85,13 @@ def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-s
 
     if pars["python3"] is True:
         if spark_env is None:
-            spark_env = {"PYSPARK_PYTHON": "/usr/bin/python3"}  # pragma: no cover
+            spark_env = {"PYSPARK_PYTHON": "/usr/bin/python3"}
         else:
             spark_env["PYSPARK_PYTHON"] = "/usr/bin/python3"
 
     if pars["spark_jars_path"] is not None:
         paths: str = ",".join(pars["spark_jars_path"])
-        if pars["spark_defaults"] is None:  # pragma: no cover
+        if pars["spark_defaults"] is None:
             pars["spark_defaults"] = {"spark.jars": paths}
         else:
             pars["spark_defaults"]["spark.jars"] = paths
@@ -112,19 +112,19 @@ def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-s
     }
 
     # EC2 Key Pair
-    if pars["key_pair_name"] is not None:  # pragma: no cover
+    if pars["key_pair_name"] is not None:
         args["Instances"]["Ec2KeyName"] = pars["key_pair_name"]
 
     # Security groups
-    if pars["security_group_master"] is not None:  # pragma: no cover
+    if pars["security_group_master"] is not None:
         args["Instances"]["EmrManagedMasterSecurityGroup"] = pars["security_group_master"]
-    if pars["security_groups_master_additional"] is not None:  # pragma: no cover
+    if pars["security_groups_master_additional"] is not None:
         args["Instances"]["AdditionalMasterSecurityGroups"] = pars["security_groups_master_additional"]
-    if pars["security_group_slave"] is not None:  # pragma: no cover
+    if pars["security_group_slave"] is not None:
         args["Instances"]["EmrManagedSlaveSecurityGroup"] = pars["security_group_slave"]
-    if pars["security_groups_slave_additional"] is not None:  # pragma: no cover
+    if pars["security_groups_slave_additional"] is not None:
         args["Instances"]["AdditionalSlaveSecurityGroups"] = pars["security_groups_slave_additional"]
-    if pars["security_group_service_access"] is not None:  # pragma: no cover
+    if pars["security_group_service_access"] is not None:
         args["Instances"]["ServiceAccessSecurityGroup"] = pars["security_group_service_access"]
 
     # Configurations
@@ -134,7 +134,7 @@ def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-s
     if pars["docker"] is True:
         if pars.get("extra_registries") is None:
             extra_registries: List[str] = []
-        else:  # pragma: no cover
+        else:
             extra_registries = pars["extra_registries"]
         registries: str = f"local,centos,{account_id}.dkr.ecr.{region}.amazonaws.com,{','.join(extra_registries)}"
         registries = registries[:-1] if registries.endswith(",") else registries
@@ -232,7 +232,7 @@ def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-s
         args["Applications"] = [{"Name": x} for x in pars["applications"]]
 
     # Bootstraps
-    if pars["bootstraps_paths"]:  # pragma: no cover
+    if pars["bootstraps_paths"]:
         args["BootstrapActions"] = [{"Name": x, "ScriptBootstrapAction": {"Path": x}} for x in pars["bootstraps_paths"]]
 
     # Debugging and Steps
@@ -275,7 +275,7 @@ def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-s
             }
         ],
     }
-    if pars["instance_num_spot_master"] > 0:  # pragma: no cover
+    if pars["instance_num_spot_master"] > 0:
         fleet_master["LaunchSpecifications"] = {
             "SpotSpecification": {
                 "TimeoutDurationMinutes": pars["spot_provisioning_timeout_master"],
@@ -854,7 +854,7 @@ def build_step(
     """
     jar: str = "command-runner.jar"
     if script is True:
-        if region is not None:  # pragma: no cover
+        if region is not None:
             _region: str = region
         else:
             _region = _utils.get_region_from_session(boto3_session=boto3_session, default_region="us-east-1")
@@ -1008,7 +1008,7 @@ def build_spark_step(
     >>> )
 
     """
-    if docker_image is None:  # pragma: no cover
+    if docker_image is None:
         cmd: str = f"spark-submit --deploy-mode {deploy_mode} {path}"
     else:
         config: str = "hdfs:///user/hadoop/config.json"
