@@ -55,6 +55,36 @@ def test_parquet_catalog(path, path2, glue_table, glue_table2, glue_database):
     assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table2) is True
 
 
+@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("max_rows_by_file", [None, 0, 40, 250, 1000])
+@pytest.mark.parametrize("partition_cols", [None, ["par0"], ["par0", "par1"]])
+def test_file_size(path, glue_table, glue_database, use_threads, max_rows_by_file, partition_cols):
+    df = get_df_list()
+    df = pd.concat([df for _ in range(100)])
+    paths = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        index=False,
+        dataset=True,
+        database=glue_database,
+        table=glue_table,
+        max_rows_by_file=max_rows_by_file,
+        use_threads=use_threads,
+        partition_cols=partition_cols,
+    )["paths"]
+    if max_rows_by_file is not None and max_rows_by_file > 0:
+        assert len(paths) >= math.floor(300 / max_rows_by_file)
+    wr.s3.wait_objects_exist(paths, use_threads=use_threads)
+    df2 = wr.s3.read_parquet(path=path, dataset=True, use_threads=use_threads)
+    ensure_data_types(df2, has_list=True)
+    assert df2.shape == (300, 19)
+    assert df.iint8.sum() == df2.iint8.sum()
+    df2 = wr.athena.read_sql_table(database=glue_database, table=glue_table, use_threads=use_threads)
+    ensure_data_types(df2, has_list=True)
+    assert df2.shape == (300, 19)
+    assert df.iint8.sum() == df2.iint8.sum()
+
+
 def test_parquet_catalog_duplicated(path, glue_table, glue_database):
     df = pd.DataFrame({"A": [1], "a": [1]})
     with pytest.raises(wr.exceptions.InvalidDataFrame):

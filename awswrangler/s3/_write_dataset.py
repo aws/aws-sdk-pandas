@@ -64,7 +64,7 @@ def _to_dataset(
     # Writing
     partitions_values: Dict[str, List[str]] = {}
     if not partition_cols:
-        paths: List[str] = [func(df=df, path_root=path_root, boto3_session=boto3_session, index=index, **func_kwargs)]
+        paths: List[str] = func(df=df, path_root=path_root, boto3_session=boto3_session, index=index, **func_kwargs)
     else:
         paths, partitions_values = _to_partitions(
             func=func,

@@ -25,7 +25,7 @@ def _to_text(
     path: Optional[str] = None,
     path_root: Optional[str] = None,
     **pandas_kwargs,
-) -> str:
+) -> List[str]:
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
     if path is None and path_root is not None:
@@ -47,7 +47,7 @@ def _to_text(
             df.to_csv(f, **pandas_kwargs)
         elif file_format == "json":
             df.to_json(f, **pandas_kwargs)
-    return file_path
+    return [file_path]
 
 
 @apply_configs

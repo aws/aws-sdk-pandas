@@ -44,12 +44,12 @@ class _WriteProxy:
             )
             self._futures.append(future)
         else:
-            self._results.append(func(boto3_session=boto3_session, **func_kwargs))
+            self._results += func(boto3_session=boto3_session, **func_kwargs)
 
     def close(self):
         """Close the proxy."""
         if self._exec is not None:
             for future in concurrent.futures.as_completed(self._futures):
-                self._results.append(future.result())
+                self._results += future.result()
             self._exec.shutdown(wait=True)
         return self._results

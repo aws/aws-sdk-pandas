@@ -451,6 +451,7 @@ def copy_to_redshift(  # pylint: disable=too-many-arguments
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    max_rows_by_file: Optional[int] = 10_000_000,
 ) -> None:
     """Load Pandas DataFrame as a Table on Amazon Redshift using parquet files on S3 as stage.
 
@@ -525,6 +526,11 @@ def copy_to_redshift(  # pylint: disable=too-many-arguments
     s3_additional_kwargs:
         Forward to s3fs, useful for server side encryption
         https://s3fs.readthedocs.io/en/latest/#serverside-encryption
+    max_rows_by_file : int
+        Max number of rows in each file.
+        Default is None i.e. dont split the files.
+        (e.g. 33554432, 268435456)
+
     Returns
     -------
     None
@@ -556,6 +562,7 @@ def copy_to_redshift(  # pylint: disable=too-many-arguments
         use_threads=use_threads,
         boto3_session=session,
         s3_additional_kwargs=s3_additional_kwargs,
+        max_rows_by_file=max_rows_by_file,
     )["paths"]
     s3.wait_objects_exist(paths=paths, use_threads=False, boto3_session=session)
     copy_files_to_redshift(

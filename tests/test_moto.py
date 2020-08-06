@@ -312,17 +312,11 @@ def test_parquet(moto_s3):
 def test_parquet_with_size(moto_s3):
     path = "s3://bucket/test.parquet"
     df = get_df_list()
-    for i in range(20):
-        df = pd.concat([df, get_df_list()])
-    wr.s3.to_parquet(df=df, path=path, index=False, dataset=False, max_file_size=1 * 2 ** 10)
+    df = pd.concat([df for _ in range(21)])
+    wr.s3.to_parquet(df=df, path=path, index=False, dataset=False, max_rows_by_file=10)
     df = wr.s3.read_parquet(path="s3://bucket/", dataset=False)
     ensure_data_types(df, has_list=True)
     assert df.shape == (63, 19)
-    file_objects = wr.s3.list_objects(path="s3://bucket/")
-    assert len(file_objects) == 9
-    for i in range(7):
-        assert f"s3://bucket/test-{i+1}.parquet" in file_objects
-    assert "s3://bucket/test.parquet" in file_objects
 
 
 def test_s3_delete_object_success(moto_s3):

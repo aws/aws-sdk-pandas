@@ -1,11 +1,14 @@
 import itertools
 import logging
+import math
 
 import boto3
 import pandas as pd
 import pytest
 
 import awswrangler as wr
+
+from ._utils import ensure_data_types, get_df_list
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -199,3 +202,26 @@ def test_read_parquet_filter_partitions(path, use_threads):
     assert df2.c0.astype(int).sum() == 1
     assert df2.c1.astype(int).sum() == 1
     assert df2.c2.astype(int).sum() == 0
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("max_rows_by_file", [None, 0, 40, 250, 1000])
+def test_parquet_with_size(path, use_threads, max_rows_by_file):
+    df = get_df_list()
+    df = pd.concat([df for _ in range(100)])
+    paths = wr.s3.to_parquet(
+        df=df,
+        path=path + "x.parquet",
+        index=False,
+        dataset=False,
+        max_rows_by_file=max_rows_by_file,
+        use_threads=use_threads,
+    )["paths"]
+    if max_rows_by_file is not None and max_rows_by_file > 0:
+        assert len(paths) >= math.floor(300 / max_rows_by_file)
+        assert len(paths) <= math.ceil(300 / max_rows_by_file)
+    wr.s3.wait_objects_exist(paths, use_threads=use_threads)
+    df2 = wr.s3.read_parquet(path=path, dataset=False, use_threads=use_threads)
+    ensure_data_types(df2, has_list=True)
+    assert df2.shape == (300, 19)
+    assert df.iint8.sum() == df2.iint8.sum()

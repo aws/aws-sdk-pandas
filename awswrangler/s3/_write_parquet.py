@@ -14,17 +14,95 @@ import s3fs  # type: ignore
 
 from awswrangler import _data_types, _utils, catalog, exceptions
 from awswrangler._config import apply_configs
-from awswrangler.s3._delete import delete_objects
-from awswrangler.s3._describe import size_objects
-from awswrangler.s3._list import does_object_exist
 from awswrangler.s3._read_parquet import _read_parquet_metadata
 from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
+from awswrangler.s3._write_concurrent import _WriteProxy
 from awswrangler.s3._write_dataset import _to_dataset
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _to_parquet_file(
+def _get_file_path(file_counter: int, file_path: str) -> str:
+    slash_index: int = file_path.rfind("/")
+    dot_index: int = file_path.find(".", slash_index)
+    file_index: str = "_" + str(file_counter)
+    if dot_index == -1:
+        file_path = file_path + file_index
+    else:
+        file_path = file_path[:dot_index] + file_index + file_path[dot_index:]
+    return file_path
+
+
+def _get_fs(
+    boto3_session: Optional[boto3.Session], s3_additional_kwargs: Optional[Dict[str, str]]
+) -> s3fs.S3FileSystem:
+    return _utils.get_fs(
+        s3fs_block_size=33_554_432,  # 32 MB (32 * 2**20)
+        session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,
+    )
+
+
+def _new_writer(
+    file_path: str, fs: s3fs.S3FileSystem, compression: Optional[str], schema: pa.Schema
+) -> pyarrow.parquet.ParquetWriter:
+    return pyarrow.parquet.ParquetWriter(
+        where=file_path,
+        write_statistics=True,
+        use_dictionary=True,
+        filesystem=fs,
+        coerce_timestamps="ms",
+        compression=compression,
+        flavor="spark",
+        schema=schema,
+    )
+
+
+def _write_chunk(
+    file_path: str,
+    boto3_session: Optional[boto3.Session],
+    s3_additional_kwargs: Optional[Dict[str, str]],
+    compression: Optional[str],
+    table: pa.Table,
+    offset: int,
+    chunk_size: int,
+):
+    fs = _get_fs(boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
+    with _new_writer(file_path=file_path, fs=fs, compression=compression, schema=table.schema) as writer:
+        writer.write_table(table.slice(offset, chunk_size))
+    return [file_path]
+
+
+def _to_parquet_chunked(
+    file_path: str,
+    boto3_session: Optional[boto3.Session],
+    s3_additional_kwargs: Optional[Dict[str, str]],
+    compression: Optional[str],
+    table: pa.Table,
+    max_rows_by_file: int,
+    num_of_rows: int,
+    cpus: int,
+) -> List[str]:
+    chunks: int = math.ceil(num_of_rows / max_rows_by_file)
+    use_threads: bool = cpus > 1
+    proxy: _WriteProxy = _WriteProxy(use_threads=use_threads)
+    for chunk in range(chunks):
+        offset: int = chunk * max_rows_by_file
+        write_path: str = _get_file_path(chunk, file_path)
+        proxy.write(
+            func=_write_chunk,
+            file_path=write_path,
+            boto3_session=boto3_session,
+            s3_additional_kwargs=s3_additional_kwargs,
+            compression=compression,
+            table=table,
+            offset=offset,
+            chunk_size=max_rows_by_file,
+        )
+    return proxy.close()  # blocking
+
+
+def _to_parquet(
     df: pd.DataFrame,
     schema: pa.Schema,
     index: bool,
@@ -36,8 +114,8 @@ def _to_parquet_file(
     s3_additional_kwargs: Optional[Dict[str, str]],
     path: Optional[str] = None,
     path_root: Optional[str] = None,
-    max_file_size: Optional[int] = 0,
-) -> str:
+    max_rows_by_file: Optional[int] = 0,
+) -> List[str]:
     if path is None and path_root is not None:
         file_path: str = f"{path_root}{uuid.uuid4().hex}{compression_ext}.parquet"
     elif path is not None and path_root is None:
@@ -45,7 +123,6 @@ def _to_parquet_file(
     else:
         raise RuntimeError("path and path_root received at the same time.")
     _logger.debug("file_path: %s", file_path)
-    write_path = file_path
     table: pa.Table = pyarrow.Table.from_pandas(df=df, schema=schema, nthreads=cpus, preserve_index=index, safe=True)
     for col_name, col_type in dtype.items():
         if col_name in table.column_names:
@@ -54,64 +131,23 @@ def _to_parquet_file(
             field = pa.field(name=col_name, type=pyarrow_dtype)
             table = table.set_column(col_index, field, table.column(col_name).cast(pyarrow_dtype))
             _logger.debug("Casting column %s (%s) to %s (%s)", col_name, col_index, col_type, pyarrow_dtype)
-    fs: s3fs.S3FileSystem = _utils.get_fs(
-        s3fs_block_size=33_554_432,
-        session=boto3_session,
-        s3_additional_kwargs=s3_additional_kwargs,  # 32 MB (32 * 2**20)
-    )
-
-    file_counter, writer, chunks, chunk_size = 1, None, 1, df.shape[0]
-    if max_file_size is not None and max_file_size > 0:
-        chunk_size = int((max_file_size * df.shape[0]) / table.nbytes)
-        chunks = math.ceil(df.shape[0] / chunk_size)
-
-    for chunk in range(chunks):
-        offset = chunk * chunk_size
-
-        if writer is None:
-            writer = pyarrow.parquet.ParquetWriter(
-                where=write_path,
-                write_statistics=True,
-                use_dictionary=True,
-                filesystem=fs,
-                coerce_timestamps="ms",
-                compression=compression,
-                flavor="spark",
-                schema=table.schema,
-            )
-            # handle the case of overwriting an existing file
-            if does_object_exist(write_path):
-                delete_objects([write_path])
-
-        writer.write_table(table.slice(offset, chunk_size))
-
-        if max_file_size == 0 or max_file_size is None:
-            continue
-
-        file_size = writer.file_handle.buffer.__sizeof__()
-        if does_object_exist(write_path):
-            file_size += size_objects([write_path])[write_path]
-
-        if file_size >= max_file_size:
-            write_path = __get_file_path(file_counter, file_path)
-            file_counter += 1
-            writer.close()
-            writer = None
-
-    if writer is not None:
-        writer.close()
-
-    return file_path
-
-
-def __get_file_path(file_counter, file_path):
-    dot_index = file_path.rfind(".")
-    file_index = "-" + str(file_counter)
-    if dot_index == -1:
-        file_path = file_path + file_index
+    if max_rows_by_file is not None and max_rows_by_file > 0:
+        paths: List[str] = _to_parquet_chunked(
+            file_path=file_path,
+            boto3_session=boto3_session,
+            s3_additional_kwargs=s3_additional_kwargs,
+            compression=compression,
+            table=table,
+            max_rows_by_file=max_rows_by_file,
+            num_of_rows=df.shape[0],
+            cpus=cpus,
+        )
     else:
-        file_path = file_path[:dot_index] + file_index + file_path[dot_index:]
-    return file_path
+        fs = _get_fs(boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
+        with _new_writer(file_path=file_path, fs=fs, compression=compression, schema=table.schema) as writer:
+            writer.write_table(table)
+        paths = [file_path]
+    return paths
 
 
 @apply_configs
@@ -120,6 +156,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     path: str,
     index: bool = False,
     compression: Optional[str] = "snappy",
+    max_rows_by_file: Optional[int] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
@@ -142,7 +179,6 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     projection_values: Optional[Dict[str, str]] = None,
     projection_intervals: Optional[Dict[str, str]] = None,
     projection_digits: Optional[Dict[str, str]] = None,
-    max_file_size: Optional[int] = 0,
     catalog_id: Optional[str] = None,
 ) -> Dict[str, Union[List[str], Dict[str, List[str]]]]:
     """Write Parquet file or dataset on Amazon S3.
@@ -175,6 +211,10 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
         True to store the DataFrame index in file, otherwise False to ignore it.
     compression: str, optional
         Compression style (``None``, ``snappy``, ``gzip``).
+    max_rows_by_file : int
+        Max number of rows in each file.
+        Default is None i.e. dont split the files.
+        (e.g. 33554432, 268435456)
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -245,10 +285,6 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
         Dictionary of partitions names and Athena projections digits.
         https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
         (e.g. {'col_name': '1', 'col2_name': '2'})
-    max_file_size : int
-        If the file size exceeds the specified size in bytes, another file is created
-        Default is 0 i.e. dont split the files
-       (e.g. 33554432 ,268435456,0)
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
@@ -401,24 +437,22 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     _logger.debug("schema: \n%s", schema)
 
     if dataset is False:
-        paths = [
-            _to_parquet_file(
-                df=df,
-                path=path,
-                schema=schema,
-                index=index,
-                cpus=cpus,
-                compression=compression,
-                compression_ext=compression_ext,
-                boto3_session=session,
-                s3_additional_kwargs=s3_additional_kwargs,
-                dtype=dtype,
-                max_file_size=max_file_size,
-            )
-        ]
+        paths = _to_parquet(
+            df=df,
+            path=path,
+            schema=schema,
+            index=index,
+            cpus=cpus,
+            compression=compression,
+            compression_ext=compression_ext,
+            boto3_session=session,
+            s3_additional_kwargs=s3_additional_kwargs,
+            dtype=dtype,
+            max_rows_by_file=max_rows_by_file,
+        )
     else:
         paths, partitions_values = _to_dataset(
-            func=_to_parquet_file,
+            func=_to_parquet,
             concurrent_partitioning=concurrent_partitioning,
             df=df,
             path_root=path,
@@ -433,6 +467,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
             boto3_session=session,
             s3_additional_kwargs=s3_additional_kwargs,
             schema=schema,
+            max_rows_by_file=max_rows_by_file,
         )
         if (database is not None) and (table is not None):
             columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
