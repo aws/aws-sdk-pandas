@@ -37,7 +37,7 @@ class _WriteProxy:
         if self._exec is not None:
             _logger.debug("Submitting: %s", func)
             future = self._exec.submit(
-                fn=_WriteProxy._caller,
+                _WriteProxy._caller,
                 func=func,
                 boto3_primitives=_utils.boto3_to_primitives(boto3_session=boto3_session),
                 func_kwargs=func_kwargs,

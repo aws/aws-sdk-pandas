@@ -3,7 +3,7 @@
 import logging
 import math
 import uuid
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import boto3  # type: ignore
 import pandas as pd  # type: ignore
@@ -143,6 +143,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     projection_intervals: Optional[Dict[str, str]] = None,
     projection_digits: Optional[Dict[str, str]] = None,
     max_file_size: Optional[int] = 0,
+    catalog_id: Optional[str] = None,
 ) -> Dict[str, Union[List[str], Dict[str, List[str]]]]:
     """Write Parquet file or dataset on Amazon S3.
 
@@ -248,6 +249,9 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
         If the file size exceeds the specified size in bytes, another file is created
         Default is 0 i.e. dont split the files
        (e.g. 33554432 ,268435456,0)
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
 
     Returns
     -------
@@ -385,7 +389,12 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
         df, dtype, partition_cols = _sanitize(df=df, dtype=dtype, partition_cols=partition_cols)
 
     # Evaluating dtype
-    df = _apply_dtype(df=df, mode=mode, database=database, table=table, dtype=dtype, boto3_session=session)
+    catalog_table_input: Optional[Dict[str, Any]] = None
+    if database is not None and table is not None:
+        catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
+            database=database, table=table, boto3_session=session, catalog_id=catalog_id
+        )
+    df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
     schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(
         df=df, index=index, ignore_cols=partition_cols, dtype=dtype
     )
@@ -429,7 +438,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
             columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
                 df=df, index=index, partition_cols=partition_cols, dtype=dtype
             )
-            catalog.create_parquet_table(
+            catalog._create_parquet_table(  # pylint: disable=protected-access
                 database=database,
                 table=table,
                 path=path,
@@ -448,6 +457,8 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
                 projection_values=projection_values,
                 projection_intervals=projection_intervals,
                 projection_digits=projection_digits,
+                catalog_id=catalog_id,
+                catalog_table_input=catalog_table_input,
             )
             if partitions_values and (regular_partitions is True):
                 _logger.debug("partitions_values:\n%s", partitions_values)

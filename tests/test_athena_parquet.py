@@ -9,9 +9,7 @@ import awswrangler as wr
 
 from ._utils import ensure_data_types, get_df, get_df_cast, get_df_list
 
-logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
-logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
 
 
 def test_parquet_catalog(path, path2, glue_table, glue_table2, glue_database):
@@ -432,3 +430,25 @@ def test_read_parquet_mutability(path, glue_table, glue_database, use_threads):
     df = wr.athena.read_sql_query(sql, "default", use_threads=use_threads)
     df["c0"] = df["c0"] + pd.DateOffset(months=-2)
     assert df.c0[0].value == 1339117200000000000
+
+
+def test_glue_number_of_versions_created(path, glue_table, glue_database):
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2]})
+    for _ in range(5):
+        wr.s3.to_parquet(
+            df, path, dataset=True, table=glue_table, database=glue_database,
+        )
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 1
+
+
+def test_sanitize_index(path, glue_table, glue_database):
+    df = pd.DataFrame({"id": [1, 2], "DATE": [datetime.date(2020, 1, 1), datetime.date(2020, 1, 2)]})
+    df.set_index("DATE", inplace=True, verify_integrity=True)
+    wr.s3.to_parquet(df, path, dataset=True, index=True, database=glue_database, table=glue_table, mode="overwrite")
+    df = pd.DataFrame({"id": [1, 2], "DATE": [datetime.date(2020, 1, 1), datetime.date(2020, 1, 2)]})
+    df.set_index("DATE", inplace=True, verify_integrity=True)
+    wr.s3.to_parquet(df, path, dataset=True, index=True, database=glue_database, table=glue_table, mode="append")
+    df2 = wr.athena.read_sql_table(database=glue_database, table=glue_table)
+    assert df2.shape == (4, 2)
+    assert df2.id.sum() == 6
+    assert list(df2.columns) == ["id", "date"]

@@ -15,9 +15,7 @@ from awswrangler.exceptions import EmptyDataFrame, InvalidArgumentCombination
 
 from ._utils import ensure_data_types, get_df_csv, get_df_list
 
-logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
-logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
 
 
 @pytest.fixture(scope="module")
