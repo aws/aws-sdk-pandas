@@ -339,7 +339,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     # Evaluating dtype
     catalog_table_input: Optional[Dict[str, Any]] = None
     if database is not None and table is not None:
-        catalog_table_input: Optional[Dict[str, Any]] = catalog._get_table_input(  # pylint: disable=protected-access
+        catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
             database=database, table=table, boto3_session=session, catalog_id=catalog_id
         )
     df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)

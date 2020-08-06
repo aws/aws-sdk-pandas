@@ -21,9 +21,7 @@ from ._utils import (
     get_time_str_with_random_suffix,
 )
 
-logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
-logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
 
 
 def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database, kms_key):

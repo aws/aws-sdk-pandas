@@ -7,9 +7,7 @@ import awswrangler as wr
 
 from ._utils import ensure_data_types_csv, get_df_csv
 
-logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
-logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
 
 
 @pytest.mark.parametrize("use_threads", [True, False])

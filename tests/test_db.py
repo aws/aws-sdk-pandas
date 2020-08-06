@@ -13,9 +13,7 @@ import awswrangler as wr
 
 from ._utils import dt, ensure_data_types, ensure_data_types_category, get_df, get_df_category, ts
 
-logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
-logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
 
 
 @pytest.mark.parametrize("db_type", ["mysql", "redshift", "postgresql"])

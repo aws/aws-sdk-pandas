@@ -9,9 +9,7 @@ import awswrangler as wr
 
 from ._utils import ensure_data_types, get_df, get_df_cast, get_df_list
 
-logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
-logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
 
 
 def test_parquet_catalog(path, path2, glue_table, glue_table2, glue_database):
