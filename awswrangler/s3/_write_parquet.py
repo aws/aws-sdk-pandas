@@ -544,6 +544,10 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
     The concept of Dataset goes beyond the simple idea of files and enable more
     complex features like partitioning and catalog integration (AWS Glue Catalog).
 
+    This function accepts Unix shell-style wildcards in the path argument.
+    * (matches everything), ? (matches any single character),
+    [seq] (matches any character in seq), [!seq] (matches any character not in seq).
+
     Note
     ----
     On `append` mode, the `parameters` will be upsert on an existing table.
@@ -556,7 +560,8 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
     Parameters
     ----------
     path : Union[str, List[str]]
-        S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+        S3 prefix (accepts Unix shell-style wildcards)
+        (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
         database : str
         Glue/Athena catalog: Database name.
     table : str

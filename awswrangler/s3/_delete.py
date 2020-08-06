@@ -64,6 +64,10 @@ def delete_objects(
 ) -> None:
     """Delete Amazon S3 objects from a received S3 prefix or list of S3 objects paths.
 
+    This function accepts Unix shell-style wildcards in the path argument.
+    * (matches everything), ? (matches any single character),
+    [seq] (matches any character in seq), [!seq] (matches any character not in seq).
+
     Note
     ----
     In case of `use_threads=True` the number of threads
@@ -76,7 +80,8 @@ def delete_objects(
     Parameters
     ----------
     path : Union[str, List[str]]
-        S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+        S3 prefix (accepts Unix shell-style wildcards)
+        (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.

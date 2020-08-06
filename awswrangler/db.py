@@ -612,6 +612,10 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
 
     https://docs.aws.amazon.com/redshift/latest/dg/r_COPY.html
 
+    This function accepts Unix shell-style wildcards in the path argument.
+    * (matches everything), ? (matches any single character),
+    [seq] (matches any character in seq), [!seq] (matches any character not in seq).
+
     Note
     ----
     If the table does not exist yet,
@@ -627,7 +631,8 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
     Parameters
     ----------
     path : Union[str, List[str]]
-        S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+        S3 prefix (accepts Unix shell-style wildcards)
+        (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
     manifest_directory : str
         S3 prefix (e.g. s3://bucket/prefix)
     con : sqlalchemy.engine.Engine

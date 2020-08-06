@@ -378,6 +378,10 @@ def read_parquet(
     The concept of Dataset goes beyond the simple idea of files and enable more
     complex features like partitioning and catalog integration (AWS Glue Catalog).
 
+    This function accepts Unix shell-style wildcards in the path argument.
+    * (matches everything), ? (matches any single character),
+    [seq] (matches any character in seq), [!seq] (matches any character not in seq).
+
     Note
     ----
     ``Batching`` (`chunked` argument) (Memory Friendly):
@@ -405,7 +409,8 @@ def read_parquet(
     Parameters
     ----------
     path : Union[str, List[str]]
-        S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+        S3 prefix (accepts Unix shell-style wildcards)
+        (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
     path_suffix: Union[str, List[str], None]
         Suffix or List of suffixes for filtering S3 keys.
     path_ignore_suffix: Union[str, List[str], None]
@@ -709,6 +714,10 @@ def read_parquet_metadata(
     The concept of Dataset goes beyond the simple idea of files and enable more
     complex features like partitioning and catalog integration (AWS Glue Catalog).
 
+    This function accepts Unix shell-style wildcards in the path argument.
+    * (matches everything), ? (matches any single character),
+    [seq] (matches any character in seq), [!seq] (matches any character not in seq).
+
     Note
     ----
     In case of `use_threads=True` the number of threads
@@ -717,7 +726,8 @@ def read_parquet_metadata(
     Parameters
     ----------
     path : Union[str, List[str]]
-        S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+        S3 prefix (accepts Unix shell-style wildcards)
+        (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
     path_suffix: Union[str, List[str], None]
         Suffix or List of suffixes for filtering S3 keys.
     path_ignore_suffix: Union[str, List[str], None]

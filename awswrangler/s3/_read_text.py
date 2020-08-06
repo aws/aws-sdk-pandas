@@ -149,6 +149,10 @@ def read_csv(
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read CSV file(s) from from a received S3 prefix or list of S3 objects paths.
 
+    This function accepts Unix shell-style wildcards in the path argument.
+    * (matches everything), ? (matches any single character),
+    [seq] (matches any character in seq), [!seq] (matches any character not in seq).
+
     Note
     ----
     For partial and gradual reading use the argument ``chunksize`` instead of ``iterator``.
@@ -165,7 +169,8 @@ def read_csv(
     Parameters
     ----------
     path : Union[str, List[str]]
-        S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. ``[s3://bucket/key0, s3://bucket/key1]``).
+        S3 prefix (accepts Unix shell-style wildcards)
+        (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. ``[s3://bucket/key0, s3://bucket/key1]``).
     path_suffix: Union[str, List[str], None]
         Suffix or List of suffixes for filtering S3 keys.
     path_ignore_suffix: Union[str, List[str], None]
@@ -277,6 +282,10 @@ def read_fwf(
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read fixed-width formatted file(s) from from a received S3 prefix or list of S3 objects paths.
 
+    This function accepts Unix shell-style wildcards in the path argument.
+    * (matches everything), ? (matches any single character),
+    [seq] (matches any character in seq), [!seq] (matches any character not in seq).
+
     Note
     ----
     For partial and gradual reading use the argument ``chunksize`` instead of ``iterator``.
@@ -293,7 +302,8 @@ def read_fwf(
     Parameters
     ----------
     path : Union[str, List[str]]
-        S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. ``[s3://bucket/key0, s3://bucket/key1]``).
+        S3 prefix (accepts Unix shell-style wildcards)
+        (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. ``[s3://bucket/key0, s3://bucket/key1]``).
     path_suffix: Union[str, List[str], None]
         Suffix or List of suffixes for filtering S3 keys.
     path_ignore_suffix: Union[str, List[str], None]
@@ -406,6 +416,10 @@ def read_json(
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read JSON file(s) from from a received S3 prefix or list of S3 objects paths.
 
+    This function accepts Unix shell-style wildcards in the path argument.
+    * (matches everything), ? (matches any single character),
+    [seq] (matches any character in seq), [!seq] (matches any character not in seq).
+
     Note
     ----
     For partial and gradual reading use the argument ``chunksize`` instead of ``iterator``.
@@ -422,7 +436,8 @@ def read_json(
     Parameters
     ----------
     path : Union[str, List[str]]
-        S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. ``[s3://bucket/key0, s3://bucket/key1]``).
+        S3 prefix (accepts Unix shell-style wildcards)
+        (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. ``[s3://bucket/key0, s3://bucket/key1]``).
     path_suffix: Union[str, List[str], None]
         Suffix or List of suffixes for filtering S3 keys.
     path_ignore_suffix: Union[str, List[str], None]

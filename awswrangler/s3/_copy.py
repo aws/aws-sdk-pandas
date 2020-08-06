@@ -39,6 +39,10 @@ def merge_datasets(
 ) -> List[str]:
     """Merge a source dataset into a target dataset.
 
+    This function accepts Unix shell-style wildcards in the source_path argument.
+    * (matches everything), ? (matches any single character),
+    [seq] (matches any character in seq), [!seq] (matches any character not in seq).
+
     Note
     ----
     If you are merging tables (S3 datasets + Glue Catalog metadata),

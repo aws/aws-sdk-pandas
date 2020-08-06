@@ -1,4 +1,5 @@
 import datetime
+import glob
 import logging
 import time
 from unittest.mock import patch
@@ -222,3 +223,42 @@ def test_list_wrong_path(path):
 def test_s3_get_bucket_region(bucket, region):
     assert wr.s3.get_bucket_region(bucket=bucket) == region
     assert wr.s3.get_bucket_region(bucket=bucket, boto3_session=boto3.DEFAULT_SESSION) == region
+
+
+def test_prefix_cleanup():
+    # regular
+    assert wr.s3._list._prefix_cleanup("foo*") == "foo"
+    assert wr.s3._list._prefix_cleanup("*foo") == ""
+    assert wr.s3._list._prefix_cleanup("foo*boo") == "foo"
+    assert wr.s3._list._prefix_cleanup("foo?") == "foo"
+    assert wr.s3._list._prefix_cleanup("?foo") == ""
+    assert wr.s3._list._prefix_cleanup("foo?boo") == "foo"
+    assert wr.s3._list._prefix_cleanup("[]foo") == ""
+    assert wr.s3._list._prefix_cleanup("foo[]") == "foo"
+    assert wr.s3._list._prefix_cleanup("foo[]boo") == "foo"
+
+    # escaped
+    assert wr.s3._list._prefix_cleanup(glob.escape("foo*")) == "foo"
+    assert wr.s3._list._prefix_cleanup(glob.escape("*foo")) == ""
+    assert wr.s3._list._prefix_cleanup(glob.escape("foo*boo")) == "foo"
+    assert wr.s3._list._prefix_cleanup(glob.escape("foo?")) == "foo"
+    assert wr.s3._list._prefix_cleanup(glob.escape("?foo")) == ""
+    assert wr.s3._list._prefix_cleanup(glob.escape("foo?boo")) == "foo"
+    assert wr.s3._list._prefix_cleanup(glob.escape("[]foo")) == glob.escape("")
+    assert wr.s3._list._prefix_cleanup(glob.escape("foo[]")) == glob.escape("foo")
+    assert wr.s3._list._prefix_cleanup(glob.escape("foo[]boo")) == glob.escape("foo")
+
+
+def test_prefix_list(path):
+    df = pd.DataFrame({"c0": [0]})
+    prefixes = ["foo1boo", "foo2boo", "foo3boo", "foo10boo", "foo*boo", "abc1boo", "foo1abc"]
+    paths = [path + p for p in prefixes]
+    for p in paths:
+        wr.s3.to_parquet(df=df, path=p)
+    wr.s3.wait_objects_exist(paths)
+    assert len(wr.s3.list_objects(path + "*")) == 7
+    assert len(wr.s3.list_objects(path + "foo*")) == 6
+    assert len(wr.s3.list_objects(path + "*boo")) == 6
+    assert len(wr.s3.list_objects(path + "foo?boo")) == 4
+    assert len(wr.s3.list_objects(path + "foo*boo")) == 5
+    assert len(wr.s3.list_objects(path + "foo[12]boo")) == 2
