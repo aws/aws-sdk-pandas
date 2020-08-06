@@ -23,6 +23,210 @@ _RS_DISTSTYLES = ["AUTO", "EVEN", "ALL", "KEY"]
 _RS_SORTSTYLES = ["COMPOUND", "INTERLEAVED"]
 
 
+def _rs_drop_table(con: Any, schema: str, table: str) -> None:
+    sql = f"DROP TABLE IF EXISTS {schema}.{table}"
+    _logger.debug("Drop table query:\n%s", sql)
+    con.execute(sql)
+
+
+def _rs_get_primary_keys(con: Any, schema: str, table: str) -> List[str]:
+    cursor: Any = con.execute(
+        f"SELECT indexdef FROM pg_indexes WHERE schemaname = '{schema}' AND tablename = '{table}'"
+    )
+    result: str = cursor.fetchall()[0][0]
+    rfields: List[str] = result.split("(")[1].strip(")").split(",")
+    fields: List[str] = [field.strip().strip('"') for field in rfields]
+    return fields
+
+
+def _rs_does_table_exist(con: Any, schema: str, table: str) -> bool:
+    cursor = con.execute(
+        f"SELECT true WHERE EXISTS ("
+        f"SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE "
+        f"TABLE_SCHEMA = '{schema}' AND TABLE_NAME = '{table}'"
+        f");"
+    )
+    if len(cursor.fetchall()) > 0:
+        return True
+    return False
+
+
+def _rs_upsert(con: Any, table: str, temp_table: str, schema: str, primary_keys: Optional[List[str]] = None) -> None:
+    if not primary_keys:
+        primary_keys = _rs_get_primary_keys(con=con, schema=schema, table=table)
+    _logger.debug("primary_keys: %s", primary_keys)
+    if not primary_keys:
+        raise exceptions.InvalidRedshiftPrimaryKeys()
+    equals_clause: str = f"{table}.%s = {temp_table}.%s"
+    join_clause: str = " AND ".join([equals_clause % (pk, pk) for pk in primary_keys])
+    sql: str = f"DELETE FROM {schema}.{table} USING {temp_table} WHERE {join_clause}"
+    _logger.debug(sql)
+    con.execute(sql)
+    sql = f"INSERT INTO {schema}.{table} SELECT * FROM {temp_table}"
+    _logger.debug(sql)
+    con.execute(sql)
+    _rs_drop_table(con=con, schema=schema, table=temp_table)
+
+
+def _rs_create_table(
+    con: Any,
+    table: str,
+    schema: str,
+    mode: str,
+    redshift_types: Dict[str, str],
+    diststyle: str,
+    sortstyle: str,
+    distkey: Optional[str] = None,
+    sortkey: Optional[List[str]] = None,
+    primary_keys: Optional[List[str]] = None,
+) -> Tuple[str, Optional[str]]:
+    if mode == "overwrite":
+        _rs_drop_table(con=con, schema=schema, table=table)
+    else:
+        if _rs_does_table_exist(con=con, schema=schema, table=table) is True:
+            if mode == "upsert":
+                guid: str = uuid.uuid4().hex
+                temp_table: str = f"temp_redshift_{guid}"
+                sql: str = f"CREATE TEMPORARY TABLE {temp_table} (LIKE {schema}.{table})"
+                _logger.debug(sql)
+                con.execute(sql)
+                return temp_table, None
+            return table, schema
+    diststyle = diststyle.upper() if diststyle else "AUTO"
+    sortstyle = sortstyle.upper() if sortstyle else "COMPOUND"
+    _rs_validate_parameters(
+        redshift_types=redshift_types, diststyle=diststyle, distkey=distkey, sortstyle=sortstyle, sortkey=sortkey,
+    )
+    cols_str: str = "".join([f"{k} {v},\n" for k, v in redshift_types.items()])[:-2]
+    primary_keys_str: str = f",\nPRIMARY KEY ({', '.join(primary_keys)})" if primary_keys else ""
+    distkey_str: str = f"\nDISTKEY({distkey})" if distkey and diststyle == "KEY" else ""
+    sortkey_str: str = f"\n{sortstyle} SORTKEY({','.join(sortkey)})" if sortkey else ""
+    sql = (
+        f"CREATE TABLE IF NOT EXISTS {schema}.{table} (\n"
+        f"{cols_str}"
+        f"{primary_keys_str}"
+        f")\nDISTSTYLE {diststyle}"
+        f"{distkey_str}"
+        f"{sortkey_str}"
+    )
+    _logger.debug("Create table query:\n%s", sql)
+    con.execute(sql)
+    return table, schema
+
+
+def _rs_validate_parameters(
+    redshift_types: Dict[str, str],
+    diststyle: str,
+    distkey: Optional[str],
+    sortstyle: str,
+    sortkey: Optional[List[str]],
+) -> None:
+    if diststyle not in _RS_DISTSTYLES:
+        raise exceptions.InvalidRedshiftDiststyle(f"diststyle must be in {_RS_DISTSTYLES}")
+    cols = list(redshift_types.keys())
+    _logger.debug("Redshift columns: %s", cols)
+    if (diststyle == "KEY") and (not distkey):
+        raise exceptions.InvalidRedshiftDistkey("You must pass a distkey if you intend to use KEY diststyle")
+    if distkey and distkey not in cols:
+        raise exceptions.InvalidRedshiftDistkey(f"distkey ({distkey}) must be in the columns list: {cols})")
+    if sortstyle and sortstyle not in _RS_SORTSTYLES:
+        raise exceptions.InvalidRedshiftSortstyle(f"sortstyle must be in {_RS_SORTSTYLES}")
+    if sortkey:
+        if not isinstance(sortkey, list):
+            raise exceptions.InvalidRedshiftSortkey(
+                f"sortkey must be a List of items in the columns list: {cols}. " f"Currently value: {sortkey}"
+            )
+        for key in sortkey:
+            if key not in cols:
+                raise exceptions.InvalidRedshiftSortkey(
+                    f"sortkey must be a List of items in the columns list: {cols}. " f"Currently value: {key}"
+                )
+
+
+def _rs_copy(
+    con: Any, table: str, manifest_path: str, iam_role: str, num_files: int, schema: Optional[str] = None,
+) -> int:
+    if schema is None:
+        table_name: str = table
+    else:
+        table_name = f"{schema}.{table}"
+    sql: str = (f"COPY {table_name} FROM '{manifest_path}'\nIAM_ROLE '{iam_role}'\nFORMAT AS PARQUET\nMANIFEST")
+    _logger.debug("copy query:\n%s", sql)
+    con.execute(sql)
+    sql = "SELECT pg_last_copy_id() AS query_id"
+    query_id: int = con.execute(sql).fetchall()[0][0]
+    sql = f"SELECT COUNT(DISTINCT filename) as num_files_loaded FROM STL_LOAD_COMMITS WHERE query = {query_id}"
+    num_files_loaded: int = con.execute(sql).fetchall()[0][0]
+    _logger.debug("%s files counted. %s expected.", num_files_loaded, num_files)
+    if num_files_loaded != num_files:
+        raise exceptions.RedshiftLoadError(
+            f"Redshift load rollbacked. {num_files_loaded} files counted. {num_files} expected."
+        )
+    return num_files_loaded
+
+
+def _validate_engine(con: sqlalchemy.engine.Engine) -> None:
+    if not isinstance(con, sqlalchemy.engine.Engine):
+        raise exceptions.InvalidConnection(
+            "Invalid 'con' argument, please pass a "
+            "SQLAlchemy Engine. Use wr.db.get_engine(), "
+            "wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()"
+        )
+
+
+def _records2df(
+    records: List[Tuple[Any]],
+    cols_names: List[str],
+    index: Optional[Union[str, List[str]]],
+    dtype: Optional[Dict[str, pa.DataType]] = None,
+) -> pd.DataFrame:
+    arrays: List[pa.Array] = []
+    for col_values, col_name in zip(tuple(zip(*records)), cols_names):  # Transposing
+        if (dtype is None) or (col_name not in dtype):
+            try:
+                array: pa.Array = pa.array(obj=col_values, safe=True)  # Creating Arrow array
+            except pa.ArrowInvalid as ex:
+                array = _data_types.process_not_inferred_array(ex, values=col_values)  # Creating Arrow array
+        else:
+            array = pa.array(obj=col_values, type=dtype[col_name], safe=True)  # Creating Arrow array with dtype
+        arrays.append(array)
+    table = pa.Table.from_arrays(arrays=arrays, names=cols_names)  # Creating arrow Table
+    df: pd.DataFrame = table.to_pandas(  # Creating Pandas DataFrame
+        use_threads=True,
+        split_blocks=True,
+        self_destruct=True,
+        integer_object_nulls=False,
+        date_as_object=True,
+        types_mapper=_data_types.pyarrow2pandas_extension,
+    )
+    if index is not None:
+        df.set_index(index, inplace=True)
+    return df
+
+
+def _iterate_cursor(
+    cursor: Any,
+    chunksize: int,
+    cols_names: List[str],
+    index: Optional[Union[str, List[str]]],
+    dtype: Optional[Dict[str, pa.DataType]] = None,
+) -> Iterator[pd.DataFrame]:
+    while True:
+        records = cursor.fetchmany(chunksize)
+        if not records:
+            break
+        yield _records2df(records=records, cols_names=cols_names, index=index, dtype=dtype)
+
+
+def _convert_params(sql: str, params: Optional[Union[List, Tuple, Dict]]) -> List[Any]:
+    args: List[Any] = [sql]
+    if params is not None:
+        if hasattr(params, "keys"):
+            return args + [params]
+        return args + [list(params)]
+    return args
+
+
 def to_sql(df: pd.DataFrame, con: sqlalchemy.engine.Engine, **pandas_kwargs) -> None:
     """Write records stored in a DataFrame to a SQL database.
 
@@ -172,59 +376,6 @@ def read_sql_query(
         return _iterate_cursor(
             cursor=cursor, chunksize=chunksize, cols_names=cursor.keys(), index=index_col, dtype=dtype
         )
-
-
-def _records2df(
-    records: List[Tuple[Any]],
-    cols_names: List[str],
-    index: Optional[Union[str, List[str]]],
-    dtype: Optional[Dict[str, pa.DataType]] = None,
-) -> pd.DataFrame:
-    arrays: List[pa.Array] = []
-    for col_values, col_name in zip(tuple(zip(*records)), cols_names):  # Transposing
-        if (dtype is None) or (col_name not in dtype):
-            try:
-                array: pa.Array = pa.array(obj=col_values, safe=True)  # Creating Arrow array
-            except pa.ArrowInvalid as ex:
-                array = _data_types.process_not_inferred_array(ex, values=col_values)  # Creating Arrow array
-        else:
-            array = pa.array(obj=col_values, type=dtype[col_name], safe=True)  # Creating Arrow array with dtype
-        arrays.append(array)
-    table = pa.Table.from_arrays(arrays=arrays, names=cols_names)  # Creating arrow Table
-    df: pd.DataFrame = table.to_pandas(  # Creating Pandas DataFrame
-        use_threads=True,
-        split_blocks=True,
-        self_destruct=True,
-        integer_object_nulls=False,
-        date_as_object=True,
-        types_mapper=_data_types.pyarrow2pandas_extension,
-    )
-    if index is not None:
-        df.set_index(index, inplace=True)
-    return df
-
-
-def _iterate_cursor(
-    cursor: Any,
-    chunksize: int,
-    cols_names: List[str],
-    index: Optional[Union[str, List[str]]],
-    dtype: Optional[Dict[str, pa.DataType]] = None,
-) -> Iterator[pd.DataFrame]:
-    while True:
-        records = cursor.fetchmany(chunksize)
-        if not records:
-            break
-        yield _records2df(records=records, cols_names=cols_names, index=index, dtype=dtype)
-
-
-def _convert_params(sql: str, params: Optional[Union[List, Tuple, Dict]]) -> List[Any]:
-    args: List[Any] = [sql]
-    if params is not None:
-        if hasattr(params, "keys"):
-            return args + [params]
-        return args + [list(params)]
-    return args
 
 
 def read_sql_table(
@@ -739,120 +890,6 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
     s3.delete_objects(path=[manifest_path], use_threads=use_threads, boto3_session=session)
 
 
-def _rs_upsert(con: Any, table: str, temp_table: str, schema: str, primary_keys: Optional[List[str]] = None) -> None:
-    if not primary_keys:
-        primary_keys = _rs_get_primary_keys(con=con, schema=schema, table=table)
-    _logger.debug("primary_keys: %s", primary_keys)
-    if not primary_keys:
-        raise exceptions.InvalidRedshiftPrimaryKeys()
-    equals_clause: str = f"{table}.%s = {temp_table}.%s"
-    join_clause: str = " AND ".join([equals_clause % (pk, pk) for pk in primary_keys])
-    sql: str = f"DELETE FROM {schema}.{table} USING {temp_table} WHERE {join_clause}"
-    _logger.debug(sql)
-    con.execute(sql)
-    sql = f"INSERT INTO {schema}.{table} SELECT * FROM {temp_table}"
-    _logger.debug(sql)
-    con.execute(sql)
-    _rs_drop_table(con=con, schema=schema, table=temp_table)
-
-
-def _rs_create_table(
-    con: Any,
-    table: str,
-    schema: str,
-    mode: str,
-    redshift_types: Dict[str, str],
-    diststyle: str,
-    sortstyle: str,
-    distkey: Optional[str] = None,
-    sortkey: Optional[List[str]] = None,
-    primary_keys: Optional[List[str]] = None,
-) -> Tuple[str, Optional[str]]:
-    if mode == "overwrite":
-        _rs_drop_table(con=con, schema=schema, table=table)
-    else:
-        if _rs_does_table_exist(con=con, schema=schema, table=table) is True:
-            if mode == "upsert":
-                guid: str = uuid.uuid4().hex
-                temp_table: str = f"temp_redshift_{guid}"
-                sql: str = f"CREATE TEMPORARY TABLE {temp_table} (LIKE {schema}.{table})"
-                _logger.debug(sql)
-                con.execute(sql)
-                return temp_table, None
-            return table, schema
-    diststyle = diststyle.upper() if diststyle else "AUTO"
-    sortstyle = sortstyle.upper() if sortstyle else "COMPOUND"
-    _rs_validate_parameters(
-        redshift_types=redshift_types, diststyle=diststyle, distkey=distkey, sortstyle=sortstyle, sortkey=sortkey,
-    )
-    cols_str: str = "".join([f"{k} {v},\n" for k, v in redshift_types.items()])[:-2]
-    primary_keys_str: str = f",\nPRIMARY KEY ({', '.join(primary_keys)})" if primary_keys else ""
-    distkey_str: str = f"\nDISTKEY({distkey})" if distkey and diststyle == "KEY" else ""
-    sortkey_str: str = f"\n{sortstyle} SORTKEY({','.join(sortkey)})" if sortkey else ""
-    sql = (
-        f"CREATE TABLE IF NOT EXISTS {schema}.{table} (\n"
-        f"{cols_str}"
-        f"{primary_keys_str}"
-        f")\nDISTSTYLE {diststyle}"
-        f"{distkey_str}"
-        f"{sortkey_str}"
-    )
-    _logger.debug("Create table query:\n%s", sql)
-    con.execute(sql)
-    return table, schema
-
-
-def _rs_validate_parameters(
-    redshift_types: Dict[str, str],
-    diststyle: str,
-    distkey: Optional[str],
-    sortstyle: str,
-    sortkey: Optional[List[str]],
-) -> None:
-    if diststyle not in _RS_DISTSTYLES:
-        raise exceptions.InvalidRedshiftDiststyle(f"diststyle must be in {_RS_DISTSTYLES}")
-    cols = list(redshift_types.keys())
-    _logger.debug("Redshift columns: %s", cols)
-    if (diststyle == "KEY") and (not distkey):
-        raise exceptions.InvalidRedshiftDistkey("You must pass a distkey if you intend to use KEY diststyle")
-    if distkey and distkey not in cols:
-        raise exceptions.InvalidRedshiftDistkey(f"distkey ({distkey}) must be in the columns list: {cols})")
-    if sortstyle and sortstyle not in _RS_SORTSTYLES:
-        raise exceptions.InvalidRedshiftSortstyle(f"sortstyle must be in {_RS_SORTSTYLES}")
-    if sortkey:
-        if not isinstance(sortkey, list):
-            raise exceptions.InvalidRedshiftSortkey(
-                f"sortkey must be a List of items in the columns list: {cols}. " f"Currently value: {sortkey}"
-            )
-        for key in sortkey:
-            if key not in cols:
-                raise exceptions.InvalidRedshiftSortkey(
-                    f"sortkey must be a List of items in the columns list: {cols}. " f"Currently value: {key}"
-                )
-
-
-def _rs_copy(
-    con: Any, table: str, manifest_path: str, iam_role: str, num_files: int, schema: Optional[str] = None,
-) -> int:
-    if schema is None:
-        table_name: str = table
-    else:
-        table_name = f"{schema}.{table}"
-    sql: str = (f"COPY {table_name} FROM '{manifest_path}'\nIAM_ROLE '{iam_role}'\nFORMAT AS PARQUET\nMANIFEST")
-    _logger.debug("copy query:\n%s", sql)
-    con.execute(sql)
-    sql = "SELECT pg_last_copy_id() AS query_id"
-    query_id: int = con.execute(sql).fetchall()[0][0]
-    sql = f"SELECT COUNT(DISTINCT filename) as num_files_loaded FROM STL_LOAD_COMMITS WHERE query = {query_id}"
-    num_files_loaded: int = con.execute(sql).fetchall()[0][0]
-    _logger.debug("%s files counted. %s expected.", num_files_loaded, num_files)
-    if num_files_loaded != num_files:
-        raise exceptions.RedshiftLoadError(
-            f"Redshift load rollbacked. {num_files_loaded} files counted. {num_files} expected."
-        )
-    return num_files_loaded
-
-
 def write_redshift_copy_manifest(
     manifest_path: str,
     paths: List[str],
@@ -924,34 +961,6 @@ def write_redshift_copy_manifest(
     _logger.debug("key: %s", key)
     client_s3.put_object(Body=payload, Bucket=bucket, Key=key, **additional_kwargs)
     return manifest
-
-
-def _rs_drop_table(con: Any, schema: str, table: str) -> None:
-    sql = f"DROP TABLE IF EXISTS {schema}.{table}"
-    _logger.debug("Drop table query:\n%s", sql)
-    con.execute(sql)
-
-
-def _rs_get_primary_keys(con: Any, schema: str, table: str) -> List[str]:
-    cursor: Any = con.execute(
-        f"SELECT indexdef FROM pg_indexes WHERE schemaname = '{schema}' AND tablename = '{table}'"
-    )
-    result: str = cursor.fetchall()[0][0]
-    rfields: List[str] = result.split("(")[1].strip(")").split(",")
-    fields: List[str] = [field.strip().strip('"') for field in rfields]
-    return fields
-
-
-def _rs_does_table_exist(con: Any, schema: str, table: str) -> bool:
-    cursor = con.execute(
-        f"SELECT true WHERE EXISTS ("
-        f"SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE "
-        f"TABLE_SCHEMA = '{schema}' AND TABLE_NAME = '{table}'"
-        f");"
-    )
-    if len(cursor.fetchall()) > 0:
-        return True
-    return False
 
 
 def unload_redshift(
@@ -1228,12 +1237,3 @@ def unload_redshift_to_files(
         paths = [x[0].replace(" ", "") for x in _con.execute(sql).fetchall()]
         _logger.debug("paths: %s", paths)
         return paths
-
-
-def _validate_engine(con: sqlalchemy.engine.Engine) -> None:
-    if not isinstance(con, sqlalchemy.engine.Engine):
-        raise exceptions.InvalidConnection(
-            "Invalid 'con' argument, please pass a "
-            "SQLAlchemy Engine. Use wr.db.get_engine(), "
-            "wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()"
-        )

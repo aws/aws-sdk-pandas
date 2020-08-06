@@ -12,6 +12,24 @@ from awswrangler import _utils, exceptions, sts
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
+def _get_ecr_credentials_refresh_content(region: str) -> str:
+    return f"""
+import subprocess
+from pyspark.sql import SparkSession
+spark = SparkSession.builder.appName("ECR Setup Job").getOrCreate()
+
+COMMANDS = [
+    "sudo -s eval $(aws ecr get-login --region {region} --no-include-email)",
+    "sudo hdfs dfs -put -f /root/.docker/config.json /user/hadoop/"
+]
+
+for command in COMMANDS:
+    subprocess.run(command.split(" "), timeout=6.0, check=True)
+
+print("done!")
+    """
+
+
 def _get_default_logging_path(
     subnet_id: Optional[str] = None,
     account_id: Optional[str] = None,
@@ -944,24 +962,6 @@ def submit_ecr_credentials_refresh(
     response: Dict[str, Any] = client_emr.add_job_flow_steps(JobFlowId=cluster_id, Steps=[step])
     _logger.debug("response: \n%s", pprint.pformat(response))
     return response["StepIds"][0]
-
-
-def _get_ecr_credentials_refresh_content(region: str) -> str:
-    return f"""
-import subprocess
-from pyspark.sql import SparkSession
-spark = SparkSession.builder.appName("ECR Setup Job").getOrCreate()
-
-COMMANDS = [
-    "sudo -s eval $(aws ecr get-login --region {region} --no-include-email)",
-    "sudo hdfs dfs -put -f /root/.docker/config.json /user/hadoop/"
-]
-
-for command in COMMANDS:
-    subprocess.run(command.split(" "), timeout=6.0, check=True)
-
-print("done!")
-    """
 
 
 def build_spark_step(
