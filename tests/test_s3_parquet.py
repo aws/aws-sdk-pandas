@@ -41,6 +41,37 @@ def test_parquet_cast_string_dataset(path, partition_cols):
         assert str(df[col].iloc[row]) == str(df2[col].iloc[row])
 
 
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_read_parquet_filter_partitions(path, use_threads):
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 0, 1]})
+    paths = wr.s3.to_parquet(df, path, dataset=True, partition_cols=["c1", "c2"], use_threads=use_threads)["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    df2 = wr.s3.read_parquet(
+        path, dataset=True, partition_filter=lambda x: True if x["c1"] == "0" else False, use_threads=use_threads
+    )
+    assert df2.shape == (1, 3)
+    assert df2.c0.iloc[0] == 0
+    assert df2.c1.astype(int).iloc[0] == 0
+    assert df2.c2.astype(int).iloc[0] == 0
+    df2 = wr.s3.read_parquet(
+        path,
+        dataset=True,
+        partition_filter=lambda x: True if x["c1"] == "1" and x["c2"] == "0" else False,
+        use_threads=use_threads,
+    )
+    assert df2.shape == (1, 3)
+    assert df2.c0.iloc[0] == 1
+    assert df2.c1.astype(int).iloc[0] == 1
+    assert df2.c2.astype(int).iloc[0] == 0
+    df2 = wr.s3.read_parquet(
+        path, dataset=True, partition_filter=lambda x: True if x["c2"] == "0" else False, use_threads=use_threads
+    )
+    assert df2.shape == (2, 3)
+    assert df2.c0.astype(int).sum() == 1
+    assert df2.c1.astype(int).sum() == 1
+    assert df2.c2.astype(int).sum() == 0
+
+
 def test_parquet(path):
     df_file = pd.DataFrame({"id": [1, 2, 3]})
     path_file = f"{path}test_parquet_file.parquet"
@@ -171,37 +202,6 @@ def test_to_parquet_file_dtype(path, use_threads):
     assert df2.c0.sum() == 3
     assert str(df2.c0.dtype) == "Int64"
     assert str(df2.c1.dtype) == "string"
-
-
-@pytest.mark.parametrize("use_threads", [True, False])
-def test_read_parquet_filter_partitions(path, use_threads):
-    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 0, 1]})
-    paths = wr.s3.to_parquet(df, path, dataset=True, partition_cols=["c1", "c2"], use_threads=use_threads)["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
-    df2 = wr.s3.read_parquet(
-        path, dataset=True, partition_filter=lambda x: True if x["c1"] == "0" else False, use_threads=use_threads
-    )
-    assert df2.shape == (1, 3)
-    assert df2.c0.iloc[0] == 0
-    assert df2.c1.astype(int).iloc[0] == 0
-    assert df2.c2.astype(int).iloc[0] == 0
-    df2 = wr.s3.read_parquet(
-        path,
-        dataset=True,
-        partition_filter=lambda x: True if x["c1"] == "1" and x["c2"] == "0" else False,
-        use_threads=use_threads,
-    )
-    assert df2.shape == (1, 3)
-    assert df2.c0.iloc[0] == 1
-    assert df2.c1.astype(int).iloc[0] == 1
-    assert df2.c2.astype(int).iloc[0] == 0
-    df2 = wr.s3.read_parquet(
-        path, dataset=True, partition_filter=lambda x: True if x["c2"] == "0" else False, use_threads=use_threads
-    )
-    assert df2.shape == (2, 3)
-    assert df2.c0.astype(int).sum() == 1
-    assert df2.c1.astype(int).sum() == 1
-    assert df2.c2.astype(int).sum() == 0
 
 
 @pytest.mark.parametrize("use_threads", [True, False])

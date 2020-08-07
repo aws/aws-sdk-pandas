@@ -41,9 +41,7 @@ def test_sql(redshift_table, postgresql_table, mysql_table, databases_parameters
         method=None,
         dtype={"iint32": sqlalchemy.types.Integer},
     )
-    df = wr.db.read_sql_query(
-        sql=f"SELECT * FROM {databases_parameters[db_type]['schema']}.{table}", con=engine
-    )
+    df = wr.db.read_sql_query(sql=f"SELECT * FROM {databases_parameters[db_type]['schema']}.{table}", con=engine)
     ensure_data_types(df, has_list=False)
     engine = wr.db.get_engine(
         db_type=db_type,
