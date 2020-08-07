@@ -119,3 +119,4 @@ Knowing which companies are using this library is important to help prioritize t
 Please send a PR with your company name and @githubhandle if you may.
 
 1. [Digio](https://www.digio.com.br/) [[@afonsomy](https://github.com/afonsomy)]
+2. [Pier](https://www.pier.digital/) [[@flaviomax](https://github.com/flaviomax)]
