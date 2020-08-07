@@ -17,7 +17,13 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
 @pytest.mark.parametrize("db_type", ["mysql", "redshift", "postgresql"])
-def test_sql(redshift_table, databases_parameters, db_type):
+def test_sql(redshift_table, postgresql_table, mysql_table, databases_parameters, db_type):
+    if db_type == "postgresql":
+        table = postgresql_table
+    elif db_type == "mysql":
+        table = mysql_table
+    else:
+        table = redshift_table
     df = get_df()
     if db_type == "redshift":
         df.drop(["binary"], axis=1, inplace=True)
@@ -26,7 +32,7 @@ def test_sql(redshift_table, databases_parameters, db_type):
     wr.db.to_sql(
         df=df,
         con=engine,
-        name=redshift_table,
+        name=table,
         schema=databases_parameters[db_type]["schema"],
         if_exists="replace",
         index=index,
@@ -36,7 +42,7 @@ def test_sql(redshift_table, databases_parameters, db_type):
         dtype={"iint32": sqlalchemy.types.Integer},
     )
     df = wr.db.read_sql_query(
-        sql=f"SELECT * FROM {databases_parameters[db_type]['schema']}.{redshift_table}", con=engine
+        sql=f"SELECT * FROM {databases_parameters[db_type]['schema']}.{table}", con=engine
     )
     ensure_data_types(df, has_list=False)
     engine = wr.db.get_engine(
@@ -49,7 +55,7 @@ def test_sql(redshift_table, databases_parameters, db_type):
         echo=False,
     )
     dfs = wr.db.read_sql_query(
-        sql=f"SELECT * FROM {databases_parameters[db_type]['schema']}.{redshift_table}",
+        sql=f"SELECT * FROM {databases_parameters[db_type]['schema']}.{table}",
         con=engine,
         chunksize=1,
         dtype={
@@ -76,7 +82,7 @@ def test_sql(redshift_table, databases_parameters, db_type):
         wr.db.to_sql(
             df=pd.DataFrame({"col0": [1, 2, 3]}, dtype="Int32"),
             con=engine,
-            name=redshift_table,
+            name=table,
             schema=databases_parameters[db_type]["schema"],
             if_exists="replace",
             index=True,
@@ -85,7 +91,7 @@ def test_sql(redshift_table, databases_parameters, db_type):
         schema = None
         if db_type == "postgresql":
             schema = databases_parameters[db_type]["schema"]
-        df = wr.db.read_sql_table(con=engine, table=redshift_table, schema=schema, index_col="index")
+        df = wr.db.read_sql_table(con=engine, table=table, schema=schema, index_col="index")
         assert df.shape == (3, 1)
 
 
@@ -373,8 +379,13 @@ def test_redshift_unload_extras(bucket, path, redshift_table, databases_paramete
 
 
 @pytest.mark.parametrize("db_type", ["mysql", "redshift", "postgresql"])
-def test_to_sql_cast(redshift_table, databases_parameters, db_type):
-    table = redshift_table
+def test_to_sql_cast(redshift_table, postgresql_table, mysql_table, databases_parameters, db_type):
+    if db_type == "postgresql":
+        table = postgresql_table
+    elif db_type == "mysql":
+        table = mysql_table
+    else:
+        table = redshift_table
     schema = databases_parameters[db_type]["schema"]
     df = pd.DataFrame(
         {
@@ -403,8 +414,8 @@ def test_to_sql_cast(redshift_table, databases_parameters, db_type):
     assert df.equals(df2)
 
 
-def test_uuid(redshift_table, databases_parameters):
-    table = redshift_table
+def test_uuid(postgresql_table, databases_parameters):
+    table = postgresql_table
     schema = databases_parameters["postgresql"]["schema"]
     engine = wr.catalog.get_engine(connection="aws-data-wrangler-postgresql")
     df = pd.DataFrame(
@@ -436,8 +447,13 @@ def test_uuid(redshift_table, databases_parameters):
 
 
 @pytest.mark.parametrize("db_type", ["mysql", "redshift", "postgresql"])
-def test_null(redshift_table, databases_parameters, db_type):
-    table = redshift_table
+def test_null(redshift_table, postgresql_table, mysql_table, databases_parameters, db_type):
+    if db_type == "postgresql":
+        table = postgresql_table
+    elif db_type == "mysql":
+        table = mysql_table
+    else:
+        table = redshift_table
     schema = databases_parameters[db_type]["schema"]
     engine = wr.catalog.get_engine(connection=f"aws-data-wrangler-{db_type}")
     df = pd.DataFrame({"id": [1, 2, 3], "nothing": [None, None, None]})

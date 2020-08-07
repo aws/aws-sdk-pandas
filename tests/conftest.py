@@ -199,10 +199,30 @@ def path3(bucket):
 
 
 @pytest.fixture(scope="function")
-def redshift_table(databases_parameters):
+def redshift_table():
     name = f"tbl_{get_time_str_with_random_suffix()}"
     print(f"Table name: {name}")
     yield name
     engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
     with engine.connect() as con:
         con.execute(f"DROP TABLE IF EXISTS public.{name}")
+
+
+@pytest.fixture(scope="function")
+def postgresql_table():
+    name = f"tbl_{get_time_str_with_random_suffix()}"
+    print(f"Table name: {name}")
+    yield name
+    engine = wr.catalog.get_engine(connection="aws-data-wrangler-postgresql")
+    with engine.connect() as con:
+        con.execute(f"DROP TABLE IF EXISTS public.{name}")
+
+
+@pytest.fixture(scope="function")
+def mysql_table():
+    name = f"tbl_{get_time_str_with_random_suffix()}"
+    print(f"Table name: {name}")
+    yield name
+    engine = wr.catalog.get_engine(connection="aws-data-wrangler-mysql")
+    with engine.connect() as con:
+        con.execute(f"DROP TABLE IF EXISTS test.{name}")

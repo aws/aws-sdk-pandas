@@ -227,6 +227,29 @@ def _convert_params(sql: str, params: Optional[Union[List, Tuple, Dict]]) -> Lis
     return args
 
 
+def _read_parquet_iterator(
+    paths: List[str],
+    keep_files: bool,
+    use_threads: bool,
+    categories: List[str] = None,
+    chunked: Union[bool, int] = True,
+    boto3_session: Optional[boto3.Session] = None,
+    s3_additional_kwargs: Optional[Dict[str, str]] = None,
+) -> Iterator[pd.DataFrame]:
+    dfs: Iterator[pd.DataFrame] = s3.read_parquet(
+        path=paths,
+        categories=categories,
+        chunked=chunked,
+        dataset=False,
+        use_threads=use_threads,
+        boto3_session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,
+    )
+    yield from dfs
+    if keep_files is False:
+        s3.delete_objects(path=paths, use_threads=use_threads, boto3_session=boto3_session)
+
+
 def to_sql(df: pd.DataFrame, con: sqlalchemy.engine.Engine, **pandas_kwargs) -> None:
     """Write records stored in a DataFrame to a SQL database.
 
@@ -1109,29 +1132,6 @@ def unload_redshift(
         s3_additional_kwargs=s3_additional_kwargs,
         keep_files=keep_files,
     )
-
-
-def _read_parquet_iterator(
-    paths: List[str],
-    keep_files: bool,
-    use_threads: bool,
-    categories: List[str] = None,
-    chunked: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
-) -> Iterator[pd.DataFrame]:
-    dfs: Iterator[pd.DataFrame] = s3.read_parquet(
-        path=paths,
-        categories=categories,
-        chunked=chunked,
-        dataset=False,
-        use_threads=use_threads,
-        boto3_session=boto3_session,
-        s3_additional_kwargs=s3_additional_kwargs,
-    )
-    yield from dfs
-    if keep_files is False:
-        s3.delete_objects(path=paths, use_threads=use_threads, boto3_session=boto3_session)
 
 
 def unload_redshift_to_files(
