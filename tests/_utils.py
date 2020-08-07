@@ -529,7 +529,7 @@ def path_generator(bucket):
 def extract_cloudformation_outputs():
     outputs = {}
     client = boto3.client("cloudformation")
-    response = client.describe_stacks()
+    response = try_it(client.describe_stacks, botocore.exceptions.ClientError, max_num_tries=5)
     for stack in response.get("Stacks"):
         if (stack["StackName"] in ["aws-data-wrangler-base", "aws-data-wrangler-databases"]) and (
             stack["StackStatus"] in CFN_VALID_STATUS
