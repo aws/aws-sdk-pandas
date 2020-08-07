@@ -18,6 +18,12 @@
 | **PyPi**  | [![PyPI Downloads](https://pepy.tech/badge/awswrangler)](https://pypi.org/project/awswrangler/)                      | [Link](https://pypi.org/project/awswrangler/)        | `pip install awswrangler`                  |
 | **Conda** | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/awswrangler.svg)](https://anaconda.org/conda-forge/awswrangler) | [Link](https://anaconda.org/conda-forge/awswrangler) | `conda install -c conda-forge awswrangler` |
 
+## Table of contents
+
+- [Quick Start](#quick-start)
+- [Read The Docs](#read-the-docs)
+- [Who uses AWS Data Wrangler?](#who-uses-aws-data-wrangler)
+
 ## Quick Start
 
 Installation command: `pip install awswrangler`
@@ -105,3 +111,11 @@ wr.db.to_sql(df, engine, schema="test", name="my_table")
 - [**License**](https://github.com/awslabs/aws-data-wrangler/blob/master/LICENSE)
 - [**Contributing**](https://github.com/awslabs/aws-data-wrangler/blob/master/CONTRIBUTING.md)
 - [**Legacy Docs** (pre-1.0.0)](https://aws-data-wrangler.readthedocs.io/en/legacy/)
+
+## Who uses AWS Data Wrangler?
+
+Knowing which companies are using this library is important to help prioritize the project internally.
+
+Please send a PR with your company name and @githubhandle if you may.
+
+1. [Digio](https://www.digio.com.br/) [[@afonsomy](https://github.com/afonsomy)]
