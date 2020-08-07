@@ -1,5 +1,6 @@
-** apache-arrow-0.12.1; version 0.12.1 -- https://arrow.apache.org/
-** Boto3; version 1.9.17 -- https://github.com/boto/boto3/
+** apache-arrow-1.0.0; version 1.0.0 -- https://arrow.apache.org/
+** boto3; version 1.12.49 -- https://github.com/boto/boto3/
+** botocore; version 1.15.49 -- https://github.com/boto/botocore/
 
 Apache License
 
@@ -216,7 +217,7 @@ See the License for the specific language governing permissions and
 
 limitations under the License.
 
-* For apache-arrow-0.12.1 see also this required NOTICE:
+* For apache-arrow-1.0.0 see also this required NOTICE:
 Apache Arrow
 Copyright 2016 The Apache Software Foundation
 
@@ -292,11 +293,14 @@ Copyright 2013-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
 -----
 
-** pandas; version 0.22.0 -- https://pandas.pydata.org/
+** pandas; version 1.1.0 -- https://pandas.pydata.org/
 Copyright (c) 2008-2012, AQR Capital Management, LLC, Lambda Foundry, Inc. and PyData Development Team
 All rights reserved.
-** s3fs; version 0.2.0 -- https://s3fs.readthedocs.io/en/latest/
+** s3fs; version 4.2.0 -- https://s3fs.readthedocs.io/en/latest/
 Copyright (c) 2016, Continuum Analytics, Inc. and contributors
+All rights reserved.
+** numpy; version 1.19.1 -- https://numpy.org/
+Copyright (c) 2005-2020, NumPy Developers.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -323,3 +327,32 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+-----
+** pymysql; version 0.10.0 -- https://pymysql.readthedocs.io/
+Copyright (c) 2010, 2013 PyMySQL contributors
+All rights reserved.
+** sqlalchemy-redshift; version 0.7.0 -- https://github.com/sqlalchemy-redshift/sqlalchemy-redshift
+Copyright (c) 2013 Matt George
+All rights reserved.
+** sqlalchemy; version 1.3.10 -- https://www.sqlalchemy.org/
+Copyright 2005-2020 SQLAlchemy authors and contributors <see AUTHORS file>.
+All rights reserved.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
