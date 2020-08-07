@@ -163,6 +163,7 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
 def _upsert_table_parameters(
     parameters: Dict[str, str],
     database: str,
+    catalog_versioning: bool,
     catalog_id: Optional[str],
     table_input: Dict[str, Any],
     boto3_session: Optional[boto3.Session],
@@ -180,6 +181,7 @@ def _upsert_table_parameters(
             catalog_id=catalog_id,
             boto3_session=boto3_session,
             table_input=table_input,
+            catalog_versioning=catalog_versioning,
         )
     return pars
 
@@ -187,13 +189,17 @@ def _upsert_table_parameters(
 def _overwrite_table_parameters(
     parameters: Dict[str, str],
     database: str,
+    catalog_versioning: bool,
     catalog_id: Optional[str],
     table_input: Dict[str, Any],
     boto3_session: Optional[boto3.Session],
 ) -> Dict[str, str]:
     table_input["Parameters"] = parameters
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    client_glue.update_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, TableInput=table_input))
+    skip_archive: bool = not catalog_versioning
+    client_glue.update_table(
+        **_catalog_id(catalog_id=catalog_id, DatabaseName=database, TableInput=table_input, SkipArchive=skip_archive)
+    )
     return parameters
 
 
@@ -346,6 +352,7 @@ def upsert_table_parameters(
     parameters: Dict[str, str],
     database: str,
     table: str,
+    catalog_versioning: bool = False,
     catalog_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, str]:
@@ -359,6 +366,8 @@ def upsert_table_parameters(
         Database name.
     table : str
         Table name.
+    catalog_versioning : bool
+        If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
@@ -386,7 +395,12 @@ def upsert_table_parameters(
     if table_input is None:
         raise exceptions.InvalidArgumentValue(f"Table {database}.{table} does not exist.")
     return _upsert_table_parameters(
-        parameters=parameters, database=database, boto3_session=session, catalog_id=catalog_id, table_input=table_input,
+        parameters=parameters,
+        database=database,
+        boto3_session=session,
+        catalog_id=catalog_id,
+        table_input=table_input,
+        catalog_versioning=catalog_versioning,
     )
 
 
@@ -395,6 +409,7 @@ def overwrite_table_parameters(
     parameters: Dict[str, str],
     database: str,
     table: str,
+    catalog_versioning: bool = False,
     catalog_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, str]:
@@ -408,6 +423,8 @@ def overwrite_table_parameters(
         Database name.
     table : str
         Table name.
+    catalog_versioning : bool
+        If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
@@ -435,7 +452,12 @@ def overwrite_table_parameters(
     if table_input is None:
         raise exceptions.InvalidTable(f"Table {table} does not exist on database {database}.")
     return _overwrite_table_parameters(
-        parameters=parameters, database=database, catalog_id=catalog_id, table_input=table_input, boto3_session=session,
+        parameters=parameters,
+        database=database,
+        catalog_id=catalog_id,
+        table_input=table_input,
+        boto3_session=session,
+        catalog_versioning=catalog_versioning,
     )
 
 

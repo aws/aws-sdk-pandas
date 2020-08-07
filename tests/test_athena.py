@@ -531,6 +531,7 @@ def test_catalog_versioning(path, glue_database, glue_table):
     paths = wr.s3.to_parquet(
         df=df, path=path, dataset=True, database=glue_database, table=glue_table, mode="overwrite"
     )["paths"]
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 1
     wr.s3.wait_objects_exist(paths=paths, use_threads=False)
     df = wr.athena.read_sql_table(table=glue_table, database=glue_database)
     assert len(df.index) == 2
@@ -548,6 +549,7 @@ def test_catalog_versioning(path, glue_database, glue_table):
         mode="overwrite",
         catalog_versioning=True,
     )["paths"]
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 2
     wr.s3.wait_objects_exist(paths=paths1, use_threads=False)
     df = wr.athena.read_sql_table(table=glue_table, database=glue_database)
     assert len(df.index) == 2
@@ -566,6 +568,7 @@ def test_catalog_versioning(path, glue_database, glue_table):
         catalog_versioning=True,
         index=False,
     )["paths"]
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 3
     wr.s3.wait_objects_exist(paths=paths2, use_threads=False)
     wr.s3.wait_objects_not_exist(paths=paths1, use_threads=False)
     df = wr.athena.read_sql_table(table=glue_table, database=glue_database)
@@ -585,6 +588,7 @@ def test_catalog_versioning(path, glue_database, glue_table):
         catalog_versioning=False,
         index=False,
     )["paths"]
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 3
     wr.s3.wait_objects_exist(paths=paths3, use_threads=False)
     wr.s3.wait_objects_not_exist(paths=paths2, use_threads=False)
     df = wr.athena.read_sql_table(table=glue_table, database=glue_database)
