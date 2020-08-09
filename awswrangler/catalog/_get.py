@@ -3,7 +3,7 @@
 
 import itertools
 import logging
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Dict, Iterator, List, Optional, Union, cast
 from urllib.parse import quote_plus as _quote_plus
 
 import boto3  # type: ignore
@@ -192,7 +192,7 @@ def databases(
     """
     database_iter: Iterator[Dict[str, Any]] = get_databases(catalog_id=catalog_id, boto3_session=boto3_session)
     dbs = itertools.islice(database_iter, limit)
-    df_dict: Dict[str, List] = {"Database": [], "Description": []}
+    df_dict: Dict[str, List[str]] = {"Database": [], "Description": []}
     for db in dbs:
         df_dict["Database"].append(db["Name"])
         df_dict["Description"].append(db.get("Description", ""))
@@ -342,7 +342,7 @@ def tables(
             tbls = [x for x in tbls if x["Name"].endswith(name_suffix)]
         tbls = tbls[:limit]
 
-    df_dict: Dict[str, List] = {"Database": [], "Table": [], "Description": [], "Columns": [], "Partitions": []}
+    df_dict: Dict[str, List[str]] = {"Database": [], "Table": [], "Description": [], "Columns": [], "Partitions": []}
     for tbl in tbls:
         df_dict["Database"].append(tbl["DatabaseName"])
         df_dict["Table"].append(tbl["Name"])
@@ -429,7 +429,7 @@ def table(
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
     tbl = client_glue.get_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table))["Table"]
-    df_dict: Dict[str, List] = {"Column Name": [], "Type": [], "Partition": [], "Comment": []}
+    df_dict: Dict[str, List[Union[str, bool]]] = {"Column Name": [], "Type": [], "Partition": [], "Comment": []}
     for col in tbl["StorageDescriptor"]["Columns"]:
         df_dict["Column Name"].append(col["Name"])
         df_dict["Type"].append(col["Type"])
@@ -478,7 +478,7 @@ def get_table_location(database: str, table: str, boto3_session: Optional[boto3.
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
     res: Dict[str, Any] = client_glue.get_table(DatabaseName=database, Name=table)
     try:
-        return res["Table"]["StorageDescriptor"]["Location"]
+        return cast(str, res["Table"]["StorageDescriptor"]["Location"])
     except KeyError:
         raise exceptions.InvalidTable(f"{database}.{table}")
 
@@ -511,14 +511,17 @@ def get_connection(
 
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    return client_glue.get_connection(**_catalog_id(catalog_id=catalog_id, Name=name, HidePassword=False))["Connection"]
+    return cast(
+        Dict[str, Any],
+        client_glue.get_connection(**_catalog_id(catalog_id=catalog_id, Name=name, HidePassword=False))["Connection"],
+    )
 
 
 def get_engine(
     connection: str,
     catalog_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
-    **sqlalchemy_kwargs,
+    **sqlalchemy_kwargs: Any,
 ) -> sqlalchemy.engine.Engine:
     """Return a SQLAlchemy Engine from a Glue Catalog Connection.
 

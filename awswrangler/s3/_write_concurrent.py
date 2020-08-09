@@ -15,24 +15,24 @@ _logger: logging.Logger = logging.getLogger(__name__)
 class _WriteProxy:
     def __init__(self, use_threads: bool):
         self._exec: Optional[concurrent.futures.ThreadPoolExecutor]
-        self._results: List[Any] = []
+        self._results: List[str] = []
         cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
         if cpus > 1:
             self._exec = concurrent.futures.ThreadPoolExecutor(max_workers=cpus)
-            self._futures: List[concurrent.futures.Future] = []
+            self._futures: List[Any] = []
         else:
             self._exec = None
 
     @staticmethod
     def _caller(
-        func: Callable, boto3_primitives: _utils.Boto3PrimitivesType, func_kwargs: Dict[str, Any]
+        func: Callable[..., pd.DataFrame], boto3_primitives: _utils.Boto3PrimitivesType, func_kwargs: Dict[str, Any]
     ) -> pd.DataFrame:
         boto3_session: boto3.Session = _utils.boto3_from_primitives(primitives=boto3_primitives)
         func_kwargs["boto3_session"] = boto3_session
         _logger.debug("Calling: %s", func)
         return func(**func_kwargs)
 
-    def write(self, func: Callable, boto3_session: boto3.Session, **func_kwargs) -> None:
+    def write(self, func: Callable[..., List[str]], boto3_session: boto3.Session, **func_kwargs: Any) -> None:
         """Write File."""
         if self._exec is not None:
             _logger.debug("Submitting: %s", func)
@@ -46,7 +46,7 @@ class _WriteProxy:
         else:
             self._results += func(boto3_session=boto3_session, **func_kwargs)
 
-    def close(self):
+    def close(self) -> List[str]:
         """Close the proxy."""
         if self._exec is not None:
             for future in concurrent.futures.as_completed(self._futures):

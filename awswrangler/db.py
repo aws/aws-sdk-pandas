@@ -218,7 +218,7 @@ def _iterate_cursor(
         yield _records2df(records=records, cols_names=cols_names, index=index, dtype=dtype)
 
 
-def _convert_params(sql: str, params: Optional[Union[List, Tuple, Dict]]) -> List[Any]:
+def _convert_params(sql: str, params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]]) -> List[Any]:
     args: List[Any] = [sql]
     if params is not None:
         if hasattr(params, "keys"):
@@ -231,10 +231,10 @@ def _read_parquet_iterator(
     paths: List[str],
     keep_files: bool,
     use_threads: bool,
-    categories: List[str] = None,
-    chunked: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    categories: Optional[List[str]],
+    chunked: Union[bool, int],
+    boto3_session: Optional[boto3.Session],
+    s3_additional_kwargs: Optional[Dict[str, str]],
 ) -> Iterator[pd.DataFrame]:
     dfs: Iterator[pd.DataFrame] = s3.read_parquet(
         path=paths,
@@ -250,7 +250,7 @@ def _read_parquet_iterator(
         s3.delete_objects(path=paths, use_threads=use_threads, boto3_session=boto3_session)
 
 
-def to_sql(df: pd.DataFrame, con: sqlalchemy.engine.Engine, **pandas_kwargs) -> None:
+def to_sql(df: pd.DataFrame, con: sqlalchemy.engine.Engine, **pandas_kwargs: Any) -> None:
     """Write records stored in a DataFrame to a SQL database.
 
     Support for **Redshift**, **PostgreSQL** and **MySQL**.
@@ -333,7 +333,7 @@ def read_sql_query(
     sql: str,
     con: sqlalchemy.engine.Engine,
     index_col: Optional[Union[str, List[str]]] = None,
-    params: Optional[Union[List, Tuple, Dict]] = None,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
     chunksize: Optional[int] = None,
     dtype: Optional[Dict[str, pa.DataType]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
@@ -406,7 +406,7 @@ def read_sql_table(
     con: sqlalchemy.engine.Engine,
     schema: Optional[str] = None,
     index_col: Optional[Union[str, List[str]]] = None,
-    params: Optional[Union[List, Tuple, Dict]] = None,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
     chunksize: Optional[int] = None,
     dtype: Optional[Dict[str, pa.DataType]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
@@ -483,7 +483,7 @@ def get_redshift_temp_engine(
     auto_create: bool = True,
     db_groups: Optional[List[str]] = None,
     boto3_session: Optional[boto3.Session] = None,
-    **sqlalchemy_kwargs,
+    **sqlalchemy_kwargs: Any,
 ) -> sqlalchemy.engine.Engine:
     """Get Glue connection details.
 
@@ -547,7 +547,7 @@ def get_redshift_temp_engine(
 
 
 def get_engine(
-    db_type: str, host: str, port: int, database: str, user: str, password: str, **sqlalchemy_kwargs
+    db_type: str, host: str, port: int, database: str, user: str, password: str, **sqlalchemy_kwargs: Any
 ) -> sqlalchemy.engine.Engine:
     """Return a SQLAlchemy Engine from the given arguments.
 
@@ -726,7 +726,7 @@ def copy_to_redshift(  # pylint: disable=too-many-arguments
     """
     path = path if path.endswith("/") else f"{path}/"
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    paths: List[str] = s3.to_parquet(  # type: ignore
+    paths: List[str] = s3.to_parquet(
         df=df,
         path=path,
         index=index,
@@ -994,7 +994,7 @@ def unload_redshift(
     region: Optional[str] = None,
     max_file_size: Optional[float] = None,
     kms_key_id: Optional[str] = None,
-    categories: List[str] = None,
+    categories: Optional[List[str]] = None,
     chunked: Union[bool, int] = False,
     keep_files: bool = False,
     use_threads: bool = True,
@@ -1144,7 +1144,7 @@ def unload_redshift_to_files(
     kms_key_id: Optional[str] = None,
     use_threads: bool = True,
     manifest: bool = False,
-    partition_cols: Optional[List] = None,
+    partition_cols: Optional[List[str]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> List[str]:
     """Unload Parquet files from a Amazon Redshift query result to parquet files on s3 (Through UNLOAD command).

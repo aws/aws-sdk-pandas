@@ -37,7 +37,7 @@ def _get_read_details(path: str, pandas_kwargs: Dict[str, Any]) -> Tuple[str, Op
 def _read_text_chunked(
     paths: List[str],
     chunksize: int,
-    parser_func: Callable,
+    parser_func: Callable[..., pd.DataFrame],
     path_root: Optional[str],
     boto3_session: boto3.Session,
     pandas_kwargs: Dict[str, Any],
@@ -60,7 +60,7 @@ def _read_text_chunked(
 
 def _read_text_file(
     path: str,
-    parser_func: Callable,
+    parser_func: Callable[..., pd.DataFrame],
     path_root: Optional[str],
     boto3_session: Union[boto3.Session, Dict[str, Optional[str]]],
     pandas_kwargs: Dict[str, Any],
@@ -79,7 +79,7 @@ def _read_text_file(
 
 
 def _read_text(
-    parser_func: Callable,
+    parser_func: Callable[..., pd.DataFrame],
     path: Union[str, List[str]],
     path_suffix: Union[str, List[str], None],
     path_ignore_suffix: Union[str, List[str], None],
@@ -92,7 +92,7 @@ def _read_text(
     dataset: bool,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]],
     ignore_index: bool,
-    **pandas_kwargs,
+    **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     if "iterator" in pandas_kwargs:
         raise exceptions.InvalidArgument("Please, use the chunksize argument instead of iterator.")
@@ -145,7 +145,7 @@ def read_csv(
     chunksize: Optional[int] = None,
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
-    **pandas_kwargs,
+    **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read CSV file(s) from from a received S3 prefix or list of S3 objects paths.
 
@@ -278,7 +278,7 @@ def read_fwf(
     chunksize: Optional[int] = None,
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
-    **pandas_kwargs,
+    **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read fixed-width formatted file(s) from from a received S3 prefix or list of S3 objects paths.
 
@@ -412,7 +412,7 @@ def read_json(
     chunksize: Optional[int] = None,
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
-    **pandas_kwargs,
+    **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read JSON file(s) from from a received S3 prefix or list of S3 objects paths.
 

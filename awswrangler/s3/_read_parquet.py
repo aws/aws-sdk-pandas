@@ -5,7 +5,7 @@ import datetime
 import itertools
 import logging
 import pprint
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union, cast
 
 import boto3  # type: ignore
 import pandas as pd  # type: ignore
@@ -283,7 +283,7 @@ def _count_row_groups(
     )
     with _utils.open_file(fs=fs, path=path, mode="rb") as f:
         pq_file: pyarrow.parquet.ParquetFile = pyarrow.parquet.ParquetFile(source=f, read_dictionary=categories)
-        return pq_file.num_row_groups
+        return cast(int, pq_file.num_row_groups)
 
 
 def _read_parquet_row_group(

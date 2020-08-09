@@ -24,7 +24,7 @@ def _to_text(
     s3_additional_kwargs: Optional[Dict[str, str]],
     path: Optional[str] = None,
     path_root: Optional[str] = None,
-    **pandas_kwargs,
+    **pandas_kwargs: Any,
 ) -> List[str]:
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
@@ -80,7 +80,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
     projection_intervals: Optional[Dict[str, str]] = None,
     projection_digits: Optional[Dict[str, str]] = None,
     catalog_id: Optional[str] = None,
-    **pandas_kwargs,
+    **pandas_kwargs: Any,
 ) -> Dict[str, Union[List[str], Dict[str, List[str]]]]:
     """Write CSV file or dataset on Amazon S3.
 
@@ -413,7 +413,7 @@ def to_json(
     path: str,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
-    **pandas_kwargs,
+    **pandas_kwargs: Any,
 ) -> None:
     """Write JSON file on Amazon S3.
 

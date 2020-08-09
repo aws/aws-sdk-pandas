@@ -19,7 +19,7 @@ def _add_partitions(
     boto3_session: Optional[boto3.Session],
     inputs: List[Dict[str, Any]],
     catalog_id: Optional[str] = None,
-):
+) -> None:
     chunks: List[List[Dict[str, Any]]] = _utils.chunkify(lst=inputs, max_length=100)
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
     for chunk in chunks:  # pylint: disable=too-many-nested-blocks

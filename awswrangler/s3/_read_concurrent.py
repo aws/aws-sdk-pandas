@@ -15,7 +15,10 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _caller(
-    path: str, func: Callable, boto3_primitives: _utils.Boto3PrimitivesType, func_kwargs: Dict[str, Any]
+    path: str,
+    func: Callable[..., pd.DataFrame],
+    boto3_primitives: _utils.Boto3PrimitivesType,
+    func_kwargs: Dict[str, Any],
 ) -> pd.DataFrame:
     boto3_session: boto3.Session = _utils.boto3_from_primitives(primitives=boto3_primitives)
     func_kwargs["path"] = path
@@ -24,7 +27,11 @@ def _caller(
 
 
 def _read_concurrent(
-    func: Callable, paths: List[str], ignore_index: bool, boto3_session: boto3.Session, **func_kwargs,
+    func: Callable[..., pd.DataFrame],
+    paths: List[str],
+    ignore_index: bool,
+    boto3_session: boto3.Session,
+    **func_kwargs: Any,
 ) -> pd.DataFrame:
     cpus: int = _utils.ensure_cpu_count(use_threads=True)
     with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:

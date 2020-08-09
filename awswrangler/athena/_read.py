@@ -111,7 +111,7 @@ def _get_last_query_executions(
         yield execution_data.get("QueryExecutions")
 
 
-def _sort_successful_executions_data(query_executions: List[Dict[str, Any]]):
+def _sort_successful_executions_data(query_executions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
     Sorts `_get_last_query_executions`'s results based on query Completion DateTime.
 
@@ -289,14 +289,16 @@ def _fetch_csv_result(
 
 
 def _resolve_query_with_cache(
-    cache_info,
+    cache_info: _CacheInfo,
     categories: Optional[List[str]],
     chunksize: Optional[Union[int, bool]],
     use_threads: bool,
     session: Optional[boto3.Session],
-):
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Fetch cached data and return it as a pandas DataFrame (or list of DataFrames)."""
     _logger.debug("cache_info:\n%s", cache_info)
+    if cache_info.query_execution_id is None:
+        raise RuntimeError("Trying to resolve with cache but w/o any query execution ID.")
     query_metadata: _QueryMetadata = _get_query_metadata(
         query_execution_id=cache_info.query_execution_id,
         boto3_session=session,
@@ -330,14 +332,14 @@ def _resolve_query_without_cache_ctas(
     keep_files: bool,
     chunksize: Union[int, bool, None],
     categories: Optional[List[str]],
-    encryption,
+    encryption: Optional[str],
     workgroup: Optional[str],
     kms_key: Optional[str],
     wg_config: _WorkGroupConfig,
     name: Optional[str],
     use_threads: bool,
     boto3_session: boto3.Session,
-):
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     path: str = f"{s3_output}/{name}"
     ext_location: str = "\n" if wg_config.enforced is True else f",\n    external_location = '{path}'\n"
     sql = (
@@ -406,13 +408,13 @@ def _resolve_query_without_cache_regular(
     keep_files: bool,
     chunksize: Union[int, bool, None],
     categories: Optional[List[str]],
-    encryption,
+    encryption: Optional[str],
     workgroup: Optional[str],
     kms_key: Optional[str],
     wg_config: _WorkGroupConfig,
     use_threads: bool,
     boto3_session: boto3.Session,
-):
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     _logger.debug("sql: %s", sql)
     query_id: str = _start_query_execution(
         sql=sql,
@@ -698,7 +700,7 @@ def read_sql_table(
     table: str,
     database: str,
     ctas_approach: bool = True,
-    categories: List[str] = None,
+    categories: Optional[List[str]] = None,
     chunksize: Optional[Union[int, bool]] = None,
     s3_output: Optional[str] = None,
     workgroup: Optional[str] = None,

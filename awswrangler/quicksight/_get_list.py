@@ -19,14 +19,14 @@ def _list(
     attr_name: str,
     account_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> List[Dict[str, Any]]:
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
         account_id = sts.get_account_id(boto3_session=session)
     client: boto3.client = _utils.client(service_name="quicksight", session=session)
-    func: Callable = getattr(client, func_name)
-    response = func(AwsAccountId=account_id, **kwargs)
+    func: Callable[..., Dict[str, Any]] = getattr(client, func_name)
+    response: Dict[str, Any] = func(AwsAccountId=account_id, **kwargs)
     next_token: str = response.get("NextToken", None)
     result: List[Dict[str, Any]] = response[attr_name]
     while next_token is not None:
@@ -422,7 +422,7 @@ def list_ingestions(
 
 def _get_ids(
     name: str,
-    func: Callable,
+    func: Callable[..., List[Dict[str, Any]]],
     attr_name: str,
     account_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
@@ -436,7 +436,7 @@ def _get_ids(
 
 def _get_id(
     name: str,
-    func: Callable,
+    func: Callable[..., List[Dict[str, Any]]],
     attr_name: str,
     account_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,

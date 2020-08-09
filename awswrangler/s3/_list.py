@@ -90,7 +90,7 @@ def _list_objects(  # pylint: disable=too-many-branches
 
     for page in response_iterator:  # pylint: disable=too-many-nested-blocks
         if delimiter is None:
-            contents: Optional[List] = page.get("Contents")
+            contents: Optional[List[Dict[str, Any]]] = page.get("Contents")
             if contents is not None:
                 for content in contents:
                     key: str = content["Key"]

@@ -6,7 +6,7 @@ import math
 import os
 import random
 import time
-from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union, cast
 
 import boto3  # type: ignore
 import botocore.config  # type: ignore
@@ -196,19 +196,19 @@ def get_fs(
     return fs
 
 
-def open_file(fs: s3fs.S3FileSystem, **kwargs) -> Any:
+def open_file(fs: s3fs.S3FileSystem, **kwargs: Any) -> Any:
     """Open s3fs file with retries to overcome eventual consistency."""
     fs.invalidate_cache()
     fs.clear_instance_cache()
     return try_it(f=fs.open, ex=FileNotFoundError, **kwargs)
 
 
-def empty_generator() -> Generator:
+def empty_generator() -> Generator[None, None, None]:
     """Empty Generator."""
     yield from ()
 
 
-def ensure_postgresql_casts():
+def ensure_postgresql_casts() -> None:
     """Ensure that psycopg2 will handle some data types right."""
     psycopg2.extensions.register_adapter(bytes, psycopg2.Binary)
     typecast_bytea = lambda data, cur: None if data is None else bytes(psycopg2.BINARY(data, cur))  # noqa
@@ -225,7 +225,7 @@ def get_region_from_subnet(subnet_id: str, boto3_session: Optional[boto3.Session
     """Extract region from Subnet ID."""
     session: boto3.Session = ensure_session(session=boto3_session)
     client_ec2: boto3.client = client(service_name="ec2", session=session)
-    return client_ec2.describe_subnets(SubnetIds=[subnet_id])["Subnets"][0]["AvailabilityZone"][:-1]
+    return cast(str, client_ec2.describe_subnets(SubnetIds=[subnet_id])["Subnets"][0]["AvailabilityZone"][:-1])
 
 
 def get_region_from_session(boto3_session: Optional[boto3.Session] = None, default_region: Optional[str] = None) -> str:
@@ -279,7 +279,7 @@ def check_duplicated_columns(df: pd.DataFrame) -> Any:
         raise exceptions.InvalidDataFrame(f"There is duplicated column names in your DataFrame: {duplicated}")
 
 
-def try_it(f: Callable, ex, base: float = 1.0, max_num_tries: int = 3, **kwargs) -> Any:
+def try_it(f: Callable[..., Any], ex: Any, base: float = 1.0, max_num_tries: int = 3, **kwargs: Any) -> Any:
     """Run function with decorrelated Jitter.
 
     Reference: https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/

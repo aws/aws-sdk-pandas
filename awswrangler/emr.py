@@ -3,7 +3,7 @@
 
 import logging
 import pprint
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, cast
 
 import boto3  # type: ignore
 
@@ -78,7 +78,7 @@ def _get_default_logging_path(
     return f"s3://aws-logs-{_account_id}-{_region}/elasticmapreduce/"
 
 
-def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-statements
+def _build_cluster_args(**pars: Any) -> Dict[str, Any]:  # pylint: disable=too-many-branches,too-many-statements
     account_id: str = sts.get_account_id(boto3_session=pars["boto3_session"])
     region: str = _utils.get_region_from_session(boto3_session=pars["boto3_session"])
 
@@ -208,7 +208,7 @@ def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-s
             }
         )
     if pars["hive_glue_catalog"] is True:
-        hive_conf: Optional[Dict[str, Any]] = {"Classification": "hive-site", "Properties": {}, "Configurations": []}
+        hive_conf: Dict[str, Any] = {"Classification": "hive-site", "Properties": {}, "Configurations": []}
         hive_conf["Properties"][
             "hive.metastore.client.factory.class"
         ] = "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory"
@@ -271,7 +271,7 @@ def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-s
     timeout_action_master: str = "SWITCH_TO_ON_DEMAND" if pars[
         "spot_timeout_to_on_demand_master"
     ] else "TERMINATE_CLUSTER"
-    fleet_master: Dict = {
+    fleet_master: Dict[str, Any] = {
         "Name": "MASTER",
         "InstanceFleetType": "MASTER",
         "TargetOnDemandCapacity": pars["instance_num_on_demand_master"],
@@ -305,7 +305,7 @@ def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-s
     # Core Instance Fleet
     if (pars["instance_num_spot_core"] > 0) or pars["instance_num_on_demand_core"] > 0:
         timeout_action_core = "SWITCH_TO_ON_DEMAND" if pars["spot_timeout_to_on_demand_core"] else "TERMINATE_CLUSTER"
-        fleet_core: Dict = {
+        fleet_core: Dict[str, Any] = {
             "Name": "CORE",
             "InstanceFleetType": "CORE",
             "TargetOnDemandCapacity": pars["instance_num_on_demand_core"],
@@ -344,7 +344,7 @@ def _build_cluster_args(**pars):  # pylint: disable=too-many-branches,too-many-s
         timeout_action_task: str = "SWITCH_TO_ON_DEMAND" if pars[
             "spot_timeout_to_on_demand_task"
         ] else "TERMINATE_CLUSTER"
-        fleet_task: Dict = {
+        fleet_task: Dict[str, Any] = {
             "Name": "TASK",
             "InstanceFleetType": "TASK",
             "TargetOnDemandCapacity": pars["instance_num_on_demand_task"],
@@ -684,7 +684,7 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
     client_emr: boto3.client = _utils.client(service_name="emr", session=boto3_session)
     response: Dict[str, Any] = client_emr.run_job_flow(**args)
     _logger.debug("response: \n%s", pprint.pformat(response))
-    return response["JobFlowId"]
+    return cast(str, response["JobFlowId"])
 
 
 def get_cluster_state(cluster_id: str, boto3_session: Optional[boto3.Session] = None) -> str:
@@ -715,7 +715,7 @@ def get_cluster_state(cluster_id: str, boto3_session: Optional[boto3.Session] = 
     client_emr: boto3.client = _utils.client(service_name="emr", session=boto3_session)
     response: Dict[str, Any] = client_emr.describe_cluster(ClusterId=cluster_id)
     _logger.debug("response: \n%s", pprint.pformat(response))
-    return response["Cluster"]["Status"]["State"]
+    return cast(str, response["Cluster"]["Status"]["State"])
 
 
 def terminate_cluster(cluster_id: str, boto3_session: Optional[boto3.Session] = None) -> None:
@@ -774,7 +774,7 @@ def submit_steps(
     client_emr: boto3.client = _utils.client(service_name="emr", session=boto3_session)
     response: Dict[str, Any] = client_emr.add_job_flow_steps(JobFlowId=cluster_id, Steps=steps)
     _logger.debug("response: \n%s", pprint.pformat(response))
-    return response["StepIds"]
+    return cast(List[str], response["StepIds"])
 
 
 def submit_step(
@@ -826,7 +826,7 @@ def submit_step(
     client_emr: boto3.client = _utils.client(service_name="emr", session=session)
     response: Dict[str, Any] = client_emr.add_job_flow_steps(JobFlowId=cluster_id, Steps=[step])
     _logger.debug("response: \n%s", pprint.pformat(response))
-    return response["StepIds"][0]
+    return cast(str, response["StepIds"][0])
 
 
 def build_step(
@@ -914,7 +914,7 @@ def get_step_state(cluster_id: str, step_id: str, boto3_session: Optional[boto3.
     client_emr: boto3.client = _utils.client(service_name="emr", session=boto3_session)
     response: Dict[str, Any] = client_emr.describe_step(ClusterId=cluster_id, StepId=step_id)
     _logger.debug("response: \n%s", pprint.pformat(response))
-    return response["Step"]["Status"]["State"]
+    return cast(str, response["Step"]["Status"]["State"])
 
 
 def submit_ecr_credentials_refresh(
@@ -961,7 +961,7 @@ def submit_ecr_credentials_refresh(
     client_emr: boto3.client = _utils.client(service_name="emr", session=session)
     response: Dict[str, Any] = client_emr.add_job_flow_steps(JobFlowId=cluster_id, Steps=[step])
     _logger.debug("response: \n%s", pprint.pformat(response))
-    return response["StepIds"][0]
+    return cast(str, response["StepIds"][0])
 
 
 def build_spark_step(

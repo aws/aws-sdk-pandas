@@ -1,7 +1,7 @@
 """Amazon S3 Write Dataset (PRIVATE)."""
 
 import logging
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import boto3  # type: ignore
 import pandas as pd  # type: ignore
@@ -14,7 +14,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _to_partitions(
-    func: Callable,
+    func: Callable[..., List[str]],
     concurrent_partitioning: bool,
     df: pd.DataFrame,
     path_root: str,
@@ -22,7 +22,7 @@ def _to_partitions(
     mode: str,
     partition_cols: List[str],
     boto3_session: boto3.Session,
-    **func_kwargs,
+    **func_kwargs: Any,
 ) -> Tuple[List[str], Dict[str, List[str]]]:
     partitions_values: Dict[str, List[str]] = {}
     proxy: _WriteProxy = _WriteProxy(use_threads=concurrent_partitioning)
@@ -40,7 +40,7 @@ def _to_partitions(
 
 
 def _to_dataset(
-    func: Callable,
+    func: Callable[..., List[str]],
     concurrent_partitioning: bool,
     df: pd.DataFrame,
     path_root: str,
@@ -49,7 +49,7 @@ def _to_dataset(
     mode: str,
     partition_cols: Optional[List[str]],
     boto3_session: boto3.Session,
-    **func_kwargs,
+    **func_kwargs: Any,
 ) -> Tuple[List[str], Dict[str, List[str]]]:
     path_root = path_root if path_root[-1] == "/" else f"{path_root}/"
 

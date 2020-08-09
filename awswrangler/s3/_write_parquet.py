@@ -66,7 +66,7 @@ def _write_chunk(
     table: pa.Table,
     offset: int,
     chunk_size: int,
-):
+) -> List[str]:
     fs = _get_fs(boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
     with _new_writer(file_path=file_path, fs=fs, compression=compression, schema=table.schema) as writer:
         writer.write_table(table.slice(offset, chunk_size))

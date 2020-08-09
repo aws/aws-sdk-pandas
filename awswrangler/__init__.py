@@ -11,4 +11,21 @@ from awswrangler import athena, catalog, cloudwatch, db, emr, exceptions, quicks
 from awswrangler.__metadata__ import __description__, __license__, __title__, __version__  # noqa
 from awswrangler._config import config  # noqa
 
+__all__ = [
+    "athena",
+    "catalog",
+    "cloudwatch",
+    "db",
+    "emr",
+    "exceptions",
+    "quicksight",
+    "s3",
+    "sts",
+    "config",
+    "__description__",
+    "__license__",
+    "__title__",
+    "__version__",
+]
+
 _logging.getLogger("awswrangler").addHandler(_logging.NullHandler())

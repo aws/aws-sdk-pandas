@@ -1,7 +1,7 @@
 """STS module."""
 
 import logging
-from typing import Optional
+from typing import Optional, cast
 
 import boto3  # type: ignore
 
@@ -30,7 +30,7 @@ def get_account_id(boto3_session: Optional[boto3.Session] = None) -> str:
 
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    return _utils.client(service_name="sts", session=session).get_caller_identity().get("Account")
+    return cast(str, _utils.client(service_name="sts", session=session).get_caller_identity().get("Account"))
 
 
 def get_current_identity_arn(boto3_session: Optional[boto3.Session] = None) -> str:
@@ -53,7 +53,7 @@ def get_current_identity_arn(boto3_session: Optional[boto3.Session] = None) -> s
 
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    return _utils.client(service_name="sts", session=session).get_caller_identity().get("Arn")
+    return cast(str, _utils.client(service_name="sts", session=session).get_caller_identity().get("Arn"))
 
 
 def get_current_identity_name(boto3_session: Optional[boto3.Session] = None) -> str:

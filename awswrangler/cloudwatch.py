@@ -3,7 +3,7 @@
 import datetime
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 import boto3  # type: ignore
 import pandas as pd  # type: ignore
@@ -71,7 +71,7 @@ def start_query(
         args["limit"] = limit
     client_logs: boto3.client = _utils.client(service_name="logs", session=boto3_session)
     response: Dict[str, Any] = client_logs.start_query(**args)
-    return response["queryId"]
+    return cast(str, response["queryId"])
 
 
 def wait_query(query_id: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, Any]:
@@ -168,7 +168,7 @@ def run_query(
         boto3_session=session,
     )
     response: Dict[str, Any] = wait_query(query_id=query_id, boto3_session=session)
-    return response["results"]
+    return cast(List[List[Dict[str, str]]], response["results"])
 
 
 def read_logs(

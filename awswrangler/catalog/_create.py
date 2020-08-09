@@ -43,7 +43,7 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
     projection_intervals: Optional[Dict[str, str]],
     projection_digits: Optional[Dict[str, str]],
     catalog_id: Optional[str],
-):
+) -> None:
     # Description
     mode = _update_if_necessary(dic=table_input, key="Description", value=description, mode=mode)
 

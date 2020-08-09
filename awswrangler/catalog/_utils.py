@@ -13,7 +13,7 @@ from awswrangler._config import apply_configs
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _catalog_id(catalog_id: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+def _catalog_id(catalog_id: Optional[str] = None, **kwargs: Any) -> Dict[str, Any]:
     if catalog_id is not None:
         kwargs["CatalogId"] = catalog_id
     return kwargs
