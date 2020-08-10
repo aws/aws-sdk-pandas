@@ -124,3 +124,4 @@ Please send a PR with your company name and @githubhandle if you may.
 2. [Pier](https://www.pier.digital/) [[@flaviomax](https://github.com/flaviomax)]
 3. [M4U](https://www.m4u.com.br/) [[@Thiago-Dantas](https://github.com/Thiago-Dantas)]
 4. [Serasa Experian](https://www.serasaexperian.com.br/) [[@andre-marcos-perez](https://github.com/andre-marcos-perez)]
+5. [LINE TV](https://www.linetv.tw/) [[@bryanyang0528](https://github.com/bryanyang0528)]
