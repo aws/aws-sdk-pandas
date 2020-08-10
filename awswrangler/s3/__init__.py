@@ -9,3 +9,27 @@ from awswrangler.s3._read_text import read_csv, read_fwf, read_json  # noqa
 from awswrangler.s3._wait import wait_objects_exist, wait_objects_not_exist  # noqa
 from awswrangler.s3._write_parquet import store_parquet_metadata, to_parquet  # noqa
 from awswrangler.s3._write_text import to_csv, to_json  # noqa
+
+__all__ = [
+    "copy_objects",
+    "merge_datasets",
+    "delete_objects",
+    "describe_objects",
+    "get_bucket_region",
+    "size_objects",
+    "does_object_exist",
+    "list_directories",
+    "list_objects",
+    "read_parquet",
+    "read_parquet_metadata",
+    "read_parquet_table",
+    "read_csv",
+    "read_fwf",
+    "read_json",
+    "wait_objects_exist",
+    "wait_objects_not_exist",
+    "store_parquet_metadata",
+    "to_parquet",
+    "to_csv",
+    "to_json",
+]

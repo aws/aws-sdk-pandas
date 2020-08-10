@@ -1,7 +1,7 @@
 """Amazon QuickSight Describe Module."""
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast
 
 import boto3  # type: ignore
 
@@ -52,7 +52,9 @@ def describe_dashboard(
     if (dashboard_id is None) and (name is not None):
         dashboard_id = get_dashboard_id(name=name, account_id=account_id, boto3_session=session)
     client: boto3.client = _utils.client(service_name="quicksight", session=session)
-    return client.describe_dashboard(AwsAccountId=account_id, DashboardId=dashboard_id)["Dashboard"]
+    return cast(
+        Dict[str, Any], client.describe_dashboard(AwsAccountId=account_id, DashboardId=dashboard_id)["Dashboard"]
+    )
 
 
 def describe_data_source(
@@ -96,7 +98,9 @@ def describe_data_source(
     if (data_source_id is None) and (name is not None):
         data_source_id = get_data_source_id(name=name, account_id=account_id, boto3_session=session)
     client: boto3.client = _utils.client(service_name="quicksight", session=session)
-    return client.describe_data_source(AwsAccountId=account_id, DataSourceId=data_source_id)["DataSource"]
+    return cast(
+        Dict[str, Any], client.describe_data_source(AwsAccountId=account_id, DataSourceId=data_source_id)["DataSource"]
+    )
 
 
 def describe_data_source_permissions(
@@ -140,7 +144,10 @@ def describe_data_source_permissions(
     if (data_source_id is None) and (name is not None):
         data_source_id = get_data_source_id(name=name, account_id=account_id, boto3_session=session)
     client: boto3.client = _utils.client(service_name="quicksight", session=session)
-    return client.describe_data_source_permissions(AwsAccountId=account_id, DataSourceId=data_source_id)["Permissions"]
+    return cast(
+        Dict[str, Any],
+        client.describe_data_source_permissions(AwsAccountId=account_id, DataSourceId=data_source_id)["Permissions"],
+    )
 
 
 def describe_dataset(
@@ -184,11 +191,11 @@ def describe_dataset(
     if (dataset_id is None) and (name is not None):
         dataset_id = get_dataset_id(name=name, account_id=account_id, boto3_session=session)
     client: boto3.client = _utils.client(service_name="quicksight", session=session)
-    return client.describe_data_set(AwsAccountId=account_id, DataSetId=dataset_id)["DataSet"]
+    return cast(Dict[str, Any], client.describe_data_set(AwsAccountId=account_id, DataSetId=dataset_id)["DataSet"])
 
 
 def describe_ingestion(
-    ingestion_id: str = None,
+    ingestion_id: str,
     dataset_name: Optional[str] = None,
     dataset_id: Optional[str] = None,
     account_id: Optional[str] = None,
@@ -231,6 +238,7 @@ def describe_ingestion(
     if (dataset_id is None) and (dataset_name is not None):
         dataset_id = get_dataset_id(name=dataset_name, account_id=account_id, boto3_session=session)
     client: boto3.client = _utils.client(service_name="quicksight", session=session)
-    return client.describe_ingestion(IngestionId=ingestion_id, AwsAccountId=account_id, DataSetId=dataset_id)[
-        "Ingestion"
-    ]
+    return cast(
+        Dict[str, Any],
+        client.describe_ingestion(IngestionId=ingestion_id, AwsAccountId=account_id, DataSetId=dataset_id)["Ingestion"],
+    )

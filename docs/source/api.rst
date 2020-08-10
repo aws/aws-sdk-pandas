@@ -68,8 +68,10 @@ AWS Glue Catalog
     get_partitions
     get_table_description
     get_table_location
+    get_table_number_of_versions
     get_table_parameters
     get_table_types
+    get_table_versions
     get_tables
     overwrite_table_parameters
     sanitize_column_name

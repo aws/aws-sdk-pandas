@@ -5,9 +5,7 @@ import pytest
 
 import awswrangler as wr
 
-logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
-logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
 
 
 @pytest.mark.parametrize("use_threads", [True, False])
@@ -29,6 +27,7 @@ def test_routine_0(glue_database, glue_table, path, use_threads, concurrent_part
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
     )["paths"]
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 1
     wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
     df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
     assert df.shape == df2.shape
@@ -57,6 +56,7 @@ def test_routine_0(glue_database, glue_table, path, use_threads, concurrent_part
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
     )["paths"]
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 1
     wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
     df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
     assert df.shape == df2.shape
@@ -85,6 +85,7 @@ def test_routine_0(glue_database, glue_table, path, use_threads, concurrent_part
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
     )["paths"]
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 1
     wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
     df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
     assert len(df.columns) == len(df2.columns)
@@ -114,6 +115,7 @@ def test_routine_0(glue_database, glue_table, path, use_threads, concurrent_part
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
     )["paths"]
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 1
     wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
     df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
     assert len(df2.columns) == 2
@@ -144,6 +146,7 @@ def test_routine_0(glue_database, glue_table, path, use_threads, concurrent_part
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
     )["paths"]
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 1
     wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
     df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
     assert len(df2.columns) == 3
@@ -176,6 +179,7 @@ def test_routine_0(glue_database, glue_table, path, use_threads, concurrent_part
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
     )["paths"]
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 1
     wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
     df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
     assert df.shape == df2.shape
@@ -206,6 +210,7 @@ def test_routine_0(glue_database, glue_table, path, use_threads, concurrent_part
         concurrent_partitioning=concurrent_partitioning,
         use_threads=use_threads,
     )["paths"]
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 1
     wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
     df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
     assert len(df2.columns) == 2
@@ -237,6 +242,7 @@ def test_routine_0(glue_database, glue_table, path, use_threads, concurrent_part
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
     )["paths"]
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 1
     wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
     df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
     assert len(df2.columns) == 3
@@ -270,6 +276,7 @@ def test_routine_1(glue_database, glue_table, path):
         parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
         columns_comments={"c0": "0"},
     )
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 1
     df2 = wr.athena.read_sql_table(glue_table, glue_database)
     assert df.shape == df2.shape
     assert df.c0.sum() == df2.c0.sum()
@@ -296,6 +303,7 @@ def test_routine_1(glue_database, glue_table, path):
         parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
         columns_comments={"c1": "1"},
     )
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 1
     df2 = wr.athena.read_sql_table(glue_table, glue_database)
     assert df.shape == df2.shape
     assert df.c1.sum() == df2.c1.sum()
@@ -322,6 +330,7 @@ def test_routine_1(glue_database, glue_table, path):
         parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index) * 2)},
         columns_comments={"c1": "1"},
     )
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 1
     df2 = wr.athena.read_sql_table(glue_table, glue_database)
     assert len(df.columns) == len(df2.columns)
     assert len(df.index) * 2 == len(df2.index)
@@ -350,6 +359,7 @@ def test_routine_1(glue_database, glue_table, path):
         parameters={"num_cols": "2", "num_rows": "9"},
         columns_comments={"c1": "1", "c2": "2"},
     )
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 1
     df2 = wr.athena.read_sql_table(glue_table, glue_database)
     assert len(df2.columns) == 2
     assert len(df2.index) == 9
@@ -378,6 +388,7 @@ def test_routine_1(glue_database, glue_table, path):
         parameters={"num_cols": "2", "num_rows": "2"},
         columns_comments={"c0": "zero", "c1": "one"},
     )
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 1
     df2 = wr.athena.read_sql_table(glue_table, glue_database)
     assert df.shape == df2.shape
     assert df.c1.sum() == df2.c1.astype(int).sum()
@@ -407,6 +418,7 @@ def test_routine_1(glue_database, glue_table, path):
         parameters={"num_cols": "2", "num_rows": "3"},
         columns_comments={"c0": "zero", "c1": "one"},
     )
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 1
     df2 = wr.athena.read_sql_table(glue_table, glue_database)
     assert len(df2.columns) == 2
     assert len(df2.index) == 3
@@ -437,6 +449,7 @@ def test_routine_1(glue_database, glue_table, path):
         parameters={"num_cols": "3", "num_rows": "4"},
         columns_comments={"c0": "zero", "c1": "one", "c2": "two"},
     )
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 1
     df2 = wr.athena.read_sql_table(glue_table, glue_database)
     assert len(df2.columns) == 3
     assert len(df2.index) == 4

@@ -1,3 +1,5 @@
+An `AWS Professional Service <https://aws.amazon.com/professional-services>`_ open source initiative.
+
 Quick Start
 -----------
 

@@ -1,9 +1,8 @@
 """Amazon CSV S3 Write Module (PRIVATE)."""
 
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-import boto3  # type: ignore
 import pandas as pd  # type: ignore
 
 from awswrangler import _data_types, _utils, catalog, exceptions
@@ -13,21 +12,25 @@ _logger: logging.Logger = logging.getLogger(__name__)
 _COMPRESSION_2_EXT: Dict[Optional[str], str] = {None: "", "gzip": ".gz", "snappy": ".snappy"}
 
 
+def _extract_dtypes_from_table_input(table_input: Dict[str, Any]) -> Dict[str, str]:
+    dtypes: Dict[str, str] = {}
+    for col in table_input["StorageDescriptor"]["Columns"]:
+        dtypes[col["Name"]] = col["Type"]
+    if "PartitionKeys" in table_input:
+        for par in table_input["PartitionKeys"]:
+            dtypes[par["Name"]] = par["Type"]
+    return dtypes
+
+
 def _apply_dtype(
-    df: pd.DataFrame,
-    mode: str,
-    database: Optional[str],
-    table: Optional[str],
-    dtype: Dict[str, str],
-    boto3_session: boto3.Session,
+    df: pd.DataFrame, dtype: Dict[str, str], catalog_table_input: Optional[Dict[str, Any]], mode: str
 ) -> pd.DataFrame:
-    if (mode in ("append", "overwrite_partitions")) and (database is not None) and (table is not None):
-        catalog_types: Optional[Dict[str, str]] = catalog.get_table_types(
-            database=database, table=table, boto3_session=boto3_session
-        )
-        if catalog_types is not None:
-            for k, v in catalog_types.items():
-                dtype[k] = v
+    if mode in ("append", "overwrite_partitions"):
+        if catalog_table_input is not None:
+            catalog_types: Optional[Dict[str, str]] = _extract_dtypes_from_table_input(table_input=catalog_table_input)
+            if catalog_types is not None:
+                for k, v in catalog_types.items():
+                    dtype[k] = v
     df = _data_types.cast_pandas_with_athena_types(df=df, dtype=dtype)
     return df
 

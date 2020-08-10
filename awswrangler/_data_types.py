@@ -315,7 +315,7 @@ def process_not_inferred_dtype(ex: pa.ArrowInvalid) -> pa.DataType:
     """Infer data type from PyArrow inference exception."""
     ex_str = str(ex)
     _logger.debug("PyArrow was not able to infer data type:\n%s", ex_str)
-    match: Optional[Match] = re.search(
+    match: Optional[Match[str]] = re.search(
         pattern="Could not convert (.*) with type (.*): did not recognize "
         "Python value type when inferring an Arrow data type",
         string=ex_str,

@@ -2,7 +2,7 @@
 
 import logging
 import uuid
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, cast
 
 import boto3  # type: ignore
 
@@ -93,7 +93,7 @@ def _generate_permissions(
 
 
 def _generate_transformations(
-    rename_columns: Optional[Dict[str, str]], cast_columns_types=Optional[Dict[str, str]]
+    rename_columns: Optional[Dict[str, str]], cast_columns_types: Optional[Dict[str, str]]
 ) -> List[Dict[str, Dict[str, Any]]]:
     trans: List[Dict[str, Dict[str, Any]]] = []
     if rename_columns is not None:
@@ -392,4 +392,4 @@ def create_ingestion(
     response: Dict[str, Any] = client.create_ingestion(
         DataSetId=dataset_id, IngestionId=ingestion_id, AwsAccountId=account_id
     )
-    return response["IngestionId"]
+    return cast(str, response["IngestionId"])

@@ -23,708 +23,32 @@ _RS_DISTSTYLES = ["AUTO", "EVEN", "ALL", "KEY"]
 _RS_SORTSTYLES = ["COMPOUND", "INTERLEAVED"]
 
 
-def to_sql(df: pd.DataFrame, con: sqlalchemy.engine.Engine, **pandas_kwargs) -> None:
-    """Write records stored in a DataFrame to a SQL database.
+def _rs_drop_table(con: Any, schema: str, table: str) -> None:
+    sql = f"DROP TABLE IF EXISTS {schema}.{table}"
+    _logger.debug("Drop table query:\n%s", sql)
+    con.execute(sql)
 
-    Support for **Redshift**, **PostgreSQL** and **MySQL**.
 
-    Support for all pandas to_sql() arguments:
-    https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_sql.html
-
-    Note
-    ----
-    Redshift: For large DataFrames (1MM+ rows) consider the function **wr.db.copy_to_redshift()**.
-
-    Note
-    ----
-    Redshift: `index=False` will be forced.
-
-    Parameters
-    ----------
-    df : pandas.DataFrame
-        Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
-    con : sqlalchemy.engine.Engine
-        SQLAlchemy Engine. Please use,
-        wr.db.get_engine(), wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()
-    pandas_kwargs
-        keyword arguments forwarded to pandas.DataFrame.to_csv()
-        https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_sql.html
-
-    Returns
-    -------
-    None
-        None.
-
-    Examples
-    --------
-    Writing to Redshift with temporary credentials
-
-    >>> import awswrangler as wr
-    >>> import pandas as pd
-    >>> wr.db.to_sql(
-    ...     df=pd.DataFrame({'col': [1, 2, 3]}),
-    ...     con=wr.db.get_redshift_temp_engine(cluster_identifier="...", user="..."),
-    ...     name="table_name",
-    ...     schema="schema_name"
-    ... )
-
-    Writing to Redshift from Glue Catalog Connections
-
-    >>> import awswrangler as wr
-    >>> import pandas as pd
-    >>> wr.db.to_sql(
-    ...     df=pd.DataFrame({'col': [1, 2, 3]}),
-    ...     con=wr.catalog.get_engine(connection="..."),
-    ...     name="table_name",
-    ...     schema="schema_name"
-    ... )
-
-    """
-    if df.empty is True:
-        raise exceptions.EmptyDataFrame()
-    if not isinstance(con, sqlalchemy.engine.Engine):
-        raise exceptions.InvalidConnection(
-            "Invalid 'con' argument, please pass a "
-            "SQLAlchemy Engine. Use wr.db.get_engine(), "
-            "wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()"
-        )
-    if "dtype" in pandas_kwargs:
-        cast_columns: Dict[str, VisitableType] = pandas_kwargs["dtype"]
-    else:
-        cast_columns = {}
-    dtypes: Dict[str, VisitableType] = _data_types.sqlalchemy_types_from_pandas(
-        df=df, db_type=con.name, dtype=cast_columns
+def _rs_get_primary_keys(con: Any, schema: str, table: str) -> List[str]:
+    cursor: Any = con.execute(
+        f"SELECT indexdef FROM pg_indexes WHERE schemaname = '{schema}' AND tablename = '{table}'"
     )
-    pandas_kwargs["dtype"] = dtypes
-    pandas_kwargs["con"] = con
-    if pandas_kwargs["con"].name.lower() == "redshift":  # Redshift does not accept index
-        pandas_kwargs["index"] = False
-    _utils.try_it(f=df.to_sql, ex=sqlalchemy.exc.InternalError, **pandas_kwargs)
+    result: str = cursor.fetchall()[0][0]
+    rfields: List[str] = result.split("(")[1].strip(")").split(",")
+    fields: List[str] = [field.strip().strip('"') for field in rfields]
+    return fields
 
 
-def read_sql_query(
-    sql: str,
-    con: sqlalchemy.engine.Engine,
-    index_col: Optional[Union[str, List[str]]] = None,
-    params: Optional[Union[List, Tuple, Dict]] = None,
-    chunksize: Optional[int] = None,
-    dtype: Optional[Dict[str, pa.DataType]] = None,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    """Return a DataFrame corresponding to the result set of the query string.
-
-    Support for **Redshift**, **PostgreSQL** and **MySQL**.
-
-    Note
-    ----
-    Redshift: For large extractions (1MM+ rows) consider the function **wr.db.unload_redshift()**.
-
-    Parameters
-    ----------
-    sql : str
-        Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
-    con : sqlalchemy.engine.Engine
-        SQLAlchemy Engine. Please use,
-        wr.db.get_engine(), wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()
-    index_col : Union[str, List[str]], optional
-        Column(s) to set as index(MultiIndex).
-    params :  Union[List, Tuple, Dict], optional
-        List of parameters to pass to execute method.
-        The syntax used to pass parameters is database driver dependent.
-        Check your database driver documentation for which of the five syntax styles,
-        described in PEP 249’s paramstyle, is supported.
-        Eg. for psycopg2, uses %(name)s so use params={‘name’ : ‘value’}.
-    chunksize : int, optional
-        If specified, return an iterator where chunksize is the number of rows to include in each chunk.
-    dtype : Dict[str, pyarrow.DataType], optional
-        Specifying the datatype for columns.
-        The keys should be the column names and the values should be the PyArrow types.
-
-    Returns
-    -------
-    Union[pandas.DataFrame, Iterator[pandas.DataFrame]]
-        Result as Pandas DataFrame(s).
-
-    Examples
-    --------
-    Reading from Redshift with temporary credentials
-
-    >>> import awswrangler as wr
-    >>> df = wr.db.read_sql_query(
-    ...     sql="SELECT * FROM public.my_table",
-    ...     con=wr.db.get_redshift_temp_engine(cluster_identifier="...", user="...")
-    ... )
-
-    Reading from Redshift from Glue Catalog Connections
-
-    >>> import awswrangler as wr
-    >>> df = wr.db.read_sql_query(
-    ...     sql="SELECT * FROM public.my_table",
-    ...     con=wr.catalog.get_engine(connection="...")
-    ... )
-
-    """
-    _validate_engine(con=con)
-    with con.connect() as _con:
-        args = _convert_params(sql, params)
-        cursor = _con.execute(*args)
-        if chunksize is None:
-            return _records2df(records=cursor.fetchall(), cols_names=cursor.keys(), index=index_col, dtype=dtype)
-        return _iterate_cursor(
-            cursor=cursor, chunksize=chunksize, cols_names=cursor.keys(), index=index_col, dtype=dtype
-        )
-
-
-def _records2df(
-    records: List[Tuple[Any]],
-    cols_names: List[str],
-    index: Optional[Union[str, List[str]]],
-    dtype: Optional[Dict[str, pa.DataType]] = None,
-) -> pd.DataFrame:
-    arrays: List[pa.Array] = []
-    for col_values, col_name in zip(tuple(zip(*records)), cols_names):  # Transposing
-        if (dtype is None) or (col_name not in dtype):
-            try:
-                array: pa.Array = pa.array(obj=col_values, safe=True)  # Creating Arrow array
-            except pa.ArrowInvalid as ex:
-                array = _data_types.process_not_inferred_array(ex, values=col_values)  # Creating Arrow array
-        else:
-            array = pa.array(obj=col_values, type=dtype[col_name], safe=True)  # Creating Arrow array with dtype
-        arrays.append(array)
-    table = pa.Table.from_arrays(arrays=arrays, names=cols_names)  # Creating arrow Table
-    df: pd.DataFrame = table.to_pandas(  # Creating Pandas DataFrame
-        use_threads=True,
-        split_blocks=True,
-        self_destruct=True,
-        integer_object_nulls=False,
-        date_as_object=True,
-        types_mapper=_data_types.pyarrow2pandas_extension,
+def _rs_does_table_exist(con: Any, schema: str, table: str) -> bool:
+    cursor = con.execute(
+        f"SELECT true WHERE EXISTS ("
+        f"SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE "
+        f"TABLE_SCHEMA = '{schema}' AND TABLE_NAME = '{table}'"
+        f");"
     )
-    if index is not None:
-        df.set_index(index, inplace=True)
-    return df
-
-
-def _iterate_cursor(
-    cursor: Any,
-    chunksize: int,
-    cols_names: List[str],
-    index: Optional[Union[str, List[str]]],
-    dtype: Optional[Dict[str, pa.DataType]] = None,
-) -> Iterator[pd.DataFrame]:
-    while True:
-        records = cursor.fetchmany(chunksize)
-        if not records:
-            break
-        yield _records2df(records=records, cols_names=cols_names, index=index, dtype=dtype)
-
-
-def _convert_params(sql: str, params: Optional[Union[List, Tuple, Dict]]) -> List[Any]:
-    args: List[Any] = [sql]
-    if params is not None:
-        if hasattr(params, "keys"):
-            return args + [params]
-        return args + [list(params)]
-    return args
-
-
-def read_sql_table(
-    table: str,
-    con: sqlalchemy.engine.Engine,
-    schema: Optional[str] = None,
-    index_col: Optional[Union[str, List[str]]] = None,
-    params: Optional[Union[List, Tuple, Dict]] = None,
-    chunksize: Optional[int] = None,
-    dtype: Optional[Dict[str, pa.DataType]] = None,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    """Return a DataFrame corresponding to the result set of the query string.
-
-    Support for **Redshift**, **PostgreSQL** and **MySQL**.
-
-    Note
-    ----
-    Redshift: For large extractions (1MM+ rows) consider the function `wr.db.unload_redshift()`.
-
-    Parameters
-    ----------
-    table : str
-        Nable name.
-    con : sqlalchemy.engine.Engine
-        SQLAlchemy Engine. Please use,
-        wr.db.get_engine(), wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()
-    schema : str, optional
-        Name of SQL schema in database to query (if database flavor supports this).
-        Uses default schema if None (default).
-    index_col : Union[str, List[str]], optional
-        Column(s) to set as index(MultiIndex).
-    params :  Union[List, Tuple, Dict], optional
-        List of parameters to pass to execute method.
-        The syntax used to pass parameters is database driver dependent.
-        Check your database driver documentation for which of the five syntax styles,
-        described in PEP 249’s paramstyle, is supported.
-        Eg. for psycopg2, uses %(name)s so use params={‘name’ : ‘value’}.
-    chunksize : int, optional
-        If specified, return an iterator where chunksize is the number of rows to include in each chunk.
-    dtype : Dict[str, pyarrow.DataType], optional
-        Specifying the datatype for columns.
-        The keys should be the column names and the values should be the PyArrow types.
-
-    Returns
-    -------
-    Union[pandas.DataFrame, Iterator[pandas.DataFrame]]
-        Result as Pandas DataFrame(s).
-
-    Examples
-    --------
-    Reading from Redshift with temporary credentials
-
-    >>> import awswrangler as wr
-    >>> df = wr.db.read_sql_table(
-    ...     table="my_table",
-    ...     schema="public",
-    ...     con=wr.db.get_redshift_temp_engine(cluster_identifier="...", user="...")
-    ... )
-
-    Reading from Redshift from Glue Catalog Connections
-
-    >>> import awswrangler as wr
-    >>> df = wr.db.read_sql_table(
-    ...     table="my_table",
-    ...     schema="public",
-    ...     con=wr.catalog.get_engine(connection="...")
-    ... )
-
-    """
-    if schema is None:
-        sql: str = f"SELECT * FROM {table}"
-    else:
-        sql = f"SELECT * FROM {schema}.{table}"
-    return read_sql_query(sql=sql, con=con, index_col=index_col, params=params, chunksize=chunksize, dtype=dtype)
-
-
-def get_redshift_temp_engine(
-    cluster_identifier: str,
-    user: str,
-    database: Optional[str] = None,
-    duration: int = 900,
-    auto_create: bool = True,
-    db_groups: Optional[List[str]] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    **sqlalchemy_kwargs,
-) -> sqlalchemy.engine.Engine:
-    """Get Glue connection details.
-
-    Parameters
-    ----------
-    cluster_identifier : str
-        The unique identifier of a cluster.
-        This parameter is case sensitive.
-    user : str, optional
-        The name of a database user.
-    database : str, optional
-        Database name. If None, the default Database is used.
-    duration : int, optional
-        The number of seconds until the returned temporary password expires.
-        Constraint: minimum 900, maximum 3600.
-        Default: 900
-    auto_create : bool
-        Create a database user with the name specified for the user named in user if one does not exist.
-    db_groups: List[str], optinal
-        A list of the names of existing database groups that the user named in DbUser will join for the current session,
-        in addition to any group memberships for an existing user.
-        If not specified, a new user is added only to PUBLIC.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    sqlalchemy_kwargs
-        keyword arguments forwarded to sqlalchemy.create_engine().
-        https://docs.sqlalchemy.org/en/13/core/engines.html
-
-    Returns
-    -------
-    sqlalchemy.engine.Engine
-        SQLAlchemy Engine.
-
-    Examples
-    --------
-    >>> import awswrangler as wr
-    >>> engine = wr.db.get_redshift_temp_engine('my_cluster', 'my_user')
-
-    """
-    client_redshift: boto3.client = _utils.client(service_name="redshift", session=boto3_session)
-    args: Dict[str, Any] = {
-        "DbUser": user,
-        "ClusterIdentifier": cluster_identifier,
-        "DurationSeconds": duration,
-        "AutoCreate": auto_create,
-    }
-    if db_groups is not None:
-        args["DbGroups"] = db_groups
-    res: Dict[str, Any] = client_redshift.get_cluster_credentials(**args)
-    _user: str = _quote_plus(res["DbUser"])
-    password: str = _quote_plus(res["DbPassword"])
-    cluster: Dict[str, Any] = client_redshift.describe_clusters(ClusterIdentifier=cluster_identifier)["Clusters"][0]
-    host: str = cluster["Endpoint"]["Address"]
-    port: str = cluster["Endpoint"]["Port"]
-    if database is None:
-        database = cluster["DBName"]
-    conn_str: str = f"redshift+psycopg2://{_user}:{password}@{host}:{port}/{database}"
-    sqlalchemy_kwargs["executemany_mode"] = "values"
-    sqlalchemy_kwargs["executemany_values_page_size"] = 100_000
-    return sqlalchemy.create_engine(conn_str, **sqlalchemy_kwargs)
-
-
-def get_engine(
-    db_type: str, host: str, port: int, database: str, user: str, password: str, **sqlalchemy_kwargs
-) -> sqlalchemy.engine.Engine:
-    """Return a SQLAlchemy Engine from the given arguments.
-
-    Only Redshift, PostgreSQL and MySQL are supported.
-
-    Parameters
-    ----------
-    db_type : str
-        Database type: "redshift", "mysql" or "postgresql".
-    host : str
-        Host address.
-    port : str
-        Port number.
-    database : str
-        Database name.
-    user : str
-        Username.
-    password : str
-        Password.
-    sqlalchemy_kwargs
-        keyword arguments forwarded to sqlalchemy.create_engine().
-        https://docs.sqlalchemy.org/en/13/core/engines.html
-
-    Returns
-    -------
-    sqlalchemy.engine.Engine
-        SQLAlchemy Engine.
-
-    Examples
-    --------
-    >>> import awswrangler as wr
-    >>> engine = wr.db.get_engine(
-    ...     db_type="postgresql",
-    ...     host="...",
-    ...     port=1234,
-    ...     database="...",
-    ...     user="...",
-    ...     password="..."
-    ... )
-
-    """
-    if db_type == "postgresql":
-        _utils.ensure_postgresql_casts()
-    if db_type in ("redshift", "postgresql"):
-        conn_str: str = f"{db_type}+psycopg2://{user}:{password}@{host}:{port}/{database}"
-        sqlalchemy_kwargs["executemany_mode"] = "values"
-        sqlalchemy_kwargs["executemany_values_page_size"] = 100_000
-        return sqlalchemy.create_engine(conn_str, **sqlalchemy_kwargs)
-    if db_type == "mysql":
-        conn_str = f"mysql+pymysql://{user}:{password}@{host}:{port}/{database}"
-        return sqlalchemy.create_engine(conn_str, **sqlalchemy_kwargs)
-    raise exceptions.InvalidDatabaseType(
-        f"{db_type} is not a valid Database type." f" Only Redshift, PostgreSQL and MySQL are supported."
-    )
-
-
-def copy_to_redshift(  # pylint: disable=too-many-arguments
-    df: pd.DataFrame,
-    path: str,
-    con: sqlalchemy.engine.Engine,
-    table: str,
-    schema: str,
-    iam_role: str,
-    index: bool = False,
-    dtype: Optional[Dict[str, str]] = None,
-    mode: str = "append",
-    diststyle: str = "AUTO",
-    distkey: Optional[str] = None,
-    sortstyle: str = "COMPOUND",
-    sortkey: Optional[List[str]] = None,
-    primary_keys: Optional[List[str]] = None,
-    varchar_lengths_default: int = 256,
-    varchar_lengths: Optional[Dict[str, int]] = None,
-    keep_files: bool = False,
-    use_threads: bool = True,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
-) -> None:
-    """Load Pandas DataFrame as a Table on Amazon Redshift using parquet files on S3 as stage.
-
-    This is a **HIGH** latency and **HIGH** throughput alternative to `wr.db.to_sql()` to load large
-    DataFrames into Amazon Redshift through the ** SQL COPY command**.
-
-    This strategy has more overhead and requires more IAM privileges
-    than the regular `wr.db.to_sql()` function, so it is only recommended
-    to inserting +1MM rows at once.
-
-    https://docs.aws.amazon.com/redshift/latest/dg/r_COPY.html
-
-    Note
-    ----
-    If the table does not exist yet,
-    it will be automatically created for you
-    using the Parquet metadata to
-    infer the columns data types.
-
-    Note
-    ----
-    In case of `use_threads=True` the number of threads
-    that will be spawned will be gotten from os.cpu_count().
-
-    Parameters
-    ----------
-    df: pandas.DataFrame
-        Pandas DataFrame.
-    path : Union[str, List[str]]
-        S3 path to write stage files (e.g. s3://bucket_name/any_name/)
-    con : sqlalchemy.engine.Engine
-        SQLAlchemy Engine. Please use,
-        wr.db.get_engine(), wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()
-    table : str
-        Table name
-    schema : str
-        Schema name
-    iam_role : str
-        AWS IAM role with the related permissions.
-    index : bool
-        True to store the DataFrame index in file, otherwise False to ignore it.
-    dtype: Dict[str, str], optional
-        Dictionary of columns names and Athena/Glue types to be casted.
-        Useful when you have columns with undetermined or mixed data types.
-        Only takes effect if dataset=True.
-        (e.g. {'col name': 'bigint', 'col2 name': 'int'})
-    mode : str
-        Append, overwrite or upsert.
-    diststyle : str
-        Redshift distribution styles. Must be in ["AUTO", "EVEN", "ALL", "KEY"].
-        https://docs.aws.amazon.com/redshift/latest/dg/t_Distributing_data.html
-    distkey : str, optional
-        Specifies a column name or positional number for the distribution key.
-    sortstyle : str
-        Sorting can be "COMPOUND" or "INTERLEAVED".
-        https://docs.aws.amazon.com/redshift/latest/dg/t_Sorting_data.html
-    sortkey : List[str], optional
-        List of columns to be sorted.
-    primary_keys : List[str], optional
-        Primary keys.
-    varchar_lengths_default : int
-        The size that will be set for all VARCHAR columns not specified with varchar_lengths.
-    varchar_lengths : Dict[str, int], optional
-        Dict of VARCHAR length by columns. (e.g. {"col1": 10, "col5": 200}).
-    keep_files : bool
-        Should keep the stage files?
-    use_threads : bool
-        True to enable concurrent requests, False to disable multiple threads.
-        If enabled os.cpu_count() will be used as the max number of threads.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs:
-        Forward to s3fs, useful for server side encryption
-        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
-    Returns
-    -------
-    None
-        None.
-
-    Examples
-    --------
-    >>> import awswrangler as wr
-    >>> import pandas as pd
-    >>> wr.db.copy_to_redshift(
-    ...     df=pd.DataFrame({'col': [1, 2, 3]}),
-    ...     path="s3://bucket/my_parquet_files/",
-    ...     con=wr.catalog.get_engine(connection="my_glue_conn_name"),
-    ...     table="my_table",
-    ...     schema="public"
-    ...     iam_role="arn:aws:iam::XXX:role/XXX"
-    ... )
-
-    """
-    path = path if path.endswith("/") else f"{path}/"
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    paths: List[str] = s3.to_parquet(  # type: ignore
-        df=df,
-        path=path,
-        index=index,
-        dataset=True,
-        mode="append",
-        dtype=dtype,
-        use_threads=use_threads,
-        boto3_session=session,
-        s3_additional_kwargs=s3_additional_kwargs,
-    )["paths"]
-    s3.wait_objects_exist(paths=paths, use_threads=False, boto3_session=session)
-    copy_files_to_redshift(
-        path=paths,
-        manifest_directory=_utils.get_directory(path=path),
-        con=con,
-        table=table,
-        schema=schema,
-        iam_role=iam_role,
-        mode=mode,
-        diststyle=diststyle,
-        distkey=distkey,
-        sortstyle=sortstyle,
-        sortkey=sortkey,
-        primary_keys=primary_keys,
-        varchar_lengths_default=varchar_lengths_default,
-        varchar_lengths=varchar_lengths,
-        use_threads=use_threads,
-        boto3_session=session,
-        s3_additional_kwargs=s3_additional_kwargs,
-    )
-    if keep_files is False:
-        s3.delete_objects(path=paths, use_threads=use_threads, boto3_session=session)
-
-
-def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-arguments
-    path: Union[str, List[str]],
-    manifest_directory: str,
-    con: sqlalchemy.engine.Engine,
-    table: str,
-    schema: str,
-    iam_role: str,
-    parquet_infer_sampling: float = 1.0,
-    mode: str = "append",
-    diststyle: str = "AUTO",
-    distkey: Optional[str] = None,
-    sortstyle: str = "COMPOUND",
-    sortkey: Optional[List[str]] = None,
-    primary_keys: Optional[List[str]] = None,
-    varchar_lengths_default: int = 256,
-    varchar_lengths: Optional[Dict[str, int]] = None,
-    use_threads: bool = True,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
-) -> None:
-    """Load Parquet files from S3 to a Table on Amazon Redshift (Through COPY command).
-
-    https://docs.aws.amazon.com/redshift/latest/dg/r_COPY.html
-
-    Note
-    ----
-    If the table does not exist yet,
-    it will be automatically created for you
-    using the Parquet metadata to
-    infer the columns data types.
-
-    Note
-    ----
-    In case of `use_threads=True` the number of threads
-    that will be spawned will be gotten from os.cpu_count().
-
-    Parameters
-    ----------
-    path : Union[str, List[str]]
-        S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
-    manifest_directory : str
-        S3 prefix (e.g. s3://bucket/prefix)
-    con : sqlalchemy.engine.Engine
-        SQLAlchemy Engine. Please use,
-        wr.db.get_engine(), wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()
-    table : str
-        Table name
-    schema : str
-        Schema name
-    iam_role : str
-        AWS IAM role with the related permissions.
-    parquet_infer_sampling : float
-        Random sample ratio of files that will have the metadata inspected.
-        Must be `0.0 < sampling <= 1.0`.
-        The higher, the more accurate.
-        The lower, the faster.
-    mode : str
-        Append, overwrite or upsert.
-    diststyle : str
-        Redshift distribution styles. Must be in ["AUTO", "EVEN", "ALL", "KEY"].
-        https://docs.aws.amazon.com/redshift/latest/dg/t_Distributing_data.html
-    distkey : str, optional
-        Specifies a column name or positional number for the distribution key.
-    sortstyle : str
-        Sorting can be "COMPOUND" or "INTERLEAVED".
-        https://docs.aws.amazon.com/redshift/latest/dg/t_Sorting_data.html
-    sortkey : List[str], optional
-        List of columns to be sorted.
-    primary_keys : List[str], optional
-        Primary keys.
-    varchar_lengths_default : int
-        The size that will be set for all VARCHAR columns not specified with varchar_lengths.
-    varchar_lengths : Dict[str, int], optional
-        Dict of VARCHAR length by columns. (e.g. {"col1": 10, "col5": 200}).
-    use_threads : bool
-        True to enable concurrent requests, False to disable multiple threads.
-        If enabled os.cpu_count() will be used as the max number of threads.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs:
-        Forward to boto3.client('s3').put_object when writing manifest, useful for server side encryption
-
-    Returns
-    -------
-    None
-        None.
-
-    Examples
-    --------
-    >>> import awswrangler as wr
-    >>> wr.db.copy_files_to_redshift(
-    ...     path="s3://bucket/my_parquet_files/",
-    ...     con=wr.catalog.get_engine(connection="my_glue_conn_name"),
-    ...     table="my_table",
-    ...     schema="public"
-    ...     iam_role="arn:aws:iam::XXX:role/XXX"
-    ... )
-
-    """
-    _varchar_lengths: Dict[str, int] = {} if varchar_lengths is None else varchar_lengths
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    paths: List[str] = _path2list(path=path, boto3_session=session)  # pylint: disable=protected-access
-    manifest_directory = manifest_directory if manifest_directory.endswith("/") else f"{manifest_directory}/"
-    manifest_path: str = f"{manifest_directory}manifest.json"
-    write_redshift_copy_manifest(
-        manifest_path=manifest_path,
-        paths=paths,
-        use_threads=use_threads,
-        boto3_session=session,
-        s3_additional_kwargs=s3_additional_kwargs,
-    )
-    s3.wait_objects_exist(paths=paths + [manifest_path], use_threads=False, boto3_session=session)
-    athena_types, _ = s3.read_parquet_metadata(
-        path=paths, sampling=parquet_infer_sampling, dataset=False, use_threads=use_threads, boto3_session=session
-    )
-    _logger.debug("athena_types: %s", athena_types)
-    redshift_types: Dict[str, str] = {}
-    for col_name, col_type in athena_types.items():
-        length: int = _varchar_lengths[col_name] if col_name in _varchar_lengths else varchar_lengths_default
-        redshift_types[col_name] = _data_types.athena2redshift(dtype=col_type, varchar_length=length)
-    with con.begin() as _con:
-        created_table, created_schema = _rs_create_table(
-            con=_con,
-            table=table,
-            schema=schema,
-            redshift_types=redshift_types,
-            mode=mode,
-            diststyle=diststyle,
-            sortstyle=sortstyle,
-            distkey=distkey,
-            sortkey=sortkey,
-            primary_keys=primary_keys,
-        )
-        _rs_copy(
-            con=_con,
-            table=created_table,
-            schema=created_schema,
-            manifest_path=manifest_path,
-            iam_role=iam_role,
-            num_files=len(paths),
-        )
-        if table != created_table:  # upsert
-            _rs_upsert(con=_con, schema=schema, table=table, temp_table=created_table, primary_keys=primary_keys)
-    s3.delete_objects(path=[manifest_path], use_threads=use_threads, boto3_session=session)
+    if len(cursor.fetchall()) > 0:
+        return True
+    return False
 
 
 def _rs_upsert(con: Any, table: str, temp_table: str, schema: str, primary_keys: Optional[List[str]] = None) -> None:
@@ -841,6 +165,754 @@ def _rs_copy(
     return num_files_loaded
 
 
+def _validate_engine(con: sqlalchemy.engine.Engine) -> None:
+    if not isinstance(con, sqlalchemy.engine.Engine):
+        raise exceptions.InvalidConnection(
+            "Invalid 'con' argument, please pass a "
+            "SQLAlchemy Engine. Use wr.db.get_engine(), "
+            "wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()"
+        )
+
+
+def _records2df(
+    records: List[Tuple[Any]],
+    cols_names: List[str],
+    index: Optional[Union[str, List[str]]],
+    dtype: Optional[Dict[str, pa.DataType]] = None,
+) -> pd.DataFrame:
+    arrays: List[pa.Array] = []
+    for col_values, col_name in zip(tuple(zip(*records)), cols_names):  # Transposing
+        if (dtype is None) or (col_name not in dtype):
+            try:
+                array: pa.Array = pa.array(obj=col_values, safe=True)  # Creating Arrow array
+            except pa.ArrowInvalid as ex:
+                array = _data_types.process_not_inferred_array(ex, values=col_values)  # Creating Arrow array
+        else:
+            array = pa.array(obj=col_values, type=dtype[col_name], safe=True)  # Creating Arrow array with dtype
+        arrays.append(array)
+    table = pa.Table.from_arrays(arrays=arrays, names=cols_names)  # Creating arrow Table
+    df: pd.DataFrame = table.to_pandas(  # Creating Pandas DataFrame
+        use_threads=True,
+        split_blocks=True,
+        self_destruct=True,
+        integer_object_nulls=False,
+        date_as_object=True,
+        types_mapper=_data_types.pyarrow2pandas_extension,
+    )
+    if index is not None:
+        df.set_index(index, inplace=True)
+    return df
+
+
+def _iterate_cursor(
+    cursor: Any,
+    chunksize: int,
+    cols_names: List[str],
+    index: Optional[Union[str, List[str]]],
+    dtype: Optional[Dict[str, pa.DataType]] = None,
+) -> Iterator[pd.DataFrame]:
+    while True:
+        records = cursor.fetchmany(chunksize)
+        if not records:
+            break
+        yield _records2df(records=records, cols_names=cols_names, index=index, dtype=dtype)
+
+
+def _convert_params(sql: str, params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]]) -> List[Any]:
+    args: List[Any] = [sql]
+    if params is not None:
+        if hasattr(params, "keys"):
+            return args + [params]
+        return args + [list(params)]
+    return args
+
+
+def _read_parquet_iterator(
+    paths: List[str],
+    keep_files: bool,
+    use_threads: bool,
+    categories: Optional[List[str]],
+    chunked: Union[bool, int],
+    boto3_session: Optional[boto3.Session],
+    s3_additional_kwargs: Optional[Dict[str, str]],
+) -> Iterator[pd.DataFrame]:
+    dfs: Iterator[pd.DataFrame] = s3.read_parquet(
+        path=paths,
+        categories=categories,
+        chunked=chunked,
+        dataset=False,
+        use_threads=use_threads,
+        boto3_session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,
+    )
+    yield from dfs
+    if keep_files is False:
+        s3.delete_objects(path=paths, use_threads=use_threads, boto3_session=boto3_session)
+
+
+def to_sql(df: pd.DataFrame, con: sqlalchemy.engine.Engine, **pandas_kwargs: Any) -> None:
+    """Write records stored in a DataFrame to a SQL database.
+
+    Support for **Redshift**, **PostgreSQL** and **MySQL**.
+
+    Support for all pandas to_sql() arguments:
+    https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_sql.html
+
+    Note
+    ----
+    Redshift: For large DataFrames (1MM+ rows) consider the function **wr.db.copy_to_redshift()**.
+
+    Note
+    ----
+    Redshift: `index=False` will be forced.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
+    con : sqlalchemy.engine.Engine
+        SQLAlchemy Engine. Please use,
+        wr.db.get_engine(), wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()
+    pandas_kwargs
+        keyword arguments forwarded to pandas.DataFrame.to_csv()
+        https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_sql.html
+
+    Returns
+    -------
+    None
+        None.
+
+    Examples
+    --------
+    Writing to Redshift with temporary credentials
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.db.to_sql(
+    ...     df=pd.DataFrame({'col': [1, 2, 3]}),
+    ...     con=wr.db.get_redshift_temp_engine(cluster_identifier="...", user="..."),
+    ...     name="table_name",
+    ...     schema="schema_name"
+    ... )
+
+    Writing to Redshift from Glue Catalog Connections
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.db.to_sql(
+    ...     df=pd.DataFrame({'col': [1, 2, 3]}),
+    ...     con=wr.catalog.get_engine(connection="..."),
+    ...     name="table_name",
+    ...     schema="schema_name"
+    ... )
+
+    """
+    if df.empty is True:
+        raise exceptions.EmptyDataFrame()
+    if not isinstance(con, sqlalchemy.engine.Engine):
+        raise exceptions.InvalidConnection(
+            "Invalid 'con' argument, please pass a "
+            "SQLAlchemy Engine. Use wr.db.get_engine(), "
+            "wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()"
+        )
+    if "dtype" in pandas_kwargs:
+        cast_columns: Dict[str, VisitableType] = pandas_kwargs["dtype"]
+    else:
+        cast_columns = {}
+    dtypes: Dict[str, VisitableType] = _data_types.sqlalchemy_types_from_pandas(
+        df=df, db_type=con.name, dtype=cast_columns
+    )
+    pandas_kwargs["dtype"] = dtypes
+    pandas_kwargs["con"] = con
+    if pandas_kwargs["con"].name.lower() == "redshift":  # Redshift does not accept index
+        pandas_kwargs["index"] = False
+    _utils.try_it(f=df.to_sql, ex=sqlalchemy.exc.InternalError, **pandas_kwargs)
+
+
+def read_sql_query(
+    sql: str,
+    con: sqlalchemy.engine.Engine,
+    index_col: Optional[Union[str, List[str]]] = None,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
+    chunksize: Optional[int] = None,
+    dtype: Optional[Dict[str, pa.DataType]] = None,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    """Return a DataFrame corresponding to the result set of the query string.
+
+    Support for **Redshift**, **PostgreSQL** and **MySQL**.
+
+    Note
+    ----
+    Redshift: For large extractions (1MM+ rows) consider the function **wr.db.unload_redshift()**.
+
+    Parameters
+    ----------
+    sql : str
+        Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
+    con : sqlalchemy.engine.Engine
+        SQLAlchemy Engine. Please use,
+        wr.db.get_engine(), wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()
+    index_col : Union[str, List[str]], optional
+        Column(s) to set as index(MultiIndex).
+    params :  Union[List, Tuple, Dict], optional
+        List of parameters to pass to execute method.
+        The syntax used to pass parameters is database driver dependent.
+        Check your database driver documentation for which of the five syntax styles,
+        described in PEP 249’s paramstyle, is supported.
+        Eg. for psycopg2, uses %(name)s so use params={‘name’ : ‘value’}.
+    chunksize : int, optional
+        If specified, return an iterator where chunksize is the number of rows to include in each chunk.
+    dtype : Dict[str, pyarrow.DataType], optional
+        Specifying the datatype for columns.
+        The keys should be the column names and the values should be the PyArrow types.
+
+    Returns
+    -------
+    Union[pandas.DataFrame, Iterator[pandas.DataFrame]]
+        Result as Pandas DataFrame(s).
+
+    Examples
+    --------
+    Reading from Redshift with temporary credentials
+
+    >>> import awswrangler as wr
+    >>> df = wr.db.read_sql_query(
+    ...     sql="SELECT * FROM public.my_table",
+    ...     con=wr.db.get_redshift_temp_engine(cluster_identifier="...", user="...")
+    ... )
+
+    Reading from Redshift from Glue Catalog Connections
+
+    >>> import awswrangler as wr
+    >>> df = wr.db.read_sql_query(
+    ...     sql="SELECT * FROM public.my_table",
+    ...     con=wr.catalog.get_engine(connection="...")
+    ... )
+
+    """
+    _validate_engine(con=con)
+    with con.connect() as _con:
+        args = _convert_params(sql, params)
+        cursor = _con.execute(*args)
+        if chunksize is None:
+            return _records2df(records=cursor.fetchall(), cols_names=cursor.keys(), index=index_col, dtype=dtype)
+        return _iterate_cursor(
+            cursor=cursor, chunksize=chunksize, cols_names=cursor.keys(), index=index_col, dtype=dtype
+        )
+
+
+def read_sql_table(
+    table: str,
+    con: sqlalchemy.engine.Engine,
+    schema: Optional[str] = None,
+    index_col: Optional[Union[str, List[str]]] = None,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
+    chunksize: Optional[int] = None,
+    dtype: Optional[Dict[str, pa.DataType]] = None,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    """Return a DataFrame corresponding to the result set of the query string.
+
+    Support for **Redshift**, **PostgreSQL** and **MySQL**.
+
+    Note
+    ----
+    Redshift: For large extractions (1MM+ rows) consider the function `wr.db.unload_redshift()`.
+
+    Parameters
+    ----------
+    table : str
+        Nable name.
+    con : sqlalchemy.engine.Engine
+        SQLAlchemy Engine. Please use,
+        wr.db.get_engine(), wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()
+    schema : str, optional
+        Name of SQL schema in database to query (if database flavor supports this).
+        Uses default schema if None (default).
+    index_col : Union[str, List[str]], optional
+        Column(s) to set as index(MultiIndex).
+    params :  Union[List, Tuple, Dict], optional
+        List of parameters to pass to execute method.
+        The syntax used to pass parameters is database driver dependent.
+        Check your database driver documentation for which of the five syntax styles,
+        described in PEP 249’s paramstyle, is supported.
+        Eg. for psycopg2, uses %(name)s so use params={‘name’ : ‘value’}.
+    chunksize : int, optional
+        If specified, return an iterator where chunksize is the number of rows to include in each chunk.
+    dtype : Dict[str, pyarrow.DataType], optional
+        Specifying the datatype for columns.
+        The keys should be the column names and the values should be the PyArrow types.
+
+    Returns
+    -------
+    Union[pandas.DataFrame, Iterator[pandas.DataFrame]]
+        Result as Pandas DataFrame(s).
+
+    Examples
+    --------
+    Reading from Redshift with temporary credentials
+
+    >>> import awswrangler as wr
+    >>> df = wr.db.read_sql_table(
+    ...     table="my_table",
+    ...     schema="public",
+    ...     con=wr.db.get_redshift_temp_engine(cluster_identifier="...", user="...")
+    ... )
+
+    Reading from Redshift from Glue Catalog Connections
+
+    >>> import awswrangler as wr
+    >>> df = wr.db.read_sql_table(
+    ...     table="my_table",
+    ...     schema="public",
+    ...     con=wr.catalog.get_engine(connection="...")
+    ... )
+
+    """
+    if schema is None:
+        sql: str = f"SELECT * FROM {table}"
+    else:
+        sql = f"SELECT * FROM {schema}.{table}"
+    return read_sql_query(sql=sql, con=con, index_col=index_col, params=params, chunksize=chunksize, dtype=dtype)
+
+
+def get_redshift_temp_engine(
+    cluster_identifier: str,
+    user: str,
+    database: Optional[str] = None,
+    duration: int = 900,
+    auto_create: bool = True,
+    db_groups: Optional[List[str]] = None,
+    boto3_session: Optional[boto3.Session] = None,
+    **sqlalchemy_kwargs: Any,
+) -> sqlalchemy.engine.Engine:
+    """Get Glue connection details.
+
+    Parameters
+    ----------
+    cluster_identifier : str
+        The unique identifier of a cluster.
+        This parameter is case sensitive.
+    user : str, optional
+        The name of a database user.
+    database : str, optional
+        Database name. If None, the default Database is used.
+    duration : int, optional
+        The number of seconds until the returned temporary password expires.
+        Constraint: minimum 900, maximum 3600.
+        Default: 900
+    auto_create : bool
+        Create a database user with the name specified for the user named in user if one does not exist.
+    db_groups: List[str], optinal
+        A list of the names of existing database groups that the user named in DbUser will join for the current session,
+        in addition to any group memberships for an existing user.
+        If not specified, a new user is added only to PUBLIC.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    sqlalchemy_kwargs
+        keyword arguments forwarded to sqlalchemy.create_engine().
+        https://docs.sqlalchemy.org/en/13/core/engines.html
+
+    Returns
+    -------
+    sqlalchemy.engine.Engine
+        SQLAlchemy Engine.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> engine = wr.db.get_redshift_temp_engine('my_cluster', 'my_user')
+
+    """
+    client_redshift: boto3.client = _utils.client(service_name="redshift", session=boto3_session)
+    args: Dict[str, Any] = {
+        "DbUser": user,
+        "ClusterIdentifier": cluster_identifier,
+        "DurationSeconds": duration,
+        "AutoCreate": auto_create,
+    }
+    if db_groups is not None:
+        args["DbGroups"] = db_groups
+    res: Dict[str, Any] = client_redshift.get_cluster_credentials(**args)
+    _user: str = _quote_plus(res["DbUser"])
+    password: str = _quote_plus(res["DbPassword"])
+    cluster: Dict[str, Any] = client_redshift.describe_clusters(ClusterIdentifier=cluster_identifier)["Clusters"][0]
+    host: str = cluster["Endpoint"]["Address"]
+    port: str = cluster["Endpoint"]["Port"]
+    if database is None:
+        database = cluster["DBName"]
+    conn_str: str = f"redshift+psycopg2://{_user}:{password}@{host}:{port}/{database}"
+    sqlalchemy_kwargs["executemany_mode"] = "values"
+    sqlalchemy_kwargs["executemany_values_page_size"] = 100_000
+    return sqlalchemy.create_engine(conn_str, **sqlalchemy_kwargs)
+
+
+def get_engine(
+    db_type: str, host: str, port: int, database: str, user: str, password: str, **sqlalchemy_kwargs: Any
+) -> sqlalchemy.engine.Engine:
+    """Return a SQLAlchemy Engine from the given arguments.
+
+    Only Redshift, PostgreSQL and MySQL are supported.
+
+    Parameters
+    ----------
+    db_type : str
+        Database type: "redshift", "mysql" or "postgresql".
+    host : str
+        Host address.
+    port : str
+        Port number.
+    database : str
+        Database name.
+    user : str
+        Username.
+    password : str
+        Password.
+    sqlalchemy_kwargs
+        keyword arguments forwarded to sqlalchemy.create_engine().
+        https://docs.sqlalchemy.org/en/13/core/engines.html
+
+    Returns
+    -------
+    sqlalchemy.engine.Engine
+        SQLAlchemy Engine.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> engine = wr.db.get_engine(
+    ...     db_type="postgresql",
+    ...     host="...",
+    ...     port=1234,
+    ...     database="...",
+    ...     user="...",
+    ...     password="..."
+    ... )
+
+    """
+    if db_type == "postgresql":
+        _utils.ensure_postgresql_casts()
+    if db_type in ("redshift", "postgresql"):
+        conn_str: str = f"{db_type}+psycopg2://{user}:{password}@{host}:{port}/{database}"
+        sqlalchemy_kwargs["executemany_mode"] = "values"
+        sqlalchemy_kwargs["executemany_values_page_size"] = 100_000
+        return sqlalchemy.create_engine(conn_str, **sqlalchemy_kwargs)
+    if db_type == "mysql":
+        conn_str = f"mysql+pymysql://{user}:{password}@{host}:{port}/{database}"
+        return sqlalchemy.create_engine(conn_str, **sqlalchemy_kwargs)
+    raise exceptions.InvalidDatabaseType(
+        f"{db_type} is not a valid Database type." f" Only Redshift, PostgreSQL and MySQL are supported."
+    )
+
+
+def copy_to_redshift(  # pylint: disable=too-many-arguments
+    df: pd.DataFrame,
+    path: str,
+    con: sqlalchemy.engine.Engine,
+    table: str,
+    schema: str,
+    iam_role: str,
+    index: bool = False,
+    dtype: Optional[Dict[str, str]] = None,
+    mode: str = "append",
+    diststyle: str = "AUTO",
+    distkey: Optional[str] = None,
+    sortstyle: str = "COMPOUND",
+    sortkey: Optional[List[str]] = None,
+    primary_keys: Optional[List[str]] = None,
+    varchar_lengths_default: int = 256,
+    varchar_lengths: Optional[Dict[str, int]] = None,
+    keep_files: bool = False,
+    use_threads: bool = True,
+    boto3_session: Optional[boto3.Session] = None,
+    s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    max_rows_by_file: Optional[int] = 10_000_000,
+) -> None:
+    """Load Pandas DataFrame as a Table on Amazon Redshift using parquet files on S3 as stage.
+
+    This is a **HIGH** latency and **HIGH** throughput alternative to `wr.db.to_sql()` to load large
+    DataFrames into Amazon Redshift through the ** SQL COPY command**.
+
+    This strategy has more overhead and requires more IAM privileges
+    than the regular `wr.db.to_sql()` function, so it is only recommended
+    to inserting +1MM rows at once.
+
+    https://docs.aws.amazon.com/redshift/latest/dg/r_COPY.html
+
+    Note
+    ----
+    If the table does not exist yet,
+    it will be automatically created for you
+    using the Parquet metadata to
+    infer the columns data types.
+
+    Note
+    ----
+    In case of `use_threads=True` the number of threads
+    that will be spawned will be gotten from os.cpu_count().
+
+    Parameters
+    ----------
+    df: pandas.DataFrame
+        Pandas DataFrame.
+    path : Union[str, List[str]]
+        S3 path to write stage files (e.g. s3://bucket_name/any_name/)
+    con : sqlalchemy.engine.Engine
+        SQLAlchemy Engine. Please use,
+        wr.db.get_engine(), wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()
+    table : str
+        Table name
+    schema : str
+        Schema name
+    iam_role : str
+        AWS IAM role with the related permissions.
+    index : bool
+        True to store the DataFrame index in file, otherwise False to ignore it.
+    dtype: Dict[str, str], optional
+        Dictionary of columns names and Athena/Glue types to be casted.
+        Useful when you have columns with undetermined or mixed data types.
+        Only takes effect if dataset=True.
+        (e.g. {'col name': 'bigint', 'col2 name': 'int'})
+    mode : str
+        Append, overwrite or upsert.
+    diststyle : str
+        Redshift distribution styles. Must be in ["AUTO", "EVEN", "ALL", "KEY"].
+        https://docs.aws.amazon.com/redshift/latest/dg/t_Distributing_data.html
+    distkey : str, optional
+        Specifies a column name or positional number for the distribution key.
+    sortstyle : str
+        Sorting can be "COMPOUND" or "INTERLEAVED".
+        https://docs.aws.amazon.com/redshift/latest/dg/t_Sorting_data.html
+    sortkey : List[str], optional
+        List of columns to be sorted.
+    primary_keys : List[str], optional
+        Primary keys.
+    varchar_lengths_default : int
+        The size that will be set for all VARCHAR columns not specified with varchar_lengths.
+    varchar_lengths : Dict[str, int], optional
+        Dict of VARCHAR length by columns. (e.g. {"col1": 10, "col5": 200}).
+    keep_files : bool
+        Should keep the stage files?
+    use_threads : bool
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    s3_additional_kwargs:
+        Forward to s3fs, useful for server side encryption
+        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
+    max_rows_by_file : int
+        Max number of rows in each file.
+        Default is None i.e. dont split the files.
+        (e.g. 33554432, 268435456)
+
+    Returns
+    -------
+    None
+        None.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.db.copy_to_redshift(
+    ...     df=pd.DataFrame({'col': [1, 2, 3]}),
+    ...     path="s3://bucket/my_parquet_files/",
+    ...     con=wr.catalog.get_engine(connection="my_glue_conn_name"),
+    ...     table="my_table",
+    ...     schema="public"
+    ...     iam_role="arn:aws:iam::XXX:role/XXX"
+    ... )
+
+    """
+    path = path if path.endswith("/") else f"{path}/"
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    paths: List[str] = s3.to_parquet(
+        df=df,
+        path=path,
+        index=index,
+        dataset=True,
+        mode="append",
+        dtype=dtype,
+        use_threads=use_threads,
+        boto3_session=session,
+        s3_additional_kwargs=s3_additional_kwargs,
+        max_rows_by_file=max_rows_by_file,
+    )["paths"]
+    s3.wait_objects_exist(paths=paths, use_threads=False, boto3_session=session)
+    copy_files_to_redshift(
+        path=paths,
+        manifest_directory=_utils.get_directory(path=path),
+        con=con,
+        table=table,
+        schema=schema,
+        iam_role=iam_role,
+        mode=mode,
+        diststyle=diststyle,
+        distkey=distkey,
+        sortstyle=sortstyle,
+        sortkey=sortkey,
+        primary_keys=primary_keys,
+        varchar_lengths_default=varchar_lengths_default,
+        varchar_lengths=varchar_lengths,
+        use_threads=use_threads,
+        boto3_session=session,
+        s3_additional_kwargs=s3_additional_kwargs,
+    )
+    if keep_files is False:
+        s3.delete_objects(path=paths, use_threads=use_threads, boto3_session=session)
+
+
+def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-arguments
+    path: Union[str, List[str]],
+    manifest_directory: str,
+    con: sqlalchemy.engine.Engine,
+    table: str,
+    schema: str,
+    iam_role: str,
+    parquet_infer_sampling: float = 1.0,
+    mode: str = "append",
+    diststyle: str = "AUTO",
+    distkey: Optional[str] = None,
+    sortstyle: str = "COMPOUND",
+    sortkey: Optional[List[str]] = None,
+    primary_keys: Optional[List[str]] = None,
+    varchar_lengths_default: int = 256,
+    varchar_lengths: Optional[Dict[str, int]] = None,
+    use_threads: bool = True,
+    boto3_session: Optional[boto3.Session] = None,
+    s3_additional_kwargs: Optional[Dict[str, str]] = None,
+) -> None:
+    """Load Parquet files from S3 to a Table on Amazon Redshift (Through COPY command).
+
+    https://docs.aws.amazon.com/redshift/latest/dg/r_COPY.html
+
+    This function accepts Unix shell-style wildcards in the path argument.
+    * (matches everything), ? (matches any single character),
+    [seq] (matches any character in seq), [!seq] (matches any character not in seq).
+
+    Note
+    ----
+    If the table does not exist yet,
+    it will be automatically created for you
+    using the Parquet metadata to
+    infer the columns data types.
+
+    Note
+    ----
+    In case of `use_threads=True` the number of threads
+    that will be spawned will be gotten from os.cpu_count().
+
+    Parameters
+    ----------
+    path : Union[str, List[str]]
+        S3 prefix (accepts Unix shell-style wildcards)
+        (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+    manifest_directory : str
+        S3 prefix (e.g. s3://bucket/prefix)
+    con : sqlalchemy.engine.Engine
+        SQLAlchemy Engine. Please use,
+        wr.db.get_engine(), wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()
+    table : str
+        Table name
+    schema : str
+        Schema name
+    iam_role : str
+        AWS IAM role with the related permissions.
+    parquet_infer_sampling : float
+        Random sample ratio of files that will have the metadata inspected.
+        Must be `0.0 < sampling <= 1.0`.
+        The higher, the more accurate.
+        The lower, the faster.
+    mode : str
+        Append, overwrite or upsert.
+    diststyle : str
+        Redshift distribution styles. Must be in ["AUTO", "EVEN", "ALL", "KEY"].
+        https://docs.aws.amazon.com/redshift/latest/dg/t_Distributing_data.html
+    distkey : str, optional
+        Specifies a column name or positional number for the distribution key.
+    sortstyle : str
+        Sorting can be "COMPOUND" or "INTERLEAVED".
+        https://docs.aws.amazon.com/redshift/latest/dg/t_Sorting_data.html
+    sortkey : List[str], optional
+        List of columns to be sorted.
+    primary_keys : List[str], optional
+        Primary keys.
+    varchar_lengths_default : int
+        The size that will be set for all VARCHAR columns not specified with varchar_lengths.
+    varchar_lengths : Dict[str, int], optional
+        Dict of VARCHAR length by columns. (e.g. {"col1": 10, "col5": 200}).
+    use_threads : bool
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    s3_additional_kwargs:
+        Forward to boto3.client('s3').put_object when writing manifest, useful for server side encryption
+
+    Returns
+    -------
+    None
+        None.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> wr.db.copy_files_to_redshift(
+    ...     path="s3://bucket/my_parquet_files/",
+    ...     con=wr.catalog.get_engine(connection="my_glue_conn_name"),
+    ...     table="my_table",
+    ...     schema="public"
+    ...     iam_role="arn:aws:iam::XXX:role/XXX"
+    ... )
+
+    """
+    _varchar_lengths: Dict[str, int] = {} if varchar_lengths is None else varchar_lengths
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    paths: List[str] = _path2list(path=path, boto3_session=session)  # pylint: disable=protected-access
+    manifest_directory = manifest_directory if manifest_directory.endswith("/") else f"{manifest_directory}/"
+    manifest_path: str = f"{manifest_directory}manifest.json"
+    write_redshift_copy_manifest(
+        manifest_path=manifest_path,
+        paths=paths,
+        use_threads=use_threads,
+        boto3_session=session,
+        s3_additional_kwargs=s3_additional_kwargs,
+    )
+    s3.wait_objects_exist(paths=paths + [manifest_path], use_threads=False, boto3_session=session)
+    athena_types, _ = s3.read_parquet_metadata(
+        path=paths, sampling=parquet_infer_sampling, dataset=False, use_threads=use_threads, boto3_session=session
+    )
+    _logger.debug("athena_types: %s", athena_types)
+    redshift_types: Dict[str, str] = {}
+    for col_name, col_type in athena_types.items():
+        length: int = _varchar_lengths[col_name] if col_name in _varchar_lengths else varchar_lengths_default
+        redshift_types[col_name] = _data_types.athena2redshift(dtype=col_type, varchar_length=length)
+    with con.begin() as _con:
+        created_table, created_schema = _rs_create_table(
+            con=_con,
+            table=table,
+            schema=schema,
+            redshift_types=redshift_types,
+            mode=mode,
+            diststyle=diststyle,
+            sortstyle=sortstyle,
+            distkey=distkey,
+            sortkey=sortkey,
+            primary_keys=primary_keys,
+        )
+        _rs_copy(
+            con=_con,
+            table=created_table,
+            schema=created_schema,
+            manifest_path=manifest_path,
+            iam_role=iam_role,
+            num_files=len(paths),
+        )
+        if table != created_table:  # upsert
+            _rs_upsert(con=_con, schema=schema, table=table, temp_table=created_table, primary_keys=primary_keys)
+    s3.delete_objects(path=[manifest_path], use_threads=use_threads, boto3_session=session)
+
+
 def write_redshift_copy_manifest(
     manifest_path: str,
     paths: List[str],
@@ -914,34 +986,6 @@ def write_redshift_copy_manifest(
     return manifest
 
 
-def _rs_drop_table(con: Any, schema: str, table: str) -> None:
-    sql = f"DROP TABLE IF EXISTS {schema}.{table}"
-    _logger.debug("Drop table query:\n%s", sql)
-    con.execute(sql)
-
-
-def _rs_get_primary_keys(con: Any, schema: str, table: str) -> List[str]:
-    cursor: Any = con.execute(
-        f"SELECT indexdef FROM pg_indexes WHERE schemaname = '{schema}' AND tablename = '{table}'"
-    )
-    result: str = cursor.fetchall()[0][0]
-    rfields: List[str] = result.split("(")[1].strip(")").split(",")
-    fields: List[str] = [field.strip().strip('"') for field in rfields]
-    return fields
-
-
-def _rs_does_table_exist(con: Any, schema: str, table: str) -> bool:
-    cursor = con.execute(
-        f"SELECT true WHERE EXISTS ("
-        f"SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE "
-        f"TABLE_SCHEMA = '{schema}' AND TABLE_NAME = '{table}'"
-        f");"
-    )
-    if len(cursor.fetchall()) > 0:
-        return True
-    return False
-
-
 def unload_redshift(
     sql: str,
     path: str,
@@ -950,7 +994,7 @@ def unload_redshift(
     region: Optional[str] = None,
     max_file_size: Optional[float] = None,
     kms_key_id: Optional[str] = None,
-    categories: List[str] = None,
+    categories: Optional[List[str]] = None,
     chunked: Union[bool, int] = False,
     keep_files: bool = False,
     use_threads: bool = True,
@@ -1090,29 +1134,6 @@ def unload_redshift(
     )
 
 
-def _read_parquet_iterator(
-    paths: List[str],
-    keep_files: bool,
-    use_threads: bool,
-    categories: List[str] = None,
-    chunked: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
-) -> Iterator[pd.DataFrame]:
-    dfs: Iterator[pd.DataFrame] = s3.read_parquet(
-        path=paths,
-        categories=categories,
-        chunked=chunked,
-        dataset=False,
-        use_threads=use_threads,
-        boto3_session=boto3_session,
-        s3_additional_kwargs=s3_additional_kwargs,
-    )
-    yield from dfs
-    if keep_files is False:
-        s3.delete_objects(path=paths, use_threads=use_threads, boto3_session=boto3_session)
-
-
 def unload_redshift_to_files(
     sql: str,
     path: str,
@@ -1123,7 +1144,7 @@ def unload_redshift_to_files(
     kms_key_id: Optional[str] = None,
     use_threads: bool = True,
     manifest: bool = False,
-    partition_cols: Optional[List] = None,
+    partition_cols: Optional[List[str]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> List[str]:
     """Unload Parquet files from a Amazon Redshift query result to parquet files on s3 (Through UNLOAD command).
@@ -1216,12 +1237,3 @@ def unload_redshift_to_files(
         paths = [x[0].replace(" ", "") for x in _con.execute(sql).fetchall()]
         _logger.debug("paths: %s", paths)
         return paths
-
-
-def _validate_engine(con: sqlalchemy.engine.Engine) -> None:
-    if not isinstance(con, sqlalchemy.engine.Engine):
-        raise exceptions.InvalidConnection(
-            "Invalid 'con' argument, please pass a "
-            "SQLAlchemy Engine. Use wr.db.get_engine(), "
-            "wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()"
-        )

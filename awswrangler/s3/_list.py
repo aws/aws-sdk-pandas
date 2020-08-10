@@ -1,6 +1,7 @@
 """Amazon S3 List Module (PRIVATE)."""
 
 import datetime
+import fnmatch
 import logging
 from typing import Any, Dict, List, Optional, Sequence, Union
 
@@ -56,7 +57,14 @@ def _validate_datetimes(
             raise exceptions.InvalidArgumentValue("last_modified_begin is bigger than last_modified_end.")
 
 
-def _list_objects(
+def _prefix_cleanup(prefix: str) -> str:
+    for n, c in enumerate(prefix):
+        if c in ["*", "?", "["]:
+            return prefix[:n]
+    return prefix
+
+
+def _list_objects(  # pylint: disable=too-many-branches
     path: str,
     delimiter: Optional[str] = None,
     suffix: Union[str, List[str], None] = None,
@@ -66,8 +74,9 @@ def _list_objects(
     boto3_session: Optional[boto3.Session] = None,
 ) -> List[str]:
     bucket: str
-    prefix: str
-    bucket, prefix = _utils.parse_path(path=path)
+    prefix_original: str
+    bucket, prefix_original = _utils.parse_path(path=path)
+    prefix: str = _prefix_cleanup(prefix=prefix_original)
     _suffix: Union[List[str], None] = [suffix] if isinstance(suffix, str) else suffix
     _ignore_suffix: Union[List[str], None] = [ignore_suffix] if isinstance(ignore_suffix, str) else ignore_suffix
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
@@ -81,7 +90,7 @@ def _list_objects(
 
     for page in response_iterator:  # pylint: disable=too-many-nested-blocks
         if delimiter is None:
-            contents: Optional[List] = page.get("Contents")
+            contents: Optional[List[Dict[str, Any]]] = page.get("Contents")
             if contents is not None:
                 for content in contents:
                     key: str = content["Key"]
@@ -102,7 +111,13 @@ def _list_objects(
                         key = pfx["Prefix"]
                         paths.append(f"s3://{bucket}/{key}")
 
-    return paths if _ignore_suffix is None else [p for p in paths if p.endswith(tuple(_ignore_suffix)) is False]
+    if prefix != prefix_original:
+        paths = fnmatch.filter(paths, path)
+
+    if _ignore_suffix is not None:
+        paths = [p for p in paths if p.endswith(tuple(_ignore_suffix)) is False]
+
+    return paths
 
 
 def does_object_exist(path: str, boto3_session: Optional[boto3.Session] = None) -> bool:
@@ -156,6 +171,10 @@ def does_object_exist(path: str, boto3_session: Optional[boto3.Session] = None) 
 def list_directories(path: str, boto3_session: Optional[boto3.Session] = None) -> List[str]:
     """List Amazon S3 objects from a prefix.
 
+    This function accepts Unix shell-style wildcards in the path argument.
+    * (matches everything), ? (matches any single character),
+    [seq] (matches any character in seq), [!seq] (matches any character not in seq).
+
     Parameters
     ----------
     path : str
@@ -196,6 +215,10 @@ def list_objects(
     boto3_session: Optional[boto3.Session] = None,
 ) -> List[str]:
     """List Amazon S3 objects from a prefix.
+
+    This function accepts Unix shell-style wildcards in the path argument.
+    * (matches everything), ? (matches any single character),
+    [seq] (matches any character in seq), [!seq] (matches any character not in seq).
 
     Note
     ----

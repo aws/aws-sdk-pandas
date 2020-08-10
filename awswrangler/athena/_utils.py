@@ -5,7 +5,7 @@ import pprint
 import time
 import warnings
 from decimal import Decimal
-from typing import Any, Dict, List, NamedTuple, Optional, Union
+from typing import Any, Dict, Generator, List, NamedTuple, Optional, Union, cast
 
 import boto3  # type: ignore
 import pandas as pd  # type: ignore
@@ -89,7 +89,7 @@ def _start_query_execution(
     client_athena: boto3.client = _utils.client(service_name="athena", session=session)
     _logger.debug("args: \n%s", pprint.pformat(args))
     response: Dict[str, Any] = client_athena.start_query_execution(**args)
-    return response["QueryExecutionId"]
+    return cast(str, response["QueryExecutionId"])
 
 
 def _get_workgroup_config(session: boto3.Session, workgroup: Optional[str] = None) -> _WorkGroupConfig:
@@ -137,7 +137,7 @@ def _fetch_txt_result(query_metadata: _QueryMetadata, keep_files: bool, boto3_se
 
 def _parse_describe_table(df: pd.DataFrame) -> pd.DataFrame:
     origin_df_dict = df.to_dict()
-    target_df_dict: Dict[str, List] = {"Column Name": [], "Type": [], "Partition": [], "Comment": []}
+    target_df_dict: Dict[str, List[Union[str, bool]]] = {"Column Name": [], "Type": [], "Partition": [], "Comment": []}
     for index, col_name in origin_df_dict["col_name"].items():
         col_name = col_name.strip()
         if col_name.startswith("#") or col_name == "":
@@ -156,7 +156,7 @@ def _parse_describe_table(df: pd.DataFrame) -> pd.DataFrame:
 def _get_query_metadata(  # pylint: disable=too-many-statements
     query_execution_id: str,
     boto3_session: boto3.Session,
-    categories: List[str] = None,
+    categories: Optional[List[str]] = None,
     query_execution_payload: Optional[Dict[str, Any]] = None,
 ) -> _QueryMetadata:
     """Get query metadata."""
@@ -226,7 +226,9 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
     return query_metadata
 
 
-def _empty_dataframe_response(chunked: bool, query_metadata: _QueryMetadata):
+def _empty_dataframe_response(
+    chunked: bool, query_metadata: _QueryMetadata
+) -> Union[pd.DataFrame, Generator[None, None, None]]:
     """Generate an empty dataframe response."""
     if chunked is False:
         df = pd.DataFrame()
@@ -425,7 +427,7 @@ def repair_table(
         boto3_session=session,
     )
     response: Dict[str, Any] = wait_query(query_execution_id=query_id, boto3_session=session)
-    return response["Status"]["State"]
+    return cast(str, response["Status"]["State"])
 
 
 @apply_configs
@@ -556,7 +558,7 @@ def show_create_table(
     )
     query_metadata: _QueryMetadata = _get_query_metadata(query_execution_id=query_id, boto3_session=session)
     raw_result = _fetch_txt_result(query_metadata=query_metadata, keep_files=True, boto3_session=session,)
-    return raw_result.createtab_stmt.str.strip().str.cat(sep=" ")
+    return cast(str, raw_result.createtab_stmt.str.strip().str.cat(sep=" "))
 
 
 def get_work_group(workgroup: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, Any]:
@@ -581,7 +583,7 @@ def get_work_group(workgroup: str, boto3_session: Optional[boto3.Session] = None
 
     """
     client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
-    return client_athena.get_work_group(WorkGroup=workgroup)
+    return cast(Dict[str, Any], client_athena.get_work_group(WorkGroup=workgroup))
 
 
 def stop_query_execution(query_execution_id: str, boto3_session: Optional[boto3.Session] = None) -> None:
@@ -645,7 +647,7 @@ def wait_query(query_execution_id: str, boto3_session: Optional[boto3.Session] =
         raise exceptions.QueryFailed(response["QueryExecution"]["Status"].get("StateChangeReason"))
     if state == "CANCELLED":
         raise exceptions.QueryCancelled(response["QueryExecution"]["Status"].get("StateChangeReason"))
-    return response["QueryExecution"]
+    return cast(Dict[str, Any], response["QueryExecution"])
 
 
 def get_query_execution(query_execution_id: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, Any]:
@@ -673,4 +675,4 @@ def get_query_execution(query_execution_id: str, boto3_session: Optional[boto3.S
     """
     client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
     response: Dict[str, Any] = client_athena.get_query_execution(QueryExecutionId=query_execution_id)
-    return response["QueryExecution"]
+    return cast(Dict[str, Any], response["QueryExecution"])

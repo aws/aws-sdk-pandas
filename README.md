@@ -3,7 +3,9 @@
 
 ![AWS Data Wrangler](docs/source/_static/logo2.png?raw=true "AWS Data Wrangler")
 
-[![Release](https://img.shields.io/badge/release-1.7.0-brightgreen.svg)](https://pypi.org/project/awswrangler/)
+> An [AWS Professional Service](https://aws.amazon.com/professional-services/) open source initiative
+
+[![Release](https://img.shields.io/badge/release-1.8.0-brightgreen.svg)](https://pypi.org/project/awswrangler/)
 [![Python Version](https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.8-brightgreen.svg)](https://anaconda.org/conda-forge/awswrangler)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -15,8 +17,14 @@
 
 | Source    | Downloads                                                                                                                       | Page                                                 | Installation Command                       |
 |-----------|---------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------|--------------------------------------------|
-| **PyPi**  | [![PyPI Downloads](https://img.shields.io/pypi/dm/awswrangler.svg)](https://pypi.org/project/awswrangler/)                      | [Link](https://pypi.org/project/awswrangler/)        | `pip install awswrangler`                  |
+| **PyPi**  | [![PyPI Downloads](https://pepy.tech/badge/awswrangler)](https://pypi.org/project/awswrangler/)                      | [Link](https://pypi.org/project/awswrangler/)        | `pip install awswrangler`                  |
 | **Conda** | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/awswrangler.svg)](https://anaconda.org/conda-forge/awswrangler) | [Link](https://anaconda.org/conda-forge/awswrangler) | `conda install -c conda-forge awswrangler` |
+
+## Table of contents
+
+- [Quick Start](#quick-start)
+- [Read The Docs](#read-the-docs)
+- [Who uses AWS Data Wrangler?](#who-uses-aws-data-wrangler)
 
 ## Quick Start
 
@@ -105,3 +113,14 @@ wr.db.to_sql(df, engine, schema="test", name="my_table")
 - [**License**](https://github.com/awslabs/aws-data-wrangler/blob/master/LICENSE)
 - [**Contributing**](https://github.com/awslabs/aws-data-wrangler/blob/master/CONTRIBUTING.md)
 - [**Legacy Docs** (pre-1.0.0)](https://aws-data-wrangler.readthedocs.io/en/legacy/)
+
+## Who uses AWS Data Wrangler?
+
+Knowing which companies are using this library is important to help prioritize the project internally.
+
+Please send a PR with your company name and @githubhandle if you may.
+
+1. [Digio](https://www.digio.com.br/) [[@afonsomy](https://github.com/afonsomy)]
+2. [Pier](https://www.pier.digital/) [[@flaviomax](https://github.com/flaviomax)]
+3. [M4U](https://www.m4u.com.br/) [[@Thiago-Dantas](https://github.com/Thiago-Dantas)]
+4. [Serasa Experian](https://www.serasaexperian.com.br/) [[@andre-marcos-perez](https://github.com/andre-marcos-perez)]
