@@ -1,4 +1,4 @@
-An `AWS Professional Service <https://aws.amazon.com/professional-services>`_ open source initiative.
+An `AWS Professional Service <https://aws.amazon.com/professional-services>`_ open source initiative | aws-proserve-opensource@amazon.com
 
 Quick Start
 -----------
