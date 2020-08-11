@@ -33,16 +33,36 @@ and press **create** to create the layer.
 
 4 - Go to your Lambda and select your new layer!
 
-AWS Glue Wheel
---------------
+AWS Glue Python Shell Jobs
+--------------------------
 
-.. note:: AWS Data Wrangler has compiled dependencies (C/C++) so there is only support for ``Glue Python Shell``, **not** for ``Glue PySpark``.
-
-1 - Go to `GitHub's release page <https://github.com/awslabs/aws-data-wrangler/releases>`_ and download the wheel file (.whl) related to the desired version.
+1 - Go to `GitHub's release page <https://github.com/awslabs/aws-data-wrangler/releases>`_ and download the wheel file
+(.whl) related to the desired version.
 
 2 - Upload the wheel file to any Amazon S3 location.
 
-3 - Go to your Glue Python Shell job and point to the new file on S3.
+3 - Go to your Glue Python Shell job and point to the wheel file on S3 in
+the *Python library path* field.
+
+
+`Official Glue Python Shell Reference <https://docs.aws.amazon.com/glue/latest/dg/add-job-python.html#create-python-extra-library>`_
+
+AWS Glue Python PySpark Jobs
+----------------------------
+
+.. note:: AWS Data Wrangler has compiled dependencies (C/C++) so there is only support for ``Glue PySpark Jobs >= 2.0``.
+
+1 - Go to `GitHub's release page <https://github.com/awslabs/aws-data-wrangler/releases>`_ and download the wheel file
+(.whl) related to the desired version.
+
+2 - Upload the wheel file to any Amazon S3 location.
+
+3 - Go to your Glue PySpark job and create a new *Job parameters* key/value:
+
+* Key: ``--additional-python-modules``
+* Value: ``s3://{BUCKET_NAME}/awswrangler-{VERSION}-py3-none-any.whl``
+
+`Official Glue PySpark Reference <https://docs.aws.amazon.com/glue/latest/dg/reduced-start-times-spark-etl-jobs.html#reduced-start-times-new-features>`_
 
 Amazon SageMaker Notebook
 -------------------------
@@ -123,7 +143,7 @@ complement Big Data pipelines.
         sudo pip-3.6 install awswrangler
 
 .. note:: Make sure to freeze the Wrangler version in the bootstrap for productive
-          environments (e.g. awswrangler==1.0.0)
+          environments (e.g. awswrangler==1.8.1)
 
 From Source
 -----------
