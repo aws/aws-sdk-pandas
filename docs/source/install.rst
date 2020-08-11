@@ -47,8 +47,8 @@ the *Python library path* field.
 
 `Official Glue Python Shell Reference <https://docs.aws.amazon.com/glue/latest/dg/add-job-python.html#create-python-extra-library>`_
 
-AWS Glue Python PySpark Jobs
-----------------------------
+AWS Glue PySpark Jobs
+---------------------
 
 .. note:: AWS Data Wrangler has compiled dependencies (C/C++) so there is only support for ``Glue PySpark Jobs >= 2.0``.
 
