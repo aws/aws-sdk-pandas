@@ -4,6 +4,7 @@ import logging
 import boto3
 import pandas as pd
 import pytest
+import numpy as np
 
 import awswrangler as wr
 
@@ -772,3 +773,17 @@ def test_parse_describe_table():
 def test_describe_table(path, glue_database, glue_table):
     wr.catalog.create_parquet_table(database=glue_database, table=glue_table, path=path, columns_types={"c0": "int"})
     assert wr.athena.describe_table(database=glue_database, table=glue_table).shape == (1, 4)
+
+
+@pytest.mark.parametrize("ctas_approach", [False, True])
+def test_athena_nan_inf(glue_database, ctas_approach):
+    sql = "SELECT nan() AS nan, infinity() as inf, -infinity() as inf_n, 1.2 as regular"
+    df = wr.athena.read_sql_query(sql, glue_database, ctas_approach)
+    print(df)
+    print(df.dtypes)
+    assert df.shape == (1, 4)
+    assert df.dtypes.to_list() == ["float64", "float64", "float64", "float64"]
+    assert np.isnan(df.nan.iloc[0])
+    assert df.inf.iloc[0] == np.PINF
+    assert df.inf_n.iloc[0] == np.NINF
+    assert df.regular.iloc[0] == 1.2
