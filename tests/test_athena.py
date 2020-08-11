@@ -2,9 +2,9 @@ import datetime
 import logging
 
 import boto3
+import numpy as np
 import pandas as pd
 import pytest
-import numpy as np
 
 import awswrangler as wr
 
