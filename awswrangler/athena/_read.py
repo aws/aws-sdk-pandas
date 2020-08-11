@@ -265,7 +265,7 @@ def _fetch_csv_result(
         converters=query_metadata.converters,
         quoting=csv.QUOTE_ALL,
         keep_default_na=False,
-        na_values=[""],
+        na_values=["", "NaN"],
         chunksize=_chunksize,
         skip_blank_lines=False,
         use_threads=False,
