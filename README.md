@@ -3,7 +3,7 @@
 
 ![AWS Data Wrangler](docs/source/_static/logo2.png?raw=true "AWS Data Wrangler")
 
-> An [AWS Professional Service](https://aws.amazon.com/professional-services/) open source initiative
+> An [AWS Professional Service](https://aws.amazon.com/professional-services/) open source initiative | aws-proserve-opensource@amazon.com
 
 [![Release](https://img.shields.io/badge/release-1.8.0-brightgreen.svg)](https://pypi.org/project/awswrangler/)
 [![Python Version](https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.8-brightgreen.svg)](https://anaconda.org/conda-forge/awswrangler)
@@ -124,3 +124,4 @@ Please send a PR with your company name and @githubhandle if you may.
 2. [Pier](https://www.pier.digital/) [[@flaviomax](https://github.com/flaviomax)]
 3. [M4U](https://www.m4u.com.br/) [[@Thiago-Dantas](https://github.com/Thiago-Dantas)]
 4. [Serasa Experian](https://www.serasaexperian.com.br/) [[@andre-marcos-perez](https://github.com/andre-marcos-perez)]
+5. [LINE TV](https://www.linetv.tw/) [[@bryanyang0528](https://github.com/bryanyang0528)]
