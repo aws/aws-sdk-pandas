@@ -615,7 +615,7 @@ def read_sql_query(
     sql : str
         SQL query.
     database : str
-        AWS Glue/Athena database name - It is only the origin database from where the query will be launched,
+        AWS Glue/Athena database name - It is only the origin database from where the query will be launched.
         You can still using and mixing several databases writing the full table name within the sql
         (e.g. `database.table`).
     ctas_approach: bool
