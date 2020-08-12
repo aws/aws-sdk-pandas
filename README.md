@@ -127,3 +127,4 @@ Please send a PR with your company name and @githubhandle if you may.
 4. [Serasa Experian](https://www.serasaexperian.com.br/) [[@andre-marcos-perez](https://github.com/andre-marcos-perez)]
 5. [LINE TV](https://www.linetv.tw/) [[@bryanyang0528](https://github.com/bryanyang0528)]
 6. [OKRA Technologies](https://okra.ai) [[@JPFrancoia](https://github.com/JPFrancoia), [@schot](https://github.com/schot)]
+7. [DNX](https://www.dnx.solutions/) [[@DNXLabs](https://github.com/DNXLabs)]
