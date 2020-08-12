@@ -111,7 +111,7 @@ wr.db.to_sql(df, engine, schema="test", name="my_table")
   - [Amazon CloudWatch Logs](https://aws-data-wrangler.readthedocs.io/en/latest/api.html#amazon-cloudwatch-logs)
   - [Amazon QuickSight](https://aws-data-wrangler.readthedocs.io/en/latest/api.html#amazon-quicksight)
   - [AWS STS](https://aws-data-wrangler.readthedocs.io/en/latest/api.html#aws-sts)
-- [**License**](https://github.com/awslabs/aws-data-wrangler/blob/master/LICENSE)
+- [**License**](https://github.com/awslabs/aws-data-wrangler/blob/master/LICENSE.txt)
 - [**Contributing**](https://github.com/awslabs/aws-data-wrangler/blob/master/CONTRIBUTING.md)
 - [**Legacy Docs** (pre-1.0.0)](https://aws-data-wrangler.readthedocs.io/en/legacy/)
 
