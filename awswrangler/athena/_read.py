@@ -524,9 +524,12 @@ def read_sql_query(
 
     **Related tutorial:**
 
-    - `Amazon Athena <https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/006%20-%20Amazon%20Athena.ipynb>`_
-    - `Athena Cache <https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/019%20-%20Athena%20Cache.ipynb>`_
-    - `Global Configurations <https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/021%20-%20Global%20Configurations.ipynb>`_
+    - `Amazon Athena <https://github.com/awslabs/aws-data-wrangler/blob/
+      master/tutorials/006%20-%20Amazon%20Athena.ipynb>`_
+    - `Athena Cache <https://github.com/awslabs/aws-data-wrangler/blob/
+      master/tutorials/019%20-%20Athena%20Cache.ipynb>`_
+    - `Global Configurations <https://github.com/awslabs/aws-data-wrangler/blob/
+      master/tutorials/021%20-%20Global%20Configurations.ipynb>`_
 
     **There are two approaches to be defined through ctas_approach parameter:**
 
@@ -567,10 +570,12 @@ def read_sql_query(
     ----
     The resulting DataFrame (or every DataFrame in the returned Iterator for chunked queries) have a
     `query_metadata` attribute, which brings the query result metadata returned by
-    `Boto3/Athena <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/athena.html#Athena.Client.get_query_execution>`_ .
+    `Boto3/Athena <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services
+    /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a pratical example check out the
-    `related tutorial <https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/024%20-%20Athena%20Query%20Metadata.ipynb>`_!
+    `related tutorial <https://github.com/awslabs/aws-data-wrangler/blob/
+    master/tutorials/024%20-%20Athena%20Query%20Metadata.ipynb>`_!
 
 
     Note
@@ -728,9 +733,12 @@ def read_sql_table(
 
     **Related tutorial:**
 
-    - `Amazon Athena <https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/006%20-%20Amazon%20Athena.ipynb>`_
-    - `Athena Cache <https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/019%20-%20Athena%20Cache.ipynb>`_
-    - `Global Configurations <https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/021%20-%20Global%20Configurations.ipynb>`_
+    - `Amazon Athena <https://github.com/awslabs/aws-data-wrangler/blob/
+      master/tutorials/006%20-%20Amazon%20Athena.ipynb>`_
+    - `Athena Cache <https://github.com/awslabs/aws-data-wrangler/blob/
+      master/tutorials/019%20-%20Athena%20Cache.ipynb>`_
+    - `Global Configurations <https://github.com/awslabs/aws-data-wrangler/blob/
+      master/tutorials/021%20-%20Global%20Configurations.ipynb>`_
 
     **There are two approaches to be defined through ctas_approach parameter:**
 
@@ -770,10 +778,12 @@ def read_sql_table(
     ----
     The resulting DataFrame (or every DataFrame in the returned Iterator for chunked queries) have a
     `query_metadata` attribute, which brings the query result metadata returned by
-    `Boto3/Athena <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/athena.html#Athena.Client.get_query_execution>`_ .
+    `Boto3/Athena <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services
+    /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a pratical example check out the
-    `related tutorial <https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/024%20-%20Athena%20Query%20Metadata.ipynb>`_!
+    `related tutorial <https://github.com/awslabs/aws-data-wrangler/blob/master/
+    tutorials/024%20-%20Athena%20Query%20Metadata.ipynb>`_!
 
 
     Note
