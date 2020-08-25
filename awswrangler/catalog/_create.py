@@ -150,14 +150,30 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
             client_glue.create_table(
                 **_catalog_id(catalog_id=catalog_id, DatabaseName=database, TableInput=table_input)
             )
-        except client_glue.exceptions.AlreadyExistsException as ex:
+        except client_glue.exceptions.AlreadyExistsException:
             if mode == "overwrite":
-                delete_table_if_exists(database=database, table=table, boto3_session=session, catalog_id=catalog_id)
-                client_glue.create_table(
-                    **_catalog_id(catalog_id=catalog_id, DatabaseName=database, TableInput=table_input)
+                _utils.try_it(
+                    f=_overwrite_table,
+                    ex=client_glue.exceptions.AlreadyExistsException,
+                    client_glue=client_glue,
+                    catalog_id=catalog_id,
+                    database=database,
+                    table=table,
+                    table_input=table_input,
+                    boto3_session=boto3_session,
                 )
-            else:
-                raise ex
+
+
+def _overwrite_table(
+    client_glue: boto3.client,
+    catalog_id: Optional[str],
+    database: str,
+    table: str,
+    table_input: Dict[str, Any],
+    boto3_session: boto3.Session,
+) -> None:
+    delete_table_if_exists(database=database, table=table, boto3_session=boto3_session, catalog_id=catalog_id)
+    client_glue.create_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, TableInput=table_input))
 
 
 def _upsert_table_parameters(
