@@ -677,8 +677,8 @@ def read_parquet_table(
     res: Dict[str, Any] = client_glue.get_table(**args)
     try:
         path: str = res["Table"]["StorageDescriptor"]["Location"]
-    except KeyError:
-        raise exceptions.InvalidTable(f"Missing s3 location for {database}.{table}.")
+    except KeyError as ex:
+        raise exceptions.InvalidTable(f"Missing s3 location for {database}.{table}.") from ex
     return _data_types.cast_pandas_with_athena_types(
         df=read_parquet(
             path=path,

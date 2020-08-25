@@ -479,8 +479,8 @@ def get_table_location(database: str, table: str, boto3_session: Optional[boto3.
     res: Dict[str, Any] = client_glue.get_table(DatabaseName=database, Name=table)
     try:
         return cast(str, res["Table"]["StorageDescriptor"]["Location"])
-    except KeyError:
-        raise exceptions.InvalidTable(f"{database}.{table}")
+    except KeyError as ex:
+        raise exceptions.InvalidTable(f"{database}.{table}") from ex
 
 
 def get_connection(
