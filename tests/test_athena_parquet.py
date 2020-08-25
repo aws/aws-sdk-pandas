@@ -134,6 +134,24 @@ def test_parquet_catalog_casting(path, glue_database):
     assert wr.catalog.delete_table_if_exists(database=glue_database, table="__test_parquet_catalog_casting") is True
 
 
+def test_parquet_catalog_casting_to_string_with_null(path, glue_table, glue_database):
+    data = [{'A': 'foo'}, {'A': 'boo', 'B': 'bar'}]
+    df = pd.DataFrame(data)
+    paths = wr.s3.to_parquet(df, path, dataset=True, database=glue_database, table=glue_table, dtype={'A': 'string', 'B': 'string'})["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    df = wr.s3.read_parquet(path=path)
+    assert df.shape == (2, 2)
+    for dtype in df.dtypes.values:
+        assert str(dtype) == "string"
+    assert pd.isna(df[df["a"] == "foo"].b.iloc[0])
+    df = wr.athena.read_sql_table(table=glue_table, database=glue_database, ctas_approach=True)
+    assert df.shape == (2, 2)
+    for dtype in df.dtypes.values:
+        assert str(dtype) == "string"
+    assert pd.isna(df[df["a"] == "foo"].b.iloc[0])
+    df = wr.athena.read_sql_query(f"SELECT count(*) as counter FROM {glue_table} WHERE b is NULL ", database=glue_database)
+    assert df.counter.iloc[0] == 1
+
 @pytest.mark.parametrize("compression", [None, "gzip", "snappy"])
 def test_parquet_compress(path, glue_table, glue_database, compression):
     paths = wr.s3.to_parquet(
