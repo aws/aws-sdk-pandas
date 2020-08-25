@@ -462,7 +462,7 @@ def _cast_pandas_column(df: pd.DataFrame, col: str, current_type: str, desired_t
         elif current_type.startswith("float") is True:
             df[col] = df[col].astype(str).astype("string")
         elif current_type in ("object", "category"):
-            df[col] = df[col].astype(str).astype("string")
+            df[col] = df[col].astype("string")
         else:
             df[col] = df[col].astype("string")
     else:
