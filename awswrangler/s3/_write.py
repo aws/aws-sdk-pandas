@@ -38,6 +38,7 @@ def _apply_dtype(
 def _validate_args(
     df: pd.DataFrame,
     table: Optional[str],
+    database: Optional[str],
     dataset: bool,
     path: str,
     partition_cols: Optional[List[str]],
@@ -57,12 +58,17 @@ def _validate_args(
             raise exceptions.InvalidArgumentCombination("Please, pass dataset=True to be able to use partition_cols.")
         if mode is not None:
             raise exceptions.InvalidArgumentCombination("Please pass dataset=True to be able to use mode.")
-        if any(arg is not None for arg in (table, description, parameters, columns_comments)):
+        if any(arg is not None for arg in (database, table, description, parameters, columns_comments)):
             raise exceptions.InvalidArgumentCombination(
                 "Please pass dataset=True to be able to use any one of these "
                 "arguments: database, table, description, parameters, "
                 "columns_comments."
             )
+    elif (database is None) != (table is None):
+        raise exceptions.InvalidArgumentCombination(
+            "Arguments database and table must be passed together. If you want to store your dataset in the Glue "
+            "Catalog, please ensure you are passing both."
+        )
 
 
 def _sanitize(

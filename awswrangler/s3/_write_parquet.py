@@ -398,6 +398,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     _validate_args(
         df=df,
         table=table,
+        database=database,
         dataset=dataset,
         path=path,
         partition_cols=partition_cols,
