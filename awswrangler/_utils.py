@@ -276,7 +276,13 @@ def check_duplicated_columns(df: pd.DataFrame) -> Any:
     """Raise an exception if there are duplicated columns names."""
     duplicated: List[str] = df.loc[:, df.columns.duplicated()].columns.to_list()
     if duplicated:
-        raise exceptions.InvalidDataFrame(f"There is duplicated column names in your DataFrame: {duplicated}")
+        raise exceptions.InvalidDataFrame(
+            f"There are duplicated column names in your DataFrame: {duplicated}. "
+            f"Note that your columns was sanitized and it can be the the cause of "
+            f"the duplicity. Wrangler sanitization removes all special characters and "
+            f"also converts CamelCase to snake_case. So you must avoid columns like "
+            f"['MyCol', 'my_col'] in your DataFrame."
+        )
 
 
 def try_it(f: Callable[..., Any], ex: Any, base: float = 1.0, max_num_tries: int = 3, **kwargs: Any) -> Any:
