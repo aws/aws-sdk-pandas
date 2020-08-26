@@ -56,6 +56,8 @@ AWS Glue Catalog
     create_parquet_table
     databases
     delete_database
+    delete_partitions
+    delete_all_partitions
     delete_table_if_exists
     does_table_exist
     drop_duplicated_columns

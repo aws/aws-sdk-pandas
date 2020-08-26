@@ -1,15 +1,15 @@
 """AWS Glue Catalog Module."""
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import boto3  # type: ignore
 
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
 from awswrangler.catalog._definitions import _csv_table_definition, _parquet_table_definition
-from awswrangler.catalog._delete import delete_table_if_exists
-from awswrangler.catalog._get import _get_partitions, _get_table_input
+from awswrangler.catalog._delete import delete_all_partitions, delete_table_if_exists
+from awswrangler.catalog._get import _get_table_input
 from awswrangler.catalog._utils import _catalog_id, sanitize_column_name, sanitize_table_name
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -118,20 +118,7 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
             f"{mode} is not a valid mode. It must be 'overwrite', 'append' or 'overwrite_partitions'."
         )
     if table_exist is True and mode == "overwrite":
-        _logger.debug("Fetching existing partitions...")
-        partitions_values: List[List[str]] = list(
-            _get_partitions(database=database, table=table, boto3_session=session, catalog_id=catalog_id).values()
-        )
-        _logger.debug("Number of old partitions: %s", len(partitions_values))
-        _logger.debug("Deleting existing partitions...")
-        client_glue.batch_delete_partition(
-            **_catalog_id(
-                catalog_id=catalog_id,
-                DatabaseName=database,
-                TableName=table,
-                PartitionsToDelete=[{"Values": v} for v in partitions_values],
-            )
-        )
+        delete_all_partitions(table=table, database=database, catalog_id=catalog_id, boto3_session=session)
         _logger.debug("Updating table...")
         client_glue.update_table(
             **_catalog_id(

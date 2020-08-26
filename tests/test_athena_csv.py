@@ -166,6 +166,30 @@ def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_p
     assert comments["c1"] == "one"
 
 
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_csv_overwrite_several_partitions(path, glue_database, glue_table, use_threads):
+    df0 = pd.DataFrame({"id": list(range(27)), "par": list(range(27))})
+    df1 = pd.DataFrame({"id": list(range(26)), "par": list(range(26))})
+    for df in (df0, df1):
+        paths = wr.s3.to_csv(
+            df=df,
+            path=path,
+            index=False,
+            use_threads=use_threads,
+            dataset=True,
+            partition_cols=["par"],
+            mode="overwrite",
+            table=glue_table,
+            database=glue_database,
+            concurrent_partitioning=True,
+        )["paths"]
+        wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+        df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
+        assert df2.shape == df.shape
+        assert df2["id"].sum() == df["id"].sum()
+        assert df2["par"].sum() == df["par"].sum()
+
+
 def test_csv_dataset(path, glue_database):
     with pytest.raises(wr.exceptions.UndetectedType):
         wr.s3.to_csv(pd.DataFrame({"A": [None]}), path, dataset=True, database=glue_database, table="test_csv_dataset")
