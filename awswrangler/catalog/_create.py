@@ -243,7 +243,7 @@ def _create_parquet_table(
                 updated = True
             elif t != catalog_cols[c]:  # Data type change detected!
                 raise exceptions.InvalidArgumentValue(
-                    f"Data type change detected on column {c}. Old type: {catalog_cols[c]}. New type {t}."
+                    f"Data type change detected on column {c} (Old type: {catalog_cols[c]} / New type {t})."
                 )
         if updated is True:
             mode = "update"

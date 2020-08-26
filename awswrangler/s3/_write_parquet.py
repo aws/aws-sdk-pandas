@@ -22,6 +22,23 @@ from awswrangler.s3._write_dataset import _to_dataset
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
+def _check_schema_changes(columns_types: Dict[str, str], table_input: Optional[Dict[str, Any]], mode: str) -> None:
+    if (table_input is not None) and (mode in ("append", "overwrite_partitions")):
+        catalog_cols: Dict[str, str] = {x["Name"]: x["Type"] for x in table_input["StorageDescriptor"]["Columns"]}
+        for c, t in columns_types.items():
+            if c not in catalog_cols:
+                raise exceptions.InvalidArgumentValue(
+                    f"Schema change detected: New column {c} with type {t}. "
+                    "Please pass schema_evolution=True to allow new columns "
+                    "behaviour."
+                )
+            if t != catalog_cols[c]:  # Data type change detected!
+                raise exceptions.InvalidArgumentValue(
+                    f"Schema change detected: Data type change on column {c} "
+                    f"(Old type: {catalog_cols[c]} / New type {t})."
+                )
+
+
 def _get_file_path(file_counter: int, file_path: str) -> str:
     slash_index: int = file_path.rfind("/")
     dot_index: int = file_path.find(".", slash_index)
@@ -166,6 +183,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     concurrent_partitioning: bool = False,
     mode: Optional[str] = None,
     catalog_versioning: bool = False,
+    schema_evolution: bool = True,
     database: Optional[str] = None,
     table: Optional[str] = None,
     dtype: Optional[Dict[str, str]] = None,
@@ -242,6 +260,11 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
         https://aws-data-wrangler.readthedocs.io/en/latest/stubs/awswrangler.s3.to_parquet.html#awswrangler.s3.to_parquet
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
+    schema_evolution : bool
+        If True allows schema evolution (new or missing columns), otherwise a exception will be raised.
+        (Only considered if dataset=True and mode in ("append", "overwrite_partitions"))
+        Related tutorial:
+        https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/014%20-%20Schema%20Evolution.ipynb
     database : str, optional
         Glue/Athena catalog: Database name.
     table : str, optional
@@ -452,6 +475,14 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
             max_rows_by_file=max_rows_by_file,
         )
     else:
+        columns_types: Dict[str, str] = {}
+        partitions_types: Dict[str, str] = {}
+        if (database is not None) and (table is not None):
+            columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
+                df=df, index=index, partition_cols=partition_cols, dtype=dtype
+            )
+            if schema_evolution is False:
+                _check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
         paths, partitions_values = _to_dataset(
             func=_to_parquet,
             concurrent_partitioning=concurrent_partitioning,
@@ -471,9 +502,6 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
             max_rows_by_file=max_rows_by_file,
         )
         if (database is not None) and (table is not None):
-            columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
-                df=df, index=index, partition_cols=partition_cols, dtype=dtype
-            )
             catalog._create_parquet_table(  # pylint: disable=protected-access
                 database=database,
                 table=table,

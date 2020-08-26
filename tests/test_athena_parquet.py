@@ -520,3 +520,35 @@ def test_to_parquet_sanitize(path, glue_database):
     assert df2.c0.sum() == 1
     assert df2.camel_case.sum() == 5
     assert df2.c_2.sum() == 9
+
+
+def test_schema_evolution_disabled(path, glue_table, glue_database):
+    wr.s3.to_parquet(
+        df=pd.DataFrame({"c0": [1]}),
+        path=path,
+        dataset=True,
+        database=glue_database,
+        table=glue_table,
+        schema_evolution=False,
+    )
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.s3.to_parquet(
+            df=pd.DataFrame({"c0": [2], "c1": [2]}),
+            path=path,
+            dataset=True,
+            database=glue_database,
+            table=glue_table,
+            schema_evolution=False,
+        )
+    paths = wr.s3.to_parquet(
+        df=pd.DataFrame({"c0": [2]}),
+        path=path,
+        dataset=True,
+        database=glue_database,
+        table=glue_table,
+        schema_evolution=False,
+    )["paths"]
+    wr.s3.wait_objects_exist(paths)
+    df2 = wr.athena.read_sql_table(database=glue_database, table=glue_table)
+    assert df2.shape == (2, 1)
+    assert df2.c0.sum() == 3

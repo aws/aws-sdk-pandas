@@ -58,7 +58,7 @@ def _validate_args(
             raise exceptions.InvalidArgumentCombination("Please, pass dataset=True to be able to use partition_cols.")
         if mode is not None:
             raise exceptions.InvalidArgumentCombination("Please pass dataset=True to be able to use mode.")
-        if any(arg is not None for arg in (database, table, description, parameters, columns_comments)):
+        if any(arg is not None for arg in (table, description, parameters, columns_comments)):
             raise exceptions.InvalidArgumentCombination(
                 "Please pass dataset=True to be able to use any one of these "
                 "arguments: database, table, description, parameters, "
