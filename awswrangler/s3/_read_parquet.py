@@ -173,7 +173,7 @@ def _apply_index(df: pd.DataFrame, metadata: Dict[str, Any]) -> pd.DataFrame:
                 df.index = pd.RangeIndex(start=col["start"], stop=col["stop"], step=col["step"])
                 if col["name"] is not None and col["name"].startswith("__index_level_") is False:
                     df.index.name = col["name"]
-        df.index.names = [None if n.startswith("__index_level_") else n for n in df.index.names]
+        df.index.names = [None if n is not None and n.startswith("__index_level_") else n for n in df.index.names]
         ignore_index: bool = False
     else:
         ignore_index = True
