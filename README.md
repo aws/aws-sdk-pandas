@@ -123,11 +123,13 @@ Knowing which companies are using this library is important to help prioritize t
 
 Please send a PR with your company name and @githubhandle if you may.
 
-1. [Digio](https://www.digio.com.br/) [[@afonsomy](https://github.com/afonsomy)]
-2. [Pier](https://www.pier.digital/) [[@flaviomax](https://github.com/flaviomax)]
-3. [M4U](https://www.m4u.com.br/) [[@Thiago-Dantas](https://github.com/Thiago-Dantas)]
-4. [Serasa Experian](https://www.serasaexperian.com.br/) [[@andre-marcos-perez](https://github.com/andre-marcos-perez)]
-5. [LINE TV](https://www.linetv.tw/) [[@bryanyang0528](https://github.com/bryanyang0528)]
-6. [OKRA Technologies](https://okra.ai) [[@JPFrancoia](https://github.com/JPFrancoia), [@schot](https://github.com/schot)]
-7. [DNX](https://www.dnx.solutions/) [[@DNXLabs](https://github.com/DNXLabs)]
-8. [Cepsa](https://cepsa.com) [@alvaropc](https://github.com/alvaropc)
+* [Amazon](https://www.amazon.com/)
+* [AWS](https://aws.amazon.com/)
+* [Cepsa](https://cepsa.com) [[@alvaropc](https://github.com/alvaropc)]
+* [Digio](https://www.digio.com.br/) [[@afonsomy](https://github.com/afonsomy)]
+* [DNX](https://www.dnx.solutions/) [[@DNXLabs](https://github.com/DNXLabs)]
+* [LINE TV](https://www.linetv.tw/) [[@bryanyang0528](https://github.com/bryanyang0528)]
+* [M4U](https://www.m4u.com.br/) [[@Thiago-Dantas](https://github.com/Thiago-Dantas)]
+* [OKRA Technologies](https://okra.ai) [[@JPFrancoia](https://github.com/JPFrancoia), [@schot](https://github.com/schot)]]
+* [Pier](https://www.pier.digital/) [[@flaviomax](https://github.com/flaviomax)]
+* [Serasa Experian](https://www.serasaexperian.com.br/) [[@andre-marcos-perez](https://github.com/andre-marcos-perez)]
