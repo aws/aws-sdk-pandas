@@ -456,15 +456,6 @@ def _cast_pandas_column(df: pd.DataFrame, col: str, current_type: str, desired_t
         df = _cast_pandas_column(df=df, col=col, current_type=current_type, desired_type="string")
         # Then cast to decimal
         df[col] = df[col].apply(lambda x: Decimal(str(x)) if str(x) not in ("", "none", "None", " ", "<NA>") else None)
-    elif desired_type == "string":
-        if current_type.lower().startswith("int") is True:
-            df[col] = df[col].astype(str).astype("string")
-        elif current_type.startswith("float") is True:
-            df[col] = df[col].astype(str).astype("string")
-        elif current_type in ("object", "category"):
-            df[col] = df[col].astype(str).astype("string")
-        else:
-            df[col] = df[col].astype("string")
     else:
         try:
             df[col] = df[col].astype(desired_type)

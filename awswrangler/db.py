@@ -274,7 +274,9 @@ def to_sql(df: pd.DataFrame, con: sqlalchemy.engine.Engine, **pandas_kwargs: Any
         SQLAlchemy Engine. Please use,
         wr.db.get_engine(), wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()
     pandas_kwargs
-        keyword arguments forwarded to pandas.DataFrame.to_csv()
+        KEYWORD arguments forwarded to pandas.DataFrame.to_sql(). You can NOT pass `pandas_kwargs` explicit, just add
+        valid Pandas arguments in the function call and Wrangler will accept it.
+        e.g. wr.db.to_sql(df, con=con, name="table_name", schema="schema_name", if_exists="replace", index=False)
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_sql.html
 
     Returns
@@ -295,6 +297,19 @@ def to_sql(df: pd.DataFrame, con: sqlalchemy.engine.Engine, **pandas_kwargs: Any
     ...     schema="schema_name"
     ... )
 
+    Writing to Redshift with temporary credentials and using pandas_kwargs
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.db.to_sql(
+    ...     df=pd.DataFrame({'col': [1, 2, 3]}),
+    ...     con=wr.db.get_redshift_temp_engine(cluster_identifier="...", user="..."),
+    ...     name="table_name",
+    ...     schema="schema_name",
+    ...     if_exists="replace",
+    ...     index=False,
+    ... )
+
     Writing to Redshift from Glue Catalog Connections
 
     >>> import awswrangler as wr
@@ -307,6 +322,12 @@ def to_sql(df: pd.DataFrame, con: sqlalchemy.engine.Engine, **pandas_kwargs: Any
     ... )
 
     """
+    if "pandas_kwargs" in pandas_kwargs:
+        raise exceptions.InvalidArgument(
+            "You can NOT pass `pandas_kwargs` explicit, just add valid "
+            "Pandas arguments in the function call and Wrangler will accept it."
+            "e.g. wr.db.to_sql(df, con, name='...', schema='...', if_exists='replace')"
+        )
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
     if not isinstance(con, sqlalchemy.engine.Engine):
@@ -700,6 +721,7 @@ def copy_to_redshift(  # pylint: disable=too-many-arguments
     s3_additional_kwargs:
         Forward to s3fs, useful for server side encryption
         https://s3fs.readthedocs.io/en/latest/#serverside-encryption
+        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
     max_rows_by_file : int
         Max number of rows in each file.
         Default is None i.e. dont split the files.
@@ -848,6 +870,7 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
         Forward to boto3.client('s3').put_object when writing manifest, useful for server side encryption
+        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
 
     Returns
     -------
@@ -942,6 +965,7 @@ def write_redshift_copy_manifest(
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
         Forward to boto3.client('s3').put_object when writing manifest, useful for server side encryption
+        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
 
     Returns
     -------
@@ -1075,6 +1099,7 @@ def unload_redshift(
     s3_additional_kwargs:
         Forward to s3fs, useful for server side encryption
         https://s3fs.readthedocs.io/en/latest/#serverside-encryption
+        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
 
     Returns
     -------

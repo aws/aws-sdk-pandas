@@ -63,14 +63,22 @@ def boto3_from_primitives(primitives: Optional[Boto3PrimitivesType] = None) -> b
 def client(service_name: str, session: Optional[boto3.Session] = None) -> boto3.client:
     """Create a valid boto3.client."""
     return ensure_session(session=session).client(
-        service_name=service_name, use_ssl=True, config=botocore.config.Config(retries={"max_attempts": 15})
+        service_name=service_name,
+        use_ssl=True,
+        config=botocore.config.Config(
+            retries={"max_attempts": 10, "mode": "adaptive"}, connect_timeout=10, max_pool_connections=30
+        ),
     )
 
 
 def resource(service_name: str, session: Optional[boto3.Session] = None) -> boto3.resource:
     """Create a valid boto3.resource."""
     return ensure_session(session=session).resource(
-        service_name=service_name, use_ssl=True, config=botocore.config.Config(retries={"max_attempts": 15})
+        service_name=service_name,
+        use_ssl=True,
+        config=botocore.config.Config(
+            retries={"max_attempts": 10, "mode": "adaptive"}, connect_timeout=10, max_pool_connections=30
+        ),
     )
 
 
@@ -276,7 +284,13 @@ def check_duplicated_columns(df: pd.DataFrame) -> Any:
     """Raise an exception if there are duplicated columns names."""
     duplicated: List[str] = df.loc[:, df.columns.duplicated()].columns.to_list()
     if duplicated:
-        raise exceptions.InvalidDataFrame(f"There is duplicated column names in your DataFrame: {duplicated}")
+        raise exceptions.InvalidDataFrame(
+            f"There are duplicated column names in your DataFrame: {duplicated}. "
+            f"Note that your columns may have been sanitized and it can be the cause of "
+            f"the duplicity. Wrangler sanitization removes all special characters and "
+            f"also converts CamelCase to snake_case. So you must avoid columns like "
+            f"['MyCol', 'my_col'] in your DataFrame."
+        )
 
 
 def try_it(f: Callable[..., Any], ex: Any, base: float = 1.0, max_num_tries: int = 3, **kwargs: Any) -> Any:

@@ -138,8 +138,8 @@ class _Config:
             exceptions.InvalidArgumentValue(f"{name} configuration does not accept a null value. Please pass {dtype}.")
         try:
             return dtype(value) if isinstance(value, dtype) is False else value
-        except ValueError:
-            raise exceptions.InvalidConfiguration(f"Config {name} must receive a {dtype} value.")
+        except ValueError as ex:
+            raise exceptions.InvalidConfiguration(f"Config {name} must receive a {dtype} value.") from ex
 
     @staticmethod
     def _is_null(value: _ConfigValueType) -> bool:

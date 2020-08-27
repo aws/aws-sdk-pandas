@@ -38,6 +38,7 @@ def _apply_dtype(
 def _validate_args(
     df: pd.DataFrame,
     table: Optional[str],
+    database: Optional[str],
     dataset: bool,
     path: str,
     partition_cols: Optional[List[str]],
@@ -63,6 +64,11 @@ def _validate_args(
                 "arguments: database, table, description, parameters, "
                 "columns_comments."
             )
+    elif (database is None) != (table is None):
+        raise exceptions.InvalidArgumentCombination(
+            "Arguments database and table must be passed together. If you want to store your dataset in the Glue "
+            "Catalog, please ensure you are passing both."
+        )
 
 
 def _sanitize(

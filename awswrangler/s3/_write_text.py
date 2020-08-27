@@ -133,6 +133,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
     s3_additional_kwargs:
         Forward to s3fs, useful for server side encryption
         https://s3fs.readthedocs.io/en/latest/#serverside-encryption
+        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
     sanitize_columns : bool
         True to sanitize columns names or False to keep it as is.
         True value is forced if `dataset=True`.
@@ -199,7 +200,9 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
     pandas_kwargs :
-        keyword arguments forwarded to pandas.DataFrame.to_csv()
+        KEYWORD arguments forwarded to pandas.DataFrame.to_csv(). You can NOT pass `pandas_kwargs` explicit, just add
+        valid Pandas arguments in the function call and Wrangler will accept it.
+        e.g. wr.s3.to_csv(df, path, sep='|', na_rep='NULL', decimal=',')
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_csv.html
 
     Returns
@@ -219,6 +222,22 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
     >>> wr.s3.to_csv(
     ...     df=pd.DataFrame({'col': [1, 2, 3]}),
     ...     path='s3://bucket/prefix/my_file.csv',
+    ... )
+    {
+        'paths': ['s3://bucket/prefix/my_file.csv'],
+        'partitions_values': {}
+    }
+
+    Writing single file with pandas_kwargs
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.s3.to_csv(
+    ...     df=pd.DataFrame({'col': [1, 2, 3]}),
+    ...     path='s3://bucket/prefix/my_file.csv',
+    ...     sep='|',
+    ...     na_rep='NULL',
+    ...     decimal=','
     ... )
     {
         'paths': ['s3://bucket/prefix/my_file.csv'],
@@ -308,9 +327,16 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
     }
 
     """
+    if "pandas_kwargs" in pandas_kwargs:
+        raise exceptions.InvalidArgument(
+            "You can NOT pass `pandas_kwargs` explicit, just add valid "
+            "Pandas arguments in the function call and Wrangler will accept it."
+            "e.g. wr.s3.to_csv(df, path, sep='|', na_rep='NULL', decimal=',')"
+        )
     _validate_args(
         df=df,
         table=table,
+        database=database,
         dataset=dataset,
         path=path,
         partition_cols=partition_cols,
@@ -428,8 +454,11 @@ def to_json(
     s3_additional_kwargs:
         Forward to s3fs, useful for server side encryption
         https://s3fs.readthedocs.io/en/latest/#serverside-encryption
+        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
     pandas_kwargs:
-        keyword arguments forwarded to pandas.DataFrame.to_csv()
+        KEYWORD arguments forwarded to pandas.DataFrame.to_json(). You can NOT pass `pandas_kwargs` explicit, just add
+        valid Pandas arguments in the function call and Wrangler will accept it.
+        e.g. wr.s3.to_json(df, path, lines=True, date_format='iso')
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_json.html
 
     Returns
@@ -448,6 +477,17 @@ def to_json(
     ...     path='s3://bucket/filename.json',
     ... )
 
+    Writing JSON file using pandas_kwargs
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.s3.to_json(
+    ...     df=pd.DataFrame({'col': [1, 2, 3]}),
+    ...     path='s3://bucket/filename.json',
+    ...     lines=True,
+    ...     date_format='iso'
+    ... )
+
     Writing CSV file encrypted with a KMS key
 
     >>> import awswrangler as wr
@@ -462,6 +502,12 @@ def to_json(
     ... )
 
     """
+    if "pandas_kwargs" in pandas_kwargs:
+        raise exceptions.InvalidArgument(
+            "You can NOT pass `pandas_kwargs` explicit, just add valid "
+            "Pandas arguments in the function call and Wrangler will accept it."
+            "e.g. wr.s3.to_json(df, path, lines=True, date_format='iso')"
+        )
     _to_text(
         file_format="json",
         df=df,

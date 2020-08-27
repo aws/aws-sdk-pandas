@@ -107,7 +107,14 @@ def _extract_partitions_dtypes_from_table_details(response: Dict[str, Any]) -> D
     return dtypes
 
 
-def _union(dfs: List[pd.DataFrame], ignore_index: bool) -> pd.DataFrame:
+def _union(dfs: List[pd.DataFrame], ignore_index: Optional[bool]) -> pd.DataFrame:
+    if ignore_index is None:
+        ignore_index = False
+        for df in dfs:
+            if hasattr(df, "_awswrangler_ignore_index"):
+                if df._awswrangler_ignore_index is True:  # pylint: disable=protected-access
+                    ignore_index = True
+                    break
     cats: Tuple[Set[str], ...] = tuple(set(df.select_dtypes(include="category").columns) for df in dfs)
     for col in set.intersection(*cats):
         cat = union_categoricals([df[col] for df in dfs])

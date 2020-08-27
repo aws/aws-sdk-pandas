@@ -85,7 +85,7 @@ html_theme_options = {
         ("Install", "install"),
         ("Tutorials", "https://github.com/awslabs/aws-data-wrangler/tree/master/tutorials", True),
         ("API Reference", "api"),
-        ("License", "https://github.com/awslabs/aws-data-wrangler/blob/master/LICENSE", True),
+        ("License", "https://github.com/awslabs/aws-data-wrangler/blob/master/LICENSE.txt", True),
         ("Contributing", "https://github.com/awslabs/aws-data-wrangler/blob/master/CONTRIBUTING.md", True),
         ("GitHub", "https://github.com/awslabs/aws-data-wrangler", True),
     ],
