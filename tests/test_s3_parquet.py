@@ -300,3 +300,26 @@ def test_range_index_recovery_pandas(path, use_threads, name):
     wr.s3.wait_objects_exist(paths=[path_file], use_threads=use_threads)
     df2 = wr.s3.read_parquet([path_file], use_threads=use_threads)
     assert df.reset_index(level=0).equals(df2.reset_index(level=0))
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_multi_index_recovery_simple(path, use_threads):
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": ["a", "b", "c"], "c2": [True, False, True], "c3": [0, 1, 2]})
+    df["c3"] = df["c3"].astype("Int64")
+    df = df.set_index(["c0", "c1", "c2"])
+    paths = wr.s3.to_parquet(df, path, index=True, use_threads=use_threads, dataset=True, max_rows_by_file=1)["paths"]
+    assert len(paths) == 3
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    df2 = wr.s3.read_parquet(f"{path}*.parquet", use_threads=use_threads)
+    assert df.reset_index().equals(df2.reset_index())
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_multi_index_recovery_nameless(path, use_threads):
+    df = pd.DataFrame({"c0": np.arange(10, 13, 1)}, dtype="Int64")
+    df = df.set_index([[1, 2, 3], [1, 2, 3]])
+    paths = wr.s3.to_parquet(df, path, index=True, use_threads=use_threads, dataset=True, max_rows_by_file=1)["paths"]
+    assert len(paths) == 3
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    df2 = wr.s3.read_parquet(f"{path}*.parquet", use_threads=use_threads)
+    assert df.reset_index().equals(df2.reset_index())

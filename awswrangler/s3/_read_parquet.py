@@ -167,14 +167,13 @@ def _apply_index(df: pd.DataFrame, metadata: Dict[str, Any]) -> pd.DataFrame:
     if index_columns:
         if isinstance(index_columns[0], str):
             df = df.set_index(keys=index_columns, drop=True, inplace=False, verify_integrity=False)
-        elif isinstance(index_columns[0], dict):
-            for c in index_columns:
-                if c["kind"] == "range":
-                    df.index = pd.RangeIndex(start=c["start"], stop=c["stop"], step=c["step"])
-                    if c["name"] is not None:
-                        df.index.name = c["name"]
-        if df.index.name is not None and df.index.name.startswith("__index_level_"):
-            df.index.name = None
+        elif isinstance(index_columns[0], dict) and index_columns[0]["kind"] == "range":
+            col = index_columns[0]
+            if col["kind"] == "range":
+                df.index = pd.RangeIndex(start=col["start"], stop=col["stop"], step=col["step"])
+                if col["name"] is not None and col["name"].startswith("__index_level_") is False:
+                    df.index.name = col["name"]
+        df.index.names = [None if n.startswith("__index_level_") else n for n in df.index.names]
         ignore_index: bool = False
     else:
         ignore_index = True
