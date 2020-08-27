@@ -11,6 +11,7 @@ tox==3.19.0
 pytest==6.0.1
 pytest-cov==2.10.1
 pytest-xdist==2.1.0
+pytest-timeout==1.4.2
 scikit-learn==0.23.2
 cfn-lint==0.35.0
 cfn-flip==1.2.3
