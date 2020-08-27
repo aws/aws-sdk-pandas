@@ -163,10 +163,17 @@ def _read_parquet_metadata(
 
 
 def _apply_index(df: pd.DataFrame, metadata: Dict[str, Any]) -> pd.DataFrame:
-    index_columns: List[str] = metadata["index_columns"]
+    index_columns: List[Any] = metadata["index_columns"]
     if index_columns:
-        df = df.set_index(keys=index_columns, drop=True, inplace=False, verify_integrity=False)
-        if df.index.name.startswith("__index_level_"):
+        if isinstance(index_columns[0], str):
+            df = df.set_index(keys=index_columns, drop=True, inplace=False, verify_integrity=False)
+        elif isinstance(index_columns[0], dict):
+            for c in index_columns:
+                if c["kind"] == "range":
+                    df.index = pd.RangeIndex(start=c["start"], stop=c["stop"], step=c["step"])
+                    if c["name"] is not None:
+                        df.index.name = c["name"]
+        if df.index.name is not None and df.index.name.startswith("__index_level_"):
             df.index.name = None
         ignore_index: bool = False
     else:
@@ -180,6 +187,7 @@ def _apply_index(df: pd.DataFrame, metadata: Dict[str, Any]) -> pd.DataFrame:
 def _apply_timezone(df: pd.DataFrame, metadata: Dict[str, Any]) -> pd.DataFrame:
     for c in metadata["columns"]:
         if c["pandas_type"] == "datetimetz":
+            _logger.debug("applying timezone (%s) on column %s", c["metadata"]["timezone"], c["field_name"])
             df[c["field_name"]] = df[c["field_name"]].dt.tz_localize(tz="UTC")
             df[c["field_name"]] = df[c["field_name"]].dt.tz_convert(tz=c["metadata"]["timezone"])
     return df
@@ -216,6 +224,7 @@ def _arrowtable2df(
     )
     df = _utils.ensure_df_is_mutable(df=df)
     if metadata:
+        _logger.debug("metadata: %s", metadata)
         df = _apply_index(df=df, metadata=metadata)
         df = _apply_timezone(df=df, metadata=metadata)
     return df
