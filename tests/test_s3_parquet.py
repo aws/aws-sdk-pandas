@@ -1,6 +1,7 @@
 import itertools
 import logging
 import math
+from datetime import datetime
 
 import boto3
 import pandas as pd
@@ -225,3 +226,15 @@ def test_parquet_with_size(path, use_threads, max_rows_by_file):
     ensure_data_types(df2, has_list=True)
     assert df2.shape == (300, 19)
     assert df.iint8.sum() == df2.iint8.sum()
+
+
+@pytest.mark.parametrize("use_threads", [True])
+def test_index_and_timezone(path, use_threads):
+    df = pd.DataFrame({"c0": [datetime.utcnow(), datetime.utcnow()], "par": ["a", "b"]}, index=["foo", "boo"])
+    df["c1"] = pd.DatetimeIndex(df.c0).tz_localize(tz="US/Eastern")
+    paths = wr.s3.to_parquet(df, path, index=True, use_threads=use_threads, dataset=True, partition_cols=["par"])[
+        "paths"
+    ]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    df2 = wr.s3.read_parquet(path, use_threads=use_threads, dataset=True)
+    assert df[["c0", "c1"]].equals(df2[["c0", "c1"]])

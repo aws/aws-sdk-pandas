@@ -3,8 +3,10 @@
 import concurrent.futures
 import datetime
 import itertools
+import json
 import logging
 import pprint
+import warnings
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union, cast
 
 import boto3  # type: ignore
@@ -160,6 +162,29 @@ def _read_parquet_metadata(
     return columns_types, partitions_types, partitions_values
 
 
+def _apply_index(df: pd.DataFrame, metadata: Dict[str, Any]) -> pd.DataFrame:
+    index_columns: List[str] = metadata["index_columns"]
+    if index_columns:
+        df = df.set_index(keys=index_columns, drop=True, inplace=False, verify_integrity=False)
+        if df.index.name.startswith("__index_level_"):
+            df.index.name = None
+        ignore_index: bool = False
+    else:
+        ignore_index = True
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=UserWarning)
+        df._awswrangler_ignore_index = ignore_index  # pylint: disable=protected-access
+    return df
+
+
+def _apply_timezone(df: pd.DataFrame, metadata: Dict[str, Any]) -> pd.DataFrame:
+    for c in metadata["columns"]:
+        if c["pandas_type"] == "datetimetz":
+            df[c["field_name"]] = df[c["field_name"]].dt.tz_localize(tz="UTC")
+            df[c["field_name"]] = df[c["field_name"]].dt.tz_convert(tz=c["metadata"]["timezone"])
+    return df
+
+
 def _arrowtable2df(
     table: pa.Table,
     categories: Optional[List[str]],
@@ -169,6 +194,9 @@ def _arrowtable2df(
     path: str,
     path_root: Optional[str],
 ) -> pd.DataFrame:
+    metadata: Dict[str, Any] = {}
+    if table.schema.metadata is not None and b"pandas" in table.schema.metadata:
+        metadata = json.loads(table.schema.metadata[b"pandas"])
     df: pd.DataFrame = _apply_partitions(
         df=table.to_pandas(
             use_threads=use_threads,
@@ -177,15 +205,20 @@ def _arrowtable2df(
             integer_object_nulls=False,
             date_as_object=True,
             ignore_metadata=True,
-            categories=categories,
+            strings_to_categorical=False,
             safe=safe,
+            categories=categories,
             types_mapper=_data_types.pyarrow2pandas_extension,
         ),
         dataset=dataset,
         path=path,
         path_root=path_root,
     )
-    return _utils.ensure_df_is_mutable(df=df)
+    df = _utils.ensure_df_is_mutable(df=df)
+    if metadata:
+        df = _apply_index(df=df, metadata=metadata)
+        df = _apply_timezone(df=df, metadata=metadata)
+    return df
 
 
 def _read_parquet_chunked(
@@ -241,7 +274,7 @@ def _read_parquet_chunked(
                     yield df
                 elif isinstance(chunked, int) and chunked > 0:
                     if next_slice is not None:
-                        df = pd.concat(objs=[next_slice, df], ignore_index=True, sort=False, copy=False)
+                        df = _union(dfs=[next_slice, df], ignore_index=None)
                     while len(df.index) >= chunked:
                         yield df.iloc[:chunked]
                         df = df.iloc[chunked:]
@@ -453,7 +486,7 @@ def read_parquet(
         The filter is applied only after list all s3 files.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs:
+    s3_additional_kwargs : Dict[str, str]
         Forward to s3fs, useful for server side encryption
         https://s3fs.readthedocs.io/en/latest/#serverside-encryption
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
@@ -547,8 +580,8 @@ def read_parquet(
         )
     if use_threads is True:
         args["use_threads"] = True
-        return _read_concurrent(func=_read_parquet, ignore_index=True, paths=paths, **args)
-    return _union(dfs=[_read_parquet(path=p, **args) for p in paths], ignore_index=True)
+        return _read_concurrent(func=_read_parquet, paths=paths, ignore_index=None, **args)
+    return _union(dfs=[_read_parquet(path=p, **args) for p in paths], ignore_index=None)
 
 
 @apply_configs
