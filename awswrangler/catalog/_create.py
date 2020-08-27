@@ -234,19 +234,16 @@ def _create_parquet_table(
     table_input: Dict[str, Any]
     if (catalog_table_input is not None) and (mode in ("append", "overwrite_partitions")):
         table_input = catalog_table_input
-        updated: bool = False
         catalog_cols: Dict[str, str] = {x["Name"]: x["Type"] for x in table_input["StorageDescriptor"]["Columns"]}
         for c, t in columns_types.items():
             if c not in catalog_cols:
                 _logger.debug("New column %s with type %s.", c, t)
                 table_input["StorageDescriptor"]["Columns"].append({"Name": c, "Type": t})
-                updated = True
+                mode = "update"
             elif t != catalog_cols[c]:  # Data type change detected!
                 raise exceptions.InvalidArgumentValue(
                     f"Data type change detected on column {c} (Old type: {catalog_cols[c]} / New type {t})."
                 )
-        if updated is True:
-            mode = "update"
     else:
         table_input = _parquet_table_definition(
             table=table,

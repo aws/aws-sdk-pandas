@@ -51,7 +51,7 @@ def _to_dataset(
     boto3_session: boto3.Session,
     **func_kwargs: Any,
 ) -> Tuple[List[str], Dict[str, List[str]]]:
-    path_root = path_root if path_root[-1] == "/" else f"{path_root}/"
+    path_root = path_root if path_root.endswith("/") else f"{path_root}/"
 
     # Evaluate mode
     if mode not in ["append", "overwrite", "overwrite_partitions"]:
