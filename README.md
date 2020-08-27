@@ -130,6 +130,6 @@ Please send a PR with your company name and @githubhandle if you may.
 * [DNX](https://www.dnx.solutions/) [[@DNXLabs](https://github.com/DNXLabs)]
 * [LINE TV](https://www.linetv.tw/) [[@bryanyang0528](https://github.com/bryanyang0528)]
 * [M4U](https://www.m4u.com.br/) [[@Thiago-Dantas](https://github.com/Thiago-Dantas)]
-* [OKRA Technologies](https://okra.ai) [[@JPFrancoia](https://github.com/JPFrancoia), [@schot](https://github.com/schot)]]
+* [OKRA Technologies](https://okra.ai) [[@JPFrancoia](https://github.com/JPFrancoia), [@schot](https://github.com/schot)]
 * [Pier](https://www.pier.digital/) [[@flaviomax](https://github.com/flaviomax)]
 * [Serasa Experian](https://www.serasaexperian.com.br/) [[@andre-marcos-perez](https://github.com/andre-marcos-perez)]

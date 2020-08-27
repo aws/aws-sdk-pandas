@@ -13,4 +13,4 @@ A clear and concise description of what the problem is. Ex. I'm always frustrate
 **Describe the solution you'd like**
 A clear and concise description of what you want to happen.
 
-*P.S. Don't attach file. Please, prefer add code snippets directly in the message body.*
+*P.S. Don't attach files. Please, prefer add code snippets directly in the message body.*
