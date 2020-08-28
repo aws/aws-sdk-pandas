@@ -14,10 +14,10 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.lib
 import pyarrow.parquet
-import s3fs
 
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._config import apply_configs
+from awswrangler.s3._fs import S3Object
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import (
     _apply_partition_filter,
@@ -36,10 +36,13 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def _read_parquet_metadata_file(
     path: str, boto3_session: boto3.Session, s3_additional_kwargs: Optional[Dict[str, str]],
 ) -> Dict[str, str]:
-    fs: s3fs.S3FileSystem = _utils.get_fs(
-        s3fs_block_size=4_194_304, session=boto3_session, s3_additional_kwargs=s3_additional_kwargs  # 4 MB (4 * 2**20)
-    )
-    with _utils.open_file(fs=fs, path=path, mode="rb") as f:
+    with S3Object(
+        path=path,
+        mode="rb",
+        block_size=4_194_304,  # 4 MB (4 * 2**20)
+        s3_additional_kwargs=s3_additional_kwargs,
+        boto3_session=boto3_session,
+    ) as f:
         pq_file: pyarrow.parquet.ParquetFile = pyarrow.parquet.ParquetFile(source=f)
         return _data_types.athena_types_from_pyarrow_schema(schema=pq_file.schema.to_arrow_schema(), partitions=None)[0]
 
@@ -243,13 +246,16 @@ def _read_parquet_chunked(
     use_threads: bool,
 ) -> Iterator[pd.DataFrame]:
     next_slice: Optional[pd.DataFrame] = None
-    fs: s3fs.S3FileSystem = _utils.get_fs(
-        s3fs_block_size=8_388_608, session=boto3_session, s3_additional_kwargs=s3_additional_kwargs  # 8 MB (8 * 2**20)
-    )
     last_schema: Optional[Dict[str, str]] = None
     last_path: str = ""
     for path in paths:
-        with _utils.open_file(fs=fs, path=path, mode="rb") as f:
+        with S3Object(
+            path=path,
+            mode="rb",
+            block_size=8_388_608,  # 8 MB (8 * 2**20)
+            s3_additional_kwargs=s3_additional_kwargs,
+            boto3_session=boto3_session,
+        ) as f:
             pq_file: pyarrow.parquet.ParquetFile = pyarrow.parquet.ParquetFile(source=f, read_dictionary=categories)
             schema: Dict[str, str] = _data_types.athena_types_from_pyarrow_schema(
                 schema=pq_file.schema.to_arrow_schema(), partitions=None
@@ -303,12 +309,13 @@ def _read_parquet_file(
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
 ) -> pa.Table:
-    fs: s3fs.S3FileSystem = _utils.get_fs(
-        s3fs_block_size=134_217_728,
-        session=boto3_session,
-        s3_additional_kwargs=s3_additional_kwargs,  # 128 MB (128 * 2**20)
-    )
-    with _utils.open_file(fs=fs, path=path, mode="rb") as f:
+    with S3Object(
+        path=path,
+        mode="rb",
+        block_size=134_217_728,  # 128 MB (128 * 2**20)
+        s3_additional_kwargs=s3_additional_kwargs,
+        boto3_session=boto3_session,
+    ) as f:
         pq_file: pyarrow.parquet.ParquetFile = pyarrow.parquet.ParquetFile(source=f, read_dictionary=categories)
         return pq_file.read(columns=columns, use_threads=False, use_pandas_metadata=False)
 
@@ -319,10 +326,13 @@ def _count_row_groups(
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
 ) -> int:
-    fs: s3fs.S3FileSystem = _utils.get_fs(
-        s3fs_block_size=4_194_304, session=boto3_session, s3_additional_kwargs=s3_additional_kwargs  # 4 MB (4 * 2**20)
-    )
-    with _utils.open_file(fs=fs, path=path, mode="rb") as f:
+    with S3Object(
+        path=path,
+        mode="rb",
+        block_size=4_194_304,  # 4 MB (4 * 2**20)
+        s3_additional_kwargs=s3_additional_kwargs,
+        boto3_session=boto3_session,
+    ) as f:
         pq_file: pyarrow.parquet.ParquetFile = pyarrow.parquet.ParquetFile(source=f, read_dictionary=categories)
         return cast(int, pq_file.num_row_groups)
 
@@ -336,12 +346,13 @@ def _read_parquet_row_group(
     s3_additional_kwargs: Optional[Dict[str, str]],
 ) -> pa.Table:
     boto3_session: boto3.Session = _utils.boto3_from_primitives(primitives=boto3_primitives)
-    fs: s3fs.S3FileSystem = _utils.get_fs(
-        s3fs_block_size=134_217_728,
-        session=boto3_session,
-        s3_additional_kwargs=s3_additional_kwargs,  # 128 MB (128 * 2**20)
-    )
-    with _utils.open_file(fs=fs, path=path, mode="rb") as f:
+    with S3Object(
+        path=path,
+        mode="rb",
+        block_size=134_217_728,  # 128 MB (128 * 2**20)
+        s3_additional_kwargs=s3_additional_kwargs,
+        boto3_session=boto3_session,
+    ) as f:
         pq_file: pyarrow.parquet.ParquetFile = pyarrow.parquet.ParquetFile(source=f, read_dictionary=categories)
         num_row_groups: int = pq_file.num_row_groups
         _logger.debug("Reading Row Group %s/%s [multi-threaded]", row_group + 1, num_row_groups)
@@ -510,17 +521,6 @@ def read_parquet(
 
     >>> import awswrangler as wr
     >>> df = wr.s3.read_parquet(path='s3://bucket/prefix/')
-
-    Reading all Parquet files under a prefix encrypted with a KMS key
-
-    >>> import awswrangler as wr
-    >>> df = wr.s3.read_parquet(
-    ...     path='s3://bucket/prefix/',
-    ...     s3_additional_kwargs={
-    ...         'ServerSideEncryption': 'aws:kms',
-    ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
-    ...     }
-    ... )
 
     Reading all Parquet files from a list
 

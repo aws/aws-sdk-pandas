@@ -8,10 +8,10 @@ from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 import boto3
 import pandas as pd
 import pandas.io.parsers
-import s3fs
 from pandas.io.common import infer_compression
 
 from awswrangler import _utils, exceptions
+from awswrangler.s3._fs import S3Object
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import (
     _apply_partition_filter,
@@ -46,13 +46,16 @@ def _read_text_chunked(
 ) -> Iterator[pd.DataFrame]:
     for path in paths:
         _logger.debug("path: %s", path)
-        fs: s3fs.S3FileSystem = _utils.get_fs(
-            s3fs_block_size=8_388_608,
-            session=boto3_session,
-            s3_additional_kwargs=s3_additional_kwargs,  # 8 MB (8 * 2**20)
-        )
         mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
-        with _utils.open_file(fs=fs, path=path, mode=mode, encoding=encoding, newline=newline) as f:
+        with S3Object(
+            path=path,
+            mode=mode,
+            block_size=8_388_608,  # 8 MB (8 * 2**20)
+            encoding=encoding,
+            s3_additional_kwargs=s3_additional_kwargs,
+            newline=newline,
+            boto3_session=boto3_session,
+        ) as f:
             reader: pandas.io.parsers.TextFileReader = parser_func(f, chunksize=chunksize, **pandas_kwargs)
             for df in reader:
                 yield _apply_partitions(df=df, dataset=dataset, path=path, path_root=path_root)
@@ -67,13 +70,16 @@ def _read_text_file(
     s3_additional_kwargs: Optional[Dict[str, str]],
     dataset: bool,
 ) -> pd.DataFrame:
-    fs: s3fs.S3FileSystem = _utils.get_fs(
-        s3fs_block_size=134_217_728,
-        session=boto3_session,
-        s3_additional_kwargs=s3_additional_kwargs,  # 128 MB (128 * 2**20)
-    )
     mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
-    with _utils.open_file(fs=fs, path=path, mode=mode, encoding=encoding, newline=newline) as f:
+    with S3Object(
+        path=path,
+        mode=mode,
+        block_size=134_217_728,  # 128 MB (128 * 2**20)
+        encoding=encoding,
+        s3_additional_kwargs=s3_additional_kwargs,
+        newline=newline,
+        boto3_session=boto3_session,
+    ) as f:
         df: pd.DataFrame = parser_func(f, **pandas_kwargs)
     return _apply_partitions(df=df, dataset=dataset, path=path, path_root=path_root)
 
@@ -225,17 +231,6 @@ def read_csv(
     >>> import awswrangler as wr
     >>> df = wr.s3.read_csv('s3://bucket/prefix/', sep='|', na_values=['null', 'none'], skip_blank_lines=True)
 
-    Reading all CSV files under a prefix encrypted with a KMS key
-
-    >>> import awswrangler as wr
-    >>> df = wr.s3.read_csv(
-    ...     path='s3://bucket/prefix/',
-    ...     s3_additional_kwargs={
-    ...         'ServerSideEncryption': 'aws:kms',
-    ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
-    ...     }
-    ... )
-
     Reading all CSV files from a list
 
     >>> import awswrangler as wr
@@ -366,19 +361,6 @@ def read_fwf(
 
     >>> import awswrangler as wr
     >>> df = wr.s3.read_fwf(path='s3://bucket/prefix/', widths=[1, 3], names=['c0', 'c1])
-
-    Reading all fixed-width formatted (FWF) files under a prefix encrypted with a KMS key
-
-    >>> import awswrangler as wr
-    >>> df = wr.s3.read_fwf(
-    ...     path='s3://bucket/prefix/',
-    ...     widths=[1, 3],
-    ...     names=["c0", "c1"],
-    ...     s3_additional_kwargs={
-    ...         'ServerSideEncryption': 'aws:kms',
-    ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
-    ...     }
-    ... )
 
     Reading all fixed-width formatted (FWF) files from a list
 
@@ -524,17 +506,6 @@ def read_json(
 
     >>> import awswrangler as wr
     >>> df = wr.s3.read_json('s3://bucket/prefix/', lines=True, keep_default_dates=True)
-
-    Reading all JSON files under a prefix encrypted with a KMS key
-
-    >>> import awswrangler as wr
-    >>> df = wr.s3.read_json(
-    ...     path='s3://bucket/prefix/',
-    ...     s3_additional_kwargs={
-    ...         'ServerSideEncryption': 'aws:kms',
-    ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
-    ...     }
-    ... )
 
     Reading all JSON files from a list
 
