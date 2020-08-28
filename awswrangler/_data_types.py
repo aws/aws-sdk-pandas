@@ -6,15 +6,15 @@ import re
 from decimal import Decimal
 from typing import Any, Dict, List, Match, Optional, Sequence, Tuple
 
-import numpy as np  # type: ignore
-import pandas as pd  # type: ignore
-import pyarrow as pa  # type: ignore
-import pyarrow.parquet  # type: ignore
-import sqlalchemy  # type: ignore
-import sqlalchemy.dialects.mysql  # type: ignore
-import sqlalchemy.dialects.postgresql  # type: ignore
-import sqlalchemy_redshift.dialect  # type: ignore
-from sqlalchemy.sql.visitors import VisitableType  # type: ignore
+import numpy as np
+import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet
+import sqlalchemy
+import sqlalchemy.dialects.mysql
+import sqlalchemy.dialects.postgresql
+import sqlalchemy_redshift.dialect
+from sqlalchemy.sql.visitors import VisitableType
 
 from awswrangler import _utils, exceptions
 

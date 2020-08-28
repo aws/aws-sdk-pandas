@@ -3,9 +3,9 @@
 import logging
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union, cast
 
-import numpy as np  # type: ignore
-import pandas as pd  # type: ignore
-from pandas.api.types import union_categoricals  # type: ignore
+import numpy as np
+import pandas as pd
+from pandas.api.types import union_categoricals
 
 from awswrangler import exceptions
 from awswrangler.s3._list import _prefix_cleanup

@@ -3,7 +3,7 @@
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
-import pandas as pd  # type: ignore
+import pandas as pd
 
 from awswrangler import _data_types, _utils, catalog, exceptions
 

@@ -6,9 +6,9 @@ import logging
 from typing import Any, Dict, Iterator, List, Optional, Union, cast
 from urllib.parse import quote_plus as _quote_plus
 
-import boto3  # type: ignore
-import pandas as pd  # type: ignore
-import sqlalchemy  # type: ignore
+import boto3
+import pandas as pd
+import sqlalchemy
 
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs

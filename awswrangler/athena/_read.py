@@ -7,9 +7,9 @@ import re
 import uuid
 from typing import Any, Dict, Iterator, List, Match, NamedTuple, Optional, Union
 
-import boto3  # type: ignore
-import botocore.exceptions  # type: ignore
-import pandas as pd  # type: ignore
+import boto3
+import botocore.exceptions
+import pandas as pd
 
 from awswrangler import _utils, catalog, exceptions, s3
 from awswrangler._config import apply_configs

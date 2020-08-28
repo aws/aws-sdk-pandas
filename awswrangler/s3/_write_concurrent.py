@@ -4,8 +4,8 @@ import concurrent.futures
 import logging
 from typing import Any, Callable, Dict, List, Optional
 
-import boto3  # type: ignore
-import pandas as pd  # type: ignore
+import boto3
+import pandas as pd
 
 from awswrangler import _utils
 

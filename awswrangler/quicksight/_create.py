@@ -4,7 +4,7 @@ import logging
 import uuid
 from typing import Any, Dict, List, Optional, Union, cast
 
-import boto3  # type: ignore
+import boto3
 
 from awswrangler import _utils, exceptions, sts
 from awswrangler.quicksight._get_list import get_data_source_arn, get_dataset_id

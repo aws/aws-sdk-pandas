@@ -7,8 +7,8 @@ import warnings
 from decimal import Decimal
 from typing import Any, Dict, Generator, List, NamedTuple, Optional, Union, cast
 
-import boto3  # type: ignore
-import pandas as pd  # type: ignore
+import boto3
+import pandas as pd
 
 from awswrangler import _data_types, _utils, exceptions, s3, sts
 from awswrangler._config import apply_configs

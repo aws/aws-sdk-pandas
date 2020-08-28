@@ -9,12 +9,12 @@ import pprint
 import warnings
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union, cast
 
-import boto3  # type: ignore
-import pandas as pd  # type: ignore
-import pyarrow as pa  # type: ignore
-import pyarrow.lib  # type: ignore
-import pyarrow.parquet  # type: ignore
-import s3fs  # type: ignore
+import boto3
+import pandas as pd
+import pyarrow as pa
+import pyarrow.lib
+import pyarrow.parquet
+import s3fs
 
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._config import apply_configs

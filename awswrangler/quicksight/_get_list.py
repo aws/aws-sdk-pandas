@@ -7,7 +7,7 @@ List and Get MUST be together to avoid circular dependency.
 import logging
 from typing import Any, Callable, Dict, List, Optional
 
-import boto3  # type: ignore
+import boto3
 
 from awswrangler import _utils, exceptions, sts
 

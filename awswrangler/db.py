@@ -6,11 +6,11 @@ import uuid
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 from urllib.parse import quote_plus as _quote_plus
 
-import boto3  # type: ignore
-import pandas as pd  # type: ignore
-import pyarrow as pa  # type: ignore
-import sqlalchemy  # type: ignore
-from sqlalchemy.sql.visitors import VisitableType  # type: ignore
+import boto3
+import pandas as pd
+import pyarrow as pa
+import sqlalchemy
+from sqlalchemy.sql.visitors import VisitableType
 
 from awswrangler import _data_types, _utils, exceptions, s3
 from awswrangler.s3._list import _path2list  # noqa

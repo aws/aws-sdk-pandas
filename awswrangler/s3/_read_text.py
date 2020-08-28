@@ -5,11 +5,11 @@ import logging
 import pprint
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
-import boto3  # type: ignore
-import pandas as pd  # type: ignore
-import pandas.io.parsers  # type: ignore
-import s3fs  # type: ignore
-from pandas.io.common import infer_compression  # type: ignore
+import boto3
+import pandas as pd
+import pandas.io.parsers
+import s3fs
+from pandas.io.common import infer_compression
 
 from awswrangler import _utils, exceptions
 from awswrangler.s3._list import _path2list

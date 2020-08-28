@@ -3,8 +3,8 @@
 import logging
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-import boto3  # type: ignore
-import pandas as pd  # type: ignore
+import boto3
+import pandas as pd
 
 from awswrangler import exceptions
 from awswrangler.s3._delete import delete_objects

@@ -5,9 +5,9 @@ import logging
 import uuid
 from typing import Any, Dict, List, Optional, Union
 
-import boto3  # type: ignore
-import pandas as pd  # type: ignore
-import s3fs  # type: ignore
+import boto3
+import pandas as pd
+import s3fs
 
 from awswrangler import _data_types, _utils, catalog, exceptions
 from awswrangler._config import apply_configs

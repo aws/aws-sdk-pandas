@@ -8,12 +8,12 @@ import random
 import time
 from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union, cast
 
-import boto3  # type: ignore
-import botocore.config  # type: ignore
-import numpy as np  # type: ignore
-import pandas as pd  # type: ignore
-import psycopg2  # type: ignore
-import s3fs  # type: ignore
+import boto3
+import botocore.config
+import numpy as np
+import pandas as pd
+import psycopg2
+import s3fs
 
 from awswrangler import exceptions
 from awswrangler._config import apply_configs

@@ -5,8 +5,8 @@ import itertools
 import logging
 from typing import Any, Callable, Dict, List, Optional
 
-import boto3  # type: ignore
-import pandas as pd  # type: ignore
+import boto3
+import pandas as pd
 
 from awswrangler import _utils
 from awswrangler.s3._read import _union

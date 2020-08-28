@@ -5,8 +5,8 @@ import fnmatch
 import logging
 from typing import Any, Dict, List, Optional, Sequence, Union
 
-import boto3  # type: ignore
-import botocore.exceptions  # type: ignore
+import boto3
+import botocore.exceptions
 
 from awswrangler import _utils, exceptions
 

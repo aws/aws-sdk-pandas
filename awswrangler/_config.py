@@ -5,7 +5,7 @@ import logging
 import os
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple, Type, Union, cast
 
-import pandas as pd  # type: ignore
+import pandas as pd
 
 from awswrangler import _utils, exceptions
 
