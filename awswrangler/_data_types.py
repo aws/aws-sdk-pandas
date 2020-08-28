@@ -1,10 +1,12 @@
 """Internal (private) Data Types Module."""
 
+import datetime
 import logging
 import re
 from decimal import Decimal
 from typing import Any, Dict, List, Match, Optional, Sequence, Tuple
 
+import numpy as np  # type: ignore
 import pandas as pd  # type: ignore
 import pyarrow as pa  # type: ignore
 import pyarrow.parquet  # type: ignore
@@ -444,11 +446,21 @@ def _normalize_pandas_dtype_name(dtype: str) -> str:
     return dtype
 
 
+def _cast2date(value: Any) -> Any:
+    if isinstance(value, float) and (np.isnan(value) or np.isinf(value)):
+        return None
+    if pd.isna(value) or value is None:
+        return None
+    if isinstance(value, datetime.date):
+        return value
+    return pd.to_datetime(value).date()
+
+
 def _cast_pandas_column(df: pd.DataFrame, col: str, current_type: str, desired_type: str) -> pd.DataFrame:
     if desired_type == "datetime64":
         df[col] = pd.to_datetime(df[col])
     elif desired_type == "date":
-        df[col] = pd.to_datetime(df[col]).dt.date.replace(to_replace={pd.NaT: None})
+        df[col] = df[col].apply(lambda x: _cast2date(value=x)).replace(to_replace={pd.NaT: None})
     elif desired_type == "bytes":
         df[col] = df[col].astype("string").str.encode(encoding="utf-8").replace(to_replace={pd.NA: None})
     elif desired_type == "decimal":

@@ -2,6 +2,7 @@ import datetime
 import logging
 import math
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -552,3 +553,46 @@ def test_schema_evolution_disabled(path, glue_table, glue_database):
     df2 = wr.athena.read_sql_table(database=glue_database, table=glue_table)
     assert df2.shape == (2, 1)
     assert df2.c0.sum() == 3
+
+
+def test_date_cast(path, glue_table, glue_database):
+    df = pd.DataFrame(
+        {
+            "c0": [
+                datetime.date(4000, 1, 1),
+                datetime.datetime(2000, 1, 1, 10),
+                "2020",
+                "2020-01",
+                1,
+                None,
+                pd.NA,
+                pd.NaT,
+                np.nan,
+                np.inf,
+            ]
+        }
+    )
+    df_expected = pd.DataFrame(
+        {
+            "c0": [
+                datetime.date(4000, 1, 1),
+                datetime.date(2000, 1, 1),
+                datetime.date(2020, 1, 1),
+                datetime.date(2020, 1, 1),
+                datetime.date(1970, 1, 1),
+                None,
+                None,
+                None,
+                None,
+                None,
+            ]
+        }
+    )
+    paths = wr.s3.to_parquet(
+        df=df, path=path, dataset=True, database=glue_database, table=glue_table, dtype={"c0": "date"}
+    )["paths"]
+    wr.s3.wait_objects_exist(paths)
+    df2 = wr.s3.read_parquet(path=path)
+    assert df_expected.equals(df2)
+    df3 = wr.athena.read_sql_table(database=glue_database, table=glue_table)
+    assert df_expected.equals(df3)
