@@ -11,7 +11,7 @@ import pandas.io.parsers
 from pandas.io.common import infer_compression
 
 from awswrangler import _utils, exceptions
-from awswrangler.s3._fs import S3Object
+from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import (
     _apply_partition_filter,
@@ -47,7 +47,7 @@ def _read_text_chunked(
     for path in paths:
         _logger.debug("path: %s", path)
         mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
-        with S3Object(
+        with open_s3_object(
             path=path,
             mode=mode,
             block_size=8_388_608,  # 8 MB (8 * 2**20)
@@ -71,7 +71,7 @@ def _read_text_file(
     dataset: bool,
 ) -> pd.DataFrame:
     mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
-    with S3Object(
+    with open_s3_object(
         path=path,
         mode=mode,
         block_size=134_217_728,  # 128 MB (128 * 2**20)
@@ -193,9 +193,7 @@ def read_csv(
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs : Dict[str, str]
-        Forward to s3fs, useful for server side encryption
-        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
-        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
+        Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
     chunksize: int, optional
         If specified, return an generator where chunksize is the number of rows to include in each chunk.
     dataset : bool
@@ -329,9 +327,7 @@ def read_fwf(
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
-        Forward to s3fs, useful for server side encryption
-        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
-        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
+        Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
     chunksize: int, optional
         If specified, return an generator where chunksize is the number of rows to include in each chunk.
     dataset: bool
@@ -468,9 +464,7 @@ def read_json(
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
-        Forward to s3fs, useful for server side encryption
-        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
-        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
+        Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
     chunksize: int, optional
         If specified, return an generator where chunksize is the number of rows to include in each chunk.
     dataset: bool

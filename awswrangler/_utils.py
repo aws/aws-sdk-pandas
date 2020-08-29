@@ -1,6 +1,7 @@
 """Internal (private) Utilities Module."""
 
 import copy
+import itertools
 import logging
 import math
 import os
@@ -13,10 +14,8 @@ import botocore.config
 import numpy as np
 import pandas as pd
 import psycopg2
-import s3fs
 
 from awswrangler import exceptions
-from awswrangler._config import apply_configs
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -180,37 +179,6 @@ def chunkify(lst: List[Any], num_chunks: int = 1, max_length: Optional[int] = No
     return [arr.tolist() for arr in np_chunks if len(arr) > 0]
 
 
-@apply_configs
-def get_fs(
-    s3fs_block_size: int,
-    session: Optional[Union[boto3.Session, Dict[str, Optional[str]]]] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
-) -> s3fs.S3FileSystem:
-    """Build a S3FileSystem from a given boto3 session."""
-    fs: s3fs.S3FileSystem = s3fs.S3FileSystem(
-        anon=False,
-        use_ssl=True,
-        default_cache_type="readahead",
-        default_fill_cache=False,
-        default_block_size=s3fs_block_size,
-        config_kwargs={"retries": {"max_attempts": 15}},
-        session=ensure_session(session=session)._session,  # pylint: disable=protected-access
-        s3_additional_kwargs=s3_additional_kwargs,
-        use_listings_cache=False,
-        skip_instance_cache=True,
-    )
-    fs.invalidate_cache()
-    fs.clear_instance_cache()
-    return fs
-
-
-def open_file(fs: s3fs.S3FileSystem, **kwargs: Any) -> Any:
-    """Open s3fs file with retries to overcome eventual consistency."""
-    fs.invalidate_cache()
-    fs.clear_instance_cache()
-    return try_it(f=fs.open, ex=FileNotFoundError, **kwargs)
-
-
 def empty_generator() -> Generator[None, None, None]:
     """Empty Generator."""
     yield from ()
@@ -308,3 +276,18 @@ def try_it(f: Callable[..., Any], ex: Any, base: float = 1.0, max_num_tries: int
             delay = random.uniform(base, delay * 3)
             _logger.error("Retrying %s | Fail number %s/%s | Exception: %s", f, i + 1, max_num_tries, exception)
             time.sleep(delay)
+
+
+def get_even_chunks_sizes(total_size: int, chunk_size: int, upper_bound: bool) -> Tuple[int, ...]:
+    """Calculate even chunks sizes (Best effort)."""
+    round_func: Callable[[float], float] = math.ceil if upper_bound is True else math.floor
+    num_chunks: int = int(round_func(float(total_size) / float(chunk_size)))
+    if num_chunks < 1:
+        raise ValueError("Invalid chunks size requirements.")
+    base_size: int = int(total_size / num_chunks)
+    rest: int = total_size % num_chunks
+    sizes: List[int] = list(itertools.repeat(base_size, num_chunks))
+    for i in range(rest):
+        i_cycled: int = i % len(sizes)
+        sizes[i_cycled] += 1
+    return tuple(sizes)

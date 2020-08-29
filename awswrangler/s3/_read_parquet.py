@@ -17,7 +17,7 @@ import pyarrow.parquet
 
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._config import apply_configs
-from awswrangler.s3._fs import S3Object
+from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import (
     _apply_partition_filter,
@@ -36,7 +36,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def _read_parquet_metadata_file(
     path: str, boto3_session: boto3.Session, s3_additional_kwargs: Optional[Dict[str, str]],
 ) -> Dict[str, str]:
-    with S3Object(
+    with open_s3_object(
         path=path,
         mode="rb",
         block_size=4_194_304,  # 4 MB (4 * 2**20)
@@ -249,7 +249,7 @@ def _read_parquet_chunked(
     last_schema: Optional[Dict[str, str]] = None
     last_path: str = ""
     for path in paths:
-        with S3Object(
+        with open_s3_object(
             path=path,
             mode="rb",
             block_size=8_388_608,  # 8 MB (8 * 2**20)
@@ -309,7 +309,7 @@ def _read_parquet_file(
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
 ) -> pa.Table:
-    with S3Object(
+    with open_s3_object(
         path=path,
         mode="rb",
         block_size=134_217_728,  # 128 MB (128 * 2**20)
@@ -326,7 +326,7 @@ def _count_row_groups(
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
 ) -> int:
-    with S3Object(
+    with open_s3_object(
         path=path,
         mode="rb",
         block_size=4_194_304,  # 4 MB (4 * 2**20)
@@ -346,7 +346,7 @@ def _read_parquet_row_group(
     s3_additional_kwargs: Optional[Dict[str, str]],
 ) -> pa.Table:
     boto3_session: boto3.Session = _utils.boto3_from_primitives(primitives=boto3_primitives)
-    with S3Object(
+    with open_s3_object(
         path=path,
         mode="rb",
         block_size=134_217_728,  # 128 MB (128 * 2**20)
@@ -506,9 +506,7 @@ def read_parquet(
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs : Dict[str, str]
-        Forward to s3fs, useful for server side encryption
-        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
-        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
+        Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
 
     Returns
     -------
@@ -671,9 +669,7 @@ def read_parquet_table(
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
-        Forward to s3fs, useful for server side encryption
-        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
-        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
+        Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
 
     Returns
     -------
@@ -792,9 +788,7 @@ def read_parquet_metadata(
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
-        Forward to s3fs, useful for server side encryption
-        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
-        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
+        Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
 
     Returns
     -------
