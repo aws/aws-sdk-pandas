@@ -7,10 +7,10 @@ from typing import Any, Dict, List, Optional, Union
 
 import boto3
 import pandas as pd
-import s3fs
 
 from awswrangler import _data_types, _utils, catalog, exceptions
 from awswrangler._config import apply_configs
+from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._write import _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_dataset import _to_dataset
 
@@ -20,6 +20,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def _to_text(
     file_format: str,
     df: pd.DataFrame,
+    use_threads: bool,
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
     path: Optional[str] = None,
@@ -34,14 +35,17 @@ def _to_text(
         file_path = path
     else:
         raise RuntimeError("path and path_root received at the same time.")
-    fs: s3fs.S3FileSystem = _utils.get_fs(
-        s3fs_block_size=33_554_432,
-        session=boto3_session,
-        s3_additional_kwargs=s3_additional_kwargs,  # 32 MB (32 * 2**20)
-    )
     encoding: Optional[str] = pandas_kwargs.get("encoding", None)
     newline: Optional[str] = pandas_kwargs.get("line_terminator", None)
-    with _utils.open_file(fs=fs, path=file_path, mode="w", encoding=encoding, newline=newline) as f:
+    with open_s3_object(
+        path=file_path,
+        mode="w",
+        use_threads=use_threads,
+        s3_additional_kwargs=s3_additional_kwargs,
+        boto3_session=boto3_session,
+        encoding=encoding,
+        newline=newline,
+    ) as f:
         _logger.debug("pandas_kwargs: %s", pandas_kwargs)
         if file_format == "csv":
             df.to_csv(f, **pandas_kwargs)
@@ -131,8 +135,8 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
     s3_additional_kwargs:
-        Forward to s3fs, useful for server side encryption
-        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
+        Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
+        "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
     sanitize_columns : bool
         True to sanitize columns names or False to keep it as is.
@@ -372,6 +376,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
         _to_text(
             file_format="csv",
             df=df,
+            use_threads=use_threads,
             path=path,
             boto3_session=session,
             s3_additional_kwargs=s3_additional_kwargs,
@@ -439,9 +444,15 @@ def to_json(
     path: str,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    use_threads: bool = True,
     **pandas_kwargs: Any,
 ) -> None:
     """Write JSON file on Amazon S3.
+
+    Note
+    ----
+    In case of `use_threads=True` the number of threads
+    that will be spawned will be gotten from os.cpu_count().
 
     Parameters
     ----------
@@ -452,9 +463,12 @@ def to_json(
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
     s3_additional_kwargs:
-        Forward to s3fs, useful for server side encryption
-        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
+        Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
+        "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
+    use_threads : bool
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
     pandas_kwargs:
         KEYWORD arguments forwarded to pandas.DataFrame.to_json(). You can NOT pass `pandas_kwargs` explicit, just add
         valid Pandas arguments in the function call and Wrangler will accept it.
@@ -512,6 +526,7 @@ def to_json(
         file_format="json",
         df=df,
         path=path,
+        use_threads=use_threads,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
         **pandas_kwargs,

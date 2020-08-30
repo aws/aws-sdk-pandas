@@ -8,10 +8,10 @@ from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 import boto3
 import pandas as pd
 import pandas.io.parsers
-import s3fs
 from pandas.io.common import infer_compression
 
 from awswrangler import _utils, exceptions
+from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import (
     _apply_partition_filter,
@@ -43,16 +43,21 @@ def _read_text_chunked(
     pandas_kwargs: Dict[str, Any],
     s3_additional_kwargs: Optional[Dict[str, str]],
     dataset: bool,
+    use_threads: bool,
 ) -> Iterator[pd.DataFrame]:
     for path in paths:
         _logger.debug("path: %s", path)
-        fs: s3fs.S3FileSystem = _utils.get_fs(
-            s3fs_block_size=8_388_608,
-            session=boto3_session,
-            s3_additional_kwargs=s3_additional_kwargs,  # 8 MB (8 * 2**20)
-        )
         mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
-        with _utils.open_file(fs=fs, path=path, mode=mode, encoding=encoding, newline=newline) as f:
+        with open_s3_object(
+            path=path,
+            mode=mode,
+            s3_read_ahead_size=10_485_760,  # 10 MB (10 * 2**20)
+            encoding=encoding,
+            use_threads=use_threads,
+            s3_additional_kwargs=s3_additional_kwargs,
+            newline=newline,
+            boto3_session=boto3_session,
+        ) as f:
             reader: pandas.io.parsers.TextFileReader = parser_func(f, chunksize=chunksize, **pandas_kwargs)
             for df in reader:
                 yield _apply_partitions(df=df, dataset=dataset, path=path, path_root=path_root)
@@ -66,14 +71,19 @@ def _read_text_file(
     pandas_kwargs: Dict[str, Any],
     s3_additional_kwargs: Optional[Dict[str, str]],
     dataset: bool,
+    use_threads: bool,
 ) -> pd.DataFrame:
-    fs: s3fs.S3FileSystem = _utils.get_fs(
-        s3fs_block_size=134_217_728,
-        session=boto3_session,
-        s3_additional_kwargs=s3_additional_kwargs,  # 128 MB (128 * 2**20)
-    )
     mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
-    with _utils.open_file(fs=fs, path=path, mode=mode, encoding=encoding, newline=newline) as f:
+    with open_s3_object(
+        path=path,
+        mode=mode,
+        use_threads=use_threads,
+        s3_read_ahead_size=134_217_728,  # 128 MB (128 * 2**20)
+        encoding=encoding,
+        s3_additional_kwargs=s3_additional_kwargs,
+        newline=newline,
+        boto3_session=boto3_session,
+    ) as f:
         df: pd.DataFrame = parser_func(f, **pandas_kwargs)
     return _apply_partitions(df=df, dataset=dataset, path=path, path_root=path_root)
 
@@ -119,6 +129,7 @@ def _read_text(
         "path_root": path_root,
         "pandas_kwargs": pandas_kwargs,
         "s3_additional_kwargs": s3_additional_kwargs,
+        "use_threads": use_threads,
     }
     _logger.debug("args:\n%s", pprint.pformat(args))
     ret: Union[pd.DataFrame, Iterator[pd.DataFrame]]
@@ -187,9 +198,7 @@ def read_csv(
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs : Dict[str, str]
-        Forward to s3fs, useful for server side encryption
-        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
-        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
+        Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
     chunksize: int, optional
         If specified, return an generator where chunksize is the number of rows to include in each chunk.
     dataset : bool
@@ -224,17 +233,6 @@ def read_csv(
 
     >>> import awswrangler as wr
     >>> df = wr.s3.read_csv('s3://bucket/prefix/', sep='|', na_values=['null', 'none'], skip_blank_lines=True)
-
-    Reading all CSV files under a prefix encrypted with a KMS key
-
-    >>> import awswrangler as wr
-    >>> df = wr.s3.read_csv(
-    ...     path='s3://bucket/prefix/',
-    ...     s3_additional_kwargs={
-    ...         'ServerSideEncryption': 'aws:kms',
-    ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
-    ...     }
-    ... )
 
     Reading all CSV files from a list
 
@@ -334,9 +332,7 @@ def read_fwf(
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
-        Forward to s3fs, useful for server side encryption
-        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
-        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
+        Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
     chunksize: int, optional
         If specified, return an generator where chunksize is the number of rows to include in each chunk.
     dataset: bool
@@ -366,19 +362,6 @@ def read_fwf(
 
     >>> import awswrangler as wr
     >>> df = wr.s3.read_fwf(path='s3://bucket/prefix/', widths=[1, 3], names=['c0', 'c1])
-
-    Reading all fixed-width formatted (FWF) files under a prefix encrypted with a KMS key
-
-    >>> import awswrangler as wr
-    >>> df = wr.s3.read_fwf(
-    ...     path='s3://bucket/prefix/',
-    ...     widths=[1, 3],
-    ...     names=["c0", "c1"],
-    ...     s3_additional_kwargs={
-    ...         'ServerSideEncryption': 'aws:kms',
-    ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
-    ...     }
-    ... )
 
     Reading all fixed-width formatted (FWF) files from a list
 
@@ -486,9 +469,7 @@ def read_json(
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
-        Forward to s3fs, useful for server side encryption
-        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
-        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
+        Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
     chunksize: int, optional
         If specified, return an generator where chunksize is the number of rows to include in each chunk.
     dataset: bool
@@ -524,17 +505,6 @@ def read_json(
 
     >>> import awswrangler as wr
     >>> df = wr.s3.read_json('s3://bucket/prefix/', lines=True, keep_default_dates=True)
-
-    Reading all JSON files under a prefix encrypted with a KMS key
-
-    >>> import awswrangler as wr
-    >>> df = wr.s3.read_json(
-    ...     path='s3://bucket/prefix/',
-    ...     s3_additional_kwargs={
-    ...         'ServerSideEncryption': 'aws:kms',
-    ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
-    ...     }
-    ... )
 
     Reading all JSON files from a list
 

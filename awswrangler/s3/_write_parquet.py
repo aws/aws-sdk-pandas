@@ -3,17 +3,18 @@
 import logging
 import math
 import uuid
-from typing import Any, Dict, List, Optional, Tuple, Union
+from contextlib import contextmanager
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
 import pandas as pd
 import pyarrow as pa
 import pyarrow.lib
 import pyarrow.parquet
-import s3fs
 
 from awswrangler import _data_types, _utils, catalog, exceptions
 from awswrangler._config import apply_configs
+from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._read_parquet import _read_parquet_metadata
 from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_concurrent import _WriteProxy
@@ -50,29 +51,37 @@ def _get_file_path(file_counter: int, file_path: str) -> str:
     return file_path
 
 
-def _get_fs(
-    boto3_session: Optional[boto3.Session], s3_additional_kwargs: Optional[Dict[str, str]]
-) -> s3fs.S3FileSystem:
-    return _utils.get_fs(
-        s3fs_block_size=33_554_432,  # 32 MB (32 * 2**20)
-        session=boto3_session,
-        s3_additional_kwargs=s3_additional_kwargs,
-    )
-
-
+@contextmanager
 def _new_writer(
-    file_path: str, fs: s3fs.S3FileSystem, compression: Optional[str], schema: pa.Schema
-) -> pyarrow.parquet.ParquetWriter:
-    return pyarrow.parquet.ParquetWriter(
-        where=file_path,
-        write_statistics=True,
-        use_dictionary=True,
-        filesystem=fs,
-        coerce_timestamps="ms",
-        compression=compression,
-        flavor="spark",
-        schema=schema,
-    )
+    file_path: str,
+    compression: Optional[str],
+    schema: pa.Schema,
+    boto3_session: boto3.Session,
+    s3_additional_kwargs: Optional[Dict[str, str]],
+    use_threads: bool,
+) -> Iterator[pyarrow.parquet.ParquetWriter]:
+    writer: Optional[pyarrow.parquet.ParquetWriter] = None
+    with open_s3_object(
+        path=file_path,
+        mode="wb",
+        use_threads=use_threads,
+        s3_additional_kwargs=s3_additional_kwargs,
+        boto3_session=boto3_session,
+    ) as f:
+        try:
+            writer = pyarrow.parquet.ParquetWriter(
+                where=f,
+                write_statistics=True,
+                use_dictionary=True,
+                coerce_timestamps="ms",
+                compression=compression,
+                flavor="spark",
+                schema=schema,
+            )
+            yield writer
+        finally:
+            if writer is not None and writer.is_open is True:
+                writer.close()
 
 
 def _write_chunk(
@@ -83,9 +92,16 @@ def _write_chunk(
     table: pa.Table,
     offset: int,
     chunk_size: int,
+    use_threads: bool,
 ) -> List[str]:
-    fs = _get_fs(boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
-    with _new_writer(file_path=file_path, fs=fs, compression=compression, schema=table.schema) as writer:
+    with _new_writer(
+        file_path=file_path,
+        compression=compression,
+        schema=table.schema,
+        boto3_session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,
+        use_threads=use_threads,
+    ) as writer:
         writer.write_table(table.slice(offset, chunk_size))
     return [file_path]
 
@@ -115,6 +131,7 @@ def _to_parquet_chunked(
             table=table,
             offset=offset,
             chunk_size=max_rows_by_file,
+            use_threads=use_threads,
         )
     return proxy.close()  # blocking
 
@@ -129,6 +146,7 @@ def _to_parquet(
     dtype: Dict[str, str],
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
+    use_threads: bool,
     path: Optional[str] = None,
     path_root: Optional[str] = None,
     max_rows_by_file: Optional[int] = 0,
@@ -160,8 +178,14 @@ def _to_parquet(
             cpus=cpus,
         )
     else:
-        fs = _get_fs(boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs)
-        with _new_writer(file_path=file_path, fs=fs, compression=compression, schema=table.schema) as writer:
+        with _new_writer(
+            file_path=file_path,
+            compression=compression,
+            schema=table.schema,
+            boto3_session=boto3_session,
+            s3_additional_kwargs=s3_additional_kwargs,
+            use_threads=use_threads,
+        ) as writer:
             writer.write_table(table)
         paths = [file_path]
     return paths
@@ -239,8 +263,9 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
-        Forward to s3fs, useful for server side encryption
-        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
+        Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
+        "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
+        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
     sanitize_columns : bool
         True to sanitize columns names or False to keep it as is.
         True value is forced if `dataset=True`.
@@ -473,6 +498,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
             s3_additional_kwargs=s3_additional_kwargs,
             dtype=dtype,
             max_rows_by_file=max_rows_by_file,
+            use_threads=use_threads,
         )
     else:
         columns_types: Dict[str, str] = {}
@@ -660,8 +686,9 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
         https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
         (e.g. {'col_name': '1', 'col2_name': '2'})
     s3_additional_kwargs:
-        Forward to s3fs, useful for server side encryption
-        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
+        Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
+        "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
+        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 

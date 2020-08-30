@@ -244,15 +244,13 @@ def test_read_csv_with_chucksize_and_pandas_arguments(moto_s3):
 
 
 @mock.patch("pandas.read_csv")
-@mock.patch("s3fs.S3FileSystem.open")
-def test_read_csv_pass_pandas_arguments_and_encoding_succeed(mock_open, mock_read_csv, moto_s3):
+def test_read_csv_pass_pandas_arguments_and_encoding_succeed(mock_read_csv, moto_s3):
     bucket = "bucket"
     key = "foo/foo.csv"
     path = "s3://{}/{}".format(bucket, key)
     s3_object = moto_s3.Object(bucket, key)
     s3_object.put(Body=b"foo")
     wr.s3.read_csv(path=path, encoding="ISO-8859-1", sep=",", lineterminator="\r\n")
-    mock_open.assert_called_with(path="s3://bucket/foo/foo.csv", mode="r", encoding="ISO-8859-1", newline="\r\n")
     mock_read_csv.assert_called_with(ANY, compression=None, encoding="ISO-8859-1", sep=",", lineterminator="\r\n")
 
 

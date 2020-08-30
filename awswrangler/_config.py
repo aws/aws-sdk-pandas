@@ -29,7 +29,7 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "database": _ConfigArg(dtype=str, nullable=True),
     "max_cache_query_inspections": _ConfigArg(dtype=int, nullable=False),
     "max_cache_seconds": _ConfigArg(dtype=int, nullable=False),
-    "s3fs_block_size": _ConfigArg(dtype=int, nullable=False, enforced=True),
+    "s3_read_ahead_size": _ConfigArg(dtype=int, nullable=False, enforced=True),
 }
 
 
@@ -206,13 +206,13 @@ class _Config:
         self._set_config_value(key="max_cache_seconds", value=value)
 
     @property
-    def s3fs_block_size(self) -> int:
-        """Property s3fs_block_size."""
-        return cast(int, self["s3fs_block_size"])
+    def s3_read_ahead_size(self) -> int:
+        """Property s3_read_ahead_size."""
+        return cast(int, self["s3_read_ahead_size"])
 
-    @s3fs_block_size.setter
-    def s3fs_block_size(self, value: int) -> None:
-        self._set_config_value(key="s3fs_block_size", value=value)
+    @s3_read_ahead_size.setter
+    def s3_read_ahead_size(self, value: int) -> None:
+        self._set_config_value(key="s3_read_ahead_size", value=value)
 
 
 def _inject_config_doc(doc: Optional[str], available_configs: Tuple[str, ...]) -> str:
