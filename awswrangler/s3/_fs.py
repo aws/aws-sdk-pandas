@@ -1,6 +1,8 @@
 """Amazon S3 filesystem abstraction layer (PRIVATE)."""
 
+import concurrent.futures
 import io
+import itertools
 import logging
 import socket
 from contextlib import contextmanager
@@ -10,13 +12,15 @@ import boto3
 from botocore.exceptions import ClientError
 
 from awswrangler import _utils, exceptions
+from awswrangler._config import apply_configs
 from awswrangler.s3._describe import size_objects
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 _S3_RETRYABLE_ERRORS: Tuple[Any, Any] = (socket.timeout, ConnectionError)
 
-_MIN_WRITE_BLOCK: int = 5_242_880
+_MIN_WRITE_BLOCK: int = 5_242_880  # 5 MB (5 * 2**20)
+_MIN_PARALLEL_READ_BLOCK: int = 5_242_880  # 5 MB (5 * 2**20)
 
 _BOTOCORE_ACCEPTED_KWARGS: Dict[str, Set[str]] = {
     "get_object": {"SSECustomerAlgorithm", "SSECustomerKey"},
@@ -47,19 +51,142 @@ _BOTOCORE_ACCEPTED_KWARGS: Dict[str, Set[str]] = {
 }
 
 
+def _fetch_range(
+    range_values: Tuple[int, int],
+    bucket: str,
+    key: str,
+    boto3_primitives: _utils.Boto3PrimitivesType,
+    boto3_kwargs: Dict[str, Any],
+) -> Tuple[int, bytes]:
+    start, end = range_values
+    _logger.debug("Fetching: s3://%s/%s - Range: %s-%s", bucket, key, start, end)
+    boto3_session: boto3.Session = _utils.boto3_from_primitives(primitives=boto3_primitives)
+    client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    try:
+        resp: Dict[str, Any] = _utils.try_it(
+            f=client.get_object,
+            ex=_S3_RETRYABLE_ERRORS,
+            base=0.5,
+            max_num_tries=6,
+            Bucket=bucket,
+            Key=key,
+            Range=f"bytes={start}-{end - 1}",
+            **boto3_kwargs,
+        )
+    except ClientError as ex:
+        if ex.response["Error"].get("Code", "Unknown") in ("416", "InvalidRange"):
+            return start, b""
+        raise ex
+    return start, cast(bytes, resp["Body"].read())
+
+
+class _UploadProxy:
+    def __init__(self, use_threads: bool):
+        self.closed = False
+        self._exec: Optional[concurrent.futures.ThreadPoolExecutor]
+        self._results: List[Dict[str, Union[str, int]]] = []
+        cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
+        if cpus > 1:
+            self._exec = concurrent.futures.ThreadPoolExecutor(max_workers=cpus)
+            self._futures: List[Any] = []
+        else:
+            self._exec = None
+
+    @staticmethod
+    def _sort_by_part_number(parts: List[Dict[str, Union[str, int]]]) -> List[Dict[str, Union[str, int]]]:
+        return sorted(parts, key=lambda k: k["PartNumber"])
+
+    @staticmethod
+    def _caller(
+        bucket: str,
+        key: str,
+        part: int,
+        upload_id: str,
+        data: bytes,
+        boto3_primitives: _utils.Boto3PrimitivesType,
+        boto3_kwargs: Dict[str, Any],
+    ) -> Dict[str, Union[str, int]]:
+        _logger.debug("Upload part %s started.", part)
+        boto3_session: boto3.Session = _utils.boto3_from_primitives(primitives=boto3_primitives)
+        client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+        resp: Dict[str, Any] = _utils.try_it(
+            f=client.upload_part,
+            ex=_S3_RETRYABLE_ERRORS,
+            base=0.5,
+            max_num_tries=6,
+            Bucket=bucket,
+            Key=key,
+            Body=data,
+            PartNumber=part,
+            UploadId=upload_id,
+            **boto3_kwargs,
+        )
+        _logger.debug("Upload part %s done.", part)
+        return {"PartNumber": part, "ETag": resp["ETag"]}
+
+    def upload(
+        self,
+        bucket: str,
+        key: str,
+        part: int,
+        upload_id: str,
+        data: bytes,
+        boto3_session: boto3.Session,
+        boto3_kwargs: Dict[str, Any],
+    ) -> None:
+        """Upload Part."""
+        if self._exec is not None:
+            future = self._exec.submit(
+                _UploadProxy._caller,
+                bucket=bucket,
+                key=key,
+                part=part,
+                upload_id=upload_id,
+                data=data,
+                boto3_primitives=_utils.boto3_to_primitives(boto3_session=boto3_session),
+                boto3_kwargs=boto3_kwargs,
+            )
+            self._futures.append(future)
+        else:
+            self._results.append(
+                self._caller(
+                    bucket=bucket,
+                    key=key,
+                    part=part,
+                    upload_id=upload_id,
+                    data=data,
+                    boto3_primitives=_utils.boto3_to_primitives(boto3_session=boto3_session),
+                    boto3_kwargs=boto3_kwargs,
+                )
+            )
+
+    def close(self) -> List[Dict[str, Union[str, int]]]:
+        """Close the proxy."""
+        if self.closed is True:
+            return []
+        if self._exec is not None:
+            for future in concurrent.futures.as_completed(self._futures):
+                self._results.append(future.result())
+            self._exec.shutdown(wait=True)
+        self.closed = True
+        return self._sort_by_part_number(parts=self._results)
+
+
 class _S3Object:  # pylint: disable=too-many-instance-attributes
     """Class to abstract S3 objects as ordinary files."""
 
     def __init__(
         self,
         path: str,
-        block_size: int,
+        s3_read_ahead_size: int,
         mode: str,
+        use_threads: bool,
         s3_additional_kwargs: Optional[Dict[str, str]],
         boto3_session: Optional[boto3.Session],
         newline: Optional[str],
         encoding: Optional[str],
     ) -> None:
+        self._use_threads = use_threads
         self._newline: str = "\n" if newline is None else newline
         self._encoding: str = "utf-8" if encoding is None else encoding
         self._bucket, self._key = _utils.parse_path(path=path)
@@ -67,7 +194,7 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
         if mode not in {"rb", "wb", "r", "w"}:
             raise NotImplementedError("File mode must be {'rb', 'wb', 'r', 'w'}, not %s" % mode)
         self._mode: str = "rb" if mode is None else mode
-        self._block_size: int = block_size
+        self._s3_read_ahead_size: int = s3_read_ahead_size
         self._s3_additional_kwargs: Dict[str, str] = {} if s3_additional_kwargs is None else s3_additional_kwargs
         self._client: boto3.client = _utils.client(service_name="s3", session=self._boto3_session)
         self._loc: int = 0
@@ -85,10 +212,9 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
         elif self.writable() is True:
             self._mpu: Dict[str, Any] = {}
             self._buffer: io.BytesIO = io.BytesIO()
-            self._parts: List[Dict[str, Any]] = []
+            self._parts_count: int = 0
             self._size = 0
-            if self._block_size < _MIN_WRITE_BLOCK:
-                raise ValueError("Block size must be >=5MB for writing.")
+            self._upload_proxy: _UploadProxy = _UploadProxy(use_threads=self._use_threads)
         else:
             raise RuntimeError(f"Invalid mode: {self._mode}")
 
@@ -122,39 +248,59 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
     def _get_botocore_valid_kwargs(self, function_name: str) -> Dict[str, Any]:
         return {k: v for k, v in self._s3_additional_kwargs.items() if k in _BOTOCORE_ACCEPTED_KWARGS[function_name]}
 
-    def _fetch_range(self, start: int, end: int) -> bytes:
+    @staticmethod
+    def _merge_range(ranges: List[Tuple[int, bytes]]) -> bytes:
+        return b"".join(data for start, data in sorted(ranges, key=lambda r: r[0]))
+
+    def _fetch_range_proxy(self, start: int, end: int) -> bytes:
         _logger.debug("Fetching: s3://%s/%s - Range: %s-%s", self._bucket, self._key, start, end)
-        try:
-            resp: Dict[str, Any] = _utils.try_it(
-                f=self._client.get_object,
-                ex=_S3_RETRYABLE_ERRORS,
-                base=0.5,
-                max_num_tries=6,
-                Bucket=self._bucket,
-                Key=self._key,
-                Range=f"bytes={start}-{end-1}",
-                **self._get_botocore_valid_kwargs(function_name="get_object"),
+        boto3_primitives: _utils.Boto3PrimitivesType = _utils.boto3_to_primitives(boto3_session=self._boto3_session)
+        boto3_kwargs: Dict[str, Any] = self._get_botocore_valid_kwargs(function_name="get_object")
+        cpus: int = _utils.ensure_cpu_count(use_threads=self._use_threads)
+        range_size: int = end - start
+        if cpus < 2 or range_size < (2 * _MIN_PARALLEL_READ_BLOCK):
+            return _fetch_range(
+                range_values=(start, end),
+                bucket=self._bucket,
+                key=self._key,
+                boto3_primitives=boto3_primitives,
+                boto3_kwargs=boto3_kwargs,
+            )[1]
+        sizes: Tuple[int, ...] = _utils.get_even_chunks_sizes(
+            total_size=range_size, chunk_size=_MIN_PARALLEL_READ_BLOCK, upper_bound=False
+        )
+        ranges: List[Tuple[int, int]] = []
+        chunk_start: int = start
+        for size in sizes:
+            ranges.append((chunk_start, chunk_start + size))
+            chunk_start += size
+        with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
+            return self._merge_range(
+                ranges=list(
+                    executor.map(
+                        _fetch_range,
+                        ranges,
+                        itertools.repeat(self._bucket),
+                        itertools.repeat(self._key),
+                        itertools.repeat(boto3_primitives),
+                        itertools.repeat(boto3_kwargs),
+                    )
+                ),
             )
-        except ClientError as ex:
-            if ex.response["Error"].get("Code", "Unknown") in ("416", "InvalidRange"):
-                return b""
-            raise ex
-        return cast(bytes, resp["Body"].read())
 
     def _fetch(self, start: int, end: int) -> None:
-        if (end - start) < self._block_size:
-            end = start + self._block_size
+        if (end - start) < self._s3_read_ahead_size:
+            end = start + self._s3_read_ahead_size
         if end > self._size:
             end = self._size
 
         if start < self._start or end > self._end:
             self._start = start
             self._end = end
-            self._cache = self._fetch_range(self._start, self._end)
+            self._cache = self._fetch_range_proxy(self._start, self._end)
 
     def read(self, length: int = -1) -> Union[bytes, str]:
         """Return cached data and fetch on demand chunks."""
-        _logger.debug("length: %s", length)
         if self.readable() is False:
             raise ValueError("File not in read mode.")
         if length < 0:
@@ -174,7 +320,7 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
 
     def readline(self, length: int = -1) -> Union[bytes, str]:
         """Read until the next line terminator."""
-        self._fetch(self._loc, self._loc + self._block_size)
+        self._fetch(self._loc, self._loc + self._s3_read_ahead_size)
         while True:
             found: int = self._cache[self._loc - self._start :].find(self._newline.encode(encoding=self._encoding))
 
@@ -185,7 +331,7 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
             if self._end >= self._size:
                 return self.read(length)
 
-            self._fetch(self._loc, self._end + self._block_size)
+            self._fetch(self._loc, self._end + self._s3_read_ahead_size)
 
     def readlines(self) -> List[Union[bytes, str]]:
         """Return all lines as list."""
@@ -213,15 +359,14 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
         return self._loc
 
     def write(self, data: bytes) -> int:
-        """Write data to buffer and only upload on close() or if buffer is greater than or equal to block_size."""
+        """Write data to buffer and only upload on close() or if buffer is greater than or equal to _MIN_WRITE_BLOCK."""
         if self.writable() is False:
             raise RuntimeError("File not in write mode.")
         if self.closed:
             raise RuntimeError("I/O operation on closed file.")
         n: int = self._buffer.write(data)
         self._loc += n
-        _logger.debug("Writing: %s bytes", n)
-        if self._buffer.tell() >= self._block_size:
+        if self._buffer.tell() >= _MIN_WRITE_BLOCK:
             self.flush()
         return n
 
@@ -231,7 +376,7 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
             raise RuntimeError("I/O operation on closed file.")
         if self.writable():
             total_size: int = self._buffer.tell()
-            if total_size < self._block_size and force is False:
+            if total_size < _MIN_WRITE_BLOCK and force is False:
                 return None
             if total_size == 0:
                 return None
@@ -247,23 +392,19 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
             )
             self._buffer.seek(0)
             for chunk_size in _utils.get_even_chunks_sizes(
-                total_size=total_size, chunk_size=self._block_size, upper_bound=False
+                total_size=total_size, chunk_size=_MIN_WRITE_BLOCK, upper_bound=False
             ):
                 _logger.debug("chunk_size: %s bytes", chunk_size)
-                part: int = len(self._parts) + 1
-                resp: Dict[str, Any] = _utils.try_it(
-                    f=self._client.upload_part,
-                    ex=_S3_RETRYABLE_ERRORS,
-                    base=0.5,
-                    max_num_tries=6,
-                    Bucket=self._bucket,
-                    Key=self._key,
-                    Body=self._buffer.read(chunk_size),
-                    PartNumber=part,
-                    UploadId=self._mpu["UploadId"],
-                    **self._get_botocore_valid_kwargs(function_name="upload_part"),
+                self._parts_count += 1
+                self._upload_proxy.upload(
+                    bucket=self._bucket,
+                    key=self._key,
+                    part=self._parts_count,
+                    upload_id=self._mpu["UploadId"],
+                    data=self._buffer.read(chunk_size),
+                    boto3_session=self._boto3_session,
+                    boto3_kwargs=self._get_botocore_valid_kwargs(function_name="upload_part"),
                 )
-                self._parts.append({"PartNumber": part, "ETag": resp["ETag"]})
             self._buffer = io.BytesIO()
         return None
 
@@ -284,11 +425,12 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
         if self.closed:
             return None
         if self.writable():
-            _logger.debug("Closing: %s parts", len(self._parts))
+            _logger.debug("Closing: %s parts", self._parts_count)
             _logger.debug("Buffer tell: %s", self._buffer.tell())
-            if self._parts:
+            if self._parts_count > 0:
                 self.flush(force=True)
-                part_info: Dict[str, List[Dict[str, Any]]] = {"Parts": self._parts}
+                pasts: List[Dict[str, Union[str, int]]] = self._upload_proxy.close()
+                part_info: Dict[str, List[Dict[str, Any]]] = {"Parts": pasts}
                 _logger.debug("complete_multipart_upload")
                 _utils.try_it(
                     f=self._client.complete_multipart_upload,
@@ -313,9 +455,10 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
                     Body=self._buffer.getvalue(),
                     **self._get_botocore_valid_kwargs(function_name="put_object"),
                 )
-            self._parts = []
+            self._parts_count = 0
             self._buffer.seek(0)
             self._buffer.truncate(0)
+            self._upload_proxy.close()
         elif self.readable():
             self._cache = b""
         else:
@@ -325,11 +468,13 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
 
 
 @contextmanager
+@apply_configs
 def open_s3_object(
     path: str,
-    block_size: int,
     mode: str,
+    use_threads: bool = False,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    s3_read_ahead_size: int = 4_194_304,  # 4 MB (4 * 2**20)
     boto3_session: Optional[boto3.Session] = None,
     newline: Optional[str] = "\n",
     encoding: Optional[str] = "utf-8",
@@ -340,8 +485,9 @@ def open_s3_object(
     try:
         s3obj = _S3Object(
             path=path,
-            block_size=block_size,
+            s3_read_ahead_size=s3_read_ahead_size,
             mode=mode,
+            use_threads=use_threads,
             s3_additional_kwargs=s3_additional_kwargs,
             boto3_session=boto3_session,
             encoding=encoding,

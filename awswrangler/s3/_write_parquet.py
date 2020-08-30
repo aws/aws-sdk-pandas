@@ -58,12 +58,13 @@ def _new_writer(
     schema: pa.Schema,
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
+    use_threads: bool,
 ) -> Iterator[pyarrow.parquet.ParquetWriter]:
     writer: Optional[pyarrow.parquet.ParquetWriter] = None
     with open_s3_object(
         path=file_path,
         mode="wb",
-        block_size=33_554_432,  # 32 MB (32 * 2**20)
+        use_threads=use_threads,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
     ) as f:
@@ -91,6 +92,7 @@ def _write_chunk(
     table: pa.Table,
     offset: int,
     chunk_size: int,
+    use_threads: bool,
 ) -> List[str]:
     with _new_writer(
         file_path=file_path,
@@ -98,6 +100,7 @@ def _write_chunk(
         schema=table.schema,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
+        use_threads=use_threads,
     ) as writer:
         writer.write_table(table.slice(offset, chunk_size))
     return [file_path]
@@ -128,6 +131,7 @@ def _to_parquet_chunked(
             table=table,
             offset=offset,
             chunk_size=max_rows_by_file,
+            use_threads=use_threads,
         )
     return proxy.close()  # blocking
 
@@ -142,6 +146,7 @@ def _to_parquet(
     dtype: Dict[str, str],
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
+    use_threads: bool,
     path: Optional[str] = None,
     path_root: Optional[str] = None,
     max_rows_by_file: Optional[int] = 0,
@@ -179,6 +184,7 @@ def _to_parquet(
             schema=table.schema,
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
+            use_threads=use_threads,
         ) as writer:
             writer.write_table(table)
         paths = [file_path]
@@ -492,6 +498,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
             s3_additional_kwargs=s3_additional_kwargs,
             dtype=dtype,
             max_rows_by_file=max_rows_by_file,
+            use_threads=use_threads,
         )
     else:
         columns_types: Dict[str, str] = {}

@@ -20,6 +20,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def _to_text(
     file_format: str,
     df: pd.DataFrame,
+    use_threads: bool,
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
     path: Optional[str] = None,
@@ -39,7 +40,7 @@ def _to_text(
     with open_s3_object(
         path=file_path,
         mode="w",
-        block_size=33_554_432,  # 32 MB (32 * 2**20)
+        use_threads=use_threads,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
         encoding=encoding,
@@ -375,6 +376,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
         _to_text(
             file_format="csv",
             df=df,
+            use_threads=use_threads,
             path=path,
             boto3_session=session,
             s3_additional_kwargs=s3_additional_kwargs,
@@ -442,9 +444,15 @@ def to_json(
     path: str,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    use_threads: bool = True,
     **pandas_kwargs: Any,
 ) -> None:
     """Write JSON file on Amazon S3.
+
+    Note
+    ----
+    In case of `use_threads=True` the number of threads
+    that will be spawned will be gotten from os.cpu_count().
 
     Parameters
     ----------
@@ -458,6 +466,9 @@ def to_json(
         Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
         "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
+    use_threads : bool
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
     pandas_kwargs:
         KEYWORD arguments forwarded to pandas.DataFrame.to_json(). You can NOT pass `pandas_kwargs` explicit, just add
         valid Pandas arguments in the function call and Wrangler will accept it.
@@ -515,6 +526,7 @@ def to_json(
         file_format="json",
         df=df,
         path=path,
+        use_threads=use_threads,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
         **pandas_kwargs,

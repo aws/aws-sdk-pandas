@@ -34,12 +34,13 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _read_parquet_metadata_file(
-    path: str, boto3_session: boto3.Session, s3_additional_kwargs: Optional[Dict[str, str]],
+    path: str, boto3_session: boto3.Session, s3_additional_kwargs: Optional[Dict[str, str]], use_threads: bool
 ) -> Dict[str, str]:
     with open_s3_object(
         path=path,
         mode="rb",
-        block_size=4_194_304,  # 4 MB (4 * 2**20)
+        use_threads=use_threads,
+        s3_read_ahead_size=1_048_576,  # 1 MB (1 * 2**20)
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
     ) as f:
@@ -59,7 +60,9 @@ def _read_schemas_from_files(
     n_paths: int = len(paths)
     if use_threads is False or n_paths == 1:
         schemas = tuple(
-            _read_parquet_metadata_file(path=p, boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs,)
+            _read_parquet_metadata_file(
+                path=p, boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs, use_threads=use_threads
+            )
             for p in paths
         )
     elif n_paths > 1:
@@ -71,6 +74,7 @@ def _read_schemas_from_files(
                     paths,
                     itertools.repeat(_utils.boto3_to_primitives(boto3_session=boto3_session)),  # Boto3.Session
                     itertools.repeat(s3_additional_kwargs),
+                    itertools.repeat(use_threads),
                 )
             )
     _logger.debug("schemas: %s", schemas)
@@ -252,7 +256,8 @@ def _read_parquet_chunked(
         with open_s3_object(
             path=path,
             mode="rb",
-            block_size=8_388_608,  # 8 MB (8 * 2**20)
+            use_threads=use_threads,
+            s3_read_ahead_size=10_485_760,  # 10 MB (10 * 2**20)
             s3_additional_kwargs=s3_additional_kwargs,
             boto3_session=boto3_session,
         ) as f:
@@ -308,11 +313,13 @@ def _read_parquet_file(
     categories: Optional[List[str]],
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
+    use_threads: bool,
 ) -> pa.Table:
     with open_s3_object(
         path=path,
         mode="rb",
-        block_size=134_217_728,  # 128 MB (128 * 2**20)
+        use_threads=use_threads,
+        s3_read_ahead_size=134_217_728,  # 128 MB (128 * 2**20)
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
     ) as f:
@@ -325,11 +332,13 @@ def _count_row_groups(
     categories: Optional[List[str]],
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
+    use_threads: bool,
 ) -> int:
     with open_s3_object(
         path=path,
         mode="rb",
-        block_size=4_194_304,  # 4 MB (4 * 2**20)
+        use_threads=use_threads,
+        s3_read_ahead_size=1_048_576,  # 1 MB (1 * 2**20)
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
     ) as f:
@@ -344,12 +353,14 @@ def _read_parquet_row_group(
     categories: Optional[List[str]],
     boto3_primitives: _utils.Boto3PrimitivesType,
     s3_additional_kwargs: Optional[Dict[str, str]],
+    use_threads: bool,
 ) -> pa.Table:
     boto3_session: boto3.Session = _utils.boto3_from_primitives(primitives=boto3_primitives)
     with open_s3_object(
         path=path,
         mode="rb",
-        block_size=134_217_728,  # 128 MB (128 * 2**20)
+        use_threads=use_threads,
+        s3_read_ahead_size=10_485_760,  # 10 MB (10 * 2**20)
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
     ) as f:
@@ -377,11 +388,16 @@ def _read_parquet(
             categories=categories,
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
+            use_threads=use_threads,
         )
     else:
         cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
         num_row_groups: int = _count_row_groups(
-            path=path, categories=categories, boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs
+            path=path,
+            categories=categories,
+            boto3_session=boto3_session,
+            s3_additional_kwargs=s3_additional_kwargs,
+            use_threads=use_threads,
         )
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
             tables: Tuple[pa.Table, ...] = tuple(
@@ -393,6 +409,7 @@ def _read_parquet(
                     itertools.repeat(categories),
                     itertools.repeat(_utils.boto3_to_primitives(boto3_session=boto3_session)),
                     itertools.repeat(s3_additional_kwargs),
+                    itertools.repeat(use_threads),
                 )
             )
             table = pa.lib.concat_tables(tables, promote=False)

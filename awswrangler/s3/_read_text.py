@@ -43,6 +43,7 @@ def _read_text_chunked(
     pandas_kwargs: Dict[str, Any],
     s3_additional_kwargs: Optional[Dict[str, str]],
     dataset: bool,
+    use_threads: bool,
 ) -> Iterator[pd.DataFrame]:
     for path in paths:
         _logger.debug("path: %s", path)
@@ -50,8 +51,9 @@ def _read_text_chunked(
         with open_s3_object(
             path=path,
             mode=mode,
-            block_size=8_388_608,  # 8 MB (8 * 2**20)
+            s3_read_ahead_size=10_485_760,  # 10 MB (10 * 2**20)
             encoding=encoding,
+            use_threads=use_threads,
             s3_additional_kwargs=s3_additional_kwargs,
             newline=newline,
             boto3_session=boto3_session,
@@ -69,12 +71,14 @@ def _read_text_file(
     pandas_kwargs: Dict[str, Any],
     s3_additional_kwargs: Optional[Dict[str, str]],
     dataset: bool,
+    use_threads: bool,
 ) -> pd.DataFrame:
     mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
     with open_s3_object(
         path=path,
         mode=mode,
-        block_size=134_217_728,  # 128 MB (128 * 2**20)
+        use_threads=use_threads,
+        s3_read_ahead_size=134_217_728,  # 128 MB (128 * 2**20)
         encoding=encoding,
         s3_additional_kwargs=s3_additional_kwargs,
         newline=newline,
@@ -125,6 +129,7 @@ def _read_text(
         "path_root": path_root,
         "pandas_kwargs": pandas_kwargs,
         "s3_additional_kwargs": s3_additional_kwargs,
+        "use_threads": use_threads,
     }
     _logger.debug("args:\n%s", pprint.pformat(args))
     ret: Union[pd.DataFrame, Iterator[pd.DataFrame]]
