@@ -86,9 +86,9 @@ class _UploadProxy:
         self.closed = False
         self._exec: Optional[concurrent.futures.ThreadPoolExecutor]
         self._results: List[Dict[str, Union[str, int]]] = []
-        cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
-        if cpus > 1:
-            self._exec = concurrent.futures.ThreadPoolExecutor(max_workers=cpus)
+        self._cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
+        if self._cpus > 1:
+            self._exec = concurrent.futures.ThreadPoolExecutor(max_workers=self._cpus)
             self._futures: List[Any] = []
         else:
             self._exec = None
@@ -137,6 +137,7 @@ class _UploadProxy:
     ) -> None:
         """Upload Part."""
         if self._exec is not None:
+            _utils.block_waiting_available_thread(seq=self._futures, max_workers=self._cpus)
             future = self._exec.submit(
                 _UploadProxy._caller,
                 bucket=bucket,

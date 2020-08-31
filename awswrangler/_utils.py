@@ -7,7 +7,8 @@ import math
 import os
 import random
 import time
-from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union, cast
+from concurrent.futures import FIRST_COMPLETED, Future, wait
+from typing import Any, Callable, Dict, Generator, List, Optional, Sequence, Tuple, Union, cast
 
 import boto3
 import botocore.config
@@ -290,3 +291,21 @@ def get_even_chunks_sizes(total_size: int, chunk_size: int, upper_bound: bool) -
         i_cycled: int = i % len(sizes)
         sizes[i_cycled] += 1
     return tuple(sizes)
+
+
+def get_running_futures(seq: Sequence[Future]) -> Tuple[Future, ...]:  # type: ignore
+    """Filter only running futures."""
+    return tuple(f for f in seq if f.running())
+
+
+def wait_any_future_available(seq: Sequence[Future]) -> None:  # type: ignore
+    """Wait until any future became available."""
+    wait(fs=seq, timeout=None, return_when=FIRST_COMPLETED)
+
+
+def block_waiting_available_thread(seq: Sequence[Future], max_workers: int) -> None:  # type: ignore
+    """Block until any thread became available."""
+    running: Tuple[Future, ...] = get_running_futures(seq=seq)  # type: ignore
+    while len(running) >= max_workers:
+        wait_any_future_available(seq=running)
+        running = get_running_futures(seq=running)
