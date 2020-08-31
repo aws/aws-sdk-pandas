@@ -282,8 +282,7 @@ def get_even_chunks_sizes(total_size: int, chunk_size: int, upper_bound: bool) -
     """Calculate even chunks sizes (Best effort)."""
     round_func: Callable[[float], float] = math.ceil if upper_bound is True else math.floor
     num_chunks: int = int(round_func(float(total_size) / float(chunk_size)))
-    if num_chunks < 1:
-        raise ValueError("Invalid chunks size requirements.")
+    num_chunks = 1 if num_chunks < 1 else num_chunks
     base_size: int = int(total_size / num_chunks)
     rest: int = total_size % num_chunks
     sizes: List[int] = list(itertools.repeat(base_size, num_chunks))

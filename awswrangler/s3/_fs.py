@@ -332,9 +332,11 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
         )
 
         # Calculating missing bytes in cache
-        if (new_block_start < self._start and new_block_end > self._end) or (
-            new_block_start > self._end and new_block_end < self._start
-        ):  # Full block download
+        if (  # Full block download
+            (new_block_start < self._start and new_block_end > self._end)
+            or new_block_start > self._end
+            or new_block_end < self._start
+        ):
             self._cache = self._fetch_range_proxy(new_block_start, new_block_end)
         elif new_block_end > self._end:
             prune_diff: int = new_block_start - self._start

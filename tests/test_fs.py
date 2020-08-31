@@ -174,3 +174,15 @@ def test_cache(path, use_threads, block_size, text):
             assert value == text[i].encode("utf-8")
             assert len(s3obj._cache) in (block_size, block_size - 1, len(text))
     assert s3obj._cache == b""
+
+
+def test_cache_seek(path):
+    client_s3 = boto3.client("s3")
+    path = f"{path}0.txt"
+    bucket, key = wr._utils.parse_path(path)
+    text = "0" * 1_000_000 + "1" * 4
+    client_s3.put_object(Body=text, Bucket=bucket, Key=key)
+    with open_s3_object(path, mode="rb", s3_block_size=1_000) as s3obj:
+        s3obj.seek(1_000_000)
+        assert s3obj.read(100).decode("utf-8") == "1" * 4
+    assert s3obj._cache == b""

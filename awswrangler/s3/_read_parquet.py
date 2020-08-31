@@ -40,7 +40,7 @@ def _read_parquet_metadata_file(
         path=path,
         mode="rb",
         use_threads=use_threads,
-        s3_block_size=1_048_576,  # 1 MB (1 * 2**20)
+        s3_block_size=131_072,  # 128 KB (128 * 2**10)
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
     ) as f:
@@ -339,12 +339,14 @@ def _count_row_groups(
         path=path,
         mode="rb",
         use_threads=use_threads,
-        s3_block_size=1_048_576,  # 1 MB (1 * 2**20)
+        s3_block_size=131_072,  # 128 KB (128 * 2**10)
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
     ) as f:
         pq_file: pyarrow.parquet.ParquetFile = pyarrow.parquet.ParquetFile(source=f, read_dictionary=categories)
-        return cast(int, pq_file.num_row_groups)
+        n: int = cast(int, pq_file.num_row_groups)
+        _logger.debug("Row groups count: %d", n)
+        return n
 
 
 def _read_parquet_row_group(
