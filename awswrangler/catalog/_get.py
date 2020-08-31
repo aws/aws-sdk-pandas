@@ -119,7 +119,7 @@ def get_table_types(
     Examples
     --------
     >>> import awswrangler as wr
-    >>> wr.catalog.get_table_types(database='default', name='my_table')
+    >>> wr.catalog.get_table_types(database='default', table='my_table')
     {'col0': 'int', 'col1': double}
 
     """
