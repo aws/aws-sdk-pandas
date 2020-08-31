@@ -34,7 +34,7 @@ def test_read_full(path, mode, use_threads):
     bucket, key = wr._utils.parse_path(path)
     text = "AHDG*AWY&GD*A&WGd*AWgd87AGWD*GA*G*g*AGˆˆ&ÂDTW&ˆˆD&ÂTW7ˆˆTAWˆˆDAW&ˆˆAWGDIUHWOD#N"
     client_s3.put_object(Body=text, Bucket=bucket, Key=key)
-    with open_s3_object(path, mode=mode, s3_read_ahead_size=100, newline="\n", use_threads=use_threads) as s3obj:
+    with open_s3_object(path, mode=mode, s3_block_size=100, newline="\n", use_threads=use_threads) as s3obj:
         if mode == "r":
             assert s3obj.read() == text
         else:
@@ -52,7 +52,7 @@ def test_read_chunked(path, mode, block_size, use_threads):
     bucket, key = wr._utils.parse_path(path)
     text = "0123456789"
     client_s3.put_object(Body=text, Bucket=bucket, Key=key)
-    with open_s3_object(path, mode=mode, s3_read_ahead_size=block_size, newline="\n", use_threads=use_threads) as s3obj:
+    with open_s3_object(path, mode=mode, s3_block_size=block_size, newline="\n", use_threads=use_threads) as s3obj:
         if mode == "r":
             for i in range(3):
                 assert s3obj.read(1) == text[i]
@@ -67,7 +67,7 @@ def test_read_chunked(path, mode, block_size, use_threads):
 
 @pytest.mark.parametrize("use_threads", [True, False])
 @pytest.mark.parametrize("mode", ["r", "rb"])
-@pytest.mark.parametrize("block_size", [1, 2, 3, 10, 23, 48, 65, 100])
+@pytest.mark.parametrize("block_size", [2, 3, 10, 23, 48, 65, 100])
 def test_read_line(path, mode, block_size, use_threads):
     client_s3 = boto3.client("s3")
     path = f"{path}0.txt"
@@ -75,7 +75,7 @@ def test_read_line(path, mode, block_size, use_threads):
     text = "0\n11\n22222\n33333333333333\n44444444444444444444444444444444444444444444\n55555"
     expected = ["0\n", "11\n", "22222\n", "33333333333333\n", "44444444444444444444444444444444444444444444\n", "55555"]
     client_s3.put_object(Body=text, Bucket=bucket, Key=key)
-    with open_s3_object(path, mode=mode, s3_read_ahead_size=block_size, newline="\n", use_threads=use_threads) as s3obj:
+    with open_s3_object(path, mode=mode, s3_block_size=block_size, newline="\n", use_threads=use_threads) as s3obj:
         for i, line in enumerate(s3obj):
             if mode == "r":
                 assert line == expected[i]
@@ -83,6 +83,7 @@ def test_read_line(path, mode, block_size, use_threads):
                 assert line == expected[i].encode("utf-8")
         s3obj.seek(0)
         lines = s3obj.readlines()
+        print(lines)
         if mode == "r":
             assert lines == expected
         else:
@@ -136,11 +137,7 @@ def test_additional_kwargs(path, kms_key_id, s3_additional_kwargs, use_threads):
     with open_s3_object(path, mode="w", s3_additional_kwargs=s3_additional_kwargs, use_threads=use_threads) as s3obj:
         s3obj.write("foo")
     with open_s3_object(
-        path,
-        mode="r",
-        s3_read_ahead_size=10_000_000,
-        s3_additional_kwargs=s3_additional_kwargs,
-        use_threads=use_threads,
+        path, mode="r", s3_block_size=10_000_000, s3_additional_kwargs=s3_additional_kwargs, use_threads=use_threads,
     ) as s3obj:
         assert s3obj.read() == "foo"
     desc = wr.s3.describe_objects([path])[path]
@@ -160,3 +157,20 @@ def test_pyarrow(path, glue_table, glue_database):
     ensure_data_types(df2, has_list=True)
     assert df2.shape == (3, 19)
     assert df.iint8.sum() == df2.iint8.sum()
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("block_size", [2, 3, 5, 8, 9, 15])
+@pytest.mark.parametrize("text", ["012345678", "0123456789"])
+def test_cache(path, use_threads, block_size, text):
+    client_s3 = boto3.client("s3")
+    path = f"{path}0.txt"
+    bucket, key = wr._utils.parse_path(path)
+    client_s3.put_object(Body=text, Bucket=bucket, Key=key)
+    with open_s3_object(path, mode="rb", s3_block_size=block_size, use_threads=use_threads) as s3obj:
+        for i in range(len(text)):
+            value = s3obj.read(1)
+            print(value)
+            assert value == text[i].encode("utf-8")
+            assert len(s3obj._cache) in (block_size, block_size - 1, len(text))
+    assert s3obj._cache == b""

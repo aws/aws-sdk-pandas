@@ -4,12 +4,13 @@ import concurrent.futures
 import io
 import itertools
 import logging
+import math
 import socket
 from contextlib import contextmanager
 from typing import Any, BinaryIO, Dict, Iterator, List, Optional, Set, Tuple, Union, cast
 
 import boto3
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, ReadTimeoutError
 
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
@@ -17,7 +18,7 @@ from awswrangler.s3._describe import size_objects
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
-_S3_RETRYABLE_ERRORS: Tuple[Any, Any] = (socket.timeout, ConnectionError)
+_S3_RETRYABLE_ERRORS: Tuple[Any, Any, Any] = (socket.timeout, ConnectionError, ReadTimeoutError)
 
 _MIN_WRITE_BLOCK: int = 5_242_880  # 5 MB (5 * 2**20)
 _MIN_PARALLEL_READ_BLOCK: int = 5_242_880  # 5 MB (5 * 2**20)
@@ -178,7 +179,7 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
     def __init__(
         self,
         path: str,
-        s3_read_ahead_size: int,
+        s3_block_size: int,
         mode: str,
         use_threads: bool,
         s3_additional_kwargs: Optional[Dict[str, str]],
@@ -186,6 +187,7 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
         newline: Optional[str],
         encoding: Optional[str],
     ) -> None:
+        self.closed: bool = False
         self._use_threads = use_threads
         self._newline: str = "\n" if newline is None else newline
         self._encoding: str = "utf-8" if encoding is None else encoding
@@ -194,11 +196,13 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
         if mode not in {"rb", "wb", "r", "w"}:
             raise NotImplementedError("File mode must be {'rb', 'wb', 'r', 'w'}, not %s" % mode)
         self._mode: str = "rb" if mode is None else mode
-        self._s3_read_ahead_size: int = s3_read_ahead_size
+        if s3_block_size < 2:
+            raise exceptions.InvalidArgumentValue("s3_block_size MUST > 1")
+        self._s3_block_size: int = s3_block_size
+        self._s3_half_block_size: int = s3_block_size // 2
         self._s3_additional_kwargs: Dict[str, str] = {} if s3_additional_kwargs is None else s3_additional_kwargs
         self._client: boto3.client = _utils.client(service_name="s3", session=self._boto3_session)
         self._loc: int = 0
-        self.closed: bool = False
 
         if self.readable() is True:
             self._cache: bytes = b""
@@ -209,6 +213,7 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
                 raise exceptions.InvalidArgumentValue(f"S3 object w/o defined size: {path}")
             self._size: int = size
             _logger.debug("self._size: %s", self._size)
+            _logger.debug("self._s3_block_size: %s", self._s3_block_size)
         elif self.writable() is True:
             self._mpu: Dict[str, Any] = {}
             self._buffer: io.BytesIO = io.BytesIO()
@@ -289,16 +294,60 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
             )
 
     def _fetch(self, start: int, end: int) -> None:
-        if end > self._size:
-            end = self._size
+        end = self._size if end > self._size else end
+        start = 0 if start < 0 else start
 
-        if start < self._start or end > self._end:
+        if start >= self._start and end <= self._end:
+            return None  # Does not require download
+
+        if end - start >= self._s3_block_size:  # Fetching length greater than cache length
+            self._cache = self._fetch_range_proxy(start, end)
             self._start = start
-            if ((end - start) < self._s3_read_ahead_size) and (end < self._size):
-                self._end = start + self._s3_read_ahead_size
-            else:
-                self._end = end
-            self._cache = self._fetch_range_proxy(self._start, self._end)
+            self._end = end
+            return None
+
+        # Calculating block START and END positions
+        _logger.debug("Downloading: %s (start) / %s (end)", start, end)
+        mid: int = int(math.ceil((start + end) / 2))
+        new_block_start: int = mid - self._s3_half_block_size
+        new_block_end: int = mid + self._s3_half_block_size
+        _logger.debug("new_block_start: %s / new_block_end: %s / mid: %s", new_block_start, new_block_end, mid)
+        if new_block_start < 0 and new_block_end > self._size:  # both ends overflowing
+            new_block_start = 0
+            new_block_end = self._size
+        elif new_block_end > self._size:  # right overflow
+            new_block_start = new_block_start - (new_block_end - self._size)
+            new_block_start = 0 if new_block_start < 0 else new_block_start
+            new_block_end = self._size
+        elif new_block_start < 0:  # left overflow
+            new_block_end = new_block_end + (0 - new_block_start)
+            new_block_end = self._size if new_block_end > self._size else new_block_end
+            new_block_start = 0
+        _logger.debug(
+            "new_block_start: %s / new_block_end: %s/ self._start: %s / self._end: %s",
+            new_block_start,
+            new_block_end,
+            self._start,
+            self._end,
+        )
+
+        # Calculating missing bytes in cache
+        if (new_block_start < self._start and new_block_end > self._end) or (
+            new_block_start > self._end and new_block_end < self._start
+        ):  # Full block download
+            self._cache = self._fetch_range_proxy(new_block_start, new_block_end)
+        elif new_block_end > self._end:
+            prune_diff: int = new_block_start - self._start
+            self._cache = self._cache[prune_diff:] + self._fetch_range_proxy(self._end, new_block_end)
+        elif new_block_start < self._start:
+            prune_diff = new_block_end - self._end
+            self._cache = self._cache[:-prune_diff] + self._fetch_range_proxy(new_block_start, self._start)
+        else:
+            raise RuntimeError("Wrangler's cache calculation error.")
+        self._start = new_block_start
+        self._end = new_block_end
+
+        return None
 
     def read(self, length: int = -1) -> Union[bytes, str]:
         """Return cached data and fetch on demand chunks."""
@@ -313,12 +362,11 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
         self._fetch(self._loc, self._loc + length)
         out: bytes = self._cache[self._loc - self._start : self._loc - self._start + length]
         self._loc += len(out)
-
         return out
 
     def readline(self, length: int = -1) -> Union[bytes, str]:
         """Read until the next line terminator."""
-        self._fetch(self._loc, self._loc + self._s3_read_ahead_size)
+        self._fetch(self._loc, self._loc + self._s3_block_size)
         while True:
             found: int = self._cache[self._loc - self._start :].find(self._newline.encode(encoding=self._encoding))
 
@@ -329,7 +377,7 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
             if self._end >= self._size:
                 return self.read(length)
 
-            self._fetch(self._loc, self._end + self._s3_read_ahead_size)
+            self._fetch(self._loc, self._end + self._s3_half_block_size)
 
     def readlines(self) -> List[Union[bytes, str]]:
         """Return all lines as list."""
@@ -472,7 +520,7 @@ def open_s3_object(
     mode: str,
     use_threads: bool = False,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
-    s3_read_ahead_size: int = 4_194_304,  # 4 MB (4 * 2**20)
+    s3_block_size: int = 4_194_304,  # 4 MB (4 * 2**20)
     boto3_session: Optional[boto3.Session] = None,
     newline: Optional[str] = "\n",
     encoding: Optional[str] = "utf-8",
@@ -483,7 +531,7 @@ def open_s3_object(
     try:
         s3obj = _S3Object(
             path=path,
-            s3_read_ahead_size=s3_read_ahead_size,
+            s3_block_size=s3_block_size,
             mode=mode,
             use_threads=use_threads,
             s3_additional_kwargs=s3_additional_kwargs,
@@ -494,7 +542,13 @@ def open_s3_object(
         if "b" in mode:  # binary
             yield s3obj
         else:  # text
-            text_s3obj = io.TextIOWrapper(cast(BinaryIO, s3obj), encoding=encoding, newline=newline)
+            text_s3obj = io.TextIOWrapper(
+                buffer=cast(BinaryIO, s3obj),
+                encoding=encoding,
+                newline=newline,
+                line_buffering=False,
+                write_through=False,
+            )
             yield text_s3obj
     finally:
         if text_s3obj is not None and text_s3obj.closed is False:

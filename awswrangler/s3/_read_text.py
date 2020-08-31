@@ -51,7 +51,7 @@ def _read_text_chunked(
         with open_s3_object(
             path=path,
             mode=mode,
-            s3_read_ahead_size=10_485_760,  # 10 MB (10 * 2**20)
+            s3_block_size=10_485_760,  # 10 MB (10 * 2**20)
             encoding=encoding,
             use_threads=use_threads,
             s3_additional_kwargs=s3_additional_kwargs,
@@ -78,7 +78,7 @@ def _read_text_file(
         path=path,
         mode=mode,
         use_threads=use_threads,
-        s3_read_ahead_size=134_217_728,  # 128 MB (128 * 2**20)
+        s3_block_size=134_217_728,  # 128 MB (128 * 2**20)
         encoding=encoding,
         s3_additional_kwargs=s3_additional_kwargs,
         newline=newline,

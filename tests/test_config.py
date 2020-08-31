@@ -24,11 +24,11 @@ def test_basics(path, glue_database, glue_table):
 
     # Testing configured s3 block size
     size = 1 * 2 ** 20  # 1 MB
-    wr.config.s3_read_ahead_size = size
+    wr.config.s3_block_size = size
     with open_s3_object(path, mode="wb") as s3obj:
         s3obj.write(b"foo")
     with open_s3_object(path, mode="rb") as s3obj:
-        assert s3obj._s3_read_ahead_size == size
+        assert s3obj._s3_block_size == size
 
     # Resetting all configs
     wr.config.reset()

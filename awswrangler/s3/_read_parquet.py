@@ -40,7 +40,7 @@ def _read_parquet_metadata_file(
         path=path,
         mode="rb",
         use_threads=use_threads,
-        s3_read_ahead_size=1_048_576,  # 1 MB (1 * 2**20)
+        s3_block_size=1_048_576,  # 1 MB (1 * 2**20)
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
     ) as f:
@@ -257,7 +257,7 @@ def _read_parquet_chunked(
             path=path,
             mode="rb",
             use_threads=use_threads,
-            s3_read_ahead_size=10_485_760,  # 10 MB (10 * 2**20)
+            s3_block_size=10_485_760,  # 10 MB (10 * 2**20)
             s3_additional_kwargs=s3_additional_kwargs,
             boto3_session=boto3_session,
         ) as f:
@@ -319,7 +319,7 @@ def _read_parquet_file(
         path=path,
         mode="rb",
         use_threads=use_threads,
-        s3_read_ahead_size=134_217_728,  # 128 MB (128 * 2**20)
+        s3_block_size=134_217_728,  # 128 MB (128 * 2**20)
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
     ) as f:
@@ -339,7 +339,7 @@ def _count_row_groups(
         path=path,
         mode="rb",
         use_threads=use_threads,
-        s3_read_ahead_size=1_048_576,  # 1 MB (1 * 2**20)
+        s3_block_size=1_048_576,  # 1 MB (1 * 2**20)
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
     ) as f:
@@ -361,7 +361,7 @@ def _read_parquet_row_group(
         path=path,
         mode="rb",
         use_threads=use_threads,
-        s3_read_ahead_size=10_485_760,  # 10 MB (10 * 2**20)
+        s3_block_size=10_485_760,  # 10 MB (10 * 2**20)
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
     ) as f:
