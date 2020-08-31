@@ -289,18 +289,20 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
             )
 
     def _fetch(self, start: int, end: int) -> None:
-        if (end - start) < self._s3_read_ahead_size:
-            end = start + self._s3_read_ahead_size
         if end > self._size:
             end = self._size
 
         if start < self._start or end > self._end:
             self._start = start
-            self._end = end
+            if ((end - start) < self._s3_read_ahead_size) and (end < self._size):
+                self._end = start + self._s3_read_ahead_size
+            else:
+                self._end = end
             self._cache = self._fetch_range_proxy(self._start, self._end)
 
     def read(self, length: int = -1) -> Union[bytes, str]:
         """Return cached data and fetch on demand chunks."""
+        _logger.debug("Reading: %s bytes at %s", length, self._loc)
         if self.readable() is False:
             raise ValueError("File not in read mode.")
         if length < 0:
@@ -311,10 +313,6 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
         self._fetch(self._loc, self._loc + length)
         out: bytes = self._cache[self._loc - self._start : self._loc - self._start + length]
         self._loc += len(out)
-
-        # Left Trim
-        self._cache = self._cache[self._loc - self._start :]
-        self._start = self._loc
 
         return out
 

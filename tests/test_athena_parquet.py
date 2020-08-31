@@ -596,3 +596,34 @@ def test_date_cast(path, glue_table, glue_database):
     assert df_expected.equals(df2)
     df3 = wr.athena.read_sql_table(database=glue_database, table=glue_table)
     assert df_expected.equals(df3)
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("partition_cols", [None, ["par0"], ["par0", "par1"]])
+def test_partitions_overwrite(path, glue_table, glue_database, use_threads, partition_cols):
+    df = get_df_list()
+    wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        database=glue_database,
+        table=glue_table,
+        use_threads=use_threads,
+        partition_cols=partition_cols,
+        mode="overwrite_partitions",
+    )
+    paths = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        database=glue_database,
+        table=glue_table,
+        use_threads=use_threads,
+        partition_cols=partition_cols,
+        mode="overwrite_partitions",
+    )["paths"]
+    wr.s3.wait_objects_exist(paths, use_threads=use_threads)
+    df2 = wr.athena.read_sql_table(database=glue_database, table=glue_table, use_threads=use_threads)
+    ensure_data_types(df2, has_list=True)
+    assert df2.shape == (3, 19)
+    assert df.iint8.sum() == df2.iint8.sum()

@@ -334,6 +334,7 @@ def _count_row_groups(
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: bool,
 ) -> int:
+    _logger.debug("Counting row groups...")
     with open_s3_object(
         path=path,
         mode="rb",

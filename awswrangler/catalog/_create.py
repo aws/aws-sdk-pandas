@@ -119,7 +119,7 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
         )
     if table_exist is True and mode == "overwrite":
         delete_all_partitions(table=table, database=database, catalog_id=catalog_id, boto3_session=session)
-        _logger.debug("Updating table...")
+        _logger.debug("Updating table (%s)...", mode)
         client_glue.update_table(
             **_catalog_id(
                 catalog_id=catalog_id, DatabaseName=database, TableInput=table_input, SkipArchive=skip_archive
@@ -127,6 +127,7 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
         )
     elif (table_exist is True) and (mode in ("append", "overwrite_partitions", "update")):
         if mode == "update":
+            _logger.debug("Updating table (%s)...", mode)
             client_glue.update_table(
                 **_catalog_id(
                     catalog_id=catalog_id, DatabaseName=database, TableInput=table_input, SkipArchive=skip_archive
@@ -134,6 +135,7 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
             )
     elif table_exist is False:
         try:
+            _logger.debug("Creating table (%s)...", mode)
             client_glue.create_table(
                 **_catalog_id(catalog_id=catalog_id, DatabaseName=database, TableInput=table_input)
             )
@@ -149,6 +151,7 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
                     table_input=table_input,
                     boto3_session=boto3_session,
                 )
+    _logger.debug("Leaving table as is (%s)...", mode)
 
 
 def _overwrite_table(

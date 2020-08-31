@@ -6,6 +6,8 @@ import pytest
 import awswrangler as wr
 from awswrangler.s3._fs import open_s3_object
 
+from ._utils import ensure_data_types, get_df_list
+
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
@@ -79,8 +81,6 @@ def test_read_line(path, mode, block_size, use_threads):
                 assert line == expected[i]
             else:
                 assert line == expected[i].encode("utf-8")
-            if "b" in mode:
-                assert len(s3obj._cache) < (len(expected[i]) + block_size)
         s3obj.seek(0)
         lines = s3obj.readlines()
         if mode == "r":
@@ -150,3 +150,13 @@ def test_additional_kwargs(path, kms_key_id, s3_additional_kwargs, use_threads):
         assert desc.get("ServerSideEncryption") == "aws:kms"
     elif s3_additional_kwargs["ServerSideEncryption"] == "AES256":
         assert desc.get("ServerSideEncryption") == "AES256"
+
+
+def test_pyarrow(path, glue_table, glue_database):
+    df = get_df_list()
+    paths = wr.s3.to_parquet(df, path, dataset=True, database=glue_database, table=glue_table)["paths"]
+    wr.s3.wait_objects_exist(paths)
+    df2 = wr.athena.read_sql_table(database=glue_database, table=glue_table)
+    ensure_data_types(df2, has_list=True)
+    assert df2.shape == (3, 19)
+    assert df.iint8.sum() == df2.iint8.sum()
