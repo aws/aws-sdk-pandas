@@ -65,9 +65,7 @@ def client(service_name: str, session: Optional[boto3.Session] = None) -> boto3.
     return ensure_session(session=session).client(
         service_name=service_name,
         use_ssl=True,
-        config=botocore.config.Config(
-            retries={"max_attempts": 10, "mode": "adaptive"}, connect_timeout=10, max_pool_connections=30
-        ),
+        config=botocore.config.Config(retries={"max_attempts": 10}, connect_timeout=10, max_pool_connections=30),
     )
 
 
