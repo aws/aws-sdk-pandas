@@ -5,7 +5,7 @@ import itertools
 import logging
 from typing import List, Optional, Tuple, Union
 
-import boto3  # type: ignore
+import boto3
 
 from awswrangler import _utils
 

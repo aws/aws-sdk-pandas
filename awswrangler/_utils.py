@@ -1,22 +1,22 @@
 """Internal (private) Utilities Module."""
 
 import copy
+import itertools
 import logging
 import math
 import os
 import random
 import time
-from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union, cast
+from concurrent.futures import FIRST_COMPLETED, Future, wait
+from typing import Any, Callable, Dict, Generator, List, Optional, Sequence, Tuple, Union, cast
 
-import boto3  # type: ignore
-import botocore.config  # type: ignore
-import numpy as np  # type: ignore
-import pandas as pd  # type: ignore
-import psycopg2  # type: ignore
-import s3fs  # type: ignore
+import boto3
+import botocore.config
+import numpy as np
+import pandas as pd
+import psycopg2
 
 from awswrangler import exceptions
-from awswrangler._config import apply_configs
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -63,14 +63,20 @@ def boto3_from_primitives(primitives: Optional[Boto3PrimitivesType] = None) -> b
 def client(service_name: str, session: Optional[boto3.Session] = None) -> boto3.client:
     """Create a valid boto3.client."""
     return ensure_session(session=session).client(
-        service_name=service_name, use_ssl=True, config=botocore.config.Config(retries={"max_attempts": 15})
+        service_name=service_name,
+        use_ssl=True,
+        config=botocore.config.Config(retries={"max_attempts": 10}, connect_timeout=10, max_pool_connections=30),
     )
 
 
 def resource(service_name: str, session: Optional[boto3.Session] = None) -> boto3.resource:
     """Create a valid boto3.resource."""
     return ensure_session(session=session).resource(
-        service_name=service_name, use_ssl=True, config=botocore.config.Config(retries={"max_attempts": 15})
+        service_name=service_name,
+        use_ssl=True,
+        config=botocore.config.Config(
+            retries={"max_attempts": 10, "mode": "adaptive"}, connect_timeout=10, max_pool_connections=30
+        ),
     )
 
 
@@ -172,37 +178,6 @@ def chunkify(lst: List[Any], num_chunks: int = 1, max_length: Optional[int] = No
     return [arr.tolist() for arr in np_chunks if len(arr) > 0]
 
 
-@apply_configs
-def get_fs(
-    s3fs_block_size: int,
-    session: Optional[Union[boto3.Session, Dict[str, Optional[str]]]] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
-) -> s3fs.S3FileSystem:
-    """Build a S3FileSystem from a given boto3 session."""
-    fs: s3fs.S3FileSystem = s3fs.S3FileSystem(
-        anon=False,
-        use_ssl=True,
-        default_cache_type="readahead",
-        default_fill_cache=False,
-        default_block_size=s3fs_block_size,
-        config_kwargs={"retries": {"max_attempts": 15}},
-        session=ensure_session(session=session)._session,  # pylint: disable=protected-access
-        s3_additional_kwargs=s3_additional_kwargs,
-        use_listings_cache=False,
-        skip_instance_cache=True,
-    )
-    fs.invalidate_cache()
-    fs.clear_instance_cache()
-    return fs
-
-
-def open_file(fs: s3fs.S3FileSystem, **kwargs: Any) -> Any:
-    """Open s3fs file with retries to overcome eventual consistency."""
-    fs.invalidate_cache()
-    fs.clear_instance_cache()
-    return try_it(f=fs.open, ex=FileNotFoundError, **kwargs)
-
-
 def empty_generator() -> Generator[None, None, None]:
     """Empty Generator."""
     yield from ()
@@ -276,7 +251,13 @@ def check_duplicated_columns(df: pd.DataFrame) -> Any:
     """Raise an exception if there are duplicated columns names."""
     duplicated: List[str] = df.loc[:, df.columns.duplicated()].columns.to_list()
     if duplicated:
-        raise exceptions.InvalidDataFrame(f"There is duplicated column names in your DataFrame: {duplicated}")
+        raise exceptions.InvalidDataFrame(
+            f"There are duplicated column names in your DataFrame: {duplicated}. "
+            f"Note that your columns may have been sanitized and it can be the cause of "
+            f"the duplicity. Wrangler sanitization removes all special characters and "
+            f"also converts CamelCase to snake_case. So you must avoid columns like "
+            f"['MyCol', 'my_col'] in your DataFrame."
+        )
 
 
 def try_it(f: Callable[..., Any], ex: Any, base: float = 1.0, max_num_tries: int = 3, **kwargs: Any) -> Any:
@@ -294,3 +275,35 @@ def try_it(f: Callable[..., Any], ex: Any, base: float = 1.0, max_num_tries: int
             delay = random.uniform(base, delay * 3)
             _logger.error("Retrying %s | Fail number %s/%s | Exception: %s", f, i + 1, max_num_tries, exception)
             time.sleep(delay)
+
+
+def get_even_chunks_sizes(total_size: int, chunk_size: int, upper_bound: bool) -> Tuple[int, ...]:
+    """Calculate even chunks sizes (Best effort)."""
+    round_func: Callable[[float], float] = math.ceil if upper_bound is True else math.floor
+    num_chunks: int = int(round_func(float(total_size) / float(chunk_size)))
+    num_chunks = 1 if num_chunks < 1 else num_chunks
+    base_size: int = int(total_size / num_chunks)
+    rest: int = total_size % num_chunks
+    sizes: List[int] = list(itertools.repeat(base_size, num_chunks))
+    for i in range(rest):
+        i_cycled: int = i % len(sizes)
+        sizes[i_cycled] += 1
+    return tuple(sizes)
+
+
+def get_running_futures(seq: Sequence[Future]) -> Tuple[Future, ...]:  # type: ignore
+    """Filter only running futures."""
+    return tuple(f for f in seq if f.running())
+
+
+def wait_any_future_available(seq: Sequence[Future]) -> None:  # type: ignore
+    """Wait until any future became available."""
+    wait(fs=seq, timeout=None, return_when=FIRST_COMPLETED)
+
+
+def block_waiting_available_thread(seq: Sequence[Future], max_workers: int) -> None:  # type: ignore
+    """Block until any thread became available."""
+    running: Tuple[Future, ...] = get_running_futures(seq=seq)  # type: ignore
+    while len(running) >= max_workers:
+        wait_any_future_available(seq=running)
+        running = get_running_futures(seq=running)

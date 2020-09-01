@@ -3,10 +3,10 @@
 import concurrent.futures
 import itertools
 import logging
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
-import boto3  # type: ignore
-import pandas as pd  # type: ignore
+import boto3
+import pandas as pd
 
 from awswrangler import _utils
 from awswrangler.s3._read import _union
@@ -29,7 +29,7 @@ def _caller(
 def _read_concurrent(
     func: Callable[..., pd.DataFrame],
     paths: List[str],
-    ignore_index: bool,
+    ignore_index: Optional[bool],
     boto3_session: boto3.Session,
     **func_kwargs: Any,
 ) -> pd.DataFrame:

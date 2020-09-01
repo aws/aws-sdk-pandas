@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -ex
 
-isort -rc awswrangler tests
+isort awswrangler tests
 black --line-length 120 --target-version py36 awswrangler tests
 pydocstyle awswrangler/ --convention=numpy
 mypy awswrangler

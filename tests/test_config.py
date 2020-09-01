@@ -1,14 +1,10 @@
-import copy
 import logging
 import os
-from unittest.mock import patch
 
-import boto3
-import pandas as pd
 import pytest
-import s3fs
 
 import awswrangler as wr
+from awswrangler.s3._fs import open_s3_object
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -27,28 +23,12 @@ def test_basics(path, glue_database, glue_table):
     wr.catalog.create_parquet_table(**args)
 
     # Testing configured s3 block size
-    size = 5 * 2 ** 20  # 5 MB
-    wr.config.s3fs_block_size = size
-    df = pd.DataFrame({"id": [1, 2, 3]})
-    file_path = path + "0.csv"
-    args = dict(
-        anon=False,
-        config_kwargs={"retries": {"max_attempts": 15}},
-        default_block_size=size,
-        default_cache_type="readahead",
-        default_fill_cache=False,
-        s3_additional_kwargs=None,
-        skip_instance_cache=True,
-        use_listings_cache=False,
-        use_ssl=True,
-    )
-    with patch(
-        "s3fs.S3FileSystem",
-        return_value=s3fs.S3FileSystem(session=boto3.DEFAULT_SESSION._session, **copy.deepcopy(args)),
-    ) as mock:
-        wr.s3.to_csv(df, file_path, index=False)
-        mock.assert_called_with(session=boto3.DEFAULT_SESSION._session, **args)
-        wr.s3.read_csv([file_path])
+    size = 1 * 2 ** 20  # 1 MB
+    wr.config.s3_block_size = size
+    with open_s3_object(path, mode="wb") as s3obj:
+        s3obj.write(b"foo")
+    with open_s3_object(path, mode="rb") as s3obj:
+        assert s3obj._s3_block_size == size
 
     # Resetting all configs
     wr.config.reset()

@@ -5,7 +5,7 @@ import logging
 import os
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple, Type, Union, cast
 
-import pandas as pd  # type: ignore
+import pandas as pd
 
 from awswrangler import _utils, exceptions
 
@@ -29,7 +29,7 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "database": _ConfigArg(dtype=str, nullable=True),
     "max_cache_query_inspections": _ConfigArg(dtype=int, nullable=False),
     "max_cache_seconds": _ConfigArg(dtype=int, nullable=False),
-    "s3fs_block_size": _ConfigArg(dtype=int, nullable=False, enforced=True),
+    "s3_block_size": _ConfigArg(dtype=int, nullable=False, enforced=True),
 }
 
 
@@ -138,8 +138,8 @@ class _Config:
             exceptions.InvalidArgumentValue(f"{name} configuration does not accept a null value. Please pass {dtype}.")
         try:
             return dtype(value) if isinstance(value, dtype) is False else value
-        except ValueError:
-            raise exceptions.InvalidConfiguration(f"Config {name} must receive a {dtype} value.")
+        except ValueError as ex:
+            raise exceptions.InvalidConfiguration(f"Config {name} must receive a {dtype} value.") from ex
 
     @staticmethod
     def _is_null(value: _ConfigValueType) -> bool:
@@ -206,13 +206,13 @@ class _Config:
         self._set_config_value(key="max_cache_seconds", value=value)
 
     @property
-    def s3fs_block_size(self) -> int:
-        """Property s3fs_block_size."""
-        return cast(int, self["s3fs_block_size"])
+    def s3_block_size(self) -> int:
+        """Property s3_block_size."""
+        return cast(int, self["s3_block_size"])
 
-    @s3fs_block_size.setter
-    def s3fs_block_size(self, value: int) -> None:
-        self._set_config_value(key="s3fs_block_size", value=value)
+    @s3_block_size.setter
+    def s3_block_size(self, value: int) -> None:
+        self._set_config_value(key="s3_block_size", value=value)
 
 
 def _inject_config_doc(doc: Optional[str], available_configs: Tuple[str, ...]) -> str:

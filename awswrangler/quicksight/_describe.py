@@ -3,7 +3,7 @@
 import logging
 from typing import Any, Dict, Optional, cast
 
-import boto3  # type: ignore
+import boto3
 
 from awswrangler import _utils, exceptions, sts
 from awswrangler.quicksight._get_list import get_dashboard_id, get_data_source_id, get_dataset_id

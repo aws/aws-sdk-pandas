@@ -6,9 +6,9 @@ import logging
 from typing import Any, Dict, Iterator, List, Optional, Union, cast
 from urllib.parse import quote_plus as _quote_plus
 
-import boto3  # type: ignore
-import pandas as pd  # type: ignore
-import sqlalchemy  # type: ignore
+import boto3
+import pandas as pd
+import sqlalchemy
 
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
@@ -119,7 +119,7 @@ def get_table_types(
     Examples
     --------
     >>> import awswrangler as wr
-    >>> wr.catalog.get_table_types(database='default', name='my_table')
+    >>> wr.catalog.get_table_types(database='default', table='my_table')
     {'col0': 'int', 'col1': double}
 
     """
@@ -479,8 +479,8 @@ def get_table_location(database: str, table: str, boto3_session: Optional[boto3.
     res: Dict[str, Any] = client_glue.get_table(DatabaseName=database, Name=table)
     try:
         return cast(str, res["Table"]["StorageDescriptor"]["Location"])
-    except KeyError:
-        raise exceptions.InvalidTable(f"{database}.{table}")
+    except KeyError as ex:
+        raise exceptions.InvalidTable(f"{database}.{table}") from ex
 
 
 def get_connection(

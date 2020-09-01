@@ -5,8 +5,8 @@ import logging
 import time
 from typing import Any, Dict, List, Optional, cast
 
-import boto3  # type: ignore
-import pandas as pd  # type: ignore
+import boto3
+import pandas as pd
 
 from awswrangler import _utils, exceptions
 

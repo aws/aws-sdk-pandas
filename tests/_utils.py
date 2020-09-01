@@ -574,7 +574,9 @@ def create_workgroup(wkg_name, config):
     wkgs = [x["Name"] for x in wkgs["WorkGroups"]]
     deleted = False
     if wkg_name in wkgs:
-        wkg = client.get_work_group(WorkGroup=wkg_name)["WorkGroup"]
+        wkg = try_it(client.get_work_group, botocore.exceptions.ClientError, max_num_tries=5, WorkGroup=wkg_name)[
+            "WorkGroup"
+        ]
         if validate_workgroup_key(workgroup=wkg) is False:
             client.delete_work_group(WorkGroup=wkg_name, RecursiveDeleteOption=True)
             deleted = True

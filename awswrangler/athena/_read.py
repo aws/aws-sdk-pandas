@@ -7,9 +7,9 @@ import re
 import uuid
 from typing import Any, Dict, Iterator, List, Match, NamedTuple, Optional, Union
 
-import boto3  # type: ignore
-import botocore.exceptions  # type: ignore
-import pandas as pd  # type: ignore
+import boto3
+import botocore.exceptions
+import pandas as pd
 
 from awswrangler import _utils, catalog, exceptions, s3
 from awswrangler._config import apply_configs
@@ -365,6 +365,10 @@ def _resolve_query_without_cache_ctas(
         )
     except botocore.exceptions.ClientError as ex:
         error: Dict[str, Any] = ex.response["Error"]
+        if error["Code"] == "InvalidRequestException" and "Exception parsing query" in error["Message"]:
+            raise exceptions.InvalidCtasApproachQuery(
+                "Is not possible to wrap this query into a CTAS statement. Please use ctas_approach=False."
+            )
         if error["Code"] == "InvalidRequestException" and "extraneous input" in error["Message"]:
             raise exceptions.InvalidCtasApproachQuery(
                 "Is not possible to wrap this query into a CTAS statement. Please use ctas_approach=False."

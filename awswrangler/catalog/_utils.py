@@ -4,8 +4,8 @@ import re
 import unicodedata
 from typing import Any, Dict, List, Optional, Tuple
 
-import boto3  # type: ignore
-import pandas as pd  # type: ignore
+import boto3
+import pandas as pd
 
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._config import apply_configs

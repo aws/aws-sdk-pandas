@@ -6,7 +6,7 @@ import itertools
 import logging
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-import boto3  # type: ignore
+import boto3
 
 from awswrangler import _utils
 from awswrangler.s3._list import _path2list

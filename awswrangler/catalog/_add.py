@@ -3,12 +3,12 @@
 import logging
 from typing import Any, Dict, List, Optional
 
-import boto3  # type: ignore
+import boto3
 
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
 from awswrangler.catalog._definitions import _csv_partition_definition, _parquet_partition_definition
-from awswrangler.catalog._utils import _catalog_id
+from awswrangler.catalog._utils import _catalog_id, sanitize_table_name
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -134,6 +134,7 @@ def add_parquet_partitions(
     ... )
 
     """
+    table = sanitize_table_name(table=table)
     if partitions_values:
         inputs: List[Dict[str, Any]] = [
             _parquet_partition_definition(location=k, values=v, compression=compression)

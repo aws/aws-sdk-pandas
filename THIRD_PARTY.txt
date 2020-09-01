@@ -296,9 +296,6 @@ Copyright 2013-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 ** pandas; version 1.1.0 -- https://pandas.pydata.org/
 Copyright (c) 2008-2012, AQR Capital Management, LLC, Lambda Foundry, Inc. and PyData Development Team
 All rights reserved.
-** s3fs; version 4.2.0 -- https://s3fs.readthedocs.io/en/latest/
-Copyright (c) 2016, Continuum Analytics, Inc. and contributors
-All rights reserved.
 ** numpy; version 1.19.1 -- https://numpy.org/
 Copyright (c) 2005-2020, NumPy Developers.
 All rights reserved.

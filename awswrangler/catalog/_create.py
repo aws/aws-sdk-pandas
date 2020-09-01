@@ -1,15 +1,15 @@
 """AWS Glue Catalog Module."""
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
-import boto3  # type: ignore
+import boto3
 
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
 from awswrangler.catalog._definitions import _csv_table_definition, _parquet_table_definition
-from awswrangler.catalog._delete import delete_table_if_exists
-from awswrangler.catalog._get import _get_partitions, _get_table_input
+from awswrangler.catalog._delete import delete_all_partitions, delete_table_if_exists
+from awswrangler.catalog._get import _get_table_input
 from awswrangler.catalog._utils import _catalog_id, sanitize_column_name, sanitize_table_name
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -118,21 +118,8 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
             f"{mode} is not a valid mode. It must be 'overwrite', 'append' or 'overwrite_partitions'."
         )
     if table_exist is True and mode == "overwrite":
-        _logger.debug("Fetching existing partitions...")
-        partitions_values: List[List[str]] = list(
-            _get_partitions(database=database, table=table, boto3_session=session, catalog_id=catalog_id).values()
-        )
-        _logger.debug("Number of old partitions: %s", len(partitions_values))
-        _logger.debug("Deleting existing partitions...")
-        client_glue.batch_delete_partition(
-            **_catalog_id(
-                catalog_id=catalog_id,
-                DatabaseName=database,
-                TableName=table,
-                PartitionsToDelete=[{"Values": v} for v in partitions_values],
-            )
-        )
-        _logger.debug("Updating table...")
+        delete_all_partitions(table=table, database=database, catalog_id=catalog_id, boto3_session=session)
+        _logger.debug("Updating table (%s)...", mode)
         client_glue.update_table(
             **_catalog_id(
                 catalog_id=catalog_id, DatabaseName=database, TableInput=table_input, SkipArchive=skip_archive
@@ -140,6 +127,7 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
         )
     elif (table_exist is True) and (mode in ("append", "overwrite_partitions", "update")):
         if mode == "update":
+            _logger.debug("Updating table (%s)...", mode)
             client_glue.update_table(
                 **_catalog_id(
                     catalog_id=catalog_id, DatabaseName=database, TableInput=table_input, SkipArchive=skip_archive
@@ -147,17 +135,35 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
             )
     elif table_exist is False:
         try:
+            _logger.debug("Creating table (%s)...", mode)
             client_glue.create_table(
                 **_catalog_id(catalog_id=catalog_id, DatabaseName=database, TableInput=table_input)
             )
-        except client_glue.exceptions.AlreadyExistsException as ex:
+        except client_glue.exceptions.AlreadyExistsException:
             if mode == "overwrite":
-                delete_table_if_exists(database=database, table=table, boto3_session=session, catalog_id=catalog_id)
-                client_glue.create_table(
-                    **_catalog_id(catalog_id=catalog_id, DatabaseName=database, TableInput=table_input)
+                _utils.try_it(
+                    f=_overwrite_table,
+                    ex=client_glue.exceptions.AlreadyExistsException,
+                    client_glue=client_glue,
+                    catalog_id=catalog_id,
+                    database=database,
+                    table=table,
+                    table_input=table_input,
+                    boto3_session=boto3_session,
                 )
-            else:
-                raise ex
+    _logger.debug("Leaving table as is (%s)...", mode)
+
+
+def _overwrite_table(
+    client_glue: boto3.client,
+    catalog_id: Optional[str],
+    database: str,
+    table: str,
+    table_input: Dict[str, Any],
+    boto3_session: boto3.Session,
+) -> None:
+    delete_table_if_exists(database=database, table=table, boto3_session=boto3_session, catalog_id=catalog_id)
+    client_glue.create_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, TableInput=table_input))
 
 
 def _upsert_table_parameters(
@@ -231,19 +237,16 @@ def _create_parquet_table(
     table_input: Dict[str, Any]
     if (catalog_table_input is not None) and (mode in ("append", "overwrite_partitions")):
         table_input = catalog_table_input
-        updated: bool = False
         catalog_cols: Dict[str, str] = {x["Name"]: x["Type"] for x in table_input["StorageDescriptor"]["Columns"]}
         for c, t in columns_types.items():
             if c not in catalog_cols:
                 _logger.debug("New column %s with type %s.", c, t)
                 table_input["StorageDescriptor"]["Columns"].append({"Name": c, "Type": t})
-                updated = True
+                mode = "update"
             elif t != catalog_cols[c]:  # Data type change detected!
                 raise exceptions.InvalidArgumentValue(
-                    f"Data type change detected on column {c}. Old type: {catalog_cols[c]}. New type {t}."
+                    f"Data type change detected on column {c} (Old type: {catalog_cols[c]} / New type {t})."
                 )
-        if updated is True:
-            mode = "update"
     else:
         table_input = _parquet_table_definition(
             table=table,

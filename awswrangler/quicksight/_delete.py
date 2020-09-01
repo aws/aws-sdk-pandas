@@ -3,7 +3,7 @@
 import logging
 from typing import Any, Callable, Dict, Optional
 
-import boto3  # type: ignore
+import boto3
 
 from awswrangler import _utils, exceptions, sts
 from awswrangler.quicksight._get_list import (

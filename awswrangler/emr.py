@@ -5,7 +5,7 @@ import logging
 import pprint
 from typing import Any, Dict, List, Optional, Union, cast
 
-import boto3  # type: ignore
+import boto3
 
 from awswrangler import _utils, exceptions, sts
 
