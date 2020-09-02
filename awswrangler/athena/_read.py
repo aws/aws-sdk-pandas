@@ -409,6 +409,7 @@ def _resolve_query_without_cache_regular(
     sql: str,
     database: Optional[str],
     s3_output: Optional[str],
+    catalog_name: Optional[str],
     keep_files: bool,
     chunksize: Union[int, bool, None],
     categories: Optional[List[str]],
@@ -424,6 +425,7 @@ def _resolve_query_without_cache_regular(
         sql=sql,
         wg_config=wg_config,
         database=database,
+        catalog=catalog_name,
         s3_output=s3_output,
         workgroup=workgroup,
         encryption=encryption,
@@ -450,6 +452,7 @@ def _resolve_query_without_cache(
     ctas_approach: bool,
     categories: Optional[List[str]],
     chunksize: Union[int, bool, None],
+    catalog_name: Optional[str],
     s3_output: Optional[str],
     workgroup: Optional[str],
     encryption: Optional[str],
@@ -494,6 +497,7 @@ def _resolve_query_without_cache(
         sql=sql,
         database=database,
         s3_output=_s3_output,
+        catalog_name=catalog_name,
         keep_files=keep_files,
         chunksize=chunksize,
         categories=categories,
@@ -513,6 +517,7 @@ def read_sql_query(
     ctas_approach: bool = True,
     categories: Optional[List[str]] = None,
     chunksize: Optional[Union[int, bool]] = None,
+    catalog_name: Optional[str] = None,
     s3_output: Optional[str] = None,
     workgroup: Optional[str] = None,
     encryption: Optional[str] = None,
@@ -632,6 +637,8 @@ def read_sql_query(
         If passed will split the data in a Iterable of DataFrames (Memory friendly).
         If `True` wrangler will iterate on the data by files in the most efficient way without guarantee of chunksize.
         If an `INTEGER` is passed Wrangler will iterate on the data by number of rows igual the received INTEGER.
+    catalog_name : str, optional
+        AWS Glue catalog name.
     s3_output : str, optional
         Amazon S3 path.
     workgroup : str, optional
@@ -704,6 +711,7 @@ def read_sql_query(
         ctas_approach=ctas_approach,
         categories=categories,
         chunksize=chunksize,
+        catalog=catalog,
         s3_output=s3_output,
         workgroup=workgroup,
         encryption=encryption,

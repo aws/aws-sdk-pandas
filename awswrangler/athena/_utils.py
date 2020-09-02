@@ -49,14 +49,15 @@ def _get_s3_output(s3_output: Optional[str], wg_config: _WorkGroupConfig, boto3_
 
 
 def _start_query_execution(
-    sql: str,
-    wg_config: _WorkGroupConfig,
-    database: Optional[str] = None,
-    s3_output: Optional[str] = None,
-    workgroup: Optional[str] = None,
-    encryption: Optional[str] = None,
-    kms_key: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+        sql: str,
+        wg_config: _WorkGroupConfig,
+        database: Optional[str] = None,
+        catalog: Optional[str] = None,
+        s3_output: Optional[str] = None,
+        workgroup: Optional[str] = None,
+        encryption: Optional[str] = None,
+        kms_key: Optional[str] = None,
+        boto3_session: Optional[boto3.Session] = None,
 ) -> str:
     args: Dict[str, Any] = {"QueryString": sql}
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
@@ -80,7 +81,8 @@ def _start_query_execution(
 
     # database
     if database is not None:
-        args["QueryExecutionContext"] = {"Database": database}
+        args["QueryExecutionContext"] = {"Database": database,
+                                         "Catalog": catalog}
 
     # workgroup
     if workgroup is not None:
@@ -110,7 +112,7 @@ def _get_workgroup_config(session: boto3.Session, workgroup: Optional[str] = Non
     return wg_config
 
 
-def _fetch_txt_result(query_metadata: _QueryMetadata, keep_files: bool, boto3_session: boto3.Session,) -> pd.DataFrame:
+def _fetch_txt_result(query_metadata: _QueryMetadata, keep_files: bool, boto3_session: boto3.Session, ) -> pd.DataFrame:
     if query_metadata.output_location is None or query_metadata.output_location.endswith(".txt") is False:
         return pd.DataFrame()
     path: str = query_metadata.output_location
@@ -154,10 +156,10 @@ def _parse_describe_table(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _get_query_metadata(  # pylint: disable=too-many-statements
-    query_execution_id: str,
-    boto3_session: boto3.Session,
-    categories: Optional[List[str]] = None,
-    query_execution_payload: Optional[Dict[str, Any]] = None,
+        query_execution_id: str,
+        boto3_session: boto3.Session,
+        categories: Optional[List[str]] = None,
+        query_execution_payload: Optional[Dict[str, Any]] = None,
 ) -> _QueryMetadata:
     """Get query metadata."""
     if (query_execution_payload is not None) and (query_execution_payload["Status"]["State"] in _QUERY_FINAL_STATES):
@@ -227,7 +229,7 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
 
 
 def _empty_dataframe_response(
-    chunked: bool, query_metadata: _QueryMetadata
+        chunked: bool, query_metadata: _QueryMetadata
 ) -> Union[pd.DataFrame, Generator[None, None, None]]:
     """Generate an empty dataframe response."""
     if chunked is False:
@@ -305,13 +307,14 @@ def create_athena_bucket(boto3_session: Optional[boto3.Session] = None) -> str:
 
 @apply_configs
 def start_query_execution(
-    sql: str,
-    database: Optional[str] = None,
-    s3_output: Optional[str] = None,
-    workgroup: Optional[str] = None,
-    encryption: Optional[str] = None,
-    kms_key: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+        sql: str,
+        database: Optional[str] = None,
+        catalog: Optional[str] = None,
+        s3_output: Optional[str] = None,
+        workgroup: Optional[str] = None,
+        encryption: Optional[str] = None,
+        kms_key: Optional[str] = None,
+        boto3_session: Optional[boto3.Session] = None,
 ) -> str:
     """Start a SQL Query against AWS Athena.
 
@@ -326,6 +329,8 @@ def start_query_execution(
         SQL query.
     database : str, optional
         AWS Glue/Athena database name.
+    catalog: str, optional
+        AWS Glue catalog name.
     s3_output : str, optional
         AWS S3 path.
     workgroup : str, optional
@@ -354,6 +359,7 @@ def start_query_execution(
         sql=sql,
         wg_config=wg_config,
         database=database,
+        catalog=catalog,
         s3_output=s3_output,
         workgroup=workgroup,
         encryption=encryption,
@@ -364,13 +370,13 @@ def start_query_execution(
 
 @apply_configs
 def repair_table(
-    table: str,
-    database: Optional[str] = None,
-    s3_output: Optional[str] = None,
-    workgroup: Optional[str] = None,
-    encryption: Optional[str] = None,
-    kms_key: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+        table: str,
+        database: Optional[str] = None,
+        s3_output: Optional[str] = None,
+        workgroup: Optional[str] = None,
+        encryption: Optional[str] = None,
+        kms_key: Optional[str] = None,
+        boto3_session: Optional[boto3.Session] = None,
 ) -> str:
     """Run the Hive's metastore consistency check: 'MSCK REPAIR TABLE table;'.
 
@@ -432,13 +438,13 @@ def repair_table(
 
 @apply_configs
 def describe_table(
-    table: str,
-    database: Optional[str] = None,
-    s3_output: Optional[str] = None,
-    workgroup: Optional[str] = None,
-    encryption: Optional[str] = None,
-    kms_key: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+        table: str,
+        database: Optional[str] = None,
+        s3_output: Optional[str] = None,
+        workgroup: Optional[str] = None,
+        encryption: Optional[str] = None,
+        kms_key: Optional[str] = None,
+        boto3_session: Optional[boto3.Session] = None,
 ) -> pd.DataFrame:
     """Show the list of columns, including partition columns: 'DESCRIBE table;'.
 
@@ -492,19 +498,19 @@ def describe_table(
         boto3_session=session,
     )
     query_metadata: _QueryMetadata = _get_query_metadata(query_execution_id=query_id, boto3_session=session)
-    raw_result = _fetch_txt_result(query_metadata=query_metadata, keep_files=True, boto3_session=session,)
+    raw_result = _fetch_txt_result(query_metadata=query_metadata, keep_files=True, boto3_session=session, )
     return _parse_describe_table(raw_result)
 
 
 @apply_configs
 def show_create_table(
-    table: str,
-    database: Optional[str] = None,
-    s3_output: Optional[str] = None,
-    workgroup: Optional[str] = None,
-    encryption: Optional[str] = None,
-    kms_key: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+        table: str,
+        database: Optional[str] = None,
+        s3_output: Optional[str] = None,
+        workgroup: Optional[str] = None,
+        encryption: Optional[str] = None,
+        kms_key: Optional[str] = None,
+        boto3_session: Optional[boto3.Session] = None,
 ) -> str:
     """Generate the query that created it: 'SHOW CREATE TABLE table;'.
 
@@ -557,7 +563,7 @@ def show_create_table(
         boto3_session=session,
     )
     query_metadata: _QueryMetadata = _get_query_metadata(query_execution_id=query_id, boto3_session=session)
-    raw_result = _fetch_txt_result(query_metadata=query_metadata, keep_files=True, boto3_session=session,)
+    raw_result = _fetch_txt_result(query_metadata=query_metadata, keep_files=True, boto3_session=session, )
     return cast(str, raw_result.createtab_stmt.str.strip().str.cat(sep=" "))
 
 
