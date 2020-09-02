@@ -711,7 +711,7 @@ def read_sql_query(
         ctas_approach=ctas_approach,
         categories=categories,
         chunksize=chunksize,
-        catalog=catalog,
+        catalog=catalog_name,
         s3_output=s3_output,
         workgroup=workgroup,
         encryption=encryption,
