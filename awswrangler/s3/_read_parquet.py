@@ -28,7 +28,6 @@ from awswrangler.s3._read import (
     _get_path_root,
     _union,
 )
-from awswrangler.s3._read_concurrent import _read_concurrent
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -384,41 +383,15 @@ def _read_parquet(
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: bool,
 ) -> pd.DataFrame:
-    if use_threads is False:
-        table: pa.Table = _read_parquet_file(
+    return _arrowtable2df(
+        table=_read_parquet_file(
             path=path,
             columns=columns,
             categories=categories,
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
             use_threads=use_threads,
-        )
-    else:
-        cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
-        num_row_groups: int = _count_row_groups(
-            path=path,
-            categories=categories,
-            boto3_session=boto3_session,
-            s3_additional_kwargs=s3_additional_kwargs,
-            use_threads=use_threads,
-        )
-        with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
-            tables: Tuple[pa.Table, ...] = tuple(
-                executor.map(
-                    _read_parquet_row_group,
-                    range(num_row_groups),
-                    itertools.repeat(path),
-                    itertools.repeat(columns),
-                    itertools.repeat(categories),
-                    itertools.repeat(_utils.boto3_to_primitives(boto3_session=boto3_session)),
-                    itertools.repeat(s3_additional_kwargs),
-                    itertools.repeat(use_threads),
-                )
-            )
-            table = pa.lib.concat_tables(tables, promote=False)
-    _logger.debug("Converting PyArrow Table to Pandas DataFrame...")
-    return _arrowtable2df(
-        table=table,
+        ),
         categories=categories,
         safe=safe,
         use_threads=use_threads,
@@ -604,9 +577,6 @@ def read_parquet(
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
         )
-    if use_threads is True:
-        args["use_threads"] = True
-        return _read_concurrent(func=_read_parquet, paths=paths, ignore_index=None, **args)
     return _union(dfs=[_read_parquet(path=p, **args) for p in paths], ignore_index=None)
 
 
