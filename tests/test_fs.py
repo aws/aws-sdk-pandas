@@ -78,7 +78,7 @@ def test_read_full(path, mode, use_threads):
 
 @pytest.mark.parametrize("use_threads", [True, False])
 @pytest.mark.parametrize("mode", ["r", "rb"])
-@pytest.mark.parametrize("block_size", [100, 2])
+@pytest.mark.parametrize("block_size", [100, 3])
 def test_read_chunked(path, mode, block_size, use_threads):
     client_s3 = boto3.client("s3")
     path = f"{path}0.txt"
@@ -99,7 +99,7 @@ def test_read_chunked(path, mode, block_size, use_threads):
 
 @pytest.mark.parametrize("use_threads", [True, False])
 @pytest.mark.parametrize("mode", ["r", "rb"])
-@pytest.mark.parametrize("block_size", [2, 3, 10, 23, 48, 65, 100])
+@pytest.mark.parametrize("block_size", [3, 10, 23, 48, 65, 100])
 def test_read_line(path, mode, block_size, use_threads):
     client_s3 = boto3.client("s3")
     path = f"{path}0.txt"
@@ -191,7 +191,7 @@ def test_pyarrow(path, glue_table, glue_database):
 
 
 @pytest.mark.parametrize("use_threads", [True, False])
-@pytest.mark.parametrize("block_size", [2, 3, 5, 8, 9, 15])
+@pytest.mark.parametrize("block_size", [3, 5, 8, 9, 15])
 @pytest.mark.parametrize("text", ["012345678", "0123456789"])
 def test_cache(path, use_threads, block_size, text):
     client_s3 = boto3.client("s3")
