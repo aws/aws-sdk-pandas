@@ -96,7 +96,7 @@ You can choose from three different environments to test your fixes/changes, bas
 
 * Run the validation script:
 
-``./validation.sh``
+``./validate.sh``
 
 * To run a specific test function:
 
@@ -104,7 +104,7 @@ You can choose from three different environments to test your fixes/changes, bas
 
 * To run all mocked test functions (Using 8 parallel processes):
 
-``pytest -n 8 tests/test_moto``
+``pytest -n 8 tests/test_moto.py``
 
 ### Data Lake test environment
 
@@ -135,15 +135,15 @@ You can choose from three different environments to test your fixes/changes, bas
 
 * Run the validation script:
 
-``./validation.sh``
+``./validate.sh``
 
 * To run a specific test function:
 
-``pytest tests/test_s3_athena::test_to_parquet_modes``
+``pytest tests/test_athena_parquet.py::test_parquet_catalog``
 
 * To run all data lake test functions (Using 8 parallel processes):
 
-``pytest -n 8 tests/test_s3_athena``
+``pytest -n 8 tests/test_athena*``
 
 ### Full test environment
 
@@ -181,11 +181,11 @@ You can choose from three different environments to test your fixes/changes, bas
 
 * Run the validation script:
 
-``./validation.sh``
+``./validate.sh``
 
 * To run a specific test function:
 
-``pytest tests/test_s3_athena::test_to_parquet_modes``
+``pytest tests/test_athena_parquet.py::test_parquet_catalog``
 
 * To run all data lake test functions for all python versions (Only if Amazon QuickSight is activated):
 
