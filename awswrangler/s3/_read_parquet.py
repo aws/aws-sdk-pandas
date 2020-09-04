@@ -314,11 +314,12 @@ def _read_parquet_file(
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: bool,
 ) -> pa.Table:
+    s3_block_size: int = 20_971_520 if columns else -1  # One shot for a full read otherwise 20 MB (20 * 2**20)
     with open_s3_object(
         path=path,
         mode="rb",
         use_threads=use_threads,
-        s3_block_size=-1,  # One shot download
+        s3_block_size=s3_block_size,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
     ) as f:
