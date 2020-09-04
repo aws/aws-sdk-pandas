@@ -77,7 +77,7 @@ def _read_text_file(
         path=path,
         mode=mode,
         use_threads=use_threads,
-        s3_block_size=134_217_728,  # 128 MB (128 * 2**20)
+        s3_block_size=-1,  # One shot download
         encoding=encoding,
         s3_additional_kwargs=s3_additional_kwargs,
         newline=newline,
