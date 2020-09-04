@@ -192,8 +192,13 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
         if mode not in {"rb", "wb", "r", "w"}:
             raise NotImplementedError("File mode must be {'rb', 'wb', 'r', 'w'}, not %s" % mode)
         self._mode: str = "rb" if mode is None else mode
-        if s3_block_size < 2:
-            raise exceptions.InvalidArgumentValue("s3_block_size MUST > 1")
+        self._one_shot_download: bool = False
+        if s3_block_size == 1:
+            raise exceptions.InvalidArgumentValue("s3_block_size MUST > 1 to define a valid size or "
+                                                  "< 1 to avoid blocks and always execute one shot downloads.")
+        elif s3_block_size < 1:
+            _logger.debug(f"s3_block_size of %d, enabling one_shot_download.", s3_block_size)
+            self._one_shot_download = True
         self._s3_block_size: int = s3_block_size
         self._s3_half_block_size: int = s3_block_size // 2
         self._s3_additional_kwargs: Dict[str, str] = {} if s3_additional_kwargs is None else s3_additional_kwargs
@@ -302,6 +307,12 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
             self._cache = self._fetch_range_proxy(start, end)
             self._start = start
             self._end = end
+            return None
+
+        if self._one_shot_download:
+            self._start = 0
+            self._end = self._size
+            self._cache = self._fetch_range_proxy(self._start, self._end)
             return None
 
         # Calculating block START and END positions
@@ -525,7 +536,7 @@ def open_s3_object(
     mode: str,
     use_threads: bool = False,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
-    s3_block_size: int = 4_194_304,  # 4 MB (4 * 2**20)
+    s3_block_size: int = -1,  # One shot download
     boto3_session: Optional[boto3.Session] = None,
     newline: Optional[str] = "\n",
     encoding: Optional[str] = "utf-8",
