@@ -318,7 +318,7 @@ def _read_parquet_file(
         path=path,
         mode="rb",
         use_threads=use_threads,
-        s3_block_size=134_217_728,  # 128 MB (128 * 2**20)
+        s3_block_size=-1,  # One shot download
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
     ) as f:
@@ -346,30 +346,6 @@ def _count_row_groups(
         n: int = cast(int, pq_file.num_row_groups)
         _logger.debug("Row groups count: %d", n)
         return n
-
-
-def _read_parquet_row_group(
-    row_group: int,
-    path: str,
-    columns: Optional[List[str]],
-    categories: Optional[List[str]],
-    boto3_primitives: _utils.Boto3PrimitivesType,
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    use_threads: bool,
-) -> pa.Table:
-    boto3_session: boto3.Session = _utils.boto3_from_primitives(primitives=boto3_primitives)
-    with open_s3_object(
-        path=path,
-        mode="rb",
-        use_threads=use_threads,
-        s3_block_size=10_485_760,  # 10 MB (10 * 2**20)
-        s3_additional_kwargs=s3_additional_kwargs,
-        boto3_session=boto3_session,
-    ) as f:
-        pq_file: pyarrow.parquet.ParquetFile = pyarrow.parquet.ParquetFile(source=f, read_dictionary=categories)
-        num_row_groups: int = pq_file.num_row_groups
-        _logger.debug("Reading Row Group %s/%s [multi-threaded]", row_group + 1, num_row_groups)
-        return pq_file.read_row_group(i=row_group, columns=columns, use_threads=False, use_pandas_metadata=False)
 
 
 def _read_parquet(
