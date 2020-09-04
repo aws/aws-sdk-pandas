@@ -14,7 +14,7 @@ logger.setLevel(logging.DEBUG)
 
 
 @pytest.mark.parametrize("use_threads", [True, False])
-@pytest.mark.parametrize("block_size", list(range(3, 10)))
+@pytest.mark.parametrize("block_size", list(range(3, 10)) + [-1])
 @pytest.mark.parametrize("length", list(range(1, 10)))
 @pytest.mark.parametrize(
     "seq", [(9, 5, 4, 9, 2, 6), (9, 2, 6, 1, 5, 9), (1, 5, 9, 1, 3, 9), (1, 3, 9, 1, 2, 3), (1, 2, 3, 9, 5, 4)]
@@ -35,7 +35,9 @@ def test_read(path, use_threads, block_size, seq, length):
                 assert data[0:1] == text[i].encode("utf-8")
                 assert data == f.read(length)
                 logger.debug(s3obj._cache)
-                if length > block_size:
+                if block_size < 1:
+                    assert len(s3obj._cache) == s3obj._size
+                elif length > block_size:
                     assert block_size <= len(s3obj._cache) <= length
                 else:
                     assert len(s3obj._cache) == block_size
