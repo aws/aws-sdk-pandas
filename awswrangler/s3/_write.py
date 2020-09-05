@@ -52,7 +52,7 @@ def _validate_args(
     if dataset is False:
         if path.endswith("/"):
             raise exceptions.InvalidArgumentValue(
-                "If <dataset=False>, the argument <path> should be a object path, not a directory."
+                "If <dataset=False>, the argument <path> should be a file path, not a directory."
             )
         if partition_cols:
             raise exceptions.InvalidArgumentCombination("Please, pass dataset=True to be able to use partition_cols.")
@@ -66,8 +66,8 @@ def _validate_args(
             )
     elif (database is None) != (table is None):
         raise exceptions.InvalidArgumentCombination(
-            "Arguments database and table must be passed together. If you want to store your dataset in the Glue "
-            "Catalog, please ensure you are passing both."
+            "Arguments database and table must be passed together. If you want to store your dataset metadata in "
+            "the Glue Catalog, please ensure you are passing both."
         )
 
 
