@@ -323,3 +323,29 @@ def test_multi_index_recovery_nameless(path, use_threads):
     wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
     df2 = wr.s3.read_parquet(f"{path}*.parquet", use_threads=use_threads)
     assert df.reset_index().equals(df2.reset_index())
+
+
+def test_to_parquet_dataset_sanitize(path):
+    df = pd.DataFrame({"C0": [0, 1], "camelCase": [2, 3], "c**--2": [4, 5], "Par": ["a", "b"]})
+
+    paths = wr.s3.to_parquet(df, path, dataset=True, partition_cols=["Par"], sanitize_columns=False)["paths"]
+    wr.s3.wait_objects_exist(paths)
+    df2 = wr.s3.read_parquet(path, dataset=True)
+    assert df.shape == df2.shape
+    assert list(df2.columns) == ["C0", "camelCase", "c**--2", "Par"]
+    assert df2.C0.sum() == 1
+    assert df2.camelCase.sum() == 5
+    assert df2["c**--2"].sum() == 9
+    assert df2.Par.to_list() == ["a", "b"]
+
+    paths = wr.s3.to_parquet(df, path, dataset=True, partition_cols=["par"], sanitize_columns=True, mode="overwrite")[
+        "paths"
+    ]
+    wr.s3.wait_objects_exist(paths)
+    df2 = wr.s3.read_parquet(path, dataset=True)
+    assert df.shape == df2.shape
+    assert list(df2.columns) == ["c0", "camel_case", "c_2", "par"]
+    assert df2.c0.sum() == 1
+    assert df2.camel_case.sum() == 5
+    assert df2.c_2.sum() == 9
+    assert df2.par.to_list() == ["a", "b"]

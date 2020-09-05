@@ -225,14 +225,14 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
 ) -> Dict[str, Union[List[str], Dict[str, List[str]]]]:
     """Write Parquet file or dataset on Amazon S3.
 
-    The concept of Dataset goes beyond the simple idea of files and enable more
-    complex features like partitioning, casting and catalog integration (Amazon Athena/AWS Glue Catalog).
+    The concept of Dataset goes beyond the simple idea of ordinary files and enable more
+    complex features like partitioning and catalog integration (Amazon Athena/AWS Glue Catalog).
 
     Note
     ----
-    If `dataset=True` The table name and all column names will be automatically sanitized using
-    `wr.catalog.sanitize_table_name` and `wr.catalog.sanitize_column_name`.
-    Please, pass `sanitize_columns=True` to force the same behaviour for `dataset=False`.
+    If `database` and `table` arguments are passed, the table name and all column names
+    will be automatically sanitized using `wr.catalog.sanitize_table_name` and `wr.catalog.sanitize_column_name`.
+    Please, pass `sanitize_columns=True` to enforce this behaviour always.
 
     Note
     ----
@@ -267,12 +267,15 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
         "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
     sanitize_columns : bool
-        True to sanitize columns names or False to keep it as is.
-        True value is forced if `dataset=True`.
+        True to sanitize columns names (using `wr.catalog.sanitize_table_name` and `wr.catalog.sanitize_column_name`)
+        or False to keep it as is.
+        True value behaviour is enforced if `database` and `table` arguments are passed.
     dataset : bool
-        If True store a parquet dataset instead of a single file.
+        If True store a parquet dataset instead of a ordinary file(s)
         If True, enable all follow arguments:
-        partition_cols, mode, database, table, description, parameters, columns_comments, .
+        partition_cols, mode, database, table, description, parameters, columns_comments, concurrent_partitioning,
+        catalog_versioning, projection_enabled, projection_types, projection_ranges, projection_values,
+        projection_intervals, projection_digits, catalog_id, schema_evolution.
     partition_cols: List[str], optional
         List of column names that will be used to create partitions. Only takes effect if dataset=True.
     concurrent_partitioning: bool
@@ -470,7 +473,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
     # Sanitize table to respect Athena's standards
-    if (sanitize_columns is True) or (dataset is True):
+    if (sanitize_columns is True) or (database is not None and table is not None):
         df, dtype, partition_cols = _sanitize(df=df, dtype=dtype, partition_cols=partition_cols)
 
     # Evaluating dtype
