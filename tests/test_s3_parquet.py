@@ -349,3 +349,25 @@ def test_to_parquet_dataset_sanitize(path):
     assert df2.camel_case.sum() == 5
     assert df2.c_2.sum() == 9
     assert df2.par.to_list() == ["a", "b"]
+
+
+@pytest.mark.parametrize("use_threads", [False, True])
+def test_timezone_file(path, use_threads):
+    file_path = f"{path}0.parquet"
+    df = pd.DataFrame({"c0": [datetime.utcnow(), datetime.utcnow()]})
+    df["c0"] = pd.DatetimeIndex(df.c0).tz_localize(tz="US/Eastern")
+    df.to_parquet(file_path)
+    wr.s3.wait_objects_exist(paths=[file_path], use_threads=use_threads)
+    df2 = wr.s3.read_parquet(path, use_threads=use_threads)
+    assert df.equals(df2)
+
+
+@pytest.mark.parametrize("use_threads", [False])
+def test_timezone_file_columns(path, use_threads):
+    file_path = f"{path}0.parquet"
+    df = pd.DataFrame({"c0": [datetime.utcnow(), datetime.utcnow()], "c1": [1.1, 2.2]})
+    df["c0"] = pd.DatetimeIndex(df.c0).tz_localize(tz="US/Eastern")
+    df.to_parquet(file_path)
+    wr.s3.wait_objects_exist(paths=[file_path], use_threads=use_threads)
+    df2 = wr.s3.read_parquet(path, columns=["c1"], use_threads=use_threads)
+    assert df[["c1"]].equals(df2)
