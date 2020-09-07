@@ -191,7 +191,7 @@ def _apply_index(df: pd.DataFrame, metadata: Dict[str, Any]) -> pd.DataFrame:
 
 def _apply_timezone(df: pd.DataFrame, metadata: Dict[str, Any]) -> pd.DataFrame:
     for c in metadata["columns"]:
-        if c["field_name"] in df and c["pandas_type"] == "datetimetz":
+        if c["field_name"] in df.columns and c["pandas_type"] == "datetimetz":
             _logger.debug("applying timezone (%s) on column %s", c["metadata"]["timezone"], c["field_name"])
             if isinstance(df[c["field_name"]].dtype, pd.core.dtypes.dtypes.DatetimeTZDtype) is False:
                 df[c["field_name"]] = df[c["field_name"]].dt.tz_localize(tz="UTC")
