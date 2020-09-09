@@ -56,6 +56,8 @@ AWS Glue Catalog
     create_parquet_table
     databases
     delete_database
+    delete_partitions
+    delete_all_partitions
     delete_table_if_exists
     does_table_exist
     drop_duplicated_columns
@@ -68,8 +70,10 @@ AWS Glue Catalog
     get_partitions
     get_table_description
     get_table_location
+    get_table_number_of_versions
     get_table_parameters
     get_table_types
+    get_table_versions
     get_tables
     overwrite_table_parameters
     sanitize_column_name

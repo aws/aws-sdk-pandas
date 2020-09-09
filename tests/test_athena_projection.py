@@ -6,9 +6,7 @@ import awswrangler as wr
 
 from ._utils import dt, ts
 
-logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
-logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
 
 
 def test_to_parquet_projection_integer(glue_database, glue_table, path):

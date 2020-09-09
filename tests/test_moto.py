@@ -15,9 +15,7 @@ from awswrangler.exceptions import EmptyDataFrame, InvalidArgumentCombination
 
 from ._utils import ensure_data_types, get_df_csv, get_df_list
 
-logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
-logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
 
 
 @pytest.fixture(scope="module")
@@ -246,15 +244,13 @@ def test_read_csv_with_chucksize_and_pandas_arguments(moto_s3):
 
 
 @mock.patch("pandas.read_csv")
-@mock.patch("s3fs.S3FileSystem.open")
-def test_read_csv_pass_pandas_arguments_and_encoding_succeed(mock_open, mock_read_csv, moto_s3):
+def test_read_csv_pass_pandas_arguments_and_encoding_succeed(mock_read_csv, moto_s3):
     bucket = "bucket"
     key = "foo/foo.csv"
     path = "s3://{}/{}".format(bucket, key)
     s3_object = moto_s3.Object(bucket, key)
     s3_object.put(Body=b"foo")
     wr.s3.read_csv(path=path, encoding="ISO-8859-1", sep=",", lineterminator="\r\n")
-    mock_open.assert_called_with(path="s3://bucket/foo/foo.csv", mode="r", encoding="ISO-8859-1", newline="\r\n")
     mock_read_csv.assert_called_with(ANY, compression=None, encoding="ISO-8859-1", sep=",", lineterminator="\r\n")
 
 
@@ -309,6 +305,16 @@ def test_parquet(moto_s3):
     df = wr.s3.read_parquet(path=path, dataset=True)
     ensure_data_types(df, has_list=True)
     assert df.shape == (3, 19)
+
+
+def test_parquet_with_size(moto_s3):
+    path = "s3://bucket/test.parquet"
+    df = get_df_list()
+    df = pd.concat([df for _ in range(21)])
+    wr.s3.to_parquet(df=df, path=path, index=False, dataset=False, max_rows_by_file=10)
+    df = wr.s3.read_parquet(path="s3://bucket/", dataset=False)
+    ensure_data_types(df, has_list=True)
+    assert df.shape == (63, 19)
 
 
 def test_s3_delete_object_success(moto_s3):

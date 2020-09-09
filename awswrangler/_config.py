@@ -5,7 +5,7 @@ import logging
 import os
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple, Type, Union, cast
 
-import pandas as pd  # type: ignore
+import pandas as pd
 
 from awswrangler import _utils, exceptions
 
@@ -16,7 +16,7 @@ _ConfigValueType = Union[str, bool, int, None]
 
 
 class _ConfigArg(NamedTuple):
-    dtype: Type
+    dtype: Type[Union[str, bool, int]]
     nullable: bool
     enforced: bool = False
 
@@ -29,14 +29,14 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "database": _ConfigArg(dtype=str, nullable=True),
     "max_cache_query_inspections": _ConfigArg(dtype=int, nullable=False),
     "max_cache_seconds": _ConfigArg(dtype=int, nullable=False),
-    "s3fs_block_size": _ConfigArg(dtype=int, nullable=False, enforced=True),
+    "s3_block_size": _ConfigArg(dtype=int, nullable=False, enforced=True),
 }
 
 
 class _Config:
     """Wrangler's Configuration class."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._loaded_values: Dict[str, _ConfigValueType] = {}
         name: str
         for name in _CONFIG_ARGS:
@@ -127,19 +127,19 @@ class _Config:
             del self._loaded_values[item]
         self._load_config(name=item)
 
-    def _repr_html_(self):
+    def _repr_html_(self) -> Any:
         return self.to_pandas().to_html()
 
     @staticmethod
-    def _apply_type(name: str, value: Any, dtype: Type, nullable: bool) -> _ConfigValueType:
+    def _apply_type(name: str, value: Any, dtype: Type[Union[str, bool, int]], nullable: bool) -> _ConfigValueType:
         if _Config._is_null(value=value):
             if nullable is True:
                 return None
             exceptions.InvalidArgumentValue(f"{name} configuration does not accept a null value. Please pass {dtype}.")
         try:
             return dtype(value) if isinstance(value, dtype) is False else value
-        except ValueError:
-            raise exceptions.InvalidConfiguration(f"Config {name} must receive a {dtype} value.")
+        except ValueError as ex:
+            raise exceptions.InvalidConfiguration(f"Config {name} must receive a {dtype} value.") from ex
 
     @staticmethod
     def _is_null(value: _ConfigValueType) -> bool:
@@ -206,16 +206,18 @@ class _Config:
         self._set_config_value(key="max_cache_seconds", value=value)
 
     @property
-    def s3fs_block_size(self) -> int:
-        """Property s3fs_block_size."""
-        return cast(int, self["s3fs_block_size"])
+    def s3_block_size(self) -> int:
+        """Property s3_block_size."""
+        return cast(int, self["s3_block_size"])
 
-    @s3fs_block_size.setter
-    def s3fs_block_size(self, value: int) -> None:
-        self._set_config_value(key="s3fs_block_size", value=value)
+    @s3_block_size.setter
+    def s3_block_size(self, value: int) -> None:
+        self._set_config_value(key="s3_block_size", value=value)
 
 
-def _inject_config_doc(doc: str, available_configs: Tuple[str, ...]) -> str:
+def _inject_config_doc(doc: Optional[str], available_configs: Tuple[str, ...]) -> str:
+    if doc is None:
+        return "Undocumented function."
     if "\n    Parameters" not in doc:
         return doc
     header: str = (
@@ -235,14 +237,14 @@ def _inject_config_doc(doc: str, available_configs: Tuple[str, ...]) -> str:
     return _utils.insert_str(text=doc, token="\n    Parameters", insert=insertion)
 
 
-def apply_configs(function) -> Callable:
+def apply_configs(function: Callable[..., Any]) -> Callable[..., Any]:
     """Decorate some function with configs."""
     signature = inspect.signature(function)
     args_names: Tuple[str, ...] = tuple(signature.parameters.keys())
     available_configs: Tuple[str, ...] = tuple(x for x in _CONFIG_ARGS if x in args_names)
 
-    def wrapper(*args, **kwargs):
-        args: Dict[str, Any] = signature.bind_partial(*args, **kwargs).arguments
+    def wrapper(*args_raw: Any, **kwargs: Any) -> Any:
+        args: Dict[str, Any] = signature.bind_partial(*args_raw, **kwargs).arguments
         for name in available_configs:
             if hasattr(config, name) is True:
                 value: _ConfigValueType = config[name]

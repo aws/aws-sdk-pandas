@@ -1,3 +1,5 @@
+An `AWS Professional Service <https://aws.amazon.com/professional-services>`_ open source initiative | aws-proserve-opensource@amazon.com
+
 Quick Start
 -----------
 
@@ -47,6 +49,6 @@ Read The Docs
    install
    Tutorials <https://github.com/awslabs/aws-data-wrangler/tree/master/tutorials>
    api
-   License <https://github.com/awslabs/aws-data-wrangler/blob/master/LICENSE>
+   License <https://github.com/awslabs/aws-data-wrangler/blob/master/LICENSE.txt>
    Contributing <https://github.com/awslabs/aws-data-wrangler/blob/master/CONTRIBUTING.md>
    Legacy Docs (pre-1.0.0) <https://aws-data-wrangler.readthedocs.io/en/legacy/>

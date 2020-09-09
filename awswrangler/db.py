@@ -6,11 +6,11 @@ import uuid
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 from urllib.parse import quote_plus as _quote_plus
 
-import boto3  # type: ignore
-import pandas as pd  # type: ignore
-import pyarrow as pa  # type: ignore
-import sqlalchemy  # type: ignore
-from sqlalchemy.sql.visitors import VisitableType  # type: ignore
+import boto3
+import pandas as pd
+import pyarrow as pa
+import sqlalchemy
+from sqlalchemy.sql.visitors import VisitableType
 
 from awswrangler import _data_types, _utils, exceptions, s3
 from awswrangler.s3._list import _path2list  # noqa
@@ -23,7 +23,234 @@ _RS_DISTSTYLES = ["AUTO", "EVEN", "ALL", "KEY"]
 _RS_SORTSTYLES = ["COMPOUND", "INTERLEAVED"]
 
 
-def to_sql(df: pd.DataFrame, con: sqlalchemy.engine.Engine, **pandas_kwargs) -> None:
+def _rs_drop_table(con: Any, schema: str, table: str) -> None:
+    sql = f"DROP TABLE IF EXISTS {schema}.{table}"
+    _logger.debug("Drop table query:\n%s", sql)
+    con.execute(sql)
+
+
+def _rs_get_primary_keys(con: Any, schema: str, table: str) -> List[str]:
+    cursor: Any = con.execute(
+        f"SELECT indexdef FROM pg_indexes WHERE schemaname = '{schema}' AND tablename = '{table}'"
+    )
+    result: str = cursor.fetchall()[0][0]
+    rfields: List[str] = result.split("(")[1].strip(")").split(",")
+    fields: List[str] = [field.strip().strip('"') for field in rfields]
+    return fields
+
+
+def _rs_does_table_exist(con: Any, schema: str, table: str) -> bool:
+    cursor = con.execute(
+        f"SELECT true WHERE EXISTS ("
+        f"SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE "
+        f"TABLE_SCHEMA = '{schema}' AND TABLE_NAME = '{table}'"
+        f");"
+    )
+    if len(cursor.fetchall()) > 0:
+        return True
+    return False
+
+
+def _rs_upsert(con: Any, table: str, temp_table: str, schema: str, primary_keys: Optional[List[str]] = None) -> None:
+    if not primary_keys:
+        primary_keys = _rs_get_primary_keys(con=con, schema=schema, table=table)
+    _logger.debug("primary_keys: %s", primary_keys)
+    if not primary_keys:
+        raise exceptions.InvalidRedshiftPrimaryKeys()
+    equals_clause: str = f"{table}.%s = {temp_table}.%s"
+    join_clause: str = " AND ".join([equals_clause % (pk, pk) for pk in primary_keys])
+    sql: str = f"DELETE FROM {schema}.{table} USING {temp_table} WHERE {join_clause}"
+    _logger.debug(sql)
+    con.execute(sql)
+    sql = f"INSERT INTO {schema}.{table} SELECT * FROM {temp_table}"
+    _logger.debug(sql)
+    con.execute(sql)
+    _rs_drop_table(con=con, schema=schema, table=temp_table)
+
+
+def _rs_create_table(
+    con: Any,
+    table: str,
+    schema: str,
+    mode: str,
+    redshift_types: Dict[str, str],
+    diststyle: str,
+    sortstyle: str,
+    distkey: Optional[str] = None,
+    sortkey: Optional[List[str]] = None,
+    primary_keys: Optional[List[str]] = None,
+) -> Tuple[str, Optional[str]]:
+    if mode == "overwrite":
+        _rs_drop_table(con=con, schema=schema, table=table)
+    else:
+        if _rs_does_table_exist(con=con, schema=schema, table=table) is True:
+            if mode == "upsert":
+                guid: str = uuid.uuid4().hex
+                temp_table: str = f"temp_redshift_{guid}"
+                sql: str = f"CREATE TEMPORARY TABLE {temp_table} (LIKE {schema}.{table})"
+                _logger.debug(sql)
+                con.execute(sql)
+                return temp_table, None
+            return table, schema
+    diststyle = diststyle.upper() if diststyle else "AUTO"
+    sortstyle = sortstyle.upper() if sortstyle else "COMPOUND"
+    _rs_validate_parameters(
+        redshift_types=redshift_types, diststyle=diststyle, distkey=distkey, sortstyle=sortstyle, sortkey=sortkey,
+    )
+    cols_str: str = "".join([f"{k} {v},\n" for k, v in redshift_types.items()])[:-2]
+    primary_keys_str: str = f",\nPRIMARY KEY ({', '.join(primary_keys)})" if primary_keys else ""
+    distkey_str: str = f"\nDISTKEY({distkey})" if distkey and diststyle == "KEY" else ""
+    sortkey_str: str = f"\n{sortstyle} SORTKEY({','.join(sortkey)})" if sortkey else ""
+    sql = (
+        f"CREATE TABLE IF NOT EXISTS {schema}.{table} (\n"
+        f"{cols_str}"
+        f"{primary_keys_str}"
+        f")\nDISTSTYLE {diststyle}"
+        f"{distkey_str}"
+        f"{sortkey_str}"
+    )
+    _logger.debug("Create table query:\n%s", sql)
+    con.execute(sql)
+    return table, schema
+
+
+def _rs_validate_parameters(
+    redshift_types: Dict[str, str],
+    diststyle: str,
+    distkey: Optional[str],
+    sortstyle: str,
+    sortkey: Optional[List[str]],
+) -> None:
+    if diststyle not in _RS_DISTSTYLES:
+        raise exceptions.InvalidRedshiftDiststyle(f"diststyle must be in {_RS_DISTSTYLES}")
+    cols = list(redshift_types.keys())
+    _logger.debug("Redshift columns: %s", cols)
+    if (diststyle == "KEY") and (not distkey):
+        raise exceptions.InvalidRedshiftDistkey("You must pass a distkey if you intend to use KEY diststyle")
+    if distkey and distkey not in cols:
+        raise exceptions.InvalidRedshiftDistkey(f"distkey ({distkey}) must be in the columns list: {cols})")
+    if sortstyle and sortstyle not in _RS_SORTSTYLES:
+        raise exceptions.InvalidRedshiftSortstyle(f"sortstyle must be in {_RS_SORTSTYLES}")
+    if sortkey:
+        if not isinstance(sortkey, list):
+            raise exceptions.InvalidRedshiftSortkey(
+                f"sortkey must be a List of items in the columns list: {cols}. " f"Currently value: {sortkey}"
+            )
+        for key in sortkey:
+            if key not in cols:
+                raise exceptions.InvalidRedshiftSortkey(
+                    f"sortkey must be a List of items in the columns list: {cols}. " f"Currently value: {key}"
+                )
+
+
+def _rs_copy(
+    con: Any, table: str, manifest_path: str, iam_role: str, num_files: int, schema: Optional[str] = None,
+) -> int:
+    if schema is None:
+        table_name: str = table
+    else:
+        table_name = f"{schema}.{table}"
+    sql: str = (f"COPY {table_name} FROM '{manifest_path}'\nIAM_ROLE '{iam_role}'\nFORMAT AS PARQUET\nMANIFEST")
+    _logger.debug("copy query:\n%s", sql)
+    con.execute(sql)
+    sql = "SELECT pg_last_copy_id() AS query_id"
+    query_id: int = con.execute(sql).fetchall()[0][0]
+    sql = f"SELECT COUNT(DISTINCT filename) as num_files_loaded FROM STL_LOAD_COMMITS WHERE query = {query_id}"
+    num_files_loaded: int = con.execute(sql).fetchall()[0][0]
+    _logger.debug("%s files counted. %s expected.", num_files_loaded, num_files)
+    if num_files_loaded != num_files:
+        raise exceptions.RedshiftLoadError(
+            f"Redshift load rollbacked. {num_files_loaded} files counted. {num_files} expected."
+        )
+    return num_files_loaded
+
+
+def _validate_engine(con: sqlalchemy.engine.Engine) -> None:
+    if not isinstance(con, sqlalchemy.engine.Engine):
+        raise exceptions.InvalidConnection(
+            "Invalid 'con' argument, please pass a "
+            "SQLAlchemy Engine. Use wr.db.get_engine(), "
+            "wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()"
+        )
+
+
+def _records2df(
+    records: List[Tuple[Any]],
+    cols_names: List[str],
+    index: Optional[Union[str, List[str]]],
+    dtype: Optional[Dict[str, pa.DataType]] = None,
+) -> pd.DataFrame:
+    arrays: List[pa.Array] = []
+    for col_values, col_name in zip(tuple(zip(*records)), cols_names):  # Transposing
+        if (dtype is None) or (col_name not in dtype):
+            try:
+                array: pa.Array = pa.array(obj=col_values, safe=True)  # Creating Arrow array
+            except pa.ArrowInvalid as ex:
+                array = _data_types.process_not_inferred_array(ex, values=col_values)  # Creating Arrow array
+        else:
+            array = pa.array(obj=col_values, type=dtype[col_name], safe=True)  # Creating Arrow array with dtype
+        arrays.append(array)
+    table = pa.Table.from_arrays(arrays=arrays, names=cols_names)  # Creating arrow Table
+    df: pd.DataFrame = table.to_pandas(  # Creating Pandas DataFrame
+        use_threads=True,
+        split_blocks=True,
+        self_destruct=True,
+        integer_object_nulls=False,
+        date_as_object=True,
+        types_mapper=_data_types.pyarrow2pandas_extension,
+    )
+    if index is not None:
+        df.set_index(index, inplace=True)
+    return df
+
+
+def _iterate_cursor(
+    cursor: Any,
+    chunksize: int,
+    cols_names: List[str],
+    index: Optional[Union[str, List[str]]],
+    dtype: Optional[Dict[str, pa.DataType]] = None,
+) -> Iterator[pd.DataFrame]:
+    while True:
+        records = cursor.fetchmany(chunksize)
+        if not records:
+            break
+        yield _records2df(records=records, cols_names=cols_names, index=index, dtype=dtype)
+
+
+def _convert_params(sql: str, params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]]) -> List[Any]:
+    args: List[Any] = [sql]
+    if params is not None:
+        if hasattr(params, "keys"):
+            return args + [params]
+        return args + [list(params)]
+    return args
+
+
+def _read_parquet_iterator(
+    paths: List[str],
+    keep_files: bool,
+    use_threads: bool,
+    categories: Optional[List[str]],
+    chunked: Union[bool, int],
+    boto3_session: Optional[boto3.Session],
+    s3_additional_kwargs: Optional[Dict[str, str]],
+) -> Iterator[pd.DataFrame]:
+    dfs: Iterator[pd.DataFrame] = s3.read_parquet(
+        path=paths,
+        categories=categories,
+        chunked=chunked,
+        dataset=False,
+        use_threads=use_threads,
+        boto3_session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,
+    )
+    yield from dfs
+    if keep_files is False:
+        s3.delete_objects(path=paths, use_threads=use_threads, boto3_session=boto3_session)
+
+
+def to_sql(df: pd.DataFrame, con: sqlalchemy.engine.Engine, **pandas_kwargs: Any) -> None:
     """Write records stored in a DataFrame to a SQL database.
 
     Support for **Redshift**, **PostgreSQL** and **MySQL**.
@@ -47,7 +274,9 @@ def to_sql(df: pd.DataFrame, con: sqlalchemy.engine.Engine, **pandas_kwargs) -> 
         SQLAlchemy Engine. Please use,
         wr.db.get_engine(), wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()
     pandas_kwargs
-        keyword arguments forwarded to pandas.DataFrame.to_csv()
+        KEYWORD arguments forwarded to pandas.DataFrame.to_sql(). You can NOT pass `pandas_kwargs` explicit, just add
+        valid Pandas arguments in the function call and Wrangler will accept it.
+        e.g. wr.db.to_sql(df, con=con, name="table_name", schema="schema_name", if_exists="replace", index=False)
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_sql.html
 
     Returns
@@ -68,6 +297,19 @@ def to_sql(df: pd.DataFrame, con: sqlalchemy.engine.Engine, **pandas_kwargs) -> 
     ...     schema="schema_name"
     ... )
 
+    Writing to Redshift with temporary credentials and using pandas_kwargs
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.db.to_sql(
+    ...     df=pd.DataFrame({'col': [1, 2, 3]}),
+    ...     con=wr.db.get_redshift_temp_engine(cluster_identifier="...", user="..."),
+    ...     name="table_name",
+    ...     schema="schema_name",
+    ...     if_exists="replace",
+    ...     index=False,
+    ... )
+
     Writing to Redshift from Glue Catalog Connections
 
     >>> import awswrangler as wr
@@ -80,6 +322,12 @@ def to_sql(df: pd.DataFrame, con: sqlalchemy.engine.Engine, **pandas_kwargs) -> 
     ... )
 
     """
+    if "pandas_kwargs" in pandas_kwargs:
+        raise exceptions.InvalidArgument(
+            "You can NOT pass `pandas_kwargs` explicit, just add valid "
+            "Pandas arguments in the function call and Wrangler will accept it."
+            "e.g. wr.db.to_sql(df, con, name='...', schema='...', if_exists='replace')"
+        )
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
     if not isinstance(con, sqlalchemy.engine.Engine):
@@ -106,7 +354,7 @@ def read_sql_query(
     sql: str,
     con: sqlalchemy.engine.Engine,
     index_col: Optional[Union[str, List[str]]] = None,
-    params: Optional[Union[List, Tuple, Dict]] = None,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
     chunksize: Optional[int] = None,
     dtype: Optional[Dict[str, pa.DataType]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
@@ -174,65 +422,12 @@ def read_sql_query(
         )
 
 
-def _records2df(
-    records: List[Tuple[Any]],
-    cols_names: List[str],
-    index: Optional[Union[str, List[str]]],
-    dtype: Optional[Dict[str, pa.DataType]] = None,
-) -> pd.DataFrame:
-    arrays: List[pa.Array] = []
-    for col_values, col_name in zip(tuple(zip(*records)), cols_names):  # Transposing
-        if (dtype is None) or (col_name not in dtype):
-            try:
-                array: pa.Array = pa.array(obj=col_values, safe=True)  # Creating Arrow array
-            except pa.ArrowInvalid as ex:
-                array = _data_types.process_not_inferred_array(ex, values=col_values)  # Creating Arrow array
-        else:
-            array = pa.array(obj=col_values, type=dtype[col_name], safe=True)  # Creating Arrow array with dtype
-        arrays.append(array)
-    table = pa.Table.from_arrays(arrays=arrays, names=cols_names)  # Creating arrow Table
-    df: pd.DataFrame = table.to_pandas(  # Creating Pandas DataFrame
-        use_threads=True,
-        split_blocks=True,
-        self_destruct=True,
-        integer_object_nulls=False,
-        date_as_object=True,
-        types_mapper=_data_types.pyarrow2pandas_extension,
-    )
-    if index is not None:
-        df.set_index(index, inplace=True)
-    return df
-
-
-def _iterate_cursor(
-    cursor: Any,
-    chunksize: int,
-    cols_names: List[str],
-    index: Optional[Union[str, List[str]]],
-    dtype: Optional[Dict[str, pa.DataType]] = None,
-) -> Iterator[pd.DataFrame]:
-    while True:
-        records = cursor.fetchmany(chunksize)
-        if not records:
-            break
-        yield _records2df(records=records, cols_names=cols_names, index=index, dtype=dtype)
-
-
-def _convert_params(sql: str, params: Optional[Union[List, Tuple, Dict]]) -> List[Any]:
-    args: List[Any] = [sql]
-    if params is not None:
-        if hasattr(params, "keys"):
-            return args + [params]
-        return args + [list(params)]
-    return args
-
-
 def read_sql_table(
     table: str,
     con: sqlalchemy.engine.Engine,
     schema: Optional[str] = None,
     index_col: Optional[Union[str, List[str]]] = None,
-    params: Optional[Union[List, Tuple, Dict]] = None,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
     chunksize: Optional[int] = None,
     dtype: Optional[Dict[str, pa.DataType]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
@@ -309,7 +504,7 @@ def get_redshift_temp_engine(
     auto_create: bool = True,
     db_groups: Optional[List[str]] = None,
     boto3_session: Optional[boto3.Session] = None,
-    **sqlalchemy_kwargs,
+    **sqlalchemy_kwargs: Any,
 ) -> sqlalchemy.engine.Engine:
     """Get Glue connection details.
 
@@ -373,7 +568,7 @@ def get_redshift_temp_engine(
 
 
 def get_engine(
-    db_type: str, host: str, port: int, database: str, user: str, password: str, **sqlalchemy_kwargs
+    db_type: str, host: str, port: int, database: str, user: str, password: str, **sqlalchemy_kwargs: Any
 ) -> sqlalchemy.engine.Engine:
     """Return a SQLAlchemy Engine from the given arguments.
 
@@ -451,6 +646,7 @@ def copy_to_redshift(  # pylint: disable=too-many-arguments
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    max_rows_by_file: Optional[int] = 10_000_000,
 ) -> None:
     """Load Pandas DataFrame as a Table on Amazon Redshift using parquet files on S3 as stage.
 
@@ -523,8 +719,14 @@ def copy_to_redshift(  # pylint: disable=too-many-arguments
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
-        Forward to s3fs, useful for server side encryption
-        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
+        Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
+        "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
+        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
+    max_rows_by_file : int
+        Max number of rows in each file.
+        Default is None i.e. dont split the files.
+        (e.g. 33554432, 268435456)
+
     Returns
     -------
     None
@@ -546,7 +748,7 @@ def copy_to_redshift(  # pylint: disable=too-many-arguments
     """
     path = path if path.endswith("/") else f"{path}/"
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    paths: List[str] = s3.to_parquet(  # type: ignore
+    paths: List[str] = s3.to_parquet(
         df=df,
         path=path,
         index=index,
@@ -556,6 +758,7 @@ def copy_to_redshift(  # pylint: disable=too-many-arguments
         use_threads=use_threads,
         boto3_session=session,
         s3_additional_kwargs=s3_additional_kwargs,
+        max_rows_by_file=max_rows_by_file,
     )["paths"]
     s3.wait_objects_exist(paths=paths, use_threads=False, boto3_session=session)
     copy_files_to_redshift(
@@ -588,6 +791,7 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
     table: str,
     schema: str,
     iam_role: str,
+    parquet_infer_sampling: float = 1.0,
     mode: str = "append",
     diststyle: str = "AUTO",
     distkey: Optional[str] = None,
@@ -604,6 +808,10 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
 
     https://docs.aws.amazon.com/redshift/latest/dg/r_COPY.html
 
+    This function accepts Unix shell-style wildcards in the path argument.
+    * (matches everything), ? (matches any single character),
+    [seq] (matches any character in seq), [!seq] (matches any character not in seq).
+
     Note
     ----
     If the table does not exist yet,
@@ -619,7 +827,8 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
     Parameters
     ----------
     path : Union[str, List[str]]
-        S3 prefix (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+        S3 prefix (accepts Unix shell-style wildcards)
+        (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
     manifest_directory : str
         S3 prefix (e.g. s3://bucket/prefix)
     con : sqlalchemy.engine.Engine
@@ -631,6 +840,11 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
         Schema name
     iam_role : str
         AWS IAM role with the related permissions.
+    parquet_infer_sampling : float
+        Random sample ratio of files that will have the metadata inspected.
+        Must be `0.0 < sampling <= 1.0`.
+        The higher, the more accurate.
+        The lower, the faster.
     mode : str
         Append, overwrite or upsert.
     diststyle : str
@@ -655,7 +869,9 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
-        Forward to boto3.client('s3').put_object when writing manifest, useful for server side encryption
+        Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
+        "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
+        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
 
     Returns
     -------
@@ -688,7 +904,7 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
     )
     s3.wait_objects_exist(paths=paths + [manifest_path], use_threads=False, boto3_session=session)
     athena_types, _ = s3.read_parquet_metadata(
-        path=paths, dataset=False, use_threads=use_threads, boto3_session=session
+        path=paths, sampling=parquet_infer_sampling, dataset=False, use_threads=use_threads, boto3_session=session
     )
     _logger.debug("athena_types: %s", athena_types)
     redshift_types: Dict[str, str] = {}
@@ -721,118 +937,6 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
     s3.delete_objects(path=[manifest_path], use_threads=use_threads, boto3_session=session)
 
 
-def _rs_upsert(con: Any, table: str, temp_table: str, schema: str, primary_keys: Optional[List[str]] = None) -> None:
-    if not primary_keys:
-        primary_keys = _rs_get_primary_keys(con=con, schema=schema, table=table)
-    _logger.debug("primary_keys: %s", primary_keys)
-    if not primary_keys:
-        raise exceptions.InvalidRedshiftPrimaryKeys()
-    equals_clause: str = f"{table}.%s = {temp_table}.%s"
-    join_clause: str = " AND ".join([equals_clause % (pk, pk) for pk in primary_keys])
-    sql: str = f"DELETE FROM {schema}.{table} USING {temp_table} WHERE {join_clause}"
-    _logger.debug(sql)
-    con.execute(sql)
-    sql = f"INSERT INTO {schema}.{table} SELECT * FROM {temp_table}"
-    _logger.debug(sql)
-    con.execute(sql)
-    _rs_drop_table(con=con, schema=schema, table=temp_table)
-
-
-def _rs_create_table(
-    con: Any,
-    table: str,
-    schema: str,
-    mode: str,
-    redshift_types: Dict[str, str],
-    diststyle: str,
-    sortstyle: str,
-    distkey: Optional[str] = None,
-    sortkey: Optional[List[str]] = None,
-    primary_keys: Optional[List[str]] = None,
-) -> Tuple[str, Optional[str]]:
-    if mode == "overwrite":
-        _rs_drop_table(con=con, schema=schema, table=table)
-    else:
-        if _rs_does_table_exist(con=con, schema=schema, table=table) is True:
-            if mode == "upsert":
-                guid: str = uuid.uuid4().hex
-                temp_table: str = f"temp_redshift_{guid}"
-                sql: str = f"CREATE TEMPORARY TABLE {temp_table} (LIKE {schema}.{table})"
-                _logger.debug(sql)
-                con.execute(sql)
-                return temp_table, None
-            return table, schema
-    diststyle = diststyle.upper() if diststyle else "AUTO"
-    sortstyle = sortstyle.upper() if sortstyle else "COMPOUND"
-    _rs_validate_parameters(
-        redshift_types=redshift_types, diststyle=diststyle, distkey=distkey, sortstyle=sortstyle, sortkey=sortkey
-    )
-    cols_str: str = "".join([f"{k} {v},\n" for k, v in redshift_types.items()])[:-2]
-    primary_keys_str: str = f",\nPRIMARY KEY ({', '.join(primary_keys)})" if primary_keys else ""
-    distkey_str: str = f"\nDISTKEY({distkey})" if distkey and diststyle == "KEY" else ""
-    sortkey_str: str = f"\n{sortstyle} SORTKEY({','.join(sortkey)})" if sortkey else ""
-    sql = (
-        f"CREATE TABLE IF NOT EXISTS {schema}.{table} (\n"
-        f"{cols_str}"
-        f"{primary_keys_str}"
-        f")\nDISTSTYLE {diststyle}"
-        f"{distkey_str}"
-        f"{sortkey_str}"
-    )
-    _logger.debug("Create table query:\n%s", sql)
-    con.execute(sql)
-    return table, schema
-
-
-def _rs_validate_parameters(
-    redshift_types: Dict[str, str], diststyle: str, distkey: Optional[str], sortstyle: str, sortkey: Optional[List[str]]
-) -> None:
-    if diststyle not in _RS_DISTSTYLES:
-        raise exceptions.InvalidRedshiftDiststyle(f"diststyle must be in {_RS_DISTSTYLES}")
-    cols = list(redshift_types.keys())
-    _logger.debug("Redshift columns: %s", cols)
-    if (diststyle == "KEY") and (not distkey):
-        raise exceptions.InvalidRedshiftDistkey("You must pass a distkey if you intend to use KEY diststyle")
-    if distkey and distkey not in cols:
-        raise exceptions.InvalidRedshiftDistkey(f"distkey ({distkey}) must be in the columns list: {cols})")
-    if sortstyle and sortstyle not in _RS_SORTSTYLES:
-        raise exceptions.InvalidRedshiftSortstyle(f"sortstyle must be in {_RS_SORTSTYLES}")
-    if sortkey:
-        if not isinstance(sortkey, list):
-            raise exceptions.InvalidRedshiftSortkey(
-                f"sortkey must be a List of items in the columns list: {cols}. " f"Currently value: {sortkey}"
-            )
-        for key in sortkey:
-            if key not in cols:
-                raise exceptions.InvalidRedshiftSortkey(
-                    f"sortkey must be a List of items in the columns list: {cols}. " f"Currently value: {key}"
-                )
-
-
-def _rs_copy(
-    con: Any, table: str, manifest_path: str, iam_role: str, num_files: int, schema: Optional[str] = None
-) -> int:
-    if schema is None:
-        table_name: str = table
-    else:
-        table_name = f"{schema}.{table}"
-    sql: str = (
-        f"COPY {table_name} FROM '{manifest_path}'\n" f"IAM_ROLE '{iam_role}'\n" "MANIFEST\n" "FORMAT AS PARQUET"
-    )
-    _logger.debug("copy query:\n%s", sql)
-    con.execute(sql)
-    sql = "SELECT pg_last_copy_id() AS query_id"
-    query_id: int = con.execute(sql).fetchall()[0][0]
-    sql = f"SELECT COUNT(DISTINCT filename) as num_files_loaded " f"FROM STL_LOAD_COMMITS WHERE query = {query_id}"
-    num_files_loaded: int = con.execute(sql).fetchall()[0][0]
-    _logger.debug("%s files counted. %s expected.", num_files_loaded, num_files)
-    if num_files_loaded != num_files:
-        raise exceptions.RedshiftLoadError(
-            f"Redshift load rollbacked. {num_files_loaded} files counted. {num_files} expected."
-        )
-    return num_files_loaded
-
-
 def write_redshift_copy_manifest(
     manifest_path: str,
     paths: List[str],
@@ -861,7 +965,9 @@ def write_redshift_copy_manifest(
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
-        Forward to boto3.client('s3').put_object when writing manifest, useful for server side encryption
+        Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
+        "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
+        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
 
     Returns
     -------
@@ -906,34 +1012,6 @@ def write_redshift_copy_manifest(
     return manifest
 
 
-def _rs_drop_table(con: Any, schema: str, table: str) -> None:
-    sql = f"DROP TABLE IF EXISTS {schema}.{table}"
-    _logger.debug("Drop table query:\n%s", sql)
-    con.execute(sql)
-
-
-def _rs_get_primary_keys(con: Any, schema: str, table: str) -> List[str]:
-    cursor: Any = con.execute(
-        f"SELECT indexdef FROM pg_indexes WHERE schemaname = '{schema}' AND tablename = '{table}'"
-    )
-    result: str = cursor.fetchall()[0][0]
-    rfields: List[str] = result.split("(")[1].strip(")").split(",")
-    fields: List[str] = [field.strip().strip('"') for field in rfields]
-    return fields
-
-
-def _rs_does_table_exist(con: Any, schema: str, table: str) -> bool:
-    cursor = con.execute(
-        f"SELECT true WHERE EXISTS ("
-        f"SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE "
-        f"TABLE_SCHEMA = '{schema}' AND TABLE_NAME = '{table}'"
-        f");"
-    )
-    if len(cursor.fetchall()) > 0:
-        return True
-    return False
-
-
 def unload_redshift(
     sql: str,
     path: str,
@@ -942,7 +1020,7 @@ def unload_redshift(
     region: Optional[str] = None,
     max_file_size: Optional[float] = None,
     kms_key_id: Optional[str] = None,
-    categories: List[str] = None,
+    categories: Optional[List[str]] = None,
     chunked: Union[bool, int] = False,
     keep_files: bool = False,
     use_threads: bool = True,
@@ -1021,8 +1099,7 @@ def unload_redshift(
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
-        Forward to s3fs, useful for server side encryption
-        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
+        Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
 
     Returns
     -------
@@ -1082,29 +1159,6 @@ def unload_redshift(
     )
 
 
-def _read_parquet_iterator(
-    paths: List[str],
-    keep_files: bool,
-    use_threads: bool,
-    categories: List[str] = None,
-    chunked: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
-) -> Iterator[pd.DataFrame]:
-    dfs: Iterator[pd.DataFrame] = s3.read_parquet(
-        path=paths,
-        categories=categories,
-        chunked=chunked,
-        dataset=False,
-        use_threads=use_threads,
-        boto3_session=boto3_session,
-        s3_additional_kwargs=s3_additional_kwargs,
-    )
-    yield from dfs
-    if keep_files is False:
-        s3.delete_objects(path=paths, use_threads=use_threads, boto3_session=boto3_session)
-
-
 def unload_redshift_to_files(
     sql: str,
     path: str,
@@ -1115,7 +1169,7 @@ def unload_redshift_to_files(
     kms_key_id: Optional[str] = None,
     use_threads: bool = True,
     manifest: bool = False,
-    partition_cols: Optional[List] = None,
+    partition_cols: Optional[List[str]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> List[str]:
     """Unload Parquet files from a Amazon Redshift query result to parquet files on s3 (Through UNLOAD command).
@@ -1208,12 +1262,3 @@ def unload_redshift_to_files(
         paths = [x[0].replace(" ", "") for x in _con.execute(sql).fetchall()]
         _logger.debug("paths: %s", paths)
         return paths
-
-
-def _validate_engine(con: sqlalchemy.engine.Engine) -> None:
-    if not isinstance(con, sqlalchemy.engine.Engine):
-        raise exceptions.InvalidConnection(
-            "Invalid 'con' argument, please pass a "
-            "SQLAlchemy Engine. Use wr.db.get_engine(), "
-            "wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()"
-        )

@@ -14,7 +14,7 @@ export ARROW_HOME=$(pwd)/dist
 export LD_LIBRARY_PATH=$(pwd)/dist/lib:$LD_LIBRARY_PATH
 
 git clone \
-  --branch apache-arrow-1.0.0 \
+  --branch apache-arrow-1.0.1 \
   --single-branch \
   https://github.com/apache/arrow.git
 

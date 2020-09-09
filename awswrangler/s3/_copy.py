@@ -3,8 +3,8 @@
 import logging
 from typing import Dict, List, Optional, Tuple
 
-import boto3  # type: ignore
-from boto3.s3.transfer import TransferConfig  # type: ignore
+import boto3
+from boto3.s3.transfer import TransferConfig
 
 from awswrangler import _utils, exceptions
 from awswrangler.s3._delete import delete_objects
@@ -38,6 +38,10 @@ def merge_datasets(
     boto3_session: Optional[boto3.Session] = None,
 ) -> List[str]:
     """Merge a source dataset into a target dataset.
+
+    This function accepts Unix shell-style wildcards in the source_path argument.
+    * (matches everything), ? (matches any single character),
+    [seq] (matches any character in seq), [!seq] (matches any character not in seq).
 
     Note
     ----

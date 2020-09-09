@@ -7,9 +7,9 @@ import re
 import uuid
 from typing import Any, Dict, Iterator, List, Match, NamedTuple, Optional, Union
 
-import boto3  # type: ignore
-import botocore.exceptions  # type: ignore
-import pandas as pd  # type: ignore
+import boto3
+import botocore.exceptions
+import pandas as pd
 
 from awswrangler import _utils, catalog, exceptions, s3
 from awswrangler._config import apply_configs
@@ -111,7 +111,7 @@ def _get_last_query_executions(
         yield execution_data.get("QueryExecutions")
 
 
-def _sort_successful_executions_data(query_executions: List[Dict[str, Any]]):
+def _sort_successful_executions_data(query_executions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
     Sorts `_get_last_query_executions`'s results based on query Completion DateTime.
 
@@ -265,7 +265,7 @@ def _fetch_csv_result(
         converters=query_metadata.converters,
         quoting=csv.QUOTE_ALL,
         keep_default_na=False,
-        na_values=[""],
+        na_values=["", "NaN"],
         chunksize=_chunksize,
         skip_blank_lines=False,
         use_threads=False,
@@ -289,14 +289,16 @@ def _fetch_csv_result(
 
 
 def _resolve_query_with_cache(
-    cache_info,
+    cache_info: _CacheInfo,
     categories: Optional[List[str]],
     chunksize: Optional[Union[int, bool]],
     use_threads: bool,
     session: Optional[boto3.Session],
-):
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Fetch cached data and return it as a pandas DataFrame (or list of DataFrames)."""
     _logger.debug("cache_info:\n%s", cache_info)
+    if cache_info.query_execution_id is None:
+        raise RuntimeError("Trying to resolve with cache but w/o any query execution ID.")
     query_metadata: _QueryMetadata = _get_query_metadata(
         query_execution_id=cache_info.query_execution_id,
         boto3_session=session,
@@ -330,14 +332,14 @@ def _resolve_query_without_cache_ctas(
     keep_files: bool,
     chunksize: Union[int, bool, None],
     categories: Optional[List[str]],
-    encryption,
+    encryption: Optional[str],
     workgroup: Optional[str],
     kms_key: Optional[str],
     wg_config: _WorkGroupConfig,
     name: Optional[str],
     use_threads: bool,
     boto3_session: boto3.Session,
-):
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     path: str = f"{s3_output}/{name}"
     ext_location: str = "\n" if wg_config.enforced is True else f",\n    external_location = '{path}'\n"
     sql = (
@@ -363,6 +365,10 @@ def _resolve_query_without_cache_ctas(
         )
     except botocore.exceptions.ClientError as ex:
         error: Dict[str, Any] = ex.response["Error"]
+        if error["Code"] == "InvalidRequestException" and "Exception parsing query" in error["Message"]:
+            raise exceptions.InvalidCtasApproachQuery(
+                "Is not possible to wrap this query into a CTAS statement. Please use ctas_approach=False."
+            )
         if error["Code"] == "InvalidRequestException" and "extraneous input" in error["Message"]:
             raise exceptions.InvalidCtasApproachQuery(
                 "Is not possible to wrap this query into a CTAS statement. Please use ctas_approach=False."
@@ -406,13 +412,13 @@ def _resolve_query_without_cache_regular(
     keep_files: bool,
     chunksize: Union[int, bool, None],
     categories: Optional[List[str]],
-    encryption,
+    encryption: Optional[str],
     workgroup: Optional[str],
     kms_key: Optional[str],
     wg_config: _WorkGroupConfig,
     use_threads: bool,
     boto3_session: boto3.Session,
-):
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     _logger.debug("sql: %s", sql)
     query_id: str = _start_query_execution(
         sql=sql,
@@ -520,9 +526,18 @@ def read_sql_query(
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Execute any SQL query on AWS Athena and return the results as a Pandas DataFrame.
 
-    There are two approaches to be defined through ctas_approach parameter:
+    **Related tutorial:**
 
-    **1 - ctas_approach=True (Default):**
+    - `Amazon Athena <https://github.com/awslabs/aws-data-wrangler/blob/
+      master/tutorials/006%20-%20Amazon%20Athena.ipynb>`_
+    - `Athena Cache <https://github.com/awslabs/aws-data-wrangler/blob/
+      master/tutorials/019%20-%20Athena%20Cache.ipynb>`_
+    - `Global Configurations <https://github.com/awslabs/aws-data-wrangler/blob/
+      master/tutorials/021%20-%20Global%20Configurations.ipynb>`_
+
+    **There are two approaches to be defined through ctas_approach parameter:**
+
+    **1** - ctas_approach=True (Default):
 
     Wrap the query with a CTAS and then reads the table data as parquet directly from s3.
 
@@ -539,7 +554,7 @@ def read_sql_query(
     - Does not support columns with undefined data types.
     - A temporary table will be created and then deleted immediately.
 
-    **2 - ctas_approach=False:**
+    **2** - ctas_approach=False:
 
     Does a regular query on Athena and parse the regular CSV result on s3.
 
@@ -558,9 +573,14 @@ def read_sql_query(
     Note
     ----
     The resulting DataFrame (or every DataFrame in the returned Iterator for chunked queries) have a
-    `query_metadata` attribute, which brings the query result metadata returned by Boto3/Athena.
-    The expected `query_metadata` format is the same as returned by:
-    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/athena.html#Athena.Client.get_query_execution
+    `query_metadata` attribute, which brings the query result metadata returned by
+    `Boto3/Athena <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services
+    /athena.html#Athena.Client.get_query_execution>`_ .
+
+    For a pratical example check out the
+    `related tutorial <https://github.com/awslabs/aws-data-wrangler/blob/
+    master/tutorials/024%20-%20Athena%20Query%20Metadata.ipynb>`_!
+
 
     Note
     ----
@@ -576,9 +596,9 @@ def read_sql_query(
 
     Note
     ----
-    ``Batching`` (`chunksize` argument) (Memory Friendly):
+    `chunksize` argument (Memory Friendly) (i.e batching):
 
-    Will anable the function to return a Iterable of DataFrames instead of a regular DataFrame.
+    Enable the function to return an Iterable of DataFrames instead of a regular DataFrame.
 
     There are two batching strategies on Wrangler:
 
@@ -599,7 +619,9 @@ def read_sql_query(
     sql : str
         SQL query.
     database : str
-        AWS Glue/Athena database name.
+        AWS Glue/Athena database name - It is only the origin database from where the query will be launched.
+        You can still using and mixing several databases writing the full table name within the sql
+        (e.g. `database.table`).
     ctas_approach: bool
         Wraps the query using a CTAS, and read the resulted parquet data on S3.
         If false, read the regular CSV on S3.
@@ -698,7 +720,7 @@ def read_sql_table(
     table: str,
     database: str,
     ctas_approach: bool = True,
-    categories: List[str] = None,
+    categories: Optional[List[str]] = None,
     chunksize: Optional[Union[int, bool]] = None,
     s3_output: Optional[str] = None,
     workgroup: Optional[str] = None,
@@ -713,9 +735,18 @@ def read_sql_table(
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Extract the full table AWS Athena and return the results as a Pandas DataFrame.
 
-    There are two approaches to be defined through ctas_approach parameter:
+    **Related tutorial:**
 
-    **1 - ctas_approach=True (Default):**
+    - `Amazon Athena <https://github.com/awslabs/aws-data-wrangler/blob/
+      master/tutorials/006%20-%20Amazon%20Athena.ipynb>`_
+    - `Athena Cache <https://github.com/awslabs/aws-data-wrangler/blob/
+      master/tutorials/019%20-%20Athena%20Cache.ipynb>`_
+    - `Global Configurations <https://github.com/awslabs/aws-data-wrangler/blob/
+      master/tutorials/021%20-%20Global%20Configurations.ipynb>`_
+
+    **There are two approaches to be defined through ctas_approach parameter:**
+
+    **1** - ctas_approach=True (Default):
 
     Wrap the query with a CTAS and then reads the table data as parquet directly from s3.
 
@@ -732,7 +763,7 @@ def read_sql_table(
     - Does not support columns with undefined data types.
     - A temporary table will be created and then deleted immediately.
 
-    **2 - ctas_approach=False:**
+    **2** - ctas_approach=False:
 
     Does a regular query on Athena and parse the regular CSV result on s3.
 
@@ -750,9 +781,14 @@ def read_sql_table(
     Note
     ----
     The resulting DataFrame (or every DataFrame in the returned Iterator for chunked queries) have a
-    `query_metadata` attribute, which brings the query result metadata returned by Boto3/Athena.
-    The expected `query_metadata` format is the same as returned by:
-    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/athena.html#Athena.Client.get_query_execution
+    `query_metadata` attribute, which brings the query result metadata returned by
+    `Boto3/Athena <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services
+    /athena.html#Athena.Client.get_query_execution>`_ .
+
+    For a pratical example check out the
+    `related tutorial <https://github.com/awslabs/aws-data-wrangler/blob/master/
+    tutorials/024%20-%20Athena%20Query%20Metadata.ipynb>`_!
+
 
     Note
     ----
@@ -768,9 +804,9 @@ def read_sql_table(
 
     Note
     ----
-    ``Batching`` (`chunksize` argument) (Memory Friendly):
+    `chunksize` argument (Memory Friendly) (i.e batching):
 
-    Will anable the function to return a Iterable of DataFrames instead of a regular DataFrame.
+    Enable the function to return an Iterable of DataFrames instead of a regular DataFrame.
 
     There are two batching strategies on Wrangler:
 

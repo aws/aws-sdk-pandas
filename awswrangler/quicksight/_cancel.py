@@ -3,7 +3,7 @@
 import logging
 from typing import Optional
 
-import boto3  # type: ignore
+import boto3
 
 from awswrangler import _utils, exceptions, sts
 from awswrangler.quicksight._get_list import get_dataset_id
@@ -12,7 +12,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def cancel_ingestion(
-    ingestion_id: str = None,
+    ingestion_id: str,
     dataset_name: Optional[str] = None,
     dataset_id: Optional[str] = None,
     account_id: Optional[str] = None,

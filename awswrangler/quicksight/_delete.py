@@ -3,7 +3,7 @@
 import logging
 from typing import Any, Callable, Dict, Optional
 
-import boto3  # type: ignore
+import boto3
 
 from awswrangler import _utils, exceptions, sts
 from awswrangler.quicksight._get_list import (
@@ -21,13 +21,13 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _delete(
-    func_name: str, account_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None, **kwargs
+    func_name: str, account_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None, **kwargs: Any
 ) -> None:
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
         account_id = sts.get_account_id(boto3_session=session)
     client: boto3.client = _utils.client(service_name="quicksight", session=session)
-    func: Callable = getattr(client, func_name)
+    func: Callable[..., None] = getattr(client, func_name)
     func(AwsAccountId=account_id, **kwargs)
 
 

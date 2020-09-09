@@ -2,6 +2,7 @@ import datetime
 import logging
 
 import boto3
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -21,9 +22,7 @@ from ._utils import (
     get_time_str_with_random_suffix,
 )
 
-logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s][%(name)s][%(funcName)s] %(message)s")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
-logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
 
 
 def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database, kms_key):
@@ -533,6 +532,7 @@ def test_catalog_versioning(path, glue_database, glue_table):
     paths = wr.s3.to_parquet(
         df=df, path=path, dataset=True, database=glue_database, table=glue_table, mode="overwrite"
     )["paths"]
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 1
     wr.s3.wait_objects_exist(paths=paths, use_threads=False)
     df = wr.athena.read_sql_table(table=glue_table, database=glue_database)
     assert len(df.index) == 2
@@ -550,6 +550,7 @@ def test_catalog_versioning(path, glue_database, glue_table):
         mode="overwrite",
         catalog_versioning=True,
     )["paths"]
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 2
     wr.s3.wait_objects_exist(paths=paths1, use_threads=False)
     df = wr.athena.read_sql_table(table=glue_table, database=glue_database)
     assert len(df.index) == 2
@@ -568,6 +569,7 @@ def test_catalog_versioning(path, glue_database, glue_table):
         catalog_versioning=True,
         index=False,
     )["paths"]
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 3
     wr.s3.wait_objects_exist(paths=paths2, use_threads=False)
     wr.s3.wait_objects_not_exist(paths=paths1, use_threads=False)
     df = wr.athena.read_sql_table(table=glue_table, database=glue_database)
@@ -587,6 +589,7 @@ def test_catalog_versioning(path, glue_database, glue_table):
         catalog_versioning=False,
         index=False,
     )["paths"]
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 3
     wr.s3.wait_objects_exist(paths=paths3, use_threads=False)
     wr.s3.wait_objects_not_exist(paths=paths2, use_threads=False)
     df = wr.athena.read_sql_table(table=glue_table, database=glue_database)
@@ -770,3 +773,17 @@ def test_parse_describe_table():
 def test_describe_table(path, glue_database, glue_table):
     wr.catalog.create_parquet_table(database=glue_database, table=glue_table, path=path, columns_types={"c0": "int"})
     assert wr.athena.describe_table(database=glue_database, table=glue_table).shape == (1, 4)
+
+
+@pytest.mark.parametrize("ctas_approach", [False, True])
+def test_athena_nan_inf(glue_database, ctas_approach):
+    sql = "SELECT nan() AS nan, infinity() as inf, -infinity() as inf_n, 1.2 as regular"
+    df = wr.athena.read_sql_query(sql, glue_database, ctas_approach)
+    print(df)
+    print(df.dtypes)
+    assert df.shape == (1, 4)
+    assert df.dtypes.to_list() == ["float64", "float64", "float64", "float64"]
+    assert np.isnan(df.nan.iloc[0])
+    assert df.inf.iloc[0] == np.PINF
+    assert df.inf_n.iloc[0] == np.NINF
+    assert df.regular.iloc[0] == 1.2
