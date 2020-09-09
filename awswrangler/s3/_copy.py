@@ -13,7 +13,7 @@ from awswrangler.s3._list import list_objects
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _copy_objects(batch: List[Tuple[str, str]], s3_additional_kwargs: Optional[Dict[str, str]], use_threads: bool, boto3_session: boto3.Session) -> None:
+def _copy_objects(batch: List[Tuple[str, str]], use_threads: bool, boto3_session: boto3.Session, s3_additional_kwargs: Optional[Dict[str, str]]) -> None:
     _logger.debug("len(batch): %s", len(batch))
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     resource_s3: boto3.resource = _utils.resource(service_name="s3", session=boto3_session)
@@ -125,9 +125,9 @@ def copy_objects(
     source_path: str,
     target_path: str,
     replace_filenames: Optional[Dict[str, str]] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
+    s3_additional_kwargs: Optional[Dict[str, str]] = None,
 ) -> List[str]:
     """Copy a list of S3 objects to another S3 directory.
 
