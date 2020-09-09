@@ -13,7 +13,8 @@ from awswrangler.s3._list import list_objects
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _copy_objects(batch: List[Tuple[str, str]], use_threads: bool, boto3_session: boto3.Session, s3_additional_kwargs: Optional[Dict[str, str]]) -> None:
+def _copy_objects(batch: List[Tuple[str, str]], use_threads: bool,
+                  boto3_session: boto3.Session, s3_additional_kwargs: Optional[Dict[str, str]]) -> None:
     _logger.debug("len(batch): %s", len(batch))
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     resource_s3: boto3.resource = _utils.resource(service_name="s3", session=boto3_session)
@@ -114,7 +115,8 @@ def merge_datasets(
         raise exceptions.InvalidArgumentValue(f"{mode} is a invalid mode option.")
 
     new_objects: List[str] = copy_objects(
-        paths=paths, source_path=source_path, target_path=target_path, use_threads=use_threads, boto3_session=session, s3_additional_kwargs=s3_additional_kwargs
+        paths=paths, source_path=source_path, target_path=target_path,
+        use_threads=use_threads, boto3_session=session, s3_additional_kwargs=s3_additional_kwargs
     )
     _logger.debug("len(new_objects): %s", len(new_objects))
     return new_objects
@@ -199,5 +201,8 @@ def copy_objects(
         new_objects.append(path_final)
         batch.append((path, path_final))
     _logger.debug("len(new_objects): %s", len(new_objects))
-    _copy_objects(batch=batch, use_threads=use_threads, boto3_session=session, s3_additional_kwargs=s3_additional_kwargs)
+    _copy_objects(
+        batch=batch, use_threads=use_threads,
+        boto3_session=session, s3_additional_kwargs=s3_additional_kwargs
+    )
     return new_objects
