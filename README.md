@@ -135,3 +135,4 @@ Please send a PR with your company name and @githubhandle if you may.
 * [Pier](https://www.pier.digital/) [[@flaviomax](https://github.com/flaviomax)]
 * [Pismo](https://www.pismo.io/) [[@msantino](https://github.com/msantino)]
 * [Serasa Experian](https://www.serasaexperian.com.br/) [[@andre-marcos-perez](https://github.com/andre-marcos-perez)]
+* [Zillow](https://www.zillow.com/) [[@nicholas-miles]](https://github.com/nicholas-miles)
