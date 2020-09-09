@@ -5,7 +5,7 @@
 
 > An [AWS Professional Service](https://aws.amazon.com/professional-services/) open source initiative | aws-proserve-opensource@amazon.com
 
-[![Release](https://img.shields.io/badge/release-1.9.2-brightgreen.svg)](https://pypi.org/project/awswrangler/)
+[![Release](https://img.shields.io/badge/release-1.9.3-brightgreen.svg)](https://pypi.org/project/awswrangler/)
 [![Python Version](https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.8-brightgreen.svg)](https://anaconda.org/conda-forge/awswrangler)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -135,3 +135,4 @@ Please send a PR with your company name and @githubhandle if you may.
 * [Pier](https://www.pier.digital/) [[@flaviomax](https://github.com/flaviomax)]
 * [Pismo](https://www.pismo.io/) [[@msantino](https://github.com/msantino)]
 * [Serasa Experian](https://www.serasaexperian.com.br/) [[@andre-marcos-perez](https://github.com/andre-marcos-perez)]
+* [Zillow](https://www.zillow.com/) [[@nicholas-miles]](https://github.com/nicholas-miles)

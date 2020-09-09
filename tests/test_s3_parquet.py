@@ -1,7 +1,7 @@
 import itertools
 import logging
 import math
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 import boto3
 import numpy as np
@@ -362,7 +362,7 @@ def test_timezone_file(path, use_threads):
     assert df.equals(df2)
 
 
-@pytest.mark.parametrize("use_threads", [False])
+@pytest.mark.parametrize("use_threads", [True, False])
 def test_timezone_file_columns(path, use_threads):
     file_path = f"{path}0.parquet"
     df = pd.DataFrame({"c0": [datetime.utcnow(), datetime.utcnow()], "c1": [1.1, 2.2]})
@@ -371,3 +371,19 @@ def test_timezone_file_columns(path, use_threads):
     wr.s3.wait_objects_exist(paths=[file_path], use_threads=use_threads)
     df2 = wr.s3.read_parquet(path, columns=["c1"], use_threads=use_threads)
     assert df[["c1"]].equals(df2)
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_timezone_raw_values(path, use_threads):
+    df = pd.DataFrame({"c0": [1.1, 2.2], "par": ["a", "b"]})
+    df["c1"] = pd.to_datetime(datetime.now(timezone.utc))
+    df["c2"] = pd.to_datetime(datetime(2011, 11, 4, 0, 5, 23, tzinfo=timezone(timedelta(seconds=14400))))
+    df["c3"] = pd.to_datetime(datetime(2011, 11, 4, 0, 5, 23, tzinfo=timezone(-timedelta(seconds=14400))))
+    df["c4"] = pd.to_datetime(datetime(2011, 11, 4, 0, 5, 23, tzinfo=timezone(timedelta(hours=-8))))
+    paths = wr.s3.to_parquet(partition_cols=["par"], df=df, path=path, dataset=True, sanitize_columns=False)["paths"]
+    wr.s3.wait_objects_exist(paths, use_threads=use_threads)
+    df2 = wr.s3.read_parquet(path, dataset=True, use_threads=use_threads)
+    df3 = pd.concat([pd.read_parquet(p) for p in paths], ignore_index=True)
+    df2["par"] = df2["par"].astype("string")
+    df3["par"] = df3["par"].astype("string")
+    assert df2.equals(df3)
