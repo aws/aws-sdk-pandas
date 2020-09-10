@@ -80,9 +80,12 @@ def _start_query_execution(
                 args["ResultConfiguration"]["EncryptionConfiguration"]["KmsKey"] = kms_key
 
     # database
+    query_execution_context = {}
     if database is not None:
-        args["QueryExecutionContext"] = {"Database": database,
-                                         "Catalog": catalog}
+        query_execution_context["Database"] = database
+    if catalog is not None:
+        query_execution_context["Catalog"] = catalog
+    args["QueryExecutionContext"] = query_execution_context
 
     # workgroup
     if workgroup is not None:
