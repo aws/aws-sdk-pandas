@@ -577,7 +577,7 @@ def read_sql_query(
     `Boto3/Athena <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services
     /athena.html#Athena.Client.get_query_execution>`_ .
 
-    For a pratical example check out the
+    For a practical example check out the
     `related tutorial <https://github.com/awslabs/aws-data-wrangler/blob/
     master/tutorials/024%20-%20Athena%20Query%20Metadata.ipynb>`_!
 
@@ -785,7 +785,7 @@ def read_sql_table(
     `Boto3/Athena <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services
     /athena.html#Athena.Client.get_query_execution>`_ .
 
-    For a pratical example check out the
+    For a practical example check out the
     `related tutorial <https://github.com/awslabs/aws-data-wrangler/blob/master/
     tutorials/024%20-%20Athena%20Query%20Metadata.ipynb>`_!
 
