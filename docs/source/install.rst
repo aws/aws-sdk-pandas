@@ -52,15 +52,14 @@ AWS Glue PySpark Jobs
 
 .. note:: AWS Data Wrangler has compiled dependencies (C/C++) so there is only support for ``Glue PySpark Jobs >= 2.0``.
 
-1 - Go to `GitHub's release page <https://github.com/awslabs/aws-data-wrangler/releases>`_ and download the wheel file
-(.whl) related to the desired version.
-
-2 - Upload the wheel file to any Amazon S3 location.
-
-3 - Go to your Glue PySpark job and create a new *Job parameters* key/value:
+Go to your Glue PySpark job and create a new *Job parameters* key/value:
 
 * Key: ``--additional-python-modules``
-* Value: ``s3://{BUCKET_NAME}/awswrangler-{VERSION}-py3-none-any.whl``
+* Value: ``awswrangler``
+
+To install a specific version, set the value for above Job parameter as follows:
+
+* Value: ``awswrangler==1.9.3``
 
 `Official Glue PySpark Reference <https://docs.aws.amazon.com/glue/latest/dg/reduced-start-times-spark-etl-jobs.html#reduced-start-times-new-features>`_
 
