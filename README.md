@@ -117,6 +117,13 @@ wr.db.to_sql(df, engine, schema="test", name="my_table")
 - [**Contributing**](https://github.com/awslabs/aws-data-wrangler/blob/master/CONTRIBUTING.md)
 - [**Legacy Docs** (pre-1.0.0)](https://aws-data-wrangler.readthedocs.io/en/legacy/)
 
+## Community Resources
+
+Please send a PR with your resource reference and @githubhandle.
+
+* [Getting started on AWS Data Wrangler and Athena](https://medium.com/@dheerajsharmainampudi/getting-started-on-aws-data-wrangler-and-athena-7b446c834076) [[@dheerajsharma21](https://github.com/dheerajsharma21)]
+* [Simplifying Pandas integration with AWS data related services](https://medium.com/@bv_subhash/aws-data-wrangler-simplifying-pandas-integration-with-aws-data-related-services-2b3325c12188) [[@bvsubhash](https://github.com/bvsubhash)]
+
 ## Who uses AWS Data Wrangler?
 
 Knowing which companies are using this library is important to help prioritize the project internally.
