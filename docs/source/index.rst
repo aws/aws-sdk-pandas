@@ -49,6 +49,8 @@ Read The Docs
    install
    Tutorials <https://github.com/awslabs/aws-data-wrangler/tree/master/tutorials>
    api
+   Community Resources <https://github.com/awslabs/aws-data-wrangler#community-resources>
+   Who uses AWS Data Wrangler? <https://github.com/awslabs/aws-data-wrangler#who-uses-aws-data-wrangler>
    License <https://github.com/awslabs/aws-data-wrangler/blob/master/LICENSE.txt>
    Contributing <https://github.com/awslabs/aws-data-wrangler/blob/master/CONTRIBUTING.md>
    Legacy Docs (pre-1.0.0) <https://aws-data-wrangler.readthedocs.io/en/legacy/>
