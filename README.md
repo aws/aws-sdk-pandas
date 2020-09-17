@@ -119,7 +119,7 @@ wr.db.to_sql(df, engine, schema="test", name="my_table")
 
 ## Community Resources
 
-Please send a PR with your resource reference and @githubhandle.
+Please [send a Pull Request](https://github.com/awslabs/aws-data-wrangler/edit/master/README.md) with your resource reference and @githubhandle.
 
 * [Getting started on AWS Data Wrangler and Athena](https://medium.com/@dheerajsharmainampudi/getting-started-on-aws-data-wrangler-and-athena-7b446c834076) [[@dheerajsharma21](https://github.com/dheerajsharma21)]
 * [Simplifying Pandas integration with AWS data related services](https://medium.com/@bv_subhash/aws-data-wrangler-simplifying-pandas-integration-with-aws-data-related-services-2b3325c12188) [[@bvsubhash](https://github.com/bvsubhash)]
@@ -128,7 +128,7 @@ Please send a PR with your resource reference and @githubhandle.
 
 Knowing which companies are using this library is important to help prioritize the project internally.
 
-Please send a PR with your company name and @githubhandle if you may.
+Please [send a Pull Request](https://github.com/awslabs/aws-data-wrangler/edit/master/README.md) with your company name and @githubhandle if you may.
 
 * [Amazon](https://www.amazon.com/)
 * [AWS](https://aws.amazon.com/)
