@@ -13,6 +13,43 @@ logger = logging.getLogger("awswrangler")
 logger.setLevel(logging.DEBUG)
 
 
+@pytest.mark.parametrize("length", [-1, 1, 2, 3, 6, 9, 12])
+@pytest.mark.parametrize(
+    "seq",
+    [
+        (1, 6, 9, 4, 0, 3, 5, 7, 8, 2),
+        (8, 9, 0, 4, 2, 1, 7, 5, 6, 3),
+        (1, 2, 8, 9, 3, 0, 6, 5, 7, 4),
+        (4, 7, 6, 3, 2, 0, 5, 8, 1, 9),
+        (6, 9, 8, 3, 1, 0, 4, 2, 5, 7),
+        (8, 9, 4, 6, 7, 5, 0, 2, 3, 1),
+        (8, 3, 6, 2, 9, 7, 4, 1, 0, 5),
+        (7, 8, 1, 3, 2, 9, 6, 0, 4, 5),
+        (2, 4, 8, 9, 6, 0, 3, 1, 7, 5),
+        (9, 5, 3, 2, 0, 6, 1, 8, 7, 4),
+        (0, 9, 1, 3, 7, 4, 8, 6, 5, 2),
+    ],
+)
+def test_read_one_shot(path, seq, length):
+    client_s3 = boto3.client("s3")
+    path = f"{path}0.txt"
+    bucket, key = wr._utils.parse_path(path)
+    text = "0123456789"
+    client_s3.put_object(Body=text, Bucket=bucket, Key=key)
+    fs = s3fs.S3FileSystem()
+    with fs.open(path, "rb") as f:
+        with open_s3_object(path, mode="rb", s3_block_size=-1, use_threads=True) as s3obj:
+            for i in seq:
+                s3obj.seek(i)
+                f.seek(i)
+                data = s3obj.read(length)
+                assert data[0:1] == text[i].encode("utf-8")
+                assert data == f.read(length)
+                logger.debug(s3obj._cache)
+                assert len(s3obj._cache) == s3obj._size
+    assert s3obj._cache == b""
+
+
 @pytest.mark.parametrize("use_threads", [True, False])
 @pytest.mark.parametrize("block_size", list(range(3, 10)) + [-1])
 @pytest.mark.parametrize("length", list(range(1, 10)))
