@@ -121,6 +121,8 @@ wr.db.to_sql(df, engine, schema="test", name="my_table")
 
 Please [send a Pull Request](https://github.com/awslabs/aws-data-wrangler/edit/master/README.md) with your resource reference and @githubhandle.
 
+* [Reading Parquet Files With AWS Lambda](https://aprakash.wordpress.com/2020/04/14/reading-parquet-files-with-aws-lambda/)
+* [Transform AWS CloudTrail data using AWS Data Wrangler](https://aprakash.wordpress.com/2020/09/17/transform-aws-cloudtrail-data-using-aws-data-wrangler/)
 * [Getting started on AWS Data Wrangler and Athena](https://medium.com/@dheerajsharmainampudi/getting-started-on-aws-data-wrangler-and-athena-7b446c834076) [[@dheerajsharma21](https://github.com/dheerajsharma21)]
 * [Simplifying Pandas integration with AWS data related services](https://medium.com/@bv_subhash/aws-data-wrangler-simplifying-pandas-integration-with-aws-data-related-services-2b3325c12188) [[@bvsubhash](https://github.com/bvsubhash)]
 
@@ -142,5 +144,5 @@ Please [send a Pull Request](https://github.com/awslabs/aws-data-wrangler/edit/m
 * [Pier](https://www.pier.digital/) [[@flaviomax](https://github.com/flaviomax)]
 * [Pismo](https://www.pismo.io/) [[@msantino](https://github.com/msantino)]
 * [Serasa Experian](https://www.serasaexperian.com.br/) [[@andre-marcos-perez](https://github.com/andre-marcos-perez)]
-* [Zillow](https://www.zillow.com/) [[@nicholas-miles]](https://github.com/nicholas-miles)
 * [Thinkbumblebee](https://www.thinkbumblebee.com/) [[@dheerajsharma21]](https://github.com/dheerajsharma21)
+* [Zillow](https://www.zillow.com/) [[@nicholas-miles]](https://github.com/nicholas-miles)
