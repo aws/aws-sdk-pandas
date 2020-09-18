@@ -26,6 +26,7 @@ Powered By [<img src="https://arrow.apache.org/img/arrow.png" width="200">](http
 
 - [Quick Start](#quick-start)
 - [Read The Docs](#read-the-docs)
+- [Community Resources](#community-resources)
 - [Who uses AWS Data Wrangler?](#who-uses-aws-data-wrangler)
 
 ## Quick Start
