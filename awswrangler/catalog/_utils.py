@@ -56,7 +56,7 @@ def does_table_exist(database: str, table: str, boto3_session: Optional[boto3.Se
     Examples
     --------
     >>> import awswrangler as wr
-    >>> wr.catalog.does_table_exist(database='default', name='my_table')
+    >>> wr.catalog.does_table_exist(database='default', table='my_table')
 
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)

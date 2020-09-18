@@ -69,9 +69,9 @@ def delete_table_if_exists(
     Examples
     --------
     >>> import awswrangler as wr
-    >>> wr.catalog.delete_table_if_exists(database='default', name='my_table')  # deleted
+    >>> wr.catalog.delete_table_if_exists(database='default', table='my_table')  # deleted
     True
-    >>> wr.catalog.delete_table_if_exists(database='default', name='my_table')  # Nothing to be deleted
+    >>> wr.catalog.delete_table_if_exists(database='default', table='my_table')  # Nothing to be deleted
     False
 
     """
