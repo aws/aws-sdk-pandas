@@ -3,7 +3,7 @@
 import concurrent.futures
 import itertools
 import logging
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
 import boto3
 
@@ -33,7 +33,7 @@ def _wait_object_concurrent(
 def _wait_objects(
     waiter_name: str,
     paths: List[str],
-    delay: Optional[Union[int, float]] = None,
+    delay: Optional[float] = None,
     max_attempts: Optional[int] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
@@ -75,7 +75,7 @@ def _wait_objects(
 
 def wait_objects_exist(
     paths: List[str],
-    delay: Optional[Union[int, float]] = None,
+    delay: Optional[float] = None,
     max_attempts: Optional[int] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
@@ -128,7 +128,7 @@ def wait_objects_exist(
 
 def wait_objects_not_exist(
     paths: List[str],
-    delay: Optional[Union[int, float]] = None,
+    delay: Optional[float] = None,
     max_attempts: Optional[int] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,

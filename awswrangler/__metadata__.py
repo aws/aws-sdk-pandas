@@ -7,5 +7,5 @@ Documentation: https://aws-data-wrangler.readthedocs.io/
 
 __title__: str = "awswrangler"
 __description__: str = "Pandas on AWS."
-__version__: str = "1.9.3"
+__version__: str = "1.9.4"
 __license__: str = "Apache License 2.0"
