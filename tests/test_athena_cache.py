@@ -2,6 +2,7 @@ import logging
 from unittest.mock import patch
 
 import pandas as pd
+import pytest
 
 import awswrangler as wr
 
@@ -35,7 +36,8 @@ def test_athena_cache(path, glue_database, glue_table, workgroup1):
     assert len(list(dfs)) == 2
 
 
-def test_cache_query_ctas_approach_true(path, glue_database, glue_table):
+@pytest.mark.parametrize("data_source", [None, "AwsDataCatalog"])
+def test_cache_query_ctas_approach_true(path, glue_database, glue_table, data_source):
     df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
     paths = wr.s3.to_parquet(
         df=df,
@@ -54,20 +56,25 @@ def test_cache_query_ctas_approach_true(path, glue_database, glue_table):
         "awswrangler.athena._read._check_for_cached_results",
         return_value=wr.athena._read._CacheInfo(has_valid_cache=False),
     ) as mocked_cache_attempt:
-        df2 = wr.athena.read_sql_table(glue_table, glue_database, ctas_approach=True, max_cache_seconds=0)
+        df2 = wr.athena.read_sql_table(
+            glue_table, glue_database, ctas_approach=True, max_cache_seconds=0, data_source=data_source
+        )
         mocked_cache_attempt.assert_called()
         assert df.shape == df2.shape
         assert df.c0.sum() == df2.c0.sum()
 
     with patch("awswrangler.athena._read._resolve_query_without_cache") as resolve_no_cache:
-        df3 = wr.athena.read_sql_table(glue_table, glue_database, ctas_approach=True, max_cache_seconds=900)
+        df3 = wr.athena.read_sql_table(
+            glue_table, glue_database, ctas_approach=True, max_cache_seconds=900, data_source=data_source
+        )
         resolve_no_cache.assert_not_called()
         assert df.shape == df3.shape
         assert df.c0.sum() == df3.c0.sum()
         ensure_athena_query_metadata(df=df3, ctas_approach=True, encrypted=False)
 
 
-def test_cache_query_ctas_approach_false(path, glue_database, glue_table):
+@pytest.mark.parametrize("data_source", [None, "AwsDataCatalog"])
+def test_cache_query_ctas_approach_false(path, glue_database, glue_table, data_source):
     df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
     paths = wr.s3.to_parquet(
         df=df,
@@ -86,13 +93,17 @@ def test_cache_query_ctas_approach_false(path, glue_database, glue_table):
         "awswrangler.athena._read._check_for_cached_results",
         return_value=wr.athena._read._CacheInfo(has_valid_cache=False),
     ) as mocked_cache_attempt:
-        df2 = wr.athena.read_sql_table(glue_table, glue_database, ctas_approach=False, max_cache_seconds=0)
+        df2 = wr.athena.read_sql_table(
+            glue_table, glue_database, ctas_approach=False, max_cache_seconds=0, data_source=data_source
+        )
         mocked_cache_attempt.assert_called()
         assert df.shape == df2.shape
         assert df.c0.sum() == df2.c0.sum()
 
     with patch("awswrangler.athena._read._resolve_query_without_cache") as resolve_no_cache:
-        df3 = wr.athena.read_sql_table(glue_table, glue_database, ctas_approach=False, max_cache_seconds=900)
+        df3 = wr.athena.read_sql_table(
+            glue_table, glue_database, ctas_approach=False, max_cache_seconds=900, data_source=data_source
+        )
         resolve_no_cache.assert_not_called()
         assert df.shape == df3.shape
         assert df.c0.sum() == df3.c0.sum()

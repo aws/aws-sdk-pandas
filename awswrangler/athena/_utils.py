@@ -52,6 +52,7 @@ def _start_query_execution(
     sql: str,
     wg_config: _WorkGroupConfig,
     database: Optional[str] = None,
+    data_source: Optional[str] = None,
     s3_output: Optional[str] = None,
     workgroup: Optional[str] = None,
     encryption: Optional[str] = None,
@@ -81,6 +82,8 @@ def _start_query_execution(
     # database
     if database is not None:
         args["QueryExecutionContext"] = {"Database": database}
+        if data_source is not None:
+            args["QueryExecutionContext"]["Catalog"] = data_source
 
     # workgroup
     if workgroup is not None:
@@ -312,6 +315,7 @@ def start_query_execution(
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
+    data_source: Optional[str] = None,
 ) -> str:
     """Start a SQL Query against AWS Athena.
 
@@ -336,6 +340,8 @@ def start_query_execution(
         For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    data_source : str, optional
+        Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
 
     Returns
     -------
@@ -344,8 +350,15 @@ def start_query_execution(
 
     Examples
     --------
+    Querying into the default data source (Amazon s3 - 'AwsDataCatalog')
+
     >>> import awswrangler as wr
     >>> query_exec_id = wr.athena.start_query_execution(sql='...', database='...')
+
+    Querying into another data source (PostgreSQL, Redshift, etc)
+
+    >>> import awswrangler as wr
+    >>> query_exec_id = wr.athena.start_query_execution(sql='...', database='...', data_source='...')
 
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
@@ -354,6 +367,7 @@ def start_query_execution(
         sql=sql,
         wg_config=wg_config,
         database=database,
+        data_source=data_source,
         s3_output=s3_output,
         workgroup=workgroup,
         encryption=encryption,
