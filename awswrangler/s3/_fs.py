@@ -23,8 +23,19 @@ _S3_RETRYABLE_ERRORS: Tuple[Any, Any, Any] = (socket.timeout, ConnectionError, R
 _MIN_WRITE_BLOCK: int = 5_242_880  # 5 MB (5 * 2**20)
 _MIN_PARALLEL_READ_BLOCK: int = 5_242_880  # 5 MB (5 * 2**20)
 
-_BOTOCORE_ACCEPTED_KWARGS: Dict[str, Set[str]] = {
+BOTOCORE_ACCEPTED_KWARGS: Dict[str, Set[str]] = {
     "get_object": {"SSECustomerAlgorithm", "SSECustomerKey"},
+    "copy_object": {
+        "ACL",
+        "Metadata",
+        "ServerSideEncryption",
+        "StorageClass",
+        "SSECustomerAlgorithm",
+        "SSECustomerKey",
+        "SSEKMSKeyId",
+        "SSEKMSEncryptionContext",
+        "Tagging",
+    },
     "create_multipart_upload": {
         "ACL",
         "Metadata",
@@ -50,6 +61,11 @@ _BOTOCORE_ACCEPTED_KWARGS: Dict[str, Set[str]] = {
         "Tagging",
     },
 }
+
+
+def get_botocore_valid_kwargs(function_name: str, s3_additional_kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    """Filter and keep only the valid botocore key arguments."""
+    return {k: v for k, v in s3_additional_kwargs.items() if k in BOTOCORE_ACCEPTED_KWARGS[function_name]}
 
 
 def _fetch_range(
@@ -253,9 +269,6 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
         """Iterate over lines."""
         return self
 
-    def _get_botocore_valid_kwargs(self, function_name: str) -> Dict[str, Any]:
-        return {k: v for k, v in self._s3_additional_kwargs.items() if k in _BOTOCORE_ACCEPTED_KWARGS[function_name]}
-
     @staticmethod
     def _merge_range(ranges: List[Tuple[int, bytes]]) -> bytes:
         return b"".join(data for start, data in sorted(ranges, key=lambda r: r[0]))
@@ -263,7 +276,9 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
     def _fetch_range_proxy(self, start: int, end: int) -> bytes:
         _logger.debug("Fetching: s3://%s/%s - Range: %s-%s", self._bucket, self._key, start, end)
         boto3_primitives: _utils.Boto3PrimitivesType = _utils.boto3_to_primitives(boto3_session=self._boto3_session)
-        boto3_kwargs: Dict[str, Any] = self._get_botocore_valid_kwargs(function_name="get_object")
+        boto3_kwargs: Dict[str, Any] = get_botocore_valid_kwargs(
+            function_name="get_object", s3_additional_kwargs=self._s3_additional_kwargs
+        )
         cpus: int = _utils.ensure_cpu_count(use_threads=self._use_threads)
         range_size: int = end - start
         if cpus < 2 or range_size < (2 * _MIN_PARALLEL_READ_BLOCK):
@@ -452,7 +467,9 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
                 max_num_tries=6,
                 Bucket=self._bucket,
                 Key=self._key,
-                **self._get_botocore_valid_kwargs(function_name="create_multipart_upload"),
+                **get_botocore_valid_kwargs(
+                    function_name="create_multipart_upload", s3_additional_kwargs=self._s3_additional_kwargs
+                ),
             )
             self._buffer.seek(0)
             for chunk_size in _utils.get_even_chunks_sizes(
@@ -467,7 +484,9 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
                     upload_id=self._mpu["UploadId"],
                     data=self._buffer.read(chunk_size),
                     boto3_session=self._boto3_session,
-                    boto3_kwargs=self._get_botocore_valid_kwargs(function_name="upload_part"),
+                    boto3_kwargs=get_botocore_valid_kwargs(
+                        function_name="upload_part", s3_additional_kwargs=self._s3_additional_kwargs
+                    ),
                 )
             self._buffer = io.BytesIO()
         return None
@@ -505,7 +524,9 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
                     Key=self._key,
                     UploadId=self._mpu["UploadId"],
                     MultipartUpload=part_info,
-                    **self._get_botocore_valid_kwargs(function_name="complete_multipart_upload"),
+                    **get_botocore_valid_kwargs(
+                        function_name="complete_multipart_upload", s3_additional_kwargs=self._s3_additional_kwargs
+                    ),
                 )
             elif self._buffer.tell() > 0:
                 _logger.debug("put_object")
@@ -517,7 +538,9 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
                     Bucket=self._bucket,
                     Key=self._key,
                     Body=self._buffer.getvalue(),
-                    **self._get_botocore_valid_kwargs(function_name="put_object"),
+                    **get_botocore_valid_kwargs(
+                        function_name="put_object", s3_additional_kwargs=self._s3_additional_kwargs
+                    ),
                 )
             self._parts_count = 0
             self._buffer.seek(0)

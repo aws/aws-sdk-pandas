@@ -1,13 +1,14 @@
 """Amazon S3 Copy Module (PRIVATE)."""
 
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import boto3
 from boto3.s3.transfer import TransferConfig
 
 from awswrangler import _utils, exceptions
 from awswrangler.s3._delete import delete_objects
+from awswrangler.s3._fs import get_botocore_valid_kwargs
 from awswrangler.s3._list import list_objects
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -17,11 +18,15 @@ def _copy_objects(
     batch: List[Tuple[str, str]],
     use_threads: bool,
     boto3_session: boto3.Session,
-    s3_additional_kwargs: Optional[Dict[str, str]],
+    s3_additional_kwargs: Optional[Dict[str, Any]],
 ) -> None:
     _logger.debug("len(batch): %s", len(batch))
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     resource_s3: boto3.resource = _utils.resource(service_name="s3", session=boto3_session)
+    if s3_additional_kwargs is None:
+        boto3_kwargs: Optional[Dict[str, Any]] = None
+    else:
+        boto3_kwargs = get_botocore_valid_kwargs(function_name="copy_object", s3_additional_kwargs=s3_additional_kwargs)
     for source, target in batch:
         source_bucket, source_key = _utils.parse_path(path=source)
         copy_source: Dict[str, str] = {"Bucket": source_bucket, "Key": source_key}
@@ -31,8 +36,8 @@ def _copy_objects(
             Bucket=target_bucket,
             Key=target_key,
             SourceClient=client_s3,
-            ExtraArgs=s3_additional_kwargs,
-            Config=TransferConfig(num_download_attempts=15, use_threads=use_threads),
+            ExtraArgs=boto3_kwargs,
+            Config=TransferConfig(num_download_attempts=10, use_threads=use_threads),
         )
 
 
@@ -42,7 +47,7 @@ def merge_datasets(
     mode: str = "append",
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> List[str]:
     """Merge a source dataset into a target dataset.
 
@@ -74,7 +79,7 @@ def merge_datasets(
         If enabled os.cpu_count() will be used as the max number of threads.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs:
+    s3_additional_kwargs : Optional[Dict[str, Any]]
         Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
         "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
@@ -86,11 +91,27 @@ def merge_datasets(
 
     Examples
     --------
+    Merging
+
     >>> import awswrangler as wr
     >>> wr.s3.merge_datasets(
     ...     source_path="s3://bucket0/dir0/",
     ...     target_path="s3://bucket1/dir1/",
     ...     mode="append"
+    ... )
+    ["s3://bucket1/dir1/key0", "s3://bucket1/dir1/key1"]
+
+    Merging with a KMS key
+
+    >>> import awswrangler as wr
+    >>> wr.s3.merge_datasets(
+    ...     source_path="s3://bucket0/dir0/",
+    ...     target_path="s3://bucket1/dir1/",
+    ...     mode="append",
+    ...     s3_additional_kwargs={
+    ...         'ServerSideEncryption': 'aws:kms',
+    ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
+    ...     }
     ... )
     ["s3://bucket1/dir1/key0", "s3://bucket1/dir1/key1"]
 
@@ -137,7 +158,7 @@ def copy_objects(
     replace_filenames: Optional[Dict[str, str]] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> List[str]:
     """Copy a list of S3 objects to another S3 directory.
 
@@ -161,7 +182,7 @@ def copy_objects(
         If enabled os.cpu_count() will be used as the max number of threads.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs:
+    s3_additional_kwargs : Optional[Dict[str, Any]]
         Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
         "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
@@ -173,6 +194,18 @@ def copy_objects(
 
     Examples
     --------
+    Copying
+
+    >>> import awswrangler as wr
+    >>> wr.s3.copy_objects(
+    ...     paths=["s3://bucket0/dir0/key0", "s3://bucket0/dir0/key1"],
+    ...     source_path="s3://bucket0/dir0/",
+    ...     target_path="s3://bucket1/dir1/"
+    ... )
+    ["s3://bucket1/dir1/key0", "s3://bucket1/dir1/key1"]
+
+    Copying with a KMS key
+
     >>> import awswrangler as wr
     >>> wr.s3.copy_objects(
     ...     paths=["s3://bucket0/dir0/key0", "s3://bucket0/dir0/key1"],

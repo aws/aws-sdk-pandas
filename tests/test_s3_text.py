@@ -242,3 +242,24 @@ def test_read_json_index(path):
     wr.s3.wait_objects_exist(paths=paths, use_threads=False)
     df = wr.s3.read_json(paths, orient="index")
     assert df.shape == (6, 2)
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize(
+    "s3_additional_kwargs",
+    [None, {"ServerSideEncryption": "AES256"}, {"ServerSideEncryption": "aws:kms", "SSEKMSKeyId": None}],
+)
+def test_csv_additional_kwargs(path, kms_key_id, s3_additional_kwargs, use_threads):
+    if s3_additional_kwargs is not None and "SSEKMSKeyId" in s3_additional_kwargs:
+        s3_additional_kwargs["SSEKMSKeyId"] = kms_key_id
+    path = f"{path}0.txt"
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5]})
+    wr.s3.to_csv(df, path, index=False, s3_additional_kwargs=s3_additional_kwargs)
+    assert df.equals(wr.s3.read_csv([path]))
+    desc = wr.s3.describe_objects([path])[path]
+    if s3_additional_kwargs is None:
+        assert desc.get("ServerSideEncryption") is None
+    elif s3_additional_kwargs["ServerSideEncryption"] == "aws:kms":
+        assert desc.get("ServerSideEncryption") == "aws:kms"
+    elif s3_additional_kwargs["ServerSideEncryption"] == "AES256":
+        assert desc.get("ServerSideEncryption") == "AES256"
