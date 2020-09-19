@@ -63,7 +63,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
     columns: Optional[List[str]] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     sanitize_columns: bool = False,
     dataset: bool = False,
     partition_cols: Optional[List[str]] = None,
@@ -134,7 +134,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
         If enabled os.cpu_count() will be used as the max number of threads.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
-    s3_additional_kwargs:
+    s3_additional_kwargs : Optional[Dict[str, Any]]
         Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
         "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
@@ -445,7 +445,7 @@ def to_json(
     df: pd.DataFrame,
     path: str,
     boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     use_threads: bool = True,
     **pandas_kwargs: Any,
 ) -> None:
@@ -464,7 +464,7 @@ def to_json(
         Amazon S3 path (e.g. s3://bucket/filename.csv).
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
-    s3_additional_kwargs:
+    s3_additional_kwargs : Optional[Dict[str, Any]]
         Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
         "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}

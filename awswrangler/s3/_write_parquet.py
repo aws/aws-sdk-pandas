@@ -200,7 +200,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     max_rows_by_file: Optional[int] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     sanitize_columns: bool = False,
     dataset: bool = False,
     partition_cols: Optional[List[str]] = None,
@@ -262,7 +262,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
         If enabled os.cpu_count() will be used as the max number of threads.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs:
+    s3_additional_kwargs : Optional[Dict[str, Any]]
         Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
         "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
@@ -590,7 +590,7 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
     projection_values: Optional[Dict[str, str]] = None,
     projection_intervals: Optional[Dict[str, str]] = None,
     projection_digits: Optional[Dict[str, str]] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Tuple[Dict[str, str], Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]:
     """Infer and store parquet metadata on AWS Glue Catalog.
@@ -688,7 +688,7 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
         Dictionary of partitions names and Athena projections digits.
         https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
         (e.g. {'col_name': '1', 'col2_name': '2'})
-    s3_additional_kwargs:
+    s3_additional_kwargs : Optional[Dict[str, Any]]
         Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
         "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
