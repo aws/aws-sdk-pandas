@@ -6,7 +6,6 @@ cp ../../requirements-dev.txt .
 
 # Python 3.6
 docker build \
-  --no-cache \
   --pull \
   --tag awswrangler-build-py36 \
   --build-arg base_image=lambci/lambda:build-python3.6 \
@@ -15,7 +14,6 @@ docker build \
 
 # Python 3.7
 docker build \
-  --no-cache \
   --pull \
   --tag awswrangler-build-py37 \
   --build-arg base_image=lambci/lambda:build-python3.7 \
@@ -24,7 +22,6 @@ docker build \
 
 # Python 3.8
 docker build \
-  --no-cache \
   --pull \
   --tag awswrangler-build-py38 \
   --build-arg base_image=lambci/lambda:build-python3.8 \
