@@ -39,6 +39,7 @@ def add_csv_partitions(
     database: str,
     table: str,
     partitions_values: Dict[str, List[str]],
+    catalog_id: Optional[str] = None,
     compression: Optional[str] = None,
     sep: str = ",",
     boto3_session: Optional[boto3.Session] = None,
@@ -54,6 +55,9 @@ def add_csv_partitions(
     partitions_values: Dict[str, List[str]]
         Dictionary with keys as S3 path locations and values as a list of partitions values as str
         (e.g. {'s3://bucket/prefix/y=2020/m=10/': ['2020', '10']}).
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
     compression: str, optional
         Compression style (``None``, ``gzip``, etc).
     sep : str
@@ -84,7 +88,7 @@ def add_csv_partitions(
         _csv_partition_definition(location=k, values=v, compression=compression, sep=sep)
         for k, v in partitions_values.items()
     ]
-    _add_partitions(database=database, table=table, boto3_session=boto3_session, inputs=inputs)
+    _add_partitions(database=database, table=table, boto3_session=boto3_session, inputs=inputs, catalog_id=catalog_id)
 
 
 @apply_configs
