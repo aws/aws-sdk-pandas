@@ -562,6 +562,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
                     compression=compression,
                     boto3_session=session,
                     catalog_id=catalog_id,
+                    columns_types=columns_types,
                 )
     return {"paths": paths, "partitions_values": partitions_values}
 
@@ -700,7 +701,7 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
     -------
     Tuple[Dict[str, str], Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]
         The metadata used to create the Glue Table.
-        columns_types: Dictionary with keys as column names and vales as
+        columns_types: Dictionary with keys as column names and values as
         data types (e.g. {'col0': 'bigint', 'col1': 'double'}). /
         partitions_types: Dictionary with keys as partition names
         and values as data types (e.g. {'col2': 'date'}). /
@@ -766,5 +767,6 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
             compression=compression,
             boto3_session=session,
             catalog_id=catalog_id,
+            columns_types=columns_types,
         )
     return columns_types, partitions_types, partitions_values

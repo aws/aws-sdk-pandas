@@ -43,6 +43,7 @@ def add_csv_partitions(
     compression: Optional[str] = None,
     sep: str = ",",
     boto3_session: Optional[boto3.Session] = None,
+    columns_types: Optional[Dict[str, str]] = None,
 ) -> None:
     """Add partitions (metadata) to a CSV Table in the AWS Glue Catalog.
 
@@ -64,6 +65,10 @@ def add_csv_partitions(
         String of length 1. Field delimiter for the output file.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    columns_types: Optional[Dict[str, str]]
+        Only required for Hive compability.
+        Dictionary with keys as column names and values as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
+        P.S. Only materialized columns please, not partition columns.
 
     Returns
     -------
@@ -85,7 +90,7 @@ def add_csv_partitions(
 
     """
     inputs: List[Dict[str, Any]] = [
-        _csv_partition_definition(location=k, values=v, compression=compression, sep=sep)
+        _csv_partition_definition(location=k, values=v, compression=compression, sep=sep, columns_types=columns_types)
         for k, v in partitions_values.items()
     ]
     _add_partitions(database=database, table=table, boto3_session=boto3_session, inputs=inputs, catalog_id=catalog_id)
@@ -99,6 +104,7 @@ def add_parquet_partitions(
     catalog_id: Optional[str] = None,
     compression: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
+    columns_types: Optional[Dict[str, str]] = None,
 ) -> None:
     """Add partitions (metadata) to a Parquet Table in the AWS Glue Catalog.
 
@@ -118,6 +124,10 @@ def add_parquet_partitions(
         Compression style (``None``, ``snappy``, ``gzip``, etc).
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    columns_types: Optional[Dict[str, str]]
+        Only required for Hive compability.
+        Dictionary with keys as column names and values as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
+        P.S. Only materialized columns please, not partition columns.
 
     Returns
     -------
@@ -141,7 +151,7 @@ def add_parquet_partitions(
     table = sanitize_table_name(table=table)
     if partitions_values:
         inputs: List[Dict[str, Any]] = [
-            _parquet_partition_definition(location=k, values=v, compression=compression)
+            _parquet_partition_definition(location=k, values=v, compression=compression, columns_types=columns_types)
             for k, v in partitions_values.items()
         ]
         _add_partitions(

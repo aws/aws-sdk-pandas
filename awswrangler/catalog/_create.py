@@ -544,7 +544,7 @@ def create_parquet_table(
     path : str
         Amazon S3 path (e.g. s3://bucket/prefix/).
     columns_types: Dict[str, str]
-        Dictionary with keys as column names and vales as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
+        Dictionary with keys as column names and values as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
     partitions_types: Dict[str, str], optional
         Dictionary with keys as partition names and values as data types (e.g. {'col2': 'date'}).
     catalog_id : str, optional
@@ -674,7 +674,7 @@ def create_csv_table(
     path : str
         Amazon S3 path (e.g. s3://bucket/prefix/).
     columns_types: Dict[str, str]
-        Dictionary with keys as column names and vales as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
+        Dictionary with keys as column names and values as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
     partitions_types: Dict[str, str], optional
         Dictionary with keys as partition names and values as data types (e.g. {'col2': 'date'}).
     compression : str, optional

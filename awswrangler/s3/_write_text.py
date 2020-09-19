@@ -442,6 +442,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
                     boto3_session=session,
                     sep=sep,
                     catalog_id=catalog_id,
+                    columns_types=columns_types,
                 )
     return {"paths": paths, "partitions_values": partitions_values}
 
