@@ -775,10 +775,11 @@ def test_describe_table(path, glue_database, glue_table):
     assert wr.athena.describe_table(database=glue_database, table=glue_table).shape == (1, 4)
 
 
+@pytest.mark.parametrize("data_source", [None, "AwsDataCatalog"])
 @pytest.mark.parametrize("ctas_approach", [False, True])
-def test_athena_nan_inf(glue_database, ctas_approach):
+def test_athena_nan_inf(glue_database, ctas_approach, data_source):
     sql = "SELECT nan() AS nan, infinity() as inf, -infinity() as inf_n, 1.2 as regular"
-    df = wr.athena.read_sql_query(sql, glue_database, ctas_approach)
+    df = wr.athena.read_sql_query(sql, glue_database, ctas_approach, data_source=data_source)
     print(df)
     print(df.dtypes)
     assert df.shape == (1, 4)
