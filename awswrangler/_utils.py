@@ -60,24 +60,19 @@ def boto3_from_primitives(primitives: Optional[Boto3PrimitivesType] = None) -> b
     return boto3.Session(**args)
 
 
+def botocore_config() -> botocore.config.Config:
+    """Botocore configuration."""
+    return botocore.config.Config(retries={"max_attempts": 5}, connect_timeout=10, max_pool_connections=10)
+
+
 def client(service_name: str, session: Optional[boto3.Session] = None) -> boto3.client:
     """Create a valid boto3.client."""
-    return ensure_session(session=session).client(
-        service_name=service_name,
-        use_ssl=True,
-        config=botocore.config.Config(retries={"max_attempts": 5}, connect_timeout=10, max_pool_connections=10),
-    )
+    return ensure_session(session=session).client(service_name=service_name, use_ssl=True, config=botocore_config())
 
 
 def resource(service_name: str, session: Optional[boto3.Session] = None) -> boto3.resource:
     """Create a valid boto3.resource."""
-    return ensure_session(session=session).resource(
-        service_name=service_name,
-        use_ssl=True,
-        config=botocore.config.Config(
-            retries={"max_attempts": 10, "mode": "adaptive"}, connect_timeout=10, max_pool_connections=30
-        ),
-    )
+    return ensure_session(session=session).resource(service_name=service_name, use_ssl=True, config=botocore_config())
 
 
 def parse_path(path: str) -> Tuple[str, str]:
