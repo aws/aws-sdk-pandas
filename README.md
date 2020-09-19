@@ -141,6 +141,7 @@ Please [send a Pull Request](https://github.com/awslabs/aws-data-wrangler/edit/m
 * [Cognitivo](https://www.cognitivo.ai/) [[@msantino](https://github.com/msantino)]
 * [Digio](https://www.digio.com.br/) [[@afonsomy](https://github.com/afonsomy)]
 * [DNX](https://www.dnx.solutions/) [[@DNXLabs](https://github.com/DNXLabs)]
+* [Funcional Health Tech](https://www.funcionalcorp.com.br/) [[@webysther](https://github.com/webysther)]
 * [LINE TV](https://www.linetv.tw/) [[@bryanyang0528](https://github.com/bryanyang0528)]
 * [M4U](https://www.m4u.com.br/) [[@Thiago-Dantas](https://github.com/Thiago-Dantas)]
 * [OKRA Technologies](https://okra.ai) [[@JPFrancoia](https://github.com/JPFrancoia), [@schot](https://github.com/schot)]
