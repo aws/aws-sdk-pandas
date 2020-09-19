@@ -235,7 +235,7 @@ def extract_athena_types(
     Returns
     -------
     Tuple[Dict[str, str], Dict[str, str]]
-        columns_types: Dictionary with keys as column names and vales as
+        columns_types: Dictionary with keys as column names and values as
         data types (e.g. {'col0': 'bigint', 'col1': 'double'}). /
         partitions_types: Dictionary with keys as partition names
         and values as data types (e.g. {'col2': 'date'}).

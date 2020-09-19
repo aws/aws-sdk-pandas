@@ -38,9 +38,11 @@ def _parquet_table_definition(
     }
 
 
-def _parquet_partition_definition(location: str, values: List[str], compression: Optional[str]) -> Dict[str, Any]:
+def _parquet_partition_definition(
+    location: str, values: List[str], compression: Optional[str], columns_types: Optional[Dict[str, str]]
+) -> Dict[str, Any]:
     compressed: bool = compression is not None
-    return {
+    definition: Dict[str, Any] = {
         "StorageDescriptor": {
             "InputFormat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
             "OutputFormat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat",
@@ -51,9 +53,15 @@ def _parquet_partition_definition(location: str, values: List[str], compression:
                 "SerializationLibrary": "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe",
             },
             "StoredAsSubDirectories": False,
+            "NumberOfBuckets": -1,
         },
         "Values": values,
     }
+    if columns_types is not None:
+        definition["StorageDescriptor"]["Columns"] = [
+            {"Name": cname, "Type": dtype} for cname, dtype in columns_types.items()
+        ]
+    return definition
 
 
 def _csv_table_definition(
@@ -106,9 +114,11 @@ def _csv_table_definition(
     }
 
 
-def _csv_partition_definition(location: str, values: List[str], compression: Optional[str], sep: str) -> Dict[str, Any]:
+def _csv_partition_definition(
+    location: str, values: List[str], compression: Optional[str], sep: str, columns_types: Optional[Dict[str, str]]
+) -> Dict[str, Any]:
     compressed: bool = compression is not None
-    return {
+    definition: Dict[str, Any] = {
         "StorageDescriptor": {
             "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
             "OutputFormat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
@@ -119,6 +129,12 @@ def _csv_partition_definition(location: str, values: List[str], compression: Opt
                 "SerializationLibrary": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
             },
             "StoredAsSubDirectories": False,
+            "NumberOfBuckets": -1,
         },
         "Values": values,
     }
+    if columns_types is not None:
+        definition["StorageDescriptor"]["Columns"] = [
+            {"Name": cname, "Type": dtype} for cname, dtype in columns_types.items()
+        ]
+    return definition
