@@ -660,10 +660,11 @@ def test_redshift_copy_unload_kms(
 def test_redshift_copy_extras(path, redshift_table, databases_parameters, use_threads, parquet_infer_sampling):
     df = pd.DataFrame(
         {
-            "int16": [1, None, 2],
-            "int32": [1, None, 2],
-            "int64": [1, None, 2],
-            "float": [0.0, None, 1.1],
+            "int8": [-1, None, 2],
+            "int16": [-1, None, 2],
+            "int32": [-1, None, 2],
+            "int64": [-1, None, 2],
+            "float": [0.0, None, -1.1],
             "double": [0.0, None, 1.1],
             "decimal": [Decimal((0, (1, 9, 9), -2)), None, Decimal((0, (1, 9, 0), -2))],
             "string": ["foo", None, "boo"],
@@ -672,6 +673,7 @@ def test_redshift_copy_extras(path, redshift_table, databases_parameters, use_th
             "bool": [True, None, False],
         }
     )
+    df["int8"] = df["int8"].astype("Int8")
     df["int16"] = df["int16"].astype("Int16")
     df["int32"] = df["int32"].astype("Int32")
     df["int64"] = df["int64"].astype("Int64")
@@ -698,6 +700,7 @@ def test_redshift_copy_extras(path, redshift_table, databases_parameters, use_th
     df2 = wr.db.read_sql_table(schema="public", table=redshift_table, con=engine)
     assert len(df.columns) == len(df2.columns)
     assert len(df.index) * num == len(df2.index)
+    assert df.int8.sum() * num == df2.int8.sum()
     assert df.int16.sum() * num == df2.int16.sum()
     assert df.int32.sum() * num == df2.int32.sum()
     assert df.int64.sum() * num == df2.int64.sum()

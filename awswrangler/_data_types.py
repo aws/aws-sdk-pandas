@@ -93,6 +93,8 @@ def athena2redshift(  # pylint: disable=too-many-branches,too-many-return-statem
 ) -> str:
     """Athena to Redshift data types conversion."""
     dtype = dtype.lower()
+    if dtype == "tinyint":
+        return "SMALLINT"
     if dtype == "smallint":
         return "SMALLINT"
     if dtype in ("int", "integer"):
