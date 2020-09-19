@@ -436,7 +436,12 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
             if partitions_values and (regular_partitions is True):
                 _logger.debug("partitions_values:\n%s", partitions_values)
                 catalog.add_csv_partitions(
-                    database=database, table=table, partitions_values=partitions_values, boto3_session=session, sep=sep
+                    database=database,
+                    table=table,
+                    partitions_values=partitions_values,
+                    boto3_session=session,
+                    sep=sep,
+                    catalog_id=catalog_id,
                 )
     return {"paths": paths, "partitions_values": partitions_values}
 

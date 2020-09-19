@@ -561,6 +561,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
                     partitions_values=partitions_values,
                     compression=compression,
                     boto3_session=session,
+                    catalog_id=catalog_id,
                 )
     return {"paths": paths, "partitions_values": partitions_values}
 
