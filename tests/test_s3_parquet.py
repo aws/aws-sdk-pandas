@@ -325,6 +325,43 @@ def test_multi_index_recovery_nameless(path, use_threads):
     assert df.reset_index().equals(df2.reset_index())
 
 
+@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("name", [None, "foo"])
+@pytest.mark.parametrize("pandas", [True, False])
+def test_index_columns(path, use_threads, name, pandas):
+    df = pd.DataFrame({"c0": [0, 1], "c1": [2, 3]}, dtype="Int64")
+    df.index.name = name
+    path_file = f"{path}0.parquet"
+    if pandas:
+        df.to_parquet(path_file, index=True)
+    else:
+        wr.s3.to_parquet(df, path_file, index=True)
+    wr.s3.wait_objects_exist(paths=[path_file], use_threads=use_threads)
+    df2 = wr.s3.read_parquet([path_file], columns=["c0"], use_threads=use_threads)
+    assert df[["c0"]].equals(df2)
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("name", [None, "foo"])
+@pytest.mark.parametrize("pandas", [True, False])
+@pytest.mark.parametrize("drop", [True, False])
+def test_range_index_columns(path, use_threads, name, pandas, drop):
+    df = pd.DataFrame({"c0": [0, 1], "c1": [2, 3]}, dtype="Int64", index=pd.RangeIndex(start=5, stop=7, step=1))
+    df.index.name = name
+    path_file = f"{path}0.parquet"
+    if pandas:
+        df.to_parquet(path_file, index=True)
+    else:
+        wr.s3.to_parquet(df, path_file, index=True)
+    wr.s3.wait_objects_exist(paths=[path_file], use_threads=use_threads)
+
+    name = "__index_level_0__" if name is None else name
+    columns = ["c0"] if drop else [name, "c0"]
+    df2 = wr.s3.read_parquet([path_file], columns=columns, use_threads=use_threads)
+
+    assert df[["c0"]].reset_index(level=0, drop=drop).equals(df2.reset_index(level=0, drop=drop))
+
+
 def test_to_parquet_dataset_sanitize(path):
     df = pd.DataFrame({"C0": [0, 1], "camelCase": [2, 3], "c**--2": [4, 5], "Par": ["a", "b"]})
 

@@ -170,19 +170,24 @@ def _read_parquet_metadata(
 
 def _apply_index(df: pd.DataFrame, metadata: Dict[str, Any]) -> pd.DataFrame:
     index_columns: List[Any] = metadata["index_columns"]
+    ignore_index: bool = True
+    _logger.debug("df.columns: %s", df.columns)
+
     if index_columns:
         if isinstance(index_columns[0], str):
-            df = df.set_index(keys=index_columns, drop=True, inplace=False, verify_integrity=False)
+            indexes: List[str] = [i for i in index_columns if i in df.columns]
+            if indexes:
+                df = df.set_index(keys=indexes, drop=True, inplace=False, verify_integrity=False)
+                ignore_index = False
         elif isinstance(index_columns[0], dict) and index_columns[0]["kind"] == "range":
             col = index_columns[0]
             if col["kind"] == "range":
                 df.index = pd.RangeIndex(start=col["start"], stop=col["stop"], step=col["step"])
+                ignore_index = False
                 if col["name"] is not None and col["name"].startswith("__index_level_") is False:
                     df.index.name = col["name"]
         df.index.names = [None if n is not None and n.startswith("__index_level_") else n for n in df.index.names]
-        ignore_index: bool = False
-    else:
-        ignore_index = True
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=UserWarning)
         df._awswrangler_ignore_index = ignore_index  # pylint: disable=protected-access
