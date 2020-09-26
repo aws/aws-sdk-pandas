@@ -1,7 +1,9 @@
 import datetime
 import logging
 import math
+import time
 
+import boto3
 import numpy as np
 import pandas as pd
 import pytest
@@ -645,3 +647,14 @@ def test_mixed_types_column(path, glue_table, glue_database, use_threads):
     df["par"] = df["par"].astype("string")
     with pytest.raises(TypeError):
         wr.s3.to_parquet(df, path, dataset=True, table=glue_table, database=glue_database, partition_cols=["par"])
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_failing_catalog(path, glue_table, glue_database, use_threads):
+    df = pd.DataFrame({"c0": [1, 2, 3]})
+    try:
+        wr.s3.to_parquet(df, path, max_rows_by_file=1, dataset=True, table=glue_table, database="foo")
+    except boto3.client("glue").exceptions.EntityNotFoundException:
+        pass
+    time.sleep(3)
+    assert len(wr.s3.list_objects(path)) == 0
