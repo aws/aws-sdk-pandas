@@ -627,3 +627,12 @@ def test_partitions_overwrite(path, glue_table, glue_database, use_threads, part
     ensure_data_types(df2, has_list=True)
     assert df2.shape == (3, 19)
     assert df.iint8.sum() == df2.iint8.sum()
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_empty_column(path, glue_table, glue_database, use_threads):
+    df = pd.DataFrame({"c0": [1, 2, 3], "c1": [None, None, None], "par": ["a", "b", "c"]})
+    df["c0"] = df["c0"].astype("Int64")
+    df["par"] = df["par"].astype("string")
+    with pytest.raises(wr.exceptions.UndetectedType):
+        wr.s3.to_parquet(df, path, dataset=True, table=glue_table, database=glue_database, partition_cols=["par"])
