@@ -436,3 +436,12 @@ def test_empty_column(path, use_threads):
     df2 = wr.s3.read_parquet(path, dataset=True, use_threads=use_threads)
     df2["par"] = df2["par"].astype("string")
     assert df.equals(df2)
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_mixed_types_column(path, use_threads):
+    df = pd.DataFrame({"c0": [1, 2, 3], "c1": [1, 2, "foo"], "par": ["a", "b", "c"]})
+    df["c0"] = df["c0"].astype("Int64")
+    df["par"] = df["par"].astype("string")
+    with pytest.raises(TypeError):
+        wr.s3.to_parquet(df, path, dataset=True, partition_cols=["par"])

@@ -375,3 +375,14 @@ def test_empty_column(path, glue_table, glue_database, use_threads):
         wr.s3.to_csv(
             df, path, index=False, dataset=True, table=glue_table, database=glue_database, partition_cols=["par"]
         )
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_mixed_types_column(path, glue_table, glue_database, use_threads):
+    df = pd.DataFrame({"c0": [1, 2, 3], "c1": [1, 2, "foo"], "par": ["a", "b", "c"]})
+    df["c0"] = df["c0"].astype("Int64")
+    df["par"] = df["par"].astype("string")
+    with pytest.raises(TypeError):
+        wr.s3.to_csv(
+            df, path, index=False, dataset=True, table=glue_table, database=glue_database, partition_cols=["par"]
+        )
