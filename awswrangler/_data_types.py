@@ -293,6 +293,18 @@ def pyarrow_types_from_pandas(
             schema: pa.Schema = pa.Schema.from_pandas(df=df[[col]], preserve_index=False)
         except pa.ArrowInvalid as ex:
             cols_dtypes[col] = process_not_inferred_dtype(ex)
+        except TypeError as ex:
+            msg = str(ex)
+            if " is required (got type " in msg:
+                raise TypeError(
+                    f"The {col} columns has a too generic data type ({df[col].dtype}) and seems "
+                    f"to have mixed data types ({msg}). "
+                    "Please, cast this columns with a more deterministic data type "
+                    f"(e.g. df['{col}'] = df['{col}'].astype('string')) or "
+                    "pass the column schema as argument for AWS Data Wrangler "
+                    f"(e.g. dtype={{'{col}': 'string'}}"
+                ) from ex
+            raise
         else:
             cols_dtypes[col] = schema.field(col).type
 
@@ -371,7 +383,7 @@ def athena_types_from_pandas(
                     f"and has a too generic data type ({df[k].dtype}). "
                     "Please, cast this columns with a more deterministic data type "
                     f"(e.g. df['{k}'] = df['{k}'].astype('string')) or "
-                    "pass the column schema as argument for Wrangler "
+                    "pass the column schema as argument for AWS Data Wrangler "
                     f"(e.g. dtype={{'{k}': 'string'}}"
                 ) from ex
     _logger.debug("athena_columns_types: %s", athena_columns_types)
