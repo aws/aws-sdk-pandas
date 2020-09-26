@@ -364,3 +364,14 @@ def test_skip_header(path, glue_database, glue_table, use_threads, ctas_approach
     )
     df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads, ctas_approach=ctas_approach)
     assert df.equals(df2)
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_empty_column(path, glue_table, glue_database, use_threads):
+    df = pd.DataFrame({"c0": [1, 2, 3], "c1": [None, None, None], "par": ["a", "b", "c"]})
+    df["c0"] = df["c0"].astype("Int64")
+    df["par"] = df["par"].astype("string")
+    with pytest.raises(wr.exceptions.UndetectedType):
+        wr.s3.to_csv(
+            df, path, index=False, dataset=True, table=glue_table, database=glue_database, partition_cols=["par"]
+        )

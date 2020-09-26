@@ -688,11 +688,13 @@ def read_sql_query(
 
     """
     if ctas_approach and data_source not in (None, "AwsDataCatalog"):
-        raise exceptions.InvalidArgumentCombination("Queries with ctas_approach=True (default) does not support "
-                                                    "data_source values different than None and 'AwsDataCatalog'. "
-                                                    "Please check the related tutorial for more details "
-                                                    "(https://github.com/awslabs/aws-data-wrangler/blob/master/"
-                                                    "tutorials/006%20-%20Amazon%20Athena.ipynb)")
+        raise exceptions.InvalidArgumentCombination(
+            "Queries with ctas_approach=True (default) does not support "
+            "data_source values different than None and 'AwsDataCatalog'. "
+            "Please check the related tutorial for more details "
+            "(https://github.com/awslabs/aws-data-wrangler/blob/master/"
+            "tutorials/006%20-%20Amazon%20Athena.ipynb)"
+        )
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
     cache_info: _CacheInfo = _check_for_cached_results(

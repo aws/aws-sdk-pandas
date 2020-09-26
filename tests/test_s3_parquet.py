@@ -424,3 +424,15 @@ def test_timezone_raw_values(path, use_threads):
     df2["par"] = df2["par"].astype("string")
     df3["par"] = df3["par"].astype("string")
     assert df2.equals(df3)
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_empty_column(path, use_threads):
+    df = pd.DataFrame({"c0": [1, 2, 3], "c1": [None, None, None], "par": ["a", "b", "c"]})
+    df["c0"] = df["c0"].astype("Int64")
+    df["par"] = df["par"].astype("string")
+    paths = wr.s3.to_parquet(df, path, dataset=True, partition_cols=["par"])["paths"]
+    wr.s3.wait_objects_exist(paths, use_threads=use_threads)
+    df2 = wr.s3.read_parquet(path, dataset=True, use_threads=use_threads)
+    df2["par"] = df2["par"].astype("string")
+    assert df.equals(df2)

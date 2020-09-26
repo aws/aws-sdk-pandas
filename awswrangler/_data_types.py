@@ -361,7 +361,19 @@ def athena_types_from_pandas(
         if v is None:
             athena_columns_types[k] = casts[k].replace(" ", "")
         else:
-            athena_columns_types[k] = pyarrow2athena(dtype=v)
+            try:
+                athena_columns_types[k] = pyarrow2athena(dtype=v)
+            except exceptions.UndetectedType as ex:
+                raise exceptions.UndetectedType(
+                    "Impossible to infer the equivalent Athena data type "
+                    f"for the {k} column. "
+                    "It is completely empty (only null values) "
+                    f"and has a too generic data type ({df[k].dtype}). "
+                    "Please, cast this columns with a more deterministic data type "
+                    f"(e.g. df['{k}'] = df['{k}'].astype('string')) or "
+                    "pass the column schema as argument for Wrangler "
+                    f"(e.g. dtype={{'{k}': 'string'}}"
+                ) from ex
     _logger.debug("athena_columns_types: %s", athena_columns_types)
     return athena_columns_types
 
