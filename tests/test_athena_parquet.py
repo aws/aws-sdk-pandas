@@ -518,6 +518,7 @@ def test_to_parquet_sanitize(path, glue_database):
     )["paths"]
     wr.s3.wait_objects_exist(paths)
     df2 = wr.athena.read_sql_table(database=glue_database, table=table_name)
+    wr.catalog.delete_table_if_exists(database=glue_database, table="table_name_")
     assert df.shape == df2.shape
     assert list(df2.columns) == ["c0", "camel_case", "c_2"]
     assert df2.c0.sum() == 1
