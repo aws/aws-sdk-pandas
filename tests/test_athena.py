@@ -788,3 +788,9 @@ def test_athena_nan_inf(glue_database, ctas_approach, data_source):
     assert df.inf.iloc[0] == np.PINF
     assert df.inf_n.iloc[0] == np.NINF
     assert df.regular.iloc[0] == 1.2
+
+
+def test_athena_ctas_data_source(glue_database):
+    sql = "SELECT nan() AS nan, infinity() as inf, -infinity() as inf_n, 1.2 as regular"
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.athena.read_sql_query(sql, glue_database, True, data_source="foo")

@@ -561,6 +561,7 @@ def read_sql_query(
     - Does not support columns with repeated names.
     - Does not support columns with undefined data types.
     - A temporary table will be created and then deleted immediately.
+    - Does not support custom data_source/catalog_id.
 
     **2** - ctas_approach=False:
 
@@ -571,6 +572,7 @@ def read_sql_query(
     - Faster for small result sizes (less latency).
     - Does not require create/delete table permissions on Glue
     - Supports timestamp with time zone.
+    - Support custom data_source/catalog_id.
 
     CONS:
 
@@ -685,6 +687,12 @@ def read_sql_query(
     >>> scanned_bytes = df.query_metadata["Statistics"]["DataScannedInBytes"]
 
     """
+    if ctas_approach and data_source not in (None, "AwsDataCatalog"):
+        raise exceptions.InvalidArgumentCombination("Queries with ctas_approach=True (default) does not support "
+                                                    "data_source values different than None and 'AwsDataCatalog'. "
+                                                    "Please check the related tutorial for more details "
+                                                    "(https://github.com/awslabs/aws-data-wrangler/blob/master/"
+                                                    "tutorials/006%20-%20Amazon%20Athena.ipynb)")
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
     cache_info: _CacheInfo = _check_for_cached_results(
