@@ -14,6 +14,7 @@ import pyarrow.parquet
 
 from awswrangler import _data_types, _utils, catalog, exceptions
 from awswrangler._config import apply_configs
+from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._read_parquet import _read_parquet_metadata
 from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
@@ -531,39 +532,44 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
             max_rows_by_file=max_rows_by_file,
         )
         if (database is not None) and (table is not None):
-            catalog._create_parquet_table(  # pylint: disable=protected-access
-                database=database,
-                table=table,
-                path=path,
-                columns_types=columns_types,
-                partitions_types=partitions_types,
-                compression=compression,
-                description=description,
-                parameters=parameters,
-                columns_comments=columns_comments,
-                boto3_session=session,
-                mode=mode,
-                catalog_versioning=catalog_versioning,
-                projection_enabled=projection_enabled,
-                projection_types=projection_types,
-                projection_ranges=projection_ranges,
-                projection_values=projection_values,
-                projection_intervals=projection_intervals,
-                projection_digits=projection_digits,
-                catalog_id=catalog_id,
-                catalog_table_input=catalog_table_input,
-            )
-            if partitions_values and (regular_partitions is True):
-                _logger.debug("partitions_values:\n%s", partitions_values)
-                catalog.add_parquet_partitions(
+            try:
+                catalog._create_parquet_table(  # pylint: disable=protected-access
                     database=database,
                     table=table,
-                    partitions_values=partitions_values,
-                    compression=compression,
-                    boto3_session=session,
-                    catalog_id=catalog_id,
+                    path=path,
                     columns_types=columns_types,
+                    partitions_types=partitions_types,
+                    compression=compression,
+                    description=description,
+                    parameters=parameters,
+                    columns_comments=columns_comments,
+                    boto3_session=session,
+                    mode=mode,
+                    catalog_versioning=catalog_versioning,
+                    projection_enabled=projection_enabled,
+                    projection_types=projection_types,
+                    projection_ranges=projection_ranges,
+                    projection_values=projection_values,
+                    projection_intervals=projection_intervals,
+                    projection_digits=projection_digits,
+                    catalog_id=catalog_id,
+                    catalog_table_input=catalog_table_input,
                 )
+                if partitions_values and (regular_partitions is True):
+                    _logger.debug("partitions_values:\n%s", partitions_values)
+                    catalog.add_parquet_partitions(
+                        database=database,
+                        table=table,
+                        partitions_values=partitions_values,
+                        compression=compression,
+                        boto3_session=session,
+                        catalog_id=catalog_id,
+                        columns_types=columns_types,
+                    )
+            except Exception:
+                _logger.debug("Catalog write failed, cleaning up S3 (paths: %s).", paths)
+                delete_objects(path=paths, use_threads=use_threads, boto3_session=session)
+                raise
     return {"paths": paths, "partitions_values": partitions_values}
 
 

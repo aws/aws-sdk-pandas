@@ -10,6 +10,7 @@ import pandas as pd
 
 from awswrangler import _data_types, _utils, catalog, exceptions
 from awswrangler._config import apply_configs
+from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._write import _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_dataset import _to_dataset
@@ -406,44 +407,49 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
             date_format="%Y-%m-%d %H:%M:%S.%f",
         )
         if (database is not None) and (table is not None):
-            columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
-                df=df, index=index, partition_cols=partition_cols, dtype=dtype, index_left=True
-            )
-            catalog._create_csv_table(  # pylint: disable=protected-access
-                database=database,
-                table=table,
-                path=path,
-                columns_types=columns_types,
-                partitions_types=partitions_types,
-                description=description,
-                parameters=parameters,
-                columns_comments=columns_comments,
-                boto3_session=session,
-                mode=mode,
-                catalog_versioning=catalog_versioning,
-                sep=sep,
-                projection_enabled=projection_enabled,
-                projection_types=projection_types,
-                projection_ranges=projection_ranges,
-                projection_values=projection_values,
-                projection_intervals=projection_intervals,
-                projection_digits=projection_digits,
-                catalog_table_input=catalog_table_input,
-                catalog_id=catalog_id,
-                compression=None,
-                skip_header_line_count=None,
-            )
-            if partitions_values and (regular_partitions is True):
-                _logger.debug("partitions_values:\n%s", partitions_values)
-                catalog.add_csv_partitions(
+            try:
+                columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
+                    df=df, index=index, partition_cols=partition_cols, dtype=dtype, index_left=True
+                )
+                catalog._create_csv_table(  # pylint: disable=protected-access
                     database=database,
                     table=table,
-                    partitions_values=partitions_values,
-                    boto3_session=session,
-                    sep=sep,
-                    catalog_id=catalog_id,
+                    path=path,
                     columns_types=columns_types,
+                    partitions_types=partitions_types,
+                    description=description,
+                    parameters=parameters,
+                    columns_comments=columns_comments,
+                    boto3_session=session,
+                    mode=mode,
+                    catalog_versioning=catalog_versioning,
+                    sep=sep,
+                    projection_enabled=projection_enabled,
+                    projection_types=projection_types,
+                    projection_ranges=projection_ranges,
+                    projection_values=projection_values,
+                    projection_intervals=projection_intervals,
+                    projection_digits=projection_digits,
+                    catalog_table_input=catalog_table_input,
+                    catalog_id=catalog_id,
+                    compression=None,
+                    skip_header_line_count=None,
                 )
+                if partitions_values and (regular_partitions is True):
+                    _logger.debug("partitions_values:\n%s", partitions_values)
+                    catalog.add_csv_partitions(
+                        database=database,
+                        table=table,
+                        partitions_values=partitions_values,
+                        boto3_session=session,
+                        sep=sep,
+                        catalog_id=catalog_id,
+                        columns_types=columns_types,
+                    )
+            except Exception:
+                _logger.debug("Catalog write failed, cleaning up S3 (paths: %s).", paths)
+                delete_objects(path=paths, use_threads=use_threads, boto3_session=session)
+                raise
     return {"paths": paths, "partitions_values": partitions_values}
 
 
