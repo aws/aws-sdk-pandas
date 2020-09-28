@@ -2,6 +2,7 @@ import datetime
 import logging
 import math
 import time
+from decimal import Decimal
 
 import boto3
 import numpy as np
@@ -659,3 +660,34 @@ def test_failing_catalog(path, glue_table, glue_database, use_threads):
         pass
     time.sleep(3)
     assert len(wr.s3.list_objects(path)) == 0
+
+
+def test_cast_decimal(path, glue_table, glue_database):
+    df = pd.DataFrame(
+        {
+            "c0": [100.1],
+            "c1": ["100.1"],
+            "c2": [Decimal((0, (1, 0, 0, 1), -1))],
+            "c3": [Decimal((0, (1, 0, 0, 1), -1))]
+        }
+    )
+    paths = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        database=glue_database,
+        table=glue_table,
+        dtype={
+            "c0": "decimal(4,1)",
+            "c1": "decimal(4,1)",
+            "c2": "decimal(4,1)",
+            "c3": "string",
+        },
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths)
+    df2 = wr.athena.read_sql_table(table=glue_table, database=glue_database)
+    assert df2.shape == (1, 4)
+    assert df2["c0"].iloc[0] == Decimal((0, (1, 0, 0, 1), -1))
+    assert df2["c1"].iloc[0] == Decimal((0, (1, 0, 0, 1), -1))
+    assert df2["c2"].iloc[0] == Decimal((0, (1, 0, 0, 1), -1))
+    assert df2["c3"].iloc[0] == "100.1"
