@@ -664,12 +664,7 @@ def test_failing_catalog(path, glue_table, glue_database, use_threads):
 
 def test_cast_decimal(path, glue_table, glue_database):
     df = pd.DataFrame(
-        {
-            "c0": [100.1],
-            "c1": ["100.1"],
-            "c2": [Decimal((0, (1, 0, 0, 1), -1))],
-            "c3": [Decimal((0, (1, 0, 0, 1), -1))]
-        }
+        {"c0": [100.1], "c1": ["100.1"], "c2": [Decimal((0, (1, 0, 0, 1), -1))], "c3": [Decimal((0, (1, 0, 0, 1), -1))]}
     )
     paths = wr.s3.to_parquet(
         df=df,
@@ -677,12 +672,7 @@ def test_cast_decimal(path, glue_table, glue_database):
         dataset=True,
         database=glue_database,
         table=glue_table,
-        dtype={
-            "c0": "decimal(4,1)",
-            "c1": "decimal(4,1)",
-            "c2": "decimal(4,1)",
-            "c3": "string",
-        },
+        dtype={"c0": "decimal(4,1)", "c1": "decimal(4,1)", "c2": "decimal(4,1)", "c3": "string"},
     )["paths"]
     wr.s3.wait_objects_exist(paths=paths)
     df2 = wr.athena.read_sql_table(table=glue_table, database=glue_database)
