@@ -148,5 +148,6 @@ Please [send a Pull Request](https://github.com/awslabs/aws-data-wrangler/edit/m
 * [Pier](https://www.pier.digital/) [[@flaviomax](https://github.com/flaviomax)]
 * [Pismo](https://www.pismo.io/) [[@msantino](https://github.com/msantino)]
 * [Serasa Experian](https://www.serasaexperian.com.br/) [[@andre-marcos-perez](https://github.com/andre-marcos-perez)]
+* [Shipwell](https://shipwell.com/) [[@zacharycarter](https://github.com/zacharycarter)]
 * [Thinkbumblebee](https://www.thinkbumblebee.com/) [[@dheerajsharma21]](https://github.com/dheerajsharma21)
 * [Zillow](https://www.zillow.com/) [[@nicholas-miles]](https://github.com/nicholas-miles)
