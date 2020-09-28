@@ -491,7 +491,7 @@ def _cast_pandas_column(df: pd.DataFrame, col: str, current_type: str, desired_t
         df[col] = df[col].astype("string").str.encode(encoding="utf-8").replace(to_replace={pd.NA: None})
     elif desired_type == "decimal":
         # First cast to string
-        df = _cast_pandas_column(df=df, col=col, current_type=current_type, desired_type="string")
+        df = _cast_pandas_column(df=df, col=col, current_type=current_type, desired_type="str")
         # Then cast to decimal
         df[col] = df[col].apply(lambda x: Decimal(str(x)) if str(x) not in ("", "none", "None", " ", "<NA>") else None)
     else:
