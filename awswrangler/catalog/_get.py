@@ -1,6 +1,7 @@
 """AWS Glue Catalog Get Module."""
 # pylint: disable=redefined-outer-name
 
+import base64
 import itertools
 import logging
 from typing import Any, Dict, Iterator, List, Optional, Union, cast
@@ -511,10 +512,17 @@ def get_connection(
 
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    return cast(
-        Dict[str, Any],
-        client_glue.get_connection(**_catalog_id(catalog_id=catalog_id, Name=name, HidePassword=False))["Connection"],
-    )
+
+    res = client_glue.get_connection(**_catalog_id(catalog_id=catalog_id, Name=name, HidePassword=False))["Connection"]
+    if "ENCRYPTED_PASSWORD" in res["ConnectionProperties"]:
+        settings = client_glue.get_data_catalog_encryption_settings(**_catalog_id(catalog_id=catalog_id))
+        client_kms = _utils.client(service_name="kms", session=boto3_session)
+        pwd = client_kms.decrypt(
+            CiphertextBlob=base64.b64decode(res["ConnectionProperties"]["ENCRYPTED_PASSWORD"]),
+            KeyId=settings["DataCatalogEncryptionSettings"]["ConnectionPasswordEncryption"]["AwsKmsKeyId"],
+        )["Plaintext"]
+        res["ConnectionProperties"]["PASSWORD"] = pwd
+    return cast(Dict[str, Any], res)
 
 
 def get_engine(
