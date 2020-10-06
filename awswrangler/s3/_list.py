@@ -3,6 +3,7 @@
 import datetime
 import fnmatch
 import logging
+from re import search
 from typing import Any, Dict, List, Optional, Sequence, Union
 
 import boto3
@@ -72,6 +73,7 @@ def _list_objects(  # pylint: disable=too-many-branches
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
+    excluded_keys: Union[str, List[str], None] = None,
 ) -> List[str]:
     bucket: str
     prefix_original: str
@@ -79,6 +81,7 @@ def _list_objects(  # pylint: disable=too-many-branches
     prefix: str = _prefix_cleanup(prefix=prefix_original)
     _suffix: Union[List[str], None] = [suffix] if isinstance(suffix, str) else suffix
     _ignore_suffix: Union[List[str], None] = [ignore_suffix] if isinstance(ignore_suffix, str) else ignore_suffix
+    _excluded_keys: Union[str, List[str], None] = [excluded_keys] if isinstance(excluded_keys, str) else excluded_keys
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     paginator = client_s3.get_paginator("list_objects_v2")
     args: Dict[str, Any] = {"Bucket": bucket, "Prefix": prefix, "PaginationConfig": {"PageSize": 1000}}
@@ -116,6 +119,9 @@ def _list_objects(  # pylint: disable=too-many-branches
 
     if _ignore_suffix is not None:
         paths = [p for p in paths if p.endswith(tuple(_ignore_suffix)) is False]
+
+    if excluded_keys is not None:
+        paths = [p for p in paths if not any([search(key, p) for key in _excluded_keys])]
 
     return paths
 
@@ -213,6 +219,7 @@ def list_objects(
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
+    excluded_keys: Union[str, List[str], None] = None,
 ) -> List[str]:
     """List Amazon S3 objects from a prefix.
 
@@ -240,6 +247,8 @@ def list_objects(
         The filter is applied only after list all s3 files.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    excluded_keys: Union[str, List[str], None]
+        Key or List of keys for S3 to be ignored.
 
     Returns
     -------
@@ -261,6 +270,13 @@ def list_objects(
     >>> wr.s3.list_objects('s3://bucket/prefix', boto3_session=boto3.Session())
     ['s3://bucket/prefix0', 's3://bucket/prefix1', 's3://bucket/prefix2']
 
+    Filtering to excluding specific keys.
+
+    >>> import boto3
+    >>> import awswrangler as wr
+    >>> wr.s3.list_objects('s3://bucket/prefix', excluded_keys='prefix2')
+    ['s3://bucket/prefix0', 's3://bucket/prefix1']
+
     """
     paths: List[str] = _list_objects(
         path=path,
@@ -270,5 +286,6 @@ def list_objects(
         boto3_session=boto3_session,
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
+        excluded_keys=excluded_keys,
     )
     return [p for p in paths if not p.endswith("/")]
