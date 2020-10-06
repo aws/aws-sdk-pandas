@@ -358,6 +358,20 @@ Resources:
           PASSWORD:
             Ref: DatabasesPassword
         Name: aws-data-wrangler-mysql
+  GlueCatalogSettings:
+    Type: AWS::Glue::DataCatalogEncryptionSettings
+    Properties:
+      CatalogId:
+        Ref: AWS::AccountId
+      DataCatalogEncryptionSettings:
+        ConnectionPasswordEncryption:
+          KmsKeyId:
+            Fn::ImportValue: aws-data-wrangler-base-KmsKeyArn
+          ReturnConnectionPasswordEncrypted: true
+        EncryptionAtRest:
+          CatalogEncryptionMode: SSE-KMS
+          SseAwsKmsKeyId:
+            Fn::ImportValue: aws-data-wrangler-base-KmsKeyArn
 Outputs:
   DatabasesPassword:
     Value:
