@@ -184,8 +184,14 @@ def _apply_index(df: pd.DataFrame, metadata: Dict[str, Any]) -> pd.DataFrame:
             if col["kind"] == "range":
                 df.index = pd.RangeIndex(start=col["start"], stop=col["stop"], step=col["step"])
                 ignore_index = False
-                if col["name"] is not None and col["name"].startswith("__index_level_") is False:
-                    df.index.name = col["name"]
+                col_name: Optional[str] = None
+                if "name" in col and col["name"] is not None:
+                    col_name = str(col["name"])
+                elif "field_name" in col and col["field_name"] is not None:
+                    col_name = str(col["field_name"])
+                if col_name is not None and col_name.startswith("__index_level_") is False:
+                    df.index.name = col_name
+
         df.index.names = [None if n is not None and n.startswith("__index_level_") else n for n in df.index.names]
 
     with warnings.catch_warnings():
@@ -196,12 +202,18 @@ def _apply_index(df: pd.DataFrame, metadata: Dict[str, Any]) -> pd.DataFrame:
 
 def _apply_timezone(df: pd.DataFrame, metadata: Dict[str, Any]) -> pd.DataFrame:
     for c in metadata["columns"]:
-        if c["field_name"] in df.columns and c["pandas_type"] == "datetimetz":
+        if "field_name" in c and c["field_name"] is not None:
+            col_name = str(c["field_name"])
+        elif "name" in c and c["name"] is not None:
+            col_name = str(c["name"])
+        else:
+            continue
+        if col_name in df.columns and c["pandas_type"] == "datetimetz":
             timezone: datetime.tzinfo = pa.lib.string_to_tzinfo(c["metadata"]["timezone"])
-            _logger.debug("applying timezone (%s) on column %s", timezone, c["field_name"])
-            if hasattr(df[c["field_name"]].dtype, "tz") is False:
-                df[c["field_name"]] = df[c["field_name"]].dt.tz_localize(tz="UTC")
-            df[c["field_name"]] = df[c["field_name"]].dt.tz_convert(tz=timezone)
+            _logger.debug("applying timezone (%s) on column %s", timezone, col_name)
+            if hasattr(df[col_name].dtype, "tz") is False:
+                df[col_name] = df[col_name].dt.tz_localize(tz="UTC")
+            df[col_name] = df[col_name].dt.tz_convert(tz=timezone)
     return df
 
 
