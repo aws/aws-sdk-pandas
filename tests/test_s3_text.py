@@ -263,3 +263,13 @@ def test_csv_additional_kwargs(path, kms_key_id, s3_additional_kwargs, use_threa
         assert desc.get("ServerSideEncryption") == "aws:kms"
     elif s3_additional_kwargs["ServerSideEncryption"] == "AES256":
         assert desc.get("ServerSideEncryption") == "AES256"
+
+
+@pytest.mark.parametrize("line_terminator", ["\n", "\r", "\n\r"])
+def test_csv_line_terminator(path, line_terminator):
+    file_path = f"{path}0.csv"
+    df = pd.DataFrame(data={"reading": ["col1", "col2"], "timestamp": [1601379427618, 1601379427625], "value": [1, 2]})
+    wr.s3.to_csv(df=df, path=file_path, index=False, line_terminator=line_terminator)
+    wr.s3.wait_objects_exist(paths=[file_path])
+    df2 = wr.s3.read_csv(file_path)
+    assert df.equals(df2)
