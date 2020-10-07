@@ -77,7 +77,7 @@ def _list_objects(  # pylint: disable=too-many-branches
 ) -> List[str]:
     bucket: str
     prefix_original: str
-    bucket, prefix_original = _utils.parse_path(path=path)
+    bucket, prefix_original, prefix_parts = _utils.parse_path(path=path, multipart=True)
     prefix: str = _prefix_cleanup(prefix=prefix_original)
     _suffix: Union[List[str], None] = [suffix] if isinstance(suffix, str) else suffix
     _ignore_suffix: Union[List[str], None] = [ignore_suffix] if isinstance(ignore_suffix, str) else ignore_suffix
@@ -121,7 +121,8 @@ def _list_objects(  # pylint: disable=too-many-branches
         paths = [p for p in paths if p.endswith(tuple(_ignore_suffix)) is False]
 
     if excluded_keys is not None:
-        paths = [p for p in paths if not any([search(key, p) for key in _excluded_keys])]
+        key_matches_to_exclude = [key for key in prefix_parts if key not in _excluded_keys]
+        paths = [p for p in paths for key in key_matches_to_exclude if key not in p]
 
     return paths
 
