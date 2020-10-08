@@ -76,8 +76,7 @@ def resource(service_name: str, session: Optional[boto3.Session] = None) -> boto
 
 
 def parse_path(path: str, multipart: bool = False) -> Union[Tuple[str, str], Tuple[str, str, List[str]]]:
-    """Split a full S3 path in bucket and key strings.
-    If multipart is True, also returns the key split by /.
+    """Split a full S3 path in bucket and key strings. If multipart is True, also returns the key split by /.
 
     's3://bucket/key' -> ('bucket', 'key')
     's3://bucket/keypart1/keypart2' -> ('bucket', 'keypart1/keypart2', ['keypart1', 'keypart2'])

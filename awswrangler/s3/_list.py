@@ -273,7 +273,6 @@ def list_objects(
 
     Filtering to excluding specific keys.
 
-    >>> import boto3
     >>> import awswrangler as wr
     >>> wr.s3.list_objects('s3://bucket/prefix', excluded_keys='prefix2')
     ['s3://bucket/prefix0', 's3://bucket/prefix1']
