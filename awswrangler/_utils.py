@@ -75,10 +75,12 @@ def resource(service_name: str, session: Optional[boto3.Session] = None) -> boto
     return ensure_session(session=session).resource(service_name=service_name, use_ssl=True, config=botocore_config())
 
 
-def parse_path(path: str) -> Tuple[str, str]:
+def parse_path(path: str, multipart: bool = False) -> Union[Tuple[str, str], Tuple[str, str, List[str]]]:
     """Split a full S3 path in bucket and key strings.
+    If multipart is True, also returns the key split by /.
 
     's3://bucket/key' -> ('bucket', 'key')
+    's3://bucket/keypart1/keypart2' -> ('bucket', 'keypart1/keypart2', ['keypart1', 'keypart2'])
 
     Parameters
     ----------
@@ -87,13 +89,19 @@ def parse_path(path: str) -> Tuple[str, str]:
 
     Returns
     -------
-    Tuple[str, str]
+    Union[Tuple[str, str], Tuple[str, str, List[str]]]
         Tuple of bucket and key strings
+        or
+        Tuple of bucket, key string and List of key parts
 
     Examples
     --------
     >>> from awswrangler._utils import parse_path
     >>> bucket, key = parse_path('s3://bucket/key')
+    ('bucket', 'key')
+
+    >>> bucket, key, keyparts = parse_path('s3://bucket/keypart1/keypart2', multipart=True)
+    ('bucket', 'keypart1/keypart2', ['keypart1', 'keypart2'])
 
     """
     if path.startswith("s3://") is False:
@@ -101,6 +109,15 @@ def parse_path(path: str) -> Tuple[str, str]:
     parts = path.replace("s3://", "").split("/", 1)
     bucket: str = parts[0]
     key: str = ""
+
+    if multipart:
+        keyparts: List[str] = []
+        if len(parts) >= 2:
+            key = key if parts[1] is None else parts[1]
+            levels = key.count("/")
+            keyparts = key.split("/", levels)
+        return bucket, key, keyparts
+
     if len(parts) == 2:
         key = key if parts[1] is None else parts[1]
     return bucket, key
