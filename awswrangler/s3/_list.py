@@ -3,7 +3,6 @@
 import datetime
 import fnmatch
 import logging
-from re import search
 from typing import Any, Dict, List, Optional, Sequence, Union
 
 import boto3
