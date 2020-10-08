@@ -273,8 +273,8 @@ def list_objects(
     Filtering to excluding specific keys.
 
     >>> import awswrangler as wr
-    >>> wr.s3.list_objects('s3://bucket/prefix', excluded_keys='prefix2')
-    ['s3://bucket/prefix0', 's3://bucket/prefix1']
+    >>> wr.s3.list_objects('s3://bucket/prefix', excluded_keys='prefix1')
+    ['s3://bucket/prefix0', 's3://bucket/prefix2']
 
     """
     paths: List[str] = _list_objects(

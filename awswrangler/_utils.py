@@ -119,7 +119,7 @@ def parse_path(path: str, multipart: bool = False) -> Union[Tuple[str, str], Tup
 
     if len(parts) == 2:
         key = key if parts[1] is None else parts[1]
-    return bucket, key
+        return bucket, key
 
 
 def ensure_cpu_count(use_threads: bool = True) -> int:
