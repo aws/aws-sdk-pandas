@@ -173,7 +173,7 @@ def test_athena(path, glue_database, glue_table, kms_key, workgroup0, workgroup1
     wr.catalog.delete_table_if_exists(database=glue_database, table=table)
 
 
-def test_catalog(path, glue_database, glue_table):
+def test_catalog(path: str, glue_database: str, glue_table: str) -> None:
     account_id = boto3.client("sts").get_caller_identity().get("Account")
     assert wr.catalog.does_table_exist(database=glue_database, table=glue_table) is False
     wr.catalog.create_parquet_table(

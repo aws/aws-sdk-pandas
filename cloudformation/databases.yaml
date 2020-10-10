@@ -369,9 +369,7 @@ Resources:
             Fn::ImportValue: aws-data-wrangler-base-KmsKeyArn
           ReturnConnectionPasswordEncrypted: true
         EncryptionAtRest:
-          CatalogEncryptionMode: SSE-KMS
-          SseAwsKmsKeyId:
-            Fn::ImportValue: aws-data-wrangler-base-KmsKeyArn
+          CatalogEncryptionMode: DISABLED
 Outputs:
   DatabasesPassword:
     Value:
