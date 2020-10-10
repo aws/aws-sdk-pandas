@@ -121,7 +121,7 @@ def _sort_successful_executions_data(query_executions: List[Dict[str, Any]]) -> 
     for query in query_executions:
         if (query["Status"].get("State") == "SUCCEEDED") and (query.get("StatementType") in ["DDL", "DML"]):
             filtered.append(query)
-    return sorted(filtered, key=lambda e: e["Status"]["CompletionDateTime"], reverse=True)
+    return sorted(filtered, key=lambda e: str(e["Status"]["CompletionDateTime"]), reverse=True)
 
 
 def _parse_select_query_from_possible_ctas(possible_ctas: str) -> Optional[str]:
