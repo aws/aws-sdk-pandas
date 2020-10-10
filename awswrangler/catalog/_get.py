@@ -515,12 +515,10 @@ def get_connection(
 
     res = client_glue.get_connection(**_catalog_id(catalog_id=catalog_id, Name=name, HidePassword=False))["Connection"]
     if "ENCRYPTED_PASSWORD" in res["ConnectionProperties"]:
-        settings = client_glue.get_data_catalog_encryption_settings(**_catalog_id(catalog_id=catalog_id))
         client_kms = _utils.client(service_name="kms", session=boto3_session)
-        pwd = client_kms.decrypt(
-            CiphertextBlob=base64.b64decode(res["ConnectionProperties"]["ENCRYPTED_PASSWORD"]),
-            KeyId=settings["DataCatalogEncryptionSettings"]["ConnectionPasswordEncryption"]["AwsKmsKeyId"],
-        )["Plaintext"]
+        pwd = client_kms.decrypt(CiphertextBlob=base64.b64decode(res["ConnectionProperties"]["ENCRYPTED_PASSWORD"]))[
+            "Plaintext"
+        ]
         res["ConnectionProperties"]["PASSWORD"] = pwd
     return cast(Dict[str, Any], res)
 
