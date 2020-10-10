@@ -92,7 +92,7 @@ You can choose from three different environments to test your fixes/changes, bas
 
 * Then run the command bellow to install all dependencies:
 
-``./requirements.sh``
+``./setup.sh``
 
 * Run the validation script:
 
@@ -119,7 +119,7 @@ You can choose from three different environments to test your fixes/changes, bas
 
 * Then run the command bellow to install all dependencies:
 
-``./requirements.sh``
+``./setup.sh``
 
 * Go to the ``cloudformation`` directory
 
@@ -158,7 +158,7 @@ You can choose from three different environments to test your fixes/changes, bas
 
 * Then run the command bellow to install all dependencies:
 
-``./requirements.sh``
+``./setup.sh``
 
 * Go to the ``cloudformation`` directory
 

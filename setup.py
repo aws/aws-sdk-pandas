@@ -1,9 +1,10 @@
 import os
 from io import open
 from setuptools import setup
+from typing import Dict
 
 here = os.path.abspath(os.path.dirname(__file__))
-about = {}
+about: Dict[str, str] = {}
 path = os.path.join(here, "awswrangler", "__metadata__.py")
 with open(file=path, mode="r", encoding="utf-8") as f:
     exec(f.read(), about)
