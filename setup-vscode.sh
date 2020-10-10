@@ -48,6 +48,7 @@ vscode_settings='{
   "python.linting.pylintEnabled": false,
   "python.pythonPath": "'$python_path'",
   "python.terminal.activateEnvironment": true,
+  "terminal.integrated.scrollback": 10000,
   "workbench.editor.labelFormat": "default",
   "workbench.tree.indent": 16,
   "yaml.customTags": [
