@@ -15,6 +15,7 @@ pushd lambda
 docker run \
  --volume "$DIR_NAME":/aws-data-wrangler/ \
  --workdir /aws-data-wrangler/building/lambda \
+ --rm \
  -it \
  awswrangler-build-py36 \
  build-lambda-layer.sh "${VERSION}-py3.6" "ninja"
@@ -23,6 +24,7 @@ docker run \
 docker run \
  --volume "$DIR_NAME":/aws-data-wrangler/ \
  --workdir /aws-data-wrangler/building/lambda \
+ --rm \
  -it \
  awswrangler-build-py37 \
  build-lambda-layer.sh "${VERSION}-py3.7" "ninja"
@@ -31,6 +33,7 @@ docker run \
 docker run \
  --volume "$DIR_NAME":/aws-data-wrangler/ \
  --workdir /aws-data-wrangler/building/lambda \
+ --rm \
  -it \
  awswrangler-build-py38 \
  build-lambda-layer.sh "${VERSION}-py3.8" "ninja-build"
