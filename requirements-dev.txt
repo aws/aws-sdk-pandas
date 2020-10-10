@@ -1,12 +1,12 @@
 awscli>=1.18.0,<2.0.0
-isort==5.5.4
+isort==5.6.2
 black==19.10b0
 pylint==2.6.0
 flake8==3.8.4
-mypy==0.782
+mypy==0.790
 pydocstyle==5.1.1
 doc8==0.8.1
-tox==3.20.0
+tox==3.20.1
 pytest==6.1.1
 pytest-cov==2.10.1
 pytest-xdist==2.1.0
