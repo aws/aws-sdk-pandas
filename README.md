@@ -145,11 +145,13 @@ Please [send a Pull Request](https://github.com/awslabs/aws-data-wrangler/edit/m
 - [Funcional Health Tech](https://www.funcionalcorp.com.br/) [[@webysther](https://github.com/webysther)]
 - [LINE TV](https://www.linetv.tw/) [[@bryanyang0528](https://github.com/bryanyang0528)]
 - [M4U](https://www.m4u.com.br/) [[@Thiago-Dantas](https://github.com/Thiago-Dantas)]
+- [nrd.io](https://nrd.io/) [[@mrtns](https://github.com/mrtns)]
 - [OKRA Technologies](https://okra.ai) [[@JPFrancoia](https://github.com/JPFrancoia), [@schot](https://github.com/schot)]
 - [Pier](https://www.pier.digital/) [[@flaviomax](https://github.com/flaviomax)]
 - [Pismo](https://www.pismo.io/) [[@msantino](https://github.com/msantino)]
 - [Serasa Experian](https://www.serasaexperian.com.br/) [[@andre-marcos-perez](https://github.com/andre-marcos-perez)]
 - [Shipwell](https://shipwell.com/) [[@zacharycarter](https://github.com/zacharycarter)]
+- [strongDM](https://www.strongdm.com/) [[@mrtns](https://github.com/mrtns)]
 - [Thinkbumblebee](https://www.thinkbumblebee.com/) [[@dheerajsharma21]](https://github.com/dheerajsharma21)
 - [Zillow](https://www.zillow.com/) [[@nicholas-miles]](https://github.com/nicholas-miles)
 - [Informa Markets](https://www.informamarkets.com/en/home.html) [[@mateusmorato]](http://github.com/mateusmorato)
