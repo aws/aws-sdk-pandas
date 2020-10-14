@@ -112,9 +112,11 @@ def parse_path(path: str, multipart: bool = False) -> Union[Tuple[str, str], Tup
     if multipart:
         keyparts: List[str] = []
         if len(parts) >= 2:
-            key = key if parts[1] is None else parts[1]
-            levels = key.count("/")
-            keyparts = key.split("/", levels)
+            key_string = key if parts[1] is None else parts[1]
+            levels = key_string.count("/")
+            keyparts = key_string.split("/", levels)
+            keyparts[-1] = keyparts[-1].partition('.')[0]
+            key = '/'.join(keyparts[:-1])
         return bucket, key, keyparts
 
     if len(parts) == 2:
