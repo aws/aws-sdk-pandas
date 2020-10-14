@@ -99,8 +99,8 @@ def parse_path(path: str, multipart: bool = False) -> Union[Tuple[str, str], Tup
     >>> bucket, key = parse_path('s3://bucket/key')
     ('bucket', 'key')
 
-    >>> bucket, key, keyparts = parse_path('s3://bucket/keypart1/keypart2', multipart=True)
-    ('bucket', 'keypart1/keypart2', ['keypart1', 'keypart2'])
+    >>> bucket, key, keyparts = parse_path('s3://bucket/keypart1/keypart2/file.csv', multipart=True)
+    ('bucket', 'keypart1/keypart2', ['keypart1', 'keypart2', 'file'])
 
     """
     if path.startswith("s3://") is False:
@@ -121,7 +121,7 @@ def parse_path(path: str, multipart: bool = False) -> Union[Tuple[str, str], Tup
 
     if len(parts) == 2:
         key = key if parts[1] is None else parts[1]
-        return bucket, key
+    return bucket, key
 
 
 def ensure_cpu_count(use_threads: bool = True) -> int:

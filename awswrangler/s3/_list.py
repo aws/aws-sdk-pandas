@@ -121,13 +121,10 @@ def _list_objects(  # pylint: disable=too-many-branches
 
     if excluded_keys is not None:
         paths_to_keep: List[str] = []
-
         for p in paths:
-            _, _, prefix_parts = _.utils.parse_path(p, multipart=True)
-            
+            _, _, prefix_parts = _utils.parse_path(p, multipart=True)      
             if not any(key in prefix_parts for key in _excluded_keys):
                 paths_to_keep.append(p)
-
         paths = paths if not paths_to_keep else paths_to_keep
 
     return paths
@@ -255,7 +252,7 @@ def list_objects(
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     excluded_keys: Union[str, List[str], None]
-        Key or List of keys for S3 to be ignored.
+        Ignore the s3 files that contain a matching key or list of keys.
 
     Returns
     -------
