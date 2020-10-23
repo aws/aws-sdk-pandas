@@ -425,7 +425,7 @@ def table(
     Examples
     --------
     >>> import awswrangler as wr
-    >>> df_table = wr.catalog.table(database='default', name='my_table')
+    >>> df_table = wr.catalog.table(database='default', table='my_table')
 
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
