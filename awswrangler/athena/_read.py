@@ -379,7 +379,9 @@ def _resolve_query_without_cache_ctas(
     _logger.debug("query_id: %s", query_id)
     try:
         query_metadata: _QueryMetadata = _get_query_metadata(
-            query_execution_id=query_id, boto3_session=boto3_session, categories=categories,
+            query_execution_id=query_id,
+            boto3_session=boto3_session,
+            categories=categories,
         )
     except exceptions.QueryFailed as ex:
         msg: str = str(ex)
@@ -436,7 +438,9 @@ def _resolve_query_without_cache_regular(
     )
     _logger.debug("query_id: %s", query_id)
     query_metadata: _QueryMetadata = _get_query_metadata(
-        query_execution_id=query_id, boto3_session=boto3_session, categories=categories,
+        query_execution_id=query_id,
+        boto3_session=boto3_session,
+        categories=categories,
     )
     return _fetch_csv_result(
         query_metadata=query_metadata,

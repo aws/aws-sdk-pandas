@@ -95,7 +95,11 @@ def _rs_create_table(
     diststyle = diststyle.upper() if diststyle else "AUTO"
     sortstyle = sortstyle.upper() if sortstyle else "COMPOUND"
     _rs_validate_parameters(
-        redshift_types=redshift_types, diststyle=diststyle, distkey=distkey, sortstyle=sortstyle, sortkey=sortkey,
+        redshift_types=redshift_types,
+        diststyle=diststyle,
+        distkey=distkey,
+        sortstyle=sortstyle,
+        sortkey=sortkey,
     )
     cols_str: str = "".join([f"{k} {v},\n" for k, v in redshift_types.items()])[:-2]
     primary_keys_str: str = f",\nPRIMARY KEY ({', '.join(primary_keys)})" if primary_keys else ""
@@ -144,13 +148,18 @@ def _rs_validate_parameters(
 
 
 def _rs_copy(
-    con: Any, table: str, manifest_path: str, iam_role: str, num_files: int, schema: Optional[str] = None,
+    con: Any,
+    table: str,
+    manifest_path: str,
+    iam_role: str,
+    num_files: int,
+    schema: Optional[str] = None,
 ) -> int:
     if schema is None:
         table_name: str = table
     else:
         table_name = f"{schema}.{table}"
-    sql: str = (f"COPY {table_name} FROM '{manifest_path}'\nIAM_ROLE '{iam_role}'\nFORMAT AS PARQUET\nMANIFEST")
+    sql: str = f"COPY {table_name} FROM '{manifest_path}'\nIAM_ROLE '{iam_role}'\nFORMAT AS PARQUET\nMANIFEST"
     _logger.debug("copy query:\n%s", sql)
     con.execute(sql)
     sql = "SELECT pg_last_copy_id() AS query_id"

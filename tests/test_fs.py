@@ -205,7 +205,11 @@ def test_additional_kwargs(path, kms_key_id, s3_additional_kwargs, use_threads):
     with open_s3_object(path, mode="w", s3_additional_kwargs=s3_additional_kwargs, use_threads=use_threads) as s3obj:
         s3obj.write("foo")
     with open_s3_object(
-        path, mode="r", s3_block_size=10_000_000, s3_additional_kwargs=s3_additional_kwargs, use_threads=use_threads,
+        path,
+        mode="r",
+        s3_block_size=10_000_000,
+        s3_additional_kwargs=s3_additional_kwargs,
+        use_threads=use_threads,
     ) as s3obj:
         assert s3obj.read() == "foo"
     desc = wr.s3.describe_objects([path])[path]

@@ -9,7 +9,7 @@ on:
       - master
 
 jobs:
-  build:
+  Check:
 
     runs-on: ubuntu-latest
     strategy:
@@ -22,23 +22,25 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Setup Environment
-        run: ./setup.sh
+      - name: Install Requirements
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
       - name: CloudFormation Lint - Base
         run: cfn-lint -t cloudformation/base.yaml
       - name: CloudFormation Lint - Databases
         run: cfn-lint -t cloudformation/databases.yaml
-      - name: Documentation Lint
-        run: pydocstyle awswrangler/ --convention=numpy
       - name: mypy check
-        run: mypy awswrangler
+        run: mypy .
       - name: Flake8 Lint
-        run: flake8 setup.py awswrangler tests
+        run: flake8 .
       - name: Pylint Lint
         run: pylint -j 0 awswrangler
       - name: Black style
-        run: black --check --line-length 120 --target-version py36 awswrangler tests
+        run: black --check .
       - name: Imports order check (isort)
-        run: isort --check-only awswrangler tests
+        run: isort --check .
+      - name: Documentation Lint
+        run: pydocstyle awswrangler/ --convention=numpy
       - name: Documentation check
         run: doc8 --ignore D005,D002 --max-line-length 120 docs/source

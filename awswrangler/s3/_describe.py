@@ -115,7 +115,9 @@ def describe_objects(
 
 
 def size_objects(
-    path: Union[str, List[str]], use_threads: bool = True, boto3_session: Optional[boto3.Session] = None,
+    path: Union[str, List[str]],
+    use_threads: bool = True,
+    boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, Optional[int]]:
     """Get the size (ContentLength) in bytes of Amazon S3 objects from a received S3 prefix or list of S3 objects paths.
 

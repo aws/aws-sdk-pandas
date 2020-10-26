@@ -113,7 +113,11 @@ def _get_workgroup_config(session: boto3.Session, workgroup: Optional[str] = Non
     return wg_config
 
 
-def _fetch_txt_result(query_metadata: _QueryMetadata, keep_files: bool, boto3_session: boto3.Session,) -> pd.DataFrame:
+def _fetch_txt_result(
+    query_metadata: _QueryMetadata,
+    keep_files: bool,
+    boto3_session: boto3.Session,
+) -> pd.DataFrame:
     if query_metadata.output_location is None or query_metadata.output_location.endswith(".txt") is False:
         return pd.DataFrame()
     path: str = query_metadata.output_location
@@ -506,7 +510,11 @@ def describe_table(
         boto3_session=session,
     )
     query_metadata: _QueryMetadata = _get_query_metadata(query_execution_id=query_id, boto3_session=session)
-    raw_result = _fetch_txt_result(query_metadata=query_metadata, keep_files=True, boto3_session=session,)
+    raw_result = _fetch_txt_result(
+        query_metadata=query_metadata,
+        keep_files=True,
+        boto3_session=session,
+    )
     return _parse_describe_table(raw_result)
 
 
@@ -571,7 +579,11 @@ def show_create_table(
         boto3_session=session,
     )
     query_metadata: _QueryMetadata = _get_query_metadata(query_execution_id=query_id, boto3_session=session)
-    raw_result = _fetch_txt_result(query_metadata=query_metadata, keep_files=True, boto3_session=session,)
+    raw_result = _fetch_txt_result(
+        query_metadata=query_metadata,
+        keep_files=True,
+        boto3_session=session,
+    )
     return cast(str, raw_result.createtab_stmt.str.strip().str.cat(sep=" "))
 
 

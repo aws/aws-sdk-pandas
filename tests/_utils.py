@@ -583,6 +583,8 @@ def create_workgroup(wkg_name, config):
             deleted = True
     if wkg_name not in wkgs or deleted is True:
         client.create_work_group(
-            Name=wkg_name, Configuration=config, Description=f"AWS Data Wrangler Test - {wkg_name}",
+            Name=wkg_name,
+            Configuration=config,
+            Description=f"AWS Data Wrangler Test - {wkg_name}",
         )
     return wkg_name

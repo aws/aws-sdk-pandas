@@ -493,7 +493,11 @@ def test_glue_number_of_versions_created(path, glue_table, glue_database):
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2]})
     for _ in range(5):
         wr.s3.to_parquet(
-            df, path, dataset=True, table=glue_table, database=glue_database,
+            df,
+            path,
+            dataset=True,
+            table=glue_table,
+            database=glue_database,
         )
     assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 1
 

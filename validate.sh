@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -ex
 
-isort awswrangler tests
-black --line-length 120 --target-version py36 awswrangler tests
-pydocstyle awswrangler/ --convention=numpy
-mypy awswrangler
-flake8 setup.py awswrangler tests
+isort --check .
+black --check .
+mypy .
+flake8 .
 pylint -j 0 awswrangler
+pydocstyle awswrangler/ --convention=numpy
+doc8 --ignore D005,D002 --max-line-length 120 docs/source

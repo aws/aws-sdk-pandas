@@ -1,7 +1,8 @@
 import os
 from io import open
-from setuptools import setup
 from typing import Dict
+
+from setuptools import setup
 
 here = os.path.abspath(os.path.dirname(__file__))
 about: Dict[str, str] = {}
@@ -26,8 +27,8 @@ setup(
     python_requires=">=3.6, <3.9",
     install_requires=open("requirements.txt").read().strip().split("\n"),
     classifiers=[
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
-    ]
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+    ],
 )
