@@ -438,8 +438,7 @@ def test_empty_column(path, use_threads):
     assert df.equals(df2)
 
 
-@pytest.mark.parametrize("use_threads", [True, False])
-def test_mixed_types_column(path, use_threads):
+def test_mixed_types_column(path):
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": [1, 2, "foo"], "par": ["a", "b", "c"]})
     df["c0"] = df["c0"].astype("Int64")
     df["par"] = df["par"].astype("string")
