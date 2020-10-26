@@ -5,5 +5,5 @@ pymysql>=0.9.0,<0.11.0
 sqlalchemy-redshift>=0.7.0,<0.9.0
 pandas>=1.1.0,<1.2.0
 SQLAlchemy~=1.3.10
-pyarrow~=1.0.0
+pyarrow~=2.0.0
 psycopg2-binary~=2.8.0
