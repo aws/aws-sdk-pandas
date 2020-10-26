@@ -75,7 +75,7 @@ def _new_writer(
                 write_statistics=True,
                 use_dictionary=True,
                 coerce_timestamps="ms",
-                compression=compression,
+                compression="NONE" if compression is None else compression,
                 flavor="spark",
                 schema=schema,
             )
