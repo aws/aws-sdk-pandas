@@ -152,3 +152,4 @@ Please [send a Pull Request](https://github.com/awslabs/aws-data-wrangler/edit/m
 - [Shipwell](https://shipwell.com/) [[@zacharycarter](https://github.com/zacharycarter)]
 - [Thinkbumblebee](https://www.thinkbumblebee.com/) [[@dheerajsharma21]](https://github.com/dheerajsharma21)
 - [Zillow](https://www.zillow.com/) [[@nicholas-miles]](https://github.com/nicholas-miles)
+- [Informa Markets](https://www.informamarkets.com/en/home.html) [[@mateusmorato]](http://github.com/mateusmorato)
