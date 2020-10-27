@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 import boto3
 import numpy as np
 import pandas as pd
+import pyarrow as pa
 import pytest
 
 import awswrangler as wr
@@ -420,7 +421,7 @@ def test_timezone_raw_values(path, use_threads):
     paths = wr.s3.to_parquet(partition_cols=["par"], df=df, path=path, dataset=True, sanitize_columns=False)["paths"]
     wr.s3.wait_objects_exist(paths, use_threads=use_threads)
     df2 = wr.s3.read_parquet(path, dataset=True, use_threads=use_threads)
-    df3 = pd.concat([pd.read_parquet(p) for p in paths], ignore_index=True)
+    df3 = pd.read_parquet(path)
     df2["par"] = df2["par"].astype("string")
     df3["par"] = df3["par"].astype("string")
     assert df2.equals(df3)
@@ -438,15 +439,15 @@ def test_empty_column(path, use_threads):
     assert df.equals(df2)
 
 
-def test_mixed_types_column(path):
+def test_mixed_types_column(path) -> None:
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": [1, 2, "foo"], "par": ["a", "b", "c"]})
     df["c0"] = df["c0"].astype("Int64")
     df["par"] = df["par"].astype("string")
-    with pytest.raises(TypeError):
+    with pytest.raises(pa.ArrowInvalid):
         wr.s3.to_parquet(df, path, dataset=True, partition_cols=["par"])
 
 
-def test_parquet_plain(path):
+def test_parquet_plain(path) -> None:
     df = pd.DataFrame({"id": [1, 2, 3]}, dtype="Int64")
     path_file = f"{path}0.parquet"
     wr.s3.to_parquet(df=df, path=path_file, compression=None)

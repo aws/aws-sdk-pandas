@@ -100,6 +100,8 @@ def parse_path(path: str) -> Tuple[str, str]:
         raise exceptions.InvalidArgumentValue(f"'{path}' is not a valid path. It MUST start with 's3://'")
     parts = path.replace("s3://", "").split("/", 1)
     bucket: str = parts[0]
+    if "/" in bucket:
+        raise exceptions.InvalidArgumentValue(f"'{bucket}' is not a valid bucket name.")
     key: str = ""
     if len(parts) == 2:
         key = key if parts[1] is None else parts[1]

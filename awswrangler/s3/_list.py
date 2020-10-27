@@ -158,7 +158,7 @@ def does_object_exist(path: str, boto3_session: Optional[boto3.Session] = None) 
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     bucket: str
     key: str
-    bucket, key = path.replace("s3://", "").split("/", 1)
+    bucket, key = _utils.parse_path(path=path)
     try:
         client_s3.head_object(Bucket=bucket, Key=key)
         return True

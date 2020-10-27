@@ -509,7 +509,6 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
             return None
         if self.writable():
             _logger.debug("Closing: %s parts", self._parts_count)
-            _logger.debug("Buffer tell: %s", self._buffer.tell())
             if self._parts_count > 0:
                 self.flush(force=True)
                 pasts: List[Dict[str, Union[str, int]]] = self._upload_proxy.close()

@@ -199,6 +199,6 @@ You can choose from three different environments to test your fixes/changes, bas
   "python.linting.enabled": true,
   "python.linting.flake8Enabled": true,
   "python.linting.mypyEnabled": true,
-  "python.linting.pylintEnabled": true
+  "python.linting.pylintEnabled": false
 }
 ```

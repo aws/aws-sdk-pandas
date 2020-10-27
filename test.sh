@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -ex
+set -e
 
 microtime() {
     python -c 'import time; print(time.time())'

@@ -3,6 +3,7 @@ import time
 
 import boto3
 import pandas as pd
+import pyarrow as pa
 import pytest
 
 import awswrangler as wr
@@ -375,7 +376,14 @@ def test_empty_column(path, glue_table, glue_database, use_threads):
     df["par"] = df["par"].astype("string")
     with pytest.raises(wr.exceptions.UndetectedType):
         wr.s3.to_csv(
-            df, path, index=False, dataset=True, table=glue_table, database=glue_database, partition_cols=["par"]
+            df,
+            path,
+            index=False,
+            dataset=True,
+            use_threads=use_threads,
+            table=glue_table,
+            database=glue_database,
+            partition_cols=["par"],
         )
 
 
@@ -384,17 +392,24 @@ def test_mixed_types_column(path, glue_table, glue_database, use_threads):
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": [1, 2, "foo"], "par": ["a", "b", "c"]})
     df["c0"] = df["c0"].astype("Int64")
     df["par"] = df["par"].astype("string")
-    with pytest.raises(TypeError):
+    with pytest.raises(pa.ArrowInvalid):
         wr.s3.to_csv(
-            df, path, index=False, dataset=True, table=glue_table, database=glue_database, partition_cols=["par"]
+            df,
+            path,
+            use_threads=use_threads,
+            index=False,
+            dataset=True,
+            table=glue_table,
+            database=glue_database,
+            partition_cols=["par"],
         )
 
 
 @pytest.mark.parametrize("use_threads", [True, False])
-def test_failing_catalog(path, glue_table, glue_database, use_threads):
+def test_failing_catalog(path, glue_table, use_threads):
     df = pd.DataFrame({"c0": [1, 2, 3]})
     try:
-        wr.s3.to_csv(df, path, dataset=True, table=glue_table, database="foo")
+        wr.s3.to_csv(df, path, use_threads=use_threads, dataset=True, table=glue_table, database="foo")
     except boto3.client("glue").exceptions.EntityNotFoundException:
         pass
     time.sleep(3)
