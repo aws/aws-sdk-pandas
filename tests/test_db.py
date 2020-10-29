@@ -704,3 +704,34 @@ def test_redshift_copy_extras(path, redshift_table, databases_parameters, use_th
     assert df.int16.sum() * num == df2.int16.sum()
     assert df.int32.sum() * num == df2.int32.sum()
     assert df.int64.sum() * num == df2.int64.sum()
+
+
+def test_redshift_decimal_cast(redshift_table):
+    df = pd.DataFrame(
+        {
+            "col0": [Decimal((0, (1, 9, 9), -2)), None, Decimal((0, (1, 9, 0), -2))],
+            "col1": [Decimal((0, (1, 9, 9), -2)), None, Decimal((0, (1, 9, 0), -2))],
+            "col2": [Decimal((0, (1, 9, 9), -2)), None, Decimal((0, (1, 9, 0), -2))],
+        }
+    )
+    engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
+    wr.db.to_sql(df, engine, name=redshift_table)
+    df2 = wr.db.read_sql_table(
+        schema="public", table=redshift_table, con=engine, dtype={"col0": "float32", "col1": "float64", "col2": "Int64"}
+    )
+    assert df2.dtypes.to_list() == ["float32", "float64", "Int64"]
+    assert 3.88 <= df2.col0.sum() <= 3.89
+    assert 3.88 <= df2.col1.sum() <= 3.89
+    assert df2.col2.sum() == 2
+
+
+def test_postgresql_out_of_bound():
+    engine = wr.catalog.get_engine(connection="aws-data-wrangler-postgresql")
+    sql = """
+    SELECT TO_TIMESTAMP(
+        '9999-12-31 9:30:20',
+        'YYYY-MM-DD HH:MI:SS'
+    )::timestamp without time zone;
+    """
+    df = wr.db.read_sql_query(sql=sql, con=engine, safe=False)
+    assert df.shape == (1, 1)

@@ -187,17 +187,22 @@ def _records2df(
     records: List[Tuple[Any]],
     cols_names: List[str],
     index: Optional[Union[str, List[str]]],
-    dtype: Optional[Dict[str, pa.DataType]] = None,
+    safe: bool,
+    dtype: Optional[Dict[str, pa.DataType]],
 ) -> pd.DataFrame:
     arrays: List[pa.Array] = []
     for col_values, col_name in zip(tuple(zip(*records)), cols_names):  # Transposing
         if (dtype is None) or (col_name not in dtype):
             try:
-                array: pa.Array = pa.array(obj=col_values, safe=True)  # Creating Arrow array
+                array: pa.Array = pa.array(obj=col_values, safe=safe)  # Creating Arrow array
             except pa.ArrowInvalid as ex:
                 array = _data_types.process_not_inferred_array(ex, values=col_values)  # Creating Arrow array
         else:
-            array = pa.array(obj=col_values, type=dtype[col_name], safe=True)  # Creating Arrow array with dtype
+            try:
+                array = pa.array(obj=col_values, type=dtype[col_name], safe=safe)  # Creating Arrow array with dtype
+            except pa.ArrowInvalid:
+                array = pa.array(obj=col_values, safe=safe)  # Creating Arrow array
+                array = array.cast(target_type=dtype[col_name], safe=safe)  # Casting
         arrays.append(array)
     table = pa.Table.from_arrays(arrays=arrays, names=cols_names)  # Creating arrow Table
     df: pd.DataFrame = table.to_pandas(  # Creating Pandas DataFrame
@@ -207,6 +212,7 @@ def _records2df(
         integer_object_nulls=False,
         date_as_object=True,
         types_mapper=_data_types.pyarrow2pandas_extension,
+        safe=safe,
     )
     if index is not None:
         df.set_index(index, inplace=True)
@@ -218,13 +224,14 @@ def _iterate_cursor(
     chunksize: int,
     cols_names: List[str],
     index: Optional[Union[str, List[str]]],
-    dtype: Optional[Dict[str, pa.DataType]] = None,
+    safe: bool,
+    dtype: Optional[Dict[str, pa.DataType]],
 ) -> Iterator[pd.DataFrame]:
     while True:
         records = cursor.fetchmany(chunksize)
         if not records:
             break
-        yield _records2df(records=records, cols_names=cols_names, index=index, dtype=dtype)
+        yield _records2df(records=records, cols_names=cols_names, index=index, safe=safe, dtype=dtype)
 
 
 def _convert_params(sql: str, params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]]) -> List[Any]:
@@ -366,6 +373,7 @@ def read_sql_query(
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
     chunksize: Optional[int] = None,
     dtype: Optional[Dict[str, pa.DataType]] = None,
+    safe: bool = True,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Return a DataFrame corresponding to the result set of the query string.
 
@@ -395,6 +403,8 @@ def read_sql_query(
     dtype : Dict[str, pyarrow.DataType], optional
         Specifying the datatype for columns.
         The keys should be the column names and the values should be the PyArrow types.
+    safe : bool
+        Check for overflows or other unsafe data type conversions.
 
     Returns
     -------
@@ -425,9 +435,11 @@ def read_sql_query(
         args = _convert_params(sql, params)
         cursor = _con.execute(*args)
         if chunksize is None:
-            return _records2df(records=cursor.fetchall(), cols_names=cursor.keys(), index=index_col, dtype=dtype)
+            return _records2df(
+                records=cursor.fetchall(), cols_names=cursor.keys(), index=index_col, dtype=dtype, safe=safe
+            )
         return _iterate_cursor(
-            cursor=cursor, chunksize=chunksize, cols_names=cursor.keys(), index=index_col, dtype=dtype
+            cursor=cursor, chunksize=chunksize, cols_names=cursor.keys(), index=index_col, dtype=dtype, safe=safe
         )
 
 
@@ -439,6 +451,7 @@ def read_sql_table(
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
     chunksize: Optional[int] = None,
     dtype: Optional[Dict[str, pa.DataType]] = None,
+    safe: bool = True,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Return a DataFrame corresponding to the result set of the query string.
 
@@ -471,6 +484,8 @@ def read_sql_table(
     dtype : Dict[str, pyarrow.DataType], optional
         Specifying the datatype for columns.
         The keys should be the column names and the values should be the PyArrow types.
+    safe : bool
+        Check for overflows or other unsafe data type conversions.
 
     Returns
     -------
@@ -502,7 +517,9 @@ def read_sql_table(
         sql: str = f"SELECT * FROM {table}"
     else:
         sql = f"SELECT * FROM {schema}.{table}"
-    return read_sql_query(sql=sql, con=con, index_col=index_col, params=params, chunksize=chunksize, dtype=dtype)
+    return read_sql_query(
+        sql=sql, con=con, index_col=index_col, params=params, chunksize=chunksize, dtype=dtype, safe=safe
+    )
 
 
 def get_redshift_temp_engine(
