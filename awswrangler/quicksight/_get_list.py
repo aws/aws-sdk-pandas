@@ -350,7 +350,7 @@ def list_users(
     Parameters
     ----------
     namespace : str
-        The namespace. Currently, you should set this to default .
+        The namespace. Currently, you should set this to default.
     account_id : str, optional
         If None, the account ID will be inferred from your boto3 session.
     boto3_session : boto3.Session(), optional

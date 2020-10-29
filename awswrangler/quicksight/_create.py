@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Union, cast
 import boto3
 
 from awswrangler import _utils, exceptions, sts
-from awswrangler.quicksight._get_list import get_data_source_arn, get_dataset_id
+from awswrangler.quicksight._get_list import get_data_source_arn, get_dataset_id, list_users
 from awswrangler.quicksight._utils import extract_athena_query_columns, extract_athena_table_columns
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -52,13 +52,13 @@ _ALLOWED_ACTIONS: Dict[str, Dict[str, List[str]]] = {
 }
 
 
-def _generate_principal(user_name: str, account_id: str, region: str) -> str:
-    user_name = user_name if "/" in user_name else f"default/{user_name}"
-    return f"arn:aws:quicksight:{region}:{account_id}:user/{user_name}"
+def _usernames_to_arns(user_names: List[str], all_users: List[Dict[str, Any]]) -> List[str]:
+    return [cast(str, u["Arn"]) for u in all_users if u.get("UserName") in user_names]
 
 
 def _generate_permissions(
     resource: str,
+    namespace: str,
     account_id: str,
     boto3_session: boto3.Session,
     allowed_to_use: Optional[List[str]] = None,
@@ -68,26 +68,31 @@ def _generate_permissions(
     if (allowed_to_use is None) and (allowed_to_manage is None):
         return permissions
 
-    # Forcing same principal not be in both lists at the same time.
+    # Forcing same user not be in both lists at the same time.
     if (allowed_to_use is not None) and (allowed_to_manage is not None):
         allowed_to_use = list(set(allowed_to_use) - set(allowed_to_manage))
 
-    region: str = _utils.get_region_from_session(boto3_session=boto3_session)
+    all_users: List[Dict[str, Any]] = list_users(
+        namespace=namespace, account_id=account_id, boto3_session=boto3_session
+    )
+
     if allowed_to_use is not None:
+        allowed_arns: List[str] = _usernames_to_arns(user_names=allowed_to_use, all_users=all_users)
         permissions += [
             {
-                "Principal": _generate_principal(user_name=user_name, account_id=account_id, region=region),
+                "Principal": arn,
                 "Actions": _ALLOWED_ACTIONS[resource]["allowed_to_use"],
             }
-            for user_name in allowed_to_use
+            for arn in allowed_arns
         ]
     if allowed_to_manage is not None:
+        allowed_arns = _usernames_to_arns(user_names=allowed_to_manage, all_users=all_users)
         permissions += [
             {
-                "Principal": _generate_principal(user_name=user_name, account_id=account_id, region=region),
+                "Principal": arn,
                 "Actions": _ALLOWED_ACTIONS[resource]["allowed_to_manage"],
             }
-            for user_name in allowed_to_manage
+            for arn in allowed_arns
         ]
     return permissions
 
@@ -113,6 +118,7 @@ def create_athena_data_source(
     tags: Optional[Dict[str, str]] = None,
     account_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
+    namespace: str = "default",
 ) -> None:
     """Create a QuickSight data source pointing to an Athena/Workgroup.
 
@@ -140,6 +146,8 @@ def create_athena_data_source(
         If None, the account ID will be inferred from your boto3 session.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    namespace : str
+        The namespace. Currently, you should set this to default.
 
     Returns
     -------
@@ -172,6 +180,7 @@ def create_athena_data_source(
         boto3_session=session,
         allowed_to_use=allowed_to_use,
         allowed_to_manage=allowed_to_manage,
+        namespace=namespace,
     )
     if permissions:
         args["Permissions"] = permissions
@@ -198,13 +207,14 @@ def create_athena_dataset(
     tags: Optional[Dict[str, str]] = None,
     account_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
+    namespace: str = "default",
 ) -> str:
     """Create a QuickSight dataset.
 
     Note
     ----
     You will not be able to see the the dataset in the console
-    if you not pass your user to one of the ``allowed_*`` arguments.
+    if you not pass your username to one of the ``allowed_*`` arguments.
 
     Note
     ----
@@ -237,10 +247,10 @@ def create_athena_dataset(
         Key/Value collection to put on the Cluster.
         e.g. {"foo": "boo", "bar": "xoo"})
     allowed_to_use : optional
-        List of principals that will be allowed to see and use the data source.
+        List of usernames that will be allowed to see and use the data source.
         e.g. ["john", "Mary"]
     allowed_to_manage : optional
-        List of principals that will be allowed to see, use, update and delete the data source.
+        List of usernames that will be allowed to see, use, update and delete the data source.
         e.g. ["Mary"]
     logical_table_alias : str
         A display name for the logical table.
@@ -253,6 +263,8 @@ def create_athena_dataset(
         If None, the account ID will be inferred from your boto3 session.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    namespace : str
+        The namespace. Currently, you should set this to default.
 
     Returns
     -------
@@ -333,6 +345,7 @@ def create_athena_dataset(
         boto3_session=session,
         allowed_to_use=allowed_to_use,
         allowed_to_manage=allowed_to_manage,
+        namespace=namespace,
     )
     if permissions:
         args["Permissions"] = permissions
