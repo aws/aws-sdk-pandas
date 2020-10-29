@@ -30,6 +30,7 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "max_cache_query_inspections": _ConfigArg(dtype=int, nullable=False),
     "max_cache_seconds": _ConfigArg(dtype=int, nullable=False),
     "s3_block_size": _ConfigArg(dtype=int, nullable=False, enforced=True),
+    "workgroup": _ConfigArg(dtype=str, nullable=False, enforced=True),
 }
 
 
@@ -213,6 +214,15 @@ class _Config:
     @s3_block_size.setter
     def s3_block_size(self, value: int) -> None:
         self._set_config_value(key="s3_block_size", value=value)
+
+    @property
+    def workgroup(self) -> Optional[str]:
+        """Property workgroup."""
+        return cast(Optional[str], self["workgroup"])
+
+    @workgroup.setter
+    def workgroup(self, value: Optional[str]) -> None:
+        self._set_config_value(key="workgroup", value=value)
 
 
 def _inject_config_doc(doc: Optional[str], available_configs: Tuple[str, ...]) -> str:

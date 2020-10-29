@@ -9,7 +9,7 @@ from awswrangler.s3._fs import open_s3_object
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
-def test_basics(path, glue_database, glue_table):
+def test_basics(path, glue_database, glue_table, workgroup0, workgroup1):
     args = {"table": glue_table, "path": "", "columns_types": {"col0": "bigint"}}
 
     # Missing database argument
@@ -62,3 +62,12 @@ def test_basics(path, glue_database, glue_table):
         wr.catalog.does_table_exist(table=glue_table)
 
     assert wr.config.to_pandas().shape == (len(wr._config._CONFIG_ARGS), 7)
+
+    # Workgroup
+    wr.config.workgroup = workgroup0
+    df = wr.athena.read_sql_query(sql="SELECT 1 as col0", database=glue_database)
+    assert df.query_metadata["WorkGroup"] == workgroup0
+    os.environ["WR_WORKGROUP"] = workgroup1
+    wr.config.reset()
+    df = wr.athena.read_sql_query(sql="SELECT 1 as col0", database=glue_database)
+    assert df.query_metadata["WorkGroup"] == workgroup1
