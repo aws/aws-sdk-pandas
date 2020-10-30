@@ -150,6 +150,7 @@ Please [send a Pull Request](https://github.com/awslabs/aws-data-wrangler/edit/m
 - [OKRA Technologies](https://okra.ai) [[@JPFrancoia](https://github.com/JPFrancoia), [@schot](https://github.com/schot)]
 - [Pier](https://www.pier.digital/) [[@flaviomax](https://github.com/flaviomax)]
 - [Pismo](https://www.pismo.io/) [[@msantino](https://github.com/msantino)]
+- [ringDNA](https://www.ringdna.com/) [[@msropp](https://github.com/msropp)]
 - [Serasa Experian](https://www.serasaexperian.com.br/) [[@andre-marcos-perez](https://github.com/andre-marcos-perez)]
 - [Shipwell](https://shipwell.com/) [[@zacharycarter](https://github.com/zacharycarter)]
 - [strongDM](https://www.strongdm.com/) [[@mrtns](https://github.com/mrtns)]
