@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple, Type,
 
 import pandas as pd
 
-from awswrangler import _utils, exceptions
+from awswrangler import exceptions
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -31,15 +31,30 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "max_cache_seconds": _ConfigArg(dtype=int, nullable=False),
     "s3_block_size": _ConfigArg(dtype=int, nullable=False, enforced=True),
     "workgroup": _ConfigArg(dtype=str, nullable=False, enforced=True),
+    # Endpoints URLs
+    "s3_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
+    "athena_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
+    "sts_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
+    "glue_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
+    "redshift_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
+    "kms_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
+    "emr_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
 }
 
 
-class _Config:
+class _Config:  # pylint: disable=too-many-instance-attributes
     """Wrangler's Configuration class."""
 
     def __init__(self) -> None:
         self._loaded_values: Dict[str, _ConfigValueType] = {}
         name: str
+        self.s3_endpoint_url = None
+        self.athena_endpoint_url = None
+        self.sts_endpoint_url = None
+        self.glue_endpoint_url = None
+        self.redshift_endpoint_url = None
+        self.kms_endpoint_url = None
+        self.emr_endpoint_url = None
         for name in _CONFIG_ARGS:
             self._load_config(name=name)
 
@@ -125,7 +140,10 @@ class _Config:
 
     def _reset_item(self, item: str) -> None:
         if item in self._loaded_values:
-            del self._loaded_values[item]
+            if item.endswith("_endpoint_url"):
+                self._loaded_values[item] = None
+            else:
+                del self._loaded_values[item]
         self._load_config(name=item)
 
     def _repr_html_(self) -> Any:
@@ -224,6 +242,75 @@ class _Config:
     def workgroup(self, value: Optional[str]) -> None:
         self._set_config_value(key="workgroup", value=value)
 
+    @property
+    def s3_endpoint_url(self) -> Optional[str]:
+        """Property s3_endpoint_url."""
+        return cast(Optional[str], self["s3_endpoint_url"])
+
+    @s3_endpoint_url.setter
+    def s3_endpoint_url(self, value: Optional[str]) -> None:
+        self._set_config_value(key="s3_endpoint_url", value=value)
+
+    @property
+    def athena_endpoint_url(self) -> Optional[str]:
+        """Property athena_endpoint_url."""
+        return cast(Optional[str], self["athena_endpoint_url"])
+
+    @athena_endpoint_url.setter
+    def athena_endpoint_url(self, value: Optional[str]) -> None:
+        self._set_config_value(key="athena_endpoint_url", value=value)
+
+    @property
+    def sts_endpoint_url(self) -> Optional[str]:
+        """Property sts_endpoint_url."""
+        return cast(Optional[str], self["sts_endpoint_url"])
+
+    @sts_endpoint_url.setter
+    def sts_endpoint_url(self, value: Optional[str]) -> None:
+        self._set_config_value(key="sts_endpoint_url", value=value)
+
+    @property
+    def glue_endpoint_url(self) -> Optional[str]:
+        """Property glue_endpoint_url."""
+        return cast(Optional[str], self["glue_endpoint_url"])
+
+    @glue_endpoint_url.setter
+    def glue_endpoint_url(self, value: Optional[str]) -> None:
+        self._set_config_value(key="glue_endpoint_url", value=value)
+
+    @property
+    def redshift_endpoint_url(self) -> Optional[str]:
+        """Property redshift_endpoint_url."""
+        return cast(Optional[str], self["redshift_endpoint_url"])
+
+    @redshift_endpoint_url.setter
+    def redshift_endpoint_url(self, value: Optional[str]) -> None:
+        self._set_config_value(key="redshift_endpoint_url", value=value)
+
+    @property
+    def kms_endpoint_url(self) -> Optional[str]:
+        """Property kms_endpoint_url."""
+        return cast(Optional[str], self["kms_endpoint_url"])
+
+    @kms_endpoint_url.setter
+    def kms_endpoint_url(self, value: Optional[str]) -> None:
+        self._set_config_value(key="kms_endpoint_url", value=value)
+
+    @property
+    def emr_endpoint_url(self) -> Optional[str]:
+        """Property emr_endpoint_url."""
+        return cast(Optional[str], self["emr_endpoint_url"])
+
+    @emr_endpoint_url.setter
+    def emr_endpoint_url(self, value: Optional[str]) -> None:
+        self._set_config_value(key="emr_endpoint_url", value=value)
+
+
+def _insert_str(text: str, token: str, insert: str) -> str:
+    """Insert string into other."""
+    index: int = text.find(token)
+    return text[:index] + insert + text[index:]
+
 
 def _inject_config_doc(doc: Optional[str], available_configs: Tuple[str, ...]) -> str:
     if doc is None:
@@ -244,7 +331,7 @@ def _inject_config_doc(doc: Optional[str], available_configs: Tuple[str, ...]) -
         " for details.\n"
     )
     insertion: str = header + args_block + footer + "\n\n"
-    return _utils.insert_str(text=doc, token="\n    Parameters", insert=insertion)
+    return _insert_str(text=doc, token="\n    Parameters", insert=insertion)
 
 
 def apply_configs(function: Callable[..., Any]) -> Callable[..., Any]:

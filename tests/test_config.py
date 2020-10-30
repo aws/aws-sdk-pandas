@@ -1,12 +1,35 @@
 import logging
 import os
+from unittest.mock import patch
 
+import boto3
+import botocore
 import pytest
 
 import awswrangler as wr
 from awswrangler.s3._fs import open_s3_object
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
+
+
+def _urls_test(glue_database):
+    original = botocore.client.ClientCreator.create_client
+
+    def wrapper(self, **kwarg):
+        name = kwarg["service_name"]
+        url = kwarg["endpoint_url"]
+        if name == "sts":
+            assert url == wr.config.sts_endpoint_url
+        elif name == "athena":
+            assert url == wr.config.athena_endpoint_url
+        elif name == "s3":
+            assert url == wr.config.s3_endpoint_url
+        elif name == "glue":
+            assert url == wr.config.glue_endpoint_url
+        return original(self, **kwarg)
+
+    with patch("botocore.client.ClientCreator.create_client", new=wrapper):
+        wr.athena.read_sql_query(sql="SELECT 1 as col0", database=glue_database)
 
 
 def test_basics(path, glue_database, glue_table, workgroup0, workgroup1):
@@ -71,3 +94,17 @@ def test_basics(path, glue_database, glue_table, workgroup0, workgroup1):
     wr.config.reset()
     df = wr.athena.read_sql_query(sql="SELECT 1 as col0", database=glue_database)
     assert df.query_metadata["WorkGroup"] == workgroup1
+
+    # Endpoints URLs
+    region = boto3.Session().region_name
+    wr.config.sts_endpoint_url = f"https://sts.{region}.amazonaws.com"
+    wr.config.s3_endpoint_url = f"https://s3.{region}.amazonaws.com"
+    wr.config.athena_endpoint_url = f"https://athena.{region}.amazonaws.com"
+    wr.config.glue_endpoint_url = f"https://glue.{region}.amazonaws.com"
+    _urls_test(glue_database)
+    os.environ["WR_STS_ENDPOINT_URL"] = f"https://sts.{region}.amazonaws.com"
+    os.environ["WR_S3_ENDPOINT_URL"] = f"https://s3.{region}.amazonaws.com"
+    os.environ["WR_ATHENA_ENDPOINT_URL"] = f"https://athena.{region}.amazonaws.com"
+    os.environ["WR_GLUE_ENDPOINT_URL"] = f"https://glue.{region}.amazonaws.com"
+    wr.config.reset()
+    _urls_test(glue_database)

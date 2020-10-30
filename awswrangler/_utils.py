@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 import psycopg2
 
-from awswrangler import exceptions
+from awswrangler import _config, exceptions
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -65,14 +65,39 @@ def botocore_config() -> botocore.config.Config:
     return botocore.config.Config(retries={"max_attempts": 5}, connect_timeout=10, max_pool_connections=10)
 
 
+def _get_endpoint_url(service_name: str) -> Optional[str]:
+    endpoint_url: Optional[str] = None
+    if service_name == "s3" and _config.config.s3_endpoint_url is not None:
+        endpoint_url = _config.config.s3_endpoint_url
+    elif service_name == "athena" and _config.config.athena_endpoint_url is not None:
+        endpoint_url = _config.config.athena_endpoint_url
+    elif service_name == "sts" and _config.config.sts_endpoint_url is not None:
+        endpoint_url = _config.config.sts_endpoint_url
+    elif service_name == "glue" and _config.config.glue_endpoint_url is not None:
+        endpoint_url = _config.config.glue_endpoint_url
+    elif service_name == "redshift" and _config.config.redshift_endpoint_url is not None:
+        endpoint_url = _config.config.redshift_endpoint_url
+    elif service_name == "kms" and _config.config.kms_endpoint_url is not None:
+        endpoint_url = _config.config.kms_endpoint_url
+    elif service_name == "emr" and _config.config.emr_endpoint_url is not None:
+        endpoint_url = _config.config.emr_endpoint_url
+    return endpoint_url
+
+
 def client(service_name: str, session: Optional[boto3.Session] = None) -> boto3.client:
     """Create a valid boto3.client."""
-    return ensure_session(session=session).client(service_name=service_name, use_ssl=True, config=botocore_config())
+    endpoint_url: Optional[str] = _get_endpoint_url(service_name=service_name)
+    return ensure_session(session=session).client(
+        service_name=service_name, endpoint_url=endpoint_url, use_ssl=True, config=botocore_config()
+    )
 
 
 def resource(service_name: str, session: Optional[boto3.Session] = None) -> boto3.resource:
     """Create a valid boto3.resource."""
-    return ensure_session(session=session).resource(service_name=service_name, use_ssl=True, config=botocore_config())
+    endpoint_url: Optional[str] = _get_endpoint_url(service_name=service_name)
+    return ensure_session(session=session).resource(
+        service_name=service_name, endpoint_url=endpoint_url, use_ssl=True, config=botocore_config()
+    )
 
 
 def parse_path(path: str) -> Tuple[str, str]:
@@ -236,12 +261,6 @@ def ensure_df_is_mutable(df: pd.DataFrame) -> pd.DataFrame:
                 df[column] = None
                 df[column] = s
     return df
-
-
-def insert_str(text: str, token: str, insert: str) -> str:
-    """Insert string into other."""
-    index: int = text.find(token)
-    return text[:index] + insert + text[index:]
 
 
 def check_duplicated_columns(df: pd.DataFrame) -> Any:
