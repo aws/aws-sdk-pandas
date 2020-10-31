@@ -44,7 +44,7 @@ def _to_text(
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
         encoding=encoding,
-        newline=None,
+        newline="",
     ) as f:
         _logger.debug("pandas_kwargs: %s", pandas_kwargs)
         if file_format == "csv":
