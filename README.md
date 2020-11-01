@@ -118,7 +118,7 @@ wr.db.to_sql(df, engine, schema="test", name="my_table")
   - [AWS STS](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#aws-sts)
 - [**License**](https://github.com/awslabs/aws-data-wrangler/blob/master/LICENSE.txt)
 - [**Contributing**](https://github.com/awslabs/aws-data-wrangler/blob/master/CONTRIBUTING.md)
-- [**Legacy Docs** (pre-1.0.0)](https://aws-data-wrangler.readthedocs.io/en/legacy/)
+- [**Legacy Docs** (pre-1.0.0)](https://aws-data-wrangler.readthedocs.io/en/0.3.3/)
 
 ## Community Resources
 
