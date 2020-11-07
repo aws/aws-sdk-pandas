@@ -750,3 +750,18 @@ def test_mysql_datetime():
     print(df)
     print(df.info(verbose=True))
     assert df.shape == (1, 4)
+
+
+def test_mysql_session_timezone():
+    engine0 = wr.catalog.get_engine(
+        connection="aws-data-wrangler-mysql", connect_args={"init_command": "SET SESSION time_zone='+00:00'"}
+    )
+
+    engine1 = wr.catalog.get_engine(
+        connection="aws-data-wrangler-mysql", connect_args={"init_command": "SET SESSION time_zone='-03:00'"}
+    )
+
+    df0 = wr.db.read_sql_query("SELECT HOUR(NOW()) AS hour", engine0)
+    df1 = wr.db.read_sql_query("SELECT HOUR(NOW()) AS hour", engine1)
+
+    assert df0.hour.iloc[0] - df1.hour.iloc[0] == 3
