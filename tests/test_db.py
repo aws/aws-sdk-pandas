@@ -735,3 +735,18 @@ def test_postgresql_out_of_bound():
     """
     df = wr.db.read_sql_query(sql=sql, con=engine, safe=False)
     assert df.shape == (1, 1)
+
+
+def test_mysql_datetime():
+    engine = wr.catalog.get_engine(connection="aws-data-wrangler-mysql")
+    sql = """
+    SELECT
+        DATE '2020-01-01' AS col0,
+        TIME '01:01:01' AS col1,
+        TIMESTAMP '2020-01-01 01:01:01' AS col2,
+        NOW() AS col3
+    """
+    df = wr.db.read_sql_query(sql=sql, con=engine, safe=False)
+    print(df)
+    print(df.info(verbose=True))
+    assert df.shape == (1, 4)
