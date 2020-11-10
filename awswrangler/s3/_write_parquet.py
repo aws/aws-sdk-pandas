@@ -266,7 +266,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
         "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
-        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
+        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
     sanitize_columns : bool
         True to sanitize columns names (using `wr.catalog.sanitize_table_name` and `wr.catalog.sanitize_column_name`)
         or False to keep it as is.
@@ -373,7 +373,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     ...     path='s3://bucket/prefix/my_file.parquet',
     ...     s3_additional_kwargs={
     ...         'ServerSideEncryption': 'aws:kms',
-    ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
+    ...         'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'
     ...     }
     ... )
     {
@@ -699,7 +699,7 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
         "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
-        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
+        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
