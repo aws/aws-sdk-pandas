@@ -82,7 +82,7 @@ def merge_datasets(
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
         "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
-        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
+        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
 
     Returns
     -------
@@ -110,7 +110,7 @@ def merge_datasets(
     ...     mode="append",
     ...     s3_additional_kwargs={
     ...         'ServerSideEncryption': 'aws:kms',
-    ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
+    ...         'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'
     ...     }
     ... )
     ["s3://bucket1/dir1/key0", "s3://bucket1/dir1/key1"]
@@ -185,7 +185,7 @@ def copy_objects(
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
         "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
-        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
+        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
 
     Returns
     -------
@@ -213,7 +213,7 @@ def copy_objects(
     ...     target_path="s3://bucket1/dir1/",
     ...     s3_additional_kwargs={
     ...         'ServerSideEncryption': 'aws:kms',
-    ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
+    ...         'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'
     ...     }
     ... )
     ["s3://bucket1/dir1/key0", "s3://bucket1/dir1/key1"]

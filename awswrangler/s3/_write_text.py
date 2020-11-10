@@ -137,7 +137,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
         "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
-        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
+        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
     sanitize_columns : bool
         True to sanitize columns names or False to keep it as is.
         True value is forced if `dataset=True`.
@@ -259,7 +259,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
     ...     path='s3://bucket/prefix/my_file.csv',
     ...     s3_additional_kwargs={
     ...         'ServerSideEncryption': 'aws:kms',
-    ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
+    ...         'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'
     ...     }
     ... )
     {
@@ -478,7 +478,7 @@ def to_json(
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
         "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
-        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'}
+        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -524,7 +524,7 @@ def to_json(
     ...     path='s3://bucket/filename.json',
     ...     s3_additional_kwargs={
     ...         'ServerSideEncryption': 'aws:kms',
-    ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
+    ...         'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'
     ...     }
     ... )
 

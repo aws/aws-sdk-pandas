@@ -677,7 +677,7 @@ def read_parquet_table(
     ...     table='...'
     ...     s3_additional_kwargs={
     ...         'ServerSideEncryption': 'aws:kms',
-    ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
+    ...         'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'
     ...     }
     ... )
 
