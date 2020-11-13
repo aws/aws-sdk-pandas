@@ -171,6 +171,61 @@ def test_merge(path, use_threads):
 
 
 @pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize(
+    "s3_additional_kwargs",
+    [None, {"ServerSideEncryption": "AES256"}, {"ServerSideEncryption": "aws:kms", "SSEKMSKeyId": None}],
+)
+def test_merge_additional_kwargs(path, kms_key_id, s3_additional_kwargs, use_threads):
+    if s3_additional_kwargs is not None and "SSEKMSKeyId" in s3_additional_kwargs:
+        s3_additional_kwargs["SSEKMSKeyId"] = kms_key_id
+
+    path1 = f"{path}test_merge/"
+    df = pd.DataFrame({"id": [1, 2, 3], "par": [1, 2, 3]})
+    paths = wr.s3.to_parquet(
+        df=df,
+        path=path1,
+        dataset=True,
+        partition_cols=["par"],
+        mode="overwrite",
+        use_threads=use_threads,
+        s3_additional_kwargs=s3_additional_kwargs,
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    df = wr.s3.read_parquet(path=path1, dataset=True, use_threads=use_threads)
+    assert df.id.sum() == 6
+    assert df.par.astype("int").sum() == 6
+
+    path2 = f"{path}test_merge2/"
+    df = pd.DataFrame({"id": [1, 2, 3], "par": [1, 2, 3]})
+    paths = wr.s3.to_parquet(
+        df=df, path=path2, dataset=True, partition_cols=["par"], mode="overwrite", use_threads=use_threads
+    )["paths"]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    paths = wr.s3.merge_datasets(
+        source_path=path2,
+        target_path=path1,
+        mode="append",
+        use_threads=use_threads,
+        s3_additional_kwargs=s3_additional_kwargs,
+    )
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    df = wr.s3.read_parquet(path=path1, dataset=True, use_threads=use_threads)
+    assert df.id.sum() == 12
+    assert df.par.astype("int").sum() == 12
+
+    paths = wr.s3.list_objects(path1)
+    assert len(paths) == 6
+    descs = wr.s3.describe_objects(paths, use_threads=use_threads)
+    for desc in descs.values():
+        if s3_additional_kwargs is None:
+            assert desc.get("ServerSideEncryption") is None
+        elif s3_additional_kwargs["ServerSideEncryption"] == "aws:kms":
+            assert desc.get("ServerSideEncryption") == "aws:kms"
+        elif s3_additional_kwargs["ServerSideEncryption"] == "AES256":
+            assert desc.get("ServerSideEncryption") == "AES256"
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
 def test_copy(path, path2, use_threads):
     df = pd.DataFrame({"id": [1, 2, 3], "par": [1, 2, 3]})
     paths = wr.s3.to_parquet(
@@ -193,6 +248,36 @@ def test_copy(path, path2, use_threads):
     assert df.par.astype("int").sum() == 12
 
     assert len(wr.s3.copy_objects([], source_path="boo", target_path="bar")) == 0
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize(
+    "s3_additional_kwargs",
+    [None, {"ServerSideEncryption": "AES256"}, {"ServerSideEncryption": "aws:kms", "SSEKMSKeyId": None}],
+)
+def test_copy_additional_kwargs(path, path2, kms_key_id, s3_additional_kwargs, use_threads):
+    if s3_additional_kwargs is not None and "SSEKMSKeyId" in s3_additional_kwargs:
+        s3_additional_kwargs["SSEKMSKeyId"] = kms_key_id
+    file_path = f"{path}0.txt"
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5]})
+    wr.s3.to_csv(df, file_path, index=False, s3_additional_kwargs=s3_additional_kwargs)
+    assert df.equals(wr.s3.read_csv([file_path]))
+    paths = wr.s3.copy_objects(
+        [file_path],
+        source_path=path,
+        target_path=path2,
+        use_threads=use_threads,
+        s3_additional_kwargs=s3_additional_kwargs,
+    )
+    file_path2 = paths[0]
+    assert df.equals(wr.s3.read_csv(file_path2))
+    desc = wr.s3.describe_objects([file_path2])[file_path2]
+    if s3_additional_kwargs is None:
+        assert desc.get("ServerSideEncryption") is None
+    elif s3_additional_kwargs["ServerSideEncryption"] == "aws:kms":
+        assert desc.get("ServerSideEncryption") == "aws:kms"
+    elif s3_additional_kwargs["ServerSideEncryption"] == "AES256":
+        assert desc.get("ServerSideEncryption") == "AES256"
 
 
 @pytest.mark.parametrize("use_threads", [True, False])

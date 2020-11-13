@@ -165,7 +165,7 @@ def redshift_external_schema(cloudformation_outputs, databases_parameters, glue_
 
 
 @pytest.fixture(scope="function")
-def glue_table(glue_database):
+def glue_table(glue_database: str) -> None:
     name = f"tbl_{get_time_str_with_random_suffix()}"
     print(f"Table name: {name}")
     wr.catalog.delete_table_if_exists(database=glue_database, table=name)

@@ -3,7 +3,7 @@
 import logging
 from typing import Any, Dict, List, Optional
 
-import boto3  # type: ignore
+import boto3
 
 from awswrangler import _data_types, athena, catalog, exceptions
 from awswrangler.quicksight._get_list import list_data_sources

@@ -7,8 +7,8 @@ import warnings
 from decimal import Decimal
 from typing import Any, Dict, Generator, List, NamedTuple, Optional, Union, cast
 
-import boto3  # type: ignore
-import pandas as pd  # type: ignore
+import boto3
+import pandas as pd
 
 from awswrangler import _data_types, _utils, exceptions, s3, sts
 from awswrangler._config import apply_configs
@@ -52,6 +52,7 @@ def _start_query_execution(
     sql: str,
     wg_config: _WorkGroupConfig,
     database: Optional[str] = None,
+    data_source: Optional[str] = None,
     s3_output: Optional[str] = None,
     workgroup: Optional[str] = None,
     encryption: Optional[str] = None,
@@ -81,6 +82,8 @@ def _start_query_execution(
     # database
     if database is not None:
         args["QueryExecutionContext"] = {"Database": database}
+        if data_source is not None:
+            args["QueryExecutionContext"]["Catalog"] = data_source
 
     # workgroup
     if workgroup is not None:
@@ -110,7 +113,11 @@ def _get_workgroup_config(session: boto3.Session, workgroup: Optional[str] = Non
     return wg_config
 
 
-def _fetch_txt_result(query_metadata: _QueryMetadata, keep_files: bool, boto3_session: boto3.Session,) -> pd.DataFrame:
+def _fetch_txt_result(
+    query_metadata: _QueryMetadata,
+    keep_files: bool,
+    boto3_session: boto3.Session,
+) -> pd.DataFrame:
     if query_metadata.output_location is None or query_metadata.output_location.endswith(".txt") is False:
         return pd.DataFrame()
     path: str = query_metadata.output_location
@@ -298,7 +305,7 @@ def create_athena_bucket(boto3_session: Optional[boto3.Session] = None) -> str:
     account_id: str = sts.get_account_id(boto3_session=session)
     region_name: str = str(session.region_name).lower()
     s3_output = f"s3://aws-athena-query-results-{account_id}-{region_name}/"
-    s3_resource = session.resource("s3")
+    s3_resource = _utils.resource(service_name="s3", session=session)
     s3_resource.Bucket(s3_output)
     return s3_output
 
@@ -312,6 +319,7 @@ def start_query_execution(
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
+    data_source: Optional[str] = None,
 ) -> str:
     """Start a SQL Query against AWS Athena.
 
@@ -336,6 +344,8 @@ def start_query_execution(
         For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    data_source : str, optional
+        Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
 
     Returns
     -------
@@ -344,8 +354,15 @@ def start_query_execution(
 
     Examples
     --------
+    Querying into the default data source (Amazon s3 - 'AwsDataCatalog')
+
     >>> import awswrangler as wr
     >>> query_exec_id = wr.athena.start_query_execution(sql='...', database='...')
+
+    Querying into another data source (PostgreSQL, Redshift, etc)
+
+    >>> import awswrangler as wr
+    >>> query_exec_id = wr.athena.start_query_execution(sql='...', database='...', data_source='...')
 
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
@@ -354,6 +371,7 @@ def start_query_execution(
         sql=sql,
         wg_config=wg_config,
         database=database,
+        data_source=data_source,
         s3_output=s3_output,
         workgroup=workgroup,
         encryption=encryption,
@@ -492,7 +510,11 @@ def describe_table(
         boto3_session=session,
     )
     query_metadata: _QueryMetadata = _get_query_metadata(query_execution_id=query_id, boto3_session=session)
-    raw_result = _fetch_txt_result(query_metadata=query_metadata, keep_files=True, boto3_session=session,)
+    raw_result = _fetch_txt_result(
+        query_metadata=query_metadata,
+        keep_files=True,
+        boto3_session=session,
+    )
     return _parse_describe_table(raw_result)
 
 
@@ -557,7 +579,11 @@ def show_create_table(
         boto3_session=session,
     )
     query_metadata: _QueryMetadata = _get_query_metadata(query_execution_id=query_id, boto3_session=session)
-    raw_result = _fetch_txt_result(query_metadata=query_metadata, keep_files=True, boto3_session=session,)
+    raw_result = _fetch_txt_result(
+        query_metadata=query_metadata,
+        keep_files=True,
+        boto3_session=session,
+    )
     return cast(str, raw_result.createtab_stmt.str.strip().str.cat(sep=" "))
 
 

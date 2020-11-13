@@ -1,11 +1,12 @@
 # AWS Data Wrangler
+
 *Pandas on AWS*
 
 ![AWS Data Wrangler](docs/source/_static/logo2.png?raw=true "AWS Data Wrangler")
 
 > An [AWS Professional Service](https://aws.amazon.com/professional-services/) open source initiative | aws-proserve-opensource@amazon.com
 
-[![Release](https://img.shields.io/badge/release-1.8.0-brightgreen.svg)](https://pypi.org/project/awswrangler/)
+[![Release](https://img.shields.io/badge/release-1.10.0-brightgreen.svg)](https://pypi.org/project/awswrangler/)
 [![Python Version](https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.8-brightgreen.svg)](https://anaconda.org/conda-forge/awswrangler)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -15,15 +16,18 @@
 ![Static Checking](https://github.com/awslabs/aws-data-wrangler/workflows/Static%20Checking/badge.svg?branch=master)
 [![Documentation Status](https://readthedocs.org/projects/aws-data-wrangler/badge/?version=latest)](https://aws-data-wrangler.readthedocs.io/?badge=latest)
 
-| Source    | Downloads                                                                                                                       | Page                                                 | Installation Command                       |
-|-----------|---------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------|--------------------------------------------|
-| **PyPi**  | [![PyPI Downloads](https://pepy.tech/badge/awswrangler)](https://pypi.org/project/awswrangler/)                      | [Link](https://pypi.org/project/awswrangler/)        | `pip install awswrangler`                  |
-| **Conda** | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/awswrangler.svg)](https://anaconda.org/conda-forge/awswrangler) | [Link](https://anaconda.org/conda-forge/awswrangler) | `conda install -c conda-forge awswrangler` |
+| Source | Downloads | Installation Command |
+|--------|-----------|----------------------|
+| **[PyPi](https://pypi.org/project/awswrangler/)**  | [![PyPI Downloads](https://pepy.tech/badge/awswrangler)](https://pypi.org/project/awswrangler/) | `pip install awswrangler` |
+| **[Conda](https://anaconda.org/conda-forge/awswrangler)** | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/awswrangler.svg)](https://anaconda.org/conda-forge/awswrangler) | `conda install -c conda-forge awswrangler` |
+
+Powered By [<img src="https://arrow.apache.org/img/arrow.png" width="200">](https://arrow.apache.org/powered_by/)
 
 ## Table of contents
 
 - [Quick Start](#quick-start)
 - [Read The Docs](#read-the-docs)
+- [Community Resources](#community-resources)
 - [Who uses AWS Data Wrangler?](#who-uses-aws-data-wrangler)
 
 ## Quick Start
@@ -66,16 +70,17 @@ wr.db.to_sql(df, engine, schema="test", name="my_table")
 
 ## [Read The Docs](https://aws-data-wrangler.readthedocs.io/)
 
-- [**What is AWS Data Wrangler?**](https://aws-data-wrangler.readthedocs.io/en/latest/what.html)
-- [**Install**](https://aws-data-wrangler.readthedocs.io/en/latest/install.html)
-  - [PyPi (pip)](https://aws-data-wrangler.readthedocs.io/en/latest/install.html#pypi-pip)
-  - [Conda](https://aws-data-wrangler.readthedocs.io/en/latest/install.html#conda)
-  - [AWS Lambda Layer](https://aws-data-wrangler.readthedocs.io/en/latest/install.html#aws-lambda-layer)
-  - [AWS Glue Wheel](https://aws-data-wrangler.readthedocs.io/en/latest/install.html#aws-glue-wheel)
-  - [Amazon SageMaker Notebook](https://aws-data-wrangler.readthedocs.io/en/latest/install.html#amazon-sagemaker-notebook)
-  - [Amazon SageMaker Notebook Lifecycle](https://aws-data-wrangler.readthedocs.io/en/latest/install.html#amazon-sagemaker-notebook-lifecycle)
-  - [EMR](https://aws-data-wrangler.readthedocs.io/en/latest/install.html#emr)
-  - [From source](https://aws-data-wrangler.readthedocs.io/en/latest/install.html#from-source)
+- [**What is AWS Data Wrangler?**](https://aws-data-wrangler.readthedocs.io/en/stable/what.html)
+- [**Install**](https://aws-data-wrangler.readthedocs.io/en/stable/install.html)
+  - [PyPi (pip)](https://aws-data-wrangler.readthedocs.io/en/stable/install.html#pypi-pip)
+  - [Conda](https://aws-data-wrangler.readthedocs.io/en/stable/install.html#conda)
+  - [AWS Lambda Layer](https://aws-data-wrangler.readthedocs.io/en/stable/install.html#aws-lambda-layer)
+  - [AWS Glue Python Shell Jobs](https://aws-data-wrangler.readthedocs.io/en/stable/install.html#aws-glue-python-shell-jobs)
+  - [AWS Glue PySpark Jobs](https://aws-data-wrangler.readthedocs.io/en/stable/install.html#aws-glue-pyspark-jobs)
+  - [Amazon SageMaker Notebook](https://aws-data-wrangler.readthedocs.io/en/stable/install.html#amazon-sagemaker-notebook)
+  - [Amazon SageMaker Notebook Lifecycle](https://aws-data-wrangler.readthedocs.io/en/stable/install.html#amazon-sagemaker-notebook-lifecycle)
+  - [EMR](https://aws-data-wrangler.readthedocs.io/en/stable/install.html#emr)
+  - [From source](https://aws-data-wrangler.readthedocs.io/en/stable/install.html#from-source)
 - [**Tutorials**](https://github.com/awslabs/aws-data-wrangler/tree/master/tutorials)
   - [001 - Introduction](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/001%20-%20Introduction.ipynb)
   - [002 - Sessions](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/002%20-%20Sessions.ipynb)
@@ -101,27 +106,54 @@ wr.db.to_sql(df, engine, schema="test", name="my_table")
   - [022 - Writing Partitions Concurrently](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/022%20-%20Writing%20Partitions%20Concurrently.ipynb)
   - [023 - Flexible Partitions Filter](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/023%20-%20Flexible%20Partitions%20Filter.ipynb)
   - [024 - Athena Query Metadata](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/024%20-%20Athena%20Query%20Metadata.ipynb)
-- [**API Reference**](https://aws-data-wrangler.readthedocs.io/en/latest/api.html)
-  - [Amazon S3](https://aws-data-wrangler.readthedocs.io/en/latest/api.html#amazon-s3)
-  - [AWS Glue Catalog](https://aws-data-wrangler.readthedocs.io/en/latest/api.html#aws-glue-catalog)
-  - [Amazon Athena](https://aws-data-wrangler.readthedocs.io/en/latest/api.html#amazon-athena)
-  - [Databases (Amazon Redshift, PostgreSQL, MySQL)](https://aws-data-wrangler.readthedocs.io/en/latest/api.html#databases-amazon-redshift-postgresql-mysql)
-  - [Amazon EMR](https://aws-data-wrangler.readthedocs.io/en/latest/api.html#amazon-emr)
-  - [Amazon CloudWatch Logs](https://aws-data-wrangler.readthedocs.io/en/latest/api.html#amazon-cloudwatch-logs)
-  - [Amazon QuickSight](https://aws-data-wrangler.readthedocs.io/en/latest/api.html#amazon-quicksight)
-  - [AWS STS](https://aws-data-wrangler.readthedocs.io/en/latest/api.html#aws-sts)
-- [**License**](https://github.com/awslabs/aws-data-wrangler/blob/master/LICENSE)
+  - [025 - Redshift - Loading Parquet files with Spectrum](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/025%20-%20Redshift%20-%20Loading%20Parquet%20files%20with%20Spectrum.ipynb)
+- [**API Reference**](https://aws-data-wrangler.readthedocs.io/en/stable/api.html)
+  - [Amazon S3](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-s3)
+  - [AWS Glue Catalog](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#aws-glue-catalog)
+  - [Amazon Athena](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-athena)
+  - [Databases (Amazon Redshift, PostgreSQL, MySQL)](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#databases-amazon-redshift-postgresql-mysql)
+  - [Amazon EMR](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-emr)
+  - [Amazon CloudWatch Logs](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-cloudwatch-logs)
+  - [Amazon QuickSight](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-quicksight)
+  - [AWS STS](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#aws-sts)
+- [**License**](https://github.com/awslabs/aws-data-wrangler/blob/master/LICENSE.txt)
 - [**Contributing**](https://github.com/awslabs/aws-data-wrangler/blob/master/CONTRIBUTING.md)
-- [**Legacy Docs** (pre-1.0.0)](https://aws-data-wrangler.readthedocs.io/en/legacy/)
+- [**Legacy Docs** (pre-1.0.0)](https://aws-data-wrangler.readthedocs.io/en/0.3.3/)
+
+## Community Resources
+
+Please [send a Pull Request](https://github.com/awslabs/aws-data-wrangler/edit/master/README.md) with your resource reference and @githubhandle.
+
+- [Optimize Python ETL by extending Pandas with AWS Data Wrangler](https://aws.amazon.com/blogs/big-data/optimize-python-etl-by-extending-pandas-with-aws-data-wrangler/) [[@igorborgest](https://github.com/igorborgest)]
+- [Reading Parquet Files With AWS Lambda](https://aprakash.wordpress.com/2020/04/14/reading-parquet-files-with-aws-lambda/) [[@anand086](https://github.com/anand086)]
+- [Transform AWS CloudTrail data using AWS Data Wrangler](https://aprakash.wordpress.com/2020/09/17/transform-aws-cloudtrail-data-using-aws-data-wrangler/) [[@anand086](https://github.com/anand086)]
+- [Rename Glue Tables using AWS Data Wrangler](https://ananddatastories.com/rename-glue-tables-using-aws-data-wrangler/) [[@anand086](https://github.com/anand086)]
+- [Getting started on AWS Data Wrangler and Athena](https://medium.com/@dheerajsharmainampudi/getting-started-on-aws-data-wrangler-and-athena-7b446c834076) [[@dheerajsharma21](https://github.com/dheerajsharma21)]
+- [Simplifying Pandas integration with AWS data related services](https://medium.com/@bv_subhash/aws-data-wrangler-simplifying-pandas-integration-with-aws-data-related-services-2b3325c12188) [[@bvsubhash](https://github.com/bvsubhash)]
 
 ## Who uses AWS Data Wrangler?
 
 Knowing which companies are using this library is important to help prioritize the project internally.
 
-Please send a PR with your company name and @githubhandle if you may.
+Please [send a Pull Request](https://github.com/awslabs/aws-data-wrangler/edit/master/README.md) with your company name and @githubhandle if you may.
 
-1. [Digio](https://www.digio.com.br/) [[@afonsomy](https://github.com/afonsomy)]
-2. [Pier](https://www.pier.digital/) [[@flaviomax](https://github.com/flaviomax)]
-3. [M4U](https://www.m4u.com.br/) [[@Thiago-Dantas](https://github.com/Thiago-Dantas)]
-4. [Serasa Experian](https://www.serasaexperian.com.br/) [[@andre-marcos-perez](https://github.com/andre-marcos-perez)]
-5. [LINE TV](https://www.linetv.tw/) [[@bryanyang0528](https://github.com/bryanyang0528)]
+- [Amazon](https://www.amazon.com/)
+- [AWS](https://aws.amazon.com/)
+- [Cepsa](https://cepsa.com) [[@alvaropc](https://github.com/alvaropc)]
+- [Cognitivo](https://www.cognitivo.ai/) [[@msantino](https://github.com/msantino)]
+- [Digio](https://www.digio.com.br/) [[@afonsomy](https://github.com/afonsomy)]
+- [DNX](https://www.dnx.solutions/) [[@DNXLabs](https://github.com/DNXLabs)]
+- [Funcional Health Tech](https://www.funcionalcorp.com.br/) [[@webysther](https://github.com/webysther)]
+- [Informa Markets](https://www.informamarkets.com/en/home.html) [[@mateusmorato]](http://github.com/mateusmorato)
+- [LINE TV](https://www.linetv.tw/) [[@bryanyang0528](https://github.com/bryanyang0528)]
+- [M4U](https://www.m4u.com.br/) [[@Thiago-Dantas](https://github.com/Thiago-Dantas)]
+- [nrd.io](https://nrd.io/) [[@mrtns](https://github.com/mrtns)]
+- [OKRA Technologies](https://okra.ai) [[@JPFrancoia](https://github.com/JPFrancoia), [@schot](https://github.com/schot)]
+- [Pier](https://www.pier.digital/) [[@flaviomax](https://github.com/flaviomax)]
+- [Pismo](https://www.pismo.io/) [[@msantino](https://github.com/msantino)]
+- [ringDNA](https://www.ringdna.com/) [[@msropp](https://github.com/msropp)]
+- [Serasa Experian](https://www.serasaexperian.com.br/) [[@andre-marcos-perez](https://github.com/andre-marcos-perez)]
+- [Shipwell](https://shipwell.com/) [[@zacharycarter](https://github.com/zacharycarter)]
+- [strongDM](https://www.strongdm.com/) [[@mrtns](https://github.com/mrtns)]
+- [Thinkbumblebee](https://www.thinkbumblebee.com/) [[@dheerajsharma21]](https://github.com/dheerajsharma21)
+- [Zillow](https://www.zillow.com/) [[@nicholas-miles]](https://github.com/nicholas-miles)

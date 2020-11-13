@@ -660,10 +660,11 @@ def test_redshift_copy_unload_kms(
 def test_redshift_copy_extras(path, redshift_table, databases_parameters, use_threads, parquet_infer_sampling):
     df = pd.DataFrame(
         {
-            "int16": [1, None, 2],
-            "int32": [1, None, 2],
-            "int64": [1, None, 2],
-            "float": [0.0, None, 1.1],
+            "int8": [-1, None, 2],
+            "int16": [-1, None, 2],
+            "int32": [-1, None, 2],
+            "int64": [-1, None, 2],
+            "float": [0.0, None, -1.1],
             "double": [0.0, None, 1.1],
             "decimal": [Decimal((0, (1, 9, 9), -2)), None, Decimal((0, (1, 9, 0), -2))],
             "string": ["foo", None, "boo"],
@@ -672,6 +673,7 @@ def test_redshift_copy_extras(path, redshift_table, databases_parameters, use_th
             "bool": [True, None, False],
         }
     )
+    df["int8"] = df["int8"].astype("Int8")
     df["int16"] = df["int16"].astype("Int16")
     df["int32"] = df["int32"].astype("Int32")
     df["int64"] = df["int64"].astype("Int64")
@@ -698,6 +700,68 @@ def test_redshift_copy_extras(path, redshift_table, databases_parameters, use_th
     df2 = wr.db.read_sql_table(schema="public", table=redshift_table, con=engine)
     assert len(df.columns) == len(df2.columns)
     assert len(df.index) * num == len(df2.index)
+    assert df.int8.sum() * num == df2.int8.sum()
     assert df.int16.sum() * num == df2.int16.sum()
     assert df.int32.sum() * num == df2.int32.sum()
     assert df.int64.sum() * num == df2.int64.sum()
+
+
+def test_redshift_decimal_cast(redshift_table):
+    df = pd.DataFrame(
+        {
+            "col0": [Decimal((0, (1, 9, 9), -2)), None, Decimal((0, (1, 9, 0), -2))],
+            "col1": [Decimal((0, (1, 9, 9), -2)), None, Decimal((0, (1, 9, 0), -2))],
+            "col2": [Decimal((0, (1, 9, 9), -2)), None, Decimal((0, (1, 9, 0), -2))],
+        }
+    )
+    engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
+    wr.db.to_sql(df, engine, name=redshift_table)
+    df2 = wr.db.read_sql_table(
+        schema="public", table=redshift_table, con=engine, dtype={"col0": "float32", "col1": "float64", "col2": "Int64"}
+    )
+    assert df2.dtypes.to_list() == ["float32", "float64", "Int64"]
+    assert 3.88 <= df2.col0.sum() <= 3.89
+    assert 3.88 <= df2.col1.sum() <= 3.89
+    assert df2.col2.sum() == 2
+
+
+def test_postgresql_out_of_bound():
+    engine = wr.catalog.get_engine(connection="aws-data-wrangler-postgresql")
+    sql = """
+    SELECT TO_TIMESTAMP(
+        '9999-12-31 9:30:20',
+        'YYYY-MM-DD HH:MI:SS'
+    )::timestamp without time zone;
+    """
+    df = wr.db.read_sql_query(sql=sql, con=engine, safe=False)
+    assert df.shape == (1, 1)
+
+
+def test_mysql_datetime():
+    engine = wr.catalog.get_engine(connection="aws-data-wrangler-mysql")
+    sql = """
+    SELECT
+        DATE '2020-01-01' AS col0,
+        TIME '01:01:01' AS col1,
+        TIMESTAMP '2020-01-01 01:01:01' AS col2,
+        NOW() AS col3
+    """
+    df = wr.db.read_sql_query(sql=sql, con=engine, safe=False)
+    print(df)
+    print(df.info(verbose=True))
+    assert df.shape == (1, 4)
+
+
+def test_mysql_session_timezone():
+    engine0 = wr.catalog.get_engine(
+        connection="aws-data-wrangler-mysql", connect_args={"init_command": "SET SESSION time_zone='+00:00'"}
+    )
+
+    engine1 = wr.catalog.get_engine(
+        connection="aws-data-wrangler-mysql", connect_args={"init_command": "SET SESSION time_zone='-03:00'"}
+    )
+
+    df0 = wr.db.read_sql_query("SELECT HOUR(NOW()) AS hour", engine0)
+    df1 = wr.db.read_sql_query("SELECT HOUR(NOW()) AS hour", engine1)
+
+    assert df0.hour.iloc[0] - df1.hour.iloc[0] == 3

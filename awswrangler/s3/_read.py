@@ -3,11 +3,12 @@
 import logging
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union, cast
 
-import numpy as np  # type: ignore
-import pandas as pd  # type: ignore
-from pandas.api.types import union_categoricals  # type: ignore
+import numpy as np
+import pandas as pd
+from pandas.api.types import union_categoricals
 
 from awswrangler import exceptions
+from awswrangler.s3._list import _prefix_cleanup
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -15,7 +16,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def _get_path_root(path: Union[str, List[str]], dataset: bool) -> Optional[str]:
     if (dataset is True) and (not isinstance(path, str)):
         raise exceptions.InvalidArgument("The path argument must be a string if dataset=True (Amazon S3 prefix).")
-    return str(path) if dataset is True else None
+    return _prefix_cleanup(str(path)) if dataset is True else None
 
 
 def _get_path_ignore_suffix(path_ignore_suffix: Union[str, List[str], None]) -> Union[List[str], None]:
@@ -107,7 +108,14 @@ def _extract_partitions_dtypes_from_table_details(response: Dict[str, Any]) -> D
     return dtypes
 
 
-def _union(dfs: List[pd.DataFrame], ignore_index: bool) -> pd.DataFrame:
+def _union(dfs: List[pd.DataFrame], ignore_index: Optional[bool]) -> pd.DataFrame:
+    if ignore_index is None:
+        ignore_index = False
+        for df in dfs:
+            if hasattr(df, "_awswrangler_ignore_index"):
+                if df._awswrangler_ignore_index is True:  # pylint: disable=protected-access
+                    ignore_index = True
+                    break
     cats: Tuple[Set[str], ...] = tuple(set(df.select_dtypes(include="category").columns) for df in dfs)
     for col in set.intersection(*cats):
         cat = union_categoricals([df[col] for df in dfs])

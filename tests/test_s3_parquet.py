@@ -1,9 +1,12 @@
 import itertools
 import logging
 import math
+from datetime import datetime, timedelta, timezone
 
 import boto3
+import numpy as np
 import pandas as pd
+import pyarrow as pa
 import pytest
 
 import awswrangler as wr
@@ -225,3 +228,228 @@ def test_parquet_with_size(path, use_threads, max_rows_by_file):
     ensure_data_types(df2, has_list=True)
     assert df2.shape == (300, 19)
     assert df.iint8.sum() == df2.iint8.sum()
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_index_and_timezone(path, use_threads):
+    df = pd.DataFrame({"c0": [datetime.utcnow(), datetime.utcnow()], "par": ["a", "b"]}, index=["foo", "boo"])
+    df["c1"] = pd.DatetimeIndex(df.c0).tz_localize(tz="US/Eastern")
+    paths = wr.s3.to_parquet(df, path, index=True, use_threads=use_threads, dataset=True, partition_cols=["par"])[
+        "paths"
+    ]
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    df2 = wr.s3.read_parquet(path, use_threads=use_threads, dataset=True)
+    assert df[["c0", "c1"]].equals(df2[["c0", "c1"]])
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_index_recovery_simple_int(path, use_threads):
+    df = pd.DataFrame({"c0": np.arange(10, 1_010, 1)}, dtype="Int64")
+    paths = wr.s3.to_parquet(df, path, index=True, use_threads=use_threads, dataset=True, max_rows_by_file=300)["paths"]
+    assert len(paths) == 4
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    df2 = wr.s3.read_parquet(f"{path}*.parquet", use_threads=use_threads)
+    assert df.equals(df2)
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_index_recovery_simple_str(path, use_threads):
+    df = pd.DataFrame({"c0": [0, 1, 2, 3, 4]}, index=["a", "b", "c", "d", "e"], dtype="Int64")
+    paths = wr.s3.to_parquet(df, path, index=True, use_threads=use_threads, dataset=True, max_rows_by_file=1)["paths"]
+    assert len(paths) == 5
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    df2 = wr.s3.read_parquet(f"{path}*.parquet", use_threads=use_threads)
+    assert df.equals(df2)
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_index_recovery_partitioned_str(path, use_threads):
+    df = pd.DataFrame(
+        {"c0": [0, 1, 2, 3, 4], "par": ["foo", "boo", "bar", "foo", "boo"]}, index=["a", "b", "c", "d", "e"]
+    )
+    df["c0"] = df["c0"].astype("Int64")
+    df["par"] = df["c0"].astype("category")
+    paths = wr.s3.to_parquet(
+        df, path, index=True, use_threads=use_threads, dataset=True, partition_cols=["par"], max_rows_by_file=1
+    )["paths"]
+    assert len(paths) == 5
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    df2 = wr.s3.read_parquet(f"{path}*.parquet", use_threads=use_threads, dataset=True)
+    assert df.shape == df2.shape
+    assert df.c0.equals(df2.c0)
+    assert df.dtypes.equals(df2.dtypes)
+    assert df.index.equals(df2.index)
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_range_index_recovery_simple(path, use_threads):
+    df = pd.DataFrame({"c0": np.arange(10, 15, 1)}, dtype="Int64", index=pd.RangeIndex(start=5, stop=30, step=5))
+    paths = wr.s3.to_parquet(df, path, index=True, use_threads=use_threads, dataset=True, max_rows_by_file=3)["paths"]
+    assert len(paths) == 2
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    df2 = wr.s3.read_parquet(f"{path}*.parquet", use_threads=use_threads)
+    assert df.reset_index(level=0).equals(df2.reset_index(level=0))
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("name", [None, "foo"])
+def test_range_index_recovery_pandas(path, use_threads, name):
+    df = pd.DataFrame({"c0": np.arange(10, 15, 1)}, dtype="Int64", index=pd.RangeIndex(start=5, stop=30, step=5))
+    df.index.name = name
+    path_file = f"{path}0.parquet"
+    df.to_parquet(path_file)
+    wr.s3.wait_objects_exist(paths=[path_file], use_threads=use_threads)
+    df2 = wr.s3.read_parquet([path_file], use_threads=use_threads)
+    assert df.reset_index(level=0).equals(df2.reset_index(level=0))
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_multi_index_recovery_simple(path, use_threads):
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": ["a", "b", "c"], "c2": [True, False, True], "c3": [0, 1, 2]})
+    df["c3"] = df["c3"].astype("Int64")
+    df = df.set_index(["c0", "c1", "c2"])
+    paths = wr.s3.to_parquet(df, path, index=True, use_threads=use_threads, dataset=True, max_rows_by_file=1)["paths"]
+    assert len(paths) == 3
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    df2 = wr.s3.read_parquet(f"{path}*.parquet", use_threads=use_threads)
+    assert df.reset_index().equals(df2.reset_index())
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_multi_index_recovery_nameless(path, use_threads):
+    df = pd.DataFrame({"c0": np.arange(10, 13, 1)}, dtype="Int64")
+    df = df.set_index([[1, 2, 3], [1, 2, 3]])
+    paths = wr.s3.to_parquet(df, path, index=True, use_threads=use_threads, dataset=True, max_rows_by_file=1)["paths"]
+    assert len(paths) == 3
+    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    df2 = wr.s3.read_parquet(f"{path}*.parquet", use_threads=use_threads)
+    assert df.reset_index().equals(df2.reset_index())
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("name", [None, "foo"])
+@pytest.mark.parametrize("pandas", [True, False])
+def test_index_columns(path, use_threads, name, pandas):
+    df = pd.DataFrame({"c0": [0, 1], "c1": [2, 3]}, dtype="Int64")
+    df.index.name = name
+    path_file = f"{path}0.parquet"
+    if pandas:
+        df.to_parquet(path_file, index=True)
+    else:
+        wr.s3.to_parquet(df, path_file, index=True)
+    wr.s3.wait_objects_exist(paths=[path_file], use_threads=use_threads)
+    df2 = wr.s3.read_parquet([path_file], columns=["c0"], use_threads=use_threads)
+    assert df[["c0"]].equals(df2)
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("name", [None, "foo"])
+@pytest.mark.parametrize("pandas", [True, False])
+@pytest.mark.parametrize("drop", [True, False])
+def test_range_index_columns(path, use_threads, name, pandas, drop):
+    df = pd.DataFrame({"c0": [0, 1], "c1": [2, 3]}, dtype="Int64", index=pd.RangeIndex(start=5, stop=7, step=1))
+    df.index.name = name
+    path_file = f"{path}0.parquet"
+    if pandas:
+        df.to_parquet(path_file, index=True)
+    else:
+        wr.s3.to_parquet(df, path_file, index=True)
+    wr.s3.wait_objects_exist(paths=[path_file], use_threads=use_threads)
+
+    name = "__index_level_0__" if name is None else name
+    columns = ["c0"] if drop else [name, "c0"]
+    df2 = wr.s3.read_parquet([path_file], columns=columns, use_threads=use_threads)
+
+    assert df[["c0"]].reset_index(level=0, drop=drop).equals(df2.reset_index(level=0, drop=drop))
+
+
+def test_to_parquet_dataset_sanitize(path):
+    df = pd.DataFrame({"C0": [0, 1], "camelCase": [2, 3], "c**--2": [4, 5], "Par": ["a", "b"]})
+
+    paths = wr.s3.to_parquet(df, path, dataset=True, partition_cols=["Par"], sanitize_columns=False)["paths"]
+    wr.s3.wait_objects_exist(paths)
+    df2 = wr.s3.read_parquet(path, dataset=True)
+    assert df.shape == df2.shape
+    assert list(df2.columns) == ["C0", "camelCase", "c**--2", "Par"]
+    assert df2.C0.sum() == 1
+    assert df2.camelCase.sum() == 5
+    assert df2["c**--2"].sum() == 9
+    assert df2.Par.to_list() == ["a", "b"]
+
+    paths = wr.s3.to_parquet(df, path, dataset=True, partition_cols=["par"], sanitize_columns=True, mode="overwrite")[
+        "paths"
+    ]
+    wr.s3.wait_objects_exist(paths)
+    df2 = wr.s3.read_parquet(path, dataset=True)
+    assert df.shape == df2.shape
+    assert list(df2.columns) == ["c0", "camel_case", "c_2", "par"]
+    assert df2.c0.sum() == 1
+    assert df2.camel_case.sum() == 5
+    assert df2.c_2.sum() == 9
+    assert df2.par.to_list() == ["a", "b"]
+
+
+@pytest.mark.parametrize("use_threads", [False, True])
+def test_timezone_file(path, use_threads):
+    file_path = f"{path}0.parquet"
+    df = pd.DataFrame({"c0": [datetime.utcnow(), datetime.utcnow()]})
+    df["c0"] = pd.DatetimeIndex(df.c0).tz_localize(tz="US/Eastern")
+    df.to_parquet(file_path)
+    wr.s3.wait_objects_exist(paths=[file_path], use_threads=use_threads)
+    df2 = wr.s3.read_parquet(path, use_threads=use_threads)
+    assert df.equals(df2)
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_timezone_file_columns(path, use_threads):
+    file_path = f"{path}0.parquet"
+    df = pd.DataFrame({"c0": [datetime.utcnow(), datetime.utcnow()], "c1": [1.1, 2.2]})
+    df["c0"] = pd.DatetimeIndex(df.c0).tz_localize(tz="US/Eastern")
+    df.to_parquet(file_path)
+    wr.s3.wait_objects_exist(paths=[file_path], use_threads=use_threads)
+    df2 = wr.s3.read_parquet(path, columns=["c1"], use_threads=use_threads)
+    assert df[["c1"]].equals(df2)
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_timezone_raw_values(path, use_threads):
+    df = pd.DataFrame({"c0": [1.1, 2.2], "par": ["a", "b"]})
+    df["c1"] = pd.to_datetime(datetime.now(timezone.utc))
+    df["c2"] = pd.to_datetime(datetime(2011, 11, 4, 0, 5, 23, tzinfo=timezone(timedelta(seconds=14400))))
+    df["c3"] = pd.to_datetime(datetime(2011, 11, 4, 0, 5, 23, tzinfo=timezone(-timedelta(seconds=14400))))
+    df["c4"] = pd.to_datetime(datetime(2011, 11, 4, 0, 5, 23, tzinfo=timezone(timedelta(hours=-8))))
+    paths = wr.s3.to_parquet(partition_cols=["par"], df=df, path=path, dataset=True, sanitize_columns=False)["paths"]
+    wr.s3.wait_objects_exist(paths, use_threads=use_threads)
+    df2 = wr.s3.read_parquet(path, dataset=True, use_threads=use_threads)
+    df3 = pd.read_parquet(path)
+    df2["par"] = df2["par"].astype("string")
+    df3["par"] = df3["par"].astype("string")
+    assert df2.equals(df3)
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_empty_column(path, use_threads):
+    df = pd.DataFrame({"c0": [1, 2, 3], "c1": [None, None, None], "par": ["a", "b", "c"]})
+    df["c0"] = df["c0"].astype("Int64")
+    df["par"] = df["par"].astype("string")
+    paths = wr.s3.to_parquet(df, path, dataset=True, partition_cols=["par"])["paths"]
+    wr.s3.wait_objects_exist(paths, use_threads=use_threads)
+    df2 = wr.s3.read_parquet(path, dataset=True, use_threads=use_threads)
+    df2["par"] = df2["par"].astype("string")
+    assert df.equals(df2)
+
+
+def test_mixed_types_column(path) -> None:
+    df = pd.DataFrame({"c0": [1, 2, 3], "c1": [1, 2, "foo"], "par": ["a", "b", "c"]})
+    df["c0"] = df["c0"].astype("Int64")
+    df["par"] = df["par"].astype("string")
+    with pytest.raises(pa.ArrowInvalid):
+        wr.s3.to_parquet(df, path, dataset=True, partition_cols=["par"])
+
+
+def test_parquet_plain(path) -> None:
+    df = pd.DataFrame({"id": [1, 2, 3]}, dtype="Int64")
+    path_file = f"{path}0.parquet"
+    wr.s3.to_parquet(df=df, path=path_file, compression=None)
+    df2 = wr.s3.read_parquet([path_file])
+    assert df.equals(df2)

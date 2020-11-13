@@ -3,12 +3,12 @@
 import logging
 from typing import Any, Dict, List, Optional
 
-import boto3  # type: ignore
+import boto3
 
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
 from awswrangler.catalog._definitions import _csv_partition_definition, _parquet_partition_definition
-from awswrangler.catalog._utils import _catalog_id
+from awswrangler.catalog._utils import _catalog_id, sanitize_table_name
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -39,9 +39,11 @@ def add_csv_partitions(
     database: str,
     table: str,
     partitions_values: Dict[str, List[str]],
+    catalog_id: Optional[str] = None,
     compression: Optional[str] = None,
     sep: str = ",",
     boto3_session: Optional[boto3.Session] = None,
+    columns_types: Optional[Dict[str, str]] = None,
 ) -> None:
     """Add partitions (metadata) to a CSV Table in the AWS Glue Catalog.
 
@@ -54,12 +56,19 @@ def add_csv_partitions(
     partitions_values: Dict[str, List[str]]
         Dictionary with keys as S3 path locations and values as a list of partitions values as str
         (e.g. {'s3://bucket/prefix/y=2020/m=10/': ['2020', '10']}).
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
     compression: str, optional
         Compression style (``None``, ``gzip``, etc).
     sep : str
         String of length 1. Field delimiter for the output file.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    columns_types: Optional[Dict[str, str]]
+        Only required for Hive compability.
+        Dictionary with keys as column names and values as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
+        P.S. Only materialized columns please, not partition columns.
 
     Returns
     -------
@@ -81,10 +90,10 @@ def add_csv_partitions(
 
     """
     inputs: List[Dict[str, Any]] = [
-        _csv_partition_definition(location=k, values=v, compression=compression, sep=sep)
+        _csv_partition_definition(location=k, values=v, compression=compression, sep=sep, columns_types=columns_types)
         for k, v in partitions_values.items()
     ]
-    _add_partitions(database=database, table=table, boto3_session=boto3_session, inputs=inputs)
+    _add_partitions(database=database, table=table, boto3_session=boto3_session, inputs=inputs, catalog_id=catalog_id)
 
 
 @apply_configs
@@ -95,6 +104,7 @@ def add_parquet_partitions(
     catalog_id: Optional[str] = None,
     compression: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
+    columns_types: Optional[Dict[str, str]] = None,
 ) -> None:
     """Add partitions (metadata) to a Parquet Table in the AWS Glue Catalog.
 
@@ -114,6 +124,10 @@ def add_parquet_partitions(
         Compression style (``None``, ``snappy``, ``gzip``, etc).
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    columns_types: Optional[Dict[str, str]]
+        Only required for Hive compability.
+        Dictionary with keys as column names and values as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
+        P.S. Only materialized columns please, not partition columns.
 
     Returns
     -------
@@ -134,9 +148,10 @@ def add_parquet_partitions(
     ... )
 
     """
+    table = sanitize_table_name(table=table)
     if partitions_values:
         inputs: List[Dict[str, Any]] = [
-            _parquet_partition_definition(location=k, values=v, compression=compression)
+            _parquet_partition_definition(location=k, values=v, compression=compression, columns_types=columns_types)
             for k, v in partitions_values.items()
         ]
         _add_partitions(

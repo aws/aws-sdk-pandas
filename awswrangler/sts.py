@@ -3,7 +3,7 @@
 import logging
 from typing import Optional, cast
 
-import boto3  # type: ignore
+import boto3
 
 from awswrangler import _utils
 

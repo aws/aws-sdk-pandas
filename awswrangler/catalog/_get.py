@@ -1,14 +1,15 @@
 """AWS Glue Catalog Get Module."""
 # pylint: disable=redefined-outer-name
 
+import base64
 import itertools
 import logging
 from typing import Any, Dict, Iterator, List, Optional, Union, cast
 from urllib.parse import quote_plus as _quote_plus
 
-import boto3  # type: ignore
-import pandas as pd  # type: ignore
-import sqlalchemy  # type: ignore
+import boto3
+import pandas as pd
+import sqlalchemy
 
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
@@ -119,7 +120,7 @@ def get_table_types(
     Examples
     --------
     >>> import awswrangler as wr
-    >>> wr.catalog.get_table_types(database='default', name='my_table')
+    >>> wr.catalog.get_table_types(database='default', table='my_table')
     {'col0': 'int', 'col1': double}
 
     """
@@ -424,7 +425,7 @@ def table(
     Examples
     --------
     >>> import awswrangler as wr
-    >>> df_table = wr.catalog.table(database='default', name='my_table')
+    >>> df_table = wr.catalog.table(database='default', table='my_table')
 
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
@@ -479,8 +480,8 @@ def get_table_location(database: str, table: str, boto3_session: Optional[boto3.
     res: Dict[str, Any] = client_glue.get_table(DatabaseName=database, Name=table)
     try:
         return cast(str, res["Table"]["StorageDescriptor"]["Location"])
-    except KeyError:
-        raise exceptions.InvalidTable(f"{database}.{table}")
+    except KeyError as ex:
+        raise exceptions.InvalidTable(f"{database}.{table}") from ex
 
 
 def get_connection(
@@ -511,10 +512,15 @@ def get_connection(
 
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    return cast(
-        Dict[str, Any],
-        client_glue.get_connection(**_catalog_id(catalog_id=catalog_id, Name=name, HidePassword=False))["Connection"],
-    )
+
+    res = client_glue.get_connection(**_catalog_id(catalog_id=catalog_id, Name=name, HidePassword=False))["Connection"]
+    if "ENCRYPTED_PASSWORD" in res["ConnectionProperties"]:
+        client_kms = _utils.client(service_name="kms", session=boto3_session)
+        pwd = client_kms.decrypt(CiphertextBlob=base64.b64decode(res["ConnectionProperties"]["ENCRYPTED_PASSWORD"]))[
+            "Plaintext"
+        ]
+        res["ConnectionProperties"]["PASSWORD"] = pwd
+    return cast(Dict[str, Any], res)
 
 
 def get_engine(

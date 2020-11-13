@@ -5,8 +5,8 @@ import fnmatch
 import logging
 from typing import Any, Dict, List, Optional, Sequence, Union
 
-import boto3  # type: ignore
-import botocore.exceptions  # type: ignore
+import boto3
+import botocore.exceptions
 
 from awswrangler import _utils, exceptions
 
@@ -158,7 +158,7 @@ def does_object_exist(path: str, boto3_session: Optional[boto3.Session] = None) 
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     bucket: str
     key: str
-    bucket, key = path.replace("s3://", "").split("/", 1)
+    bucket, key = _utils.parse_path(path=path)
     try:
         client_s3.head_object(Bucket=bucket, Key=key)
         return True
@@ -192,15 +192,15 @@ def list_directories(path: str, boto3_session: Optional[boto3.Session] = None) -
     Using the default boto3 session
 
     >>> import awswrangler as wr
-    >>> wr.s3.list_objects('s3://bucket/prefix/')
-    ['s3://bucket/prefix/dir0', 's3://bucket/prefix/dir1', 's3://bucket/prefix/dir2']
+    >>> wr.s3.list_directories('s3://bucket/prefix/')
+    ['s3://bucket/prefix/dir0/', 's3://bucket/prefix/dir1/', 's3://bucket/prefix/dir2/']
 
     Using a custom boto3 session
 
     >>> import boto3
     >>> import awswrangler as wr
-    >>> wr.s3.list_objects('s3://bucket/prefix/', boto3_session=boto3.Session())
-    ['s3://bucket/prefix/dir0', 's3://bucket/prefix/dir1', 's3://bucket/prefix/dir2']
+    >>> wr.s3.list_directories('s3://bucket/prefix/', boto3_session=boto3.Session())
+    ['s3://bucket/prefix/dir0/', 's3://bucket/prefix/dir1/', 's3://bucket/prefix/dir2/']
 
     """
     return _list_objects(path=path, delimiter="/", boto3_session=boto3_session)

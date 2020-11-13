@@ -7,7 +7,7 @@ List and Get MUST be together to avoid circular dependency.
 import logging
 from typing import Any, Callable, Dict, List, Optional
 
-import boto3  # type: ignore
+import boto3
 
 from awswrangler import _utils, exceptions, sts
 
@@ -350,7 +350,7 @@ def list_users(
     Parameters
     ----------
     namespace : str
-        The namespace. Currently, you should set this to default .
+        The namespace. Currently, you should set this to default.
     account_id : str, optional
         If None, the account ID will be inferred from your boto3 session.
     boto3_session : boto3.Session(), optional

@@ -1,6 +1,9 @@
 import logging
+import time
 
+import boto3
 import pandas as pd
+import pyarrow as pa
 import pytest
 
 import awswrangler as wr
@@ -164,6 +167,30 @@ def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_p
     assert len(comments) == len(df.columns)
     assert comments["c0"] == "zero"
     assert comments["c1"] == "one"
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_csv_overwrite_several_partitions(path, glue_database, glue_table, use_threads):
+    df0 = pd.DataFrame({"id": list(range(27)), "par": list(range(27))})
+    df1 = pd.DataFrame({"id": list(range(26)), "par": list(range(26))})
+    for df in (df0, df1):
+        paths = wr.s3.to_csv(
+            df=df,
+            path=path,
+            index=False,
+            use_threads=use_threads,
+            dataset=True,
+            partition_cols=["par"],
+            mode="overwrite",
+            table=glue_table,
+            database=glue_database,
+            concurrent_partitioning=True,
+        )["paths"]
+        wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+        df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
+        assert df2.shape == df.shape
+        assert df2["id"].sum() == df["id"].sum()
+        assert df2["par"].sum() == df["par"].sum()
 
 
 def test_csv_dataset(path, glue_database):
@@ -340,3 +367,50 @@ def test_skip_header(path, glue_database, glue_table, use_threads, ctas_approach
     )
     df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads, ctas_approach=ctas_approach)
     assert df.equals(df2)
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_empty_column(path, glue_table, glue_database, use_threads):
+    df = pd.DataFrame({"c0": [1, 2, 3], "c1": [None, None, None], "par": ["a", "b", "c"]})
+    df["c0"] = df["c0"].astype("Int64")
+    df["par"] = df["par"].astype("string")
+    with pytest.raises(wr.exceptions.UndetectedType):
+        wr.s3.to_csv(
+            df,
+            path,
+            index=False,
+            dataset=True,
+            use_threads=use_threads,
+            table=glue_table,
+            database=glue_database,
+            partition_cols=["par"],
+        )
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_mixed_types_column(path, glue_table, glue_database, use_threads):
+    df = pd.DataFrame({"c0": [1, 2, 3], "c1": [1, 2, "foo"], "par": ["a", "b", "c"]})
+    df["c0"] = df["c0"].astype("Int64")
+    df["par"] = df["par"].astype("string")
+    with pytest.raises(pa.ArrowInvalid):
+        wr.s3.to_csv(
+            df,
+            path,
+            use_threads=use_threads,
+            index=False,
+            dataset=True,
+            table=glue_table,
+            database=glue_database,
+            partition_cols=["par"],
+        )
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_failing_catalog(path, glue_table, use_threads):
+    df = pd.DataFrame({"c0": [1, 2, 3]})
+    try:
+        wr.s3.to_csv(df, path, use_threads=use_threads, dataset=True, table=glue_table, database="foo")
+    except boto3.client("glue").exceptions.EntityNotFoundException:
+        pass
+    time.sleep(3)
+    assert len(wr.s3.list_objects(path)) == 0

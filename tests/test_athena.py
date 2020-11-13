@@ -2,6 +2,7 @@ import datetime
 import logging
 
 import boto3
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -172,7 +173,7 @@ def test_athena(path, glue_database, glue_table, kms_key, workgroup0, workgroup1
     wr.catalog.delete_table_if_exists(database=glue_database, table=table)
 
 
-def test_catalog(path, glue_database, glue_table):
+def test_catalog(path: str, glue_database: str, glue_table: str) -> None:
     account_id = boto3.client("sts").get_caller_identity().get("Account")
     assert wr.catalog.does_table_exist(database=glue_database, table=glue_table) is False
     wr.catalog.create_parquet_table(
@@ -772,3 +773,24 @@ def test_parse_describe_table():
 def test_describe_table(path, glue_database, glue_table):
     wr.catalog.create_parquet_table(database=glue_database, table=glue_table, path=path, columns_types={"c0": "int"})
     assert wr.athena.describe_table(database=glue_database, table=glue_table).shape == (1, 4)
+
+
+@pytest.mark.parametrize("data_source", [None, "AwsDataCatalog"])
+@pytest.mark.parametrize("ctas_approach", [False, True])
+def test_athena_nan_inf(glue_database, ctas_approach, data_source):
+    sql = "SELECT nan() AS nan, infinity() as inf, -infinity() as inf_n, 1.2 as regular"
+    df = wr.athena.read_sql_query(sql, glue_database, ctas_approach, data_source=data_source)
+    print(df)
+    print(df.dtypes)
+    assert df.shape == (1, 4)
+    assert df.dtypes.to_list() == ["float64", "float64", "float64", "float64"]
+    assert np.isnan(df.nan.iloc[0])
+    assert df.inf.iloc[0] == np.PINF
+    assert df.inf_n.iloc[0] == np.NINF
+    assert df.regular.iloc[0] == 1.2
+
+
+def test_athena_ctas_data_source(glue_database):
+    sql = "SELECT nan() AS nan, infinity() as inf, -infinity() as inf_n, 1.2 as regular"
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.athena.read_sql_query(sql, glue_database, True, data_source="foo")

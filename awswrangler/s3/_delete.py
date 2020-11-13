@@ -8,7 +8,7 @@ import time
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import unquote_plus as _unquote_plus
 
-import boto3  # type: ignore
+import boto3
 
 from awswrangler import _utils, exceptions
 from awswrangler.s3._list import _path2list

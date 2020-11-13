@@ -1,9 +1,11 @@
 import os
 from io import open
+from typing import Dict
+
 from setuptools import setup
 
 here = os.path.abspath(os.path.dirname(__file__))
-about = {}
+about: Dict[str, str] = {}
 path = os.path.join(here, "awswrangler", "__metadata__.py")
 with open(file=path, mode="r", encoding="utf-8") as f:
     exec(f.read(), about)
@@ -25,8 +27,8 @@ setup(
     python_requires=">=3.6, <3.9",
     install_requires=open("requirements.txt").read().strip().split("\n"),
     classifiers=[
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
-    ]
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+    ],
 )

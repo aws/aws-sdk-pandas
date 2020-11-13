@@ -2,6 +2,7 @@ import random
 import time
 from datetime import datetime
 from decimal import Decimal
+from typing import Iterator
 
 import boto3
 import botocore.exceptions
@@ -507,12 +508,12 @@ def ensure_athena_query_metadata(df, ctas_approach=True, encrypted=False):
         assert df.query_metadata["Statistics"]["DataManifestLocation"] is not None
 
 
-def get_time_str_with_random_suffix():
+def get_time_str_with_random_suffix() -> str:
     time_str = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
     return f"{time_str}_{random.randrange(16**6):06x}"
 
 
-def path_generator(bucket):
+def path_generator(bucket: str) -> Iterator[str]:
     s3_path = f"s3://{bucket}/{get_time_str_with_random_suffix()}/"
     print(f"S3 Path: {s3_path}")
     time.sleep(1)
@@ -574,12 +575,16 @@ def create_workgroup(wkg_name, config):
     wkgs = [x["Name"] for x in wkgs["WorkGroups"]]
     deleted = False
     if wkg_name in wkgs:
-        wkg = client.get_work_group(WorkGroup=wkg_name)["WorkGroup"]
+        wkg = try_it(client.get_work_group, botocore.exceptions.ClientError, max_num_tries=5, WorkGroup=wkg_name)[
+            "WorkGroup"
+        ]
         if validate_workgroup_key(workgroup=wkg) is False:
             client.delete_work_group(WorkGroup=wkg_name, RecursiveDeleteOption=True)
             deleted = True
     if wkg_name not in wkgs or deleted is True:
         client.create_work_group(
-            Name=wkg_name, Configuration=config, Description=f"AWS Data Wrangler Test - {wkg_name}",
+            Name=wkg_name,
+            Configuration=config,
+            Description=f"AWS Data Wrangler Test - {wkg_name}",
         )
     return wkg_name

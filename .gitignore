@@ -128,7 +128,7 @@ dmypy.json
 output/
 
 # Development
-dev/
+/dev/
 metrics/
 python/
 

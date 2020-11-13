@@ -4,8 +4,8 @@ import re
 import unicodedata
 from typing import Any, Dict, List, Optional, Tuple
 
-import boto3  # type: ignore
-import pandas as pd  # type: ignore
+import boto3
+import pandas as pd
 
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._config import apply_configs
@@ -56,7 +56,7 @@ def does_table_exist(database: str, table: str, boto3_session: Optional[boto3.Se
     Examples
     --------
     >>> import awswrangler as wr
-    >>> wr.catalog.does_table_exist(database='default', name='my_table')
+    >>> wr.catalog.does_table_exist(database='default', table='my_table')
 
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
@@ -235,7 +235,7 @@ def extract_athena_types(
     Returns
     -------
     Tuple[Dict[str, str], Dict[str, str]]
-        columns_types: Dictionary with keys as column names and vales as
+        columns_types: Dictionary with keys as column names and values as
         data types (e.g. {'col0': 'bigint', 'col1': 'double'}). /
         partitions_types: Dictionary with keys as partition names
         and values as data types (e.g. {'col2': 'date'}).

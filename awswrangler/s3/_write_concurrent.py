@@ -4,8 +4,8 @@ import concurrent.futures
 import logging
 from typing import Any, Callable, Dict, List, Optional
 
-import boto3  # type: ignore
-import pandas as pd  # type: ignore
+import boto3
+import pandas as pd
 
 from awswrangler import _utils
 
@@ -16,9 +16,9 @@ class _WriteProxy:
     def __init__(self, use_threads: bool):
         self._exec: Optional[concurrent.futures.ThreadPoolExecutor]
         self._results: List[str] = []
-        cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
-        if cpus > 1:
-            self._exec = concurrent.futures.ThreadPoolExecutor(max_workers=cpus)
+        self._cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
+        if self._cpus > 1:
+            self._exec = concurrent.futures.ThreadPoolExecutor(max_workers=self._cpus)
             self._futures: List[Any] = []
         else:
             self._exec = None
@@ -35,6 +35,7 @@ class _WriteProxy:
     def write(self, func: Callable[..., List[str]], boto3_session: boto3.Session, **func_kwargs: Any) -> None:
         """Write File."""
         if self._exec is not None:
+            _utils.block_waiting_available_thread(seq=self._futures, max_workers=self._cpus)
             _logger.debug("Submitting: %s", func)
             future = self._exec.submit(
                 _WriteProxy._caller,

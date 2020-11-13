@@ -6,11 +6,11 @@ import uuid
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 from urllib.parse import quote_plus as _quote_plus
 
-import boto3  # type: ignore
-import pandas as pd  # type: ignore
-import pyarrow as pa  # type: ignore
-import sqlalchemy  # type: ignore
-from sqlalchemy.sql.visitors import VisitableType  # type: ignore
+import boto3
+import pandas as pd
+import pyarrow as pa
+import sqlalchemy
+from sqlalchemy.sql.visitors import VisitableType
 
 from awswrangler import _data_types, _utils, exceptions, s3
 from awswrangler.s3._list import _path2list  # noqa
@@ -95,7 +95,11 @@ def _rs_create_table(
     diststyle = diststyle.upper() if diststyle else "AUTO"
     sortstyle = sortstyle.upper() if sortstyle else "COMPOUND"
     _rs_validate_parameters(
-        redshift_types=redshift_types, diststyle=diststyle, distkey=distkey, sortstyle=sortstyle, sortkey=sortkey,
+        redshift_types=redshift_types,
+        diststyle=diststyle,
+        distkey=distkey,
+        sortstyle=sortstyle,
+        sortkey=sortkey,
     )
     cols_str: str = "".join([f"{k} {v},\n" for k, v in redshift_types.items()])[:-2]
     primary_keys_str: str = f",\nPRIMARY KEY ({', '.join(primary_keys)})" if primary_keys else ""
@@ -144,13 +148,18 @@ def _rs_validate_parameters(
 
 
 def _rs_copy(
-    con: Any, table: str, manifest_path: str, iam_role: str, num_files: int, schema: Optional[str] = None,
+    con: Any,
+    table: str,
+    manifest_path: str,
+    iam_role: str,
+    num_files: int,
+    schema: Optional[str] = None,
 ) -> int:
     if schema is None:
         table_name: str = table
     else:
         table_name = f"{schema}.{table}"
-    sql: str = (f"COPY {table_name} FROM '{manifest_path}'\nIAM_ROLE '{iam_role}'\nFORMAT AS PARQUET\nMANIFEST")
+    sql: str = f"COPY {table_name} FROM '{manifest_path}'\nIAM_ROLE '{iam_role}'\nFORMAT AS PARQUET\nMANIFEST"
     _logger.debug("copy query:\n%s", sql)
     con.execute(sql)
     sql = "SELECT pg_last_copy_id() AS query_id"
@@ -178,17 +187,22 @@ def _records2df(
     records: List[Tuple[Any]],
     cols_names: List[str],
     index: Optional[Union[str, List[str]]],
-    dtype: Optional[Dict[str, pa.DataType]] = None,
+    safe: bool,
+    dtype: Optional[Dict[str, pa.DataType]],
 ) -> pd.DataFrame:
     arrays: List[pa.Array] = []
     for col_values, col_name in zip(tuple(zip(*records)), cols_names):  # Transposing
         if (dtype is None) or (col_name not in dtype):
             try:
-                array: pa.Array = pa.array(obj=col_values, safe=True)  # Creating Arrow array
+                array: pa.Array = pa.array(obj=col_values, safe=safe)  # Creating Arrow array
             except pa.ArrowInvalid as ex:
                 array = _data_types.process_not_inferred_array(ex, values=col_values)  # Creating Arrow array
         else:
-            array = pa.array(obj=col_values, type=dtype[col_name], safe=True)  # Creating Arrow array with dtype
+            try:
+                array = pa.array(obj=col_values, type=dtype[col_name], safe=safe)  # Creating Arrow array with dtype
+            except pa.ArrowInvalid:
+                array = pa.array(obj=col_values, safe=safe)  # Creating Arrow array
+                array = array.cast(target_type=dtype[col_name], safe=safe)  # Casting
         arrays.append(array)
     table = pa.Table.from_arrays(arrays=arrays, names=cols_names)  # Creating arrow Table
     df: pd.DataFrame = table.to_pandas(  # Creating Pandas DataFrame
@@ -198,6 +212,7 @@ def _records2df(
         integer_object_nulls=False,
         date_as_object=True,
         types_mapper=_data_types.pyarrow2pandas_extension,
+        safe=safe,
     )
     if index is not None:
         df.set_index(index, inplace=True)
@@ -209,13 +224,14 @@ def _iterate_cursor(
     chunksize: int,
     cols_names: List[str],
     index: Optional[Union[str, List[str]]],
-    dtype: Optional[Dict[str, pa.DataType]] = None,
+    safe: bool,
+    dtype: Optional[Dict[str, pa.DataType]],
 ) -> Iterator[pd.DataFrame]:
     while True:
         records = cursor.fetchmany(chunksize)
         if not records:
             break
-        yield _records2df(records=records, cols_names=cols_names, index=index, dtype=dtype)
+        yield _records2df(records=records, cols_names=cols_names, index=index, safe=safe, dtype=dtype)
 
 
 def _convert_params(sql: str, params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]]) -> List[Any]:
@@ -274,7 +290,9 @@ def to_sql(df: pd.DataFrame, con: sqlalchemy.engine.Engine, **pandas_kwargs: Any
         SQLAlchemy Engine. Please use,
         wr.db.get_engine(), wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()
     pandas_kwargs
-        keyword arguments forwarded to pandas.DataFrame.to_csv()
+        KEYWORD arguments forwarded to pandas.DataFrame.to_sql(). You can NOT pass `pandas_kwargs` explicit, just add
+        valid Pandas arguments in the function call and Wrangler will accept it.
+        e.g. wr.db.to_sql(df, con=con, name="table_name", schema="schema_name", if_exists="replace", index=False)
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_sql.html
 
     Returns
@@ -295,6 +313,19 @@ def to_sql(df: pd.DataFrame, con: sqlalchemy.engine.Engine, **pandas_kwargs: Any
     ...     schema="schema_name"
     ... )
 
+    Writing to Redshift with temporary credentials and using pandas_kwargs
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.db.to_sql(
+    ...     df=pd.DataFrame({'col': [1, 2, 3]}),
+    ...     con=wr.db.get_redshift_temp_engine(cluster_identifier="...", user="..."),
+    ...     name="table_name",
+    ...     schema="schema_name",
+    ...     if_exists="replace",
+    ...     index=False,
+    ... )
+
     Writing to Redshift from Glue Catalog Connections
 
     >>> import awswrangler as wr
@@ -307,6 +338,12 @@ def to_sql(df: pd.DataFrame, con: sqlalchemy.engine.Engine, **pandas_kwargs: Any
     ... )
 
     """
+    if "pandas_kwargs" in pandas_kwargs:
+        raise exceptions.InvalidArgument(
+            "You can NOT pass `pandas_kwargs` explicit, just add valid "
+            "Pandas arguments in the function call and Wrangler will accept it."
+            "e.g. wr.db.to_sql(df, con, name='...', schema='...', if_exists='replace')"
+        )
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
     if not isinstance(con, sqlalchemy.engine.Engine):
@@ -336,6 +373,7 @@ def read_sql_query(
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
     chunksize: Optional[int] = None,
     dtype: Optional[Dict[str, pa.DataType]] = None,
+    safe: bool = True,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Return a DataFrame corresponding to the result set of the query string.
 
@@ -365,6 +403,8 @@ def read_sql_query(
     dtype : Dict[str, pyarrow.DataType], optional
         Specifying the datatype for columns.
         The keys should be the column names and the values should be the PyArrow types.
+    safe : bool
+        Check for overflows or other unsafe data type conversions.
 
     Returns
     -------
@@ -395,9 +435,11 @@ def read_sql_query(
         args = _convert_params(sql, params)
         cursor = _con.execute(*args)
         if chunksize is None:
-            return _records2df(records=cursor.fetchall(), cols_names=cursor.keys(), index=index_col, dtype=dtype)
+            return _records2df(
+                records=cursor.fetchall(), cols_names=cursor.keys(), index=index_col, dtype=dtype, safe=safe
+            )
         return _iterate_cursor(
-            cursor=cursor, chunksize=chunksize, cols_names=cursor.keys(), index=index_col, dtype=dtype
+            cursor=cursor, chunksize=chunksize, cols_names=cursor.keys(), index=index_col, dtype=dtype, safe=safe
         )
 
 
@@ -409,6 +451,7 @@ def read_sql_table(
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
     chunksize: Optional[int] = None,
     dtype: Optional[Dict[str, pa.DataType]] = None,
+    safe: bool = True,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Return a DataFrame corresponding to the result set of the query string.
 
@@ -441,6 +484,8 @@ def read_sql_table(
     dtype : Dict[str, pyarrow.DataType], optional
         Specifying the datatype for columns.
         The keys should be the column names and the values should be the PyArrow types.
+    safe : bool
+        Check for overflows or other unsafe data type conversions.
 
     Returns
     -------
@@ -472,7 +517,9 @@ def read_sql_table(
         sql: str = f"SELECT * FROM {table}"
     else:
         sql = f"SELECT * FROM {schema}.{table}"
-    return read_sql_query(sql=sql, con=con, index_col=index_col, params=params, chunksize=chunksize, dtype=dtype)
+    return read_sql_query(
+        sql=sql, con=con, index_col=index_col, params=params, chunksize=chunksize, dtype=dtype, safe=safe
+    )
 
 
 def get_redshift_temp_engine(
@@ -698,8 +745,9 @@ def copy_to_redshift(  # pylint: disable=too-many-arguments
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
-        Forward to s3fs, useful for server side encryption
-        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
+        Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
+        "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
+        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
     max_rows_by_file : int
         Max number of rows in each file.
         Default is None i.e. dont split the files.
@@ -847,7 +895,9 @@ def copy_files_to_redshift(  # pylint: disable=too-many-locals,too-many-argument
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
-        Forward to boto3.client('s3').put_object when writing manifest, useful for server side encryption
+        Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
+        "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
+        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
 
     Returns
     -------
@@ -941,7 +991,9 @@ def write_redshift_copy_manifest(
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
-        Forward to boto3.client('s3').put_object when writing manifest, useful for server side encryption
+        Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
+        "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
+        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
 
     Returns
     -------
@@ -1073,8 +1125,7 @@ def unload_redshift(
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
-        Forward to s3fs, useful for server side encryption
-        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
+        Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
 
     Returns
     -------

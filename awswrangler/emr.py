@@ -5,7 +5,7 @@ import logging
 import pprint
 from typing import Any, Dict, List, Optional, Union, cast
 
-import boto3  # type: ignore
+import boto3
 
 from awswrangler import _utils, exceptions, sts
 
@@ -268,9 +268,9 @@ def _build_cluster_args(**pars: Any) -> Dict[str, Any]:  # pylint: disable=too-m
             args["Steps"] += pars["steps"]
 
     # Master Instance Fleet
-    timeout_action_master: str = "SWITCH_TO_ON_DEMAND" if pars[
-        "spot_timeout_to_on_demand_master"
-    ] else "TERMINATE_CLUSTER"
+    timeout_action_master: str = (
+        "SWITCH_TO_ON_DEMAND" if pars["spot_timeout_to_on_demand_master"] else "TERMINATE_CLUSTER"
+    )
     fleet_master: Dict[str, Any] = {
         "Name": "MASTER",
         "InstanceFleetType": "MASTER",
@@ -341,9 +341,9 @@ def _build_cluster_args(**pars: Any) -> Dict[str, Any]:  # pylint: disable=too-m
 
     # Task Instance Fleet
     if (pars["instance_num_spot_task"] > 0) or pars["instance_num_on_demand_task"] > 0:
-        timeout_action_task: str = "SWITCH_TO_ON_DEMAND" if pars[
-            "spot_timeout_to_on_demand_task"
-        ] else "TERMINATE_CLUSTER"
+        timeout_action_task: str = (
+            "SWITCH_TO_ON_DEMAND" if pars["spot_timeout_to_on_demand_task"] else "TERMINATE_CLUSTER"
+        )
         fleet_task: Dict[str, Any] = {
             "Name": "TASK",
             "InstanceFleetType": "TASK",

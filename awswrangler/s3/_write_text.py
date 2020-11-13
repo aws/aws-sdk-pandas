@@ -5,12 +5,13 @@ import logging
 import uuid
 from typing import Any, Dict, List, Optional, Union
 
-import boto3  # type: ignore
-import pandas as pd  # type: ignore
-import s3fs  # type: ignore
+import boto3
+import pandas as pd
 
 from awswrangler import _data_types, _utils, catalog, exceptions
 from awswrangler._config import apply_configs
+from awswrangler.s3._delete import delete_objects
+from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._write import _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_dataset import _to_dataset
 
@@ -20,6 +21,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def _to_text(
     file_format: str,
     df: pd.DataFrame,
+    use_threads: bool,
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
     path: Optional[str] = None,
@@ -34,14 +36,16 @@ def _to_text(
         file_path = path
     else:
         raise RuntimeError("path and path_root received at the same time.")
-    fs: s3fs.S3FileSystem = _utils.get_fs(
-        s3fs_block_size=33_554_432,
-        session=boto3_session,
-        s3_additional_kwargs=s3_additional_kwargs,  # 32 MB (32 * 2**20)
-    )
     encoding: Optional[str] = pandas_kwargs.get("encoding", None)
-    newline: Optional[str] = pandas_kwargs.get("line_terminator", None)
-    with _utils.open_file(fs=fs, path=file_path, mode="w", encoding=encoding, newline=newline) as f:
+    with open_s3_object(
+        path=file_path,
+        mode="w",
+        use_threads=use_threads,
+        s3_additional_kwargs=s3_additional_kwargs,
+        boto3_session=boto3_session,
+        encoding=encoding,
+        newline="",
+    ) as f:
         _logger.debug("pandas_kwargs: %s", pandas_kwargs)
         if file_format == "csv":
             df.to_csv(f, **pandas_kwargs)
@@ -59,7 +63,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
     columns: Optional[List[str]] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     sanitize_columns: bool = False,
     dataset: bool = False,
     partition_cols: Optional[List[str]] = None,
@@ -84,14 +88,14 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
 ) -> Dict[str, Union[List[str], Dict[str, List[str]]]]:
     """Write CSV file or dataset on Amazon S3.
 
-    The concept of Dataset goes beyond the simple idea of files and enable more
-    complex features like partitioning, casting and catalog integration (Amazon Athena/AWS Glue Catalog).
+    The concept of Dataset goes beyond the simple idea of ordinary files and enable more
+    complex features like partitioning and catalog integration (Amazon Athena/AWS Glue Catalog).
 
     Note
     ----
-    If `dataset=True` The table name and all column names will be automatically sanitized using
-    `wr.catalog.sanitize_table_name` and `wr.catalog.sanitize_column_name`.
-    Please, pass `sanitize_columns=True` to force the same behaviour for `dataset=False`.
+    If database` and `table` arguments are passed, the table name and all column names
+    will be automatically sanitized using `wr.catalog.sanitize_table_name` and `wr.catalog.sanitize_column_name`.
+    Please, pass `sanitize_columns=True` to enforce this behaviour always.
 
     Note
     ----
@@ -130,16 +134,19 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
         If enabled os.cpu_count() will be used as the max number of threads.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
-    s3_additional_kwargs:
-        Forward to s3fs, useful for server side encryption
-        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
+    s3_additional_kwargs : Optional[Dict[str, Any]]
+        Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
+        "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
+        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
     sanitize_columns : bool
         True to sanitize columns names or False to keep it as is.
         True value is forced if `dataset=True`.
     dataset : bool
-        If True store a parquet dataset instead of a single file.
+        If True store a parquet dataset instead of a ordinary file(s)
         If True, enable all follow arguments:
-        partition_cols, mode, database, table, description, parameters, columns_comments, .
+        partition_cols, mode, database, table, description, parameters, columns_comments, concurrent_partitioning,
+        catalog_versioning, projection_enabled, projection_types, projection_ranges, projection_values,
+        projection_intervals, projection_digits, catalog_id, schema_evolution.
     partition_cols: List[str], optional
         List of column names that will be used to create partitions. Only takes effect if dataset=True.
     concurrent_partitioning: bool
@@ -149,7 +156,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
     mode : str, optional
         ``append`` (Default), ``overwrite``, ``overwrite_partitions``. Only takes effect if dataset=True.
         For details check the related tutorial:
-        https://aws-data-wrangler.readthedocs.io/en/latest/stubs/awswrangler.s3.to_parquet.html#awswrangler.s3.to_parquet
+        https://aws-data-wrangler.readthedocs.io/en/stable/stubs/awswrangler.s3.to_parquet.html#awswrangler.s3.to_parquet
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     database : str, optional
@@ -199,7 +206,9 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
     pandas_kwargs :
-        keyword arguments forwarded to pandas.DataFrame.to_csv()
+        KEYWORD arguments forwarded to pandas.DataFrame.to_csv(). You can NOT pass `pandas_kwargs` explicit, just add
+        valid Pandas arguments in the function call and Wrangler will accept it.
+        e.g. wr.s3.to_csv(df, path, sep='|', na_rep='NULL', decimal=',')
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_csv.html
 
     Returns
@@ -225,6 +234,22 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
         'partitions_values': {}
     }
 
+    Writing single file with pandas_kwargs
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.s3.to_csv(
+    ...     df=pd.DataFrame({'col': [1, 2, 3]}),
+    ...     path='s3://bucket/prefix/my_file.csv',
+    ...     sep='|',
+    ...     na_rep='NULL',
+    ...     decimal=','
+    ... )
+    {
+        'paths': ['s3://bucket/prefix/my_file.csv'],
+        'partitions_values': {}
+    }
+
     Writing single file encrypted with a KMS key
 
     >>> import awswrangler as wr
@@ -234,7 +259,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
     ...     path='s3://bucket/prefix/my_file.csv',
     ...     s3_additional_kwargs={
     ...         'ServerSideEncryption': 'aws:kms',
-    ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
+    ...         'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'
     ...     }
     ... )
     {
@@ -308,9 +333,16 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
     }
 
     """
+    if "pandas_kwargs" in pandas_kwargs:
+        raise exceptions.InvalidArgument(
+            "You can NOT pass `pandas_kwargs` explicit, just add valid "
+            "Pandas arguments in the function call and Wrangler will accept it."
+            "e.g. wr.s3.to_csv(df, path, sep='|', na_rep='NULL', decimal=',')"
+        )
     _validate_args(
         df=df,
         table=table,
+        database=database,
         dataset=dataset,
         path=path,
         partition_cols=partition_cols,
@@ -328,7 +360,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
     # Sanitize table to respect Athena's standards
-    if (sanitize_columns is True) or (dataset is True):
+    if (sanitize_columns is True) or (database is not None and table is not None):
         df, dtype, partition_cols = _sanitize(df=df, dtype=dtype, partition_cols=partition_cols)
 
     # Evaluating dtype
@@ -346,6 +378,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
         _to_text(
             file_format="csv",
             df=df,
+            use_threads=use_threads,
             path=path,
             boto3_session=session,
             s3_additional_kwargs=s3_additional_kwargs,
@@ -373,38 +406,49 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
             date_format="%Y-%m-%d %H:%M:%S.%f",
         )
         if (database is not None) and (table is not None):
-            columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
-                df=df, index=index, partition_cols=partition_cols, dtype=dtype, index_left=True
-            )
-            catalog._create_csv_table(  # pylint: disable=protected-access
-                database=database,
-                table=table,
-                path=path,
-                columns_types=columns_types,
-                partitions_types=partitions_types,
-                description=description,
-                parameters=parameters,
-                columns_comments=columns_comments,
-                boto3_session=session,
-                mode=mode,
-                catalog_versioning=catalog_versioning,
-                sep=sep,
-                projection_enabled=projection_enabled,
-                projection_types=projection_types,
-                projection_ranges=projection_ranges,
-                projection_values=projection_values,
-                projection_intervals=projection_intervals,
-                projection_digits=projection_digits,
-                catalog_table_input=catalog_table_input,
-                catalog_id=catalog_id,
-                compression=None,
-                skip_header_line_count=None,
-            )
-            if partitions_values and (regular_partitions is True):
-                _logger.debug("partitions_values:\n%s", partitions_values)
-                catalog.add_csv_partitions(
-                    database=database, table=table, partitions_values=partitions_values, boto3_session=session, sep=sep
+            try:
+                columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
+                    df=df, index=index, partition_cols=partition_cols, dtype=dtype, index_left=True
                 )
+                catalog._create_csv_table(  # pylint: disable=protected-access
+                    database=database,
+                    table=table,
+                    path=path,
+                    columns_types=columns_types,
+                    partitions_types=partitions_types,
+                    description=description,
+                    parameters=parameters,
+                    columns_comments=columns_comments,
+                    boto3_session=session,
+                    mode=mode,
+                    catalog_versioning=catalog_versioning,
+                    sep=sep,
+                    projection_enabled=projection_enabled,
+                    projection_types=projection_types,
+                    projection_ranges=projection_ranges,
+                    projection_values=projection_values,
+                    projection_intervals=projection_intervals,
+                    projection_digits=projection_digits,
+                    catalog_table_input=catalog_table_input,
+                    catalog_id=catalog_id,
+                    compression=None,
+                    skip_header_line_count=None,
+                )
+                if partitions_values and (regular_partitions is True):
+                    _logger.debug("partitions_values:\n%s", partitions_values)
+                    catalog.add_csv_partitions(
+                        database=database,
+                        table=table,
+                        partitions_values=partitions_values,
+                        boto3_session=session,
+                        sep=sep,
+                        catalog_id=catalog_id,
+                        columns_types=columns_types,
+                    )
+            except Exception:
+                _logger.debug("Catalog write failed, cleaning up S3 (paths: %s).", paths)
+                delete_objects(path=paths, use_threads=use_threads, boto3_session=session)
+                raise
     return {"paths": paths, "partitions_values": partitions_values}
 
 
@@ -412,10 +456,16 @@ def to_json(
     df: pd.DataFrame,
     path: str,
     boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    use_threads: bool = True,
     **pandas_kwargs: Any,
 ) -> None:
     """Write JSON file on Amazon S3.
+
+    Note
+    ----
+    In case of `use_threads=True` the number of threads
+    that will be spawned will be gotten from os.cpu_count().
 
     Parameters
     ----------
@@ -425,11 +475,17 @@ def to_json(
         Amazon S3 path (e.g. s3://bucket/filename.csv).
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
-    s3_additional_kwargs:
-        Forward to s3fs, useful for server side encryption
-        https://s3fs.readthedocs.io/en/latest/#serverside-encryption
+    s3_additional_kwargs : Optional[Dict[str, Any]]
+        Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
+        "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
+        e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
+    use_threads : bool
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
     pandas_kwargs:
-        keyword arguments forwarded to pandas.DataFrame.to_csv()
+        KEYWORD arguments forwarded to pandas.DataFrame.to_json(). You can NOT pass `pandas_kwargs` explicit, just add
+        valid Pandas arguments in the function call and Wrangler will accept it.
+        e.g. wr.s3.to_json(df, path, lines=True, date_format='iso')
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_json.html
 
     Returns
@@ -448,6 +504,17 @@ def to_json(
     ...     path='s3://bucket/filename.json',
     ... )
 
+    Writing JSON file using pandas_kwargs
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.s3.to_json(
+    ...     df=pd.DataFrame({'col': [1, 2, 3]}),
+    ...     path='s3://bucket/filename.json',
+    ...     lines=True,
+    ...     date_format='iso'
+    ... )
+
     Writing CSV file encrypted with a KMS key
 
     >>> import awswrangler as wr
@@ -457,15 +524,22 @@ def to_json(
     ...     path='s3://bucket/filename.json',
     ...     s3_additional_kwargs={
     ...         'ServerSideEncryption': 'aws:kms',
-    ...         'SSEKMSKeyId': 'YOUR_KMY_KEY_ARN'
+    ...         'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'
     ...     }
     ... )
 
     """
+    if "pandas_kwargs" in pandas_kwargs:
+        raise exceptions.InvalidArgument(
+            "You can NOT pass `pandas_kwargs` explicit, just add valid "
+            "Pandas arguments in the function call and Wrangler will accept it."
+            "e.g. wr.s3.to_json(df, path, lines=True, date_format='iso')"
+        )
     _to_text(
         file_format="json",
         df=df,
         path=path,
+        use_threads=use_threads,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
         **pandas_kwargs,

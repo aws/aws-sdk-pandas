@@ -64,20 +64,20 @@ We have hundreds of test functions that runs against several AWS Services. You d
 You can choose from three different environments to test your fixes/changes, based on what makes sense for your case.
 
 * [Mocked test environment](#mocked-test-environment)
-    * Based on [moto](https://github.com/spulec/moto).
-    * Does not require real AWS resources
-    * Fastest approach
-    * Basically Limited only for Amazon S3 tests
+  * Based on [moto](https://github.com/spulec/moto).
+  * Does not require real AWS resources
+  * Fastest approach
+  * Basically Limited only for Amazon S3 tests
 
 * [Data Lake test environment](#data-lake-test-environment)
-    * Requires some AWS services.
-    * Amazon S3, Amazon Athena, AWS Glue Catalog, AWS KMS
-    * Enable real tests on typical Data Lake cases
+  * Requires some AWS services.
+  * Amazon S3, Amazon Athena, AWS Glue Catalog, AWS KMS
+  * Enable real tests on typical Data Lake cases
 
 * [Full test environment](#full-test-environment)
-    * Requires a bunch of real AWS services.
-    * Amazon S3, Amazon Athena, AWS Glue Catalog, AWS KMS, Amazon Redshift, Aurora PostgreSQL, Aurora MySQL, Amazon Quicksight, etc
-    * Enable real tests on all use cases.
+  * Requires a bunch of real AWS services.
+  * Amazon S3, Amazon Athena, AWS Glue Catalog, AWS KMS, Amazon Redshift, Aurora PostgreSQL, Aurora MySQL, Amazon Quicksight, etc
+  * Enable real tests on all use cases.
 
 ## Step-by-step
 
@@ -90,13 +90,13 @@ You can choose from three different environments to test your fixes/changes, bas
 
 `python -m venv .venv && source .venv/bin/activate`
 
-* Then run the command bellow to install all dependencies:
+* Install dependencies:
 
-``./requirements.sh``
+``pip install -r requirements-dev.txt``
 
 * Run the validation script:
 
-``./validation.sh``
+``./validate.sh``
 
 * To run a specific test function:
 
@@ -104,7 +104,7 @@ You can choose from three different environments to test your fixes/changes, bas
 
 * To run all mocked test functions (Using 8 parallel processes):
 
-``pytest -n 8 tests/test_moto``
+``pytest -n 8 tests/test_moto.py``
 
 ### Data Lake test environment
 
@@ -117,9 +117,9 @@ You can choose from three different environments to test your fixes/changes, bas
 
 `python -m venv .venv && source .venv/bin/activate`
 
-* Then run the command bellow to install all dependencies:
+* Install dependencies:
 
-``./requirements.sh``
+``pip install -r requirements-dev.txt``
 
 * Go to the ``cloudformation`` directory
 
@@ -135,15 +135,15 @@ You can choose from three different environments to test your fixes/changes, bas
 
 * Run the validation script:
 
-``./validation.sh``
+``./validate.sh``
 
 * To run a specific test function:
 
-``pytest tests/test_s3_athena::test_to_parquet_modes``
+``pytest tests/test_athena_parquet.py::test_parquet_catalog``
 
 * To run all data lake test functions (Using 8 parallel processes):
 
-``pytest -n 8 tests/test_s3_athena``
+``pytest -n 8 tests/test_athena*``
 
 ### Full test environment
 
@@ -158,7 +158,7 @@ You can choose from three different environments to test your fixes/changes, bas
 
 * Then run the command bellow to install all dependencies:
 
-``./requirements.sh``
+``pip install -r requirements-dev.txt``
 
 * Go to the ``cloudformation`` directory
 
@@ -181,13 +181,24 @@ You can choose from three different environments to test your fixes/changes, bas
 
 * Run the validation script:
 
-``./validation.sh``
+``./validate.sh``
 
 * To run a specific test function:
 
-``pytest tests/test_s3_athena::test_to_parquet_modes``
+``pytest tests/test_athena_parquet.py::test_parquet_catalog``
 
 * To run all data lake test functions for all python versions (Only if Amazon QuickSight is activated):
 
 ``./test.sh``
 
+## Recommended Visual Studio Code Recommended settings
+
+```json
+{
+  "python.formatting.provider": "black",
+  "python.linting.enabled": true,
+  "python.linting.flake8Enabled": true,
+  "python.linting.mypyEnabled": true,
+  "python.linting.pylintEnabled": false
+}
+```
