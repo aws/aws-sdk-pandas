@@ -246,20 +246,12 @@ def test_catalog(path: str, glue_database: str, glue_table: str) -> None:
         assert tbl["DatabaseName"] == glue_database
     # add & delete column
     wr.catalog.add_column(
-        database=glue_database,
-        table=glue_table,
-        column_name="col2",
-        column_type="int",
-        column_comment="comment"
+        database=glue_database, table=glue_table, column_name="col2", column_type="int", column_comment="comment"
     )
     dtypes = wr.catalog.get_table_types(database=glue_database, table=glue_table)
     assert len(dtypes) == 5
     assert dtypes["col2"] == "int"
-    wr.catalog.delete_column(
-        database=glue_database,
-        table=glue_table,
-        column_name="col2"
-    )
+    wr.catalog.delete_column(database=glue_database, table=glue_table, column_name="col2")
     dtypes = wr.catalog.get_table_types(database=glue_database, table=glue_table)
     assert len(dtypes) == 4
     # search

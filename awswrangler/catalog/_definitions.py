@@ -5,8 +5,26 @@ from typing import Any, Dict, List, Optional
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
-_LEGAL_COLUMN_TYPES = ["array", "bigint", "binary", "boolean", "char", "date", "decimal", "double", "float", "int",
-                       "interval", "map", "set", "smallint", "string", "struct", "timestamp", "tinyint"]
+_LEGAL_COLUMN_TYPES = [
+    "array",
+    "bigint",
+    "binary",
+    "boolean",
+    "char",
+    "date",
+    "decimal",
+    "double",
+    "float",
+    "int",
+    "interval",
+    "map",
+    "set",
+    "smallint",
+    "string",
+    "struct",
+    "timestamp",
+    "tinyint",
+]
 
 
 def _parquet_table_definition(
@@ -143,21 +161,30 @@ def _csv_partition_definition(
     return definition
 
 
-def _check_column_type(
-        column_type: str
-) -> bool:
+def _check_column_type(column_type: str) -> bool:
     if column_type not in _LEGAL_COLUMN_TYPES:
         raise ValueError(f"{column_type} is not a legal data type.")
-    else:
-        return True
+    return True
 
 
 def _update_table_definition(current_definition: Dict[str, Any]) -> Dict[str, Any]:
     definition: Dict[str, Any] = dict()
-    keep_keys = ["Name", "Description", "Owner", "LastAccessTime", "LastAnalyzedTime", "Retention",
-                 "StorageDescriptor", "PartitionKeys", "ViewOriginalText", "ViewExpandedText", "TableType",
-                 "Parameters", "TargetTable"]
-    for key in current_definition['Table']:
+    keep_keys = [
+        "Name",
+        "Description",
+        "Owner",
+        "LastAccessTime",
+        "LastAnalyzedTime",
+        "Retention",
+        "StorageDescriptor",
+        "PartitionKeys",
+        "ViewOriginalText",
+        "ViewExpandedText",
+        "TableType",
+        "Parameters",
+        "TargetTable",
+    ]
+    for key in current_definition["Table"]:
         if key in keep_keys:
-            definition[key] = current_definition['Table'][key]
+            definition[key] = current_definition["Table"][key]
     return definition

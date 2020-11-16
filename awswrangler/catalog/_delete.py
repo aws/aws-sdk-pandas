@@ -186,17 +186,48 @@ def delete_all_partitions(
 
 @apply_configs
 def delete_column(
-        database: str,
-        table: str,
-        column_name: str,
-        boto3_session: Optional[boto3.Session] = None,
-        catalog_id: Optional[str] = None,
+    database: str,
+    table: str,
+    column_name: str,
+    boto3_session: Optional[boto3.Session] = None,
+    catalog_id: Optional[str] = None,
 ) -> None:
+    """Delete a column in a AWS Glue Catalog table.
+
+    Parameters
+    ----------
+    database : str
+        Database name.
+    table : str
+        Table name.
+    column_name : str
+        Column name
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+
+    Returns
+    -------
+    None
+        None
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> wr.catalog.delete_column(
+    ...     database='my_db',
+    ...     table='my_table',
+    ...     column_name='my_col',
+    ... )
+    """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
     table_res: Dict[str, Any] = client_glue.get_table(DatabaseName=database, Name=table)
     table_input: Dict[str, Any] = _update_table_definition(table_res)
-    table_input['StorageDescriptor']['Columns'] = \
-        [i for i in table_input['StorageDescriptor']['Columns'] if i['Name'] != column_name]
+    table_input["StorageDescriptor"]["Columns"] = [
+        i for i in table_input["StorageDescriptor"]["Columns"] if i["Name"] != column_name
+    ]
     res: Dict[str, Any] = client_glue.update_table(
         **_catalog_id(catalog_id=catalog_id, DatabaseName=database, TableInput=table_input)
     )
