@@ -170,14 +170,14 @@ def add_column(
         table: str,
         column_name: str,
         column_type: str = 'string',
-        column_comment: str = None,
+        column_comment: Optional[str] = None,
         boto3_session: Optional[boto3.Session] = None,
         catalog_id: Optional[str] = None,
 ) -> None:
     if _check_column_type(column_type):
         client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-        res: Dict[str, Any] = client_glue.get_table(DatabaseName=database, Name=table)
-        table_input: dict = _update_table_definition(res)
+        table_res: Dict[str, Any] = client_glue.get_table(DatabaseName=database, Name=table)
+        table_input: Dict[str, Any] = _update_table_definition(table_res)
         table_input['StorageDescriptor']['Columns'].append({
             'Name': column_name,
             'Type': column_type,

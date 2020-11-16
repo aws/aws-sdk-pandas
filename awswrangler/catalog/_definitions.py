@@ -152,8 +152,8 @@ def _check_column_type(
         return True
 
 
-def _update_table_definition(current_definition: dict):
-    definition: dict[Any, Any] = dict()
+def _update_table_definition(current_definition: Dict[str, Any]) -> Dict[str, Any]:
+    definition: Dict[str, Any] = dict()
     keep_keys = ["Name", "Description", "Owner", "LastAccessTime", "LastAnalyzedTime", "Retention",
                  "StorageDescriptor", "PartitionKeys", "ViewOriginalText", "ViewExpandedText", "TableType",
                  "Parameters", "TargetTable"]
