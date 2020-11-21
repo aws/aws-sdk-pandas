@@ -238,6 +238,8 @@ def get_region_from_session(boto3_session: Optional[boto3.Session] = None, defau
 
 def list_sampling(lst: List[Any], sampling: float) -> List[Any]:
     """Random List sampling."""
+    if sampling == 1.0:
+        return lst
     if sampling > 1.0 or sampling <= 0.0:
         raise exceptions.InvalidArgumentValue(f"Argument <sampling> must be [0.0 < value <= 1.0]. {sampling} received.")
     _len: int = len(lst)
@@ -249,7 +251,9 @@ def list_sampling(lst: List[Any], sampling: float) -> List[Any]:
     _logger.debug("_len: %s", _len)
     _logger.debug("sampling: %s", sampling)
     _logger.debug("num_samples: %s", num_samples)
-    return random.sample(population=lst, k=num_samples)
+    random_lst: List[Any] = random.sample(population=lst, k=num_samples)
+    random_lst.sort()
+    return random_lst
 
 
 def ensure_df_is_mutable(df: pd.DataFrame) -> pd.DataFrame:
