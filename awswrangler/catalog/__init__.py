@@ -48,11 +48,11 @@ from awswrangler.catalog._utils import (  # noqa
 )
 
 __all__ = [
-    "add_column"
+    "add_column",
     "add_csv_partitions",
     "add_parquet_partitions",
     "does_table_exist",
-    "delete_column"
+    "delete_column",
     "drop_duplicated_columns",
     "extract_athena_types",
     "sanitize_column_name",

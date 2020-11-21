@@ -4,7 +4,7 @@ import datetime
 import logging
 import re
 from decimal import Decimal
-from typing import Any, Dict, List, Match, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Match, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
@@ -13,10 +13,11 @@ import pyarrow.parquet
 import sqlalchemy
 import sqlalchemy.dialects.mysql
 import sqlalchemy.dialects.postgresql
-import sqlalchemy_redshift.dialect
-from sqlalchemy.sql.visitors import VisitableType
 
 from awswrangler import _utils, exceptions
+
+if TYPE_CHECKING:
+    from sqlalchemy.sql.visitors import VisitableType
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -210,7 +211,7 @@ def pyarrow2pandas_extension(  # pylint: disable=too-many-branches,too-many-retu
 
 def pyarrow2sqlalchemy(  # pylint: disable=too-many-branches,too-many-return-statements
     dtype: pa.DataType, db_type: str
-) -> Optional[VisitableType]:
+) -> Optional["VisitableType"]:
     """Pyarrow to Athena data types conversion."""
     if pa.types.is_int8(dtype):
         return sqlalchemy.types.SmallInteger
@@ -228,6 +229,8 @@ def pyarrow2sqlalchemy(  # pylint: disable=too-many-branches,too-many-return-sta
         if db_type == "postgresql":
             return sqlalchemy.dialects.postgresql.DOUBLE_PRECISION
         if db_type == "redshift":
+            import sqlalchemy_redshift.dialect  # pylint: disable=import-outside-toplevel
+
             return sqlalchemy_redshift.dialect.DOUBLE_PRECISION
         raise exceptions.InvalidDatabaseType(
             f"{db_type} is a invalid database type, please choose between postgresql, mysql and redshift."
@@ -509,14 +512,14 @@ def _cast_pandas_column(df: pd.DataFrame, col: str, current_type: str, desired_t
 
 
 def sqlalchemy_types_from_pandas(
-    df: pd.DataFrame, db_type: str, dtype: Optional[Dict[str, VisitableType]] = None
-) -> Dict[str, VisitableType]:
+    df: pd.DataFrame, db_type: str, dtype: Optional[Dict[str, "VisitableType"]] = None
+) -> Dict[str, "VisitableType"]:
     """Extract the related SQLAlchemy data types from any Pandas DataFrame."""
-    casts: Dict[str, VisitableType] = dtype if dtype is not None else {}
+    casts: Dict[str, "VisitableType"] = dtype if dtype is not None else {}
     pa_columns_types: Dict[str, Optional[pa.DataType]] = pyarrow_types_from_pandas(
         df=df, index=False, ignore_cols=list(casts.keys())
     )
-    sqlalchemy_columns_types: Dict[str, VisitableType] = {}
+    sqlalchemy_columns_types: Dict[str, "VisitableType"] = {}
     for k, v in pa_columns_types.items():
         if v is None:
             sqlalchemy_columns_types[k] = casts[k]
