@@ -49,12 +49,14 @@ AWS Glue Catalog
 .. autosummary::
     :toctree: stubs
 
+    add_column
     add_csv_partitions
     add_parquet_partitions
     create_csv_table
     create_database
     create_parquet_table
     databases
+    delete_column
     delete_database
     delete_partitions
     delete_all_partitions
