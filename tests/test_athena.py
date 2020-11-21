@@ -244,6 +244,16 @@ def test_catalog(path: str, glue_database: str, glue_table: str) -> None:
     assert len(tables) > 0
     for tbl in tables:
         assert tbl["DatabaseName"] == glue_database
+    # add & delete column
+    wr.catalog.add_column(
+        database=glue_database, table=glue_table, column_name="col2", column_type="int", column_comment="comment"
+    )
+    dtypes = wr.catalog.get_table_types(database=glue_database, table=glue_table)
+    assert len(dtypes) == 5
+    assert dtypes["col2"] == "int"
+    wr.catalog.delete_column(database=glue_database, table=glue_table, column_name="col2")
+    dtypes = wr.catalog.get_table_types(database=glue_database, table=glue_table)
+    assert len(dtypes) == 4
     # search
     tables = list(wr.catalog.search_tables(text="parquet", catalog_id=account_id))
     assert len(tables) > 0

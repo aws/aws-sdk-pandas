@@ -1,6 +1,6 @@
 """Amazon Glue Catalog Module."""
 
-from awswrangler.catalog._add import add_csv_partitions, add_parquet_partitions  # noqa
+from awswrangler.catalog._add import add_column, add_csv_partitions, add_parquet_partitions  # noqa
 from awswrangler.catalog._create import (  # noqa
     _create_csv_table,
     _create_parquet_table,
@@ -12,6 +12,7 @@ from awswrangler.catalog._create import (  # noqa
 )
 from awswrangler.catalog._delete import (  # noqa
     delete_all_partitions,
+    delete_column,
     delete_database,
     delete_partitions,
     delete_table_if_exists,
