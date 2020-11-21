@@ -4,6 +4,7 @@ import csv
 import datetime
 import logging
 import re
+import sys
 import uuid
 from typing import Any, Dict, Iterator, List, Match, NamedTuple, Optional, Union
 
@@ -699,6 +700,7 @@ def read_sql_query(
             "(https://github.com/awslabs/aws-data-wrangler/blob/master/"
             "tutorials/006%20-%20Amazon%20Athena.ipynb)"
         )
+    chunksize = sys.maxsize if ctas_approach is False and chunksize is True else chunksize
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
     cache_info: _CacheInfo = _check_for_cached_results(
