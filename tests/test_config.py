@@ -45,6 +45,14 @@ def test_basics(path, glue_database, glue_table, workgroup0, workgroup1):
     # Testing configured database
     wr.catalog.create_parquet_table(**args)
 
+    # Configuring default database with wrong value
+    wr.config.database = "missing_database"
+    with pytest.raises(boto3.client("glue").exceptions.EntityNotFoundException):
+        wr.catalog.create_parquet_table(**args)
+
+    # Overwriting configured database
+    wr.catalog.create_parquet_table(database=glue_database, **args)
+
     # Testing configured s3 block size
     size = 1 * 2 ** 20  # 1 MB
     wr.config.s3_block_size = size

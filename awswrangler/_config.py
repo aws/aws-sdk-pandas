@@ -347,9 +347,10 @@ def apply_configs(function: Callable[..., Any]) -> Callable[..., Any]:
                 value: _ConfigValueType = config[name]
                 if name not in args:
                     _logger.debug("Applying default config argument %s with value %s.", name, value)
+                    args[name] = value
                 elif _CONFIG_ARGS[name].enforced is True:
                     _logger.debug("Applying ENFORCED config argument %s with value %s.", name, value)
-                args[name] = value
+                    args[name] = value
         for name, param in signature.parameters.items():
             if param.kind == param.VAR_KEYWORD and name in args:
                 if isinstance(args[name], dict) is False:
