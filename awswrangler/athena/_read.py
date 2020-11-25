@@ -613,16 +613,19 @@ def read_sql_query(
     ----
     `chunksize` argument (Memory Friendly) (i.e batching):
 
-    Enable the function to return an Iterable of DataFrames instead of a regular DataFrame.
+    Return an Iterable of DataFrames instead of a regular DataFrame.
 
-    There are two batching strategies on Wrangler:
+    There are two batching strategies:
 
     - If **chunksize=True**, a new DataFrame will be returned for each file in the query result.
 
-    - If **chunked=INTEGER**, Wrangler will iterate on the data by number of rows igual the received INTEGER.
+    - If **chunksize=INTEGER**, Wrangler will iterate on the data by number of rows igual the received INTEGER.
 
-    `P.S.` `chunksize=True` if faster and uses less memory while `chunksize=INTEGER` is more precise
+    `P.S.` `chunksize=True` is faster and uses less memory while `chunksize=INTEGER` is more precise
     in number of rows for each Dataframe.
+
+    `P.P.S.` If `ctas_approach=False` and `chunksize=True`, you will always receive an interador with a
+    single DataFrame because regular Athena queries only produces a single output file.
 
     Note
     ----
@@ -834,16 +837,19 @@ def read_sql_table(
     ----
     `chunksize` argument (Memory Friendly) (i.e batching):
 
-    Enable the function to return an Iterable of DataFrames instead of a regular DataFrame.
+    Return an Iterable of DataFrames instead of a regular DataFrame.
 
-    There are two batching strategies on Wrangler:
+    There are two batching strategies:
 
     - If **chunksize=True**, a new DataFrame will be returned for each file in the query result.
 
-    - If **chunked=INTEGER**, Wrangler will iterate on the data by number of rows igual the received INTEGER.
+    - If **chunksize=INTEGER**, Wrangler will iterate on the data by number of rows igual the received INTEGER.
 
-    `P.S.` `chunksize=True` if faster and uses less memory while `chunksize=INTEGER` is more precise
+    `P.S.` `chunksize=True` is faster and uses less memory while `chunksize=INTEGER` is more precise
     in number of rows for each Dataframe.
+
+    `P.P.S.` If `ctas_approach=False` and `chunksize=True`, you will always receive an interador with a
+    single DataFrame because regular Athena queries only produces a single output file.
 
     Note
     ----
