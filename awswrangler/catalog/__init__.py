@@ -86,4 +86,6 @@ __all__ = [
     "tables",
     "delete_database",
     "delete_table_if_exists",
+    "delete_partitions",
+    "delete_all_partitions",
 ]

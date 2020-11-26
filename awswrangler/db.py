@@ -386,7 +386,7 @@ def read_sql_query(
     Parameters
     ----------
     sql : str
-        Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
+        SQL query.
     con : sqlalchemy.engine.Engine
         SQLAlchemy Engine. Please use,
         wr.db.get_engine(), wr.db.get_redshift_temp_engine() or wr.catalog.get_engine()
@@ -642,6 +642,11 @@ def get_engine(
         conn_str: str = f"{db_type}+psycopg2://{user}:{password}@{host}:{port}/{database}"
         sqlalchemy_kwargs["executemany_mode"] = "values"
         sqlalchemy_kwargs["executemany_values_page_size"] = 100_000
+        if db_type == "redshift":
+            # pylint: disable=import-outside-toplevel,unused-import
+            import sqlalchemy_redshift.dialect  # noqa: F401
+
+            # pylint: enable=import-outside-toplevel,unused-import
         return sqlalchemy.create_engine(conn_str, **sqlalchemy_kwargs)
     if db_type == "mysql":
         conn_str = f"mysql+pymysql://{user}:{password}@{host}:{port}/{database}"
