@@ -29,6 +29,7 @@ Powered By [<img src="https://arrow.apache.org/img/arrow.png" width="200">](http
 - [Read The Docs](#read-the-docs)
 - [Community Resources](#community-resources)
 - [Who uses AWS Data Wrangler?](#who-uses-aws-data-wrangler)
+- [Amazon SageMaker Data Wrangler?](#amazon-sageMaker-data-wrangler)
 
 ## Quick Start
 
@@ -157,3 +158,11 @@ Please [send a Pull Request](https://github.com/awslabs/aws-data-wrangler/edit/m
 - [strongDM](https://www.strongdm.com/) [[@mrtns](https://github.com/mrtns)]
 - [Thinkbumblebee](https://www.thinkbumblebee.com/) [[@dheerajsharma21]](https://github.com/dheerajsharma21)
 - [Zillow](https://www.zillow.com/) [[@nicholas-miles]](https://github.com/nicholas-miles)
+
+## Amazon SageMaker Data Wrangler?
+
+**Amazon SageMaker Data Wrangler** is a new SageMaker plugin that has a similar name but has nothing to do with the **AWS Data Wrangler** project.
+
+* **AWS Data Wrangler** is open source, runs anywhere, and is focused on code.
+
+* **Amazon SageMaker Data Wrangler** is specific for the SageMaker environment, it is **NOT** open source, and is focused on a visual interface.
