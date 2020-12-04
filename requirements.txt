@@ -1,9 +1,8 @@
 boto3>=1.12.49,<2.0.0
 botocore>=1.15.49,<2.0.0
 numpy>=1.18.0,<1.20.0
-pymysql>=0.9.0,<0.11.0
-sqlalchemy-redshift>=0.7.0,<0.9.0
 pandas>=1.1.0,<1.2.0
-SQLAlchemy~=1.3.10
 pyarrow~=2.0.0
-psycopg2-binary~=2.8.0
+redshift-connector~=2.0.711
+pymysql>=0.9.0,<0.11.0
+pg8000~=1.16.6
