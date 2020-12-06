@@ -1,5 +1,4 @@
 import logging
-import time
 
 import boto3
 import pandas as pd
@@ -19,7 +18,7 @@ def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_p
 
     # Round 1 - Warm up
     df = pd.DataFrame({"c0": [0, 1]}, dtype="Int64")
-    paths = wr.s3.to_csv(
+    wr.s3.to_csv(
         df=df,
         path=path,
         dataset=True,
@@ -32,8 +31,7 @@ def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_p
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
         index=False,
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    )
     df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
     assert df.shape == df2.shape
     assert df.c0.sum() == df2.c0.sum()
@@ -48,7 +46,7 @@ def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_p
 
     # Round 2 - Overwrite
     df = pd.DataFrame({"c1": [0, 1, 2]}, dtype="Int16")
-    paths = wr.s3.to_csv(
+    wr.s3.to_csv(
         df=df,
         path=path,
         dataset=True,
@@ -61,8 +59,7 @@ def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_p
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
         index=False,
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    )
     df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
     assert df.shape == df2.shape
     assert df.c1.sum() == df2.c1.sum()
@@ -77,7 +74,7 @@ def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_p
 
     # Round 3 - Append
     df = pd.DataFrame({"c1": [0, 1, 2]}, dtype="Int8")
-    paths = wr.s3.to_csv(
+    wr.s3.to_csv(
         df=df,
         path=path,
         dataset=True,
@@ -90,8 +87,7 @@ def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_p
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
         index=False,
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    )
     df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
     assert len(df.columns) == len(df2.columns)
     assert len(df.index) * 2 == len(df2.index)
@@ -107,7 +103,7 @@ def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_p
 
     # Round 4 - Overwrite Partitioned
     df = pd.DataFrame({"c0": ["foo", "boo"], "c1": [0, 1]})
-    paths = wr.s3.to_csv(
+    wr.s3.to_csv(
         df=df,
         path=path,
         dataset=True,
@@ -121,8 +117,7 @@ def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_p
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
         index=False,
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    )
     df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
     assert df.shape == df2.shape
     assert df.c1.sum() == df2.c1.sum()
@@ -138,7 +133,7 @@ def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_p
 
     # Round 5 - Overwrite Partitions
     df = pd.DataFrame({"c0": ["bar", "abc"], "c1": [0, 2]})
-    paths = wr.s3.to_csv(
+    wr.s3.to_csv(
         df=df,
         path=path,
         dataset=True,
@@ -152,8 +147,7 @@ def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_p
         concurrent_partitioning=concurrent_partitioning,
         use_threads=use_threads,
         index=False,
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    )
     df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
     assert len(df2.columns) == 2
     assert len(df2.index) == 3
@@ -174,7 +168,7 @@ def test_csv_overwrite_several_partitions(path, glue_database, glue_table, use_t
     df0 = pd.DataFrame({"id": list(range(27)), "par": list(range(27))})
     df1 = pd.DataFrame({"id": list(range(26)), "par": list(range(26))})
     for df in (df0, df1):
-        paths = wr.s3.to_csv(
+        wr.s3.to_csv(
             df=df,
             path=path,
             index=False,
@@ -185,8 +179,7 @@ def test_csv_overwrite_several_partitions(path, glue_database, glue_table, use_t
             table=glue_table,
             database=glue_database,
             concurrent_partitioning=True,
-        )["paths"]
-        wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+        )
         df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
         assert df2.shape == df.shape
         assert df2["id"].sum() == df["id"].sum()
@@ -221,7 +214,6 @@ def test_csv_dataset(path, glue_database):
         partition_cols=["par0", "par1"],
         mode="overwrite",
     )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
     df2 = wr.s3.read_csv(path=paths, sep="|", header=None)
     assert len(df2.index) == 3
     assert len(df2.columns) == 8
@@ -233,7 +225,7 @@ def test_csv_dataset(path, glue_database):
 @pytest.mark.parametrize("concurrent_partitioning", [True, False])
 def test_csv_catalog(path, glue_table, glue_database, use_threads, concurrent_partitioning):
     df = get_df_csv()
-    paths = wr.s3.to_csv(
+    wr.s3.to_csv(
         df=df,
         path=path,
         sep="\t",
@@ -247,21 +239,19 @@ def test_csv_catalog(path, glue_table, glue_database, use_threads, concurrent_pa
         table=glue_table,
         database=glue_database,
         concurrent_partitioning=concurrent_partitioning,
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
+    )
     df2 = wr.athena.read_sql_table(glue_table, glue_database)
     assert len(df2.index) == 3
     assert len(df2.columns) == 11
     assert df2["id"].sum() == 6
     ensure_data_types_csv(df2)
-    wr.s3.delete_objects(path=paths)
     assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table) is True
 
 
 @pytest.mark.parametrize("use_threads", [True, False])
 @pytest.mark.parametrize("concurrent_partitioning", [True, False])
 def test_csv_catalog_columns(path, glue_database, glue_table, use_threads, concurrent_partitioning):
-    paths = wr.s3.to_csv(
+    wr.s3.to_csv(
         df=get_df_csv(),
         path=path,
         sep="|",
@@ -276,15 +266,14 @@ def test_csv_catalog_columns(path, glue_database, glue_table, use_threads, concu
         table=glue_table,
         database=glue_database,
         concurrent_partitioning=concurrent_partitioning,
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    )
     df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
     assert len(df2.index) == 3
     assert len(df2.columns) == 5
     assert df2["id"].sum() == 6
     ensure_data_types_csv(df2)
 
-    paths = wr.s3.to_csv(
+    wr.s3.to_csv(
         df=pd.DataFrame({"id": [4], "date": [None], "timestamp": [None], "par0": [1], "par1": ["a"]}),
         path=path,
         sep="|",
@@ -298,8 +287,7 @@ def test_csv_catalog_columns(path, glue_database, glue_table, use_threads, concu
         table=glue_table,
         database=glue_database,
         concurrent_partitioning=concurrent_partitioning,
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    )
     df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
     assert len(df2.index) == 3
     assert len(df2.columns) == 5
@@ -309,7 +297,7 @@ def test_csv_catalog_columns(path, glue_database, glue_table, use_threads, concu
 
 def test_athena_csv_types(path, glue_database, glue_table):
     df = get_df_csv()
-    paths = wr.s3.to_csv(
+    wr.s3.to_csv(
         df=df,
         path=path,
         sep=",",
@@ -320,8 +308,7 @@ def test_athena_csv_types(path, glue_database, glue_table):
         dataset=True,
         partition_cols=["par0", "par1"],
         mode="overwrite",
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
+    )
     columns_types, partitions_types = wr.catalog.extract_athena_types(
         df=df, index=False, partition_cols=["par0", "par1"], file_format="csv"
     )
@@ -344,7 +331,6 @@ def test_athena_csv_types(path, glue_database, glue_table):
     assert len(df2.columns) == 10
     assert df2["id"].sum() == 6
     ensure_data_types_csv(df2)
-    wr.s3.delete_objects(path=paths)
     assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table) is True
 
 
@@ -354,10 +340,7 @@ def test_skip_header(path, glue_database, glue_table, use_threads, ctas_approach
     df = pd.DataFrame({"c0": [1, 2], "c1": [3.3, 4.4], "c2": ["foo", "boo"]})
     df["c0"] = df["c0"].astype("Int64")
     df["c2"] = df["c2"].astype("string")
-    paths = wr.s3.to_csv(df=df, path=f"{path}0.csv", sep=",", index=False, header=True, use_threads=use_threads)[
-        "paths"
-    ]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=use_threads)
+    wr.s3.to_csv(df=df, path=f"{path}0.csv", sep=",", index=False, header=True, use_threads=use_threads)
     wr.catalog.create_csv_table(
         database=glue_database,
         table=glue_table,
@@ -412,5 +395,4 @@ def test_failing_catalog(path, glue_table, use_threads):
         wr.s3.to_csv(df, path, use_threads=use_threads, dataset=True, table=glue_table, database="foo")
     except boto3.client("glue").exceptions.EntityNotFoundException:
         pass
-    time.sleep(3)
     assert len(wr.s3.list_objects(path)) == 0

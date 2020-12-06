@@ -32,7 +32,6 @@ def test_csv_encoding(path, encoding, strings, wrong_encoding, exception, line_t
     wr.s3.to_csv(
         df, file_path, index=False, encoding=encoding, line_terminator=line_terminator, use_threads=use_threads
     )
-    wr.s3.wait_objects_exist(paths=[file_path], use_threads=use_threads)
     df2 = wr.s3.read_csv(
         file_path, encoding=encoding, lineterminator=line_terminator, use_threads=use_threads, chunksize=chunksize
     )
@@ -53,7 +52,6 @@ def test_read_partitioned_json(path, use_threads, chunksize):
     paths = [f"{path}year={y}/month={m}/0.json" for y, m in [(2020, 1), (2020, 2), (2021, 1)]]
     for p in paths:
         wr.s3.to_json(df, p, orient="records", lines=True)
-    wr.s3.wait_objects_exist(paths, use_threads=use_threads)
     df2 = wr.s3.read_json(path, dataset=True, use_threads=use_threads, chunksize=chunksize)
     if chunksize is None:
         assert df2.shape == (6, 4)
@@ -70,7 +68,6 @@ def test_read_partitioned_csv(path, use_threads, chunksize):
     paths = [f"{path}year={y}/month={m}/0.csv" for y, m in [(2020, 1), (2020, 2), (2021, 1)]]
     for p in paths:
         wr.s3.to_csv(df, p, index=False)
-    wr.s3.wait_objects_exist(paths, use_threads=use_threads)
     df2 = wr.s3.read_csv(path, dataset=True, use_threads=use_threads, chunksize=chunksize)
     if chunksize is None:
         assert df2.shape == (6, 4)
@@ -89,7 +86,6 @@ def test_read_partitioned_fwf(path, use_threads, chunksize):
     for p in paths:
         bucket, key = wr._utils.parse_path(p)
         client_s3.put_object(Body=text, Bucket=bucket, Key=key)
-    wr.s3.wait_objects_exist(paths, use_threads=use_threads)
     df2 = wr.s3.read_fwf(
         path, dataset=True, use_threads=use_threads, chunksize=chunksize, widths=[1, 3], names=["c0", "c1"]
     )
@@ -134,7 +130,6 @@ def test_csv_compress(bucket, path, compression):
         file_path = f"{path}test.csv"
         wr.s3.to_csv(df=df, path=file_path, index=False, header=None)
 
-    wr.s3.wait_objects_exist(paths=[file_path])
     df2 = wr.s3.read_csv(path=[file_path], names=df.columns)
     assert df2.shape == (3, 10)
     dfs = wr.s3.read_csv(path=[file_path], names=df.columns, chunksize=1)
@@ -149,14 +144,11 @@ def test_csv(path):
     path1 = f"{path}test_csv1.csv"
     path2 = f"{path}test_csv2.csv"
     wr.s3.to_csv(df=df, path=path0, index=False)
-    wr.s3.wait_objects_exist(paths=[path0])
     assert wr.s3.does_object_exist(path=path0) is True
     assert wr.s3.size_objects(path=[path0], use_threads=False)[path0] == 9
     assert wr.s3.size_objects(path=[path0], use_threads=True)[path0] == 9
     wr.s3.to_csv(df=df, path=path1, index=False, boto3_session=None)
-    wr.s3.wait_objects_exist(paths=[path1])
     wr.s3.to_csv(df=df, path=path2, index=False, boto3_session=session)
-    wr.s3.wait_objects_exist(paths=[path2])
     assert df.equals(wr.s3.read_csv(path=path0, use_threads=False))
     assert df.equals(wr.s3.read_csv(path=path0, use_threads=True))
     assert df.equals(wr.s3.read_csv(path=path0, use_threads=False, boto3_session=session))
@@ -171,8 +163,6 @@ def test_csv(path):
         wr.s3.read_csv(path=1)
     with pytest.raises(wr.exceptions.InvalidArgument):
         wr.s3.read_csv(path=paths, iterator=True)
-    wr.s3.delete_objects(path=paths, use_threads=False)
-    wr.s3.wait_objects_not_exist(paths=paths, use_threads=False)
 
 
 def test_json(path):
@@ -181,7 +171,6 @@ def test_json(path):
     path1 = f"{path}test_json1.json"
     wr.s3.to_json(df=df0, path=path0)
     wr.s3.to_json(df=df0, path=path1)
-    wr.s3.wait_objects_exist(paths=[path0, path1], use_threads=False)
     assert df0.equals(wr.s3.read_json(path=path0, use_threads=False))
     df1 = pd.concat(objs=[df0, df0], sort=False, ignore_index=False)
     assert df1.equals(wr.s3.read_json(path=[path0, path1], use_threads=True))
@@ -196,7 +185,6 @@ def test_fwf(path):
     path1 = f"{path}1.txt"
     bucket, key = wr._utils.parse_path(path1)
     client_s3.put_object(Body=text, Bucket=bucket, Key=key)
-    wr.s3.wait_objects_exist(paths=[path0, path1])
     df = wr.s3.read_fwf(path=path0, use_threads=False, widths=[1, 12, 8], names=["id", "name", "date"])
     assert df.shape == (3, 3)
     df = wr.s3.read_fwf(path=[path0, path1], use_threads=True, widths=[1, 12, 8], names=["id", "name", "date"])
@@ -209,7 +197,6 @@ def test_json_chunksize(path):
     paths = [f"{path}{i}.json" for i in range(num_files)]
     for p in paths:
         wr.s3.to_json(df, p, orient="records", lines=True)
-    wr.s3.wait_objects_exist(paths)
     dfs = list(wr.s3.read_json(paths, lines=True, chunksize=1))
     assert len(dfs) == (3 * num_files)
     for d in dfs:
@@ -226,7 +213,6 @@ def test_read_csv_index(path):
     paths = [path0, path1]
     wr.s3.to_csv(df=df0, path=path0, index=False)
     wr.s3.to_csv(df=df1, path=path1, index=False)
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
     df = wr.s3.read_csv(paths, index_col=["id"])
     assert df.shape == (6, 1)
 
@@ -239,7 +225,6 @@ def test_read_json_index(path):
     paths = [path0, path1]
     wr.s3.to_json(df=df0, path=path0, orient="index")
     wr.s3.to_json(df=df1, path=path1, orient="index")
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
     df = wr.s3.read_json(paths, orient="index")
     assert df.shape == (6, 2)
 
@@ -270,6 +255,5 @@ def test_csv_line_terminator(path, line_terminator):
     file_path = f"{path}0.csv"
     df = pd.DataFrame(data={"reading": ["col1", "col2"], "timestamp": [1601379427618, 1601379427625], "value": [1, 2]})
     wr.s3.to_csv(df=df, path=file_path, index=False, line_terminator=line_terminator)
-    wr.s3.wait_objects_exist(paths=[file_path])
     df2 = wr.s3.read_csv(file_path)
     assert df.equals(df2)

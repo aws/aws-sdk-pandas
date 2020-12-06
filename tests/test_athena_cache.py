@@ -13,10 +13,7 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 def test_athena_cache(path, glue_database, glue_table, workgroup1):
     df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
-    paths = wr.s3.to_parquet(
-        df=df, path=path, dataset=True, mode="overwrite", database=glue_database, table=glue_table
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
+    wr.s3.to_parquet(df=df, path=path, dataset=True, mode="overwrite", database=glue_database, table=glue_table)
 
     df2 = wr.athena.read_sql_table(
         glue_table, glue_database, ctas_approach=False, max_cache_seconds=1, workgroup=workgroup1
@@ -39,7 +36,7 @@ def test_athena_cache(path, glue_database, glue_table, workgroup1):
 @pytest.mark.parametrize("data_source", [None, "AwsDataCatalog"])
 def test_cache_query_ctas_approach_true(path, glue_database, glue_table, data_source):
     df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
-    paths = wr.s3.to_parquet(
+    wr.s3.to_parquet(
         df=df,
         path=path,
         dataset=True,
@@ -49,8 +46,7 @@ def test_cache_query_ctas_approach_true(path, glue_database, glue_table, data_so
         description="c0",
         parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
         columns_comments={"c0": "0"},
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
+    )
 
     with patch(
         "awswrangler.athena._read._check_for_cached_results",
@@ -76,7 +72,7 @@ def test_cache_query_ctas_approach_true(path, glue_database, glue_table, data_so
 @pytest.mark.parametrize("data_source", [None, "AwsDataCatalog"])
 def test_cache_query_ctas_approach_false(path, glue_database, glue_table, data_source):
     df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
-    paths = wr.s3.to_parquet(
+    wr.s3.to_parquet(
         df=df,
         path=path,
         dataset=True,
@@ -86,8 +82,7 @@ def test_cache_query_ctas_approach_false(path, glue_database, glue_table, data_s
         description="c0",
         parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
         columns_comments={"c0": "0"},
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
+    )
 
     with patch(
         "awswrangler.athena._read._check_for_cached_results",
@@ -112,10 +107,7 @@ def test_cache_query_ctas_approach_false(path, glue_database, glue_table, data_s
 
 def test_cache_query_semicolon(path, glue_database, glue_table):
     df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
-    paths = wr.s3.to_parquet(
-        df=df, path=path, dataset=True, mode="overwrite", database=glue_database, table=glue_table
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
+    wr.s3.to_parquet(df=df, path=path, dataset=True, mode="overwrite", database=glue_database, table=glue_table)
 
     with patch(
         "awswrangler.athena._read._check_for_cached_results",

@@ -223,8 +223,7 @@ def test_additional_kwargs(path, kms_key_id, s3_additional_kwargs, use_threads):
 
 def test_pyarrow(path, glue_table, glue_database):
     df = get_df_list()
-    paths = wr.s3.to_parquet(df, path, dataset=True, database=glue_database, table=glue_table)["paths"]
-    wr.s3.wait_objects_exist(paths)
+    wr.s3.to_parquet(df, path, dataset=True, database=glue_database, table=glue_table)
     df2 = wr.athena.read_sql_table(database=glue_database, table=glue_table)
     ensure_data_types(df2, has_list=True)
     assert df2.shape == (3, 19)

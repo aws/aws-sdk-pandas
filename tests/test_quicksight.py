@@ -9,10 +9,9 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 def test_quicksight(path, glue_database, glue_table):
     df = get_df_quicksight()
-    paths = wr.s3.to_parquet(
+    wr.s3.to_parquet(
         df=df, path=path, dataset=True, database=glue_database, table=glue_table, partition_cols=["par0", "par1"]
-    )["paths"]
-    wr.s3.wait_objects_exist(paths, use_threads=False)
+    )
 
     wr.quicksight.delete_all_dashboards()
     wr.quicksight.delete_all_datasets()

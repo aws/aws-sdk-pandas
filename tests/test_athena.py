@@ -32,7 +32,7 @@ def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database,
     assert len(partitions_types) == 2
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.catalog.extract_athena_types(df=df, file_format="avro")
-    paths = wr.s3.to_parquet(
+    wr.s3.to_parquet(
         df=get_df_list(),
         path=path,
         index=True,
@@ -42,8 +42,7 @@ def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database,
         database=glue_database,
         table=glue_table,
         partition_cols=["par0", "par1"],
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
+    )
     dirs = wr.s3.list_directories(path=path)
     for d in dirs:
         assert d.startswith(f"{path}par0=")
@@ -106,7 +105,7 @@ def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database,
 def test_athena(path, glue_database, glue_table, kms_key, workgroup0, workgroup1):
     table = f"__{glue_table}"
     wr.catalog.delete_table_if_exists(database=glue_database, table=table)
-    paths = wr.s3.to_parquet(
+    wr.s3.to_parquet(
         df=get_df(),
         path=path,
         index=True,
@@ -116,8 +115,7 @@ def test_athena(path, glue_database, glue_table, kms_key, workgroup0, workgroup1
         database=glue_database,
         table=table,
         partition_cols=["par0", "par1"],
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    )
     dfs = wr.athena.read_sql_query(
         sql=f"SELECT * FROM {table}",
         database=glue_database,
@@ -411,7 +409,7 @@ def test_athena_time_zone(glue_database):
 
 def test_category(path, glue_table, glue_database):
     df = get_df_category()
-    paths = wr.s3.to_parquet(
+    wr.s3.to_parquet(
         df=df,
         path=path,
         dataset=True,
@@ -419,8 +417,7 @@ def test_category(path, glue_table, glue_database):
         table=glue_table,
         mode="overwrite",
         partition_cols=["par0", "par1"],
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    )
     df2 = wr.s3.read_parquet(path=path, dataset=True, categories=[c for c in df.columns if c not in ["par0", "par1"]])
     ensure_data_types_category(df2)
     df2 = wr.athena.read_sql_query(f"SELECT * FROM {glue_table}", database=glue_database, categories=list(df.columns))
@@ -449,7 +446,6 @@ def test_category(path, glue_table, glue_database):
     )
     for df2 in dfs:
         ensure_data_types_category(df2)
-    wr.s3.delete_objects(path=paths)
     assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table) is True
 
 
@@ -481,7 +477,7 @@ def test_athena_encryption(
     elif workgroup == 3:
         workgroup = workgroup3
     df = pd.DataFrame({"a": [1, 2], "b": ["foo", "boo"]})
-    paths = wr.s3.to_parquet(
+    wr.s3.to_parquet(
         df=df,
         path=path,
         dataset=True,
@@ -489,8 +485,7 @@ def test_athena_encryption(
         database=glue_database,
         table=glue_table,
         s3_additional_kwargs=None,
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    )
     df2 = wr.athena.read_sql_table(
         table=glue_table,
         ctas_approach=ctas_approach,
@@ -517,7 +512,7 @@ def test_athena_nested(path, glue_database, glue_table):
             "c5": [{"a": {"b": {"c": [1, 2]}}}, {"a": {"b": {"c": [3, 4]}}}],
         }
     )
-    paths = wr.s3.to_parquet(
+    wr.s3.to_parquet(
         df=df,
         path=path,
         index=False,
@@ -526,8 +521,7 @@ def test_athena_nested(path, glue_database, glue_table):
         mode="overwrite",
         database=glue_database,
         table=glue_table,
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
+    )
     df2 = wr.athena.read_sql_query(sql=f"SELECT c0, c1, c2, c4 FROM {glue_table}", database=glue_database)
     assert len(df2.index) == 2
     assert len(df2.columns) == 4
@@ -539,11 +533,10 @@ def test_catalog_versioning(path, glue_database, glue_table):
 
     # Version 0
     df = pd.DataFrame({"c0": [1, 2]})
-    paths = wr.s3.to_parquet(
-        df=df, path=path, dataset=True, database=glue_database, table=glue_table, mode="overwrite"
-    )["paths"]
+    wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table, mode="overwrite")[
+        "paths"
+    ]
     assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 1
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
     df = wr.athena.read_sql_table(table=glue_table, database=glue_database)
     assert len(df.index) == 2
     assert len(df.columns) == 1
@@ -551,7 +544,7 @@ def test_catalog_versioning(path, glue_database, glue_table):
 
     # Version 1
     df = pd.DataFrame({"c1": ["foo", "boo"]})
-    paths1 = wr.s3.to_parquet(
+    wr.s3.to_parquet(
         df=df,
         path=path,
         dataset=True,
@@ -559,9 +552,8 @@ def test_catalog_versioning(path, glue_database, glue_table):
         table=glue_table,
         mode="overwrite",
         catalog_versioning=True,
-    )["paths"]
+    )
     assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 2
-    wr.s3.wait_objects_exist(paths=paths1, use_threads=False)
     df = wr.athena.read_sql_table(table=glue_table, database=glue_database)
     assert len(df.index) == 2
     assert len(df.columns) == 1
@@ -569,7 +561,7 @@ def test_catalog_versioning(path, glue_database, glue_table):
 
     # Version 2
     df = pd.DataFrame({"c1": [1.0, 2.0]})
-    paths2 = wr.s3.to_csv(
+    wr.s3.to_csv(
         df=df,
         path=path,
         dataset=True,
@@ -578,10 +570,8 @@ def test_catalog_versioning(path, glue_database, glue_table):
         mode="overwrite",
         catalog_versioning=True,
         index=False,
-    )["paths"]
+    )
     assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 3
-    wr.s3.wait_objects_exist(paths=paths2, use_threads=False)
-    wr.s3.wait_objects_not_exist(paths=paths1, use_threads=False)
     df = wr.athena.read_sql_table(table=glue_table, database=glue_database)
     assert len(df.index) == 2
     assert len(df.columns) == 1
@@ -589,7 +579,7 @@ def test_catalog_versioning(path, glue_database, glue_table):
 
     # Version 3 (removing version 2)
     df = pd.DataFrame({"c1": [True, False]})
-    paths3 = wr.s3.to_csv(
+    wr.s3.to_csv(
         df=df,
         path=path,
         dataset=True,
@@ -598,10 +588,8 @@ def test_catalog_versioning(path, glue_database, glue_table):
         mode="overwrite",
         catalog_versioning=False,
         index=False,
-    )["paths"]
+    )
     assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 3
-    wr.s3.wait_objects_exist(paths=paths3, use_threads=False)
-    wr.s3.wait_objects_not_exist(paths=paths2, use_threads=False)
     df = wr.athena.read_sql_table(table=glue_table, database=glue_database)
     assert len(df.index) == 2
     assert len(df.columns) == 1
@@ -702,7 +690,7 @@ def test_glue_database():
 
 
 def test_catalog_columns(path, glue_table, glue_database):
-    paths = wr.s3.to_parquet(
+    wr.s3.to_parquet(
         df=get_df_csv()[["id", "date", "timestamp", "par0", "par1"]],
         path=path,
         index=False,
@@ -714,15 +702,14 @@ def test_catalog_columns(path, glue_table, glue_database):
         mode="overwrite",
         table=glue_table,
         database=glue_database,
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
+    )
     df2 = wr.athena.read_sql_table(glue_table, glue_database)
     assert len(df2.index) == 3
     assert len(df2.columns) == 5
     assert df2["id"].sum() == 6
     ensure_data_types_csv(df2)
 
-    paths = wr.s3.to_parquet(
+    wr.s3.to_parquet(
         df=pd.DataFrame({"id": [4], "date": [None], "timestamp": [None], "par0": [1], "par1": ["a"]}),
         path=path,
         index=False,
@@ -734,8 +721,7 @@ def test_catalog_columns(path, glue_table, glue_database):
         mode="overwrite_partitions",
         table=glue_table,
         database=glue_database,
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths)
+    )
     df2 = wr.athena.read_sql_table(glue_table, glue_database)
     assert len(df2.index) == 3
     assert len(df2.columns) == 5
