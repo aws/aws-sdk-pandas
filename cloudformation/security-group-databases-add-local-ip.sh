@@ -12,5 +12,4 @@ aws ec2 authorize-security-group-ingress \
   --group-id ${SGID} \
   --protocol all \
   --port -1 \
-  --cidr ${LOCALIP}/32 \
-  --output text
+  --cidr ${LOCALIP}/32
