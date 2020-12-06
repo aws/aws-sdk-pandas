@@ -100,7 +100,7 @@ You can choose from three different environments to test your fixes/changes, bas
 
 * To run a specific test function:
 
-``pytest tests/test_moto::test_get_bucket_region_succeed``
+``pytest tests/test_moto.py::test_get_bucket_region_succeed``
 
 * To run all mocked test functions (Using 8 parallel processes):
 
@@ -120,6 +120,10 @@ You can choose from three different environments to test your fixes/changes, bas
 * Install dependencies:
 
 ``pip install -r requirements-dev.txt``
+
+* [OPTIONAL] Set AWS_DEFAULT_REGION to define the region the Data Lake Test envrioment will deploy into. You may want to choose a region which you don't currently use:
+
+``export AWS_DEFAULT_REGION=ap-northeast-1``
 
 * Go to the ``cloudformation`` directory
 
@@ -145,9 +149,15 @@ You can choose from three different environments to test your fixes/changes, bas
 
 ``pytest -n 8 tests/test_athena*``
 
+* [OPTIONAL] To remove the base test environment cloud formation stack post testing:
+
+``./cloudformation/delete-base.sh``
+
 ### Full test environment
 
 **DISCLAIMER**: Make sure you know what you are doing. These steps will charge some services on your AWS account and require a minimum security skill to keep your environment safe.
+
+**DISCLAIMER**: This environment contains Aurora MySQL, Aurora PostgreSQL and Redshift (single-node) clusters which will incur cost while running.
 
 * Pick up a Linux or MacOS.
 * Install Python 3.6, 3.7 and 3.8
@@ -160,16 +170,27 @@ You can choose from three different environments to test your fixes/changes, bas
 
 ``pip install -r requirements-dev.txt``
 
+* [OPTIONAL] Set AWS_DEFAULT_REGION to define the region the Full Test envrioment will deploy into. You may want to choose a region which you don't currently use:
+
+``export AWS_DEFAULT_REGION=ap-northeast-1``
+
 * Go to the ``cloudformation`` directory
 
 ``cd cloudformation``
 
-* Deploy the Cloudformation templates `base.yaml` and `databases.yaml`
+* Deploy the Cloudformation templates `base.yaml` and `databases.yaml`. This step could take about 15 minutes to deploy.
 
 ``./deploy-base.sh``
 ``./deploy-databases.sh``
 
 * Go to the `EC2 -> SecurityGroups` console, open the `aws-data-wrangler-*` security group and configure to accept your IP from any TCP port.
+  - Alternatively run:
+  
+  ``./security-group-databases-add-local-ip.sh``
+  
+  - Check local IP was applied:
+  
+  ``./security-group-databases-check.sh``
 
 ``P.S Make sure that your security group will not be open to the World! Configure your security group to only give access for your IP.``
 
@@ -185,11 +206,21 @@ You can choose from three different environments to test your fixes/changes, bas
 
 * To run a specific test function:
 
-``pytest tests/test_athena_parquet.py::test_parquet_catalog``
+``pytest tests/test_db.py::test_sql``
+
+* To run all database test functions (Using 8 parallel processes):
+
+``pytest -n 8 tests/test_db.py``
 
 * To run all data lake test functions for all python versions (Only if Amazon QuickSight is activated):
 
 ``./test.sh``
+
+* [OPTIONAL] To remove the base test environment cloud formation stack post testing:
+
+``./cloudformation/delete-base.sh``
+
+``./cloudformation/delete-databases.sh``
 
 ## Recommended Visual Studio Code Recommended settings
 

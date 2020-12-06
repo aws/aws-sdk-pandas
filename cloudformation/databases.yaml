@@ -408,3 +408,8 @@ Outputs:
         - AuroraInstanceMysql
         - Endpoint.Address
     Description: Mysql Address
+  DatabaseSecurityGroupId:
+    Value:
+      Fn::GetAtt:
+        - DatabaseSecurityGroup
+        - GroupId
