@@ -158,9 +158,11 @@ def redshift_external_schema(cloudformation_outputs, databases_parameters, glue_
     IAM_ROLE '{databases_parameters["redshift"]["role"]}'
     REGION '{region}';
     """
-    engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
-    with engine.connect() as con:
-        con.execute(sql)
+    con = wr.redshift.connect(connection="aws-data-wrangler-redshift")
+    with con.cursor() as cursor:
+        cursor.execute(sql)
+        con.commit()
+    con.close()
     return "aws_data_wrangler_external"
 
 
@@ -203,9 +205,10 @@ def redshift_table():
     name = f"tbl_{get_time_str_with_random_suffix()}"
     print(f"Table name: {name}")
     yield name
-    engine = wr.catalog.get_engine(connection="aws-data-wrangler-redshift")
-    with engine.connect() as con:
-        con.execute(f"DROP TABLE IF EXISTS public.{name}")
+    con = wr.redshift.connect("aws-data-wrangler-redshift")
+    with con.cursor() as cursor:
+        cursor.execute(f"DROP TABLE IF EXISTS public.{name}")
+    con.close()
 
 
 @pytest.fixture(scope="function")
@@ -213,9 +216,10 @@ def postgresql_table():
     name = f"tbl_{get_time_str_with_random_suffix()}"
     print(f"Table name: {name}")
     yield name
-    engine = wr.catalog.get_engine(connection="aws-data-wrangler-postgresql")
-    with engine.connect() as con:
-        con.execute(f"DROP TABLE IF EXISTS public.{name}")
+    con = wr.postgresql.connect("aws-data-wrangler-postgresql")
+    with con.cursor() as cursor:
+        cursor.execute(f"DROP TABLE IF EXISTS public.{name}")
+    con.close()
 
 
 @pytest.fixture(scope="function")
@@ -223,6 +227,7 @@ def mysql_table():
     name = f"tbl_{get_time_str_with_random_suffix()}"
     print(f"Table name: {name}")
     yield name
-    engine = wr.catalog.get_engine(connection="aws-data-wrangler-mysql")
-    with engine.connect() as con:
-        con.execute(f"DROP TABLE IF EXISTS test.{name}")
+    con = wr.mysql.connect("aws-data-wrangler-mysql")
+    with con.cursor() as cursor:
+        cursor.execute(f"DROP TABLE IF EXISTS test.{name}")
+    con.close()

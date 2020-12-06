@@ -516,15 +516,11 @@ def get_time_str_with_random_suffix() -> str:
 def path_generator(bucket: str) -> Iterator[str]:
     s3_path = f"s3://{bucket}/{get_time_str_with_random_suffix()}/"
     print(f"S3 Path: {s3_path}")
-    time.sleep(1)
     objs = wr.s3.list_objects(s3_path)
     wr.s3.delete_objects(path=objs)
-    wr.s3.wait_objects_not_exist(objs)
     yield s3_path
-    time.sleep(1)
     objs = wr.s3.list_objects(s3_path)
     wr.s3.delete_objects(path=objs)
-    wr.s3.wait_objects_not_exist(objs)
 
 
 def extract_cloudformation_outputs():
