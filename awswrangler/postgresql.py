@@ -70,17 +70,6 @@ def _create_table(
     cursor.execute(sql)
 
 
-def _extract_parameters(df: pd.DataFrame) -> List[List[Any]]:
-    parameters: List[List[Any]] = df.values.tolist()
-    for i, row in enumerate(parameters):
-        for j, value in enumerate(row):
-            if pd.isna(value):
-                parameters[i][j] = None
-            elif hasattr(value, "to_pydatetime"):
-                parameters[i][j] = value.to_pydatetime()
-    return parameters
-
-
 def connect(
     connection: str,
     catalog_id: Optional[str] = None,
@@ -343,7 +332,7 @@ def to_sql(
             placeholders: str = ", ".join(["%s"] * len(df.columns))
             sql: str = f"INSERT INTO {schema}.{table} VALUES ({placeholders})"
             _logger.debug("sql: %s", sql)
-            parameters: List[List[Any]] = _extract_parameters(df=df)
+            parameters: List[List[Any]] = _db_utils.extract_parameters(df=df)
             cursor.executemany(sql, parameters)
             con.commit()
     except Exception as ex:

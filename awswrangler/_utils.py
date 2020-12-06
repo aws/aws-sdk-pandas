@@ -83,11 +83,16 @@ def _get_endpoint_url(service_name: str) -> Optional[str]:
     return endpoint_url
 
 
-def client(service_name: str, session: Optional[boto3.Session] = None) -> boto3.client:
+def client(
+    service_name: str, session: Optional[boto3.Session] = None, config: Optional[botocore.config.Config] = None
+) -> boto3.client:
     """Create a valid boto3.client."""
     endpoint_url: Optional[str] = _get_endpoint_url(service_name=service_name)
     return ensure_session(session=session).client(
-        service_name=service_name, endpoint_url=endpoint_url, use_ssl=True, config=botocore_config()
+        service_name=service_name,
+        endpoint_url=endpoint_url,
+        use_ssl=True,
+        config=botocore_config() if config is None else config,
     )
 
 

@@ -166,6 +166,29 @@ def pyarrow2postgresql(  # pylint: disable=too-many-branches,too-many-return-sta
     raise exceptions.UnsupportedType(f"Unsupported PostgreSQL type: {dtype}")
 
 
+def pyarrow2timestream(dtype: pa.DataType) -> str:  # pylint: disable=too-many-branches,too-many-return-statements
+    """Pyarrow to Amazon Timestream data types conversion."""
+    if pa.types.is_int8(dtype):
+        return "BIGINT"
+    if pa.types.is_int16(dtype) or pa.types.is_uint8(dtype):
+        return "BIGINT"
+    if pa.types.is_int32(dtype) or pa.types.is_uint16(dtype):
+        return "BIGINT"
+    if pa.types.is_int64(dtype) or pa.types.is_uint32(dtype):
+        return "BIGINT"
+    if pa.types.is_uint64(dtype):
+        return "BIGINT"
+    if pa.types.is_float32(dtype):
+        return "DOUBLE"
+    if pa.types.is_float64(dtype):
+        return "DOUBLE"
+    if pa.types.is_boolean(dtype):
+        return "BOOLEAN"
+    if pa.types.is_string(dtype):
+        return "VARCHAR"
+    raise exceptions.UnsupportedType(f"Unsupported Amazon Timestream measure type: {dtype}")
+
+
 def athena2pyarrow(dtype: str) -> pa.DataType:  # pylint: disable=too-many-return-statements
     """Athena to PyArrow data types conversion."""
     dtype = dtype.lower().replace(" ", "")
@@ -587,3 +610,13 @@ def database_types_from_pandas(
             database_types[col_name] = converter_func(col_dtype, string_type)
     _logger.debug("database_types: %s", database_types)
     return database_types
+
+
+def timestream_type_from_pandas(df: pd.DataFrame) -> str:
+    """Extract Amazon Timestream types from a Pandas DataFrame."""
+    pyarrow_types: Dict[str, Optional[pa.DataType]] = pyarrow_types_from_pandas(df=df, index=False, ignore_cols=[])
+    if len(pyarrow_types) != 1 or list(pyarrow_types.values())[0] is None:
+        raise RuntimeError(f"Invalid pyarrow_types: {pyarrow_types}")
+    pyarrow_type: pa.DataType = list(pyarrow_types.values())[0]
+    _logger.debug("pyarrow_type: %s", pyarrow_type)
+    return pyarrow2timestream(dtype=pyarrow_type)
