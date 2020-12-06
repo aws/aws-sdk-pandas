@@ -7,7 +7,19 @@ Documentation: https://aws-data-wrangler.readthedocs.io/
 
 import logging as _logging
 
-from awswrangler import athena, catalog, cloudwatch, db, emr, exceptions, quicksight, s3, sts  # noqa
+from awswrangler import (  # noqa
+    athena,
+    catalog,
+    cloudwatch,
+    emr,
+    exceptions,
+    mysql,
+    postgresql,
+    quicksight,
+    redshift,
+    s3,
+    sts,
+)
 from awswrangler.__metadata__ import __description__, __license__, __title__, __version__  # noqa
 from awswrangler._config import config  # noqa
 
@@ -15,17 +27,20 @@ __all__ = [
     "athena",
     "catalog",
     "cloudwatch",
-    "db",
     "emr",
     "exceptions",
     "quicksight",
     "s3",
     "sts",
+    "redshift",
+    "mysql",
+    "postgresql",
     "config",
     "__description__",
     "__license__",
     "__title__",
     "__version__",
 ]
+
 
 _logging.getLogger("awswrangler").addHandler(_logging.NullHandler())

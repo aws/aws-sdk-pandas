@@ -380,7 +380,6 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
 
     def read(self, length: int = -1) -> Union[bytes, str]:
         """Return cached data and fetch on demand chunks."""
-        _logger.debug("Reading: %s bytes at %s", length, self._loc)
         if self.readable() is False:
             raise ValueError("File not in read mode.")
         if self.closed is True:

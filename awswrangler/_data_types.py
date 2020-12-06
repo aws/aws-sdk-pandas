@@ -4,22 +4,166 @@ import datetime
 import logging
 import re
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Dict, List, Match, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Match, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet
-import sqlalchemy
-import sqlalchemy.dialects.mysql
-import sqlalchemy.dialects.postgresql
 
 from awswrangler import _utils, exceptions
 
-if TYPE_CHECKING:
-    from sqlalchemy.sql.visitors import VisitableType
-
 _logger: logging.Logger = logging.getLogger(__name__)
+
+
+def pyarrow2athena(dtype: pa.DataType) -> str:  # pylint: disable=too-many-branches,too-many-return-statements
+    """Pyarrow to Athena data types conversion."""
+    if pa.types.is_int8(dtype):
+        return "tinyint"
+    if pa.types.is_int16(dtype) or pa.types.is_uint8(dtype):
+        return "smallint"
+    if pa.types.is_int32(dtype) or pa.types.is_uint16(dtype):
+        return "int"
+    if pa.types.is_int64(dtype) or pa.types.is_uint32(dtype):
+        return "bigint"
+    if pa.types.is_uint64(dtype):
+        raise exceptions.UnsupportedType("There is no support for uint64, please consider int64 or uint32.")
+    if pa.types.is_float32(dtype):
+        return "float"
+    if pa.types.is_float64(dtype):
+        return "double"
+    if pa.types.is_boolean(dtype):
+        return "boolean"
+    if pa.types.is_string(dtype):
+        return "string"
+    if pa.types.is_timestamp(dtype):
+        return "timestamp"
+    if pa.types.is_date(dtype):
+        return "date"
+    if pa.types.is_binary(dtype):
+        return "binary"
+    if pa.types.is_dictionary(dtype):
+        return pyarrow2athena(dtype=dtype.value_type)
+    if pa.types.is_decimal(dtype):
+        return f"decimal({dtype.precision},{dtype.scale})"
+    if pa.types.is_list(dtype):
+        return f"array<{pyarrow2athena(dtype=dtype.value_type)}>"
+    if pa.types.is_struct(dtype):
+        return f"struct<{','.join([f'{f.name}:{pyarrow2athena(dtype=f.type)}' for f in dtype])}>"
+    if pa.types.is_map(dtype):
+        return f"map<{pyarrow2athena(dtype=dtype.key_type)}, {pyarrow2athena(dtype=dtype.item_type)}>"
+    if dtype == pa.null():
+        raise exceptions.UndetectedType("We can not infer the data type from an entire null object column")
+    raise exceptions.UnsupportedType(f"Unsupported Pyarrow type: {dtype}")
+
+
+def pyarrow2redshift(  # pylint: disable=too-many-branches,too-many-return-statements
+    dtype: pa.DataType, string_type: str
+) -> str:
+    """Pyarrow to Redshift data types conversion."""
+    if pa.types.is_int8(dtype):
+        return "SMALLINT"
+    if pa.types.is_int16(dtype) or pa.types.is_uint8(dtype):
+        return "SMALLINT"
+    if pa.types.is_int32(dtype) or pa.types.is_uint16(dtype):
+        return "INTEGER"
+    if pa.types.is_int64(dtype) or pa.types.is_uint32(dtype):
+        return "BIGINT"
+    if pa.types.is_uint64(dtype):
+        raise exceptions.UnsupportedType("There is no support for uint64, please consider int64 or uint32.")
+    if pa.types.is_float32(dtype):
+        return "FLOAT4"
+    if pa.types.is_float64(dtype):
+        return "FLOAT8"
+    if pa.types.is_boolean(dtype):
+        return "BOOL"
+    if pa.types.is_string(dtype):
+        return string_type
+    if pa.types.is_timestamp(dtype):
+        return "TIMESTAMP"
+    if pa.types.is_date(dtype):
+        return "DATE"
+    if pa.types.is_decimal(dtype):
+        return f"DECIMAL({dtype.precision},{dtype.scale})"
+    if pa.types.is_dictionary(dtype):
+        return pyarrow2redshift(dtype=dtype.value_type, string_type=string_type)
+    raise exceptions.UnsupportedType(f"Unsupported Redshift type: {dtype}")
+
+
+def pyarrow2mysql(  # pylint: disable=too-many-branches,too-many-return-statements
+    dtype: pa.DataType, string_type: str
+) -> str:
+    """Pyarrow to MySQL data types conversion."""
+    if pa.types.is_int8(dtype):
+        return "TINYINT"
+    if pa.types.is_uint8(dtype):
+        return "UNSIGNED TINYINT"
+    if pa.types.is_int16(dtype):
+        return "SMALLINT"
+    if pa.types.is_uint16(dtype):
+        return "UNSIGNED SMALLINT"
+    if pa.types.is_int32(dtype):
+        return "INTEGER"
+    if pa.types.is_uint32(dtype):
+        return "UNSIGNED INTEGER"
+    if pa.types.is_int64(dtype):
+        return "BIGINT"
+    if pa.types.is_uint64(dtype):
+        return "UNSIGNED BIGINT"
+    if pa.types.is_float32(dtype):
+        return "FLOAT"
+    if pa.types.is_float64(dtype):
+        return "DOUBLE PRECISION"
+    if pa.types.is_boolean(dtype):
+        return "BOOLEAN"
+    if pa.types.is_string(dtype):
+        return string_type
+    if pa.types.is_timestamp(dtype):
+        return "TIMESTAMP"
+    if pa.types.is_date(dtype):
+        return "DATE"
+    if pa.types.is_decimal(dtype):
+        return f"DECIMAL({dtype.precision},{dtype.scale})"
+    if pa.types.is_dictionary(dtype):
+        return pyarrow2mysql(dtype=dtype.value_type, string_type=string_type)
+    if pa.types.is_binary(dtype):
+        return "BLOB"
+    raise exceptions.UnsupportedType(f"Unsupported MySQL type: {dtype}")
+
+
+def pyarrow2postgresql(  # pylint: disable=too-many-branches,too-many-return-statements
+    dtype: pa.DataType, string_type: str
+) -> str:
+    """Pyarrow to PostgreSQL data types conversion."""
+    if pa.types.is_int8(dtype):
+        return "SMALLINT"
+    if pa.types.is_int16(dtype) or pa.types.is_uint8(dtype):
+        return "SMALLINT"
+    if pa.types.is_int32(dtype) or pa.types.is_uint16(dtype):
+        return "INTEGER"
+    if pa.types.is_int64(dtype) or pa.types.is_uint32(dtype):
+        return "BIGINT"
+    if pa.types.is_uint64(dtype):
+        raise exceptions.UnsupportedType("There is no support for uint64, please consider int64 or uint32.")
+    if pa.types.is_float32(dtype):
+        return "FLOAT"
+    if pa.types.is_float64(dtype):
+        return "FLOAT8"
+    if pa.types.is_boolean(dtype):
+        return "BOOL"
+    if pa.types.is_string(dtype):
+        return string_type
+    if pa.types.is_timestamp(dtype):
+        return "TIMESTAMP"
+    if pa.types.is_date(dtype):
+        return "DATE"
+    if pa.types.is_decimal(dtype):
+        return f"DECIMAL({dtype.precision},{dtype.scale})"
+    if pa.types.is_dictionary(dtype):
+        return pyarrow2postgresql(dtype=dtype.value_type, string_type=string_type)
+    if pa.types.is_binary(dtype):
+        return "BYTEA"
+    raise exceptions.UnsupportedType(f"Unsupported PostgreSQL type: {dtype}")
 
 
 def athena2pyarrow(dtype: str) -> pa.DataType:  # pylint: disable=too-many-return-statements
@@ -89,36 +233,6 @@ def athena2pandas(dtype: str) -> str:  # pylint: disable=too-many-branches,too-m
     raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")
 
 
-def athena2redshift(  # pylint: disable=too-many-branches,too-many-return-statements
-    dtype: str, varchar_length: int = 256
-) -> str:
-    """Athena to Redshift data types conversion."""
-    dtype = dtype.lower()
-    if dtype == "tinyint":
-        return "SMALLINT"
-    if dtype == "smallint":
-        return "SMALLINT"
-    if dtype in ("int", "integer"):
-        return "INTEGER"
-    if dtype == "bigint":
-        return "BIGINT"
-    if dtype in ("float", "real"):
-        return "FLOAT4"
-    if dtype == "double":
-        return "FLOAT8"
-    if dtype in ("boolean", "bool"):
-        return "BOOL"
-    if dtype in ("string", "char", "varchar"):
-        return f"VARCHAR({varchar_length})"
-    if dtype == "timestamp":
-        return "TIMESTAMP"
-    if dtype == "date":
-        return "DATE"
-    if dtype.startswith("decimal"):
-        return dtype.upper()
-    raise exceptions.UnsupportedType(f"Unsupported Redshift type: {dtype}")
-
-
 def athena2quicksight(dtype: str) -> str:  # pylint: disable=too-many-branches,too-many-return-statements
     """Athena to Quicksight data types conversion."""
     dtype = dtype.lower()
@@ -149,45 +263,34 @@ def athena2quicksight(dtype: str) -> str:  # pylint: disable=too-many-branches,t
     raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")
 
 
-def pyarrow2athena(dtype: pa.DataType) -> str:  # pylint: disable=too-many-branches,too-many-return-statements
-    """Pyarrow to Athena data types conversion."""
-    if pa.types.is_int8(dtype):
-        return "tinyint"
-    if pa.types.is_int16(dtype) or pa.types.is_uint8(dtype):
-        return "smallint"
-    if pa.types.is_int32(dtype) or pa.types.is_uint16(dtype):
-        return "int"
-    if pa.types.is_int64(dtype) or pa.types.is_uint32(dtype):
-        return "bigint"
-    if pa.types.is_uint64(dtype):
-        raise exceptions.UnsupportedType("There is no support for uint64, please consider int64 or uint32.")
-    if pa.types.is_float32(dtype):
-        return "float"
-    if pa.types.is_float64(dtype):
-        return "double"
-    if pa.types.is_boolean(dtype):
-        return "boolean"
-    if pa.types.is_string(dtype):
-        return "string"
-    if pa.types.is_timestamp(dtype):
-        return "timestamp"
-    if pa.types.is_date(dtype):
-        return "date"
-    if pa.types.is_binary(dtype):
-        return "binary"
-    if pa.types.is_dictionary(dtype):
-        return pyarrow2athena(dtype=dtype.value_type)
-    if pa.types.is_decimal(dtype):
-        return f"decimal({dtype.precision},{dtype.scale})"
-    if pa.types.is_list(dtype):
-        return f"array<{pyarrow2athena(dtype=dtype.value_type)}>"
-    if pa.types.is_struct(dtype):
-        return f"struct<{','.join([f'{f.name}:{pyarrow2athena(dtype=f.type)}' for f in dtype])}>"
-    if pa.types.is_map(dtype):
-        return f"map<{pyarrow2athena(dtype=dtype.key_type)}, {pyarrow2athena(dtype=dtype.item_type)}>"
-    if dtype == pa.null():
-        raise exceptions.UndetectedType("We can not infer the data type from an entire null object column")
-    raise exceptions.UnsupportedType(f"Unsupported Pyarrow type: {dtype}")
+def athena2redshift(  # pylint: disable=too-many-branches,too-many-return-statements
+    dtype: str, varchar_length: int = 256
+) -> str:
+    """Athena to Redshift data types conversion."""
+    dtype = dtype.lower()
+    if dtype == "tinyint":
+        return "SMALLINT"
+    if dtype == "smallint":
+        return "SMALLINT"
+    if dtype in ("int", "integer"):
+        return "INTEGER"
+    if dtype == "bigint":
+        return "BIGINT"
+    if dtype in ("float", "real"):
+        return "FLOAT4"
+    if dtype == "double":
+        return "FLOAT8"
+    if dtype in ("boolean", "bool"):
+        return "BOOL"
+    if dtype in ("string", "char", "varchar"):
+        return f"VARCHAR({varchar_length})"
+    if dtype == "timestamp":
+        return "TIMESTAMP"
+    if dtype == "date":
+        return "DATE"
+    if dtype.startswith("decimal"):
+        return dtype.upper()
+    raise exceptions.UnsupportedType(f"Unsupported Redshift type: {dtype}")
 
 
 def pyarrow2pandas_extension(  # pylint: disable=too-many-branches,too-many-return-statements
@@ -207,61 +310,6 @@ def pyarrow2pandas_extension(  # pylint: disable=too-many-branches,too-many-retu
     if pa.types.is_string(dtype):
         return pd.StringDtype()
     return None
-
-
-def pyarrow2sqlalchemy(  # pylint: disable=too-many-branches,too-many-return-statements
-    dtype: pa.DataType, db_type: str
-) -> Optional["VisitableType"]:
-    """Pyarrow to Athena data types conversion."""
-    if pa.types.is_int8(dtype):
-        return sqlalchemy.types.SmallInteger
-    if pa.types.is_int16(dtype):
-        return sqlalchemy.types.SmallInteger
-    if pa.types.is_int32(dtype):
-        return sqlalchemy.types.Integer
-    if pa.types.is_int64(dtype):
-        return sqlalchemy.types.BigInteger
-    if pa.types.is_float32(dtype):
-        return sqlalchemy.types.Float
-    if pa.types.is_float64(dtype):
-        if db_type == "mysql":
-            return sqlalchemy.dialects.mysql.DOUBLE
-        if db_type == "postgresql":
-            return sqlalchemy.dialects.postgresql.DOUBLE_PRECISION
-        if db_type == "redshift":
-            import sqlalchemy_redshift.dialect  # pylint: disable=import-outside-toplevel
-
-            return sqlalchemy_redshift.dialect.DOUBLE_PRECISION
-        raise exceptions.InvalidDatabaseType(
-            f"{db_type} is a invalid database type, please choose between postgresql, mysql and redshift."
-        )
-    if pa.types.is_boolean(dtype):
-        return sqlalchemy.types.Boolean
-    if pa.types.is_string(dtype):
-        if db_type == "mysql":
-            return sqlalchemy.types.Text
-        if db_type == "postgresql":
-            return sqlalchemy.types.Text
-        if db_type == "redshift":
-            return sqlalchemy.types.VARCHAR(length=256)
-        raise exceptions.InvalidDatabaseType(
-            f"{db_type} is a invalid database type. " f"Please choose between postgresql, mysql and redshift."
-        )
-    if pa.types.is_timestamp(dtype):
-        return sqlalchemy.types.DateTime
-    if pa.types.is_date(dtype):
-        return sqlalchemy.types.Date
-    if pa.types.is_binary(dtype):
-        if db_type == "redshift":
-            raise exceptions.UnsupportedType("Binary columns are not supported for Redshift.")
-        return sqlalchemy.types.Binary
-    if pa.types.is_decimal(dtype):
-        return sqlalchemy.types.Numeric(precision=dtype.precision, scale=dtype.scale)
-    if pa.types.is_dictionary(dtype):
-        return pyarrow2sqlalchemy(dtype=dtype.value_type, db_type=db_type)
-    if dtype == pa.null():
-        return None
-    raise exceptions.UnsupportedType(f"Unsupported Pyarrow type: {dtype}")
 
 
 def pyarrow_types_from_pandas(
@@ -511,19 +559,31 @@ def _cast_pandas_column(df: pd.DataFrame, col: str, current_type: str, desired_t
     return df
 
 
-def sqlalchemy_types_from_pandas(
-    df: pd.DataFrame, db_type: str, dtype: Optional[Dict[str, "VisitableType"]] = None
-) -> Dict[str, "VisitableType"]:
-    """Extract the related SQLAlchemy data types from any Pandas DataFrame."""
-    casts: Dict[str, "VisitableType"] = dtype if dtype is not None else {}
-    pa_columns_types: Dict[str, Optional[pa.DataType]] = pyarrow_types_from_pandas(
-        df=df, index=False, ignore_cols=list(casts.keys())
+def database_types_from_pandas(
+    df: pd.DataFrame,
+    index: bool,
+    dtype: Optional[Dict[str, str]],
+    varchar_lengths_default: Union[int, str],
+    varchar_lengths: Optional[Dict[str, int]],
+    converter_func: Callable[[pa.DataType, str], str],
+) -> Dict[str, str]:
+    """Extract database data types from a Pandas DataFrame."""
+    _dtype: Dict[str, str] = dtype if dtype else {}
+    _varchar_lengths: Dict[str, int] = varchar_lengths if varchar_lengths else {}
+    pyarrow_types: Dict[str, Optional[pa.DataType]] = pyarrow_types_from_pandas(
+        df=df, index=index, ignore_cols=list(_dtype.keys()), index_left=True
     )
-    sqlalchemy_columns_types: Dict[str, "VisitableType"] = {}
-    for k, v in pa_columns_types.items():
-        if v is None:
-            sqlalchemy_columns_types[k] = casts[k]
+    database_types: Dict[str, str] = {}
+    for col_name, col_dtype in pyarrow_types.items():
+        if col_name in _dtype:
+            database_types[col_name] = _dtype[col_name]
         else:
-            sqlalchemy_columns_types[k] = pyarrow2sqlalchemy(dtype=v, db_type=db_type)
-    _logger.debug("sqlalchemy_columns_types: %s", sqlalchemy_columns_types)
-    return sqlalchemy_columns_types
+            if col_name in _varchar_lengths:
+                string_type: str = f"VARCHAR({_varchar_lengths[col_name]})"
+            elif isinstance(varchar_lengths_default, str):
+                string_type = varchar_lengths_default
+            else:
+                string_type = f"VARCHAR({varchar_lengths_default})"
+            database_types[col_name] = converter_func(col_dtype, string_type)
+    _logger.debug("database_types: %s", database_types)
+    return database_types

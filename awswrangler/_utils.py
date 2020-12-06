@@ -14,7 +14,6 @@ import boto3
 import botocore.config
 import numpy as np
 import pandas as pd
-import psycopg2
 
 from awswrangler import _config, exceptions
 
@@ -203,14 +202,6 @@ def chunkify(lst: List[Any], num_chunks: int = 1, max_length: Optional[int] = No
 def empty_generator() -> Generator[None, None, None]:
     """Empty Generator."""
     yield from ()
-
-
-def ensure_postgresql_casts() -> None:
-    """Ensure that psycopg2 will handle some data types right."""
-    psycopg2.extensions.register_adapter(bytes, psycopg2.Binary)
-    typecast_bytea = lambda data, cur: None if data is None else bytes(psycopg2.BINARY(data, cur))  # noqa
-    BYTEA = psycopg2.extensions.new_type(psycopg2.BINARY.values, "BYTEA", typecast_bytea)
-    psycopg2.extensions.register_type(BYTEA)
 
 
 def get_directory(path: str) -> str:

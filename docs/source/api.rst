@@ -4,7 +4,9 @@ API Reference
 * `Amazon S3`_
 * `AWS Glue Catalog`_
 * `Amazon Athena`_
-* `Databases (Amazon Redshift, PostgreSQL, MySQL)`_
+* `Amazon Redshift`_
+* `PostgreSQL`_
+* `MySQL`_
 * `Amazon EMR`_
 * `Amazon CloudWatch Logs`_
 * `Amazon QuickSight`_
@@ -67,7 +69,6 @@ AWS Glue Catalog
     get_columns_comments
     get_csv_partitions
     get_databases
-    get_engine
     get_parquet_partitions
     get_partitions
     get_table_description
@@ -105,24 +106,49 @@ Amazon Athena
     stop_query_execution
     wait_query
 
-Databases (Amazon Redshift, PostgreSQL, MySQL)
+Amazon Redshift
 ----------------------------------------------
 
-.. currentmodule:: awswrangler.db
+.. currentmodule:: awswrangler.redshift
 
 .. autosummary::
     :toctree: stubs
 
-    copy_files_to_redshift
-    copy_to_redshift
-    get_engine
-    get_redshift_temp_engine
+    connect
+    connect_temp
+    copy
+    copy_from_files
     read_sql_query
     read_sql_table
     to_sql
-    unload_redshift
-    unload_redshift_to_files
-    write_redshift_copy_manifest
+    unload
+    unload_to_files
+
+PostgreSQL
+----------------------------------------------
+
+.. currentmodule:: awswrangler.postgresql
+
+.. autosummary::
+    :toctree: stubs
+
+    connect
+    read_sql_query
+    read_sql_table
+    to_sql
+
+MySQL
+----------------------------------------------
+
+.. currentmodule:: awswrangler.mysql
+
+.. autosummary::
+    :toctree: stubs
+
+    connect
+    read_sql_query
+    read_sql_table
+    to_sql
 
 Amazon EMR
 ----------

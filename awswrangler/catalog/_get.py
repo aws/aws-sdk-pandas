@@ -5,11 +5,9 @@ import base64
 import itertools
 import logging
 from typing import Any, Dict, Iterator, List, Optional, Union, cast
-from urllib.parse import quote_plus as _quote_plus
 
 import boto3
 import pandas as pd
-import sqlalchemy
 
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
@@ -521,68 +519,6 @@ def get_connection(
         ]
         res["ConnectionProperties"]["PASSWORD"] = pwd
     return cast(Dict[str, Any], res)
-
-
-def get_engine(
-    connection: str,
-    catalog_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    **sqlalchemy_kwargs: Any,
-) -> sqlalchemy.engine.Engine:
-    """Return a SQLAlchemy Engine from a Glue Catalog Connection.
-
-    Only Redshift, PostgreSQL and MySQL are supported.
-
-    Parameters
-    ----------
-    connection : str
-        Connection name.
-    catalog_id : str, optional
-        The ID of the Data Catalog from which to retrieve Databases.
-        If none is provided, the AWS account ID is used by default.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    sqlalchemy_kwargs
-        keyword arguments forwarded to sqlalchemy.create_engine().
-        https://docs.sqlalchemy.org/en/13/core/engines.html
-
-    Returns
-    -------
-    sqlalchemy.engine.Engine
-        SQLAlchemy Engine.
-
-    Examples
-    --------
-    >>> import awswrangler as wr
-    >>> res = wr.catalog.get_engine(name='my_connection')
-
-    """
-    details: Dict[str, Any] = get_connection(name=connection, catalog_id=catalog_id, boto3_session=boto3_session)[
-        "ConnectionProperties"
-    ]
-    db_type: str = details["JDBC_CONNECTION_URL"].split(":")[1].lower()
-    host: str = details["JDBC_CONNECTION_URL"].split(":")[2].replace("/", "")
-    port, database = details["JDBC_CONNECTION_URL"].split(":")[3].split("/")
-    user: str = _quote_plus(details["USERNAME"])
-    password: str = _quote_plus(details["PASSWORD"])
-    if db_type == "postgresql":
-        _utils.ensure_postgresql_casts()
-    if db_type in ("redshift", "postgresql"):
-        conn_str: str = f"{db_type}+psycopg2://{user}:{password}@{host}:{port}/{database}"
-        sqlalchemy_kwargs["executemany_mode"] = "values"
-        sqlalchemy_kwargs["executemany_values_page_size"] = 100_000
-        if db_type == "redshift":
-            # pylint: disable=import-outside-toplevel,unused-import
-            import sqlalchemy_redshift.dialect  # noqa: F401
-
-            # pylint: enable=import-outside-toplevel,unused-import
-        return sqlalchemy.create_engine(conn_str, **sqlalchemy_kwargs)
-    if db_type == "mysql":
-        conn_str = f"mysql+pymysql://{user}:{password}@{host}:{port}/{database}"
-        return sqlalchemy.create_engine(conn_str, **sqlalchemy_kwargs)
-    raise exceptions.InvalidDatabaseType(
-        f"{db_type} is not a valid Database type." f" Only Redshift, PostgreSQL and MySQL are supported."
-    )
 
 
 @apply_configs

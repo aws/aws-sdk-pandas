@@ -1,6 +1,7 @@
 ** apache-arrow-1.0.0; version 1.0.0 -- https://arrow.apache.org/
 ** boto3; version 1.12.49 -- https://github.com/boto/boto3/
 ** botocore; version 1.15.49 -- https://github.com/boto/botocore/
+** redshift_connector; version 2.0.711 -- https://github.com/aws/amazon-redshift-python-driver
 
 Apache License
 
@@ -329,12 +330,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ** pymysql; version 0.10.0 -- https://pymysql.readthedocs.io/
 Copyright (c) 2010, 2013 PyMySQL contributors
 All rights reserved.
-** sqlalchemy-redshift; version 0.7.0 -- https://github.com/sqlalchemy-redshift/sqlalchemy-redshift
-Copyright (c) 2013 Matt George
-All rights reserved.
-** sqlalchemy; version 1.3.10 -- https://www.sqlalchemy.org/
-Copyright 2005-2020 SQLAlchemy authors and contributors <see AUTHORS file>.
-All rights reserved.
+
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -355,53 +351,30 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 -----
+** pg8000; version 0.16.6 -- https://github.com/tlocke/pg8000
+Copyright (c) 2007-2009, Mathieu Fenniak
+All rights reserved.
 
-psycopg2 and the LGPL
----------------------
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
 
-psycopg2 is free software: you can redistribute it and/or modify it
-under the terms of the GNU Lesser General Public License as published
-by the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+* Redistributions of source code must retain the above copyright notice,
+this list of conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
+* The name of the author may not be used to endorse or promote products
+derived from this software without specific prior written permission.
 
-psycopg2 is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public
-License for more details.
-
-In addition, as a special exception, the copyright holders give
-permission to link this program with the OpenSSL library (or with
-modified versions of OpenSSL that use the same license as OpenSSL),
-and distribute linked combinations including the two.
-
-You must obey the GNU Lesser General Public License in all respects for
-all of the code used other than OpenSSL. If you modify file(s) with this
-exception, you may extend this exception to your version of the file(s),
-but you are not obligated to do so. If you do not wish to do so, delete
-this exception statement from your version. If you delete this exception
-statement from all source files in the program, then also delete it here.
-
-You should have received a copy of the GNU Lesser General Public License
-along with psycopg2 (see the doc/ directory.)
-If not, see <https://www.gnu.org/licenses/>.
-
-
-Alternative licenses
---------------------
-
-The following BSD-like license applies (at your option) to the files following
-the pattern ``psycopg/adapter*.{h,c}`` and ``psycopg/microprotocol*.{h,c}``:
-
- Permission is granted to anyone to use this software for any purpose,
- including commercial applications, and to alter it and redistribute it
- freely, subject to the following restrictions:
-
- 1. The origin of this software must not be misrepresented; you must not
-    claim that you wrote the original software. If you use this
-    software in a product, an acknowledgment in the product documentation
-    would be appreciated but is not required.
-
- 2. Altered source versions must be plainly marked as such, and must not
-    be misrepresented as being the original software.
-
- 3. This notice may not be removed or altered from any source distribution.
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
