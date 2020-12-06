@@ -121,7 +121,6 @@ def _fetch_txt_result(
     if query_metadata.output_location is None or query_metadata.output_location.endswith(".txt") is False:
         return pd.DataFrame()
     path: str = query_metadata.output_location
-    s3.wait_objects_exist(paths=[path], use_threads=False, boto3_session=boto3_session)
     _logger.debug("Start TXT reading from %s", path)
     df = s3.read_csv(
         path=[path],

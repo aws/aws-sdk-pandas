@@ -161,8 +161,8 @@ Please [send a Pull Request](https://github.com/awslabs/aws-data-wrangler/edit/m
 
 ## Amazon SageMaker Data Wrangler?
 
-**Amazon SageMaker Data Wrangler** is a new SageMaker Studio feature that has a similar name but has nothing to do with the **AWS Data Wrangler** project.
+**Amazon SageMaker Data Wrangler** is a new SageMaker Studio feature that has a similar name but has a different purpose than the **AWS Data Wrangler** open source project.
 
 * **AWS Data Wrangler** is open source, runs anywhere, and is focused on code.
 
-* **Amazon SageMaker Data Wrangler** is specific for the SageMaker environment, it is **NOT** open source, and is focused on a visual interface.
+* **Amazon SageMaker Data Wrangler** is specific for the SageMaker Studio environment and is focused on a visual interface.

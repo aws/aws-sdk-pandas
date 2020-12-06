@@ -11,7 +11,7 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 def test_to_parquet_projection_integer(glue_database, glue_table, path):
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 100, 200], "c3": [0, 1, 2]})
-    paths = wr.s3.to_parquet(
+    wr.s3.to_parquet(
         df=df,
         path=path,
         dataset=True,
@@ -24,8 +24,7 @@ def test_to_parquet_projection_integer(glue_database, glue_table, path):
         projection_ranges={"c1": "0,2", "c2": "0,200", "c3": "0,2"},
         projection_intervals={"c2": "100"},
         projection_digits={"c3": "1"},
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    )
     df2 = wr.athena.read_sql_table(glue_table, glue_database)
     assert df.shape == df2.shape
     assert df.c0.sum() == df2.c0.sum()
@@ -36,7 +35,7 @@ def test_to_parquet_projection_integer(glue_database, glue_table, path):
 
 def test_to_parquet_projection_enum(glue_database, glue_table, path):
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [1, 2, 3], "c2": ["foo", "boo", "bar"]})
-    paths = wr.s3.to_parquet(
+    wr.s3.to_parquet(
         df=df,
         path=path,
         dataset=True,
@@ -47,8 +46,7 @@ def test_to_parquet_projection_enum(glue_database, glue_table, path):
         projection_enabled=True,
         projection_types={"c1": "enum", "c2": "enum"},
         projection_values={"c1": "1,2,3", "c2": "foo,boo,bar"},
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    )
     df2 = wr.athena.read_sql_table(glue_table, glue_database)
     assert df.shape == df2.shape
     assert df.c0.sum() == df2.c0.sum()
@@ -63,7 +61,7 @@ def test_to_parquet_projection_date(glue_database, glue_table, path):
             "c2": [ts("2020-01-01 01:01:01.0"), ts("2020-01-01 01:01:02.0"), ts("2020-01-01 01:01:03.0")],
         }
     )
-    paths = wr.s3.to_parquet(
+    wr.s3.to_parquet(
         df=df,
         path=path,
         dataset=True,
@@ -74,8 +72,7 @@ def test_to_parquet_projection_date(glue_database, glue_table, path):
         projection_enabled=True,
         projection_types={"c1": "date", "c2": "date"},
         projection_ranges={"c1": "2020-01-01,2020-01-03", "c2": "2020-01-01 01:01:00,2020-01-01 01:01:03"},
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    )
     df2 = wr.athena.read_sql_table(glue_table, glue_database)
     print(df2)
     assert df.shape == df2.shape
@@ -84,7 +81,7 @@ def test_to_parquet_projection_date(glue_database, glue_table, path):
 
 def test_to_parquet_projection_injected(glue_database, glue_table, path):
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": ["foo", "boo", "bar"], "c2": ["0", "1", "2"]})
-    paths = wr.s3.to_parquet(
+    wr.s3.to_parquet(
         df=df,
         path=path,
         dataset=True,
@@ -94,8 +91,7 @@ def test_to_parquet_projection_injected(glue_database, glue_table, path):
         regular_partitions=False,
         projection_enabled=True,
         projection_types={"c1": "injected", "c2": "injected"},
-    )["paths"]
-    wr.s3.wait_objects_exist(paths=paths, use_threads=False)
+    )
     df2 = wr.athena.read_sql_query(f"SELECT * FROM {glue_table} WHERE c1='foo' AND c2='0'", glue_database)
     assert df2.shape == (1, 3)
     assert df2.c0.iloc[0] == 0

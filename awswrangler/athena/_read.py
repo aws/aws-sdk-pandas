@@ -221,11 +221,9 @@ def _fetch_parquet_result(
     metadata_path: str = manifest_path.replace("-manifest.csv", ".metadata")
     _logger.debug("manifest_path: %s", manifest_path)
     _logger.debug("metadata_path: %s", metadata_path)
-    s3.wait_objects_exist(paths=[manifest_path], use_threads=False, boto3_session=boto3_session)
     paths: List[str] = _extract_ctas_manifest_paths(path=manifest_path, boto3_session=boto3_session)
     if not paths:
         return _empty_dataframe_response(bool(chunked), query_metadata)
-    s3.wait_objects_exist(paths=paths, use_threads=False, boto3_session=boto3_session)
     ret = s3.read_parquet(
         path=paths, use_threads=use_threads, boto3_session=boto3_session, chunked=chunked, categories=categories
     )
@@ -257,7 +255,6 @@ def _fetch_csv_result(
         chunked = _chunksize is not None
         return _empty_dataframe_response(chunked, query_metadata)
     path: str = query_metadata.output_location
-    s3.wait_objects_exist(paths=[path], use_threads=False, boto3_session=boto3_session)
     _logger.debug("Start CSV reading from %s", path)
     ret = s3.read_csv(
         path=[path],
