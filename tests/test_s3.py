@@ -207,9 +207,7 @@ def test_merge_additional_kwargs(path, kms_key_id, s3_additional_kwargs, use_thr
 @pytest.mark.parametrize("use_threads", [True, False])
 def test_copy(path, path2, use_threads):
     df = pd.DataFrame({"id": [1, 2, 3], "par": [1, 2, 3]})
-    wr.s3.to_parquet(
-        df=df, path=path, dataset=True, partition_cols=["par"], mode="overwrite", use_threads=use_threads
-    )
+    wr.s3.to_parquet(df=df, path=path, dataset=True, partition_cols=["par"], mode="overwrite", use_threads=use_threads)
     df = wr.s3.read_parquet(path=path, dataset=True, use_threads=use_threads)
     assert df.id.sum() == 6
     assert df.par.astype("int").sum() == 6
