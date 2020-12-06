@@ -27,17 +27,10 @@ Quick Start
     # Retrieving the data from Amazon Athena
     df = wr.athena.read_sql_query("SELECT * FROM my_table", database="my_db")
 
-    # Get Redshift connection (SQLAlchemy) from Glue and retrieving data from Redshift Spectrum
-    engine = wr.catalog.get_engine("my-redshift-connection")
-    df = wr.db.read_sql_query("SELECT * FROM external_schema.my_table", con=engine)
-
-    # Get MySQL connection (SQLAlchemy) from Glue Catalog and LOAD the data into MySQL
-    engine = wr.catalog.get_engine("my-mysql-connection")
-    wr.db.to_sql(df, engine, schema="test", name="my_table")
-
-    # Get PostgreSQL connection (SQLAlchemy) from Glue Catalog and LOAD the data into PostgreSQL
-    engine = wr.catalog.get_engine("my-postgresql-connection")
-    wr.db.to_sql(df, engine, schema="test", name="my_table")
+    # Get a Redshift connection from Glue Catalog and retrieving data from Redshift Spectrum
+    con = wr.redshift.connect("my-glue-connection")
+    df = wr.redshift.read_sql_query("SELECT * FROM external_schema.my_table", con=con)
+    con.close()
 
 Read The Docs
 -------------
