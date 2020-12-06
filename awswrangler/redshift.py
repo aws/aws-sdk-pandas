@@ -229,17 +229,6 @@ def _create_table(
     return table, schema
 
 
-def _extract_parameters(df: pd.DataFrame) -> List[List[Any]]:
-    parameters: List[List[Any]] = df.values.tolist()
-    for i, row in enumerate(parameters):
-        for j, value in enumerate(row):
-            if pd.isna(value):
-                parameters[i][j] = None
-            elif hasattr(value, "to_pydatetime"):
-                parameters[i][j] = value.to_pydatetime()
-    return parameters
-
-
 def _read_parquet_iterator(
     path: str,
     keep_files: bool,
@@ -664,7 +653,7 @@ def to_sql(
             schema_str = f"{created_schema}." if created_schema else ""
             sql: str = f"INSERT INTO {schema_str}{created_table} VALUES ({placeholders})"
             _logger.debug("sql: %s", sql)
-            parameters: List[List[Any]] = _extract_parameters(df=df)
+            parameters: List[List[Any]] = _db_utils.extract_parameters(df=df)
             cursor.executemany(sql, parameters)
             if table != created_table:  # upsert
                 _upsert(cursor=cursor, schema=schema, table=table, temp_table=created_table, primary_keys=primary_keys)

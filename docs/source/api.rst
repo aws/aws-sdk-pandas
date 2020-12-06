@@ -7,6 +7,7 @@ API Reference
 * `Amazon Redshift`_
 * `PostgreSQL`_
 * `MySQL`_
+* `Amazon Timestream`_
 * `Amazon EMR`_
 * `Amazon CloudWatch Logs`_
 * `Amazon QuickSight`_
@@ -149,6 +150,17 @@ MySQL
     read_sql_query
     read_sql_table
     to_sql
+
+Amazon Timestream
+----------------------------------------------
+
+.. currentmodule:: awswrangler.timestream
+
+.. autosummary::
+    :toctree: stubs
+
+    write
+    query
 
 Amazon EMR
 ----------

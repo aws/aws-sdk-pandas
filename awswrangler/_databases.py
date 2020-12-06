@@ -133,3 +133,15 @@ def read_sql_query(
         return _iterate_cursor(
             cursor=cursor, chunksize=chunksize, cols_names=cols_names, index=index_col, dtype=dtype, safe=safe
         )
+
+
+def extract_parameters(df: pd.DataFrame) -> List[List[Any]]:
+    """Extract Parameters."""
+    parameters: List[List[Any]] = df.values.tolist()
+    for i, row in enumerate(parameters):
+        for j, value in enumerate(row):
+            if pd.isna(value):
+                parameters[i][j] = None
+            elif hasattr(value, "to_pydatetime"):
+                parameters[i][j] = value.to_pydatetime()
+    return parameters
