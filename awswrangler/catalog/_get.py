@@ -7,6 +7,7 @@ import logging
 from typing import Any, Dict, Iterator, List, Optional, Union, cast
 
 import boto3
+import botocore.exceptions
 import pandas as pd
 
 from awswrangler import _utils, exceptions
@@ -511,7 +512,14 @@ def get_connection(
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
 
-    res = client_glue.get_connection(**_catalog_id(catalog_id=catalog_id, Name=name, HidePassword=False))["Connection"]
+    res = _utils.try_it(
+        f=client_glue.get_connection,
+        ex=botocore.exceptions.ClientError,
+        ex_code="ThrottlingException",
+        max_num_tries=3,
+        **_catalog_id(catalog_id=catalog_id, Name=name, HidePassword=False),
+    )["Connection"]
+
     if "ENCRYPTED_PASSWORD" in res["ConnectionProperties"]:
         client_kms = _utils.client(service_name="kms", session=boto3_session)
         pwd = client_kms.decrypt(CiphertextBlob=base64.b64decode(res["ConnectionProperties"]["ENCRYPTED_PASSWORD"]))[

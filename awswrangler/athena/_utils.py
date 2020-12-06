@@ -8,13 +8,14 @@ from decimal import Decimal
 from typing import Any, Dict, Generator, List, NamedTuple, Optional, Union, cast
 
 import boto3
+import botocore.exceptions
 import pandas as pd
 
 from awswrangler import _data_types, _utils, exceptions, s3, sts
 from awswrangler._config import apply_configs
 
 _QUERY_FINAL_STATES: List[str] = ["FAILED", "SUCCEEDED", "CANCELLED"]
-_QUERY_WAIT_POLLING_DELAY: float = 0.2  # SECONDS
+_QUERY_WAIT_POLLING_DELAY: float = 0.25  # SECONDS
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -91,7 +92,13 @@ def _start_query_execution(
 
     client_athena: boto3.client = _utils.client(service_name="athena", session=session)
     _logger.debug("args: \n%s", pprint.pformat(args))
-    response: Dict[str, Any] = client_athena.start_query_execution(**args)
+    response: Dict[str, Any] = _utils.try_it(
+        f=client_athena.start_query_execution,
+        ex=botocore.exceptions.ClientError,
+        ex_code="ThrottlingException",
+        max_num_tries=5,
+        **args,
+    )
     return cast(str, response["QueryExecutionId"])
 
 
@@ -608,7 +615,16 @@ def get_work_group(workgroup: str, boto3_session: Optional[boto3.Session] = None
 
     """
     client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
-    return cast(Dict[str, Any], client_athena.get_work_group(WorkGroup=workgroup))
+    return cast(
+        Dict[str, Any],
+        _utils.try_it(
+            f=client_athena.get_work_group,
+            ex=botocore.exceptions.ClientError,
+            ex_code="ThrottlingException",
+            max_num_tries=5,
+            WorkGroup=workgroup,
+        ),
+    )
 
 
 def stop_query_execution(query_execution_id: str, boto3_session: Optional[boto3.Session] = None) -> None:
@@ -659,20 +675,20 @@ def wait_query(query_execution_id: str, boto3_session: Optional[boto3.Session] =
     >>> res = wr.athena.wait_query(query_execution_id='query-execution-id')
 
     """
-    client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
-    response: Dict[str, Any] = client_athena.get_query_execution(QueryExecutionId=query_execution_id)
-    state: str = response["QueryExecution"]["Status"]["State"]
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    response: Dict[str, Any] = get_query_execution(query_execution_id=query_execution_id, boto3_session=session)
+    state: str = response["Status"]["State"]
     while state not in _QUERY_FINAL_STATES:
         time.sleep(_QUERY_WAIT_POLLING_DELAY)
-        response = client_athena.get_query_execution(QueryExecutionId=query_execution_id)
-        state = response["QueryExecution"]["Status"]["State"]
+        response = get_query_execution(query_execution_id=query_execution_id, boto3_session=session)
+        state = response["Status"]["State"]
     _logger.debug("state: %s", state)
-    _logger.debug("StateChangeReason: %s", response["QueryExecution"]["Status"].get("StateChangeReason"))
+    _logger.debug("StateChangeReason: %s", response["Status"].get("StateChangeReason"))
     if state == "FAILED":
-        raise exceptions.QueryFailed(response["QueryExecution"]["Status"].get("StateChangeReason"))
+        raise exceptions.QueryFailed(response["Status"].get("StateChangeReason"))
     if state == "CANCELLED":
-        raise exceptions.QueryCancelled(response["QueryExecution"]["Status"].get("StateChangeReason"))
-    return cast(Dict[str, Any], response["QueryExecution"])
+        raise exceptions.QueryCancelled(response["Status"].get("StateChangeReason"))
+    return response
 
 
 def get_query_execution(query_execution_id: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, Any]:
@@ -699,5 +715,11 @@ def get_query_execution(query_execution_id: str, boto3_session: Optional[boto3.S
 
     """
     client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
-    response: Dict[str, Any] = client_athena.get_query_execution(QueryExecutionId=query_execution_id)
+    response: Dict[str, Any] = _utils.try_it(
+        f=client_athena.get_query_execution,
+        ex=botocore.exceptions.ClientError,
+        ex_code="ThrottlingException",
+        max_num_tries=5,
+        QueryExecutionId=query_execution_id,
+    )
     return cast(Dict[str, Any], response["QueryExecution"])
