@@ -6,7 +6,7 @@
 
 > An [AWS Professional Service](https://aws.amazon.com/professional-services/) open source initiative | aws-proserve-opensource@amazon.com
 
-[![Release](https://img.shields.io/badge/release-1.10.1-brightgreen.svg)](https://pypi.org/project/awswrangler/)
+[![Release](https://img.shields.io/badge/release-2.0.0-brightgreen.svg)](https://pypi.org/project/awswrangler/)
 [![Python Version](https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.8-brightgreen.svg)](https://anaconda.org/conda-forge/awswrangler)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -56,17 +56,10 @@ df = wr.s3.read_parquet("s3://bucket/dataset/", dataset=True)
 # Retrieving the data from Amazon Athena
 df = wr.athena.read_sql_query("SELECT * FROM my_table", database="my_db")
 
-# Get Redshift connection (SQLAlchemy) from Glue and retrieving data from Redshift Spectrum
-engine = wr.catalog.get_engine("my-redshift-connection")
-df = wr.db.read_sql_query("SELECT * FROM external_schema.my_table", con=engine)
-
-# Get MySQL connection (SQLAlchemy) from Glue Catalog and LOAD the data into MySQL
-engine = wr.catalog.get_engine("my-mysql-connection")
-wr.db.to_sql(df, engine, schema="test", name="my_table")
-
-# Get PostgreSQL connection (SQLAlchemy) from Glue Catalog and LOAD the data into PostgreSQL
-engine = wr.catalog.get_engine("my-postgresql-connection")
-wr.db.to_sql(df, engine, schema="test", name="my_table")
+# Get a Redshift connection from Glue Catalog and retrieving data from Redshift Spectrum
+con = wr.redshift.connect("my-glue-connection")
+df = wr.redshift.read_sql_query("SELECT * FROM external_schema.my_table", con=con)
+con.close()
 ```
 
 ## [Read The Docs](https://aws-data-wrangler.readthedocs.io/)
@@ -112,7 +105,10 @@ wr.db.to_sql(df, engine, schema="test", name="my_table")
   - [Amazon S3](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-s3)
   - [AWS Glue Catalog](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#aws-glue-catalog)
   - [Amazon Athena](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-athena)
-  - [Databases (Amazon Redshift, PostgreSQL, MySQL)](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#databases-amazon-redshift-postgresql-mysql)
+  - [Amazon Redshift](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-redshift)
+  - [PostgreSQL](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#postgresql)
+  - [MySQL](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#mysql)
+  - [Amazon Timestream](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-timestream)
   - [Amazon EMR](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-emr)
   - [Amazon CloudWatch Logs](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-cloudwatch-logs)
   - [Amazon QuickSight](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-quicksight)
