@@ -32,6 +32,32 @@ Quick Start
     df = wr.redshift.read_sql_query("SELECT * FROM external_schema.my_table", con=con)
     con.close()
 
+    # Amazon Timestream Write
+    df = pd.DataFrame(
+        {
+            "time": [datetime.now(), datetime.now(), datetime.now()],
+            "dim0": ["foo", "boo", "bar"],
+            "dim1": [1, 2, 3],
+            "measure": [1.0, 1.1, 1.2],
+        }
+    )
+    rejected_records = wr.timestream.write(
+        df=df,
+        database="sampleDB",
+        table="sampleTable",
+        time_col="time",
+        measure_col="measure",
+        dimensions_cols=["dim0", "dim1"],
+    )
+
+    # Amazon Timestream Write
+    wr.timestream.query("""
+    SELECT
+        time, measure_value::double, dim0, dim1
+    FROM "sampleDB"."sampleTable"
+    ORDER BY time DESC LIMIT 3
+    """)
+
 Read The Docs
 -------------
 
