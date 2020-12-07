@@ -498,9 +498,9 @@ def read_sql_table(
     ----------
     table : str
         Table name.
-    con : pg8000.Connection
-        Use pg8000.connect() to use "
-        "credentials directly or wr.postgresql.connect() to fetch it from the Glue Catalog.
+    con : redshift_connector.Connection
+        Use redshift_connector.connect() to use "
+        "credentials directly or wr.redshift.connect() to fetch it from the Glue Catalog.
     schema : str, optional
         Name of SQL schema in database to query (if database flavor supports this).
         Uses default schema if None (default).
