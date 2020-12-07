@@ -38,6 +38,7 @@ Installation command: `pip install awswrangler`
 ```py3
 import awswrangler as wr
 import pandas as pd
+import datetime
 
 df = pd.DataFrame({"id": [1, 2], "value": ["foo", "boo"]})
 
@@ -63,7 +64,7 @@ con.close()
 
 # Amazon Timestream Write
 df = pd.DataFrame({
-    "time": [datetime.now(), datetime.now()],
+    "time": [datetime.datetime.now() , datetime.datetime.now() ],   
     "my_dimension": ["foo", "boo"],
     "measure": [1.0, 1.1],
 })
@@ -77,7 +78,7 @@ rejected_records = wr.timestream.write(df,
 
 # Amazon Timestream Query
 wr.timestream.query("""
-SELECT time, measure_value::double, dim0, dim1
+SELECT time, measure_value::double, my_dimension
 FROM "sampleDB"."sampleTable" ORDER BY time DESC LIMIT 3
 """)
 
