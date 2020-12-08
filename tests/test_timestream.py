@@ -27,7 +27,8 @@ def test_basics(timestream_database_and_table):
         dimensions_cols=["dim0", "dim1"],
     )
     assert len(rejected_records) == 0
-    df = wr.timestream.query(f"""
+    df = wr.timestream.query(
+        f"""
         SELECT
             1 as col_int,
             try_cast(now() as time) as col_time,
@@ -40,7 +41,8 @@ def test_basics(timestream_database_and_table):
         FROM "{name}"."{name}"
         ORDER BY time
         DESC LIMIT 10
-    """)
+    """
+    )
     assert df.shape == (3, 8)
 
 

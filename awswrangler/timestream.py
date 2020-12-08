@@ -382,8 +382,8 @@ def create_table(
         "TableName": table,
         "RetentionProperties": {
             "MemoryStoreRetentionPeriodInHours": memory_retention_hours,
-            "MagneticStoreRetentionPeriodInDays": magnetic_retention_days
-        }
+            "MagneticStoreRetentionPeriodInDays": magnetic_retention_days,
+        },
     }
     if tags is not None:
         args["Tags"] = [{"Key": k, "Value": v} for k, v in tags.items()]
