@@ -231,3 +231,14 @@ def mysql_table():
     with con.cursor() as cursor:
         cursor.execute(f"DROP TABLE IF EXISTS test.{name}")
     con.close()
+
+
+@pytest.fixture(scope="function")
+def timestream_database_and_table():
+    name = f"tbl_{get_time_str_with_random_suffix()}"
+    print(f"Timestream name: {name}")
+    wr.timestream.create_database(name)
+    wr.timestream.create_table(name, name, 1, 1)
+    yield name
+    wr.timestream.delete_table(name, name)
+    wr.timestream.delete_database(name)

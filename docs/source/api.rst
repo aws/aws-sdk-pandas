@@ -159,8 +159,12 @@ Amazon Timestream
 .. autosummary::
     :toctree: stubs
 
-    write
+    create_database
+    create_table
+    delete_database
+    delete_table
     query
+    write
 
 Amazon EMR
 ----------
