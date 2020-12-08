@@ -8,7 +8,7 @@ import awswrangler as wr
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
-def test_basics(timestream_database_and_table):
+def test_basic_scenario(timestream_database_and_table):
     name = timestream_database_and_table
     df = pd.DataFrame(
         {
@@ -46,7 +46,7 @@ def test_basics(timestream_database_and_table):
     assert df.shape == (3, 8)
 
 
-def test_advanced(timestream_database_and_table):
+def test_real_csv_load_scenario(timestream_database_and_table):
     name = timestream_database_and_table
     df = pd.read_csv(
         "https://raw.githubusercontent.com/awslabs/amazon-timestream-tools/master/sample_apps/data/sample.csv",
@@ -87,3 +87,5 @@ def test_advanced(timestream_database_and_table):
         dimensions_cols=["index", "region", "az", "hostname"],
     )
     assert len(rejected_records) == 0
+    df = wr.timestream.query(f'SELECT COUNT(*) AS counter FROM "{name}"."{name}"')
+    assert df["counter"].iloc[0] == 126_000
