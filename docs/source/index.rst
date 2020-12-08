@@ -9,6 +9,7 @@ Quick Start
 
     import awswrangler as wr
     import pandas as pd
+    from datetime import datetime
 
     df = pd.DataFrame({"id": [1, 2], "value": ["foo", "boo"]})
 
@@ -34,7 +35,7 @@ Quick Start
 
     # Amazon Timestream Write
     df = pd.DataFrame({
-        "time": [datetime.now(), datetime.now()],
+        "time": [datetime.now(), datetime.now()],   
         "my_dimension": ["foo", "boo"],
         "measure": [1.0, 1.1],
     })
@@ -48,7 +49,7 @@ Quick Start
 
     # Amazon Timestream Query
     wr.timestream.query("""
-    SELECT time, measure_value::double, dim0, dim1
+    SELECT time, measure_value::double, my_dimension
     FROM "sampleDB"."sampleTable" ORDER BY time DESC LIMIT 3
     """)
 

@@ -38,7 +38,7 @@ Installation command: `pip install awswrangler`
 ```py3
 import awswrangler as wr
 import pandas as pd
-import datetime
+from datetime import datetime
 
 df = pd.DataFrame({"id": [1, 2], "value": ["foo", "boo"]})
 
@@ -64,7 +64,7 @@ con.close()
 
 # Amazon Timestream Write
 df = pd.DataFrame({
-    "time": [datetime.datetime.now() , datetime.datetime.now() ],   
+    "time": [datetime.now(), datetime.now()],   
     "my_dimension": ["foo", "boo"],
     "measure": [1.0, 1.1],
 })
