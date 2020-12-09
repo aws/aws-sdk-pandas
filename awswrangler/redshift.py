@@ -29,8 +29,8 @@ def _validate_connection(con: redshift_connector.Connection) -> None:
 
 
 def _drop_table(cursor: redshift_connector.Cursor, schema: Optional[str], table: str) -> None:
-    schema_str = f"{schema}." if schema else ""
-    sql = f"DROP TABLE IF EXISTS {schema_str}{table}"
+    schema_str = f'"{schema}".' if schema else ""
+    sql = f'DROP TABLE IF EXISTS {schema_str}"{table}"'
     _logger.debug("Drop table query:\n%s", sql)
     cursor.execute(sql)
 
@@ -62,9 +62,9 @@ def _copy(
     schema: Optional[str] = None,
 ) -> None:
     if schema is None:
-        table_name: str = table
+        table_name: str = f'"{table}"'
     else:
-        table_name = f"{schema}.{table}"
+        table_name = f'"{schema}"."{table}"'
     sql: str = f"COPY {table_name} FROM '{path}'\nIAM_ROLE '{iam_role}'\nFORMAT AS PARQUET"
     _logger.debug("copy query:\n%s", sql)
     cursor.execute(sql)
@@ -84,7 +84,7 @@ def _upsert(
         raise exceptions.InvalidRedshiftPrimaryKeys()
     equals_clause: str = f"{table}.%s = {temp_table}.%s"
     join_clause: str = " AND ".join([equals_clause % (pk, pk) for pk in primary_keys])
-    sql: str = f"DELETE FROM {schema}.{table} USING {temp_table} WHERE {join_clause}"
+    sql: str = f'DELETE FROM "{schema}"."{table}" USING {temp_table} WHERE {join_clause}'
     _logger.debug(sql)
     cursor.execute(sql)
     sql = f"INSERT INTO {schema}.{table} SELECT * FROM {temp_table}"
@@ -177,7 +177,7 @@ def _create_table(
         if mode == "upsert":
             guid: str = uuid.uuid4().hex
             temp_table: str = f"temp_redshift_{guid}"
-            sql: str = f"CREATE TEMPORARY TABLE {temp_table} (LIKE {schema}.{table})"
+            sql: str = f'CREATE TEMPORARY TABLE {temp_table} (LIKE "{schema}"."{table}")'
             _logger.debug(sql)
             cursor.execute(sql)
             return temp_table, None
@@ -217,7 +217,7 @@ def _create_table(
     distkey_str: str = f"\nDISTKEY({distkey})" if distkey and diststyle == "KEY" else ""
     sortkey_str: str = f"\n{sortstyle} SORTKEY({','.join(sortkey)})" if sortkey else ""
     sql = (
-        f"CREATE TABLE IF NOT EXISTS {schema}.{table} (\n"
+        f'CREATE TABLE IF NOT EXISTS "{schema}"."{table}" (\n'
         f"{cols_str}"
         f"{primary_keys_str}"
         f")\nDISTSTYLE {diststyle}"
@@ -538,7 +538,7 @@ def read_sql_table(
     >>> con.close()
 
     """
-    sql: str = f"SELECT * FROM {table}" if schema is None else f"SELECT * FROM {schema}.{table}"
+    sql: str = f'SELECT * FROM "{table}"' if schema is None else f'SELECT * FROM "{schema}"."{table}"'
     return read_sql_query(
         sql=sql, con=con, index_col=index_col, params=params, chunksize=chunksize, dtype=dtype, safe=safe
     )
@@ -627,6 +627,7 @@ def to_sql(
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
     _validate_connection(con=con)
+    autocommit_temp: bool = con.autocommit
     con.autocommit = False
     try:
         with con.cursor() as cursor:
@@ -650,8 +651,8 @@ def to_sql(
             if index:
                 df.reset_index(level=df.index.names, inplace=True)
             placeholders: str = ", ".join(["%s"] * len(df.columns))
-            schema_str = f"{created_schema}." if created_schema else ""
-            sql: str = f"INSERT INTO {schema_str}{created_table} VALUES ({placeholders})"
+            schema_str = f'"{created_schema}".' if created_schema else ""
+            sql: str = f'INSERT INTO {schema_str}"{created_table}" VALUES ({placeholders})'
             _logger.debug("sql: %s", sql)
             parameters: List[List[Any]] = _db_utils.extract_parameters(df=df)
             cursor.executemany(sql, parameters)
@@ -662,6 +663,8 @@ def to_sql(
         con.rollback()
         _logger.error(ex)
         raise
+    finally:
+        con.autocommit = autocommit_temp
 
 
 def unload_to_files(
@@ -1009,6 +1012,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     >>> con.close()
 
     """
+    autocommit_temp: bool = con.autocommit
     con.autocommit = False
     try:
         with con.cursor() as cursor:
@@ -1047,6 +1051,8 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
         con.rollback()
         _logger.error(ex)
         raise
+    finally:
+        con.autocommit = autocommit_temp
 
 
 def copy(  # pylint: disable=too-many-arguments

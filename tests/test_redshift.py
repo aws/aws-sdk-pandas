@@ -667,3 +667,26 @@ def test_upsert(redshift_table):
     assert len(df.columns) == len(df4.columns)
 
     con.close()
+
+
+def test_read_retry():
+    con = wr.redshift.connect(connection="aws-data-wrangler-redshift")
+    try:
+        wr.redshift.read_sql_query("ERROR", con)
+    except:  # noqa
+        pass
+    df = wr.redshift.read_sql_query("SELECT 1", con)
+    assert df.shape == (1, 1)
+    con.close()
+
+
+def test_table_name():
+    df = pd.DataFrame({"col0": [1]})
+    con = wr.redshift.connect(connection="aws-data-wrangler-redshift")
+    wr.redshift.to_sql(df, con, "Test Name", "public", mode="overwrite")
+    df = wr.redshift.read_sql_table(schema="public", con=con, table="Test Name")
+    assert df.shape == (1, 1)
+    with con.cursor() as cursor:
+        cursor.execute('DROP TABLE "Test Name"')
+    con.commit()
+    con.close()

@@ -26,8 +26,8 @@ def _validate_connection(con: pymysql.connections.Connection) -> None:
 
 
 def _drop_table(cursor: Cursor, schema: Optional[str], table: str) -> None:
-    schema_str = f"{schema}." if schema else ""
-    sql = f"DROP TABLE IF EXISTS {schema_str}{table}"
+    schema_str = f"`{schema}`." if schema else ""
+    sql = f"DROP TABLE IF EXISTS {schema_str}`{table}`"
     _logger.debug("Drop table query:\n%s", sql)
     cursor.execute(sql)
 
@@ -61,7 +61,7 @@ def _create_table(
         converter_func=_data_types.pyarrow2mysql,
     )
     cols_str: str = "".join([f"`{k}` {v},\n" for k, v in mysql_types.items()])[:-2]
-    sql = f"CREATE TABLE IF NOT EXISTS {schema}.{table} (\n" f"{cols_str}" f")"
+    sql = f"CREATE TABLE IF NOT EXISTS `{schema}`.`{table}` (\n{cols_str})"
     _logger.debug("Create table query:\n%s", sql)
     cursor.execute(sql)
 
@@ -246,7 +246,7 @@ def read_sql_table(
     >>> con.close()
 
     """
-    sql: str = f"SELECT * FROM {table}" if schema is None else f"SELECT * FROM {schema}.{table}"
+    sql: str = f"SELECT * FROM `{table}`" if schema is None else f"SELECT * FROM `{schema}`.`{table}`"
     return read_sql_query(
         sql=sql, con=con, index_col=index_col, params=params, chunksize=chunksize, dtype=dtype, safe=safe
     )
@@ -310,7 +310,6 @@ def to_sql(
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
     _validate_connection(con=con)
-    con.autocommit(True)  # type: ignore
     try:
         with con.cursor() as cursor:
             _create_table(
@@ -326,7 +325,7 @@ def to_sql(
             if index:
                 df.reset_index(level=df.index.names, inplace=True)
             placeholders: str = ", ".join(["%s"] * len(df.columns))
-            sql: str = f"INSERT INTO {schema}.{table} VALUES ({placeholders})"
+            sql: str = f"INSERT INTO `{schema}`.`{table}` VALUES ({placeholders})"
             _logger.debug("sql: %s", sql)
             parameters: List[List[Any]] = _db_utils.extract_parameters(df=df)
             cursor.executemany(sql, parameters)

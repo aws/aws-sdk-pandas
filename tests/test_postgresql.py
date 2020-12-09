@@ -148,3 +148,26 @@ def test_decimal_cast(postgresql_table):
     assert 3.88 <= df2.col1.sum() <= 3.89
     assert df2.col2.sum() == 2
     con.close()
+
+
+def test_read_retry():
+    con = wr.postgresql.connect(connection="aws-data-wrangler-postgresql")
+    try:
+        wr.postgresql.read_sql_query("ERROR", con)
+    except:  # noqa
+        pass
+    df = wr.postgresql.read_sql_query("SELECT 1", con)
+    assert df.shape == (1, 1)
+    con.close()
+
+
+def test_table_name():
+    df = pd.DataFrame({"col0": [1]})
+    con = wr.postgresql.connect(connection="aws-data-wrangler-postgresql")
+    wr.postgresql.to_sql(df, con, "Test Name", "public", mode="overwrite")
+    df = wr.postgresql.read_sql_table(schema="public", con=con, table="Test Name")
+    assert df.shape == (1, 1)
+    with con.cursor() as cursor:
+        cursor.execute('DROP TABLE "Test Name"')
+    con.commit()
+    con.close()

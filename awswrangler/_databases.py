@@ -116,23 +116,28 @@ def read_sql_query(
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read SQL Query (generic)."""
     args = _convert_params(sql, params)
-    with con.cursor() as cursor:
-        cursor.execute(*args)
-        cols_names: List[str] = [
-            col[0].decode("utf-8") if isinstance(col[0], bytes) else col[0] for col in cursor.description
-        ]
-        _logger.debug("cols_names: %s", cols_names)
-        if chunksize is None:
-            return _records2df(
-                records=cast(List[Tuple[Any]], cursor.fetchall()),
-                cols_names=cols_names,
-                index=index_col,
-                dtype=dtype,
-                safe=safe,
+    try:
+        with con.cursor() as cursor:
+            cursor.execute(*args)
+            cols_names: List[str] = [
+                col[0].decode("utf-8") if isinstance(col[0], bytes) else col[0] for col in cursor.description
+            ]
+            _logger.debug("cols_names: %s", cols_names)
+            if chunksize is None:
+                return _records2df(
+                    records=cast(List[Tuple[Any]], cursor.fetchall()),
+                    cols_names=cols_names,
+                    index=index_col,
+                    dtype=dtype,
+                    safe=safe,
+                )
+            return _iterate_cursor(
+                cursor=cursor, chunksize=chunksize, cols_names=cols_names, index=index_col, dtype=dtype, safe=safe
             )
-        return _iterate_cursor(
-            cursor=cursor, chunksize=chunksize, cols_names=cols_names, index=index_col, dtype=dtype, safe=safe
-        )
+    except Exception as ex:
+        con.rollback()
+        _logger.error(ex)
+        raise
 
 
 def extract_parameters(df: pd.DataFrame) -> List[List[Any]]:

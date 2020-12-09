@@ -208,6 +208,7 @@ def redshift_table():
     con = wr.redshift.connect("aws-data-wrangler-redshift")
     with con.cursor() as cursor:
         cursor.execute(f"DROP TABLE IF EXISTS public.{name}")
+    con.commit()
     con.close()
 
 
@@ -219,6 +220,7 @@ def postgresql_table():
     con = wr.postgresql.connect("aws-data-wrangler-postgresql")
     with con.cursor() as cursor:
         cursor.execute(f"DROP TABLE IF EXISTS public.{name}")
+    con.commit()
     con.close()
 
 
@@ -230,6 +232,7 @@ def mysql_table():
     con = wr.mysql.connect("aws-data-wrangler-mysql")
     with con.cursor() as cursor:
         cursor.execute(f"DROP TABLE IF EXISTS test.{name}")
+    con.commit()
     con.close()
 
 
