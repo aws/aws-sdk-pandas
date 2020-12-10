@@ -127,6 +127,8 @@ def _redshift_types_from_path(
     varchar_lengths_default: int,
     varchar_lengths: Optional[Dict[str, int]],
     parquet_infer_sampling: float,
+    path_suffix: Optional[str],
+    path_ignore_suffix: Optional[str],
     use_threads: bool,
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
@@ -134,9 +136,12 @@ def _redshift_types_from_path(
     """Extract Redshift data types from a Pandas DataFrame."""
     _varchar_lengths: Dict[str, int] = {} if varchar_lengths is None else varchar_lengths
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    _logger.debug("Scanning parquet schemas on s3...")
     athena_types, _ = s3.read_parquet_metadata(
         path=path,
         sampling=parquet_infer_sampling,
+        path_suffix=path_suffix,
+        path_ignore_suffix=path_ignore_suffix,
         dataset=False,
         use_threads=use_threads,
         boto3_session=session,
@@ -167,6 +172,8 @@ def _create_table(
     varchar_lengths_default: int,
     varchar_lengths: Optional[Dict[str, int]],
     parquet_infer_sampling: float = 1.0,
+    path_suffix: Optional[str] = None,
+    path_ignore_suffix: Optional[str] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
@@ -199,6 +206,8 @@ def _create_table(
             varchar_lengths_default=varchar_lengths_default,
             varchar_lengths=varchar_lengths,
             parquet_infer_sampling=parquet_infer_sampling,
+            path_suffix=path_suffix,
+            path_ignore_suffix=path_ignore_suffix,
             use_threads=use_threads,
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
@@ -927,6 +936,8 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     primary_keys: Optional[List[str]] = None,
     varchar_lengths_default: int = 256,
     varchar_lengths: Optional[Dict[str, int]] = None,
+    path_suffix: Optional[str] = None,
+    path_ignore_suffix: Optional[str] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
@@ -983,6 +994,16 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
         The size that will be set for all VARCHAR columns not specified with varchar_lengths.
     varchar_lengths : Dict[str, int], optional
         Dict of VARCHAR length by columns. (e.g. {"col1": 10, "col5": 200}).
+    path_suffix: Union[str, List[str], None]
+        Suffix or List of suffixes to be scanned on s3 for the schema extraction
+        (e.g. [".gz.parquet", ".snappy.parquet"]).
+        Only has effect during the table creation.
+        If None, will try to read all files. (default)
+    path_ignore_suffix: Union[str, List[str], None]
+        Suffix or List of suffixes for S3 keys to be ignored during the schema extraction.
+        (e.g. [".csv", "_SUCCESS"]).
+        Only has effect during the table creation.
+        If None, will try to read all files. (default)
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -1020,6 +1041,8 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
                 df=None,
                 path=path,
                 parquet_infer_sampling=parquet_infer_sampling,
+                path_suffix=path_suffix,
+                path_ignore_suffix=path_ignore_suffix,
                 cursor=cursor,
                 table=table,
                 schema=schema,

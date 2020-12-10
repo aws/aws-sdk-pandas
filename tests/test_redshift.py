@@ -3,6 +3,7 @@ import random
 import string
 from decimal import Decimal
 
+import boto3
 import pandas as pd
 import pyarrow as pa
 import pytest
@@ -690,3 +691,59 @@ def test_table_name():
         cursor.execute('DROP TABLE "Test Name"')
     con.commit()
     con.close()
+
+
+def test_copy_from_files(path, redshift_table, databases_parameters):
+    df = get_df_category().drop(["binary"], axis=1, inplace=False)
+    wr.s3.to_parquet(df, f"{path}test.parquet")
+    bucket, key = wr._utils.parse_path(f"{path}test.csv")
+    boto3.client("s3").put_object(Body=b"", Bucket=bucket, Key=key)
+    con = wr.redshift.connect("aws-data-wrangler-redshift")
+    wr.redshift.copy_from_files(
+        path=path,
+        path_suffix=[".parquet"],
+        con=con,
+        table=redshift_table,
+        schema="public",
+        iam_role=databases_parameters["redshift"]["role"],
+    )
+    df2 = wr.redshift.read_sql_query(sql=f"SELECT count(*) AS counter FROM public.{redshift_table}", con=con)
+    con.close()
+    assert df2["counter"].iloc[0] == 3
+
+
+def test_copy_from_files_ignore(path, redshift_table, databases_parameters):
+    df = get_df_category().drop(["binary"], axis=1, inplace=False)
+    wr.s3.to_parquet(df, f"{path}test.parquet")
+    bucket, key = wr._utils.parse_path(f"{path}test.csv")
+    boto3.client("s3").put_object(Body=b"", Bucket=bucket, Key=key)
+    con = wr.redshift.connect("aws-data-wrangler-redshift")
+    wr.redshift.copy_from_files(
+        path=path,
+        path_ignore_suffix=[".csv"],
+        con=con,
+        table=redshift_table,
+        schema="public",
+        iam_role=databases_parameters["redshift"]["role"],
+    )
+    df2 = wr.redshift.read_sql_query(sql=f"SELECT count(*) AS counter FROM public.{redshift_table}", con=con)
+    con.close()
+    assert df2["counter"].iloc[0] == 3
+
+
+def test_copy_from_files_empty(path, redshift_table, databases_parameters):
+    df = get_df_category().drop(["binary"], axis=1, inplace=False)
+    wr.s3.to_parquet(df, f"{path}test.parquet")
+    bucket, key = wr._utils.parse_path(f"{path}test.csv")
+    boto3.client("s3").put_object(Body=b"", Bucket=bucket, Key=key)
+    con = wr.redshift.connect("aws-data-wrangler-redshift")
+    wr.redshift.copy_from_files(
+        path=path,
+        con=con,
+        table=redshift_table,
+        schema="public",
+        iam_role=databases_parameters["redshift"]["role"],
+    )
+    df2 = wr.redshift.read_sql_query(sql=f"SELECT count(*) AS counter FROM public.{redshift_table}", con=con)
+    con.close()
+    assert df2["counter"].iloc[0] == 3

@@ -99,3 +99,7 @@ class NoFilesFound(Exception):
 
 class InvalidDataFrame(Exception):
     """InvalidDataFrame."""
+
+
+class InvalidFile(Exception):
+    """InvalidFile."""

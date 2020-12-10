@@ -86,7 +86,7 @@ def test_delete_internal_error(bucket):
         path = f"s3://{bucket}/foo/dt=2020-01-01 00:00:00/boo.txt"
         with pytest.raises(wr.exceptions.ServiceApiError):
             wr.s3.delete_objects(path=[path])
-    assert 15 <= (time.time() - start) <= 20
+    assert 15 <= (time.time() - start) <= 25
 
 
 def test_delete_error(bucket):

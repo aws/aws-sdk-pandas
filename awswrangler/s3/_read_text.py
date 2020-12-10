@@ -92,6 +92,7 @@ def _read_text(
     path: Union[str, List[str]],
     path_suffix: Union[str, List[str], None],
     path_ignore_suffix: Union[str, List[str], None],
+    ignore_empty: bool,
     use_threads: bool,
     last_modified_begin: Optional[datetime.datetime],
     last_modified_end: Optional[datetime.datetime],
@@ -111,6 +112,7 @@ def _read_text(
         boto3_session=session,
         suffix=path_suffix,
         ignore_suffix=_get_path_ignore_suffix(path_ignore_suffix=path_ignore_suffix),
+        ignore_empty=ignore_empty,
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
     )
@@ -145,6 +147,7 @@ def read_csv(
     path: Union[str, List[str]],
     path_suffix: Union[str, List[str], None] = None,
     path_ignore_suffix: Union[str, List[str], None] = None,
+    ignore_empty: bool = True,
     use_threads: bool = True,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
@@ -180,9 +183,13 @@ def read_csv(
         S3 prefix (accepts Unix shell-style wildcards)
         (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. ``[s3://bucket/key0, s3://bucket/key1]``).
     path_suffix: Union[str, List[str], None]
-        Suffix or List of suffixes for filtering S3 keys.
+        Suffix or List of suffixes to be read (e.g. [".csv"]).
+        If None, will try to read all files. (default)
     path_ignore_suffix: Union[str, List[str], None]
-        Suffix or List of suffixes for S3 keys to be ignored.
+        Suffix or List of suffixes for S3 keys to be ignored.(e.g. ["_SUCCESS"]).
+        If None, will try to read all files. (default)
+    ignore_empty: bool
+        Ignore files with 0 bytes.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -262,6 +269,7 @@ def read_csv(
         path=path,
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,
+        ignore_empty=ignore_empty,
         use_threads=use_threads,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
@@ -279,6 +287,7 @@ def read_fwf(
     path: Union[str, List[str]],
     path_suffix: Union[str, List[str], None] = None,
     path_ignore_suffix: Union[str, List[str], None] = None,
+    ignore_empty: bool = True,
     use_threads: bool = True,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
@@ -314,9 +323,13 @@ def read_fwf(
         S3 prefix (accepts Unix shell-style wildcards)
         (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. ``[s3://bucket/key0, s3://bucket/key1]``).
     path_suffix: Union[str, List[str], None]
-        Suffix or List of suffixes for filtering S3 keys.
+        Suffix or List of suffixes to be read (e.g. [".txt"]).
+        If None, will try to read all files. (default)
     path_ignore_suffix: Union[str, List[str], None]
-        Suffix or List of suffixes for S3 keys to be ignored.
+        Suffix or List of suffixes for S3 keys to be ignored.(e.g. ["_SUCCESS"]).
+        If None, will try to read all files. (default)
+    ignore_empty: bool
+        Ignore files with 0 bytes.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -395,6 +408,7 @@ def read_fwf(
         path=path,
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,
+        ignore_empty=ignore_empty,
         use_threads=use_threads,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
@@ -413,6 +427,7 @@ def read_json(
     path: Union[str, List[str]],
     path_suffix: Union[str, List[str], None] = None,
     path_ignore_suffix: Union[str, List[str], None] = None,
+    ignore_empty: bool = True,
     orient: str = "columns",
     use_threads: bool = True,
     last_modified_begin: Optional[datetime.datetime] = None,
@@ -449,9 +464,13 @@ def read_json(
         S3 prefix (accepts Unix shell-style wildcards)
         (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. ``[s3://bucket/key0, s3://bucket/key1]``).
     path_suffix: Union[str, List[str], None]
-        Suffix or List of suffixes for filtering S3 keys.
+        Suffix or List of suffixes to be read (e.g. [".json"]).
+        If None, will try to read all files. (default)
     path_ignore_suffix: Union[str, List[str], None]
-        Suffix or List of suffixes for S3 keys to be ignored.
+        Suffix or List of suffixes for S3 keys to be ignored.(e.g. ["_SUCCESS"]).
+        If None, will try to read all files. (default)
+    ignore_empty: bool
+        Ignore files with 0 bytes.
     orient : str
         Same as Pandas: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_json.html
     use_threads : bool
@@ -537,6 +556,7 @@ def read_json(
         path=path,
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,
+        ignore_empty=ignore_empty,
         use_threads=use_threads,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,

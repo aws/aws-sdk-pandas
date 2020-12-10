@@ -12,7 +12,6 @@ from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union, 
 import boto3
 import pandas as pd
 import pyarrow as pa
-import pyarrow.lib
 import pyarrow.parquet
 
 from awswrangler import _data_types, _utils, exceptions
@@ -32,9 +31,21 @@ from awswrangler.s3._read import (
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
+def _pyarrow_parquet_file_wrapper(
+    source: Any, read_dictionary: Optional[List[str]] = None
+) -> pyarrow.parquet.ParquetFile:
+    try:
+        return pyarrow.parquet.ParquetFile(source=source, read_dictionary=read_dictionary)
+    except pyarrow.ArrowInvalid as ex:
+        if str(ex) == "Parquet file size is 0 bytes":
+            _logger.warning("Ignoring empty file...xx")
+            return None
+        raise
+
+
 def _read_parquet_metadata_file(
     path: str, boto3_session: boto3.Session, s3_additional_kwargs: Optional[Dict[str, str]], use_threads: bool
-) -> Dict[str, str]:
+) -> Optional[Dict[str, str]]:
     with open_s3_object(
         path=path,
         mode="rb",
@@ -43,7 +54,9 @@ def _read_parquet_metadata_file(
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
     ) as f:
-        pq_file: pyarrow.parquet.ParquetFile = pyarrow.parquet.ParquetFile(source=f)
+        pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(source=f)
+        if pq_file is None:
+            return None
         return _data_types.athena_types_from_pyarrow_schema(schema=pq_file.schema.to_arrow_schema(), partitions=None)[0]
 
 
@@ -55,7 +68,7 @@ def _read_schemas_from_files(
     s3_additional_kwargs: Optional[Dict[str, str]],
 ) -> Tuple[Dict[str, str], ...]:
     paths = _utils.list_sampling(lst=paths, sampling=sampling)
-    schemas: Tuple[Dict[str, str], ...] = tuple()
+    schemas: Tuple[Optional[Dict[str, str]], ...] = tuple()
     n_paths: int = len(paths)
     if use_threads is False or n_paths == 1:
         schemas = tuple(
@@ -76,6 +89,7 @@ def _read_schemas_from_files(
                     itertools.repeat(use_threads),
                 )
             )
+    schemas = cast(Tuple[Dict[str, str], ...], tuple(x for x in schemas if x is not None))
     _logger.debug("schemas: %s", schemas)
     return schemas
 
@@ -125,6 +139,7 @@ def _read_parquet_metadata(
     path: Union[str, List[str]],
     path_suffix: Optional[str],
     path_ignore_suffix: Optional[str],
+    ignore_empty: bool,
     dtype: Optional[Dict[str, str]],
     sampling: float,
     dataset: bool,
@@ -139,6 +154,7 @@ def _read_parquet_metadata(
         boto3_session=boto3_session,
         suffix=path_suffix,
         ignore_suffix=_get_path_ignore_suffix(path_ignore_suffix=path_ignore_suffix),
+        ignore_empty=ignore_empty,
     )
 
     # Files
@@ -279,7 +295,11 @@ def _read_parquet_chunked(
             s3_additional_kwargs=s3_additional_kwargs,
             boto3_session=boto3_session,
         ) as f:
-            pq_file: pyarrow.parquet.ParquetFile = pyarrow.parquet.ParquetFile(source=f, read_dictionary=categories)
+            pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(
+                source=f, read_dictionary=categories
+            )
+            if pq_file is None:
+                continue
             schema: Dict[str, str] = _data_types.athena_types_from_pyarrow_schema(
                 schema=pq_file.schema.to_arrow_schema(), partitions=None
             )[0]
@@ -342,7 +362,11 @@ def _read_parquet_file(
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
     ) as f:
-        pq_file: pyarrow.parquet.ParquetFile = pyarrow.parquet.ParquetFile(source=f, read_dictionary=categories)
+        pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(
+            source=f, read_dictionary=categories
+        )
+        if pq_file is None:
+            raise exceptions.InvalidFile(f"Invalid Parquet file: {path}")
         return pq_file.read(columns=columns, use_threads=False, use_pandas_metadata=False)
 
 
@@ -362,7 +386,11 @@ def _count_row_groups(
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
     ) as f:
-        pq_file: pyarrow.parquet.ParquetFile = pyarrow.parquet.ParquetFile(source=f, read_dictionary=categories)
+        pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(
+            source=f, read_dictionary=categories
+        )
+        if pq_file is None:
+            return 0
         n: int = cast(int, pq_file.num_row_groups)
         _logger.debug("Row groups count: %d", n)
         return n
@@ -401,6 +429,7 @@ def read_parquet(
     path: Union[str, List[str]],
     path_suffix: Union[str, List[str], None] = None,
     path_ignore_suffix: Union[str, List[str], None] = None,
+    ignore_empty: bool = True,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
     columns: Optional[List[str]] = None,
     validate_schema: bool = False,
@@ -453,9 +482,13 @@ def read_parquet(
         S3 prefix (accepts Unix shell-style wildcards)
         (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
     path_suffix: Union[str, List[str], None]
-        Suffix or List of suffixes for filtering S3 keys.
+        Suffix or List of suffixes to be read (e.g. [".gz.parquet", ".snappy.parquet"]).
+        If None, will try to read all files. (default)
     path_ignore_suffix: Union[str, List[str], None]
-        Suffix or List of suffixes for S3 keys to be ignored.
+        Suffix or List of suffixes for S3 keys to be ignored.(e.g. [".csv", "_SUCCESS"]).
+        If None, will try to read all files. (default)
+    ignore_empty: bool
+        Ignore files with 0 bytes.
     partition_filter: Optional[Callable[[Dict[str, str]], bool]]
         Callback Function filters to apply on PARTITION columns (PUSH-DOWN filter).
         This function MUST receive a single argument (Dict[str, str]) where keys are partitions
@@ -543,6 +576,7 @@ def read_parquet(
         ignore_suffix=_get_path_ignore_suffix(path_ignore_suffix=path_ignore_suffix),
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
+        ignore_empty=ignore_empty,
     )
     path_root: Optional[str] = _get_path_root(path=path, dataset=dataset)
     if path_root is not None:
@@ -727,6 +761,7 @@ def read_parquet_metadata(
     path: Union[str, List[str]],
     path_suffix: Optional[str] = None,
     path_ignore_suffix: Optional[str] = None,
+    ignore_empty: bool = True,
     dtype: Optional[Dict[str, str]] = None,
     sampling: float = 1.0,
     dataset: bool = False,
@@ -754,9 +789,13 @@ def read_parquet_metadata(
         S3 prefix (accepts Unix shell-style wildcards)
         (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
     path_suffix: Union[str, List[str], None]
-        Suffix or List of suffixes for filtering S3 keys.
+        Suffix or List of suffixes to be read (e.g. [".gz.parquet", ".snappy.parquet"]).
+        If None, will try to read all files. (default)
     path_ignore_suffix: Union[str, List[str], None]
-        Suffix or List of suffixes for S3 keys to be ignored.
+        Suffix or List of suffixes for S3 keys to be ignored.(e.g. [".csv", "_SUCCESS"]).
+        If None, will try to read all files. (default)
+    ignore_empty: bool
+        Ignore files with 0 bytes.
     dtype : Dict[str, str], optional
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined data types as partitions columns.
@@ -804,6 +843,7 @@ def read_parquet_metadata(
         path=path,
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,
+        ignore_empty=ignore_empty,
         dtype=dtype,
         sampling=sampling,
         dataset=dataset,

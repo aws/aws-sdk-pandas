@@ -581,6 +581,7 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
     catalog_id: Optional[str] = None,
     path_suffix: Optional[str] = None,
     path_ignore_suffix: Optional[str] = None,
+    ignore_empty: bool = True,
     dtype: Optional[Dict[str, str]] = None,
     sampling: float = 1.0,
     dataset: bool = False,
@@ -641,6 +642,8 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
         Suffix or List of suffixes for filtering S3 keys.
     path_ignore_suffix: Union[str, List[str], None]
         Suffix or List of suffixes for S3 keys to be ignored.
+    ignore_empty: bool
+        Ignore files with 0 bytes.
     dtype : Dict[str, str], optional
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined data types as partitions columns.
@@ -738,6 +741,7 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
         dataset=dataset,
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,
+        ignore_empty=ignore_empty,
         use_threads=use_threads,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=session,

@@ -164,8 +164,8 @@ def test_read_retry():
 def test_table_name():
     df = pd.DataFrame({"col0": [1]})
     con = wr.mysql.connect(connection="aws-data-wrangler-mysql")
-    wr.mysql.to_sql(df, con, "Test Name", "test")
-    df = wr.mysql.read_sql_table(schema="test", table="Test Name")
+    wr.mysql.to_sql(df, con, "Test Name", "test", mode="overwrite")
+    df = wr.mysql.read_sql_table(con=con, schema="test", table="Test Name")
     assert df.shape == (1, 1)
     with con.cursor() as cursor:
         cursor.execute("DROP TABLE `Test Name`")

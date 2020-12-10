@@ -416,3 +416,16 @@ def test_parquet_plain(path) -> None:
     wr.s3.to_parquet(df=df, path=path_file, compression=None)
     df2 = wr.s3.read_parquet([path_file])
     assert df.equals(df2)
+
+
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_empty_file(path, use_threads):
+    df = pd.DataFrame({"c0": [1, 2, 3], "c1": [None, None, None], "par": ["a", "b", "c"]})
+    df["c0"] = df["c0"].astype("Int64")
+    df["par"] = df["par"].astype("string")
+    wr.s3.to_parquet(df, path, dataset=True, partition_cols=["par"])
+    bucket, key = wr._utils.parse_path(f"{path}test.csv")
+    boto3.client("s3").put_object(Body=b"", Bucket=bucket, Key=key)
+    df2 = wr.s3.read_parquet(path, dataset=True, use_threads=use_threads)
+    df2["par"] = df2["par"].astype("string")
+    assert df.equals(df2)

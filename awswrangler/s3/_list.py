@@ -20,6 +20,7 @@ def _path2list(
     last_modified_end: Optional[datetime.datetime] = None,
     suffix: Union[str, List[str], None] = None,
     ignore_suffix: Union[str, List[str], None] = None,
+    ignore_empty: bool = False,
 ) -> List[str]:
     """Convert Amazon S3 path to list of objects."""
     _suffix: Optional[List[str]] = [suffix] if isinstance(suffix, str) else suffix
@@ -32,6 +33,7 @@ def _path2list(
             boto3_session=boto3_session,
             last_modified_begin=last_modified_begin,
             last_modified_end=last_modified_end,
+            ignore_empty=ignore_empty,
         )
     elif isinstance(path, list):
         if last_modified_begin or last_modified_end:
@@ -72,6 +74,7 @@ def _list_objects(  # pylint: disable=too-many-branches
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
+    ignore_empty: bool = False,
 ) -> List[str]:
     bucket: str
     prefix_original: str
@@ -94,7 +97,9 @@ def _list_objects(  # pylint: disable=too-many-branches
             if contents is not None:
                 for content in contents:
                     key: str = content["Key"]
-                    if (content is not None) and ("Key" in content):
+                    if ignore_empty and content.get("Size", 0) == 0:
+                        _logger.debug("Skipping empty file: %s", f"s3://{bucket}/{key}")
+                    elif (content is not None) and ("Key" in content):
                         if (_suffix is None) or key.endswith(tuple(_suffix)):
                             if last_modified_begin is not None:
                                 if content["LastModified"] < last_modified_begin:
@@ -212,6 +217,7 @@ def list_objects(
     ignore_suffix: Union[str, List[str], None] = None,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
+    ignore_empty: bool = False,
     boto3_session: Optional[boto3.Session] = None,
 ) -> List[str]:
     """List Amazon S3 objects from a prefix.
@@ -238,6 +244,8 @@ def list_objects(
     last_modified_end: datetime, optional
         Filter the s3 files by the Last modified date of the object.
         The filter is applied only after list all s3 files.
+    ignore_empty: bool
+        Ignore files with 0 bytes.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -270,5 +278,6 @@ def list_objects(
         boto3_session=boto3_session,
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
+        ignore_empty=ignore_empty,
     )
     return [p for p in paths if not p.endswith("/")]

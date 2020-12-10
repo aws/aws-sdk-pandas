@@ -45,6 +45,7 @@ def merge_datasets(
     source_path: str,
     target_path: str,
     mode: str = "append",
+    ignore_empty: bool = False,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -74,6 +75,8 @@ def merge_datasets(
         S3 Path for the target directory.
     mode: str, optional
         ``append`` (Default), ``overwrite``, ``overwrite_partitions``.
+    ignore_empty: bool
+        Ignore files with 0 bytes.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -120,7 +123,7 @@ def merge_datasets(
     target_path = target_path[:-1] if target_path[-1] == "/" else target_path
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
-    paths: List[str] = list_objects(path=f"{source_path}/", boto3_session=session)
+    paths: List[str] = list_objects(path=f"{source_path}/", ignore_empty=ignore_empty, boto3_session=session)
     _logger.debug("len(paths): %s", len(paths))
     if len(paths) < 1:
         return []
