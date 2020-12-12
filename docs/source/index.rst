@@ -64,6 +64,7 @@ Read The Docs
    Tutorials <https://github.com/awslabs/aws-data-wrangler/tree/master/tutorials>
    api
    Community Resources <https://github.com/awslabs/aws-data-wrangler#community-resources>
+   Logging <https://github.com/awslabs/aws-data-wrangler#logging>
    Who uses AWS Data Wrangler? <https://github.com/awslabs/aws-data-wrangler#who-uses-aws-data-wrangler>
    License <https://github.com/awslabs/aws-data-wrangler/blob/master/LICENSE.txt>
    Contributing <https://github.com/awslabs/aws-data-wrangler/blob/master/CONTRIBUTING.md>
