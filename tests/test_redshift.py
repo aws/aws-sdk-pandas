@@ -747,3 +747,24 @@ def test_copy_from_files_empty(path, redshift_table, databases_parameters):
     df2 = wr.redshift.read_sql_query(sql=f"SELECT count(*) AS counter FROM public.{redshift_table}", con=con)
     con.close()
     assert df2["counter"].iloc[0] == 3
+
+
+def test_copy_dirty_path(path, redshift_table, databases_parameters):
+    df = pd.DataFrame({"col0": [0, 1, 2]})
+
+    # previous file at same path
+    wr.s3.to_parquet(df, f"{path}test.parquet")
+
+    con = wr.redshift.connect("aws-data-wrangler-redshift")
+    with pytest.raises(wr.exceptions.InvalidArgument):
+        try:
+            wr.redshift.copy(  # Trying to copy using a dirty path
+                df=df,
+                path=path,
+                con=con,
+                table=redshift_table,
+                schema="public",
+                iam_role=databases_parameters["redshift"]["role"],
+            )
+        finally:
+            con.close()

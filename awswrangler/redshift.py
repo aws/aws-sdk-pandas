@@ -1103,12 +1103,12 @@ def copy(  # pylint: disable=too-many-arguments
 ) -> None:
     """Load Pandas DataFrame as a Table on Amazon Redshift using parquet files on S3 as stage.
 
-    This is a **HIGH** latency and **HIGH** throughput alternative to `wr.db.to_sql()` to load large
+    This is a **HIGH** latency and **HIGH** throughput alternative to `wr.redshift.to_sql()` to load large
     DataFrames into Amazon Redshift through the ** SQL COPY command**.
 
     This strategy has more overhead and requires more IAM privileges
-    than the regular `wr.db.to_sql()` function, so it is only recommended
-    to inserting +1MM rows at once.
+    than the regular `wr.redshift.to_sql()` function, so it is only recommended
+    to inserting +1K rows at once.
 
     https://docs.aws.amazon.com/redshift/latest/dg/r_COPY.html
 
@@ -1129,7 +1129,8 @@ def copy(  # pylint: disable=too-many-arguments
     df: pandas.DataFrame
         Pandas DataFrame.
     path : str
-        S3 path to write stage files (e.g. s3://bucket_name/any_name/)
+        S3 path to write stage files (e.g. s3://bucket_name/any_name/).
+        Note: This path must be empty.
     con : redshift_connector.Connection
         Use redshift_connector.connect() to use "
         "credentials directly or wr.redshift.connect() to fetch it from the Glue Catalog.
@@ -1204,6 +1205,11 @@ def copy(  # pylint: disable=too-many-arguments
     path = path[:-1] if path.endswith("*") else path
     path = path if path.endswith("/") else f"{path}/"
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    if s3.list_objects(path=path):
+        raise exceptions.InvalidArgument(
+            f"The received S3 path ({path}) is not empty. "
+            "Please, provide a different path or use wr.s3.delete_objects() to clean up the current one."
+        )
     s3.to_parquet(
         df=df,
         path=path,
