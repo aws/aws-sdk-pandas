@@ -174,7 +174,7 @@ def add_column(
     boto3_session: Optional[boto3.Session] = None,
     catalog_id: Optional[str] = None,
 ) -> None:
-    """Delete a column in a AWS Glue Catalog table.
+    """Add a column in a AWS Glue Catalog table.
 
     Parameters
     ----------
