@@ -12,6 +12,7 @@ API Reference
 * `Amazon CloudWatch Logs`_
 * `Amazon QuickSight`_
 * `AWS STS`_
+* `AWS Secrets Manager`_
 * `Global Configurations`_
 
 Amazon S3
@@ -257,6 +258,16 @@ AWS STS
     get_current_identity_arn
     get_current_identity_name
 
+AWS Secrets Manager
+-------------------
+
+.. currentmodule:: awswrangler.secretsmanager
+
+.. autosummary::
+    :toctree: stubs
+
+    get_secret
+    get_secret_json
 
 Global Configurations
 ---------------------

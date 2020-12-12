@@ -4,6 +4,7 @@ from decimal import Decimal
 import pandas as pd
 import pg8000
 import pyarrow as pa
+import pytest
 
 import awswrangler as wr
 
@@ -171,3 +172,11 @@ def test_table_name():
         cursor.execute('DROP TABLE "Test Name"')
     con.commit()
     con.close()
+
+
+@pytest.mark.parametrize("dbname", [None, "postgres"])
+def test_connect_secret_manager(dbname):
+    con = wr.postgresql.connect(secret_id="aws-data-wrangler/postgresql", dbname=dbname)
+    df = wr.postgresql.read_sql_query("SELECT 1", con=con)
+    con.close()
+    assert df.shape == (1, 1)

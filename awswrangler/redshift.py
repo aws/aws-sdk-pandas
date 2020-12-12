@@ -262,25 +262,37 @@ def _read_parquet_iterator(
 
 
 def connect(
-    connection: str,
+    connection: Optional[str] = None,
+    secret_id: Optional[str] = None,
     catalog_id: Optional[str] = None,
+    dbname: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
     ssl: bool = True,
     timeout: Optional[int] = None,
     max_prepared_statements: int = 1000,
     tcp_keepalive: bool = True,
 ) -> redshift_connector.Connection:
-    """Return a redshift_connector connection from a Glue Catalog Connection.
+    """Return a redshift_connector connection from a Glue Catalog or Secret Manager.
+
+    Note
+    ----
+    You MUST pass a `connection` OR `secret_id`
+
 
     https://github.com/aws/amazon-redshift-python-driver
 
     Parameters
     ----------
-    connection : str
+    connection : Optional[str]
         Glue Catalog Connection name.
+    secret_id: Optional[str]:
+        Specifies the secret containing the version that you want to retrieve.
+        You can specify either the Amazon Resource Name (ARN) or the friendly name of the secret.
     catalog_id : str, optional
         The ID of the Data Catalog.
         If none is provided, the AWS account ID is used by default.
+    dbname: Optional[str]
+        Optional database name to overwrite the stored one.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     ssl: bool
@@ -307,6 +319,8 @@ def connect(
 
     Examples
     --------
+    Fetching Redshit connection from Glue Catalog
+
     >>> import awswrangler as wr
     >>> con = wr.redshift.connect("MY_GLUE_CONNECTION")
     >>> with con.cursor() as cursor:
@@ -314,9 +328,18 @@ def connect(
     >>>     print(cursor.fetchall())
     >>> con.close()
 
+    Fetching Redshit connection from Secrets Manager
+
+    >>> import awswrangler as wr
+    >>> con = wr.redshift.connect(secret_id="MY_SECRET")
+    >>> with con.cursor() as cursor:
+    >>>     cursor.execute("SELECT 1")
+    >>>     print(cursor.fetchall())
+    >>> con.close()
+
     """
     attrs: _db_utils.ConnectionAttributes = _db_utils.get_connection_attributes(
-        connection=connection, catalog_id=catalog_id, boto3_session=boto3_session
+        connection=connection, secret_id=secret_id, catalog_id=catalog_id, dbname=dbname, boto3_session=boto3_session
     )
     if attrs.kind != "redshift":
         exceptions.InvalidDatabaseType(f"Invalid connection type ({attrs.kind}. It must be a redshift connection.)")

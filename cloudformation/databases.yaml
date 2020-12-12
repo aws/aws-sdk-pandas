@@ -370,6 +370,62 @@ Resources:
           ReturnConnectionPasswordEncrypted: true
         EncryptionAtRest:
           CatalogEncryptionMode: DISABLED
+  RedshiftSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: aws-data-wrangler/redshift
+      Description: Redshift credentials
+      SecretString:
+        Fn::Sub: |
+          {
+            "username": "test",
+            "password": "${DatabasesPassword}",
+            "engine": "redshift",
+            "host": "${Redshift.Endpoint.Address}",
+            "port": ${Redshift.Endpoint.Port},
+            "dbClusterIdentifier": "${Redshift}"
+          }
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
+  postgresqlSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: aws-data-wrangler/postgresql
+      Description: Postgresql credentials
+      SecretString:
+        Fn::Sub: |
+          {
+            "username": "test",
+            "password": "${DatabasesPassword}",
+            "engine": "postgres",
+            "host": "${AuroraInstancePostgresql.Endpoint.Address}",
+            "port": ${AuroraInstancePostgresql.Endpoint.Port},
+            "dbClusterIdentifier": "${AuroraInstancePostgresql}",
+            "dbname": "postgres"
+          }
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
+  MysqlSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: aws-data-wrangler/mysql
+      Description: Mysql credentials
+      SecretString:
+        Fn::Sub: |
+          {
+            "username": "test",
+            "password": "${DatabasesPassword}",
+            "engine": "postgres",
+            "host": "${AuroraInstanceMysql.Endpoint.Address}",
+            "port": ${AuroraInstanceMysql.Endpoint.Port},
+            "dbClusterIdentifier": "${AuroraInstanceMysql}",
+            "dbname": "test"
+          }
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
 Outputs:
   DatabasesPassword:
     Value:

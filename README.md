@@ -12,7 +12,7 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 [![Checked with mypy](http://www.mypy-lang.org/static/mypy_badge.svg)](http://mypy-lang.org/)
-[![Coverage](https://img.shields.io/badge/coverage-92%25-brightgreen.svg)](https://pypi.org/project/awswrangler/)
+[![Coverage](https://img.shields.io/badge/coverage-91%25-brightgreen.svg)](https://pypi.org/project/awswrangler/)
 ![Static Checking](https://github.com/awslabs/aws-data-wrangler/workflows/Static%20Checking/badge.svg?branch=master)
 [![Documentation Status](https://readthedocs.org/projects/aws-data-wrangler/badge/?version=latest)](https://aws-data-wrangler.readthedocs.io/?badge=latest)
 
@@ -138,6 +138,7 @@ FROM "sampleDB"."sampleTable" ORDER BY time DESC LIMIT 3
   - [Amazon CloudWatch Logs](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-cloudwatch-logs)
   - [Amazon QuickSight](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-quicksight)
   - [AWS STS](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#aws-sts)
+  - [AWS Secrets Manager](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#aws-secrets-manager)
 - [**License**](https://github.com/awslabs/aws-data-wrangler/blob/master/LICENSE.txt)
 - [**Contributing**](https://github.com/awslabs/aws-data-wrangler/blob/master/CONTRIBUTING.md)
 - [**Legacy Docs** (pre-1.0.0)](https://aws-data-wrangler.readthedocs.io/en/0.3.3/)
@@ -202,6 +203,6 @@ Please [send a Pull Request](https://github.com/awslabs/aws-data-wrangler/edit/m
 
 **Amazon SageMaker Data Wrangler** is a new SageMaker Studio feature that has a similar name but has a different purpose than the **AWS Data Wrangler** open source project.
 
-* **AWS Data Wrangler** is open source, runs anywhere, and is focused on code.
+- **AWS Data Wrangler** is open source, runs anywhere, and is focused on code.
 
-* **Amazon SageMaker Data Wrangler** is specific for the SageMaker Studio environment and is focused on a visual interface.
+- **Amazon SageMaker Data Wrangler** is specific for the SageMaker Studio environment and is focused on a visual interface.
