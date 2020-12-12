@@ -71,8 +71,10 @@ def _create_table(
 
 
 def connect(
-    connection: str,
+    connection: Optional[str] = None,
+    secret_id: Optional[str] = None,
     catalog_id: Optional[str] = None,
+    dbname: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
     ssl_context: Optional[Dict[Any, Any]] = None,
     timeout: Optional[int] = None,
@@ -84,11 +86,16 @@ def connect(
 
     Parameters
     ----------
-    connection : str
+    connection : Optional[str]
         Glue Catalog Connection name.
+    secret_id: Optional[str]:
+        Specifies the secret containing the version that you want to retrieve.
+        You can specify either the Amazon Resource Name (ARN) or the friendly name of the secret.
     catalog_id : str, optional
         The ID of the Data Catalog.
         If none is provided, the AWS account ID is used by default.
+    dbname: Optional[str]
+        Optional database name to overwrite the stored one.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     ssl_context: Optional[Dict]
@@ -121,7 +128,7 @@ def connect(
 
     """
     attrs: _db_utils.ConnectionAttributes = _db_utils.get_connection_attributes(
-        connection=connection, catalog_id=catalog_id, boto3_session=boto3_session
+        connection=connection, secret_id=secret_id, catalog_id=catalog_id, dbname=dbname, boto3_session=boto3_session
     )
     if attrs.kind != "postgresql":
         exceptions.InvalidDatabaseType(f"Invalid connection type ({attrs.kind}. It must be a postgresql connection.)")

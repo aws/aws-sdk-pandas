@@ -8,7 +8,7 @@ import boto3
 import pandas as pd
 import pyarrow as pa
 
-from awswrangler import _data_types
+from awswrangler import _data_types, _utils, exceptions, secretsmanager
 from awswrangler.catalog import get_connection
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -25,12 +25,15 @@ class ConnectionAttributes(NamedTuple):
     database: str
 
 
-def get_connection_attributes(
-    connection: str,
-    catalog_id: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+def _get_dbname(cluster_id: str, boto3_session: Optional[boto3.Session] = None) -> str:
+    client_redshift: boto3.client = _utils.client(service_name="redshift", session=boto3_session)
+    res: Dict[str, Any] = client_redshift.describe_clusters(ClusterIdentifier=cluster_id)["Clusters"][0]
+    return cast(str, res["DBName"])
+
+
+def _get_connection_attributes_from_catalog(
+    connection: str, catalog_id: Optional[str], dbname: Optional[str], boto3_session: Optional[boto3.Session]
 ) -> ConnectionAttributes:
-    """Get Connection Attributes."""
     details: Dict[str, Any] = get_connection(name=connection, catalog_id=catalog_id, boto3_session=boto3_session)[
         "ConnectionProperties"
     ]
@@ -41,7 +44,51 @@ def get_connection_attributes(
         password=quote_plus(details["PASSWORD"]),
         host=details["JDBC_CONNECTION_URL"].split(":")[2].replace("/", ""),
         port=int(port),
-        database=database,
+        database=dbname if dbname is not None else database,
+    )
+
+
+def _get_connection_attributes_from_secrets_manager(
+    secret_id: str, dbname: Optional[str], boto3_session: Optional[boto3.Session]
+) -> ConnectionAttributes:
+    secret_value: Dict[str, Any] = secretsmanager.get_secret_json(name=secret_id, boto3_session=boto3_session)
+    kind: str = secret_value["engine"]
+    if dbname is not None:
+        _dbname: str = dbname
+    elif "dbname" in secret_value:
+        _dbname = secret_value["dbname"]
+    else:
+        if kind != "redshift":
+            raise exceptions.InvalidConnection(f"The secret {secret_id} MUST have a dbname property.")
+        _dbname = _get_dbname(cluster_id=secret_value["dbClusterIdentifier"], boto3_session=boto3_session)
+    return ConnectionAttributes(
+        kind=kind,
+        user=quote_plus(secret_value["username"]),
+        password=quote_plus(secret_value["password"]),
+        host=secret_value["host"],
+        port=secret_value["port"],
+        database=_dbname,
+    )
+
+
+def get_connection_attributes(
+    connection: Optional[str] = None,
+    secret_id: Optional[str] = None,
+    catalog_id: Optional[str] = None,
+    dbname: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> ConnectionAttributes:
+    """Get Connection Attributes."""
+    if connection is None and secret_id is None:
+        raise exceptions.InvalidArgumentCombination(
+            "Failed attempt to connect. You MUST pass a connection name (Glue Catalog) OR a secret_id as argument."
+        )
+    if connection is not None:
+        return _get_connection_attributes_from_catalog(
+            connection=connection, catalog_id=catalog_id, dbname=dbname, boto3_session=boto3_session
+        )
+    return _get_connection_attributes_from_secrets_manager(
+        secret_id=cast(str, secret_id), dbname=dbname, boto3_session=boto3_session
     )
 
 

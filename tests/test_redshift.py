@@ -768,3 +768,11 @@ def test_copy_dirty_path(path, redshift_table, databases_parameters):
             )
         finally:
             con.close()
+
+
+@pytest.mark.parametrize("dbname", [None, "test"])
+def test_connect_secret_manager(dbname):
+    con = wr.redshift.connect(secret_id="aws-data-wrangler/redshift", dbname=dbname)
+    df = wr.redshift.read_sql_query("SELECT 1", con=con)
+    con.close()
+    assert df.shape == (1, 1)
