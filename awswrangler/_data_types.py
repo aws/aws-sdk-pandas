@@ -4,7 +4,7 @@ import datetime
 import logging
 import re
 from decimal import Decimal
-from typing import Any, Callable, Dict, List, Match, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Iterator, List, Match, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -189,9 +189,35 @@ def pyarrow2timestream(dtype: pa.DataType) -> str:  # pylint: disable=too-many-b
     raise exceptions.UnsupportedType(f"Unsupported Amazon Timestream measure type: {dtype}")
 
 
+def _split_fields(s: str) -> Iterator[str]:
+    counter: int = 0
+    last: int = 0
+    for i, x in enumerate(s):
+        if x == "<":
+            counter += 1
+        elif x == ">":
+            counter -= 1
+        elif x == "," and counter == 0:
+            yield s[last:i]
+            last = i + 1
+    yield s[last:]
+
+
+def _split_struct(s: str) -> List[str]:
+    return list(_split_fields(s=s))
+
+
+def _split_map(s: str) -> List[str]:
+    parts: List[str] = list(_split_fields(s=s))
+    if len(parts) != 2:
+        raise RuntimeError(f"Invalid map fields: {s}")
+    return parts
+
+
 def athena2pyarrow(dtype: str) -> pa.DataType:  # pylint: disable=too-many-return-statements
     """Athena to PyArrow data types conversion."""
     dtype = dtype.lower().replace(" ", "")
+    print(dtype)
     if dtype == "tinyint":
         return pa.int8()
     if dtype == "smallint":
@@ -220,9 +246,10 @@ def athena2pyarrow(dtype: str) -> pa.DataType:  # pylint: disable=too-many-retur
     if dtype.startswith("array") is True:
         return pa.list_(value_type=athena2pyarrow(dtype=dtype[6:-1]), list_size=-1)
     if dtype.startswith("struct") is True:
-        return pa.struct([(f.split(":", 1)[0], athena2pyarrow(f.split(":", 1)[1])) for f in dtype[7:-1].split(",")])
+        return pa.struct([(f.split(":", 1)[0], athena2pyarrow(f.split(":", 1)[1])) for f in _split_struct(dtype[7:-1])])
     if dtype.startswith("map") is True:
-        return pa.map_(athena2pyarrow(dtype[4:-1].split(",", 1)[0]), athena2pyarrow(dtype[4:-1].split(",", 1)[1]))
+        parts: List[str] = _split_map(s=dtype[4:-1])
+        return pa.map_(athena2pyarrow(parts[0]), athena2pyarrow(parts[1]))
     raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")
 
 
@@ -491,6 +518,7 @@ def pyarrow_schema_from_pandas(
 ) -> pa.Schema:
     """Extract the related Pyarrow Schema from any Pandas DataFrame."""
     casts: Dict[str, str] = {} if dtype is None else dtype
+    _logger.debug("casts: %s", casts)
     ignore: List[str] = [] if ignore_cols is None else ignore_cols
     ignore_plus = ignore + list(casts.keys())
     columns_types: Dict[str, Optional[pa.DataType]] = pyarrow_types_from_pandas(
