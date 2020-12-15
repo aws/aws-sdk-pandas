@@ -10,6 +10,7 @@ import pyarrow as pa
 import pytest
 
 import awswrangler as wr
+from awswrangler._data_types import _split_fields
 
 from ._utils import ensure_data_types, get_df, get_df_cast, get_df_list
 
@@ -674,3 +675,35 @@ def test_cast_decimal(path, glue_table, glue_database):
     assert df2["c1"].iloc[0] == Decimal((0, (1, 0, 0, 1), -1))
     assert df2["c2"].iloc[0] == Decimal((0, (1, 0, 0, 1), -1))
     assert df2["c3"].iloc[0] == "100.1"
+
+
+def test_splits():
+    s = "a:struct<id:string,name:string>,b:struct<id:string,name:string>"
+    assert list(_split_fields(s)) == ["a:struct<id:string,name:string>", "b:struct<id:string,name:string>"]
+    s = "a:struct<a:struct<id:string,name:string>,b:struct<id:string,name:string>>,b:struct<a:struct<id:string,name:string>,b:struct<id:string,name:string>>"  # noqa
+    assert list(_split_fields(s)) == [
+        "a:struct<a:struct<id:string,name:string>,b:struct<id:string,name:string>>",
+        "b:struct<a:struct<id:string,name:string>,b:struct<id:string,name:string>>",
+    ]
+    s = "a:struct<id:string,name:string>,b:struct<id:string,name:string>,c:struct<id:string,name:string>,d:struct<id:string,name:string>"  # noqa
+    assert list(_split_fields(s)) == [
+        "a:struct<id:string,name:string>",
+        "b:struct<id:string,name:string>",
+        "c:struct<id:string,name:string>",
+        "d:struct<id:string,name:string>",
+    ]
+
+
+def test_to_parquet_nested_structs(glue_database, glue_table, path):
+    df = pd.DataFrame(
+        {
+            "c0": [1],
+            "c1": [[{"a": {"id": "0", "name": "foo", "amount": 1}, "b": {"id": "1", "name": "boo", "amount": 2}}]],
+        }
+    )
+    wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table)
+    df2 = wr.athena.read_sql_query(sql=f"SELECT * FROM {glue_table}", database=glue_database)
+    assert df2.shape == (1, 2)
+    wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table)
+    df3 = wr.athena.read_sql_query(sql=f"SELECT * FROM {glue_table}", database=glue_database)
+    assert df3.shape == (2, 2)
