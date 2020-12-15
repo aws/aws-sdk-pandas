@@ -2,7 +2,6 @@
 
 import logging
 from typing import Any, Dict, Iterator, List, NamedTuple, Optional, Tuple, Union, cast
-from urllib.parse import quote_plus
 
 import boto3
 import pandas as pd
@@ -40,8 +39,8 @@ def _get_connection_attributes_from_catalog(
     port, database = details["JDBC_CONNECTION_URL"].split(":")[3].split("/")
     return ConnectionAttributes(
         kind=details["JDBC_CONNECTION_URL"].split(":")[1].lower(),
-        user=quote_plus(details["USERNAME"]),
-        password=quote_plus(details["PASSWORD"]),
+        user=details["USERNAME"],
+        password=details["PASSWORD"],
         host=details["JDBC_CONNECTION_URL"].split(":")[2].replace("/", ""),
         port=int(port),
         database=dbname if dbname is not None else database,
@@ -63,8 +62,8 @@ def _get_connection_attributes_from_secrets_manager(
         _dbname = _get_dbname(cluster_id=secret_value["dbClusterIdentifier"], boto3_session=boto3_session)
     return ConnectionAttributes(
         kind=kind,
-        user=quote_plus(secret_value["username"]),
-        password=quote_plus(secret_value["password"]),
+        user=secret_value["username"],
+        password=secret_value["password"],
         host=secret_value["host"],
         port=secret_value["port"],
         database=_dbname,
