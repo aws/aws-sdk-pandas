@@ -5,6 +5,7 @@ import uuid
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
+from botocore.credentials import Credentials, ReadOnlyCredentials
 import pandas as pd
 import pyarrow as pa
 import redshift_connector
@@ -58,14 +59,26 @@ def _copy(
     cursor: redshift_connector.Cursor,
     path: str,
     table: str,
-    iam_role: str,
+    iam_role: Optional[str] = None,
+    aws_access_key_id: Optional[str] = None,
+    aws_secret_access_key: Optional[str] = None,
+    aws_session_token: Optional[str] = None,
     schema: Optional[str] = None,
 ) -> None:
     if schema is None:
         table_name: str = f'"{table}"'
     else:
         table_name = f'"{schema}"."{table}"'
-    sql: str = f"COPY {table_name} FROM '{path}'\nIAM_ROLE '{iam_role}'\nFORMAT AS PARQUET"
+
+    if iam_role is not None:
+        auth_str: str = f"\nIAM_ROLE '{iam_role}'"
+    elif aws_secret_access_key is not None and aws_secret_access_key is not None:
+        auth_str = f"\nACCESS_KEY_ID '{aws_access_key_id}'\nSECRET_ACCESS_KEY '{aws_secret_access_key}'"
+        if aws_session_token is not None:
+            auth_str += f"\nSESSION_TOKEN '{aws_session_token}'"
+    else:
+        raise exceptions.InvalidArgument("IAM Role or AWS ACCESS_KEY_ID and SECRET_ACCESS_KEY must be given.")
+    sql: str = f"COPY {table_name} FROM '{path}'{auth_str}\nFORMAT AS PARQUET"
     _logger.debug("copy query:\n%s", sql)
     cursor.execute(sql)
 
@@ -703,7 +716,7 @@ def unload_to_files(
     sql: str,
     path: str,
     con: redshift_connector.Connection,
-    iam_role: str,
+    iam_role: Optional[str] = None,
     region: Optional[str] = None,
     max_file_size: Optional[float] = None,
     kms_key_id: Optional[str] = None,
@@ -782,10 +795,26 @@ def unload_to_files(
         region_str: str = f"\nREGION AS '{region}'" if region is not None else ""
         max_file_size_str: str = f"\nMAXFILESIZE AS {max_file_size} MB" if max_file_size is not None else ""
         kms_key_id_str: str = f"\nKMS_KEY_ID '{kms_key_id}'" if kms_key_id is not None else ""
+
+        if iam_role is None:
+            credentials: Credentials = boto3_session.get_credentials()
+            frozen_credentials: ReadOnlyCredentials = credentials.get_frozen_credentials()
+            if frozen_credentials.access_key is None or frozen_credentials.secret_key is None:
+                raise exceptions.InvalidArgument("IAM Role or AWS ACCESS_KEY_ID and SECRET_ACCESS_KEY must be given.")
+
+            auth_str: str = (
+                f"ACCESS_KEY_ID '{frozen_credentials.access_key}'\n"
+                f"SECRET_ACCESS_KEY '{frozen_credentials.secret_key}'\n"
+            )
+            if frozen_credentials.token is not None:
+                auth_str += f"SESSION_TOKEN '{frozen_credentials.token}'\n"
+        else:
+            auth_str = f"IAM_ROLE '{iam_role}'\n"
+
         sql = (
             f"UNLOAD ('{sql}')\n"
             f"TO '{path}'\n"
-            f"IAM_ROLE '{iam_role}'\n"
+            f"{auth_str}"
             "ALLOWOVERWRITE\n"
             "PARALLEL ON\n"
             "FORMAT PARQUET\n"
@@ -949,7 +978,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     con: redshift_connector.Connection,
     table: str,
     schema: str,
-    iam_role: str,
+    iam_role: Optional[str] = None,
     parquet_infer_sampling: float = 1.0,
     mode: str = "append",
     diststyle: str = "AUTO",
@@ -1083,12 +1112,17 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
                 boto3_session=boto3_session,
                 s3_additional_kwargs=s3_additional_kwargs,
             )
+            credentials: Credentials = boto3_session.get_credentials()
+            frozen_credentials: ReadOnlyCredentials = credentials.get_frozen_credentials()
             _copy(
                 cursor=cursor,
                 path=path,
                 table=created_table,
                 schema=created_schema,
                 iam_role=iam_role,
+                aws_access_key_id=frozen_credentials.access_key,
+                aws_secret_access_key=frozen_credentials.secret_access_key,
+                aws_session_token=frozen_credentials.token
             )
             if table != created_table:  # upsert
                 _upsert(cursor=cursor, schema=schema, table=table, temp_table=created_table, primary_keys=primary_keys)
@@ -1107,7 +1141,7 @@ def copy(  # pylint: disable=too-many-arguments
     con: redshift_connector.Connection,
     table: str,
     schema: str,
-    iam_role: str,
+    iam_role: Optional[str] = None,
     index: bool = False,
     dtype: Optional[Dict[str, str]] = None,
     mode: str = "append",
@@ -1228,7 +1262,7 @@ def copy(  # pylint: disable=too-many-arguments
     path = path[:-1] if path.endswith("*") else path
     path = path if path.endswith("/") else f"{path}/"
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    if s3.list_objects(path=path):
+    if s3.list_objects(path=path, boto3_session=session):
         raise exceptions.InvalidArgument(
             f"The received S3 path ({path}) is not empty. "
             "Please, provide a different path or use wr.s3.delete_objects() to clean up the current one."
