@@ -6,11 +6,11 @@ mypy==0.790
 pydocstyle==5.1.1
 doc8==0.8.1
 tox==3.20.1
-pytest==6.1.2
+pytest==6.2.1
 pytest-cov==2.10.1
-pytest-xdist==2.1.0
+pytest-xdist==2.2.0
 pytest-timeout==1.4.2
-cfn-lint~=0.43.0
+cfn-lint~=0.44.0
 pydot~=1.4.1
 cfn-flip==1.2.3
 twine==3.2.0
