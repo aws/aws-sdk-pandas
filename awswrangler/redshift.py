@@ -1228,7 +1228,7 @@ def copy(  # pylint: disable=too-many-arguments
     path = path[:-1] if path.endswith("*") else path
     path = path if path.endswith("/") else f"{path}/"
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    if s3.list_objects(path=path):
+    if s3.list_objects(path=path, boto3_session=session):
         raise exceptions.InvalidArgument(
             f"The received S3 path ({path}) is not empty. "
             "Please, provide a different path or use wr.s3.delete_objects() to clean up the current one."
