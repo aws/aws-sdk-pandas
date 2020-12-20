@@ -63,7 +63,7 @@ def _make_s3_auth_string(
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
     if aws_access_key_id is not None and aws_secret_access_key is not None:
-        auth_str: str = f"ACCESS_KEY_ID '{aws_access_key_id}'\n" f"SECRET_ACCESS_KEY '{aws_secret_access_key}'\n"
+        auth_str: str = f"ACCESS_KEY_ID '{aws_access_key_id}'\nSECRET_ACCESS_KEY '{aws_secret_access_key}'\n"
         if aws_session_token is not None:
             auth_str += f"SESSION_TOKEN '{aws_session_token}'\n"
     elif iam_role is not None:
@@ -79,7 +79,7 @@ def _make_s3_auth_string(
                 "session."
             )
 
-        auth_str = f"ACCESS_KEY_ID '{credentials.access_key}'\n" f"SECRET_ACCESS_KEY '{credentials.secret_key}'\n"
+        auth_str = f"ACCESS_KEY_ID '{credentials.access_key}'\nSECRET_ACCESS_KEY '{credentials.secret_key}'\n"
         if credentials.token is not None:
             auth_str += f"SESSION_TOKEN '{credentials.token}'\n"
 
