@@ -60,13 +60,10 @@ def _make_s3_auth_string(
     aws_secret_access_key: Optional[str] = None,
     aws_session_token: Optional[str] = None,
     iam_role: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None
+    boto3_session: Optional[boto3.Session] = None,
 ) -> str:
     if aws_access_key_id is not None and aws_secret_access_key is not None:
-        auth_str: str = (
-            f"ACCESS_KEY_ID '{aws_access_key_id}'\n"
-            f"SECRET_ACCESS_KEY '{aws_secret_access_key}'\n"
-        )
+        auth_str: str = f"ACCESS_KEY_ID '{aws_access_key_id}'\n" f"SECRET_ACCESS_KEY '{aws_secret_access_key}'\n"
         if aws_session_token is not None:
             auth_str += f"SESSION_TOKEN '{aws_session_token}'\n"
     elif iam_role is not None:
@@ -76,14 +73,13 @@ def _make_s3_auth_string(
         credentials: botocore.credentials.ReadOnlyCredentials
         credentials = _utils.get_credentials_from_session(boto3_session=boto3_session)
         if credentials.access_key is None or credentials.secret_key is None:
-            raise exceptions.InvalidArgument("One of IAM Role or AWS ACCESS_KEY_ID and SECRET_ACCESS_KEY must be "
-                                             "given. Unable to find ACCESS_KEY_ID and SECRET_ACCESS_KEY in boto3 "
-                                             "session.")
+            raise exceptions.InvalidArgument(
+                "One of IAM Role or AWS ACCESS_KEY_ID and SECRET_ACCESS_KEY must be "
+                "given. Unable to find ACCESS_KEY_ID and SECRET_ACCESS_KEY in boto3 "
+                "session."
+            )
 
-        auth_str = (
-            f"ACCESS_KEY_ID '{credentials.access_key}'\n"
-            f"SECRET_ACCESS_KEY '{credentials.secret_key}'\n"
-        )
+        auth_str = f"ACCESS_KEY_ID '{credentials.access_key}'\n" f"SECRET_ACCESS_KEY '{credentials.secret_key}'\n"
         if credentials.token is not None:
             auth_str += f"SESSION_TOKEN '{credentials.token}'\n"
 
@@ -103,10 +99,7 @@ def _copy(
     else:
         table_name = f'"{schema}"."{table}"'
 
-    auth_str: str = _make_s3_auth_string(
-        iam_role=iam_role,
-        boto3_session=boto3_session
-    )
+    auth_str: str = _make_s3_auth_string(iam_role=iam_role, boto3_session=boto3_session)
     sql: str = f"COPY {table_name} FROM '{path}'{auth_str}\nFORMAT AS PARQUET"
     _logger.debug("copy query:\n%s", sql)
     cursor.execute(sql)
@@ -828,10 +821,7 @@ def unload_to_files(
         max_file_size_str: str = f"\nMAXFILESIZE AS {max_file_size} MB" if max_file_size is not None else ""
         kms_key_id_str: str = f"\nKMS_KEY_ID '{kms_key_id}'" if kms_key_id is not None else ""
 
-        auth_str: str = _make_s3_auth_string(
-            iam_role=iam_role,
-            boto3_session=boto3_session
-        )
+        auth_str: str = _make_s3_auth_string(iam_role=iam_role, boto3_session=boto3_session)
 
         sql = (
             f"UNLOAD ('{sql}')\n"
@@ -1140,7 +1130,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
                 table=created_table,
                 schema=created_schema,
                 iam_role=iam_role,
-                boto3_session=boto3_session
+                boto3_session=boto3_session,
             )
             if table != created_table:  # upsert
                 _upsert(cursor=cursor, schema=schema, table=table, temp_table=created_table, primary_keys=primary_keys)
