@@ -430,6 +430,9 @@ def connect_temp(
         Default: 900
     auto_create : bool
         Create a database user with the name specified for the user named in user if one does not exist.
+    db_groups : List[str], optional
+        A list of the names of existing database groups that the user named in user will join for the current session,
+        in addition to any group memberships for an existing user. If not specified, a new user is added only to PUBLIC.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     ssl: bool
@@ -772,7 +775,7 @@ def unload_to_files(
     con : redshift_connector.Connection
         Use redshift_connector.connect() to use "
         "credentials directly or wr.redshift.connect() to fetch it from the Glue Catalog.
-    iam_role : str
+    iam_role : str, optional
         AWS IAM role with the related permissions.
     region : str, optional
         Specifies the AWS Region where the target Amazon S3 bucket is located.
@@ -852,7 +855,7 @@ def unload(
     sql: str,
     path: str,
     con: redshift_connector.Connection,
-    iam_role: str,
+    iam_role: Optional[str],
     region: Optional[str] = None,
     max_file_size: Optional[float] = None,
     kms_key_id: Optional[str] = None,
@@ -905,7 +908,7 @@ def unload(
     con : redshift_connector.Connection
         Use redshift_connector.connect() to use "
         "credentials directly or wr.redshift.connect() to fetch it from the Glue Catalog.
-    iam_role : str
+    iam_role : str, optional
         AWS IAM role with the related permissions.
     region : str, optional
         Specifies the AWS Region where the target Amazon S3 bucket is located.
@@ -1040,7 +1043,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
         Table name
     schema : str
         Schema name
-    iam_role : str
+    iam_role : str, optional
         AWS IAM role with the related permissions.
     parquet_infer_sampling : float
         Random sample ratio of files that will have the metadata inspected.
@@ -1210,7 +1213,7 @@ def copy(  # pylint: disable=too-many-arguments
         Table name
     schema : str
         Schema name
-    iam_role : str
+    iam_role : str, optional
         AWS IAM role with the related permissions.
     index : bool
         True to store the DataFrame index in file, otherwise False to ignore it.
