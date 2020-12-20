@@ -235,6 +235,7 @@ def get_region_from_session(boto3_session: Optional[boto3.Session] = None, defau
 def get_credentials_from_session(
         boto3_session: Optional[boto3.Session] = None
 ) -> botocore.credentials.ReadOnlyCredentials:
+    """Get AWS credentials from boto3 session."""
     session: boto3.Session = ensure_session(session=boto3_session)
     credentials: botocore.credentials.Credentials = session.get_credentials()
     frozen_credentials: botocore.credentials.ReadOnlyCredentials = credentials.get_frozen_credentials()
