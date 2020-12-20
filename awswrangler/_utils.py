@@ -232,6 +232,15 @@ def get_region_from_session(boto3_session: Optional[boto3.Session] = None, defau
     raise exceptions.InvalidArgument("There is no region_name defined on boto3, please configure it.")
 
 
+def get_credentials_from_session(
+        boto3_session: Optional[boto3.Session] = None
+) -> botocore.credentials.ReadOnlyCredentials:
+    session: boto3.Session = ensure_session(session=boto3_session)
+    credentials: botocore.credentials.Credentials = session.get_credentials()
+    frozen_credentials: botocore.credentials.ReadOnlyCredentials = credentials.get_frozen_credentials()
+    return frozen_credentials
+
+
 def list_sampling(lst: List[Any], sampling: float) -> List[Any]:
     """Random List sampling."""
     if sampling == 1.0:

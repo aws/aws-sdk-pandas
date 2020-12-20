@@ -5,7 +5,7 @@ import uuid
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
-from botocore.credentials import Credentials, ReadOnlyCredentials
+import botocore
 import pandas as pd
 import pyarrow as pa
 import redshift_connector
@@ -55,14 +55,47 @@ def _does_table_exist(cursor: redshift_connector.Cursor, schema: Optional[str], 
     return len(cursor.fetchall()) > 0
 
 
+def _make_s3_auth_string(
+    aws_access_key_id: Optional[str] = None,
+    aws_secret_access_key: Optional[str] = None,
+    aws_session_token: Optional[str] = None,
+    iam_role: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None
+) -> str:
+    if aws_access_key_id is not None and aws_secret_access_key is not None:
+        auth_str: str = (
+            f"ACCESS_KEY_ID '{aws_access_key_id}'\n"
+            f"SECRET_ACCESS_KEY '{aws_secret_access_key}'\n"
+        )
+        if aws_session_token is not None:
+            auth_str += f"SESSION_TOKEN '{aws_session_token}'\n"
+    elif iam_role is not None:
+        auth_str = f"IAM_ROLE '{iam_role}'\n"
+    else:
+        _logger.debug("Attempting to get S3 authorization credentials from boto3 session.")
+        credentials: botocore.credentials.ReadOnlyCredentials
+        credentials = _utils.get_credentials_from_session(boto3_session=boto3_session)
+        if credentials.access_key is None or credentials.secret_key is None:
+            raise exceptions.InvalidArgument("One of IAM Role or AWS ACCESS_KEY_ID and SECRET_ACCESS_KEY must be "
+                                             "given. Unable to find ACCESS_KEY_ID and SECRET_ACCESS_KEY in boto3 "
+                                             "session.")
+
+        auth_str = (
+            f"ACCESS_KEY_ID '{credentials.access_key}'\n"
+            f"SECRET_ACCESS_KEY '{credentials.secret_key}'\n"
+        )
+        if credentials.token is not None:
+            auth_str += f"SESSION_TOKEN '{credentials.token}'\n"
+
+    return auth_str
+
+
 def _copy(
     cursor: redshift_connector.Cursor,
     path: str,
     table: str,
     iam_role: Optional[str] = None,
-    aws_access_key_id: Optional[str] = None,
-    aws_secret_access_key: Optional[str] = None,
-    aws_session_token: Optional[str] = None,
+    boto3_session: Optional[str] = None,
     schema: Optional[str] = None,
 ) -> None:
     if schema is None:
@@ -70,14 +103,10 @@ def _copy(
     else:
         table_name = f'"{schema}"."{table}"'
 
-    if iam_role is not None:
-        auth_str: str = f"\nIAM_ROLE '{iam_role}'"
-    elif aws_secret_access_key is not None and aws_secret_access_key is not None:
-        auth_str = f"\nACCESS_KEY_ID '{aws_access_key_id}'\nSECRET_ACCESS_KEY '{aws_secret_access_key}'"
-        if aws_session_token is not None:
-            auth_str += f"\nSESSION_TOKEN '{aws_session_token}'"
-    else:
-        raise exceptions.InvalidArgument("IAM Role or AWS ACCESS_KEY_ID and SECRET_ACCESS_KEY must be given.")
+    auth_str: str = _make_s3_auth_string(
+        iam_role=iam_role,
+        boto3_session=boto3_session
+    )
     sql: str = f"COPY {table_name} FROM '{path}'{auth_str}\nFORMAT AS PARQUET"
     _logger.debug("copy query:\n%s", sql)
     cursor.execute(sql)
@@ -796,20 +825,10 @@ def unload_to_files(
         max_file_size_str: str = f"\nMAXFILESIZE AS {max_file_size} MB" if max_file_size is not None else ""
         kms_key_id_str: str = f"\nKMS_KEY_ID '{kms_key_id}'" if kms_key_id is not None else ""
 
-        if iam_role is None:
-            credentials: Credentials = boto3_session.get_credentials()
-            frozen_credentials: ReadOnlyCredentials = credentials.get_frozen_credentials()
-            if frozen_credentials.access_key is None or frozen_credentials.secret_key is None:
-                raise exceptions.InvalidArgument("IAM Role or AWS ACCESS_KEY_ID and SECRET_ACCESS_KEY must be given.")
-
-            auth_str: str = (
-                f"ACCESS_KEY_ID '{frozen_credentials.access_key}'\n"
-                f"SECRET_ACCESS_KEY '{frozen_credentials.secret_key}'\n"
-            )
-            if frozen_credentials.token is not None:
-                auth_str += f"SESSION_TOKEN '{frozen_credentials.token}'\n"
-        else:
-            auth_str = f"IAM_ROLE '{iam_role}'\n"
+        auth_str: str = _make_s3_auth_string(
+            iam_role=iam_role,
+            boto3_session=boto3_session
+        )
 
         sql = (
             f"UNLOAD ('{sql}')\n"
@@ -1112,17 +1131,13 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
                 boto3_session=boto3_session,
                 s3_additional_kwargs=s3_additional_kwargs,
             )
-            credentials: Credentials = boto3_session.get_credentials()
-            frozen_credentials: ReadOnlyCredentials = credentials.get_frozen_credentials()
             _copy(
                 cursor=cursor,
                 path=path,
                 table=created_table,
                 schema=created_schema,
                 iam_role=iam_role,
-                aws_access_key_id=frozen_credentials.access_key,
-                aws_secret_access_key=frozen_credentials.secret_access_key,
-                aws_session_token=frozen_credentials.token
+                boto3_session=boto3_session
             )
             if table != created_table:  # upsert
                 _upsert(cursor=cursor, schema=schema, table=table, temp_table=created_table, primary_keys=primary_keys)
