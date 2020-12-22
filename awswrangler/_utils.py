@@ -125,7 +125,7 @@ def parse_path(path: str) -> Tuple[str, str]:
     >>> bucket, key = parse_path('s3://bucket/key')
 
     >>> from awswrangler._utils import parse_path
-    >>> bucket, key = parse_path('s3://arn:aws:s3:<awsregion>:<awsaccount>:accesspoint/<ap_name>/object/<key>')
+    >>> bucket, key = parse_path('s3://arn:aws:s3:<awsregion>:<awsaccount>:accesspoint/<ap_name>/<key>')
     """
     if path.startswith("s3://") is False:
         raise exceptions.InvalidArgumentValue(f"'{path}' is not a valid path. It MUST start with 's3://'")
@@ -136,8 +136,6 @@ def parse_path(path: str) -> Tuple[str, str]:
     key: str = ""
     if len(parts) == 2:
         key = key if parts[1] is None else parts[1]
-    if ":accesspoint:" in bucket:
-        key = key.replace("object/", "", 1)
     return bucket, key
 
 
