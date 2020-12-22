@@ -91,6 +91,9 @@ def _copy(
     path: str,
     table: str,
     iam_role: Optional[str] = None,
+    aws_access_key_id: Optional[str] = None,
+    aws_secret_access_key: Optional[str] = None,
+    aws_session_token: Optional[str] = None,
     boto3_session: Optional[str] = None,
     schema: Optional[str] = None,
 ) -> None:
@@ -99,7 +102,13 @@ def _copy(
     else:
         table_name = f'"{schema}"."{table}"'
 
-    auth_str: str = _make_s3_auth_string(iam_role=iam_role, boto3_session=boto3_session)
+    auth_str: str = _make_s3_auth_string(
+        iam_role=iam_role,
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key,
+        aws_session_token=aws_session_token,
+        boto3_session=boto3_session,
+    )
     sql: str = f"COPY {table_name} FROM '{path}'{auth_str}\nFORMAT AS PARQUET"
     _logger.debug("copy query:\n%s", sql)
     cursor.execute(sql)
@@ -742,6 +751,9 @@ def unload_to_files(
     path: str,
     con: redshift_connector.Connection,
     iam_role: Optional[str] = None,
+    aws_access_key_id: Optional[str] = None,
+    aws_secret_access_key: Optional[str] = None,
+    aws_session_token: Optional[str] = None,
     region: Optional[str] = None,
     max_file_size: Optional[float] = None,
     kms_key_id: Optional[str] = None,
@@ -770,6 +782,12 @@ def unload_to_files(
         "credentials directly or wr.redshift.connect() to fetch it from the Glue Catalog.
     iam_role : str, optional
         AWS IAM role with the related permissions.
+    aws_access_key_id : str, optional
+        The access key for your AWS account.
+    aws_secret_access_key : str, optional
+        The secret key for your AWS account.
+    aws_session_token : str, optional
+        The session key for your AWS account. This is only needed when you are using temporary credentials.
     region : str, optional
         Specifies the AWS Region where the target Amazon S3 bucket is located.
         REGION is required for UNLOAD to an Amazon S3 bucket that isn't in the
@@ -821,7 +839,13 @@ def unload_to_files(
         max_file_size_str: str = f"\nMAXFILESIZE AS {max_file_size} MB" if max_file_size is not None else ""
         kms_key_id_str: str = f"\nKMS_KEY_ID '{kms_key_id}'" if kms_key_id is not None else ""
 
-        auth_str: str = _make_s3_auth_string(iam_role=iam_role, boto3_session=boto3_session)
+        auth_str: str = _make_s3_auth_string(
+            iam_role=iam_role,
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            aws_session_token=aws_session_token,
+            boto3_session=boto3_session,
+        )
 
         sql = (
             f"UNLOAD ('{sql}')\n"
@@ -846,6 +870,9 @@ def unload(
     path: str,
     con: redshift_connector.Connection,
     iam_role: Optional[str],
+    aws_access_key_id: Optional[str] = None,
+    aws_secret_access_key: Optional[str] = None,
+    aws_session_token: Optional[str] = None,
     region: Optional[str] = None,
     max_file_size: Optional[float] = None,
     kms_key_id: Optional[str] = None,
@@ -900,6 +927,12 @@ def unload(
         "credentials directly or wr.redshift.connect() to fetch it from the Glue Catalog.
     iam_role : str, optional
         AWS IAM role with the related permissions.
+    aws_access_key_id : str, optional
+        The access key for your AWS account.
+    aws_secret_access_key : str, optional
+        The secret key for your AWS account.
+    aws_session_token : str, optional
+        The session key for your AWS account. This is only needed when you are using temporary credentials.
     region : str, optional
         Specifies the AWS Region where the target Amazon S3 bucket is located.
         REGION is required for UNLOAD to an Amazon S3 bucket that isn't in the
@@ -954,6 +987,9 @@ def unload(
         path=path,
         con=con,
         iam_role=iam_role,
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key,
+        aws_session_token=aws_session_token,
         region=region,
         max_file_size=max_file_size,
         kms_key_id=kms_key_id,
@@ -991,6 +1027,9 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     table: str,
     schema: str,
     iam_role: Optional[str] = None,
+    aws_access_key_id: Optional[str] = None,
+    aws_secret_access_key: Optional[str] = None,
+    aws_session_token: Optional[str] = None,
     parquet_infer_sampling: float = 1.0,
     mode: str = "append",
     diststyle: str = "AUTO",
@@ -1035,6 +1074,12 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
         Schema name
     iam_role : str, optional
         AWS IAM role with the related permissions.
+    aws_access_key_id : str, optional
+        The access key for your AWS account.
+    aws_secret_access_key : str, optional
+        The secret key for your AWS account.
+    aws_session_token : str, optional
+        The session key for your AWS account. This is only needed when you are using temporary credentials.
     parquet_infer_sampling : float
         Random sample ratio of files that will have the metadata inspected.
         Must be `0.0 < sampling <= 1.0`.
@@ -1130,6 +1175,9 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
                 table=created_table,
                 schema=created_schema,
                 iam_role=iam_role,
+                aws_access_key_id=aws_access_key_id,
+                aws_secret_access_key=aws_secret_access_key,
+                aws_session_token=aws_session_token,
                 boto3_session=boto3_session,
             )
             if table != created_table:  # upsert
@@ -1150,6 +1198,9 @@ def copy(  # pylint: disable=too-many-arguments
     table: str,
     schema: str,
     iam_role: Optional[str] = None,
+    aws_access_key_id: Optional[str] = None,
+    aws_secret_access_key: Optional[str] = None,
+    aws_session_token: Optional[str] = None,
     index: bool = False,
     dtype: Optional[Dict[str, str]] = None,
     mode: str = "append",
@@ -1205,6 +1256,12 @@ def copy(  # pylint: disable=too-many-arguments
         Schema name
     iam_role : str, optional
         AWS IAM role with the related permissions.
+    aws_access_key_id : str, optional
+        The access key for your AWS account.
+    aws_secret_access_key : str, optional
+        The secret key for your AWS account.
+    aws_session_token : str, optional
+        The session key for your AWS account. This is only needed when you are using temporary credentials.
     index : bool
         True to store the DataFrame index in file, otherwise False to ignore it.
     dtype: Dict[str, str], optional
@@ -1293,6 +1350,9 @@ def copy(  # pylint: disable=too-many-arguments
         table=table,
         schema=schema,
         iam_role=iam_role,
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key,
+        aws_session_token=aws_session_token,
         mode=mode,
         diststyle=diststyle,
         distkey=distkey,
