@@ -217,7 +217,6 @@ def _split_map(s: str) -> List[str]:
 def athena2pyarrow(dtype: str) -> pa.DataType:  # pylint: disable=too-many-return-statements
     """Athena to PyArrow data types conversion."""
     dtype = dtype.lower().replace(" ", "")
-    print(dtype)
     if dtype == "tinyint":
         return pa.int8()
     if dtype == "smallint":
