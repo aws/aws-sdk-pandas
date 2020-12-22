@@ -869,7 +869,7 @@ def unload(
     sql: str,
     path: str,
     con: redshift_connector.Connection,
-    iam_role: Optional[str],
+    iam_role: Optional[str] = None,
     aws_access_key_id: Optional[str] = None,
     aws_secret_access_key: Optional[str] = None,
     aws_session_token: Optional[str] = None,
