@@ -20,7 +20,7 @@ def delete_items(
     Parameters
     ----------
     items : List[Dict[str, Union[str, int, float, bool]]]
-        List which contains the items that will be inserted.
+        List which contains the items that will be deleted.
     table_name : str
         Name of the Amazon DynamoDB table.
     boto3_session : boto3.Session(), optional
