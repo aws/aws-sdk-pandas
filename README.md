@@ -134,6 +134,7 @@ FROM "sampleDB"."sampleTable" ORDER BY time DESC LIMIT 3
   - [Amazon Redshift](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-redshift)
   - [PostgreSQL](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#postgresql)
   - [MySQL](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#mysql)
+  - [DynamoDB](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#dynamodb)
   - [Amazon Timestream](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-timestream)
   - [Amazon EMR](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-emr)
   - [Amazon CloudWatch Logs](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-cloudwatch-logs)
