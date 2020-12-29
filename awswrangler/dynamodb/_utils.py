@@ -49,4 +49,4 @@ def _validate_items(items: List[Dict[str, Union[str, int, float, bool]]], dynamo
     """
     table_keys = [schema["AttributeName"] for schema in dynamodb_table.key_schema]
     if not all(key in item for item in items for key in table_keys):
-        raise exceptions.InvalidFile("All items need to contain the required keys for the table.")
+        raise exceptions.InvalidArgumentValue("All items need to contain the required keys for the table.")
