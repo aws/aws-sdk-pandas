@@ -1,6 +1,6 @@
 """Amazon DynamoDB Utils Module (PRIVATE)."""
 
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Mapping, Optional, Union
 
 import boto3
 
@@ -32,12 +32,14 @@ def get_table(
     return dynamodb_table
 
 
-def _validate_items(items: List[Dict[str, Union[str, int, float, bool]]], dynamodb_table: boto3.resource) -> None:
+def _validate_items(
+    items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]], dynamodb_table: boto3.resource
+) -> None:
     """Validate if all items have the required keys for the Amazon DynamoDB table.
 
     Parameters
     ----------
-    items : List[Dict[str, Union[str, int, float, bool]]]
+    items : Union[List[Dict[str, Any]], List[Mapping[str, Any]]]
         List which contains the items that will be validated.
     dynamodb_table : boto3.resources.dynamodb.Table
         Amazon DynamoDB Table object.

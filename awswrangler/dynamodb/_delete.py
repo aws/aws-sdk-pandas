@@ -1,7 +1,7 @@
 """Amazon DynamoDB Delete Module (PRIVATE)."""
 
 import logging
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 import boto3
 
@@ -11,7 +11,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def delete_items(
-    items: List[Dict[str, Union[str, int, float, bool]]],
+    items: List[Dict[str, Any]],
     table_name: str,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
@@ -19,7 +19,7 @@ def delete_items(
 
     Parameters
     ----------
-    items : List[Dict[str, Union[str, int, float, bool]]]
+    items : List[Dict[str, Any]]
         List which contains the items that will be deleted.
     table_name : str
         Name of the Amazon DynamoDB table.
@@ -30,6 +30,16 @@ def delete_items(
     -------
     None
         None.
+
+    Examples
+    --------
+    Writing rows of DataFrame
+
+    >>> import awswrangler as wr
+    >>> wr.dynamodb.delete_items(
+    ...     items=[{'key': 1}, {'key': 2, 'value': 'Hello'}],
+    ...     table_name='table'
+    ... )
     """
     _logger.debug("Deleting items from DynamoDB table")
 
