@@ -874,7 +874,7 @@ def test_copy_unload_creds(path, redshift_table):
 
 
 def test_column_length(path, redshift_table, databases_parameters):
-    df = pd.DataFrame({"a": ["foo"], "b": ["a"*5000]}, dtype="string")
+    df = pd.DataFrame({"a": ["foo"], "b": ["a" * 5000]}, dtype="string")
     wr.s3.to_parquet(df, f"{path}test.parquet")
     con = wr.redshift.connect("aws-data-wrangler-redshift")
     wr.redshift.copy_from_files(
@@ -884,7 +884,7 @@ def test_column_length(path, redshift_table, databases_parameters):
         schema="public",
         iam_role=databases_parameters["redshift"]["role"],
         varchar_lengths={"a": 3, "b": 5000},
-        primary_keys=['a']
+        primary_keys=["a"],
     )
     df2 = wr.redshift.read_sql_query(sql=f"SELECT * FROM public.{redshift_table}", con=con)
     con.close()
