@@ -524,7 +524,7 @@ def get_connection(
         client_kms = _utils.client(service_name="kms", session=boto3_session)
         pwd = client_kms.decrypt(CiphertextBlob=base64.b64decode(res["ConnectionProperties"]["ENCRYPTED_PASSWORD"]))[
             "Plaintext"
-        ]
+        ].decode("utf-8")
         res["ConnectionProperties"]["PASSWORD"] = pwd
     return cast(Dict[str, Any], res)
 
