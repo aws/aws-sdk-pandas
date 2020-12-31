@@ -33,9 +33,9 @@ def post_message(webhook: str, message: str) -> Optional[Any]:
     req = Request(webhook, json.dumps(chime_message).encode("utf-8"))
     try:
         response = urlopen(req)
-        _logger.info(f"Message posted on Chime. Got response as {response.read()}")
+        _logger.info("Message posted on Chime. Got respone as %s", response.read())
     except HTTPError as e:
-        _logger.exception(f"Request failed: {e.code} {e.reason}")
+        _logger.exception("Request failed: %d %s", e.code, e.reason)
     except URLError as e:
-        _logger.exception(f"Server connection failed: {e.reason}")
+        _logger.exception("Server connection failed: %s", e.reason)
     return response
