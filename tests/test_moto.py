@@ -11,7 +11,7 @@ import pytest
 from botocore.exceptions import ClientError
 
 import awswrangler as wr
-from awswrangler.exceptions import EmptyDataFrame, InvalidArgumentCombination
+from awswrangler.exceptions import EmptyDataFrame, InvalidArgumentCombination, InvalidArgumentValue
 
 from ._utils import ensure_data_types, get_df_csv, get_df_list
 
@@ -56,6 +56,18 @@ def moto_glue():
         yield glue
 
 
+@pytest.fixture(scope="function")
+def moto_dynamodb():
+    with moto.mock_dynamodb2():
+        dynamodb = boto3.resource("dynamodb")
+        dynamodb.create_table(
+            TableName="table",
+            KeySchema=[{"AttributeName": "key", "KeyType": "HASH"}],
+            AttributeDefinitions=[{"AttributeName": "key", "AttributeType": "N"}],
+        )
+        yield dynamodb
+
+
 def get_content_md5(desc: dict):
     result = desc.get("ResponseMetadata").get("HTTPHeaders").get("content-md5")
     return result
@@ -93,7 +105,6 @@ def test_list_directories_succeed(moto_s3):
 
 
 def test_describe_no_object_succeed(moto_s3):
-
     desc = wr.s3.describe_objects("s3://bucket")
 
     assert isinstance(desc, dict)
@@ -427,3 +438,24 @@ def test_glue_get_partition(moto_glue):
     assert partition_value == values
     parquet_partition_value = wr.catalog.get_parquet_partitions(database_name, table_name)
     assert parquet_partition_value == values
+
+
+def test_dynamodb_basic_usage(moto_dynamodb):
+    table_name = "table"
+    items = [{"key": 1}, {"key": 2, "my_value": "Hello"}]
+
+    wr.dynamodb.put_items(items=items, table_name=table_name)
+    table = wr.dynamodb.get_table(table_name=table_name)
+    assert table.item_count == len(items)
+
+    wr.dynamodb.delete_items(items=items, table_name=table_name)
+    table = wr.dynamodb.get_table(table_name=table_name)
+    assert table.item_count == 0
+
+
+def test_dynamodb_fail_on_invalid_items(moto_dynamodb):
+    table_name = "table"
+    items = [{"key": 1}, {"id": 2}]
+
+    with pytest.raises(InvalidArgumentValue):
+        wr.dynamodb.put_items(items=items, table_name=table_name)
