@@ -20,6 +20,7 @@ from awswrangler import (  # noqa
     redshift,
     s3,
     secretsmanager,
+    sqlserver,
     sts,
     timestream,
 )
@@ -40,6 +41,7 @@ __all__ = [
     "mysql",
     "postgresql",
     "secretsmanager",
+    "sqlserver",
     "config",
     "timestream",
     "__description__",

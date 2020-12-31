@@ -166,6 +166,41 @@ def pyarrow2postgresql(  # pylint: disable=too-many-branches,too-many-return-sta
     raise exceptions.UnsupportedType(f"Unsupported PostgreSQL type: {dtype}")
 
 
+def pyarrow2sqlserver(  # pylint: disable=too-many-branches,too-many-return-statements
+    dtype: pa.DataType, string_type: str
+) -> str:
+    """Pyarrow to Microsoft SQL Server data types conversion."""
+    if pa.types.is_int8(dtype):
+        return "SMALLINT"
+    if pa.types.is_int16(dtype) or pa.types.is_uint8(dtype):
+        return "SMALLINT"
+    if pa.types.is_int32(dtype) or pa.types.is_uint16(dtype):
+        return "INT"
+    if pa.types.is_int64(dtype) or pa.types.is_uint32(dtype):
+        return "BIGINT"
+    if pa.types.is_uint64(dtype):
+        raise exceptions.UnsupportedType("There is no support for uint64, please consider int64 or uint32.")
+    if pa.types.is_float32(dtype):
+        return "FLOAT(24)"
+    if pa.types.is_float64(dtype):
+        return "FLOAT"
+    if pa.types.is_boolean(dtype):
+        return "BIT"
+    if pa.types.is_string(dtype):
+        return string_type
+    if pa.types.is_timestamp(dtype):
+        return "DATETIME2"
+    if pa.types.is_date(dtype):
+        return "DATE"
+    if pa.types.is_decimal(dtype):
+        return f"DECIMAL({dtype.precision},{dtype.scale})"
+    if pa.types.is_dictionary(dtype):
+        return pyarrow2sqlserver(dtype=dtype.value_type, string_type=string_type)
+    if pa.types.is_binary(dtype):
+        return "VARBINARY"
+    raise exceptions.UnsupportedType(f"Unsupported PostgreSQL type: {dtype}")
+
+
 def pyarrow2timestream(dtype: pa.DataType) -> str:  # pylint: disable=too-many-branches,too-many-return-statements
     """Pyarrow to Amazon Timestream data types conversion."""
     if pa.types.is_int8(dtype):

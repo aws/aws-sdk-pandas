@@ -63,7 +63,7 @@ def test_sql_types(mysql_table):
             "iint32": pa.int32(),
             "iint64": pa.int64(),
             "float": pa.float32(),
-            "double": pa.float64(),
+            "ddouble": pa.float64(),
             "decimal": pa.decimal128(3, 2),
             "string_object": pa.string(),
             "string": pa.string(),
