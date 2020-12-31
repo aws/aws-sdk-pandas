@@ -401,7 +401,7 @@ Resources:
             Fn::ImportValue: aws-data-wrangler-base-PrivateSubnet
         ConnectionProperties:
           JDBC_CONNECTION_URL:
-            Fn::Sub: jdbc:mysql://${SqlServerInstance.Endpoint.Address}:${SqlServerInstance.Endpoint.Port};databaseName=test
+            Fn::Sub: jdbc:sqlserver://${SqlServerInstance.Endpoint.Address}:${SqlServerInstance.Endpoint.Port};databaseName=test
           USERNAME: test
           PASSWORD:
             Ref: DatabasesPassword

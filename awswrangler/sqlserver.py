@@ -132,7 +132,9 @@ def connect(
         connection=connection, secret_id=secret_id, catalog_id=catalog_id, dbname=dbname, boto3_session=boto3_session
     )
     if attrs.kind != "sqlserver":
-        exceptions.InvalidDatabaseType(f"Invalid connection type ({attrs.kind}. It must be a sqlserver connection.)")
+        raise exceptions.InvalidDatabaseType(
+            f"Invalid connection type ({attrs.kind}. It must be a sqlserver connection.)"
+        )
     return pymssql.connect(
         user=attrs.user,
         database=attrs.database,

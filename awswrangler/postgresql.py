@@ -131,7 +131,9 @@ def connect(
         connection=connection, secret_id=secret_id, catalog_id=catalog_id, dbname=dbname, boto3_session=boto3_session
     )
     if attrs.kind != "postgresql":
-        exceptions.InvalidDatabaseType(f"Invalid connection type ({attrs.kind}. It must be a postgresql connection.)")
+        raise exceptions.InvalidDatabaseType(
+            f"Invalid connection type ({attrs.kind}. It must be a postgresql connection.)"
+        )
     return pg8000.connect(
         user=attrs.user,
         database=attrs.database,
