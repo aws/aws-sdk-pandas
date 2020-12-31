@@ -354,6 +354,14 @@ def pyarrow2pandas_extension(  # pylint: disable=too-many-branches,too-many-retu
         return pd.Int32Dtype()
     if pa.types.is_int64(dtype):
         return pd.Int64Dtype()
+    if pa.types.is_uint8(dtype):
+        return pd.UInt8Dtype()
+    if pa.types.is_uint16(dtype):
+        return pd.UInt16Dtype()
+    if pa.types.is_uint32(dtype):
+        return pd.UInt32Dtype()
+    if pa.types.is_uint64(dtype):
+        return pd.UInt64Dtype()
     if pa.types.is_boolean(dtype):
         return pd.BooleanDtype()
     if pa.types.is_string(dtype):
