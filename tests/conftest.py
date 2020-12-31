@@ -130,27 +130,26 @@ def workgroup3(bucket, kms_key):
 @pytest.fixture(scope="session")
 def databases_parameters():
     parameters = dict(postgresql={}, mysql={}, redshift={}, sqlserver={})
-    # parameters["postgresql"]["host"] = cloudformation_outputs["PostgresqlAddress"]
-    # parameters["postgresql"]["port"] = 3306
-    # parameters["postgresql"]["schema"] = "public"
-    # parameters["postgresql"]["database"] = "postgres"
-    # parameters["mysql"]["host"] = cloudformation_outputs["MysqlAddress"]
-    # parameters["mysql"]["port"] = 3306
-    # parameters["mysql"]["schema"] = "test"
-    # parameters["mysql"]["database"] = "test"
+    parameters["postgresql"]["host"] = cloudformation_outputs["PostgresqlAddress"]
+    parameters["postgresql"]["port"] = 3306
+    parameters["postgresql"]["schema"] = "public"
+    parameters["postgresql"]["database"] = "postgres"
+    parameters["mysql"]["host"] = cloudformation_outputs["MysqlAddress"]
+    parameters["mysql"]["port"] = 3306
+    parameters["mysql"]["schema"] = "test"
+    parameters["mysql"]["database"] = "test"
     # parameters["redshift"]["host"] = cloudformation_outputs["RedshiftAddress"]
     # parameters["redshift"]["port"] = cloudformation_outputs["RedshiftPort"]
     # parameters["redshift"]["identifier"] = cloudformation_outputs["RedshiftIdentifier"]
     # parameters["redshift"]["schema"] = "public"
     # parameters["redshift"]["database"] = "test"
     # parameters["redshift"]["role"] = cloudformation_outputs["RedshiftRole"]
-    # parameters["password"] = cloudformation_outputs["DatabasesPassword"]
-    # parameters["user"] = "test"
-    parameters["sqlserver"]["host"] = "my-sql-server.cv9de6ia0cf2.us-east-1.rds.amazonaws.com"
-    parameters["sqlserver"]["port"] = "1433"
-    parameters["sqlserver"]["database"] = "TestDb"
-    parameters["user"] = "admin"
-    parameters["password"] = "123456Ab"
+    parameters["password"] = cloudformation_outputs["DatabasesPassword"]
+    parameters["user"] = "test"
+    parameters["sqlserver"]["host"] = cloudformation_outputs["SqlServerAddress"]
+    parameters["sqlserver"]["port"] = 1433
+    parameters["sqlserver"]["schema"] = "dbo"
+    parameters["sqlserver"]["database"] = "test"
     return parameters
 
 

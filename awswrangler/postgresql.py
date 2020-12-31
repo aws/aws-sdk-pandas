@@ -310,7 +310,7 @@ def to_sql(
     >>> import awswrangler as wr
     >>> con = wr.postgresql.connect("MY_GLUE_CONNECTION")
     >>> wr.postgresql.to_sql(
-    ...     df=df
+    ...     df=df,
     ...     table="my_table",
     ...     schema="public",
     ...     con=con

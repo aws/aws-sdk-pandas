@@ -297,14 +297,19 @@ Resources:
       EngineVersion: '15.00'
       DBInstanceIdentifier: sqlserver-instance-wrangler
       DBInstanceClass: db.t3.small
+      AllocatedStorage: '20'
+      MasterUsername: test
+      MasterUserPassword:
+        Ref: DatabasesPassword
       DBSubnetGroupName:
         Ref: RdsSubnetGroup
-        PubliclyAccessible: true
+      PubliclyAccessible: true
       AssociatedRoles:
         - RoleArn:
             Fn::GetAtt:
               - RdsRole
               - Arn
+          FeatureName: S3_INTEGRATION
   RedshiftGlueConnection:
     Type: AWS::Glue::Connection
     Properties:

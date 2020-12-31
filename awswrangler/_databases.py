@@ -204,15 +204,15 @@ def read_sql_query(
                 dtype=dtype,
                 safe=safe,
             )
-        else:
-            return _iterate_results(
-                con=con,
-                cursor_args=args,
-                chunksize=chunksize,
-                index_col=index_col,
-                dtype=dtype,
-                safe=safe,
-            )
+
+        return _iterate_results(
+            con=con,
+            cursor_args=args,
+            chunksize=chunksize,
+            index_col=index_col,
+            dtype=dtype,
+            safe=safe,
+        )
     except Exception as ex:
         con.rollback()
         _logger.error(ex)
