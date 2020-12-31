@@ -176,7 +176,7 @@ def test_table_name():
     con.close()
 
 
-@pytest.mark.parametrize("dbname", [None, "sqlserver"])
+@pytest.mark.parametrize("dbname", [None, "test"])
 def test_connect_secret_manager(dbname):
     con = wr.sqlserver.connect(secret_id="aws-data-wrangler/sqlserver", dbname=dbname)
     df = wr.sqlserver.read_sql_query("SELECT 1", con=con)

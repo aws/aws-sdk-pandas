@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: |
-  AWS Data Wrangler Development Databases Infrastructure Redshift, Aurora PostgreSQL, Aurora MySQL
+  AWS Data Wrangler Development Databases Infrastructure Redshift, Aurora PostgreSQL, Aurora MySQL, Microsoft SQL Server
 Parameters:
   DatabasesPassword:
     Type: String
@@ -285,6 +285,8 @@ Resources:
       DBInstanceClass: db.t3.small
       DBSubnetGroupName:
         Ref: RdsSubnetGroup
+      VPCSecurityGroups:
+        - Ref: DatabaseSecurityGroup
       PubliclyAccessible: true
   SqlServerInstance:
     Type: AWS::RDS::DBInstance
@@ -436,7 +438,7 @@ Resources:
       Tags:
         - Key: Env
           Value: aws-data-wrangler
-  postgresqlSecret:
+  PostgresqlSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
       Name: aws-data-wrangler/postgresql
@@ -446,7 +448,7 @@ Resources:
           {
             "username": "test",
             "password": "${DatabasesPassword}",
-            "engine": "postgres",
+            "engine": "postgresql",
             "host": "${AuroraInstancePostgresql.Endpoint.Address}",
             "port": ${AuroraInstancePostgresql.Endpoint.Port},
             "dbClusterIdentifier": "${AuroraInstancePostgresql}",
@@ -465,7 +467,7 @@ Resources:
           {
             "username": "test",
             "password": "${DatabasesPassword}",
-            "engine": "postgres",
+            "engine": "mysql",
             "host": "${AuroraInstanceMysql.Endpoint.Address}",
             "port": ${AuroraInstanceMysql.Endpoint.Port},
             "dbClusterIdentifier": "${AuroraInstanceMysql}",
