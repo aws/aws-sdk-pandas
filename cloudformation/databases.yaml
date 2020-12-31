@@ -285,8 +285,6 @@ Resources:
       DBInstanceClass: db.t3.small
       DBSubnetGroupName:
         Ref: RdsSubnetGroup
-      VPCSecurityGroups:
-        - Ref: DatabaseSecurityGroup
       PubliclyAccessible: true
   SqlServerInstance:
     Type: AWS::RDS::DBInstance
@@ -305,6 +303,8 @@ Resources:
         Ref: DatabasesPassword
       DBSubnetGroupName:
         Ref: RdsSubnetGroup
+      VPCSecurityGroups:
+        - Ref: DatabaseSecurityGroup
       PubliclyAccessible: true
       AssociatedRoles:
         - RoleArn:
