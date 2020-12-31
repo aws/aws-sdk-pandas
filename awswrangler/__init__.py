@@ -10,6 +10,7 @@ import logging as _logging
 from awswrangler import (  # noqa
     athena,
     catalog,
+    chime,
     cloudwatch,
     emr,
     exceptions,
@@ -28,6 +29,7 @@ from awswrangler._config import config  # noqa
 __all__ = [
     "athena",
     "catalog",
+    "chime",
     "cloudwatch",
     "emr",
     "exceptions",
