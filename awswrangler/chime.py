@@ -11,7 +11,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def post_message(webhook: str, message: str) -> Optional[Any]:
-    """Sends message on an existing Chime Chat rooms.
+    """Send message on an existing Chime Chat rooms.
 
     Parameters
     ----------
@@ -24,9 +24,6 @@ def post_message(webhook: str, message: str) -> Optional[Any]:
     -------
     dict
         Represents the response from Chime
-
-    Examples
-    --------
     """
     response = None
     chime_message = {"Content": "Message: %s" % (message)}
