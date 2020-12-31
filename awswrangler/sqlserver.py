@@ -25,9 +25,15 @@ def _validate_connection(con: pymssql.Connection) -> None:
         )
 
 
+def _get_table_identifier(schema: Optional[str], table: str) -> str:
+    schema_str = f'"{schema}".' if schema else ''
+    table_identifier = f'{schema_str}"{table}"'
+    return table_identifier
+
+
 def _drop_table(cursor: pymssql.Cursor, schema: Optional[str], table: str) -> None:
-    schema_str = f"{schema}." if schema else ""
-    sql = f"IF OBJECT_ID(N'{schema_str}{table}', N'U') IS NOT NULL DROP TABLE {schema_str}{table}"
+    table_identifier = _get_table_identifier(schema, table)
+    sql = f"IF OBJECT_ID(N'{table_identifier}', N'U') IS NOT NULL DROP TABLE {table_identifier}"
     _logger.debug("Drop table query:\n%s", sql)
     cursor.execute(sql)
 
@@ -61,7 +67,8 @@ def _create_table(
         converter_func=_data_types.pyarrow2sqlserver,
     )
     cols_str: str = "".join([f"{k} {v},\n" for k, v in sqlserver_types.items()])[:-2]
-    sql = f"IF OBJECT_ID(N'{schema}.{table}', N'U') IS NULL BEGIN CREATE TABLE {schema}.{table} (\n{cols_str}); END;"
+    table_identifier = _get_table_identifier(schema, table)
+    sql = f"IF OBJECT_ID(N'{table_identifier}', N'U') IS NULL BEGIN CREATE TABLE {table_identifier} (\n{cols_str}); END;"
     _logger.debug("Create table query:\n%s", sql)
     cursor.execute(sql)
 
@@ -106,6 +113,23 @@ def read_sql_query(
     )
 
 
+def read_sql_table(
+    table: str,
+    con: pymssql.Connection,
+    schema: Optional[str] = None,
+    index_col: Optional[Union[str, List[str]]] = None,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
+    chunksize: Optional[int] = None,
+    dtype: Optional[Dict[str, pa.DataType]] = None,
+    safe: bool = True,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    table_identifier = _get_table_identifier(schema, table)
+    sql: str = f"SELECT * FROM {table_identifier}"
+    return read_sql_query(
+        sql=sql, con=con, index_col=index_col, params=params, chunksize=chunksize, dtype=dtype, safe=safe
+    )
+
+
 def to_sql(
     df: pd.DataFrame,
     con: pymssql.Connection,
@@ -134,7 +158,8 @@ def to_sql(
             if index:
                 df.reset_index(level=df.index.names, inplace=True)
             placeholders: str = ", ".join(["%s"] * len(df.columns))
-            sql: str = f'INSERT INTO "{schema}"."{table}" VALUES ({placeholders})'
+            table_identifier = _get_table_identifier(schema, table)
+            sql: str = f'INSERT INTO {table_identifier} VALUES ({placeholders})'
             _logger.debug("sql: %s", sql)
             parameters: List[List[Any]] = _db_utils.extract_parameters(df=df)
             parameter_tuples: List[Tuple[Any]] = [tuple(parameter_set) for parameter_set in parameters]
