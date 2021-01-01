@@ -135,6 +135,9 @@ def connect(
         raise exceptions.InvalidDatabaseType(
             f"Invalid connection type ({attrs.kind}. It must be a sqlserver connection.)"
         )
+    # Fix TDS version to 7.3 for enabling correct casting of DATE and TIME columns
+    # See: https://pymssql.readthedocs.io/en/latest/faq.html
+    # #pymssql-does-not-unserialize-date-and-time-columns-to-datetime-date-and-datetime-time-instances
     return pymssql.connect(
         user=attrs.user,
         database=attrs.database,
@@ -143,6 +146,7 @@ def connect(
         host=attrs.host,
         timeout=timeout,
         login_timeout=login_timeout,
+        tds_version="7.3",
     )
 
 

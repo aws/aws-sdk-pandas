@@ -1,7 +1,6 @@
 from datetime import datetime
 
 import boto3  # type: ignore
-import pymssql
 import pytest  # type: ignore
 
 import awswrangler as wr
@@ -139,12 +138,12 @@ def databases_parameters(cloudformation_outputs):
     parameters["mysql"]["port"] = 3306
     parameters["mysql"]["schema"] = "test"
     parameters["mysql"]["database"] = "test"
-    # parameters["redshift"]["host"] = cloudformation_outputs["RedshiftAddress"]
-    # parameters["redshift"]["port"] = cloudformation_outputs["RedshiftPort"]
-    # parameters["redshift"]["identifier"] = cloudformation_outputs["RedshiftIdentifier"]
-    # parameters["redshift"]["schema"] = "public"
-    # parameters["redshift"]["database"] = "test"
-    # parameters["redshift"]["role"] = cloudformation_outputs["RedshiftRole"]
+    parameters["redshift"]["host"] = cloudformation_outputs["RedshiftAddress"]
+    parameters["redshift"]["port"] = cloudformation_outputs["RedshiftPort"]
+    parameters["redshift"]["identifier"] = cloudformation_outputs["RedshiftIdentifier"]
+    parameters["redshift"]["schema"] = "public"
+    parameters["redshift"]["database"] = "test"
+    parameters["redshift"]["role"] = cloudformation_outputs["RedshiftRole"]
     parameters["password"] = cloudformation_outputs["DatabasesPassword"]
     parameters["user"] = "test"
     parameters["sqlserver"]["host"] = cloudformation_outputs["SqlServerAddress"]
@@ -152,26 +151,6 @@ def databases_parameters(cloudformation_outputs):
     parameters["sqlserver"]["schema"] = "dbo"
     parameters["sqlserver"]["database"] = "test"
     return parameters
-
-
-@pytest.fixture(scope="session", autouse=True)
-def create_sql_server_database(databases_parameters):
-    con = pymssql.connect(
-        host=databases_parameters["sqlserver"]["host"],
-        port=int(databases_parameters["sqlserver"]["port"]),
-        user=databases_parameters["user"],
-        password=databases_parameters["password"],
-    )
-    sql = (
-        f"IF NOT EXISTS(SELECT * FROM sys.databases WHERE name = '{databases_parameters['sql_server']['database']}') "
-        "BEGIN "
-        "CREATE DATABASE {databases_parameters['sql_server']['database']} "
-        "END"
-    )
-    with con.cursor() as cursor:
-        cursor.execute(sql)
-        con.commit()
-    con.close()
 
 
 @pytest.fixture(scope="session")

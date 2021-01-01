@@ -11,52 +11,81 @@ import awswrangler as wr
 from ._utils import ensure_data_types, get_df
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
-_GLUE_CONNECTION_NAME = "aws-data-wrangler-sqlserver"
 
 
-def test_connection():
-    wr.sqlserver.connect(_GLUE_CONNECTION_NAME, timeout=10).close()
-
-
-def test_read_sql_query_simple(databases_parameters):
+@pytest.fixture(scope="module", autouse=True)
+def create_sql_server_database(databases_parameters):
     con = pymssql.connect(
         host=databases_parameters["sqlserver"]["host"],
         port=int(databases_parameters["sqlserver"]["port"]),
-        database=databases_parameters["sqlserver"]["database"],
         user=databases_parameters["user"],
         password=databases_parameters["password"],
+        autocommit=True,
     )
-    df = wr.sqlserver.read_sql_query("SELECT 1", con=con)
+    sql_create_db = (
+        f"IF NOT EXISTS(SELECT * FROM sys.databases WHERE name = '{databases_parameters['sqlserver']['database']}') "
+        "BEGIN "
+        f"CREATE DATABASE {databases_parameters['sqlserver']['database']} "
+        "END"
+    )
+    with con.cursor() as cursor:
+        cursor.execute(sql_create_db)
+        con.commit()
+
+    yield
+
+    sql_drop_db = (
+        f"IF EXISTS (SELECT * FROM sys.databases WHERE name = '{databases_parameters['sqlserver']['database']}') "
+        "BEGIN "
+        f"DROP DATABASE {databases_parameters['sqlserver']['database']} "
+        "END"
+    )
+    with con.cursor() as cursor:
+        cursor.execute(sql_drop_db)
+        con.commit()
+
     con.close()
+
+
+@pytest.fixture(scope="function")
+def sqlserver_con():
+    con = wr.sqlserver.connect("aws-data-wrangler-sqlserver")
+    yield con
+    con.close()
+
+
+def test_connection():
+    wr.sqlserver.connect("aws-data-wrangler-sqlserver", timeout=10).close()
+
+
+def test_read_sql_query_simple(databases_parameters, sqlserver_con):
+    df = wr.sqlserver.read_sql_query("SELECT 1", con=sqlserver_con)
     assert df.shape == (1, 1)
 
 
-def test_to_sql_simple(sqlserver_table):
-    con = wr.sqlserver.connect(_GLUE_CONNECTION_NAME)
+def test_to_sql_simple(sqlserver_table, sqlserver_con):
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "boo", "bar"]})
-    wr.sqlserver.to_sql(df, con, sqlserver_table, "dbo", "overwrite", True)
-    con.close()
+    wr.sqlserver.to_sql(df, sqlserver_con, sqlserver_table, "dbo", "overwrite", True)
 
 
-def test_sql_types(sqlserver_table):
+def test_sql_types(sqlserver_table, sqlserver_con):
     table = sqlserver_table
     df = get_df()
     df.drop(["binary"], axis=1, inplace=True)
-    con = wr.sqlserver.connect(_GLUE_CONNECTION_NAME)
     wr.sqlserver.to_sql(
         df=df,
-        con=con,
+        con=sqlserver_con,
         table=table,
         schema="dbo",
         mode="overwrite",
         index=True,
         dtype={"iint32": "INTEGER"},
     )
-    df = wr.sqlserver.read_sql_query(f"SELECT * FROM dbo.{table}", con)
+    df = wr.sqlserver.read_sql_query(f"SELECT * FROM dbo.{table}", sqlserver_con)
     ensure_data_types(df, has_list=False)
     dfs = wr.sqlserver.read_sql_query(
         sql=f"SELECT * FROM dbo.{table}",
-        con=con,
+        con=sqlserver_con,
         chunksize=1,
         dtype={
             "iint8": pa.int8(),
@@ -78,7 +107,7 @@ def test_sql_types(sqlserver_table):
         ensure_data_types(df, has_list=False)
 
 
-def test_to_sql_cast(sqlserver_table):
+def test_to_sql_cast(sqlserver_table, sqlserver_con):
     table = sqlserver_table
     df = pd.DataFrame(
         {
@@ -90,28 +119,25 @@ def test_to_sql_cast(sqlserver_table):
         },
         dtype="string",
     )
-    con = wr.sqlserver.connect(connection=_GLUE_CONNECTION_NAME)
     wr.sqlserver.to_sql(
         df=df,
-        con=con,
+        con=sqlserver_con,
         table=table,
         schema="dbo",
         mode="overwrite",
         index=False,
         dtype={"col": "VARCHAR(1024)"},
     )
-    df2 = wr.sqlserver.read_sql_query(sql=f"SELECT * FROM dbo.{table}", con=con)
+    df2 = wr.sqlserver.read_sql_query(sql=f"SELECT * FROM dbo.{table}", con=sqlserver_con)
     assert df.equals(df2)
-    con.close()
 
 
-def test_null(sqlserver_table):
+def test_null(sqlserver_table, sqlserver_con):
     table = sqlserver_table
-    con = wr.sqlserver.connect(connection=_GLUE_CONNECTION_NAME)
     df = pd.DataFrame({"id": [1, 2, 3], "nothing": [None, None, None]})
     wr.sqlserver.to_sql(
         df=df,
-        con=con,
+        con=sqlserver_con,
         table=table,
         schema="dbo",
         mode="overwrite",
@@ -120,19 +146,18 @@ def test_null(sqlserver_table):
     )
     wr.sqlserver.to_sql(
         df=df,
-        con=con,
+        con=sqlserver_con,
         table=table,
         schema="dbo",
         mode="append",
         index=False,
     )
-    df2 = wr.sqlserver.read_sql_table(table=table, schema="dbo", con=con)
+    df2 = wr.sqlserver.read_sql_table(table=table, schema="dbo", con=sqlserver_con)
     df["id"] = df["id"].astype("Int64")
     assert pd.concat(objs=[df, df], ignore_index=True).equals(df2)
-    con.close()
 
 
-def test_decimal_cast(sqlserver_table):
+def test_decimal_cast(sqlserver_table, sqlserver_con):
     table = sqlserver_table
     df = pd.DataFrame(
         {
@@ -141,39 +166,33 @@ def test_decimal_cast(sqlserver_table):
             "col2": [Decimal((0, (1, 9, 9), -2)), None, Decimal((0, (1, 9, 0), -2))],
         }
     )
-    con = wr.sqlserver.connect(connection=_GLUE_CONNECTION_NAME)
-    wr.sqlserver.to_sql(df, con, table, "dbo")
+    wr.sqlserver.to_sql(df, sqlserver_con, table, "dbo")
     df2 = wr.sqlserver.read_sql_table(
-        schema="dbo", table=table, con=con, dtype={"col0": "float32", "col1": "float64", "col2": "Int64"}
+        schema="dbo", table=table, con=sqlserver_con, dtype={"col0": "float32", "col1": "float64", "col2": "Int64"}
     )
     assert df2.dtypes.to_list() == ["float32", "float64", "Int64"]
     assert 3.88 <= df2.col0.sum() <= 3.89
     assert 3.88 <= df2.col1.sum() <= 3.89
     assert df2.col2.sum() == 2
-    con.close()
 
 
-def test_read_retry():
-    con = wr.sqlserver.connect(connection=_GLUE_CONNECTION_NAME)
+def test_read_retry(sqlserver_con):
     try:
-        wr.sqlserver.read_sql_query("ERROR", con)
+        wr.sqlserver.read_sql_query("ERROR", sqlserver_con)
     except:  # noqa
         pass
-    df = wr.sqlserver.read_sql_query("SELECT 1", con)
+    df = wr.sqlserver.read_sql_query("SELECT 1", sqlserver_con)
     assert df.shape == (1, 1)
-    con.close()
 
 
-def test_table_name():
+def test_table_name(sqlserver_con):
     df = pd.DataFrame({"col0": [1]})
-    con = wr.sqlserver.connect(connection="aws-data-wrangler-sqlserver")
-    wr.sqlserver.to_sql(df, con, "Test Name", "dbo", mode="overwrite")
-    df = wr.sqlserver.read_sql_table(schema="dbo", con=con, table="Test Name")
+    wr.sqlserver.to_sql(df, sqlserver_con, "Test Name", "dbo", mode="overwrite")
+    df = wr.sqlserver.read_sql_table(schema="dbo", con=sqlserver_con, table="Test Name")
     assert df.shape == (1, 1)
-    with con.cursor() as cursor:
+    with sqlserver_con.cursor() as cursor:
         cursor.execute('DROP TABLE "Test Name"')
-    con.commit()
-    con.close()
+    sqlserver_con.commit()
 
 
 @pytest.mark.parametrize("dbname", [None, "test"])
