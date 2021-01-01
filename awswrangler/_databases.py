@@ -36,7 +36,7 @@ def _get_connection_attributes_from_catalog(
     details: Dict[str, Any] = get_connection(name=connection, catalog_id=catalog_id, boto3_session=boto3_session)[
         "ConnectionProperties"
     ]
-    if "databaseName=" in details["JDBC_CONNECTION_URL"]:
+    if ";databaseName=" in details["JDBC_CONNECTION_URL"]:
         database_sep = ";databaseName="
     else:
         database_sep = "/"
