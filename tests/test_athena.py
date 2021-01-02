@@ -151,7 +151,7 @@ def test_athena(path, glue_database, glue_table, kms_key, workgroup0, workgroup1
         ctas_approach=False,
         workgroup=workgroup1,
         keep_files=False,
-        params={"iint8_value": 1}
+        params={"iint8_value": 1},
     )
     assert len(df.index) == 1
     ensure_athena_query_metadata(df=df, ctas_approach=False, encrypted=False)
