@@ -691,6 +691,12 @@ def read_sql_query(
     >>> df = wr.athena.read_sql_query(sql="...", database="...")
     >>> scanned_bytes = df.query_metadata["Statistics"]["DataScannedInBytes"]
 
+    >>> import awswrangler as wr
+    >>> df = wr.athena.read_sql_query(
+    ...     sql="SELECT * FROM my_table WHERE name=:name;",
+    ...     params={"name": "filtered_name"}
+    ... )
+
     """
     if ctas_approach and data_source not in (None, "AwsDataCatalog"):
         raise exceptions.InvalidArgumentCombination(
