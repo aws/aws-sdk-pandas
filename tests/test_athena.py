@@ -145,6 +145,16 @@ def test_athena(path, glue_database, glue_table, kms_key, workgroup0, workgroup1
         wr.catalog.table(database=glue_database, table=table).to_dict()
         == wr.athena.describe_table(database=glue_database, table=table).to_dict()
     )
+    df = wr.athena.read_sql_query(
+        sql=f"SELECT * FROM {table} WHERE iint8 = :iint8_value;",
+        database=glue_database,
+        ctas_approach=False,
+        workgroup=workgroup1,
+        keep_files=False,
+        params={"iint8_value": 1},
+    )
+    assert len(df.index) == 1
+    ensure_athena_query_metadata(df=df, ctas_approach=False, encrypted=False)
     query = wr.athena.show_create_table(database=glue_database, table=table)
     assert (
         query.split("LOCATION")[0] == f"CREATE EXTERNAL TABLE `{table}`"
