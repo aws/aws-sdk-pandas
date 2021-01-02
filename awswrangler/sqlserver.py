@@ -1,22 +1,41 @@
 """Amazon Microsoft SQL Server Module."""
 
 
+import importlib
 import logging
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, TypeVar, Union
 
 import boto3
 import pandas as pd
 import pyarrow as pa
-import pyodbc
 
 from awswrangler import _data_types
 from awswrangler import _databases as _db_utils
 from awswrangler import exceptions
 
+__all__ = ["connect", "read_sql_query", "read_sql_table", "to_sql"]
+
+_pyodbc_found = importlib.util.find_spec("pyodbc")
+if _pyodbc_found:
+    import pyodbc
+
 _logger: logging.Logger = logging.getLogger(__name__)
+FuncT = TypeVar("FuncT", bound=Callable[..., Any])
 
 
-def _validate_connection(con: pyodbc.Connection) -> None:
+def _check_for_pyodbc(func: FuncT) -> FuncT:
+    def inner(*args: Any, **kwargs: Any) -> Any:
+        if not _pyodbc_found:
+            raise ModuleNotFoundError(
+                "You need to install pyodbc respectively the "
+                "AWS Data Wrangler package with the `sqlserver` extra for using the sqlserver module"
+            )
+        return func(*args, **kwargs)
+
+    return inner  # type: ignore
+
+
+def _validate_connection(con: "pyodbc.Connection") -> None:
     if not isinstance(con, pyodbc.Connection):
         raise exceptions.InvalidConnection(
             "Invalid 'conn' argument, please pass a "
@@ -31,14 +50,14 @@ def _get_table_identifier(schema: Optional[str], table: str) -> str:
     return table_identifier
 
 
-def _drop_table(cursor: pyodbc.Cursor, schema: Optional[str], table: str) -> None:
+def _drop_table(cursor: "pyodbc.Cursor", schema: Optional[str], table: str) -> None:
     table_identifier = _get_table_identifier(schema, table)
     sql = f"IF OBJECT_ID(N'{table_identifier}', N'U') IS NOT NULL DROP TABLE {table_identifier}"
     _logger.debug("Drop table query:\n%s", sql)
     cursor.execute(sql)
 
 
-def _does_table_exist(cursor: pyodbc.Cursor, schema: Optional[str], table: str) -> bool:
+def _does_table_exist(cursor: "pyodbc.Cursor", schema: Optional[str], table: str) -> bool:
     schema_str = f"TABLE_SCHEMA = '{schema}' AND" if schema else ""
     cursor.execute(f"SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE " f"{schema_str} TABLE_NAME = '{table}'")
     return len(cursor.fetchall()) > 0
@@ -46,7 +65,7 @@ def _does_table_exist(cursor: pyodbc.Cursor, schema: Optional[str], table: str) 
 
 def _create_table(
     df: pd.DataFrame,
-    cursor: pyodbc.Cursor,
+    cursor: "pyodbc.Cursor",
     table: str,
     schema: str,
     mode: str,
@@ -75,6 +94,7 @@ def _create_table(
     cursor.execute(sql)
 
 
+@_check_for_pyodbc
 def connect(
     connection: Optional[str] = None,
     secret_id: Optional[str] = None,
@@ -83,7 +103,7 @@ def connect(
     odbc_driver_version: int = 17,
     boto3_session: Optional[boto3.Session] = None,
     timeout: Optional[int] = 0,
-) -> pyodbc.Connection:
+) -> "pyodbc.Connection":
     """Return a pyodbc connection from a Glue Catalog Connection.
 
     https://github.com/mkleehammer/pyodbc
@@ -143,9 +163,10 @@ def connect(
     return pyodbc.connect(connection_str, timeout=timeout)
 
 
+@_check_for_pyodbc
 def read_sql_query(
     sql: str,
-    con: pyodbc.Connection,
+    con: "pyodbc.Connection",
     index_col: Optional[Union[str, List[str]]] = None,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
     chunksize: Optional[int] = None,
@@ -198,9 +219,10 @@ def read_sql_query(
     )
 
 
+@_check_for_pyodbc
 def read_sql_table(
     table: str,
-    con: pyodbc.Connection,
+    con: "pyodbc.Connection",
     schema: Optional[str] = None,
     index_col: Optional[Union[str, List[str]]] = None,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
@@ -260,9 +282,10 @@ def read_sql_table(
     )
 
 
+@_check_for_pyodbc
 def to_sql(
     df: pd.DataFrame,
-    con: pyodbc.Connection,
+    con: "pyodbc.Connection",
     table: str,
     schema: str,
     mode: str = "append",
