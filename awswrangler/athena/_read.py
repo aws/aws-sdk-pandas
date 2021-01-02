@@ -533,6 +533,7 @@ def read_sql_query(
     max_cache_seconds: int = 0,
     max_cache_query_inspections: int = 50,
     data_source: Optional[str] = None,
+    params: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Execute any SQL query on AWS Athena and return the results as a Pandas DataFrame.
 
@@ -679,6 +680,10 @@ def read_sql_query(
         Only takes effect if max_cache_seconds > 0.
     data_source : str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
+    params: Dict[str, any], optional
+        Dict of parameters that will be used for constructing the SQL query. Only named parameters are supported.
+        The dict needs to contain the information in the form {'name': 'value'} and the SQL query needs to contain
+        `:name;`.
 
     Returns
     -------
@@ -708,6 +713,10 @@ def read_sql_query(
         )
     chunksize = sys.maxsize if ctas_approach is False and chunksize is True else chunksize
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    if params is None:
+        params = {}
+    for key, value in params.items():
+        sql = sql.replace(f":{key};", str(value))
 
     cache_info: _CacheInfo = _check_for_cached_results(
         sql=sql,
