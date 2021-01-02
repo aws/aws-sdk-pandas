@@ -38,4 +38,5 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
     ],
+    extras_require={"sqlserver": ["pyodbc~=4.0.30"]},
 )
