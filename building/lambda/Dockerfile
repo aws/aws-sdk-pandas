@@ -26,7 +26,7 @@ RUN curl ftp://ftp.unixodbc.org/pub/unixODBC/unixODBC-2.3.9.tar.gz -O && \
     rm unixODBC-2.3.9.tar.gz
 
 RUN curl https://packages.microsoft.com/config/rhel/7/prod.repo > /etc/yum.repos.d/mssql-release.repo && \
-    yum install -y e2fsprogs.x86_64 0:1.43.5-2.43.amzn1 fuse-libs.x86_64 0:2.9.4-1.18.amzn1 libss.x86_64 0:1.43.5-2.43.amzn1 && \
+    yum install -y e2fsprogs.x86_64 0:1.43.5-2.43.amzn1 fuse-libs.x86_64 0:2.9.4-1.18.amzn1 libss.x86_64 0:1.43.5-2.43.amzn1 openssl.x86_64 1:1.0.2k-19.amzn2.0.4 && \
     ACCEPT_EULA=Y yum -y install msodbcsql17 unixODBC-devel --disablerepo=amzn* && \
     export CFLAGS="-I/opt/include" && \
     export LDFLAGS="-L/opt/lib" && \
