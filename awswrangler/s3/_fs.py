@@ -7,7 +7,7 @@ import logging
 import math
 import socket
 from contextlib import contextmanager
-from typing import Any, BinaryIO, Dict, Iterator, List, Optional, Set, Tuple, Union, cast
+from typing import Any, BinaryIO, Dict, Iterator, List, Optional, Set, Tuple, Type, Union, cast
 
 import boto3
 from botocore.exceptions import ReadTimeoutError
@@ -185,7 +185,7 @@ class _UploadProxy:
         return self._sort_by_part_number(parts=self._results)
 
 
-class _S3Object:  # pylint: disable=too-many-instance-attributes
+class _S3ObjectBase:  # pylint: disable=too-many-instance-attributes
     """Class to abstract S3 objects as ordinary files."""
 
     def __init__(
@@ -242,7 +242,7 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
         else:
             raise RuntimeError(f"Invalid mode: {self._mode}")
 
-    def __enter__(self) -> Union["_S3Object", io.TextIOWrapper]:
+    def __enter__(self) -> Union["_S3ObjectBase", io.TextIOWrapper]:
         return self
 
     def __exit__(self, exc_type: Any, exc_value: Any, exc_traceback: Any) -> None:
@@ -255,19 +255,6 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
     def __del__(self) -> None:
         """Delete object tear down."""
         self.close()
-
-    def __next__(self) -> Union[bytes, str]:
-        """Next line."""
-        out: Union[bytes, str, None] = self.readline()
-        if not out:
-            raise StopIteration
-        return out
-
-    next = __next__
-
-    def __iter__(self) -> "_S3Object":
-        """Iterate over lines."""
-        return self
 
     @staticmethod
     def _merge_range(ranges: List[Tuple[int, bytes]]) -> bytes:
@@ -378,43 +365,6 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
 
         return None
 
-    def read(self, length: int = -1) -> Union[bytes, str]:
-        """Return cached data and fetch on demand chunks."""
-        if self.readable() is False:
-            raise ValueError("File not in read mode.")
-        if self.closed is True:
-            raise ValueError("I/O operation on closed file.")
-        if length < 0 or self._loc + length > self._size:
-            length = self._size - self._loc
-
-        self._fetch(self._loc, self._loc + length)
-        out: bytes = self._cache[self._loc - self._start : self._loc - self._start + length]
-        self._loc += len(out)
-        return out
-
-    def readline(self, length: int = -1) -> Union[bytes, str]:
-        """Read until the next line terminator."""
-        end: int = self._loc + self._s3_block_size
-        end = self._size if end > self._size else end
-        self._fetch(self._loc, end)
-        while True:
-            found: int = self._cache[self._loc - self._start :].find(self._newline.encode(encoding=self._encoding))
-
-            if 0 < length < found:
-                return self.read(length + 1)
-            if found >= 0:
-                return self.read(found + 1)
-            if self._end >= self._size:
-                return self.read(-1)
-
-            end = self._end + self._s3_half_block_size
-            end = self._size if end > self._size else end
-            self._fetch(self._loc, end)
-
-    def readlines(self) -> List[Union[bytes, str]]:
-        """Return all lines as list."""
-        return list(self)
-
     def tell(self) -> int:
         """Return the current file location."""
         return self._loc
@@ -435,18 +385,6 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
             raise ValueError("Seek before start of file")
         self._loc = loc_tmp
         return self._loc
-
-    def write(self, data: bytes) -> int:
-        """Write data to buffer and only upload on close() or if buffer is greater than or equal to _MIN_WRITE_BLOCK."""
-        if self.writable() is False:
-            raise RuntimeError("File not in write mode.")
-        if self.closed:
-            raise RuntimeError("I/O operation on closed file.")
-        n: int = self._buffer.write(data)
-        self._loc += n
-        if self._buffer.tell() >= _MIN_WRITE_BLOCK:
-            self.flush()
-        return n
 
     def flush(self, force: bool = False) -> None:
         """Write buffered data to S3."""
@@ -552,6 +490,72 @@ class _S3Object:  # pylint: disable=too-many-instance-attributes
         return None
 
 
+class _S3ObjectWriter(_S3ObjectBase):
+    def write(self, data: bytes) -> int:
+        """Write data to buffer and only upload on close() or if buffer is greater than or equal to _MIN_WRITE_BLOCK."""
+        if self.writable() is False:
+            raise RuntimeError("File not in write mode.")
+        if self.closed:
+            raise RuntimeError("I/O operation on closed file.")
+        n: int = self._buffer.write(data)
+        self._loc += n
+        if self._buffer.tell() >= _MIN_WRITE_BLOCK:
+            self.flush()
+        return n
+
+
+class _S3ObjectReader(_S3ObjectBase):
+    def __next__(self) -> Union[bytes, str]:
+        """Next line."""
+        out: Union[bytes, str, None] = self.readline()
+        if not out:
+            raise StopIteration
+        return out
+
+    next = __next__
+
+    def __iter__(self) -> "_S3ObjectReader":
+        """Iterate over lines."""
+        return self
+
+    def read(self, length: int = -1) -> Union[bytes, str]:
+        """Return cached data and fetch on demand chunks."""
+        if self.readable() is False:
+            raise ValueError("File not in read mode.")
+        if self.closed is True:
+            raise ValueError("I/O operation on closed file.")
+        if length < 0 or self._loc + length > self._size:
+            length = self._size - self._loc
+
+        self._fetch(self._loc, self._loc + length)
+        out: bytes = self._cache[self._loc - self._start : self._loc - self._start + length]
+        self._loc += len(out)
+        return out
+
+    def readline(self, length: int = -1) -> Union[bytes, str]:
+        """Read until the next line terminator."""
+        end: int = self._loc + self._s3_block_size
+        end = self._size if end > self._size else end
+        self._fetch(self._loc, end)
+        while True:
+            found: int = self._cache[self._loc - self._start :].find(self._newline.encode(encoding=self._encoding))
+
+            if 0 < length < found:
+                return self.read(length + 1)
+            if found >= 0:
+                return self.read(found + 1)
+            if self._end >= self._size:
+                return self.read(-1)
+
+            end = self._end + self._s3_half_block_size
+            end = self._size if end > self._size else end
+            self._fetch(self._loc, end)
+
+    def readlines(self) -> List[Union[bytes, str]]:
+        """Return all lines as list."""
+        return list(self)
+
+
 @contextmanager
 @apply_configs
 def open_s3_object(
@@ -563,12 +567,13 @@ def open_s3_object(
     boto3_session: Optional[boto3.Session] = None,
     newline: Optional[str] = "\n",
     encoding: Optional[str] = "utf-8",
-) -> Iterator[Union[_S3Object, io.TextIOWrapper]]:
+) -> Iterator[Union[_S3ObjectReader, _S3ObjectWriter, io.TextIOWrapper]]:
     """Return a _S3Object or TextIOWrapper based in the received mode."""
-    s3obj: Optional[_S3Object] = None
+    s3obj: Optional[Union[_S3ObjectReader, _S3ObjectWriter]] = None
     text_s3obj: Optional[io.TextIOWrapper] = None
+    s3_class: Union[Type[_S3ObjectReader], Type[_S3ObjectWriter]] = _S3ObjectWriter if "w" in mode else _S3ObjectReader
     try:
-        s3obj = _S3Object(
+        s3obj = s3_class(
             path=path,
             s3_block_size=s3_block_size,
             mode=mode,
