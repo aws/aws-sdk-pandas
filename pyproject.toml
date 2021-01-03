@@ -9,11 +9,14 @@ exclude = '''
   | \.mypy_cache
   | \.tox
   | \.venv
+  | \.env
   | _build
   | buck-out
   | build
   | dist
-  | .datamaker.out
+  | .vscode
+  | dev
+  | .coverage
 )/
 '''
 
