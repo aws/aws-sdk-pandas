@@ -376,15 +376,14 @@ def test_timezone_file_columns(path, use_threads):
     assert df[["c1"]].equals(df2)
 
 
-@pytest.mark.parametrize("use_threads", [True, False])
-def test_timezone_raw_values(path, use_threads):
+def test_timezone_raw_values(path):
     df = pd.DataFrame({"c0": [1.1, 2.2], "par": ["a", "b"]})
     df["c1"] = pd.to_datetime(datetime.now(timezone.utc))
     df["c2"] = pd.to_datetime(datetime(2011, 11, 4, 0, 5, 23, tzinfo=timezone(timedelta(seconds=14400))))
     df["c3"] = pd.to_datetime(datetime(2011, 11, 4, 0, 5, 23, tzinfo=timezone(-timedelta(seconds=14400))))
     df["c4"] = pd.to_datetime(datetime(2011, 11, 4, 0, 5, 23, tzinfo=timezone(timedelta(hours=-8))))
     wr.s3.to_parquet(partition_cols=["par"], df=df, path=path, dataset=True, sanitize_columns=False)
-    df2 = wr.s3.read_parquet(path, dataset=True, use_threads=use_threads)
+    df2 = wr.s3.read_parquet(path, dataset=True, use_threads=False)
     df3 = pd.read_parquet(path)
     df2["par"] = df2["par"].astype("string")
     df3["par"] = df3["par"].astype("string")
