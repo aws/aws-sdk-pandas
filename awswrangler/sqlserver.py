@@ -180,8 +180,7 @@ def read_sql_query(
     sql : str
         SQL query.
     con : pyodbc.Connection
-        Use pyodbc.connect() to use "
-        "credentials directly or wr.sqlserver.connect() to fetch it from the Glue Catalog.
+        Use pyodbc.connect() to use credentials directly or wr.sqlserver.connect() to fetch it from the Glue Catalog.
     index_col : Union[str, List[str]], optional
         Column(s) to set as index(MultiIndex).
     params :  Union[List, Tuple, Dict], optional
@@ -237,8 +236,7 @@ def read_sql_table(
     table : str
         Table name.
     con : pyodbc.Connection
-        Use pyodbc.connect() to use "
-        "credentials directly or wr.sqlserver.connect() to fetch it from the Glue Catalog.
+        Use pyodbc.connect() to use credentials directly or wr.sqlserver.connect() to fetch it from the Glue Catalog.
     schema : str, optional
         Name of SQL schema in database to query (if database flavor supports this).
         Uses default schema if None (default).
@@ -300,8 +298,7 @@ def to_sql(
     df : pandas.DataFrame
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
     con : pyodbc.Connection
-        Use pyodbc.connect() to use "
-        "credentials directly or wr.sqlserver.connect() to fetch it from the Glue Catalog.
+        Use pyodbc.connect() to use credentials directly or wr.sqlserver.connect() to fetch it from the Glue Catalog.
     table : str
         Table name
     schema : str
