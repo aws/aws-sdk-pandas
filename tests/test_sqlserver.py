@@ -3,7 +3,7 @@ from decimal import Decimal
 
 import pandas as pd
 import pyarrow as pa
-import pymssql
+import pyodbc
 import pytest
 
 import awswrangler as wr
@@ -15,13 +15,13 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 @pytest.fixture(scope="module", autouse=True)
 def create_sql_server_database(databases_parameters):
-    con = pymssql.connect(
-        host=databases_parameters["sqlserver"]["host"],
-        port=int(databases_parameters["sqlserver"]["port"]),
-        user=databases_parameters["user"],
-        password=databases_parameters["password"],
-        autocommit=True,
+    connection_str = (
+        f"DRIVER={{ODBC Driver 17 for SQL Server}};"
+        f"SERVER={databases_parameters['sqlserver']['host']},{databases_parameters['sqlserver']['port']};"
+        f"UID={databases_parameters['user']};"
+        f"PWD={databases_parameters['password']}"
     )
+    con = pyodbc.connect(connection_str, autocommit=True)
     sql_create_db = (
         f"IF NOT EXISTS(SELECT * FROM sys.databases WHERE name = '{databases_parameters['sqlserver']['database']}') "
         "BEGIN "
@@ -37,7 +37,9 @@ def create_sql_server_database(databases_parameters):
     sql_drop_db = (
         f"IF EXISTS (SELECT * FROM sys.databases WHERE name = '{databases_parameters['sqlserver']['database']}') "
         "BEGIN "
-        f"DROP DATABASE {databases_parameters['sqlserver']['database']} "
+        "USE master; "
+        f"ALTER DATABASE {databases_parameters['sqlserver']['database']} SET SINGLE_USER WITH ROLLBACK IMMEDIATE; "
+        f"DROP DATABASE {databases_parameters['sqlserver']['database']}; "
         "END"
     )
     with con.cursor() as cursor:

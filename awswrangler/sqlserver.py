@@ -1,26 +1,45 @@
 """Amazon Microsoft SQL Server Module."""
 
 
+import importlib
 import logging
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, TypeVar, Union
 
 import boto3
 import pandas as pd
 import pyarrow as pa
-import pymssql
 
 from awswrangler import _data_types
 from awswrangler import _databases as _db_utils
 from awswrangler import exceptions
 
+__all__ = ["connect", "read_sql_query", "read_sql_table", "to_sql"]
+
+_pyodbc_found = importlib.util.find_spec("pyodbc")
+if _pyodbc_found:
+    import pyodbc
+
 _logger: logging.Logger = logging.getLogger(__name__)
+FuncT = TypeVar("FuncT", bound=Callable[..., Any])
 
 
-def _validate_connection(con: pymssql.Connection) -> None:
-    if not isinstance(con, pymssql.Connection):
+def _check_for_pyodbc(func: FuncT) -> FuncT:
+    def inner(*args: Any, **kwargs: Any) -> Any:
+        if not _pyodbc_found:
+            raise ModuleNotFoundError(
+                "You need to install pyodbc respectively the "
+                "AWS Data Wrangler package with the `sqlserver` extra for using the sqlserver module"
+            )
+        return func(*args, **kwargs)
+
+    return inner  # type: ignore
+
+
+def _validate_connection(con: "pyodbc.Connection") -> None:
+    if not isinstance(con, pyodbc.Connection):
         raise exceptions.InvalidConnection(
             "Invalid 'conn' argument, please pass a "
-            "pymssql.Connection object. Use pymssql.connect() to use "
+            "pyodbc.Connection object. Use pyodbc.connect() to use "
             "credentials directly or wr.sqlserver.connect() to fetch it from the Glue Catalog."
         )
 
@@ -31,14 +50,14 @@ def _get_table_identifier(schema: Optional[str], table: str) -> str:
     return table_identifier
 
 
-def _drop_table(cursor: pymssql.Cursor, schema: Optional[str], table: str) -> None:
+def _drop_table(cursor: "pyodbc.Cursor", schema: Optional[str], table: str) -> None:
     table_identifier = _get_table_identifier(schema, table)
     sql = f"IF OBJECT_ID(N'{table_identifier}', N'U') IS NOT NULL DROP TABLE {table_identifier}"
     _logger.debug("Drop table query:\n%s", sql)
     cursor.execute(sql)
 
 
-def _does_table_exist(cursor: pymssql.Cursor, schema: Optional[str], table: str) -> bool:
+def _does_table_exist(cursor: "pyodbc.Cursor", schema: Optional[str], table: str) -> bool:
     schema_str = f"TABLE_SCHEMA = '{schema}' AND" if schema else ""
     cursor.execute(f"SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE " f"{schema_str} TABLE_NAME = '{table}'")
     return len(cursor.fetchall()) > 0
@@ -46,7 +65,7 @@ def _does_table_exist(cursor: pymssql.Cursor, schema: Optional[str], table: str)
 
 def _create_table(
     df: pd.DataFrame,
-    cursor: pymssql.Cursor,
+    cursor: "pyodbc.Cursor",
     table: str,
     schema: str,
     mode: str,
@@ -75,18 +94,19 @@ def _create_table(
     cursor.execute(sql)
 
 
+@_check_for_pyodbc
 def connect(
     connection: Optional[str] = None,
     secret_id: Optional[str] = None,
     catalog_id: Optional[str] = None,
     dbname: Optional[str] = None,
+    odbc_driver_version: int = 17,
     boto3_session: Optional[boto3.Session] = None,
     timeout: Optional[int] = 0,
-    login_timeout: Optional[int] = 60,
-) -> pymssql.Connection:
-    """Return a pymssql connection from a Glue Catalog Connection.
+) -> "pyodbc.Connection":
+    """Return a pyodbc connection from a Glue Catalog Connection.
 
-    https://github.com/pymssql/pymssql
+    https://github.com/mkleehammer/pyodbc
 
     Parameters
     ----------
@@ -100,28 +120,25 @@ def connect(
         If none is provided, the AWS account ID is used by default.
     dbname: Optional[str]
         Optional database name to overwrite the stored one.
+    odbc_driver_version : int
+        Major version of the OBDC Driver version that is installed and should be used.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     timeout: Optional[int]
         This is the time in seconds before the connection to the server will time out.
         The default is None which means no timeout.
-        This parameter is forwarded to pymssql.
-        https://pymssql.readthedocs.io/en/latest/ref/pymssql.html
-    login_timeout: Optional[int]
-        This is the time in seconds that the connection and login may take before it times out.
-        The default is 60 seconds.
-        This parameter is forwarded to pymssql.
-        https://pymssql.readthedocs.io/en/latest/ref/pymssql.html
+        This parameter is forwarded to pyodbc.
+        https://github.com/mkleehammer/pyodbc/wiki/The-pyodbc-Module#connect
 
     Returns
     -------
-    pymssql.Connection
-        pymssql connection.
+    pyodbc.Connection
+        pyodbc connection.
 
     Examples
     --------
     >>> import awswrangler as wr
-    >>> con = wr.sqlserver.connect("MY_GLUE_CONNECTION")
+    >>> con = wr.sqlserver.connect(connection="MY_GLUE_CONNECTION", odbc_driver_version=17)
     >>> with con.cursor() as cursor:
     >>>     cursor.execute("SELECT 1")
     >>>     print(cursor.fetchall())
@@ -135,24 +152,21 @@ def connect(
         raise exceptions.InvalidDatabaseType(
             f"Invalid connection type ({attrs.kind}. It must be a sqlserver connection.)"
         )
-    # Fix TDS version to 7.3 for enabling correct casting of DATE and TIME columns
-    # See: https://pymssql.readthedocs.io/en/latest/faq.html
-    # #pymssql-does-not-unserialize-date-and-time-columns-to-datetime-date-and-datetime-time-instances
-    return pymssql.connect(
-        user=attrs.user,
-        database=attrs.database,
-        password=attrs.password,
-        port=attrs.port,
-        host=attrs.host,
-        timeout=timeout,
-        login_timeout=login_timeout,
-        tds_version="7.3",
+    connection_str = (
+        f"DRIVER={{ODBC Driver {odbc_driver_version} for SQL Server}};"
+        f"SERVER={attrs.host},{attrs.port};"
+        f"DATABASE={attrs.database};"
+        f"UID={attrs.user};"
+        f"PWD={attrs.password}"
     )
 
+    return pyodbc.connect(connection_str, timeout=timeout)
 
+
+@_check_for_pyodbc
 def read_sql_query(
     sql: str,
-    con: pymssql.Connection,
+    con: "pyodbc.Connection",
     index_col: Optional[Union[str, List[str]]] = None,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
     chunksize: Optional[int] = None,
@@ -165,8 +179,8 @@ def read_sql_query(
     ----------
     sql : str
         SQL query.
-    con : pymssql.Connection
-        Use pymssql.connect() to use "
+    con : pyodbc.Connection
+        Use pyodbc.connect() to use "
         "credentials directly or wr.sqlserver.connect() to fetch it from the Glue Catalog.
     index_col : Union[str, List[str]], optional
         Column(s) to set as index(MultiIndex).
@@ -192,7 +206,7 @@ def read_sql_query(
     --------
     Reading from Microsoft SQL Server using a Glue Catalog Connections
     >>> import awswrangler as wr
-    >>> con = wr.sqlserver.connect("MY_GLUE_CONNECTION")
+    >>> con = wr.sqlserver.connect(connection="MY_GLUE_CONNECTION", odbc_driver_version=17)
     >>> df = wr.sqlserver.read_sql_query(
     ...     sql="SELECT * FROM dbo.my_table",
     ...     con=con
@@ -205,9 +219,10 @@ def read_sql_query(
     )
 
 
+@_check_for_pyodbc
 def read_sql_table(
     table: str,
-    con: pymssql.Connection,
+    con: "pyodbc.Connection",
     schema: Optional[str] = None,
     index_col: Optional[Union[str, List[str]]] = None,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
@@ -221,8 +236,8 @@ def read_sql_table(
     ----------
     table : str
         Table name.
-    con : pymssql.Connection
-        Use pymssql.connect() to use "
+    con : pyodbc.Connection
+        Use pyodbc.connect() to use "
         "credentials directly or wr.sqlserver.connect() to fetch it from the Glue Catalog.
     schema : str, optional
         Name of SQL schema in database to query (if database flavor supports this).
@@ -252,7 +267,7 @@ def read_sql_table(
     Reading from Microsoft SQL Server using a Glue Catalog Connections
 
     >>> import awswrangler as wr
-    >>> con = wr.sqlserver.connect("MY_GLUE_CONNECTION")
+    >>> con = wr.sqlserver.connect(connection="MY_GLUE_CONNECTION", odbc_driver_version=17)
     >>> df = wr.sqlserver.read_sql_table(
     ...     table="my_table",
     ...     schema="dbo",
@@ -267,9 +282,10 @@ def read_sql_table(
     )
 
 
+@_check_for_pyodbc
 def to_sql(
     df: pd.DataFrame,
-    con: pymssql.Connection,
+    con: "pyodbc.Connection",
     table: str,
     schema: str,
     mode: str = "append",
@@ -283,8 +299,8 @@ def to_sql(
     ----------
     df : pandas.DataFrame
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
-    con : pymssql.Connection
-        Use pymssql.connect() to use "
+    con : pyodbc.Connection
+        Use pyodbc.connect() to use "
         "credentials directly or wr.sqlserver.connect() to fetch it from the Glue Catalog.
     table : str
         Table name
@@ -312,7 +328,7 @@ def to_sql(
     Writing to Microsoft SQL Server using a Glue Catalog Connections
 
     >>> import awswrangler as wr
-    >>> con = wr.sqlserver.connect("MY_GLUE_CONNECTION")
+    >>> con = wr.sqlserver.connect(connection="MY_GLUE_CONNECTION", odbc_driver_version=17)
     >>> wr.sqlserver.to_sql(
     ...     df=df,
     ...     table="table",
@@ -339,13 +355,12 @@ def to_sql(
             )
             if index:
                 df.reset_index(level=df.index.names, inplace=True)
-            placeholders: str = ", ".join(["%s"] * len(df.columns))
+            placeholders: str = ", ".join(["?"] * len(df.columns))
             table_identifier = _get_table_identifier(schema, table)
             sql: str = f"INSERT INTO {table_identifier} VALUES ({placeholders})"
             _logger.debug("sql: %s", sql)
             parameters: List[List[Any]] = _db_utils.extract_parameters(df=df)
-            parameter_tuples: List[Tuple[Any, ...]] = [tuple(parameter_set) for parameter_set in parameters]
-            cursor.executemany(sql, parameter_tuples)
+            cursor.executemany(sql, parameters)
             con.commit()
     except Exception as ex:
         con.rollback()

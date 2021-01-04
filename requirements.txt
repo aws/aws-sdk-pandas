@@ -6,4 +6,3 @@ pyarrow~=2.0.0
 redshift-connector~=2.0.0
 pymysql>=0.9.0,<0.11.0
 pg8000~=1.16.0
-pymssql~=2.1.5
