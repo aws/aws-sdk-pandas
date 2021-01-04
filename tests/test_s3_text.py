@@ -1,16 +1,10 @@
-import bz2
-import gzip
 import logging
-import lzma
-from io import BytesIO, TextIOWrapper
 
 import boto3
 import pandas as pd
 import pytest
 
 import awswrangler as wr
-
-from ._utils import get_df_csv
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -95,46 +89,6 @@ def test_read_partitioned_fwf(path, use_threads, chunksize):
     else:
         for d in df2:
             assert d.shape == (1, 4)
-
-
-@pytest.mark.parametrize("compression", ["gzip", "bz2", "xz"])
-def test_csv_compress(bucket, path, compression):
-    key_prefix = path.replace(f"s3://{bucket}/", "")
-    wr.s3.delete_objects(path=path)
-    df = get_df_csv()
-    if compression == "gzip":
-        buffer = BytesIO()
-        with gzip.GzipFile(mode="w", fileobj=buffer) as zipped_file:
-            df.to_csv(TextIOWrapper(zipped_file, "utf8"), index=False, header=None)
-        s3_resource = boto3.resource("s3")
-        s3_object = s3_resource.Object(bucket, f"{key_prefix}test.csv.gz")
-        s3_object.put(Body=buffer.getvalue())
-        file_path = f"{path}test.csv.gz"
-    elif compression == "bz2":
-        buffer = BytesIO()
-        with bz2.BZ2File(mode="w", filename=buffer) as zipped_file:
-            df.to_csv(TextIOWrapper(zipped_file, "utf8"), index=False, header=None)
-        s3_resource = boto3.resource("s3")
-        s3_object = s3_resource.Object(bucket, f"{key_prefix}test.csv.bz2")
-        s3_object.put(Body=buffer.getvalue())
-        file_path = f"{path}test.csv.bz2"
-    elif compression == "xz":
-        buffer = BytesIO()
-        with lzma.LZMAFile(mode="w", filename=buffer) as zipped_file:
-            df.to_csv(TextIOWrapper(zipped_file, "utf8"), index=False, header=None)
-        s3_resource = boto3.resource("s3")
-        s3_object = s3_resource.Object(bucket, f"{key_prefix}test.csv.xz")
-        s3_object.put(Body=buffer.getvalue())
-        file_path = f"{path}test.csv.xz"
-    else:
-        file_path = f"{path}test.csv"
-        wr.s3.to_csv(df=df, path=file_path, index=False, header=None)
-
-    df2 = wr.s3.read_csv(path=[file_path], names=df.columns)
-    assert df2.shape == (3, 10)
-    dfs = wr.s3.read_csv(path=[file_path], names=df.columns, chunksize=1)
-    for df3 in dfs:
-        assert len(df3.columns) == 10
 
 
 def test_csv(path):
