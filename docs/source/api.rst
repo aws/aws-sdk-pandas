@@ -285,7 +285,7 @@ AWS Secrets Manager
     get_secret
     get_secret_json
 
-AWS Chime
+Amazon Chime
 -------------------
 
 .. currentmodule:: awswrangler.chime
