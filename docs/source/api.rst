@@ -299,6 +299,16 @@ AWS Secrets Manager
     get_secret
     get_secret_json
 
+Amazon Chime
+-------------------
+
+.. currentmodule:: awswrangler.chime
+
+.. autosummary::
+    :toctree: stubs
+
+    post_message
+
 Global Configurations
 ---------------------
 
