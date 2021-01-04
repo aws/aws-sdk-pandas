@@ -69,7 +69,7 @@ popd
 
 pushd /aws-data-wrangler
 
-pip install .[sqlserver] -t ./python
+pip install . -t ./python
 
 rm -rf python/pyarrow*
 rm -rf python/boto*
@@ -80,15 +80,12 @@ rm -f /aws-data-wrangler/dist/pyarrow_files/pyarrow/libarrow_python.so
 
 cp -r /aws-data-wrangler/dist/pyarrow_files/pyarrow* python/
 
-
 find python -wholename "*/tests/*" -type f -delete
 
-cp -r /opt .
-cd opt; zip -r9 ../"${FILENAME}" *; cd ..
-zip -ur9 "${FILENAME}" ./python
+zip -r9 "${FILENAME}" ./python
 mv "${FILENAME}" dist/
 
-rm -rf python dist/pyarrow_files "${FILENAME}" opt
+rm -rf python dist/pyarrow_files "${FILENAME}"
 
 popd
 
