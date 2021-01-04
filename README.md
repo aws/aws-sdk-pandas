@@ -138,6 +138,7 @@ FROM "sampleDB"."sampleTable" ORDER BY time DESC LIMIT 3
   - [Amazon Timestream](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-timestream)
   - [Amazon EMR](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-emr)
   - [Amazon CloudWatch Logs](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-cloudwatch-logs)
+  - [Amazon Chime](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-chime)
   - [Amazon QuickSight](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-quicksight)
   - [AWS STS](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#aws-sts)
   - [AWS Secrets Manager](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#aws-secrets-manager)
