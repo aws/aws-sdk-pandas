@@ -71,7 +71,7 @@ def _to_text(
 
 
 @apply_configs
-def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
+def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-statements
     df: pd.DataFrame,
     path: str,
     sep: str = ",",
@@ -115,8 +115,8 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
 
     Note
     ----
-    If `dataset=True`, `pandas_kwargs` will be ignored due
-    restrictive quoting, date_format, escapechar, encoding, etc required by Athena/Glue Catalog.
+    If `table` and `database` arguments are passed, `pandas_kwargs` will be ignored due
+    restrictive quoting, date_format, escapechar and encoding required by Athena/Glue Catalog.
 
     Note
     ----
@@ -384,7 +384,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
 
     # Evaluating dtype
     catalog_table_input: Optional[Dict[str, Any]] = None
-    if database is not None and table is not None:
+    if database and table:
         catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
             database=database, table=table, boto3_session=session, catalog_id=catalog_id
         )
@@ -410,6 +410,26 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
         )
         paths = [path]
     else:
+        if database and table:
+            quoting: Optional[int] = csv.QUOTE_NONE
+            escapechar: Optional[str] = "\\"
+            header: Union[bool, List[str]] = False
+            date_format: Optional[str] = "%Y-%m-%d %H:%M:%S.%f"
+            pd_kwargs: Dict[str, Any] = {}
+            compression: Optional[str] = pandas_kwargs.get("compression", None)
+        else:
+            quoting = pandas_kwargs.get("quoting", None)
+            escapechar = pandas_kwargs.get("escapechar", None)
+            header = pandas_kwargs.get("header", True)
+            date_format = pandas_kwargs.get("date_format", None)
+            compression = pandas_kwargs.get("compression", None)
+            pd_kwargs = pandas_kwargs.copy()
+            pd_kwargs.pop("quoting", None)
+            pd_kwargs.pop("escapechar", None)
+            pd_kwargs.pop("header", None)
+            pd_kwargs.pop("date_format", None)
+            pd_kwargs.pop("compression", None)
+
         df = df[columns] if columns else df
         paths, partitions_values = _to_dataset(
             func=_to_text,
@@ -418,19 +438,20 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
             path_root=path,
             index=index,
             sep=sep,
-            compression=pandas_kwargs.get("compression"),
+            compression=compression,
             use_threads=use_threads,
             partition_cols=partition_cols,
             mode=mode,
             boto3_session=session,
             s3_additional_kwargs=s3_additional_kwargs,
             file_format="csv",
-            quoting=csv.QUOTE_NONE,
-            escapechar="\\",
-            header=False,
-            date_format="%Y-%m-%d %H:%M:%S.%f",
+            quoting=quoting,
+            escapechar=escapechar,
+            header=header,
+            date_format=date_format,
+            **pd_kwargs,
         )
-        if (database is not None) and (table is not None):
+        if database and table:
             try:
                 columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
                     df=df, index=index, partition_cols=partition_cols, dtype=dtype, index_left=True
