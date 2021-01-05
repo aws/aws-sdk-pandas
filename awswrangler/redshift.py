@@ -386,7 +386,9 @@ def connect(
         connection=connection, secret_id=secret_id, catalog_id=catalog_id, dbname=dbname, boto3_session=boto3_session
     )
     if attrs.kind != "redshift":
-        exceptions.InvalidDatabaseType(f"Invalid connection type ({attrs.kind}. It must be a redshift connection.)")
+        raise exceptions.InvalidDatabaseType(
+            f"Invalid connection type ({attrs.kind}. It must be a redshift connection.)"
+        )
     return redshift_connector.connect(
         user=attrs.user,
         database=attrs.database,
