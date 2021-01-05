@@ -118,8 +118,8 @@ def test_partitioned_csv(path, compression, chunksize):
                 wr.s3.to_csv(df, p, index=False, compression=compression)
     else:
         for p in paths:
-            wr.s3.to_csv(df, p, index=False, compression=compression)
-        df2 = wr.s3.read_csv(path, dataset=True, chunksize=chunksize)
+            wr.s3.to_csv(df, p, index=False, compression=compression, header=True)
+        df2 = wr.s3.read_csv(path, dataset=True, chunksize=chunksize, header=0)
         if chunksize is None:
             assert df2.shape == (6, 4)
             assert df2.c0.sum() == 3
