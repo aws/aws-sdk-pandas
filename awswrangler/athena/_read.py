@@ -20,6 +20,7 @@ from awswrangler.athena._utils import (
     _get_query_metadata,
     _get_s3_output,
     _get_workgroup_config,
+    _LocalMetadataCacheManager,
     _QueryMetadata,
     _start_query_execution,
     _WorkGroupConfig,
@@ -96,33 +97,36 @@ def _compare_query_string(sql: str, other: str) -> bool:
     return False
 
 
-def _get_last_query_executions(
-    boto3_session: Optional[boto3.Session] = None, workgroup: Optional[str] = None
-) -> Iterator[List[Dict[str, Any]]]:
+@apply_configs
+def _get_last_query_infos(
+    boto3_session: Optional[boto3.Session] = None, workgroup: Optional[str] = None, max_remote_cache_entries: int = 50
+) -> List[Dict[str, Any]]:
     """Return an iterator of `query_execution_info`s run by the workgroup in Athena."""
     client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
-    args: Dict[str, Union[str, Dict[str, int]]] = {"PaginationConfig": {"MaxItems": 50, "PageSize": 50}}
+    page_size = 50
+    args: Dict[str, Union[str, Dict[str, int]]] = {
+        "PaginationConfig": {"MaxItems": max_remote_cache_entries, "PageSize": page_size}
+    }
     if workgroup is not None:
         args["WorkGroup"] = workgroup
     paginator = client_athena.get_paginator("list_query_executions")
+    uncached_ids = []
     for page in paginator.paginate(**args):
         _logger.debug("paginating Athena's queries history...")
         query_execution_id_list: List[str] = page["QueryExecutionIds"]
-        execution_data = client_athena.batch_get_query_execution(QueryExecutionIds=query_execution_id_list)
-        yield execution_data.get("QueryExecutions")
-
-
-def _sort_successful_executions_data(query_executions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """
-    Sorts `_get_last_query_executions`'s results based on query Completion DateTime.
-
-    This is useful to guarantee LRU caching rules.
-    """
-    filtered: List[Dict[str, Any]] = []
-    for query in query_executions:
-        if (query["Status"].get("State") == "SUCCEEDED") and (query.get("StatementType") in ["DDL", "DML"]):
-            filtered.append(query)
-    return sorted(filtered, key=lambda e: str(e["Status"]["CompletionDateTime"]), reverse=True)
+        for query_execution_id in query_execution_id_list:
+            if query_execution_id not in _cache_manager:
+                uncached_ids.append(query_execution_id)
+    if uncached_ids:
+        new_execution_data = []
+        for i in range(0, len(uncached_ids), page_size):
+            new_execution_data.extend(
+                client_athena.batch_get_query_execution(QueryExecutionIds=uncached_ids[i : i + page_size]).get(
+                    "QueryExecutions"
+                )
+            )
+        _cache_manager.update_cache(new_execution_data)
+    return _cache_manager.sorted_successful_generator()
 
 
 def _parse_select_query_from_possible_ctas(possible_ctas: str) -> Optional[str]:
@@ -162,45 +166,37 @@ def _check_for_cached_results(
     comparable_sql: str = _prepare_query_string_for_comparison(sql)
     current_timestamp: datetime.datetime = datetime.datetime.now(datetime.timezone.utc)
     _logger.debug("current_timestamp: %s", current_timestamp)
-    for query_executions in _get_last_query_executions(boto3_session=boto3_session, workgroup=workgroup):
-        _logger.debug("len(query_executions): %s", len(query_executions))
-        cached_queries: List[Dict[str, Any]] = _sort_successful_executions_data(query_executions=query_executions)
-        _logger.debug("len(cached_queries): %s", len(cached_queries))
-        for query_info in cached_queries:
-            query_execution_id: str = query_info["QueryExecutionId"]
-            query_timestamp: datetime.datetime = query_info["Status"]["CompletionDateTime"]
-            _logger.debug("query_timestamp: %s", query_timestamp)
-
-            if (current_timestamp - query_timestamp).total_seconds() > max_cache_seconds:
-                return _CacheInfo(
-                    has_valid_cache=False, query_execution_id=query_execution_id, query_execution_payload=query_info
-                )
-
-            statement_type: Optional[str] = query_info.get("StatementType")
-            if statement_type == "DDL" and query_info["Query"].startswith("CREATE TABLE"):
-                parsed_query: Optional[str] = _parse_select_query_from_possible_ctas(possible_ctas=query_info["Query"])
-                if parsed_query is not None:
-                    if _compare_query_string(sql=comparable_sql, other=parsed_query):
-                        return _CacheInfo(
-                            has_valid_cache=True,
-                            file_format="parquet",
-                            query_execution_id=query_execution_id,
-                            query_execution_payload=query_info,
-                        )
-            elif statement_type == "DML" and not query_info["Query"].startswith("INSERT"):
-                if _compare_query_string(sql=comparable_sql, other=query_info["Query"]):
+    for query_info in _get_last_query_infos(boto3_session=boto3_session, workgroup=workgroup):
+        query_execution_id: str = query_info["QueryExecutionId"]
+        query_timestamp: datetime.datetime = query_info["Status"]["CompletionDateTime"]
+        _logger.debug("query_timestamp: %s", query_timestamp)
+        if (current_timestamp - query_timestamp).total_seconds() > max_cache_seconds:
+            return _CacheInfo(
+                has_valid_cache=False, query_execution_id=query_execution_id, query_execution_payload=query_info
+            )
+        statement_type: Optional[str] = query_info.get("StatementType")
+        if statement_type == "DDL" and query_info["Query"].startswith("CREATE TABLE"):
+            parsed_query: Optional[str] = _parse_select_query_from_possible_ctas(possible_ctas=query_info["Query"])
+            if parsed_query is not None:
+                if _compare_query_string(sql=comparable_sql, other=parsed_query):
                     return _CacheInfo(
                         has_valid_cache=True,
-                        file_format="csv",
+                        file_format="parquet",
                         query_execution_id=query_execution_id,
                         query_execution_payload=query_info,
                     )
-
-            num_executions_inspected += 1
-            _logger.debug("num_executions_inspected: %s", num_executions_inspected)
-            if num_executions_inspected >= max_cache_query_inspections:
-                return _CacheInfo(has_valid_cache=False)
-
+        elif statement_type == "DML" and not query_info["Query"].startswith("INSERT"):
+            if _compare_query_string(sql=comparable_sql, other=query_info["Query"]):
+                return _CacheInfo(
+                    has_valid_cache=True,
+                    file_format="csv",
+                    query_execution_id=query_execution_id,
+                    query_execution_payload=query_info,
+                )
+        num_executions_inspected += 1
+        _logger.debug("num_executions_inspected: %s", num_executions_inspected)
+        if num_executions_inspected >= max_cache_query_inspections:
+            return _CacheInfo(has_valid_cache=False)
     return _CacheInfo(has_valid_cache=False)
 
 
@@ -302,6 +298,7 @@ def _resolve_query_with_cache(
         boto3_session=session,
         categories=categories,
         query_execution_payload=cache_info.query_execution_payload,
+        metadata_cache_manager=_cache_manager,
     )
     if cache_info.file_format == "parquet":
         return _fetch_parquet_result(
@@ -380,6 +377,7 @@ def _resolve_query_without_cache_ctas(
             query_execution_id=query_id,
             boto3_session=boto3_session,
             categories=categories,
+            metadata_cache_manager=_cache_manager,
         )
     except exceptions.QueryFailed as ex:
         msg: str = str(ex)
@@ -439,6 +437,7 @@ def _resolve_query_without_cache_regular(
         query_execution_id=query_id,
         boto3_session=boto3_session,
         categories=categories,
+        metadata_cache_manager=_cache_manager,
     )
     return _fetch_csv_result(
         query_metadata=query_metadata,
@@ -948,3 +947,6 @@ def read_sql_table(
         max_cache_seconds=max_cache_seconds,
         max_cache_query_inspections=max_cache_query_inspections,
     )
+
+
+_cache_manager = _LocalMetadataCacheManager()
