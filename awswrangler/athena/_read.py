@@ -97,9 +97,10 @@ def _compare_query_string(sql: str, other: str) -> bool:
     return False
 
 
-@apply_configs
 def _get_last_query_infos(
-    boto3_session: Optional[boto3.Session] = None, workgroup: Optional[str] = None, max_remote_cache_entries: int = 50
+    max_remote_cache_entries: int,
+    boto3_session: Optional[boto3.Session] = None,
+    workgroup: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """Return an iterator of `query_execution_info`s run by the workgroup in Athena."""
     client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
@@ -154,6 +155,7 @@ def _check_for_cached_results(
     workgroup: Optional[str],
     max_cache_seconds: int,
     max_cache_query_inspections: int,
+    max_remote_cache_entries: int,
 ) -> _CacheInfo:
     """
     Check whether `sql` has been run before, within the `max_cache_seconds` window, by the `workgroup`.
@@ -166,7 +168,11 @@ def _check_for_cached_results(
     comparable_sql: str = _prepare_query_string_for_comparison(sql)
     current_timestamp: datetime.datetime = datetime.datetime.now(datetime.timezone.utc)
     _logger.debug("current_timestamp: %s", current_timestamp)
-    for query_info in _get_last_query_infos(boto3_session=boto3_session, workgroup=workgroup):
+    for query_info in _get_last_query_infos(
+        max_remote_cache_entries=max_remote_cache_entries,
+        boto3_session=boto3_session,
+        workgroup=workgroup,
+    ):
         query_execution_id: str = query_info["QueryExecutionId"]
         query_timestamp: datetime.datetime = query_info["Status"]["CompletionDateTime"]
         _logger.debug("query_timestamp: %s", query_timestamp)
@@ -531,6 +537,8 @@ def read_sql_query(
     boto3_session: Optional[boto3.Session] = None,
     max_cache_seconds: int = 0,
     max_cache_query_inspections: int = 50,
+    max_remote_cache_entries: int = 50,
+    max_local_cache_entries: int = 100,
     data_source: Optional[str] = None,
     params: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
@@ -677,6 +685,15 @@ def read_sql_query(
         Max number of queries that will be inspected from the history to try to find some result to reuse.
         The bigger the number of inspection, the bigger will be the latency for not cached queries.
         Only takes effect if max_cache_seconds > 0.
+    max_remote_cache_entries : int
+        Max number of queries that will be retrieved from AWS for cache inspection.
+        The bigger the number of inspection, the bigger will be the latency for not cached queries.
+        Only takes effect if max_cache_seconds > 0 and default value is 50.
+    max_local_cache_entries : int
+        Max number of queries for which metadata will be cached locally. This will reduce the latency and also
+        enables keeping more than `max_remote_cache_entries` available for the cache. This value should not be
+        smaller than max_remote_cache_entries.
+        Only takes effect if max_cache_seconds > 0 and default value is 100.
     data_source : str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
     params: Dict[str, any], optional
@@ -717,12 +734,17 @@ def read_sql_query(
     for key, value in params.items():
         sql = sql.replace(f":{key};", str(value))
 
+    if max_remote_cache_entries > max_local_cache_entries:
+        max_remote_cache_entries = max_local_cache_entries
+
+    _cache_manager.max_cache_size = max_local_cache_entries
     cache_info: _CacheInfo = _check_for_cached_results(
         sql=sql,
         boto3_session=session,
         workgroup=workgroup,
         max_cache_seconds=max_cache_seconds,
         max_cache_query_inspections=max_cache_query_inspections,
+        max_remote_cache_entries=max_remote_cache_entries,
     )
     _logger.debug("cache_info:\n%s", cache_info)
     if cache_info.has_valid_cache is True:
@@ -773,6 +795,8 @@ def read_sql_table(
     boto3_session: Optional[boto3.Session] = None,
     max_cache_seconds: int = 0,
     max_cache_query_inspections: int = 50,
+    max_remote_cache_entries: int = 50,
+    max_local_cache_entries: int = 100,
     data_source: Optional[str] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Extract the full table AWS Athena and return the results as a Pandas DataFrame.
@@ -913,6 +937,15 @@ def read_sql_table(
         Max number of queries that will be inspected from the history to try to find some result to reuse.
         The bigger the number of inspection, the bigger will be the latency for not cached queries.
         Only takes effect if max_cache_seconds > 0.
+    max_remote_cache_entries : int
+        Max number of queries that will be retrieved from AWS for cache inspection.
+        The bigger the number of inspection, the bigger will be the latency for not cached queries.
+        Only takes effect if max_cache_seconds > 0 and default value is 50.
+    max_local_cache_entries : int
+        Max number of queries for which metadata will be cached locally. This will reduce the latency and also
+        enables keeping more than `max_remote_cache_entries` available for the cache. This value should not be
+        smaller than max_remote_cache_entries.
+        Only takes effect if max_cache_seconds > 0 and default value is 100.
     data_source : str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
 
@@ -946,6 +979,8 @@ def read_sql_table(
         boto3_session=boto3_session,
         max_cache_seconds=max_cache_seconds,
         max_cache_query_inspections=max_cache_query_inspections,
+        max_remote_cache_entries=max_remote_cache_entries,
+        max_local_cache_entries=max_local_cache_entries,
     )
 
 

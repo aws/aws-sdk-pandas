@@ -45,9 +45,9 @@ class _LocalMetadataCacheManager:
     def __init__(self) -> None:
         self._cache: Dict[str, Any] = dict()
         self._pqueue: List[Tuple[datetime.datetime, str]] = []
+        self._max_cache_size = 100
 
-    @apply_configs
-    def update_cache(self, items: List[Dict[str, Any]], max_local_cache_entries: int = 100) -> None:
+    def update_cache(self, items: List[Dict[str, Any]]) -> None:
         """
         Update the local metadata cache with new query metadata.
 
@@ -55,9 +55,6 @@ class _LocalMetadataCacheManager:
         ----------
         items : List[Dict[str, Any]]
             List of query execution metadata which is returned by boto3 `batch_get_query_execution()`.
-        max_local_cache_entries :
-            Maximum size of the local cache. If the cache contains more metadata items than specified, the oldest
-            ones are dropped.
 
         Returns
         -------
@@ -70,12 +67,12 @@ class _LocalMetadataCacheManager:
                 filter(lambda x: x["Status"]["SubmissionDateTime"] > oldest_item["Status"]["SubmissionDateTime"], items)
             )
 
-        cache_oversize = len(self._cache) + len(items) - max_local_cache_entries
+        cache_oversize = len(self._cache) + len(items) - self._max_cache_size
         for _ in range(cache_oversize):
             _, query_execution_id = heappop(self._pqueue)
             del self._cache[query_execution_id]
 
-        for item in items[:max_local_cache_entries]:
+        for item in items[: self._max_cache_size]:
             heappush(self._pqueue, (item["Status"]["SubmissionDateTime"], item["QueryExecutionId"]))
             self._cache[item["QueryExecutionId"]] = item
 
@@ -98,6 +95,15 @@ class _LocalMetadataCacheManager:
 
     def __contains__(self, key: str) -> bool:
         return key in self._cache
+
+    @property
+    def max_cache_size(self) -> int:
+        """Property max_cache_size."""
+        return self._max_cache_size
+
+    @max_cache_size.setter
+    def max_cache_size(self, value: int) -> None:
+        self._max_cache_size = value
 
 
 def _get_s3_output(s3_output: Optional[str], wg_config: _WorkGroupConfig, boto3_session: boto3.Session) -> str:
@@ -287,7 +293,7 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
     manifest_location: Optional[str] = str(athena_statistics.get("DataManifestLocation"))
 
     if metadata_cache_manager is not None and query_execution_id not in metadata_cache_manager:
-        metadata_cache_manager.update_cache([_query_execution_payload])
+        metadata_cache_manager.update_cache(items=[_query_execution_payload])
     query_metadata: _QueryMetadata = _QueryMetadata(
         execution_id=query_execution_id,
         dtype=dtype,
