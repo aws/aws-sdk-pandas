@@ -7,6 +7,7 @@ API Reference
 * `Amazon Redshift`_
 * `PostgreSQL`_
 * `MySQL`_
+* `Microsoft SQL Server`_
 * `DynamoDB`_
 * `Amazon Timestream`_
 * `Amazon EMR`_
@@ -144,6 +145,19 @@ MySQL
 -----
 
 .. currentmodule:: awswrangler.mysql
+
+.. autosummary::
+    :toctree: stubs
+
+    connect
+    read_sql_query
+    read_sql_table
+    to_sql
+
+Microsoft SQL Server
+____________________
+
+.. currentmodule:: awswrangler.sqlserver
 
 .. autosummary::
     :toctree: stubs

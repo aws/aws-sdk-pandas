@@ -154,7 +154,9 @@ class _Config:  # pylint: disable=too-many-instance-attributes
         if _Config._is_null(value=value):
             if nullable is True:
                 return None
-            exceptions.InvalidArgumentValue(f"{name} configuration does not accept a null value. Please pass {dtype}.")
+            raise exceptions.InvalidArgumentValue(
+                f"{name} configuration does not accept a null value. Please pass {dtype}."
+            )
         try:
             return dtype(value) if isinstance(value, dtype) is False else value
         except ValueError as ex:

@@ -163,7 +163,7 @@ def test_athena(path, glue_database, glue_table, kms_key, workgroup0, workgroup1
         f" `iint32` int,"
         f" `iint64` bigint,"
         f" `float` float,"
-        f" `double` double,"
+        f" `ddouble` double,"
         f" `decimal` decimal(3,2),"
         f" `string_object` string,"
         f" `string` string,"

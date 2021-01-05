@@ -25,7 +25,7 @@ def get_df():
             "iint32": [1, None, 2],
             "iint64": [1, None, 2],
             "float": [0.0, None, 1.1],
-            "double": [0.0, None, 1.1],
+            "ddouble": [0.0, None, 1.1],
             "decimal": [Decimal((0, (1, 9, 9), -2)), None, Decimal((0, (1, 9, 0), -2))],
             "string_object": ["foo", None, "boo"],
             "string": ["foo", None, "boo"],
@@ -56,7 +56,7 @@ def get_df_list():
             "iint32": [1, None, 2],
             "iint64": [1, None, 2],
             "float": [0.0, None, 1.1],
-            "double": [0.0, None, 1.1],
+            "ddouble": [0.0, None, 1.1],
             "decimal": [Decimal((0, (1, 9, 9), -2)), None, Decimal((0, (1, 9, 0), -2))],
             "string_object": ["foo", None, "boo"],
             "string": ["foo", None, "boo"],
@@ -90,7 +90,7 @@ def get_df_cast():
             "iint32": [None, None, None],
             "iint64": [None, None, None],
             "float": [None, None, None],
-            "double": [None, None, None],
+            "ddouble": [None, None, None],
             "decimal": [None, None, None],
             "string": [None, None, None],
             "date": [None, None, dt("2020-01-02")],
@@ -201,7 +201,7 @@ def get_df_quicksight():
             "iint32": [1, None, 2],
             "iint64": [1, None, 2],
             "float": [0.0, None, 1.1],
-            "double": [0.0, None, 1.1],
+            "ddouble": [0.0, None, 1.1],
             "decimal": [Decimal((0, (1, 9, 9), -2)), None, Decimal((0, (1, 9, 0), -2))],
             "string_object": ["foo", None, "boo"],
             "string": ["foo", None, "boo"],
@@ -425,7 +425,7 @@ def ensure_data_types(df, has_list=False):
     assert str(df["iint32"].dtype).startswith("Int")
     assert str(df["iint64"].dtype) == "Int64"
     assert str(df["float"].dtype).startswith("float")
-    assert str(df["double"].dtype) == "float64"
+    assert str(df["ddouble"].dtype) == "float64"
     assert str(df["decimal"].dtype) == "object"
     if "string_object" in df.columns:
         assert str(df["string_object"].dtype) == "string"

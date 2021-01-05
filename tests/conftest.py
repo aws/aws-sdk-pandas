@@ -129,7 +129,7 @@ def workgroup3(bucket, kms_key):
 
 @pytest.fixture(scope="session")
 def databases_parameters(cloudformation_outputs):
-    parameters = dict(postgresql={}, mysql={}, redshift={})
+    parameters = dict(postgresql={}, mysql={}, redshift={}, sqlserver={})
     parameters["postgresql"]["host"] = cloudformation_outputs["PostgresqlAddress"]
     parameters["postgresql"]["port"] = 3306
     parameters["postgresql"]["schema"] = "public"
@@ -146,6 +146,10 @@ def databases_parameters(cloudformation_outputs):
     parameters["redshift"]["role"] = cloudformation_outputs["RedshiftRole"]
     parameters["password"] = cloudformation_outputs["DatabasesPassword"]
     parameters["user"] = "test"
+    parameters["sqlserver"]["host"] = cloudformation_outputs["SqlServerAddress"]
+    parameters["sqlserver"]["port"] = 1433
+    parameters["sqlserver"]["schema"] = "dbo"
+    parameters["sqlserver"]["database"] = "test"
     return parameters
 
 
@@ -232,6 +236,18 @@ def mysql_table():
     con = wr.mysql.connect("aws-data-wrangler-mysql")
     with con.cursor() as cursor:
         cursor.execute(f"DROP TABLE IF EXISTS test.{name}")
+    con.commit()
+    con.close()
+
+
+@pytest.fixture(scope="function")
+def sqlserver_table():
+    name = f"tbl_{get_time_str_with_random_suffix()}"
+    print(f"Table name: {name}")
+    yield name
+    con = wr.sqlserver.connect("aws-data-wrangler-sqlserver")
+    with con.cursor() as cursor:
+        cursor.execute(f"IF OBJECT_ID(N'dbo.{name}', N'U') IS NOT NULL DROP TABLE dbo.{name}")
     con.commit()
     con.close()
 

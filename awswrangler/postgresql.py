@@ -131,7 +131,9 @@ def connect(
         connection=connection, secret_id=secret_id, catalog_id=catalog_id, dbname=dbname, boto3_session=boto3_session
     )
     if attrs.kind != "postgresql":
-        exceptions.InvalidDatabaseType(f"Invalid connection type ({attrs.kind}. It must be a postgresql connection.)")
+        raise exceptions.InvalidDatabaseType(
+            f"Invalid connection type ({attrs.kind}. It must be a postgresql connection.)"
+        )
     return pg8000.connect(
         user=attrs.user,
         database=attrs.database,
@@ -160,8 +162,7 @@ def read_sql_query(
     sql : str
         SQL query.
     con : pg8000.Connection
-        Use pg8000.connect() to use "
-        "credentials directly or wr.postgresql.connect() to fetch it from the Glue Catalog.
+        Use pg8000.connect() to use credentials directly or wr.postgresql.connect() to fetch it from the Glue Catalog.
     index_col : Union[str, List[str]], optional
         Column(s) to set as index(MultiIndex).
     params :  Union[List, Tuple, Dict], optional
@@ -218,8 +219,7 @@ def read_sql_table(
     table : str
         Table name.
     con : pg8000.Connection
-        Use pg8000.connect() to use "
-        "credentials directly or wr.postgresql.connect() to fetch it from the Glue Catalog.
+        Use pg8000.connect() to use credentials directly or wr.postgresql.connect() to fetch it from the Glue Catalog.
     schema : str, optional
         Name of SQL schema in database to query (if database flavor supports this).
         Uses default schema if None (default).
@@ -280,8 +280,7 @@ def to_sql(
     df : pandas.DataFrame
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
     con : pg8000.Connection
-        Use pg8000.connect() to use "
-        "credentials directly or wr.postgresql.connect() to fetch it from the Glue Catalog.
+        Use pg8000.connect() to use credentials directly or wr.postgresql.connect() to fetch it from the Glue Catalog.
     table : str
         Table name
     schema : str
@@ -310,7 +309,7 @@ def to_sql(
     >>> import awswrangler as wr
     >>> con = wr.postgresql.connect("MY_GLUE_CONNECTION")
     >>> wr.postgresql.to_sql(
-    ...     df=df
+    ...     df=df,
     ...     table="my_table",
     ...     schema="public",
     ...     con=con
