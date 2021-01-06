@@ -7,6 +7,8 @@ API Reference
 * `Amazon Redshift`_
 * `PostgreSQL`_
 * `MySQL`_
+* `Microsoft SQL Server`_
+* `DynamoDB`_
 * `Amazon Timestream`_
 * `Amazon EMR`_
 * `Amazon CloudWatch Logs`_
@@ -109,7 +111,7 @@ Amazon Athena
     wait_query
 
 Amazon Redshift
-----------------------------------------------
+---------------
 
 .. currentmodule:: awswrangler.redshift
 
@@ -127,7 +129,7 @@ Amazon Redshift
     unload_to_files
 
 PostgreSQL
-----------------------------------------------
+----------
 
 .. currentmodule:: awswrangler.postgresql
 
@@ -140,7 +142,7 @@ PostgreSQL
     to_sql
 
 MySQL
-----------------------------------------------
+-----
 
 .. currentmodule:: awswrangler.mysql
 
@@ -152,8 +154,36 @@ MySQL
     read_sql_table
     to_sql
 
+Microsoft SQL Server
+____________________
+
+.. currentmodule:: awswrangler.sqlserver
+
+.. autosummary::
+    :toctree: stubs
+
+    connect
+    read_sql_query
+    read_sql_table
+    to_sql
+
+DynamoDB
+--------
+
+.. currentmodule:: awswrangler.dynamodb
+
+.. autosummary::
+    :toctree: stubs
+
+    delete_items
+    get_table
+    put_csv
+    put_df
+    put_items
+    put_json
+
 Amazon Timestream
-----------------------------------------------
+-----------------
 
 .. currentmodule:: awswrangler.timestream
 
@@ -268,6 +298,16 @@ AWS Secrets Manager
 
     get_secret
     get_secret_json
+
+Amazon Chime
+-------------------
+
+.. currentmodule:: awswrangler.chime
+
+.. autosummary::
+    :toctree: stubs
+
+    post_message
 
 Global Configurations
 ---------------------

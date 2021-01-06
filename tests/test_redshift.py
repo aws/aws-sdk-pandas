@@ -67,7 +67,7 @@ def test_sql_types(redshift_table):
             "iint32": pa.int32(),
             "iint64": pa.int64(),
             "float": pa.float32(),
-            "double": pa.float64(),
+            "ddouble": pa.float64(),
             "decimal": pa.decimal128(3, 2),
             "string_object": pa.string(),
             "string": pa.string(),
@@ -871,3 +871,23 @@ def test_copy_unload_creds(path, redshift_table):
     for chunk in dfs:
         assert len(chunk.columns) == 1
     con.close()
+
+
+def test_column_length(path, redshift_table, databases_parameters):
+    df = pd.DataFrame({"a": ["foo"], "b": ["a" * 5000]}, dtype="string")
+    wr.s3.to_parquet(df, f"{path}test.parquet")
+    con = wr.redshift.connect("aws-data-wrangler-redshift")
+    wr.redshift.copy_from_files(
+        path=path,
+        con=con,
+        table=redshift_table,
+        schema="public",
+        iam_role=databases_parameters["redshift"]["role"],
+        varchar_lengths={"a": 3, "b": 5000},
+        primary_keys=["a"],
+    )
+    df2 = wr.redshift.read_sql_query(sql=f"SELECT * FROM public.{redshift_table}", con=con)
+    con.close()
+    print(df.dtypes)
+    print(df2.dtypes)
+    assert df2.equals(df)

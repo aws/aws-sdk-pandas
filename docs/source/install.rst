@@ -9,6 +9,8 @@ Some good practices for most of the methods bellow are:
   - Use new and individual Virtual Environments for each project (`venv <https://docs.python.org/3/library/venv.html>`_).
   - On Notebooks, always restart your kernel after installations.
 
+.. note:: If you want to use ``awswrangler`` for connecting to Microsoft SQL Server, some additional configuration is needed. Please have a look at the corresponding section below.
+
 PyPI (pip)
 ----------
 
@@ -150,3 +152,34 @@ From Source
     >>> git clone https://github.com/awslabs/aws-data-wrangler.git
     >>> cd aws-data-wrangler
     >>> pip install .
+
+
+Notes for Microsoft SQL Server
+------------------------------
+
+``awswrangler`` is using the `pyodbc <https://github.com/mkleehammer/pyodbc>`_
+for interacting with Microsoft SQL Server. For installing this package you need the ODBC header files,
+which can be installed, for example, with the following commands:
+
+    >>> sudo apt install unixodbc-dev
+    >>> yum install unixODBC-devel
+
+After installing these header files you can either just install ``pyodbc`` or
+``awswrangler`` with the ``sqlserver`` extra, which will also install ``pyodbc``:
+
+    >>> pip install pyodbc
+    >>> pip install awswrangler[sqlserver]
+
+Finally you also the need correct ODBC Driver for SQL Server. You can have a look at the
+`documentation from Microsoft <https://docs.microsoft.com/sql/connect/odbc/
+microsoft-odbc-driver-for-sql-server?view=sql-server-ver15>`_
+to see how they can be installed in your environment.
+
+If you want to connect to Microsoft SQL Server from AWS Lambda, you can build a separate Layer including the
+needed OBDC drivers and `pyobdc` by following
+`these instructions <https://gist.github.com/diriver63/b72a954fa0da4851d89e5086aa13c6e8>`_.
+
+If you maintain your own environment, you need to take care of the above steps.
+Because of this limitation usage in combination with Glue jobs is limited and you need to rely on the
+provided `functionality inside Glue itself <https://docs.aws.amazon.com/glue/latest/dg/
+aws-glue-programming-etl-connect.html#aws-glue-programming-etl-connect-jdbc>`_.

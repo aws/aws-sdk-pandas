@@ -6,7 +6,7 @@
 
 > An [AWS Professional Service](https://aws.amazon.com/professional-services/) open source initiative | aws-proserve-opensource@amazon.com
 
-[![Release](https://img.shields.io/badge/release-2.1.0-brightgreen.svg)](https://pypi.org/project/awswrangler/)
+[![Release](https://img.shields.io/badge/release-2.2.0-brightgreen.svg)](https://pypi.org/project/awswrangler/)
 [![Python Version](https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.8-brightgreen.svg)](https://anaconda.org/conda-forge/awswrangler)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -105,7 +105,7 @@ FROM "sampleDB"."sampleTable" ORDER BY time DESC LIMIT 3
   - [004 - Parquet Datasets](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/004%20-%20Parquet%20Datasets.ipynb)
   - [005 - Glue Catalog](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/005%20-%20Glue%20Catalog.ipynb)
   - [006 - Amazon Athena](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/006%20-%20Amazon%20Athena.ipynb)
-  - [007 - Databases (Redshift, MySQL and PostgreSQL)](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/007%20-%20Redshift%2C%20MySQL%2C%20PostgreSQL.ipynb)
+  - [007 - Databases (Redshift, MySQL, PostgreSQL and SQL Server)](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/007%20-%20Redshift%2C%20MySQL%2C%20PostgreSQL%2C%20SQL%20Server.ipynb)
   - [008 - Redshift - Copy & Unload.ipynb](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/008%20-%20Redshift%20-%20Copy%20%26%20Unload.ipynb)
   - [009 - Redshift - Append, Overwrite and Upsert](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/009%20-%20Redshift%20-%20Append%2C%20Overwrite%2C%20Upsert.ipynb)
   - [010 - Parquet Crawler](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/010%20-%20Parquet%20Crawler.ipynb)
@@ -126,6 +126,7 @@ FROM "sampleDB"."sampleTable" ORDER BY time DESC LIMIT 3
   - [025 - Redshift - Loading Parquet files with Spectrum](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/025%20-%20Redshift%20-%20Loading%20Parquet%20files%20with%20Spectrum.ipynb)
   - [026 - Amazon Timestream](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/026%20-%20Amazon%20Timestream.ipynb)
   - [027 - Amazon Timestream 2](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/027%20-%20Amazon%20Timestream%202.ipynb)
+  - [028 - Amazon DynamoDB](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/028%20-%20DynamoDB.ipynb)
 - [**API Reference**](https://aws-data-wrangler.readthedocs.io/en/stable/api.html)
   - [Amazon S3](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-s3)
   - [AWS Glue Catalog](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#aws-glue-catalog)
@@ -133,9 +134,12 @@ FROM "sampleDB"."sampleTable" ORDER BY time DESC LIMIT 3
   - [Amazon Redshift](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-redshift)
   - [PostgreSQL](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#postgresql)
   - [MySQL](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#mysql)
+  - [SQL Server](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#sqlserver)
+  - [DynamoDB](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#dynamodb)
   - [Amazon Timestream](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-timestream)
   - [Amazon EMR](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-emr)
   - [Amazon CloudWatch Logs](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-cloudwatch-logs)
+  - [Amazon Chime](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-chime)
   - [Amazon QuickSight](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-quicksight)
   - [AWS STS](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#aws-sts)
   - [AWS Secrets Manager](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#aws-secrets-manager)

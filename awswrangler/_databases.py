@@ -36,7 +36,11 @@ def _get_connection_attributes_from_catalog(
     details: Dict[str, Any] = get_connection(name=connection, catalog_id=catalog_id, boto3_session=boto3_session)[
         "ConnectionProperties"
     ]
-    port, database = details["JDBC_CONNECTION_URL"].split(":")[3].split("/")
+    if ";databaseName=" in details["JDBC_CONNECTION_URL"]:
+        database_sep = ";databaseName="
+    else:
+        database_sep = "/"
+    port, database = details["JDBC_CONNECTION_URL"].split(":")[3].split(database_sep)
     return ConnectionAttributes(
         kind=details["JDBC_CONNECTION_URL"].split(":")[1].lower(),
         user=details["USERNAME"],
@@ -136,19 +140,48 @@ def _records2df(
     return df
 
 
-def _iterate_cursor(
-    cursor: Any,
+def _get_cols_names(cursor_description: Any) -> List[str]:
+    cols_names = [col[0].decode("utf-8") if isinstance(col[0], bytes) else col[0] for col in cursor_description]
+    _logger.debug("cols_names: %s", cols_names)
+
+    return cols_names
+
+
+def _iterate_results(
+    con: Any,
+    cursor_args: List[Any],
     chunksize: int,
-    cols_names: List[str],
-    index: Optional[Union[str, List[str]]],
+    index_col: Optional[Union[str, List[str]]],
     safe: bool,
     dtype: Optional[Dict[str, pa.DataType]],
 ) -> Iterator[pd.DataFrame]:
-    while True:
-        records = cursor.fetchmany(chunksize)
-        if not records:
-            break
-        yield _records2df(records=records, cols_names=cols_names, index=index, safe=safe, dtype=dtype)
+    with con.cursor() as cursor:
+        cursor.execute(*cursor_args)
+        cols_names = _get_cols_names(cursor.description)
+        while True:
+            records = cursor.fetchmany(chunksize)
+            if not records:
+                break
+            yield _records2df(records=records, cols_names=cols_names, index=index_col, safe=safe, dtype=dtype)
+
+
+def _fetch_all_results(
+    con: Any,
+    cursor_args: List[Any],
+    index_col: Optional[Union[str, List[str]]] = None,
+    dtype: Optional[Dict[str, pa.DataType]] = None,
+    safe: bool = True,
+) -> pd.DataFrame:
+    with con.cursor() as cursor:
+        cursor.execute(*cursor_args)
+        cols_names = _get_cols_names(cursor.description)
+        return _records2df(
+            records=cast(List[Tuple[Any]], cursor.fetchall()),
+            cols_names=cols_names,
+            index=index_col,
+            dtype=dtype,
+            safe=safe,
+        )
 
 
 def read_sql_query(
@@ -163,23 +196,23 @@ def read_sql_query(
     """Read SQL Query (generic)."""
     args = _convert_params(sql, params)
     try:
-        with con.cursor() as cursor:
-            cursor.execute(*args)
-            cols_names: List[str] = [
-                col[0].decode("utf-8") if isinstance(col[0], bytes) else col[0] for col in cursor.description
-            ]
-            _logger.debug("cols_names: %s", cols_names)
-            if chunksize is None:
-                return _records2df(
-                    records=cast(List[Tuple[Any]], cursor.fetchall()),
-                    cols_names=cols_names,
-                    index=index_col,
-                    dtype=dtype,
-                    safe=safe,
-                )
-            return _iterate_cursor(
-                cursor=cursor, chunksize=chunksize, cols_names=cols_names, index=index_col, dtype=dtype, safe=safe
+        if chunksize is None:
+            return _fetch_all_results(
+                con=con,
+                cursor_args=args,
+                index_col=index_col,
+                dtype=dtype,
+                safe=safe,
             )
+
+        return _iterate_results(
+            con=con,
+            cursor_args=args,
+            chunksize=chunksize,
+            index_col=index_col,
+            dtype=dtype,
+            safe=safe,
+        )
     except Exception as ex:
         con.rollback()
         _logger.error(ex)

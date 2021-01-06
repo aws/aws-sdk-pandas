@@ -10,7 +10,9 @@ import logging as _logging
 from awswrangler import (  # noqa
     athena,
     catalog,
+    chime,
     cloudwatch,
+    dynamodb,
     emr,
     exceptions,
     mysql,
@@ -19,6 +21,7 @@ from awswrangler import (  # noqa
     redshift,
     s3,
     secretsmanager,
+    sqlserver,
     sts,
     timestream,
 )
@@ -28,8 +31,10 @@ from awswrangler._config import config  # noqa
 __all__ = [
     "athena",
     "catalog",
+    "chime",
     "cloudwatch",
     "emr",
+    "dynamodb",
     "exceptions",
     "quicksight",
     "s3",
@@ -38,6 +43,7 @@ __all__ = [
     "mysql",
     "postgresql",
     "secretsmanager",
+    "sqlserver",
     "config",
     "timestream",
     "__description__",
