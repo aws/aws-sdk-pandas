@@ -17,7 +17,7 @@ __all__ = ["connect", "read_sql_query", "read_sql_table", "to_sql"]
 
 _pyodbc_found = importlib.util.find_spec("pyodbc")
 if _pyodbc_found:
-    import pyodbc
+    import pyodbc  # pylint: disable=import-error
 
 _logger: logging.Logger = logging.getLogger(__name__)
 FuncT = TypeVar("FuncT", bound=Callable[..., Any])
