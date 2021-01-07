@@ -105,12 +105,14 @@ def test_read_full(path, mode, use_threads):
     text = "AHDG*AWY&GD*A&WGd*AWgd87AGWD*GA*G*g*AGˆˆ&ÂDTW&ˆˆD&ÂTW7ˆˆTAWˆˆDAW&ˆˆAWGDIUHWOD#N"
     client_s3.put_object(Body=text, Bucket=bucket, Key=key)
     with open_s3_object(path, mode=mode, s3_block_size=100, newline="\n", use_threads=use_threads) as s3obj:
+        assert s3obj.closed is False
         if mode == "r":
             assert s3obj.read() == text
         else:
             assert s3obj.read() == text.encode("utf-8")
     if "b" in mode:
         assert s3obj._cache == b""
+    assert s3obj.closed is True
 
 
 @pytest.mark.parametrize("use_threads", [True, False])
@@ -168,10 +170,12 @@ def test_write_full(path, mode, use_threads):
     bucket, key = wr._utils.parse_path(path)
     text = "ajdaebdiebdkibaekdbekfbksbfksebkfjebkfjbekjfbkjebfkebwkfbewkjfbkjwebf"
     with open_s3_object(path, mode=mode, newline="\n", use_threads=use_threads) as s3obj:
+        assert s3obj.closed is False
         if mode == "wb":
             s3obj.write(text.encode("utf-8"))
         else:
             s3obj.write(text)
+    assert s3obj.closed is True
     assert client_s3.get_object(Bucket=bucket, Key=key)["Body"].read() == text.encode("utf-8")
 
 

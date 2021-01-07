@@ -8,7 +8,7 @@ import math
 import socket
 from contextlib import contextmanager
 from errno import ESPIPE
-from typing import Any, BinaryIO, Dict, Iterator, List, Optional, Set, Tuple, Type, Union, cast
+from typing import Any, BinaryIO, Dict, Iterator, List, Optional, Set, Tuple, Union, cast
 
 import boto3
 from botocore.exceptions import ReadTimeoutError
@@ -188,7 +188,7 @@ class _UploadProxy:
         return self._sort_by_part_number(parts=self._results)
 
 
-class _S3ObjectBase:  # pylint: disable=too-many-instance-attributes
+class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attributes
     """Class to abstract S3 objects as ordinary files."""
 
     def __init__(
@@ -201,12 +201,8 @@ class _S3ObjectBase:  # pylint: disable=too-many-instance-attributes
         boto3_session: Optional[boto3.Session],
         newline: Optional[str],
         encoding: Optional[str],
-        raw_buffer: bool,
     ) -> None:
-        if raw_buffer is True and "w" not in mode:
-            raise exceptions.InvalidArgumentValue("raw_buffer=True is only acceptable on write mode.")
-        self._raw_buffer: bool = raw_buffer
-        self.closed: bool = False
+        super().__init__()
         self._use_threads = use_threads
         self._newline: str = "\n" if newline is None else newline
         self._encoding: str = "utf-8" if encoding is None else encoding
@@ -408,9 +404,9 @@ class _S3ObjectBase:  # pylint: disable=too-many-instance-attributes
 
     def flush(self, force: bool = False) -> None:
         """Write buffered data to S3."""
-        if self.closed:
+        if self.closed:  # pylint: disable=using-constant-test
             raise RuntimeError("I/O operation on closed file.")
-        if self.writable():
+        if self.writable() and self._buffer.closed is False:
             total_size: int = self._buffer.tell()
             if total_size < _MIN_WRITE_BLOCK and force is False:
                 return None
@@ -465,7 +461,7 @@ class _S3ObjectBase:  # pylint: disable=too-many-instance-attributes
 
     def close(self) -> None:
         """Clean up the cache."""
-        if self.closed:
+        if self.closed:  # pylint: disable=using-constant-test
             return None
         if self.writable():
             _logger.debug("Closing: %s parts", self._parts_count)
@@ -488,7 +484,7 @@ class _S3ObjectBase:  # pylint: disable=too-many-instance-attributes
                     ),
                 )
                 _logger.debug("complete_multipart_upload done!")
-            elif self._buffer.tell() > 0 or self._raw_buffer is True:
+            elif self._buffer.tell() > 0:
                 _logger.debug("put_object")
                 _utils.try_it(
                     f=self._client.put_object,
@@ -503,22 +499,16 @@ class _S3ObjectBase:  # pylint: disable=too-many-instance-attributes
                     ),
                 )
             self._parts_count = 0
+            self._upload_proxy.close()
             self._buffer.seek(0)
             self._buffer.truncate(0)
-            self._upload_proxy.close()
             self._buffer.close()
         elif self.readable():
             self._cache = b""
         else:
             raise RuntimeError(f"Invalid mode: {self._mode}")
-        self.closed = True
+        super().close()
         return None
-
-    def get_raw_buffer(self) -> io.BytesIO:
-        """Return the Raw Buffer if it is possible."""
-        if self._raw_buffer is False:
-            raise exceptions.InvalidArgumentValue("Trying to get raw buffer with raw_buffer=False.")
-        return self._buffer
 
     def read(self, length: int = -1) -> bytes:
         """Return cached data and fetch on demand chunks."""
@@ -534,8 +524,9 @@ class _S3ObjectBase:  # pylint: disable=too-many-instance-attributes
         self._loc += len(out)
         return out
 
-    def readline(self, length: int = -1) -> bytes:
+    def readline(self, length: Optional[int] = -1) -> bytes:
         """Read until the next line terminator."""
+        length = -1 if length is None else length
         end: int = self._loc + self._s3_block_size
         end = self._size if end > self._size else end
         self._fetch(self._loc, end)
@@ -553,17 +544,11 @@ class _S3ObjectBase:  # pylint: disable=too-many-instance-attributes
             end = self._size if end > self._size else end
             self._fetch(self._loc, end)
 
-    def readlines(self) -> List[bytes]:
-        """Return all lines as list."""
-        return list(self)
-
-
-class _S3ObjectWriter(_S3ObjectBase):
-    def write(self, data: bytes) -> int:
+    def write(self, data: Union[bytes, bytearray, memoryview]) -> int:  # type: ignore
         """Write data to buffer and only upload on close() or if buffer is greater than or equal to _MIN_WRITE_BLOCK."""
         if self.writable() is False:
             raise RuntimeError("File not in write mode.")
-        if self.closed:
+        if self.closed:  # pylint: disable=using-constant-test
             raise RuntimeError("I/O operation on closed file.")
         n: int = self._buffer.write(data)
         self._loc += n
@@ -583,14 +568,12 @@ def open_s3_object(
     boto3_session: Optional[boto3.Session] = None,
     newline: Optional[str] = "\n",
     encoding: Optional[str] = "utf-8",
-    raw_buffer: bool = False,
-) -> Iterator[Union[_S3ObjectBase, _S3ObjectWriter, io.TextIOWrapper, io.BytesIO]]:
+) -> Iterator[Union[_S3ObjectBase, io.TextIOWrapper]]:
     """Return a _S3Object or TextIOWrapper based in the received mode."""
-    s3obj: Optional[Union[_S3ObjectBase, _S3ObjectWriter]] = None
+    s3obj: Optional[_S3ObjectBase] = None
     text_s3obj: Optional[io.TextIOWrapper] = None
-    s3_class: Union[Type[_S3ObjectBase], Type[_S3ObjectWriter]] = _S3ObjectWriter if "w" in mode else _S3ObjectBase
     try:
-        s3obj = s3_class(
+        s3obj = _S3ObjectBase(
             path=path,
             s3_block_size=s3_block_size,
             mode=mode,
@@ -599,11 +582,8 @@ def open_s3_object(
             boto3_session=boto3_session,
             encoding=encoding,
             newline=newline,
-            raw_buffer=raw_buffer,
         )
-        if raw_buffer is True:  # Only useful for plain io.BytesIO write
-            yield s3obj.get_raw_buffer()
-        elif "b" in mode:  # binary
+        if "b" in mode:  # binary
             yield s3obj
         else:  # text
             text_s3obj = io.TextIOWrapper(
