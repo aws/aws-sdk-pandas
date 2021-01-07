@@ -9,7 +9,14 @@ from awswrangler import _data_types, _utils, catalog, exceptions
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
-_COMPRESSION_2_EXT: Dict[Optional[str], str] = {None: "", "gzip": ".gz", "snappy": ".snappy"}
+_COMPRESSION_2_EXT: Dict[Optional[str], str] = {
+    None: "",
+    "gzip": ".gz",
+    "snappy": ".snappy",
+    "bz2": ".bz2",
+    "xz": ".xz",
+    "zip": ".zip",
+}
 
 
 def _extract_dtypes_from_table_input(table_input: Dict[str, Any]) -> Dict[str, str]:

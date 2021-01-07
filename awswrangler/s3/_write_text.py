@@ -3,19 +3,30 @@
 import csv
 import logging
 import uuid
-from typing import Any, Dict, List, Optional, Union
+from distutils.version import LooseVersion
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import boto3
 import pandas as pd
+from pandas.io.common import infer_compression
 
 from awswrangler import _data_types, _utils, catalog, exceptions
 from awswrangler._config import apply_configs
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
-from awswrangler.s3._write import _apply_dtype, _sanitize, _validate_args
+from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_dataset import _to_dataset
 
 _logger: logging.Logger = logging.getLogger(__name__)
+
+
+def _get_write_details(path: str, pandas_kwargs: Dict[str, Any]) -> Tuple[str, Optional[str], Optional[str]]:
+    if pandas_kwargs.get("compression", "infer") == "infer":
+        pandas_kwargs["compression"] = infer_compression(path, compression="infer")
+    mode: str = "w" if pandas_kwargs.get("compression") is None else "wb"
+    encoding: Optional[str] = pandas_kwargs.get("encoding", None)
+    newline: Optional[str] = pandas_kwargs.get("lineterminator", "")
+    return mode, encoding, newline
 
 
 def _to_text(
@@ -31,31 +42,36 @@ def _to_text(
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
     if path is None and path_root is not None:
-        file_path: str = f"{path_root}{uuid.uuid4().hex}.{file_format}"
+        file_path: str = (
+            f"{path_root}{uuid.uuid4().hex}.{file_format}{_COMPRESSION_2_EXT.get(pandas_kwargs.get('compression'))}"
+        )
     elif path is not None and path_root is None:
         file_path = path
     else:
         raise RuntimeError("path and path_root received at the same time.")
-    encoding: Optional[str] = pandas_kwargs.get("encoding", None)
+
+    mode, encoding, newline = _get_write_details(path=file_path, pandas_kwargs=pandas_kwargs)
+    raw_buffer = "b" in mode and file_format == "json"
     with open_s3_object(
         path=file_path,
-        mode="w",
+        mode=mode,
         use_threads=use_threads,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
         encoding=encoding,
-        newline="",
+        newline=newline,
+        raw_buffer=raw_buffer,
     ) as f:
         _logger.debug("pandas_kwargs: %s", pandas_kwargs)
         if file_format == "csv":
-            df.to_csv(f, **pandas_kwargs)
+            df.to_csv(f, mode=mode, **pandas_kwargs)
         elif file_format == "json":
             df.to_json(f, **pandas_kwargs)
     return [file_path]
 
 
 @apply_configs
-def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
+def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-statements
     df: pd.DataFrame,
     path: str,
     sep: str = ",",
@@ -99,14 +115,12 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
 
     Note
     ----
-    If `dataset=True`, `pandas_kwargs` will be ignored due
-    restrictive quoting, date_format, escapechar, encoding, etc required by Athena/Glue Catalog.
+    If `table` and `database` arguments are passed, `pandas_kwargs` will be ignored due
+    restrictive quoting, date_format, escapechar and encoding required by Athena/Glue Catalog.
 
     Note
     ----
-    By now Pandas does not support in-memory CSV compression.
-    https://github.com/pandas-dev/pandas/issues/22555
-    So the `compression` will not be supported on Wrangler too.
+    Compression: The minimum acceptable version to achive it is Pandas 1.2.0 that requires Python >= 3.7.1.
 
     Note
     ----
@@ -127,7 +141,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
         String of length 1. Field delimiter for the output file.
     index : bool
         Write row names (index).
-    columns : List[str], optional
+    columns : Optional[List[str]]
         Columns to write.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
@@ -337,7 +351,12 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
         raise exceptions.InvalidArgument(
             "You can NOT pass `pandas_kwargs` explicit, just add valid "
             "Pandas arguments in the function call and Wrangler will accept it."
-            "e.g. wr.s3.to_csv(df, path, sep='|', na_rep='NULL', decimal=',')"
+            "e.g. wr.s3.to_csv(df, path, sep='|', na_rep='NULL', decimal=',', compression='gzip')"
+        )
+    if pandas_kwargs.get("compression") and str(pd.__version__) < LooseVersion("1.2.0"):
+        raise exceptions.InvalidArgument(
+            f"CSV compression on S3 is not supported for Pandas version {pd.__version__}. "
+            "The minimum acceptable version to achive it is Pandas 1.2.0 that requires Python >=3.7.1."
         )
     _validate_args(
         df=df,
@@ -365,10 +384,15 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
 
     # Evaluating dtype
     catalog_table_input: Optional[Dict[str, Any]] = None
-    if database is not None and table is not None:
+    if database and table:
         catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
             database=database, table=table, boto3_session=session, catalog_id=catalog_id
         )
+        if pandas_kwargs.get("compression") not in ("gzip", "bz2", None):
+            raise exceptions.InvalidArgumentCombination(
+                "If database and table are given, you must use one of these compressions: gzip, bz2 or None."
+            )
+
     df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
 
     if dataset is False:
@@ -386,6 +410,26 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
         )
         paths = [path]
     else:
+        if database and table:
+            quoting: Optional[int] = csv.QUOTE_NONE
+            escapechar: Optional[str] = "\\"
+            header: Union[bool, List[str]] = False
+            date_format: Optional[str] = "%Y-%m-%d %H:%M:%S.%f"
+            pd_kwargs: Dict[str, Any] = {}
+            compression: Optional[str] = pandas_kwargs.get("compression", None)
+        else:
+            quoting = pandas_kwargs.get("quoting", None)
+            escapechar = pandas_kwargs.get("escapechar", None)
+            header = pandas_kwargs.get("header", True)
+            date_format = pandas_kwargs.get("date_format", None)
+            compression = pandas_kwargs.get("compression", None)
+            pd_kwargs = pandas_kwargs.copy()
+            pd_kwargs.pop("quoting", None)
+            pd_kwargs.pop("escapechar", None)
+            pd_kwargs.pop("header", None)
+            pd_kwargs.pop("date_format", None)
+            pd_kwargs.pop("compression", None)
+
         df = df[columns] if columns else df
         paths, partitions_values = _to_dataset(
             func=_to_text,
@@ -394,18 +438,20 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
             path_root=path,
             index=index,
             sep=sep,
+            compression=compression,
             use_threads=use_threads,
             partition_cols=partition_cols,
             mode=mode,
             boto3_session=session,
             s3_additional_kwargs=s3_additional_kwargs,
             file_format="csv",
-            quoting=csv.QUOTE_NONE,
-            escapechar="\\",
-            header=False,
-            date_format="%Y-%m-%d %H:%M:%S.%f",
+            quoting=quoting,
+            escapechar=escapechar,
+            header=header,
+            date_format=date_format,
+            **pd_kwargs,
         )
-        if (database is not None) and (table is not None):
+        if database and table:
             try:
                 columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
                     df=df, index=index, partition_cols=partition_cols, dtype=dtype, index_left=True
@@ -431,7 +477,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
                     projection_digits=projection_digits,
                     catalog_table_input=catalog_table_input,
                     catalog_id=catalog_id,
-                    compression=None,
+                    compression=pandas_kwargs.get("compression"),
                     skip_header_line_count=None,
                 )
                 if partitions_values and (regular_partitions is True):
@@ -444,6 +490,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals
                         sep=sep,
                         catalog_id=catalog_id,
                         columns_types=columns_types,
+                        compression=pandas_kwargs.get("compression"),
                     )
             except Exception:
                 _logger.debug("Catalog write failed, cleaning up S3 (paths: %s).", paths)
@@ -466,6 +513,10 @@ def to_json(
     ----
     In case of `use_threads=True` the number of threads
     that will be spawned will be gotten from os.cpu_count().
+
+    Note
+    ----
+    Compression: The minimum acceptable version to achive it is Pandas 1.2.0 that requires Python >= 3.7.1.
 
     Parameters
     ----------
@@ -534,6 +585,11 @@ def to_json(
             "You can NOT pass `pandas_kwargs` explicit, just add valid "
             "Pandas arguments in the function call and Wrangler will accept it."
             "e.g. wr.s3.to_json(df, path, lines=True, date_format='iso')"
+        )
+    if pandas_kwargs.get("compression") and str(pd.__version__) < LooseVersion("1.2.0"):
+        raise exceptions.InvalidArgument(
+            f"JSON compression on S3 is not supported for Pandas version {pd.__version__}. "
+            "The minimum acceptable version to achive it is Pandas 1.2.0 that requires Python >=3.7.1."
         )
     _to_text(
         file_format="json",
