@@ -1,11 +1,13 @@
 """Utilities Module for Amazon Athena."""
 import csv
+import datetime
 import logging
 import pprint
 import time
 import warnings
 from decimal import Decimal
-from typing import Any, Dict, Generator, List, NamedTuple, Optional, Union, cast
+from heapq import heappop, heappush
+from typing import Any, Dict, Generator, List, NamedTuple, Optional, Tuple, Union, cast
 
 import boto3
 import botocore.exceptions
@@ -37,6 +39,71 @@ class _WorkGroupConfig(NamedTuple):
     s3_output: Optional[str]
     encryption: Optional[str]
     kms_key: Optional[str]
+
+
+class _LocalMetadataCacheManager:
+    def __init__(self) -> None:
+        self._cache: Dict[str, Any] = dict()
+        self._pqueue: List[Tuple[datetime.datetime, str]] = []
+        self._max_cache_size = 100
+
+    def update_cache(self, items: List[Dict[str, Any]]) -> None:
+        """
+        Update the local metadata cache with new query metadata.
+
+        Parameters
+        ----------
+        items : List[Dict[str, Any]]
+            List of query execution metadata which is returned by boto3 `batch_get_query_execution()`.
+
+        Returns
+        -------
+        None
+            None.
+        """
+        if self._pqueue:
+            oldest_item = self._cache[self._pqueue[0][1]]
+            items = list(
+                filter(lambda x: x["Status"]["SubmissionDateTime"] > oldest_item["Status"]["SubmissionDateTime"], items)
+            )
+
+        cache_oversize = len(self._cache) + len(items) - self._max_cache_size
+        for _ in range(cache_oversize):
+            _, query_execution_id = heappop(self._pqueue)
+            del self._cache[query_execution_id]
+
+        for item in items[: self._max_cache_size]:
+            heappush(self._pqueue, (item["Status"]["SubmissionDateTime"], item["QueryExecutionId"]))
+            self._cache[item["QueryExecutionId"]] = item
+
+    def sorted_successful_generator(self) -> List[Dict[str, Any]]:
+        """
+        Sorts the entries in the local cache based on query Completion DateTime.
+
+        This is useful to guarantee LRU caching rules.
+
+        Returns
+        -------
+        List[Dict[str, Any]]
+            Returns successful DDL and DML queries sorted by query completion time.
+        """
+        filtered: List[Dict[str, Any]] = []
+        for query in self._cache.values():
+            if (query["Status"].get("State") == "SUCCEEDED") and (query.get("StatementType") in ["DDL", "DML"]):
+                filtered.append(query)
+        return sorted(filtered, key=lambda e: str(e["Status"]["CompletionDateTime"]), reverse=True)
+
+    def __contains__(self, key: str) -> bool:
+        return key in self._cache
+
+    @property
+    def max_cache_size(self) -> int:
+        """Property max_cache_size."""
+        return self._max_cache_size
+
+    @max_cache_size.setter
+    def max_cache_size(self, value: int) -> None:
+        self._max_cache_size = value
 
 
 def _get_s3_output(s3_output: Optional[str], wg_config: _WorkGroupConfig, boto3_session: boto3.Session) -> str:
@@ -171,6 +238,7 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
     boto3_session: boto3.Session,
     categories: Optional[List[str]] = None,
     query_execution_payload: Optional[Dict[str, Any]] = None,
+    metadata_cache_manager: Optional[_LocalMetadataCacheManager] = None,
 ) -> _QueryMetadata:
     """Get query metadata."""
     if (query_execution_payload is not None) and (query_execution_payload["Status"]["State"] in _QUERY_FINAL_STATES):
@@ -224,6 +292,8 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
     athena_statistics: Dict[str, Union[int, str]] = _query_execution_payload.get("Statistics", {})
     manifest_location: Optional[str] = str(athena_statistics.get("DataManifestLocation"))
 
+    if metadata_cache_manager is not None and query_execution_id not in metadata_cache_manager:
+        metadata_cache_manager.update_cache(items=[_query_execution_payload])
     query_metadata: _QueryMetadata = _QueryMetadata(
         execution_id=query_execution_id,
         dtype=dtype,

@@ -29,6 +29,8 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "database": _ConfigArg(dtype=str, nullable=True),
     "max_cache_query_inspections": _ConfigArg(dtype=int, nullable=False),
     "max_cache_seconds": _ConfigArg(dtype=int, nullable=False),
+    "max_remote_cache_entries": _ConfigArg(dtype=int, nullable=False),
+    "max_local_cache_entries": _ConfigArg(dtype=int, nullable=False),
     "s3_block_size": _ConfigArg(dtype=int, nullable=False, enforced=True),
     "workgroup": _ConfigArg(dtype=str, nullable=False, enforced=True),
     # Endpoints URLs
@@ -225,6 +227,35 @@ class _Config:  # pylint: disable=too-many-instance-attributes
     @max_cache_seconds.setter
     def max_cache_seconds(self, value: int) -> None:
         self._set_config_value(key="max_cache_seconds", value=value)
+
+    @property
+    def max_local_cache_entries(self) -> int:
+        """Property max_local_cache_entries."""
+        return cast(int, self["max_local_cache_entries"])
+
+    @max_local_cache_entries.setter
+    def max_local_cache_entries(self, value: int) -> None:
+        try:
+            max_remote_cache_entries = cast(int, self["max_remote_cache_entries"])
+        except AttributeError:
+            max_remote_cache_entries = 50
+        if value < max_remote_cache_entries:
+            _logger.warning(
+                "max_remote_cache_entries shouldn't be greater than max_local_cache_entries. "
+                "Therefore max_remote_cache_entries will be set to %s as well.",
+                value,
+            )
+            self._set_config_value(key="max_remote_cache_entries", value=value)
+        self._set_config_value(key="max_local_cache_entries", value=value)
+
+    @property
+    def max_remote_cache_entries(self) -> int:
+        """Property max_remote_cache_entries."""
+        return cast(int, self["max_remote_cache_entries"])
+
+    @max_remote_cache_entries.setter
+    def max_remote_cache_entries(self, value: int) -> None:
+        self._set_config_value(key="max_remote_cache_entries", value=value)
 
     @property
     def s3_block_size(self) -> int:

@@ -116,3 +116,8 @@ def test_basics(path, glue_database, glue_table, workgroup0, workgroup1):
     os.environ["WR_GLUE_ENDPOINT_URL"] = f"https://glue.{region}.amazonaws.com"
     wr.config.reset()
     _urls_test(glue_database)
+
+
+def test_athena_cache_configuration():
+    wr.config.max_local_cache_entries = 20
+    assert wr.config.max_remote_cache_entries == 20
