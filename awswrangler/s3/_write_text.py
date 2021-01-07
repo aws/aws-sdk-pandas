@@ -1,4 +1,4 @@
-"""Amazon CSV S3 Text Write Module (PRIVATE)."""
+"""Amazon S3 Text Write Module (PRIVATE)."""
 
 import csv
 import logging
@@ -51,7 +51,6 @@ def _to_text(
         raise RuntimeError("path and path_root received at the same time.")
 
     mode, encoding, newline = _get_write_details(path=file_path, pandas_kwargs=pandas_kwargs)
-    raw_buffer = "b" in mode and file_format == "json"
     with open_s3_object(
         path=file_path,
         mode=mode,
@@ -60,7 +59,6 @@ def _to_text(
         boto3_session=boto3_session,
         encoding=encoding,
         newline=newline,
-        raw_buffer=raw_buffer,
     ) as f:
         _logger.debug("pandas_kwargs: %s", pandas_kwargs)
         if file_format == "csv":
@@ -506,7 +504,7 @@ def to_json(
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     use_threads: bool = True,
     **pandas_kwargs: Any,
-) -> None:
+) -> List[str]:
     """Write JSON file on Amazon S3.
 
     Note
@@ -541,8 +539,8 @@ def to_json(
 
     Returns
     -------
-    None
-        None.
+    List[str]
+        List of written files.
 
     Examples
     --------
@@ -591,7 +589,7 @@ def to_json(
             f"JSON compression on S3 is not supported for Pandas version {pd.__version__}. "
             "The minimum acceptable version to achive it is Pandas 1.2.0 that requires Python >=3.7.1."
         )
-    _to_text(
+    return _to_text(
         file_format="json",
         df=df,
         path=path,

@@ -34,6 +34,7 @@ Amazon S3
     list_objects
     merge_datasets
     read_csv
+    read_excel
     read_fwf
     read_json
     read_parquet
@@ -42,6 +43,7 @@ Amazon S3
     size_objects
     store_parquet_metadata
     to_csv
+    to_excel
     to_json
     to_parquet
     wait_objects_exist

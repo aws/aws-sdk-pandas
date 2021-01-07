@@ -31,22 +31,9 @@ def create_sql_server_database(databases_parameters):
     with con.cursor() as cursor:
         cursor.execute(sql_create_db)
         con.commit()
+    con.close()
 
     yield
-
-    sql_drop_db = (
-        f"IF EXISTS (SELECT * FROM sys.databases WHERE name = '{databases_parameters['sqlserver']['database']}') "
-        "BEGIN "
-        "USE master; "
-        f"ALTER DATABASE {databases_parameters['sqlserver']['database']} SET SINGLE_USER WITH ROLLBACK IMMEDIATE; "
-        f"DROP DATABASE {databases_parameters['sqlserver']['database']}; "
-        "END"
-    )
-    with con.cursor() as cursor:
-        cursor.execute(sql_drop_db)
-        con.commit()
-
-    con.close()
 
 
 @pytest.fixture(scope="function")
