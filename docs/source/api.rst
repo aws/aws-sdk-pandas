@@ -33,6 +33,7 @@ Amazon S3
     list_directories
     list_objects
     merge_datasets
+    merge_upsert_table
     read_csv
     read_excel
     read_fwf
