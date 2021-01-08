@@ -8,6 +8,7 @@ import pandas as pd
 import pyarrow as pa
 import pytest
 import redshift_connector
+from redshift_connector.error import ProgrammingError
 
 import awswrangler as wr
 from awswrangler import _utils
@@ -888,6 +889,20 @@ def test_column_length(path, redshift_table, databases_parameters):
     )
     df2 = wr.redshift.read_sql_query(sql=f"SELECT * FROM public.{redshift_table}", con=con)
     con.close()
-    print(df.dtypes)
-    print(df2.dtypes)
     assert df2.equals(df)
+
+
+def test_failed_keep_files(path, redshift_table, databases_parameters):
+    df = pd.DataFrame({"c0": [1], "c1": ["foo"]}, dtype="string")
+    con = wr.redshift.connect("aws-data-wrangler-redshift")
+    with pytest.raises(ProgrammingError):
+        wr.redshift.copy(
+            df=df,
+            path=path,
+            con=con,
+            table=redshift_table,
+            schema="public",
+            iam_role=databases_parameters["redshift"]["role"],
+            varchar_lengths={"c1": 2},
+        )
+    assert len(wr.s3.list_objects(path)) == 0
