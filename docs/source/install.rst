@@ -170,14 +170,13 @@ After installing these header files you can either just install ``pyodbc`` or
     >>> pip install pyodbc
     >>> pip install awswrangler[sqlserver]
 
-Finally you also the need correct ODBC Driver for SQL Server. You can have a look at the
+Finally you also need the correct ODBC Driver for SQL Server. You can have a look at the
 `documentation from Microsoft <https://docs.microsoft.com/sql/connect/odbc/
 microsoft-odbc-driver-for-sql-server?view=sql-server-ver15>`_
 to see how they can be installed in your environment.
 
 If you want to connect to Microsoft SQL Server from AWS Lambda, you can build a separate Layer including the
-needed OBDC drivers and `pyobdc` by following
-`these instructions <https://gist.github.com/diriver63/b72a954fa0da4851d89e5086aa13c6e8>`_.
+needed OBDC drivers and `pyobdc`.
 
 If you maintain your own environment, you need to take care of the above steps.
 Because of this limitation usage in combination with Glue jobs is limited and you need to rely on the
