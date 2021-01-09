@@ -614,6 +614,8 @@ def read_parquet(
 def read_parquet_table(
     table: str,
     database: str,
+    filename_suffix: Union[str, List[str], None] = None,
+    filename_ignore_suffix: Union[str, List[str], None] = None,
     catalog_id: Optional[str] = None,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
     columns: Optional[List[str]] = None,
@@ -655,6 +657,12 @@ def read_parquet_table(
         AWS Glue Catalog table name.
     database : str
         AWS Glue Catalog database name.
+    path_suffix: Union[str, List[str], None]
+        Suffix or List of suffixes to be read (e.g. [".gz.parquet", ".snappy.parquet"]).
+        If None, will try to read all files. (default)
+    path_ignore_suffix: Union[str, List[str], None]
+        Suffix or List of suffixes for S3 keys to be ignored.(e.g. [".csv", "_SUCCESS"]).
+        If None, will try to read all files. (default)
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
@@ -741,6 +749,8 @@ def read_parquet_table(
     return _data_types.cast_pandas_with_athena_types(
         df=read_parquet(
             path=path,
+            path_suffix=filename_suffix,
+            path_ignore_suffix=filename_ignore_suffix,
             partition_filter=partition_filter,
             columns=columns,
             validate_schema=validate_schema,

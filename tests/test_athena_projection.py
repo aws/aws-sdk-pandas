@@ -74,7 +74,6 @@ def test_to_parquet_projection_date(glue_database, glue_table, path):
         projection_ranges={"c1": "2020-01-01,2020-01-03", "c2": "2020-01-01 01:01:00,2020-01-01 01:01:03"},
     )
     df2 = wr.athena.read_sql_table(glue_table, glue_database)
-    print(df2)
     assert df.shape == df2.shape
     assert df.c0.sum() == df2.c0.sum()
 

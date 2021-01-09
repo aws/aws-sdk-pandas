@@ -2,6 +2,8 @@
 
 *Pandas on AWS*
 
+Easy integration with Athena, Glue, Redshift, Timestream, QuickSight, Chime, CloudWatchLogs, DynamoDB, EMR, SecretManager, PostgreSQL, MySQL, SQLServer and S3 (Parquet, CSV, JSON and EXCEL).
+
 ![AWS Data Wrangler](docs/source/_static/logo2.png?raw=true "AWS Data Wrangler")
 
 > An [AWS Professional Service](https://aws.amazon.com/professional-services/) open source initiative | aws-proserve-opensource@amazon.com
@@ -30,7 +32,7 @@ Powered By [<img src="https://arrow.apache.org/img/arrow.png" width="200">](http
 - [Community Resources](#community-resources)
 - [Logging](#logging)
 - [Who uses AWS Data Wrangler?](#who-uses-aws-data-wrangler)
-- [Amazon SageMaker Data Wrangler?](#amazon-sageMaker-data-wrangler)
+- [What is Amazon SageMaker Data Wrangler?](#amazon-sageMaker-data-wrangler)
 
 ## Quick Start
 
@@ -203,7 +205,7 @@ Please [send a Pull Request](https://github.com/awslabs/aws-data-wrangler/edit/m
 - [Thinkbumblebee](https://www.thinkbumblebee.com/) [[@dheerajsharma21]](https://github.com/dheerajsharma21)
 - [Zillow](https://www.zillow.com/) [[@nicholas-miles]](https://github.com/nicholas-miles)
 
-## Amazon SageMaker Data Wrangler?
+## What is Amazon SageMaker Data Wrangler?
 
 **Amazon SageMaker Data Wrangler** is a new SageMaker Studio feature that has a similar name but has a different purpose than the **AWS Data Wrangler** open source project.
 

@@ -952,7 +952,7 @@ def unload(
         List of columns names that should be returned as pandas.Categorical.
         Recommended for memory restricted environments.
     keep_files : bool
-        Should keep the stage files?
+        Should keep stage files?
     chunked : Union[int, bool]
         If passed will split the data in a Iterable of DataFrames (Memory friendly).
         If `True` wrangler will iterate on the data by files in the most efficient way without guarantee of chunksize.
@@ -1290,7 +1290,7 @@ def copy(  # pylint: disable=too-many-arguments
     varchar_lengths : Dict[str, int], optional
         Dict of VARCHAR length by columns. (e.g. {"col1": 10, "col5": 200}).
     keep_files : bool
-        Should keep the stage files?
+        Should keep stage files?
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -1334,38 +1334,40 @@ def copy(  # pylint: disable=too-many-arguments
             f"The received S3 path ({path}) is not empty. "
             "Please, provide a different path or use wr.s3.delete_objects() to clean up the current one."
         )
-    s3.to_parquet(
-        df=df,
-        path=path,
-        index=index,
-        dataset=True,
-        mode="append",
-        dtype=dtype,
-        use_threads=use_threads,
-        boto3_session=session,
-        s3_additional_kwargs=s3_additional_kwargs,
-        max_rows_by_file=max_rows_by_file,
-    )
-    copy_from_files(
-        path=path,
-        con=con,
-        table=table,
-        schema=schema,
-        iam_role=iam_role,
-        aws_access_key_id=aws_access_key_id,
-        aws_secret_access_key=aws_secret_access_key,
-        aws_session_token=aws_session_token,
-        mode=mode,
-        diststyle=diststyle,
-        distkey=distkey,
-        sortstyle=sortstyle,
-        sortkey=sortkey,
-        primary_keys=primary_keys,
-        varchar_lengths_default=varchar_lengths_default,
-        varchar_lengths=varchar_lengths,
-        use_threads=use_threads,
-        boto3_session=session,
-        s3_additional_kwargs=s3_additional_kwargs,
-    )
-    if keep_files is False:
-        s3.delete_objects(path=path, use_threads=use_threads, boto3_session=session)
+    try:
+        s3.to_parquet(
+            df=df,
+            path=path,
+            index=index,
+            dataset=True,
+            mode="append",
+            dtype=dtype,
+            use_threads=use_threads,
+            boto3_session=session,
+            s3_additional_kwargs=s3_additional_kwargs,
+            max_rows_by_file=max_rows_by_file,
+        )
+        copy_from_files(
+            path=path,
+            con=con,
+            table=table,
+            schema=schema,
+            iam_role=iam_role,
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            aws_session_token=aws_session_token,
+            mode=mode,
+            diststyle=diststyle,
+            distkey=distkey,
+            sortstyle=sortstyle,
+            sortkey=sortkey,
+            primary_keys=primary_keys,
+            varchar_lengths_default=varchar_lengths_default,
+            varchar_lengths=varchar_lengths,
+            use_threads=use_threads,
+            boto3_session=session,
+            s3_additional_kwargs=s3_additional_kwargs,
+        )
+    finally:
+        if keep_files is False:
+            s3.delete_objects(path=path, use_threads=use_threads, boto3_session=session)

@@ -669,7 +669,6 @@ def test_glue_database():
 
     # Round 1 - Create Database
     glue_database_name = f"database_{get_time_str_with_random_suffix()}"
-    print(f"Database Name: {glue_database_name}")
     wr.catalog.create_database(name=glue_database_name, description="Database Description")
     databases = wr.catalog.get_databases()
     test_database_name = ""
@@ -684,7 +683,6 @@ def test_glue_database():
     assert test_database_description == "Database Description"
 
     # Round 2 - Delete Database
-    print(f"Glue Database Name: {glue_database_name}")
     wr.catalog.delete_database(name=glue_database_name)
     databases = wr.catalog.get_databases()
     test_database_name = ""
@@ -786,8 +784,6 @@ def test_describe_table(path, glue_database, glue_table):
 def test_athena_nan_inf(glue_database, ctas_approach, data_source):
     sql = "SELECT nan() AS nan, infinity() as inf, -infinity() as inf_n, 1.2 as regular"
     df = wr.athena.read_sql_query(sql, glue_database, ctas_approach, data_source=data_source)
-    print(df)
-    print(df.dtypes)
     assert df.shape == (1, 4)
     assert df.dtypes.to_list() == ["float64", "float64", "float64", "float64"]
     assert np.isnan(df.nan.iloc[0])
