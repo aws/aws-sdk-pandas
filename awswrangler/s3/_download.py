@@ -18,7 +18,7 @@ def download(
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> None:
-    """Download file(s) from from a received S3 path to local file.
+    """Download file from from a received S3 path to local file.
 
     Note
     ----

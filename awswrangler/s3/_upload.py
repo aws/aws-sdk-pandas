@@ -18,7 +18,7 @@ def upload(
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> None:
-    """Upload file(s) from a local file to received S3 path.
+    """Upload file from a local file to received S3 path.
 
     Note
     ----
