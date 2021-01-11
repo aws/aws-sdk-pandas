@@ -32,7 +32,7 @@ Powered By [<img src="https://arrow.apache.org/img/arrow.png" width="200">](http
 - [Community Resources](#community-resources)
 - [Logging](#logging)
 - [Who uses AWS Data Wrangler?](#who-uses-aws-data-wrangler)
-- [What is Amazon SageMaker Data Wrangler?](#amazon-sageMaker-data-wrangler)
+- [What is Amazon SageMaker Data Wrangler?](#what-is-amazon-sageMaker-data-wrangler)
 
 ## Quick Start
 
