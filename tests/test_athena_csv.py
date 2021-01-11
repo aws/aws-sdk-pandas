@@ -330,12 +330,11 @@ def test_athena_csv_types(path, glue_database, glue_table):
     wr.athena.repair_table(glue_table, glue_database)
     assert len(wr.catalog.get_csv_partitions(glue_database, glue_table)) == 3
     df2 = wr.athena.read_sql_table(glue_table, glue_database)
-    print(df2)
-    # assert len(df2.index) == 3
-    # assert len(df2.columns) == 10
-    # assert df2["id"].sum() == 6
-    # ensure_data_types_csv(df2)
-    # assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table) is True
+    assert len(df2.index) == 3
+    assert len(df2.columns) == 10
+    assert df2["id"].sum() == 6
+    ensure_data_types_csv(df2)
+    assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table) is True
 
 
 @pytest.mark.parametrize("use_threads", [True, False])

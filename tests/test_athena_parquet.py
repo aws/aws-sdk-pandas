@@ -707,3 +707,32 @@ def test_to_parquet_nested_structs(glue_database, glue_table, path):
     wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table)
     df3 = wr.athena.read_sql_query(sql=f"SELECT * FROM {glue_table}", database=glue_database)
     assert df3.shape == (2, 2)
+
+
+def test_ignore_empty_files(glue_database, glue_table, path):
+    df = pd.DataFrame({"c0": [0, 1], "c1": ["foo", "boo"]})
+    bucket, directory = wr._utils.parse_path(path)
+    wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table)
+    boto3.client("s3").put_object(Body=b"", Bucket=bucket, Key=f"{directory}to_be_ignored")
+    df2 = wr.athena.read_sql_query(sql=f"SELECT * FROM {glue_table}", database=glue_database)
+    assert df2.shape == df.shape
+    df3 = wr.s3.read_parquet_table(database=glue_database, table=glue_table)
+    assert df3.shape == df.shape
+
+
+def test_suffix(glue_database, glue_table, path):
+    df = pd.DataFrame({"c0": [0, 1], "c1": ["foo", "boo"]})
+    bucket, directory = wr._utils.parse_path(path)
+    wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table)
+    boto3.client("s3").put_object(Body=b"garbage", Bucket=bucket, Key=f"{directory}to_be_ignored")
+    df2 = wr.s3.read_parquet_table(database=glue_database, table=glue_table, filename_suffix=".parquet")
+    assert df2.shape == df.shape
+
+
+def test_ignore_suffix(glue_database, glue_table, path):
+    df = pd.DataFrame({"c0": [0, 1], "c1": ["foo", "boo"]})
+    bucket, directory = wr._utils.parse_path(path)
+    wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table)
+    boto3.client("s3").put_object(Body=b"garbage", Bucket=bucket, Key=f"{directory}to_be_ignored")
+    df2 = wr.s3.read_parquet_table(database=glue_database, table=glue_table, filename_ignore_suffix="ignored")
+    assert df2.shape == df.shape
