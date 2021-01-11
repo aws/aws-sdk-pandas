@@ -28,7 +28,7 @@ def upload(
     Parameters
     ----------
     local_file : Union[str, Any]
-        A file-like object or a path to local file (e.g. ``./local/path/to/key0``).
+        A file-like object in binary mode or a path to local file (e.g. ``./local/path/to/key0``).
     path : str
         S3 path (e.g. ``s3://bucket/key0``).
     use_threads : bool
@@ -58,6 +58,7 @@ def upload(
 
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    _logger.debug("path: %s", path)
     with open_s3_object(
         path=path,
         mode="wb",
@@ -67,7 +68,9 @@ def upload(
         boto3_session=session,
     ) as s3_f:
         if isinstance(local_file, str):
-            with open(file=local_file, mode='rb') as local_f:
+            _logger.debug("Uploading local_file: %s", local_file)
+            with open(file=local_file, mode="rb") as local_f:
                 s3_f.write(local_f.read())
         else:
+            _logger.debug("Uploading file-like object.")
             s3_f.write(local_file.read())
