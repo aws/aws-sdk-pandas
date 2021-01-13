@@ -66,7 +66,11 @@ def _parquet_table_definition(
 
 
 def _parquet_partition_definition(
-    location: str, values: List[str], compression: Optional[str], columns_types: Optional[Dict[str, str]]
+    location: str,
+    values: List[str],
+    bucketing_info: Optional[Tuple[List[str], int]],
+    compression: Optional[str],
+    columns_types: Optional[Dict[str, str]],
 ) -> Dict[str, Any]:
     compressed: bool = compression is not None
     definition: Dict[str, Any] = {
@@ -80,7 +84,8 @@ def _parquet_partition_definition(
                 "SerializationLibrary": "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe",
             },
             "StoredAsSubDirectories": False,
-            "NumberOfBuckets": -1,
+            "NumberOfBuckets": -1 if bucketing_info is None else bucketing_info[1],
+            "BucketColumns": [] if bucketing_info is None else bucketing_info[0],
         },
         "Values": values,
     }
@@ -144,7 +149,12 @@ def _csv_table_definition(
 
 
 def _csv_partition_definition(
-    location: str, values: List[str], compression: Optional[str], sep: str, columns_types: Optional[Dict[str, str]]
+    location: str,
+    values: List[str],
+    bucketing_info: Optional[Tuple[List[str], int]],
+    compression: Optional[str],
+    sep: str,
+    columns_types: Optional[Dict[str, str]],
 ) -> Dict[str, Any]:
     compressed: bool = compression is not None
     definition: Dict[str, Any] = {
@@ -158,7 +168,8 @@ def _csv_partition_definition(
                 "SerializationLibrary": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
             },
             "StoredAsSubDirectories": False,
-            "NumberOfBuckets": -1,
+            "NumberOfBuckets": -1 if bucketing_info is None else bucketing_info[1],
+            "BucketColumns": [] if bucketing_info is None else bucketing_info[0],
         },
         "Values": values,
     }

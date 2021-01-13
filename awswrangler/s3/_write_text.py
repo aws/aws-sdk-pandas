@@ -37,15 +37,14 @@ def _to_text(
     s3_additional_kwargs: Optional[Dict[str, str]],
     path: Optional[str] = None,
     path_root: Optional[str] = None,
-    filename_suffix: Optional[str] = None,
+    filename: Optional[str] = None,
     **pandas_kwargs: Any,
 ) -> List[str]:
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
     if path is None and path_root is not None:
-        filename = uuid.uuid4().hex
-        if filename_suffix is not None:
-            filename = filename + filename_suffix
+        if filename is None:
+            filename = uuid.uuid4().hex
         file_path: str = (
             f"{path_root}{filename}.{file_format}{_COMPRESSION_2_EXT.get(pandas_kwargs.get('compression'))}"
         )
@@ -309,6 +308,24 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         }
     }
 
+    Writing bucketed dataset
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.s3.to_csv(
+    ...     df=pd.DataFrame({
+    ...         'col': [1, 2, 3],
+    ...         'col2': ['A', 'A', 'B']
+    ...     }),
+    ...     path='s3://bucket/prefix',
+    ...     dataset=True,
+    ...     bucketing_info=(["col2"], 2)
+    ... )
+    {
+        'paths': ['s3://.../x_bucket-00000.csv', 's3://.../col2=B/x_bucket-00001.csv'],
+        'partitions_values: {}
+    }
+
     Writing dataset to S3 with metadata on Athena/Glue Catalog.
 
     >>> import awswrangler as wr
@@ -496,6 +513,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                         database=database,
                         table=table,
                         partitions_values=partitions_values,
+                        bucketing_info=bucketing_info,
                         boto3_session=session,
                         sep=sep,
                         catalog_id=catalog_id,

@@ -1,6 +1,7 @@
 """Amazon S3 Write Dataset (PRIVATE)."""
 
 import logging
+import uuid
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import boto3
@@ -28,6 +29,8 @@ def _to_partitions(
 ) -> Tuple[List[str], Dict[str, List[str]]]:
     partitions_values: Dict[str, List[str]] = {}
     proxy: _WriteProxy = _WriteProxy(use_threads=concurrent_partitioning)
+    filename_prefix = uuid.uuid4().hex
+
     for keys, subgroup in df.groupby(by=partition_cols, observed=True):
         subgroup = subgroup.drop(partition_cols, axis="columns")
         keys = (keys,) if not isinstance(keys, tuple) else keys
@@ -44,6 +47,7 @@ def _to_partitions(
                 boto3_session=boto3_session,
                 use_threads=use_threads,
                 proxy=proxy,
+                filename_prefix=filename_prefix,
                 **func_kwargs,
             )
         else:
@@ -68,6 +72,7 @@ def _to_buckets(
     boto3_session: boto3.Session,
     use_threads: bool,
     proxy: Optional[_WriteProxy] = None,
+    filename_prefix: Optional[str] = None,
     **func_kwargs: Any,
 ) -> List[str]:
     _proxy: _WriteProxy = proxy if proxy else _WriteProxy(use_threads=False)
@@ -75,12 +80,14 @@ def _to_buckets(
         lambda row: _get_bucket_number(bucketing_info[1], [row[col_name] for col_name in bucketing_info[0]]),
         axis="columns",
     )
+    if filename_prefix is None:
+        filename_prefix = uuid.uuid4().hex
     for bucket_number, subgroup in df.groupby(by=bucket_number_series, observed=True):
         _proxy.write(
             func=func,
             df=subgroup,
-            path_root=f"{path_root}",
-            filename_suffix=f"_bucket{bucket_number:05d}",
+            path_root=path_root,
+            filename=f"{filename_prefix}_bucket-{bucket_number:05d}",
             boto3_session=boto3_session,
             use_threads=use_threads,
             **func_kwargs,
