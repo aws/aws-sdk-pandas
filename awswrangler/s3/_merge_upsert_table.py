@@ -68,6 +68,8 @@ def merge_upsert_table(delta_df: pandas.DataFrame, database: str, table: str, pr
                 existing_df=existing_df, delta_df=delta_df, primary_key=primary_key, database=database, table=table
             )
     elif wr.catalog.does_table_exist(database=database, table=table) is False:
-        _logger.exception("database= %s and table= %s  does not exist ", database, table)
+        exception_message = f"database= {database} and table= {table}  does not exist"
+        _logger.exception(exception_message)
+        raise AttributeError(exception_message)
     else:
-        _logger.exception("Reached a unknown logical state")
+        raise RuntimeError("Reached a unknown logical state")
