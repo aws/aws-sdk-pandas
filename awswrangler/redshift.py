@@ -90,6 +90,7 @@ def _copy(
     cursor: redshift_connector.Cursor,
     path: str,
     table: str,
+    serialize_to_json: bool,
     iam_role: Optional[str] = None,
     aws_access_key_id: Optional[str] = None,
     aws_secret_access_key: Optional[str] = None,
@@ -109,7 +110,8 @@ def _copy(
         aws_session_token=aws_session_token,
         boto3_session=boto3_session,
     )
-    sql: str = f"COPY {table_name} FROM '{path}'{auth_str}\nFORMAT AS PARQUET"
+    ser_json_str: str = " SERIALIZETOJSON" if serialize_to_json else ""
+    sql: str = f"COPY {table_name}\nFROM '{path}' {auth_str}\nFORMAT AS PARQUET{ser_json_str}"
     _logger.debug("copy query:\n%s", sql)
     cursor.execute(sql)
 
@@ -1041,6 +1043,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     primary_keys: Optional[List[str]] = None,
     varchar_lengths_default: int = 256,
     varchar_lengths: Optional[Dict[str, int]] = None,
+    serialize_to_json: bool = False,
     path_suffix: Optional[str] = None,
     path_ignore_suffix: Optional[str] = None,
     use_threads: bool = True,
@@ -1105,6 +1108,10 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
         The size that will be set for all VARCHAR columns not specified with varchar_lengths.
     varchar_lengths : Dict[str, int], optional
         Dict of VARCHAR length by columns. (e.g. {"col1": 10, "col5": 200}).
+    serialize_to_json : bool
+        Should Wrangler add SERIALIZETOJSON parameter into the COPY command?
+        SERIALIZETOJSON is necessary to load nested data
+        https://docs.aws.amazon.com/redshift/latest/dg/ingest-super.html#copy_json
     path_suffix: Union[str, List[str], None]
         Suffix or List of suffixes to be scanned on s3 for the schema extraction
         (e.g. [".gz.parquet", ".snappy.parquet"]).
@@ -1181,6 +1188,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
                 aws_secret_access_key=aws_secret_access_key,
                 aws_session_token=aws_session_token,
                 boto3_session=boto3_session,
+                serialize_to_json=serialize_to_json,
             )
             if table != created_table:  # upsert
                 _upsert(cursor=cursor, schema=schema, table=table, temp_table=created_table, primary_keys=primary_keys)
@@ -1213,6 +1221,7 @@ def copy(  # pylint: disable=too-many-arguments
     primary_keys: Optional[List[str]] = None,
     varchar_lengths_default: int = 256,
     varchar_lengths: Optional[Dict[str, int]] = None,
+    serialize_to_json: bool = False,
     keep_files: bool = False,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
@@ -1364,6 +1373,7 @@ def copy(  # pylint: disable=too-many-arguments
             primary_keys=primary_keys,
             varchar_lengths_default=varchar_lengths_default,
             varchar_lengths=varchar_lengths,
+            serialize_to_json=serialize_to_json,
             use_threads=use_threads,
             boto3_session=session,
             s3_additional_kwargs=s3_additional_kwargs,
