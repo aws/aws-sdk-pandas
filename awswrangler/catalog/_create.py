@@ -1,7 +1,7 @@
 """AWS Glue Catalog Module."""
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import boto3
 
@@ -215,6 +215,7 @@ def _create_parquet_table(
     path: str,
     columns_types: Dict[str, str],
     partitions_types: Optional[Dict[str, str]],
+    bucketing_info: Optional[Tuple[List[str], int]],
     catalog_id: Optional[str],
     compression: Optional[str],
     description: Optional[str],
@@ -253,6 +254,7 @@ def _create_parquet_table(
             path=path,
             columns_types=columns_types,
             partitions_types=partitions_types,
+            bucketing_info=bucketing_info,
             compression=compression,
         )
     table_exist: bool = catalog_table_input is not None
@@ -285,6 +287,7 @@ def _create_csv_table(
     path: str,
     columns_types: Dict[str, str],
     partitions_types: Optional[Dict[str, str]],
+    bucketing_info: Optional[Tuple[List[str], int]],
     description: Optional[str],
     compression: Optional[str],
     parameters: Optional[Dict[str, str]],
@@ -322,6 +325,7 @@ def _create_csv_table(
             path=path,
             columns_types=columns_types,
             partitions_types=partitions_types,
+            bucketing_info=bucketing_info,
             compression=compression,
             sep=sep,
             skip_header_line_count=skip_header_line_count,
@@ -516,6 +520,7 @@ def create_parquet_table(
     path: str,
     columns_types: Dict[str, str],
     partitions_types: Optional[Dict[str, str]] = None,
+    bucketing_info: Optional[Tuple[List[str], int]] = None,
     catalog_id: Optional[str] = None,
     compression: Optional[str] = None,
     description: Optional[str] = None,
@@ -547,6 +552,10 @@ def create_parquet_table(
         Dictionary with keys as column names and values as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
     partitions_types: Dict[str, str], optional
         Dictionary with keys as partition names and values as data types (e.g. {'col2': 'date'}).
+    bucketing_info: Tuple[List[str], int], optional
+        Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
+        second element.
+        Only `str`, `int` and `bool` are supported as column data types for bucketing.
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
@@ -619,6 +628,7 @@ def create_parquet_table(
         path=path,
         columns_types=columns_types,
         partitions_types=partitions_types,
+        bucketing_info=bucketing_info,
         catalog_id=catalog_id,
         compression=compression,
         description=description,
@@ -644,6 +654,7 @@ def create_csv_table(
     path: str,
     columns_types: Dict[str, str],
     partitions_types: Optional[Dict[str, str]] = None,
+    bucketing_info: Optional[Tuple[List[str], int]] = None,
     compression: Optional[str] = None,
     description: Optional[str] = None,
     parameters: Optional[Dict[str, str]] = None,
@@ -677,6 +688,10 @@ def create_csv_table(
         Dictionary with keys as column names and values as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
     partitions_types: Dict[str, str], optional
         Dictionary with keys as partition names and values as data types (e.g. {'col2': 'date'}).
+    bucketing_info: Tuple[List[str], int], optional
+        Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
+        second element.
+        Only `str`, `int` and `bool` are supported as column data types for bucketing.
     compression : str, optional
         Compression style (``None``, ``gzip``, etc).
     description : str, optional
@@ -753,6 +768,7 @@ def create_csv_table(
         path=path,
         columns_types=columns_types,
         partitions_types=partitions_types,
+        bucketing_info=bucketing_info,
         catalog_id=catalog_id,
         compression=compression,
         description=description,

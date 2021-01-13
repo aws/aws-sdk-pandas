@@ -1,7 +1,7 @@
 """AWS Glue Catalog Delete Module."""
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -28,7 +28,12 @@ _LEGAL_COLUMN_TYPES = [
 
 
 def _parquet_table_definition(
-    table: str, path: str, columns_types: Dict[str, str], partitions_types: Dict[str, str], compression: Optional[str]
+    table: str,
+    path: str,
+    columns_types: Dict[str, str],
+    partitions_types: Dict[str, str],
+    bucketing_info: Optional[Tuple[List[str], int]],
+    compression: Optional[str],
 ) -> Dict[str, Any]:
     compressed: bool = compression is not None
     return {
@@ -42,11 +47,12 @@ def _parquet_table_definition(
             "InputFormat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
             "OutputFormat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat",
             "Compressed": compressed,
-            "NumberOfBuckets": -1,
+            "NumberOfBuckets": -1 if bucketing_info is None else bucketing_info[1],
             "SerdeInfo": {
                 "SerializationLibrary": "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe",
                 "Parameters": {"serialization.format": "1"},
             },
+            "BucketColumns": [] if bucketing_info is None else bucketing_info[0],
             "StoredAsSubDirectories": False,
             "SortColumns": [],
             "Parameters": {
@@ -90,6 +96,7 @@ def _csv_table_definition(
     path: str,
     columns_types: Dict[str, str],
     partitions_types: Dict[str, str],
+    bucketing_info: Optional[Tuple[List[str], int]],
     compression: Optional[str],
     sep: str,
     skip_header_line_count: Optional[int],
@@ -116,11 +123,12 @@ def _csv_table_definition(
             "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
             "OutputFormat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
             "Compressed": compressed,
-            "NumberOfBuckets": -1,
+            "NumberOfBuckets": -1 if bucketing_info is None else bucketing_info[1],
             "SerdeInfo": {
                 "Parameters": {"field.delim": sep, "escape.delim": "\\"},
                 "SerializationLibrary": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
             },
+            "BucketColumns": [] if bucketing_info is None else bucketing_info[0],
             "StoredAsSubDirectories": False,
             "SortColumns": [],
             "Parameters": {

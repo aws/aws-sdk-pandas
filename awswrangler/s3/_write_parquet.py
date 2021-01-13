@@ -150,10 +150,14 @@ def _to_parquet(
     use_threads: bool,
     path: Optional[str] = None,
     path_root: Optional[str] = None,
+    filename_suffix: Optional[str] = None,
     max_rows_by_file: Optional[int] = 0,
 ) -> List[str]:
     if path is None and path_root is not None:
-        file_path: str = f"{path_root}{uuid.uuid4().hex}{compression_ext}.parquet"
+        filename = uuid.uuid4().hex
+        if filename_suffix is not None:
+            filename = filename + filename_suffix
+        file_path: str = f"{path_root}{filename}{compression_ext}.parquet"
     elif path is not None and path_root is None:
         file_path = path
     else:
@@ -205,6 +209,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     sanitize_columns: bool = False,
     dataset: bool = False,
     partition_cols: Optional[List[str]] = None,
+    bucketing_info: Optional[Tuple[List[str], int]] = None,
     concurrent_partitioning: bool = False,
     mode: Optional[str] = None,
     catalog_versioning: bool = False,
@@ -279,6 +284,10 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
         projection_intervals, projection_digits, catalog_id, schema_evolution.
     partition_cols: List[str], optional
         List of column names that will be used to create partitions. Only takes effect if dataset=True.
+    bucketing_info: Tuple[List[str], int], optional
+        Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
+        second element.
+        Only `str`, `int` and `bool` are supported as column data types for bucketing.
     concurrent_partitioning: bool
         If True will increase the parallelism level during the partitions writing. It will decrease the
         writing time and increase the memory usage.
@@ -454,6 +463,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
         dataset=dataset,
         path=path,
         partition_cols=partition_cols,
+        bucketing_info=bucketing_info,
         mode=mode,
         description=description,
         parameters=parameters,
@@ -524,6 +534,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
             cpus=cpus,
             use_threads=use_threads,
             partition_cols=partition_cols,
+            bucketing_info=bucketing_info,
             dtype=dtype,
             mode=mode,
             boto3_session=session,
@@ -539,6 +550,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
                     path=path,
                     columns_types=columns_types,
                     partitions_types=partitions_types,
+                    bucketing_info=bucketing_info,
                     compression=compression,
                     description=description,
                     parameters=parameters,
