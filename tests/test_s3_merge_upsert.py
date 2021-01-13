@@ -4,8 +4,9 @@ import logging
 import pandas as pd
 import pytest
 
-from awswrangler.s3._merge_upsert_table import _is_data_quality_sufficient, merge_upsert_table
 import awswrangler as wr
+from awswrangler.s3._merge_upsert_table import _is_data_quality_sufficient, merge_upsert_table
+
 logger = logging.getLogger("awswrangler")
 logger.setLevel(logging.DEBUG)
 
@@ -57,33 +58,26 @@ def test_table_does_not_exist():
     delta_df = pd.DataFrame([[1, 2, 3], [4, 5, 6], [7, 8, 9]], columns=["col_a", "col_b", "col_c"])
     primary_key = ["col_a", "col_b"]
     with pytest.raises(AttributeError):
-        merge_upsert_table(delta_df=delta_df, database='xxx_does_not_exist', table='xxx_does_not_exist',
-                           primary_key=primary_key)
+        merge_upsert_table(
+            delta_df=delta_df, database="xxx_does_not_exist", table="xxx_does_not_exist", primary_key=primary_key
+        )
 
 
 # pytest tests/test_s3_merge_upsert.py::test_success_case
+
 
 def test_success_case(glue_database, glue_table, path):
     df = pd.DataFrame(
         {"id": [1, 2], "cchar": ["foo", "boo"], "date": [datetime.date(2020, 1, 1), datetime.date(2020, 1, 2)]}
     )
     # Create the table
-    wr.s3.to_parquet(
-        df=df,
-        path=path,
-        index=False,
-        dataset=True,
-        database=glue_database,
-        table=glue_table
-    )["paths"]
-    delta_df = pd.DataFrame(
-        {"id": [1], "cchar": ["foo"], "date": [datetime.date(2021, 1, 1)]}
-    )
-    primary_key = ['id', 'cchar']
+    wr.s3.to_parquet(df=df, path=path, index=False, dataset=True, database=glue_database, table=glue_table)["paths"]
+    delta_df = pd.DataFrame({"id": [1], "cchar": ["foo"], "date": [datetime.date(2021, 1, 1)]})
+    primary_key = ["id", "cchar"]
     merge_upsert_table(delta_df=delta_df, database=glue_database, table=glue_table, primary_key=primary_key)
     merged_df = wr.s3.read_parquet_table(database=glue_database, table=glue_table)
     # Row count should still be 2 rows
-    assert merged_df.shape == (2,3)
+    assert merged_df.shape == (2, 3)
 
 
 def test_success_case2(glue_database, glue_table, path):
@@ -91,19 +85,12 @@ def test_success_case2(glue_database, glue_table, path):
         {"id": [1, 2], "cchar": ["foo", "boo"], "date": [datetime.date(2020, 1, 1), datetime.date(2020, 1, 2)]}
     )
     # Create the table
-    wr.s3.to_parquet(
-        df=df,
-        path=path,
-        index=False,
-        dataset=True,
-        database=glue_database,
-        table=glue_table
-    )["paths"]
+    wr.s3.to_parquet(df=df, path=path, index=False, dataset=True, database=glue_database, table=glue_table)["paths"]
     delta_df = pd.DataFrame(
         {"id": [1, 2], "cchar": ["foo", "boo"], "date": [datetime.date(2021, 1, 1), datetime.date(2021, 1, 2)]}
     )
-    primary_key = ['id', 'cchar']
+    primary_key = ["id", "cchar"]
     merge_upsert_table(delta_df=delta_df, database=glue_database, table=glue_table, primary_key=primary_key)
     merged_df = wr.s3.read_parquet_table(database=glue_database, table=glue_table)
     # Row count should still be 2 rows
-    assert merged_df.shape == (2,3)
+    assert merged_df.shape == (2, 3)
