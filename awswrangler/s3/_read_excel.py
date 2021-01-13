@@ -34,7 +34,7 @@ def read_excel(
     Parameters
     ----------
     path : Union[str, List[str]]
-        S3 path (e.g. ``[s3://bucket/key0``).
+        S3 path (e.g. ``s3://bucket/key.xlsx``).
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -45,7 +45,7 @@ def read_excel(
     pandas_kwargs:
         KEYWORD arguments forwarded to pandas.read_excel(). You can NOT pass `pandas_kwargs` explicit, just add valid
         Pandas arguments in the function call and Wrangler will accept it.
-        e.g. wr.s3.read_excel(path, na_rep="", verbose=True)
+        e.g. wr.s3.read_excel("s3://bucket/key.xlsx", na_rep="", verbose=True)
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_excel.html
 
     Returns
@@ -58,15 +58,14 @@ def read_excel(
     Reading an EXCEL file
 
     >>> import awswrangler as wr
-    >>> df = wr.s3.read_excel('s3://bucket/key')
+    >>> df = wr.s3.read_excel('s3://bucket/key.xlsx')
 
     """
     if "pandas_kwargs" in pandas_kwargs:
         raise exceptions.InvalidArgument(
             "You can NOT pass `pandas_kwargs` explicit, just add valid "
             "Pandas arguments in the function call and Wrangler will accept it."
-            "e.g. wr.s3.read_excel(path, na_rep="
-            ", verbose=True)"
+            "e.g. wr.s3.read_excel('s3://bucket/key.xlsx', na_rep='', verbose=True)"
         )
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     with open_s3_object(
