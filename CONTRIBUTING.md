@@ -222,7 +222,7 @@ You can choose from three different environments to test your fixes/changes, bas
 
 ``./cloudformation/delete-databases.sh``
 
-## Recommended Visual Studio Code Recommended settings
+## Recommended Visual Studio Code Recommended setting
 
 ```json
 {
