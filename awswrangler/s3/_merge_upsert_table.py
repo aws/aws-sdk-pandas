@@ -1,20 +1,23 @@
 """Amazon Merge Upsert Module which can upsert existing table (PRIVATE)."""
 
 import logging
-from typing import List
+from typing import List, Optional
 
+import boto3
 import pandas
 
 import awswrangler as wr
 
-logging.basicConfig(level=logging.INFO)
-logging.getLogger("awswrangler").setLevel(logging.DEBUG)
-logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _update_existing_table(
-    existing_df: pandas.DataFrame, delta_df: pandas.DataFrame, primary_key: List[str], database: str, table: str
+    existing_df: pandas.DataFrame,
+    delta_df: pandas.DataFrame,
+    primary_key: List[str],
+    database: str,
+    table: str,
+    boto3_session: Optional[boto3.Session],
 ) -> None:
     """Perform Update else Insert onto an existing Glue table."""
     # Set Index on the pandas dataframe so that join/concat can be made
@@ -27,7 +30,15 @@ def _update_existing_table(
     # Get existing tables location
     path = wr.catalog.get_table_location(database=database, table=table)
     # Write to Glue catalog
-    response = wr.s3.to_parquet(df=merged_df, path=path, dataset=True, database=database, table=table, mode="overwrite")
+    response = wr.s3.to_parquet(
+        df=merged_df,
+        path=path,
+        dataset=True,
+        database=database,
+        table=table,
+        mode="overwrite",
+        boto3_session=boto3_session,
+    )
     _logger.info("Successfully upserted %s.%s and got response as %s", database, table, str(response))
 
 
@@ -55,8 +66,40 @@ def _is_data_quality_sufficient(
     return len(error_messages) == 0
 
 
-def merge_upsert_table(delta_df: pandas.DataFrame, database: str, table: str, primary_key: List[str]) -> None:
-    """Perform Upsert (Update else Insert) onto an existing Glue table."""
+def merge_upsert_table(
+    delta_df: pandas.DataFrame,
+    database: str,
+    table: str,
+    primary_key: List[str],
+    boto3_session: Optional[boto3.Session] = None,
+) -> None:
+    """Perform Upsert (Update else Insert) onto an existing Glue table.
+    Parameters
+    ----------
+    delta_df : pandas.DataFrame
+        The delta dataframe has all the data which needs to be merged on the primary key
+    database: Str
+        An existing database name
+    table: Str
+        An existing table name
+    primary_key: List[str]
+        Pass the primary key as a List of string columns
+        List['column_a', 'column_b']
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    Returns
+    -------
+    None
+
+    Examples
+    --------
+    Reading all Parquet files under a prefix
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> delta_df = pd.DataFrame({"id": [1], "cchar": ["foo"], "date": [datetime.date(2021, 1, 2)]})
+    >>> primary_key = ["id", "cchar"]
+    >>> wr.s3.merge_upsert_table(delta_df=delta_df, database='glue_database', table='glue_table', primary_key=primary_key)
+    """
     # Check if table exists first
     if wr.catalog.does_table_exist(database=database, table=table):
         # Read the existing table into a pandas dataframe
@@ -65,11 +108,14 @@ def merge_upsert_table(delta_df: pandas.DataFrame, database: str, table: str, pr
         if _is_data_quality_sufficient(existing_df=existing_df, delta_df=delta_df, primary_key=primary_key) is True:
             # If data quality is sufficient then merge upsert the table
             _update_existing_table(
-                existing_df=existing_df, delta_df=delta_df, primary_key=primary_key, database=database, table=table
+                existing_df=existing_df,
+                delta_df=delta_df,
+                primary_key=primary_key,
+                database=database,
+                table=table,
+                boto3_session=boto3_session,
             )
-    elif wr.catalog.does_table_exist(database=database, table=table) is False:
+    else:
         exception_message = f"database= {database} and table= {table}  does not exist"
         _logger.exception(exception_message)
         raise AttributeError(exception_message)
-    else:
-        raise RuntimeError("Reached a unknown logical state")
