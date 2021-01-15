@@ -1,5 +1,6 @@
 import datetime
 import logging
+import string
 
 import boto3
 import numpy as np
@@ -822,7 +823,33 @@ def test_bucketing_catalog_parquet_table(path, glue_database, glue_table):
 
 
 @pytest.mark.parametrize("bucketing_data", [[0, 1, 2], [False, True, False], ["b", "c", "d"]])
-def test_bucketing_parquet_dataset(path, glue_database, glue_table, bucketing_data):
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        "int",
+        "int8",
+        "Int8",
+        "int16",
+        "Int16",
+        "int32",
+        "Int32",
+        "int64",
+        "Int64",
+        "bool",
+        "boolean",
+        "object",
+        "string",
+    ],
+)
+def test_bucketing_parquet_dataset(path, glue_database, glue_table, bucketing_data, dtype):
+    # Skip invalid combinations of data and data types
+    if type(bucketing_data[0]) == int and "int" not in dtype.lower():
+        pytest.skip()
+    if type(bucketing_data[0]) == bool and "bool" not in dtype.lower():
+        pytest.skip()
+    if type(bucketing_data[0]) == str and (dtype != "string" or dtype != "object"):
+        pytest.skip()
+
     nb_of_buckets = 2
     df = pd.DataFrame({"c0": bucketing_data, "c1": ["foo", "bar", "baz"]})
     r = wr.s3.to_parquet(
@@ -885,7 +912,33 @@ def test_bucketing_catalog_csv_table(path, glue_database, glue_table):
 
 
 @pytest.mark.parametrize("bucketing_data", [[0, 1, 2], [False, True, False], ["b", "c", "d"]])
-def test_bucketing_csv_dataset(path, glue_database, glue_table, bucketing_data):
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        "int",
+        "int8",
+        "Int8",
+        "int16",
+        "Int16",
+        "int32",
+        "Int32",
+        "int64",
+        "Int64",
+        "bool",
+        "boolean",
+        "object",
+        "string",
+    ],
+)
+def test_bucketing_csv_dataset(path, glue_database, glue_table, bucketing_data, dtype):
+    # Skip invalid combinations of data and data types
+    if type(bucketing_data[0]) == int and "int" not in dtype.lower():
+        pytest.skip()
+    if type(bucketing_data[0]) == bool and "bool" not in dtype.lower():
+        pytest.skip()
+    if type(bucketing_data[0]) == str and (dtype != "string" or dtype != "object"):
+        pytest.skip()
+
     nb_of_buckets = 2
     df = pd.DataFrame({"c0": bucketing_data, "c1": ["foo", "bar", "baz"]})
     r = wr.s3.to_csv(
@@ -1080,11 +1133,28 @@ def test_multiple_bucketing_columns_parquet_dataset(path, glue_database, glue_ta
     assert pd.Series(["bar", "baz"], dtype=pd.StringDtype()).equals(second_bucket_df["c2"])
 
 
-def test_bucketing_csv_saving(path, glue_database, glue_table):
-    nb_of_buckets = 10
-    nm_of_rows = 1_000
-    query = f"SELECT c0 FROM {glue_table} WHERE c0=0"
-    df = pd.DataFrame({"c0": np.arange(nm_of_rows)})
+@pytest.mark.parametrize("dtype", ["int", "str", "bool"])
+def test_bucketing_csv_saving(path, glue_database, glue_table, dtype):
+    nb_of_rows = 1_000
+    if dtype == "int":
+        nb_of_buckets = 10
+        saving_factor = 10
+        data = np.arange(nb_of_rows)
+        query_params = {"c0": 0}
+    elif dtype == "str":
+        nb_of_buckets = 10
+        saving_factor = 9.9
+        data = [string.ascii_letters[i % nb_of_buckets] for i in range(nb_of_rows)]
+        query_params = {"c0": "'a'"}
+    elif dtype == "bool":
+        nb_of_buckets = 2
+        saving_factor = 2.1
+        data = [bool(i % nb_of_buckets) for i in range(nb_of_rows)]
+        query_params = {"c0": True}
+    else:
+        raise ValueError(f"Invalid Argument for dtype: {dtype}")
+    query = f"SELECT c0 FROM {glue_table} WHERE c0=:c0;"
+    df = pd.DataFrame({"c0": data})
 
     # Regular
     wr.s3.to_csv(
@@ -1096,7 +1166,7 @@ def test_bucketing_csv_saving(path, glue_database, glue_table):
         mode="overwrite",
         index=False,
     )
-    df2 = wr.athena.read_sql_query(query, database=glue_database)
+    df2 = wr.athena.read_sql_query(query, database=glue_database, params=query_params, ctas_approach=False)
     scanned_regular = df2.query_metadata["Statistics"]["DataScannedInBytes"]
 
     # Bucketed
@@ -1110,8 +1180,52 @@ def test_bucketing_csv_saving(path, glue_database, glue_table):
         bucketing_info=(["c0"], nb_of_buckets),
         index=False,
     )
-    df3 = wr.athena.read_sql_query(query, database=glue_database)
+    df3 = wr.athena.read_sql_query(query, database=glue_database, params=query_params, ctas_approach=False)
+    scanned_bucketed = df3.query_metadata["Statistics"]["DataScannedInBytes"]
+
+    print(scanned_bucketed)
+    assert df2.equals(df3)
+    assert scanned_regular >= scanned_bucketed * saving_factor
+
+
+def test_bucketing_combined_csv_saving(path, glue_database, glue_table):
+    nb_of_rows = 1_000
+    nb_of_buckets = 10
+    df = pd.DataFrame(
+        {
+            "c0": np.arange(nb_of_rows),
+            "c1": [string.ascii_letters[i % nb_of_buckets] for i in range(nb_of_rows)],
+            "c2": [bool(i % 2) for i in range(nb_of_rows)],
+        }
+    )
+    query = f"SELECT c0 FROM {glue_table} WHERE c0=0 AND c1='a' AND c2=TRUE"
+
+    # Regular
+    wr.s3.to_csv(
+        df=df,
+        path=path,
+        database=glue_database,
+        table=glue_table,
+        dataset=True,
+        mode="overwrite",
+        index=False,
+    )
+    df2 = wr.athena.read_sql_query(query, database=glue_database, ctas_approach=False)
+    scanned_regular = df2.query_metadata["Statistics"]["DataScannedInBytes"]
+
+    # Bucketed
+    wr.s3.to_csv(
+        df=df,
+        path=path,
+        database=glue_database,
+        table=glue_table,
+        dataset=True,
+        mode="overwrite",
+        bucketing_info=(["c0", "c1", "c2"], nb_of_buckets),
+        index=False,
+    )
+    df3 = wr.athena.read_sql_query(query, database=glue_database, ctas_approach=False)
     scanned_bucketed = df3.query_metadata["Statistics"]["DataScannedInBytes"]
 
     assert df2.equals(df3)
-    assert scanned_regular >= scanned_bucketed * 10
+    assert scanned_regular >= scanned_bucketed * nb_of_buckets
