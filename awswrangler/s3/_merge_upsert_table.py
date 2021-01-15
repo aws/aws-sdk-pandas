@@ -61,7 +61,7 @@ def _is_data_quality_sufficient(
     if sum(pandas.DataFrame(delta_df, columns=primary_key).duplicated()) != 0:
         error_messages.append("Data inside the delta dataframe has duplicates.")
     # Return True only if no errors are encountered
-    _logger.info("error_messages %s", str(error_messages))
+    _logger.info("error_messages %s", error_messages)
     return len(error_messages) == 0
 
 
