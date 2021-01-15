@@ -63,7 +63,6 @@ def test_table_does_not_exist():
         )
 
 
-
 def test_success_case(glue_database, glue_table, path):
     df = pd.DataFrame(
         {"id": [1, 2], "cchar": ["foo", "boo"], "date": [datetime.date(2020, 1, 1), datetime.date(2020, 1, 2)]}
