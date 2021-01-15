@@ -63,8 +63,6 @@ def test_table_does_not_exist():
         )
 
 
-# pytest tests/test_s3_merge_upsert.py::test_success_case
-
 
 def test_success_case(glue_database, glue_table, path):
     df = pd.DataFrame(
