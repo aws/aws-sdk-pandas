@@ -74,6 +74,7 @@ def merge_upsert_table(
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
     """Perform Upsert (Update else Insert) onto an existing Glue table.
+
     Parameters
     ----------
     delta_df : pandas.DataFrame
@@ -87,6 +88,7 @@ def merge_upsert_table(
         List['column_a', 'column_b']
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
     Returns
     -------
     None
@@ -98,7 +100,7 @@ def merge_upsert_table(
     >>> import pandas as pd
     >>> delta_df = pd.DataFrame({"id": [1], "cchar": ["foo"], "date": [datetime.date(2021, 1, 2)]})
     >>> primary_key = ["id", "cchar"]
-    >>> wr.s3.merge_upsert_table(delta_df=delta_df, database='glue_database', table='glue_table', primary_key=primary_key)
+    >>> wr.s3.merge_upsert_table(delta_df=delta_df, database='database', table='table', primary_key=primary_key)
     """
     # Check if table exists first
     if wr.catalog.does_table_exist(database=database, table=table):
