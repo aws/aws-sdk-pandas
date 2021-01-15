@@ -53,14 +53,12 @@ def test_is_data_quality_sufficient_fail_for_duplicate_data():
 
 
 # pytest tests/test_s3_merge_upsert.py::test_merge_upsert_table_fail_as_table_does_not_exist
-def test_table_does_not_exist():
+def test_table_does_not_exist(glue_database, glue_table):
     # Fail as table does not exist
     delta_df = pd.DataFrame([[1, 2, 3], [4, 5, 6], [7, 8, 9]], columns=["col_a", "col_b", "col_c"])
     primary_key = ["col_a", "col_b"]
     with pytest.raises(AttributeError):
-        merge_upsert_table(
-            delta_df=delta_df, database="xxx_does_not_exist", table="xxx_does_not_exist", primary_key=primary_key
-        )
+        merge_upsert_table(delta_df=delta_df, database=glue_database, table=glue_table, primary_key=primary_key)
 
 
 def test_success_case(glue_database, glue_table, path):

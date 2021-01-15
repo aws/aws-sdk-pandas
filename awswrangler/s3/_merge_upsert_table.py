@@ -50,17 +50,16 @@ def _is_data_quality_sufficient(
     # Check for duplicates on the primary key in the existing table
     if sum(pandas.DataFrame(existing_df, columns=primary_key).duplicated()) != 0:
         error_messages.append("Data inside the existing table has duplicates.")
+    # Compare column name and column data types
+    if existing_df.dtypes.to_dict() != delta_df.dtypes.to_dict():
+        error_messages.append(
+            f"Column name or data types mismtach!"
+            f"\n Columns in uploaded file are {delta_df.dtypes.to_dict()}"
+            f"\n Columns in existing table are {existing_df.dtypes.to_dict()}"
+        )
     # Check for duplicates in the delta dataframe
     if sum(pandas.DataFrame(delta_df, columns=primary_key).duplicated()) != 0:
         error_messages.append("Data inside the delta dataframe has duplicates.")
-    if (
-        existing_df.shape[1] != delta_df.shape[1]
-        or len(existing_df.columns.intersection(delta_df.columns)) != existing_df.shape[1]
-    ):
-        error_messages.append(
-            f"Column names or number of columns mismatch! \n Columns in delta_df {delta_df.columns}.\n  Columns in "
-            f"existing_df is {existing_df.columns} "
-        )
     # Return True only if no errors are encountered
     _logger.info("error_messages %s", str(error_messages))
     return len(error_messages) == 0
