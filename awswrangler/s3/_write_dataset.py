@@ -108,7 +108,7 @@ def _get_bucket_number(number_of_buckets: int, values: List[Union[str, int, bool
 
 
 def _get_value_hash(value: Union[str, int, bool]) -> int:
-    if isinstance(value, (int, np.int)):
+    if isinstance(value, (int, np.integer)):
         return int(value)
     if isinstance(value, (str, np.str)):
         value_hash = 0

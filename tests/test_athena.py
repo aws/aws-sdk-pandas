@@ -1078,3 +1078,40 @@ def test_multiple_bucketing_columns_parquet_dataset(path, glue_database, glue_ta
     assert pd.Series([1, 2], dtype=pd.Int64Dtype()).equals(second_bucket_df["c0"])
     assert pd.Series([6, 5], dtype=pd.Int64Dtype()).equals(second_bucket_df["c1"])
     assert pd.Series(["bar", "baz"], dtype=pd.StringDtype()).equals(second_bucket_df["c2"])
+
+
+def test_bucketing_csv_saving(path, glue_database, glue_table):
+    nb_of_buckets = 10
+    nm_of_rows = 1_000
+    query = f"SELECT c0 FROM {glue_table} WHERE c0=0"
+    df = pd.DataFrame({"c0": np.arange(nm_of_rows)})
+
+    # Regular
+    wr.s3.to_csv(
+        df=df,
+        path=path,
+        database=glue_database,
+        table=glue_table,
+        dataset=True,
+        mode="overwrite",
+        index=False,
+    )
+    df2 = wr.athena.read_sql_query(query, database=glue_database)
+    scanned_regular = df2.query_metadata["Statistics"]["DataScannedInBytes"]
+
+    # Bucketed
+    wr.s3.to_csv(
+        df=df,
+        path=path,
+        database=glue_database,
+        table=glue_table,
+        dataset=True,
+        mode="overwrite",
+        bucketing_info=(["c0"], nb_of_buckets),
+        index=False,
+    )
+    df3 = wr.athena.read_sql_query(query, database=glue_database)
+    scanned_bucketed = df3.query_metadata["Statistics"]["DataScannedInBytes"]
+
+    assert df2.equals(df3)
+    assert scanned_regular >= scanned_bucketed * 10
