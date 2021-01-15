@@ -87,6 +87,8 @@ def pyarrow2redshift(  # pylint: disable=too-many-branches,too-many-return-state
         return f"DECIMAL({dtype.precision},{dtype.scale})"
     if pa.types.is_dictionary(dtype):
         return pyarrow2redshift(dtype=dtype.value_type, string_type=string_type)
+    if pa.types.is_list(dtype) or pa.types.is_struct(dtype):
+        return "SUPER"
     raise exceptions.UnsupportedType(f"Unsupported Redshift type: {dtype}")
 
 
@@ -374,6 +376,8 @@ def athena2redshift(  # pylint: disable=too-many-branches,too-many-return-statem
         return "DATE"
     if dtype.startswith("decimal"):
         return dtype.upper()
+    if dtype.startswith("array") or dtype.startswith("struct"):
+        return "SUPER"
     raise exceptions.UnsupportedType(f"Unsupported Redshift type: {dtype}")
 
 

@@ -759,6 +759,7 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
         parameters=parameters,
         columns_comments=columns_comments,
         mode=mode,
+        compression=compression,
         catalog_versioning=catalog_versioning,
         projection_enabled=projection_enabled,
         projection_types=projection_types,
