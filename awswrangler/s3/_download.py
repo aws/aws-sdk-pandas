@@ -72,5 +72,5 @@ def download(
             with open(file=local_file, mode="wb") as local_f:
                 local_f.write(s3_f.read())
         else:
-            _logger.debug("Uploading file-like object.")
+            _logger.debug("Downloading file-like object.")
             local_file.write(s3_f.read())
