@@ -365,7 +365,7 @@ def connect(
 
     Examples
     --------
-    Fetching Redshit connection from Glue Catalog
+    Fetching Redshift connection from Glue Catalog
 
     >>> import awswrangler as wr
     >>> con = wr.redshift.connect("MY_GLUE_CONNECTION")
@@ -374,7 +374,7 @@ def connect(
     >>>     print(cursor.fetchall())
     >>> con.close()
 
-    Fetching Redshit connection from Secrets Manager
+    Fetching Redshift connection from Secrets Manager
 
     >>> import awswrangler as wr
     >>> con = wr.redshift.connect(secret_id="MY_SECRET")
