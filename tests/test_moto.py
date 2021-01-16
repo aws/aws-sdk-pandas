@@ -245,6 +245,67 @@ def test_csv(moto_s3):
     assert len(df.columns) == 10
 
 
+def test_download_file(moto_s3, tmp_path):
+    bucket = "bucket"
+    key = "foo.tmp"
+    content = b"foo"
+
+    s3_object = moto_s3.Object(bucket, key)
+    s3_object.put(Body=content)
+
+    path = "s3://{}/{}".format(bucket, key)
+    local_file = tmp_path / key
+    wr.s3.download(path=path, local_file=str(local_file))
+    assert local_file.read_bytes() == content
+
+
+def test_download_fileobj(moto_s3, tmp_path):
+    bucket = "bucket"
+    key = "foo.tmp"
+    content = b"foo"
+
+    s3_object = moto_s3.Object(bucket, key)
+    s3_object.put(Body=content)
+
+    path = "s3://{}/{}".format(bucket, key)
+    local_file = tmp_path / key
+
+    with open(local_file, "wb") as local_f:
+        wr.s3.download(path=path, local_file=local_f)
+    assert local_file.read_bytes() == content
+
+
+def test_upload_file(moto_s3, tmp_path):
+    bucket = "bucket"
+    key = "foo.tmp"
+    content = b"foo"
+
+    path = "s3://{}/{}".format(bucket, key)
+    local_file = tmp_path / key
+
+    local_file.write_bytes(content)
+    wr.s3.upload(local_file=str(local_file), path=path)
+
+    s3_object = moto_s3.Object(bucket, key)
+    assert s3_object.get()["Body"].read() == content
+
+
+def test_upload_fileobj(moto_s3, tmp_path):
+    bucket = "bucket"
+    key = "foo.tmp"
+    content = b"foo"
+
+    path = "s3://{}/{}".format(bucket, key)
+    local_file = tmp_path / key
+
+    local_file.write_bytes(content)
+    with open(local_file, "rb") as local_f:
+        wr.s3.upload(local_file=local_f, path=path)
+
+    s3_object = moto_s3.Object(bucket, key)
+    assert s3_object.get()["Body"].read() == content
+
+
 def test_read_csv_with_chucksize_and_pandas_arguments(moto_s3):
     path = "s3://bucket/test.csv"
     wr.s3.to_csv(df=get_df_csv(), path=path, index=False)
