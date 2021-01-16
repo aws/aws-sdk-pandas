@@ -1,7 +1,7 @@
 """AWS Glue Catalog Delete Module."""
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import boto3
 
@@ -44,6 +44,7 @@ def add_csv_partitions(
     database: str,
     table: str,
     partitions_values: Dict[str, List[str]],
+    bucketing_info: Optional[Tuple[List[str], int]] = None,
     catalog_id: Optional[str] = None,
     compression: Optional[str] = None,
     sep: str = ",",
@@ -61,6 +62,10 @@ def add_csv_partitions(
     partitions_values: Dict[str, List[str]]
         Dictionary with keys as S3 path locations and values as a list of partitions values as str
         (e.g. {'s3://bucket/prefix/y=2020/m=10/': ['2020', '10']}).
+    bucketing_info: Tuple[List[str], int], optional
+        Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
+        second element.
+        Only `str`, `int` and `bool` are supported as column data types for bucketing.
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
@@ -95,7 +100,14 @@ def add_csv_partitions(
 
     """
     inputs: List[Dict[str, Any]] = [
-        _csv_partition_definition(location=k, values=v, compression=compression, sep=sep, columns_types=columns_types)
+        _csv_partition_definition(
+            location=k,
+            values=v,
+            bucketing_info=bucketing_info,
+            compression=compression,
+            sep=sep,
+            columns_types=columns_types,
+        )
         for k, v in partitions_values.items()
     ]
     _add_partitions(database=database, table=table, boto3_session=boto3_session, inputs=inputs, catalog_id=catalog_id)
@@ -106,6 +118,7 @@ def add_parquet_partitions(
     database: str,
     table: str,
     partitions_values: Dict[str, List[str]],
+    bucketing_info: Optional[Tuple[List[str], int]] = None,
     catalog_id: Optional[str] = None,
     compression: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
@@ -122,6 +135,10 @@ def add_parquet_partitions(
     partitions_values: Dict[str, List[str]]
         Dictionary with keys as S3 path locations and values as a list of partitions values as str
         (e.g. {'s3://bucket/prefix/y=2020/m=10/': ['2020', '10']}).
+    bucketing_info: Tuple[List[str], int], optional
+        Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
+        second element.
+        Only `str`, `int` and `bool` are supported as column data types for bucketing.
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
@@ -156,7 +173,13 @@ def add_parquet_partitions(
     table = sanitize_table_name(table=table)
     if partitions_values:
         inputs: List[Dict[str, Any]] = [
-            _parquet_partition_definition(location=k, values=v, compression=compression, columns_types=columns_types)
+            _parquet_partition_definition(
+                location=k,
+                values=v,
+                bucketing_info=bucketing_info,
+                compression=compression,
+                columns_types=columns_types,
+            )
             for k, v in partitions_values.items()
         ]
         _add_partitions(
