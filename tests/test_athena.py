@@ -1,5 +1,6 @@
 import datetime
 import logging
+import string
 
 import boto3
 import numpy as np
@@ -802,3 +803,429 @@ def test_chunked_ctas_false(glue_database):
     sql = "SELECT 1 AS foo, 2 AS boo"
     df_iter = wr.athena.read_sql_query(sql, database=glue_database, ctas_approach=False, chunksize=True)
     assert len(list(df_iter)) == 1
+
+
+def test_bucketing_catalog_parquet_table(path, glue_database, glue_table):
+    nb_of_buckets = 3
+    bucket_cols = ["col0"]
+    wr.catalog.create_parquet_table(
+        database=glue_database,
+        table=glue_table,
+        path=path,
+        columns_types={"col0": "int", "col1": "double"},
+        bucketing_info=(bucket_cols, nb_of_buckets),
+    )
+
+    table = next(wr.catalog.get_tables(name_contains=glue_table))
+    assert table["StorageDescriptor"]["NumberOfBuckets"] == nb_of_buckets
+    assert table["StorageDescriptor"]["BucketColumns"] == bucket_cols
+    assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
+
+
+@pytest.mark.parametrize("bucketing_data", [[0, 1, 2], [False, True, False], ["b", "c", "d"]])
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        "int",
+        "int8",
+        "Int8",
+        "int16",
+        "Int16",
+        "int32",
+        "Int32",
+        "int64",
+        "Int64",
+        "bool",
+        "boolean",
+        "object",
+        "string",
+    ],
+)
+def test_bucketing_parquet_dataset(path, glue_database, glue_table, bucketing_data, dtype):
+    # Skip invalid combinations of data and data types
+    if type(bucketing_data[0]) == int and "int" not in dtype.lower():
+        pytest.skip()
+    if type(bucketing_data[0]) == bool and "bool" not in dtype.lower():
+        pytest.skip()
+    if type(bucketing_data[0]) == str and (dtype != "string" or dtype != "object"):
+        pytest.skip()
+
+    nb_of_buckets = 2
+    df = pd.DataFrame({"c0": bucketing_data, "c1": ["foo", "bar", "baz"]})
+    r = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        database=glue_database,
+        table=glue_table,
+        dataset=True,
+        mode="overwrite",
+        bucketing_info=(["c0"], nb_of_buckets),
+    )
+
+    assert len(r["paths"]) == 2
+    assert r["paths"][0].endswith("bucket-00000.snappy.parquet")
+    assert r["paths"][1].endswith("bucket-00001.snappy.parquet")
+
+    dtype = None
+    if isinstance(bucketing_data[0], int):
+        dtype = pd.Int64Dtype()
+    if isinstance(bucketing_data[0], bool):
+        dtype = pd.BooleanDtype()
+    if isinstance(bucketing_data[0], str):
+        dtype = pd.StringDtype()
+
+    first_bucket_df = wr.s3.read_parquet(path=[r["paths"][0]])
+    assert len(first_bucket_df) == 2
+    assert pd.Series([bucketing_data[0], bucketing_data[2]], dtype=dtype).equals(first_bucket_df["c0"])
+    assert pd.Series(["foo", "baz"], dtype=pd.StringDtype()).equals(first_bucket_df["c1"])
+
+    second_bucket_df = wr.s3.read_parquet(path=[r["paths"][1]])
+    assert len(second_bucket_df) == 1
+    assert pd.Series([bucketing_data[1]], dtype=dtype).equals(second_bucket_df["c0"])
+    assert pd.Series(["bar"], dtype=pd.StringDtype()).equals(second_bucket_df["c1"])
+
+    loaded_dfs = [
+        wr.s3.read_parquet(path=path),
+        wr.athena.read_sql_table(table=glue_table, database=glue_database, ctas_approach=False),
+    ]
+
+    for loaded_df in loaded_dfs:
+        assert len(loaded_df) == 3
+        assert all(x in bucketing_data for x in loaded_df["c0"].to_list())
+
+
+def test_bucketing_catalog_csv_table(path, glue_database, glue_table):
+    nb_of_buckets = 3
+    bucket_cols = ["col0"]
+    wr.catalog.create_csv_table(
+        database=glue_database,
+        table=glue_table,
+        path=path,
+        columns_types={"col0": "int", "col1": "double"},
+        bucketing_info=(bucket_cols, nb_of_buckets),
+    )
+
+    table = next(wr.catalog.get_tables(name_contains=glue_table))
+    assert table["StorageDescriptor"]["NumberOfBuckets"] == nb_of_buckets
+    assert table["StorageDescriptor"]["BucketColumns"] == bucket_cols
+    assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
+
+
+@pytest.mark.parametrize("bucketing_data", [[0, 1, 2], [False, True, False], ["b", "c", "d"]])
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        "int",
+        "int8",
+        "Int8",
+        "int16",
+        "Int16",
+        "int32",
+        "Int32",
+        "int64",
+        "Int64",
+        "bool",
+        "boolean",
+        "object",
+        "string",
+    ],
+)
+def test_bucketing_csv_dataset(path, glue_database, glue_table, bucketing_data, dtype):
+    # Skip invalid combinations of data and data types
+    if type(bucketing_data[0]) == int and "int" not in dtype.lower():
+        pytest.skip()
+    if type(bucketing_data[0]) == bool and "bool" not in dtype.lower():
+        pytest.skip()
+    if type(bucketing_data[0]) == str and (dtype != "string" or dtype != "object"):
+        pytest.skip()
+
+    nb_of_buckets = 2
+    df = pd.DataFrame({"c0": bucketing_data, "c1": ["foo", "bar", "baz"]})
+    r = wr.s3.to_csv(
+        df=df,
+        path=path,
+        database=glue_database,
+        table=glue_table,
+        dataset=True,
+        mode="overwrite",
+        bucketing_info=(["c0"], nb_of_buckets),
+        index=False,
+    )
+
+    assert len(r["paths"]) == 2
+    assert r["paths"][0].endswith("bucket-00000.csv")
+    assert r["paths"][1].endswith("bucket-00001.csv")
+
+    first_bucket_df = wr.s3.read_csv(path=[r["paths"][0]], header=None, names=["c0", "c1"])
+    assert len(first_bucket_df) == 2
+    assert pd.Series([bucketing_data[0], bucketing_data[2]]).equals(first_bucket_df["c0"])
+    assert pd.Series(["foo", "baz"]).equals(first_bucket_df["c1"])
+
+    second_bucket_df = wr.s3.read_csv(path=[r["paths"][1]], header=None, names=["c0", "c1"])
+    assert len(second_bucket_df) == 1
+    assert pd.Series([bucketing_data[1]]).equals(second_bucket_df["c0"])
+    assert pd.Series(["bar"]).equals(second_bucket_df["c1"])
+
+    loaded_dfs = [
+        wr.s3.read_csv(path=path, header=None, names=["c0", "c1"]),
+        wr.athena.read_sql_table(table=glue_table, database=glue_database, ctas_approach=False),
+    ]
+
+    for loaded_df in loaded_dfs:
+        assert len(loaded_df) == 3
+        assert all(x in bucketing_data for x in loaded_df["c0"].to_list())
+
+
+@pytest.mark.parametrize("bucketing_data", [[0, 1, 2, 3], [False, True, False, True], ["b", "c", "d", "e"]])
+def test_combined_bucketing_partitioning_parquet_dataset(path, glue_database, glue_table, bucketing_data):
+    nb_of_buckets = 2
+    df = pd.DataFrame(
+        {"c0": bucketing_data, "c1": ["foo", "bar", "baz", "boo"], "par_col": ["par1", "par1", "par2", "par2"]}
+    )
+    r = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        database=glue_database,
+        table=glue_table,
+        dataset=True,
+        mode="overwrite",
+        partition_cols=["par_col"],
+        bucketing_info=(["c0"], nb_of_buckets),
+    )
+
+    assert len(r["paths"]) == 4
+    assert r["paths"][0].endswith("bucket-00000.snappy.parquet")
+    assert r["paths"][1].endswith("bucket-00001.snappy.parquet")
+    partitions_values_keys = list(r["partitions_values"].keys())
+    assert partitions_values_keys[0] in r["paths"][0]
+    assert partitions_values_keys[0] in r["paths"][1]
+
+    assert r["paths"][2].endswith("bucket-00000.snappy.parquet")
+    assert r["paths"][3].endswith("bucket-00001.snappy.parquet")
+    assert partitions_values_keys[1] in r["paths"][2]
+    assert partitions_values_keys[1] in r["paths"][3]
+
+    dtype = None
+    if isinstance(bucketing_data[0], int):
+        dtype = pd.Int64Dtype()
+    if isinstance(bucketing_data[0], bool):
+        dtype = pd.BooleanDtype()
+    if isinstance(bucketing_data[0], str):
+        dtype = pd.StringDtype()
+
+    bucket_df = wr.s3.read_parquet(path=[r["paths"][0]])
+    assert len(bucket_df) == 1
+    assert pd.Series([bucketing_data[0]], dtype=dtype).equals(bucket_df["c0"])
+    assert pd.Series(["foo"], dtype=pd.StringDtype()).equals(bucket_df["c1"])
+
+    bucket_df = wr.s3.read_parquet(path=[r["paths"][1]])
+    assert len(bucket_df) == 1
+    assert pd.Series([bucketing_data[1]], dtype=dtype).equals(bucket_df["c0"])
+    assert pd.Series(["bar"], dtype=pd.StringDtype()).equals(bucket_df["c1"])
+
+    bucket_df = wr.s3.read_parquet(path=[r["paths"][2]])
+    assert len(bucket_df) == 1
+    assert pd.Series([bucketing_data[2]], dtype=dtype).equals(bucket_df["c0"])
+    assert pd.Series(["baz"], dtype=pd.StringDtype()).equals(bucket_df["c1"])
+
+    bucket_df = wr.s3.read_parquet(path=[r["paths"][3]])
+    assert len(bucket_df) == 1
+    assert pd.Series([bucketing_data[3]], dtype=dtype).equals(bucket_df["c0"])
+    assert pd.Series(["boo"], dtype=pd.StringDtype()).equals(bucket_df["c1"])
+
+    loaded_dfs = [
+        wr.s3.read_parquet(path=path),
+        wr.athena.read_sql_table(table=glue_table, database=glue_database, ctas_approach=False),
+    ]
+
+    for loaded_df in loaded_dfs:
+        assert len(loaded_df) == 4
+        assert all(x in bucketing_data for x in loaded_df["c0"].to_list())
+
+
+@pytest.mark.parametrize("bucketing_data", [[0, 1, 2, 3], [False, True, False, True], ["b", "c", "d", "e"]])
+def test_combined_bucketing_partitioning_csv_dataset(path, glue_database, glue_table, bucketing_data):
+    nb_of_buckets = 2
+    df = pd.DataFrame(
+        {"c0": bucketing_data, "c1": ["foo", "bar", "baz", "boo"], "par_col": ["par1", "par1", "par2", "par2"]}
+    )
+    r = wr.s3.to_csv(
+        df=df,
+        path=path,
+        database=glue_database,
+        table=glue_table,
+        dataset=True,
+        mode="overwrite",
+        partition_cols=["par_col"],
+        bucketing_info=(["c0"], nb_of_buckets),
+        index=False,
+    )
+
+    assert len(r["paths"]) == 4
+    assert r["paths"][0].endswith("bucket-00000.csv")
+    assert r["paths"][1].endswith("bucket-00001.csv")
+    partitions_values_keys = list(r["partitions_values"].keys())
+    assert partitions_values_keys[0] in r["paths"][0]
+    assert partitions_values_keys[0] in r["paths"][1]
+
+    assert r["paths"][2].endswith("bucket-00000.csv")
+    assert r["paths"][3].endswith("bucket-00001.csv")
+    assert partitions_values_keys[1] in r["paths"][2]
+    assert partitions_values_keys[1] in r["paths"][3]
+
+    bucket_df = wr.s3.read_csv(path=[r["paths"][0]], header=None, names=["c0", "c1"])
+    assert len(bucket_df) == 1
+    assert pd.Series([bucketing_data[0]]).equals(bucket_df["c0"])
+    assert pd.Series(["foo"]).equals(bucket_df["c1"])
+
+    bucket_df = wr.s3.read_csv(path=[r["paths"][1]], header=None, names=["c0", "c1"])
+    assert len(bucket_df) == 1
+    assert pd.Series([bucketing_data[1]]).equals(bucket_df["c0"])
+    assert pd.Series(["bar"]).equals(bucket_df["c1"])
+
+    bucket_df = wr.s3.read_csv(path=[r["paths"][2]], header=None, names=["c0", "c1"])
+    assert len(bucket_df) == 1
+    assert pd.Series([bucketing_data[2]]).equals(bucket_df["c0"])
+    assert pd.Series(["baz"]).equals(bucket_df["c1"])
+
+    bucket_df = wr.s3.read_csv(path=[r["paths"][3]], header=None, names=["c0", "c1"])
+    assert len(bucket_df) == 1
+    assert pd.Series([bucketing_data[3]]).equals(bucket_df["c0"])
+    assert pd.Series(["boo"]).equals(bucket_df["c1"])
+
+    loaded_dfs = [
+        wr.s3.read_csv(path=path, header=None, names=["c0", "c1"]),
+        wr.athena.read_sql_table(table=glue_table, database=glue_database, ctas_approach=False),
+    ]
+
+    for loaded_df in loaded_dfs:
+        assert len(loaded_df) == 4
+        assert all(x in bucketing_data for x in loaded_df["c0"].to_list())
+
+
+def test_multiple_bucketing_columns_parquet_dataset(path, glue_database, glue_table):
+    nb_of_buckets = 2
+    df = pd.DataFrame({"c0": [0, 1, 2, 3], "c1": [4, 6, 5, 7], "c2": ["foo", "bar", "baz", "boo"]})
+    r = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        database=glue_database,
+        table=glue_table,
+        dataset=True,
+        mode="overwrite",
+        bucketing_info=(["c0", "c1"], nb_of_buckets),
+    )
+
+    assert len(r["paths"]) == 2
+    assert r["paths"][0].endswith("bucket-00000.snappy.parquet")
+    assert r["paths"][1].endswith("bucket-00001.snappy.parquet")
+
+    first_bucket_df = wr.s3.read_parquet(path=[r["paths"][0]])
+    assert len(first_bucket_df) == 2
+    assert pd.Series([0, 3], dtype=pd.Int64Dtype()).equals(first_bucket_df["c0"])
+    assert pd.Series([4, 7], dtype=pd.Int64Dtype()).equals(first_bucket_df["c1"])
+    assert pd.Series(["foo", "boo"], dtype=pd.StringDtype()).equals(first_bucket_df["c2"])
+
+    second_bucket_df = wr.s3.read_parquet(path=[r["paths"][1]])
+    assert len(second_bucket_df) == 2
+    assert pd.Series([1, 2], dtype=pd.Int64Dtype()).equals(second_bucket_df["c0"])
+    assert pd.Series([6, 5], dtype=pd.Int64Dtype()).equals(second_bucket_df["c1"])
+    assert pd.Series(["bar", "baz"], dtype=pd.StringDtype()).equals(second_bucket_df["c2"])
+
+
+@pytest.mark.parametrize("dtype", ["int", "str", "bool"])
+def test_bucketing_csv_saving(path, glue_database, glue_table, dtype):
+    nb_of_rows = 1_000
+    if dtype == "int":
+        nb_of_buckets = 10
+        saving_factor = 10
+        data = np.arange(nb_of_rows)
+        query_params = {"c0": 0}
+    elif dtype == "str":
+        nb_of_buckets = 10
+        saving_factor = 9.9
+        data = [string.ascii_letters[i % nb_of_buckets] for i in range(nb_of_rows)]
+        query_params = {"c0": "'a'"}
+    elif dtype == "bool":
+        nb_of_buckets = 2
+        saving_factor = 2.1
+        data = [bool(i % nb_of_buckets) for i in range(nb_of_rows)]
+        query_params = {"c0": True}
+    else:
+        raise ValueError(f"Invalid Argument for dtype: {dtype}")
+    query = f"SELECT c0 FROM {glue_table} WHERE c0=:c0;"
+    df = pd.DataFrame({"c0": data})
+
+    # Regular
+    wr.s3.to_csv(
+        df=df,
+        path=path,
+        database=glue_database,
+        table=glue_table,
+        dataset=True,
+        mode="overwrite",
+        index=False,
+    )
+    df2 = wr.athena.read_sql_query(query, database=glue_database, params=query_params, ctas_approach=False)
+    scanned_regular = df2.query_metadata["Statistics"]["DataScannedInBytes"]
+
+    # Bucketed
+    wr.s3.to_csv(
+        df=df,
+        path=path,
+        database=glue_database,
+        table=glue_table,
+        dataset=True,
+        mode="overwrite",
+        bucketing_info=(["c0"], nb_of_buckets),
+        index=False,
+    )
+    df3 = wr.athena.read_sql_query(query, database=glue_database, params=query_params, ctas_approach=False)
+    scanned_bucketed = df3.query_metadata["Statistics"]["DataScannedInBytes"]
+
+    print(scanned_bucketed)
+    assert df2.equals(df3)
+    assert scanned_regular >= scanned_bucketed * saving_factor
+
+
+def test_bucketing_combined_csv_saving(path, glue_database, glue_table):
+    nb_of_rows = 1_000
+    nb_of_buckets = 10
+    df = pd.DataFrame(
+        {
+            "c0": np.arange(nb_of_rows),
+            "c1": [string.ascii_letters[i % nb_of_buckets] for i in range(nb_of_rows)],
+            "c2": [bool(i % 2) for i in range(nb_of_rows)],
+        }
+    )
+    query = f"SELECT c0 FROM {glue_table} WHERE c0=0 AND c1='a' AND c2=TRUE"
+
+    # Regular
+    wr.s3.to_csv(
+        df=df,
+        path=path,
+        database=glue_database,
+        table=glue_table,
+        dataset=True,
+        mode="overwrite",
+        index=False,
+    )
+    df2 = wr.athena.read_sql_query(query, database=glue_database, ctas_approach=False)
+    scanned_regular = df2.query_metadata["Statistics"]["DataScannedInBytes"]
+
+    # Bucketed
+    wr.s3.to_csv(
+        df=df,
+        path=path,
+        database=glue_database,
+        table=glue_table,
+        dataset=True,
+        mode="overwrite",
+        bucketing_info=(["c0", "c1", "c2"], nb_of_buckets),
+        index=False,
+    )
+    df3 = wr.athena.read_sql_query(query, database=glue_database, ctas_approach=False)
+    scanned_bucketed = df3.query_metadata["Statistics"]["DataScannedInBytes"]
+
+    assert df2.equals(df3)
+    assert scanned_regular >= scanned_bucketed * nb_of_buckets

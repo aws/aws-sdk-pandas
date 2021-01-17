@@ -49,6 +49,7 @@ def _validate_args(
     dataset: bool,
     path: str,
     partition_cols: Optional[List[str]],
+    bucketing_info: Optional[Tuple[List[str], int]],
     mode: Optional[str],
     description: Optional[str],
     parameters: Optional[Dict[str, str]],
@@ -63,6 +64,8 @@ def _validate_args(
             )
         if partition_cols:
             raise exceptions.InvalidArgumentCombination("Please, pass dataset=True to be able to use partition_cols.")
+        if bucketing_info:
+            raise exceptions.InvalidArgumentCombination("Please, pass dataset=True to be able to use bucketing_info.")
         if mode is not None:
             raise exceptions.InvalidArgumentCombination("Please pass dataset=True to be able to use mode.")
         if any(arg is not None for arg in (table, description, parameters, columns_comments)):
@@ -75,6 +78,10 @@ def _validate_args(
         raise exceptions.InvalidArgumentCombination(
             "Arguments database and table must be passed together. If you want to store your dataset metadata in "
             "the Glue Catalog, please ensure you are passing both."
+        )
+    elif bucketing_info and bucketing_info[1] <= 0:
+        raise exceptions.InvalidArgumentValue(
+            "Please pass a value greater than 1 for the number of buckets for bucketing."
         )
 
 
