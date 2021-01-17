@@ -37,13 +37,16 @@ def _to_text(
     s3_additional_kwargs: Optional[Dict[str, str]],
     path: Optional[str] = None,
     path_root: Optional[str] = None,
+    filename: Optional[str] = None,
     **pandas_kwargs: Any,
 ) -> List[str]:
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
     if path is None and path_root is not None:
+        if filename is None:
+            filename = uuid.uuid4().hex
         file_path: str = (
-            f"{path_root}{uuid.uuid4().hex}.{file_format}{_COMPRESSION_2_EXT.get(pandas_kwargs.get('compression'))}"
+            f"{path_root}{filename}.{file_format}{_COMPRESSION_2_EXT.get(pandas_kwargs.get('compression'))}"
         )
     elif path is not None and path_root is None:
         file_path = path
@@ -81,6 +84,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     sanitize_columns: bool = False,
     dataset: bool = False,
     partition_cols: Optional[List[str]] = None,
+    bucketing_info: Optional[Tuple[List[str], int]] = None,
     concurrent_partitioning: bool = False,
     mode: Optional[str] = None,
     catalog_versioning: bool = False,
@@ -161,6 +165,10 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         projection_intervals, projection_digits, catalog_id, schema_evolution.
     partition_cols: List[str], optional
         List of column names that will be used to create partitions. Only takes effect if dataset=True.
+    bucketing_info: Tuple[List[str], int], optional
+        Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
+        second element.
+        Only `str`, `int` and `bool` are supported as column data types for bucketing.
     concurrent_partitioning: bool
         If True will increase the parallelism level during the partitions writing. It will decrease the
         writing time and increase the memory usage.
@@ -300,6 +308,24 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         }
     }
 
+    Writing bucketed dataset
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.s3.to_csv(
+    ...     df=pd.DataFrame({
+    ...         'col': [1, 2, 3],
+    ...         'col2': ['A', 'A', 'B']
+    ...     }),
+    ...     path='s3://bucket/prefix',
+    ...     dataset=True,
+    ...     bucketing_info=(["col2"], 2)
+    ... )
+    {
+        'paths': ['s3://.../x_bucket-00000.csv', 's3://.../col2=B/x_bucket-00001.csv'],
+        'partitions_values: {}
+    }
+
     Writing dataset to S3 with metadata on Athena/Glue Catalog.
 
     >>> import awswrangler as wr
@@ -363,6 +389,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         dataset=dataset,
         path=path,
         partition_cols=partition_cols,
+        bucketing_info=bucketing_info,
         mode=mode,
         description=description,
         parameters=parameters,
@@ -439,6 +466,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             compression=compression,
             use_threads=use_threads,
             partition_cols=partition_cols,
+            bucketing_info=bucketing_info,
             mode=mode,
             boto3_session=session,
             s3_additional_kwargs=s3_additional_kwargs,
@@ -460,6 +488,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                     path=path,
                     columns_types=columns_types,
                     partitions_types=partitions_types,
+                    bucketing_info=bucketing_info,
                     description=description,
                     parameters=parameters,
                     columns_comments=columns_comments,
@@ -484,6 +513,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                         database=database,
                         table=table,
                         partitions_values=partitions_values,
+                        bucketing_info=bucketing_info,
                         boto3_session=session,
                         sep=sep,
                         catalog_id=catalog_id,
