@@ -28,7 +28,7 @@ def _update_existing_table(
     # Remove the index and drop the index columns
     merged_df = merged_df.reset_index(drop=True)
     # Get existing tables location
-    path = wr.catalog.get_table_location(database=database, table=table)
+    path = wr.catalog.get_table_location(database=database, table=table, boto3_session=boto3_session)
     # Write to Glue catalog
     response = wr.s3.to_parquet(
         df=merged_df,
@@ -61,7 +61,7 @@ def _is_data_quality_sufficient(
     if sum(pandas.DataFrame(delta_df, columns=primary_key).duplicated()) != 0:
         error_messages.append("Data inside the delta dataframe has duplicates.")
     # Return True only if no errors are encountered
-    _logger.info("error_messages %s", str(error_messages))
+    _logger.info("error_messages %s", error_messages)
     return len(error_messages) == 0
 
 
@@ -102,11 +102,11 @@ def merge_upsert_table(
     >>> wr.s3.merge_upsert_table(delta_df=delta_df, database='database', table='table', primary_key=primary_key)
     """
     # Check if table exists first
-    if wr.catalog.does_table_exist(database=database, table=table):
+    if wr.catalog.does_table_exist(database=database, table=table, boto3_session=boto3_session):
         # Read the existing table into a pandas dataframe
-        existing_df = wr.s3.read_parquet_table(database=database, table=table)
+        existing_df = wr.s3.read_parquet_table(database=database, table=table, boto3_session=boto3_session)
         # Check if data quality inside dataframes to be merged are sufficient
-        if _is_data_quality_sufficient(existing_df=existing_df, delta_df=delta_df, primary_key=primary_key) is True:
+        if _is_data_quality_sufficient(existing_df=existing_df, delta_df=delta_df, primary_key=primary_key):
             # If data quality is sufficient then merge upsert the table
             _update_existing_table(
                 existing_df=existing_df,
