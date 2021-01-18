@@ -29,6 +29,7 @@ Amazon S3
     delete_objects
     describe_objects
     does_object_exist
+    download
     get_bucket_region
     list_directories
     list_objects
@@ -47,6 +48,7 @@ Amazon S3
     to_excel
     to_json
     to_parquet
+    upload
     wait_objects_exist
     wait_objects_not_exist
 
