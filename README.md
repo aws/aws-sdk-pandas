@@ -15,7 +15,7 @@ Easy integration with Athena, Glue, Redshift, Timestream, QuickSight, Chime, Clo
 
 [![Checked with mypy](http://www.mypy-lang.org/static/mypy_badge.svg)](http://mypy-lang.org/)
 [![Coverage](https://img.shields.io/badge/coverage-91%25-brightgreen.svg)](https://pypi.org/project/awswrangler/)
-![Static Checking](https://github.com/awslabs/aws-data-wrangler/workflows/Static%20Checking/badge.svg?branch=master)
+![Static Checking](https://github.com/awslabs/aws-data-wrangler/workflows/Static%20Checking/badge.svg?branch=main)
 [![Documentation Status](https://readthedocs.org/projects/aws-data-wrangler/badge/?version=latest)](https://aws-data-wrangler.readthedocs.io/?badge=latest)
 
 | Source | Downloads | Installation Command |
@@ -100,35 +100,35 @@ FROM "sampleDB"."sampleTable" ORDER BY time DESC LIMIT 3
   - [Amazon SageMaker Notebook Lifecycle](https://aws-data-wrangler.readthedocs.io/en/stable/install.html#amazon-sagemaker-notebook-lifecycle)
   - [EMR](https://aws-data-wrangler.readthedocs.io/en/stable/install.html#emr)
   - [From source](https://aws-data-wrangler.readthedocs.io/en/stable/install.html#from-source)
-- [**Tutorials**](https://github.com/awslabs/aws-data-wrangler/tree/master/tutorials)
-  - [001 - Introduction](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/001%20-%20Introduction.ipynb)
-  - [002 - Sessions](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/002%20-%20Sessions.ipynb)
-  - [003 - Amazon S3](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/003%20-%20Amazon%20S3.ipynb)
-  - [004 - Parquet Datasets](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/004%20-%20Parquet%20Datasets.ipynb)
-  - [005 - Glue Catalog](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/005%20-%20Glue%20Catalog.ipynb)
-  - [006 - Amazon Athena](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/006%20-%20Amazon%20Athena.ipynb)
-  - [007 - Databases (Redshift, MySQL, PostgreSQL and SQL Server)](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/007%20-%20Redshift%2C%20MySQL%2C%20PostgreSQL%2C%20SQL%20Server.ipynb)
-  - [008 - Redshift - Copy & Unload.ipynb](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/008%20-%20Redshift%20-%20Copy%20%26%20Unload.ipynb)
-  - [009 - Redshift - Append, Overwrite and Upsert](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/009%20-%20Redshift%20-%20Append%2C%20Overwrite%2C%20Upsert.ipynb)
-  - [010 - Parquet Crawler](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/010%20-%20Parquet%20Crawler.ipynb)
-  - [011 - CSV Datasets](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/011%20-%20CSV%20Datasets.ipynb)
-  - [012 - CSV Crawler](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/012%20-%20CSV%20Crawler.ipynb)
-  - [013 - Merging Datasets on S3](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/013%20-%20Merging%20Datasets%20on%20S3.ipynb)
-  - [014 - Schema Evolution](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/014%20-%20Schema%20Evolution.ipynb)
-  - [015 - EMR](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/015%20-%20EMR.ipynb)
-  - [016 - EMR & Docker](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/016%20-%20EMR%20%26%20Docker.ipynb)
-  - [017 - Partition Projection](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/017%20-%20Partition%20Projection.ipynb)
-  - [018 - QuickSight](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/018%20-%20QuickSight.ipynb)
-  - [019 - Athena Cache](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/019%20-%20Athena%20Cache.ipynb)
-  - [020 - Spark Table Interoperability](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/020%20-%20Spark%20Table%20Interoperability.ipynb)
-  - [021 - Global Configurations](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/021%20-%20Global%20Configurations.ipynb)
-  - [022 - Writing Partitions Concurrently](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/022%20-%20Writing%20Partitions%20Concurrently.ipynb)
-  - [023 - Flexible Partitions Filter](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/023%20-%20Flexible%20Partitions%20Filter.ipynb)
-  - [024 - Athena Query Metadata](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/024%20-%20Athena%20Query%20Metadata.ipynb)
-  - [025 - Redshift - Loading Parquet files with Spectrum](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/025%20-%20Redshift%20-%20Loading%20Parquet%20files%20with%20Spectrum.ipynb)
-  - [026 - Amazon Timestream](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/026%20-%20Amazon%20Timestream.ipynb)
-  - [027 - Amazon Timestream 2](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/027%20-%20Amazon%20Timestream%202.ipynb)
-  - [028 - Amazon DynamoDB](https://github.com/awslabs/aws-data-wrangler/blob/master/tutorials/028%20-%20DynamoDB.ipynb)
+- [**Tutorials**](https://github.com/awslabs/aws-data-wrangler/tree/main/tutorials)
+  - [001 - Introduction](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/001%20-%20Introduction.ipynb)
+  - [002 - Sessions](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/002%20-%20Sessions.ipynb)
+  - [003 - Amazon S3](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/003%20-%20Amazon%20S3.ipynb)
+  - [004 - Parquet Datasets](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/004%20-%20Parquet%20Datasets.ipynb)
+  - [005 - Glue Catalog](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/005%20-%20Glue%20Catalog.ipynb)
+  - [006 - Amazon Athena](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/006%20-%20Amazon%20Athena.ipynb)
+  - [007 - Databases (Redshift, MySQL, PostgreSQL and SQL Server)](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/007%20-%20Redshift%2C%20MySQL%2C%20PostgreSQL%2C%20SQL%20Server.ipynb)
+  - [008 - Redshift - Copy & Unload.ipynb](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/008%20-%20Redshift%20-%20Copy%20%26%20Unload.ipynb)
+  - [009 - Redshift - Append, Overwrite and Upsert](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/009%20-%20Redshift%20-%20Append%2C%20Overwrite%2C%20Upsert.ipynb)
+  - [010 - Parquet Crawler](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/010%20-%20Parquet%20Crawler.ipynb)
+  - [011 - CSV Datasets](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/011%20-%20CSV%20Datasets.ipynb)
+  - [012 - CSV Crawler](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/012%20-%20CSV%20Crawler.ipynb)
+  - [013 - Merging Datasets on S3](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/013%20-%20Merging%20Datasets%20on%20S3.ipynb)
+  - [014 - Schema Evolution](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/014%20-%20Schema%20Evolution.ipynb)
+  - [015 - EMR](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/015%20-%20EMR.ipynb)
+  - [016 - EMR & Docker](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/016%20-%20EMR%20%26%20Docker.ipynb)
+  - [017 - Partition Projection](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/017%20-%20Partition%20Projection.ipynb)
+  - [018 - QuickSight](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/018%20-%20QuickSight.ipynb)
+  - [019 - Athena Cache](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/019%20-%20Athena%20Cache.ipynb)
+  - [020 - Spark Table Interoperability](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/020%20-%20Spark%20Table%20Interoperability.ipynb)
+  - [021 - Global Configurations](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/021%20-%20Global%20Configurations.ipynb)
+  - [022 - Writing Partitions Concurrently](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/022%20-%20Writing%20Partitions%20Concurrently.ipynb)
+  - [023 - Flexible Partitions Filter](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/023%20-%20Flexible%20Partitions%20Filter.ipynb)
+  - [024 - Athena Query Metadata](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/024%20-%20Athena%20Query%20Metadata.ipynb)
+  - [025 - Redshift - Loading Parquet files with Spectrum](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/025%20-%20Redshift%20-%20Loading%20Parquet%20files%20with%20Spectrum.ipynb)
+  - [026 - Amazon Timestream](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/026%20-%20Amazon%20Timestream.ipynb)
+  - [027 - Amazon Timestream 2](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/027%20-%20Amazon%20Timestream%202.ipynb)
+  - [028 - Amazon DynamoDB](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/028%20-%20DynamoDB.ipynb)
 - [**API Reference**](https://aws-data-wrangler.readthedocs.io/en/stable/api.html)
   - [Amazon S3](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-s3)
   - [AWS Glue Catalog](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#aws-glue-catalog)
@@ -145,13 +145,13 @@ FROM "sampleDB"."sampleTable" ORDER BY time DESC LIMIT 3
   - [Amazon QuickSight](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#amazon-quicksight)
   - [AWS STS](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#aws-sts)
   - [AWS Secrets Manager](https://aws-data-wrangler.readthedocs.io/en/stable/api.html#aws-secrets-manager)
-- [**License**](https://github.com/awslabs/aws-data-wrangler/blob/master/LICENSE.txt)
-- [**Contributing**](https://github.com/awslabs/aws-data-wrangler/blob/master/CONTRIBUTING.md)
+- [**License**](https://github.com/awslabs/aws-data-wrangler/blob/main/LICENSE.txt)
+- [**Contributing**](https://github.com/awslabs/aws-data-wrangler/blob/main/CONTRIBUTING.md)
 - [**Legacy Docs** (pre-1.0.0)](https://aws-data-wrangler.readthedocs.io/en/0.3.3/)
 
 ## Community Resources
 
-Please [send a Pull Request](https://github.com/awslabs/aws-data-wrangler/edit/master/README.md) with your resource reference and @githubhandle.
+Please [send a Pull Request](https://github.com/awslabs/aws-data-wrangler/edit/main/README.md) with your resource reference and @githubhandle.
 
 - [Optimize Python ETL by extending Pandas with AWS Data Wrangler](https://aws.amazon.com/blogs/big-data/optimize-python-etl-by-extending-pandas-with-aws-data-wrangler/) [[@igorborgest](https://github.com/igorborgest)]
 - [Reading Parquet Files With AWS Lambda](https://aprakash.wordpress.com/2020/04/14/reading-parquet-files-with-aws-lambda/) [[@anand086](https://github.com/anand086)]
@@ -182,7 +182,7 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 Knowing which companies are using this library is important to help prioritize the project internally.
 
-Please [send a Pull Request](https://github.com/awslabs/aws-data-wrangler/edit/master/README.md) with your company name and @githubhandle if you may.
+Please [send a Pull Request](https://github.com/awslabs/aws-data-wrangler/edit/main/README.md) with your company name and @githubhandle if you may.
 
 - [Amazon](https://www.amazon.com/)
 - [AWS](https://aws.amazon.com/)

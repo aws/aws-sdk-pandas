@@ -547,11 +547,11 @@ def read_sql_query(
     **Related tutorial:**
 
     - `Amazon Athena <https://github.com/awslabs/aws-data-wrangler/blob/
-      master/tutorials/006%20-%20Amazon%20Athena.ipynb>`_
+      main/tutorials/006%20-%20Amazon%20Athena.ipynb>`_
     - `Athena Cache <https://github.com/awslabs/aws-data-wrangler/blob/
-      master/tutorials/019%20-%20Athena%20Cache.ipynb>`_
+      main/tutorials/019%20-%20Athena%20Cache.ipynb>`_
     - `Global Configurations <https://github.com/awslabs/aws-data-wrangler/blob/
-      master/tutorials/021%20-%20Global%20Configurations.ipynb>`_
+      main/tutorials/021%20-%20Global%20Configurations.ipynb>`_
 
     **There are two approaches to be defined through ctas_approach parameter:**
 
@@ -599,7 +599,7 @@ def read_sql_query(
 
     For a practical example check out the
     `related tutorial <https://github.com/awslabs/aws-data-wrangler/blob/
-    master/tutorials/024%20-%20Athena%20Query%20Metadata.ipynb>`_!
+    main/tutorials/024%20-%20Athena%20Query%20Metadata.ipynb>`_!
 
 
     Note
@@ -724,7 +724,7 @@ def read_sql_query(
             "Queries with ctas_approach=True (default) does not support "
             "data_source values different than None and 'AwsDataCatalog'. "
             "Please check the related tutorial for more details "
-            "(https://github.com/awslabs/aws-data-wrangler/blob/master/"
+            "(https://github.com/awslabs/aws-data-wrangler/blob/main/"
             "tutorials/006%20-%20Amazon%20Athena.ipynb)"
         )
     chunksize = sys.maxsize if ctas_approach is False and chunksize is True else chunksize
@@ -804,11 +804,11 @@ def read_sql_table(
     **Related tutorial:**
 
     - `Amazon Athena <https://github.com/awslabs/aws-data-wrangler/blob/
-      master/tutorials/006%20-%20Amazon%20Athena.ipynb>`_
+      main/tutorials/006%20-%20Amazon%20Athena.ipynb>`_
     - `Athena Cache <https://github.com/awslabs/aws-data-wrangler/blob/
-      master/tutorials/019%20-%20Athena%20Cache.ipynb>`_
+      main/tutorials/019%20-%20Athena%20Cache.ipynb>`_
     - `Global Configurations <https://github.com/awslabs/aws-data-wrangler/blob/
-      master/tutorials/021%20-%20Global%20Configurations.ipynb>`_
+      main/tutorials/021%20-%20Global%20Configurations.ipynb>`_
 
     **There are two approaches to be defined through ctas_approach parameter:**
 
@@ -852,7 +852,7 @@ def read_sql_table(
     /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a practical example check out the
-    `related tutorial <https://github.com/awslabs/aws-data-wrangler/blob/master/
+    `related tutorial <https://github.com/awslabs/aws-data-wrangler/blob/main/
     tutorials/024%20-%20Athena%20Query%20Metadata.ipynb>`_!
 
 
