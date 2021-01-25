@@ -273,9 +273,10 @@ def _arrowtable2df(
 def _read_parquet_chunked(
     paths: List[str],
     chunked: Union[bool, int],
+    validate_schema: bool,
+    ignore_index: Optional[bool],
     columns: Optional[List[str]],
     categories: Optional[List[str]],
-    validate_schema: bool,
     safe: bool,
     boto3_session: boto3.Session,
     dataset: bool,
@@ -331,7 +332,7 @@ def _read_parquet_chunked(
                     yield df
                 elif isinstance(chunked, int) and chunked > 0:
                     if next_slice is not None:
-                        df = _union(dfs=[next_slice, df], ignore_index=None)
+                        df = _union(dfs=[next_slice, df], ignore_index=ignore_index)
                     while len(df.index) >= chunked:
                         yield df.iloc[:chunked]
                         df = df.iloc[chunked:]
@@ -599,7 +600,9 @@ def read_parquet(
     }
     _logger.debug("args:\n%s", pprint.pformat(args))
     if chunked is not False:
-        return _read_parquet_chunked(paths=paths, chunked=chunked, validate_schema=validate_schema, **args)
+        return _read_parquet_chunked(
+            paths=paths, chunked=chunked, validate_schema=validate_schema, ignore_index=ignore_index, **args
+        )
     if len(paths) == 1:
         return _read_parquet(path=paths[0], **args)
     if validate_schema is True:
