@@ -227,7 +227,12 @@ def _fetch_parquet_result(
     if not paths:
         return _empty_dataframe_response(bool(chunked), query_metadata)
     ret = s3.read_parquet(
-        path=paths, use_threads=use_threads, boto3_session=boto3_session, chunked=chunked, categories=categories
+        path=paths,
+        use_threads=use_threads,
+        boto3_session=boto3_session,
+        chunked=chunked,
+        categories=categories,
+        ignore_index=True,
     )
     if chunked is False:
         ret = _apply_query_metadata(df=ret, query_metadata=query_metadata)

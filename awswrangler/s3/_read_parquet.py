@@ -273,9 +273,10 @@ def _arrowtable2df(
 def _read_parquet_chunked(
     paths: List[str],
     chunked: Union[bool, int],
+    validate_schema: bool,
+    ignore_index: Optional[bool],
     columns: Optional[List[str]],
     categories: Optional[List[str]],
-    validate_schema: bool,
     safe: bool,
     boto3_session: boto3.Session,
     dataset: bool,
@@ -331,7 +332,7 @@ def _read_parquet_chunked(
                     yield df
                 elif isinstance(chunked, int) and chunked > 0:
                     if next_slice is not None:
-                        df = _union(dfs=[next_slice, df], ignore_index=None)
+                        df = _union(dfs=[next_slice, df], ignore_index=ignore_index)
                     while len(df.index) >= chunked:
                         yield df.iloc[:chunked]
                         df = df.iloc[chunked:]
@@ -430,6 +431,7 @@ def read_parquet(
     path_suffix: Union[str, List[str], None] = None,
     path_ignore_suffix: Union[str, List[str], None] = None,
     ignore_empty: bool = True,
+    ignore_index: Optional[bool] = None,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
     columns: Optional[List[str]] = None,
     validate_schema: bool = False,
@@ -489,6 +491,8 @@ def read_parquet(
         If None, will try to read all files. (default)
     ignore_empty: bool
         Ignore files with 0 bytes.
+    ignore_index: Optional[bool]
+        Ignore index when combining multiple parquet files to one DataFrame.
     partition_filter: Optional[Callable[[Dict[str, str]], bool]]
         Callback Function filters to apply on PARTITION columns (PUSH-DOWN filter).
         This function MUST receive a single argument (Dict[str, str]) where keys are partitions
@@ -596,7 +600,9 @@ def read_parquet(
     }
     _logger.debug("args:\n%s", pprint.pformat(args))
     if chunked is not False:
-        return _read_parquet_chunked(paths=paths, chunked=chunked, validate_schema=validate_schema, **args)
+        return _read_parquet_chunked(
+            paths=paths, chunked=chunked, validate_schema=validate_schema, ignore_index=ignore_index, **args
+        )
     if len(paths) == 1:
         return _read_parquet(path=paths[0], **args)
     if validate_schema is True:
@@ -607,7 +613,7 @@ def read_parquet(
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
         )
-    return _union(dfs=[_read_parquet(path=p, **args) for p in paths], ignore_index=None)
+    return _union(dfs=[_read_parquet(path=p, **args) for p in paths], ignore_index=ignore_index)
 
 
 @apply_configs
@@ -657,10 +663,10 @@ def read_parquet_table(
         AWS Glue Catalog table name.
     database : str
         AWS Glue Catalog database name.
-    path_suffix: Union[str, List[str], None]
+    filename_suffix: Union[str, List[str], None]
         Suffix or List of suffixes to be read (e.g. [".gz.parquet", ".snappy.parquet"]).
         If None, will try to read all files. (default)
-    path_ignore_suffix: Union[str, List[str], None]
+    filename_ignore_suffix: Union[str, List[str], None]
         Suffix or List of suffixes for S3 keys to be ignored.(e.g. [".csv", "_SUCCESS"]).
         If None, will try to read all files. (default)
     catalog_id : str, optional
