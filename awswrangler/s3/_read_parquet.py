@@ -430,6 +430,7 @@ def read_parquet(
     path_suffix: Union[str, List[str], None] = None,
     path_ignore_suffix: Union[str, List[str], None] = None,
     ignore_empty: bool = True,
+    ignore_index: Optional[bool] = None,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
     columns: Optional[List[str]] = None,
     validate_schema: bool = False,
@@ -607,7 +608,7 @@ def read_parquet(
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
         )
-    return _union(dfs=[_read_parquet(path=p, **args) for p in paths], ignore_index=None)
+    return _union(dfs=[_read_parquet(path=p, **args) for p in paths], ignore_index=ignore_index)
 
 
 @apply_configs
