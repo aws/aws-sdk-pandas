@@ -31,7 +31,7 @@ jobs:
       - name: CloudFormation Lint - Databases
         run: cfn-lint -t cloudformation/databases.yaml
       - name: mypy check
-        run: mypy .
+        run: mypy awswrangler
       - name: Flake8 Lint
         run: flake8 .
       - name: Pylint Lint
