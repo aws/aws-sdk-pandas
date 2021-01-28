@@ -1,11 +1,11 @@
 """Amazon Lake Formation Module gathering all read functions."""
 import logging
 import sys
-from typing import Any, Dict, Iterator, Optional, Union
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
 import pandas as pd
-import pyarrow as pa
+from pyarrow import RecordBatchStreamReader
 
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
@@ -25,7 +25,7 @@ def read_sql_query(
     boto3_session: Optional[boto3.Session] = None,
     params: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    """Execute PartiQL query against an AWS Glue Governed Table based on Transaction ID or time travel timestamp. Return single Pandas DataFrame or Iterator.
+    """Execute PartiQL query against an AWS Glue Table based on Transaction ID or time travel timestamp. Return single Pandas DataFrame or Iterator.
 
     Note
     ----
@@ -84,9 +84,16 @@ def read_sql_query(
     --------
     >>> import awswrangler as wr
     >>> df = wr.lakeformation.read_sql_query(
+    ...     sql="SELECT * FROM my_table;",
+    ...     database="my_db",
+    ...     catalog_id="111111111111"
+    ... )
+
+    >>> import awswrangler as wr
+    >>> df = wr.lakeformation.read_sql_query(
     ...     sql="SELECT * FROM my_table LIMIT 10;",
     ...     database="my_db",
-    ...     transaction_id="ba9a11b5-619a-4ac3-bd70-5a744d09414c"
+    ...     transaction_id="1b62811fa3e02c4e5fdbaa642b752030379c4a8a70da1f8732ce6ccca47afdc9"
     ... )
 
     >>> import awswrangler as wr
@@ -94,46 +101,54 @@ def read_sql_query(
     ...     sql="SELECT * FROM my_table WHERE name=:name;",
     ...     database="my_db",
     ...     query_as_of_time="1611142914",
-    ...     params={"name": "filtered_name"}
+    ...     params={"name": "\'filtered_name\'"}
     ... )
 
     """
-    if transaction_id is None and query_as_of_time is None:
-        raise exceptions.InvalidArgumentCombination("Please pass one of transaction_id or query_as_of_time")
-    # TODO: Generate transaction_id if both transaction_id and query_as_of_time missing?
     if transaction_id is not None and query_as_of_time is not None:
-        raise exceptions.InvalidArgumentCombination("Please pass only one of transaction_id or query_as_of_time, not both")
+        raise exceptions.InvalidArgumentCombination(
+            "Please pass only one of `transaction_id` or `query_as_of_time`, not both"
+        )
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     chunksize = sys.maxsize if chunksize is True else chunksize
     if params is None:
         params = {}
     for key, value in params.items():
-        sql = sql.replace(f":{key};", str(value))
+        sql = sql.replace(f":{key}", str(value))
     client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
-    # TODO: Check if the Glue Table is governed?
 
-    args: Dict[str, Any] = {
-        "DatabaseName": database,
-        "Statement": sql
-    }
+    args: Dict[str, Any] = {"DatabaseName": database, "Statement": sql}
     if catalog_id:
         args["CatalogId"] = catalog_id
-    if transaction_id:
+    if query_as_of_time:
+        args["QueryAsOfTime"] = query_as_of_time
+    elif transaction_id:
         args["TransactionId"] = transaction_id
     else:
-        args["QueryAsOfTime"] = query_as_of_time
+        _logger.debug("Neither `transaction_id` nor `query_as_of_time` were specified, beginning transaction")
+        transaction_id = client_lakeformation.begin_transaction(ReadOnly=True)["TransactionId"]
+        args["TransactionId"] = transaction_id
     query_id: str = client_lakeformation.plan_query(**args)["QueryId"]
 
     wait_query(query_id=query_id, boto3_session=session)
 
-    work_units_output: Dict[str, Any] = client_lakeformation.get_work_units(QueryId=query_id)
-    print(work_units_output)
+    scan_kwargs: Dict[str, Union[str, int]] = {"QueryId": query_id, "PageSize": 2}  # TODO: Inquire about good page size
+    next_token: str = "init_token"  # Dummy token
+    token_work_units: List[Tuple[str, int]] = []
+    while next_token:
+        response = client_lakeformation.get_work_units(**scan_kwargs)
+        token_work_units.extend(  # [(Token0, WorkUnitId0), (Token0, WorkUnitId1), (Token1, WorkUnitId0) ... ]
+            [
+                (unit["Token"], unit_id)
+                for unit in response["Units"]
+                for unit_id in range(unit["WorkUnitIdMin"], unit["WorkUnitIdMax"] + 1)  # Max is inclusive
+            ]
+        )
+        next_token = response["NextToken"]
+        scan_kwargs["NextToken"] = next_token
 
-    a = client_lakeformation.execute(QueryId=query_id, Token=work_units_output["Units"][0]["Token"], WorkUnitId=0)
-    print(a)
-
-    buf = a["Messages"].read()
-    stream = pa.RecordBatchStreamReader(buf)
-    table = stream.read_all()
-    df = table.to_pandas()
-    return df
+    dfs: List[pd.DataFrame] = []
+    for token, work_unit in token_work_units:
+        messages: Any = client_lakeformation.execute(QueryId=query_id, Token=token, WorkUnitId=work_unit)["Messages"]
+        dfs.append(RecordBatchStreamReader(messages.read()).read_pandas())
+    return pd.concat(dfs)
