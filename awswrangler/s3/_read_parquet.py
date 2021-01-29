@@ -301,18 +301,19 @@ def _read_parquet_chunked(
             )
             if pq_file is None:
                 continue
-            schema: Dict[str, str] = _data_types.athena_types_from_pyarrow_schema(
-                schema=pq_file.schema.to_arrow_schema(), partitions=None
-            )[0]
-            if validate_schema is True and last_schema is not None:
-                if schema != last_schema:
-                    raise exceptions.InvalidSchemaConvergence(
-                        f"Was detect at least 2 different schemas:\n"
-                        f"    - {last_path} -> {last_schema}\n"
-                        f"    - {path} -> {schema}"
-                    )
-            last_schema = schema
-            last_path = path
+            if validate_schema is True:
+                schema: Dict[str, str] = _data_types.athena_types_from_pyarrow_schema(
+                    schema=pq_file.schema.to_arrow_schema(), partitions=None
+                )[0]
+                if last_schema is not None:
+                    if schema != last_schema:
+                        raise exceptions.InvalidSchemaConvergence(
+                            f"Was detect at least 2 different schemas:\n"
+                            f"    - {last_path} -> {last_schema}\n"
+                            f"    - {path} -> {schema}"
+                        )
+                last_schema = schema
+                last_path = path
             num_row_groups: int = pq_file.num_row_groups
             _logger.debug("num_row_groups: %s", num_row_groups)
             for i in range(num_row_groups):
