@@ -395,7 +395,7 @@ def connect(
         user=attrs.user,
         database=attrs.database,
         password=attrs.password,
-        port=attrs.port,
+        port=int(attrs.port),
         host=attrs.host,
         ssl=ssl,
         timeout=timeout,
