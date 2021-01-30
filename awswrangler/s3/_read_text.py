@@ -115,6 +115,7 @@ def _read_text(
         ignore_empty=ignore_empty,
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
+        s3_additional_kwargs=s3_additional_kwargs,
     )
     path_root: Optional[str] = _get_path_root(path=path, dataset=dataset)
     if path_root is not None:

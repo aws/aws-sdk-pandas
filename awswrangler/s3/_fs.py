@@ -25,7 +25,7 @@ _MIN_WRITE_BLOCK: int = 5_242_880  # 5 MB (5 * 2**20)
 _MIN_PARALLEL_READ_BLOCK: int = 5_242_880  # 5 MB (5 * 2**20)
 
 BOTOCORE_ACCEPTED_KWARGS: Dict[str, Set[str]] = {
-    "get_object": {"SSECustomerAlgorithm", "SSECustomerKey"},
+    "get_object": {"SSECustomerAlgorithm", "SSECustomerKey", "RequestPayer"},
     "copy_object": {
         "ACL",
         "Metadata",
@@ -36,6 +36,7 @@ BOTOCORE_ACCEPTED_KWARGS: Dict[str, Set[str]] = {
         "SSEKMSKeyId",
         "SSEKMSEncryptionContext",
         "Tagging",
+        "RequestPayer",
     },
     "create_multipart_upload": {
         "ACL",
@@ -47,9 +48,10 @@ BOTOCORE_ACCEPTED_KWARGS: Dict[str, Set[str]] = {
         "SSEKMSKeyId",
         "SSEKMSEncryptionContext",
         "Tagging",
+        "RequestPayer",
     },
-    "upload_part": {"SSECustomerAlgorithm", "SSECustomerKey"},
-    "complete_multipart_upload": set(),
+    "upload_part": {"SSECustomerAlgorithm", "SSECustomerKey", "RequestPayer"},
+    "complete_multipart_upload": {"RequestPayer"},
     "put_object": {
         "ACL",
         "Metadata",
@@ -60,7 +62,11 @@ BOTOCORE_ACCEPTED_KWARGS: Dict[str, Set[str]] = {
         "SSEKMSKeyId",
         "SSEKMSEncryptionContext",
         "Tagging",
+        "RequestPayer",
     },
+    "list_objects_v2": {"RequestPayer"},
+    "delete_objects": {"RequestPayer"},
+    "head_object": {"RequestPayer"},
 }
 
 
@@ -230,7 +236,12 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
             self._cache: bytes = b""
             self._start: int = 0
             self._end: int = 0
-            size: Optional[int] = size_objects(path=[path], use_threads=False, boto3_session=self._boto3_session)[path]
+            size: Optional[int] = size_objects(
+                path=[path],
+                use_threads=False,
+                boto3_session=self._boto3_session,
+                s3_additional_kwargs=self._s3_additional_kwargs,
+            )[path]
             if size is None:
                 raise exceptions.InvalidArgumentValue(f"S3 object w/o defined size: {path}")
             self._size: int = size
