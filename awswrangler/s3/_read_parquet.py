@@ -155,6 +155,7 @@ def _read_parquet_metadata(
         suffix=path_suffix,
         ignore_suffix=_get_path_ignore_suffix(path_ignore_suffix=path_ignore_suffix),
         ignore_empty=ignore_empty,
+        s3_additional_kwargs=s3_additional_kwargs,
     )
 
     # Files
@@ -582,6 +583,7 @@ def read_parquet(
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
         ignore_empty=ignore_empty,
+        s3_additional_kwargs=s3_additional_kwargs,
     )
     path_root: Optional[str] = _get_path_root(path=path, dataset=dataset)
     if path_root is not None:

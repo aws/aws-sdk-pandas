@@ -191,6 +191,7 @@ def _fetch_txt_result(
     query_metadata: _QueryMetadata,
     keep_files: bool,
     boto3_session: boto3.Session,
+    s3_additional_kwargs: Optional[Dict[str, str]],
 ) -> pd.DataFrame:
     if query_metadata.output_location is None or query_metadata.output_location.endswith(".txt") is False:
         return pd.DataFrame()
@@ -211,7 +212,12 @@ def _fetch_txt_result(
         sep="\t",
     )
     if keep_files is False:
-        s3.delete_objects(path=[path, f"{path}.metadata"], use_threads=False, boto3_session=boto3_session)
+        s3.delete_objects(
+            path=[path, f"{path}.metadata"],
+            use_threads=False,
+            boto3_session=boto3_session,
+            s3_additional_kwargs=s3_additional_kwargs,
+        )
     return df
 
 
@@ -532,6 +538,7 @@ def describe_table(
     workgroup: Optional[str] = None,
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> pd.DataFrame:
     """Show the list of columns, including partition columns: 'DESCRIBE table;'.
@@ -558,6 +565,9 @@ def describe_table(
         None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
     kms_key : str, optional
         For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
+    s3_additional_kwargs : Optional[Dict[str, Any]]
+        Forward to botocore requests. Valid parameters: "RequestPayer".
+        e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -587,9 +597,7 @@ def describe_table(
     )
     query_metadata: _QueryMetadata = _get_query_metadata(query_execution_id=query_id, boto3_session=session)
     raw_result = _fetch_txt_result(
-        query_metadata=query_metadata,
-        keep_files=True,
-        boto3_session=session,
+        query_metadata=query_metadata, keep_files=True, boto3_session=session, s3_additional_kwargs=s3_additional_kwargs
     )
     return _parse_describe_table(raw_result)
 
@@ -602,6 +610,7 @@ def show_create_table(
     workgroup: Optional[str] = None,
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
     """Generate the query that created it: 'SHOW CREATE TABLE table;'.
@@ -627,6 +636,9 @@ def show_create_table(
         None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
     kms_key : str, optional
         For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
+    s3_additional_kwargs : Optional[Dict[str, Any]]
+        Forward to botocore requests. Valid parameters: "RequestPayer".
+        e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -656,9 +668,7 @@ def show_create_table(
     )
     query_metadata: _QueryMetadata = _get_query_metadata(query_execution_id=query_id, boto3_session=session)
     raw_result = _fetch_txt_result(
-        query_metadata=query_metadata,
-        keep_files=True,
-        boto3_session=session,
+        query_metadata=query_metadata, keep_files=True, boto3_session=session, s3_additional_kwargs=s3_additional_kwargs
     )
     return cast(str, raw_result.createtab_stmt.str.strip().str.cat(sep=" "))
 

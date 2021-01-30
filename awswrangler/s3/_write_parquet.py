@@ -269,7 +269,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
-        "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
+        "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging", "RequestPayer".
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
     sanitize_columns : bool
         True to sanitize columns names (using `wr.catalog.sanitize_table_name` and `wr.catalog.sanitize_column_name`)
@@ -598,7 +598,12 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
                     )
             except Exception:
                 _logger.debug("Catalog write failed, cleaning up S3 (paths: %s).", paths)
-                delete_objects(path=paths, use_threads=use_threads, boto3_session=session)
+                delete_objects(
+                    path=paths,
+                    use_threads=use_threads,
+                    boto3_session=session,
+                    s3_additional_kwargs=s3_additional_kwargs,
+                )
                 raise
     return {"paths": paths, "partitions_values": partitions_values}
 
@@ -731,7 +736,7 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
         (e.g. {'col_name': '1', 'col2_name': '2'})
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
-        "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
+        "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging", "RequestPayer".
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
