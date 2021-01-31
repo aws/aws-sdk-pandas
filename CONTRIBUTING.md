@@ -241,3 +241,8 @@ or
   "python.linting.pylintEnabled": false
 }
 ```
+
+## Common Errors
+
+Check the file below to check the common errors and solutions 
+[ERRORS](https://github.com/awslabs/aws-data-wrangler/blob/main/COMMON_ERRORS.md)
