@@ -5,7 +5,7 @@ import logging
 import os
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple, Type, Union, cast
 
-import botocore
+import botocore.config
 import pandas as pd
 
 from awswrangler import exceptions
