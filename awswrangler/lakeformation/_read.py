@@ -20,8 +20,7 @@ def _execute_query(
     token_work_unit: Tuple[str, int],
     boto3_session: Optional[boto3.Session] = None,
 ) -> pd.DataFrame:
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
+    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
     token, work_unit = token_work_unit
     messages: NativeFile = client_lakeformation.execute(QueryId=query_id, Token=token, WorkUnitId=work_unit)["Messages"]
     return RecordBatchStreamReader(messages.read()).read_pandas()
@@ -33,10 +32,9 @@ def _resolve_sql_query(
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
+    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
 
-    wait_query(query_id=query_id, boto3_session=session)
+    wait_query(query_id=query_id, boto3_session=boto3_session)
 
     # The LF Query Engine distributes the load across workers
     # Retrieve the tokens and their associated work units until NextToken is ''
@@ -75,6 +73,7 @@ def _resolve_sql_query(
                     itertools.repeat(_utils.boto3_to_primitives(boto3_session=boto3_session)),
                 )
             )
+    dfs = [df for df in dfs if not df.empty]
     if not chunked:
         return pd.concat(dfs)
     return dfs
