@@ -7,7 +7,7 @@ Please read through this document before submitting any issues or pull requests 
 information to effectively respond to your bug report or contribution.
 
 ## Reporting Bugs/Feature Requests
-
+python -m venv .venv && source .venv/bin/activa
 We welcome you to use the GitHub issue tracker to report bugs or suggest features.
 
 When filing an issue, please check [existing open](https://github.com/awslabs/aws-data-wrangler/issues), or [recently closed](https://github.com/awslabs/aws-data-wrangler/issues?utf8=%E2%9C%93&q=is%3Aissue%20is%3Aclosed%20), issues to make sure somebody else hasn't already
@@ -88,6 +88,10 @@ You can choose from three different environments to test your fixes/changes, bas
 * Fork the AWS Data Wrangler repository and clone that into your development environment
 * Go to the project's directory create a Python's virtual environment for the project
 
+`python3 -m venv .venv && source .venv/bin/activate`
+
+or
+
 `python -m venv .venv && source .venv/bin/activate`
 
 * Install dependencies:
@@ -114,6 +118,10 @@ You can choose from three different environments to test your fixes/changes, bas
 * Install Python 3.6, 3.7 or 3.8
 * Fork the AWS Data Wrangler repository and clone that into your development environment
 * Go to the project's directory create a Python's virtual environment for the project
+
+`python3 -m venv .venv && source .venv/bin/activate`
+
+or
 
 `python -m venv .venv && source .venv/bin/activate`
 
@@ -233,3 +241,12 @@ You can choose from three different environments to test your fixes/changes, bas
   "python.linting.pylintEnabled": false
 }
 ```
+
+## Common Errors
+
+Check the file below to check the common errors and solutions 
+<<<<<<< HEAD
+[ERRORS](https://github.com/awslabs/aws-data-wrangler/blob/main/CONTRIBUTING_COMMON_ERRORS.md)
+=======
+[ERRORS](https://github.com/awslabs/aws-data-wrangler/blob/main/COMMON_ERRORS.md)
+>>>>>>> 7df36cb669201c834389d87ded070ac3c49be71c
