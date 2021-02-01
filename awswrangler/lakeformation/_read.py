@@ -6,9 +6,9 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
 import pandas as pd
-from pyarrow import NativeFile, RecordBatchStreamReader
+from pyarrow import NativeFile, RecordBatchStreamReader, Table
 
-from awswrangler import _utils, exceptions
+from awswrangler import _data_types, _utils, exceptions
 from awswrangler._config import apply_configs
 from awswrangler.lakeformation._utils import wait_query
 
@@ -18,19 +18,40 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def _execute_query(
     query_id: str,
     token_work_unit: Tuple[str, int],
-    boto3_session: Optional[boto3.Session] = None,
+    categories: Optional[List[str]],
+    safe: bool,
+    use_threads: bool,
+    boto3_session: boto3.Session,
 ) -> pd.DataFrame:
     client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
     token, work_unit = token_work_unit
     messages: NativeFile = client_lakeformation.execute(QueryId=query_id, Token=token, WorkUnitId=work_unit)["Messages"]
-    return RecordBatchStreamReader(messages.read()).read_pandas()
+    table: Table = RecordBatchStreamReader(messages.read()).read_all()
+    args: Dict[str, Any] = {}
+    if table.num_rows > 0:
+        args = {
+            "use_threads": use_threads,
+            "split_blocks": True,
+            "self_destruct": True,
+            "integer_object_nulls": False,
+            "date_as_object": True,
+            "ignore_metadata": True,
+            "strings_to_categorical": False,
+            "categories": categories,
+            "safe": safe,
+            "types_mapper": _data_types.pyarrow2pandas_extension,
+        }
+    df: pd.DataFrame = _utils.ensure_df_is_mutable(df=table.to_pandas(**args))
+    return df
 
 
 def _resolve_sql_query(
     query_id: str,
-    chunked: Optional[bool] = None,
-    use_threads: bool = True,
-    boto3_session: Optional[boto3.Session] = None,
+    chunked: Optional[bool],
+    categories: Optional[List[str]],
+    safe: bool,
+    use_threads: bool,
+    boto3_session: boto3.Session,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
 
@@ -59,7 +80,14 @@ def _resolve_sql_query(
     dfs: List[pd.DataFrame] = list()
     if use_threads is False:
         dfs = list(
-            _execute_query(query_id=query_id, token_work_unit=token_work_unit, boto3_session=boto3_session)
+            _execute_query(
+                query_id=query_id,
+                token_work_unit=token_work_unit,
+                categories=categories,
+                safe=safe,
+                use_threads=use_threads,
+                boto3_session=boto3_session,
+            )
             for token_work_unit in token_work_units
         )
     else:
@@ -70,12 +98,15 @@ def _resolve_sql_query(
                     _execute_query,
                     itertools.repeat(query_id),
                     token_work_units,
+                    itertools.repeat(categories),
+                    itertools.repeat(safe),
+                    itertools.repeat(use_threads),
                     itertools.repeat(_utils.boto3_to_primitives(boto3_session=boto3_session)),
                 )
             )
     dfs = [df for df in dfs if not df.empty]
     if not chunked:
-        return pd.concat(dfs)
+        return pd.concat(dfs, sort=False, copy=False, ignore_index=False)
     return dfs
 
 
@@ -87,6 +118,8 @@ def read_sql_query(
     query_as_of_time: Optional[str] = None,
     catalog_id: Optional[str] = None,
     chunked: bool = False,
+    categories: Optional[List[str]] = None,
+    safe: bool = True,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     params: Optional[Dict[str, Any]] = None,
@@ -125,6 +158,14 @@ def read_sql_query(
         If none is provided, the AWS account ID is used by default.
     chunked : bool, optional
         If `True`, Wrangler returns an Iterable of DataFrames with no guarantee of chunksize.
+    categories: Optional[List[str]], optional
+        List of columns names that should be returned as pandas.Categorical.
+        Recommended for memory restricted environments.
+    safe : bool, default True
+        For certain data types, a cast is needed in order to store the
+        data in a pandas DataFrame or Series (e.g. timestamps are always
+        stored as nanoseconds in pandas). This option controls whether it
+        is a safe cast or not.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         When enabled, os.cpu_count() is used as the max number of threads.
@@ -189,4 +230,11 @@ def read_sql_query(
         args["TransactionId"] = transaction_id
     query_id: str = client_lakeformation.plan_query(**args)["QueryId"]
 
-    return _resolve_sql_query(query_id=query_id, chunked=chunked, use_threads=use_threads, boto3_session=boto3_session)
+    return _resolve_sql_query(
+        query_id=query_id,
+        chunked=chunked,
+        categories=categories,
+        safe=safe,
+        use_threads=use_threads,
+        boto3_session=session,
+    )
