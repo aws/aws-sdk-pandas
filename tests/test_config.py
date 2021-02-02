@@ -129,17 +129,16 @@ def test_botocore_config(path):
     original = botocore.client.ClientCreator.create_client
 
     # Default values for botocore.config.Config
-    expected_max_retries_attempt = 5
+    expected_max_retries_attempt = 3
     expected_connect_timeout = 10
     expected_max_pool_connections = 10
-    expected_retry_mode = ""
+    expected_retry_mode = "standard"
 
     def wrapper(self, **kwarg):
         assert kwarg["client_config"].retries["max_attempts"] == expected_max_retries_attempt
         assert kwarg["client_config"].connect_timeout == expected_connect_timeout
         assert kwarg["client_config"].max_pool_connections == expected_max_pool_connections
-        if expected_retry_mode:
-            assert kwarg["client_config"].retries["mode"] == expected_retry_mode
+        assert kwarg["client_config"].retries["mode"] == expected_retry_mode
         return original(self, **kwarg)
 
     # Check for default values
@@ -151,7 +150,7 @@ def test_botocore_config(path):
     expected_max_retries_attempt = 20
     expected_connect_timeout = 10
     expected_max_pool_connections = 10
-    expected_retry_mode = "standard"
+    expected_retry_mode = "adaptive"
 
     os.environ["AWS_MAX_ATTEMPTS"] = str(expected_max_retries_attempt)
     os.environ["AWS_RETRY_MODE"] = expected_retry_mode
@@ -167,10 +166,10 @@ def test_botocore_config(path):
     expected_max_retries_attempt = 30
     expected_connect_timeout = 40
     expected_max_pool_connections = 50
-    expected_retry_mode = ""
+    expected_retry_mode = "legacy"
 
     botocore_config = botocore.config.Config(
-        retries={"max_attempts": expected_max_retries_attempt},
+        retries={"max_attempts": expected_max_retries_attempt, "mode": expected_retry_mode},
         connect_timeout=expected_connect_timeout,
         max_pool_connections=expected_max_pool_connections,
     )

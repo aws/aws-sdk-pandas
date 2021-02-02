@@ -62,10 +62,10 @@ def boto3_from_primitives(primitives: Optional[Boto3PrimitivesType] = None) -> b
 
 def default_botocore_config() -> botocore.config.Config:
     """Botocore configuration."""
-    retries_config: Dict[str, Union[str, int]] = {"max_attempts": int(os.getenv("AWS_MAX_ATTEMPTS", "5"))}
-    retry_mode: Optional[str] = os.getenv("AWS_RETRY_MODE")
-    if retry_mode is not None:
-        retries_config["mode"] = retry_mode
+    retries_config: Dict[str, Union[str, int]] = {
+        "max_attempts": int(os.getenv("AWS_MAX_ATTEMPTS", "3")),
+        "mode": os.getenv("AWS_RETRY_MODE", "standard"),
+    }
     return botocore.config.Config(retries=retries_config, connect_timeout=10, max_pool_connections=10)
 
 
