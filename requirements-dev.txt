@@ -5,19 +5,19 @@ flake8==3.8.4
 mypy==0.800
 pydocstyle==5.1.1
 doc8==0.8.1
-tox==3.21.3
+tox==3.21.4
 pytest==6.2.2
 pytest-cov==2.11.1
 pytest-xdist==2.2.0
 pytest-timeout==1.4.2
-cfn-lint~=0.44.5
-pydot~=1.4.1
+cfn-lint==0.44.6
+pydot==1.4.1
 cfn-flip==1.2.3
 twine==3.3.0
 sphinx==3.4.3
 sphinx_bootstrap_theme==0.7.1
 moto==1.3.16
-jupyterlab==3.0.6
+jupyterlab==3.0.7
 s3fs==0.4.2
-python-Levenshtein==0.12.1
+python-Levenshtein==0.12.2
 -e .[sqlserver]
