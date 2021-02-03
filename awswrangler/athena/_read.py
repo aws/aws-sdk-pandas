@@ -72,11 +72,17 @@ def _fix_csv_types(df: pd.DataFrame, parse_dates: List[str], binaries: List[str]
 
 
 def _delete_after_iterate(
-    dfs: Iterator[pd.DataFrame], paths: List[str], use_threads: bool, boto3_session: boto3.Session
+    dfs: Iterator[pd.DataFrame],
+    paths: List[str],
+    use_threads: bool,
+    boto3_session: boto3.Session,
+    s3_additional_kwargs: Optional[Dict[str, str]],
 ) -> Iterator[pd.DataFrame]:
     for df in dfs:
         yield df
-    s3.delete_objects(path=paths, use_threads=use_threads, boto3_session=boto3_session)
+    s3.delete_objects(
+        path=paths, use_threads=use_threads, boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs
+    )
 
 
 def _prepare_query_string_for_comparison(query_string: str) -> str:
@@ -213,6 +219,7 @@ def _fetch_parquet_result(
     chunksize: Optional[int],
     use_threads: bool,
     boto3_session: boto3.Session,
+    s3_additional_kwargs: Optional[Dict[str, Any]],
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     ret: Union[pd.DataFrame, Iterator[pd.DataFrame]]
     chunked: Union[bool, int] = False if chunksize is None else chunksize
@@ -227,7 +234,12 @@ def _fetch_parquet_result(
     if not paths:
         return _empty_dataframe_response(bool(chunked), query_metadata)
     ret = s3.read_parquet(
-        path=paths, use_threads=use_threads, boto3_session=boto3_session, chunked=chunked, categories=categories
+        path=paths,
+        use_threads=use_threads,
+        boto3_session=boto3_session,
+        chunked=chunked,
+        categories=categories,
+        ignore_index=True,
     )
     if chunked is False:
         ret = _apply_query_metadata(df=ret, query_metadata=query_metadata)
@@ -237,10 +249,21 @@ def _fetch_parquet_result(
     _logger.debug("type(ret): %s", type(ret))
     if chunked is False:
         if keep_files is False:
-            s3.delete_objects(path=paths_delete, use_threads=use_threads, boto3_session=boto3_session)
+            s3.delete_objects(
+                path=paths_delete,
+                use_threads=use_threads,
+                boto3_session=boto3_session,
+                s3_additional_kwargs=s3_additional_kwargs,
+            )
         return ret
     if keep_files is False:
-        return _delete_after_iterate(dfs=ret, paths=paths_delete, use_threads=use_threads, boto3_session=boto3_session)
+        return _delete_after_iterate(
+            dfs=ret,
+            paths=paths_delete,
+            use_threads=use_threads,
+            boto3_session=boto3_session,
+            s3_additional_kwargs=s3_additional_kwargs,
+        )
     return ret
 
 
@@ -250,6 +273,7 @@ def _fetch_csv_result(
     chunksize: Optional[int],
     use_threads: bool,
     boto3_session: boto3.Session,
+    s3_additional_kwargs: Optional[Dict[str, Any]],
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     _chunksize: Optional[int] = chunksize if isinstance(chunksize, int) else None
     _logger.debug("_chunksize: %s", _chunksize)
@@ -277,13 +301,22 @@ def _fetch_csv_result(
         df = _fix_csv_types(df=ret, parse_dates=query_metadata.parse_dates, binaries=query_metadata.binaries)
         df = _apply_query_metadata(df=df, query_metadata=query_metadata)
         if keep_files is False:
-            s3.delete_objects(path=[path, f"{path}.metadata"], use_threads=use_threads, boto3_session=boto3_session)
+            s3.delete_objects(
+                path=[path, f"{path}.metadata"],
+                use_threads=use_threads,
+                boto3_session=boto3_session,
+                s3_additional_kwargs=s3_additional_kwargs,
+            )
         return df
     dfs = _fix_csv_types_generator(dfs=ret, parse_dates=query_metadata.parse_dates, binaries=query_metadata.binaries)
     dfs = _add_query_metadata_generator(dfs=dfs, query_metadata=query_metadata)
     if keep_files is False:
         return _delete_after_iterate(
-            dfs=dfs, paths=[path, f"{path}.metadata"], use_threads=use_threads, boto3_session=boto3_session
+            dfs=dfs,
+            paths=[path, f"{path}.metadata"],
+            use_threads=use_threads,
+            boto3_session=boto3_session,
+            s3_additional_kwargs=s3_additional_kwargs,
         )
     return dfs
 
@@ -294,6 +327,7 @@ def _resolve_query_with_cache(
     chunksize: Optional[Union[int, bool]],
     use_threads: bool,
     session: Optional[boto3.Session],
+    s3_additional_kwargs: Optional[Dict[str, Any]],
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Fetch cached data and return it as a pandas DataFrame (or list of DataFrames)."""
     _logger.debug("cache_info:\n%s", cache_info)
@@ -314,6 +348,7 @@ def _resolve_query_with_cache(
             chunksize=chunksize,
             use_threads=use_threads,
             boto3_session=session,
+            s3_additional_kwargs=s3_additional_kwargs,
         )
     if cache_info.file_format == "csv":
         return _fetch_csv_result(
@@ -322,6 +357,7 @@ def _resolve_query_with_cache(
             chunksize=chunksize,
             use_threads=use_threads,
             boto3_session=session,
+            s3_additional_kwargs=s3_additional_kwargs,
         )
     raise exceptions.InvalidArgumentValue(f"Invalid data type: {cache_info.file_format}.")
 
@@ -340,6 +376,7 @@ def _resolve_query_without_cache_ctas(
     wg_config: _WorkGroupConfig,
     name: Optional[str],
     use_threads: bool,
+    s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     path: str = f"{s3_output}/{name}"
@@ -407,6 +444,7 @@ def _resolve_query_without_cache_ctas(
         categories=categories,
         chunksize=chunksize,
         use_threads=use_threads,
+        s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
     )
 
@@ -424,6 +462,7 @@ def _resolve_query_without_cache_regular(
     kms_key: Optional[str],
     wg_config: _WorkGroupConfig,
     use_threads: bool,
+    s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     _logger.debug("sql: %s", sql)
@@ -451,6 +490,7 @@ def _resolve_query_without_cache_regular(
         chunksize=chunksize,
         use_threads=use_threads,
         boto3_session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,
     )
 
 
@@ -469,6 +509,7 @@ def _resolve_query_without_cache(
     keep_files: bool,
     ctas_temp_table_name: Optional[str],
     use_threads: bool,
+    s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """
@@ -499,6 +540,7 @@ def _resolve_query_without_cache(
                 wg_config=wg_config,
                 name=name,
                 use_threads=use_threads,
+                s3_additional_kwargs=s3_additional_kwargs,
                 boto3_session=boto3_session,
             )
         finally:
@@ -516,6 +558,7 @@ def _resolve_query_without_cache(
         kms_key=kms_key,
         wg_config=wg_config,
         use_threads=use_threads,
+        s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
     )
 
@@ -541,17 +584,18 @@ def read_sql_query(
     max_local_cache_entries: int = 100,
     data_source: Optional[str] = None,
     params: Optional[Dict[str, Any]] = None,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Execute any SQL query on AWS Athena and return the results as a Pandas DataFrame.
 
     **Related tutorial:**
 
     - `Amazon Athena <https://github.com/awslabs/aws-data-wrangler/blob/
-      master/tutorials/006%20-%20Amazon%20Athena.ipynb>`_
+      main/tutorials/006%20-%20Amazon%20Athena.ipynb>`_
     - `Athena Cache <https://github.com/awslabs/aws-data-wrangler/blob/
-      master/tutorials/019%20-%20Athena%20Cache.ipynb>`_
+      main/tutorials/019%20-%20Athena%20Cache.ipynb>`_
     - `Global Configurations <https://github.com/awslabs/aws-data-wrangler/blob/
-      master/tutorials/021%20-%20Global%20Configurations.ipynb>`_
+      main/tutorials/021%20-%20Global%20Configurations.ipynb>`_
 
     **There are two approaches to be defined through ctas_approach parameter:**
 
@@ -599,7 +643,7 @@ def read_sql_query(
 
     For a practical example check out the
     `related tutorial <https://github.com/awslabs/aws-data-wrangler/blob/
-    master/tutorials/024%20-%20Athena%20Query%20Metadata.ipynb>`_!
+    main/tutorials/024%20-%20Athena%20Query%20Metadata.ipynb>`_!
 
 
     Note
@@ -700,6 +744,9 @@ def read_sql_query(
         Dict of parameters that will be used for constructing the SQL query. Only named parameters are supported.
         The dict needs to contain the information in the form {'name': 'value'} and the SQL query needs to contain
         `:name;`.
+    s3_additional_kwargs : Optional[Dict[str, Any]]
+        Forward to botocore requests. Valid parameters: "RequestPayer".
+        e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
 
     Returns
     -------
@@ -724,7 +771,7 @@ def read_sql_query(
             "Queries with ctas_approach=True (default) does not support "
             "data_source values different than None and 'AwsDataCatalog'. "
             "Please check the related tutorial for more details "
-            "(https://github.com/awslabs/aws-data-wrangler/blob/master/"
+            "(https://github.com/awslabs/aws-data-wrangler/blob/main/"
             "tutorials/006%20-%20Amazon%20Athena.ipynb)"
         )
     chunksize = sys.maxsize if ctas_approach is False and chunksize is True else chunksize
@@ -756,6 +803,7 @@ def read_sql_query(
                 chunksize=chunksize,
                 use_threads=use_threads,
                 session=session,
+                s3_additional_kwargs=s3_additional_kwargs,
             )
         except Exception as e:  # pylint: disable=broad-except
             _logger.error(e)  # if there is anything wrong with the cache, just fallback to the usual path
@@ -774,6 +822,7 @@ def read_sql_query(
         keep_files=keep_files,
         ctas_temp_table_name=ctas_temp_table_name,
         use_threads=use_threads,
+        s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=session,
     )
 
@@ -798,17 +847,18 @@ def read_sql_table(
     max_remote_cache_entries: int = 50,
     max_local_cache_entries: int = 100,
     data_source: Optional[str] = None,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Extract the full table AWS Athena and return the results as a Pandas DataFrame.
 
     **Related tutorial:**
 
     - `Amazon Athena <https://github.com/awslabs/aws-data-wrangler/blob/
-      master/tutorials/006%20-%20Amazon%20Athena.ipynb>`_
+      main/tutorials/006%20-%20Amazon%20Athena.ipynb>`_
     - `Athena Cache <https://github.com/awslabs/aws-data-wrangler/blob/
-      master/tutorials/019%20-%20Athena%20Cache.ipynb>`_
+      main/tutorials/019%20-%20Athena%20Cache.ipynb>`_
     - `Global Configurations <https://github.com/awslabs/aws-data-wrangler/blob/
-      master/tutorials/021%20-%20Global%20Configurations.ipynb>`_
+      main/tutorials/021%20-%20Global%20Configurations.ipynb>`_
 
     **There are two approaches to be defined through ctas_approach parameter:**
 
@@ -852,7 +902,7 @@ def read_sql_table(
     /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a practical example check out the
-    `related tutorial <https://github.com/awslabs/aws-data-wrangler/blob/master/
+    `related tutorial <https://github.com/awslabs/aws-data-wrangler/blob/main/
     tutorials/024%20-%20Athena%20Query%20Metadata.ipynb>`_!
 
 
@@ -948,6 +998,9 @@ def read_sql_table(
         Only takes effect if max_cache_seconds > 0 and default value is 100.
     data_source : str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
+    s3_additional_kwargs : Optional[Dict[str, Any]]
+        Forward to botocore requests. Valid parameters: "RequestPayer".
+        e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
 
     Returns
     -------
@@ -981,6 +1034,7 @@ def read_sql_table(
         max_cache_query_inspections=max_cache_query_inspections,
         max_remote_cache_entries=max_remote_cache_entries,
         max_local_cache_entries=max_local_cache_entries,
+        s3_additional_kwargs=s3_additional_kwargs,
     )
 
 

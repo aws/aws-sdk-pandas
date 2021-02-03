@@ -304,7 +304,9 @@ def _read_parquet_iterator(
     )
     yield from dfs
     if keep_files is False:
-        s3.delete_objects(path=path, use_threads=use_threads, boto3_session=boto3_session)
+        s3.delete_objects(
+            path=path, use_threads=use_threads, boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs
+        )
 
 
 def connect(
@@ -365,7 +367,7 @@ def connect(
 
     Examples
     --------
-    Fetching Redshit connection from Glue Catalog
+    Fetching Redshift connection from Glue Catalog
 
     >>> import awswrangler as wr
     >>> con = wr.redshift.connect("MY_GLUE_CONNECTION")
@@ -374,7 +376,7 @@ def connect(
     >>>     print(cursor.fetchall())
     >>> con.close()
 
-    Fetching Redshit connection from Secrets Manager
+    Fetching Redshift connection from Secrets Manager
 
     >>> import awswrangler as wr
     >>> con = wr.redshift.connect(secret_id="MY_SECRET")
@@ -395,7 +397,7 @@ def connect(
         user=attrs.user,
         database=attrs.database,
         password=attrs.password,
-        port=attrs.port,
+        port=int(attrs.port),
         host=attrs.host,
         ssl=ssl,
         timeout=timeout,
@@ -1012,7 +1014,9 @@ def unload(
             s3_additional_kwargs=s3_additional_kwargs,
         )
         if keep_files is False:
-            s3.delete_objects(path=path, use_threads=use_threads, boto3_session=session)
+            s3.delete_objects(
+                path=path, use_threads=use_threads, boto3_session=session, s3_additional_kwargs=s3_additional_kwargs
+            )
         return df
     return _read_parquet_iterator(
         path=path,
@@ -1129,7 +1133,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
         Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
-        "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
+        "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging", "RequestPayer".
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
 
     Returns
@@ -1307,7 +1311,7 @@ def copy(  # pylint: disable=too-many-arguments
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
         Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
-        "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
+        "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging", "RequestPayer".
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
     max_rows_by_file : int
         Max number of rows in each file.
@@ -1338,7 +1342,7 @@ def copy(  # pylint: disable=too-many-arguments
     path = path[:-1] if path.endswith("*") else path
     path = path if path.endswith("/") else f"{path}/"
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    if s3.list_objects(path=path, boto3_session=session):
+    if s3.list_objects(path=path, boto3_session=session, s3_additional_kwargs=s3_additional_kwargs):
         raise exceptions.InvalidArgument(
             f"The received S3 path ({path}) is not empty. "
             "Please, provide a different path or use wr.s3.delete_objects() to clean up the current one."
@@ -1380,4 +1384,6 @@ def copy(  # pylint: disable=too-many-arguments
         )
     finally:
         if keep_files is False:
-            s3.delete_objects(path=path, use_threads=use_threads, boto3_session=session)
+            s3.delete_objects(
+                path=path, use_threads=use_threads, boto3_session=session, s3_additional_kwargs=s3_additional_kwargs
+            )

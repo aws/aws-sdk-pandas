@@ -3,7 +3,7 @@ set -ex
 
 isort --check .
 black --check .
-mypy .
+mypy awswrangler
 flake8 .
 pylint -j 0 awswrangler
 pydocstyle awswrangler/ --convention=numpy

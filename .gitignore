@@ -132,6 +132,7 @@ output/
 /dev/
 metrics/
 python/
+notes.txt
 
 # SAM
 .aws-sam

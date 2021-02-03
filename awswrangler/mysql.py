@@ -333,8 +333,8 @@ def to_sql(
             _logger.debug("sql: %s", sql)
             parameters: List[List[Any]] = _db_utils.extract_parameters(df=df)
             cursor.executemany(sql, parameters)
-            con.commit()  # type: ignore
+            con.commit()
     except Exception as ex:
-        con.rollback()  # type: ignore
+        con.rollback()
         _logger.error(ex)
         raise

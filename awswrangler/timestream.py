@@ -39,7 +39,7 @@ def _write_batch(
     client: boto3.client = _utils.client(
         service_name="timestream-write",
         session=boto3_session,
-        config=Config(read_timeout=20, max_pool_connections=5000, retries={"max_attempts": 10}),
+        botocore_config=Config(read_timeout=20, max_pool_connections=5000, retries={"max_attempts": 10}),
     )
     try:
         _utils.try_it(
@@ -218,7 +218,7 @@ def query(sql: str, boto3_session: Optional[boto3.Session] = None) -> pd.DataFra
     client: boto3.client = _utils.client(
         service_name="timestream-query",
         session=boto3_session,
-        config=Config(read_timeout=60, retries={"max_attempts": 10}),
+        botocore_config=Config(read_timeout=60, retries={"max_attempts": 10}),
     )
     paginator = client.get_paginator("query")
     rows: List[List[Any]] = []

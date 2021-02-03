@@ -29,10 +29,12 @@ Amazon S3
     delete_objects
     describe_objects
     does_object_exist
+    download
     get_bucket_region
     list_directories
     list_objects
     merge_datasets
+    merge_upsert_table
     read_csv
     read_excel
     read_fwf
@@ -46,6 +48,7 @@ Amazon S3
     to_excel
     to_json
     to_parquet
+    upload
     wait_objects_exist
     wait_objects_not_exist
 

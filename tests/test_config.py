@@ -4,6 +4,8 @@ from unittest.mock import patch
 
 import boto3
 import botocore
+import botocore.client
+import botocore.config
 import pytest
 
 import awswrangler as wr
@@ -121,3 +123,60 @@ def test_basics(path, glue_database, glue_table, workgroup0, workgroup1):
 def test_athena_cache_configuration():
     wr.config.max_local_cache_entries = 20
     assert wr.config.max_remote_cache_entries == 20
+
+
+def test_botocore_config(path):
+    original = botocore.client.ClientCreator.create_client
+
+    # Default values for botocore.config.Config
+    expected_max_retries_attempt = 3
+    expected_connect_timeout = 10
+    expected_max_pool_connections = 10
+    expected_retry_mode = "standard"
+
+    def wrapper(self, **kwarg):
+        assert kwarg["client_config"].retries["max_attempts"] == expected_max_retries_attempt
+        assert kwarg["client_config"].connect_timeout == expected_connect_timeout
+        assert kwarg["client_config"].max_pool_connections == expected_max_pool_connections
+        assert kwarg["client_config"].retries["mode"] == expected_retry_mode
+        return original(self, **kwarg)
+
+    # Check for default values
+    with patch("botocore.client.ClientCreator.create_client", new=wrapper):
+        with open_s3_object(path, mode="wb") as s3obj:
+            s3obj.write(b"foo")
+
+    # Update default config with environment variables
+    expected_max_retries_attempt = 20
+    expected_connect_timeout = 10
+    expected_max_pool_connections = 10
+    expected_retry_mode = "adaptive"
+
+    os.environ["AWS_MAX_ATTEMPTS"] = str(expected_max_retries_attempt)
+    os.environ["AWS_RETRY_MODE"] = expected_retry_mode
+
+    with patch("botocore.client.ClientCreator.create_client", new=wrapper):
+        with open_s3_object(path, mode="wb") as s3obj:
+            s3obj.write(b"foo")
+
+    del os.environ["AWS_MAX_ATTEMPTS"]
+    del os.environ["AWS_RETRY_MODE"]
+
+    # Update botocore.config.Config
+    expected_max_retries_attempt = 30
+    expected_connect_timeout = 40
+    expected_max_pool_connections = 50
+    expected_retry_mode = "legacy"
+
+    botocore_config = botocore.config.Config(
+        retries={"max_attempts": expected_max_retries_attempt, "mode": expected_retry_mode},
+        connect_timeout=expected_connect_timeout,
+        max_pool_connections=expected_max_pool_connections,
+    )
+    wr.config.botocore_config = botocore_config
+
+    with patch("botocore.client.ClientCreator.create_client", new=wrapper):
+        with open_s3_object(path, mode="wb") as s3obj:
+            s3obj.write(b"foo")
+
+    wr.config.reset()

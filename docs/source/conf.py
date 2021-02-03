@@ -83,10 +83,10 @@ html_theme_options = {
     "navbar_links": [
         ("What is Data Wrangler?", "what"),
         ("Install", "install"),
-        ("Tutorials", "https://github.com/awslabs/aws-data-wrangler/tree/master/tutorials", True),
+        ("Tutorials", "https://github.com/awslabs/aws-data-wrangler/tree/main/tutorials", True),
         ("API Reference", "api"),
-        ("License", "https://github.com/awslabs/aws-data-wrangler/blob/master/LICENSE.txt", True),
-        ("Contributing", "https://github.com/awslabs/aws-data-wrangler/blob/master/CONTRIBUTING.md", True),
+        ("License", "https://github.com/awslabs/aws-data-wrangler/blob/main/LICENSE.txt", True),
+        ("Contributing", "https://github.com/awslabs/aws-data-wrangler/blob/main/CONTRIBUTING.md", True),
         ("GitHub", "https://github.com/awslabs/aws-data-wrangler", True),
     ],
     # Render the next and previous page links in navbar. (Default: true)

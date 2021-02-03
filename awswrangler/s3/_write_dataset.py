@@ -37,7 +37,12 @@ def _to_partitions(
         subdir = "/".join([f"{name}={val}" for name, val in zip(partition_cols, keys)])
         prefix: str = f"{path_root}{subdir}/"
         if mode == "overwrite_partitions":
-            delete_objects(path=prefix, use_threads=use_threads, boto3_session=boto3_session)
+            delete_objects(
+                path=prefix,
+                use_threads=use_threads,
+                boto3_session=boto3_session,
+                s3_additional_kwargs=func_kwargs.get("s3_additional_kwargs"),
+            )
         if bucketing_info:
             _to_buckets(
                 func=func,
@@ -144,7 +149,12 @@ def _to_dataset(
             f"{mode} is a invalid mode, please use append, overwrite or overwrite_partitions."
         )
     if (mode == "overwrite") or ((mode == "overwrite_partitions") and (not partition_cols)):
-        delete_objects(path=path_root, use_threads=use_threads, boto3_session=boto3_session)
+        delete_objects(
+            path=path_root,
+            use_threads=use_threads,
+            boto3_session=boto3_session,
+            s3_additional_kwargs=func_kwargs.get("s3_additional_kwargs"),
+        )
 
     # Writing
     partitions_values: Dict[str, List[str]] = {}

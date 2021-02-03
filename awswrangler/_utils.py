@@ -16,6 +16,7 @@ import numpy as np
 import pandas as pd
 
 from awswrangler import _config, exceptions
+from awswrangler._config import apply_configs
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -59,9 +60,13 @@ def boto3_from_primitives(primitives: Optional[Boto3PrimitivesType] = None) -> b
     return boto3.Session(**args)
 
 
-def botocore_config() -> botocore.config.Config:
+def default_botocore_config() -> botocore.config.Config:
     """Botocore configuration."""
-    return botocore.config.Config(retries={"max_attempts": 5}, connect_timeout=10, max_pool_connections=10)
+    retries_config: Dict[str, Union[str, int]] = {
+        "max_attempts": int(os.getenv("AWS_MAX_ATTEMPTS", "3")),
+        "mode": os.getenv("AWS_RETRY_MODE", "standard"),
+    }
+    return botocore.config.Config(retries=retries_config, connect_timeout=10, max_pool_connections=10)
 
 
 def _get_endpoint_url(service_name: str) -> Optional[str]:
@@ -83,8 +88,9 @@ def _get_endpoint_url(service_name: str) -> Optional[str]:
     return endpoint_url
 
 
+@apply_configs
 def client(
-    service_name: str, session: Optional[boto3.Session] = None, config: Optional[botocore.config.Config] = None
+    service_name: str, session: Optional[boto3.Session] = None, botocore_config: Optional[botocore.config.Config] = None
 ) -> boto3.client:
     """Create a valid boto3.client."""
     endpoint_url: Optional[str] = _get_endpoint_url(service_name=service_name)
@@ -92,15 +98,21 @@ def client(
         service_name=service_name,
         endpoint_url=endpoint_url,
         use_ssl=True,
-        config=botocore_config() if config is None else config,
+        config=default_botocore_config() if botocore_config is None else botocore_config,
     )
 
 
-def resource(service_name: str, session: Optional[boto3.Session] = None) -> boto3.resource:
+@apply_configs
+def resource(
+    service_name: str, session: Optional[boto3.Session] = None, botocore_config: Optional[botocore.config.Config] = None
+) -> boto3.resource:
     """Create a valid boto3.resource."""
     endpoint_url: Optional[str] = _get_endpoint_url(service_name=service_name)
     return ensure_session(session=session).resource(
-        service_name=service_name, endpoint_url=endpoint_url, use_ssl=True, config=botocore_config()
+        service_name=service_name,
+        endpoint_url=endpoint_url,
+        use_ssl=True,
+        config=default_botocore_config() if botocore_config is None else botocore_config,
     )
 
 

@@ -428,3 +428,29 @@ def test_empty_file(path, use_threads):
     df2 = wr.s3.read_parquet(path, dataset=True, use_threads=use_threads)
     df2["par"] = df2["par"].astype("string")
     assert df.equals(df2)
+
+
+def test_read_chunked(path):
+    path = f"{path}file.parquet"
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [None, None, None]})
+    wr.s3.to_parquet(df, path)
+    df2 = next(wr.s3.read_parquet(path, chunked=True))
+    assert df.shape == df2.shape
+
+
+def test_read_chunked_validation_exception(path):
+    path = f"{path}file.parquet"
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [None, None, None]})
+    wr.s3.to_parquet(df, path)
+    with pytest.raises(wr.exceptions.UndetectedType):
+        next(wr.s3.read_parquet(path, chunked=True, validate_schema=True))
+
+
+def test_read_chunked_validation_exception2(path):
+    df = pd.DataFrame({"c0": [0, 1, 2]})
+    wr.s3.to_parquet(df, f"{path}file0.parquet")
+    df = pd.DataFrame({"c1": [0, 1, 2]})
+    wr.s3.to_parquet(df, f"{path}file1.parquet")
+    with pytest.raises(wr.exceptions.InvalidSchemaConvergence):
+        for _ in wr.s3.read_parquet(path, dataset=True, chunked=True, validate_schema=True):
+            pass
