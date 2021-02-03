@@ -5,6 +5,7 @@ from awswrangler.s3._delete import delete_objects  # noqa
 from awswrangler.s3._describe import describe_objects, get_bucket_region, size_objects  # noqa
 from awswrangler.s3._download import download  # noqa
 from awswrangler.s3._list import does_object_exist, list_directories, list_objects  # noqa
+from awswrangler.s3._merge_upsert_table import merge_upsert_table  # noqa
 from awswrangler.s3._read_excel import read_excel  # noqa
 from awswrangler.s3._read_parquet import read_parquet, read_parquet_metadata, read_parquet_table  # noqa
 from awswrangler.s3._read_text import read_csv, read_fwf, read_json  # noqa

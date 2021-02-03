@@ -84,7 +84,7 @@ You can choose from three different environments to test your fixes/changes, bas
 ### Mocked test environment
 
 * Pick up a Linux or MacOS.
-* Install Python 3.6, 3.7 or 3.8
+* Install Python 3.7, 3.8 or 3.9
 * Fork the AWS Data Wrangler repository and clone that into your development environment
 * Go to the project's directory create a Python's virtual environment for the project
 
@@ -115,7 +115,7 @@ or
 **DISCLAIMER**: Make sure you know what you are doing. These steps will charge some services on your AWS account and require a minimum security skill to keep your environment safe.
 
 * Pick up a Linux or MacOS.
-* Install Python 3.6, 3.7 or 3.8
+* Install Python 3.7, 3.8 or 3.9
 * Fork the AWS Data Wrangler repository and clone that into your development environment
 * Go to the project's directory create a Python's virtual environment for the project
 
@@ -168,7 +168,7 @@ or
 **DISCLAIMER**: This environment contains Aurora MySQL, Aurora PostgreSQL and Redshift (single-node) clusters which will incur cost while running.
 
 * Pick up a Linux or MacOS.
-* Install Python 3.6, 3.7 and 3.8
+* Install Python 3.7, 3.8 or 3.9
 * Fork the AWS Data Wrangler repository and clone that into your development environment
 * Go to the project's directory create a Python's virtual environment for the project
 
@@ -244,5 +244,5 @@ or
 
 ## Common Errors
 
-Check the file below to check the common errors and solutions 
+Check the file below to check the common errors and solutions
 [ERRORS](https://github.com/awslabs/aws-data-wrangler/blob/main/CONTRIBUTING_COMMON_ERRORS.md)
