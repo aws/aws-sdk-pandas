@@ -15,7 +15,7 @@ from awswrangler import exceptions
 
 __all__ = ["connect", "read_sql_query", "read_sql_table", "to_sql"]
 
-_pyodbc_found = importlib.util.find_spec("pyodbc")  # type: ignore
+_pyodbc_found = importlib.util.find_spec("pyodbc")
 if _pyodbc_found:
     import pyodbc  # pylint: disable=import-error
 
