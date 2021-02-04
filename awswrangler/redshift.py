@@ -978,7 +978,7 @@ def unload(
     --------
     >>> import awswrangler as wr
     >>> con = wr.redshift.connect("MY_GLUE_CONNECTION")
-    >>> df = wr.db.unload(
+    >>> df = wr.redshift.unload(
     ...     sql="SELECT * FROM public.mytable",
     ...     path="s3://bucket/extracted_parquet_files/",
     ...     con=con,
