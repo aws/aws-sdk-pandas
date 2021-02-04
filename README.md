@@ -23,6 +23,8 @@ Easy integration with Athena, Glue, Redshift, Timestream, QuickSight, Chime, Clo
 | **[PyPi](https://pypi.org/project/awswrangler/)**  | [![PyPI Downloads](https://pepy.tech/badge/awswrangler)](https://pypi.org/project/awswrangler/) | `pip install awswrangler` |
 | **[Conda](https://anaconda.org/conda-forge/awswrangler)** | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/awswrangler.svg)](https://anaconda.org/conda-forge/awswrangler) | `conda install -c conda-forge awswrangler` |
 
+> ⚠️ **For platforms without PyArrow 3 support (e.g. [EMR](https://aws-data-wrangler.readthedocs.io/en/stable/install.html#emr-cluster), [Glue PySpark Job](https://aws-data-wrangler.readthedocs.io/en/stable/install.html#aws-glue-pyspark-jobs)):** `pip install pyarrow==2 awswrangler`
+
 Powered By [<img src="https://arrow.apache.org/img/arrow.png" width="200">](https://arrow.apache.org/powered_by/)
 
 ## Table of contents
@@ -37,6 +39,8 @@ Powered By [<img src="https://arrow.apache.org/img/arrow.png" width="200">](http
 ## Quick Start
 
 Installation command: `pip install awswrangler`
+
+> ⚠️ **For platforms without PyArrow 3 support (e.g. [EMR](https://aws-data-wrangler.readthedocs.io/en/stable/install.html#emr-cluster), [Glue PySpark Job](https://aws-data-wrangler.readthedocs.io/en/stable/install.html#aws-glue-pyspark-jobs)):** `pip install pyarrow==2 awswrangler`
 
 ```py3
 import awswrangler as wr

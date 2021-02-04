@@ -1,7 +1,7 @@
 Install
 =======
 
-**AWS Data Wrangler** runs with Python ``3.6``, ``3.7`` and ``3.8``
+**AWS Data Wrangler** runs with Python ``3.6``, ``3.7``, ``3.8`` and ``3.9``
 and on several platforms (AWS Lambda, AWS Glue Python Shell, EMR, EC2,
 on-premises, Amazon SageMaker, local, etc).
 
@@ -57,10 +57,13 @@ AWS Glue PySpark Jobs
 Go to your Glue PySpark job and create a new *Job parameters* key/value:
 
 * Key: ``--additional-python-modules``
-* Value: ``awswrangler==2.3.0``
+* Value: ``pyarrow==2,awswrangler``
 
-P.S. By now AWS Glue PySpark Jobs does not support PyArrow +3.0.0.
-Please use awswrangler==2.3.0 that uses PyArrow 2.0.0 to overcome this limitation.
+To install a specific version, set the value for above Job parameter as follows:
+
+* Value: ``pyarrow==2,awswrangler==2.4.0``
+
+.. note:: Pyarrow 3 is not currently supported in Glue PySpark Jobs, which is why a previous installation of pyarrow 2 is required.
 
 `Official Glue PySpark Reference <https://docs.aws.amazon.com/glue/latest/dg/reduced-start-times-spark-etl-jobs.html#reduced-start-times-new-features>`_
 
@@ -115,7 +118,7 @@ AWS Data Wrangler could be a good helper to
 complement Big Data pipelines.
 
 - Configure Python 3 as the default interpreter for
-  PySpark under your cluster configuration
+  PySpark on your cluster configuration [ONLY REQUIRED FOR EMR < 6]
 
     .. code-block:: json
 
@@ -135,15 +138,28 @@ complement Big Data pipelines.
 
 - Keep the bootstrap script above on S3 and reference it on your cluster.
 
+  - For EMR Release < 6
+
     .. code-block:: sh
 
         #!/usr/bin/env bash
         set -ex
 
-        sudo pip-3.6 install awswrangler
+        sudo pip-3.6 install pyarrow==2 awswrangler
+
+  - For EMR Release >= 6
+
+    .. code-block:: sh
+
+        #!/usr/bin/env bash
+        set -ex
+
+        sudo pip install pyarrow==2 awswrangler
 
 .. note:: Make sure to freeze the Wrangler version in the bootstrap for productive
-          environments (e.g. awswrangler==1.8.1)
+          environments (e.g. awswrangler==2.4.0)
+
+.. note:: Pyarrow 3 is not currently supported in the default EMR image, which is why a previous installation of pyarrow 2 is required.
 
 From Source
 -----------
