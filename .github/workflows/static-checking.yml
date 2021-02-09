@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - main
+      - main-governed-tables
   pull_request:
     branches:
       - main
+      - main-governed-tables
 
 jobs:
   Check:
