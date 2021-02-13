@@ -10,7 +10,8 @@ from pyarrow import NativeFile, RecordBatchStreamReader, Table
 
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._config import apply_configs
-from awswrangler.lakeformation._utils import wait_query
+from awswrangler.catalog._utils import _catalog_id
+from awswrangler.lakeformation._utils import abort_transaction, begin_transaction, wait_query
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -62,7 +63,7 @@ def _resolve_sql_query(
     # One Token can span multiple work units
     # PageSize determines the size of the "Units" array in each call
     # TODO: Inquire about good page size # pylint: disable=W0511
-    scan_kwargs: Dict[str, Union[str, int]] = {"QueryId": query_id, "PageSize": 2}
+    scan_kwargs: Dict[str, Union[str, int]] = {"QueryId": query_id, "PageSize": 10}
     next_token: str = "init_token"  # Dummy token
     token_work_units: List[Tuple[str, int]] = []
     while next_token:
@@ -74,7 +75,7 @@ def _resolve_sql_query(
                 for unit_id in range(unit["WorkUnitIdMin"], unit["WorkUnitIdMax"] + 1)  # Max is inclusive
             ]
         )
-        next_token = response["NextToken"]
+        next_token = response.get("NextToken", None)
         scan_kwargs["NextToken"] = next_token
 
     dfs: List[pd.DataFrame] = list()
@@ -125,6 +126,11 @@ def read_sql_query(
     params: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Execute PartiQL query on AWS Glue Table (Transaction ID or time travel timestamp). Return Pandas DataFrame.
+
+    Note
+    ----
+    ORDER BY operations are not honoured.
+    i.e. sql="SELECT * FROM my_table ORDER BY my_column" is NOT valid
 
     Note
     ----
@@ -217,24 +223,28 @@ def read_sql_query(
     for key, value in params.items():
         sql = sql.replace(f":{key}", str(value))
 
-    args: Dict[str, Optional[str]] = {"DatabaseName": database, "Statement": sql}
-    if catalog_id:
-        args["CatalogId"] = catalog_id
+    args: Dict[str, Optional[str]] = _catalog_id(catalog_id=catalog_id, **{"DatabaseName": database, "Statement": sql})
     if query_as_of_time:
         args["QueryAsOfTime"] = query_as_of_time
     elif transaction_id:
         args["TransactionId"] = transaction_id
     else:
         _logger.debug("Neither `transaction_id` nor `query_as_of_time` were specified, beginning transaction")
-        transaction_id = client_lakeformation.begin_transaction(ReadOnly=True)["TransactionId"]
+        transaction_id = begin_transaction(read_only=True, boto3_session=session)
         args["TransactionId"] = transaction_id
     query_id: str = client_lakeformation.plan_query(**args)["QueryId"]
-
-    return _resolve_sql_query(
-        query_id=query_id,
-        chunked=chunked,
-        categories=categories,
-        safe=safe,
-        use_threads=use_threads,
-        boto3_session=session,
-    )
+    try:
+        return _resolve_sql_query(
+            query_id=query_id,
+            chunked=chunked,
+            categories=categories,
+            safe=safe,
+            use_threads=use_threads,
+            boto3_session=session,
+        )
+    except Exception as ex:
+        _logger.debug("Aborting transaction with ID: %s.", transaction_id)
+        if transaction_id:
+            abort_transaction(transaction_id=transaction_id, boto3_session=session)
+        _logger.error(ex)
+        raise
