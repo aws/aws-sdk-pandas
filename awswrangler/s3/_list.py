@@ -9,6 +9,7 @@ import boto3
 import botocore.exceptions
 
 from awswrangler import _utils, exceptions
+from awswrangler.s3 import _fs
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -16,6 +17,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def _path2list(
     path: Union[str, Sequence[str]],
     boto3_session: boto3.Session,
+    s3_additional_kwargs: Optional[Dict[str, Any]],
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     suffix: Union[str, List[str], None] = None,
@@ -34,6 +36,7 @@ def _path2list(
             last_modified_begin=last_modified_begin,
             last_modified_end=last_modified_end,
             ignore_empty=ignore_empty,
+            s3_additional_kwargs=s3_additional_kwargs,
         )
     elif isinstance(path, list):
         if last_modified_begin or last_modified_end:
@@ -68,6 +71,7 @@ def _prefix_cleanup(prefix: str) -> str:
 
 def _list_objects(  # pylint: disable=too-many-branches
     path: str,
+    s3_additional_kwargs: Optional[Dict[str, Any]],
     delimiter: Optional[str] = None,
     suffix: Union[str, List[str], None] = None,
     ignore_suffix: Union[str, List[str], None] = None,
@@ -83,10 +87,17 @@ def _list_objects(  # pylint: disable=too-many-branches
     _suffix: Union[List[str], None] = [suffix] if isinstance(suffix, str) else suffix
     _ignore_suffix: Union[List[str], None] = [ignore_suffix] if isinstance(ignore_suffix, str) else ignore_suffix
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    if s3_additional_kwargs:
+        extra_kwargs: Dict[str, Any] = _fs.get_botocore_valid_kwargs(
+            function_name="list_objects_v2", s3_additional_kwargs=s3_additional_kwargs
+        )
+    else:
+        extra_kwargs = {}
     paginator = client_s3.get_paginator("list_objects_v2")
-    args: Dict[str, Any] = {"Bucket": bucket, "Prefix": prefix, "PaginationConfig": {"PageSize": 1000}}
+    args: Dict[str, Any] = {"Bucket": bucket, "Prefix": prefix, "PaginationConfig": {"PageSize": 1000}, **extra_kwargs}
     if delimiter is not None:
         args["Delimiter"] = delimiter
+    _logger.debug("args: %s", args)
     response_iterator = paginator.paginate(**args)
     paths: List[str] = []
     _validate_datetimes(last_modified_begin=last_modified_begin, last_modified_end=last_modified_end)
@@ -125,13 +136,18 @@ def _list_objects(  # pylint: disable=too-many-branches
     return paths
 
 
-def does_object_exist(path: str, boto3_session: Optional[boto3.Session] = None) -> bool:
+def does_object_exist(
+    path: str, s3_additional_kwargs: Optional[Dict[str, Any]] = None, boto3_session: Optional[boto3.Session] = None
+) -> bool:
     """Check if object exists on S3.
 
     Parameters
     ----------
     path: str
         S3 path (e.g. s3://bucket/key).
+    s3_additional_kwargs : Optional[Dict[str, Any]]
+        Forward to botocore requests. Valid parameters: "RequestPayer".
+        e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -164,8 +180,14 @@ def does_object_exist(path: str, boto3_session: Optional[boto3.Session] = None) 
     bucket: str
     key: str
     bucket, key = _utils.parse_path(path=path)
+    if s3_additional_kwargs:
+        extra_kwargs: Dict[str, Any] = _fs.get_botocore_valid_kwargs(
+            function_name="head_object", s3_additional_kwargs=s3_additional_kwargs
+        )
+    else:
+        extra_kwargs = {}
     try:
-        client_s3.head_object(Bucket=bucket, Key=key)
+        client_s3.head_object(Bucket=bucket, Key=key, **extra_kwargs)
         return True
     except botocore.exceptions.ClientError as ex:
         if ex.response["ResponseMetadata"]["HTTPStatusCode"] == 404:
@@ -173,7 +195,9 @@ def does_object_exist(path: str, boto3_session: Optional[boto3.Session] = None) 
         raise ex
 
 
-def list_directories(path: str, boto3_session: Optional[boto3.Session] = None) -> List[str]:
+def list_directories(
+    path: str, s3_additional_kwargs: Optional[Dict[str, Any]] = None, boto3_session: Optional[boto3.Session] = None
+) -> List[str]:
     """List Amazon S3 objects from a prefix.
 
     This function accepts Unix shell-style wildcards in the path argument.
@@ -184,6 +208,9 @@ def list_directories(path: str, boto3_session: Optional[boto3.Session] = None) -
     ----------
     path : str
         S3 path (e.g. s3://bucket/prefix).
+    s3_additional_kwargs : Optional[Dict[str, Any]]
+        Forward to botocore requests. Valid parameters: "RequestPayer".
+        e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -208,7 +235,9 @@ def list_directories(path: str, boto3_session: Optional[boto3.Session] = None) -
     ['s3://bucket/prefix/dir0/', 's3://bucket/prefix/dir1/', 's3://bucket/prefix/dir2/']
 
     """
-    return _list_objects(path=path, delimiter="/", boto3_session=boto3_session)
+    return _list_objects(
+        path=path, delimiter="/", boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs
+    )
 
 
 def list_objects(
@@ -218,6 +247,7 @@ def list_objects(
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     ignore_empty: bool = False,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> List[str]:
     """List Amazon S3 objects from a prefix.
@@ -246,6 +276,9 @@ def list_objects(
         The filter is applied only after list all s3 files.
     ignore_empty: bool
         Ignore files with 0 bytes.
+    s3_additional_kwargs : Optional[Dict[str, Any]]
+        Forward to botocore requests. Valid parameters: "RequestPayer".
+        e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -279,5 +312,6 @@ def list_objects(
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
         ignore_empty=ignore_empty,
+        s3_additional_kwargs=s3_additional_kwargs,
     )
     return [p for p in paths if not p.endswith("/")]
