@@ -152,7 +152,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
-        "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
+        "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging", "RequestPayer".
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
     sanitize_columns : bool
         True to sanitize columns names or False to keep it as is.
@@ -176,7 +176,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     mode : str, optional
         ``append`` (Default), ``overwrite``, ``overwrite_partitions``. Only takes effect if dataset=True.
         For details check the related tutorial:
-        https://aws-data-wrangler.readthedocs.io/en/stable/stubs/awswrangler.s3.to_parquet.html#awswrangler.s3.to_parquet
+        https://aws-data-wrangler.readthedocs.io/en/2.4.0-docs/stubs/awswrangler.s3.to_parquet.html#awswrangler.s3.to_parquet
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     database : str, optional
@@ -522,7 +522,12 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                     )
             except Exception:
                 _logger.debug("Catalog write failed, cleaning up S3 (paths: %s).", paths)
-                delete_objects(path=paths, use_threads=use_threads, boto3_session=session)
+                delete_objects(
+                    path=paths,
+                    use_threads=use_threads,
+                    boto3_session=session,
+                    s3_additional_kwargs=s3_additional_kwargs,
+                )
                 raise
     return {"paths": paths, "partitions_values": partitions_values}
 
@@ -556,7 +561,7 @@ def to_json(
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forward to botocore requests. Valid parameters: "ACL", "Metadata", "ServerSideEncryption", "StorageClass",
-        "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging".
+        "SSECustomerAlgorithm", "SSECustomerKey", "SSEKMSKeyId", "SSEKMSEncryptionContext", "Tagging", "RequestPayer".
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.

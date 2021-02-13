@@ -155,6 +155,7 @@ def _read_parquet_metadata(
         suffix=path_suffix,
         ignore_suffix=_get_path_ignore_suffix(path_ignore_suffix=path_ignore_suffix),
         ignore_empty=ignore_empty,
+        s3_additional_kwargs=s3_additional_kwargs,
     )
 
     # Files
@@ -301,18 +302,19 @@ def _read_parquet_chunked(
             )
             if pq_file is None:
                 continue
-            schema: Dict[str, str] = _data_types.athena_types_from_pyarrow_schema(
-                schema=pq_file.schema.to_arrow_schema(), partitions=None
-            )[0]
-            if validate_schema is True and last_schema is not None:
-                if schema != last_schema:
-                    raise exceptions.InvalidSchemaConvergence(
-                        f"Was detect at least 2 different schemas:\n"
-                        f"    - {last_path} -> {last_schema}\n"
-                        f"    - {path} -> {schema}"
-                    )
-            last_schema = schema
-            last_path = path
+            if validate_schema is True:
+                schema: Dict[str, str] = _data_types.athena_types_from_pyarrow_schema(
+                    schema=pq_file.schema.to_arrow_schema(), partitions=None
+                )[0]
+                if last_schema is not None:
+                    if schema != last_schema:
+                        raise exceptions.InvalidSchemaConvergence(
+                            f"Was detect at least 2 different schemas:\n"
+                            f"    - {last_path} -> {last_schema}\n"
+                            f"    - {path} -> {schema}"
+                        )
+                last_schema = schema
+                last_path = path
             num_row_groups: int = pq_file.num_row_groups
             _logger.debug("num_row_groups: %s", num_row_groups)
             for i in range(num_row_groups):
@@ -581,6 +583,7 @@ def read_parquet(
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
         ignore_empty=ignore_empty,
+        s3_additional_kwargs=s3_additional_kwargs,
     )
     path_root: Optional[str] = _get_path_root(path=path, dataset=dataset)
     if path_root is not None:

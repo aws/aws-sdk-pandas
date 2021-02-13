@@ -5,6 +5,7 @@ import logging
 import os
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple, Type, Union, cast
 
+import botocore.config
 import pandas as pd
 
 from awswrangler import exceptions
@@ -12,11 +13,11 @@ from awswrangler import exceptions
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-_ConfigValueType = Union[str, bool, int, None]
+_ConfigValueType = Union[str, bool, int, botocore.config.Config, None]
 
 
 class _ConfigArg(NamedTuple):
-    dtype: Type[Union[str, bool, int]]
+    dtype: Type[Union[str, bool, int, botocore.config.Config]]
     nullable: bool
     enforced: bool = False
 
@@ -42,6 +43,8 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "kms_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
     "emr_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
     "lakeformation_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
+    # Botocore config
+    "botocore_config": _ConfigArg(dtype=botocore.config.Config, nullable=True),
 }
 
 
@@ -59,6 +62,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes
         self.kms_endpoint_url = None
         self.emr_endpoint_url = None
         self.lakeformation_endpoint_url = None
+        self.botocore_config = None
         for name in _CONFIG_ARGS:
             self._load_config(name=name)
 
@@ -348,6 +352,14 @@ class _Config:  # pylint: disable=too-many-instance-attributes
     @lakeformation_endpoint_url.setter
     def lakeformation_endpoint_url(self, value: Optional[str]) -> None:
         self._set_config_value(key="lakeformation_endpoint_url", value=value)
+
+    def botocore_config(self) -> botocore.config.Config:
+        """Property botocore_config."""
+        return cast(Optional[botocore.config.Config], self["botocore_config"])
+
+    @botocore_config.setter
+    def botocore_config(self, value: Optional[botocore.config.Config]) -> None:
+        self._set_config_value(key="botocore_config", value=value)
 
 
 def _insert_str(text: str, token: str, insert: str) -> str:
