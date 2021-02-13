@@ -353,6 +353,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes
     def lakeformation_endpoint_url(self, value: Optional[str]) -> None:
         self._set_config_value(key="lakeformation_endpoint_url", value=value)
 
+    @property
     def botocore_config(self) -> botocore.config.Config:
         """Property botocore_config."""
         return cast(Optional[botocore.config.Config], self["botocore_config"])
