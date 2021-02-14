@@ -1,16 +1,127 @@
 """Utilities Module for Amazon Lake Formation."""
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import boto3
 
 from awswrangler import _utils, exceptions
+from awswrangler.catalog._utils import _catalog_id
+from awswrangler.s3._describe import describe_objects
 
 _QUERY_FINAL_STATES: List[str] = ["ERROR", "FINISHED"]
 _QUERY_WAIT_POLLING_DELAY: float = 2  # SECONDS
 
 _logger: logging.Logger = logging.getLogger(__name__)
+
+
+def _build_partition_predicate(
+    partition_cols: List[str],
+    partitions_types: Dict[str, str],
+    partitions_values: List[str],
+) -> str:
+    partition_predicates: List[str] = []
+    for col, val in zip(partition_cols, partitions_values):
+        if partitions_types[col].startswith(("tinyint", "smallint", "int", "bigint", "float", "double", "decimal")):
+            partition_predicates.append(f"{col}={str(val)}")
+        else:
+            partition_predicates.append(f"{col}='{str(val)}'")
+    return " AND ".join(partition_predicates)
+
+
+def _build_table_objects(
+    paths: List[str],
+    partitions_values: Dict[str, List[str]],
+    use_threads: bool,
+    boto3_session: Optional[boto3.Session],
+) -> List[Union[str, int, List[Any]]]:
+    table_objects: List[Union[str, int, List[Any]]] = []
+    paths_desc: Dict[str, Dict[str, Any]] = describe_objects(
+        path=paths, use_threads=use_threads, boto3_session=boto3_session
+    )
+    for path, path_desc in paths_desc.items():
+        table_object: Dict[str, Any] = {
+            "Uri": path,
+            "ETag": path_desc["ETag"],
+            "Size": path_desc["ContentLength"],
+        }
+        if partitions_values:
+            table_object["PartitionValues"] = partitions_values[path.rsplit("/", 1)[0]]
+        table_objects.append(table_object)
+    return table_objects
+
+
+def _get_table_objects(
+    catalog_id: Optional[str],
+    database: str,
+    table: str,
+    transaction_id: str,
+    partition_cols: Optional[List[str]],
+    partitions_types: Optional[Dict[str, str]],
+    partitions_values: Optional[List[str]],
+    boto3_session: Optional[boto3.Session],
+) -> List[Union[str, int, List[Any]]]:
+    """Get Governed Table Objects from Lake Formation Engine"""
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
+
+    scan_kwargs: Dict[str, Union[str, int]] = _catalog_id(
+        catalog_id=catalog_id,
+        **{
+            "TransactionId": transaction_id,
+            "DatabaseName": database,
+            "TableName": table,
+            "MaxResults": 100,
+        },
+    )
+    if partition_cols:
+        scan_kwargs["PartitionPredicate"] = _build_partition_predicate(
+            partition_cols=partition_cols, partitions_types=partitions_types, partitions_values=partitions_values
+        )
+
+    next_token: str = "init_token"  # Dummy token
+    table_objects: List[Union[str, int, List[Any]]] = []
+    while next_token:
+        response = client_lakeformation.get_table_objects(**scan_kwargs)
+        for objects in response["Objects"]:
+            for table_object in objects["Objects"]:
+                table_object["PartitionValues"] = objects["PartitionValues"]
+                table_objects.append(table_object)
+        next_token = response.get("NextToken", None)
+        scan_kwargs["NextToken"] = next_token
+    return table_objects
+
+
+def _update_table_objects(
+    catalog_id: Optional[str],
+    database: str,
+    table: str,
+    transaction_id: str,
+    boto3_session: Optional[boto3.Session],
+    add_objects: Optional[List[Union[str, int, List[Any]]]] = None,
+    del_objects: Optional[List[Union[str, int, List[Any]]]] = None,
+) -> None:
+    """Register Governed Table Objects changes Lake Formation Engine"""
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
+
+    update_kwargs: Dict[str, Union[str, int]] = _catalog_id(
+        catalog_id=catalog_id,
+        **{
+            "TransactionId": transaction_id,
+            "DatabaseName": database,
+            "TableName": table,
+        },
+    )
+
+    write_operations: List[Dict[Dict[Any]]] = []
+    if add_objects:
+        write_operations.append({"AddObject": obj for obj in add_objects})
+    elif del_objects:
+        write_operations.append({"DeleteObject": obj for obj in del_objects})
+    update_kwargs["WriteOperations"] = write_operations
+
+    client_lakeformation.update_table_objects(**update_kwargs)
 
 
 def abort_transaction(transaction_id: str, boto3_session: Optional[boto3.Session] = None) -> None:

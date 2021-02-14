@@ -198,7 +198,7 @@ def _to_parquet(
 @apply_configs
 def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     df: pd.DataFrame,
-    path: str,
+    path: Optional[str] = None,
     index: bool = False,
     compression: Optional[str] = "snappy",
     max_rows_by_file: Optional[int] = None,
@@ -215,6 +215,8 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     schema_evolution: bool = True,
     database: Optional[str] = None,
     table: Optional[str] = None,
+    table_type: Optional[str] = None,
+    transaction_id: Optional[str] = None,
     dtype: Optional[Dict[str, str]] = None,
     description: Optional[str] = None,
     parameters: Optional[Dict[str, str]] = None,
@@ -306,6 +308,10 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
         Glue/Athena catalog: Database name.
     table : str, optional
         Glue/Athena catalog: Table name.
+    table_type: str, optional
+        The type of the Glue Table. Set to EXTERNAL_TABLE if None.
+    transaction_id: str, optional
+        The ID of the transaction when writing to a Governed Table.
     dtype : Dict[str, str], optional
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined or mixed data types.
@@ -479,6 +485,8 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
         database=database,
         dataset=dataset,
         path=path,
+        table_type=table_type,
+        transaction_id=transaction_id,
         partition_cols=partition_cols,
         bucketing_info=bucketing_info,
         mode=mode,
@@ -510,6 +518,13 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
         catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
             database=database, table=table, boto3_session=session, catalog_id=catalog_id
         )
+        if path is None:
+            if catalog_table_input is not None:
+                path = catalog_table_input["StorageDescriptor"]["Location"]
+            else:
+                raise exceptions.InvalidArgumentValue(
+                    "Glue table does not exist. Please pass the `path` argument to create it."
+                )
     df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
     schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(
         df=df, index=index, ignore_cols=partition_cols, dtype=dtype
@@ -540,32 +555,13 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
             )
             if schema_evolution is False:
                 _check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
-        paths, partitions_values = _to_dataset(
-            func=_to_parquet,
-            concurrent_partitioning=concurrent_partitioning,
-            df=df,
-            path_root=path,
-            index=index,
-            compression=compression,
-            compression_ext=compression_ext,
-            cpus=cpus,
-            use_threads=use_threads,
-            partition_cols=partition_cols,
-            bucketing_info=bucketing_info,
-            dtype=dtype,
-            mode=mode,
-            boto3_session=session,
-            s3_additional_kwargs=s3_additional_kwargs,
-            schema=schema,
-            max_rows_by_file=max_rows_by_file,
-        )
-        if (database is not None) and (table is not None):
-            try:
-                catalog._create_parquet_table(  # pylint: disable=protected-access
+            if (catalog_table_input is None) and (table_type == "GOVERNED"):
+                catalog._create_parquet_table(
                     database=database,
                     table=table,
                     path=path,
                     columns_types=columns_types,
+                    table_type=table_type,
                     partitions_types=partitions_types,
                     bucketing_info=bucketing_info,
                     compression=compression,
@@ -584,7 +580,61 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
                     catalog_id=catalog_id,
                     catalog_table_input=catalog_table_input,
                 )
-                if partitions_values and (regular_partitions is True):
+                catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
+                    database=database, table=table, boto3_session=session, catalog_id=catalog_id
+                )
+        paths, partitions_values = _to_dataset(
+            func=_to_parquet,
+            concurrent_partitioning=concurrent_partitioning,
+            df=df,
+            path_root=path,
+            index=index,
+            compression=compression,
+            compression_ext=compression_ext,
+            catalog_id=catalog_id,
+            database=database,
+            table=table,
+            table_type=table_type,
+            transaction_id=transaction_id,
+            cpus=cpus,
+            use_threads=use_threads,
+            partition_cols=partition_cols,
+            partitions_types=partitions_types,
+            bucketing_info=bucketing_info,
+            dtype=dtype,
+            mode=mode,
+            boto3_session=session,
+            s3_additional_kwargs=s3_additional_kwargs,
+            schema=schema,
+            max_rows_by_file=max_rows_by_file,
+        )
+        if (database is not None) and (table is not None):
+            try:
+                catalog._create_parquet_table(  # pylint: disable=protected-access
+                    database=database,
+                    table=table,
+                    path=path,
+                    columns_types=columns_types,
+                    table_type=table_type,
+                    partitions_types=partitions_types,
+                    bucketing_info=bucketing_info,
+                    compression=compression,
+                    description=description,
+                    parameters=parameters,
+                    columns_comments=columns_comments,
+                    boto3_session=session,
+                    mode=mode,
+                    catalog_versioning=catalog_versioning,
+                    projection_enabled=projection_enabled,
+                    projection_types=projection_types,
+                    projection_ranges=projection_ranges,
+                    projection_values=projection_values,
+                    projection_intervals=projection_intervals,
+                    projection_digits=projection_digits,
+                    catalog_id=catalog_id,
+                    catalog_table_input=catalog_table_input,
+                )
+                if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
                     _logger.debug("partitions_values:\n%s", partitions_values)
                     catalog.add_parquet_partitions(
                         database=database,

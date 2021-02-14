@@ -214,6 +214,7 @@ def _create_parquet_table(
     table: str,
     path: str,
     columns_types: Dict[str, str],
+    table_type: Optional[str],
     partitions_types: Optional[Dict[str, str]],
     bucketing_info: Optional[Tuple[List[str], int]],
     catalog_id: Optional[str],
@@ -253,6 +254,7 @@ def _create_parquet_table(
             table=table,
             path=path,
             columns_types=columns_types,
+            table_type=table_type,
             partitions_types=partitions_types,
             bucketing_info=bucketing_info,
             compression=compression,
@@ -286,6 +288,7 @@ def _create_csv_table(
     table: str,
     path: str,
     columns_types: Dict[str, str],
+    table_type: Optional[str],
     partitions_types: Optional[Dict[str, str]],
     bucketing_info: Optional[Tuple[List[str], int]],
     description: Optional[str],
@@ -324,6 +327,7 @@ def _create_csv_table(
             table=table,
             path=path,
             columns_types=columns_types,
+            table_type=table_type,
             partitions_types=partitions_types,
             bucketing_info=bucketing_info,
             compression=compression,
@@ -519,6 +523,7 @@ def create_parquet_table(
     table: str,
     path: str,
     columns_types: Dict[str, str],
+    table_type: Optional[str] = None,
     partitions_types: Optional[Dict[str, str]] = None,
     bucketing_info: Optional[Tuple[List[str], int]] = None,
     catalog_id: Optional[str] = None,
@@ -550,6 +555,8 @@ def create_parquet_table(
         Amazon S3 path (e.g. s3://bucket/prefix/).
     columns_types: Dict[str, str]
         Dictionary with keys as column names and values as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
+    table_type: str, optional
+        The type of the Glue Table (EXTERNAL_TABLE, GOVERNED...). Set to EXTERNAL_TABLE if None
     partitions_types: Dict[str, str], optional
         Dictionary with keys as partition names and values as data types (e.g. {'col2': 'date'}).
     bucketing_info: Tuple[List[str], int], optional
@@ -627,6 +634,7 @@ def create_parquet_table(
         table=table,
         path=path,
         columns_types=columns_types,
+        table_type=table_type,
         partitions_types=partitions_types,
         bucketing_info=bucketing_info,
         catalog_id=catalog_id,
@@ -653,6 +661,7 @@ def create_csv_table(
     table: str,
     path: str,
     columns_types: Dict[str, str],
+    table_type: Optional[str] = None,
     partitions_types: Optional[Dict[str, str]] = None,
     bucketing_info: Optional[Tuple[List[str], int]] = None,
     compression: Optional[str] = None,
@@ -686,6 +695,8 @@ def create_csv_table(
         Amazon S3 path (e.g. s3://bucket/prefix/).
     columns_types: Dict[str, str]
         Dictionary with keys as column names and values as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
+    table_type: str, optional
+        The type of the Glue Table (EXTERNAL_TABLE, GOVERNED...). Set to EXTERNAL_TABLE if None
     partitions_types: Dict[str, str], optional
         Dictionary with keys as partition names and values as data types (e.g. {'col2': 'date'}).
     bucketing_info: Tuple[List[str], int], optional
@@ -767,6 +778,7 @@ def create_csv_table(
         table=table,
         path=path,
         columns_types=columns_types,
+        table_type=table_type,
         partitions_types=partitions_types,
         bucketing_info=bucketing_info,
         catalog_id=catalog_id,

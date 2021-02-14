@@ -90,6 +90,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     catalog_versioning: bool = False,
     database: Optional[str] = None,
     table: Optional[str] = None,
+    table_type: Optional[str] = None,
     dtype: Optional[Dict[str, str]] = None,
     description: Optional[str] = None,
     parameters: Optional[Dict[str, str]] = None,
@@ -183,6 +184,8 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         Glue/Athena catalog: Database name.
     table : str, optional
         Glue/Athena catalog: Table name.
+    table_type: str, optional
+        The type of the Glue Table. Set to EXTERNAL_TABLE if None
     dtype : Dict[str, str], optional
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined or mixed data types.
@@ -487,6 +490,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                     table=table,
                     path=path,
                     columns_types=columns_types,
+                    table_type=table_type,
                     partitions_types=partitions_types,
                     bucketing_info=bucketing_info,
                     description=description,
