@@ -5,10 +5,12 @@ on:
     branches:
       - main
       - main-governed-tables
+      - feature/lf-write-table
   pull_request:
     branches:
       - main
       - main-governed-tables
+      - feature/lf-transactions
 
 jobs:
   Check:
