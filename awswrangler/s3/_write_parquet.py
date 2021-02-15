@@ -254,7 +254,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     ----------
     df: pandas.DataFrame
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
-    path : str
+    path : str, optional
         S3 path (for file e.g. ``s3://bucket/prefix/filename.parquet``) (for dataset e.g. ``s3://bucket/prefix``).
     index : bool
         True to store the DataFrame index in file, otherwise False to ignore it.
@@ -457,6 +457,28 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
         }
     }
 
+    Writing dataset to Glue governed table
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.s3.to_parquet(
+    ...     df=pd.DataFrame({
+    ...         'col': [1, 2, 3],
+    ...         'col2': ['A', 'A', 'B'],
+    ...         'col3': [None, None, None]
+    ...     }),
+    ...     dataset=True,
+    ...     mode='overwrite',
+    ...     database='default',  # Athena/Glue database
+    ...     table='my_table',  # Athena/Glue table
+    ...     table_type='GOVERNED',
+    ...     transaction_id="xxx",
+    ... )
+    {
+        'paths': ['s3://.../x.parquet'],
+        'partitions_values: {}
+    }
+
     Writing dataset casting empty column data type
 
     >>> import awswrangler as wr
@@ -556,10 +578,10 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
             if schema_evolution is False:
                 _check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
             if (catalog_table_input is None) and (table_type == "GOVERNED"):
-                catalog._create_parquet_table(
+                catalog._create_parquet_table(  # pylint: disable=protected-access
                     database=database,
                     table=table,
-                    path=path,
+                    path=path,  # type: ignore
                     columns_types=columns_types,
                     table_type=table_type,
                     partitions_types=partitions_types,
@@ -587,7 +609,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
             func=_to_parquet,
             concurrent_partitioning=concurrent_partitioning,
             df=df,
-            path_root=path,
+            path_root=path,  # type: ignore
             index=index,
             compression=compression,
             compression_ext=compression_ext,
@@ -613,7 +635,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
                 catalog._create_parquet_table(  # pylint: disable=protected-access
                     database=database,
                     table=table,
-                    path=path,
+                    path=path,  # type: ignore
                     columns_types=columns_types,
                     table_type=table_type,
                     partitions_types=partitions_types,

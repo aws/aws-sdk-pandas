@@ -8,7 +8,7 @@ import boto3
 import pandas as pd
 from pyarrow import NativeFile, RecordBatchStreamReader, Table
 
-from awswrangler import _data_types, _utils, exceptions
+from awswrangler import _data_types, _utils, catalog, exceptions
 from awswrangler._config import apply_configs
 from awswrangler.catalog._utils import _catalog_id
 from awswrangler.lakeformation._utils import abort_transaction, begin_transaction, wait_query
@@ -62,7 +62,6 @@ def _resolve_sql_query(
     # Retrieve the tokens and their associated work units until NextToken is ''
     # One Token can span multiple work units
     # PageSize determines the size of the "Units" array in each call
-    # TODO: Inquire about good page size # pylint: disable=W0511
     scan_kwargs: Dict[str, Union[str, int]] = {"QueryId": query_id, "PageSize": 10}
     next_token: str = "init_token"  # Dummy token
     token_work_units: List[Tuple[str, int]] = []
@@ -248,3 +247,109 @@ def read_sql_query(
             abort_transaction(transaction_id=transaction_id, boto3_session=session)
         _logger.error(ex)
         raise
+
+
+@apply_configs
+def read_sql_table(
+    table: str,
+    database: str,
+    transaction_id: Optional[str] = None,
+    query_as_of_time: Optional[str] = None,
+    catalog_id: Optional[str] = None,
+    chunked: bool = False,
+    categories: Optional[List[str]] = None,
+    safe: bool = True,
+    use_threads: bool = True,
+    boto3_session: Optional[boto3.Session] = None,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    """Extract all rows from AWS Glue Table (Transaction ID or time travel timestamp). Return Pandas DataFrame.
+
+    Note
+    ----
+    ORDER BY operations are not honoured.
+    i.e. sql="SELECT * FROM my_table ORDER BY my_column" is NOT valid
+
+    Note
+    ----
+    Pass one of `transaction_id` or `query_as_of_time`, not both.
+
+    Note
+    ----
+    `chunked` argument (memory-friendly):
+    If set to `True`, return an Iterable of DataFrames instead of a regular DataFrame.
+
+    Parameters
+    ----------
+    table : str
+        AWS Glue table name.
+    database : str
+        AWS Glue database name
+    transaction_id : str, optional
+        The ID of the transaction at which to read the table contents.
+        Cannot be specified alongside query_as_of_time
+    query_as_of_time : str, optional
+        The time as of when to read the table contents. Must be a valid Unix epoch timestamp.
+        Cannot be specified alongside transaction_id
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    chunked : bool, optional
+        If `True`, Wrangler returns an Iterable of DataFrames with no guarantee of chunksize.
+    categories: Optional[List[str]], optional
+        List of columns names that should be returned as pandas.Categorical.
+        Recommended for memory restricted environments.
+    safe : bool, default True
+        For certain data types, a cast is needed in order to store the
+        data in a pandas DataFrame or Series (e.g. timestamps are always
+        stored as nanoseconds in pandas). This option controls whether it
+        is a safe cast or not.
+    use_threads : bool
+        True to enable concurrent requests, False to disable multiple threads.
+        When enabled, os.cpu_count() is used as the max number of threads.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session is used if boto3_session receives None.
+
+    Returns
+    -------
+    Union[pd.DataFrame, Iterator[pd.DataFrame]]
+        Pandas DataFrame or Generator of Pandas DataFrames if chunked is passed.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> df = wr.lakeformation.read_sql_table(
+    ...     table="my_table",
+    ...     database="my_db",
+    ...     catalog_id="111111111111",
+    ... )
+
+    >>> import awswrangler as wr
+    >>> df = wr.lakeformation.read_sql_table(
+    ...     table="my_table",
+    ...     database="my_db",
+    ...     transaction_id="1b62811fa3e02c4e5fdbaa642b752030379c4a8a70da1f8732ce6ccca47afdc9",
+    ...     chunked=True,
+    ... )
+
+    >>> import awswrangler as wr
+    >>> df = wr.lakeformation.read_sql_table(
+    ...     table="my_table",
+    ...     database="my_db",
+    ...     query_as_of_time="1611142914",
+    ...     use_threads=True,
+    ... )
+
+    """
+    table = catalog.sanitize_table_name(table=table)
+    return read_sql_query(
+        sql=f"SELECT * FROM {table}",
+        database=database,
+        transaction_id=transaction_id,
+        query_as_of_time=query_as_of_time,
+        safe=safe,
+        catalog_id=catalog_id,
+        categories=categories,
+        chunked=chunked,
+        use_threads=use_threads,
+        boto3_session=boto3_session,
+    )

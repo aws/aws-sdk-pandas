@@ -33,6 +33,7 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
     catalog_versioning: bool,
     boto3_session: Optional[boto3.Session],
     table_input: Dict[str, Any],
+    table_type: Optional[str],
     table_exist: bool,
     projection_enabled: bool,
     partitions_types: Optional[Dict[str, str]],
@@ -118,7 +119,8 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
             f"{mode} is not a valid mode. It must be 'overwrite', 'append' or 'overwrite_partitions'."
         )
     if table_exist is True and mode == "overwrite":
-        delete_all_partitions(table=table, database=database, catalog_id=catalog_id, boto3_session=session)
+        if table_type != "GOVERNED":
+            delete_all_partitions(table=table, database=database, catalog_id=catalog_id, boto3_session=session)
         _logger.debug("Updating table (%s)...", mode)
         client_glue.update_table(
             **_catalog_id(
@@ -271,6 +273,7 @@ def _create_parquet_table(
         catalog_versioning=catalog_versioning,
         boto3_session=boto3_session,
         table_input=table_input,
+        table_type=table_type,
         table_exist=table_exist,
         partitions_types=partitions_types,
         projection_enabled=projection_enabled,
@@ -346,6 +349,7 @@ def _create_csv_table(
         catalog_versioning=catalog_versioning,
         boto3_session=boto3_session,
         table_input=table_input,
+        table_type=table_type,
         table_exist=table_exist,
         partitions_types=partitions_types,
         projection_enabled=projection_enabled,

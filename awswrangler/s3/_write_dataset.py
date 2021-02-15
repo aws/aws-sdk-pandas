@@ -31,7 +31,7 @@ def _to_partitions(
     use_threads: bool,
     mode: str,
     partition_cols: List[str],
-    partitions_types: Optional[List[str]],
+    partitions_types: Optional[Dict[str, str]],
     catalog_id: Optional[str],
     database: Optional[str],
     table: Optional[str],
@@ -51,25 +51,26 @@ def _to_partitions(
         subdir = "/".join([f"{name}={val}" for name, val in zip(partition_cols, keys)])
         prefix: str = f"{path_root}{subdir}/"
         if mode == "overwrite_partitions":
-            if table_type == "GOVERNED":
-                del_objects: List[Union[str, int, List[Any]]] = _get_table_objects(
+            if (table_type == "GOVERNED") and (table is not None) and (database is not None):
+                del_objects: List[Dict[str, Any]] = _get_table_objects(
                     catalog_id=catalog_id,
                     database=database,
                     table=table,
-                    transaction_id=transaction_id,
+                    transaction_id=transaction_id,  # type: ignore
                     partition_cols=partition_cols,
                     partitions_values=keys,
                     partitions_types=partitions_types,
                     boto3_session=boto3_session,
                 )
-                _update_table_objects(
-                    catalog_id=catalog_id,
-                    database=database,
-                    table=table,
-                    transaction_id=transaction_id,
-                    del_objects=del_objects,
-                    boto3_session=boto3_session,
-                )
+                if del_objects:
+                    _update_table_objects(
+                        catalog_id=catalog_id,
+                        database=database,
+                        table=table,
+                        transaction_id=transaction_id,  # type: ignore
+                        del_objects=del_objects,
+                        boto3_session=boto3_session,
+                    )
             else:
                 delete_objects(
                     path=prefix,
@@ -171,7 +172,7 @@ def _to_dataset(
     use_threads: bool,
     mode: str,
     partition_cols: Optional[List[str]],
-    partitions_types: Optional[List[str]],
+    partitions_types: Optional[Dict[str, str]],
     catalog_id: Optional[str],
     database: Optional[str],
     table: Optional[str],
@@ -197,22 +198,23 @@ def _to_dataset(
             f"{mode} is a invalid mode, please use append, overwrite or overwrite_partitions."
         )
     if (mode == "overwrite") or ((mode == "overwrite_partitions") and (not partition_cols)):
-        if table_type == "GOVERNED":
-            del_objects: List[Union[str, int, List[Any]]] = _get_table_objects(
+        if (table_type == "GOVERNED") and (table is not None) and (database is not None):
+            del_objects: List[Dict[str, Any]] = _get_table_objects(
                 catalog_id=catalog_id,
                 database=database,
                 table=table,
-                transaction_id=transaction_id,
+                transaction_id=transaction_id,  # type: ignore
                 boto3_session=boto3_session,
             )
-            _update_table_objects(
-                catalog_id=catalog_id,
-                database=database,
-                table=table,
-                transaction_id=transaction_id,
-                del_objects=del_objects,
-                boto3_session=boto3_session,
-            )
+            if del_objects:
+                _update_table_objects(
+                    catalog_id=catalog_id,
+                    database=database,
+                    table=table,
+                    transaction_id=transaction_id,  # type: ignore
+                    del_objects=del_objects,
+                    boto3_session=boto3_session,
+                )
         else:
             delete_objects(path=path_root, use_threads=use_threads, boto3_session=boto3_session)
 
@@ -256,21 +258,22 @@ def _to_dataset(
         )
     _logger.debug("paths: %s", paths)
     _logger.debug("partitions_values: %s", partitions_values)
-    if table_type == "GOVERNED":
-        add_objects: List[Union[str, int, List[Any]]] = _build_table_objects(
+    if (table_type == "GOVERNED") and (table is not None) and (database is not None):
+        add_objects: List[Dict[str, Any]] = _build_table_objects(
             paths, partitions_values, use_threads=use_threads, boto3_session=boto3_session
         )
         try:
-            _update_table_objects(
-                catalog_id=catalog_id,
-                database=database,
-                table=table,
-                transaction_id=transaction_id,
-                add_objects=add_objects,
-                boto3_session=boto3_session,
-            )
-            if commit_trans:
-                commit_transaction(transaction_id=transaction_id, boto3_session=boto3_session)
+            if add_objects:
+                _update_table_objects(
+                    catalog_id=catalog_id,
+                    database=database,
+                    table=table,
+                    transaction_id=transaction_id,  # type: ignore
+                    add_objects=add_objects,
+                    boto3_session=boto3_session,
+                )
+                if commit_trans:
+                    commit_transaction(transaction_id=transaction_id, boto3_session=boto3_session)  # type: ignore
         except Exception as ex:
             _logger.debug("Aborting transaction with ID: %s.", transaction_id)
             if transaction_id:

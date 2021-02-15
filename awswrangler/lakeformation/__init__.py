@@ -1,6 +1,6 @@
 """Amazon Lake Formation Module."""
 
-from awswrangler.lakeformation._read import read_sql_query  # noqa
+from awswrangler.lakeformation._read import read_sql_query, read_sql_table  # noqa
 from awswrangler.lakeformation._utils import (  # noqa
     abort_transaction,
     begin_transaction,
@@ -11,6 +11,7 @@ from awswrangler.lakeformation._utils import (  # noqa
 
 __all__ = [
     "read_sql_query",
+    "read_sql_table",
     "abort_transaction",
     "begin_transaction",
     "commit_transaction",

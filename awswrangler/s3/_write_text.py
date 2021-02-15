@@ -91,6 +91,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     database: Optional[str] = None,
     table: Optional[str] = None,
     table_type: Optional[str] = None,
+    transaction_id: Optional[str] = None,
     dtype: Optional[Dict[str, str]] = None,
     description: Optional[str] = None,
     parameters: Optional[Dict[str, str]] = None,
@@ -186,6 +187,8 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         Glue/Athena catalog: Table name.
     table_type: str, optional
         The type of the Glue Table. Set to EXTERNAL_TABLE if None
+    transaction_id: str, optional
+        The ID of the transaction when writing to a Governed Table.
     dtype : Dict[str, str], optional
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined or mixed data types.
@@ -391,6 +394,8 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         database=database,
         dataset=dataset,
         path=path,
+        table_type=table_type,
+        transaction_id=transaction_id,
         partition_cols=partition_cols,
         bucketing_info=bucketing_info,
         mode=mode,
