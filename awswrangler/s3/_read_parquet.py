@@ -266,8 +266,8 @@ def _arrowtable2df(
     df = _utils.ensure_df_is_mutable(df=df)
     if metadata:
         _logger.debug("metadata: %s", metadata)
-        df = _apply_index(df=df, metadata=metadata)
         df = _apply_timezone(df=df, metadata=metadata)
+        df = _apply_index(df=df, metadata=metadata)
     return df
 
 
