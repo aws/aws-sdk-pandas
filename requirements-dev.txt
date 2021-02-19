@@ -6,7 +6,7 @@ flake8==3.8.4
 mypy==0.812
 pydocstyle==5.1.1
 doc8==0.8.1
-tox==3.22.4
+tox==3.22.0
 pytest==6.2.2
 pytest-cov==2.11.1
 pytest-xdist==2.2.1
