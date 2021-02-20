@@ -72,7 +72,7 @@ def _to_text(
 
 
 @apply_configs
-def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-statements
+def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-statements,too-many-branches
     df: pd.DataFrame,
     path: Optional[str] = None,
     sep: str = ",",
