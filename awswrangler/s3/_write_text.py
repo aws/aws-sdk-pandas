@@ -74,7 +74,7 @@ def _to_text(
 @apply_configs
 def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-statements
     df: pd.DataFrame,
-    path: str,
+    path: Optional[str] = None,
     sep: str = ",",
     index: bool = True,
     columns: Optional[List[str]] = None,
@@ -139,7 +139,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     ----------
     df: pandas.DataFrame
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
-    path : str
+    path : str, optional
         Amazon S3 path (e.g. s3://bucket/filename.csv).
     sep : str
         String of length 1. Field delimiter for the output file.
@@ -355,6 +355,28 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         }
     }
 
+    Writing dataset to Glue governed table
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.s3.to_csv(
+    ...     df=pd.DataFrame({
+    ...         'col': [1, 2, 3],
+    ...         'col2': ['A', 'A', 'B'],
+    ...         'col3': [None, None, None]
+    ...     }),
+    ...     dataset=True,
+    ...     mode='append',
+    ...     database='default',  # Athena/Glue database
+    ...     table='my_table',  # Athena/Glue table
+    ...     table_type='GOVERNED',
+    ...     transaction_id="xxx",
+    ... )
+    {
+        'paths': ['s3://.../x.csv'],
+        'partitions_values: {}
+    }
+
     Writing dataset casting empty column data type
 
     >>> import awswrangler as wr
@@ -421,6 +443,13 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
             database=database, table=table, boto3_session=session, catalog_id=catalog_id
         )
+        if path is None:
+            if catalog_table_input is not None:
+                path = catalog_table_input["StorageDescriptor"]["Location"]
+            else:
+                raise exceptions.InvalidArgumentValue(
+                    "Glue table does not exist. Please pass the `path` argument to create it."
+                )
         if pandas_kwargs.get("compression") not in ("gzip", "bz2", None):
             raise exceptions.InvalidArgumentCombination(
                 "If database and table are given, you must use one of these compressions: gzip, bz2 or None."
@@ -428,6 +457,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
 
     df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
 
+    paths: List[str] = []
     if dataset is False:
         pandas_kwargs["sep"] = sep
         pandas_kwargs["index"] = index
@@ -441,7 +471,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             s3_additional_kwargs=s3_additional_kwargs,
             **pandas_kwargs,
         )
-        paths = [path]
+        paths = [path]  # type: ignore
     else:
         if database and table:
             quoting: Optional[int] = csv.QUOTE_NONE
@@ -464,32 +494,13 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             pd_kwargs.pop("compression", None)
 
         df = df[columns] if columns else df
-        paths, partitions_values = _to_dataset(
-            func=_to_text,
-            concurrent_partitioning=concurrent_partitioning,
-            df=df,
-            path_root=path,
-            index=index,
-            sep=sep,
-            compression=compression,
-            use_threads=use_threads,
-            partition_cols=partition_cols,
-            bucketing_info=bucketing_info,
-            mode=mode,
-            boto3_session=session,
-            s3_additional_kwargs=s3_additional_kwargs,
-            file_format="csv",
-            quoting=quoting,
-            escapechar=escapechar,
-            header=header,
-            date_format=date_format,
-            **pd_kwargs,
-        )
+        columns_types: Dict[str, str] = {}
+        partitions_types: Dict[str, str] = {}
         if database and table:
-            try:
-                columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
-                    df=df, index=index, partition_cols=partition_cols, dtype=dtype, index_left=True
-                )
+            columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
+                df=df, index=index, partition_cols=partition_cols, dtype=dtype, index_left=True
+            )
+            if (catalog_table_input is None) and (table_type == "GOVERNED"):
                 catalog._create_csv_table(  # pylint: disable=protected-access
                     database=database,
                     table=table,
@@ -516,7 +527,65 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                     compression=pandas_kwargs.get("compression"),
                     skip_header_line_count=None,
                 )
-                if partitions_values and (regular_partitions is True):
+                catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
+                    database=database, table=table, boto3_session=session, catalog_id=catalog_id
+                )
+        paths, partitions_values = _to_dataset(
+            func=_to_text,
+            concurrent_partitioning=concurrent_partitioning,
+            df=df,
+            path_root=path,  # type: ignore
+            index=index,
+            sep=sep,
+            compression=compression,
+            catalog_id=catalog_id,
+            database=database,
+            table=table,
+            table_type=table_type,
+            transaction_id=transaction_id,
+            use_threads=use_threads,
+            partition_cols=partition_cols,
+            partitions_types=partitions_types,
+            bucketing_info=bucketing_info,
+            mode=mode,
+            boto3_session=session,
+            s3_additional_kwargs=s3_additional_kwargs,
+            file_format="csv",
+            quoting=quoting,
+            escapechar=escapechar,
+            header=header,
+            date_format=date_format,
+            **pd_kwargs,
+        )
+        if database and table:
+            try:
+                catalog._create_csv_table(  # pylint: disable=protected-access
+                    database=database,
+                    table=table,
+                    path=path,
+                    columns_types=columns_types,
+                    table_type=table_type,
+                    partitions_types=partitions_types,
+                    bucketing_info=bucketing_info,
+                    description=description,
+                    parameters=parameters,
+                    columns_comments=columns_comments,
+                    boto3_session=session,
+                    mode=mode,
+                    catalog_versioning=catalog_versioning,
+                    sep=sep,
+                    projection_enabled=projection_enabled,
+                    projection_types=projection_types,
+                    projection_ranges=projection_ranges,
+                    projection_values=projection_values,
+                    projection_intervals=projection_intervals,
+                    projection_digits=projection_digits,
+                    catalog_table_input=catalog_table_input,
+                    catalog_id=catalog_id,
+                    compression=pandas_kwargs.get("compression"),
+                    skip_header_line_count=None,
+                )
+                if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
                     _logger.debug("partitions_values:\n%s", partitions_values)
                     catalog.add_csv_partitions(
                         database=database,

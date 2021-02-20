@@ -468,7 +468,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     ...         'col3': [None, None, None]
     ...     }),
     ...     dataset=True,
-    ...     mode='overwrite',
+    ...     mode='append',
     ...     database='default',  # Athena/Glue database
     ...     table='my_table',  # Athena/Glue table
     ...     table_type='GOVERNED',

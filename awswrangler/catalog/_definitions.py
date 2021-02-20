@@ -99,7 +99,7 @@ def _parquet_partition_definition(
 
 def _csv_table_definition(
     table: str,
-    path: str,
+    path: Optional[str],
     columns_types: Dict[str, str],
     table_type: Optional[str],
     partitions_types: Dict[str, str],

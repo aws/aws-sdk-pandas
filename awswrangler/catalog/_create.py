@@ -289,7 +289,7 @@ def _create_parquet_table(
 def _create_csv_table(
     database: str,
     table: str,
-    path: str,
+    path: Optional[str],
     columns_types: Dict[str, str],
     table_type: Optional[str],
     partitions_types: Optional[Dict[str, str]],
