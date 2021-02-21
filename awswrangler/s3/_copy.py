@@ -55,6 +55,8 @@ def merge_datasets(
     This function accepts Unix shell-style wildcards in the source_path argument.
     * (matches everything), ? (matches any single character),
     [seq] (matches any character in seq), [!seq] (matches any character not in seq).
+    If you want to use a path which includes Unix shell-style wildcard characters (`*, ?, []`),
+    you can use `glob.escape(source_path)` before passing the path to this function.
 
     Note
     ----

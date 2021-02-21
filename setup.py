@@ -10,7 +10,7 @@ path = os.path.join(here, "awswrangler", "__metadata__.py")
 with open(file=path, mode="r", encoding="utf-8") as f:
     exec(f.read(), about)
 
-with open("README.md", "r") as fh:
+with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(

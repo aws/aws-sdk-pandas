@@ -58,6 +58,8 @@ def describe_objects(
     This function accepts Unix shell-style wildcards in the path argument.
     * (matches everything), ? (matches any single character),
     [seq] (matches any character in seq), [!seq] (matches any character not in seq).
+    If you want to use a path which includes Unix shell-style wildcard characters (`*, ?, []`),
+    you can use `glob.escape(path)` before passing the path to this function.
 
     Note
     ----
@@ -147,6 +149,8 @@ def size_objects(
     This function accepts Unix shell-style wildcards in the path argument.
     * (matches everything), ? (matches any single character),
     [seq] (matches any character in seq), [!seq] (matches any character not in seq).
+    If you want to use a path which includes Unix shell-style wildcard characters (`*, ?, []`),
+    you can use `glob.escape(path)` before passing the path to this function.
 
     Note
     ----
