@@ -105,7 +105,7 @@ def _resolve_sql_query(
                 )
             )
     dfs = [df for df in dfs if not df.empty]
-    if not chunked:
+    if (not chunked) and dfs:
         return pd.concat(dfs, sort=False, copy=False, ignore_index=False)
     return dfs
 

@@ -29,6 +29,11 @@ def glue_database(cloudformation_outputs):
 
 
 @pytest.fixture(scope="session")
+def lakeformation_glue_database(cloudformation_outputs):
+    return cloudformation_outputs["LakeFormationGlueDatabaseName"]
+
+
+@pytest.fixture(scope="session")
 def kms_key(cloudformation_outputs):
     return cloudformation_outputs["KmsKeyArn"]
 

@@ -1,6 +1,19 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: |
   AWS Data Wrangler Development Base Data Lake Infrastructure. VPC, Subnets, S3 Bucket, Glue Database, etc.
+Parameters:
+  EnableLakeFormation:
+    Type: String
+    Description: set to True if Lake Formation is enabled in the account
+    Default: false
+    AllowedValues:
+      - true
+      - false
+Conditions:
+  CreateLFResources:
+    Fn::Equals:
+      - Ref: EnableLakeFormation
+      - true
 Resources:
   VPC:
     Type: AWS::EC2::VPC
@@ -161,6 +174,7 @@ Resources:
         - Key: Env
           Value: aws-data-wrangler
       Description: Aws Data Wrangler Test Key.
+      EnableKeyRotation: true
       KeyPolicy:
         Version: '2012-10-17'
         Id: aws-data-wrangler-key
@@ -217,7 +231,99 @@ Resources:
         Ref: AWS::AccountId
       DatabaseInput:
         Name: aws_data_wrangler
-        Description: AWS Data Wrangler Test Arena - Glue Database
+        Description: AWS Data Wrangler Test Athena - Glue Database
+  LakeFormationBucket:
+    Type: AWS::S3::Bucket
+    Condition: CreateLFResources
+    Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: CleaningUp
+            Status: Enabled
+            ExpirationInDays: 1
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+            NoncurrentVersionExpirationInDays: 1
+  LakeFormationTransactionRole:
+    Type: AWS::IAM::Role
+    Condition: CreateLFResources
+    Properties:
+      Tags:
+        - Key: Env
+          Value: aws-data-wrangler
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lakeformation.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: Root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:DeleteObject
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource:
+                  - Fn::Sub: arn:aws:s3:::${LakeFormationBucket}/*
+              - Effect: Allow
+                Action:
+                  - s3:ListObject
+                Resource:
+                  - Fn::Sub: arn:aws:s3:::${LakeFormationBucket}
+              - Effect: Allow
+                Action:
+                  - execute-api:Invoke
+                Resource: arn:aws:execute-api:*:*:*/*/POST/reportStatus
+              - Effect: Allow
+                Action:
+                  - lakeformation:AbortTransaction
+                  - lakeformation:BeginTransaction
+                  - lakeformation:CommitTransaction
+                  - lakeformation:GetTableObjects
+                  - lakeformation:UpdateTableObjects
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - glue:GetTable
+                  - glue:GetPartitions
+                  - glue:UpdateTable
+                Resource: '*'
+  LakeFormationBucketS3Registration:
+    Type: AWS::LakeFormation::Resource
+    Condition: CreateLFResources
+    Properties:
+      ResourceArn:
+        Fn::Sub: arn:aws:::s3:${LakeFormationBucket}/
+      RoleArn:
+        Fn::GetAtt:
+          - LakeFormationTransactionRole
+          - Arn
+      UseServiceLinkedRole: false
+  LakeFormationGlueDatabase:
+    Type: AWS::Glue::Database
+    Condition: CreateLFResources
+    Properties:
+      CatalogId:
+        Ref: AWS::AccountId
+      DatabaseInput:
+        Name: aws_data_wrangler_lakeformation
+        Description: AWS Data Wrangler - Lake Formation Database
   LogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -274,6 +380,11 @@ Outputs:
     Value:
       Ref: GlueDatabase
     Description: Glue Database Name.
+  LakeFormationGlueDatabaseName:
+    Condition: CreateLFResources
+    Value:
+      Ref: LakeFormationGlueDatabase
+    Description: Lake Formation Glue Database Name.
   LogGroupName:
     Value:
       Ref: LogGroup
