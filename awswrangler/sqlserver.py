@@ -1,7 +1,7 @@
 """Amazon Microsoft SQL Server Module."""
 
 
-import importlib
+import importlib.util
 import logging
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, TypeVar, Union
 

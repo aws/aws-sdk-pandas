@@ -25,7 +25,12 @@ _MIN_WRITE_BLOCK: int = 5_242_880  # 5 MB (5 * 2**20)
 _MIN_PARALLEL_READ_BLOCK: int = 5_242_880  # 5 MB (5 * 2**20)
 
 BOTOCORE_ACCEPTED_KWARGS: Dict[str, Set[str]] = {
-    "get_object": {"SSECustomerAlgorithm", "SSECustomerKey", "RequestPayer"},
+    "get_object": {
+        "SSECustomerAlgorithm",
+        "SSECustomerKey",
+        "RequestPayer",
+        "ExpectedBucketOwner",
+    },
     "copy_object": {
         "ACL",
         "Metadata",
@@ -37,6 +42,7 @@ BOTOCORE_ACCEPTED_KWARGS: Dict[str, Set[str]] = {
         "SSEKMSEncryptionContext",
         "Tagging",
         "RequestPayer",
+        "ExpectedBucketOwner",
     },
     "create_multipart_upload": {
         "ACL",
@@ -49,9 +55,18 @@ BOTOCORE_ACCEPTED_KWARGS: Dict[str, Set[str]] = {
         "SSEKMSEncryptionContext",
         "Tagging",
         "RequestPayer",
+        "ExpectedBucketOwner",
     },
-    "upload_part": {"SSECustomerAlgorithm", "SSECustomerKey", "RequestPayer"},
-    "complete_multipart_upload": {"RequestPayer"},
+    "upload_part": {
+        "SSECustomerAlgorithm",
+        "SSECustomerKey",
+        "RequestPayer",
+        "ExpectedBucketOwner",
+    },
+    "complete_multipart_upload": {
+        "RequestPayer",
+        "ExpectedBucketOwner",
+    },
     "put_object": {
         "ACL",
         "Metadata",
@@ -63,10 +78,20 @@ BOTOCORE_ACCEPTED_KWARGS: Dict[str, Set[str]] = {
         "SSEKMSEncryptionContext",
         "Tagging",
         "RequestPayer",
+        "ExpectedBucketOwner",
     },
-    "list_objects_v2": {"RequestPayer"},
-    "delete_objects": {"RequestPayer"},
-    "head_object": {"RequestPayer"},
+    "list_objects_v2": {
+        "RequestPayer",
+        "ExpectedBucketOwner",
+    },
+    "delete_objects": {
+        "RequestPayer",
+        "ExpectedBucketOwner",
+    },
+    "head_object": {
+        "RequestPayer",
+        "ExpectedBucketOwner",
+    },
 }
 
 
