@@ -364,8 +364,8 @@ def _inject_config_doc(doc: Optional[str], available_configs: Tuple[str, ...]) -
     if "\n    Parameters" not in doc:
         return doc
     header: str = (
-        "\n    Note\n    ----"
-        "\n    This functions has arguments that can has default values configured globally through "
+        "\n\n    Note\n    ----"
+        "\n    This function has arguments which can be configured globally through "
         "*wr.config* or environment variables:\n\n"
     )
     args: Tuple[str, ...] = tuple(f"    - {x}\n" for x in available_configs)
