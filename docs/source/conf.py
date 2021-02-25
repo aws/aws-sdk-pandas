@@ -148,6 +148,7 @@ html_theme_options = {
 html_static_path = ["_static"]
 
 nbsphinx_allow_errors = True
+nbsphinx_execute = "never"
 
 
 def setup(app):
