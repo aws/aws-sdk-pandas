@@ -196,7 +196,7 @@ def _to_parquet(
 
 
 @apply_configs
-def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
+def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
     df: pd.DataFrame,
     path: Optional[str] = None,
     index: bool = False,
@@ -507,8 +507,6 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
         database=database,
         dataset=dataset,
         path=path,
-        table_type=table_type,
-        transaction_id=transaction_id,
         partition_cols=partition_cols,
         bucketing_info=bucketing_info,
         mode=mode,
@@ -527,6 +525,8 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     dtype = dtype if dtype else {}
     partitions_values: Dict[str, List[str]] = {}
     mode = "append" if mode is None else mode
+    if transaction_id:
+        table_type = "GOVERNED"
     cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
@@ -540,8 +540,10 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
         catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
             database=database, table=table, boto3_session=session, catalog_id=catalog_id
         )
+        if catalog_table_input:
+            table_type = catalog_table_input["TableType"]
         if path is None:
-            if catalog_table_input is not None:
+            if catalog_table_input:
                 path = catalog_table_input["StorageDescriptor"]["Location"]
             else:
                 raise exceptions.InvalidArgumentValue(

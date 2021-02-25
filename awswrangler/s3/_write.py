@@ -48,8 +48,6 @@ def _validate_args(
     database: Optional[str],
     dataset: bool,
     path: Optional[str],
-    table_type: Optional[str],
-    transaction_id: Optional[str],
     partition_cols: Optional[List[str]],
     bucketing_info: Optional[Tuple[List[str], int]],
     mode: Optional[str],
@@ -82,10 +80,6 @@ def _validate_args(
         raise exceptions.InvalidArgumentCombination(
             "Arguments database and table must be passed together. If you want to store your dataset metadata in "
             "the Glue Catalog, please ensure you are passing both."
-        )
-    elif (table_type != "GOVERNED") and (transaction_id is not None):
-        raise exceptions.InvalidArgumentCombination(
-            "When passing a `transaction_id` as an argument, `table_type` must be set to 'GOVERNED'"
         )
     elif bucketing_info and bucketing_info[1] <= 0:
         raise exceptions.InvalidArgumentValue(
