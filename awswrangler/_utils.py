@@ -327,6 +327,7 @@ def try_it(
             delay = random.uniform(base, delay * 3)
             _logger.error("Retrying %s | Fail number %s/%s | Exception: %s", f, i + 1, max_num_tries, exception)
             time.sleep(delay)
+    raise RuntimeError()
 
 
 def get_even_chunks_sizes(total_size: int, chunk_size: int, upper_bound: bool) -> Tuple[int, ...]:
