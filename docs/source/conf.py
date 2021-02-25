@@ -15,6 +15,8 @@ import sys
 
 import sphinx_bootstrap_theme
 
+# Append local Sphinx extensions
+sys.path.append(os.path.abspath("./_ext"))
 # Insert awswrangler"s path into the system.
 sys.path.insert(0, os.path.abspath("../.."))
 import awswrangler
@@ -41,6 +43,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "nbsphinx",
     "nbsphinx_link",
+    "copy_tutorials",
 ]
 
 language = None
