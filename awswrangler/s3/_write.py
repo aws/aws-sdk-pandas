@@ -47,7 +47,7 @@ def _validate_args(
     table: Optional[str],
     database: Optional[str],
     dataset: bool,
-    path: str,
+    path: Optional[str],
     partition_cols: Optional[List[str]],
     bucketing_info: Optional[Tuple[List[str], int]],
     mode: Optional[str],
@@ -58,6 +58,8 @@ def _validate_args(
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
     if dataset is False:
+        if path is None:
+            raise exceptions.InvalidArgumentValue("If dataset is False, the argument `path` must be passed.")
         if path.endswith("/"):
             raise exceptions.InvalidArgumentValue(
                 "If <dataset=False>, the argument <path> should be a file path, not a directory."

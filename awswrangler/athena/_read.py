@@ -761,8 +761,8 @@ def read_sql_query(
 
     >>> import awswrangler as wr
     >>> df = wr.athena.read_sql_query(
-    ...     sql="SELECT * FROM my_table WHERE name=:name;",
-    ...     params={"name": "filtered_name"}
+    ...     sql="SELECT * FROM my_table WHERE name=:name; AND city=:city;",
+    ...     params={"name": "'filtered_name'", "city": "'filtered_city'"}
     ... )
 
     """

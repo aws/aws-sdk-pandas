@@ -42,12 +42,13 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "redshift_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
     "kms_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
     "emr_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
+    "lakeformation_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
     # Botocore config
     "botocore_config": _ConfigArg(dtype=botocore.config.Config, nullable=True),
 }
 
 
-class _Config:  # pylint: disable=too-many-instance-attributes
+class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-methods
     """Wrangler's Configuration class."""
 
     def __init__(self) -> None:
@@ -60,6 +61,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes
         self.redshift_endpoint_url = None
         self.kms_endpoint_url = None
         self.emr_endpoint_url = None
+        self.lakeformation_endpoint_url = None
         self.botocore_config = None
         for name in _CONFIG_ARGS:
             self._load_config(name=name)
@@ -341,6 +343,15 @@ class _Config:  # pylint: disable=too-many-instance-attributes
     @emr_endpoint_url.setter
     def emr_endpoint_url(self, value: Optional[str]) -> None:
         self._set_config_value(key="emr_endpoint_url", value=value)
+
+    @property
+    def lakeformation_endpoint_url(self) -> Optional[str]:
+        """Property lakeformation_endpoint_url."""
+        return cast(Optional[str], self["lakeformation_endpoint_url"])
+
+    @lakeformation_endpoint_url.setter
+    def lakeformation_endpoint_url(self, value: Optional[str]) -> None:
+        self._set_config_value(key="lakeformation_endpoint_url", value=value)
 
     @property
     def botocore_config(self) -> botocore.config.Config:

@@ -87,6 +87,8 @@ def _get_endpoint_url(service_name: str) -> Optional[str]:
         endpoint_url = _config.config.kms_endpoint_url
     elif service_name == "emr" and _config.config.emr_endpoint_url is not None:
         endpoint_url = _config.config.emr_endpoint_url
+    elif service_name == "lakeformation" and _config.config.lakeformation_endpoint_url is not None:
+        endpoint_url = _config.config.lakeformation_endpoint_url
     return endpoint_url
 
 
