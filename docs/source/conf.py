@@ -92,7 +92,7 @@ html_theme_options = {
     "navbar_links": [
         ("What is Data Wrangler?", "what"),
         ("Install", "install"),
-        ("Tutorials", "https://github.com/awslabs/aws-data-wrangler/tree/main/tutorials", True),
+        ("Tutorials", "tutorials"),
         ("API Reference", "api"),
         ("License", "https://github.com/awslabs/aws-data-wrangler/blob/main/LICENSE.txt", True),
         ("Contributing", "https://github.com/awslabs/aws-data-wrangler/blob/main/CONTRIBUTING.md", True),
@@ -148,3 +148,7 @@ html_theme_options = {
 html_static_path = ["_static"]
 
 nbsphinx_allow_errors = True
+
+
+def setup(app):
+    app.add_css_file("css/max_width.css")
