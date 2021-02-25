@@ -70,13 +70,7 @@ def _get_table_objects(
     client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
 
     scan_kwargs: Dict[str, Union[str, int]] = _catalog_id(
-        catalog_id=catalog_id,
-        **{
-            "TransactionId": transaction_id,
-            "DatabaseName": database,
-            "TableName": table,
-            "MaxResults": 100,
-        },
+        catalog_id=catalog_id, TransactionId=transaction_id, DatabaseName=database, TableName=table, MaxResults=100
     )
     if partition_cols and partitions_types and partitions_values:
         scan_kwargs["PartitionPredicate"] = _build_partition_predicate(
@@ -111,12 +105,7 @@ def _update_table_objects(
     client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
 
     update_kwargs: Dict[str, Union[str, int, List[Dict[str, Dict[str, Any]]]]] = _catalog_id(
-        catalog_id=catalog_id,
-        **{
-            "TransactionId": transaction_id,
-            "DatabaseName": database,
-            "TableName": table,
-        },
+        catalog_id=catalog_id, TransactionId=transaction_id, DatabaseName=database, TableName=table
     )
 
     write_operations: List[Dict[str, Dict[str, Any]]] = []
