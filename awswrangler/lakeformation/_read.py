@@ -204,10 +204,10 @@ def read_sql_query(
 
     >>> import awswrangler as wr
     >>> df = wr.lakeformation.read_sql_query(
-    ...     sql="SELECT * FROM my_table WHERE name=:name;",
+    ...     sql="SELECT * FROM my_table WHERE name=:name; AND city=:city;",
     ...     database="my_db",
     ...     query_as_of_time="1611142914",
-    ...     params={"name": "'filtered_name'"}
+    ...     params={"name": "'filtered_name'", "city": "'filtered_city'"}
     ... )
 
     """
@@ -220,7 +220,7 @@ def read_sql_query(
     if params is None:
         params = {}
     for key, value in params.items():
-        sql = sql.replace(f":{key}", str(value))
+        sql = sql.replace(f":{key};", str(value))
 
     args: Dict[str, Optional[str]] = _catalog_id(catalog_id=catalog_id, **{"DatabaseName": database, "Statement": sql})
     if query_as_of_time:
