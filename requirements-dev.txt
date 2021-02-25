@@ -17,6 +17,9 @@ cfn-flip==1.2.3
 twine==3.3.0
 sphinx==3.5.1
 sphinx_bootstrap_theme==0.7.1
+nbsphinx==0.8.1
+nbsphinx-link==1.3.0
+IPython==7.19.0
 moto==2.0.0
 jupyterlab==3.0.9
 s3fs==0.4.2

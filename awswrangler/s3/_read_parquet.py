@@ -684,7 +684,7 @@ def read_parquet_table(
         This function MUST return a bool, True to read the partition or False to ignore it.
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
-        https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/023%20-%20Flexible%20Partitions%20Filter.ipynb
+        https://aws-data-wrangler.readthedocs.io/en/2.4.0-docs/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
     columns : List[str], optional
         Names of columns to read from the file(s).
     validate_schema:

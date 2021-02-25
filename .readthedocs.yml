@@ -1,0 +1,4 @@
+version: 2
+formats: all
+conda:
+  environment: docs/environment.yml

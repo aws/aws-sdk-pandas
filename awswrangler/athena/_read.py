@@ -590,12 +590,12 @@ def read_sql_query(
 
     **Related tutorial:**
 
-    - `Amazon Athena <https://github.com/awslabs/aws-data-wrangler/blob/
-      main/tutorials/006%20-%20Amazon%20Athena.ipynb>`_
-    - `Athena Cache <https://github.com/awslabs/aws-data-wrangler/blob/
-      main/tutorials/019%20-%20Athena%20Cache.ipynb>`_
-    - `Global Configurations <https://github.com/awslabs/aws-data-wrangler/blob/
-      main/tutorials/021%20-%20Global%20Configurations.ipynb>`_
+    - `Amazon Athena <https://aws-data-wrangler.readthedocs.io/en/2.4.0-docs/
+      tutorials/006%20-%20Amazon%20Athena.html>`_
+    - `Athena Cache <https://aws-data-wrangler.readthedocs.io/en/2.4.0-docs/
+      tutorials/019%20-%20Athena%20Cache.html>`_
+    - `Global Configurations <https://aws-data-wrangler.readthedocs.io/en/2.4.0-docs/
+      tutorials/021%20-%20Global%20Configurations.html>`_
 
     **There are two approaches to be defined through ctas_approach parameter:**
 
@@ -642,8 +642,8 @@ def read_sql_query(
     /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a practical example check out the
-    `related tutorial <https://github.com/awslabs/aws-data-wrangler/blob/
-    main/tutorials/024%20-%20Athena%20Query%20Metadata.ipynb>`_!
+    `related tutorial <https://aws-data-wrangler.readthedocs.io/en/2.4.0-docs/
+    tutorials/024%20-%20Athena%20Query%20Metadata.html>`_!
 
 
     Note
@@ -853,12 +853,12 @@ def read_sql_table(
 
     **Related tutorial:**
 
-    - `Amazon Athena <https://github.com/awslabs/aws-data-wrangler/blob/
-      main/tutorials/006%20-%20Amazon%20Athena.ipynb>`_
-    - `Athena Cache <https://github.com/awslabs/aws-data-wrangler/blob/
-      main/tutorials/019%20-%20Athena%20Cache.ipynb>`_
-    - `Global Configurations <https://github.com/awslabs/aws-data-wrangler/blob/
-      main/tutorials/021%20-%20Global%20Configurations.ipynb>`_
+    - `Amazon Athena <https://aws-data-wrangler.readthedocs.io/en/2.4.0-docs/
+      tutorials/006%20-%20Amazon%20Athena.html>`_
+    - `Athena Cache <https://aws-data-wrangler.readthedocs.io/en/2.4.0-docs/
+      tutorials/019%20-%20Athena%20Cache.html>`_
+    - `Global Configurations <https://aws-data-wrangler.readthedocs.io/en/2.4.0-docs/
+      tutorials/021%20-%20Global%20Configurations.html>`_
 
     **There are two approaches to be defined through ctas_approach parameter:**
 
@@ -902,8 +902,8 @@ def read_sql_table(
     /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a practical example check out the
-    `related tutorial <https://github.com/awslabs/aws-data-wrangler/blob/main/
-    tutorials/024%20-%20Athena%20Query%20Metadata.ipynb>`_!
+    `related tutorial <https://aws-data-wrangler.readthedocs.io/en/2.4.0-docs/
+    tutorials/024%20-%20Athena%20Query%20Metadata.html>`_!
 
 
     Note

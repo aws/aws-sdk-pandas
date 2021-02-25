@@ -61,7 +61,7 @@ Read The Docs
 
    what
    install
-   Tutorials <https://github.com/awslabs/aws-data-wrangler/tree/main/tutorials>
+   tutorials
    api
    Community Resources <https://github.com/awslabs/aws-data-wrangler#community-resources>
    Logging <https://github.com/awslabs/aws-data-wrangler#logging>

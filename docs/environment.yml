@@ -1,0 +1,14 @@
+channels:
+  - conda-forge
+dependencies:
+  - python>=3
+  - pandoc
+  - ipykernel
+  - pip
+  - pip:
+    - nbsphinx
+    - nbsphinx-link
+    - sphinx
+    - sphinx_bootstrap_theme
+    - IPython
+    - -e ..

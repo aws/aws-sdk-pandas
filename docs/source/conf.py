@@ -15,6 +15,8 @@ import sys
 
 import sphinx_bootstrap_theme
 
+# Append local Sphinx extensions
+sys.path.append(os.path.abspath("./_ext"))
 # Insert awswrangler"s path into the system.
 sys.path.insert(0, os.path.abspath("../.."))
 import awswrangler
@@ -35,7 +37,14 @@ version = awswrangler.__version__
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named "sphinx.ext.*") or your custom
 # ones.
-extensions = ["sphinx.ext.autosectionlabel", "sphinx.ext.autosummary", "sphinx.ext.napoleon"]
+extensions = [
+    "sphinx.ext.autosectionlabel",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.napoleon",
+    "nbsphinx",
+    "nbsphinx_link",
+    "copy_tutorials",
+]
 
 language = None
 
@@ -83,7 +92,7 @@ html_theme_options = {
     "navbar_links": [
         ("What is Data Wrangler?", "what"),
         ("Install", "install"),
-        ("Tutorials", "https://github.com/awslabs/aws-data-wrangler/tree/main/tutorials", True),
+        ("Tutorials", "tutorials"),
         ("API Reference", "api"),
         ("License", "https://github.com/awslabs/aws-data-wrangler/blob/main/LICENSE.txt", True),
         ("Contributing", "https://github.com/awslabs/aws-data-wrangler/blob/main/CONTRIBUTING.md", True),
@@ -137,3 +146,10 @@ html_theme_options = {
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
+
+nbsphinx_allow_errors = True
+nbsphinx_execute = "never"
+
+
+def setup(app):
+    app.add_css_file("css/max_width.css")
