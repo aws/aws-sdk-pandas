@@ -246,3 +246,10 @@ or
 
 Check the file below to check the common errors and solutions
 [ERRORS](https://github.com/awslabs/aws-data-wrangler/blob/main/CONTRIBUTING_COMMON_ERRORS.md)
+
+## Bumping version
+When there is a new release you can use `bump2version` for updating the version number in relevant files.
+You can run `bump2version major|minor|patch` in the top directory and the following steps will be executed:
+- The version number in all files which are listed in `.bumpversion.cfg` is updated
+- A new commit with message `Bump version: {current_version} → {new_version}` is created
+- A new Git tag `{new_version}` is created
