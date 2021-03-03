@@ -590,11 +590,11 @@ def read_sql_query(
 
     **Related tutorial:**
 
-    - `Amazon Athena <https://aws-data-wrangler.readthedocs.io/en/2.4.0-docs/
+    - `Amazon Athena <https://aws-data-wrangler.readthedocs.io/en/2.5.0/
       tutorials/006%20-%20Amazon%20Athena.html>`_
-    - `Athena Cache <https://aws-data-wrangler.readthedocs.io/en/2.4.0-docs/
+    - `Athena Cache <https://aws-data-wrangler.readthedocs.io/en/2.5.0/
       tutorials/019%20-%20Athena%20Cache.html>`_
-    - `Global Configurations <https://aws-data-wrangler.readthedocs.io/en/2.4.0-docs/
+    - `Global Configurations <https://aws-data-wrangler.readthedocs.io/en/2.5.0/
       tutorials/021%20-%20Global%20Configurations.html>`_
 
     **There are two approaches to be defined through ctas_approach parameter:**
@@ -642,7 +642,7 @@ def read_sql_query(
     /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a practical example check out the
-    `related tutorial <https://aws-data-wrangler.readthedocs.io/en/2.4.0-docs/
+    `related tutorial <https://aws-data-wrangler.readthedocs.io/en/2.5.0/
     tutorials/024%20-%20Athena%20Query%20Metadata.html>`_!
 
 
@@ -853,11 +853,11 @@ def read_sql_table(
 
     **Related tutorial:**
 
-    - `Amazon Athena <https://aws-data-wrangler.readthedocs.io/en/2.4.0-docs/
+    - `Amazon Athena <https://aws-data-wrangler.readthedocs.io/en/2.5.0/
       tutorials/006%20-%20Amazon%20Athena.html>`_
-    - `Athena Cache <https://aws-data-wrangler.readthedocs.io/en/2.4.0-docs/
+    - `Athena Cache <https://aws-data-wrangler.readthedocs.io/en/2.5.0/
       tutorials/019%20-%20Athena%20Cache.html>`_
-    - `Global Configurations <https://aws-data-wrangler.readthedocs.io/en/2.4.0-docs/
+    - `Global Configurations <https://aws-data-wrangler.readthedocs.io/en/2.5.0/
       tutorials/021%20-%20Global%20Configurations.html>`_
 
     **There are two approaches to be defined through ctas_approach parameter:**
@@ -902,7 +902,7 @@ def read_sql_table(
     /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a practical example check out the
-    `related tutorial <https://aws-data-wrangler.readthedocs.io/en/2.4.0-docs/
+    `related tutorial <https://aws-data-wrangler.readthedocs.io/en/2.5.0/
     tutorials/024%20-%20Athena%20Query%20Metadata.html>`_!
 
 
