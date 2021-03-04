@@ -831,6 +831,7 @@ def test_copy_unload_creds(path, redshift_table):
         mode="overwrite",
         aws_access_key_id=credentials.access_key,
         aws_secret_access_key=credentials.secret_key,
+        aws_session_token=credentials.token,
     )
     df2 = wr.redshift.unload(
         sql=f"SELECT * FROM public.{redshift_table}",
@@ -839,6 +840,7 @@ def test_copy_unload_creds(path, redshift_table):
         keep_files=False,
         aws_access_key_id=credentials.access_key,
         aws_secret_access_key=credentials.secret_key,
+        aws_session_token=credentials.token,
     )
     assert df2.shape == (3, 1)
     wr.redshift.copy(
@@ -850,6 +852,7 @@ def test_copy_unload_creds(path, redshift_table):
         mode="append",
         aws_access_key_id=credentials.access_key,
         aws_secret_access_key=credentials.secret_key,
+        aws_session_token=credentials.token,
     )
     df2 = wr.redshift.unload(
         sql=f"SELECT * FROM public.{redshift_table}",
@@ -858,6 +861,7 @@ def test_copy_unload_creds(path, redshift_table):
         keep_files=False,
         aws_access_key_id=credentials.access_key,
         aws_secret_access_key=credentials.secret_key,
+        aws_session_token=credentials.token,
     )
     assert df2.shape == (6, 1)
     dfs = wr.redshift.unload(
@@ -868,6 +872,7 @@ def test_copy_unload_creds(path, redshift_table):
         chunked=True,
         aws_access_key_id=credentials.access_key,
         aws_secret_access_key=credentials.secret_key,
+        aws_session_token=credentials.token,
     )
     for chunk in dfs:
         assert len(chunk.columns) == 1
