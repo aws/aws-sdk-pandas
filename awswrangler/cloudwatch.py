@@ -15,10 +15,20 @@ _logger: logging.Logger = logging.getLogger(__name__)
 _QUERY_WAIT_POLLING_DELAY: float = 0.2  # SECONDS
 
 
+def _validate_args(
+    start_timestamp: int,
+    end_timestamp: int,
+) -> None:
+    if start_timestamp < 0:
+        raise exceptions.InvalidArgument("`start_time` cannot be a negative value.")
+    if start_timestamp >= end_timestamp:
+        raise exceptions.InvalidArgumentCombination("`start_time` must be inferior to `end_time`.")
+
+
 def start_query(
     query: str,
     log_group_names: List[str],
-    start_time: datetime.datetime = datetime.datetime(year=1970, month=1, day=1),
+    start_time: datetime.datetime = datetime.datetime(year=1970, month=1, day=1, tzinfo=datetime.timezone.utc),
     end_time: datetime.datetime = datetime.datetime.now(),
     limit: Optional[int] = None,
     boto3_session: Optional[boto3.Session] = None,
@@ -61,6 +71,7 @@ def start_query(
     end_timestamp: int = int(1000 * end_time.timestamp())
     _logger.debug("start_timestamp: %s", start_timestamp)
     _logger.debug("end_timestamp: %s", end_timestamp)
+    _validate_args(start_timestamp=start_timestamp, end_timestamp=end_timestamp)
     args: Dict[str, Any] = {
         "logGroupNames": log_group_names,
         "startTime": start_timestamp,
@@ -120,7 +131,7 @@ def wait_query(query_id: str, boto3_session: Optional[boto3.Session] = None) -> 
 def run_query(
     query: str,
     log_group_names: List[str],
-    start_time: datetime.datetime = datetime.datetime(year=1970, month=1, day=1),
+    start_time: datetime.datetime = datetime.datetime(year=1970, month=1, day=1, tzinfo=datetime.timezone.utc),
     end_time: datetime.datetime = datetime.datetime.now(),
     limit: Optional[int] = None,
     boto3_session: Optional[boto3.Session] = None,
@@ -174,7 +185,7 @@ def run_query(
 def read_logs(
     query: str,
     log_group_names: List[str],
-    start_time: datetime.datetime = datetime.datetime(year=1970, month=1, day=1),
+    start_time: datetime.datetime = datetime.datetime(year=1970, month=1, day=1, tzinfo=datetime.timezone.utc),
     end_time: datetime.datetime = datetime.datetime.now(),
     limit: Optional[int] = None,
     boto3_session: Optional[boto3.Session] = None,
