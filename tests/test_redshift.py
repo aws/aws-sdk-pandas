@@ -925,11 +925,11 @@ def test_insert_with_column_names(redshift_table):
     df = pd.DataFrame({"c0": ["foo", "bar"], "c2": [1, 2]})
 
     with pytest.raises(redshift_connector.error.ProgrammingError):
-        wr.redshift.to_sql(df=df, con=con, schema="test", table=redshift_table, mode="append", use_column_names=False)
+        wr.redshift.to_sql(df=df, con=con, schema="public", table=redshift_table, mode="append", use_column_names=False)
 
-    wr.redshift.to_sql(df=df, con=con, schema="test", table=redshift_table, mode="append", use_column_names=True)
+    wr.redshift.to_sql(df=df, con=con, schema="public", table=redshift_table, mode="append", use_column_names=True)
 
-    df2 = wr.redshift.read_sql_table(con=con, schema="test", table=redshift_table)
+    df2 = wr.redshift.read_sql_table(con=con, schema="public", table=redshift_table)
 
     df["c1"] = 42
     df["c0"] = df["c0"].astype("string")
