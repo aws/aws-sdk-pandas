@@ -1,0 +1,40 @@
+name: Minimal Tests
+
+on:
+  push:
+    branches:
+      - main
+      - main-governed-tables
+  pull_request:
+    branches:
+      - main
+      - main-governed-tables
+
+jobs:
+  Check:
+
+    runs-on: ubuntu-latest
+    env:
+      AWS_DEFAULT_REGION: us-east-1
+    strategy:
+      matrix:
+        python-version: [3.7]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install Requirements
+        run: |
+          python -m pip install --upgrade pip
+          pip install -U -r requirements-dev.txt
+      - name: Test Metadata
+        run: pytest tests/test_metadata.py
+      - name: Test Session
+        run: pytest tests/test_session.py
+      - name: Test Utils
+        run: pytest tests/test_utils.py
+      - name: Test Moto
+        run: pytest -n 4 tests/test_moto.py
