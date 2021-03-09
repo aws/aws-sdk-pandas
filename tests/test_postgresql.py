@@ -180,3 +180,31 @@ def test_connect_secret_manager(dbname):
     df = wr.postgresql.read_sql_query("SELECT 1", con=con)
     con.close()
     assert df.shape == (1, 1)
+
+
+def test_insert_with_column_names(postgresql_table):
+    con = wr.postgresql.connect(connection="aws-data-wrangler-postgresql")
+    create_table_sql = (
+        f"CREATE TABLE public.{postgresql_table} " "(c0 varchar NULL," "c1 int NULL DEFAULT 42," "c2 int NOT NULL);"
+    )
+    with con.cursor() as cursor:
+        cursor.execute(create_table_sql)
+        con.commit()
+
+    df = pd.DataFrame({"c0": ["foo", "bar"], "c2": [1, 2]})
+
+    with pytest.raises(pg8000.exceptions.ProgrammingError):
+        wr.postgresql.to_sql(
+            df=df, con=con, schema="public", table=postgresql_table, mode="append", use_column_names=False
+        )
+
+    wr.postgresql.to_sql(df=df, con=con, schema="public", table=postgresql_table, mode="append", use_column_names=True)
+
+    df2 = wr.postgresql.read_sql_table(con=con, schema="public", table=postgresql_table)
+
+    df["c1"] = 42
+    df["c0"] = df["c0"].astype("string")
+    df["c1"] = df["c1"].astype("Int64")
+    df["c2"] = df["c2"].astype("Int64")
+    df = df.reindex(sorted(df.columns), axis=1)
+    assert df.equals(df2)
