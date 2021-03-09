@@ -644,6 +644,7 @@ def read_parquet_table(
     validate_schema: bool = True,
     categories: Optional[List[str]] = None,
     safe: bool = True,
+    map_types: bool = True,
     chunked: Union[bool, int] = False,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
@@ -710,6 +711,10 @@ def read_parquet_table(
         data in a pandas DataFrame or Series (e.g. timestamps are always
         stored as nanoseconds in pandas). This option controls whether it
         is a safe cast or not.
+    map_types : bool, default True
+        True to convert pyarrow DataTypes to pandas ExtensionDtypes. It is
+        used to override the default pandas type for conversion of built-in
+        pyarrow types or in absence of pandas_metadata in the Table schema.
     chunked : bool
         If True will break the data in smaller DataFrames (Non deterministic number of lines).
         Otherwise return a single DataFrame with the whole data.
@@ -778,6 +783,7 @@ def read_parquet_table(
             validate_schema=validate_schema,
             categories=categories,
             safe=safe,
+            map_types=map_types,
             chunked=chunked,
             dataset=True,
             use_threads=use_threads,
