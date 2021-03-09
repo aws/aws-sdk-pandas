@@ -644,6 +644,7 @@ def to_sql(
     primary_keys: Optional[List[str]] = None,
     varchar_lengths_default: int = 256,
     varchar_lengths: Optional[Dict[str, int]] = None,
+    use_column_names: bool = False,
 ) -> None:
     """Write records stored in a DataFrame into Redshift.
 
@@ -688,6 +689,10 @@ def to_sql(
         The size that will be set for all VARCHAR columns not specified with varchar_lengths.
     varchar_lengths : Dict[str, int], optional
         Dict of VARCHAR length by columns. (e.g. {"col1": 10, "col5": 200}).
+    use_column_names: bool
+        If set to True, will use the column names of the DataFrame for generating the INSERT SQL Query.
+        E.g. If the DataFrame has two columns `col1` and `col3` and `use_column_names` is True, data will only be
+        inserted into the database columns `col1` and `col3`.
 
     Returns
     -------
@@ -737,7 +742,10 @@ def to_sql(
                 df.reset_index(level=df.index.names, inplace=True)
             placeholders: str = ", ".join(["%s"] * len(df.columns))
             schema_str = f'"{created_schema}".' if created_schema else ""
-            sql: str = f'INSERT INTO {schema_str}"{created_table}" VALUES ({placeholders})'
+            insertion_columns = ""
+            if use_column_names:
+                insertion_columns = f"({', '.join(df.columns)})"
+            sql: str = f'INSERT INTO {schema_str}"{created_table}" {insertion_columns} VALUES ({placeholders})'
             _logger.debug("sql: %s", sql)
             parameters: List[List[Any]] = _db_utils.extract_parameters(df=df)
             cursor.executemany(sql, parameters)
