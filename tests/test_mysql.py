@@ -180,3 +180,29 @@ def test_connect_secret_manager(dbname):
     df = wr.mysql.read_sql_query("SELECT 1", con=con)
     con.close()
     assert df.shape == (1, 1)
+
+
+def test_insert_with_column_names(mysql_table):
+    con = wr.mysql.connect(connection="aws-data-wrangler-mysql")
+    create_table_sql = (
+        f"CREATE TABLE test.{mysql_table} " "(c0 varchar(100) NULL, " "c1 INT DEFAULT 42 NULL, " "c2 INT NOT NULL);"
+    )
+    with con.cursor() as cursor:
+        cursor.execute(create_table_sql)
+        con.commit()
+
+    df = pd.DataFrame({"c0": ["foo", "bar"], "c2": [1, 2]})
+
+    with pytest.raises(pymysql.err.OperationalError):
+        wr.mysql.to_sql(df=df, con=con, schema="test", table=mysql_table, mode="append", use_column_names=False)
+
+    wr.mysql.to_sql(df=df, con=con, schema="test", table=mysql_table, mode="append", use_column_names=True)
+
+    df2 = wr.mysql.read_sql_table(con=con, schema="test", table=mysql_table)
+
+    df["c1"] = 42
+    df["c0"] = df["c0"].astype("string")
+    df["c1"] = df["c1"].astype("Int64")
+    df["c2"] = df["c2"].astype("Int64")
+    df = df.reindex(sorted(df.columns), axis=1)
+    assert df.equals(df2)

@@ -290,6 +290,7 @@ def to_sql(
     index: bool = False,
     dtype: Optional[Dict[str, str]] = None,
     varchar_lengths: Optional[Dict[str, int]] = None,
+    use_column_names: bool = False,
 ) -> None:
     """Write records stored in a DataFrame into Microsoft SQL Server.
 
@@ -314,6 +315,10 @@ def to_sql(
         (e.g. {'col name': 'TEXT', 'col2 name': 'FLOAT'})
     varchar_lengths : Dict[str, int], optional
         Dict of VARCHAR length by columns. (e.g. {"col1": 10, "col5": 200}).
+    use_column_names: bool
+        If set to True, will use the column names of the DataFrame for generating the INSERT SQL Query.
+        E.g. If the DataFrame has two columns `col1` and `col3` and `use_column_names` is True, data will only be
+        inserted into the database columns `col1` and `col3`.
 
     Returns
     -------
@@ -354,7 +359,10 @@ def to_sql(
                 df.reset_index(level=df.index.names, inplace=True)
             placeholders: str = ", ".join(["?"] * len(df.columns))
             table_identifier = _get_table_identifier(schema, table)
-            sql: str = f"INSERT INTO {table_identifier} VALUES ({placeholders})"
+            insertion_columns = ""
+            if use_column_names:
+                insertion_columns = f"({', '.join(df.columns)})"
+            sql: str = f"INSERT INTO {table_identifier} {insertion_columns} VALUES ({placeholders})"
             _logger.debug("sql: %s", sql)
             parameters: List[List[Any]] = _db_utils.extract_parameters(df=df)
             cursor.executemany(sql, parameters)
