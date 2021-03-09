@@ -21,6 +21,7 @@ def _execute_query(
     token_work_unit: Tuple[str, int],
     categories: Optional[List[str]],
     safe: bool,
+    map_types: bool,
     use_threads: bool,
     boto3_session: boto3.Session,
 ) -> pd.DataFrame:
@@ -40,7 +41,7 @@ def _execute_query(
             "strings_to_categorical": False,
             "categories": categories,
             "safe": safe,
-            "types_mapper": _data_types.pyarrow2pandas_extension,
+            "types_mapper": _data_types.pyarrow2pandas_extension if map_types else None,
         }
     df: pd.DataFrame = _utils.ensure_df_is_mutable(df=table.to_pandas(**args))
     return df
@@ -51,6 +52,7 @@ def _resolve_sql_query(
     chunked: Optional[bool],
     categories: Optional[List[str]],
     safe: bool,
+    map_types: bool,
     use_threads: bool,
     boto3_session: boto3.Session,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
@@ -85,6 +87,7 @@ def _resolve_sql_query(
                 token_work_unit=token_work_unit,
                 categories=categories,
                 safe=safe,
+                map_types=map_types,
                 use_threads=use_threads,
                 boto3_session=boto3_session,
             )
@@ -100,6 +103,7 @@ def _resolve_sql_query(
                     token_work_units,
                     itertools.repeat(categories),
                     itertools.repeat(safe),
+                    itertools.repeat(map_types),
                     itertools.repeat(use_threads),
                     itertools.repeat(_utils.boto3_to_primitives(boto3_session=boto3_session)),
                 )
@@ -120,6 +124,7 @@ def read_sql_query(
     chunked: bool = False,
     categories: Optional[List[str]] = None,
     safe: bool = True,
+    map_types: bool = True,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     params: Optional[Dict[str, Any]] = None,
@@ -171,6 +176,10 @@ def read_sql_query(
         data in a pandas DataFrame or Series (e.g. timestamps are always
         stored as nanoseconds in pandas). This option controls whether it
         is a safe cast or not.
+    map_types : bool, default True
+        True to convert pyarrow DataTypes to pandas ExtensionDtypes. It is
+        used to override the default pandas type for conversion of built-in
+        pyarrow types or in absence of pandas_metadata in the Table schema.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         When enabled, os.cpu_count() is used as the max number of threads.
@@ -238,6 +247,7 @@ def read_sql_query(
             chunked=chunked,
             categories=categories,
             safe=safe,
+            map_types=map_types,
             use_threads=use_threads,
             boto3_session=session,
         )
@@ -259,6 +269,7 @@ def read_sql_table(
     chunked: bool = False,
     categories: Optional[List[str]] = None,
     safe: bool = True,
+    map_types: bool = True,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
@@ -303,6 +314,10 @@ def read_sql_table(
         data in a pandas DataFrame or Series (e.g. timestamps are always
         stored as nanoseconds in pandas). This option controls whether it
         is a safe cast or not.
+    map_types : bool, default True
+        True to convert pyarrow DataTypes to pandas ExtensionDtypes. It is
+        used to override the default pandas type for conversion of built-in
+        pyarrow types or in absence of pandas_metadata in the Table schema.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         When enabled, os.cpu_count() is used as the max number of threads.
@@ -347,6 +362,7 @@ def read_sql_table(
         transaction_id=transaction_id,
         query_as_of_time=query_as_of_time,
         safe=safe,
+        map_types=map_types,
         catalog_id=catalog_id,
         categories=categories,
         chunked=chunked,
