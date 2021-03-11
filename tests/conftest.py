@@ -171,6 +171,16 @@ def redshift_external_schema(cloudformation_outputs, databases_parameters, glue_
 
 
 @pytest.fixture(scope="function")
+def glue_ctas_database():
+    name = f"db_{get_time_str_with_random_suffix()}"
+    print(f"Database name: {name}")
+    wr.catalog.create_database(name=name)
+    yield name
+    wr.catalog.delete_database(name=name)
+    print(f"Database {name} deleted.")
+
+
+@pytest.fixture(scope="function")
 def glue_table(glue_database: str) -> None:
     name = f"tbl_{get_time_str_with_random_suffix()}"
     print(f"Table name: {name}")

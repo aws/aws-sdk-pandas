@@ -26,7 +26,7 @@ from ._utils import (
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
-def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database, kms_key):
+def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database, glue_ctas_database, kms_key):
     df = get_df_list()
     columns_types, partitions_types = wr.catalog.extract_athena_types(df=df, partition_cols=["par0", "par1"])
     assert len(columns_types) == 17
@@ -101,6 +101,26 @@ def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database,
         ensure_data_types(df=df, has_list=True)
         ensure_athena_query_metadata(df=df, ctas_approach=True, encrypted=False)
     assert len(wr.s3.list_objects(path=path3)) > 2
+
+    # ctas_database_name
+    wr.s3.delete_objects(path=path3)
+    dfs = wr.athena.read_sql_query(
+        sql=f"SELECT * FROM {glue_table}",
+        database=glue_database,
+        ctas_approach=True,
+        chunksize=1,
+        keep_files=False,
+        ctas_database_name=glue_ctas_database,
+        ctas_temp_table_name=glue_table2,
+        s3_output=path3,
+    )
+    assert wr.catalog.does_table_exist(database=glue_ctas_database, table=glue_table2) is True
+    assert len(wr.s3.list_objects(path=path3)) > 2
+    assert len(wr.s3.list_objects(path=final_destination)) > 0
+    for df in dfs:
+        ensure_data_types(df=df, has_list=True)
+        ensure_athena_query_metadata(df=df, ctas_approach=True, encrypted=False)
+    assert len(wr.s3.list_objects(path=path3)) == 0
 
 
 def test_athena(path, glue_database, glue_table, kms_key, workgroup0, workgroup1):
