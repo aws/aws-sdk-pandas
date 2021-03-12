@@ -47,7 +47,7 @@ def _validate_args(
     table: Optional[str],
     database: Optional[str],
     dataset: bool,
-    path: str,
+    path: Optional[str],
     partition_cols: Optional[List[str]],
     bucketing_info: Optional[Tuple[List[str], int]],
     mode: Optional[str],
@@ -58,6 +58,8 @@ def _validate_args(
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
     if dataset is False:
+        if path is None:
+            raise exceptions.InvalidArgumentValue("If dataset is False, the `path` argument must be passed.")
         if path.endswith("/"):
             raise exceptions.InvalidArgumentValue(
                 "If <dataset=False>, the argument <path> should be a file path, not a directory."
@@ -78,6 +80,10 @@ def _validate_args(
         raise exceptions.InvalidArgumentCombination(
             "Arguments database and table must be passed together. If you want to store your dataset metadata in "
             "the Glue Catalog, please ensure you are passing both."
+        )
+    elif all(x is None for x in [path, database, table]):
+        raise exceptions.InvalidArgumentCombination(
+            "You must specify a `path` if dataset is True and database/table are not enabled."
         )
     elif bucketing_info and bucketing_info[1] <= 0:
         raise exceptions.InvalidArgumentValue(

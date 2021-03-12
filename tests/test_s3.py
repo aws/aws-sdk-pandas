@@ -103,6 +103,23 @@ def test_delete_error(bucket):
             wr.s3.delete_objects(path=[path])
 
 
+def test_missing_or_wrong_path(path, glue_database, glue_table):
+    # Missing path
+    df = pd.DataFrame({"FooBoo": [1, 2, 3]})
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.s3.to_parquet(df=df)
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.s3.to_parquet(df=df, dataset=True)
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.s3.to_parquet(df=df, dataset=True, database=glue_database, table=glue_table)
+
+    # Wrong path
+    wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table)
+    wrong_path = "s3://bucket/prefix"
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.s3.to_parquet(df=df, path=wrong_path, dataset=True, database=glue_database, table=glue_table)
+
+
 def test_s3_empty_dfs():
     df = pd.DataFrame()
     with pytest.raises(wr.exceptions.EmptyDataFrame):

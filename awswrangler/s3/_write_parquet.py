@@ -198,7 +198,7 @@ def _to_parquet(
 @apply_configs
 def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     df: pd.DataFrame,
-    path: str,
+    path: Optional[str] = None,
     index: bool = False,
     compression: Optional[str] = "snappy",
     max_rows_by_file: Optional[int] = None,
@@ -252,8 +252,9 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     ----------
     df: pandas.DataFrame
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
-    path : str
+    path : str, optional
         S3 path (for file e.g. ``s3://bucket/prefix/filename.parquet``) (for dataset e.g. ``s3://bucket/prefix``).
+        Required if dataset=False or when dataset=True and creating a new dataset
     index : bool
         True to store the DataFrame index in file, otherwise False to ignore it.
     compression: str, optional
@@ -511,6 +512,19 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
         catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
             database=database, table=table, boto3_session=session, catalog_id=catalog_id
         )
+        catalog_path = catalog_table_input["StorageDescriptor"]["Location"] if catalog_table_input else None
+        if path is None:
+            if catalog_path:
+                path = catalog_path
+            else:
+                raise exceptions.InvalidArgumentValue(
+                    "Glue table does not exist in the catalog. Please pass the `path` argument to create it."
+                )
+        elif path and catalog_path:
+            if path.rstrip("/") != catalog_path.rstrip("/"):
+                raise exceptions.InvalidArgumentValue(
+                    f"The specified path: {path}, does not match the existing Glue catalog table path: {catalog_path}"
+                )
     df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
     schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(
         df=df, index=index, ignore_cols=partition_cols, dtype=dtype
@@ -545,7 +559,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
             func=_to_parquet,
             concurrent_partitioning=concurrent_partitioning,
             df=df,
-            path_root=path,
+            path_root=path,  # type: ignore
             index=index,
             compression=compression,
             compression_ext=compression_ext,
@@ -565,7 +579,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
                 catalog._create_parquet_table(  # pylint: disable=protected-access
                     database=database,
                     table=table,
-                    path=path,
+                    path=path,  # type: ignore
                     columns_types=columns_types,
                     partitions_types=partitions_types,
                     bucketing_info=bucketing_info,

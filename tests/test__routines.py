@@ -44,7 +44,6 @@ def test_routine_0(glue_database, glue_table, path, use_threads, concurrent_part
     df = pd.DataFrame({"c1": [None, 1, None]}, dtype="Int16")
     wr.s3.to_parquet(
         df=df,
-        path=path,
         dataset=True,
         mode="overwrite",
         database=glue_database,
@@ -101,7 +100,6 @@ def test_routine_0(glue_database, glue_table, path, use_threads, concurrent_part
     df = pd.DataFrame({"c2": ["a", None, "b"], "c1": [None, None, None]})
     wr.s3.to_parquet(
         df=df,
-        path=path,
         dataset=True,
         mode="append",
         database=glue_database,
@@ -162,7 +160,6 @@ def test_routine_0(glue_database, glue_table, path, use_threads, concurrent_part
     df = pd.DataFrame({"c0": ["foo", None], "c1": [0, 1]})
     wr.s3.to_parquet(
         df=df,
-        path=path,
         dataset=True,
         mode="overwrite",
         database=glue_database,
@@ -223,7 +220,6 @@ def test_routine_0(glue_database, glue_table, path, use_threads, concurrent_part
     df = pd.DataFrame({"c0": [1, 2], "c1": ["1", "3"], "c2": [True, False]})
     wr.s3.to_parquet(
         df=df,
-        path=path,
         dataset=True,
         mode="overwrite_partitions",
         database=glue_database,

@@ -72,9 +72,9 @@ def _to_text(
 
 
 @apply_configs
-def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-statements
+def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-statements,too-many-branches
     df: pd.DataFrame,
-    path: str,
+    path: Optional[str] = None,
     sep: str = ",",
     index: bool = True,
     columns: Optional[List[str]] = None,
@@ -137,8 +137,9 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     ----------
     df: pandas.DataFrame
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
-    path : str
-        Amazon S3 path (e.g. s3://bucket/filename.csv).
+    path : str, optional
+        Amazon S3 path (e.g. s3://bucket/prefix/filename.csv) (for dataset e.g. ``s3://bucket/prefix``).
+        Required if dataset=False or when creating a new dataset
     sep : str
         String of length 1. Field delimiter for the output file.
     index : bool
@@ -414,6 +415,19 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
             database=database, table=table, boto3_session=session, catalog_id=catalog_id
         )
+        catalog_path = catalog_table_input["StorageDescriptor"]["Location"] if catalog_table_input else None
+        if path is None:
+            if catalog_path:
+                path = catalog_path
+            else:
+                raise exceptions.InvalidArgumentValue(
+                    "Glue table does not exist in the catalog. Please pass the `path` argument to create it."
+                )
+        elif path and catalog_path:
+            if path.rstrip("/") != catalog_path.rstrip("/"):
+                raise exceptions.InvalidArgumentValue(
+                    f"The specified path: {path}, does not match the existing Glue catalog table path: {catalog_path}"
+                )
         if pandas_kwargs.get("compression") not in ("gzip", "bz2", None):
             raise exceptions.InvalidArgumentCombination(
                 "If database and table are given, you must use one of these compressions: gzip, bz2 or None."
@@ -421,6 +435,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
 
     df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
 
+    paths: List[str] = []
     if dataset is False:
         pandas_kwargs["sep"] = sep
         pandas_kwargs["index"] = index
@@ -434,7 +449,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             s3_additional_kwargs=s3_additional_kwargs,
             **pandas_kwargs,
         )
-        paths = [path]
+        paths = [path]  # type: ignore
     else:
         if database and table:
             quoting: Optional[int] = csv.QUOTE_NONE
@@ -461,7 +476,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             func=_to_text,
             concurrent_partitioning=concurrent_partitioning,
             df=df,
-            path_root=path,
+            path_root=path,  # type: ignore
             index=index,
             sep=sep,
             compression=compression,
@@ -486,7 +501,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                 catalog._create_csv_table(  # pylint: disable=protected-access
                     database=database,
                     table=table,
-                    path=path,
+                    path=path,  # type: ignore
                     columns_types=columns_types,
                     partitions_types=partitions_types,
                     bucketing_info=bucketing_info,
