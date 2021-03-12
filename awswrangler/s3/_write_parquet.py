@@ -256,6 +256,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
     path : str, optional
         S3 path (for file e.g. ``s3://bucket/prefix/filename.parquet``) (for dataset e.g. ``s3://bucket/prefix``).
+        Required if dataset=False or when dataset=True and creating a new dataset
     index : bool
         True to store the DataFrame index in file, otherwise False to ignore it.
     compression: str, optional
@@ -541,14 +542,21 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
         catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
             database=database, table=table, boto3_session=session, catalog_id=catalog_id
         )
+        catalog_path: Optional[str] = None
         if catalog_table_input:
             table_type = catalog_table_input["TableType"]
+            catalog_path = catalog_table_input["StorageDescriptor"]["Location"]
         if path is None:
-            if catalog_table_input:
-                path = catalog_table_input["StorageDescriptor"]["Location"]
+            if catalog_path:
+                path = catalog_path
             else:
                 raise exceptions.InvalidArgumentValue(
-                    "Glue table does not exist. Please pass the `path` argument to create it."
+                    "Glue table does not exist in the catalog. Please pass the `path` argument to create it."
+                )
+        elif path and catalog_path:
+            if path.rstrip("/") != catalog_path.rstrip("/"):
+                raise exceptions.InvalidArgumentValue(
+                    f"The specified path: {path}, does not match the existing Glue catalog table path: {catalog_path}"
                 )
     df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
     schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(
