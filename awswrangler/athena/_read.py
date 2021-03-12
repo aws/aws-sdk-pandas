@@ -374,6 +374,7 @@ def _resolve_query_without_cache_ctas(
     workgroup: Optional[str],
     kms_key: Optional[str],
     wg_config: _WorkGroupConfig,
+    alt_database: Optional[str],
     name: Optional[str],
     use_threads: bool,
     s3_additional_kwargs: Optional[Dict[str, Any]],
@@ -381,8 +382,9 @@ def _resolve_query_without_cache_ctas(
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     path: str = f"{s3_output}/{name}"
     ext_location: str = "\n" if wg_config.enforced is True else f",\n    external_location = '{path}'\n"
+    fully_qualified_name: str = f'"{alt_database}"."{name}"' if alt_database else f'"{database}"."{name}"'
     sql = (
-        f'CREATE TABLE "{name}"\n'
+        f"CREATE TABLE {fully_qualified_name}\n"
         f"WITH(\n"
         f"    format = 'Parquet',\n"
         f"    parquet_compression = 'SNAPPY'"
@@ -507,6 +509,7 @@ def _resolve_query_without_cache(
     encryption: Optional[str],
     kms_key: Optional[str],
     keep_files: bool,
+    ctas_database_name: Optional[str],
     ctas_temp_table_name: Optional[str],
     use_threads: bool,
     s3_additional_kwargs: Optional[Dict[str, Any]],
@@ -538,6 +541,7 @@ def _resolve_query_without_cache(
                 workgroup=workgroup,
                 kms_key=kms_key,
                 wg_config=wg_config,
+                alt_database=ctas_database_name,
                 name=name,
                 use_threads=use_threads,
                 s3_additional_kwargs=s3_additional_kwargs,
@@ -575,6 +579,7 @@ def read_sql_query(
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
     keep_files: bool = True,
+    ctas_database_name: Optional[str] = None,
     ctas_temp_table_name: Optional[str] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
@@ -709,6 +714,9 @@ def read_sql_query(
         For SSE-KMS, this is the KMS key ARN or ID.
     keep_files : bool
         Should Wrangler delete or keep the staging files produced by Athena?
+    ctas_database_name : str, optional
+        The name of the alternative database where the CTAS temporary table is stored.
+        If None, the default `database` is used.
     ctas_temp_table_name : str, optional
         The name of the temporary table and also the directory name on S3 where the CTAS result is stored.
         If None, it will use the follow random pattern: `f"temp_table_{uuid.uuid4().hex()}"`.
@@ -820,6 +828,7 @@ def read_sql_query(
         encryption=encryption,
         kms_key=kms_key,
         keep_files=keep_files,
+        ctas_database_name=ctas_database_name,
         ctas_temp_table_name=ctas_temp_table_name,
         use_threads=use_threads,
         s3_additional_kwargs=s3_additional_kwargs,
@@ -839,6 +848,7 @@ def read_sql_table(
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
     keep_files: bool = True,
+    ctas_database_name: Optional[str] = None,
     ctas_temp_table_name: Optional[str] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
@@ -967,6 +977,9 @@ def read_sql_table(
         For SSE-KMS, this is the KMS key ARN or ID.
     keep_files : bool
         Should Wrangler delete or keep the staging files produced by Athena?
+    ctas_database_name : str, optional
+        The name of the alternative database where the CTAS temporary table is stored.
+        If None, the default `database` is used.
     ctas_temp_table_name : str, optional
         The name of the temporary table and also the directory name on S3 where the CTAS result is stored.
         If None, it will use the follow random pattern: `f"temp_table_{uuid.uuid4().hex}"`.
@@ -1027,6 +1040,7 @@ def read_sql_table(
         encryption=encryption,
         kms_key=kms_key,
         keep_files=keep_files,
+        ctas_database_name=ctas_database_name,
         ctas_temp_table_name=ctas_temp_table_name,
         use_threads=use_threads,
         boto3_session=boto3_session,
