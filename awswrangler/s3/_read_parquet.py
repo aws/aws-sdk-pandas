@@ -238,6 +238,7 @@ def _arrowtable2df(
     table: pa.Table,
     categories: Optional[List[str]],
     safe: bool,
+    map_types: bool,
     use_threads: bool,
     dataset: bool,
     path: str,
@@ -257,7 +258,7 @@ def _arrowtable2df(
             strings_to_categorical=False,
             safe=safe,
             categories=categories,
-            types_mapper=_data_types.pyarrow2pandas_extension,
+            types_mapper=_data_types.pyarrow2pandas_extension if map_types else None,
         ),
         dataset=dataset,
         path=path,
@@ -279,6 +280,7 @@ def _read_parquet_chunked(
     columns: Optional[List[str]],
     categories: Optional[List[str]],
     safe: bool,
+    map_types: bool,
     boto3_session: boto3.Session,
     dataset: bool,
     path_root: Optional[str],
@@ -325,6 +327,7 @@ def _read_parquet_chunked(
                     ),
                     categories=categories,
                     safe=safe,
+                    map_types=map_types,
                     use_threads=use_threads,
                     dataset=dataset,
                     path=path,
@@ -404,6 +407,7 @@ def _read_parquet(
     columns: Optional[List[str]],
     categories: Optional[List[str]],
     safe: bool,
+    map_types: bool,
     boto3_session: boto3.Session,
     dataset: bool,
     path_root: Optional[str],
@@ -421,6 +425,7 @@ def _read_parquet(
         ),
         categories=categories,
         safe=safe,
+        map_types=map_types,
         use_threads=use_threads,
         dataset=dataset,
         path=path,
@@ -441,6 +446,7 @@ def read_parquet(
     dataset: bool = False,
     categories: Optional[List[str]] = None,
     safe: bool = True,
+    map_types: bool = True,
     use_threads: bool = True,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
@@ -524,6 +530,10 @@ def read_parquet(
         data in a pandas DataFrame or Series (e.g. timestamps are always
         stored as nanoseconds in pandas). This option controls whether it
         is a safe cast or not.
+    map_types : bool, default True
+        True to convert pyarrow DataTypes to pandas ExtensionDtypes. It is
+        used to override the default pandas type for conversion of built-in
+        pyarrow types or in absence of pandas_metadata in the Table schema.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -597,6 +607,7 @@ def read_parquet(
         "columns": columns,
         "categories": categories,
         "safe": safe,
+        "map_types": map_types,
         "boto3_session": session,
         "dataset": dataset,
         "path_root": path_root,
@@ -633,6 +644,7 @@ def read_parquet_table(
     validate_schema: bool = True,
     categories: Optional[List[str]] = None,
     safe: bool = True,
+    map_types: bool = True,
     chunked: Union[bool, int] = False,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
@@ -699,6 +711,10 @@ def read_parquet_table(
         data in a pandas DataFrame or Series (e.g. timestamps are always
         stored as nanoseconds in pandas). This option controls whether it
         is a safe cast or not.
+    map_types : bool, default True
+        True to convert pyarrow DataTypes to pandas ExtensionDtypes. It is
+        used to override the default pandas type for conversion of built-in
+        pyarrow types or in absence of pandas_metadata in the Table schema.
     chunked : bool
         If True will break the data in smaller DataFrames (Non deterministic number of lines).
         Otherwise return a single DataFrame with the whole data.
@@ -767,6 +783,7 @@ def read_parquet_table(
             validate_schema=validate_schema,
             categories=categories,
             safe=safe,
+            map_types=map_types,
             chunked=chunked,
             dataset=True,
             use_threads=use_threads,
