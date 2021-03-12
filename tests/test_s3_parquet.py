@@ -192,6 +192,16 @@ def test_to_parquet_file_dtype(path, use_threads):
     assert str(df2.c1.dtype) == "string"
 
 
+def test_read_parquet_map_types(path):
+    df = pd.DataFrame({"c0": [0, 1, 1, 2]}, dtype=np.int8)
+    file_path = f"{path}0.parquet"
+    wr.s3.to_parquet(df, file_path)
+    df2 = wr.s3.read_parquet(file_path)
+    assert str(df2.c0.dtype) == "Int8"
+    df3 = wr.s3.read_parquet(file_path, map_types=False)
+    assert str(df3.c0.dtype) == "int8"
+
+
 @pytest.mark.parametrize("use_threads", [True, False])
 @pytest.mark.parametrize("max_rows_by_file", [None, 0, 40, 250, 1000])
 def test_parquet_with_size(path, use_threads, max_rows_by_file):
