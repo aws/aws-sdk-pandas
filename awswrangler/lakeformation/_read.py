@@ -353,3 +353,12 @@ def read_sql_table(
         use_threads=use_threads,
         boto3_session=boto3_session,
     )
+
+
+def test_func() -> int:
+    """
+    My func.
+
+    awdjabwdjhwab
+    """
+    return 1

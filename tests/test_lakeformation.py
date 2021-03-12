@@ -148,3 +148,7 @@ def test_lakeformation_multi_transaction(
 
     wr.catalog.delete_table_if_exists(database=lakeformation_glue_database, table=table)
     wr.catalog.delete_table_if_exists(database=lakeformation_glue_database, table=table2)
+
+
+def test_myfunc():
+    assert wr.lakeformation.test_func() == 2
