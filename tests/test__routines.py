@@ -195,7 +195,6 @@ def test_routine_1(
     df = pd.DataFrame({"c0": ["foo", None], "c1": [0, 1]})
     wr.s3.to_parquet(
         df=df,
-        path=path,
         dataset=True,
         mode="overwrite",
         database=database,
@@ -262,7 +261,6 @@ def test_routine_1(
     df = pd.DataFrame({"c0": [1, 2], "c1": ["1", "3"], "c2": [True, False]})
     wr.s3.to_parquet(
         df=df,
-        path=path,
         dataset=True,
         mode="overwrite_partitions",
         database=database,
