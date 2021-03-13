@@ -5,7 +5,7 @@ Parameters:
   EnableLakeFormation:
     Type: String
     Description: set to True if Lake Formation is enabled in the account
-    Default: false
+    Default: true
     AllowedValues:
       - true
       - false
@@ -324,6 +324,34 @@ Resources:
       DatabaseInput:
         Name: aws_data_wrangler_lakeformation
         Description: AWS Data Wrangler - Lake Formation Database
+  LakeFormationGlueTable:
+    Type: AWS::Glue::Table
+    Condition: CreateLFResources
+    Properties:
+      CatalogId:
+        Ref: AWS::AccountId
+      DatabaseName:
+        Ref: LakeFormationGlueDatabase
+      TableInput:
+        Name: wr_lakeformation_table
+        Description: AWS Data Wrangler - Lake Formation Table
+  LakeFormationDatabasePermission:
+    Type: AWS::LakeFormation::Permissions
+    Condition: CreateLFResources
+    Properties:
+      DataLakePrincipal:
+        DataLakePrincipalIdentifier:
+          Fn::GetAtt:
+            - LakeFormationTransactionRole
+            - Arn
+      Permissions:
+        - CREATE_TABLE
+        - ALTER
+        - DROP
+      Resource:
+        DatabaseResource:
+          Name:
+            Ref: LakeFormationGlueDatabase
   LogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
