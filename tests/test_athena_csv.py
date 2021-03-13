@@ -49,7 +49,6 @@ def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_p
     df = pd.DataFrame({"c1": [0, 1, 2]}, dtype="Int16")
     wr.s3.to_csv(
         df=df,
-        path=path,
         dataset=True,
         mode="overwrite",
         database=glue_database,
@@ -106,7 +105,6 @@ def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_p
     df = pd.DataFrame({"c0": ["foo", "boo"], "c1": [0, 1]})
     wr.s3.to_csv(
         df=df,
-        path=path,
         dataset=True,
         mode="overwrite",
         database=glue_database,
