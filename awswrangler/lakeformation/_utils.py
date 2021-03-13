@@ -262,3 +262,62 @@ def wait_query(query_id: str, boto3_session: Optional[boto3.Session] = None) -> 
     if state == "ERROR":
         raise exceptions.QueryFailed(response.get("Error"))
     return response
+
+
+def test_func() -> int:
+    """
+    My func.
+
+    description
+    """
+
+
+def get_database_principal_permissions(
+    catalog_id: str,
+    database_name: str,
+    principal_arn: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> List[Dict[str, Any]]:
+    """Get the principal permissions associated with a database lakeformation resource.
+
+    Parameters
+    ----------
+    catalog_id : str
+        The catalog id.
+
+    Returns
+    -------
+    [Dict]
+        Returns a list with the resource permissions.
+
+    """
+    resource = {"Database": {"CatalogId": catalog_id, "Name": database_name}}
+
+    if principal_arn is not None:
+        principal_dict = {"DataLakePrincipalIdentifier": principal_arn}
+
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
+    principal_permissions: List[Dict[str, Any]] = []
+
+    if principal_arn is None:
+        result = client_lakeformation.list_permissions(CatalogId=catalog_id, Resource=resource)
+    else:
+        result = client_lakeformation.list_permissions(
+            CatalogId=catalog_id, Resource=resource, Principal=principal_dict
+        )
+
+    principal_permissions = result["PrincipalResourcePermissions"]
+    next_token: str = "init_token"  # Dummy token
+
+    while next_token:
+        if principal_arn is None:
+            result = client_lakeformation.list_permissions(CatalogId=catalog_id, Resource=resource)
+        else:
+            result = client_lakeformation.list_permissions(
+                CatalogId=catalog_id, Resource=resource, Principal=principal_dict
+            )
+        principal_permissions.extend(result["PrincipalResourcePermissions"])
+        next_token = result.get("NextToken", None)
+
+    return principal_permissions

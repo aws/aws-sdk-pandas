@@ -6,6 +6,8 @@ from awswrangler.lakeformation._utils import (  # noqa
     begin_transaction,
     commit_transaction,
     extend_transaction,
+    get_database_principal_permissions,
+    test_func,
     wait_query,
 )
 
@@ -17,4 +19,5 @@ __all__ = [
     "commit_transaction",
     "extend_transaction",
     "wait_query",
+    "get_database_principal_permissions",
 ]
