@@ -352,6 +352,28 @@ Resources:
         DatabaseResource:
           Name:
             Ref: LakeFormationGlueDatabase
+  LakeFormationTablePermission:
+    Type: AWS::LakeFormation::Permissions
+    Condition: CreateLFResources
+    Properties:
+      DataLakePrincipal:
+        DataLakePrincipalIdentifier:
+          Fn::GetAtt:
+            - LakeFormationTransactionRole
+            - Arn
+      Permissions:
+        - SELECT
+        - ALTER
+        - DELETE
+        - DESCRIBE
+        - DROP
+        - INSERT
+      Resource:
+        TableResource:
+          DatabaseName:
+            Ref: LakeFormationGlueDatabase
+          Name:
+            Ref: LakeFormationGlueTable
   LogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
