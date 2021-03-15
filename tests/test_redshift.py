@@ -937,3 +937,17 @@ def test_insert_with_column_names(redshift_table):
     df["c2"] = df["c2"].astype("Int64")
     df = df.reindex(sorted(df.columns), axis=1)
     assert df.equals(df2)
+
+
+@pytest.mark.parametrize("chunksize", [1, 10, 500])
+def test_dfs_are_equal_for_different_chunksizes(redshift_table, chunksize):
+    con = wr.redshift.connect(connection="aws-data-wrangler-redshift")
+    df = pd.DataFrame({"c0": [i for i in range(64)], "c1": ["foo" for _ in range(64)]})
+    wr.redshift.to_sql(df=df, con=con, schema="public", table=redshift_table, chunksize=chunksize)
+
+    df2 = wr.redshift.read_sql_table(con=con, schema="public", table=redshift_table)
+
+    df["c0"] = df["c0"].astype("Int64")
+    df["c1"] = df["c1"].astype("string")
+
+    assert df.equals(df2)

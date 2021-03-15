@@ -208,3 +208,17 @@ def test_insert_with_column_names(postgresql_table):
     df["c2"] = df["c2"].astype("Int64")
     df = df.reindex(sorted(df.columns), axis=1)
     assert df.equals(df2)
+
+
+@pytest.mark.parametrize("chunksize", [1, 10, 500])
+def test_dfs_are_equal_for_different_chunksizes(postgresql_table, chunksize):
+    con = wr.postgresql.connect(connection="aws-data-wrangler-postgresql")
+    df = pd.DataFrame({"c0": [i for i in range(64)], "c1": ["foo" for _ in range(64)]})
+    wr.postgresql.to_sql(df=df, con=con, schema="public", table=postgresql_table, chunksize=chunksize)
+
+    df2 = wr.postgresql.read_sql_table(con=con, schema="public", table=postgresql_table)
+
+    df["c0"] = df["c0"].astype("Int64")
+    df["c1"] = df["c1"].astype("string")
+
+    assert df.equals(df2)

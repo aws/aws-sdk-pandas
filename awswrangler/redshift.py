@@ -645,6 +645,7 @@ def to_sql(
     varchar_lengths_default: int = 256,
     varchar_lengths: Optional[Dict[str, int]] = None,
     use_column_names: bool = False,
+    chunksize: int = 1,
 ) -> None:
     """Write records stored in a DataFrame into Redshift.
 
@@ -693,6 +694,8 @@ def to_sql(
         If set to True, will use the column names of the DataFrame for generating the INSERT SQL Query.
         E.g. If the DataFrame has two columns `col1` and `col3` and `use_column_names` is True, data will only be
         inserted into the database columns `col1` and `col3`.
+    chunksize: int
+        Number of rows which are inserted with each SQL query. Defaults to inserting one row per query.
 
     Returns
     -------
@@ -740,15 +743,19 @@ def to_sql(
             )
             if index:
                 df.reset_index(level=df.index.names, inplace=True)
-            placeholders: str = ", ".join(["%s"] * len(df.columns))
+            column_placeholders: str = ", ".join(["%s"] * len(df.columns))
             schema_str = f'"{created_schema}".' if created_schema else ""
             insertion_columns = ""
             if use_column_names:
                 insertion_columns = f"({', '.join(df.columns)})"
-            sql: str = f'INSERT INTO {schema_str}"{created_table}" {insertion_columns} VALUES ({placeholders})'
-            _logger.debug("sql: %s", sql)
             parameters: List[List[Any]] = _db_utils.extract_parameters(df=df)
-            cursor.executemany(sql, parameters)
+            for i in range(0, len(parameters), chunksize):
+                chunk = parameters[i : i + chunksize]
+                chunk_placeholders = ", ".join([f"({column_placeholders})" for _ in range(len(chunk))])
+                flattened_chunk = [value for row in chunk for value in row]
+                sql: str = f'INSERT INTO {schema_str}"{created_table}" {insertion_columns} VALUES {chunk_placeholders}'
+                _logger.debug("sql: %s", sql)
+                cursor.executemany(sql, (flattened_chunk,))
             if table != created_table:  # upsert
                 _upsert(cursor=cursor, schema=schema, table=table, temp_table=created_table, primary_keys=primary_keys)
             con.commit()
