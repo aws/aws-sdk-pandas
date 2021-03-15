@@ -222,19 +222,21 @@ def read_sql_query(
 def extract_placeholder_parameter_pairs(
     df: pd.DataFrame, column_placeholders: str, chunksize: int
 ) -> List[Tuple[str, List[Any]]]:
-    """Extract Parameters."""
+    """Extract Placeholder and Parameter pairs."""
+    def convert_value_to_native_python_type(value):
+        if pd.isna(value):
+            return None
+        elif hasattr(value, "to_pydatetime"):
+            return value.to_pydatetime()
+
+        return value
+
     placeholder_parameter_pairs = []
     parameters: List[List[Any]] = df.values.tolist()
-    for i, row in enumerate(parameters):
-        for j, value in enumerate(row):
-            if pd.isna(value):
-                parameters[i][j] = None
-            elif hasattr(value, "to_pydatetime"):
-                parameters[i][j] = value.to_pydatetime()
     for i in range(0, len(parameters), chunksize):
         chunk = parameters[i : i + chunksize]
         chunk_placeholders = ", ".join([f"({column_placeholders})" for _ in range(len(chunk))])
-        flattened_chunk = [value for row in chunk for value in row]
+        flattened_chunk = [convert_value_to_native_python_type(value) for row in chunk for value in row]
         placeholder_parameter_pairs.append((chunk_placeholders, flattened_chunk))
 
     return placeholder_parameter_pairs
