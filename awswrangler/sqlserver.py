@@ -291,7 +291,7 @@ def to_sql(
     dtype: Optional[Dict[str, str]] = None,
     varchar_lengths: Optional[Dict[str, int]] = None,
     use_column_names: bool = False,
-    chunksize: int = 1,
+    chunksize: int = 200,
 ) -> None:
     """Write records stored in a DataFrame into Microsoft SQL Server.
 
@@ -321,7 +321,7 @@ def to_sql(
         E.g. If the DataFrame has two columns `col1` and `col3` and `use_column_names` is True, data will only be
         inserted into the database columns `col1` and `col3`.
     chunksize: int
-        Number of rows which are inserted with each SQL query. Defaults to inserting one row per query.
+        Number of rows which are inserted with each SQL query. Defaults to inserting 200 rows per query.
 
     Returns
     -------
