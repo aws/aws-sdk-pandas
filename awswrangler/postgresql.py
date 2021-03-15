@@ -346,14 +346,14 @@ def to_sql(
             insertion_columns = ""
             if use_column_names:
                 insertion_columns = f"({', '.join(df.columns)})"
-            parameters: List[List[Any]] = _db_utils.extract_parameters(df=df)
-            for i in range(0, len(parameters), chunksize):
-                chunk = parameters[i : i + chunksize]
-                chunk_placeholders = ", ".join([f"({column_placeholders})" for _ in range(len(chunk))])
-                flattened_chunk = [value for row in chunk for value in row]
-                sql: str = f'INSERT INTO "{schema}"."{table}" {insertion_columns} VALUES {chunk_placeholders}'
+            placeholder_parameter_pairs = _db_utils.extract_placeholder_parameter_pairs(
+                df=df, column_placeholders=column_placeholders, chunksize=chunksize
+            )
+            for pair in placeholder_parameter_pairs:
+                placeholders, parameters = pair
+                sql: str = f'INSERT INTO "{schema}"."{table}" {insertion_columns} VALUES {placeholders}'
                 _logger.debug("sql: %s", sql)
-                cursor.executemany(sql, (flattened_chunk,))
+                cursor.executemany(sql, (parameters,))
             con.commit()
     except Exception as ex:
         con.rollback()
