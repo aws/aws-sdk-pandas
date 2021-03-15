@@ -223,10 +223,11 @@ def extract_placeholder_parameter_pairs(
     df: pd.DataFrame, column_placeholders: str, chunksize: int
 ) -> List[Tuple[str, List[Any]]]:
     """Extract Placeholder and Parameter pairs."""
-    def convert_value_to_native_python_type(value):
+
+    def convert_value_to_native_python_type(value: Any) -> Any:
         if pd.isna(value):
             return None
-        elif hasattr(value, "to_pydatetime"):
+        if hasattr(value, "to_pydatetime"):
             return value.to_pydatetime()
 
         return value
