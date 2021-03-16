@@ -293,31 +293,114 @@ def get_database_principal_permissions(
     """
     resource = {"Database": {"CatalogId": catalog_id, "Name": database_name}}
 
+    list_kwargs: Dict[str, Union[str, Dict[str, Any]]] = _catalog_id(catalog_id=catalog_id, Resource=resource)
+
     if principal_arn is not None:
-        principal_dict = {"DataLakePrincipalIdentifier": principal_arn}
+        list_kwargs["Principal"] = {"DataLakePrincipalIdentifier": principal_arn}
 
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
     principal_permissions: List[Dict[str, Any]] = []
 
-    if principal_arn is None:
-        result = client_lakeformation.list_permissions(CatalogId=catalog_id, Resource=resource)
-    else:
-        result = client_lakeformation.list_permissions(
-            CatalogId=catalog_id, Resource=resource, Principal=principal_dict
-        )
-
-    principal_permissions = result["PrincipalResourcePermissions"]
     next_token: str = "init_token"  # Dummy token
-
     while next_token:
-        if principal_arn is None:
-            result = client_lakeformation.list_permissions(CatalogId=catalog_id, Resource=resource)
-        else:
-            result = client_lakeformation.list_permissions(
-                CatalogId=catalog_id, Resource=resource, Principal=principal_dict
-            )
+        result = client_lakeformation.list_permissions(**list_kwargs)
         principal_permissions.extend(result["PrincipalResourcePermissions"])
         next_token = result.get("NextToken", None)
+        list_kwargs["NextToken"] = next_token
 
     return principal_permissions
+
+
+
+
+def revoke_database_permissions(
+    resource_catalog_id: str,
+    database_name: str,
+    principal_arn: str,
+    permissions: List[str],
+    permissions_with_grant: Optional[List[str]] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> None:
+    """Revoke principal permissions in a Lake Formation database resource.
+
+    Parameters
+    ----------
+    catalog_id : str
+        The catalog id.
+
+    Returns
+    -------
+    None
+        Returns None
+
+    """
+    resource = {
+        "Database": {
+            "CatalogId": resource_catalog_id,
+            "Name": database_name,
+        }
+    }
+
+    principal_identifier = {"DataLakePrincipalIdentifier": principal_arn}
+
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
+    if permissions_with_grant is None:
+        client_lakeformation.revoke_permissions(
+            Principal=principal_identifier, CatalogId=resource_catalog_id, Resource=resource, Permissions=permissions
+        )
+    else:
+        client_lakeformation.revoke_permissions(
+            Principal=principal_identifier,
+            CatalogId=resource_catalog_id,
+            Resource=resource,
+            Permissions=permissions,
+            PermissionsWithGrantOption=permissions_with_grant,
+        )
+
+
+def grant_database_permissions(
+    resource_catalog_id: str,
+    database_name: str,
+    principal_arn: str,
+    permissions: List[str],
+    permissions_with_grant: Optional[List[str]] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> None:
+    """Grant principal permissions in a Lake Formation database resource.
+
+    Parameters
+    ----------
+    catalog_id : str
+        The catalog id.
+
+    Returns
+    -------
+    None
+        Returns None
+
+    """
+    resource = {
+        "Database": {
+            "CatalogId": resource_catalog_id,
+            "Name": database_name,
+        }
+    }
+
+    principal_identifier = {"DataLakePrincipalIdentifier": principal_arn}
+
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
+    if permissions_with_grant is None:
+        client_lakeformation.grant_permissions(
+            Principal=principal_identifier, CatalogId=resource_catalog_id, Resource=resource, Permissions=permissions
+        )
+    else:
+        client_lakeformation.grant_permissions(
+            Principal=principal_identifier,
+            CatalogId=resource_catalog_id,
+            Resource=resource,
+            Permissions=permissions,
+            PermissionsWithGrantOption=permissions_with_grant,
+        )

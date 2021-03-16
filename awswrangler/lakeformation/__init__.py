@@ -7,11 +7,15 @@ from awswrangler.lakeformation._utils import (  # noqa
     commit_transaction,
     extend_transaction,
     get_database_principal_permissions,
+    grant_database_permissions,
+    revoke_database_permissions,
     test_func,
     wait_query,
 )
 
 __all__ = [
+    "grant_database_permissions",
+    "revoke_database_permissions",
     "read_sql_query",
     "read_sql_table",
     "abort_transaction",
