@@ -3,6 +3,7 @@ from decimal import Decimal
 
 import pandas as pd
 import pg8000
+from pg8000.dbapi import ProgrammingError
 import pyarrow as pa
 import pytest
 
@@ -188,7 +189,7 @@ def test_insert_with_column_names(postgresql_table, postgresql_con):
 
     df = pd.DataFrame({"c0": ["foo", "bar"], "c2": [1, 2]})
 
-    with pytest.raises(pg8000.exceptions.ProgrammingError):
+    with pytest.raises(ProgrammingError):
         wr.postgresql.to_sql(
             df=df, con=postgresql_con, schema="public", table=postgresql_table, mode="append", use_column_names=False
         )
