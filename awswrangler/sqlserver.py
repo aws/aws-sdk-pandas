@@ -2,6 +2,7 @@
 
 
 import importlib.util
+import inspect
 import logging
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, TypeVar, Union
 
@@ -12,6 +13,7 @@ import pyarrow as pa
 from awswrangler import _data_types
 from awswrangler import _databases as _db_utils
 from awswrangler import exceptions
+from awswrangler._config import apply_configs
 
 __all__ = ["connect", "read_sql_query", "read_sql_table", "to_sql"]
 
@@ -32,6 +34,9 @@ def _check_for_pyodbc(func: FuncT) -> FuncT:
             )
         return func(*args, **kwargs)
 
+    inner.__doc__ = func.__doc__
+    inner.__name__ = func.__name__
+    inner.__setattr__("__signature__", inspect.signature(func))  # pylint: disable=no-member
     return inner  # type: ignore
 
 
@@ -281,6 +286,7 @@ def read_sql_table(
 
 
 @_check_for_pyodbc
+@apply_configs
 def to_sql(
     df: pd.DataFrame,
     con: "pyodbc.Connection",
@@ -291,6 +297,7 @@ def to_sql(
     dtype: Optional[Dict[str, str]] = None,
     varchar_lengths: Optional[Dict[str, int]] = None,
     use_column_names: bool = False,
+    chunksize: int = 200,
 ) -> None:
     """Write records stored in a DataFrame into Microsoft SQL Server.
 
@@ -319,6 +326,8 @@ def to_sql(
         If set to True, will use the column names of the DataFrame for generating the INSERT SQL Query.
         E.g. If the DataFrame has two columns `col1` and `col3` and `use_column_names` is True, data will only be
         inserted into the database columns `col1` and `col3`.
+    chunksize: int
+        Number of rows which are inserted with each SQL query. Defaults to inserting 200 rows per query.
 
     Returns
     -------
@@ -357,15 +366,18 @@ def to_sql(
             )
             if index:
                 df.reset_index(level=df.index.names, inplace=True)
-            placeholders: str = ", ".join(["?"] * len(df.columns))
+            column_placeholders: str = ", ".join(["?"] * len(df.columns))
             table_identifier = _get_table_identifier(schema, table)
             insertion_columns = ""
             if use_column_names:
                 insertion_columns = f"({', '.join(df.columns)})"
-            sql: str = f"INSERT INTO {table_identifier} {insertion_columns} VALUES ({placeholders})"
-            _logger.debug("sql: %s", sql)
-            parameters: List[List[Any]] = _db_utils.extract_parameters(df=df)
-            cursor.executemany(sql, parameters)
+            placeholder_parameter_pair_generator = _db_utils.generate_placeholder_parameter_pairs(
+                df=df, column_placeholders=column_placeholders, chunksize=chunksize
+            )
+            for placeholders, parameters in placeholder_parameter_pair_generator:
+                sql: str = f"INSERT INTO {table_identifier} {insertion_columns} VALUES {placeholders}"
+                _logger.debug("sql: %s", sql)
+                cursor.executemany(sql, (parameters,))
             con.commit()
     except Exception as ex:
         con.rollback()

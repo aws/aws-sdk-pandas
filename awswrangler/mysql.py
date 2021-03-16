@@ -12,6 +12,7 @@ from pymysql.cursors import Cursor
 from awswrangler import _data_types
 from awswrangler import _databases as _db_utils
 from awswrangler import exceptions
+from awswrangler._config import apply_configs
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -257,6 +258,7 @@ def read_sql_table(
     )
 
 
+@apply_configs
 def to_sql(
     df: pd.DataFrame,
     con: pymysql.connections.Connection,
@@ -267,6 +269,7 @@ def to_sql(
     dtype: Optional[Dict[str, str]] = None,
     varchar_lengths: Optional[Dict[str, int]] = None,
     use_column_names: bool = False,
+    chunksize: int = 200,
 ) -> None:
     """Write records stored in a DataFrame into MySQL.
 
@@ -295,6 +298,8 @@ def to_sql(
         If set to True, will use the column names of the DataFrame for generating the INSERT SQL Query.
         E.g. If the DataFrame has two columns `col1` and `col3` and `use_column_names` is True, data will only be
         inserted into the database columns `col1` and `col3`.
+    chunksize: int
+        Number of rows which are inserted with each SQL query. Defaults to inserting 200 rows per query.
 
     Returns
     -------
@@ -308,7 +313,7 @@ def to_sql(
     >>> import awswrangler as wr
     >>> con = wr.mysql.connect("MY_GLUE_CONNECTION")
     >>> wr.mysql.to_sql(
-    ...     df=df
+    ...     df=df,
     ...     table="my_table",
     ...     schema="test",
     ...     con=con
@@ -333,14 +338,17 @@ def to_sql(
             )
             if index:
                 df.reset_index(level=df.index.names, inplace=True)
-            placeholders: str = ", ".join(["%s"] * len(df.columns))
+            column_placeholders: str = ", ".join(["%s"] * len(df.columns))
             insertion_columns = ""
             if use_column_names:
                 insertion_columns = f"({', '.join(df.columns)})"
-            sql: str = f"INSERT INTO `{schema}`.`{table}` {insertion_columns} VALUES ({placeholders})"
-            _logger.debug("sql: %s", sql)
-            parameters: List[List[Any]] = _db_utils.extract_parameters(df=df)
-            cursor.executemany(sql, parameters)
+            placeholder_parameter_pair_generator = _db_utils.generate_placeholder_parameter_pairs(
+                df=df, column_placeholders=column_placeholders, chunksize=chunksize
+            )
+            for placeholders, parameters in placeholder_parameter_pair_generator:
+                sql: str = f"INSERT INTO `{schema}`.`{table}` {insertion_columns} VALUES {placeholders}"
+                _logger.debug("sql: %s", sql)
+                cursor.executemany(sql, (parameters,))
             con.commit()
     except Exception as ex:
         con.rollback()
