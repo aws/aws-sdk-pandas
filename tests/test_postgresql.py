@@ -3,9 +3,9 @@ from decimal import Decimal
 
 import pandas as pd
 import pg8000
-from pg8000.dbapi import ProgrammingError
 import pyarrow as pa
 import pytest
+from pg8000.dbapi import ProgrammingError
 
 import awswrangler as wr
 
