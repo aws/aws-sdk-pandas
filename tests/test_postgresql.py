@@ -13,6 +13,13 @@ from ._utils import ensure_data_types, get_df
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
+@pytest.fixture(scope="function")
+def postgresql_con():
+    con = wr.postgresql.connect("aws-data-wrangler-postgresql")
+    yield con
+    con.close()
+
+
 def test_connection():
     wr.postgresql.connect("aws-data-wrangler-postgresql", timeout=10).close()
 
@@ -30,32 +37,29 @@ def test_read_sql_query_simple(databases_parameters):
     assert df.shape == (1, 1)
 
 
-def test_to_sql_simple(postgresql_table):
-    con = wr.postgresql.connect("aws-data-wrangler-postgresql")
+def test_to_sql_simple(postgresql_table, postgresql_con):
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "boo", "bar"]})
-    wr.postgresql.to_sql(df, con, postgresql_table, "public", "overwrite", True)
-    con.close()
+    wr.postgresql.to_sql(df, postgresql_con, postgresql_table, "public", "overwrite", True)
 
 
-def test_sql_types(postgresql_table):
+def test_sql_types(postgresql_table, postgresql_con):
     table = postgresql_table
     df = get_df()
     df.drop(["binary"], axis=1, inplace=True)
-    con = wr.postgresql.connect("aws-data-wrangler-postgresql")
     wr.postgresql.to_sql(
         df=df,
-        con=con,
+        con=postgresql_con,
         table=table,
         schema="public",
         mode="overwrite",
         index=True,
         dtype={"iint32": "INTEGER"},
     )
-    df = wr.postgresql.read_sql_query(f"SELECT * FROM public.{table}", con)
+    df = wr.postgresql.read_sql_query(f"SELECT * FROM public.{table}", postgresql_con)
     ensure_data_types(df, has_list=False)
     dfs = wr.postgresql.read_sql_query(
         sql=f"SELECT * FROM public.{table}",
-        con=con,
+        con=postgresql_con,
         chunksize=1,
         dtype={
             "iint8": pa.int8(),
@@ -77,7 +81,7 @@ def test_sql_types(postgresql_table):
         ensure_data_types(df, has_list=False)
 
 
-def test_to_sql_cast(postgresql_table):
+def test_to_sql_cast(postgresql_table, postgresql_con):
     table = postgresql_table
     df = pd.DataFrame(
         {
@@ -89,28 +93,25 @@ def test_to_sql_cast(postgresql_table):
         },
         dtype="string",
     )
-    con = wr.postgresql.connect(connection="aws-data-wrangler-postgresql")
     wr.postgresql.to_sql(
         df=df,
-        con=con,
+        con=postgresql_con,
         table=table,
         schema="public",
         mode="overwrite",
         index=False,
         dtype={"col": "VARCHAR(1024)"},
     )
-    df2 = wr.postgresql.read_sql_query(sql=f"SELECT * FROM public.{table}", con=con)
+    df2 = wr.postgresql.read_sql_query(sql=f"SELECT * FROM public.{table}", con=postgresql_con)
     assert df.equals(df2)
-    con.close()
 
 
-def test_null(postgresql_table):
+def test_null(postgresql_table, postgresql_con):
     table = postgresql_table
-    con = wr.postgresql.connect(connection="aws-data-wrangler-postgresql")
     df = pd.DataFrame({"id": [1, 2, 3], "nothing": [None, None, None]})
     wr.postgresql.to_sql(
         df=df,
-        con=con,
+        con=postgresql_con,
         table=table,
         schema="public",
         mode="overwrite",
@@ -119,19 +120,18 @@ def test_null(postgresql_table):
     )
     wr.postgresql.to_sql(
         df=df,
-        con=con,
+        con=postgresql_con,
         table=table,
         schema="public",
         mode="append",
         index=False,
     )
-    df2 = wr.postgresql.read_sql_table(table=table, schema="public", con=con)
+    df2 = wr.postgresql.read_sql_table(table=table, schema="public", con=postgresql_con)
     df["id"] = df["id"].astype("Int64")
     assert pd.concat(objs=[df, df], ignore_index=True).equals(df2)
-    con.close()
 
 
-def test_decimal_cast(postgresql_table):
+def test_decimal_cast(postgresql_table, postgresql_con):
     df = pd.DataFrame(
         {
             "col0": [Decimal((0, (1, 9, 9), -2)), None, Decimal((0, (1, 9, 0), -2))],
@@ -139,72 +139,82 @@ def test_decimal_cast(postgresql_table):
             "col2": [Decimal((0, (1, 9, 9), -2)), None, Decimal((0, (1, 9, 0), -2))],
         }
     )
-    con = wr.postgresql.connect(connection="aws-data-wrangler-postgresql")
-    wr.postgresql.to_sql(df, con, postgresql_table, "public")
+    wr.postgresql.to_sql(df, postgresql_con, postgresql_table, "public")
     df2 = wr.postgresql.read_sql_table(
-        schema="public", table=postgresql_table, con=con, dtype={"col0": "float32", "col1": "float64", "col2": "Int64"}
+        schema="public",
+        table=postgresql_table,
+        con=postgresql_con,
+        dtype={"col0": "float32", "col1": "float64", "col2": "Int64"},
     )
     assert df2.dtypes.to_list() == ["float32", "float64", "Int64"]
     assert 3.88 <= df2.col0.sum() <= 3.89
     assert 3.88 <= df2.col1.sum() <= 3.89
     assert df2.col2.sum() == 2
-    con.close()
 
 
-def test_read_retry():
-    con = wr.postgresql.connect(connection="aws-data-wrangler-postgresql")
+def test_read_retry(postgresql_con):
     try:
-        wr.postgresql.read_sql_query("ERROR", con)
+        wr.postgresql.read_sql_query("ERROR", postgresql_con)
     except:  # noqa
         pass
-    df = wr.postgresql.read_sql_query("SELECT 1", con)
+    df = wr.postgresql.read_sql_query("SELECT 1", postgresql_con)
     assert df.shape == (1, 1)
-    con.close()
 
 
-def test_table_name():
+def test_table_name(postgresql_con):
     df = pd.DataFrame({"col0": [1]})
-    con = wr.postgresql.connect(connection="aws-data-wrangler-postgresql")
-    wr.postgresql.to_sql(df, con, "Test Name", "public", mode="overwrite")
-    df = wr.postgresql.read_sql_table(schema="public", con=con, table="Test Name")
+    wr.postgresql.to_sql(df, postgresql_con, "Test Name", "public", mode="overwrite")
+    df = wr.postgresql.read_sql_table(schema="public", con=postgresql_con, table="Test Name")
     assert df.shape == (1, 1)
-    with con.cursor() as cursor:
+    with postgresql_con.cursor() as cursor:
         cursor.execute('DROP TABLE "Test Name"')
-    con.commit()
-    con.close()
+    postgresql_con.commit()
 
 
 @pytest.mark.parametrize("dbname", [None, "postgres"])
 def test_connect_secret_manager(dbname):
     con = wr.postgresql.connect(secret_id="aws-data-wrangler/postgresql", dbname=dbname)
     df = wr.postgresql.read_sql_query("SELECT 1", con=con)
-    con.close()
     assert df.shape == (1, 1)
 
 
-def test_insert_with_column_names(postgresql_table):
-    con = wr.postgresql.connect(connection="aws-data-wrangler-postgresql")
+def test_insert_with_column_names(postgresql_table, postgresql_con):
     create_table_sql = (
         f"CREATE TABLE public.{postgresql_table} " "(c0 varchar NULL," "c1 int NULL DEFAULT 42," "c2 int NOT NULL);"
     )
-    with con.cursor() as cursor:
+    with postgresql_con.cursor() as cursor:
         cursor.execute(create_table_sql)
-        con.commit()
+        postgresql_con.commit()
 
     df = pd.DataFrame({"c0": ["foo", "bar"], "c2": [1, 2]})
 
     with pytest.raises(pg8000.exceptions.ProgrammingError):
         wr.postgresql.to_sql(
-            df=df, con=con, schema="public", table=postgresql_table, mode="append", use_column_names=False
+            df=df, con=postgresql_con, schema="public", table=postgresql_table, mode="append", use_column_names=False
         )
 
-    wr.postgresql.to_sql(df=df, con=con, schema="public", table=postgresql_table, mode="append", use_column_names=True)
+    wr.postgresql.to_sql(
+        df=df, con=postgresql_con, schema="public", table=postgresql_table, mode="append", use_column_names=True
+    )
 
-    df2 = wr.postgresql.read_sql_table(con=con, schema="public", table=postgresql_table)
+    df2 = wr.postgresql.read_sql_table(con=postgresql_con, schema="public", table=postgresql_table)
 
     df["c1"] = 42
     df["c0"] = df["c0"].astype("string")
     df["c1"] = df["c1"].astype("Int64")
     df["c2"] = df["c2"].astype("Int64")
     df = df.reindex(sorted(df.columns), axis=1)
+    assert df.equals(df2)
+
+
+@pytest.mark.parametrize("chunksize", [1, 10, 500])
+def test_dfs_are_equal_for_different_chunksizes(postgresql_table, postgresql_con, chunksize):
+    df = pd.DataFrame({"c0": [i for i in range(64)], "c1": ["foo" for _ in range(64)]})
+    wr.postgresql.to_sql(df=df, con=postgresql_con, schema="public", table=postgresql_table, chunksize=chunksize)
+
+    df2 = wr.postgresql.read_sql_table(con=postgresql_con, schema="public", table=postgresql_table)
+
+    df["c0"] = df["c0"].astype("Int64")
+    df["c1"] = df["c1"].astype("string")
+
     assert df.equals(df2)
