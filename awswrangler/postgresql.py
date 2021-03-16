@@ -11,6 +11,7 @@ import pyarrow as pa
 from awswrangler import _data_types
 from awswrangler import _databases as _db_utils
 from awswrangler import exceptions
+from awswrangler._config import apply_configs
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -263,6 +264,7 @@ def read_sql_table(
     )
 
 
+@apply_configs
 def to_sql(
     df: pd.DataFrame,
     con: pg8000.Connection,
@@ -346,11 +348,10 @@ def to_sql(
             insertion_columns = ""
             if use_column_names:
                 insertion_columns = f"({', '.join(df.columns)})"
-            placeholder_parameter_pairs = _db_utils.extract_placeholder_parameter_pairs(
+            placeholder_parameter_pair_generator = _db_utils.generate_placeholder_parameter_pairs(
                 df=df, column_placeholders=column_placeholders, chunksize=chunksize
             )
-            for pair in placeholder_parameter_pairs:
-                placeholders, parameters = pair
+            for placeholders, parameters in placeholder_parameter_pair_generator:
                 sql: str = f'INSERT INTO "{schema}"."{table}" {insertion_columns} VALUES {placeholders}'
                 _logger.debug("sql: %s", sql)
                 cursor.executemany(sql, (parameters,))

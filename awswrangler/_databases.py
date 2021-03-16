@@ -1,7 +1,7 @@
 """Databases Utilities."""
 
 import logging
-from typing import Any, Dict, Iterator, List, NamedTuple, Optional, Tuple, Union, cast
+from typing import Any, Dict, Generator, Iterator, List, NamedTuple, Optional, Tuple, Union, cast
 
 import boto3
 import pandas as pd
@@ -219,9 +219,9 @@ def read_sql_query(
         raise
 
 
-def extract_placeholder_parameter_pairs(
+def generate_placeholder_parameter_pairs(
     df: pd.DataFrame, column_placeholders: str, chunksize: int
-) -> List[Tuple[str, List[Any]]]:
+) -> Generator[Tuple[str, List[Any]], None, None]:
     """Extract Placeholder and Parameter pairs."""
 
     def convert_value_to_native_python_type(value: Any) -> Any:
@@ -232,12 +232,9 @@ def extract_placeholder_parameter_pairs(
 
         return value
 
-    placeholder_parameter_pairs = []
-    parameters: List[List[Any]] = df.values.tolist()
-    for i in range(0, len(parameters), chunksize):
-        chunk = parameters[i : i + chunksize]
-        chunk_placeholders = ", ".join([f"({column_placeholders})" for _ in range(len(chunk))])
-        flattened_chunk = [convert_value_to_native_python_type(value) for row in chunk for value in row]
-        placeholder_parameter_pairs.append((chunk_placeholders, flattened_chunk))
-
-    return placeholder_parameter_pairs
+    parameters = df.values.tolist()
+    for i in range(0, len(df.index), chunksize):
+        parameters_chunk = parameters[i : i + chunksize]
+        chunk_placeholders = ", ".join([f"({column_placeholders})" for _ in range(len(parameters_chunk))])
+        flattened_chunk = [convert_value_to_native_python_type(value) for row in parameters_chunk for value in row]
+        yield chunk_placeholders, flattened_chunk

@@ -2,6 +2,7 @@
 
 
 import importlib.util
+import inspect
 import logging
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, TypeVar, Union
 
@@ -12,6 +13,7 @@ import pyarrow as pa
 from awswrangler import _data_types
 from awswrangler import _databases as _db_utils
 from awswrangler import exceptions
+from awswrangler._config import apply_configs
 
 __all__ = ["connect", "read_sql_query", "read_sql_table", "to_sql"]
 
@@ -32,6 +34,9 @@ def _check_for_pyodbc(func: FuncT) -> FuncT:
             )
         return func(*args, **kwargs)
 
+    inner.__doc__ = func.__doc__
+    inner.__name__ = func.__name__
+    inner.__setattr__("__signature__", inspect.signature(func))  # pylint: disable=no-member
     return inner  # type: ignore
 
 
@@ -281,6 +286,7 @@ def read_sql_table(
 
 
 @_check_for_pyodbc
+@apply_configs
 def to_sql(
     df: pd.DataFrame,
     con: "pyodbc.Connection",
@@ -365,11 +371,10 @@ def to_sql(
             insertion_columns = ""
             if use_column_names:
                 insertion_columns = f"({', '.join(df.columns)})"
-            placeholder_parameter_pairs = _db_utils.extract_placeholder_parameter_pairs(
+            placeholder_parameter_pair_generator = _db_utils.generate_placeholder_parameter_pairs(
                 df=df, column_placeholders=column_placeholders, chunksize=chunksize
             )
-            for pair in placeholder_parameter_pairs:
-                placeholders, parameters = pair
+            for placeholders, parameters in placeholder_parameter_pair_generator:
                 sql: str = f"INSERT INTO {table_identifier} {insertion_columns} VALUES {placeholders}"
                 _logger.debug("sql: %s", sql)
                 cursor.executemany(sql, (parameters,))
