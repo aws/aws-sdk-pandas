@@ -751,7 +751,7 @@ def read_sql_query(
     params: Dict[str, any], optional
         Dict of parameters that will be used for constructing the SQL query. Only named parameters are supported.
         The dict needs to contain the information in the form {'name': 'value'} and the SQL query needs to contain
-        `:name;`.
+        `:name;`. Note that for varchar columns and similar, you must surround the value in single quotes.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forward to botocore requests. Valid parameters: "RequestPayer", "ExpectedBucketOwner".
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
@@ -769,8 +769,8 @@ def read_sql_query(
 
     >>> import awswrangler as wr
     >>> df = wr.athena.read_sql_query(
-    ...     sql="SELECT * FROM my_table WHERE name=:name;",
-    ...     params={"name": "filtered_name"}
+    ...     sql="SELECT * FROM my_table WHERE name=:name; AND city=:city;",
+    ...     params={"name": "'filtered_name'", "city": "'filtered_city'"}
     ... )
 
     """
