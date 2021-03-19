@@ -251,8 +251,10 @@ def _split_map(s: str) -> List[str]:
     return parts
 
 
-def athena2pyarrow(dtype: str) -> pa.DataType:  # pylint: disable=too-many-return-statements
+def athena2pyarrow(dtype: str) -> pa.DataType:  # pylint: disable=too-many-return-statements,too-many-branches
     """Athena to PyArrow data types conversion."""
+    if dtype.startswith(("array", "struct", "map")):
+        orig_dtype: str = dtype
     dtype = dtype.lower().replace(" ", "")
     if dtype == "tinyint":
         return pa.int8()
@@ -280,11 +282,13 @@ def athena2pyarrow(dtype: str) -> pa.DataType:  # pylint: disable=too-many-retur
         precision, scale = dtype.replace("decimal(", "").replace(")", "").split(sep=",")
         return pa.decimal128(precision=int(precision), scale=int(scale))
     if dtype.startswith("array") is True:
-        return pa.list_(value_type=athena2pyarrow(dtype=dtype[6:-1]), list_size=-1)
+        return pa.list_(value_type=athena2pyarrow(dtype=orig_dtype[6:-1]), list_size=-1)
     if dtype.startswith("struct") is True:
-        return pa.struct([(f.split(":", 1)[0], athena2pyarrow(f.split(":", 1)[1])) for f in _split_struct(dtype[7:-1])])
+        return pa.struct(
+            [(f.split(":", 1)[0], athena2pyarrow(f.split(":", 1)[1])) for f in _split_struct(orig_dtype[7:-1])]
+        )
     if dtype.startswith("map") is True:
-        parts: List[str] = _split_map(s=dtype[4:-1])
+        parts: List[str] = _split_map(s=orig_dtype[4:-1])
         return pa.map_(athena2pyarrow(parts[0]), athena2pyarrow(parts[1]))
     raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")
 
