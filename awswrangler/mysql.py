@@ -291,8 +291,8 @@ def to_sql(
             overwrite: Drops table and recreates
             upsert_duplicate_key: Performs an upsert using `ON DUPLICATE KEY` clause. Requires table schema to have
             defined keys, otherwise duplicate records will be inserted.
-            upsert_replace: Performs upsert using `REPLACE INTO` clause. Less efficient and still requires the table
-            schema to have keys or else duplicate records will be inserted upsert_distinct: Inserts new records,
+            upsert_replace_into: Performs upsert using `REPLACE INTO` clause. Less efficient and still requires the
+            table schema to have keys or else duplicate records will be inserted upsert_distinct: Inserts new records,
             including duplicates, then recreates the table and inserts `DISTINCT` records from old table. This is the
             least efficient approach, but handles scenarios where there are no keys on table.
 
