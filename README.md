@@ -201,6 +201,7 @@ Please [send a Pull Request](https://github.com/awslabs/aws-data-wrangler/edit/m
 - [Informa Markets](https://www.informamarkets.com/en/home.html) [[@mateusmorato]](http://github.com/mateusmorato)
 - [LINE TV](https://www.linetv.tw/) [[@bryanyang0528](https://github.com/bryanyang0528)]
 - [M4U](https://www.m4u.com.br/) [[@Thiago-Dantas](https://github.com/Thiago-Dantas)]
+- [NBCUniversal](https://www.nbcuniversal.com/) [[@vibe](https://github.com/vibe)]
 - [nrd.io](https://nrd.io/) [[@mrtns](https://github.com/mrtns)]
 - [OKRA Technologies](https://okra.ai) [[@JPFrancoia](https://github.com/JPFrancoia), [@schot](https://github.com/schot)]
 - [Pier](https://www.pier.digital/) [[@flaviomax](https://github.com/flaviomax)]

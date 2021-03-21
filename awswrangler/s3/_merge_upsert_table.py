@@ -5,8 +5,10 @@ from typing import List, Optional
 
 import boto3
 import pandas
+import pyarrow as pa
 
 import awswrangler as wr
+from awswrangler.exceptions import FailedQualityCheck
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -47,22 +49,27 @@ def _is_data_quality_sufficient(
 ) -> bool:
     """Check data quality of existing table and the new delta feed."""
     error_messages = list()
+    existing_schema = pa.Schema.from_pandas(existing_df)
+    delta_schema = pa.Schema.from_pandas(delta_df)
     # Check for duplicates on the primary key in the existing table
     if sum(pandas.DataFrame(existing_df, columns=primary_key).duplicated()) != 0:
         error_messages.append("Data inside the existing table has duplicates.")
     # Compare column name and column data types
-    if existing_df.dtypes.to_dict() != delta_df.dtypes.to_dict():
+    col_diff = set(zip(existing_schema.names, existing_schema.types)) - set(zip(delta_schema.names, delta_schema.types))
+    if len(col_diff) > 0:
         error_messages.append(
             f"Column name or data types mismtach!"
-            f"\n Columns in uploaded file are {delta_df.dtypes.to_dict()}"
-            f"\n Columns in existing table are {existing_df.dtypes.to_dict()}"
+            f"\n Columns in uploaded file are {delta_schema.names} with types {delta_schema.types}"
+            f"\n Columns in existing table are {existing_schema.names} with types {existing_schema.types}"
         )
     # Check for duplicates in the delta dataframe
     if sum(pandas.DataFrame(delta_df, columns=primary_key).duplicated()) != 0:
         error_messages.append("Data inside the delta dataframe has duplicates.")
     # Return True only if no errors are encountered
-    _logger.info("error_messages %s", error_messages)
-    return len(error_messages) == 0
+    if len(error_messages) > 0:
+        _logger.info("error_messages %s", error_messages)
+        raise FailedQualityCheck("Data quality is insufficient to allow a merge. Please check errors above.")
+    return True
 
 
 def merge_upsert_table(
