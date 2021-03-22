@@ -216,12 +216,28 @@ def test_upsert_distinct(mysql_table, mysql_con):
     wr.mysql.to_sql(
         df=df, con=mysql_con, schema="test", table=mysql_table, mode="upsert_distinct", use_column_names=True
     )
+    df2 = wr.mysql.read_sql_table(con=mysql_con, schema="test", table=mysql_table)
+    assert bool(len(df2) == 2)
+
     wr.mysql.to_sql(
         df=df, con=mysql_con, schema="test", table=mysql_table, mode="upsert_distinct", use_column_names=True
     )
+    df3 = pd.DataFrame({"c0": ["baz", "bar"], "c2": [3, 2]})
+    wr.mysql.to_sql(
+        df=df3, con=mysql_con, schema="test", table=mysql_table, mode="upsert_distinct", use_column_names=True
+    )
+    df4 = wr.mysql.read_sql_table(con=mysql_con, schema="test", table=mysql_table)
+    assert bool(len(df4) == 3)
 
-    df2 = wr.mysql.read_sql_table(con=mysql_con, schema="test", table=mysql_table)
-    assert bool(len(df2) == 2)
+    df5 = pd.DataFrame({"c0": ["foo", "bar"], "c2": [4, 5]})
+    wr.mysql.to_sql(
+        df=df5, con=mysql_con, schema="test", table=mysql_table, mode="upsert_distinct", use_column_names=True
+    )
+    df6 = wr.mysql.read_sql_table(con=mysql_con, schema="test", table=mysql_table)
+    assert bool(len(df6) == 5)
+    assert bool(len(df6.loc[(df6["c0"] == "foo")]) == 2)
+    assert bool(len(df6.loc[(df6["c0"] == "foo") & (df6["c2"] == 4)]) == 1)
+    assert bool(len(df6.loc[(df6["c0"] == "bar") & (df6["c2"] == 5)]) == 1)
 
 
 def test_upsert_duplicate_key(mysql_table, mysql_con):
@@ -243,12 +259,28 @@ def test_upsert_duplicate_key(mysql_table, mysql_con):
     wr.mysql.to_sql(
         df=df, con=mysql_con, schema="test", table=mysql_table, mode="upsert_duplicate_key", use_column_names=True
     )
+    df2 = wr.mysql.read_sql_table(con=mysql_con, schema="test", table=mysql_table)
+    assert bool(len(df2) == 2)
+
     wr.mysql.to_sql(
         df=df, con=mysql_con, schema="test", table=mysql_table, mode="upsert_duplicate_key", use_column_names=True
     )
+    df3 = pd.DataFrame({"c0": ["baz", "bar"], "c2": [3, 2]})
+    wr.mysql.to_sql(
+        df=df3, con=mysql_con, schema="test", table=mysql_table, mode="upsert_duplicate_key", use_column_names=True
+    )
+    df4 = wr.mysql.read_sql_table(con=mysql_con, schema="test", table=mysql_table)
+    assert bool(len(df4) == 3)
 
-    df2 = wr.mysql.read_sql_table(con=mysql_con, schema="test", table=mysql_table)
-    assert bool(len(df2) == 2)
+    df5 = pd.DataFrame({"c0": ["foo", "bar"], "c2": [4, 5]})
+    wr.mysql.to_sql(
+        df=df5, con=mysql_con, schema="test", table=mysql_table, mode="upsert_duplicate_key", use_column_names=True
+    )
+
+    df6 = wr.mysql.read_sql_table(con=mysql_con, schema="test", table=mysql_table)
+    assert bool(len(df6) == 3)
+    assert bool(len(df6.loc[(df6["c0"] == "foo") & (df6["c2"] == 4)]) == 1)
+    assert bool(len(df6.loc[(df6["c0"] == "bar") & (df6["c2"] == 5)]) == 1)
 
 
 def test_upsert_replace(mysql_table, mysql_con):
@@ -270,12 +302,28 @@ def test_upsert_replace(mysql_table, mysql_con):
     wr.mysql.to_sql(
         df=df, con=mysql_con, schema="test", table=mysql_table, mode="upsert_replace_into", use_column_names=True
     )
+    df2 = wr.mysql.read_sql_table(con=mysql_con, schema="test", table=mysql_table)
+    assert bool(len(df2) == 2)
+
     wr.mysql.to_sql(
         df=df, con=mysql_con, schema="test", table=mysql_table, mode="upsert_replace_into", use_column_names=True
     )
+    df3 = pd.DataFrame({"c0": ["baz", "bar"], "c2": [3, 2]})
+    wr.mysql.to_sql(
+        df=df3, con=mysql_con, schema="test", table=mysql_table, mode="upsert_replace_into", use_column_names=True
+    )
+    df4 = wr.mysql.read_sql_table(con=mysql_con, schema="test", table=mysql_table)
+    assert bool(len(df4) == 3)
 
-    df2 = wr.mysql.read_sql_table(con=mysql_con, schema="test", table=mysql_table)
-    assert bool(len(df2) == 2)
+    df5 = pd.DataFrame({"c0": ["foo", "bar"], "c2": [4, 5]})
+    wr.mysql.to_sql(
+        df=df5, con=mysql_con, schema="test", table=mysql_table, mode="upsert_replace_into", use_column_names=True
+    )
+
+    df6 = wr.mysql.read_sql_table(con=mysql_con, schema="test", table=mysql_table)
+    assert bool(len(df6) == 3)
+    assert bool(len(df6.loc[(df6["c0"] == "foo") & (df6["c2"] == 4)]) == 1)
+    assert bool(len(df6.loc[(df6["c0"] == "bar") & (df6["c2"] == 5)]) == 1)
 
 
 @pytest.mark.parametrize("chunksize", [1, 10, 500])

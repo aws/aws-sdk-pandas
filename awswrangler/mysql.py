@@ -1,8 +1,7 @@
 """Amazon MySQL Module."""
 
 import logging
-import random
-import string
+import uuid
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
@@ -292,9 +291,10 @@ def to_sql(
             upsert_duplicate_key: Performs an upsert using `ON DUPLICATE KEY` clause. Requires table schema to have
             defined keys, otherwise duplicate records will be inserted.
             upsert_replace_into: Performs upsert using `REPLACE INTO` clause. Less efficient and still requires the
-            table schema to have keys or else duplicate records will be inserted upsert_distinct: Inserts new records,
-            including duplicates, then recreates the table and inserts `DISTINCT` records from old table. This is the
-            least efficient approach, but handles scenarios where there are no keys on table.
+            table schema to have keys or else duplicate records will be inserted
+            upsert_distinct: Inserts new records, including duplicates, then recreates the table and inserts `DISTINCT`
+            records from old table. This is the least efficient approach but handles scenarios where there are no
+            keys on table.
 
     index : bool
         True to store the DataFrame index as a column in the table,
@@ -334,16 +334,17 @@ def to_sql(
     """
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
-    if mode.strip().lower() not in [
+    mode = mode.strip().lower()
+    modes = [
         "append",
         "overwrite",
         "upsert_replace_into",
         "upsert_duplicate_key",
         "upsert_distinct",
-    ]:
-        raise exceptions.InvalidArgumentValue(
-            "mode must be one of append, overwrite, upsert_replace_into, upsert_duplicate_key, upsert_distinct"
-        )
+    ]
+    if mode not in modes:
+        raise exceptions.InvalidArgumentValue(f"mode must be one of {', '.join(modes)}")
+
     _validate_connection(con=con)
     try:
         with con.cursor() as cursor:
@@ -381,7 +382,7 @@ def to_sql(
                 cursor.executemany(sql, (parameters,))
             con.commit()
             if mode.lower().strip() == "upsert_distinct":
-                temp_table = f"{table}_{''.join(random.choice(string.ascii_lowercase) for i in range(10))}"
+                temp_table = f"{table}_{uuid.uuid4().hex}"
                 cursor.execute(f"CREATE TABLE `{schema}`.`{temp_table}` LIKE `{schema}`.`{table}`")
                 cursor.execute(f"INSERT INTO `{schema}`.`{temp_table}` SELECT DISTINCT * FROM `{schema}`.`{table}`")
                 cursor.execute(f"DROP TABLE IF EXISTS `{schema}`.`{table}`")
