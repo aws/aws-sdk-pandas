@@ -1,6 +1,7 @@
 """Amazon PostgreSQL Module."""
 
 import logging
+from ssl import SSLContext
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
@@ -77,7 +78,7 @@ def connect(
     catalog_id: Optional[str] = None,
     dbname: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
-    ssl_context: Optional[Dict[Any, Any]] = None,
+    ssl_context: Optional[Union[bool, SSLContext]] = None,
     timeout: Optional[int] = None,
     tcp_keepalive: bool = True,
 ) -> pg8000.Connection:
@@ -99,7 +100,7 @@ def connect(
         Optional database name to overwrite the stored one.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    ssl_context: Optional[Dict]
+    ssl_context: Optional[Union[bool, SSLContext]]
         This governs SSL encryption for TCP/IP sockets.
         This parameter is forward to pg8000.
         https://github.com/tlocke/pg8000#functions
