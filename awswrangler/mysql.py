@@ -1,6 +1,7 @@
 """Amazon MySQL Module."""
 
 import logging
+import uuid
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
@@ -284,7 +285,17 @@ def to_sql(
     schema : str
         Schema name
     mode : str
-        Append or overwrite.
+        Append, overwrite, upsert_duplicate_key, upsert_replace_into, upsert_distinct.
+            append: Inserts new records into table
+            overwrite: Drops table and recreates
+            upsert_duplicate_key: Performs an upsert using `ON DUPLICATE KEY` clause. Requires table schema to have
+            defined keys, otherwise duplicate records will be inserted.
+            upsert_replace_into: Performs upsert using `REPLACE INTO` clause. Less efficient and still requires the
+            table schema to have keys or else duplicate records will be inserted
+            upsert_distinct: Inserts new records, including duplicates, then recreates the table and inserts `DISTINCT`
+            records from old table. This is the least efficient approach but handles scenarios where there are no
+            keys on table.
+
     index : bool
         True to store the DataFrame index as a column in the table,
         otherwise False to ignore it.
@@ -323,6 +334,17 @@ def to_sql(
     """
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
+    mode = mode.strip().lower()
+    modes = [
+        "append",
+        "overwrite",
+        "upsert_replace_into",
+        "upsert_duplicate_key",
+        "upsert_distinct",
+    ]
+    if mode not in modes:
+        raise exceptions.InvalidArgumentValue(f"mode must be one of {', '.join(modes)}")
+
     _validate_connection(con=con)
     try:
         with con.cursor() as cursor:
@@ -340,16 +362,33 @@ def to_sql(
                 df.reset_index(level=df.index.names, inplace=True)
             column_placeholders: str = ", ".join(["%s"] * len(df.columns))
             insertion_columns = ""
+            upsert_columns = ""
+            upsert_str = ""
             if use_column_names:
                 insertion_columns = f"({', '.join(df.columns)})"
+            if mode == "upsert_duplicate_key":
+                upsert_columns = ", ".join(df.columns.map(lambda column: f"`{column}`=VALUES(`{column}`)"))
+                upsert_str = f" ON DUPLICATE KEY UPDATE {upsert_columns}"
             placeholder_parameter_pair_generator = _db_utils.generate_placeholder_parameter_pairs(
                 df=df, column_placeholders=column_placeholders, chunksize=chunksize
             )
+            sql: str
             for placeholders, parameters in placeholder_parameter_pair_generator:
-                sql: str = f"INSERT INTO `{schema}`.`{table}` {insertion_columns} VALUES {placeholders}"
+                if mode == "upsert_replace_into":
+                    sql = f"REPLACE INTO `{schema}`.`{table}` {insertion_columns} VALUES {placeholders}"
+                else:
+                    sql = f"INSERT INTO `{schema}`.`{table}` {insertion_columns} VALUES {placeholders}{upsert_str}"
                 _logger.debug("sql: %s", sql)
                 cursor.executemany(sql, (parameters,))
             con.commit()
+            if mode == "upsert_distinct":
+                temp_table = f"{table}_{uuid.uuid4().hex}"
+                cursor.execute(f"CREATE TABLE `{schema}`.`{temp_table}` LIKE `{schema}`.`{table}`")
+                cursor.execute(f"INSERT INTO `{schema}`.`{temp_table}` SELECT DISTINCT * FROM `{schema}`.`{table}`")
+                cursor.execute(f"DROP TABLE IF EXISTS `{schema}`.`{table}`")
+                cursor.execute(f"ALTER TABLE `{schema}`.`{temp_table}` RENAME TO `{table}`")
+                con.commit()
+
     except Exception as ex:
         con.rollback()
         _logger.error(ex)
