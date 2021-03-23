@@ -366,7 +366,7 @@ def to_sql(
             upsert_str = ""
             if use_column_names:
                 insertion_columns = f"({', '.join(df.columns)})"
-            if mode.lower().strip() == "upsert_duplicate_key":
+            if mode == "upsert_duplicate_key":
                 upsert_columns = ", ".join(df.columns.map(lambda column: f"`{column}`=VALUES(`{column}`)"))
                 upsert_str = f" ON DUPLICATE KEY UPDATE {upsert_columns}"
             placeholder_parameter_pair_generator = _db_utils.generate_placeholder_parameter_pairs(
@@ -374,14 +374,14 @@ def to_sql(
             )
             sql: str
             for placeholders, parameters in placeholder_parameter_pair_generator:
-                if mode.lower().strip() == "upsert_replace_into":
+                if mode == "upsert_replace_into":
                     sql = f"REPLACE INTO `{schema}`.`{table}` {insertion_columns} VALUES {placeholders}"
                 else:
                     sql = f"INSERT INTO `{schema}`.`{table}` {insertion_columns} VALUES {placeholders}{upsert_str}"
                 _logger.debug("sql: %s", sql)
                 cursor.executemany(sql, (parameters,))
             con.commit()
-            if mode.lower().strip() == "upsert_distinct":
+            if mode == "upsert_distinct":
                 temp_table = f"{table}_{uuid.uuid4().hex}"
                 cursor.execute(f"CREATE TABLE `{schema}`.`{temp_table}` LIKE `{schema}`.`{table}`")
                 cursor.execute(f"INSERT INTO `{schema}`.`{temp_table}` SELECT DISTINCT * FROM `{schema}`.`{table}`")
