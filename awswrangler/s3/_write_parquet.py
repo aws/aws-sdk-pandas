@@ -143,6 +143,7 @@ def _to_parquet(
     index: bool,
     compression: Optional[str],
     compression_ext: str,
+    filename_prefix: str,
     cpus: int,
     dtype: Dict[str, str],
     boto3_session: Optional[boto3.Session],
@@ -150,13 +151,10 @@ def _to_parquet(
     use_threads: bool,
     path: Optional[str] = None,
     path_root: Optional[str] = None,
-    filename: Optional[str] = None,
     max_rows_by_file: Optional[int] = 0,
 ) -> List[str]:
     if path is None and path_root is not None:
-        if filename is None:
-            filename = uuid.uuid4().hex
-        file_path: str = f"{path_root}{filename}{compression_ext}.parquet"
+        file_path: str = f"{path_root}{filename_prefix}{compression_ext}.parquet"
     elif path is not None and path_root is None:
         file_path = path
     else:
@@ -207,6 +205,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     sanitize_columns: bool = False,
     dataset: bool = False,
+    filename_prefix: Optional[str] = None,
     partition_cols: Optional[List[str]] = None,
     bucketing_info: Optional[Tuple[List[str], int]] = None,
     concurrent_partitioning: bool = False,
@@ -283,6 +282,8 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
         partition_cols, mode, database, table, description, parameters, columns_comments, concurrent_partitioning,
         catalog_versioning, projection_enabled, projection_types, projection_ranges, projection_values,
         projection_intervals, projection_digits, catalog_id, schema_evolution.
+    filename_prefix: str, optional
+        If dataset=True, add a filename prefix to the output parquet files.
     partition_cols: List[str], optional
         List of column names that will be used to create partitions. Only takes effect if dataset=True.
     bucketing_info: Tuple[List[str], int], optional
@@ -499,6 +500,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     dtype = dtype if dtype else {}
     partitions_values: Dict[str, List[str]] = {}
     mode = "append" if mode is None else mode
+    filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
     cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
@@ -536,6 +538,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
             df=df,
             path=path,
             schema=schema,
+            filename_prefix=filename_prefix,
             index=index,
             cpus=cpus,
             compression=compression,
@@ -560,6 +563,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
             concurrent_partitioning=concurrent_partitioning,
             df=df,
             path_root=path,  # type: ignore
+            filename_prefix=filename_prefix,
             index=index,
             compression=compression,
             compression_ext=compression_ext,
