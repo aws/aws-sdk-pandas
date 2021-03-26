@@ -232,6 +232,7 @@ def test_to_parquet_filename_prefix(compare_filename_prefix, path, filename_pref
         use_threads=use_threads,
     )["paths"][0].split("/")[-1]
     compare_filename_prefix(filename, filename_prefix, test_prefix)
+    assert filename.endswith("bucket-00000.snappy.parquet")
 
 
 def test_read_parquet_map_types(path):

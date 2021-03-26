@@ -173,6 +173,7 @@ def test_to_text_filename_prefix(compare_filename_prefix, path, filename_prefix,
         use_threads=use_threads,
     )["paths"][0].split("/")[-1]
     compare_filename_prefix(filename, filename_prefix, test_prefix)
+    assert filename.endswith("bucket-00000.csv")
 
 
 def test_fwf(path):

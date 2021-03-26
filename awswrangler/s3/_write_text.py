@@ -37,13 +37,12 @@ def _to_text(
     s3_additional_kwargs: Optional[Dict[str, str]],
     path: Optional[str] = None,
     path_root: Optional[str] = None,
-    filename_prefix: Optional[str] = None,
+    filename_prefix: Optional[str] = uuid.uuid4().hex,
     **pandas_kwargs: Any,
 ) -> List[str]:
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
     if path is None and path_root is not None:
-        filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
         file_path: str = (
             f"{path_root}{filename_prefix}.{file_format}{_COMPRESSION_2_EXT.get(pandas_kwargs.get('compression'))}"
         )

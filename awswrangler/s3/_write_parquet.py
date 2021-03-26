@@ -143,7 +143,6 @@ def _to_parquet(
     index: bool,
     compression: Optional[str],
     compression_ext: str,
-    filename_prefix: str,
     cpus: int,
     dtype: Dict[str, str],
     boto3_session: Optional[boto3.Session],
@@ -151,6 +150,7 @@ def _to_parquet(
     use_threads: bool,
     path: Optional[str] = None,
     path_root: Optional[str] = None,
+    filename_prefix: Optional[str] = uuid.uuid4().hex,
     max_rows_by_file: Optional[int] = 0,
 ) -> List[str]:
     if path is None and path_root is not None:
@@ -538,7 +538,6 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
             df=df,
             path=path,
             schema=schema,
-            filename_prefix=filename_prefix,
             index=index,
             cpus=cpus,
             compression=compression,
