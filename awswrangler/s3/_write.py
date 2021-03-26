@@ -62,7 +62,7 @@ def _validate_args(
             raise exceptions.InvalidArgumentValue("If dataset is False, the `path` argument must be passed.")
         if path.endswith("/"):
             raise exceptions.InvalidArgumentValue(
-                "If <dataset=False>, the argument <path> should be a file path, not a directory."
+                "If <dataset=False>, the argument <path> should be a key, not a prefix."
             )
         if partition_cols:
             raise exceptions.InvalidArgumentCombination("Please, pass dataset=True to be able to use partition_cols.")

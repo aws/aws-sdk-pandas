@@ -200,6 +200,132 @@ def test_insert_with_column_names(mysql_table, mysql_con):
     assert df.equals(df2)
 
 
+def test_upsert_distinct(mysql_table, mysql_con):
+    create_table_sql = (
+        f"CREATE TABLE test.{mysql_table} " "(c0 varchar(100) NULL, " "c1 INT DEFAULT 42 NULL, " "c2 INT NOT NULL);"
+    )
+    with mysql_con.cursor() as cursor:
+        cursor.execute(create_table_sql)
+        mysql_con.commit()
+
+    df = pd.DataFrame({"c0": ["foo", "bar"], "c2": [1, 2]})
+
+    wr.mysql.to_sql(
+        df=df, con=mysql_con, schema="test", table=mysql_table, mode="upsert_distinct", use_column_names=True
+    )
+    wr.mysql.to_sql(
+        df=df, con=mysql_con, schema="test", table=mysql_table, mode="upsert_distinct", use_column_names=True
+    )
+    df2 = wr.mysql.read_sql_table(con=mysql_con, schema="test", table=mysql_table)
+    assert bool(len(df2) == 2)
+
+    wr.mysql.to_sql(
+        df=df, con=mysql_con, schema="test", table=mysql_table, mode="upsert_distinct", use_column_names=True
+    )
+    df3 = pd.DataFrame({"c0": ["baz", "bar"], "c2": [3, 2]})
+    wr.mysql.to_sql(
+        df=df3, con=mysql_con, schema="test", table=mysql_table, mode="upsert_distinct", use_column_names=True
+    )
+    df4 = wr.mysql.read_sql_table(con=mysql_con, schema="test", table=mysql_table)
+    assert bool(len(df4) == 3)
+
+    df5 = pd.DataFrame({"c0": ["foo", "bar"], "c2": [4, 5]})
+    wr.mysql.to_sql(
+        df=df5, con=mysql_con, schema="test", table=mysql_table, mode="upsert_distinct", use_column_names=True
+    )
+    df6 = wr.mysql.read_sql_table(con=mysql_con, schema="test", table=mysql_table)
+    assert bool(len(df6) == 5)
+    assert bool(len(df6.loc[(df6["c0"] == "foo")]) == 2)
+    assert bool(len(df6.loc[(df6["c0"] == "foo") & (df6["c2"] == 4)]) == 1)
+    assert bool(len(df6.loc[(df6["c0"] == "bar") & (df6["c2"] == 5)]) == 1)
+
+
+def test_upsert_duplicate_key(mysql_table, mysql_con):
+    create_table_sql = (
+        f"CREATE TABLE test.{mysql_table} "
+        "(c0 varchar(100) PRIMARY KEY, "
+        "c1 INT DEFAULT 42 NULL, "
+        "c2 INT NOT NULL);"
+    )
+    with mysql_con.cursor() as cursor:
+        cursor.execute(create_table_sql)
+        mysql_con.commit()
+
+    df = pd.DataFrame({"c0": ["foo", "bar"], "c2": [1, 2]})
+
+    wr.mysql.to_sql(
+        df=df, con=mysql_con, schema="test", table=mysql_table, mode="upsert_duplicate_key", use_column_names=True
+    )
+    wr.mysql.to_sql(
+        df=df, con=mysql_con, schema="test", table=mysql_table, mode="upsert_duplicate_key", use_column_names=True
+    )
+    df2 = wr.mysql.read_sql_table(con=mysql_con, schema="test", table=mysql_table)
+    assert bool(len(df2) == 2)
+
+    wr.mysql.to_sql(
+        df=df, con=mysql_con, schema="test", table=mysql_table, mode="upsert_duplicate_key", use_column_names=True
+    )
+    df3 = pd.DataFrame({"c0": ["baz", "bar"], "c2": [3, 2]})
+    wr.mysql.to_sql(
+        df=df3, con=mysql_con, schema="test", table=mysql_table, mode="upsert_duplicate_key", use_column_names=True
+    )
+    df4 = wr.mysql.read_sql_table(con=mysql_con, schema="test", table=mysql_table)
+    assert bool(len(df4) == 3)
+
+    df5 = pd.DataFrame({"c0": ["foo", "bar"], "c2": [4, 5]})
+    wr.mysql.to_sql(
+        df=df5, con=mysql_con, schema="test", table=mysql_table, mode="upsert_duplicate_key", use_column_names=True
+    )
+
+    df6 = wr.mysql.read_sql_table(con=mysql_con, schema="test", table=mysql_table)
+    assert bool(len(df6) == 3)
+    assert bool(len(df6.loc[(df6["c0"] == "foo") & (df6["c2"] == 4)]) == 1)
+    assert bool(len(df6.loc[(df6["c0"] == "bar") & (df6["c2"] == 5)]) == 1)
+
+
+def test_upsert_replace(mysql_table, mysql_con):
+    create_table_sql = (
+        f"CREATE TABLE test.{mysql_table} "
+        "(c0 varchar(100) PRIMARY KEY, "
+        "c1 INT DEFAULT 42 NULL, "
+        "c2 INT NOT NULL);"
+    )
+    with mysql_con.cursor() as cursor:
+        cursor.execute(create_table_sql)
+        mysql_con.commit()
+
+    df = pd.DataFrame({"c0": ["foo", "bar"], "c2": [1, 2]})
+
+    wr.mysql.to_sql(
+        df=df, con=mysql_con, schema="test", table=mysql_table, mode="upsert_replace_into", use_column_names=True
+    )
+    wr.mysql.to_sql(
+        df=df, con=mysql_con, schema="test", table=mysql_table, mode="upsert_replace_into", use_column_names=True
+    )
+    df2 = wr.mysql.read_sql_table(con=mysql_con, schema="test", table=mysql_table)
+    assert bool(len(df2) == 2)
+
+    wr.mysql.to_sql(
+        df=df, con=mysql_con, schema="test", table=mysql_table, mode="upsert_replace_into", use_column_names=True
+    )
+    df3 = pd.DataFrame({"c0": ["baz", "bar"], "c2": [3, 2]})
+    wr.mysql.to_sql(
+        df=df3, con=mysql_con, schema="test", table=mysql_table, mode="upsert_replace_into", use_column_names=True
+    )
+    df4 = wr.mysql.read_sql_table(con=mysql_con, schema="test", table=mysql_table)
+    assert bool(len(df4) == 3)
+
+    df5 = pd.DataFrame({"c0": ["foo", "bar"], "c2": [4, 5]})
+    wr.mysql.to_sql(
+        df=df5, con=mysql_con, schema="test", table=mysql_table, mode="upsert_replace_into", use_column_names=True
+    )
+
+    df6 = wr.mysql.read_sql_table(con=mysql_con, schema="test", table=mysql_table)
+    assert bool(len(df6) == 3)
+    assert bool(len(df6.loc[(df6["c0"] == "foo") & (df6["c2"] == 4)]) == 1)
+    assert bool(len(df6.loc[(df6["c0"] == "bar") & (df6["c2"] == 5)]) == 1)
+
+
 @pytest.mark.parametrize("chunksize", [1, 10, 500])
 def test_dfs_are_equal_for_different_chunksizes(mysql_table, mysql_con, chunksize):
     df = pd.DataFrame({"c0": [i for i in range(64)], "c1": ["foo" for _ in range(64)]})
