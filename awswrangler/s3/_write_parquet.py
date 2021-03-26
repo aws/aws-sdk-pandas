@@ -283,7 +283,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
         catalog_versioning, projection_enabled, projection_types, projection_ranges, projection_values,
         projection_intervals, projection_digits, catalog_id, schema_evolution.
     filename_prefix: str, optional
-        If dataset=True, add a filename prefix to the output parquet files.
+        If dataset=True, add a filename prefix to the output files.
     partition_cols: List[str], optional
         List of column names that will be used to create partitions. Only takes effect if dataset=True.
     bucketing_info: Tuple[List[str], int], optional

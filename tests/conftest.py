@@ -280,4 +280,5 @@ def compare_filename_prefix():
             assert filename.startswith(test_prefix)
         else:
             assert not filename.startswith(test_prefix)
+
     return assert_filename_prefix
