@@ -495,6 +495,16 @@ Resources:
       Tags:
         - Key: Env
           Value: aws-data-wrangler
+  DatabaseSecurityGroupId:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Description: Database Security Group Id
+      Name: /Wrangler/EC2/DatabaseSecurityGroupId
+      Value:
+        Fn::GetAtt:
+          - DatabaseSecurityGroup
+          - GroupId
 Outputs:
   DatabasesPassword:
     Value:
