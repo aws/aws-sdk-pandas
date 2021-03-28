@@ -201,6 +201,7 @@ Please [send a Pull Request](https://github.com/awslabs/aws-data-wrangler/edit/m
 - [Funcional Health Tech](https://www.funcionalcorp.com.br/) [[@webysther](https://github.com/webysther)]
 - [Informa Markets](https://www.informamarkets.com/en/home.html) [[@mateusmorato]](http://github.com/mateusmorato)
 - [LINE TV](https://www.linetv.tw/) [[@bryanyang0528](https://github.com/bryanyang0528)]
+- [Magnataur](https://magnataur.com) [[@brianmingus2](https://github.com/brianmingus2)]
 - [M4U](https://www.m4u.com.br/) [[@Thiago-Dantas](https://github.com/Thiago-Dantas)]
 - [NBCUniversal](https://www.nbcuniversal.com/) [[@vibe](https://github.com/vibe)]
 - [nrd.io](https://nrd.io/) [[@mrtns](https://github.com/mrtns)]
