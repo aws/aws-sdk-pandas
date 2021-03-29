@@ -1,18 +1,15 @@
 #!/usr/bin/env bash
 versions=${1:-ALL}
 posargs=${2:-32}
+SECONDS=0
+
 set -e
-
-microtime() {
-    python -c 'import time; print(time.time())'
-}
-
-START=$(microtime)
 
 ./validate.sh
 mkdir -p test-reports
 tox -e ${versions} -- ${posargs}
 coverage html --directory test-reports/coverage
-rm -rf .coverage* Running
+rm -rf test-reports/.coverage* test-reports/Running 2> /dev/null
 
-echo "Time elapsed: $(echo "scale=1; ($(microtime) - $START) / 60" | bc) minutes"
+duration=$SECONDS
+echo "$(($duration / 60)) minutes and $(($duration % 60)) seconds elapsed."
