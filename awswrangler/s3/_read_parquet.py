@@ -8,6 +8,7 @@ import logging
 import pprint
 import warnings
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union, cast
+import functools
 
 import boto3
 import pandas as pd
@@ -339,8 +340,8 @@ def _read_parquet_chunked(
                     if next_slice is not None:
                         df = _union(dfs=[next_slice, df], ignore_index=ignore_index)
                     while len(df.index) >= chunked:
-                        yield df.iloc[:chunked]
-                        df = df.iloc[chunked:]
+                        yield df.iloc[:chunked, :]
+                        df = df.iloc[chunked:, :]
                     if df.empty:
                         next_slice = None
                     else:
@@ -773,8 +774,7 @@ def read_parquet_table(
         path: str = res["Table"]["StorageDescriptor"]["Location"]
     except KeyError as ex:
         raise exceptions.InvalidTable(f"Missing s3 location for {database}.{table}.") from ex
-    return _data_types.cast_pandas_with_athena_types(
-        df=read_parquet(
+    df = read_parquet(
             path=path,
             path_suffix=filename_suffix,
             path_ignore_suffix=filename_ignore_suffix,
@@ -789,9 +789,14 @@ def read_parquet_table(
             use_threads=use_threads,
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
-        ),
-        dtype=_extract_partitions_dtypes_from_table_details(response=res),
-    )
+        )
+    partial_cast_function = functools.partial(_data_types.cast_pandas_with_athena_types,
+                                              dtype=_extract_partitions_dtypes_from_table_details(response=res))
+
+    if chunked is not False:
+        return map(partial_cast_function, df)
+    else:
+        return partial_cast_function(df)
 
 
 @apply_configs
