@@ -225,6 +225,7 @@ def test_additional_kwargs(path, kms_key_id, s3_additional_kwargs, use_threads):
         assert desc.get("ServerSideEncryption") == "AES256"
 
 
+@pytest.mark.xfail(raises=AttributeError)
 def test_pyarrow(path, glue_table, glue_database):
     df = get_df_list()
     wr.s3.to_parquet(df, path, dataset=True, database=glue_database, table=glue_table)

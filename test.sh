@@ -9,8 +9,8 @@ set -e
 mkdir -p test-reports
 tox -e ${versions} -- ${posargs}
 if [ $versions = "ALL" ]; then
-    coverage html --directory test-reports/coverage
-    rm -rf test-reports/.coverage* test-reports/Running 2> /dev/null
+    coverage html --directory coverage
+    rm -rf .coverage* Running 2> /dev/null
 fi
 
 duration=$SECONDS
