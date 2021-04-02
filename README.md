@@ -16,7 +16,7 @@ Easy integration with Athena, Glue, Redshift, Timestream, QuickSight, Chime, Clo
 [![Checked with mypy](http://www.mypy-lang.org/static/mypy_badge.svg)](http://mypy-lang.org/)
 [![Coverage](https://img.shields.io/badge/coverage-91%25-brightgreen.svg)](https://pypi.org/project/awswrangler/)
 ![Static Checking](https://github.com/awslabs/aws-data-wrangler/workflows/Static%20Checking/badge.svg?branch=main)
-![Build Status](https://codebuild.us-east-1.amazonaws.com/badges?uuid=eyJlbmNyeXB0ZWREYXRhIjoiUi9WVXRXaitqb3paNmd2ekNVSEZDRDIyTnEwc0EvUDZMVWQwYkxhQVB6ZitGWDAwUHlYRThYclMxdS9jOWk2dnlhMGRyRmh0MWVhL3lvT1E2VVJFVVI4PSIsIml2UGFyYW1ldGVyU3BlYyI6IkpnNEFjTGN2VE1sWmJ5T0kiLCJtYXRlcmlhbFNldFNlcmlhbCI6MX0%3D&branch=main)
+![Build Status](https://codebuild.us-east-1.amazonaws.com/badges?uuid=eyJlbmNyeXB0ZWREYXRhIjoiaHFXUk91Wks2MGFRMSsxM1R3ZFVjVGg3d0dCT05YTVpoL0VRakRieG43Y3dhdytYZjZtdFVBdG5Sek44anlweDFkM2Z2TWJibVRCRVB5TjlWSnhTdzRBPSIsIml2UGFyYW1ldGVyU3BlYyI6IjUzUllpN295VTUxeFNPQWQiLCJtYXRlcmlhbFNldFNlcmlhbCI6MX0%3D&branch=main)
 [![Documentation Status](https://readthedocs.org/projects/aws-data-wrangler/badge/?version=latest)](https://aws-data-wrangler.readthedocs.io/?badge=latest)
 
 | Source | Downloads | Installation Command |
@@ -201,6 +201,7 @@ Please [send a Pull Request](https://github.com/awslabs/aws-data-wrangler/edit/m
 - [Funcional Health Tech](https://www.funcionalcorp.com.br/) [[@webysther](https://github.com/webysther)]
 - [Informa Markets](https://www.informamarkets.com/en/home.html) [[@mateusmorato]](http://github.com/mateusmorato)
 - [LINE TV](https://www.linetv.tw/) [[@bryanyang0528](https://github.com/bryanyang0528)]
+- [Magnataur](https://magnataur.com) [[@brianmingus2](https://github.com/brianmingus2)]
 - [M4U](https://www.m4u.com.br/) [[@Thiago-Dantas](https://github.com/Thiago-Dantas)]
 - [NBCUniversal](https://www.nbcuniversal.com/) [[@vibe](https://github.com/vibe)]
 - [nrd.io](https://nrd.io/) [[@mrtns](https://github.com/mrtns)]

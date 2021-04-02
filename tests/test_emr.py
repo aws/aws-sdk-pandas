@@ -48,6 +48,7 @@ def test_cluster(bucket, cloudformation_outputs):
         debugging=True,
         applications=["Hadoop", "Spark", "Ganglia", "Hive"],
         visible_to_all_users=True,
+        keep_cluster_alive_when_no_steps=False,
         key_pair_name=None,
         spark_pyarrow=True,
         steps=steps,
