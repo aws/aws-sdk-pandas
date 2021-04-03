@@ -2,13 +2,13 @@
 
 import concurrent.futures
 import datetime
+import functools
 import itertools
 import json
 import logging
 import pprint
 import warnings
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union, cast
-import functools
 
 import boto3
 import pandas as pd
@@ -775,28 +775,30 @@ def read_parquet_table(
     except KeyError as ex:
         raise exceptions.InvalidTable(f"Missing s3 location for {database}.{table}.") from ex
     df = read_parquet(
-            path=path,
-            path_suffix=filename_suffix,
-            path_ignore_suffix=filename_ignore_suffix,
-            partition_filter=partition_filter,
-            columns=columns,
-            validate_schema=validate_schema,
-            categories=categories,
-            safe=safe,
-            map_types=map_types,
-            chunked=chunked,
-            dataset=True,
-            use_threads=use_threads,
-            boto3_session=boto3_session,
-            s3_additional_kwargs=s3_additional_kwargs,
-        )
-    partial_cast_function = functools.partial(_data_types.cast_pandas_with_athena_types,
-                                              dtype=_extract_partitions_dtypes_from_table_details(response=res))
+        path=path,
+        path_suffix=filename_suffix,
+        path_ignore_suffix=filename_ignore_suffix,
+        partition_filter=partition_filter,
+        columns=columns,
+        validate_schema=validate_schema,
+        categories=categories,
+        safe=safe,
+        map_types=map_types,
+        chunked=chunked,
+        dataset=True,
+        use_threads=use_threads,
+        boto3_session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,
+    )
+    partial_cast_function = functools.partial(
+        _data_types.cast_pandas_with_athena_types, dtype=_extract_partitions_dtypes_from_table_details(response=res)
+    )
 
     if isinstance(df, pd.DataFrame):
         return partial_cast_function(df)
-    else:
-        return map(partial_cast_function, df)
+
+    # df is a generator, so map is needed for casting dtypes
+    return map(partial_cast_function, df)
 
 
 @apply_configs
