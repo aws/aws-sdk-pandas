@@ -340,7 +340,7 @@ def _read_parquet_chunked(
                     if next_slice is not None:
                         df = _union(dfs=[next_slice, df], ignore_index=ignore_index)
                     while len(df.index) >= chunked:
-                        yield df.iloc[:chunked, :]
+                        yield df.iloc[:chunked, :].copy()
                         df = df.iloc[chunked:, :]
                     if df.empty:
                         next_slice = None

@@ -118,7 +118,7 @@ def _union(dfs: List[pd.DataFrame], ignore_index: Optional[bool]) -> pd.DataFram
                     break
     cats: Tuple[Set[str], ...] = tuple(set(df.select_dtypes(include="category").columns) for df in dfs)
     for col in set.intersection(*cats):
-        cat = union_categoricals([df.loc[:, col] for df in dfs])
+        cat = union_categoricals([df[col] for df in dfs])
         for df in dfs:
-            df.loc[:, col] = pd.Categorical(df.loc[:, col].values, categories=cat.categories)
+            df[col] = pd.Categorical(df[col].values, categories=cat.categories)
     return pd.concat(objs=dfs, sort=False, copy=False, ignore_index=ignore_index)

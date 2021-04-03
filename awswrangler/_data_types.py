@@ -632,24 +632,24 @@ def _cast2date(value: Any) -> Any:
 
 def _cast_pandas_column(df: pd.DataFrame, col: str, current_type: str, desired_type: str) -> pd.DataFrame:
     if desired_type == "datetime64":
-        df.loc[:, col] = pd.to_datetime(df.loc[:, col])
+        df[col] = pd.to_datetime(df[col])
     elif desired_type == "date":
-        df.loc[:, col] = df.loc[:, col].apply(lambda x: _cast2date(value=x)).replace(to_replace={pd.NaT: None})
+        df[col] = df[col].apply(lambda x: _cast2date(value=x)).replace(to_replace={pd.NaT: None})
     elif desired_type == "bytes":
-        df.loc[:, col] = df.loc[:, col].astype("string").str.encode(encoding="utf-8").replace(to_replace={pd.NA: None})
+        df[col] = df[col].astype("string").str.encode(encoding="utf-8").replace(to_replace={pd.NA: None})
     elif desired_type == "decimal":
         # First cast to string
         df = _cast_pandas_column(df=df, col=col, current_type=current_type, desired_type="string")
         # Then cast to decimal
-        df.loc[:, col] = df.loc[:, col].apply(lambda x: Decimal(str(x)) if str(x) not in ("", "none", "None", " ", "<NA>") else None)
+        df[col] = df[col].apply(lambda x: Decimal(str(x)) if str(x) not in ("", "none", "None", " ", "<NA>") else None)
     else:
         try:
-            df.loc[:, col] = df.loc[:, col].astype(desired_type)
+            df[col] = df[col].astype(desired_type)
         except TypeError as ex:
             if "object cannot be converted to an IntegerDtype" not in str(ex):
                 raise ex
-            df.loc[:, col] = (
-                df.loc[:, col]
+            df[col] = (
+                df[col]
                 .apply(lambda x: int(x) if str(x) not in ("", "none", "None", " ", "<NA>") else None)
                 .astype(desired_type)
             )
