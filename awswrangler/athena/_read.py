@@ -595,11 +595,11 @@ def read_sql_query(
 
     **Related tutorial:**
 
-    - `Amazon Athena <https://aws-data-wrangler.readthedocs.io/en/2.5.0/
+    - `Amazon Athena <https://aws-data-wrangler.readthedocs.io/en/2.6.0/
       tutorials/006%20-%20Amazon%20Athena.html>`_
-    - `Athena Cache <https://aws-data-wrangler.readthedocs.io/en/2.5.0/
+    - `Athena Cache <https://aws-data-wrangler.readthedocs.io/en/2.6.0/
       tutorials/019%20-%20Athena%20Cache.html>`_
-    - `Global Configurations <https://aws-data-wrangler.readthedocs.io/en/2.5.0/
+    - `Global Configurations <https://aws-data-wrangler.readthedocs.io/en/2.6.0/
       tutorials/021%20-%20Global%20Configurations.html>`_
 
     **There are two approaches to be defined through ctas_approach parameter:**
@@ -647,7 +647,7 @@ def read_sql_query(
     /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a practical example check out the
-    `related tutorial <https://aws-data-wrangler.readthedocs.io/en/2.5.0/
+    `related tutorial <https://aws-data-wrangler.readthedocs.io/en/2.6.0/
     tutorials/024%20-%20Athena%20Query%20Metadata.html>`_!
 
 
@@ -751,7 +751,7 @@ def read_sql_query(
     params: Dict[str, any], optional
         Dict of parameters that will be used for constructing the SQL query. Only named parameters are supported.
         The dict needs to contain the information in the form {'name': 'value'} and the SQL query needs to contain
-        `:name;`.
+        `:name;`. Note that for varchar columns and similar, you must surround the value in single quotes.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forward to botocore requests. Valid parameters: "RequestPayer", "ExpectedBucketOwner".
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
@@ -769,8 +769,8 @@ def read_sql_query(
 
     >>> import awswrangler as wr
     >>> df = wr.athena.read_sql_query(
-    ...     sql="SELECT * FROM my_table WHERE name=:name;",
-    ...     params={"name": "filtered_name"}
+    ...     sql="SELECT * FROM my_table WHERE name=:name; AND city=:city;",
+    ...     params={"name": "'filtered_name'", "city": "'filtered_city'"}
     ... )
 
     """
@@ -863,11 +863,11 @@ def read_sql_table(
 
     **Related tutorial:**
 
-    - `Amazon Athena <https://aws-data-wrangler.readthedocs.io/en/2.5.0/
+    - `Amazon Athena <https://aws-data-wrangler.readthedocs.io/en/2.6.0/
       tutorials/006%20-%20Amazon%20Athena.html>`_
-    - `Athena Cache <https://aws-data-wrangler.readthedocs.io/en/2.5.0/
+    - `Athena Cache <https://aws-data-wrangler.readthedocs.io/en/2.6.0/
       tutorials/019%20-%20Athena%20Cache.html>`_
-    - `Global Configurations <https://aws-data-wrangler.readthedocs.io/en/2.5.0/
+    - `Global Configurations <https://aws-data-wrangler.readthedocs.io/en/2.6.0/
       tutorials/021%20-%20Global%20Configurations.html>`_
 
     **There are two approaches to be defined through ctas_approach parameter:**
@@ -912,7 +912,7 @@ def read_sql_table(
     /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a practical example check out the
-    `related tutorial <https://aws-data-wrangler.readthedocs.io/en/2.5.0/
+    `related tutorial <https://aws-data-wrangler.readthedocs.io/en/2.6.0/
     tutorials/024%20-%20Athena%20Query%20Metadata.html>`_!
 
 

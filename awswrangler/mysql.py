@@ -1,6 +1,7 @@
 """Amazon MySQL Module."""
 
 import logging
+import uuid
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
@@ -12,6 +13,7 @@ from pymysql.cursors import Cursor
 from awswrangler import _data_types
 from awswrangler import _databases as _db_utils
 from awswrangler import exceptions
+from awswrangler._config import apply_configs
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -257,6 +259,7 @@ def read_sql_table(
     )
 
 
+@apply_configs
 def to_sql(
     df: pd.DataFrame,
     con: pymysql.connections.Connection,
@@ -267,6 +270,7 @@ def to_sql(
     dtype: Optional[Dict[str, str]] = None,
     varchar_lengths: Optional[Dict[str, int]] = None,
     use_column_names: bool = False,
+    chunksize: int = 200,
 ) -> None:
     """Write records stored in a DataFrame into MySQL.
 
@@ -281,7 +285,17 @@ def to_sql(
     schema : str
         Schema name
     mode : str
-        Append or overwrite.
+        Append, overwrite, upsert_duplicate_key, upsert_replace_into, upsert_distinct.
+            append: Inserts new records into table
+            overwrite: Drops table and recreates
+            upsert_duplicate_key: Performs an upsert using `ON DUPLICATE KEY` clause. Requires table schema to have
+            defined keys, otherwise duplicate records will be inserted.
+            upsert_replace_into: Performs upsert using `REPLACE INTO` clause. Less efficient and still requires the
+            table schema to have keys or else duplicate records will be inserted
+            upsert_distinct: Inserts new records, including duplicates, then recreates the table and inserts `DISTINCT`
+            records from old table. This is the least efficient approach but handles scenarios where there are no
+            keys on table.
+
     index : bool
         True to store the DataFrame index as a column in the table,
         otherwise False to ignore it.
@@ -295,6 +309,8 @@ def to_sql(
         If set to True, will use the column names of the DataFrame for generating the INSERT SQL Query.
         E.g. If the DataFrame has two columns `col1` and `col3` and `use_column_names` is True, data will only be
         inserted into the database columns `col1` and `col3`.
+    chunksize: int
+        Number of rows which are inserted with each SQL query. Defaults to inserting 200 rows per query.
 
     Returns
     -------
@@ -308,7 +324,7 @@ def to_sql(
     >>> import awswrangler as wr
     >>> con = wr.mysql.connect("MY_GLUE_CONNECTION")
     >>> wr.mysql.to_sql(
-    ...     df=df
+    ...     df=df,
     ...     table="my_table",
     ...     schema="test",
     ...     con=con
@@ -318,6 +334,17 @@ def to_sql(
     """
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
+    mode = mode.strip().lower()
+    modes = [
+        "append",
+        "overwrite",
+        "upsert_replace_into",
+        "upsert_duplicate_key",
+        "upsert_distinct",
+    ]
+    if mode not in modes:
+        raise exceptions.InvalidArgumentValue(f"mode must be one of {', '.join(modes)}")
+
     _validate_connection(con=con)
     try:
         with con.cursor() as cursor:
@@ -333,15 +360,35 @@ def to_sql(
             )
             if index:
                 df.reset_index(level=df.index.names, inplace=True)
-            placeholders: str = ", ".join(["%s"] * len(df.columns))
+            column_placeholders: str = ", ".join(["%s"] * len(df.columns))
             insertion_columns = ""
+            upsert_columns = ""
+            upsert_str = ""
             if use_column_names:
                 insertion_columns = f"({', '.join(df.columns)})"
-            sql: str = f"INSERT INTO `{schema}`.`{table}` {insertion_columns} VALUES ({placeholders})"
-            _logger.debug("sql: %s", sql)
-            parameters: List[List[Any]] = _db_utils.extract_parameters(df=df)
-            cursor.executemany(sql, parameters)
+            if mode == "upsert_duplicate_key":
+                upsert_columns = ", ".join(df.columns.map(lambda column: f"`{column}`=VALUES(`{column}`)"))
+                upsert_str = f" ON DUPLICATE KEY UPDATE {upsert_columns}"
+            placeholder_parameter_pair_generator = _db_utils.generate_placeholder_parameter_pairs(
+                df=df, column_placeholders=column_placeholders, chunksize=chunksize
+            )
+            sql: str
+            for placeholders, parameters in placeholder_parameter_pair_generator:
+                if mode == "upsert_replace_into":
+                    sql = f"REPLACE INTO `{schema}`.`{table}` {insertion_columns} VALUES {placeholders}"
+                else:
+                    sql = f"INSERT INTO `{schema}`.`{table}` {insertion_columns} VALUES {placeholders}{upsert_str}"
+                _logger.debug("sql: %s", sql)
+                cursor.executemany(sql, (parameters,))
             con.commit()
+            if mode == "upsert_distinct":
+                temp_table = f"{table}_{uuid.uuid4().hex}"
+                cursor.execute(f"CREATE TABLE `{schema}`.`{temp_table}` LIKE `{schema}`.`{table}`")
+                cursor.execute(f"INSERT INTO `{schema}`.`{temp_table}` SELECT DISTINCT * FROM `{schema}`.`{table}`")
+                cursor.execute(f"DROP TABLE IF EXISTS `{schema}`.`{table}`")
+                cursor.execute(f"ALTER TABLE `{schema}`.`{temp_table}` RENAME TO `{table}`")
+                con.commit()
+
     except Exception as ex:
         con.rollback()
         _logger.error(ex)

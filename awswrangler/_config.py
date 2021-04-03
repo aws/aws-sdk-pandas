@@ -34,6 +34,7 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "max_local_cache_entries": _ConfigArg(dtype=int, nullable=False),
     "s3_block_size": _ConfigArg(dtype=int, nullable=False, enforced=True),
     "workgroup": _ConfigArg(dtype=str, nullable=False, enforced=True),
+    "chunksize": _ConfigArg(dtype=int, nullable=False, enforced=True),
     # Endpoints URLs
     "s3_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
     "athena_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
@@ -47,7 +48,7 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
 }
 
 
-class _Config:  # pylint: disable=too-many-instance-attributes
+class _Config:  # pylint: disable=too-many-instance-attributes, too-many-public-methods
     """Wrangler's Configuration class."""
 
     def __init__(self) -> None:
@@ -278,6 +279,15 @@ class _Config:  # pylint: disable=too-many-instance-attributes
     @workgroup.setter
     def workgroup(self, value: Optional[str]) -> None:
         self._set_config_value(key="workgroup", value=value)
+
+    @property
+    def chunksize(self) -> int:
+        """Property chunksize."""
+        return cast(int, self["chunksize"])
+
+    @chunksize.setter
+    def chunksize(self, value: int) -> None:
+        self._set_config_value(key="chunksize", value=value)
 
     @property
     def s3_endpoint_url(self) -> Optional[str]:

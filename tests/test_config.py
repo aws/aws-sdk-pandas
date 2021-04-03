@@ -1,6 +1,6 @@
 import logging
 import os
-from unittest.mock import patch
+from unittest.mock import create_autospec, patch
 
 import boto3
 import botocore
@@ -9,6 +9,7 @@ import botocore.config
 import pytest
 
 import awswrangler as wr
+from awswrangler._config import apply_configs
 from awswrangler.s3._fs import open_s3_object
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
@@ -180,3 +181,24 @@ def test_botocore_config(path):
             s3obj.write(b"foo")
 
     wr.config.reset()
+
+
+@pytest.mark.xfail(raises=AssertionError)
+def test_chunk_size():
+    expected_chunksize = 123
+
+    wr.config.chunksize = expected_chunksize
+
+    for function_to_mock in [wr.postgresql.to_sql, wr.mysql.to_sql, wr.sqlserver.to_sql, wr.redshift.to_sql]:
+        mock = create_autospec(function_to_mock)
+        apply_configs(mock)(df=None, con=None, table=None, schema=None)
+        mock.assert_called_with(df=None, con=None, table=None, schema=None, chunksize=expected_chunksize)
+
+    expected_chunksize = 456
+    os.environ["WR_CHUNKSIZE"] = str(expected_chunksize)
+    wr.config.reset()
+
+    for function_to_mock in [wr.postgresql.to_sql, wr.mysql.to_sql, wr.sqlserver.to_sql, wr.redshift.to_sql]:
+        mock = create_autospec(function_to_mock)
+        apply_configs(mock)(df=None, con=None, table=None, schema=None)
+        mock.assert_called_with(df=None, con=None, table=None, schema=None, chunksize=expected_chunksize)

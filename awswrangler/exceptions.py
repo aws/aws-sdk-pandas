@@ -103,3 +103,7 @@ class InvalidDataFrame(Exception):
 
 class InvalidFile(Exception):
     """InvalidFile."""
+
+
+class FailedQualityCheck(Exception):
+    """FailedQualityCheck."""
