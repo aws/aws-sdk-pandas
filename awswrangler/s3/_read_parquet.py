@@ -793,10 +793,10 @@ def read_parquet_table(
     partial_cast_function = functools.partial(_data_types.cast_pandas_with_athena_types,
                                               dtype=_extract_partitions_dtypes_from_table_details(response=res))
 
-    if chunked is not False:
-        return map(partial_cast_function, df)
-    else:
+    if isinstance(df, pd.DataFrame):
         return partial_cast_function(df)
+    else:
+        return map(partial_cast_function, df)
 
 
 @apply_configs
