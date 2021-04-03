@@ -450,6 +450,7 @@ def test_copy_unload_long_string(path, redshift_table, redshift_con, databases_p
     assert df2.shape == (2, 2)
 
 
+@pytest.mark.xfail(raises=AttributeError)
 def test_spectrum_decimal_cast(path, path2, glue_table, glue_database, redshift_external_schema, databases_parameters):
     df = pd.DataFrame(
         {"c0": [1, 2], "c1": [1, None], "c2": [2.22222, None], "c3": ["3.33333", None], "c4": [None, None]}

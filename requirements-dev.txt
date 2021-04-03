@@ -9,6 +9,7 @@ doc8==0.8.1
 tox==3.23.0
 pytest==6.2.2
 pytest-cov==2.11.1
+pytest-rerunfailures==9.1.1
 pytest-xdist==2.2.1
 pytest-timeout==1.4.2
 cfn-lint==0.47.2
