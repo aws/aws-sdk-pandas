@@ -170,16 +170,21 @@ def _start_query_execution(
 
 
 def _get_workgroup_config(session: boto3.Session, workgroup: Optional[str] = None) -> _WorkGroupConfig:
+    enforced: bool
+    wg_s3_output: Optional[str]
+    wg_encryption: Optional[str]
+    wg_kms_key: Optional[str]
+
+    enforced, wg_s3_output, wg_encryption, wg_kms_key = False, None, None, None
     if workgroup is not None:
-        res: Dict[str, Any] = get_work_group(workgroup=workgroup, boto3_session=session)
-        enforced: bool = res["WorkGroup"]["Configuration"]["EnforceWorkGroupConfiguration"]
-        config: Dict[str, Any] = res["WorkGroup"]["Configuration"]["ResultConfiguration"]
-        wg_s3_output: Optional[str] = config.get("OutputLocation")
-        encrypt_config: Optional[Dict[str, str]] = config.get("EncryptionConfiguration")
-        wg_encryption: Optional[str] = None if encrypt_config is None else encrypt_config.get("EncryptionOption")
-        wg_kms_key: Optional[str] = None if encrypt_config is None else encrypt_config.get("KmsKey")
-    else:
-        enforced, wg_s3_output, wg_encryption, wg_kms_key = False, None, None, None
+        res = get_work_group(workgroup=workgroup, boto3_session=session)
+        enforced = res["WorkGroup"]["Configuration"]["EnforceWorkGroupConfiguration"]
+        config: Dict[str, Any] = res["WorkGroup"]["Configuration"].get("ResultConfiguration")
+        if config is not None:
+            wg_s3_output = config.get("OutputLocation")
+            encrypt_config: Optional[Dict[str, str]] = config.get("EncryptionConfiguration")
+            wg_encryption = None if encrypt_config is None else encrypt_config.get("EncryptionOption")
+            wg_kms_key = None if encrypt_config is None else encrypt_config.get("KmsKey")
     wg_config: _WorkGroupConfig = _WorkGroupConfig(
         enforced=enforced, s3_output=wg_s3_output, encryption=wg_encryption, kms_key=wg_kms_key
     )
