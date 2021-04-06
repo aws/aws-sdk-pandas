@@ -132,7 +132,7 @@ def connect(
     attrs: _db_utils.ConnectionAttributes = _db_utils.get_connection_attributes(
         connection=connection, secret_id=secret_id, catalog_id=catalog_id, dbname=dbname, boto3_session=boto3_session
     )
-    if attrs.kind != "postgresql":
+    if attrs.kind != "postgresql" and attrs.kind != "postgres":
         raise exceptions.InvalidDatabaseType(
             f"Invalid connection type ({attrs.kind}. It must be a postgresql connection.)"
         )
