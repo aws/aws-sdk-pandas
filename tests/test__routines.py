@@ -15,7 +15,6 @@ def test_routine_0(
     lakeformation_glue_database, glue_database, glue_table, table_type, path, use_threads, concurrent_partitioning
 ):
 
-    table = f"__{glue_table}"
     database = lakeformation_glue_database if table_type == "GOVERNED" else glue_database
 
     # Round 1 - Warm up
@@ -26,7 +25,7 @@ def test_routine_0(
         dataset=True,
         mode="overwrite",
         database=database,
-        table=table,
+        table=glue_table,
         table_type=table_type,
         description="c0",
         parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
@@ -34,19 +33,19 @@ def test_routine_0(
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
     )
-    assert wr.catalog.get_table_number_of_versions(table=table, database=database) == 1
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=database) == 1
     if table_type == "GOVERNED":
-        df2 = wr.lakeformation.read_sql_table(table, database, use_threads=use_threads)
+        df2 = wr.lakeformation.read_sql_table(glue_table, database, use_threads=use_threads)
     else:
-        df2 = wr.athena.read_sql_table(table, database, use_threads=use_threads)
+        df2 = wr.athena.read_sql_table(glue_table, database, use_threads=use_threads)
     assert df.shape == df2.shape
     assert df.c0.sum() == df2.c0.sum()
-    parameters = wr.catalog.get_table_parameters(database, table)
+    parameters = wr.catalog.get_table_parameters(database, glue_table)
     assert len(parameters) >= 5
     assert parameters["num_cols"] == str(len(df2.columns))
     assert parameters["num_rows"] == str(len(df2.index))
-    assert wr.catalog.get_table_description(database, table) == "c0"
-    comments = wr.catalog.get_columns_comments(database, table)
+    assert wr.catalog.get_table_description(database, glue_table) == "c0"
+    comments = wr.catalog.get_columns_comments(database, glue_table)
     assert len(comments) == len(df.columns)
     assert comments["c0"] == "0"
 
@@ -57,26 +56,26 @@ def test_routine_0(
         dataset=True,
         mode="overwrite",
         database=database,
-        table=table,
+        table=glue_table,
         description="c1",
         parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
         columns_comments={"c1": "1"},
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
     )
-    assert wr.catalog.get_table_number_of_versions(table=table, database=database) == 1
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=database) == 1
     if table_type == "GOVERNED":
-        df2 = wr.lakeformation.read_sql_table(table, database, use_threads=use_threads)
+        df2 = wr.lakeformation.read_sql_table(glue_table, database, use_threads=use_threads)
     else:
-        df2 = wr.athena.read_sql_table(table, database, use_threads=use_threads)
+        df2 = wr.athena.read_sql_table(glue_table, database, use_threads=use_threads)
     assert df.shape == df2.shape
     assert df.c1.sum() == df2.c1.sum()
-    parameters = wr.catalog.get_table_parameters(database, table)
+    parameters = wr.catalog.get_table_parameters(database, glue_table)
     assert len(parameters) >= 5
     assert parameters["num_cols"] == str(len(df2.columns))
     assert parameters["num_rows"] == str(len(df2.index))
-    assert wr.catalog.get_table_description(database, table) == "c1"
-    comments = wr.catalog.get_columns_comments(database, table)
+    assert wr.catalog.get_table_description(database, glue_table) == "c1"
+    comments = wr.catalog.get_columns_comments(database, glue_table)
     assert len(comments) == len(df.columns)
     assert comments["c1"] == "1"
 
@@ -88,27 +87,27 @@ def test_routine_0(
         dataset=True,
         mode="append",
         database=database,
-        table=table,
+        table=glue_table,
         description="c1",
         parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index) * 2)},
         columns_comments={"c1": "1"},
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
     )
-    assert wr.catalog.get_table_number_of_versions(table=table, database=database) == 1
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=database) == 1
     if table_type == "GOVERNED":
-        df2 = wr.lakeformation.read_sql_table(table, database, use_threads=use_threads)
+        df2 = wr.lakeformation.read_sql_table(glue_table, database, use_threads=use_threads)
     else:
-        df2 = wr.athena.read_sql_table(table, database, use_threads=use_threads)
+        df2 = wr.athena.read_sql_table(glue_table, database, use_threads=use_threads)
     assert len(df.columns) == len(df2.columns)
     assert len(df.index) * 2 == len(df2.index)
     assert df.c1.sum() + 1 == df2.c1.sum()
-    parameters = wr.catalog.get_table_parameters(database, table)
+    parameters = wr.catalog.get_table_parameters(database, glue_table)
     assert len(parameters) >= 5
     assert parameters["num_cols"] == str(len(df2.columns))
     assert parameters["num_rows"] == str(len(df2.index))
-    assert wr.catalog.get_table_description(database, table) == "c1"
-    comments = wr.catalog.get_columns_comments(database, table)
+    assert wr.catalog.get_table_description(database, glue_table) == "c1"
+    comments = wr.catalog.get_columns_comments(database, glue_table)
     assert len(comments) == len(df.columns)
     assert comments["c1"] == "1"
 
@@ -119,27 +118,27 @@ def test_routine_0(
         dataset=True,
         mode="append",
         database=database,
-        table=table,
+        table=glue_table,
         description="c1+c2",
         parameters={"num_cols": "2", "num_rows": "9"},
         columns_comments={"c1": "1", "c2": "2"},
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
     )
-    assert wr.catalog.get_table_number_of_versions(table=table, database=database) == 1
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=database) == 1
     if table_type == "GOVERNED":
-        df2 = wr.lakeformation.read_sql_table(table, database, use_threads=use_threads)
+        df2 = wr.lakeformation.read_sql_table(glue_table, database, use_threads=use_threads)
     else:
-        df2 = wr.athena.read_sql_table(table, database, use_threads=use_threads)
+        df2 = wr.athena.read_sql_table(glue_table, database, use_threads=use_threads)
     assert len(df2.columns) == 2
     assert len(df2.index) == 9
     assert df2.c1.sum() == 3
-    parameters = wr.catalog.get_table_parameters(database, table)
+    parameters = wr.catalog.get_table_parameters(database, glue_table)
     assert len(parameters) >= 5
     assert parameters["num_cols"] == "2"
     assert parameters["num_rows"] == "9"
-    assert wr.catalog.get_table_description(database, table) == "c1+c2"
-    comments = wr.catalog.get_columns_comments(database, table)
+    assert wr.catalog.get_table_description(database, glue_table) == "c1+c2"
+    comments = wr.catalog.get_columns_comments(database, glue_table)
     assert len(comments) == len(df.columns)
     assert comments["c1"] == "1"
     assert comments["c2"] == "2"
@@ -152,33 +151,33 @@ def test_routine_0(
         dataset=True,
         mode="append",
         database=database,
-        table=table,
+        table=glue_table,
         description="c1+c2+c3",
         parameters={"num_cols": "3", "num_rows": "10"},
         columns_comments={"c1": "1!", "c2": "2!", "c3": "3"},
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
     )
-    assert wr.catalog.get_table_number_of_versions(table=table, database=database) == 1
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=database) == 1
     if table_type == "GOVERNED":
-        df2 = wr.lakeformation.read_sql_table(table, database, use_threads=use_threads)
+        df2 = wr.lakeformation.read_sql_table(glue_table, database, use_threads=use_threads)
     else:
-        df2 = wr.athena.read_sql_table(table, database, use_threads=use_threads)
+        df2 = wr.athena.read_sql_table(glue_table, database, use_threads=use_threads)
     assert len(df2.columns) == 3
     assert len(df2.index) == 10
     assert df2.c1.sum() == 4
-    parameters = wr.catalog.get_table_parameters(database, table)
+    parameters = wr.catalog.get_table_parameters(database, glue_table)
     assert len(parameters) >= 5
     assert parameters["num_cols"] == "3"
     assert parameters["num_rows"] == "10"
-    assert wr.catalog.get_table_description(database, table) == "c1+c2+c3"
-    comments = wr.catalog.get_columns_comments(database, table)
+    assert wr.catalog.get_table_description(database, glue_table) == "c1+c2+c3"
+    comments = wr.catalog.get_columns_comments(database, glue_table)
     assert len(comments) == len(df.columns)
     assert comments["c1"] == "1!"
     assert comments["c2"] == "2!"
     assert comments["c3"] == "3"
 
-    wr.catalog.delete_table_if_exists(database=database, table=table)
+    wr.catalog.delete_table_if_exists(database=database, table=glue_table)
 
 
 @pytest.mark.parametrize("use_threads", [True, False])
@@ -188,7 +187,6 @@ def test_routine_1(
     lakeformation_glue_database, glue_database, glue_table, table_type, path, use_threads, concurrent_partitioning
 ):
 
-    table = f"__{glue_table}"
     database = lakeformation_glue_database if table_type == "GOVERNED" else glue_database
 
     # Round 1 - Overwrite Partitioned
@@ -196,9 +194,10 @@ def test_routine_1(
     wr.s3.to_parquet(
         df=df,
         dataset=True,
+        path=path,
         mode="overwrite",
         database=database,
-        table=table,
+        table=glue_table,
         table_type=table_type,
         partition_cols=["c1"],
         description="c0+c1",
@@ -207,19 +206,19 @@ def test_routine_1(
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
     )
-    assert wr.catalog.get_table_number_of_versions(table=table, database=database) == 1
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=database) == 1
     if table_type == "GOVERNED":
-        df2 = wr.lakeformation.read_sql_table(table, database, use_threads=use_threads)
+        df2 = wr.lakeformation.read_sql_table(glue_table, database, use_threads=use_threads)
     else:
-        df2 = wr.athena.read_sql_table(table, database, use_threads=use_threads)
+        df2 = wr.athena.read_sql_table(glue_table, database, use_threads=use_threads)
     assert df.shape == df2.shape
     assert df.c1.sum() == df2.c1.sum()
-    parameters = wr.catalog.get_table_parameters(database, table)
+    parameters = wr.catalog.get_table_parameters(database, glue_table)
     assert len(parameters) >= 5
     assert parameters["num_cols"] == "2"
     assert parameters["num_rows"] == "2"
-    assert wr.catalog.get_table_description(database, table) == "c0+c1"
-    comments = wr.catalog.get_columns_comments(database, table)
+    assert wr.catalog.get_table_description(database, glue_table) == "c0+c1"
+    comments = wr.catalog.get_columns_comments(database, glue_table)
     assert len(comments) == len(df.columns)
     assert comments["c0"] == "zero"
     assert comments["c1"] == "one"
@@ -231,7 +230,7 @@ def test_routine_1(
         dataset=True,
         mode="overwrite_partitions",
         database=database,
-        table=table,
+        table=glue_table,
         partition_cols=["c1"],
         description="c0+c1",
         parameters={"num_cols": "2", "num_rows": "3"},
@@ -239,20 +238,20 @@ def test_routine_1(
         concurrent_partitioning=concurrent_partitioning,
         use_threads=use_threads,
     )
-    assert wr.catalog.get_table_number_of_versions(table=table, database=database) == 1
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=database) == 1
     if table_type == "GOVERNED":
-        df2 = wr.lakeformation.read_sql_table(table, database, use_threads=use_threads)
+        df2 = wr.lakeformation.read_sql_table(glue_table, database, use_threads=use_threads)
     else:
-        df2 = wr.athena.read_sql_table(table, database, use_threads=use_threads)
+        df2 = wr.athena.read_sql_table(glue_table, database, use_threads=use_threads)
     assert len(df2.columns) == 2
     assert len(df2.index) == 3
     assert df2.c1.sum() == 3
-    parameters = wr.catalog.get_table_parameters(database, table)
+    parameters = wr.catalog.get_table_parameters(database, glue_table)
     assert len(parameters) >= 5
     assert parameters["num_cols"] == "2"
     assert parameters["num_rows"] == "3"
-    assert wr.catalog.get_table_description(database, table) == "c0+c1"
-    comments = wr.catalog.get_columns_comments(database, table)
+    assert wr.catalog.get_table_description(database, glue_table) == "c0+c1"
+    comments = wr.catalog.get_columns_comments(database, glue_table)
     assert len(comments) == len(df.columns)
     assert comments["c0"] == "zero"
     assert comments["c1"] == "one"
@@ -264,7 +263,7 @@ def test_routine_1(
         dataset=True,
         mode="overwrite_partitions",
         database=database,
-        table=table,
+        table=glue_table,
         partition_cols=["c1"],
         description="c0+c1+c2",
         parameters={"num_cols": "3", "num_rows": "4"},
@@ -272,26 +271,26 @@ def test_routine_1(
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
     )
-    assert wr.catalog.get_table_number_of_versions(table=table, database=database) == 1
+    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=database) == 1
     if table_type == "GOVERNED":
-        df2 = wr.lakeformation.read_sql_table(table, database, use_threads=use_threads)
+        df2 = wr.lakeformation.read_sql_table(glue_table, database, use_threads=use_threads)
     else:
-        df2 = wr.athena.read_sql_table(table, database, use_threads=use_threads)
+        df2 = wr.athena.read_sql_table(glue_table, database, use_threads=use_threads)
     assert len(df2.columns) == 3
     assert len(df2.index) == 4
     assert df2.c1.sum() == 6
-    parameters = wr.catalog.get_table_parameters(database, table)
+    parameters = wr.catalog.get_table_parameters(database, glue_table)
     assert len(parameters) >= 5
     assert parameters["num_cols"] == "3"
     assert parameters["num_rows"] == "4"
-    assert wr.catalog.get_table_description(database, table) == "c0+c1+c2"
-    comments = wr.catalog.get_columns_comments(database, table)
+    assert wr.catalog.get_table_description(database, glue_table) == "c0+c1+c2"
+    comments = wr.catalog.get_columns_comments(database, glue_table)
     assert len(comments) == len(df.columns)
     assert comments["c0"] == "zero"
     assert comments["c1"] == "one"
     assert comments["c2"] == "two"
 
-    wr.catalog.delete_table_if_exists(database=database, table=table)
+    wr.catalog.delete_table_if_exists(database=database, table=glue_table)
 
 
 def test_routine_2(glue_database, glue_table, path):
