@@ -37,16 +37,14 @@ def _to_text(
     s3_additional_kwargs: Optional[Dict[str, str]],
     path: Optional[str] = None,
     path_root: Optional[str] = None,
-    filename: Optional[str] = None,
+    filename_prefix: Optional[str] = uuid.uuid4().hex,
     **pandas_kwargs: Any,
 ) -> List[str]:
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
     if path is None and path_root is not None:
-        if filename is None:
-            filename = uuid.uuid4().hex
         file_path: str = (
-            f"{path_root}{filename}.{file_format}{_COMPRESSION_2_EXT.get(pandas_kwargs.get('compression'))}"
+            f"{path_root}{filename_prefix}.{file_format}{_COMPRESSION_2_EXT.get(pandas_kwargs.get('compression'))}"
         )
     elif path is not None and path_root is None:
         file_path = path
@@ -83,6 +81,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     sanitize_columns: bool = False,
     dataset: bool = False,
+    filename_prefix: Optional[str] = None,
     partition_cols: Optional[List[str]] = None,
     bucketing_info: Optional[Tuple[List[str], int]] = None,
     concurrent_partitioning: bool = False,
@@ -165,6 +164,8 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         partition_cols, mode, database, table, description, parameters, columns_comments, concurrent_partitioning,
         catalog_versioning, projection_enabled, projection_types, projection_ranges, projection_values,
         projection_intervals, projection_digits, catalog_id, schema_evolution.
+    filename_prefix: str, optional
+        If dataset=True, add a filename prefix to the output files.
     partition_cols: List[str], optional
         List of column names that will be used to create partitions. Only takes effect if dataset=True.
     bucketing_info: Tuple[List[str], int], optional
@@ -403,6 +404,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     dtype = dtype if dtype else {}
     partitions_values: Dict[str, List[str]] = {}
     mode = "append" if mode is None else mode
+    filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
     # Sanitize table to respect Athena's standards
@@ -480,6 +482,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             index=index,
             sep=sep,
             compression=compression,
+            filename_prefix=filename_prefix,
             use_threads=use_threads,
             partition_cols=partition_cols,
             bucketing_info=bucketing_info,

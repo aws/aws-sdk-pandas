@@ -1,7 +1,6 @@
 """Amazon S3 Write Dataset (PRIVATE)."""
 
 import logging
-import uuid
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import boto3
@@ -24,12 +23,12 @@ def _to_partitions(
     mode: str,
     partition_cols: List[str],
     bucketing_info: Optional[Tuple[List[str], int]],
+    filename_prefix: str,
     boto3_session: boto3.Session,
     **func_kwargs: Any,
 ) -> Tuple[List[str], Dict[str, List[str]]]:
     partitions_values: Dict[str, List[str]] = {}
     proxy: _WriteProxy = _WriteProxy(use_threads=concurrent_partitioning)
-    filename_prefix = uuid.uuid4().hex
 
     for keys, subgroup in df.groupby(by=partition_cols, observed=True):
         subgroup = subgroup.drop(partition_cols, axis="columns")
@@ -60,6 +59,7 @@ def _to_partitions(
                 func=func,
                 df=subgroup,
                 path_root=prefix,
+                filename_prefix=filename_prefix,
                 boto3_session=boto3_session,
                 use_threads=use_threads,
                 **func_kwargs,
@@ -74,10 +74,10 @@ def _to_buckets(
     df: pd.DataFrame,
     path_root: str,
     bucketing_info: Tuple[List[str], int],
+    filename_prefix: str,
     boto3_session: boto3.Session,
     use_threads: bool,
     proxy: Optional[_WriteProxy] = None,
-    filename_prefix: Optional[str] = None,
     **func_kwargs: Any,
 ) -> List[str]:
     _proxy: _WriteProxy = proxy if proxy else _WriteProxy(use_threads=False)
@@ -85,14 +85,12 @@ def _to_buckets(
         lambda row: _get_bucket_number(bucketing_info[1], [row[col_name] for col_name in bucketing_info[0]]),
         axis="columns",
     )
-    if filename_prefix is None:
-        filename_prefix = uuid.uuid4().hex
     for bucket_number, subgroup in df.groupby(by=bucket_number_series, observed=True):
         _proxy.write(
             func=func,
             df=subgroup,
             path_root=path_root,
-            filename=f"{filename_prefix}_bucket-{bucket_number:05d}",
+            filename_prefix=f"{filename_prefix}_bucket-{bucket_number:05d}",
             boto3_session=boto3_session,
             use_threads=use_threads,
             **func_kwargs,
@@ -133,6 +131,7 @@ def _to_dataset(
     concurrent_partitioning: bool,
     df: pd.DataFrame,
     path_root: str,
+    filename_prefix: str,
     index: bool,
     use_threads: bool,
     mode: str,
@@ -168,6 +167,7 @@ def _to_dataset(
             use_threads=use_threads,
             mode=mode,
             bucketing_info=bucketing_info,
+            filename_prefix=filename_prefix,
             partition_cols=partition_cols,
             boto3_session=boto3_session,
             index=index,
@@ -180,13 +180,20 @@ def _to_dataset(
             path_root=path_root,
             use_threads=use_threads,
             bucketing_info=bucketing_info,
+            filename_prefix=filename_prefix,
             boto3_session=boto3_session,
             index=index,
             **func_kwargs,
         )
     else:
         paths = func(
-            df=df, path_root=path_root, use_threads=use_threads, boto3_session=boto3_session, index=index, **func_kwargs
+            df=df,
+            path_root=path_root,
+            filename_prefix=filename_prefix,
+            use_threads=use_threads,
+            boto3_session=boto3_session,
+            index=index,
+            **func_kwargs,
         )
     _logger.debug("paths: %s", paths)
     _logger.debug("partitions_values: %s", partitions_values)

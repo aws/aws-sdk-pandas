@@ -192,6 +192,49 @@ def test_to_parquet_file_dtype(path, use_threads):
     assert str(df2.c1.dtype) == "string"
 
 
+@pytest.mark.parametrize("filename_prefix", [None, "my_prefix"])
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_to_parquet_filename_prefix(compare_filename_prefix, path, filename_prefix, use_threads):
+    test_prefix = "my_prefix"
+    df = pd.DataFrame({"col": [1, 2, 3], "col2": ["A", "A", "B"]})
+    file_path = f"{path}0.parquet"
+
+    # If Dataset is False, parquet file should never start with prefix
+    filename = wr.s3.to_parquet(
+        df=df, path=file_path, dataset=False, filename_prefix=filename_prefix, use_threads=use_threads
+    )["paths"][0].split("/")[-1]
+    assert not filename.startswith(test_prefix)
+
+    # If Dataset is True, parquet file starts with prefix if one is supplied
+    filename = wr.s3.to_parquet(
+        df=df, path=path, dataset=True, filename_prefix=filename_prefix, use_threads=use_threads
+    )["paths"][0].split("/")[-1]
+    compare_filename_prefix(filename, filename_prefix, test_prefix)
+
+    # Partitioned
+    filename = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        filename_prefix=filename_prefix,
+        partition_cols=["col2"],
+        use_threads=use_threads,
+    )["paths"][0].split("/")[-1]
+    compare_filename_prefix(filename, filename_prefix, test_prefix)
+
+    # Bucketing
+    filename = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        filename_prefix=filename_prefix,
+        bucketing_info=(["col2"], 2),
+        use_threads=use_threads,
+    )["paths"][0].split("/")[-1]
+    compare_filename_prefix(filename, filename_prefix, test_prefix)
+    assert filename.endswith("bucket-00000.snappy.parquet")
+
+
 def test_read_parquet_map_types(path):
     df = pd.DataFrame({"c0": [0, 1, 1, 2]}, dtype=np.int8)
     file_path = f"{path}0.parquet"

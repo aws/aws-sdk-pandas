@@ -130,6 +130,52 @@ def test_json(path):
     assert df1.equals(wr.s3.read_json(path=[path0, path1], use_threads=True))
 
 
+@pytest.mark.parametrize("filename_prefix", [None, "my_prefix"])
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_to_text_filename_prefix(compare_filename_prefix, path, filename_prefix, use_threads):
+    test_prefix = "my_prefix"
+    df = pd.DataFrame({"col": [1, 2, 3], "col2": ["A", "A", "B"]})
+
+    # If Dataset is False, csv/json file should never start with prefix
+    file_path = f"{path}0.json"
+    filename = wr.s3.to_json(df=df, path=file_path, use_threads=use_threads)[0].split("/")[-1]
+    assert not filename.startswith(test_prefix)
+    file_path = f"{path}0.csv"
+    filename = wr.s3.to_csv(
+        df=df, path=file_path, dataset=False, filename_prefix=filename_prefix, use_threads=use_threads
+    )["paths"][0].split("/")[-1]
+    assert not filename.startswith(test_prefix)
+
+    # If Dataset is True, csv file starts with prefix if one is supplied
+    filename = wr.s3.to_csv(df=df, path=path, dataset=True, filename_prefix=filename_prefix, use_threads=use_threads)[
+        "paths"
+    ][0].split("/")[-1]
+    compare_filename_prefix(filename, filename_prefix, test_prefix)
+
+    # Partitioned
+    filename = wr.s3.to_csv(
+        df=df,
+        path=path,
+        dataset=True,
+        filename_prefix=filename_prefix,
+        partition_cols=["col2"],
+        use_threads=use_threads,
+    )["paths"][0].split("/")[-1]
+    compare_filename_prefix(filename, filename_prefix, test_prefix)
+
+    # Bucketing
+    filename = wr.s3.to_csv(
+        df=df,
+        path=path,
+        dataset=True,
+        filename_prefix=filename_prefix,
+        bucketing_info=(["col2"], 2),
+        use_threads=use_threads,
+    )["paths"][0].split("/")[-1]
+    compare_filename_prefix(filename, filename_prefix, test_prefix)
+    assert filename.endswith("bucket-00000.csv")
+
+
 def test_fwf(path):
     text = "1 Herfelingen27-12-18\n2   Lambusart14-06-18\n3Spormaggiore15-04-18"
     client_s3 = boto3.client("s3")

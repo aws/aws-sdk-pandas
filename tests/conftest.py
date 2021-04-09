@@ -271,3 +271,14 @@ def timestream_database_and_table():
     yield name
     wr.timestream.delete_table(name, name)
     wr.timestream.delete_database(name)
+
+
+@pytest.fixture(scope="function")
+def compare_filename_prefix():
+    def assert_filename_prefix(filename, filename_prefix, test_prefix):
+        if filename_prefix:
+            assert filename.startswith(test_prefix)
+        else:
+            assert not filename.startswith(test_prefix)
+
+    return assert_filename_prefix
