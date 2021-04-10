@@ -630,7 +630,10 @@ def read_parquet(
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
         )
-    return _union(dfs=[_read_parquet(path=p, **args) for p in paths], ignore_index=ignore_index)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=_utils.ensure_cpu_count(use_threads)) as executor:
+        args["use_threads"] = False
+        results = list(df for df in executor.map(functools.partial(_read_parquet, **args), paths))
+        return _union(dfs=results, ignore_index=ignore_index)
 
 
 @apply_configs

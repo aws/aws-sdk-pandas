@@ -1,6 +1,7 @@
 """Amazon S3 Read Module (PRIVATE)."""
-
+import concurrent.futures
 import datetime
+import functools
 import logging
 import pprint
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
@@ -140,7 +141,10 @@ def _read_text(
     elif len(paths) == 1:
         ret = _read_text_file(path=paths[0], **args)
     else:
-        ret = _union(dfs=[_read_text_file(path=p, **args) for p in paths], ignore_index=ignore_index)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=_utils.ensure_cpu_count(use_threads)) as executor:
+            args["use_threads"] = False
+            results = list(df for df in executor.map(functools.partial(_read_text_file, **args), paths))
+            ret = _union(dfs=results, ignore_index=ignore_index)
     return ret
 
 
