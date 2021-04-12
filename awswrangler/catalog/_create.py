@@ -473,6 +473,7 @@ def create_database(
     name: str,
     description: Optional[str] = None,
     catalog_id: Optional[str] = None,
+    exist_ok: bool = False,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
     """Create a database in AWS Glue Catalog.
@@ -486,6 +487,9 @@ def create_database(
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
+    exist_ok : bool
+        If set to True will not raise an Exception if a Database with the same already exists.
+        In this case the description will be updated if it is different from the current one.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -501,16 +505,19 @@ def create_database(
     ...     name='awswrangler_test'
     ... )
     """
-    args: Dict[str, str] = {}
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    args["Name"] = name
+    args: Dict[str, str] = {"Name": name}
     if description is not None:
         args["Description"] = description
 
-    if catalog_id is not None:
-        client_glue.create_database(CatalogId=catalog_id, DatabaseInput=args)
-    else:
-        client_glue.create_database(DatabaseInput=args)
+    try:
+        r = client_glue.get_database(Name=name)
+        if not exist_ok:
+            raise exceptions.AlreadyExists(f"Database {name} already exists and <exist_ok> is set to False.")
+        if description and description != r["Database"].get("Description", ""):
+            client_glue.update_database(**_catalog_id(catalog_id=catalog_id, Name=name, DatabaseInput=args))
+    except client_glue.exceptions.EntityNotFoundException:
+        client_glue.create_database(**_catalog_id(catalog_id=catalog_id, DatabaseInput=args))
 
 
 @apply_configs
