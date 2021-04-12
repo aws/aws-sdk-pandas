@@ -515,15 +515,9 @@ def create_database(
         if not exist_ok:
             raise exceptions.AlreadyExists(f"Database {name} already exists and <exist_ok> is set to False.")
         if description and description != r["Database"].get("Description", ""):
-            if catalog_id is not None:
-                client_glue.update_database(CatalogId=catalog_id, Name=name, DatabaseInput=args)
-            else:
-                client_glue.update_database(Name=name, DatabaseInput=args)
+            client_glue.update_database(**_catalog_id(catalog_id=catalog_id, Name=name, DatabaseInput=args))
     except client_glue.exceptions.EntityNotFoundException:
-        if catalog_id is not None:
-            client_glue.create_database(CatalogId=catalog_id, DatabaseInput=args)
-        else:
-            client_glue.create_database(DatabaseInput=args)
+        client_glue.create_database(**_catalog_id(catalog_id=catalog_id, DatabaseInput=args))
 
 
 @apply_configs
