@@ -170,6 +170,11 @@ def redshift_external_schema(cloudformation_outputs, databases_parameters, glue_
     return "aws_data_wrangler_external"
 
 
+@pytest.fixture(scope="session")
+def account_id():
+    return boto3.client("sts").get_caller_identity().get("Account")
+
+
 @pytest.fixture(scope="function")
 def glue_ctas_database():
     name = f"db_{get_time_str_with_random_suffix()}"
@@ -282,3 +287,10 @@ def compare_filename_prefix():
             assert not filename.startswith(test_prefix)
 
     return assert_filename_prefix
+
+
+@pytest.fixture(scope="function")
+def random_glue_database():
+    database_name = get_time_str_with_random_suffix()
+    yield database_name
+    wr.catalog.delete_database(database_name)
