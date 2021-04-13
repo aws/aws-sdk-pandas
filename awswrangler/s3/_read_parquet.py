@@ -771,7 +771,8 @@ def read_parquet_table(
         args["CatalogId"] = catalog_id
     res: Dict[str, Any] = client_glue.get_table(**args)
     try:
-        path: str = res["Table"]["StorageDescriptor"]["Location"]
+        location: str = res["Table"]["StorageDescriptor"]["Location"]
+        path: str = location if location.endswith("/") else f"{location}/"
     except KeyError as ex:
         raise exceptions.InvalidTable(f"Missing s3 location for {database}.{table}.") from ex
     df = read_parquet(
