@@ -61,7 +61,7 @@ Go to your Glue PySpark job and create a new *Job parameters* key/value:
 
 To install a specific version, set the value for above Job parameter as follows:
 
-* Value: ``pyarrow==2,awswrangler==2.6.0``
+* Value: ``pyarrow==2,awswrangler==2.7.0``
 
 .. note:: Pyarrow 3 is not currently supported in Glue PySpark Jobs, which is why a previous installation of pyarrow 2 is required.
 
@@ -157,7 +157,7 @@ complement Big Data pipelines.
         sudo pip install pyarrow==2 awswrangler
 
 .. note:: Make sure to freeze the Wrangler version in the bootstrap for productive
-          environments (e.g. awswrangler==2.6.0)
+          environments (e.g. awswrangler==2.7.0)
 
 .. note:: Pyarrow 3 is not currently supported in the default EMR image, which is why a previous installation of pyarrow 2 is required.
 
