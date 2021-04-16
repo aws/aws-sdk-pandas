@@ -252,7 +252,7 @@ def _arrowtable2df(
     metadata: Dict[str, Any] = {}
     if table.schema.metadata is not None and b"pandas" in table.schema.metadata:
         metadata = json.loads(table.schema.metadata[b"pandas"])
-    if type(use_threads) == int:
+    if type(use_threads) == int:  # pylint: disable=unidiomatic-typecheck
         use_threads = bool(use_threads > 1)
     df: pd.DataFrame = _apply_partitions(
         df=table.to_pandas(
@@ -326,7 +326,7 @@ def _read_parquet_chunked(
                 last_path = path
             num_row_groups: int = pq_file.num_row_groups
             _logger.debug("num_row_groups: %s", num_row_groups)
-            if type(use_threads) == int:
+            if type(use_threads) == int:  # pylint: disable=unidiomatic-typecheck
                 use_threads_flag = bool(use_threads > 1)
             for i in range(num_row_groups):
                 _logger.debug("Reading Row Group %s...", i)

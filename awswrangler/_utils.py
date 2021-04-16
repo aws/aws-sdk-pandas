@@ -186,7 +186,7 @@ def ensure_cpu_count(use_threads: Union[bool, int] = True) -> int:
     1
 
     """
-    if type(use_threads) == int:
+    if type(use_threads) == int:  # pylint: disable=unidiomatic-typecheck
         if use_threads < 1:
             return 1
         return use_threads
