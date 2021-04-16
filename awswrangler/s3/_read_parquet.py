@@ -293,7 +293,7 @@ def _read_parquet_chunked(
     path_root: Optional[str],
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
-) -> Iterator[pd.DataFrame]:  # pylint: disable=too-many-branches,
+) -> Iterator[pd.DataFrame]:  # pylint: disable=too-many-branches
     next_slice: Optional[pd.DataFrame] = None
     last_schema: Optional[Dict[str, str]] = None
     last_path: str = ""
@@ -326,8 +326,7 @@ def _read_parquet_chunked(
                 last_path = path
             num_row_groups: int = pq_file.num_row_groups
             _logger.debug("num_row_groups: %s", num_row_groups)
-            if type(use_threads) == int:  # pylint: disable=unidiomatic-typecheck
-                use_threads_flag = bool(use_threads > 1)
+            use_threads_flag: bool = use_threads if isinstance(use_threads, bool) else bool(use_threads > 1)
             for i in range(num_row_groups):
                 _logger.debug("Reading Row Group %s...", i)
                 df: pd.DataFrame = _arrowtable2df(
