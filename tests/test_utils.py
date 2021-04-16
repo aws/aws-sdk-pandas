@@ -1,8 +1,9 @@
 import logging
+import os
 
 import pytest
 
-from awswrangler._utils import get_even_chunks_sizes
+from awswrangler._utils import ensure_cpu_count, get_even_chunks_sizes
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -27,3 +28,8 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 )
 def test_get_even_chunks_sizes(total_size, chunk_size, upper_bound, result):
     assert get_even_chunks_sizes(total_size, chunk_size, upper_bound) == result
+
+
+@pytest.mark.parametrize("use_threads,result", [(True, os.cpu_count()), (False, 1), (-1, 1), (1, 1), (5, 5)])
+def test_ensure_cpu_count(use_threads, result):
+    assert ensure_cpu_count(use_threads=use_threads) == result

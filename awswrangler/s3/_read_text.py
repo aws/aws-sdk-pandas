@@ -1,7 +1,5 @@
 """Amazon S3 Read Module (PRIVATE)."""
-import concurrent.futures
 import datetime
-import functools
 import logging
 import pprint
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
@@ -19,6 +17,7 @@ from awswrangler.s3._read import (
     _apply_partitions,
     _get_path_ignore_suffix,
     _get_path_root,
+    _read_dfs_from_multiple_paths,
     _union,
 )
 
@@ -94,7 +93,7 @@ def _read_text(
     path_suffix: Union[str, List[str], None],
     path_ignore_suffix: Union[str, List[str], None],
     ignore_empty: bool,
-    use_threads: bool,
+    use_threads: Union[bool, int],
     last_modified_begin: Optional[datetime.datetime],
     last_modified_end: Optional[datetime.datetime],
     boto3_session: Optional[boto3.Session],
@@ -141,10 +140,12 @@ def _read_text(
     elif len(paths) == 1:
         ret = _read_text_file(path=paths[0], **args)
     else:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=_utils.ensure_cpu_count(use_threads)) as executor:
-            args["use_threads"] = False
-            results = list(df for df in executor.map(functools.partial(_read_text_file, **args), paths))
-            ret = _union(dfs=results, ignore_index=ignore_index)
+        ret = _union(
+            dfs=_read_dfs_from_multiple_paths(
+                read_func=_read_text_file, paths=paths, use_threads=use_threads, kwargs=args
+            ),
+            ignore_index=ignore_index,
+        )
     return ret
 
 
@@ -153,7 +154,7 @@ def read_csv(
     path_suffix: Union[str, List[str], None] = None,
     path_ignore_suffix: Union[str, List[str], None] = None,
     ignore_empty: bool = True,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
@@ -197,9 +198,10 @@ def read_csv(
         If None, will try to read all files. (default)
     ignore_empty: bool
         Ignore files with 0 bytes.
-    use_threads : bool
+    use_threads : Union[bool, int]
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If given an int will use the given amount of threads.
     last_modified_begin
         Filter the s3 files by the Last modified date of the object.
         The filter is applied only after list all s3 files.
@@ -295,7 +297,7 @@ def read_fwf(
     path_suffix: Union[str, List[str], None] = None,
     path_ignore_suffix: Union[str, List[str], None] = None,
     ignore_empty: bool = True,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
@@ -339,9 +341,10 @@ def read_fwf(
         If None, will try to read all files. (default)
     ignore_empty: bool
         Ignore files with 0 bytes.
-    use_threads : bool
+    use_threads : Union[bool, int]
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If given an int will use the given amount of threads.
     last_modified_begin
         Filter the s3 files by the Last modified date of the object.
         The filter is applied only after list all s3 files.
@@ -438,7 +441,7 @@ def read_json(
     path_ignore_suffix: Union[str, List[str], None] = None,
     ignore_empty: bool = True,
     orient: str = "columns",
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
@@ -484,9 +487,10 @@ def read_json(
         Ignore files with 0 bytes.
     orient : str
         Same as Pandas: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_json.html
-    use_threads : bool
+    use_threads : Union[bool, int]
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If given an int will use the given amount of threads.
     last_modified_begin
         Filter the s3 files by the Last modified date of the object.
         The filter is applied only after list all s3 files.
