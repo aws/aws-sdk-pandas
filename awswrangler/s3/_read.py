@@ -130,6 +130,10 @@ def _union(dfs: List[pd.DataFrame], ignore_index: Optional[bool]) -> pd.DataFram
 def _read_dfs_from_multiple_paths(
     read_func: Callable[..., pd.DataFrame], paths: List[str], use_threads: Union[bool, int], kwargs: Dict[str, Any]
 ) -> List[pd.DataFrame]:
+    cpus = ensure_cpu_count(use_threads)
+    partial_read_func = partial(read_func, **kwargs)
+    if cpus < 2:
+        return [partial_read_func(path) for path in paths]
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=ensure_cpu_count(use_threads)) as executor:
-        results = list(df for df in executor.map(partial(read_func, **kwargs), paths))
-    return results
+        return list(df for df in executor.map(partial_read_func, paths))
