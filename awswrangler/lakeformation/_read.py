@@ -49,7 +49,6 @@ def _execute_query(
 
 def _resolve_sql_query(
     query_id: str,
-    chunked: Optional[bool],
     categories: Optional[List[str]],
     safe: bool,
     map_types: bool,
@@ -108,10 +107,7 @@ def _resolve_sql_query(
                     itertools.repeat(_utils.boto3_to_primitives(boto3_session=boto3_session)),
                 )
             )
-    dfs = [df for df in dfs if not df.empty]
-    if (not chunked) and dfs:
-        return pd.concat(dfs, sort=False, copy=False, ignore_index=False)
-    return dfs
+    return pd.concat([df for df in dfs if not df.empty], sort=False, copy=False, ignore_index=False)
 
 
 @apply_configs
@@ -121,7 +117,6 @@ def read_sql_query(
     transaction_id: Optional[str] = None,
     query_as_of_time: Optional[str] = None,
     catalog_id: Optional[str] = None,
-    chunked: bool = False,
     categories: Optional[List[str]] = None,
     safe: bool = True,
     map_types: bool = True,
@@ -146,11 +141,6 @@ def read_sql_query(
     ----
     Pass one of `transaction_id` or `query_as_of_time`, not both.
 
-    Note
-    ----
-    `chunked` argument (memory-friendly):
-    If set to `True`, return an Iterable of DataFrames instead of a regular DataFrame.
-
     Parameters
     ----------
     sql : str
@@ -166,8 +156,6 @@ def read_sql_query(
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
-    chunked : bool, optional
-        If `True`, Wrangler returns an Iterable of DataFrames with no guarantee of chunksize.
     categories: Optional[List[str]], optional
         List of columns names that should be returned as pandas.Categorical.
         Recommended for memory restricted environments.
@@ -244,7 +232,6 @@ def read_sql_query(
     try:
         return _resolve_sql_query(
             query_id=query_id,
-            chunked=chunked,
             categories=categories,
             safe=safe,
             map_types=map_types,
@@ -266,7 +253,6 @@ def read_sql_table(
     transaction_id: Optional[str] = None,
     query_as_of_time: Optional[str] = None,
     catalog_id: Optional[str] = None,
-    chunked: bool = False,
     categories: Optional[List[str]] = None,
     safe: bool = True,
     map_types: bool = True,
@@ -284,11 +270,6 @@ def read_sql_table(
     ----
     Pass one of `transaction_id` or `query_as_of_time`, not both.
 
-    Note
-    ----
-    `chunked` argument (memory-friendly):
-    If set to `True`, return an Iterable of DataFrames instead of a regular DataFrame.
-
     Parameters
     ----------
     table : str
@@ -304,8 +285,6 @@ def read_sql_table(
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
-    chunked : bool, optional
-        If `True`, Wrangler returns an Iterable of DataFrames with no guarantee of chunksize.
     categories: Optional[List[str]], optional
         List of columns names that should be returned as pandas.Categorical.
         Recommended for memory restricted environments.
@@ -343,7 +322,6 @@ def read_sql_table(
     ...     table="my_table",
     ...     database="my_db",
     ...     transaction_id="1b62811fa3e02c4e5fdbaa642b752030379c4a8a70da1f8732ce6ccca47afdc9",
-    ...     chunked=True,
     ... )
 
     >>> import awswrangler as wr
@@ -365,7 +343,6 @@ def read_sql_table(
         map_types=map_types,
         catalog_id=catalog_id,
         categories=categories,
-        chunked=chunked,
         use_threads=use_threads,
         boto3_session=boto3_session,
     )
