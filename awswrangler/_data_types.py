@@ -537,6 +537,8 @@ def athena_types_from_pandas(
                     "pass the column schema as argument for AWS Data Wrangler "
                     f"(e.g. dtype={{'{k}': 'string'}}"
                 ) from ex
+            except exceptions.UnsupportedType as ex:
+                raise exceptions.UnsupportedType(f"Unsupported Pyarrow type: {v} for column {k}") from ex
     _logger.debug("athena_columns_types: %s", athena_columns_types)
     return athena_columns_types
 

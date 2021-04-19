@@ -107,3 +107,7 @@ class InvalidFile(Exception):
 
 class FailedQualityCheck(Exception):
     """FailedQualityCheck."""
+
+
+class AlreadyExists(Exception):
+    """AlreadyExists."""

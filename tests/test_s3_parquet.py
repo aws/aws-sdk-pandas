@@ -40,7 +40,7 @@ def test_parquet_cast_string_dataset(path, partition_cols):
         assert str(df[col].iloc[row]) == str(df2[col].iloc[row])
 
 
-@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_read_parquet_filter_partitions(path, use_threads):
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 0, 1]})
     wr.s3.to_parquet(df, path, dataset=True, partition_cols=["c1", "c2"], use_threads=use_threads)
@@ -180,7 +180,7 @@ def test_to_parquet_file_sanitize(path):
     assert df2.c_2.sum() == 9
 
 
-@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_to_parquet_file_dtype(path, use_threads):
     df = pd.DataFrame({"c0": [1.0, None, 2.0], "c1": [pd.NA, pd.NA, pd.NA]})
     file_path = f"{path}0.parquet"
@@ -190,6 +190,49 @@ def test_to_parquet_file_dtype(path, use_threads):
     assert df2.c0.sum() == 3
     assert str(df2.c0.dtype) == "Int64"
     assert str(df2.c1.dtype) == "string"
+
+
+@pytest.mark.parametrize("filename_prefix", [None, "my_prefix"])
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_to_parquet_filename_prefix(compare_filename_prefix, path, filename_prefix, use_threads):
+    test_prefix = "my_prefix"
+    df = pd.DataFrame({"col": [1, 2, 3], "col2": ["A", "A", "B"]})
+    file_path = f"{path}0.parquet"
+
+    # If Dataset is False, parquet file should never start with prefix
+    filename = wr.s3.to_parquet(
+        df=df, path=file_path, dataset=False, filename_prefix=filename_prefix, use_threads=use_threads
+    )["paths"][0].split("/")[-1]
+    assert not filename.startswith(test_prefix)
+
+    # If Dataset is True, parquet file starts with prefix if one is supplied
+    filename = wr.s3.to_parquet(
+        df=df, path=path, dataset=True, filename_prefix=filename_prefix, use_threads=use_threads
+    )["paths"][0].split("/")[-1]
+    compare_filename_prefix(filename, filename_prefix, test_prefix)
+
+    # Partitioned
+    filename = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        filename_prefix=filename_prefix,
+        partition_cols=["col2"],
+        use_threads=use_threads,
+    )["paths"][0].split("/")[-1]
+    compare_filename_prefix(filename, filename_prefix, test_prefix)
+
+    # Bucketing
+    filename = wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        filename_prefix=filename_prefix,
+        bucketing_info=(["col2"], 2),
+        use_threads=use_threads,
+    )["paths"][0].split("/")[-1]
+    compare_filename_prefix(filename, filename_prefix, test_prefix)
+    assert filename.endswith("bucket-00000.snappy.parquet")
 
 
 def test_read_parquet_map_types(path):
@@ -202,7 +245,7 @@ def test_read_parquet_map_types(path):
     assert str(df3.c0.dtype) == "int8"
 
 
-@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("use_threads", [True, False, 2])
 @pytest.mark.parametrize("max_rows_by_file", [None, 0, 40, 250, 1000])
 def test_parquet_with_size(path, use_threads, max_rows_by_file):
     df = get_df_list()
@@ -224,7 +267,7 @@ def test_parquet_with_size(path, use_threads, max_rows_by_file):
     assert df.iint8.sum() == df2.iint8.sum()
 
 
-@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_index_and_timezone(path, use_threads):
     df = pd.DataFrame({"c0": [datetime.utcnow(), datetime.utcnow()], "par": ["a", "b"]}, index=["foo", "boo"])
     df["c1"] = pd.DatetimeIndex(df.c0).tz_localize(tz="US/Eastern")
@@ -233,7 +276,7 @@ def test_index_and_timezone(path, use_threads):
     assert df[["c0", "c1"]].equals(df2[["c0", "c1"]])
 
 
-@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_index_recovery_simple_int(path, use_threads):
     df = pd.DataFrame({"c0": np.arange(10, 1_010, 1)}, dtype="Int64")
     paths = wr.s3.to_parquet(df, path, index=True, use_threads=use_threads, dataset=True, max_rows_by_file=300)["paths"]
@@ -242,7 +285,7 @@ def test_index_recovery_simple_int(path, use_threads):
     assert df.equals(df2)
 
 
-@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_index_recovery_simple_str(path, use_threads):
     df = pd.DataFrame({"c0": [0, 1, 2, 3, 4]}, index=["a", "b", "c", "d", "e"], dtype="Int64")
     paths = wr.s3.to_parquet(df, path, index=True, use_threads=use_threads, dataset=True, max_rows_by_file=1)["paths"]
@@ -251,7 +294,7 @@ def test_index_recovery_simple_str(path, use_threads):
     assert df.equals(df2)
 
 
-@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_index_recovery_partitioned_str(path, use_threads):
     df = pd.DataFrame(
         {"c0": [0, 1, 2, 3, 4], "par": ["foo", "boo", "bar", "foo", "boo"]}, index=["a", "b", "c", "d", "e"]
@@ -269,7 +312,7 @@ def test_index_recovery_partitioned_str(path, use_threads):
     assert df.index.equals(df2.index)
 
 
-@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_range_index_recovery_simple(path, use_threads):
     df = pd.DataFrame({"c0": np.arange(10, 15, 1)}, dtype="Int64", index=pd.RangeIndex(start=5, stop=30, step=5))
     paths = wr.s3.to_parquet(df, path, index=True, use_threads=use_threads, dataset=True, max_rows_by_file=3)["paths"]
@@ -278,7 +321,7 @@ def test_range_index_recovery_simple(path, use_threads):
     assert df.reset_index(level=0).equals(df2.reset_index(level=0))
 
 
-@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("use_threads", [True, False, 2])
 @pytest.mark.parametrize("name", [None, "foo"])
 def test_range_index_recovery_pandas(path, use_threads, name):
     df = pd.DataFrame({"c0": np.arange(10, 15, 1)}, dtype="Int64", index=pd.RangeIndex(start=5, stop=30, step=5))
@@ -289,7 +332,7 @@ def test_range_index_recovery_pandas(path, use_threads, name):
     assert df.reset_index(level=0).equals(df2.reset_index(level=0))
 
 
-@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_multi_index_recovery_simple(path, use_threads):
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": ["a", "b", "c"], "c2": [True, False, True], "c3": [0, 1, 2]})
     df["c3"] = df["c3"].astype("Int64")
@@ -300,7 +343,7 @@ def test_multi_index_recovery_simple(path, use_threads):
     assert df.reset_index().equals(df2.reset_index())
 
 
-@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_multi_index_recovery_nameless(path, use_threads):
     df = pd.DataFrame({"c0": np.arange(10, 13, 1)}, dtype="Int64")
     df = df.set_index([[1, 2, 3], [1, 2, 3]])
@@ -310,7 +353,7 @@ def test_multi_index_recovery_nameless(path, use_threads):
     assert df.reset_index().equals(df2.reset_index())
 
 
-@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("use_threads", [True, False, 2])
 @pytest.mark.parametrize("name", [None, "foo"])
 @pytest.mark.parametrize("pandas", [True, False])
 def test_index_columns(path, use_threads, name, pandas):
@@ -325,7 +368,7 @@ def test_index_columns(path, use_threads, name, pandas):
     assert df[["c0"]].equals(df2)
 
 
-@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("use_threads", [True, False, 2])
 @pytest.mark.parametrize("name", [None, "foo"])
 @pytest.mark.parametrize("pandas", [True, False])
 @pytest.mark.parametrize("drop", [True, False])
@@ -366,7 +409,7 @@ def test_to_parquet_dataset_sanitize(path):
     assert df2.par.to_list() == ["a", "b"]
 
 
-@pytest.mark.parametrize("use_threads", [False, True])
+@pytest.mark.parametrize("use_threads", [False, True, 2])
 def test_timezone_file(path, use_threads):
     file_path = f"{path}0.parquet"
     df = pd.DataFrame({"c0": [datetime.utcnow(), datetime.utcnow()]})
@@ -376,7 +419,7 @@ def test_timezone_file(path, use_threads):
     assert df.equals(df2)
 
 
-@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_timezone_file_columns(path, use_threads):
     file_path = f"{path}0.parquet"
     df = pd.DataFrame({"c0": [datetime.utcnow(), datetime.utcnow()], "c1": [1.1, 2.2]})
@@ -400,7 +443,7 @@ def test_timezone_raw_values(path):
     assert df2.equals(df3)
 
 
-@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_empty_column(path, use_threads):
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": [None, None, None], "par": ["a", "b", "c"]})
     df["c0"] = df["c0"].astype("Int64")
@@ -427,7 +470,7 @@ def test_parquet_plain(path) -> None:
     assert df.equals(df2)
 
 
-@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_empty_file(path, use_threads):
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": [None, None, None], "par": ["a", "b", "c"]})
     df["c0"] = df["c0"].astype("Int64")

@@ -161,7 +161,7 @@ def parse_path(path: str) -> Tuple[str, str]:
     return bucket, key
 
 
-def ensure_cpu_count(use_threads: bool = True) -> int:
+def ensure_cpu_count(use_threads: Union[bool, int] = True) -> int:
     """Get the number of cpu cores to be used.
 
     Note
@@ -170,8 +170,9 @@ def ensure_cpu_count(use_threads: bool = True) -> int:
 
     Parameters
     ----------
-    use_threads : bool
+    use_threads : Union[bool, int]
             True to enable multi-core utilization, False to disable.
+            If given an int will simply return the input value.
 
     Returns
     -------
@@ -187,6 +188,10 @@ def ensure_cpu_count(use_threads: bool = True) -> int:
     1
 
     """
+    if type(use_threads) == int:  # pylint: disable=unidiomatic-typecheck
+        if use_threads < 1:
+            return 1
+        return use_threads
     cpus: int = 1
     if use_threads is True:
         cpu_cnt: Optional[int] = os.cpu_count()
