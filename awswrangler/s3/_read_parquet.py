@@ -26,6 +26,7 @@ from awswrangler.s3._read import (
     _extract_partitions_metadata_from_paths,
     _get_path_ignore_suffix,
     _get_path_root,
+    _read_dfs_from_multiple_paths,
     _union,
 )
 
@@ -45,7 +46,10 @@ def _pyarrow_parquet_file_wrapper(
 
 
 def _read_parquet_metadata_file(
-    path: str, boto3_session: boto3.Session, s3_additional_kwargs: Optional[Dict[str, str]], use_threads: bool
+    path: str,
+    boto3_session: boto3.Session,
+    s3_additional_kwargs: Optional[Dict[str, str]],
+    use_threads: Union[bool, int],
 ) -> Optional[Dict[str, str]]:
     with open_s3_object(
         path=path,
@@ -64,14 +68,15 @@ def _read_parquet_metadata_file(
 def _read_schemas_from_files(
     paths: List[str],
     sampling: float,
-    use_threads: bool,
+    use_threads: Union[bool, int],
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
 ) -> Tuple[Dict[str, str], ...]:
     paths = _utils.list_sampling(lst=paths, sampling=sampling)
     schemas: Tuple[Optional[Dict[str, str]], ...] = tuple()
     n_paths: int = len(paths)
-    if use_threads is False or n_paths == 1:
+    cpus: int = _utils.ensure_cpu_count(use_threads)
+    if cpus == 1 or n_paths == 1:
         schemas = tuple(
             _read_parquet_metadata_file(
                 path=p, boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs, use_threads=use_threads
@@ -79,7 +84,6 @@ def _read_schemas_from_files(
             for p in paths
         )
     elif n_paths > 1:
-        cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
             schemas = tuple(
                 executor.map(
@@ -110,7 +114,7 @@ def _validate_schemas(schemas: Tuple[Dict[str, str], ...]) -> None:
 def _validate_schemas_from_files(
     paths: List[str],
     sampling: float,
-    use_threads: bool,
+    use_threads: Union[bool, int],
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
 ) -> None:
@@ -144,7 +148,7 @@ def _read_parquet_metadata(
     dtype: Optional[Dict[str, str]],
     sampling: float,
     dataset: bool,
-    use_threads: bool,
+    use_threads: Union[bool, int],
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
 ) -> Tuple[Dict[str, str], Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]:
@@ -240,7 +244,7 @@ def _arrowtable2df(
     categories: Optional[List[str]],
     safe: bool,
     map_types: bool,
-    use_threads: bool,
+    use_threads: Union[bool, int],
     dataset: bool,
     path: str,
     path_root: Optional[str],
@@ -248,6 +252,8 @@ def _arrowtable2df(
     metadata: Dict[str, Any] = {}
     if table.schema.metadata is not None and b"pandas" in table.schema.metadata:
         metadata = json.loads(table.schema.metadata[b"pandas"])
+    if type(use_threads) == int:  # pylint: disable=unidiomatic-typecheck
+        use_threads = bool(use_threads > 1)
     df: pd.DataFrame = _apply_partitions(
         df=table.to_pandas(
             use_threads=use_threads,
@@ -286,8 +292,8 @@ def _read_parquet_chunked(
     dataset: bool,
     path_root: Optional[str],
     s3_additional_kwargs: Optional[Dict[str, str]],
-    use_threads: bool,
-) -> Iterator[pd.DataFrame]:
+    use_threads: Union[bool, int],
+) -> Iterator[pd.DataFrame]:  # pylint: disable=too-many-branches
     next_slice: Optional[pd.DataFrame] = None
     last_schema: Optional[Dict[str, str]] = None
     last_path: str = ""
@@ -320,11 +326,12 @@ def _read_parquet_chunked(
                 last_path = path
             num_row_groups: int = pq_file.num_row_groups
             _logger.debug("num_row_groups: %s", num_row_groups)
+            use_threads_flag: bool = use_threads if isinstance(use_threads, bool) else bool(use_threads > 1)
             for i in range(num_row_groups):
                 _logger.debug("Reading Row Group %s...", i)
                 df: pd.DataFrame = _arrowtable2df(
                     table=pq_file.read_row_group(
-                        i=i, columns=columns, use_threads=use_threads, use_pandas_metadata=False
+                        i=i, columns=columns, use_threads=use_threads_flag, use_pandas_metadata=False
                     ),
                     categories=categories,
                     safe=safe,
@@ -358,7 +365,7 @@ def _read_parquet_file(
     categories: Optional[List[str]],
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
-    use_threads: bool,
+    use_threads: Union[bool, int],
 ) -> pa.Table:
     s3_block_size: int = 20_971_520 if columns else -1  # One shot for a full read otherwise 20 MB (20 * 2**20)
     with open_s3_object(
@@ -382,7 +389,7 @@ def _count_row_groups(
     categories: Optional[List[str]],
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
-    use_threads: bool,
+    use_threads: Union[bool, int],
 ) -> int:
     _logger.debug("Counting row groups...")
     with open_s3_object(
@@ -413,7 +420,7 @@ def _read_parquet(
     dataset: bool,
     path_root: Optional[str],
     s3_additional_kwargs: Optional[Dict[str, str]],
-    use_threads: bool,
+    use_threads: Union[bool, int],
 ) -> pd.DataFrame:
     return _arrowtable2df(
         table=_read_parquet_file(
@@ -448,7 +455,7 @@ def read_parquet(
     categories: Optional[List[str]] = None,
     safe: bool = True,
     map_types: bool = True,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
@@ -535,9 +542,10 @@ def read_parquet(
         True to convert pyarrow DataTypes to pandas ExtensionDtypes. It is
         used to override the default pandas type for conversion of built-in
         pyarrow types or in absence of pandas_metadata in the Table schema.
-    use_threads : bool
+    use_threads : Union[bool, int]
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If given an int will use the given amount of threads.
     last_modified_begin
         Filter the s3 files by the Last modified date of the object.
         The filter is applied only after list all s3 files.
@@ -630,7 +638,10 @@ def read_parquet(
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
         )
-    return _union(dfs=[_read_parquet(path=p, **args) for p in paths], ignore_index=ignore_index)
+    return _union(
+        dfs=_read_dfs_from_multiple_paths(read_func=_read_parquet, paths=paths, use_threads=use_threads, kwargs=args),
+        ignore_index=ignore_index,
+    )
 
 
 @apply_configs
@@ -647,7 +658,7 @@ def read_parquet_table(
     safe: bool = True,
     map_types: bool = True,
     chunked: Union[bool, int] = False,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
@@ -719,9 +730,10 @@ def read_parquet_table(
     chunked : bool
         If True will break the data in smaller DataFrames (Non deterministic number of lines).
         Otherwise return a single DataFrame with the whole data.
-    use_threads : bool
+    use_threads : Union[bool, int]
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If given an int will use the given amount of threads.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs : Optional[Dict[str, Any]]

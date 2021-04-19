@@ -17,7 +17,7 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
         ("ISO-8859-1", ["Ö, ö, Ü, ü", "ãóú", "øe"], None, UnicodeDecodeError),
     ],
 )
-@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("use_threads", [True, False, 2])
 @pytest.mark.parametrize("chunksize", [None, 2])
 @pytest.mark.parametrize("line_terminator", ["\n", "\r"])
 def test_csv_encoding(path, encoding, strings, wrong_encoding, exception, line_terminator, chunksize, use_threads):
@@ -39,7 +39,7 @@ def test_csv_encoding(path, encoding, strings, wrong_encoding, exception, line_t
         assert df.equals(df2)
 
 
-@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("use_threads", [True, False, 2])
 @pytest.mark.parametrize("chunksize", [None, 1])
 def test_read_partitioned_json(path, use_threads, chunksize):
     df = pd.DataFrame({"c0": [0, 1], "c1": ["foo", "boo"]})
@@ -55,7 +55,7 @@ def test_read_partitioned_json(path, use_threads, chunksize):
             assert d.shape == (1, 4)
 
 
-@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("use_threads", [True, False, 2])
 @pytest.mark.parametrize("chunksize", [None, 1])
 def test_read_partitioned_csv(path, use_threads, chunksize):
     df = pd.DataFrame({"c0": [0, 1], "c1": ["foo", "boo"]})
@@ -71,7 +71,7 @@ def test_read_partitioned_csv(path, use_threads, chunksize):
             assert d.shape == (1, 4)
 
 
-@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("use_threads", [True, False, 2])
 @pytest.mark.parametrize("chunksize", [None, 1])
 def test_read_partitioned_fwf(path, use_threads, chunksize):
     text = "0foo\n1boo"
@@ -229,7 +229,7 @@ def test_read_json_index(path):
     assert df.shape == (6, 2)
 
 
-@pytest.mark.parametrize("use_threads", [True, False])
+@pytest.mark.parametrize("use_threads", [True, False, 2])
 @pytest.mark.parametrize(
     "s3_additional_kwargs",
     [None, {"ServerSideEncryption": "AES256"}, {"ServerSideEncryption": "aws:kms", "SSEKMSKeyId": None}],

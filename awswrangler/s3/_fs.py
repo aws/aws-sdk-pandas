@@ -125,7 +125,7 @@ def _fetch_range(
 
 
 class _UploadProxy:
-    def __init__(self, use_threads: bool):
+    def __init__(self, use_threads: Union[bool, int]):
         self.closed = False
         self._exec: Optional[concurrent.futures.ThreadPoolExecutor]
         self._results: List[Dict[str, Union[str, int]]] = []
@@ -227,7 +227,7 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
         path: str,
         s3_block_size: int,
         mode: str,
-        use_threads: bool,
+        use_threads: Union[bool, int],
         s3_additional_kwargs: Optional[Dict[str, str]],
         boto3_session: Optional[boto3.Session],
         newline: Optional[str],
@@ -598,7 +598,7 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
 def open_s3_object(
     path: str,
     mode: str,
-    use_threads: bool = False,
+    use_threads: Union[bool, int] = False,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     s3_block_size: int = -1,  # One shot download
     boto3_session: Optional[boto3.Session] = None,

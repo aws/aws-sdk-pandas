@@ -1,6 +1,8 @@
 """Amazon S3 Read Module (PRIVATE)."""
 
+import concurrent.futures
 import logging
+from functools import partial
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union, cast
 
 import numpy as np
@@ -8,6 +10,7 @@ import pandas as pd
 from pandas.api.types import union_categoricals
 
 from awswrangler import exceptions
+from awswrangler._utils import ensure_cpu_count
 from awswrangler.s3._list import _prefix_cleanup
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -122,3 +125,15 @@ def _union(dfs: List[pd.DataFrame], ignore_index: Optional[bool]) -> pd.DataFram
         for df in dfs:
             df[col] = pd.Categorical(df[col].values, categories=cat.categories)
     return pd.concat(objs=dfs, sort=False, copy=False, ignore_index=ignore_index)
+
+
+def _read_dfs_from_multiple_paths(
+    read_func: Callable[..., pd.DataFrame], paths: List[str], use_threads: Union[bool, int], kwargs: Dict[str, Any]
+) -> List[pd.DataFrame]:
+    cpus = ensure_cpu_count(use_threads)
+    partial_read_func = partial(read_func, **kwargs)
+    if cpus < 2:
+        return [partial_read_func(path) for path in paths]
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=ensure_cpu_count(use_threads)) as executor:
+        return list(df for df in executor.map(partial_read_func, paths))
