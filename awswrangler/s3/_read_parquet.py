@@ -416,12 +416,13 @@ def _read_parquet(
     categories: Optional[List[str]],
     safe: bool,
     map_types: bool,
-    boto3_session: boto3.Session,
+    boto3_session: Union[boto3.Session, _utils.Boto3PrimitivesType],
     dataset: bool,
     path_root: Optional[str],
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
 ) -> pd.DataFrame:
+    boto3_session = _utils.ensure_session(boto3_session)
     return _arrowtable2df(
         table=_read_parquet_file(
             path=path,
