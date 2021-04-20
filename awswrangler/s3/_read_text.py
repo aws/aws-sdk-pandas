@@ -66,12 +66,13 @@ def _read_text_file(
     path: str,
     parser_func: Callable[..., pd.DataFrame],
     path_root: Optional[str],
-    boto3_session: Union[boto3.Session, Dict[str, Optional[str]]],
+    boto3_session: Union[boto3.Session, _utils.Boto3PrimitivesType],
     pandas_kwargs: Dict[str, Any],
     s3_additional_kwargs: Optional[Dict[str, str]],
     dataset: bool,
     use_threads: bool,
 ) -> pd.DataFrame:
+    boto3_session = _utils.ensure_session(boto3_session)
     mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
     with open_s3_object(
         path=path,
