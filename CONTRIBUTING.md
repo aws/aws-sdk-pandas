@@ -18,6 +18,12 @@ reported the issue. Please try to include as much information as you can. Detail
 * Any modifications you've made relevant to the bug
 * Anything unusual about your environment or deployment
 
+Here is a list of tags to label issues and help us triage them:
+* question: A question on the library. Consider starting a [discussion](https://github.com/awslabs/aws-data-wrangler/discussions) instead
+* bug: An error encountered when using the library
+* feature: A completely new idea not currently covered by the library
+* enhancement: A suggestion to enhance an existing feature
+
 ## Contributing via Pull Requests
 
 Contributions via pull requests are much appreciated. Before sending us a pull request, please ensure that:
