@@ -367,7 +367,7 @@ def get_query_columns_types(query_execution_id: str, boto3_session: Optional[bot
     col_info: List[Dict[str, str]] = response["ResultSet"]["ResultSetMetadata"]["ColumnInfo"]
     column_types: Dict[str, str] = {}
     for col in col_info:
-        if col["Type"].lower() == 'decimal':
+        if col["Type"].lower() == "decimal":
             column_types[col["Name"]] = "decimal(" + str(col["Precision"]) + "," + str(col.get("Scale", 0)) + ")"
         else:
             column_types[col["Name"]] = col["Type"]
