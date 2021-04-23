@@ -403,6 +403,25 @@ def test_athena_nested(path, glue_database, glue_table):
     assert len(df2.columns) == 4
 
 
+def test_athena_get_query_column_types(path, glue_database, glue_table):
+    df = get_df()
+    wr.s3.to_parquet(
+        df=df,
+        path=path,
+        index=False,
+        use_threads=True,
+        dataset=True,
+        mode="overwrite",
+        database=glue_database,
+        table=glue_table,
+    )
+    query_execution_id = wr.athena.start_query_execution(sql=f"SELECT * FROM {glue_table}", database=glue_database)
+    wr.athena.wait_query(query_execution_id=query_execution_id)
+    column_types = wr.athena.get_query_columns_types(query_execution_id=query_execution_id)
+    assert len(column_types) == len(df.columns)
+    assert set(column_types.keys()) == set(df.columns)
+
+
 def test_athena_undefined_column(glue_database):
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.athena.read_sql_query("SELECT 1", glue_database)
