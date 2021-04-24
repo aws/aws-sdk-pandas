@@ -279,84 +279,39 @@ def _arrowtable2df(
     return df
 
 
-def _iter_pyarrow_parquet_batches(
+def _pyarrow_chunk_generator(
     pq_file: pyarrow.parquet.ParquetFile,
     chunked: Union[bool, int],
     columns: Optional[List[str]],
-    categories: Optional[List[str]],
-    safe: bool,
-    map_types: bool,
-    dataset: bool,
-    path: str,
-    path_root: Optional[str],
-    use_threads: Union[bool, int],
     use_threads_flag: bool,
-) -> Iterator[pd.DataFrame]:
-    batch_size = chunked if (isinstance(chunked, int) and chunked > 0) else 65_536
-    batches = pq_file.iter_batches(
+) -> Iterator[pa.RecordBatch]:
+    if chunked is True:
+        batch_size = 65_536
+    elif isinstance(chunked, int) and chunked > 0:
+        batch_size = chunked
+    else:
+        raise exceptions.InvalidArgument(f"chunked: {chunked}")
+
+    chunks = pq_file.iter_batches(
         batch_size=batch_size, columns=columns, use_threads=use_threads_flag, use_pandas_metadata=False
     )
-    for batch in batches:
-        df: pd.DataFrame = _arrowtable2df(
-            table=batch,
-            categories=categories,
-            safe=safe,
-            map_types=map_types,
-            use_threads=use_threads,
-            dataset=dataset,
-            path=path,
-            path_root=path_root,
-        )
-        yield df
+
+    for chunk in chunks:
+        yield chunk
 
 
-def _iter_manual_parquet_batches(
+def _row_group_chunk_generator(
     pq_file: pyarrow.parquet.ParquetFile,
-    chunked: Union[bool, int],
-    ignore_index: Optional[bool],
     columns: Optional[List[str]],
-    categories: Optional[List[str]],
-    safe: bool,
-    map_types: bool,
-    dataset: bool,
-    path: str,
-    path_root: Optional[str],
-    use_threads: Union[bool, int],
     use_threads_flag: bool,
     num_row_groups: int,
-) -> Iterator[pd.DataFrame]:
-    next_slice: Optional[pd.DataFrame] = None
+) -> Iterator[pa.Table]:
     for i in range(num_row_groups):
         _logger.debug("Reading Row Group %s...", i)
-        df: pd.DataFrame = _arrowtable2df(
-            table=pq_file.read_row_group(i=i, columns=columns, use_threads=use_threads_flag, use_pandas_metadata=False),
-            categories=categories,
-            safe=safe,
-            map_types=map_types,
-            use_threads=use_threads,
-            dataset=dataset,
-            path=path,
-            path_root=path_root,
-        )
-        if chunked is True:
-            yield df
-        elif isinstance(chunked, int) and chunked > 0:
-            if next_slice is not None:
-                df = _union(dfs=[next_slice, df], ignore_index=ignore_index)
-            while len(df.index) >= chunked:
-                yield df.iloc[:chunked, :].copy()
-                df = df.iloc[chunked:, :]
-            if df.empty:
-                next_slice = None
-            else:
-                next_slice = df
-        else:
-            raise exceptions.InvalidArgument(f"chunked: {chunked}")
-    if next_slice is not None:
-        yield next_slice
+        yield pq_file.read_row_group(i=i, columns=columns, use_threads=use_threads_flag, use_pandas_metadata=False)
 
 
-def _read_parquet_chunked(
+def _read_parquet_chunked(  # pylint: disable=too-many-branches
     paths: List[str],
     chunked: Union[bool, int],
     validate_schema: bool,
@@ -371,6 +326,7 @@ def _read_parquet_chunked(
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
 ) -> Iterator[pd.DataFrame]:
+    next_slice: Optional[pd.DataFrame] = None
     last_schema: Optional[Dict[str, str]] = None
     last_path: str = ""
     for path in paths:
@@ -405,35 +361,41 @@ def _read_parquet_chunked(
             use_threads_flag: bool = use_threads if isinstance(use_threads, bool) else bool(use_threads > 1)
             # iter_batches is only available for pyarrow >= 3.0.0
             if callable(getattr(pq_file, "iter_batches", None)):
-                yield from _iter_pyarrow_parquet_batches(
-                    pq_file=pq_file,
-                    chunked=chunked,
-                    columns=columns,
-                    categories=categories,
-                    safe=safe,
-                    map_types=map_types,
-                    dataset=dataset,
-                    path=path,
-                    path_root=path_root,
-                    use_threads=use_threads,
-                    use_threads_flag=use_threads_flag,
+                chunk_generator = _pyarrow_chunk_generator(
+                    pq_file=pq_file, chunked=chunked, columns=columns, use_threads_flag=use_threads_flag
                 )
             else:
-                yield from _iter_manual_parquet_batches(
-                    pq_file=pq_file,
-                    chunked=chunked,
-                    ignore_index=ignore_index,
-                    columns=columns,
+                chunk_generator = _row_group_chunk_generator(
+                    pq_file=pq_file, columns=columns, use_threads_flag=use_threads_flag, num_row_groups=num_row_groups
+                )
+
+            for chunk in chunk_generator:
+                df: pd.DataFrame = _arrowtable2df(
+                    table=chunk,
                     categories=categories,
                     safe=safe,
                     map_types=map_types,
+                    use_threads=use_threads,
                     dataset=dataset,
                     path=path,
                     path_root=path_root,
-                    use_threads=use_threads,
-                    use_threads_flag=use_threads_flag,
-                    num_row_groups=num_row_groups,
                 )
+                if chunked is True:
+                    yield df
+                elif isinstance(chunked, int) and chunked > 0:
+                    if next_slice is not None:
+                        df = _union(dfs=[next_slice, df], ignore_index=ignore_index)
+                    while len(df.index) >= chunked:
+                        yield df.iloc[:chunked, :].copy()
+                        df = df.iloc[chunked:, :]
+                    if df.empty:
+                        next_slice = None
+                    else:
+                        next_slice = df
+                else:
+                    raise exceptions.InvalidArgument(f"chunked: {chunked}")
+    if next_slice is not None:
+        yield next_slice
 
 
 def _read_parquet_file(
