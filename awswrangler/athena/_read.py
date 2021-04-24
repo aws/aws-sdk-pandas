@@ -236,15 +236,15 @@ def _fetch_parquet_result(  # pylint: disable=too-many-return-statements
     if not paths:
         if not temp_table_identifier:
             return _empty_dataframe_response(bool(chunked), query_metadata)
+        if chunked:
+            return ()
         database, temp_table_name = map(lambda x: x.replace('"', ""), temp_table_identifier.split("."))
         dtype_df = catalog.table(database=database, table=temp_table_name)
         dtype_dict = {row["Column Name"]: row["Type"] for (idx, row) in dtype_df.iterrows()}
         df = pd.DataFrame(columns=list(dtype_dict.keys()))
         df = cast_pandas_with_athena_types(df=df, dtype=dtype_dict)
         df = _apply_query_metadata(df=df, query_metadata=query_metadata)
-        if chunked is False:
-            return df
-        return (e for e in [df])
+        return df
     ret = s3.read_parquet(
         path=paths,
         use_threads=use_threads,
