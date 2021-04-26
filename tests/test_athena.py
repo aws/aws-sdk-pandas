@@ -252,7 +252,7 @@ def test_athena_ctas_empty(glue_database):
     df1 = wr.athena.read_sql_query(sql=sql, database=glue_database)
     assert df1.empty is True
     ensure_athena_query_metadata(df=df1, ctas_approach=True, encrypted=False)
-    assert len(list(wr.athena.read_sql_query(sql=sql, database=glue_database, chunksize=1))) == 0
+    assert len(list(wr.athena.read_sql_query(sql=sql, database=glue_database, chunksize=1))) == 1
 
 
 def test_athena_struct(glue_database):

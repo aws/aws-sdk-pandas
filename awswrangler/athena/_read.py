@@ -213,15 +213,15 @@ def _check_for_cached_results(
     return _CacheInfo(has_valid_cache=False)
 
 
-def _fetch_parquet_result(  # pylint: disable=too-many-return-statements
+def _fetch_parquet_result(
     query_metadata: _QueryMetadata,
     keep_files: bool,
     categories: Optional[List[str]],
     chunksize: Optional[int],
     use_threads: bool,
     boto3_session: boto3.Session,
-    temp_table_identifier: Optional[str],
     s3_additional_kwargs: Optional[Dict[str, Any]],
+    temp_table_fqn: Optional[str] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     ret: Union[pd.DataFrame, Iterator[pd.DataFrame]]
     chunked: Union[bool, int] = False if chunksize is None else chunksize
@@ -234,13 +234,10 @@ def _fetch_parquet_result(  # pylint: disable=too-many-return-statements
     _logger.debug("metadata_path: %s", metadata_path)
     paths: List[str] = _extract_ctas_manifest_paths(path=manifest_path, boto3_session=boto3_session)
     if not paths:
-        if not temp_table_identifier:
-            return _empty_dataframe_response(bool(chunked), query_metadata)
-        if chunked:
-            return ()
-        database, temp_table_name = map(lambda x: x.replace('"', ""), temp_table_identifier.split("."))
-        dtype_df = catalog.table(database=database, table=temp_table_name)
-        dtype_dict = {row["Column Name"]: row["Type"] for (idx, row) in dtype_df.iterrows()}
+        if not temp_table_fqn:
+            raise exceptions.EmptyDataFrame("Query would return untyped, empty dataframe.")
+        database, temp_table_name = map(lambda x: x.replace('"', ""), temp_table_fqn.split("."))
+        dtype_dict = catalog.get_table_types(database=database, table=temp_table_name)
         df = pd.DataFrame(columns=list(dtype_dict.keys()))
         df = cast_pandas_with_athena_types(df=df, dtype=dtype_dict)
         df = _apply_query_metadata(df=df, query_metadata=query_metadata)
@@ -361,7 +358,6 @@ def _resolve_query_with_cache(
             use_threads=use_threads,
             boto3_session=session,
             s3_additional_kwargs=s3_additional_kwargs,
-            temp_table_identifier=None,
         )
     if cache_info.file_format == "csv":
         return _fetch_csv_result(
@@ -461,7 +457,7 @@ def _resolve_query_without_cache_ctas(
         use_threads=use_threads,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
-        temp_table_identifier=fully_qualified_name,
+        temp_table_fqn=fully_qualified_name,
     )
 
 
