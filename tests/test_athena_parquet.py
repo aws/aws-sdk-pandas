@@ -611,7 +611,7 @@ def test_partitions_overwrite(path, glue_table, glue_database, use_threads, part
     assert df.iint8.sum() == df2.iint8.sum()
 
 
-def test_empty_dataframe(path, glue_database, glue_table, chunksize):
+def test_empty_dataframe(path, glue_database, glue_table):
     df = get_df_list()
     wr.s3.to_parquet(
         df=df,
