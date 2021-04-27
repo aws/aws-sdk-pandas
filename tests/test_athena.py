@@ -252,7 +252,7 @@ def test_athena_ctas_empty(glue_database):
     df1 = wr.athena.read_sql_query(sql=sql, database=glue_database)
     assert df1.empty is True
     ensure_athena_query_metadata(df=df1, ctas_approach=True, encrypted=False)
-    assert len(list(wr.athena.read_sql_query(sql=sql, database=glue_database, chunksize=1))) == 0
+    assert len(list(wr.athena.read_sql_query(sql=sql, database=glue_database, chunksize=1))) == 1
 
 
 def test_athena_struct(glue_database):
@@ -401,6 +401,25 @@ def test_athena_nested(path, glue_database, glue_table):
     df2 = wr.athena.read_sql_query(sql=f"SELECT c0, c1, c2, c4 FROM {glue_table}", database=glue_database)
     assert len(df2.index) == 2
     assert len(df2.columns) == 4
+
+
+def test_athena_get_query_column_types(path, glue_database, glue_table):
+    df = get_df()
+    wr.s3.to_parquet(
+        df=df,
+        path=path,
+        index=False,
+        use_threads=True,
+        dataset=True,
+        mode="overwrite",
+        database=glue_database,
+        table=glue_table,
+    )
+    query_execution_id = wr.athena.start_query_execution(sql=f"SELECT * FROM {glue_table}", database=glue_database)
+    wr.athena.wait_query(query_execution_id=query_execution_id)
+    column_types = wr.athena.get_query_columns_types(query_execution_id=query_execution_id)
+    assert len(column_types) == len(df.columns)
+    assert set(column_types.keys()) == set(df.columns)
 
 
 def test_athena_undefined_column(glue_database):

@@ -365,7 +365,12 @@ def get_query_columns_types(query_execution_id: str, boto3_session: Optional[bot
     client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
     response: Dict[str, Any] = client_athena.get_query_results(QueryExecutionId=query_execution_id, MaxResults=1)
     col_info: List[Dict[str, str]] = response["ResultSet"]["ResultSetMetadata"]["ColumnInfo"]
-    return {x["Name"]: x["Type"] for x in col_info}
+    return dict(
+        (c["Name"], f"{c['Type']}({c['Precision']},{c.get('Scale', 0)})")
+        if c["Type"] in ["decimal"]
+        else (c["Name"], c["Type"])
+        for c in col_info
+    )
 
 
 def create_athena_bucket(boto3_session: Optional[boto3.Session] = None) -> str:

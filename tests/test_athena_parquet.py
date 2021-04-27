@@ -611,6 +611,22 @@ def test_partitions_overwrite(path, glue_table, glue_database, use_threads, part
     assert df.iint8.sum() == df2.iint8.sum()
 
 
+def test_empty_dataframe(path, glue_database, glue_table):
+    df = get_df_list()
+    wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        database=glue_database,
+        table=glue_table,
+    )
+    sql = f"SELECT * FROM {glue_table} WHERE par0 = :par0;"
+    df_uncached = wr.athena.read_sql_query(sql=sql, database=glue_database, ctas_approach=True, params={"par0": 999})
+    df_cached = wr.athena.read_sql_query(sql=sql, database=glue_database, ctas_approach=True, params={"par0": 999})
+    assert set(df.columns) == set(df_uncached.columns)
+    assert set(df.columns) == set(df_cached.columns)
+
+
 @pytest.mark.parametrize("use_threads", [True, False])
 def test_empty_column(path, glue_table, glue_database, use_threads):
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": [None, None, None], "par": ["a", "b", "c"]})

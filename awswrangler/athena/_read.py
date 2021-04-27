@@ -14,6 +14,7 @@ import pandas as pd
 
 from awswrangler import _utils, catalog, exceptions, s3
 from awswrangler._config import apply_configs
+from awswrangler._data_types import cast_pandas_with_athena_types
 from awswrangler.athena._utils import (
     _apply_query_metadata,
     _empty_dataframe_response,
@@ -220,6 +221,7 @@ def _fetch_parquet_result(
     use_threads: bool,
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, Any]],
+    temp_table_fqn: Optional[str] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     ret: Union[pd.DataFrame, Iterator[pd.DataFrame]]
     chunked: Union[bool, int] = False if chunksize is None else chunksize
@@ -232,7 +234,14 @@ def _fetch_parquet_result(
     _logger.debug("metadata_path: %s", metadata_path)
     paths: List[str] = _extract_ctas_manifest_paths(path=manifest_path, boto3_session=boto3_session)
     if not paths:
-        return _empty_dataframe_response(bool(chunked), query_metadata)
+        if not temp_table_fqn:
+            raise exceptions.EmptyDataFrame("Query would return untyped, empty dataframe.")
+        database, temp_table_name = map(lambda x: x.replace('"', ""), temp_table_fqn.split("."))
+        dtype_dict = catalog.get_table_types(database=database, table=temp_table_name)
+        df = pd.DataFrame(columns=list(dtype_dict.keys()))
+        df = cast_pandas_with_athena_types(df=df, dtype=dtype_dict)
+        df = _apply_query_metadata(df=df, query_metadata=query_metadata)
+        return df
     ret = s3.read_parquet(
         path=paths,
         use_threads=use_threads,
@@ -448,6 +457,7 @@ def _resolve_query_without_cache_ctas(
         use_threads=use_threads,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
+        temp_table_fqn=fully_qualified_name,
     )
 
 
