@@ -279,7 +279,39 @@ def _arrowtable2df(
     return df
 
 
-def _read_parquet_chunked(
+def _pyarrow_chunk_generator(
+    pq_file: pyarrow.parquet.ParquetFile,
+    chunked: Union[bool, int],
+    columns: Optional[List[str]],
+    use_threads_flag: bool,
+) -> Iterator[pa.RecordBatch]:
+    if chunked is True:
+        batch_size = 65_536
+    elif isinstance(chunked, int) and chunked > 0:
+        batch_size = chunked
+    else:
+        raise exceptions.InvalidArgument(f"chunked: {chunked}")
+
+    chunks = pq_file.iter_batches(
+        batch_size=batch_size, columns=columns, use_threads=use_threads_flag, use_pandas_metadata=False
+    )
+
+    for chunk in chunks:
+        yield chunk
+
+
+def _row_group_chunk_generator(
+    pq_file: pyarrow.parquet.ParquetFile,
+    columns: Optional[List[str]],
+    use_threads_flag: bool,
+    num_row_groups: int,
+) -> Iterator[pa.Table]:
+    for i in range(num_row_groups):
+        _logger.debug("Reading Row Group %s...", i)
+        yield pq_file.read_row_group(i=i, columns=columns, use_threads=use_threads_flag, use_pandas_metadata=False)
+
+
+def _read_parquet_chunked(  # pylint: disable=too-many-branches
     paths: List[str],
     chunked: Union[bool, int],
     validate_schema: bool,
@@ -293,7 +325,7 @@ def _read_parquet_chunked(
     path_root: Optional[str],
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
-) -> Iterator[pd.DataFrame]:  # pylint: disable=too-many-branches
+) -> Iterator[pd.DataFrame]:
     next_slice: Optional[pd.DataFrame] = None
     last_schema: Optional[Dict[str, str]] = None
     last_path: str = ""
@@ -327,12 +359,19 @@ def _read_parquet_chunked(
             num_row_groups: int = pq_file.num_row_groups
             _logger.debug("num_row_groups: %s", num_row_groups)
             use_threads_flag: bool = use_threads if isinstance(use_threads, bool) else bool(use_threads > 1)
-            for i in range(num_row_groups):
-                _logger.debug("Reading Row Group %s...", i)
+            # iter_batches is only available for pyarrow >= 3.0.0
+            if callable(getattr(pq_file, "iter_batches", None)):
+                chunk_generator = _pyarrow_chunk_generator(
+                    pq_file=pq_file, chunked=chunked, columns=columns, use_threads_flag=use_threads_flag
+                )
+            else:
+                chunk_generator = _row_group_chunk_generator(
+                    pq_file=pq_file, columns=columns, use_threads_flag=use_threads_flag, num_row_groups=num_row_groups
+                )
+
+            for chunk in chunk_generator:
                 df: pd.DataFrame = _arrowtable2df(
-                    table=pq_file.read_row_group(
-                        i=i, columns=columns, use_threads=use_threads_flag, use_pandas_metadata=False
-                    ),
+                    table=chunk,
                     categories=categories,
                     safe=safe,
                     map_types=map_types,
