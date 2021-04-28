@@ -768,9 +768,6 @@ def to_sql(
             placeholder_parameter_pair_generator = _db_utils.generate_placeholder_parameter_pairs(
                 df=df, column_placeholders=column_placeholders, chunksize=chunksize
             )
-            if lock and table == created_table:
-                # Lock before insert if inserting into target (not temp) table
-                _lock(cursor, [table], schema=schema)
             for placeholders, parameters in placeholder_parameter_pair_generator:
                 sql: str = f'INSERT INTO {schema_str}"{created_table}" {insertion_columns} VALUES {placeholders}'
                 _logger.debug("sql: %s", sql)
