@@ -659,6 +659,7 @@ def to_sql(
     varchar_lengths_default: int = 256,
     varchar_lengths: Optional[Dict[str, int]] = None,
     use_column_names: bool = False,
+    lock: bool = False,
     chunksize: int = 200,
 ) -> None:
     """Write records stored in a DataFrame into Redshift.
@@ -708,6 +709,8 @@ def to_sql(
         If set to True, will use the column names of the DataFrame for generating the INSERT SQL Query.
         E.g. If the DataFrame has two columns `col1` and `col3` and `use_column_names` is True, data will only be
         inserted into the database columns `col1` and `col3`.
+    lock : bool
+        True to execute LOCK command inside the transaction to force serializable isolation.
     chunksize: int
         Number of rows which are inserted with each SQL query. Defaults to inserting 200 rows per query.
 
@@ -765,11 +768,16 @@ def to_sql(
             placeholder_parameter_pair_generator = _db_utils.generate_placeholder_parameter_pairs(
                 df=df, column_placeholders=column_placeholders, chunksize=chunksize
             )
+            if lock and table == created_table:
+                # Lock before insert if inserting into target (not temp) table
+                _lock(cursor, [table], schema=schema)
             for placeholders, parameters in placeholder_parameter_pair_generator:
                 sql: str = f'INSERT INTO {schema_str}"{created_table}" {insertion_columns} VALUES {placeholders}'
                 _logger.debug("sql: %s", sql)
                 cursor.executemany(sql, (parameters,))
             if table != created_table:  # upsert
+                if lock:
+                    _lock(cursor, [table], schema=schema)
                 _upsert(cursor=cursor, schema=schema, table=table, temp_table=created_table, primary_keys=primary_keys)
             con.commit()
     except Exception as ex:
