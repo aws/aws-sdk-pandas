@@ -218,7 +218,7 @@ def test_copy_upsert(path, redshift_table, redshift_con, databases_parameters):
         mode="upsert",
         index=False,
         iam_role=databases_parameters["redshift"]["role"],
-        lock=True
+        lock=True,
     )
     path = f"{path}upsert/test_redshift_copy_upsert4/"
     df4 = wr.redshift.unload(
