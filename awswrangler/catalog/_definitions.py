@@ -105,6 +105,8 @@ def _csv_table_definition(
     compression: Optional[str],
     sep: str,
     skip_header_line_count: Optional[int],
+    serde_library: Optional[str],
+    serde_parameters: Optional[Dict[str, str]],
 ) -> Dict[str, Any]:
     compressed: bool = compression is not None
     parameters: Dict[str, str] = {
@@ -116,7 +118,13 @@ def _csv_table_definition(
         "areColumnsQuoted": "false",
     }
     if skip_header_line_count is not None:
-        parameters["skip.header.line.count"] = "1"
+        parameters["skip.header.line.count"] = str(skip_header_line_count)
+    serde_info = {
+        "SerializationLibrary": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"
+        if serde_library is None
+        else serde_library,
+        "Parameters": {"field.delim": sep, "escape.delim": "\\"} if serde_parameters is None else serde_parameters,
+    }
     return {
         "Name": table,
         "PartitionKeys": [{"Name": cname, "Type": dtype} for cname, dtype in partitions_types.items()],
@@ -129,21 +137,11 @@ def _csv_table_definition(
             "OutputFormat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
             "Compressed": compressed,
             "NumberOfBuckets": -1 if bucketing_info is None else bucketing_info[1],
-            "SerdeInfo": {
-                "Parameters": {"field.delim": sep, "escape.delim": "\\"},
-                "SerializationLibrary": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
-            },
+            "SerdeInfo": serde_info,
             "BucketColumns": [] if bucketing_info is None else bucketing_info[0],
             "StoredAsSubDirectories": False,
             "SortColumns": [],
-            "Parameters": {
-                "classification": "csv",
-                "compressionType": str(compression).lower(),
-                "typeOfData": "file",
-                "delimiter": sep,
-                "columnsOrdered": "true",
-                "areColumnsQuoted": "false",
-            },
+            "Parameters": parameters,
         },
     }
 

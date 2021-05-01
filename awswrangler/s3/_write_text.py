@@ -525,6 +525,8 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                     catalog_id=catalog_id,
                     compression=pandas_kwargs.get("compression"),
                     skip_header_line_count=None,
+                    serde_library=None,
+                    serde_parameters=None,
                 )
                 if partitions_values and (regular_partitions is True):
                     _logger.debug("partitions_values:\n%s", partitions_values)
