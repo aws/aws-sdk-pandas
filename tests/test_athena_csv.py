@@ -451,15 +451,31 @@ def test_csv_compressed(path, glue_table, glue_database, use_threads, concurrent
 @pytest.mark.parametrize("use_threads", [True, False])
 @pytest.mark.parametrize("ctas_approach", [True, False])
 def test_opencsv_serde(path, glue_table, glue_database, use_threads, ctas_approach):
-    df = pd.DataFrame({"c0": ['"1"', '"2"', '"3"'], "c1": ['"4"', '"5"', '"6"'], "c2": ['"a"', '"b"', '"c"']})
-    wr.s3.to_csv(
-        df=df, path=f"{path}0.csv", sep=",", index=False, header=False, use_threads=use_threads, quoting=csv.QUOTE_NONE
+    df = pd.DataFrame({"col": ["1", "2", "3"], "col2": ["A", "A", "B"]})
+    response = wr.s3.to_csv(
+        df=df,
+        path=path,
+        dataset=True,
+        partition_cols=["col2"],
+        sep=",",
+        index=False,
+        header=False,
+        use_threads=use_threads,
+        quoting=csv.QUOTE_NONE,
     )
     wr.catalog.create_csv_table(
         database=glue_database,
         table=glue_table,
         path=path,
-        columns_types={"c0": "string", "c1": "string", "c2": "string"},
+        columns_types={"col": "string"},
+        partitions_types={"col2": "string"},
+        serde_library="org.apache.hadoop.hive.serde2.OpenCSVSerde",
+        serde_parameters={"separatorChar": ",", "quoteChar": '"', "escapeChar": "\\"},
+    )
+    wr.catalog.add_csv_partitions(
+        database=glue_database,
+        table=glue_table,
+        partitions_values=response["partitions_values"],
         serde_library="org.apache.hadoop.hive.serde2.OpenCSVSerde",
         serde_parameters={"separatorChar": ",", "quoteChar": '"', "escapeChar": "\\"},
     )

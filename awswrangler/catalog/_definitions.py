@@ -152,19 +152,24 @@ def _csv_partition_definition(
     bucketing_info: Optional[Tuple[List[str], int]],
     compression: Optional[str],
     sep: str,
+    serde_library: Optional[str],
+    serde_parameters: Optional[Dict[str, str]],
     columns_types: Optional[Dict[str, str]],
 ) -> Dict[str, Any]:
     compressed: bool = compression is not None
+    serde_info = {
+        "SerializationLibrary": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"
+        if serde_library is None
+        else serde_library,
+        "Parameters": {"field.delim": sep, "escape.delim": "\\"} if serde_parameters is None else serde_parameters,
+    }
     definition: Dict[str, Any] = {
         "StorageDescriptor": {
             "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
             "OutputFormat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
             "Location": location,
             "Compressed": compressed,
-            "SerdeInfo": {
-                "Parameters": {"field.delim": sep, "escape.delim": "\\"},
-                "SerializationLibrary": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
-            },
+            "SerdeInfo": serde_info,
             "StoredAsSubDirectories": False,
             "NumberOfBuckets": -1 if bucketing_info is None else bucketing_info[1],
             "BucketColumns": [] if bucketing_info is None else bucketing_info[0],

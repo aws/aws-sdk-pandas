@@ -501,6 +501,11 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                 columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
                     df=df, index=index, partition_cols=partition_cols, dtype=dtype, index_left=True
                 )
+                serde_info: Dict[str, Any] = {}
+                if catalog_table_input:
+                    serde_info = catalog_table_input["StorageDescriptor"]["SerdeInfo"]
+                serde_library: Optional[str] = serde_info.get("SerializationLibrary", None)
+                serde_parameters: Optional[Dict[str, str]] = serde_info.get("Parameters", None)
                 catalog._create_csv_table(  # pylint: disable=protected-access
                     database=database,
                     table=table,
@@ -525,8 +530,8 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                     catalog_id=catalog_id,
                     compression=pandas_kwargs.get("compression"),
                     skip_header_line_count=None,
-                    serde_library=None,
-                    serde_parameters=None,
+                    serde_library=serde_library,
+                    serde_parameters=serde_parameters,
                 )
                 if partitions_values and (regular_partitions is True):
                     _logger.debug("partitions_values:\n%s", partitions_values)
@@ -537,6 +542,8 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                         bucketing_info=bucketing_info,
                         boto3_session=session,
                         sep=sep,
+                        serde_library=serde_library,
+                        serde_parameters=serde_parameters,
                         catalog_id=catalog_id,
                         columns_types=columns_types,
                         compression=pandas_kwargs.get("compression"),
