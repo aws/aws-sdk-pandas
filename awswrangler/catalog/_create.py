@@ -286,7 +286,7 @@ def _create_parquet_table(
     )
 
 
-def _create_csv_table(
+def _create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     database: str,
     table: str,
     path: Optional[str],

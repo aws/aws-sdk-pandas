@@ -539,6 +539,8 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                     catalog_id=catalog_id,
                     compression=pandas_kwargs.get("compression"),
                     skip_header_line_count=None,
+                    serde_library=None,
+                    serde_parameters=None,
                 )
                 catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
                     database=database, table=table, boto3_session=session, catalog_id=catalog_id
