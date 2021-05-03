@@ -208,7 +208,7 @@ def test_copy_upsert(path, redshift_table, redshift_con, databases_parameters):
     assert len(df.index) + len(df3.index) == len(df4.index)
     assert len(df.columns) == len(df4.columns)
 
-    # UPSERT 2
+    # UPSERT 2 + lock
     wr.redshift.copy(
         df=df3,
         path=path,
@@ -218,6 +218,7 @@ def test_copy_upsert(path, redshift_table, redshift_con, databases_parameters):
         mode="upsert",
         index=False,
         iam_role=databases_parameters["redshift"]["role"],
+        lock=True,
     )
     path = f"{path}upsert/test_redshift_copy_upsert4/"
     df4 = wr.redshift.unload(
