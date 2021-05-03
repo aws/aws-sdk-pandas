@@ -157,11 +157,11 @@ def test_catalog_get_databases(glue_database):
             assert db["Description"] == "AWS Data Wrangler Test Arena - Glue Database"
 
 
-def test_catalog_versioning(path, glue_database, glue_table):
+def test_catalog_versioning(path, glue_database, glue_table, glue_table2):
     wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
     wr.s3.delete_objects(path=path)
 
-    # Version 0
+    # Version 1 - Parquet
     df = pd.DataFrame({"c0": [1, 2]})
     wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table, mode="overwrite")[
         "paths"
@@ -172,7 +172,7 @@ def test_catalog_versioning(path, glue_database, glue_table):
     assert len(df.columns) == 1
     assert str(df.c0.dtype).startswith("Int")
 
-    # Version 1
+    # Version 2 - Parquet
     df = pd.DataFrame({"c1": ["foo", "boo"]})
     wr.s3.to_parquet(
         df=df,
@@ -189,38 +189,56 @@ def test_catalog_versioning(path, glue_database, glue_table):
     assert len(df.columns) == 1
     assert str(df.c1.dtype) == "string"
 
-    # Version 2
+    # Version 1 - CSV
     df = pd.DataFrame({"c1": [1.0, 2.0]})
     wr.s3.to_csv(
         df=df,
         path=path,
         dataset=True,
         database=glue_database,
-        table=glue_table,
+        table=glue_table2,
         mode="overwrite",
         catalog_versioning=True,
         index=False,
     )
-    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 3
-    df = wr.athena.read_sql_table(table=glue_table, database=glue_database)
+    assert wr.catalog.get_table_number_of_versions(table=glue_table2, database=glue_database) == 1
+    df = wr.athena.read_sql_table(table=glue_table2, database=glue_database)
     assert len(df.index) == 2
     assert len(df.columns) == 1
     assert str(df.c1.dtype).startswith("float")
 
-    # Version 3 (removing version 2)
+    # Version 1 - CSV (No evolution)
     df = pd.DataFrame({"c1": [True, False]})
     wr.s3.to_csv(
         df=df,
         path=path,
         dataset=True,
         database=glue_database,
-        table=glue_table,
+        table=glue_table2,
         mode="overwrite",
         catalog_versioning=False,
         index=False,
     )
-    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 3
-    df = wr.athena.read_sql_table(table=glue_table, database=glue_database)
+    assert wr.catalog.get_table_number_of_versions(table=glue_table2, database=glue_database) == 1
+    df = wr.athena.read_sql_table(table=glue_table2, database=glue_database)
+    assert len(df.index) == 2
+    assert len(df.columns) == 1
+    assert str(df.c1.dtype).startswith("boolean")
+
+    # Version 2 - CSV
+    df = pd.DataFrame({"c1": [True, False]})
+    wr.s3.to_csv(
+        df=df,
+        path=path,
+        dataset=True,
+        database=glue_database,
+        table=glue_table2,
+        mode="overwrite",
+        catalog_versioning=True,
+        index=False,
+    )
+    assert wr.catalog.get_table_number_of_versions(table=glue_table2, database=glue_database) == 2
+    df = wr.athena.read_sql_table(table=glue_table2, database=glue_database)
     assert len(df.index) == 2
     assert len(df.columns) == 1
     assert str(df.c1.dtype).startswith("boolean")
