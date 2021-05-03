@@ -296,6 +296,8 @@ def _create_csv_table(
     catalog_versioning: bool,
     sep: str,
     skip_header_line_count: Optional[int],
+    serde_library: Optional[str],
+    serde_parameters: Optional[Dict[str, str]],
     boto3_session: Optional[boto3.Session],
     projection_enabled: bool,
     projection_types: Optional[Dict[str, str]],
@@ -329,6 +331,8 @@ def _create_csv_table(
             compression=compression,
             sep=sep,
             skip_header_line_count=skip_header_line_count,
+            serde_library=serde_library,
+            serde_parameters=serde_parameters,
         )
     table_exist: bool = catalog_table_input is not None
     _logger.debug("table_exist: %s", table_exist)
@@ -670,6 +674,8 @@ def create_csv_table(
     catalog_versioning: bool = False,
     sep: str = ",",
     skip_header_line_count: Optional[int] = None,
+    serde_library: Optional[str] = None,
+    serde_parameters: Optional[Dict[str, str]] = None,
     boto3_session: Optional[boto3.Session] = None,
     projection_enabled: bool = False,
     projection_types: Optional[Dict[str, str]] = None,
@@ -679,7 +685,7 @@ def create_csv_table(
     projection_digits: Optional[Dict[str, str]] = None,
     catalog_id: Optional[str] = None,
 ) -> None:
-    """Create a CSV Table (Metadata Only) in the AWS Glue Catalog.
+    r"""Create a CSV Table (Metadata Only) in the AWS Glue Catalog.
 
     'https://docs.aws.amazon.com/athena/latest/ug/data-types.html'
 
@@ -715,6 +721,13 @@ def create_csv_table(
         String of length 1. Field delimiter for the output file.
     skip_header_line_count : Optional[int]
         Number of Lines to skip regarding to the header.
+    serde_library : Optional[str]
+        Specifies the SerDe Serialization library which will be used. You need to provide the Class library name
+        as a string.
+        If no library is provided the default is `org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe`.
+    serde_parameters : Optional[str]
+        Dictionary of initialization parameters for the SerDe.
+        The default is `{"field.delim": sep, "escape.delim": "\\"}`.
     projection_enabled : bool
         Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
     projection_types : Optional[Dict[str, str]]
@@ -793,4 +806,6 @@ def create_csv_table(
         catalog_table_input=catalog_table_input,
         sep=sep,
         skip_header_line_count=skip_header_line_count,
+        serde_library=serde_library,
+        serde_parameters=serde_parameters,
     )
