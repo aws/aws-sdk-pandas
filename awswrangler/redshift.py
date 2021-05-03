@@ -117,6 +117,18 @@ def _copy(
     cursor.execute(sql)
 
 
+def _lock(
+    cursor: redshift_connector.Cursor,
+    table_names: List[str],
+    schema: Optional[str] = None,
+) -> None:
+    fmt = '"{schema}"."{table}"' if schema else '"{table}"'
+    tables = ", ".join([fmt.format(schema=schema, table=table) for table in table_names])
+    sql: str = f"LOCK {tables};\n"
+    _logger.debug("lock query:\n%s", sql)
+    cursor.execute(sql)
+
+
 def _upsert(
     cursor: redshift_connector.Cursor,
     table: str,
@@ -647,6 +659,7 @@ def to_sql(
     varchar_lengths_default: int = 256,
     varchar_lengths: Optional[Dict[str, int]] = None,
     use_column_names: bool = False,
+    lock: bool = False,
     chunksize: int = 200,
 ) -> None:
     """Write records stored in a DataFrame into Redshift.
@@ -696,6 +709,8 @@ def to_sql(
         If set to True, will use the column names of the DataFrame for generating the INSERT SQL Query.
         E.g. If the DataFrame has two columns `col1` and `col3` and `use_column_names` is True, data will only be
         inserted into the database columns `col1` and `col3`.
+    lock : bool
+        True to execute LOCK command inside the transaction to force serializable isolation.
     chunksize: int
         Number of rows which are inserted with each SQL query. Defaults to inserting 200 rows per query.
 
@@ -758,6 +773,8 @@ def to_sql(
                 _logger.debug("sql: %s", sql)
                 cursor.executemany(sql, (parameters,))
             if table != created_table:  # upsert
+                if lock:
+                    _lock(cursor, [table], schema=schema)
                 _upsert(cursor=cursor, schema=schema, table=table, temp_table=created_table, primary_keys=primary_keys)
             con.commit()
     except Exception as ex:
@@ -1067,6 +1084,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     path_suffix: Optional[str] = None,
     path_ignore_suffix: Optional[str] = None,
     use_threads: bool = True,
+    lock: bool = False,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
 ) -> None:
@@ -1145,6 +1163,8 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+    lock : bool
+        True to execute LOCK command inside the transaction to force serializable isolation.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
@@ -1199,6 +1219,9 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
                 boto3_session=boto3_session,
                 s3_additional_kwargs=s3_additional_kwargs,
             )
+            if lock and table == created_table:
+                # Lock before copy if copying into target (not temp) table
+                _lock(cursor, [table], schema=schema)
             _copy(
                 cursor=cursor,
                 path=path,
@@ -1212,6 +1235,8 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
                 serialize_to_json=serialize_to_json,
             )
             if table != created_table:  # upsert
+                if lock:
+                    _lock(cursor, [table], schema=schema)
                 _upsert(cursor=cursor, schema=schema, table=table, temp_table=created_table, primary_keys=primary_keys)
             con.commit()
     except Exception as ex:
@@ -1245,6 +1270,7 @@ def copy(  # pylint: disable=too-many-arguments
     serialize_to_json: bool = False,
     keep_files: bool = False,
     use_threads: bool = True,
+    lock: bool = False,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     max_rows_by_file: Optional[int] = 10_000_000,
@@ -1324,6 +1350,8 @@ def copy(  # pylint: disable=too-many-arguments
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+    lock : bool
+        True to execute LOCK command inside the transaction to force serializable isolation.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
@@ -1397,6 +1425,7 @@ def copy(  # pylint: disable=too-many-arguments
             varchar_lengths=varchar_lengths,
             serialize_to_json=serialize_to_json,
             use_threads=use_threads,
+            lock=lock,
             boto3_session=session,
             s3_additional_kwargs=s3_additional_kwargs,
         )
