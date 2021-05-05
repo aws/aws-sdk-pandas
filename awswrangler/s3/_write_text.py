@@ -435,7 +435,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                 "If database and table are given, you must use one of these compressions: gzip, bz2 or None."
             )
 
-    df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
+    df = _apply_dtype(df=df.copy(), dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
 
     paths: List[str] = []
     if dataset is False:
