@@ -24,6 +24,10 @@ def test_connection():
     wr.mysql.connect("aws-data-wrangler-mysql", connect_timeout=10).close()
 
 
+def test_connection_ssl():
+    wr.mysql.connect("aws-data-wrangler-mysql-ssl", connect_timeout=10).close()
+
+
 def test_read_sql_query_simple(databases_parameters):
     con = pymysql.connect(
         host=databases_parameters["mysql"]["host"],

@@ -139,6 +139,7 @@ def connect(
         read_timeout=read_timeout,
         write_timeout=write_timeout,
         connect_timeout=connect_timeout,
+        ssl=attrs.ssl_context,
     )
 
 
