@@ -390,7 +390,7 @@ Resources:
       CatalogId:
         Ref: AWS::AccountId
       ConnectionInput:
-        Description: Connect to Aurora (MySQL).
+        Description: Connect to Aurora (MySQL) SSL enabled.
         ConnectionType: JDBC
         PhysicalConnectionRequirements:
           AvailabilityZone:
