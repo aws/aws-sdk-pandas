@@ -384,6 +384,32 @@ Resources:
           PASSWORD:
             Ref: DatabasesPassword
         Name: aws-data-wrangler-mysql
+  MysqlGlueConnectionSSL:
+    Type: AWS::Glue::Connection
+    Properties:
+      CatalogId:
+        Ref: AWS::AccountId
+      ConnectionInput:
+        Description: Connect to Aurora (MySQL) SSL enabled.
+        ConnectionType: JDBC
+        PhysicalConnectionRequirements:
+          AvailabilityZone:
+            Fn::Select:
+              - 0
+              - Fn::GetAZs: ''
+          SecurityGroupIdList:
+            - Ref: DatabaseSecurityGroup
+          SubnetId:
+            Fn::ImportValue: aws-data-wrangler-base-PrivateSubnet
+        ConnectionProperties:
+          JDBC_CONNECTION_URL:
+            Fn::Sub: jdbc:mysql://${AuroraInstanceMysql.Endpoint.Address}:${AuroraInstanceMysql.Endpoint.Port}/test
+          JDBC_ENFORCE_SSL: true
+          CUSTOM_JDBC_CERT: s3://rds-downloads/rds-combined-ca-bundle.pem
+          USERNAME: test
+          PASSWORD:
+            Ref: DatabasesPassword
+        Name: aws-data-wrangler-mysql-ssl
   SqlServerGlueConnection:
     Type: AWS::Glue::Connection
     Properties:

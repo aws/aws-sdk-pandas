@@ -78,9 +78,14 @@ def connect(
     write_timeout: Optional[int] = None,
     connect_timeout: int = 10,
 ) -> pymysql.connections.Connection:
-    """Return a pymysql connection from a Glue Catalog Connection.
+    """Return a pymysql connection from a Glue Catalog Connection or Secrets Manager.
 
     https://pymysql.readthedocs.io
+
+    Note
+    ----
+    It is only possible to configure SSL using Glue Catalog Connection. More at:
+    https://docs.aws.amazon.com/glue/latest/dg/connection-defining.html
 
     Parameters
     ----------
@@ -136,6 +141,7 @@ def connect(
         password=attrs.password,
         port=attrs.port,
         host=attrs.host,
+        ssl=attrs.ssl_context,
         read_timeout=read_timeout,
         write_timeout=write_timeout,
         connect_timeout=connect_timeout,
