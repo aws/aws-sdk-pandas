@@ -128,7 +128,7 @@ def workgroup3(bucket, kms_key):
 
 
 @pytest.fixture(scope="session")
-def databases_parameters(cloudformation_outputs):
+def databases_parameters(cloudformation_outputs, db_password):
     parameters = dict(postgresql={}, mysql={}, redshift={}, sqlserver={})
     parameters["postgresql"]["host"] = cloudformation_outputs["PostgresqlAddress"]
     parameters["postgresql"]["port"] = 3306
@@ -144,7 +144,7 @@ def databases_parameters(cloudformation_outputs):
     parameters["redshift"]["schema"] = "public"
     parameters["redshift"]["database"] = "test"
     parameters["redshift"]["role"] = cloudformation_outputs["RedshiftRole"]
-    parameters["password"] = cloudformation_outputs["DatabasesPassword"]
+    parameters["password"] = db_password
     parameters["user"] = "test"
     parameters["sqlserver"]["host"] = cloudformation_outputs["SqlServerAddress"]
     parameters["sqlserver"]["port"] = 1433
@@ -173,6 +173,11 @@ def redshift_external_schema(cloudformation_outputs, databases_parameters, glue_
 @pytest.fixture(scope="session")
 def account_id():
     return boto3.client("sts").get_caller_identity().get("Account")
+
+
+@pytest.fixture(scope="session")
+def db_password():
+    return boto3.client("secretsmanager").get_secret_value(SecretId="aws-data-wrangler/db_password")["SecretString"]
 
 
 @pytest.fixture(scope="function")
