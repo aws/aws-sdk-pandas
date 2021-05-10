@@ -483,4 +483,4 @@ def test_opencsv_serde(path, glue_table, glue_database, use_threads, ctas_approa
         table=glue_table, database=glue_database, use_threads=use_threads, ctas_approach=ctas_approach
     )
     df = df.applymap(lambda x: x.replace('"', "")).convert_dtypes()
-    assert df.equals(df2)
+    assert df.equals(df2.sort_values(by=list(df2)).reset_index(drop=True))
