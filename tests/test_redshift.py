@@ -42,9 +42,10 @@ def test_read_sql_query_simple(databases_parameters):
     assert df.shape == (1, 1)
 
 
-def test_to_sql_simple(redshift_table, redshift_con):
+@pytest.mark.parametrize("overwrite_method", [None, "drop", "cascade", "truncate", "delete"])
+def test_to_sql_simple(redshift_table, redshift_con, overwrite_method):
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "boo", "bar"]})
-    wr.redshift.to_sql(df, redshift_con, redshift_table, "public", "overwrite", True)
+    wr.redshift.to_sql(df, redshift_con, redshift_table, "public", "overwrite", overwrite_method, True)
 
 
 def test_sql_types(redshift_table, redshift_con):

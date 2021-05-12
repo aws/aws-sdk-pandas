@@ -48,10 +48,12 @@ def add_csv_partitions(
     catalog_id: Optional[str] = None,
     compression: Optional[str] = None,
     sep: str = ",",
+    serde_library: Optional[str] = None,
+    serde_parameters: Optional[Dict[str, str]] = None,
     boto3_session: Optional[boto3.Session] = None,
     columns_types: Optional[Dict[str, str]] = None,
 ) -> None:
-    """Add partitions (metadata) to a CSV Table in the AWS Glue Catalog.
+    r"""Add partitions (metadata) to a CSV Table in the AWS Glue Catalog.
 
     Parameters
     ----------
@@ -73,6 +75,13 @@ def add_csv_partitions(
         Compression style (``None``, ``gzip``, etc).
     sep : str
         String of length 1. Field delimiter for the output file.
+    serde_library : Optional[str]
+        Specifies the SerDe Serialization library which will be used. You need to provide the Class library name
+        as a string.
+        If no library is provided the default is `org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe`.
+    serde_parameters : Optional[str]
+        Dictionary of initialization parameters for the SerDe.
+        The default is `{"field.delim": sep, "escape.delim": "\\"}`.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     columns_types: Optional[Dict[str, str]]
@@ -107,6 +116,8 @@ def add_csv_partitions(
             compression=compression,
             sep=sep,
             columns_types=columns_types,
+            serde_library=serde_library,
+            serde_parameters=serde_parameters,
         )
         for k, v in partitions_values.items()
     ]
