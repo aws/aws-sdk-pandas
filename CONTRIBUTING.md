@@ -44,7 +44,7 @@ To send us a pull request, please:
 GitHub provides additional document on [forking a repository](https://help.github.com/articles/fork-a-repo/) and
 [creating a pull request](https://help.github.com/articles/creating-a-pull-request/).
 
-*Note: An automated CI build is triggered with every pull request. To skip it, add the prefix `[skip-ci] -` to your commit message.*  
+*Note: An automated Code Build is triggered with every pull request. To skip it, add the prefix `[skip-ci] -` to your commit message.*  
 
 ## Finding contributions to work on
 
