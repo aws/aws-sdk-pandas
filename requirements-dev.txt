@@ -1,7 +1,7 @@
 wheel==0.36.2
 isort==5.8.0
 black==21.5b1
-pylint==2.7.4
+pylint==2.8.2
 flake8==3.9.2
 mypy==0.812
 pydocstyle==6.0.0
