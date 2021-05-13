@@ -1,6 +1,6 @@
 wheel==0.36.2
 isort==5.8.0
-black==20.8b1
+black==21.5b1
 pylint==2.7.4
 flake8==3.9.0
 mypy==0.812
