@@ -7,7 +7,7 @@ updates:
       time: "09:00"
       timezone: "Europe/London"
     commit-message:
-      prefix: "[skip ci] - pip prod"
-      prefix-development: "[skip ci] - pip dev"
+      prefix: "[skip ci] pip"
+      prefix-development: "[skip ci] pip"
       include: "scope"
     open-pull-requests-limit: 5
