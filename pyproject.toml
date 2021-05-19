@@ -28,5 +28,5 @@ use_parentheses = true
 ensure_newline_before_comments = true
 line_length = 120
 src_paths = ["setup.py", "awswrangler"]
-py_version = 36
+py_version = 37
 skip_gitignore = true

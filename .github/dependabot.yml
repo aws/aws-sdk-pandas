@@ -1,0 +1,13 @@
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      time: "09:00"
+      timezone: "Europe/London"
+    commit-message:
+      prefix: "[skip ci] pip"
+      prefix-development: "[skip ci] pip"
+      include: "scope"
+    open-pull-requests-limit: 5
