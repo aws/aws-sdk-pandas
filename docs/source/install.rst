@@ -5,7 +5,8 @@ Install
 and on several platforms (AWS Lambda, AWS Glue Python Shell, EMR, EC2,
 on-premises, Amazon SageMaker, local, etc).
 
-Some good practices for most of the methods bellow are:
+Some good practices for most of the methods below are:
+
   - Use new and individual Virtual Environments for each project (`venv <https://docs.python.org/3/library/venv.html>`_).
   - On Notebooks, always restart your kernel after installations.
 
@@ -73,9 +74,14 @@ Public Artifacts
 Lambda zipped layers and Python wheels are stored in a publicly accessible S3 bucket for all versions.
 
 * Bucket: ``aws-data-wrangler-public-artifacts``
-* Key: ``releases/<version>/awswrangler-layer-<version>-py<py-version>.zip"``
 
-Here is an example of how to reference them in your CDK app:
+* Prefix: ``releases/<version>/``
+
+  * Lambda layer: ``awswrangler-layer-<version>-py<py-version>.zip``
+
+  * Python wheel: ``awswrangler-<version>-py3-none-any.whl``
+
+Here is an example of how to reference the Lambda layer in your CDK app:
 
 .. code-block:: python
 
