@@ -605,11 +605,11 @@ def read_sql_query(
 
     **Related tutorial:**
 
-    - `Amazon Athena <https://aws-data-wrangler.readthedocs.io/en/2.7.0/
+    - `Amazon Athena <https://aws-data-wrangler.readthedocs.io/en/2.8.0/
       tutorials/006%20-%20Amazon%20Athena.html>`_
-    - `Athena Cache <https://aws-data-wrangler.readthedocs.io/en/2.7.0/
+    - `Athena Cache <https://aws-data-wrangler.readthedocs.io/en/2.8.0/
       tutorials/019%20-%20Athena%20Cache.html>`_
-    - `Global Configurations <https://aws-data-wrangler.readthedocs.io/en/2.7.0/
+    - `Global Configurations <https://aws-data-wrangler.readthedocs.io/en/2.8.0/
       tutorials/021%20-%20Global%20Configurations.html>`_
 
     **There are two approaches to be defined through ctas_approach parameter:**
@@ -657,7 +657,7 @@ def read_sql_query(
     /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a practical example check out the
-    `related tutorial <https://aws-data-wrangler.readthedocs.io/en/2.7.0/
+    `related tutorial <https://aws-data-wrangler.readthedocs.io/en/2.8.0/
     tutorials/024%20-%20Athena%20Query%20Metadata.html>`_!
 
 
@@ -799,8 +799,7 @@ def read_sql_query(
     for key, value in params.items():
         sql = sql.replace(f":{key};", str(value))
 
-    if max_remote_cache_entries > max_local_cache_entries:
-        max_remote_cache_entries = max_local_cache_entries
+    max_remote_cache_entries = min(max_remote_cache_entries, max_local_cache_entries)
 
     _cache_manager.max_cache_size = max_local_cache_entries
     cache_info: _CacheInfo = _check_for_cached_results(
@@ -873,11 +872,11 @@ def read_sql_table(
 
     **Related tutorial:**
 
-    - `Amazon Athena <https://aws-data-wrangler.readthedocs.io/en/2.7.0/
+    - `Amazon Athena <https://aws-data-wrangler.readthedocs.io/en/2.8.0/
       tutorials/006%20-%20Amazon%20Athena.html>`_
-    - `Athena Cache <https://aws-data-wrangler.readthedocs.io/en/2.7.0/
+    - `Athena Cache <https://aws-data-wrangler.readthedocs.io/en/2.8.0/
       tutorials/019%20-%20Athena%20Cache.html>`_
-    - `Global Configurations <https://aws-data-wrangler.readthedocs.io/en/2.7.0/
+    - `Global Configurations <https://aws-data-wrangler.readthedocs.io/en/2.8.0/
       tutorials/021%20-%20Global%20Configurations.html>`_
 
     **There are two approaches to be defined through ctas_approach parameter:**
@@ -922,7 +921,7 @@ def read_sql_table(
     /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a practical example check out the
-    `related tutorial <https://aws-data-wrangler.readthedocs.io/en/2.7.0/
+    `related tutorial <https://aws-data-wrangler.readthedocs.io/en/2.8.0/
     tutorials/024%20-%20Athena%20Query%20Metadata.html>`_!
 
 
