@@ -67,6 +67,33 @@ To install a specific version, set the value for above Job parameter as follows:
 
 `Official Glue PySpark Reference <https://docs.aws.amazon.com/glue/latest/dg/reduced-start-times-spark-etl-jobs.html#reduced-start-times-new-features>`_
 
+Public Artifacts
+---------------------
+
+Lambda zipped layers and Python wheels are stored in a publicly accessible S3 bucket for all versions.
+
+* Bucket: ``aws-data-wrangler-public-artifacts``
+* Key: ``releases/<version>/awswrangler-layer-<version>-py<py-version>.zip"``
+
+Here is an example of how to reference them in your CDK app:
+
+.. code-block:: python
+
+    wrangler_layer = LayerVersion(
+      self,
+      "wrangler-layer",
+      compatible_runtimes=[Runtime.PYTHON_3_8],
+      code=S3Code(
+        bucket=Bucket.from_bucket_arn(
+            self,
+            "wrangler-bucket",
+            bucket_arn="arn:aws:s3:::aws-data-wrangler-public-artifacts",
+        ),
+        key="releases/2.8.0/awswrangler-layer-2.8.0-py3.8.zip",
+      ),
+      layer_version_name="aws-data-wrangler"
+    )
+
 Amazon SageMaker Notebook
 -------------------------
 
