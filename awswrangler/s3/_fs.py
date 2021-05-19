@@ -129,7 +129,7 @@ class _UploadProxy:
         self._results: List[Dict[str, Union[str, int]]] = []
         self._cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
         if self._cpus > 1:
-            self._exec = concurrent.futures.ThreadPoolExecutor(max_workers=self._cpus)
+            self._exec = concurrent.futures.ThreadPoolExecutor(max_workers=self._cpus)  # pylint: disable=R1732
             self._futures: List[Any] = []
         else:
             self._exec = None
