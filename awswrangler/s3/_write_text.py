@@ -10,7 +10,7 @@ import boto3
 import pandas as pd
 from pandas.io.common import infer_compression
 
-from awswrangler import _data_types, _utils, catalog, exceptions
+from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation
 from awswrangler._config import apply_configs
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
@@ -432,6 +432,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     dtype = dtype if dtype else {}
     partitions_values: Dict[str, List[str]] = {}
     mode = "append" if mode is None else mode
+    commit_trans: bool = False
     if transaction_id:
         table_type = "GOVERNED"
     filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
@@ -445,7 +446,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     catalog_table_input: Optional[Dict[str, Any]] = None
     if database and table:
         catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
-            database=database, table=table, boto3_session=session, catalog_id=catalog_id
+            database=database, table=table, boto3_session=session, transaction_id=transaction_id, catalog_id=catalog_id
         )
         catalog_path: Optional[str] = None
         if catalog_table_input:
@@ -467,6 +468,10 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             raise exceptions.InvalidArgumentCombination(
                 "If database and table are given, you must use one of these compressions: gzip, bz2 or None."
             )
+        if (table_type == "GOVERNED") and (not transaction_id):
+            _logger.debug("`transaction_id` not specified for GOVERNED table, starting transaction")
+            transaction_id = lakeformation.start_transaction(read_only=False, boto3_session=boto3_session)
+            commit_trans = True
 
     df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
 
@@ -527,6 +532,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                     columns_comments=columns_comments,
                     boto3_session=session,
                     mode=mode,
+                    transaction_id=transaction_id,
                     catalog_versioning=catalog_versioning,
                     sep=sep,
                     projection_enabled=projection_enabled,
@@ -543,7 +549,11 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                     serde_parameters=None,
                 )
                 catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
-                    database=database, table=table, boto3_session=session, catalog_id=catalog_id
+                    database=database,
+                    table=table,
+                    boto3_session=session,
+                    transaction_id=transaction_id,
+                    catalog_id=catalog_id,
                 )
         paths, partitions_values = _to_dataset(
             func=_to_text,
@@ -596,6 +606,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                     columns_comments=columns_comments,
                     boto3_session=session,
                     mode=mode,
+                    transaction_id=transaction_id,
                     catalog_versioning=catalog_versioning,
                     sep=sep,
                     projection_enabled=projection_enabled,
@@ -626,7 +637,14 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                         columns_types=columns_types,
                         compression=pandas_kwargs.get("compression"),
                     )
+                if commit_trans:
+                    lakeformation.commit_transaction(
+                        transaction_id=transaction_id, boto3_session=boto3_session  # type: ignore
+                    )
             except Exception:
+                if transaction_id:
+                    _logger.debug("Canceling transaction with ID: %s.", transaction_id)
+                    lakeformation.cancel_transaction(transaction_id=transaction_id, boto3_session=boto3_session)
                 _logger.debug("Catalog write failed, cleaning up S3 (paths: %s).", paths)
                 delete_objects(
                     path=paths,

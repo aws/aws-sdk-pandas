@@ -1,6 +1,7 @@
 """Utilities Module for Amazon Lake Formation."""
 import logging
 import time
+from threading import Thread
 from typing import Any, Dict, List, Optional, Union
 
 import boto3
@@ -11,6 +12,7 @@ from awswrangler.s3._describe import describe_objects
 
 _QUERY_FINAL_STATES: List[str] = ["ERROR", "FINISHED"]
 _QUERY_WAIT_POLLING_DELAY: float = 2  # SECONDS
+_TRANSACTION_WAIT_POLLING_DELAY: float = 10  # SECONDS
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -118,8 +120,46 @@ def _update_table_objects(
     client_lakeformation.update_table_objects(**update_kwargs)
 
 
-def abort_transaction(transaction_id: str, boto3_session: Optional[boto3.Session] = None) -> None:
-    """Abort the specified transaction. Returns exception if the transaction was previously committed.
+def _monitor_transaction(transaction_id: str, boto3_session: Optional[boto3.Session] = None) -> None:
+    state: str = describe_transaction(transaction_id=transaction_id, boto3_session=boto3_session)
+    while state == "active":
+        extend_transaction(transaction_id=transaction_id, boto3_session=boto3_session)
+        time.sleep(_TRANSACTION_WAIT_POLLING_DELAY)
+        state = describe_transaction(transaction_id=transaction_id, boto3_session=boto3_session)
+        _logger.debug("Transaction state: %s", state)
+
+
+def describe_transaction(transaction_id: str, boto3_session: Optional[boto3.Session] = None) -> str:
+    """Return the status of a single transaction.
+
+    Parameters
+    ----------
+    transaction_id : str
+        The ID of the transaction.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session received None.
+
+    Returns
+    -------
+    str
+        Transaction status (i.e. active|committed|aborted).
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> status = wr.lakeformation.describe_transaction(transaction_id="...")
+
+    """
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
+    details: Dict[str, Any] = client_lakeformation.describe_transaction(TransactionId=transaction_id)[
+        "TransactionDescription"
+    ]
+    return details["TransactionStatus"]  # type: ignore
+
+
+def cancel_transaction(transaction_id: str, boto3_session: Optional[boto3.Session] = None) -> None:
+    """Cancel the specified transaction. Returns exception if the transaction was previously committed.
 
     Parameters
     ----------
@@ -136,16 +176,16 @@ def abort_transaction(transaction_id: str, boto3_session: Optional[boto3.Session
     Examples
     --------
     >>> import awswrangler as wr
-    >>> wr.lakeformation.abort_transaction(transaction_id="...")
+    >>> wr.lakeformation.cancel_transaction(transaction_id="...")
 
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
 
-    client_lakeformation.abort_transaction(TransactionId=transaction_id)
+    client_lakeformation.cancel_transaction(TransactionId=transaction_id)
 
 
-def begin_transaction(read_only: Optional[bool] = False, boto3_session: Optional[boto3.Session] = None) -> str:
+def start_transaction(read_only: Optional[bool] = False, boto3_session: Optional[boto3.Session] = None) -> str:
     """Start a new transaction and returns its transaction ID.
 
     Parameters
@@ -165,17 +205,21 @@ def begin_transaction(read_only: Optional[bool] = False, boto3_session: Optional
     Examples
     --------
     >>> import awswrangler as wr
-    >>> transaction_id = wr.lakeformation.begin_transaction(read_only=False)
+    >>> transaction_id = wr.lakeformation.start_transaction(read_only=False)
 
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
-    transaction_id: str = client_lakeformation.begin_transaction(ReadOnly=read_only)["TransactionId"]
+    transaction_type: str = "READ_ONLY" if read_only else "READ_AND_WRITE"
+    transaction_id: str = client_lakeformation.start_transaction(TransactionType=transaction_type)["TransactionId"]
+    # Extend the transaction while in "active" state in a separate thread
+    t = Thread(target=_monitor_transaction, args=(transaction_id, boto3_session))
+    t.start()
     return transaction_id
 
 
 def commit_transaction(transaction_id: str, boto3_session: Optional[boto3.Session] = None) -> None:
-    """Commit the specified transaction. Returns exception if the transaction was previously aborted.
+    """Commit the specified transaction. Returns exception if the transaction was previously canceled.
 
     Parameters
     ----------
@@ -202,7 +246,7 @@ def commit_transaction(transaction_id: str, boto3_session: Optional[boto3.Sessio
 
 
 def extend_transaction(transaction_id: str, boto3_session: Optional[boto3.Session] = None) -> None:
-    """Indicate to the service that the specified transaction is still active and should not be aborted.
+    """Indicate to the service that the specified transaction is still active and should not be canceled.
 
     Parameters
     ----------

@@ -12,7 +12,7 @@ import pyarrow as pa
 import pyarrow.lib
 import pyarrow.parquet
 
-from awswrangler import _data_types, _utils, catalog, exceptions
+from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation
 from awswrangler._config import apply_configs
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
@@ -533,6 +533,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     dtype = dtype if dtype else {}
     partitions_values: Dict[str, List[str]] = {}
     mode = "append" if mode is None else mode
+    commit_trans: bool = False
     if transaction_id:
         table_type = "GOVERNED"
     filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
@@ -547,7 +548,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     catalog_table_input: Optional[Dict[str, Any]] = None
     if database is not None and table is not None:
         catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
-            database=database, table=table, boto3_session=session, catalog_id=catalog_id
+            database=database, table=table, boto3_session=session, transaction_id=transaction_id, catalog_id=catalog_id
         )
         catalog_path: Optional[str] = None
         if catalog_table_input:
@@ -565,6 +566,10 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
                 raise exceptions.InvalidArgumentValue(
                     f"The specified path: {path}, does not match the existing Glue catalog table path: {catalog_path}"
                 )
+        if (table_type == "GOVERNED") and (not transaction_id):
+            _logger.debug("`transaction_id` not specified for GOVERNED table, starting transaction")
+            transaction_id = lakeformation.start_transaction(read_only=False, boto3_session=boto3_session)
+            commit_trans = True
     df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
     schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(
         df=df, index=index, ignore_cols=partition_cols, dtype=dtype
@@ -610,6 +615,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
                     columns_comments=columns_comments,
                     boto3_session=session,
                     mode=mode,
+                    transaction_id=transaction_id,
                     catalog_versioning=catalog_versioning,
                     projection_enabled=projection_enabled,
                     projection_types=projection_types,
@@ -621,7 +627,11 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
                     catalog_table_input=catalog_table_input,
                 )
                 catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
-                    database=database, table=table, boto3_session=session, catalog_id=catalog_id
+                    database=database,
+                    table=table,
+                    boto3_session=session,
+                    transaction_id=transaction_id,
+                    catalog_id=catalog_id,
                 )
         paths, partitions_values = _to_dataset(
             func=_to_parquet,
@@ -665,6 +675,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
                     columns_comments=columns_comments,
                     boto3_session=session,
                     mode=mode,
+                    transaction_id=transaction_id,
                     catalog_versioning=catalog_versioning,
                     projection_enabled=projection_enabled,
                     projection_types=projection_types,
@@ -687,7 +698,14 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
                         catalog_id=catalog_id,
                         columns_types=columns_types,
                     )
+                if commit_trans:
+                    lakeformation.commit_transaction(
+                        transaction_id=transaction_id, boto3_session=boto3_session  # type: ignore
+                    )
             except Exception:
+                if transaction_id:
+                    _logger.debug("Canceling transaction with ID: %s.", transaction_id)
+                    lakeformation.cancel_transaction(transaction_id=transaction_id, boto3_session=boto3_session)
                 _logger.debug("Catalog write failed, cleaning up S3 (paths: %s).", paths)
                 delete_objects(
                     path=paths,

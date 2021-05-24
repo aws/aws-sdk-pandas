@@ -11,6 +11,7 @@ from awswrangler.catalog._definitions import _csv_table_definition, _parquet_tab
 from awswrangler.catalog._delete import delete_all_partitions, delete_table_if_exists
 from awswrangler.catalog._get import _get_table_input
 from awswrangler.catalog._utils import _catalog_id, sanitize_column_name, sanitize_table_name
+from awswrangler.lakeformation._utils import commit_transaction, start_transaction
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ def _update_if_necessary(dic: Dict[str, str], key: str, value: Optional[str], mo
     return mode
 
 
-def _create_table(  # pylint: disable=too-many-branches,too-many-statements
+def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-many-locals
     database: str,
     table: str,
     description: Optional[str],
@@ -38,6 +39,7 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
     projection_enabled: bool,
     partitions_types: Optional[Dict[str, str]],
     columns_comments: Optional[Dict[str, str]],
+    transaction_id: Optional[str],
     projection_types: Optional[Dict[str, str]],
     projection_ranges: Optional[Dict[str, str]],
     projection_values: Optional[Dict[str, str]],
@@ -118,29 +120,36 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
         raise exceptions.InvalidArgument(
             f"{mode} is not a valid mode. It must be 'overwrite', 'append' or 'overwrite_partitions'."
         )
-    if table_exist is True and mode == "overwrite":
+    args: Dict[str, Any] = _catalog_id(
+        catalog_id=catalog_id,
+        DatabaseName=database,
+        TableInput=table_input,
+    )
+    commit_trans: bool = False
+    if transaction_id:
         if table_type != "GOVERNED":
-            delete_all_partitions(table=table, database=database, catalog_id=catalog_id, boto3_session=session)
+            raise exceptions.InvalidTable(
+                f"A transaction ID was provided but `{database}`.`{table}` is not a GOVERNED table."
+            )
+        args["TransactionId"] = transaction_id
+    if (table_type == "GOVERNED") and (not transaction_id):
+        _logger.debug("`transaction_id` not specified for GOVERNED table, starting transaction")
+        transaction_id = start_transaction(read_only=False, boto3_session=session)
+        args["TransactionId"] = transaction_id
+        commit_trans = True
+    if table_exist:
         _logger.debug("Updating table (%s)...", mode)
-        client_glue.update_table(
-            **_catalog_id(
-                catalog_id=catalog_id, DatabaseName=database, TableInput=table_input, SkipArchive=skip_archive
-            )
-        )
-    elif (table_exist is True) and (mode in ("append", "overwrite_partitions", "update")):
-        if mode == "update":
-            _logger.debug("Updating table (%s)...", mode)
-            client_glue.update_table(
-                **_catalog_id(
-                    catalog_id=catalog_id, DatabaseName=database, TableInput=table_input, SkipArchive=skip_archive
-                )
-            )
-    elif table_exist is False:
+        args["SkipArchive"] = skip_archive
+        if mode == "overwrite":
+            if table_type != "GOVERNED":
+                delete_all_partitions(table=table, database=database, catalog_id=catalog_id, boto3_session=session)
+            client_glue.update_table(**args)
+        elif mode == "update":
+            client_glue.update_table(**args)
+    else:
         try:
             _logger.debug("Creating table (%s)...", mode)
-            client_glue.create_table(
-                **_catalog_id(catalog_id=catalog_id, DatabaseName=database, TableInput=table_input)
-            )
+            client_glue.create_table(**args)
         except client_glue.exceptions.AlreadyExistsException:
             if mode == "overwrite":
                 _utils.try_it(
@@ -151,8 +160,11 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
                     database=database,
                     table=table,
                     table_input=table_input,
+                    transaction_id=transaction_id,
                     boto3_session=boto3_session,
                 )
+    if commit_trans:
+        commit_transaction(transaction_id=transaction_id)  # type: ignore
     _logger.debug("Leaving table as is (%s)...", mode)
 
 
@@ -162,10 +174,18 @@ def _overwrite_table(
     database: str,
     table: str,
     table_input: Dict[str, Any],
+    transaction_id: Optional[str],
     boto3_session: boto3.Session,
 ) -> None:
     delete_table_if_exists(database=database, table=table, boto3_session=boto3_session, catalog_id=catalog_id)
-    client_glue.create_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, TableInput=table_input))
+    args: Dict[str, Any] = _catalog_id(
+        catalog_id=catalog_id,
+        DatabaseName=database,
+        TableInput=table_input,
+    )
+    if transaction_id:
+        args["TransactionId"] = transaction_id
+    client_glue.create_table(**args)
 
 
 def _upsert_table_parameters(
@@ -227,6 +247,7 @@ def _create_parquet_table(
     mode: str,
     catalog_versioning: bool,
     projection_enabled: bool,
+    transaction_id: Optional[str],
     projection_types: Optional[Dict[str, str]],
     projection_ranges: Optional[Dict[str, str]],
     projection_values: Optional[Dict[str, str]],
@@ -276,6 +297,7 @@ def _create_parquet_table(
         table_type=table_type,
         table_exist=table_exist,
         partitions_types=partitions_types,
+        transaction_id=transaction_id,
         projection_enabled=projection_enabled,
         projection_types=projection_types,
         projection_ranges=projection_ranges,
@@ -299,6 +321,7 @@ def _create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     parameters: Optional[Dict[str, str]],
     columns_comments: Optional[Dict[str, str]],
     mode: str,
+    transaction_id: Optional[str],
     catalog_versioning: bool,
     sep: str,
     skip_header_line_count: Optional[int],
@@ -356,6 +379,7 @@ def _create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
         table_type=table_type,
         table_exist=table_exist,
         partitions_types=partitions_types,
+        transaction_id=transaction_id,
         projection_enabled=projection_enabled,
         projection_types=projection_types,
         projection_ranges=projection_ranges,
@@ -548,6 +572,7 @@ def create_parquet_table(
     columns_comments: Optional[Dict[str, str]] = None,
     mode: str = "overwrite",
     catalog_versioning: bool = False,
+    transaction_id: Optional[str] = None,
     projection_enabled: bool = False,
     projection_types: Optional[Dict[str, str]] = None,
     projection_ranges: Optional[Dict[str, str]] = None,
@@ -593,6 +618,8 @@ def create_parquet_table(
         'overwrite' to recreate any possible existing table or 'append' to keep any possible existing table.
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
+    transaction_id: str, optional
+        The ID of the transaction (i.e. used with GOVERNED tables).
     projection_enabled : bool
         Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
     projection_types : Optional[Dict[str, str]]
@@ -642,7 +669,7 @@ def create_parquet_table(
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     catalog_table_input: Optional[Dict[str, Any]] = _get_table_input(
-        database=database, table=table, boto3_session=session, catalog_id=catalog_id
+        database=database, table=table, boto3_session=session, transaction_id=transaction_id, catalog_id=catalog_id
     )
     _create_parquet_table(
         database=database,
@@ -659,6 +686,7 @@ def create_parquet_table(
         columns_comments=columns_comments,
         mode=mode,
         catalog_versioning=catalog_versioning,
+        transaction_id=transaction_id,
         projection_enabled=projection_enabled,
         projection_types=projection_types,
         projection_ranges=projection_ranges,
@@ -671,7 +699,7 @@ def create_parquet_table(
 
 
 @apply_configs
-def create_csv_table(
+def create_csv_table(  # pylint: disable=too-many-arguments
     database: str,
     table: str,
     path: str,
@@ -689,6 +717,7 @@ def create_csv_table(
     skip_header_line_count: Optional[int] = None,
     serde_library: Optional[str] = None,
     serde_parameters: Optional[Dict[str, str]] = None,
+    transaction_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
     projection_enabled: bool = False,
     projection_types: Optional[Dict[str, str]] = None,
@@ -743,6 +772,8 @@ def create_csv_table(
     serde_parameters : Optional[str]
         Dictionary of initialization parameters for the SerDe.
         The default is `{"field.delim": sep, "escape.delim": "\\"}`.
+    transaction_id: str, optional
+        The ID of the transaction (i.e. used with GOVERNED tables).
     projection_enabled : bool
         Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
     projection_types : Optional[Dict[str, str]]
@@ -795,7 +826,7 @@ def create_csv_table(
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     catalog_table_input: Optional[Dict[str, Any]] = _get_table_input(
-        database=database, table=table, boto3_session=session, catalog_id=catalog_id
+        database=database, table=table, boto3_session=session, transaction_id=transaction_id, catalog_id=catalog_id
     )
     _create_csv_table(
         database=database,
@@ -812,6 +843,7 @@ def create_csv_table(
         columns_comments=columns_comments,
         mode=mode,
         catalog_versioning=catalog_versioning,
+        transaction_id=transaction_id,
         projection_enabled=projection_enabled,
         projection_types=projection_types,
         projection_ranges=projection_ranges,

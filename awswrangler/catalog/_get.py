@@ -18,13 +18,18 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _get_table_input(
-    database: str, table: str, boto3_session: Optional[boto3.Session], catalog_id: Optional[str] = None
+    database: str,
+    table: str,
+    boto3_session: Optional[boto3.Session],
+    transaction_id: Optional[str] = None,
+    catalog_id: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    args: Dict[str, Any] = _catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table)
+    if transaction_id:
+        args["TransactionId"] = transaction_id
     try:
-        response: Dict[str, Any] = client_glue.get_table(
-            **_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table)
-        )
+        response: Dict[str, Any] = client_glue.get_table(**args)
     except client_glue.exceptions.EntityNotFoundException:
         return None
     table_input: Dict[str, Any] = {}

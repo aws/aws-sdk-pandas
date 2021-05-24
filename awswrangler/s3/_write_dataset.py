@@ -7,15 +7,7 @@ import boto3
 import numpy as np
 import pandas as pd
 
-from awswrangler import exceptions
-from awswrangler.lakeformation._utils import (
-    _build_table_objects,
-    _get_table_objects,
-    _update_table_objects,
-    abort_transaction,
-    begin_transaction,
-    commit_transaction,
-)
+from awswrangler import exceptions, lakeformation
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._write_concurrent import _WriteProxy
 
@@ -51,7 +43,9 @@ def _to_partitions(
         prefix: str = f"{path_root}{subdir}/"
         if mode == "overwrite_partitions":
             if (table_type == "GOVERNED") and (table is not None) and (database is not None):
-                del_objects: List[Dict[str, Any]] = _get_table_objects(
+                del_objects: List[
+                    Dict[str, Any]
+                ] = lakeformation._get_table_objects(  # pylint: disable=protected-access
                     catalog_id=catalog_id,
                     database=database,
                     table=table,
@@ -62,7 +56,7 @@ def _to_partitions(
                     boto3_session=boto3_session,
                 )
                 if del_objects:
-                    _update_table_objects(
+                    lakeformation._update_table_objects(  # pylint: disable=protected-access
                         catalog_id=catalog_id,
                         database=database,
                         table=table,
@@ -183,14 +177,6 @@ def _to_dataset(
 ) -> Tuple[List[str], Dict[str, List[str]]]:
     path_root = path_root if path_root.endswith("/") else f"{path_root}/"
 
-    commit_trans: bool = False
-    if table_type == "GOVERNED":
-        # Check whether to skip committing the transaction (i.e. multiple read/write operations)
-        if transaction_id is None:
-            _logger.debug("`transaction_id` not specified, beginning transaction")
-            transaction_id = begin_transaction(read_only=False, boto3_session=boto3_session)
-            commit_trans = True
-
     # Evaluate mode
     if mode not in ["append", "overwrite", "overwrite_partitions"]:
         raise exceptions.InvalidArgumentValue(
@@ -198,7 +184,7 @@ def _to_dataset(
         )
     if (mode == "overwrite") or ((mode == "overwrite_partitions") and (not partition_cols)):
         if (table_type == "GOVERNED") and (table is not None) and (database is not None):
-            del_objects: List[Dict[str, Any]] = _get_table_objects(
+            del_objects: List[Dict[str, Any]] = lakeformation._get_table_objects(  # pylint: disable=protected-access
                 catalog_id=catalog_id,
                 database=database,
                 table=table,
@@ -206,7 +192,7 @@ def _to_dataset(
                 boto3_session=boto3_session,
             )
             if del_objects:
-                _update_table_objects(
+                lakeformation._update_table_objects(  # pylint: disable=protected-access
                     catalog_id=catalog_id,
                     database=database,
                     table=table,
@@ -266,12 +252,12 @@ def _to_dataset(
     _logger.debug("paths: %s", paths)
     _logger.debug("partitions_values: %s", partitions_values)
     if (table_type == "GOVERNED") and (table is not None) and (database is not None):
-        add_objects: List[Dict[str, Any]] = _build_table_objects(
+        add_objects: List[Dict[str, Any]] = lakeformation._build_table_objects(  # pylint: disable=protected-access
             paths, partitions_values, use_threads=use_threads, boto3_session=boto3_session
         )
         try:
             if add_objects:
-                _update_table_objects(
+                lakeformation._update_table_objects(  # pylint: disable=protected-access
                     catalog_id=catalog_id,
                     database=database,
                     table=table,
@@ -279,12 +265,7 @@ def _to_dataset(
                     add_objects=add_objects,
                     boto3_session=boto3_session,
                 )
-                if commit_trans:
-                    commit_transaction(transaction_id=transaction_id, boto3_session=boto3_session)  # type: ignore
         except Exception as ex:
-            _logger.debug("Aborting transaction with ID: %s.", transaction_id)
-            if transaction_id:
-                abort_transaction(transaction_id=transaction_id, boto3_session=boto3_session)
             _logger.error(ex)
             raise
 

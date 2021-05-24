@@ -33,7 +33,6 @@ def test_routine_0(
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
     )
-    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=database) == 1
     if table_type == "GOVERNED":
         df2 = wr.lakeformation.read_sql_table(glue_table, database, use_threads=use_threads)
     else:
@@ -63,7 +62,6 @@ def test_routine_0(
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
     )
-    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=database) == 1
     if table_type == "GOVERNED":
         df2 = wr.lakeformation.read_sql_table(glue_table, database, use_threads=use_threads)
     else:
@@ -94,7 +92,6 @@ def test_routine_0(
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
     )
-    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=database) == 1
     if table_type == "GOVERNED":
         df2 = wr.lakeformation.read_sql_table(glue_table, database, use_threads=use_threads)
     else:
@@ -125,7 +122,6 @@ def test_routine_0(
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
     )
-    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=database) == 1
     if table_type == "GOVERNED":
         df2 = wr.lakeformation.read_sql_table(glue_table, database, use_threads=use_threads)
     else:
@@ -158,7 +154,6 @@ def test_routine_0(
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
     )
-    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=database) == 1
     if table_type == "GOVERNED":
         df2 = wr.lakeformation.read_sql_table(glue_table, database, use_threads=use_threads)
     else:
@@ -206,7 +201,6 @@ def test_routine_1(
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
     )
-    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=database) == 1
     if table_type == "GOVERNED":
         df2 = wr.lakeformation.read_sql_table(glue_table, database, use_threads=use_threads)
     else:
@@ -238,7 +232,6 @@ def test_routine_1(
         concurrent_partitioning=concurrent_partitioning,
         use_threads=use_threads,
     )
-    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=database) == 1
     if table_type == "GOVERNED":
         df2 = wr.lakeformation.read_sql_table(glue_table, database, use_threads=use_threads)
     else:
@@ -271,7 +264,6 @@ def test_routine_1(
         use_threads=use_threads,
         concurrent_partitioning=concurrent_partitioning,
     )
-    assert wr.catalog.get_table_number_of_versions(table=glue_table, database=database) == 1
     if table_type == "GOVERNED":
         df2 = wr.lakeformation.read_sql_table(glue_table, database, use_threads=use_threads)
     else:

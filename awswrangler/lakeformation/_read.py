@@ -11,12 +11,12 @@ from pyarrow import NativeFile, RecordBatchStreamReader, Table
 from awswrangler import _data_types, _utils, catalog, exceptions
 from awswrangler._config import apply_configs
 from awswrangler.catalog._utils import _catalog_id
-from awswrangler.lakeformation._utils import abort_transaction, begin_transaction, wait_query
+from awswrangler.lakeformation._utils import cancel_transaction, start_transaction, wait_query
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _execute_query(
+def _get_work_unit_results(
     query_id: str,
     token_work_unit: Tuple[str, int],
     categories: Optional[List[str]],
@@ -27,7 +27,9 @@ def _execute_query(
 ) -> pd.DataFrame:
     client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
     token, work_unit = token_work_unit
-    messages: NativeFile = client_lakeformation.execute(QueryId=query_id, Token=token, WorkUnitId=work_unit)["Messages"]
+    messages: NativeFile = client_lakeformation.get_work_unit_results(
+        QueryId=query_id, WorkUnitToken=token, WorkUnitId=work_unit
+    )["ResultStream"]
     table: Table = RecordBatchStreamReader(messages.read()).read_all()
     args: Dict[str, Any] = {}
     if table.num_rows > 0:
@@ -70,8 +72,8 @@ def _resolve_sql_query(
         response = client_lakeformation.get_work_units(**scan_kwargs)
         token_work_units.extend(  # [(Token0, WorkUnitId0), (Token0, WorkUnitId1), (Token1, WorkUnitId2) ... ]
             [
-                (unit["Token"], unit_id)
-                for unit in response["Units"]
+                (unit["WorkUnitToken"], unit_id)
+                for unit in response["WorkUnitRanges"]
                 for unit_id in range(unit["WorkUnitIdMin"], unit["WorkUnitIdMax"] + 1)  # Max is inclusive
             ]
         )
@@ -81,7 +83,7 @@ def _resolve_sql_query(
     dfs: List[pd.DataFrame] = list()
     if use_threads is False:
         dfs = list(
-            _execute_query(
+            _get_work_unit_results(
                 query_id=query_id,
                 token_work_unit=token_work_unit,
                 categories=categories,
@@ -97,7 +99,7 @@ def _resolve_sql_query(
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
             dfs = list(
                 executor.map(
-                    _execute_query,
+                    _get_work_unit_results,
                     itertools.repeat(query_id),
                     token_work_units,
                     itertools.repeat(categories),
@@ -219,16 +221,16 @@ def read_sql_query(
     for key, value in params.items():
         sql = sql.replace(f":{key};", str(value))
 
-    args: Dict[str, Optional[str]] = _catalog_id(catalog_id=catalog_id, **{"DatabaseName": database, "Statement": sql})
+    args: Dict[str, Optional[str]] = _catalog_id(catalog_id=catalog_id, **{"DatabaseName": database})
     if query_as_of_time:
         args["QueryAsOfTime"] = query_as_of_time
     elif transaction_id:
         args["TransactionId"] = transaction_id
     else:
-        _logger.debug("Neither `transaction_id` nor `query_as_of_time` were specified, beginning transaction")
-        transaction_id = begin_transaction(read_only=True, boto3_session=session)
+        _logger.debug("Neither `transaction_id` nor `query_as_of_time` were specified, starting transaction")
+        transaction_id = start_transaction(read_only=True, boto3_session=session)
         args["TransactionId"] = transaction_id
-    query_id: str = client_lakeformation.plan_query(**args)["QueryId"]
+    query_id: str = client_lakeformation.start_query_planning(QueryString=sql, QueryPlanningContext=args)["QueryId"]
     try:
         return _resolve_sql_query(
             query_id=query_id,
@@ -239,9 +241,9 @@ def read_sql_query(
             boto3_session=session,
         )
     except Exception as ex:
-        _logger.debug("Aborting transaction with ID: %s.", transaction_id)
+        _logger.debug("Canceling transaction with ID: %s.", transaction_id)
         if transaction_id:
-            abort_transaction(transaction_id=transaction_id, boto3_session=session)
+            cancel_transaction(transaction_id=transaction_id, boto3_session=session)
         _logger.error(ex)
         raise
 

@@ -63,7 +63,7 @@ def test_lakeformation(path, path2, lakeformation_glue_database, glue_table, glu
         database=lakeformation_glue_database,
     )
     # Read within a transaction
-    transaction_id = wr.lakeformation.begin_transaction(read_only=True)
+    transaction_id = wr.lakeformation.start_transaction(read_only=True)
     df3 = wr.lakeformation.read_sql_table(
         table=table2,
         database=lakeformation_glue_database,
@@ -96,7 +96,7 @@ def test_lakeformation_multi_transaction(
     wr.catalog.delete_table_if_exists(database=lakeformation_glue_database, table=table2)
 
     df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
-    transaction_id = wr.lakeformation.begin_transaction(read_only=False)
+    transaction_id = wr.lakeformation.start_transaction(read_only=False)
     wr.s3.to_parquet(
         df=df,
         path=path,
