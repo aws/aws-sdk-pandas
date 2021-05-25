@@ -6,7 +6,7 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
 import pandas as pd
-from pyarrow import NativeFile, RecordBatchStreamReader, Table
+from pyarrow import NativeFile, RecordBatchStreamReader, Table, concat_tables
 
 from awswrangler import _data_types, _utils, catalog, exceptions
 from awswrangler._config import apply_configs
@@ -19,34 +19,14 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def _get_work_unit_results(
     query_id: str,
     token_work_unit: Tuple[str, int],
-    categories: Optional[List[str]],
-    safe: bool,
-    map_types: bool,
-    use_threads: bool,
     boto3_session: boto3.Session,
-) -> pd.DataFrame:
+) -> Table:
     client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
     token, work_unit = token_work_unit
     messages: NativeFile = client_lakeformation.get_work_unit_results(
         QueryId=query_id, WorkUnitToken=token, WorkUnitId=work_unit
     )["ResultStream"]
-    table: Table = RecordBatchStreamReader(messages.read()).read_all()
-    args: Dict[str, Any] = {}
-    if table.num_rows > 0:
-        args = {
-            "use_threads": use_threads,
-            "split_blocks": True,
-            "self_destruct": True,
-            "integer_object_nulls": False,
-            "date_as_object": True,
-            "ignore_metadata": True,
-            "strings_to_categorical": False,
-            "categories": categories,
-            "safe": safe,
-            "types_mapper": _data_types.pyarrow2pandas_extension if map_types else None,
-        }
-    df: pd.DataFrame = _utils.ensure_df_is_mutable(df=table.to_pandas(**args))
-    return df
+    return RecordBatchStreamReader(messages.read()).read_all()
 
 
 def _resolve_sql_query(
@@ -80,16 +60,12 @@ def _resolve_sql_query(
         next_token = response.get("NextToken", None)
         scan_kwargs["NextToken"] = next_token
 
-    dfs: List[pd.DataFrame] = list()
+    tables: List[Table] = list()
     if use_threads is False:
-        dfs = list(
+        tables = list(
             _get_work_unit_results(
                 query_id=query_id,
                 token_work_unit=token_work_unit,
-                categories=categories,
-                safe=safe,
-                map_types=map_types,
-                use_threads=use_threads,
                 boto3_session=boto3_session,
             )
             for token_work_unit in token_work_units
@@ -97,19 +73,28 @@ def _resolve_sql_query(
     else:
         cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
-            dfs = list(
+            tables = list(
                 executor.map(
                     _get_work_unit_results,
                     itertools.repeat(query_id),
                     token_work_units,
-                    itertools.repeat(categories),
-                    itertools.repeat(safe),
-                    itertools.repeat(map_types),
-                    itertools.repeat(use_threads),
                     itertools.repeat(_utils.boto3_to_primitives(boto3_session=boto3_session)),
                 )
             )
-    return pd.concat([df for df in dfs if not df.empty], sort=False, copy=False, ignore_index=False)
+    table = concat_tables(tables)
+    args = {
+        "use_threads": use_threads,
+        "split_blocks": True,
+        "self_destruct": True,
+        "integer_object_nulls": False,
+        "date_as_object": True,
+        "ignore_metadata": True,
+        "strings_to_categorical": False,
+        "categories": categories,
+        "safe": safe,
+        "types_mapper": _data_types.pyarrow2pandas_extension if map_types else None,
+    }
+    return _utils.ensure_df_is_mutable(df=table.to_pandas(**args))
 
 
 @apply_configs
