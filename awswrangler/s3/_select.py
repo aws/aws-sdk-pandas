@@ -31,14 +31,13 @@ def _select_object_content(
     partial_record: str = ""
     for event in response["Payload"]:
         if "Records" in event:
-            records = partial_record.join(event["Records"]["Payload"].decode(encoding="utf-8", errors="ignore")).split(
-                "\n"
-            )
+            records = partial_record + event["Records"]["Payload"].decode(encoding="utf-8", errors="ignore")
+            split_records = records.split("\n")
             # Record end can either be a partial record or a return char
-            partial_record = records[-1]
+            partial_record = split_records[-1]
             dfs.append(
                 pd.DataFrame(
-                    [json.loads(record) for record in records[:-1]],
+                    [json.loads(record) for record in split_records[:-1]],
                 )
             )
     if not dfs:
