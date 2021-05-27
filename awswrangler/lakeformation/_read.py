@@ -215,8 +215,8 @@ def read_sql_query(
         _logger.debug("Neither `transaction_id` nor `query_as_of_time` were specified, starting transaction")
         transaction_id = start_transaction(read_only=True, boto3_session=session)
         args["TransactionId"] = transaction_id
-    query_id: str = client_lakeformation.start_query_planning(QueryString=sql, QueryPlanningContext=args)["QueryId"]
     try:
+        query_id: str = client_lakeformation.start_query_planning(QueryString=sql, QueryPlanningContext=args)["QueryId"]
         return _resolve_sql_query(
             query_id=query_id,
             categories=categories,

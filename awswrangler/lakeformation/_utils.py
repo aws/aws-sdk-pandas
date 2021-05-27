@@ -12,6 +12,7 @@ from awswrangler.s3._describe import describe_objects
 
 _QUERY_FINAL_STATES: List[str] = ["ERROR", "FINISHED"]
 _QUERY_WAIT_POLLING_DELAY: float = 2  # SECONDS
+_TRANSACTION_FINAL_STATES: List[str] = ["aborted", "committed"]
 _TRANSACTION_WAIT_POLLING_DELAY: float = 10  # SECONDS
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -122,7 +123,7 @@ def _update_table_objects(
 
 def _monitor_transaction(transaction_id: str, boto3_session: Optional[boto3.Session] = None) -> None:
     state: str = describe_transaction(transaction_id=transaction_id, boto3_session=boto3_session)
-    while state == "active":
+    while state not in _TRANSACTION_FINAL_STATES:
         extend_transaction(transaction_id=transaction_id, boto3_session=boto3_session)
         time.sleep(_TRANSACTION_WAIT_POLLING_DELAY)
         state = describe_transaction(transaction_id=transaction_id, boto3_session=boto3_session)
@@ -214,6 +215,7 @@ def start_transaction(read_only: Optional[bool] = False, boto3_session: Optional
     transaction_id: str = client_lakeformation.start_transaction(TransactionType=transaction_type)["TransactionId"]
     # Extend the transaction while in "active" state in a separate thread
     t = Thread(target=_monitor_transaction, args=(transaction_id, boto3_session))
+    t.daemon = True  # Ensures thread is killed when any exception is raised
     t.start()
     return transaction_id
 
