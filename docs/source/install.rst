@@ -5,7 +5,8 @@ Install
 and on several platforms (AWS Lambda, AWS Glue Python Shell, EMR, EC2,
 on-premises, Amazon SageMaker, local, etc).
 
-Some good practices for most of the methods bellow are:
+Some good practices for most of the methods below are:
+
   - Use new and individual Virtual Environments for each project (`venv <https://docs.python.org/3/library/venv.html>`_).
   - On Notebooks, always restart your kernel after installations.
 
@@ -61,11 +62,43 @@ Go to your Glue PySpark job and create a new *Job parameters* key/value:
 
 To install a specific version, set the value for above Job parameter as follows:
 
-* Value: ``pyarrow==2,awswrangler==2.7.0``
+* Value: ``pyarrow==2,awswrangler==2.8.0``
 
 .. note:: Pyarrow 3 is not currently supported in Glue PySpark Jobs, which is why a previous installation of pyarrow 2 is required.
 
 `Official Glue PySpark Reference <https://docs.aws.amazon.com/glue/latest/dg/reduced-start-times-spark-etl-jobs.html#reduced-start-times-new-features>`_
+
+Public Artifacts
+---------------------
+
+Lambda zipped layers and Python wheels are stored in a publicly accessible S3 bucket for all versions.
+
+* Bucket: ``aws-data-wrangler-public-artifacts``
+
+* Prefix: ``releases/<version>/``
+
+  * Lambda layer: ``awswrangler-layer-<version>-py<py-version>.zip``
+
+  * Python wheel: ``awswrangler-<version>-py3-none-any.whl``
+
+Here is an example of how to reference the Lambda layer in your CDK app:
+
+.. code-block:: python
+
+    wrangler_layer = LayerVersion(
+      self,
+      "wrangler-layer",
+      compatible_runtimes=[Runtime.PYTHON_3_8],
+      code=S3Code(
+        bucket=Bucket.from_bucket_arn(
+            self,
+            "wrangler-bucket",
+            bucket_arn="arn:aws:s3:::aws-data-wrangler-public-artifacts",
+        ),
+        key="releases/2.8.0/awswrangler-layer-2.8.0-py3.8.zip",
+      ),
+      layer_version_name="aws-data-wrangler"
+    )
 
 Amazon SageMaker Notebook
 -------------------------
@@ -157,7 +190,7 @@ complement Big Data pipelines.
         sudo pip install pyarrow==2 awswrangler
 
 .. note:: Make sure to freeze the Wrangler version in the bootstrap for productive
-          environments (e.g. awswrangler==2.7.0)
+          environments (e.g. awswrangler==2.8.0)
 
 .. note:: Pyarrow 3 is not currently supported in the default EMR image, which is why a previous installation of pyarrow 2 is required.
 

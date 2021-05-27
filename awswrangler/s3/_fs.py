@@ -104,15 +104,13 @@ def _fetch_range(
     range_values: Tuple[int, int],
     bucket: str,
     key: str,
-    boto3_primitives: _utils.Boto3PrimitivesType,
+    s3_client: boto3.client,
     boto3_kwargs: Dict[str, Any],
 ) -> Tuple[int, bytes]:
     start, end = range_values
     _logger.debug("Fetching: s3://%s/%s - Range: %s-%s", bucket, key, start, end)
-    boto3_session: boto3.Session = _utils.boto3_from_primitives(primitives=boto3_primitives)
-    client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     resp: Dict[str, Any] = _utils.try_it(
-        f=client.get_object,
+        f=s3_client.get_object,
         ex=_S3_RETRYABLE_ERRORS,
         base=0.5,
         max_num_tries=6,
@@ -314,7 +312,7 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
 
     def _fetch_range_proxy(self, start: int, end: int) -> bytes:
         _logger.debug("Fetching: s3://%s/%s - Range: %s-%s", self._bucket, self._key, start, end)
-        boto3_primitives: _utils.Boto3PrimitivesType = _utils.boto3_to_primitives(boto3_session=self._boto3_session)
+        s3_client: boto3.client = _utils.client(service_name="s3", session=self._boto3_session)
         boto3_kwargs: Dict[str, Any] = get_botocore_valid_kwargs(
             function_name="get_object", s3_additional_kwargs=self._s3_additional_kwargs
         )
@@ -325,7 +323,7 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
                 range_values=(start, end),
                 bucket=self._bucket,
                 key=self._key,
-                boto3_primitives=boto3_primitives,
+                s3_client=s3_client,
                 boto3_kwargs=boto3_kwargs,
             )[1]
         sizes: Tuple[int, ...] = _utils.get_even_chunks_sizes(
@@ -344,7 +342,7 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
                         ranges,
                         itertools.repeat(self._bucket),
                         itertools.repeat(self._key),
-                        itertools.repeat(boto3_primitives),
+                        itertools.repeat(s3_client),
                         itertools.repeat(boto3_kwargs),
                     )
                 ),
