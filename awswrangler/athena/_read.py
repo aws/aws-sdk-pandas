@@ -799,8 +799,7 @@ def read_sql_query(
     for key, value in params.items():
         sql = sql.replace(f":{key};", str(value))
 
-    if max_remote_cache_entries > max_local_cache_entries:
-        max_remote_cache_entries = max_local_cache_entries
+    max_remote_cache_entries = min(max_remote_cache_entries, max_local_cache_entries)
 
     _cache_manager.max_cache_size = max_local_cache_entries
     cache_info: _CacheInfo = _check_for_cached_results(

@@ -2,10 +2,10 @@
 
 import concurrent.futures
 import itertools
-from io import StringIO
+import json
 import logging
 import pprint
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import boto3
 import pandas as pd
@@ -15,22 +15,36 @@ from awswrangler.s3._describe import size_objects
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
-_RANGE_CHUNK_SIZE: int = 5_242_880  # 5 MB (5 * 2**20)
+_RANGE_CHUNK_SIZE: int = int(1024 * 1024)
 
 
 def _select_object_content(
-    args: Dict[str, Any], scan_range: Optional[Tuple[int, int]], client_s3: Optional[boto3.Session]
+    args: Dict[str, Any],
+    client_s3: boto3.Session,
+    scan_range: Optional[Tuple[int, int]] = None,
 ) -> pd.DataFrame:
     if scan_range:
         args.update({"ScanRange": {"Start": scan_range[0], "End": scan_range[1]}})
     response = client_s3.select_object_content(**args)
-    l: pd.DataFrame = []
-    print(type(response["Payload"]))
+
+    dfs: List[pd.DataFrame] = []
+    partial_record: str = ""
     for event in response["Payload"]:
-        print(type(event))
         if "Records" in event:
-            l.append(pd.read_csv(StringIO(event["Records"]["Payload"].decode("utf-8"))))
-    return pd.concat(l)
+            records = partial_record.join(event["Records"]["Payload"].decode(encoding="utf-8", errors="ignore")).split(
+                "\n"
+            )
+            # Record end can either be a partial record or a return char
+            partial_record = records[-1]
+            dfs.append(
+                pd.DataFrame(
+                    [json.loads(record) for record in records[:-1]],
+                )
+            )
+    if not dfs:
+        return pd.DataFrame()
+    return pd.concat(dfs, ignore_index=True)
+
 
 def _paginate_stream(
     args: Dict[str, Any], path: str, use_threads: Union[bool, int], boto3_session: Optional[boto3.Session]
@@ -43,67 +57,130 @@ def _paginate_stream(
     if obj_size is None:
         raise exceptions.InvalidArgumentValue(f"S3 object w/o defined size: {path}")
 
+    dfs: List[pd.Dataframe] = []
+    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+
     scan_ranges: List[Tuple[int, int]] = []
     for i in range(0, obj_size, _RANGE_CHUNK_SIZE):
         scan_ranges.append((i, i + min(_RANGE_CHUNK_SIZE, obj_size - i)))
 
-    dfs_iterator: List[pd.Dataframe] = []
-    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     if use_threads is False:
-        dfs_iterator = list(
+        dfs = list(
             _select_object_content(
                 args=args,
-                scan_range=scan_range,
                 client_s3=client_s3,
+                scan_range=scan_range,
             )
             for scan_range in scan_ranges
         )
     else:
         cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
-            dfs_iterator = list(
+            dfs = list(
                 executor.map(
                     _select_object_content,
                     itertools.repeat(args),
-                    scan_ranges,
                     itertools.repeat(client_s3),
+                    scan_ranges,
                 )
             )
-    return pd.concat([df for df in dfs_iterator])
+    return pd.concat(dfs, ignore_index=True)
 
 
-# TODO: clarify when to use @config (e.g. read_parquet vs read_parquet_table)
-def select_query(  # Read sql query or S3 select? Here or in a separate file?
+def select_query(
     sql: str,
     path: str,
     input_serialization: str,
-    output_serialization: str,
-    input_serialization_params: Dict[str, Union[bool, str]] = {},
-    output_serialization_params: Dict[str, str] = {},
+    input_serialization_params: Dict[str, Union[bool, str]],
     compression: Optional[str] = None,
     use_threads: Union[bool, int] = False,
     boto3_session: Optional[boto3.Session] = None,
-    params: Optional[Dict[str, Any]] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame:
+    r"""Filter contents of an Amazon S3 object based on SQL statement.
 
+    Note: Scan ranges are only supported for uncompressed CSV/JSON, CSV (without quoted delimiters)
+    and JSON objects (in LINES mode only). It means scanning cannot be split across threads if the latter
+    conditions are not met, leading to lower performance.
+
+    Parameters
+    ----------
+    sql: str
+        SQL statement used to query the object.
+    path: str
+        S3 path to the object (e.g. s3://bucket/key).
+    input_serialization: str,
+        Format of the S3 object queried.
+        Valid values: "CSV", "JSON", or "Parquet". Case sensitive.
+    input_serialization_params: Dict[str, Union[bool, str]]
+        Dictionary describing the serialization of the S3 object.
+    compression: Optional[str]
+        Compression type of the S3 object.
+        Valid values: None, "gzip", or "bzip2". gzip and bzip2 are only valid for CSV and JSON objects.
+    use_threads : Union[bool, int]
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() is used as the max number of threads.
+        If integer is provided, specified number is used.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session is used if none is provided.
+    s3_additional_kwargs : Optional[Dict[str, Any]]
+        Forwarded to botocore requests.
+        Valid values: "SSECustomerAlgorithm", "SSECustomerKey", "ExpectedBucketOwner".
+        e.g. s3_additional_kwargs={'SSECustomerAlgorithm': 'md5'}
+
+    Returns
+    -------
+    pandas.DataFrame
+        Pandas DataFrame with results from query.
+
+    Examples
+    --------
+    Reading a gzip compressed JSON document
+
+    >>> import awswrangler as wr
+    >>> df = wr.s3.select_query(
+    ...     sql='SELECT * FROM s3object[*][*]',
+    ...     path='s3://bucket/key.json.gzip',
+    ...     input_serialization='JSON',
+    ...     input_serialization_params={
+    ...         'Type': 'Document',
+    ...     },
+    ...     compression="gzip",
+    ... )
+
+    Reading an entire CSV object using threads
+
+    >>> import awswrangler as wr
+    >>> df = wr.s3.select_query(
+    ...     sql='SELECT * FROM s3object',
+    ...     path='s3://bucket/key.csv',
+    ...     input_serialization='CSV',
+    ...     input_serialization_params={
+    ...         'FileHeaderInfo': 'Use',
+    ...         'RecordDelimiter': '\r\n'
+    ...     },
+    ...     use_threads=True,
+    ... )
+
+    Reading a single column from Parquet object with pushdown filter
+
+    >>> import awswrangler as wr
+    >>> df = wr.s3.select_query(
+    ...     sql='SELECT s.\"id\" FROM s3object s where s.\"id\" = 1.0',
+    ...     path='s3://bucket/key.snappy.parquet',
+    ...     input_serialization='Parquet',
+    ... )
+    """
     if path.endswith("/"):
         raise exceptions.InvalidArgumentValue("<path> argument should be an S3 key, not a prefix.")
     if input_serialization not in ["CSV", "JSON", "Parquet"]:
         raise exceptions.InvalidArgumentValue("<input_serialization> argument must be 'CSV', 'JSON' or 'Parquet'")
     if compression not in [None, "gzip", "bzip2"]:
         raise exceptions.InvalidCompression(f"Invalid {compression} compression, please use None, 'gzip' or 'bzip2'.")
-    else:
-        if compression and (input_serialization not in ["CSV", "JSON"]):
-            raise exceptions.InvalidArgumentCombination(
-                "'gzip' or 'bzip2' are only valid for input 'CSV' or 'JSON' objects."
-            )
-    if output_serialization not in [None, "CSV", "JSON"]:
-        raise exceptions.InvalidArgumentValue("<output_serialization> argument must be None, 'csv' or 'json'")
-    if params is None:
-        params = {}
-    for key, value in params.items():
-        sql = sql.replace(f":{key};", str(value))
+    if compression and (input_serialization not in ["CSV", "JSON"]):
+        raise exceptions.InvalidArgumentCombination(
+            "'gzip' or 'bzip2' are only valid for input 'CSV' or 'JSON' objects."
+        )
     bucket, key = _utils.parse_path(path)
 
     args: Dict[str, Any] = {
@@ -117,11 +194,23 @@ def select_query(  # Read sql query or S3 select? Here or in a separate file?
             "CompressionType": compression.upper() if compression else "NONE",
         },
         "OutputSerialization": {
-            output_serialization: output_serialization_params,
+            "JSON": {},
         },
     }
     if s3_additional_kwargs:
         args.update(s3_additional_kwargs)
     _logger.debug("args:\n%s", pprint.pformat(args))
+
+    if any(
+        [
+            compression,
+            input_serialization_params.get("AllowQuotedRecordDelimiter"),
+            input_serialization_params.get("Type") == "Document",
+        ]
+    ):  # Scan range is only supported for uncompressed CSV/JSON, CSV (without quoted delimiters)
+        # and JSON objects (in LINES mode only)
+        _logger.debug("Scan ranges are not supported given provided input.")
+        client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+        return _select_object_content(args=args, client_s3=client_s3)
 
     return _paginate_stream(args=args, path=path, use_threads=use_threads, boto3_session=boto3_session)
