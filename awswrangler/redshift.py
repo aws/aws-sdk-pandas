@@ -685,7 +685,7 @@ def read_sql_table(
 
 
 @apply_configs
-def to_sql(
+def to_sql(  # pylint: disable=too-many-locals
     df: pd.DataFrame,
     con: redshift_connector.Connection,
     table: str,
@@ -704,6 +704,7 @@ def to_sql(
     use_column_names: bool = False,
     lock: bool = False,
     chunksize: int = 200,
+    commit_transaction: bool = True,
 ) -> None:
     """Write records stored in a DataFrame into Redshift.
 
@@ -764,6 +765,8 @@ def to_sql(
         True to execute LOCK command inside the transaction to force serializable isolation.
     chunksize: int
         Number of rows which are inserted with each SQL query. Defaults to inserting 200 rows per query.
+    commit_transaction: bool
+        Whether to commit the transaction. True by default.
 
     Returns
     -------
@@ -829,7 +832,8 @@ def to_sql(
                 if lock:
                     _lock(cursor, [table], schema=schema)
                 _upsert(cursor=cursor, schema=schema, table=table, temp_table=created_table, primary_keys=primary_keys)
-            con.commit()
+            if commit_transaction:
+                con.commit()
     except Exception as ex:
         con.rollback()
         _logger.error(ex)
@@ -1139,6 +1143,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     path_ignore_suffix: Optional[str] = None,
     use_threads: bool = True,
     lock: bool = False,
+    commit_transaction: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
 ) -> None:
@@ -1227,6 +1232,8 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
         If enabled os.cpu_count() will be used as the max number of threads.
     lock : bool
         True to execute LOCK command inside the transaction to force serializable isolation.
+    commit_transaction: bool
+        Whether to commit the transaction. True by default.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
@@ -1302,7 +1309,8 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
                 if lock:
                     _lock(cursor, [table], schema=schema)
                 _upsert(cursor=cursor, schema=schema, table=table, temp_table=created_table, primary_keys=primary_keys)
-            con.commit()
+            if commit_transaction:
+                con.commit()
     except Exception as ex:
         con.rollback()
         _logger.error(ex)
