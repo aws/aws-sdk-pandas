@@ -29,7 +29,7 @@ def start_query(
     query: str,
     log_group_names: List[str],
     start_time: datetime.datetime = datetime.datetime(year=1970, month=1, day=1, tzinfo=datetime.timezone.utc),
-    end_time: datetime.datetime = datetime.datetime.now(),
+    end_time: datetime.datetime = datetime.datetime.utcnow(),
     limit: Optional[int] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
@@ -132,7 +132,7 @@ def run_query(
     query: str,
     log_group_names: List[str],
     start_time: datetime.datetime = datetime.datetime(year=1970, month=1, day=1, tzinfo=datetime.timezone.utc),
-    end_time: datetime.datetime = datetime.datetime.now(),
+    end_time: datetime.datetime = datetime.datetime.utcnow(),
     limit: Optional[int] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> List[List[Dict[str, str]]]:
@@ -186,7 +186,7 @@ def read_logs(
     query: str,
     log_group_names: List[str],
     start_time: datetime.datetime = datetime.datetime(year=1970, month=1, day=1, tzinfo=datetime.timezone.utc),
-    end_time: datetime.datetime = datetime.datetime.now(),
+    end_time: datetime.datetime = datetime.datetime.utcnow(),
     limit: Optional[int] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> pd.DataFrame:
