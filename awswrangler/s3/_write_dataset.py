@@ -81,7 +81,7 @@ def _to_buckets(
     **func_kwargs: Any,
 ) -> List[str]:
     _proxy: _WriteProxy = proxy if proxy else _WriteProxy(use_threads=False)
-    bucket_number_series = df.apply(
+    bucket_number_series = df.astype("O").apply(
         lambda row: _get_bucket_number(bucketing_info[1], [row[col_name] for col_name in bucketing_info[0]]),
         axis="columns",
     )
