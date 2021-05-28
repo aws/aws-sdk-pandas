@@ -19,9 +19,8 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def _get_work_unit_results(
     query_id: str,
     token_work_unit: Tuple[str, int],
-    boto3_session: boto3.Session,
+    client_lakeformation: boto3.client,
 ) -> Table:
-    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
     token, work_unit = token_work_unit
     messages: NativeFile = client_lakeformation.get_work_unit_results(
         QueryId=query_id, WorkUnitToken=token, WorkUnitId=work_unit
@@ -66,7 +65,7 @@ def _resolve_sql_query(
             _get_work_unit_results(
                 query_id=query_id,
                 token_work_unit=token_work_unit,
-                boto3_session=boto3_session,
+                client_lakeformation=client_lakeformation,
             )
             for token_work_unit in token_work_units
         )
@@ -78,7 +77,7 @@ def _resolve_sql_query(
                     _get_work_unit_results,
                     itertools.repeat(query_id),
                     token_work_units,
-                    itertools.repeat(_utils.boto3_to_primitives(boto3_session=boto3_session)),
+                    itertools.repeat(client_lakeformation),
                 )
             )
     table = concat_tables(tables)
