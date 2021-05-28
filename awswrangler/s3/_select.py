@@ -5,7 +5,7 @@ import itertools
 import json
 import logging
 import pprint
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
 import pandas as pd
@@ -18,26 +18,32 @@ _logger: logging.Logger = logging.getLogger(__name__)
 _RANGE_CHUNK_SIZE: int = int(1024 * 1024)
 
 
+def _gen_scan_range(obj_size: int) -> Iterator[Tuple[int, int]]:
+    for i in range(0, obj_size, _RANGE_CHUNK_SIZE):
+        yield (i, i + min(_RANGE_CHUNK_SIZE, obj_size - i))
+
+
 def _select_object_content(
     args: Dict[str, Any],
     client_s3: boto3.Session,
     scan_range: Optional[Tuple[int, int]] = None,
 ) -> pd.DataFrame:
     if scan_range:
-        args.update({"ScanRange": {"Start": scan_range[0], "End": scan_range[1]}})
-    response = client_s3.select_object_content(**args)
+        response = client_s3.select_object_content(**args, ScanRange={"Start": scan_range[0], "End": scan_range[1]})
+    else:
+        response = client_s3.select_object_content(**args)
 
     dfs: List[pd.DataFrame] = []
     partial_record: str = ""
     for event in response["Payload"]:
         if "Records" in event:
-            records = partial_record + event["Records"]["Payload"].decode(encoding="utf-8", errors="ignore")
-            split_records = records.split("\n")
+            records = event["Records"]["Payload"].decode(encoding="utf-8", errors="ignore").split("\n")
+            records[0] = partial_record + records[0]
             # Record end can either be a partial record or a return char
-            partial_record = split_records[-1]
+            partial_record = records.pop()
             dfs.append(
                 pd.DataFrame(
-                    [json.loads(record) for record in split_records[:-1]],
+                    [json.loads(record) for record in records],
                 )
             )
     if not dfs:
@@ -59,10 +65,6 @@ def _paginate_stream(
     dfs: List[pd.Dataframe] = []
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
 
-    scan_ranges: List[Tuple[int, int]] = []
-    for i in range(0, obj_size, _RANGE_CHUNK_SIZE):
-        scan_ranges.append((i, i + min(_RANGE_CHUNK_SIZE, obj_size - i)))
-
     if use_threads is False:
         dfs = list(
             _select_object_content(
@@ -70,7 +72,7 @@ def _paginate_stream(
                 client_s3=client_s3,
                 scan_range=scan_range,
             )
-            for scan_range in scan_ranges
+            for scan_range in _gen_scan_range(obj_size=obj_size)
         )
     else:
         cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
@@ -80,7 +82,7 @@ def _paginate_stream(
                     _select_object_content,
                     itertools.repeat(args),
                     itertools.repeat(client_s3),
-                    scan_ranges,
+                    _gen_scan_range(obj_size=obj_size),
                 )
             )
     return pd.concat(dfs, ignore_index=True)
