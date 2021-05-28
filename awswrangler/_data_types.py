@@ -652,6 +652,7 @@ def _cast_pandas_column(df: pd.DataFrame, col: str, current_type: str, desired_t
         try:
             df[col] = df[col].astype(desired_type)
         except TypeError as ex:
+            _logger.debug("Column: %s", col)
             if "object cannot be converted to an IntegerDtype" not in str(ex):
                 raise ex
             df[col] = (

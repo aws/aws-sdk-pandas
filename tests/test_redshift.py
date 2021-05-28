@@ -914,3 +914,34 @@ def test_dfs_are_equal_for_different_chunksizes(redshift_table, redshift_con, ch
     df["c1"] = df["c1"].astype("string")
 
     assert df.equals(df2)
+
+
+def test_to_sql_multi_transaction(redshift_table, redshift_con):
+    df = pd.DataFrame({"id": list((range(10))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(10)])})
+    df2 = pd.DataFrame({"id": list((range(10, 15))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(5)])})
+
+    wr.redshift.to_sql(
+        df=df,
+        con=redshift_con,
+        schema="public",
+        table=redshift_table,
+        mode="overwrite",
+        index=False,
+        primary_keys=["id"],
+        commit_transaction=False,  # Not committing
+    )
+
+    wr.redshift.to_sql(
+        df=df2,
+        con=redshift_con,
+        schema="public",
+        table=redshift_table,
+        mode="upsert",
+        index=False,
+        primary_keys=["id"],
+        commit_transaction=False,  # Not committing
+    )
+    redshift_con.commit()
+    df3 = wr.redshift.read_sql_query(sql=f"SELECT * FROM public.{redshift_table} ORDER BY id", con=redshift_con)
+    assert len(df.index) + len(df2.index) == len(df3.index)
+    assert len(df.columns) == len(df3.columns)
