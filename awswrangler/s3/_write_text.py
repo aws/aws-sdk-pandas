@@ -159,7 +159,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         True to sanitize columns names or False to keep it as is.
         True value is forced if `dataset=True`.
     dataset : bool
-        If True store a parquet dataset instead of a ordinary file(s)
+        If True store as a dataset instead of ordinary file(s)
         If True, enable all follow arguments:
         partition_cols, mode, database, table, description, parameters, columns_comments, concurrent_partitioning,
         catalog_versioning, projection_enabled, projection_types, projection_ranges, projection_values,
