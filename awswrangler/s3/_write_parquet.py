@@ -703,9 +703,6 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
                         transaction_id=transaction_id, boto3_session=boto3_session  # type: ignore
                     )
             except Exception:
-                if transaction_id:
-                    _logger.debug("Canceling transaction with ID: %s.", transaction_id)
-                    lakeformation.cancel_transaction(transaction_id=transaction_id, boto3_session=boto3_session)
                 _logger.debug("Catalog write failed, cleaning up S3 (paths: %s).", paths)
                 delete_objects(
                     path=paths,

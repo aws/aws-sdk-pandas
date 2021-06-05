@@ -17,7 +17,7 @@ API_CALL = botocore.client.BaseClient._make_api_call
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
-@pytest.mark.parametrize("sanitize_columns,col", [(True, "foo_boo"), (False, "FooBoo")])
+@pytest.mark.parametrize("sanitize_columns,col", [(True, "fooboo"), (False, "FooBoo")])
 def test_sanitize_columns(path, sanitize_columns, col):
     df = pd.DataFrame({"FooBoo": [1, 2, 3]})
 

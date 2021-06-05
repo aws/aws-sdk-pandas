@@ -1,13 +1,15 @@
 """Utilities Module for Amazon Lake Formation."""
 import logging
 import time
+from math import inf
 from threading import Thread
 from typing import Any, Dict, List, Optional, Union
 
 import boto3
+import botocore.exceptions
 
 from awswrangler import _utils, exceptions
-from awswrangler.catalog._utils import _catalog_id
+from awswrangler.catalog._utils import _catalog_id, _transaction_id
 from awswrangler.s3._describe import describe_objects
 
 _QUERY_FINAL_STATES: List[str] = ["ERROR", "FINISHED"]
@@ -73,7 +75,8 @@ def _get_table_objects(
     client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
 
     scan_kwargs: Dict[str, Union[str, int]] = _catalog_id(
-        catalog_id=catalog_id, TransactionId=transaction_id, DatabaseName=database, TableName=table, MaxResults=100
+        catalog_id=catalog_id,
+        **_transaction_id(transaction_id=transaction_id, DatabaseName=database, TableName=table, MaxResults=100),
     )
     if partition_cols and partitions_types and partitions_values:
         scan_kwargs["PartitionPredicate"] = _build_partition_predicate(
@@ -108,7 +111,7 @@ def _update_table_objects(
     client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
 
     update_kwargs: Dict[str, Union[str, int, List[Dict[str, Dict[str, Any]]]]] = _catalog_id(
-        catalog_id=catalog_id, TransactionId=transaction_id, DatabaseName=database, TableName=table
+        catalog_id=catalog_id, **_transaction_id(transaction_id=transaction_id, DatabaseName=database, TableName=table)
     )
 
     write_operations: List[Dict[str, Dict[str, Any]]] = []
@@ -121,11 +124,20 @@ def _update_table_objects(
     client_lakeformation.update_table_objects(**update_kwargs)
 
 
-def _monitor_transaction(transaction_id: str, boto3_session: Optional[boto3.Session] = None) -> None:
+def _monitor_transaction(transaction_id: str, time_out: float, boto3_session: Optional[boto3.Session] = None) -> None:
+    start = time.time()
+    elapsed_time = 0.0
     state: str = describe_transaction(transaction_id=transaction_id, boto3_session=boto3_session)
-    while state not in _TRANSACTION_FINAL_STATES:
-        extend_transaction(transaction_id=transaction_id, boto3_session=boto3_session)
+    while (state not in _TRANSACTION_FINAL_STATES) and (time_out > elapsed_time):
+        try:
+            extend_transaction(transaction_id=transaction_id, boto3_session=boto3_session)
+        except botocore.exceptions.ClientError as ex:
+            if ex.response["Error"]["Code"] in ["TransactionCanceledException", "TransactionCommittedException"]:
+                _logger.debug("Transaction: %s was already canceled or committed.", transaction_id)
+            else:
+                raise ex
         time.sleep(_TRANSACTION_WAIT_POLLING_DELAY)
+        elapsed_time = time.time() - start
         state = describe_transaction(transaction_id=transaction_id, boto3_session=boto3_session)
         _logger.debug("Transaction state: %s", state)
 
@@ -186,8 +198,12 @@ def cancel_transaction(transaction_id: str, boto3_session: Optional[boto3.Sessio
     client_lakeformation.cancel_transaction(TransactionId=transaction_id)
 
 
-def start_transaction(read_only: Optional[bool] = False, boto3_session: Optional[boto3.Session] = None) -> str:
+def start_transaction(
+    read_only: Optional[bool] = False, time_out: Optional[float] = inf, boto3_session: Optional[boto3.Session] = None
+) -> str:
     """Start a new transaction and returns its transaction ID.
+
+    The transaction is periodically extended until it's committed, canceled or the defined time-out is reached.
 
     Parameters
     ----------
@@ -195,6 +211,8 @@ def start_transaction(read_only: Optional[bool] = False, boto3_session: Optional
         Indicates that that this transaction should be read only.
         Writes made using a read-only transaction ID will be rejected.
         Read-only transactions do not need to be committed.
+    time_out: float, optional
+        Maximum duration over which a transaction is extended.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session received None.
 
@@ -214,7 +232,7 @@ def start_transaction(read_only: Optional[bool] = False, boto3_session: Optional
     transaction_type: str = "READ_ONLY" if read_only else "READ_AND_WRITE"
     transaction_id: str = client_lakeformation.start_transaction(TransactionType=transaction_type)["TransactionId"]
     # Extend the transaction while in "active" state in a separate thread
-    t = Thread(target=_monitor_transaction, args=(transaction_id, boto3_session))
+    t = Thread(target=_monitor_transaction, args=(transaction_id, time_out, boto3_session))
     t.daemon = True  # Ensures thread is killed when any exception is raised
     t.start()
     return transaction_id

@@ -238,17 +238,6 @@ or
 
 ``./cloudformation/delete-databases.sh``
 
-### Enabling Lake Formation:
-If your feature is related to AWS Lake Formation, there are a number of additional steps required in order to complete testing:
-
-1. In the AWS console, enable Lake Formation by setting your IAM role as an Administrator and by unchecking the boxes in the ``Data Catalog Settings`` section
-
-2. In the ``./cloudformation/base.yaml`` template file, set ``EnableLakeFormation`` to ``True``. Then run the ``./deploy-base.sh`` once more to add an AWS Glue Database and an S3 bucket registered with Lake Formation
-
-3. Back in the console, in the ``Data Locations`` section, grant your IAM role access to the S3 Lake Formation bucket (``s3://aws-wrangler-base-lakeformation...``)
-
-4. Finally, in the ``Data Permissions`` section, grant your IAM role ``Super`` permissions on both the ``aws_data_wrangler`` and ``aws_data_wrangler_lakeformation`` databases
-
 ## Recommended Visual Studio Code Recommended setting
 
 ```json

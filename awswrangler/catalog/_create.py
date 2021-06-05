@@ -10,8 +10,7 @@ from awswrangler._config import apply_configs
 from awswrangler.catalog._definitions import _csv_table_definition, _parquet_table_definition
 from awswrangler.catalog._delete import delete_all_partitions, delete_table_if_exists
 from awswrangler.catalog._get import _get_table_input
-from awswrangler.catalog._utils import _catalog_id, sanitize_column_name, sanitize_table_name
-from awswrangler.lakeformation._utils import commit_transaction, start_transaction
+from awswrangler.catalog._utils import _catalog_id, _transaction_id, sanitize_column_name, sanitize_table_name
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -122,21 +121,12 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-
         )
     args: Dict[str, Any] = _catalog_id(
         catalog_id=catalog_id,
-        DatabaseName=database,
-        TableInput=table_input,
+        **_transaction_id(
+            transaction_id=transaction_id,
+            DatabaseName=database,
+            TableInput=table_input,
+        ),
     )
-    commit_trans: bool = False
-    if transaction_id:
-        if table_type != "GOVERNED":
-            raise exceptions.InvalidTable(
-                f"A transaction ID was provided but `{database}`.`{table}` is not a GOVERNED table."
-            )
-        args["TransactionId"] = transaction_id
-    if (table_type == "GOVERNED") and (not transaction_id):
-        _logger.debug("`transaction_id` not specified for GOVERNED table, starting transaction")
-        transaction_id = start_transaction(read_only=False, boto3_session=session)
-        args["TransactionId"] = transaction_id
-        commit_trans = True
     if table_exist:
         _logger.debug("Updating table (%s)...", mode)
         args["SkipArchive"] = skip_archive
@@ -163,8 +153,6 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-
                     transaction_id=transaction_id,
                     boto3_session=boto3_session,
                 )
-    if commit_trans:
-        commit_transaction(transaction_id=transaction_id)  # type: ignore
     _logger.debug("Leaving table as is (%s)...", mode)
 
 
@@ -177,20 +165,28 @@ def _overwrite_table(
     transaction_id: Optional[str],
     boto3_session: boto3.Session,
 ) -> None:
-    delete_table_if_exists(database=database, table=table, boto3_session=boto3_session, catalog_id=catalog_id)
+    delete_table_if_exists(
+        database=database,
+        table=table,
+        transaction_id=transaction_id,
+        boto3_session=boto3_session,
+        catalog_id=catalog_id,
+    )
     args: Dict[str, Any] = _catalog_id(
         catalog_id=catalog_id,
-        DatabaseName=database,
-        TableInput=table_input,
+        **_transaction_id(
+            transaction_id=transaction_id,
+            DatabaseName=database,
+            TableInput=table_input,
+        ),
     )
-    if transaction_id:
-        args["TransactionId"] = transaction_id
     client_glue.create_table(**args)
 
 
 def _upsert_table_parameters(
     parameters: Dict[str, str],
     database: str,
+    transaction_id: Optional[str],
     catalog_versioning: bool,
     catalog_id: Optional[str],
     table_input: Dict[str, Any],
@@ -206,6 +202,7 @@ def _upsert_table_parameters(
         _overwrite_table_parameters(
             parameters=pars,
             database=database,
+            transaction_id=transaction_id,
             catalog_id=catalog_id,
             boto3_session=boto3_session,
             table_input=table_input,
@@ -217,6 +214,7 @@ def _upsert_table_parameters(
 def _overwrite_table_parameters(
     parameters: Dict[str, str],
     database: str,
+    transaction_id: Optional[str],
     catalog_versioning: bool,
     catalog_id: Optional[str],
     table_input: Dict[str, Any],
@@ -226,7 +224,12 @@ def _overwrite_table_parameters(
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
     skip_archive: bool = not catalog_versioning
     client_glue.update_table(
-        **_catalog_id(catalog_id=catalog_id, DatabaseName=database, TableInput=table_input, SkipArchive=skip_archive)
+        **_catalog_id(
+            catalog_id=catalog_id,
+            **_transaction_id(
+                transaction_id=transaction_id, DatabaseName=database, TableInput=table_input, SkipArchive=skip_archive
+            ),
+        )
     )
     return parameters
 
@@ -395,6 +398,7 @@ def upsert_table_parameters(
     parameters: Dict[str, str],
     database: str,
     table: str,
+    transaction_id: Optional[str] = None,
     catalog_versioning: bool = False,
     catalog_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
@@ -409,6 +413,8 @@ def upsert_table_parameters(
         Database name.
     table : str
         Table name.
+    transaction_id: str, optional
+        The ID of the transaction (i.e. used with GOVERNED tables).
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     catalog_id : str, optional
@@ -433,7 +439,7 @@ def upsert_table_parameters(
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     table_input: Optional[Dict[str, str]] = _get_table_input(
-        database=database, table=table, boto3_session=session, catalog_id=catalog_id
+        database=database, table=table, boto3_session=session, transaction_id=transaction_id, catalog_id=catalog_id
     )
     if table_input is None:
         raise exceptions.InvalidArgumentValue(f"Table {database}.{table} does not exist.")
@@ -441,6 +447,7 @@ def upsert_table_parameters(
         parameters=parameters,
         database=database,
         boto3_session=session,
+        transaction_id=transaction_id,
         catalog_id=catalog_id,
         table_input=table_input,
         catalog_versioning=catalog_versioning,
@@ -452,6 +459,7 @@ def overwrite_table_parameters(
     parameters: Dict[str, str],
     database: str,
     table: str,
+    transaction_id: Optional[str] = None,
     catalog_versioning: bool = False,
     catalog_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
@@ -466,6 +474,8 @@ def overwrite_table_parameters(
         Database name.
     table : str
         Table name.
+    transaction_id: str, optional
+        The ID of the transaction (i.e. used with GOVERNED tables).
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     catalog_id : str, optional
@@ -490,7 +500,7 @@ def overwrite_table_parameters(
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     table_input: Optional[Dict[str, Any]] = _get_table_input(
-        database=database, table=table, catalog_id=catalog_id, boto3_session=session
+        database=database, table=table, transaction_id=transaction_id, catalog_id=catalog_id, boto3_session=session
     )
     if table_input is None:
         raise exceptions.InvalidTable(f"Table {table} does not exist on database {database}.")
@@ -498,6 +508,7 @@ def overwrite_table_parameters(
         parameters=parameters,
         database=database,
         catalog_id=catalog_id,
+        transaction_id=transaction_id,
         table_input=table_input,
         boto3_session=session,
         catalog_versioning=catalog_versioning,

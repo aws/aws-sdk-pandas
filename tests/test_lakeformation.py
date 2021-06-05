@@ -11,11 +11,9 @@ from ._utils import ensure_data_types, ensure_data_types_csv, get_df, get_df_csv
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
-def test_lakeformation(path, path2, lakeformation_glue_database, glue_table, glue_table2, use_threads=False):
-    table = f"__{glue_table}"
-    table2 = f"__{glue_table2}"
-    wr.catalog.delete_table_if_exists(database=lakeformation_glue_database, table=table)
-    wr.catalog.delete_table_if_exists(database=lakeformation_glue_database, table=table2)
+def test_lakeformation(path, path2, glue_database, glue_table, glue_table2, use_threads=False):
+    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
+    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table2)
 
     wr.s3.to_parquet(
         df=get_df(governed=True),
@@ -26,14 +24,14 @@ def test_lakeformation(path, path2, lakeformation_glue_database, glue_table, glu
         dataset=True,
         partition_cols=["par0", "par1"],
         mode="overwrite",
-        table=table,
+        table=glue_table,
         table_type="GOVERNED",
-        database=lakeformation_glue_database,
+        database=glue_database,
     )
 
     df = wr.lakeformation.read_sql_table(
-        table=table,
-        database=lakeformation_glue_database,
+        table=glue_table,
+        database=glue_database,
         use_threads=use_threads,
     )
     assert len(df.index) == 3
@@ -43,8 +41,8 @@ def test_lakeformation(path, path2, lakeformation_glue_database, glue_table, glu
 
     # Filter query
     df2 = wr.lakeformation.read_sql_query(
-        sql=f"SELECT * FROM {table} WHERE iint16 = :iint16;",
-        database=lakeformation_glue_database,
+        sql=f"SELECT * FROM {glue_table} WHERE iint16 = :iint16;",
+        database=glue_database,
         params={"iint16": 1},
     )
     assert len(df2.index) == 1
@@ -58,15 +56,15 @@ def test_lakeformation(path, path2, lakeformation_glue_database, glue_table, glu
         dataset=True,
         partition_cols=["par0", "par1"],
         mode="append",
-        table=table2,
+        table=glue_table2,
         table_type="GOVERNED",
-        database=lakeformation_glue_database,
+        database=glue_database,
     )
     # Read within a transaction
     transaction_id = wr.lakeformation.start_transaction(read_only=True)
     df3 = wr.lakeformation.read_sql_table(
-        table=table2,
-        database=lakeformation_glue_database,
+        table=glue_table2,
+        database=glue_database,
         transaction_id=transaction_id,
         use_threads=use_threads,
     )
@@ -76,24 +74,20 @@ def test_lakeformation(path, path2, lakeformation_glue_database, glue_table, glu
     # Read within a query as of time
     query_as_of_time = calendar.timegm(time.gmtime())
     df4 = wr.lakeformation.read_sql_table(
-        table=table2,
-        database=lakeformation_glue_database,
+        table=glue_table2,
+        database=glue_database,
         query_as_of_time=query_as_of_time,
         use_threads=use_threads,
     )
     assert len(df4.index) == 3
 
-    wr.catalog.delete_table_if_exists(database=lakeformation_glue_database, table=table)
-    wr.catalog.delete_table_if_exists(database=lakeformation_glue_database, table=table2)
+    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
+    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table2)
 
 
-def test_lakeformation_multi_transaction(
-    path, path2, lakeformation_glue_database, glue_table, glue_table2, use_threads=True
-):
-    table = f"__{glue_table}"
-    table2 = f"__{glue_table2}"
-    wr.catalog.delete_table_if_exists(database=lakeformation_glue_database, table=table)
-    wr.catalog.delete_table_if_exists(database=lakeformation_glue_database, table=table2)
+def test_lakeformation_multi_transaction(path, path2, glue_database, glue_table, glue_table2, use_threads=True):
+    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
+    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table2)
 
     df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
     transaction_id = wr.lakeformation.start_transaction(read_only=False)
@@ -102,8 +96,8 @@ def test_lakeformation_multi_transaction(
         path=path,
         dataset=True,
         mode="append",
-        database=lakeformation_glue_database,
-        table=table,
+        database=glue_database,
+        table=glue_table,
         table_type="GOVERNED",
         transaction_id=transaction_id,
         description="c0",
@@ -118,8 +112,8 @@ def test_lakeformation_multi_transaction(
         path=path2,
         dataset=True,
         mode="append",
-        database=lakeformation_glue_database,
-        table=table2,
+        database=glue_database,
+        table=glue_table2,
         table_type="GOVERNED",
         transaction_id=transaction_id,
         description="c1",
@@ -130,13 +124,13 @@ def test_lakeformation_multi_transaction(
     wr.lakeformation.commit_transaction(transaction_id=transaction_id)
 
     df3 = wr.lakeformation.read_sql_table(
-        table=table,
-        database=lakeformation_glue_database,
+        table=glue_table,
+        database=glue_database,
         use_threads=use_threads,
     )
     df4 = wr.lakeformation.read_sql_table(
-        table=table2,
-        database=lakeformation_glue_database,
+        table=glue_table2,
+        database=glue_database,
         use_threads=use_threads,
     )
 
@@ -146,5 +140,5 @@ def test_lakeformation_multi_transaction(
     assert df2.shape == df4.shape
     assert df2.c1.sum() == df4.c1.sum()
 
-    wr.catalog.delete_table_if_exists(database=lakeformation_glue_database, table=table)
-    wr.catalog.delete_table_if_exists(database=lakeformation_glue_database, table=table2)
+    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
+    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table2)

@@ -2,16 +2,16 @@
 import concurrent.futures
 import itertools
 import logging
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import boto3
 import pandas as pd
 from pyarrow import NativeFile, RecordBatchStreamReader, Table, concat_tables
 
-from awswrangler import _data_types, _utils, catalog, exceptions
+from awswrangler import _data_types, _utils, catalog
 from awswrangler._config import apply_configs
-from awswrangler.catalog._utils import _catalog_id
-from awswrangler.lakeformation._utils import cancel_transaction, start_transaction, wait_query
+from awswrangler.catalog._utils import _catalog_id, _transaction_id
+from awswrangler.lakeformation._utils import commit_transaction, start_transaction, wait_query
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ def _resolve_sql_query(
     map_types: bool,
     use_threads: bool,
     boto3_session: boto3.Session,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame:
     client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
 
     wait_query(query_id=query_id, boto3_session=boto3_session)
@@ -109,7 +109,7 @@ def read_sql_query(
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     params: Optional[Dict[str, Any]] = None,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame:
     """Execute PartiQL query on AWS Glue Table (Transaction ID or time travel timestamp). Return Pandas DataFrame.
 
     Note
@@ -166,8 +166,8 @@ def read_sql_query(
 
     Returns
     -------
-    Union[pd.DataFrame, Iterator[pd.DataFrame]]
-        Pandas DataFrame or Generator of Pandas DataFrames if chunked is passed.
+    pd.DataFrame
+        Pandas DataFrame.
 
     Examples
     --------
@@ -194,42 +194,34 @@ def read_sql_query(
     ... )
 
     """
-    if transaction_id is not None and query_as_of_time is not None:
-        raise exceptions.InvalidArgumentCombination(
-            "Please pass only one of `transaction_id` or `query_as_of_time`, not both"
-        )
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
+    commit_trans: bool = False
     if params is None:
         params = {}
     for key, value in params.items():
         sql = sql.replace(f":{key};", str(value))
 
-    args: Dict[str, Optional[str]] = _catalog_id(catalog_id=catalog_id, **{"DatabaseName": database})
-    if query_as_of_time:
-        args["QueryAsOfTime"] = query_as_of_time
-    elif transaction_id:
-        args["TransactionId"] = transaction_id
-    else:
+    if not any([transaction_id, query_as_of_time]):
         _logger.debug("Neither `transaction_id` nor `query_as_of_time` were specified, starting transaction")
         transaction_id = start_transaction(read_only=True, boto3_session=session)
-        args["TransactionId"] = transaction_id
-    try:
-        query_id: str = client_lakeformation.start_query_planning(QueryString=sql, QueryPlanningContext=args)["QueryId"]
-        return _resolve_sql_query(
-            query_id=query_id,
-            categories=categories,
-            safe=safe,
-            map_types=map_types,
-            use_threads=use_threads,
-            boto3_session=session,
-        )
-    except Exception as ex:
-        _logger.debug("Canceling transaction with ID: %s.", transaction_id)
-        if transaction_id:
-            cancel_transaction(transaction_id=transaction_id, boto3_session=session)
-        _logger.error(ex)
-        raise
+        commit_trans = True
+    args: Dict[str, Optional[str]] = _catalog_id(
+        catalog_id=catalog_id,
+        **_transaction_id(transaction_id=transaction_id, query_as_of_time=query_as_of_time, DatabaseName=database),
+    )
+    query_id: str = client_lakeformation.start_query_planning(QueryString=sql, QueryPlanningContext=args)["QueryId"]
+    df = _resolve_sql_query(
+        query_id=query_id,
+        categories=categories,
+        safe=safe,
+        map_types=map_types,
+        use_threads=use_threads,
+        boto3_session=session,
+    )
+    if commit_trans:
+        commit_transaction(transaction_id=transaction_id)  # type: ignore
+    return df
 
 
 @apply_configs
@@ -244,7 +236,7 @@ def read_sql_table(
     map_types: bool = True,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+) -> pd.DataFrame:
     """Extract all rows from AWS Glue Table (Transaction ID or time travel timestamp). Return Pandas DataFrame.
 
     Note
@@ -291,8 +283,8 @@ def read_sql_table(
 
     Returns
     -------
-    Union[pd.DataFrame, Iterator[pd.DataFrame]]
-        Pandas DataFrame or Generator of Pandas DataFrames if chunked is passed.
+    pd.DataFrame
+        Pandas DataFrame.
 
     Examples
     --------
