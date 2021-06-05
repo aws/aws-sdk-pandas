@@ -137,13 +137,21 @@ or
 
 ``pip install -r requirements-dev.txt``
 
-* [OPTIONAL] Set AWS_DEFAULT_REGION to define the region the Data Lake Test envrioment will deploy into. You may want to choose a region which you don't currently use:
+* Go to the ``test_infra`` directory
+
+``cd test_infra``
+
+* Install CDK dependencies:
+
+``pip install -r requirements.txt``
+
+* [OPTIONAL] Set AWS_DEFAULT_REGION to define the region the Data Lake Test environment will deploy into. You may want to choose a region which you don't currently use:
 
 ``export AWS_DEFAULT_REGION=ap-northeast-1``
 
-* Go to the ``cloudformation`` directory
+* Go to the ``scripts`` directory
 
-``cd cloudformation``
+``cd scripts``
 
 * Deploy the Cloudformation template `base.yaml`
 
@@ -151,7 +159,7 @@ or
 
 * Return to the project root directory
 
-``cd ..``
+``cd ../../``
 
 * Run the validation script:
 
@@ -167,7 +175,7 @@ or
 
 * [OPTIONAL] To remove the base test environment cloud formation stack post testing:
 
-``./cloudformation/delete-base.sh``
+``./test_infra/scripts/delete-base.sh``
 
 ### Full test environment
 
@@ -186,13 +194,21 @@ or
 
 ``pip install -r requirements-dev.txt``
 
+* Go to the ``test_infra`` directory
+
+``cd test_infra``
+
+* Install CDK dependencies:
+
+``pip install -r requirements.txt``
+
 * [OPTIONAL] Set AWS_DEFAULT_REGION to define the region the Full Test envrioment will deploy into. You may want to choose a region which you don't currently use:
 
 ``export AWS_DEFAULT_REGION=ap-northeast-1``
 
-* Go to the ``cloudformation`` directory
+* Go to the ``scripts`` directory
 
-``cd cloudformation``
+``cd scripts``
 
 * Deploy the Cloudformation templates `base.yaml` and `databases.yaml`. This step could take about 15 minutes to deploy.
 
@@ -212,7 +228,7 @@ or
 
 * Return to the project root directory
 
-``cd ..``
+``cd ../../``
 
 * [OPTIONAL] If you intend to run all test, you also need to make sure that you have Amazon QuickSight activated and your AWS user must be register on that.
 
@@ -234,9 +250,9 @@ or
 
 * [OPTIONAL] To remove the base test environment cloud formation stack post testing:
 
-``./cloudformation/delete-base.sh``
+``./test_infra/scripts/delete-base.sh``
 
-``./cloudformation/delete-databases.sh``
+``./test_infra/scripts/delete-databases.sh``
 
 ## Recommended Visual Studio Code Recommended setting
 

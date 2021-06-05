@@ -12,7 +12,6 @@ pytest-cov==2.12.1
 pytest-rerunfailures==10.0
 pytest-xdist==2.2.1
 pytest-timeout==1.4.2
-cfn-lint==0.49.2
 pydot==1.4.2
 cfn-flip==1.2.3
 twine==3.4.1

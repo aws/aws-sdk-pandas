@@ -237,11 +237,9 @@ def test_catalog_partitions(glue_database, glue_table, path, account_id):
 
 
 def test_catalog_get_databases(glue_database):
-    dbs = list(wr.catalog.get_databases())
+    dbs = [db["Name"] for db in wr.catalog.get_databases()]
     assert len(dbs) > 0
-    for db in dbs:
-        if db["Name"] == glue_database:
-            assert db["Description"] == "AWS Data Wrangler Test Arena - Glue Database"
+    assert glue_database in dbs
 
 
 def test_catalog_versioning(path, glue_database, glue_table, glue_table2):
