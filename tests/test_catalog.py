@@ -1,3 +1,5 @@
+import calendar
+import time
 from typing import Optional
 
 import boto3
@@ -24,6 +26,9 @@ def test_create_table(path: str, glue_database: str, glue_table: str, table_type
     )
     if transaction_id:
         wr.lakeformation.commit_transaction(transaction_id)
+        query_as_of_time = calendar.timegm(time.gmtime()) + 5  # Adding minor delay to avoid concurrency
+        df = wr.catalog.table(database=glue_database, table=glue_table, query_as_of_time=query_as_of_time)
+        assert df.shape == (4, 4)
     assert wr.catalog.does_table_exist(database=glue_database, table=glue_table) is True
 
 
