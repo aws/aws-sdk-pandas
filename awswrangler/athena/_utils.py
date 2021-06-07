@@ -396,10 +396,17 @@ def create_athena_bucket(boto3_session: Optional[boto3.Session] = None) -> str:
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     account_id: str = sts.get_account_id(boto3_session=session)
     region_name: str = str(session.region_name).lower()
-    s3_output = f"s3://aws-athena-query-results-{account_id}-{region_name}/"
-    s3_resource = _utils.resource(service_name="s3", session=session)
-    s3_resource.Bucket(s3_output)
-    return s3_output
+    bucket_name = f"aws-athena-query-results-{account_id}-{region_name}"
+    path = f"s3://{bucket_name}/"
+    resource = _utils.resource(service_name="s3", session=session)
+    bucket = resource.Bucket(bucket_name)
+    args = {} if region_name == "us-east-1" else {"CreateBucketConfiguration": {"LocationConstraint": region_name}}
+    try:
+        bucket.create(**args)
+    except resource.meta.client.exceptions.BucketAlreadyOwnedByYou as err:
+        _logger.debug("Bucket %s already exists.", err.response["Error"]["BucketName"])
+    bucket.wait_until_exists()
+    return path
 
 
 @apply_configs
