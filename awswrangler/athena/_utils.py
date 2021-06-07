@@ -410,6 +410,7 @@ def start_query_execution(
     workgroup: Optional[str] = None,
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
+    params: Optional[Dict[str, Any]] = None,
     boto3_session: Optional[boto3.Session] = None,
     data_source: Optional[str] = None,
 ) -> str:
@@ -434,6 +435,10 @@ def start_query_execution(
         None, 'SSE_S3', 'SSE_KMS', 'CSE_KMS'.
     kms_key : str, optional
         For SSE-KMS and CSE-KMS , this is the KMS key ARN or ID.
+    params: Dict[str, any], optional
+        Dict of parameters that will be used for constructing the SQL query. Only named parameters are supported.
+        The dict needs to contain the information in the form {'name': 'value'} and the SQL query needs to contain
+        `:name;`. Note that for varchar columns and similar, you must surround the value in single quotes.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     data_source : str, optional
@@ -457,6 +462,10 @@ def start_query_execution(
     >>> query_exec_id = wr.athena.start_query_execution(sql='...', database='...', data_source='...')
 
     """
+    if params is None:
+        params = {}
+    for key, value in params.items():
+        sql = sql.replace(f":{key};", str(value))
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     wg_config: _WorkGroupConfig = _get_workgroup_config(session=session, workgroup=workgroup)
     return _start_query_execution(
