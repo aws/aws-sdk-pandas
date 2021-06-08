@@ -42,8 +42,10 @@ def moto_subnet():
 @pytest.fixture(scope="function")
 def moto_s3():
     with moto.mock_s3():
-        s3 = boto3.resource("s3")
-        s3.create_bucket(Bucket="bucket")
+        s3 = boto3.resource("s3", region_name="us-east-1")
+        s3.create_bucket(
+            Bucket="bucket",
+        )
         yield s3
 
 
