@@ -30,6 +30,7 @@ BOTOCORE_ACCEPTED_KWARGS: Dict[str, Set[str]] = {
         "SSECustomerKey",
         "RequestPayer",
         "ExpectedBucketOwner",
+        "VersionId",
     },
     "copy_object": {
         "ACL",
@@ -43,6 +44,7 @@ BOTOCORE_ACCEPTED_KWARGS: Dict[str, Set[str]] = {
         "Tagging",
         "RequestPayer",
         "ExpectedBucketOwner",
+        "CopySource",
     },
     "create_multipart_upload": {
         "ACL",
@@ -87,10 +89,12 @@ BOTOCORE_ACCEPTED_KWARGS: Dict[str, Set[str]] = {
     "delete_objects": {
         "RequestPayer",
         "ExpectedBucketOwner",
+        "Objects",
     },
     "head_object": {
         "RequestPayer",
         "ExpectedBucketOwner",
+        "VersionId",
     },
 }
 
@@ -106,10 +110,14 @@ def _fetch_range(
     key: str,
     s3_client: boto3.client,
     boto3_kwargs: Dict[str, Any],
+    version_id: Optional[str] = None,
 ) -> Tuple[int, bytes]:
     start, end = range_values
-    _logger.debug("Fetching: s3://%s/%s - Range: %s-%s", bucket, key, start, end)
-    resp: Dict[str, Any] = _utils.try_it(
+    _logger.debug("Fetching: s3://%s/%s - VersionId: %s - Range: %s-%s", bucket, key, version_id, start, end)
+    resp: Dict[str, Any]
+    if version_id:
+        boto3_kwargs["VersionId"] = version_id
+    resp = _utils.try_it(
         f=s3_client.get_object,
         ex=_S3_RETRYABLE_ERRORS,
         base=0.5,
@@ -230,12 +238,14 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
         boto3_session: Optional[boto3.Session],
         newline: Optional[str],
         encoding: Optional[str],
+        version_id: Optional[str] = None,
     ) -> None:
         super().__init__()
         self._use_threads = use_threads
         self._newline: str = "\n" if newline is None else newline
         self._encoding: str = "utf-8" if encoding is None else encoding
         self._bucket, self._key = _utils.parse_path(path=path)
+        self._version_id = version_id
         self._boto3_session: boto3.Session = _utils.ensure_session(session=boto3_session)
         if mode not in {"rb", "wb", "r", "w"}:
             raise NotImplementedError("File mode must be {'rb', 'wb', 'r', 'w'}, not %s" % mode)
@@ -261,6 +271,7 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
             self._end: int = 0
             size: Optional[int] = size_objects(
                 path=[path],
+                version_id=version_id,
                 use_threads=False,
                 boto3_session=self._boto3_session,
                 s3_additional_kwargs=self._s3_additional_kwargs,
@@ -325,6 +336,7 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
                 key=self._key,
                 s3_client=s3_client,
                 boto3_kwargs=boto3_kwargs,
+                version_id=self._version_id,
             )[1]
         sizes: Tuple[int, ...] = _utils.get_even_chunks_sizes(
             total_size=range_size, chunk_size=_MIN_PARALLEL_READ_BLOCK, upper_bound=False
@@ -344,6 +356,7 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
                         itertools.repeat(self._key),
                         itertools.repeat(s3_client),
                         itertools.repeat(boto3_kwargs),
+                        itertools.repeat(self._version_id),
                     )
                 ),
             )
@@ -596,6 +609,7 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
 def open_s3_object(
     path: str,
     mode: str,
+    version_id: Optional[str] = None,
     use_threads: Union[bool, int] = False,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     s3_block_size: int = -1,  # One shot download
@@ -611,6 +625,7 @@ def open_s3_object(
             path=path,
             s3_block_size=s3_block_size,
             mode=mode,
+            version_id=version_id,
             use_threads=use_threads,
             s3_additional_kwargs=s3_additional_kwargs,
             boto3_session=boto3_session,

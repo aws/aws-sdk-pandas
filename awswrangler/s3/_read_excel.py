@@ -14,6 +14,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 def read_excel(
     path: str,
+    version_id: Optional[str] = None,
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -38,8 +39,10 @@ def read_excel(
 
     Parameters
     ----------
-    path : Union[str, List[str]]
+    path : str
         S3 path (e.g. ``s3://bucket/key.xlsx``).
+    version_id : Optional[str]
+        Version id of the object.
     use_threads : Union[bool, int]
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -77,6 +80,7 @@ def read_excel(
     with open_s3_object(
         path=path,
         mode="rb",
+        version_id=version_id,
         use_threads=use_threads,
         s3_block_size=-1,  # One shot download
         s3_additional_kwargs=s3_additional_kwargs,

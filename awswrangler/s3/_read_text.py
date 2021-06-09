@@ -43,12 +43,14 @@ def _read_text_chunked(
     s3_additional_kwargs: Optional[Dict[str, str]],
     dataset: bool,
     use_threads: bool,
+    version_ids: Optional[Dict[str, str]] = None,
 ) -> Iterator[pd.DataFrame]:
     for path in paths:
         _logger.debug("path: %s", path)
         mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
         with open_s3_object(
             path=path,
+            version_id=version_ids.get(path) if version_ids else None,
             mode=mode,
             s3_block_size=10_485_760,  # 10 MB (10 * 2**20)
             encoding=encoding,
@@ -64,6 +66,7 @@ def _read_text_chunked(
 
 def _read_text_file(
     path: str,
+    version_id: Optional[str],
     parser_func: Callable[..., pd.DataFrame],
     path_root: Optional[str],
     boto3_session: Union[boto3.Session, _utils.Boto3PrimitivesType],
@@ -76,6 +79,7 @@ def _read_text_file(
     mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
     with open_s3_object(
         path=path,
+        version_id=version_id,
         mode=mode,
         use_threads=use_threads,
         s3_block_size=-1,  # One shot download
@@ -103,6 +107,7 @@ def _read_text(
     dataset: bool,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]],
     ignore_index: bool,
+    version_id: Optional[Union[str, Dict[str, str]]] = None,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     if "iterator" in pandas_kwargs:
@@ -137,13 +142,21 @@ def _read_text(
     _logger.debug("args:\n%s", pprint.pformat(args))
     ret: Union[pd.DataFrame, Iterator[pd.DataFrame]]
     if chunksize is not None:
-        ret = _read_text_chunked(paths=paths, chunksize=chunksize, **args)
+        ret = _read_text_chunked(
+            paths=paths, version_ids=version_id if isinstance(version_id, dict) else None, chunksize=chunksize, **args
+        )
     elif len(paths) == 1:
-        ret = _read_text_file(path=paths[0], **args)
+        ret = _read_text_file(
+            path=paths[0], version_id=version_id[paths[0]] if isinstance(version_id, dict) else version_id, **args
+        )
     else:
         ret = _union(
             dfs=_read_dfs_from_multiple_paths(
-                read_func=_read_text_file, paths=paths, use_threads=use_threads, kwargs=args
+                read_func=_read_text_file,
+                paths=paths,
+                version_ids=version_id if isinstance(version_id, dict) else None,
+                use_threads=use_threads,
+                kwargs=args,
             ),
             ignore_index=ignore_index,
         )
@@ -154,6 +167,7 @@ def read_csv(
     path: Union[str, List[str]],
     path_suffix: Union[str, List[str], None] = None,
     path_ignore_suffix: Union[str, List[str], None] = None,
+    version_id: Optional[Union[str, Dict[str, str]]] = None,
     ignore_empty: bool = True,
     use_threads: Union[bool, int] = True,
     last_modified_begin: Optional[datetime.datetime] = None,
@@ -197,6 +211,9 @@ def read_csv(
     path_ignore_suffix: Union[str, List[str], None]
         Suffix or List of suffixes for S3 keys to be ignored.(e.g. ["_SUCCESS"]).
         If None, will try to read all files. (default)
+    version_id: Optional[Union[str, Dict[str, str]]]
+        Version id of the object or mapping of object path to version id.
+        (e.g. {'s3://bucket/key0': '121212', 's3://bucket/key1': '343434'})
     ignore_empty: bool
         Ignore files with 0 bytes.
     use_threads : Union[bool, int]
@@ -279,6 +296,7 @@ def read_csv(
         path=path,
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,
+        version_id=version_id,
         ignore_empty=ignore_empty,
         use_threads=use_threads,
         boto3_session=boto3_session,
@@ -297,6 +315,7 @@ def read_fwf(
     path: Union[str, List[str]],
     path_suffix: Union[str, List[str], None] = None,
     path_ignore_suffix: Union[str, List[str], None] = None,
+    version_id: Optional[Union[str, Dict[str, str]]] = None,
     ignore_empty: bool = True,
     use_threads: Union[bool, int] = True,
     last_modified_begin: Optional[datetime.datetime] = None,
@@ -340,6 +359,9 @@ def read_fwf(
     path_ignore_suffix: Union[str, List[str], None]
         Suffix or List of suffixes for S3 keys to be ignored.(e.g. ["_SUCCESS"]).
         If None, will try to read all files. (default)
+    version_id: Optional[Union[str, Dict[str, str]]]
+        Version id of the object or mapping of object path to version id.
+        (e.g. {'s3://bucket/key0': '121212', 's3://bucket/key1': '343434'})
     ignore_empty: bool
         Ignore files with 0 bytes.
     use_threads : Union[bool, int]
@@ -421,6 +443,7 @@ def read_fwf(
         path=path,
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,
+        version_id=version_id,
         ignore_empty=ignore_empty,
         use_threads=use_threads,
         boto3_session=boto3_session,
@@ -440,6 +463,7 @@ def read_json(
     path: Union[str, List[str]],
     path_suffix: Union[str, List[str], None] = None,
     path_ignore_suffix: Union[str, List[str], None] = None,
+    version_id: Optional[Union[str, Dict[str, str]]] = None,
     ignore_empty: bool = True,
     orient: str = "columns",
     use_threads: Union[bool, int] = True,
@@ -484,6 +508,9 @@ def read_json(
     path_ignore_suffix: Union[str, List[str], None]
         Suffix or List of suffixes for S3 keys to be ignored.(e.g. ["_SUCCESS"]).
         If None, will try to read all files. (default)
+    version_id: Optional[Union[str, Dict[str, str]]]
+        Version id of the object or mapping of object path to version id.
+        (e.g. {'s3://bucket/key0': '121212', 's3://bucket/key1': '343434'})
     ignore_empty: bool
         Ignore files with 0 bytes.
     orient : str
@@ -572,6 +599,7 @@ def read_json(
         path=path,
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,
+        version_id=version_id,
         ignore_empty=ignore_empty,
         use_threads=use_threads,
         boto3_session=boto3_session,

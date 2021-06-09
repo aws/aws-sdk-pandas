@@ -137,7 +137,10 @@ def _list_objects(  # pylint: disable=too-many-branches
 
 
 def does_object_exist(
-    path: str, s3_additional_kwargs: Optional[Dict[str, Any]] = None, boto3_session: Optional[boto3.Session] = None
+    path: str,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    boto3_session: Optional[boto3.Session] = None,
+    version_id: Optional[str] = None,
 ) -> bool:
     """Check if object exists on S3.
 
@@ -187,6 +190,8 @@ def does_object_exist(
     else:
         extra_kwargs = {}
     try:
+        if version_id:
+            extra_kwargs["VersionId"] = version_id
         client_s3.head_object(Bucket=bucket, Key=key, **extra_kwargs)
         return True
     except botocore.exceptions.ClientError as ex:
