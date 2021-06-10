@@ -7,7 +7,8 @@ from aws_cdk import aws_kms as kms
 from aws_cdk import aws_rds as rds
 from aws_cdk import aws_redshift as redshift
 from aws_cdk import aws_s3 as s3
-from aws_cdk import aws_secretsmanager as ssm
+from aws_cdk import aws_secretsmanager as secrets
+from aws_cdk import aws_ssm as ssm
 from aws_cdk import core as cdk
 
 
@@ -41,11 +42,11 @@ class DatabasesStack(cdk.Stack):  # type: ignore
     def _set_db_infra(self) -> None:
         self.db_username = "test"
         # fmt: off
-        self.db_password_secret = ssm.Secret(
+        self.db_password_secret = secrets.Secret(
             self,
             "db-password-secret",
             secret_name="aws-data-wrangler/db_password",
-            generate_secret_string=ssm.SecretStringGenerator(exclude_characters="/@\"\' \\"),
+            generate_secret_string=secrets.SecretStringGenerator(exclude_characters="/@\"\' \\"),
         ).secret_value
         # fmt: on
         self.db_password = self.db_password_secret.to_string()
@@ -56,6 +57,12 @@ class DatabasesStack(cdk.Stack):  # type: ignore
             description="AWS Data Wrangler Test Arena - Database security group",
         )
         self.db_security_group.add_ingress_rule(ec2.Peer.any_ipv4(), ec2.Port.all_traffic())
+        ssm.StringParameter(
+            self,
+            "db-secruity-group-parameter",
+            parameter_name="/Wrangler/EC2/DatabaseSecurityGroupId",
+            string_value=self.db_security_group.security_group_id,
+        )
         self.rds_subnet_group = rds.SubnetGroup(
             self,
             "aws-data-wrangler-rds-subnet-group",
@@ -225,12 +232,12 @@ class DatabasesStack(cdk.Stack):  # type: ignore
             subnet=self.vpc.private_subnets[0],
             security_groups=[self.db_security_group],
         )
-        ssm.Secret(
+        secrets.Secret(
             self,
             "aws-data-wrangler-redshift-secret",
             secret_name="aws-data-wrangler/redshift",
             description="Redshift credentials",
-            generate_secret_string=ssm.SecretStringGenerator(
+            generate_secret_string=secrets.SecretStringGenerator(
                 generate_string_key="dummy",
                 secret_string_template=json.dumps(
                     {
@@ -308,12 +315,12 @@ class DatabasesStack(cdk.Stack):  # type: ignore
             subnet=self.vpc.private_subnets[0],
             security_groups=[self.db_security_group],
         )
-        ssm.Secret(
+        secrets.Secret(
             self,
             "aws-data-wrangler-postgresql-secret",
             secret_name="aws-data-wrangler/postgresql",
             description="Postgresql credentials",
-            generate_secret_string=ssm.SecretStringGenerator(
+            generate_secret_string=secrets.SecretStringGenerator(
                 generate_string_key="dummy",
                 secret_string_template=json.dumps(
                     {
@@ -392,12 +399,12 @@ class DatabasesStack(cdk.Stack):  # type: ignore
             subnet=self.vpc.private_subnets[0],
             security_groups=[self.db_security_group],
         )
-        ssm.Secret(
+        secrets.Secret(
             self,
             "aws-data-wrangler-mysql-secret",
             secret_name="aws-data-wrangler/mysql",
             description="MySQL credentials",
-            generate_secret_string=ssm.SecretStringGenerator(
+            generate_secret_string=secrets.SecretStringGenerator(
                 generate_string_key="dummy",
                 secret_string_template=json.dumps(
                     {
@@ -453,12 +460,12 @@ class DatabasesStack(cdk.Stack):  # type: ignore
             subnet=self.vpc.private_subnets[0],
             security_groups=[self.db_security_group],
         )
-        ssm.Secret(
+        secrets.Secret(
             self,
             "aws-data-wrangler-sqlserver-secret",
             secret_name="aws-data-wrangler/sqlserver",
             description="SQL Server credentials",
-            generate_secret_string=ssm.SecretStringGenerator(
+            generate_secret_string=secrets.SecretStringGenerator(
                 generate_string_key="dummy",
                 secret_string_template=json.dumps(
                     {

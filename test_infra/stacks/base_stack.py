@@ -18,6 +18,7 @@ class BaseStack(cdk.Stack):  # type: ignore
             enable_dns_hostnames=True,
             enable_dns_support=True,
         )
+        cdk.Tags.of(self.vpc).add("Name", "aws-data-wrangler")
         self.key = kms.Key(
             self,
             id="aws-data-wrangler-key",
