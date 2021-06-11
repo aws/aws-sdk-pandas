@@ -77,6 +77,5 @@ def read_excel(
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=session,
     ) as f:
-        pandas_kwargs["engine"] = "openpyxl"
         _logger.debug("pandas_kwargs: %s", pandas_kwargs)
         return pd.read_excel(f, **pandas_kwargs)
