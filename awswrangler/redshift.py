@@ -925,7 +925,6 @@ def unload_to_files(
 
 
     """
-    path = path if path.endswith("/") else f"{path}/"
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     s3.delete_objects(path=path, use_threads=use_threads, boto3_session=session)
     with con.cursor() as cursor:
@@ -995,16 +994,16 @@ def unload(
     ----
     ``Batching`` (`chunked` argument) (Memory Friendly):
 
-    Will anable the function to return a Iterable of DataFrames instead of a regular DataFrame.
+    Will enable the function to return an Iterable of DataFrames instead of a regular DataFrame.
 
     There are two batching strategies on Wrangler:
 
     - If **chunked=True**, a new DataFrame will be returned for each file in your path/dataset.
 
-    - If **chunked=INTEGER**, Wrangler will iterate on the data by number of rows igual the received INTEGER.
+    - If **chunked=INTEGER**, Wrangler will iterate on the data by number of rows (equal to the received INTEGER).
 
-    `P.S.` `chunked=True` if faster and uses less memory while `chunked=INTEGER` is more precise
-    in number of rows for each Dataframe.
+    `P.S.` `chunked=True` is faster and uses less memory while `chunked=INTEGER` is more precise
+    in the number of rows for each Dataframe.
 
 
     Note
@@ -1077,6 +1076,7 @@ def unload(
     >>> con.close()
 
     """
+    path = path if path.endswith("/") else f"{path}/"
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     unload_to_files(
         sql=sql,

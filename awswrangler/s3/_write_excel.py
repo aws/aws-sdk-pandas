@@ -29,6 +29,11 @@ def to_excel(
 
     Note
     ----
+    Depending on the file extension ('xlsx', 'xls', 'odf'...), an additional library
+    might have to be installed first (e.g. xlrd).
+
+    Note
+    ----
     In case of `use_threads=True` the number of threads
     that will be spawned will be gotten from os.cpu_count().
 
@@ -83,7 +88,6 @@ def to_excel(
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=session,
     ) as f:
-        pandas_kwargs["engine"] = "openpyxl"
         _logger.debug("pandas_kwargs: %s", pandas_kwargs)
         df.to_excel(f, **pandas_kwargs)
     return path

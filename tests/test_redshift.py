@@ -352,6 +352,36 @@ def test_unload_extras(bucket, path, redshift_table, redshift_con, databases_par
     assert len(df.columns) == 2
 
 
+def test_unload_with_prefix(bucket, path, redshift_table, redshift_con, databases_parameters, kms_key_id):
+    test_prefix = "my_prefix"
+    table = redshift_table
+    schema = databases_parameters["redshift"]["schema"]
+    df = pd.DataFrame({"id": [1, 2], "name": ["foo", "boo"]})
+    wr.redshift.to_sql(df=df, con=redshift_con, table=table, schema=schema, mode="overwrite", index=False)
+
+    args = {
+        "sql": f"SELECT * FROM {schema}.{table}",
+        "path": f"{path}{test_prefix}",
+        "con": redshift_con,
+        "iam_role": databases_parameters["redshift"]["role"],
+        "region": wr.s3.get_bucket_region(bucket),
+        "max_file_size": 5.0,
+        "kms_key_id": kms_key_id,
+    }
+    # Adding a prefix to S3 output files
+    wr.redshift.unload_to_files(**args)
+    filename = wr.s3.list_objects(path=path)[0].split("/")[-1]
+    assert filename.startswith(test_prefix)
+
+    # Prefix becomes part of path with partitioning
+    wr.redshift.unload_to_files(
+        **args,
+        partition_cols=["name"],
+    )
+    object_prefix = wr.s3.list_objects(path=path)[0].split("/")[-3]
+    assert object_prefix == test_prefix
+
+
 def test_to_sql_cast(redshift_table, redshift_con):
     table = redshift_table
     df = pd.DataFrame(
