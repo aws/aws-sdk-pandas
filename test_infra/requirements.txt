@@ -8,3 +8,4 @@ aws-cdk.aws_s3>=1.106.1
 aws-cdk.aws_redshift>=1.106.1
 aws-cdk.aws_rds>=1.106.1
 aws_cdk.aws_secretsmanager>=1.106.1
+aws_cdk.aws_ssm>=1.106.1
