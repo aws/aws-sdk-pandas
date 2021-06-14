@@ -97,7 +97,7 @@ def test_parquet_catalog_duplicated(path, glue_table, glue_database):
         )
 
 
-def test_parquet_catalog_casting(path, glue_database):
+def test_parquet_catalog_casting(path, glue_database, glue_table):
     wr.s3.to_parquet(
         df=get_df_cast(),
         path=path,
@@ -105,7 +105,7 @@ def test_parquet_catalog_casting(path, glue_database):
         dataset=True,
         mode="overwrite",
         database=glue_database,
-        table="__test_parquet_catalog_casting",
+        table=glue_table,
         dtype={
             "iint8": "tinyint",
             "iint16": "smallint",
@@ -127,14 +127,14 @@ def test_parquet_catalog_casting(path, glue_database):
     df = wr.s3.read_parquet(path=path)
     assert df.shape == (3, 16)
     ensure_data_types(df=df, has_list=False)
-    df = wr.athena.read_sql_table(table="__test_parquet_catalog_casting", database=glue_database, ctas_approach=True)
+    df = wr.athena.read_sql_table(table=glue_table, database=glue_database, ctas_approach=True)
     assert df.shape == (3, 16)
     ensure_data_types(df=df, has_list=False)
-    df = wr.athena.read_sql_table(table="__test_parquet_catalog_casting", database=glue_database, ctas_approach=False)
+    df = wr.athena.read_sql_table(table=glue_table, database=glue_database, ctas_approach=False)
     assert df.shape == (3, 16)
     ensure_data_types(df=df, has_list=False)
     wr.s3.delete_objects(path=path)
-    assert wr.catalog.delete_table_if_exists(database=glue_database, table="__test_parquet_catalog_casting") is True
+    assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table) is True
 
 
 def test_parquet_catalog_casting_to_string_with_null(path, glue_table, glue_database):
