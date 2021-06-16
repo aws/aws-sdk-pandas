@@ -50,10 +50,12 @@ def _read_parquet_metadata_file(
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
+    version_id: Optional[str] = None,
 ) -> Optional[Dict[str, str]]:
     with open_s3_object(
         path=path,
         mode="rb",
+        version_id=version_id,
         use_threads=use_threads,
         s3_block_size=131_072,  # 128 KB (128 * 2**10)
         s3_additional_kwargs=s3_additional_kwargs,
@@ -71,6 +73,7 @@ def _read_schemas_from_files(
     use_threads: Union[bool, int],
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
+    version_ids: Optional[Dict[str, str]] = None,
 ) -> Tuple[Dict[str, str], ...]:
     paths = _utils.list_sampling(lst=paths, sampling=sampling)
     schemas: Tuple[Optional[Dict[str, str]], ...] = tuple()
@@ -79,11 +82,16 @@ def _read_schemas_from_files(
     if cpus == 1 or n_paths == 1:
         schemas = tuple(
             _read_parquet_metadata_file(
-                path=p, boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs, use_threads=use_threads
+                path=p,
+                boto3_session=boto3_session,
+                s3_additional_kwargs=s3_additional_kwargs,
+                use_threads=use_threads,
+                version_id=version_ids.get(p) if isinstance(version_ids, dict) else None,
             )
             for p in paths
         )
     elif n_paths > 1:
+        versions = [version_ids.get(p) if isinstance(version_ids, dict) else None for p in paths]
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
             schemas = tuple(
                 executor.map(
@@ -92,6 +100,7 @@ def _read_schemas_from_files(
                     itertools.repeat(_utils.boto3_to_primitives(boto3_session=boto3_session)),  # Boto3.Session
                     itertools.repeat(s3_additional_kwargs),
                     itertools.repeat(use_threads),
+                    versions,
                 )
             )
     schemas = cast(Tuple[Dict[str, str], ...], tuple(x for x in schemas if x is not None))
@@ -117,6 +126,7 @@ def _validate_schemas_from_files(
     use_threads: Union[bool, int],
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
+    version_ids: Optional[Dict[str, str]] = None,
 ) -> None:
     schemas: Tuple[Dict[str, str], ...] = _read_schemas_from_files(
         paths=paths,
@@ -124,6 +134,7 @@ def _validate_schemas_from_files(
         use_threads=use_threads,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
+        version_ids=version_ids,
     )
     _validate_schemas(schemas=schemas)
 
@@ -151,6 +162,7 @@ def _read_parquet_metadata(
     use_threads: Union[bool, int],
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
+    version_id: Optional[Union[str, Dict[str, str]]] = None,
 ) -> Tuple[Dict[str, str], Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]:
     """Handle wr.s3.read_parquet_metadata internally."""
     path_root: Optional[str] = _get_path_root(path=path, dataset=dataset)
@@ -170,6 +182,11 @@ def _read_parquet_metadata(
         use_threads=use_threads,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
+        version_ids=version_id
+        if isinstance(version_id, dict)
+        else {paths[0]: version_id}
+        if isinstance(version_id, str)
+        else None,
     )
     columns_types: Dict[str, str] = _merge_schemas(schemas=schemas)
 
@@ -325,6 +342,7 @@ def _read_parquet_chunked(  # pylint: disable=too-many-branches
     path_root: Optional[str],
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
+    version_ids: Optional[Dict[str, str]] = None,
 ) -> Iterator[pd.DataFrame]:
     next_slice: Optional[pd.DataFrame] = None
     last_schema: Optional[Dict[str, str]] = None
@@ -332,6 +350,7 @@ def _read_parquet_chunked(  # pylint: disable=too-many-branches
     for path in paths:
         with open_s3_object(
             path=path,
+            version_id=version_ids.get(path) if version_ids else None,
             mode="rb",
             use_threads=use_threads,
             s3_block_size=10_485_760,  # 10 MB (10 * 2**20)
@@ -405,11 +424,13 @@ def _read_parquet_file(
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
+    version_id: Optional[str] = None,
 ) -> pa.Table:
     s3_block_size: int = 20_971_520 if columns else -1  # One shot for a full read otherwise 20 MB (20 * 2**20)
     with open_s3_object(
         path=path,
         mode="rb",
+        version_id=version_id,
         use_threads=use_threads,
         s3_block_size=s3_block_size,
         s3_additional_kwargs=s3_additional_kwargs,
@@ -451,6 +472,7 @@ def _count_row_groups(
 
 def _read_parquet(
     path: str,
+    version_id: Optional[str],
     columns: Optional[List[str]],
     categories: Optional[List[str]],
     safe: bool,
@@ -470,6 +492,7 @@ def _read_parquet(
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
             use_threads=use_threads,
+            version_id=version_id,
         ),
         categories=categories,
         safe=safe,
@@ -485,6 +508,7 @@ def read_parquet(
     path: Union[str, List[str]],
     path_suffix: Union[str, List[str], None] = None,
     path_ignore_suffix: Union[str, List[str], None] = None,
+    version_id: Optional[Union[str, Dict[str, str]]] = None,
     ignore_empty: bool = True,
     ignore_index: Optional[bool] = None,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
@@ -547,6 +571,9 @@ def read_parquet(
     path_ignore_suffix: Union[str, List[str], None]
         Suffix or List of suffixes for S3 keys to be ignored.(e.g. [".csv", "_SUCCESS"]).
         If None, will try to read all files. (default)
+    version_id: Optional[Union[str, Dict[str, str]]]
+        Version id of the object or mapping of object path to version id.
+        (e.g. {'s3://bucket/key0': '121212', 's3://bucket/key1': '343434'})
     ignore_empty: bool
         Ignore files with 0 bytes.
     ignore_index: Optional[bool]
@@ -646,6 +673,9 @@ def read_parquet(
         ignore_empty=ignore_empty,
         s3_additional_kwargs=s3_additional_kwargs,
     )
+    versions: Optional[Dict[str, str]] = (
+        version_id if isinstance(version_id, dict) else {paths[0]: version_id} if isinstance(version_id, str) else None
+    )
     path_root: Optional[str] = _get_path_root(path=path, dataset=dataset)
     if path_root is not None:
         paths = _apply_partition_filter(path_root=path_root, paths=paths, filter_func=partition_filter)
@@ -666,20 +696,30 @@ def read_parquet(
     _logger.debug("args:\n%s", pprint.pformat(args))
     if chunked is not False:
         return _read_parquet_chunked(
-            paths=paths, chunked=chunked, validate_schema=validate_schema, ignore_index=ignore_index, **args
+            paths=paths,
+            chunked=chunked,
+            validate_schema=validate_schema,
+            ignore_index=ignore_index,
+            version_ids=versions,
+            **args,
         )
     if len(paths) == 1:
-        return _read_parquet(path=paths[0], **args)
+        return _read_parquet(
+            path=paths[0], version_id=versions[paths[0]] if isinstance(versions, dict) else None, **args
+        )
     if validate_schema is True:
         _validate_schemas_from_files(
             paths=paths,
+            version_ids=versions,
             sampling=1.0,
             use_threads=True,
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
         )
     return _union(
-        dfs=_read_dfs_from_multiple_paths(read_func=_read_parquet, paths=paths, use_threads=use_threads, kwargs=args),
+        dfs=_read_dfs_from_multiple_paths(
+            read_func=_read_parquet, paths=paths, version_ids=versions, use_threads=use_threads, kwargs=args
+        ),
         ignore_index=ignore_index,
     )
 
@@ -857,6 +897,7 @@ def read_parquet_table(
 @apply_configs
 def read_parquet_metadata(
     path: Union[str, List[str]],
+    version_id: Optional[Union[str, Dict[str, str]]] = None,
     path_suffix: Optional[str] = None,
     path_ignore_suffix: Optional[str] = None,
     ignore_empty: bool = True,
@@ -888,6 +929,9 @@ def read_parquet_metadata(
     path : Union[str, List[str]]
         S3 prefix (accepts Unix shell-style wildcards)
         (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+    version_id: Optional[Union[str, Dict[str, str]]]
+        Version id of the object or mapping of object path to version id.
+        (e.g. {'s3://bucket/key0': '121212', 's3://bucket/key1': '343434'})
     path_suffix: Union[str, List[str], None]
         Suffix or List of suffixes to be read (e.g. [".gz.parquet", ".snappy.parquet"]).
         If None, will try to read all files. (default)
@@ -941,6 +985,7 @@ def read_parquet_metadata(
     """
     return _read_parquet_metadata(
         path=path,
+        version_id=version_id,
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,
         ignore_empty=ignore_empty,

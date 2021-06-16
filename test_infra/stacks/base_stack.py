@@ -58,6 +58,7 @@ class BaseStack(cdk.Stack):  # type: ignore
                     abort_incomplete_multipart_upload_after=cdk.Duration.days(1),
                 ),
             ],
+            versioned=True,
         )
         glue_db = glue.Database(
             self,
