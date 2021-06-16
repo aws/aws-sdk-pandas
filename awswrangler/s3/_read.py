@@ -128,13 +128,18 @@ def _union(dfs: List[pd.DataFrame], ignore_index: Optional[bool]) -> pd.DataFram
 
 
 def _read_dfs_from_multiple_paths(
-    read_func: Callable[..., pd.DataFrame], paths: List[str], use_threads: Union[bool, int], kwargs: Dict[str, Any]
+    read_func: Callable[..., pd.DataFrame],
+    paths: List[str],
+    version_ids: Optional[Dict[str, str]],
+    use_threads: Union[bool, int],
+    kwargs: Dict[str, Any],
 ) -> List[pd.DataFrame]:
     cpus = ensure_cpu_count(use_threads)
     if cpus < 2:
-        return [read_func(path, **kwargs) for path in paths]
+        return [read_func(path, version_id=version_ids.get(path) if version_ids else None, **kwargs) for path in paths]
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=ensure_cpu_count(use_threads)) as executor:
         kwargs["boto3_session"] = boto3_to_primitives(kwargs["boto3_session"])
         partial_read_func = partial(read_func, **kwargs)
-        return list(df for df in executor.map(partial_read_func, paths))
+        versions = [version_ids.get(p) if isinstance(version_ids, dict) else None for p in paths]
+        return list(df for df in executor.map(partial_read_func, paths, versions))

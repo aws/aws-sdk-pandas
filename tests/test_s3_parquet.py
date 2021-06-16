@@ -507,3 +507,14 @@ def test_read_chunked_validation_exception2(path):
     with pytest.raises(wr.exceptions.InvalidSchemaConvergence):
         for _ in wr.s3.read_parquet(path, dataset=True, chunked=True, validate_schema=True):
             pass
+
+
+def test_read_parquet_versioned(path) -> None:
+    path_file = f"{path}0.parquet"
+    dfs = [pd.DataFrame({"id": [1, 2, 3]}, dtype="Int64"), pd.DataFrame({"id": [4, 5, 6]}, dtype="Int64")]
+    for df in dfs:
+        wr.s3.to_parquet(df=df, path=path_file)
+        version_id = wr.s3.describe_objects(path=path_file)[path_file]["VersionId"]
+        df_temp = wr.s3.read_parquet(path_file, version_id=version_id)
+        assert df_temp.equals(df)
+        assert version_id == wr.s3.describe_objects(path=path_file, version_id=version_id)[path_file]["VersionId"]
