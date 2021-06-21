@@ -1,5 +1,5 @@
 wheel==0.36.2
-isort==5.8.0
+isort==5.9.0
 black==21.6b0
 pylint==2.8.3
 flake8==3.9.2
