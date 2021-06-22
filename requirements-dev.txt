@@ -10,7 +10,7 @@ tox==3.23.1
 pytest==6.2.4
 pytest-cov==2.12.1
 pytest-rerunfailures==10.0
-pytest-xdist==2.2.1
+pytest-xdist==2.3.0
 pytest-timeout==1.4.2
 pydot==1.4.2
 cfn-flip==1.2.3
