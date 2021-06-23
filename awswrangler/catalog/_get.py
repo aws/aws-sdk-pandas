@@ -825,7 +825,7 @@ def get_columns_comments(
     Examples
     --------
     >>> import awswrangler as wr
-    >>> pars = wr.catalog.get_table_parameters(database="...", table="...")
+    >>> pars = wr.catalog.get_columns_comments(database="...", table="...")
 
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
