@@ -16,7 +16,6 @@ Easy integration with Athena, Glue, Redshift, Timestream, QuickSight, Chime, Clo
 [![Checked with mypy](http://www.mypy-lang.org/static/mypy_badge.svg)](http://mypy-lang.org/)
 [![Coverage](https://img.shields.io/badge/coverage-91%25-brightgreen.svg)](https://pypi.org/project/awswrangler/)
 ![Static Checking](https://github.com/awslabs/aws-data-wrangler/workflows/Static%20Checking/badge.svg?branch=main)
-![Build Status](https://codebuild.us-east-1.amazonaws.com/badges?uuid=eyJlbmNyeXB0ZWREYXRhIjoiL05FNGxiZCtNT05ibGUrbzY5TzJxaFlOcnFrUFlyNjhWRm5tTmg1bXJXRkdnYUFySzgycEUvMTBBbWxEUzZ2eUpOdjVpcmNQV2hsNkRzQTZtTTVwSjF3PSIsIml2UGFyYW1ldGVyU3BlYyI6IkQ1RVkxWjg5YloyaTJOcVgiLCJtYXRlcmlhbFNldFNlcmlhbCI6MX0%3D&branch=main)
 [![Documentation Status](https://readthedocs.org/projects/aws-data-wrangler/badge/?version=latest)](https://aws-data-wrangler.readthedocs.io/?badge=latest)
 
 | Source | Downloads | Installation Command |

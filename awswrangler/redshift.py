@@ -379,7 +379,16 @@ def connect(
 
     Note
     ----
-    You MUST pass a `connection` OR `secret_id`
+    You MUST pass a `connection` OR `secret_id`.
+    Here is an example of the secret structure in Secrets Manager:
+    {
+    "host":"my-host.us-east-1.redshift.amazonaws.com",
+    "username":"test",
+    "password":"test",
+    "engine":"redshift",
+    "port":"5439",
+    "dbname": "mydb"
+    }
 
 
     https://github.com/aws/amazon-redshift-python-driver
