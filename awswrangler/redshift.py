@@ -523,7 +523,7 @@ def connect_temp(
     Examples
     --------
     >>> import awswrangler as wr
-    >>> con = wr.redshift.connect("MY_GLUE_CONNECTION")
+    >>> con = wr.redshift.connect_temp(cluster_identifier="my-cluster", user="test")
     >>> with con.cursor() as cursor:
     >>>     cursor.execute("SELECT 1")
     >>>     print(cursor.fetchall())
