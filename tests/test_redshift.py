@@ -352,7 +352,10 @@ def test_unload_extras(bucket, path, redshift_table, redshift_con, databases_par
     assert len(df.columns) == 2
 
 
-def test_unload_with_prefix(bucket, path, redshift_table, redshift_con, databases_parameters, kms_key_id):
+@pytest.mark.parametrize("unload_format", [None, "CSV", "PARQUET"])
+def test_unload_with_prefix(
+    bucket, path, redshift_table, redshift_con, databases_parameters, kms_key_id, unload_format
+):
     test_prefix = "my_prefix"
     table = redshift_table
     schema = databases_parameters["redshift"]["schema"]
@@ -367,6 +370,7 @@ def test_unload_with_prefix(bucket, path, redshift_table, redshift_con, database
         "region": wr.s3.get_bucket_region(bucket),
         "max_file_size": 5.0,
         "kms_key_id": kms_key_id,
+        "unload_format": unload_format,
     }
     # Adding a prefix to S3 output files
     wr.redshift.unload_to_files(**args)
