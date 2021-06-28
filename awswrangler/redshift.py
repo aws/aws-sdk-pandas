@@ -851,6 +851,7 @@ def unload_to_files(
     aws_secret_access_key: Optional[str] = None,
     aws_session_token: Optional[str] = None,
     region: Optional[str] = None,
+    unload_format: Optional[str] = None,
     max_file_size: Optional[float] = None,
     kms_key_id: Optional[str] = None,
     manifest: bool = False,
@@ -890,6 +891,9 @@ def unload_to_files(
         same AWS Region as the Amazon Redshift cluster. By default, UNLOAD
         assumes that the target Amazon S3 bucket is located in the same AWS
         Region as the Amazon Redshift cluster.
+    unload_format: str, optional
+        Format of the unloaded S3 objects from the query.
+        Valid values: "CSV", "PARQUET". Case sensitive. Defaults to PARQUET.
     max_file_size : float, optional
         Specifies the maximum size (MB) of files that UNLOAD creates in Amazon S3.
         Specify a decimal value between 5.0 MB and 6200.0 MB. If None, the default
@@ -925,9 +929,12 @@ def unload_to_files(
 
 
     """
+    if unload_format not in [None, "CSV", "PARQUET"]:
+        raise exceptions.InvalidArgumentValue("<unload_format> argument must be 'CSV' or 'PARQUET'")
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     s3.delete_objects(path=path, use_threads=use_threads, boto3_session=session)
     with con.cursor() as cursor:
+        format_str: str = unload_format or "PARQUET"
         partition_str: str = f"\nPARTITION BY ({','.join(partition_cols)})" if partition_cols else ""
         manifest_str: str = "\nmanifest" if manifest is True else ""
         region_str: str = f"\nREGION AS '{region}'" if region is not None else ""
@@ -948,7 +955,7 @@ def unload_to_files(
             f"{auth_str}"
             "ALLOWOVERWRITE\n"
             "PARALLEL ON\n"
-            "FORMAT PARQUET\n"
+            f"FORMAT {format_str}\n"
             "ENCRYPTED"
             f"{kms_key_id_str}"
             f"{partition_str}"
