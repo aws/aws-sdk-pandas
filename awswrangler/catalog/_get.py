@@ -834,10 +834,10 @@ def get_columns_comments(
     )
     comments: Dict[str, str] = {}
     for c in response["Table"]["StorageDescriptor"]["Columns"]:
-        comments[c["Name"]] = c["Comment"]
+        comments[c["Name"]] = c.get("Comment")
     if "PartitionKeys" in response["Table"]:
         for p in response["Table"]["PartitionKeys"]:
-            comments[p["Name"]] = p["Comment"]
+            comments[p["Name"]] = p.get("Comment")
     return comments
 
 
