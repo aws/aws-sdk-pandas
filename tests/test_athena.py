@@ -255,6 +255,7 @@ def test_athena_ctas_empty(glue_database):
     assert len(list(wr.athena.read_sql_query(sql=sql, database=glue_database, chunksize=1))) == 1
 
 
+@pytest.mark.xfail()
 def test_athena_struct(glue_database):
     sql = "SELECT CAST(ROW(1, 'foo') AS ROW(id BIGINT, value VARCHAR)) AS col0"
     with pytest.raises(wr.exceptions.UnsupportedType):
@@ -469,6 +470,7 @@ def test_read_sql_query_wo_results(path, glue_database, glue_table):
     ensure_athena_query_metadata(df=df, ctas_approach=False, encrypted=False)
 
 
+@pytest.mark.xfail()
 def test_read_sql_query_wo_results_ctas(path, glue_database, glue_table):
     wr.catalog.create_parquet_table(database=glue_database, table=glue_table, path=path, columns_types={"c0": "int"})
     sql = f"ALTER TABLE {glue_database}.{glue_table} SET LOCATION '{path}dir/'"
