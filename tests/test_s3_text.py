@@ -119,6 +119,17 @@ def test_csv(path):
         wr.s3.read_csv(path=paths, iterator=True)
 
 
+@pytest.mark.parametrize("header", [True, ["identifier"]])
+def test_csv_dataset_header(path, header):
+    df0 = pd.DataFrame({"id": [1, 2, 3]})
+    path0 = f"{path}test_csv_dataset0.csv"
+    wr.s3.to_csv(df=df0, path=path0, dataset=True, index=False, header=header)
+    df1 = wr.s3.read_csv(path=path0)
+    if isinstance(header, list):
+        df0.columns = header
+    assert df0.equals(df1)
+
+
 def test_json(path):
     df0 = pd.DataFrame({"id": [1, 2, 3]})
     path0 = f"{path}test_json0.json"

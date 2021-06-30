@@ -456,7 +456,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         if database and table:
             quoting: Optional[int] = csv.QUOTE_NONE
             escapechar: Optional[str] = "\\"
-            header: Union[bool, List[str]] = False
+            header: Union[bool, List[str]] = pandas_kwargs.get("header", False)
             date_format: Optional[str] = "%Y-%m-%d %H:%M:%S.%f"
             pd_kwargs: Dict[str, Any] = {}
             compression: Optional[str] = pandas_kwargs.get("compression", None)
@@ -529,7 +529,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                     catalog_table_input=catalog_table_input,
                     catalog_id=catalog_id,
                     compression=pandas_kwargs.get("compression"),
-                    skip_header_line_count=None,
+                    skip_header_line_count=True if header else None,
                     serde_library=serde_library,
                     serde_parameters=serde_parameters,
                 )
