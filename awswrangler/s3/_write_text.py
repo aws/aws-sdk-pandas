@@ -417,7 +417,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
             database=database, table=table, boto3_session=session, catalog_id=catalog_id
         )
-        catalog_path = catalog_table_input["StorageDescriptor"]["Location"] if catalog_table_input else None
+        catalog_path = catalog_table_input.get("StorageDescriptor", {}).get("Location") if catalog_table_input else None
         if path is None:
             if catalog_path:
                 path = catalog_path
