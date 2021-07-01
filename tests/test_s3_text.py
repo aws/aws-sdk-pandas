@@ -119,6 +119,52 @@ def test_csv(path):
         wr.s3.read_csv(path=paths, iterator=True)
 
 
+@pytest.mark.parametrize("header", [True, ["identifier"]])
+def test_csv_dataset_header(path, header, glue_database, glue_table):
+    path0 = f"{path}test_csv_dataset0.csv"
+    df0 = pd.DataFrame({"id": [1, 2, 3]})
+    wr.s3.to_csv(
+        df=df0,
+        path=path0,
+        dataset=True,
+        database=glue_database,
+        table=glue_table,
+        index=False,
+        header=header,
+    )
+    df1 = wr.s3.read_csv(path=path0)
+    if isinstance(header, list):
+        df0.columns = header
+    assert df0.equals(df1)
+
+
+@pytest.mark.parametrize("mode", ["append", "overwrite"])
+def test_csv_dataset_header_modes(path, mode, glue_database, glue_table):
+    path0 = f"{path}test_csv_dataset0.csv"
+    dfs = [
+        pd.DataFrame({"id": [1, 2, 3]}),
+        pd.DataFrame({"id": [4, 5, 6]}),
+    ]
+    for df in dfs:
+        wr.s3.to_csv(
+            df=df,
+            path=path0,
+            dataset=True,
+            database=glue_database,
+            table=glue_table,
+            mode=mode,
+            index=False,
+            header=True,
+        )
+    dfs_conc = pd.concat(dfs)
+    df_res = wr.s3.read_csv(path=path0)
+
+    if mode == "append":
+        assert len(df_res) == len(dfs_conc)
+    else:
+        assert df_res.equals(dfs[-1])
+
+
 def test_json(path):
     df0 = pd.DataFrame({"id": [1, 2, 3]})
     path0 = f"{path}test_json0.json"
