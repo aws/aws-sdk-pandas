@@ -558,7 +558,9 @@ def _resolve_query_without_cache(
                 boto3_session=boto3_session,
             )
         finally:
-            catalog.delete_table_if_exists(database=database, table=name, boto3_session=boto3_session)
+            catalog.delete_table_if_exists(
+                database=ctas_database_name or database, table=name, boto3_session=boto3_session
+            )
     return _resolve_query_without_cache_regular(
         sql=sql,
         database=database,
