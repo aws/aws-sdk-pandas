@@ -112,7 +112,7 @@ def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database,
         ctas_temp_table_name=glue_table2,
         s3_output=path3,
     )
-    assert wr.catalog.does_table_exist(database=glue_ctas_database, table=glue_table2) is True
+    assert wr.catalog.does_table_exist(database=glue_ctas_database, table=glue_table2) is False
     assert len(wr.s3.list_objects(path=path3)) > 2
     assert len(wr.s3.list_objects(path=final_destination)) > 0
     for df in dfs:
