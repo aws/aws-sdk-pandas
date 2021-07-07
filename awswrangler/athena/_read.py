@@ -739,14 +739,14 @@ def read_sql_query(
     ctas_database_name : str, optional
         The name of the alternative database where the CTAS temporary table is stored.
         If None, the default `database` is used.
-    ctas_bucketing_info: Tuple[List[str], int], optional
-        Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
-        second element.
-        Only `str`, `int` and `bool` are supported as column data types for bucketing.
     ctas_temp_table_name : str, optional
         The name of the temporary table and also the directory name on S3 where the CTAS result is stored.
         If None, it will use the follow random pattern: `f"temp_table_{uuid.uuid4().hex()}"`.
         On S3 this directory will be under under the pattern: `f"{s3_output}/{ctas_temp_table_name}/"`.
+    ctas_bucketing_info: Tuple[List[str], int], optional
+        Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
+        second element.
+        Only `str`, `int` and `bool` are supported as column data types for bucketing.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -876,6 +876,7 @@ def read_sql_table(
     keep_files: bool = True,
     ctas_database_name: Optional[str] = None,
     ctas_temp_table_name: Optional[str] = None,
+    ctas_bucketing_info: Optional[Tuple[List[str], int]] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     max_cache_seconds: int = 0,
@@ -1010,6 +1011,10 @@ def read_sql_table(
         The name of the temporary table and also the directory name on S3 where the CTAS result is stored.
         If None, it will use the follow random pattern: `f"temp_table_{uuid.uuid4().hex}"`.
         On S3 this directory will be under under the pattern: `f"{s3_output}/{ctas_temp_table_name}/"`.
+    ctas_bucketing_info: Tuple[List[str], int], optional
+        Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
+        second element.
+        Only `str`, `int` and `bool` are supported as column data types for bucketing.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -1068,6 +1073,7 @@ def read_sql_table(
         keep_files=keep_files,
         ctas_database_name=ctas_database_name,
         ctas_temp_table_name=ctas_temp_table_name,
+        ctas_bucketing_info=ctas_bucketing_info,
         use_threads=use_threads,
         boto3_session=boto3_session,
         max_cache_seconds=max_cache_seconds,
