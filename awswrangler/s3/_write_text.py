@@ -14,7 +14,7 @@ from awswrangler import _data_types, _utils, catalog, exceptions
 from awswrangler._config import apply_configs
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
-from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
+from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _check_schema_changes, _sanitize, _validate_args
 from awswrangler.s3._write_dataset import _to_dataset
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -87,6 +87,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     concurrent_partitioning: bool = False,
     mode: Optional[str] = None,
     catalog_versioning: bool = False,
+    schema_evolution: bool = False,
     database: Optional[str] = None,
     table: Optional[str] = None,
     dtype: Optional[Dict[str, str]] = None,
@@ -182,6 +183,11 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         https://aws-data-wrangler.readthedocs.io/en/2.9.0/stubs/awswrangler.s3.to_parquet.html#awswrangler.s3.to_parquet
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
+    schema_evolution : bool
+        If True allows schema evolution (new or missing columns), otherwise a exception will be raised.
+        (Only considered if dataset=True and mode in ("append", "overwrite_partitions"))
+        Related tutorial:
+        https://aws-data-wrangler.readthedocs.io/en/2.9.0/tutorials/014%20-%20Schema%20Evolution.html
     database : str, optional
         Glue/Athena catalog: Database name.
     table : str, optional
@@ -474,6 +480,16 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             pd_kwargs.pop("compression", None)
 
         df = df[columns] if columns else df
+
+        columns_types: Dict[str, str] = {}
+        partitions_types: Dict[str, str] = {}
+        if (database is not None) and (table is not None):
+            columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
+                df=df, index=index, partition_cols=partition_cols, dtype=dtype, index_left=True
+            )
+            if schema_evolution is False:
+                _check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
+
         paths, partitions_values = _to_dataset(
             func=_to_text,
             concurrent_partitioning=concurrent_partitioning,
@@ -498,9 +514,6 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         )
         if database and table:
             try:
-                columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
-                    df=df, index=index, partition_cols=partition_cols, dtype=dtype, index_left=True
-                )
                 serde_info: Dict[str, Any] = {}
                 if catalog_table_input:
                     serde_info = catalog_table_input["StorageDescriptor"]["SerdeInfo"]
