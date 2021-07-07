@@ -6,7 +6,7 @@ import logging
 import re
 import sys
 import uuid
-from typing import Any, Dict, Iterator, List, Match, NamedTuple, Optional, Union, Tuple
+from typing import Any, Dict, Iterator, List, Match, NamedTuple, Optional, Tuple, Union
 
 import boto3
 import botocore.exceptions
@@ -394,10 +394,10 @@ def _resolve_query_without_cache_ctas(
     ext_location: str = "\n" if wg_config.enforced is True else f",\n    external_location = '{path}'\n"
     fully_qualified_name: str = f'"{alt_database}"."{name}"' if alt_database else f'"{database}"."{name}"'
     bucketing_str = (
-        f",\n"
-        f"    bucketed_by = ARRAY{ctas_bucketing_info[0]},\n"
-        f"    bucket_count = {ctas_bucketing_info[1]}"
-    ) if ctas_bucketing_info else ""
+        (f",\n" f"    bucketed_by = ARRAY{ctas_bucketing_info[0]},\n" f"    bucket_count = {ctas_bucketing_info[1]}")
+        if ctas_bucketing_info
+        else ""
+    )
     sql = (
         f"CREATE TABLE {fully_qualified_name}\n"
         f"WITH(\n"
