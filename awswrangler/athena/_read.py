@@ -6,7 +6,7 @@ import logging
 import re
 import sys
 import uuid
-from typing import Any, Dict, Iterator, List, Match, NamedTuple, Optional, Union
+from typing import Any, Dict, Iterator, List, Match, NamedTuple, Optional, Tuple, Union
 
 import boto3
 import botocore.exceptions
@@ -385,6 +385,7 @@ def _resolve_query_without_cache_ctas(
     wg_config: _WorkGroupConfig,
     alt_database: Optional[str],
     name: Optional[str],
+    ctas_bucketing_info: Optional[Tuple[List[str], int]],
     use_threads: bool,
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
@@ -392,11 +393,17 @@ def _resolve_query_without_cache_ctas(
     path: str = f"{s3_output}/{name}"
     ext_location: str = "\n" if wg_config.enforced is True else f",\n    external_location = '{path}'\n"
     fully_qualified_name: str = f'"{alt_database}"."{name}"' if alt_database else f'"{database}"."{name}"'
+    bucketing_str = (
+        (f",\n" f"    bucketed_by = ARRAY{ctas_bucketing_info[0]},\n" f"    bucket_count = {ctas_bucketing_info[1]}")
+        if ctas_bucketing_info
+        else ""
+    )
     sql = (
         f"CREATE TABLE {fully_qualified_name}\n"
         f"WITH(\n"
         f"    format = 'Parquet',\n"
         f"    parquet_compression = 'SNAPPY'"
+        f"{bucketing_str}"
         f"{ext_location}"
         f") AS\n"
         f"{sql}"
@@ -521,6 +528,7 @@ def _resolve_query_without_cache(
     keep_files: bool,
     ctas_database_name: Optional[str],
     ctas_temp_table_name: Optional[str],
+    ctas_bucketing_info: Optional[Tuple[List[str], int]],
     use_threads: bool,
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
@@ -553,6 +561,7 @@ def _resolve_query_without_cache(
                 wg_config=wg_config,
                 alt_database=ctas_database_name,
                 name=name,
+                ctas_bucketing_info=ctas_bucketing_info,
                 use_threads=use_threads,
                 s3_additional_kwargs=s3_additional_kwargs,
                 boto3_session=boto3_session,
@@ -593,6 +602,7 @@ def read_sql_query(
     keep_files: bool = True,
     ctas_database_name: Optional[str] = None,
     ctas_temp_table_name: Optional[str] = None,
+    ctas_bucketing_info: Optional[Tuple[List[str], int]] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     max_cache_seconds: int = 0,
@@ -733,6 +743,10 @@ def read_sql_query(
         The name of the temporary table and also the directory name on S3 where the CTAS result is stored.
         If None, it will use the follow random pattern: `f"temp_table_{uuid.uuid4().hex()}"`.
         On S3 this directory will be under under the pattern: `f"{s3_output}/{ctas_temp_table_name}/"`.
+    ctas_bucketing_info: Tuple[List[str], int], optional
+        Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
+        second element.
+        Only `str`, `int` and `bool` are supported as column data types for bucketing.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -841,6 +855,7 @@ def read_sql_query(
         keep_files=keep_files,
         ctas_database_name=ctas_database_name,
         ctas_temp_table_name=ctas_temp_table_name,
+        ctas_bucketing_info=ctas_bucketing_info,
         use_threads=use_threads,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=session,
@@ -861,6 +876,7 @@ def read_sql_table(
     keep_files: bool = True,
     ctas_database_name: Optional[str] = None,
     ctas_temp_table_name: Optional[str] = None,
+    ctas_bucketing_info: Optional[Tuple[List[str], int]] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     max_cache_seconds: int = 0,
@@ -995,6 +1011,10 @@ def read_sql_table(
         The name of the temporary table and also the directory name on S3 where the CTAS result is stored.
         If None, it will use the follow random pattern: `f"temp_table_{uuid.uuid4().hex}"`.
         On S3 this directory will be under under the pattern: `f"{s3_output}/{ctas_temp_table_name}/"`.
+    ctas_bucketing_info: Tuple[List[str], int], optional
+        Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
+        second element.
+        Only `str`, `int` and `bool` are supported as column data types for bucketing.
     use_threads : bool
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -1053,6 +1073,7 @@ def read_sql_table(
         keep_files=keep_files,
         ctas_database_name=ctas_database_name,
         ctas_temp_table_name=ctas_temp_table_name,
+        ctas_bucketing_info=ctas_bucketing_info,
         use_threads=use_threads,
         boto3_session=boto3_session,
         max_cache_seconds=max_cache_seconds,
