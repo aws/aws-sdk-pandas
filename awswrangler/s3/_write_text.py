@@ -522,12 +522,14 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
 
         columns_types: Dict[str, str] = {}
         partitions_types: Dict[str, str] = {}
+
         if database and table:
             columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
                 df=df, index=index, partition_cols=partition_cols, dtype=dtype, index_left=True
             )
             if schema_evolution is False:
                 _check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
+
             if (catalog_table_input is None) and (table_type == "GOVERNED"):
                 catalog._create_csv_table(  # pylint: disable=protected-access
                     database=database,
