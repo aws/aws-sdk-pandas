@@ -37,7 +37,7 @@ def test_lakeformation(path, path2, glue_database, glue_table, glue_table2, use_
     assert len(df.index) == 3
     assert len(df.columns) == 14
     assert df["iint32"].sum() == 3
-    ensure_data_types(df=df, governed=True)
+    ensure_data_types(df=df)
 
     # Filter query
     df2 = wr.lakeformation.read_sql_query(
@@ -69,7 +69,7 @@ def test_lakeformation(path, path2, glue_database, glue_table, glue_table2, use_
         use_threads=use_threads,
     )
     assert df3["int"].sum() == 3
-    ensure_data_types_csv(df3, governed=True)
+    ensure_data_types_csv(df3)
 
     # Read within a query as of time
     query_as_of_time = calendar.timegm(time.gmtime())

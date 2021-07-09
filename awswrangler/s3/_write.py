@@ -99,3 +99,20 @@ def _sanitize(
     dtype = {catalog.sanitize_column_name(k): v.lower() for k, v in dtype.items()}
     _utils.check_duplicated_columns(df=df)
     return df, dtype, partition_cols
+
+
+def _check_schema_changes(columns_types: Dict[str, str], table_input: Optional[Dict[str, Any]], mode: str) -> None:
+    if (table_input is not None) and (mode in ("append", "overwrite_partitions")):
+        catalog_cols: Dict[str, str] = {x["Name"]: x["Type"] for x in table_input["StorageDescriptor"]["Columns"]}
+        for c, t in columns_types.items():
+            if c not in catalog_cols:
+                raise exceptions.InvalidArgumentValue(
+                    f"Schema change detected: New column {c} with type {t}. "
+                    "Please pass schema_evolution=True to allow new columns "
+                    "behaviour."
+                )
+            if t != catalog_cols[c]:  # Data type change detected!
+                raise exceptions.InvalidArgumentValue(
+                    f"Schema change detected: Data type change on column {c} "
+                    f"(Old type: {catalog_cols[c]} / New type {t})."
+                )

@@ -14,7 +14,7 @@ from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation
 from awswrangler._config import apply_configs
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
-from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
+from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _check_schema_changes, _sanitize, _validate_args
 from awswrangler.s3._write_dataset import _to_dataset
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -87,6 +87,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     concurrent_partitioning: bool = False,
     mode: Optional[str] = None,
     catalog_versioning: bool = False,
+    schema_evolution: bool = False,
     database: Optional[str] = None,
     table: Optional[str] = None,
     table_type: Optional[str] = None,
@@ -177,13 +178,18 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     concurrent_partitioning: bool
         If True will increase the parallelism level during the partitions writing. It will decrease the
         writing time and increase the memory usage.
-        https://aws-data-wrangler.readthedocs.io/en/2.8.0/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
+        https://aws-data-wrangler.readthedocs.io/en/2.9.0/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
     mode : str, optional
         ``append`` (Default), ``overwrite``, ``overwrite_partitions``. Only takes effect if dataset=True.
         For details check the related tutorial:
-        https://aws-data-wrangler.readthedocs.io/en/2.8.0/stubs/awswrangler.s3.to_parquet.html#awswrangler.s3.to_parquet
+        https://aws-data-wrangler.readthedocs.io/en/2.9.0/stubs/awswrangler.s3.to_parquet.html#awswrangler.s3.to_parquet
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
+    schema_evolution : bool
+        If True allows schema evolution (new or missing columns), otherwise a exception will be raised.
+        (Only considered if dataset=True and mode in ("append", "overwrite_partitions"))
+        Related tutorial:
+        https://aws-data-wrangler.readthedocs.io/en/2.9.0/tutorials/014%20-%20Schema%20Evolution.html
     database : str, optional
         Glue/Athena catalog: Database name.
     table : str, optional
@@ -448,10 +454,11 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
             database=database, table=table, boto3_session=session, transaction_id=transaction_id, catalog_id=catalog_id
         )
+
         catalog_path: Optional[str] = None
         if catalog_table_input:
             table_type = catalog_table_input["TableType"]
-            catalog_path = catalog_table_input["StorageDescriptor"]["Location"]
+            catalog_path = catalog_table_input.get("StorageDescriptor", {}).get("Location")
         if path is None:
             if catalog_path:
                 path = catalog_path
@@ -494,7 +501,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         if database and table:
             quoting: Optional[int] = csv.QUOTE_NONE
             escapechar: Optional[str] = "\\"
-            header: Union[bool, List[str]] = False
+            header: Union[bool, List[str]] = pandas_kwargs.get("header", False)
             date_format: Optional[str] = "%Y-%m-%d %H:%M:%S.%f"
             pd_kwargs: Dict[str, Any] = {}
             compression: Optional[str] = pandas_kwargs.get("compression", None)
@@ -512,12 +519,15 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             pd_kwargs.pop("compression", None)
 
         df = df[columns] if columns else df
+
         columns_types: Dict[str, str] = {}
         partitions_types: Dict[str, str] = {}
         if database and table:
             columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
                 df=df, index=index, partition_cols=partition_cols, dtype=dtype, index_left=True
             )
+            if schema_evolution is False:
+                _check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
             if (catalog_table_input is None) and (table_type == "GOVERNED"):
                 catalog._create_csv_table(  # pylint: disable=protected-access
                     database=database,
@@ -555,6 +565,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                     transaction_id=transaction_id,
                     catalog_id=catalog_id,
                 )
+
         paths, partitions_values = _to_dataset(
             func=_to_text,
             concurrent_partitioning=concurrent_partitioning,
@@ -585,9 +596,6 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         )
         if database and table:
             try:
-                columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
-                    df=df, index=index, partition_cols=partition_cols, dtype=dtype, index_left=True
-                )
                 serde_info: Dict[str, Any] = {}
                 if catalog_table_input:
                     serde_info = catalog_table_input["StorageDescriptor"]["SerdeInfo"]
@@ -618,7 +626,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                     catalog_table_input=catalog_table_input,
                     catalog_id=catalog_id,
                     compression=pandas_kwargs.get("compression"),
-                    skip_header_line_count=None,
+                    skip_header_line_count=True if header else None,
                     serde_library=serde_library,
                     serde_parameters=serde_parameters,
                 )

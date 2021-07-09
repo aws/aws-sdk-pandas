@@ -426,7 +426,7 @@ rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), rand(), 
         """
 
 
-def ensure_data_types(df, has_list=False, governed=False):
+def ensure_data_types(df, has_list=False):
     if "iint8" in df.columns:
         assert str(df["iint8"].dtype).startswith("Int")
     assert str(df["iint16"].dtype).startswith("Int")
@@ -438,10 +438,7 @@ def ensure_data_types(df, has_list=False, governed=False):
     if "string_object" in df.columns:
         assert str(df["string_object"].dtype) == "string"
     assert str(df["string"].dtype) == "string"
-    if governed:
-        assert str(df["date"].dtype) == "datetime64[ns]"
-    else:
-        assert str(df["date"].dtype) == "object"
+    assert str(df["date"].dtype) == "object"
     assert str(df["timestamp"].dtype) == "datetime64[ns]"
     assert str(df["bool"].dtype) in ("boolean", "Int64", "object")
     if "binary" in df.columns:
@@ -458,10 +455,7 @@ def ensure_data_types(df, has_list=False, governed=False):
     if not row.empty:
         row = row.iloc[0]
         assert str(type(row["decimal"]).__name__) == "Decimal"
-        if governed:
-            assert str(type(row["date"]).__name__) == "Timestamp"
-        else:
-            assert str(type(row["date"]).__name__) == "date"
+        assert str(type(row["date"]).__name__) == "date"
         if "binary" in df.columns:
             assert str(type(row["binary"]).__name__) == "bytes"
         if has_list is True:

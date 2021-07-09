@@ -973,7 +973,7 @@ def get_columns_comments(
     Examples
     --------
     >>> import awswrangler as wr
-    >>> pars = wr.catalog.get_table_parameters(database="...", table="...")
+    >>> pars = wr.catalog.get_columns_comments(database="...", table="...")
 
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
@@ -987,10 +987,10 @@ def get_columns_comments(
     )
     comments: Dict[str, str] = {}
     for c in response["Table"]["StorageDescriptor"]["Columns"]:
-        comments[c["Name"]] = c["Comment"]
+        comments[c["Name"]] = c.get("Comment")
     if "PartitionKeys" in response["Table"]:
         for p in response["Table"]["PartitionKeys"]:
-            comments[p["Name"]] = p["Comment"]
+            comments[p["Name"]] = p.get("Comment")
     return comments
 
 

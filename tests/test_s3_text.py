@@ -119,6 +119,52 @@ def test_csv(path):
         wr.s3.read_csv(path=paths, iterator=True)
 
 
+@pytest.mark.parametrize("header", [True, ["identifier"]])
+def test_csv_dataset_header(path, header, glue_database, glue_table):
+    path0 = f"{path}test_csv_dataset0.csv"
+    df0 = pd.DataFrame({"id": [1, 2, 3]})
+    wr.s3.to_csv(
+        df=df0,
+        path=path0,
+        dataset=True,
+        database=glue_database,
+        table=glue_table,
+        index=False,
+        header=header,
+    )
+    df1 = wr.s3.read_csv(path=path0)
+    if isinstance(header, list):
+        df0.columns = header
+    assert df0.equals(df1)
+
+
+@pytest.mark.parametrize("mode", ["append", "overwrite"])
+def test_csv_dataset_header_modes(path, mode, glue_database, glue_table):
+    path0 = f"{path}test_csv_dataset0.csv"
+    dfs = [
+        pd.DataFrame({"id": [1, 2, 3]}),
+        pd.DataFrame({"id": [4, 5, 6]}),
+    ]
+    for df in dfs:
+        wr.s3.to_csv(
+            df=df,
+            path=path0,
+            dataset=True,
+            database=glue_database,
+            table=glue_table,
+            mode=mode,
+            index=False,
+            header=True,
+        )
+    dfs_conc = pd.concat(dfs)
+    df_res = wr.s3.read_csv(path=path0)
+
+    if mode == "append":
+        assert len(df_res) == len(dfs_conc)
+    else:
+        assert df_res.equals(dfs[-1])
+
+
 def test_json(path):
     df0 = pd.DataFrame({"id": [1, 2, 3]})
     path0 = f"{path}test_json0.json"
@@ -285,3 +331,14 @@ def test_read_csv_versioned(path) -> None:
         df_temp = wr.s3.read_csv(path_file, version_id=version_id)
         assert df_temp.equals(df)
         assert version_id == wr.s3.describe_objects(path=path_file, version_id=version_id)[path_file]["VersionId"]
+
+
+def test_to_csv_schema_evolution(path, glue_database, glue_table) -> None:
+    path_file = f"{path}0.csv"
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5]})
+    wr.s3.to_csv(df=df, path=path_file, dataset=True, database=glue_database, table=glue_table)
+    df["test"] = 1
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.s3.to_csv(
+            df=df, path=path_file, dataset=True, database=glue_database, table=glue_table, schema_evolution=True
+        )

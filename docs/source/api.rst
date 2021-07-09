@@ -42,6 +42,7 @@ Amazon S3
     read_parquet
     read_parquet_metadata
     read_parquet_table
+    select_query
     size_objects
     store_parquet_metadata
     to_csv

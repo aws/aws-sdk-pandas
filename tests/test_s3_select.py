@@ -1,4 +1,5 @@
 import logging
+import sys
 
 import pandas as pd
 import pytest
@@ -102,6 +103,10 @@ def test_push_down(path, use_threads):
     assert df4._1.sum() == 3
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 7),
+    reason="CSV compression on S3 is supported only starting from Pandas 1.2.0 that requires Python >=3.7.1",
+)
 @pytest.mark.parametrize("compression", ["gzip", "bz2"])
 def test_compression(path, compression):
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "boo", "bar"], "c2": [4.0, 5.0, 6.0]})

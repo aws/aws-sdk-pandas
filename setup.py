@@ -32,5 +32,11 @@ setup(
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
     ],
-    extras_require={"sqlserver": ["pyodbc~=4.0.30"]},
+    extras_require={
+        "sqlserver": ["pyodbc~=4.0.30"],
+        "excel-py3.6": [
+            "xlrd>=2.0.1",
+            "xlwt>=1.3.0",
+        ],
+    },
 )
