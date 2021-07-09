@@ -17,28 +17,11 @@ from awswrangler._config import apply_configs
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._read_parquet import _read_parquet_metadata
-from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
+from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _check_schema_changes, _sanitize, _validate_args
 from awswrangler.s3._write_concurrent import _WriteProxy
 from awswrangler.s3._write_dataset import _to_dataset
 
 _logger: logging.Logger = logging.getLogger(__name__)
-
-
-def _check_schema_changes(columns_types: Dict[str, str], table_input: Optional[Dict[str, Any]], mode: str) -> None:
-    if (table_input is not None) and (mode in ("append", "overwrite_partitions")):
-        catalog_cols: Dict[str, str] = {x["Name"]: x["Type"] for x in table_input["StorageDescriptor"]["Columns"]}
-        for c, t in columns_types.items():
-            if c not in catalog_cols:
-                raise exceptions.InvalidArgumentValue(
-                    f"Schema change detected: New column {c} with type {t}. "
-                    "Please pass schema_evolution=True to allow new columns "
-                    "behaviour."
-                )
-            if t != catalog_cols[c]:  # Data type change detected!
-                raise exceptions.InvalidArgumentValue(
-                    f"Schema change detected: Data type change on column {c} "
-                    f"(Old type: {catalog_cols[c]} / New type {t})."
-                )
 
 
 def _get_file_path(file_counter: int, file_path: str) -> str:

@@ -331,3 +331,14 @@ def test_read_csv_versioned(path) -> None:
         df_temp = wr.s3.read_csv(path_file, version_id=version_id)
         assert df_temp.equals(df)
         assert version_id == wr.s3.describe_objects(path=path_file, version_id=version_id)[path_file]["VersionId"]
+
+
+def test_to_csv_schema_evolution(path, glue_database, glue_table) -> None:
+    path_file = f"{path}0.csv"
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5]})
+    wr.s3.to_csv(df=df, path=path_file, dataset=True, database=glue_database, table=glue_table)
+    df["test"] = 1
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.s3.to_csv(
+            df=df, path=path_file, dataset=True, database=glue_database, table=glue_table, schema_evolution=True
+        )
