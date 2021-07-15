@@ -405,6 +405,9 @@ def create_athena_bucket(boto3_session: Optional[boto3.Session] = None) -> str:
         bucket.create(**args)
     except resource.meta.client.exceptions.BucketAlreadyOwnedByYou as err:
         _logger.debug("Bucket %s already exists.", err.response["Error"]["BucketName"])
+    except botocore.exceptions.ClientError as err:
+        if err.response["Error"]["Code"] == "OperationAborted":
+            _logger.debug("A conflicting conditional operation is currently in progress against this resource.")
     bucket.wait_until_exists()
     return path
 
