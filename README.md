@@ -33,9 +33,10 @@ Powered By [<img src="https://arrow.apache.org/img/arrow.png" width="200">](http
 - [Quick Start](#quick-start)
 - [Read The Docs](#read-the-docs)
 - [Community Resources](#community-resources)
+- [Community Slack Workspace](#community-slack-workspace)
 - [Logging](#logging)
 - [Who uses AWS Data Wrangler?](#who-uses-aws-data-wrangler)
-- [What is Amazon SageMaker Data Wrangler?](#what-is-amazon-sageMaker-data-wrangler)
+- [What is Amazon SageMaker Data Wrangler?](#what-is-amazon-sagemaker-data-wrangler)
 
 ## Quick Start
 
@@ -166,6 +167,12 @@ Please [send a Pull Request](https://github.com/awslabs/aws-data-wrangler/edit/m
 - [Getting started on AWS Data Wrangler and Athena](https://medium.com/@dheerajsharmainampudi/getting-started-on-aws-data-wrangler-and-athena-7b446c834076) [[@dheerajsharma21](https://github.com/dheerajsharma21)]
 - [Simplifying Pandas integration with AWS data related services](https://medium.com/@bv_subhash/aws-data-wrangler-simplifying-pandas-integration-with-aws-data-related-services-2b3325c12188) [[@bvsubhash](https://github.com/bvsubhash)]
 - [Build an ETL pipeline using AWS S3, Glue and Athena](https://www.linkedin.com/pulse/build-etl-pipeline-using-aws-s3-glue-athena-data-wrangler-tom-reid/) [[@taupirho](https://github.com/taupirho)]
+
+## Community Slack Workspace
+
+The AWS Data Wrangler community has a Slack Workspace dedicated to deep discussions and experience sharing. Feel free to join [here](https://join.slack.com/t/aws-data-wrangler/shared_invite/zt-sxdx38sl-E0coRfAds8WdpxXD2Nzfrg)!
+
+*p.s. Please, keep in mind that [GitHub Issues](https://github.com/awslabs/aws-data-wrangler/issues/new/choose) is the official channel for feature requests or bug reports.*
 
 ## Logging
 
