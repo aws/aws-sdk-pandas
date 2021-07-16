@@ -277,6 +277,7 @@ def to_sql(
     varchar_lengths: Optional[Dict[str, int]] = None,
     use_column_names: bool = False,
     chunksize: int = 200,
+    upsert_conflict_columns: Optional[List[str]] = None,
 ) -> None:
     """Write records stored in a DataFrame into PostgreSQL.
 
@@ -291,7 +292,11 @@ def to_sql(
     schema : str
         Schema name
     mode : str
-        Append or overwrite.
+        Append, overwrite or upsert.
+            append: Inserts new records into table.
+            overwrite: Drops table and recreates.
+            upsert: Perform an upsert which checks for conflicts on columns given by `upsert_conflict_columns` and
+            sets the new values on conflicts. Note that `upsert_conflict_columns` is required for this mode.
     index : bool
         True to store the DataFrame index as a column in the table,
         otherwise False to ignore it.
@@ -307,6 +312,9 @@ def to_sql(
         inserted into the database columns `col1` and `col3`.
     chunksize: int
         Number of rows which are inserted with each SQL query. Defaults to inserting 200 rows per query.
+    upsert_conflict_columns: List[str], optional
+        This parameter is only supported if `mode` is set top `upsert`. In this case conflicts for the given columns are
+        checked for evaluating the upsert.
 
     Returns
     -------
@@ -330,6 +338,12 @@ def to_sql(
     """
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
+
+    mode = mode.strip().lower()
+    allowed_modes = ["append", "overwrite", "upsert"]
+    _db_utils.validate_mode(mode=mode, allowed_modes=allowed_modes)
+    if mode == "upsert" and not upsert_conflict_columns:
+        raise exceptions.InvalidArgumentValue("<upsert_conflict_columns> needs to be set when using upsert mode.")
     _validate_connection(con=con)
     try:
         with con.cursor() as cursor:
@@ -347,13 +361,18 @@ def to_sql(
                 df.reset_index(level=df.index.names, inplace=True)
             column_placeholders: str = ", ".join(["%s"] * len(df.columns))
             insertion_columns = ""
+            upsert_str = ""
             if use_column_names:
                 insertion_columns = f"({', '.join(df.columns)})"
+            if mode == "upsert":
+                upsert_columns = ", ".join(df.columns.map(lambda column: f"{column}=EXCLUDED.{column}"))
+                conflict_columns = ", ".join(upsert_conflict_columns)  # type: ignore
+                upsert_str = f" ON CONFLICT ({conflict_columns}) DO UPDATE SET {upsert_columns}"
             placeholder_parameter_pair_generator = _db_utils.generate_placeholder_parameter_pairs(
                 df=df, column_placeholders=column_placeholders, chunksize=chunksize
             )
             for placeholders, parameters in placeholder_parameter_pair_generator:
-                sql: str = f'INSERT INTO "{schema}"."{table}" {insertion_columns} VALUES {placeholders}'
+                sql: str = f'INSERT INTO "{schema}"."{table}" {insertion_columns} VALUES {placeholders}{upsert_str}'
                 _logger.debug("sql: %s", sql)
                 cursor.executemany(sql, (parameters,))
             con.commit()
