@@ -6,5 +6,9 @@ dependencies:
   - ipykernel
   - pip
   - pip:
+    - nbsphinx
+    - nbsphinx-link
+    - sphinx==4.3.0
+    - sphinx_bootstrap_theme
+    - IPython
     - -e ..
-    - -r file:../requirements-dev.txt
