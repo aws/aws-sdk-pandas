@@ -6,5 +6,5 @@ dependencies:
   - ipykernel
   - pip
   - pip:
-    - -r file:../requirements-dev.txt
     - -e ..
+    - -r file:../requirements-dev.txt
