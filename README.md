@@ -32,10 +32,11 @@ Powered By [<img src="https://arrow.apache.org/img/arrow.png" width="200">](http
 
 - [Quick Start](#quick-start)
 - [Read The Docs](#read-the-docs)
+- [Getting Help](#getting-help)
 - [Community Resources](#community-resources)
 - [Logging](#logging)
 - [Who uses AWS Data Wrangler?](#who-uses-aws-data-wrangler)
-- [What is Amazon SageMaker Data Wrangler?](#what-is-amazon-sageMaker-data-wrangler)
+- [What is Amazon Sagemaker Data Wrangler?](#what-is-amazon-sageMaker-data-wrangler)
 
 ## Quick Start
 
@@ -154,6 +155,14 @@ FROM "sampleDB"."sampleTable" ORDER BY time DESC LIMIT 3
 - [**License**](https://github.com/awslabs/aws-data-wrangler/blob/main/LICENSE.txt)
 - [**Contributing**](https://github.com/awslabs/aws-data-wrangler/blob/main/CONTRIBUTING.md)
 - [**Legacy Docs** (pre-1.0.0)](https://aws-data-wrangler.readthedocs.io/en/0.3.3/)
+
+## Getting Help
+
+The best way to interact with our team is through GitHub. You can open an [issue](https://github.com/awslabs/aws-data-wrangler/issues/new/choose) and choose from one of our templates for bug reports, feature requests...
+You may also find help on these community resources:
+* The #aws-data-wrangler Slack [channel](https://join.slack.com/t/aws-data-wrangler/shared_invite/zt-sxdx38sl-E0coRfAds8WdpxXD2Nzfrg)
+* Ask a question on [Stack Overflow](https://stackoverflow.com/questions/tagged/awswrangler)
+  and tag it with `awswrangler`
 
 ## Community Resources
 
