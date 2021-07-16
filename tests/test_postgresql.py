@@ -234,6 +234,17 @@ def test_upsert(postgresql_table, postgresql_con):
 
     df = pd.DataFrame({"c0": ["foo", "bar"], "c2": [1, 2]})
 
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.postgresql.to_sql(
+            df=df,
+            con=postgresql_con,
+            schema="public",
+            table=postgresql_table,
+            mode="upsert",
+            upsert_conflict_columns=None,
+            use_column_names=True,
+        )
+
     wr.postgresql.to_sql(
         df=df,
         con=postgresql_con,
