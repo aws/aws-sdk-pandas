@@ -292,8 +292,8 @@ def to_sql(
         Schema name
     mode : str
         Append, overwrite, upsert_duplicate_key, upsert_replace_into, upsert_distinct.
-            append: Inserts new records into table
-            overwrite: Drops table and recreates
+            append: Inserts new records into table.
+            overwrite: Drops table and recreates.
             upsert_duplicate_key: Performs an upsert using `ON DUPLICATE KEY` clause. Requires table schema to have
             defined keys, otherwise duplicate records will be inserted.
             upsert_replace_into: Performs upsert using `REPLACE INTO` clause. Less efficient and still requires the
@@ -340,17 +340,16 @@ def to_sql(
     """
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
+
     mode = mode.strip().lower()
-    modes = [
+    allowed_modes = [
         "append",
         "overwrite",
         "upsert_replace_into",
         "upsert_duplicate_key",
         "upsert_distinct",
     ]
-    if mode not in modes:
-        raise exceptions.InvalidArgumentValue(f"mode must be one of {', '.join(modes)}")
-
+    _db_utils.validate_mode(mode=mode, allowed_modes=allowed_modes)
     _validate_connection(con=con)
     try:
         with con.cursor() as cursor:

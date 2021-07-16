@@ -227,7 +227,7 @@ def chunkify(lst: List[Any], num_chunks: int = 1, max_length: Optional[int] = No
     if not lst:
         return []
     n: int = num_chunks if max_length is None else int(math.ceil((float(len(lst)) / float(max_length))))
-    np_chunks = np.array_split(lst, n)  # type: ignore
+    np_chunks = np.array_split(lst, n)
     return [arr.tolist() for arr in np_chunks if len(arr) > 0]
 
 

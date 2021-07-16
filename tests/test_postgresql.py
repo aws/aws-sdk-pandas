@@ -219,3 +219,155 @@ def test_dfs_are_equal_for_different_chunksizes(postgresql_table, postgresql_con
     df["c1"] = df["c1"].astype("string")
 
     assert df.equals(df2)
+
+
+def test_upsert(postgresql_table, postgresql_con):
+    create_table_sql = (
+        f"CREATE TABLE public.{postgresql_table} "
+        "(c0 varchar NULL PRIMARY KEY,"
+        "c1 int NULL DEFAULT 42,"
+        "c2 int NOT NULL);"
+    )
+    with postgresql_con.cursor() as cursor:
+        cursor.execute(create_table_sql)
+        postgresql_con.commit()
+
+    df = pd.DataFrame({"c0": ["foo", "bar"], "c2": [1, 2]})
+
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.postgresql.to_sql(
+            df=df,
+            con=postgresql_con,
+            schema="public",
+            table=postgresql_table,
+            mode="upsert",
+            upsert_conflict_columns=None,
+            use_column_names=True,
+        )
+
+    wr.postgresql.to_sql(
+        df=df,
+        con=postgresql_con,
+        schema="public",
+        table=postgresql_table,
+        mode="upsert",
+        upsert_conflict_columns=["c0"],
+        use_column_names=True,
+    )
+    wr.postgresql.to_sql(
+        df=df,
+        con=postgresql_con,
+        schema="public",
+        table=postgresql_table,
+        mode="upsert",
+        upsert_conflict_columns=["c0"],
+        use_column_names=True,
+    )
+    df2 = wr.postgresql.read_sql_table(con=postgresql_con, schema="public", table=postgresql_table)
+    assert bool(len(df2) == 2)
+
+    wr.postgresql.to_sql(
+        df=df,
+        con=postgresql_con,
+        schema="public",
+        table=postgresql_table,
+        mode="upsert",
+        upsert_conflict_columns=["c0"],
+        use_column_names=True,
+    )
+    df3 = pd.DataFrame({"c0": ["baz", "bar"], "c2": [3, 2]})
+    wr.postgresql.to_sql(
+        df=df3,
+        con=postgresql_con,
+        schema="public",
+        table=postgresql_table,
+        mode="upsert",
+        upsert_conflict_columns=["c0"],
+        use_column_names=True,
+    )
+    df4 = wr.postgresql.read_sql_table(con=postgresql_con, schema="public", table=postgresql_table)
+    assert bool(len(df4) == 3)
+
+    df5 = pd.DataFrame({"c0": ["foo", "bar"], "c2": [4, 5]})
+    wr.postgresql.to_sql(
+        df=df5,
+        con=postgresql_con,
+        schema="public",
+        table=postgresql_table,
+        mode="upsert",
+        upsert_conflict_columns=["c0"],
+        use_column_names=True,
+    )
+
+    df6 = wr.postgresql.read_sql_table(con=postgresql_con, schema="public", table=postgresql_table)
+    assert bool(len(df6) == 3)
+    assert bool(len(df6.loc[(df6["c0"] == "foo") & (df6["c2"] == 4)]) == 1)
+    assert bool(len(df6.loc[(df6["c0"] == "bar") & (df6["c2"] == 5)]) == 1)
+
+
+def test_upsert_multiple_conflict_columns(postgresql_table, postgresql_con):
+    create_table_sql = (
+        f"CREATE TABLE public.{postgresql_table} "
+        "(c0 varchar NULL PRIMARY KEY,"
+        "c1 int NOT NULL,"
+        "c2 int NOT NULL,"
+        "UNIQUE (c1, c2));"
+    )
+    with postgresql_con.cursor() as cursor:
+        cursor.execute(create_table_sql)
+        postgresql_con.commit()
+
+    df = pd.DataFrame({"c0": ["foo", "bar"], "c1": [1, 2], "c2": [3, 4]})
+    upsert_conflict_columns = ["c1", "c2"]
+
+    wr.postgresql.to_sql(
+        df=df,
+        con=postgresql_con,
+        schema="public",
+        table=postgresql_table,
+        mode="upsert",
+        upsert_conflict_columns=upsert_conflict_columns,
+        use_column_names=True,
+    )
+    wr.postgresql.to_sql(
+        df=df,
+        con=postgresql_con,
+        schema="public",
+        table=postgresql_table,
+        mode="upsert",
+        upsert_conflict_columns=upsert_conflict_columns,
+        use_column_names=True,
+    )
+    df2 = wr.postgresql.read_sql_table(con=postgresql_con, schema="public", table=postgresql_table)
+    assert bool(len(df2) == 2)
+
+    df3 = pd.DataFrame({"c0": ["baz", "spam"], "c1": [1, 5], "c2": [3, 2]})
+    wr.postgresql.to_sql(
+        df=df3,
+        con=postgresql_con,
+        schema="public",
+        table=postgresql_table,
+        mode="upsert",
+        upsert_conflict_columns=upsert_conflict_columns,
+        use_column_names=True,
+    )
+    df4 = wr.postgresql.read_sql_table(con=postgresql_con, schema="public", table=postgresql_table)
+    assert bool(len(df4) == 3)
+
+    df5 = pd.DataFrame({"c0": ["egg", "spam"], "c1": [2, 5], "c2": [4, 2]})
+    wr.postgresql.to_sql(
+        df=df5,
+        con=postgresql_con,
+        schema="public",
+        table=postgresql_table,
+        mode="upsert",
+        upsert_conflict_columns=upsert_conflict_columns,
+        use_column_names=True,
+    )
+
+    df6 = wr.postgresql.read_sql_table(con=postgresql_con, schema="public", table=postgresql_table)
+    df7 = pd.DataFrame({"c0": ["baz", "egg", "spam"], "c1": [1, 2, 5], "c2": [3, 4, 2]})
+    df7["c0"] = df7["c0"].astype("string")
+    df7["c1"] = df7["c1"].astype("Int64")
+    df7["c2"] = df7["c2"].astype("Int64")
+    assert df6.equals(df7)
