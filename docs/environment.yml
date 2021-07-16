@@ -8,7 +8,7 @@ dependencies:
   - pip:
     - nbsphinx
     - nbsphinx-link
-    - sphinx==4.3.0
+    - sphinx==4.0.3
     - sphinx_bootstrap_theme
     - IPython
     - -e ..
