@@ -15,7 +15,9 @@ from awswrangler import _data_types
 from awswrangler import _databases as _db_utils
 from awswrangler import _utils, exceptions, s3
 from awswrangler._config import apply_configs
+from awswrangler.data_api.redshift import RedshiftDataApi
 
+data_api = RedshiftDataApi
 _logger: logging.Logger = logging.getLogger(__name__)
 
 _RS_DISTSTYLES: List[str] = ["AUTO", "EVEN", "ALL", "KEY"]

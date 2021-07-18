@@ -522,3 +522,34 @@ def test_dynamodb_fail_on_invalid_items(moto_dynamodb):
 
     with pytest.raises(InvalidArgumentValue):
         wr.dynamodb.put_items(items=items, table_name=table_name)
+
+
+def test_redshift_data_api_create_connection():
+    cluster_id = "cluster123"
+    conn = wr.redshift.data_api.connect(cluster_id, "db1", db_user="admin")
+    assert conn.cluster_id == cluster_id
+
+
+def test_redshift_data_api_read_sql_results():
+    cluster_id = "cluster123"
+    con = wr.redshift.data_api.connect(cluster_id, "db1", db_user="admin")
+    request_id = "1234"
+    con.client.execute_statement = mock.MagicMock(return_value={"Id": request_id})
+    con.client.describe_statement = mock.MagicMock(return_value={"Status": "FINISHED", "HasResultSet": True})
+    con.client.get_statement_result = mock.MagicMock(
+        return_value={"ColumnMetadata": [{"name": "col1"}], "Records": [[{"stringValue": "test"}]]}
+    )
+    dataframe = wr.redshift.data_api.read_sql_query("SELECT * FROM test", con=con)
+    expected_dataframe = pd.DataFrame([["test"]], columns=["col1"])
+    pd.testing.assert_frame_equal(dataframe, expected_dataframe)
+
+
+def test_redshift_data_api_read_sql_no_results():
+    cluster_id = "cluster123"
+    con = wr.redshift.data_api.connect(cluster_id, "db1", db_user="admin")
+    request_id = "1234"
+    con.client.execute_statement = mock.MagicMock(return_value={"Id": request_id})
+    con.client.describe_statement = mock.MagicMock(return_value={"Status": "FINISHED", "HasResultSet": False})
+    con.client.get_statement_result = mock.MagicMock()
+    dataframe = wr.redshift.data_api.read_sql_query("DROP TABLE test", con=con)
+    assert dataframe.empty is True
