@@ -530,26 +530,31 @@ def test_redshift_data_api_create_connection():
     assert conn.cluster_id == cluster_id
 
 
+def mock_data_api_connector(connector, has_result_set=True):
+    request_id = "1234"
+    connector.client.execute_statement = mock.MagicMock(return_value={"Id": request_id})
+    connector.client.describe_statement = mock.MagicMock(
+        return_value={"Status": "FINISHED", "HasResultSet": has_result_set}
+    )
+    statement_response = {"ColumnMetadata": [{"name": "col1"}], "Records": [[{"stringValue": "test"}]]}
+    connector.client.get_statement_result = mock.MagicMock(return_value=statement_response)
+    column_names = [column["name"] for column in statement_response["ColumnMetadata"]]
+    data = [[col["stringValue"] for col in record] for record in statement_response["Records"]]
+    response_dataframe = pd.DataFrame(data, columns=column_names)
+    return request_id, response_dataframe
+
+
 def test_redshift_data_api_read_sql_results():
     cluster_id = "cluster123"
     con = wr.redshift.data_api.connect(cluster_id, "db1", db_user="admin")
-    request_id = "1234"
-    con.client.execute_statement = mock.MagicMock(return_value={"Id": request_id})
-    con.client.describe_statement = mock.MagicMock(return_value={"Status": "FINISHED", "HasResultSet": True})
-    con.client.get_statement_result = mock.MagicMock(
-        return_value={"ColumnMetadata": [{"name": "col1"}], "Records": [[{"stringValue": "test"}]]}
-    )
+    request_id, expected_dataframe = mock_connector(con)
     dataframe = wr.redshift.data_api.read_sql_query("SELECT * FROM test", con=con)
-    expected_dataframe = pd.DataFrame([["test"]], columns=["col1"])
     pd.testing.assert_frame_equal(dataframe, expected_dataframe)
 
 
 def test_redshift_data_api_read_sql_no_results():
     cluster_id = "cluster123"
     con = wr.redshift.data_api.connect(cluster_id, "db1", db_user="admin")
-    request_id = "1234"
-    con.client.execute_statement = mock.MagicMock(return_value={"Id": request_id})
-    con.client.describe_statement = mock.MagicMock(return_value={"Status": "FINISHED", "HasResultSet": False})
-    con.client.get_statement_result = mock.MagicMock()
+    request_id, expected_dataframe = mock_connector(con, has_result_set=False)
     dataframe = wr.redshift.data_api.read_sql_query("DROP TABLE test", con=con)
     assert dataframe.empty is True

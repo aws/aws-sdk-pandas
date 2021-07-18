@@ -54,22 +54,23 @@ class RedshiftDataApi(connector.DataApiConnector):
         return str(response["Id"])
 
     def _get_statement_result(self, request_id: str) -> pd.DataFrame:
-        # TODO: support paginators and multi-page responses
         response: Dict[str, Any]
         response = self.client.describe_statement(Id=request_id)
         if not response["HasResultSet"]:
             return pd.DataFrame()
 
-        response = self.client.get_statement_result(
-            Id=request_id,
-        )
+        paginator = self.client.get_paginator("get_statement_result")
+        response_iterator = paginator.paginate(Id=request_id)
 
         rows: List[List[Any]] = []
-        for record in response["Records"]:
-            row: List[Any] = [RedshiftDataApi._get_column_value(column) for column in record]
-            rows.append(row)
+        column_metadata: List[Dict[str, str]]
+        for response in response_iterator:
+            column_metadata = response["ColumnMetadata"]
+            for record in response["Records"]:
+                row: List[Any] = [RedshiftDataApi._get_column_value(column) for column in record]
+                rows.append(row)
 
-        column_names: List[str] = [column["name"] for column in response["ColumnMetadata"]]
+        column_names: List[str] = [column["name"] for column in column_metadata]
         dataframe = pd.DataFrame(rows, columns=column_names)
         return dataframe
 
