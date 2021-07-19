@@ -72,10 +72,10 @@ class RdsDataApi(connector.DataApiConnector):
             database = self.database
 
         response: Dict[str, Any] = self.client.execute_statement(
-            dbClusterOrInstanceArn=self.resource_arn,
+            resourceArn=self.resource_arn,
             database=database,
-            sqlStatements=sql,
-            awsSecretStoreArn=self.secret_arn,
+            sql=sql,
+            secretArn=self.secret_arn,
         )
 
         request_id: str = uuid.uuid4().hex
@@ -96,7 +96,9 @@ class RdsDataApi(connector.DataApiConnector):
             row: List[Any] = [connector.DataApiConnector._get_column_value(column) for column in record]
             rows.append(row)
 
-        column_metadata = result["ColumnMetadata"]
-        column_names: List[str] = [column["name"] for column in column_metadata]
+        print(result)
+        column_names: Optional[List[str]] = None
+        if "ColumnMetadata" in result:
+            column_names: List[str] = [column["name"] for column in result["ColumnMetadata"]]
         dataframe = pd.DataFrame(rows, columns=column_names)
         return dataframe

@@ -79,7 +79,7 @@ class RedshiftDataApi(connector.DataApiConnector):
     def _execute_statement(self, sql: str, database: Optional[str] = None) -> str:
         self._validate_auth_method()
         credentials = {"SecretArn": self.secret_arn}
-        if self.secret_arn:
+        if self.db_user:
             credentials = {"DbUser": self.db_user}
 
         if database is None:
@@ -111,6 +111,7 @@ class RedshiftDataApi(connector.DataApiConnector):
                 row: List[Any] = [connector.DataApiConnector._get_column_value(column) for column in record]
                 rows.append(row)
 
+        print(column_metadata)
         column_names: List[str] = [column["name"] for column in column_metadata]
         dataframe = pd.DataFrame(rows, columns=column_names)
         return dataframe
