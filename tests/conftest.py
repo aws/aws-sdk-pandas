@@ -130,14 +130,17 @@ def workgroup3(bucket, kms_key):
 @pytest.fixture(scope="session")
 def databases_parameters(cloudformation_outputs, db_password):
     parameters = dict(postgresql={}, mysql={}, redshift={}, sqlserver={})
+    parameters["postgresql"]["secret_arn"] = cloudformation_outputs["PostgresqlSecretArn"]
     parameters["postgresql"]["host"] = cloudformation_outputs["PostgresqlAddress"]
     parameters["postgresql"]["port"] = 3306
     parameters["postgresql"]["schema"] = "public"
     parameters["postgresql"]["database"] = "postgres"
+    parameters["mysql"]["secret_arn"] = cloudformation_outputs["MysqlSecretArn"]
     parameters["mysql"]["host"] = cloudformation_outputs["MysqlAddress"]
     parameters["mysql"]["port"] = 3306
     parameters["mysql"]["schema"] = "test"
     parameters["mysql"]["database"] = "test"
+    parameters["redshift"]["secret_arn"] = cloudformation_outputs["RedshiftSecretArn"]
     parameters["redshift"]["host"] = cloudformation_outputs["RedshiftAddress"]
     parameters["redshift"]["port"] = cloudformation_outputs["RedshiftPort"]
     parameters["redshift"]["identifier"] = cloudformation_outputs["RedshiftIdentifier"]
@@ -146,6 +149,7 @@ def databases_parameters(cloudformation_outputs, db_password):
     parameters["redshift"]["role"] = cloudformation_outputs["RedshiftRole"]
     parameters["password"] = db_password
     parameters["user"] = "test"
+    parameters["sqlserver"]["secret_arn"] = cloudformation_outputs["SqlServerSecretArn"]
     parameters["sqlserver"]["host"] = cloudformation_outputs["SqlServerAddress"]
     parameters["sqlserver"]["port"] = 1433
     parameters["sqlserver"]["schema"] = "dbo"

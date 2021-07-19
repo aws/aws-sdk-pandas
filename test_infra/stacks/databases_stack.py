@@ -232,7 +232,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
             subnet=self.vpc.private_subnets[0],
             security_groups=[self.db_security_group],
         )
-        secrets.Secret(
+        secret = secrets.Secret(
             self,
             "aws-data-wrangler-redshift-secret",
             secret_name="aws-data-wrangler/redshift",
@@ -251,6 +251,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
                 ),
             ),
         )
+        cdk.CfnOutput(self, "RedshiftSecretArn", value=secret.secret_arn)
         cdk.CfnOutput(self, "RedshiftIdentifier", value=redshift_cluster.cluster_name)
         cdk.CfnOutput(
             self,
@@ -315,7 +316,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
             subnet=self.vpc.private_subnets[0],
             security_groups=[self.db_security_group],
         )
-        secrets.Secret(
+        secret = secrets.Secret(
             self,
             "aws-data-wrangler-postgresql-secret",
             secret_name="aws-data-wrangler/postgresql",
@@ -335,6 +336,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
                 ),
             ),
         )
+        cdk.CfnOutput(self, "PostgresqlSecretArn", value=secret.secret_arn)
         cdk.CfnOutput(self, "PostgresqlAddress", value=aurora_pg.cluster_endpoint.hostname)
         cdk.CfnOutput(self, "PostgresqlPort", value=str(port))
         cdk.CfnOutput(self, "PostgresqlDatabase", value=database)
@@ -399,7 +401,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
             subnet=self.vpc.private_subnets[0],
             security_groups=[self.db_security_group],
         )
-        secrets.Secret(
+        secret = secrets.Secret(
             self,
             "aws-data-wrangler-mysql-secret",
             secret_name="aws-data-wrangler/mysql",
@@ -419,6 +421,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
                 ),
             ),
         )
+        cdk.CfnOutput(self, "MysqlSecretArn", value=secret.secret_arn)
         cdk.CfnOutput(self, "MysqlAddress", value=aurora_mysql.cluster_endpoint.hostname)
         cdk.CfnOutput(self, "MysqlPort", value=str(port))
         cdk.CfnOutput(self, "MysqlDatabase", value=database)
@@ -460,7 +463,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
             subnet=self.vpc.private_subnets[0],
             security_groups=[self.db_security_group],
         )
-        secrets.Secret(
+        secret = secrets.Secret(
             self,
             "aws-data-wrangler-sqlserver-secret",
             secret_name="aws-data-wrangler/sqlserver",
@@ -480,6 +483,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
                 ),
             ),
         )
+        cdk.CfnOutput(self, "SqlServerSecretArn", value=secret.secret_arn)
         cdk.CfnOutput(self, "SqlServerAddress", value=sqlserver.instance_endpoint.hostname)
         cdk.CfnOutput(self, "SqlServerPort", value=str(port))
         cdk.CfnOutput(self, "SqlServerDatabase", value=database)
