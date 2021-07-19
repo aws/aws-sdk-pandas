@@ -133,11 +133,13 @@ def databases_parameters(cloudformation_outputs, db_password):
     parameters["postgresql"]["secret_arn"] = cloudformation_outputs["PostgresqlSecretArn"]
     parameters["postgresql"]["host"] = cloudformation_outputs["PostgresqlAddress"]
     parameters["postgresql"]["port"] = 3306
+    parameters["postgresql"]["identifier"] = cloudformation_outputs["PostgresqlIdentifier"]
     parameters["postgresql"]["schema"] = "public"
     parameters["postgresql"]["database"] = "postgres"
     parameters["mysql"]["secret_arn"] = cloudformation_outputs["MysqlSecretArn"]
     parameters["mysql"]["host"] = cloudformation_outputs["MysqlAddress"]
     parameters["mysql"]["port"] = 3306
+    parameters["mysql"]["identifier"] = cloudformation_outputs["MysqlIdentifier"]
     parameters["mysql"]["schema"] = "test"
     parameters["mysql"]["database"] = "test"
     parameters["redshift"]["secret_arn"] = cloudformation_outputs["RedshiftSecretArn"]
@@ -152,6 +154,7 @@ def databases_parameters(cloudformation_outputs, db_password):
     parameters["sqlserver"]["secret_arn"] = cloudformation_outputs["SqlServerSecretArn"]
     parameters["sqlserver"]["host"] = cloudformation_outputs["SqlServerAddress"]
     parameters["sqlserver"]["port"] = 1433
+    parameters["sqlserver"]["identifier"] = cloudformation_outputs["SqlServerIdentifier"]
     parameters["sqlserver"]["schema"] = "dbo"
     parameters["sqlserver"]["database"] = "test"
     return parameters

@@ -341,6 +341,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
         cdk.CfnOutput(self, "PostgresqlPort", value=str(port))
         cdk.CfnOutput(self, "PostgresqlDatabase", value=database)
         cdk.CfnOutput(self, "PostgresqlSchema", value=schema)
+        cdk.CfnOutput(self, "PostgresqlIdentifier", value=aurora_pg.cluster_identifiesyy)
 
     def _setup_mysql(self) -> None:
         port = 3306
@@ -426,6 +427,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
         cdk.CfnOutput(self, "MysqlPort", value=str(port))
         cdk.CfnOutput(self, "MysqlDatabase", value=database)
         cdk.CfnOutput(self, "MysqlSchema", value=schema)
+        cdk.CfnOutput(self, "MysqlIdentifier", value=aurora_mysql.cluster_identifier)
 
     def _setup_sqlserver(self) -> None:
         port = 1433
@@ -488,3 +490,4 @@ class DatabasesStack(cdk.Stack):  # type: ignore
         cdk.CfnOutput(self, "SqlServerPort", value=str(port))
         cdk.CfnOutput(self, "SqlServerDatabase", value=database)
         cdk.CfnOutput(self, "SqlServerSchema", value=schema)
+        cdk.CfnOutput(self, "SqlServerIdentifier", value=sqlserver.instance_identifier)
