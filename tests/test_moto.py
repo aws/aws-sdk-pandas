@@ -567,7 +567,7 @@ def test_data_api_redshift_read_sql_results():
 def test_data_api_redshift_read_sql_no_results():
     cluster_id = "cluster123"
     con = wr.data_api.redshift.connect(cluster_id, "db1", db_user="admin")
-    expected_dataframe = mock_data_api_connector(con, has_result_set=False)
+    mock_data_api_connector(con, has_result_set=False)
     dataframe = wr.data_api.redshift.read_sql_query("DROP TABLE test", con=con)
     assert dataframe.empty is True
 
@@ -589,6 +589,6 @@ def test_data_api_rds_read_sql_results():
 def test_data_api_rds_read_sql_no_results():
     resource_arn = "arn123"
     con = wr.data_api.rds.connect(resource_arn, "db1", secret_arn="arn123")
-    expected_dataframe = mock_data_api_connector(con, has_result_set=False)
+    mock_data_api_connector(con, has_result_set=False)
     dataframe = wr.data_api.rds.read_sql_query("DROP TABLE test", con=con)
     assert dataframe.empty is True
