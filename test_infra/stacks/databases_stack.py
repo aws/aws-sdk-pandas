@@ -341,7 +341,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
         cdk.CfnOutput(self, "PostgresqlPort", value=str(port))
         cdk.CfnOutput(self, "PostgresqlDatabase", value=database)
         cdk.CfnOutput(self, "PostgresqlSchema", value=schema)
-        cdk.CfnOutput(self, "PostgresqlIdentifier", value=aurora_pg.cluster_identifiesyy)
+        cdk.CfnOutput(self, "PostgresqlIdentifier", value=aurora_pg.cluster_identifier)
 
     def _setup_mysql(self) -> None:
         port = 3306
