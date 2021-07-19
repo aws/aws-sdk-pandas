@@ -85,8 +85,8 @@ class RdsDataApi(connector.DataApiConnector):
     def _get_statement_result(self, request_id: str) -> pd.DataFrame:
         try:
             result = self.results.pop(request_id)
-        except KeyError:
-            raise KeyError(f"Request {request_id} not found in results {self.results}")
+        except KeyError as exception:
+            raise KeyError(f"Request {request_id} not found in results {self.results}") from exception
 
         if len(result["records"]) == 0:
             return pd.DataFrame()
