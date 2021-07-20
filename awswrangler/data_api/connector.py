@@ -1,4 +1,5 @@
 """Data API Connector base class."""
+import logging
 from typing import Any, Dict, Optional
 
 import pandas as pd
@@ -7,8 +8,9 @@ import pandas as pd
 class DataApiConnector:
     """Base class for Data API (RDS, Redshift, etc.) connectors."""
 
-    def __init__(self, client: Any):
+    def __init__(self, client: Any, logger: logging.Logger):
         self.client = client
+        self.logger: logging.Logger = logger
 
     def execute(self, sql: str, database: Optional[str] = None) -> pd.DataFrame:
         """Executes SQL statement against Data API Service.

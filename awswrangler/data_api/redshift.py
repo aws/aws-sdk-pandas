@@ -1,6 +1,7 @@
 """Redshift Data API Connector."""
 from __future__ import annotations
 
+import logging
 import time
 from typing import Any, Dict, List, Optional
 
@@ -10,7 +11,7 @@ import pandas as pd
 from awswrangler.data_api import connector
 
 
-def connect(cluster_id: str, database: str, secret_arn: str = "", db_user: str = "") -> RedshiftDataApi:
+def connect(cluster_id: str, database: str, secret_arn: str = "", db_user: str = "", **kwargs: Any) -> RedshiftDataApi:
     """Create a Redshift Data API connection.
 
     Parameters
@@ -23,12 +24,14 @@ def connect(cluster_id: str, database: str, secret_arn: str = "", db_user: str =
         The ARN for the secret to be used for authentication - only required if `db_user` not provided.
     db_user: str
         The database user to generate temporary credentials for - only required if `secret_arn` not provided.
+    **kwargs
+        Any additional kwargs are passed to the underlying RedshiftDataApi class.
 
     Returns
     -------
     A RedshiftDataApi connection instance that can be used with `wr.redshift.data_api.read_sql_query`.
     """
-    return RedshiftDataApi(cluster_id, database, secret_arn=secret_arn, db_user=db_user)
+    return RedshiftDataApi(cluster_id, database, secret_arn=secret_arn, db_user=db_user, **kwargs)
 
 
 def read_sql_query(sql: str, con: RedshiftDataApi, database: Optional[str] = None) -> pd.DataFrame:
@@ -51,7 +54,16 @@ def read_sql_query(sql: str, con: RedshiftDataApi, database: Optional[str] = Non
 class RedshiftDataApi(connector.DataApiConnector):
     """Provides access to a Redshift cluster via the Data API."""
 
-    def __init__(self, cluster_id: str, database: str, secret_arn: str = "", db_user: str = "") -> None:
+    def __init__(
+        self,
+        cluster_id: str,
+        database: str,
+        secret_arn: str = "",
+        db_user: str = "",
+        sleep: float = 1.0,
+        backoff: float = 1.5,
+        retries: int = 4,
+    ) -> None:
         """
         Parameters
         ----------
@@ -63,14 +75,21 @@ class RedshiftDataApi(connector.DataApiConnector):
             The ARN for the secret to be used for authentication - only required if `db_user` not provided.
         db_user: str
             The database user to generate temporary credentials for - only required if `secret_arn` not provided.
+        sleep: float
+            Number of seconds to sleep between tries - defaults to 1.
+        backoff: float
+            Factor by which to increase the sleep between tries - defaults to 1.
+        retries: int
+            Maximum number of tries - defaults to 4.
         """
         self.cluster_id = cluster_id
         self.database = database
         self.secret_arn = secret_arn
         self.db_user = db_user
         self.client = boto3.client("redshift-data")
-        self.waiter = RedshiftDataApiWaiter(self.client)
-        super().__init__(self.client)
+        self.waiter = RedshiftDataApiWaiter(self.client, sleep, backoff, retries)
+        logger: logging.Logger = logging.getLogger("RedshiftDataApi")
+        super().__init__(self.client, logger)
 
     def _validate_auth_method(self) -> None:
         if self.secret_arn == "" and self.db_user == "":
@@ -111,7 +130,6 @@ class RedshiftDataApi(connector.DataApiConnector):
                 row: List[Any] = [connector.DataApiConnector._get_column_value(column) for column in record]
                 rows.append(row)
 
-        print(column_metadata)
         column_names: List[str] = [column["name"] for column in column_metadata]
         dataframe = pd.DataFrame(rows, columns=column_names)
         return dataframe
@@ -132,7 +150,7 @@ class RedshiftDataApiWaiter:
         Maximum number of tries.
     """
 
-    def __init__(self, client: Any, sleep: float = 1.0, backoff: float = 1.5, retries: int = 4) -> None:
+    def __init__(self, client: Any, sleep: float, backoff: float, retries: int) -> None:
         self.client = client
         self.sleep = sleep
         self.backoff = backoff
@@ -162,7 +180,10 @@ class RedshiftDataApiWaiter:
             if status == "FINISHED":
                 return True
             if status in ["ABORTED", "FAILED"]:
-                raise RedshiftDataApiFailedException(f"Request {request_id} failed with status {status}")
+                error = response["Error"]
+                raise RedshiftDataApiFailedException(
+                    f"Request {request_id} failed with status {status} and error {error}"
+                )
             sleep = sleep * self.backoff
             total_tries += 1
             time.sleep(sleep)

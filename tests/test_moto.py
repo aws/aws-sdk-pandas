@@ -539,10 +539,12 @@ def mock_data_api_connector(connector, has_result_set=True):
         connector.client.get_statement_result = mock.MagicMock(return_value=statement_response)
     elif type(connector) == wr.data_api.rds.RdsDataApi:
         records = statement_response["Records"]
+        metadata = statement_response["ColumnMetadata"]
         del statement_response["Records"]
-        if not has_result_set:
-            records = []
-        statement_response["records"] = records
+        del statement_response["ColumnMetadata"]
+        if has_result_set:
+            statement_response["columnMetadata"] = metadata
+            statement_response["records"] = records
         connector.client.execute_statement = mock.MagicMock(return_value=statement_response)
     else:
         raise ValueError(f"Unsupported connector type {type(connector)}")

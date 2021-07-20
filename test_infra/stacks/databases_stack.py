@@ -317,7 +317,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
             subnet=self.vpc.private_subnets[0],
             security_groups=[self.db_security_group],
         )
-        secret = secrets.Secret(
+        secrets.Secret(
             self,
             "aws-data-wrangler-postgresql-secret",
             secret_name="aws-data-wrangler/postgresql",
@@ -520,7 +520,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
             subnet=self.vpc.private_subnets[0],
             security_groups=[self.db_security_group],
         )
-        secret = secrets.Secret(
+        secrets.Secret(
             self,
             "aws-data-wrangler-sqlserver-secret",
             secret_name="aws-data-wrangler/sqlserver",
