@@ -58,9 +58,9 @@ class RdsDataApi(connector.DataApiConnector):
         resource_arn: str,
         database: str,
         secret_arn: str = "",
-        max_tries: int = 30,
         sleep: float = 0.5,
         backoff: float = 1.0,
+        retries: int = 30,
     ) -> None:
         """
         Parameters
@@ -71,27 +71,32 @@ class RdsDataApi(connector.DataApiConnector):
             Target database name.
         secret_arn: str
             The ARN for the secret to be used for authentication.
+        sleep: float
+            Number of seconds to sleep between connection attempts to paused clusters - defaults to 0.5.
+        backoff: float
+            Factor by which to increase the sleep between connection attempts to paused clusters - defaults to 1.0.
+        retries: int
+            Maximum number of connection attempts to paused clusters - defaults to 10.
         """
         self.resource_arn = resource_arn
         self.database = database
         self.secret_arn = secret_arn
+        self.wait_config = connector.WaitConfig(sleep, backoff, retries)
         self.client = boto3.client("rds-data")
         self.results: Dict[str, Dict[str, Any]] = {}
-        self.max_tries: int = max_tries
-        self.sleep: float = sleep
-        self.backoff: float = backoff
-        logger: logging.Logger = logging.getLogger("RdsDataApi")
+        logger: logging.Logger = logging.getLogger(__name__)
         super().__init__(self.client, logger)
 
     def _execute_statement(self, sql: str, database: Optional[str] = None) -> str:
         if database is None:
             database = self.database
 
-        sleep: float = self.sleep
+        sleep: float = self.wait_config.sleep
         total_tries: int = 0
         total_sleep: float = 0
         response: Optional[Dict[str, Any]] = None
-        while total_tries < self.max_tries:
+        last_exception: Optional[Exception] = None
+        while total_tries < self.wait_config.retries:
             try:
                 response = self.client.execute_statement(
                     resourceArn=self.resource_arn,
@@ -100,23 +105,28 @@ class RdsDataApi(connector.DataApiConnector):
                     secretArn=self.secret_arn,
                     includeResultMetadata=True,
                 )
+                self.logger.debug(
+                    "Response received after %s tries and sleeping for a total of %s seconds", total_tries, total_sleep
+                )
                 break
             except self.client.exceptions.BadRequestException as exception:
-                self.logger.info("BadRequestException occurred %s", exception)
-                self.logger.info(
-                    "Cluster may be paused - sleeping for %s seconds for a total of %s seconds before retrying",
+                last_exception = exception
+                total_sleep += sleep
+                self.logger.debug("BadRequestException occurred: %s", exception)
+                self.logger.debug(
+                    "Cluster may be paused - sleeping for %s seconds for a total of %s before retrying",
                     sleep,
                     total_sleep,
                 )
                 time.sleep(sleep)
-                total_sleep += sleep
                 total_tries += 1
-                sleep *= self.backoff
+                sleep *= self.wait_config.backoff
 
         if response is None:
+            self.logger.exception("Maximum BadRequestException retries reached for query %s", sql)
             raise self.client.exceptions.BadRequestException(
-                f"BadRequestException received after {self.max_tries} tries and sleeping {total_sleep}s"
-            )
+                f"Query failed - BadRequestException received after {total_tries} tries and sleeping {total_sleep}s"
+            ) from last_exception
 
         request_id: str = uuid.uuid4().hex
         self.results[request_id] = response

@@ -60,3 +60,12 @@ class DataApiConnector:
                     raise ValueError(f"arrayValue not supported yet - could not extract {column_value[key]}")
                 return column_value[key]
         return None
+
+
+class WaitConfig:
+    """Holds standard wait configuration values."""
+
+    def __init__(self, sleep: float, backoff: float, retries: int) -> None:
+        self.sleep = sleep
+        self.backoff = backoff
+        self.retries = retries

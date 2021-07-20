@@ -55,6 +55,32 @@ def test_data_api_redshift_basic_select(redshift_connector, redshift_table):
     pd.testing.assert_frame_equal(dataframe, expected_dataframe)
 
 
+def test_data_api_redshift_empty_results_select(redshift_connector, redshift_table):
+    wr.data_api.redshift.read_sql_query(
+        f"CREATE TABLE public.{redshift_table} (id INT, name VARCHAR)", con=redshift_connector
+    )
+    wr.data_api.redshift.read_sql_query(
+        f"INSERT INTO public.{redshift_table} VALUES (42, 'test')", con=redshift_connector
+    )
+    dataframe = wr.data_api.redshift.read_sql_query(
+        f"SELECT * FROM  public.{redshift_table} where id = 50", con=redshift_connector
+    )
+    expected_dataframe = pd.DataFrame([], columns=["id", "name"])
+    pd.testing.assert_frame_equal(dataframe, expected_dataframe)
+
+
+def test_data_api_redshift_column_subset_select(redshift_connector, redshift_table):
+    wr.data_api.redshift.read_sql_query(
+        f"CREATE TABLE public.{redshift_table} (id INT, name VARCHAR)", con=redshift_connector
+    )
+    wr.data_api.redshift.read_sql_query(
+        f"INSERT INTO public.{redshift_table} VALUES (42, 'test')", con=redshift_connector
+    )
+    dataframe = wr.data_api.redshift.read_sql_query(f"SELECT name FROM public.{redshift_table}", con=redshift_connector)
+    expected_dataframe = pd.DataFrame([["test"]], columns=["name"])
+    pd.testing.assert_frame_equal(dataframe, expected_dataframe)
+
+
 def test_data_api_mysql_columnless_query(mysql_serverless_connector):
     dataframe = wr.data_api.rds.read_sql_query("SELECT 1", con=mysql_serverless_connector)
     expected_dataframe = pd.DataFrame([[1]], columns=["1"])

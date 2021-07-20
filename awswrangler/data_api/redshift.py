@@ -60,9 +60,9 @@ class RedshiftDataApi(connector.DataApiConnector):
         database: str,
         secret_arn: str = "",
         db_user: str = "",
-        sleep: float = 1.0,
+        sleep: float = 0.25,
         backoff: float = 1.5,
-        retries: int = 4,
+        retries: int = 15,
     ) -> None:
         """
         Parameters
@@ -76,11 +76,11 @@ class RedshiftDataApi(connector.DataApiConnector):
         db_user: str
             The database user to generate temporary credentials for - only required if `secret_arn` not provided.
         sleep: float
-            Number of seconds to sleep between tries - defaults to 1.
+            Number of seconds to sleep between result fetch attempts - defaults to 0.25.
         backoff: float
-            Factor by which to increase the sleep between tries - defaults to 1.
+            Factor by which to increase the sleep between result fetch attempts - defaults to 1.5.
         retries: int
-            Maximum number of tries - defaults to 4.
+            Maximum number of result fetch attempts - defaults to 15.
         """
         self.cluster_id = cluster_id
         self.database = database
@@ -88,7 +88,7 @@ class RedshiftDataApi(connector.DataApiConnector):
         self.db_user = db_user
         self.client = boto3.client("redshift-data")
         self.waiter = RedshiftDataApiWaiter(self.client, sleep, backoff, retries)
-        logger: logging.Logger = logging.getLogger("RedshiftDataApi")
+        logger: logging.Logger = logging.getLogger(__name__)
         super().__init__(self.client, logger)
 
     def _validate_auth_method(self) -> None:
@@ -104,6 +104,7 @@ class RedshiftDataApi(connector.DataApiConnector):
         if database is None:
             database = self.database
 
+        self.logger.debug("Executing %s", sql)
         response: Dict[str, Any] = self.client.execute_statement(
             ClusterIdentifier=self.cluster_id,
             Database=database,
@@ -152,9 +153,8 @@ class RedshiftDataApiWaiter:
 
     def __init__(self, client: Any, sleep: float, backoff: float, retries: int) -> None:
         self.client = client
-        self.sleep = sleep
-        self.backoff = backoff
-        self.retries = retries
+        self.wait_config = connector.WaitConfig(sleep, backoff, retries)
+        self.logger: logging.Logger = logging.getLogger(__name__)
 
     def wait(self, request_id: str) -> bool:
         """Waits for the `describe_statement` function of self.client to return a completed status.
@@ -171,10 +171,10 @@ class RedshiftDataApiWaiter:
         Raises RedshiftDataApiExecutionTimeoutException if retries exceeded before completion.
         """
 
-        sleep: float = self.sleep
+        sleep: float = self.wait_config.sleep
         total_sleep: float = 0
         total_tries: int = 0
-        while total_tries <= self.retries:
+        while total_tries <= self.wait_config.retries:
             response: Dict[str, Any] = self.client.describe_statement(Id=request_id)
             status: str = response["Status"]
             if status == "FINISHED":
@@ -184,9 +184,10 @@ class RedshiftDataApiWaiter:
                 raise RedshiftDataApiFailedException(
                     f"Request {request_id} failed with status {status} and error {error}"
                 )
-            sleep = sleep * self.backoff
-            total_tries += 1
+            self.logger.debug("Statement execution status %s - sleeping for %s seconds", status, sleep)
             time.sleep(sleep)
+            sleep = sleep * self.wait_config.backoff
+            total_tries += 1
             total_sleep += sleep
         raise RedshiftDataApiTimeoutException(
             f"Request {request_id} timed out after {total_tries} tries and {total_sleep}s total sleep"
