@@ -13,7 +13,7 @@ class DataApiConnector:
         self.logger: logging.Logger = logger
 
     def execute(self, sql: str, database: Optional[str] = None) -> pd.DataFrame:
-        """Executes SQL statement against Data API Service.
+        """Execute SQL statement against a Data API Service.
 
         Parameters
         ----------
@@ -35,7 +35,7 @@ class DataApiConnector:
 
     @staticmethod
     def _get_column_value(column_value: Dict[str, Any]) -> Any:
-        """Returns the first non-null key value for a given dictionary.
+        """Return the first non-null key value for a given dictionary.
 
         The key names for a given record depend on the column type: stringValue, longValue, etc.
 

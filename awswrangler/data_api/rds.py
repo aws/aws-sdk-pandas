@@ -34,7 +34,7 @@ def connect(resource_arn: str, database: str, secret_arn: str = "", **kwargs: An
 
 
 def read_sql_query(sql: str, con: RdsDataApi, database: Optional[str] = None) -> pd.DataFrame:
-    """Runs an SQL query on an RdsDataApi connection and returns the result as a dataframe.
+    """Run an SQL query on an RdsDataApi connection and return the result as a dataframe.
 
     Parameters
     ----------
@@ -51,7 +51,23 @@ def read_sql_query(sql: str, con: RdsDataApi, database: Optional[str] = None) ->
 
 
 class RdsDataApi(connector.DataApiConnector):
-    """Provides access to the RDS Data API."""
+    """Provides access to the RDS Data API.
+
+    Parameters
+    ----------
+    resource_arn: str
+        ARN for the RDS resource.
+    database: str
+        Target database name.
+    secret_arn: str
+        The ARN for the secret to be used for authentication.
+    sleep: float
+        Number of seconds to sleep between connection attempts to paused clusters - defaults to 0.5.
+    backoff: float
+        Factor by which to increase the sleep between connection attempts to paused clusters - defaults to 1.0.
+    retries: int
+        Maximum number of connection attempts to paused clusters - defaults to 10.
+    """
 
     def __init__(
         self,
@@ -62,22 +78,6 @@ class RdsDataApi(connector.DataApiConnector):
         backoff: float = 1.0,
         retries: int = 30,
     ) -> None:
-        """
-        Parameters
-        ----------
-        resource_arn: str
-            ARN for the RDS resource.
-        database: str
-            Target database name.
-        secret_arn: str
-            The ARN for the secret to be used for authentication.
-        sleep: float
-            Number of seconds to sleep between connection attempts to paused clusters - defaults to 0.5.
-        backoff: float
-            Factor by which to increase the sleep between connection attempts to paused clusters - defaults to 1.0.
-        retries: int
-            Maximum number of connection attempts to paused clusters - defaults to 10.
-        """
         self.resource_arn = resource_arn
         self.database = database
         self.secret_arn = secret_arn

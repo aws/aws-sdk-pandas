@@ -35,7 +35,7 @@ def connect(cluster_id: str, database: str, secret_arn: str = "", db_user: str =
 
 
 def read_sql_query(sql: str, con: RedshiftDataApi, database: Optional[str] = None) -> pd.DataFrame:
-    """Runs an SQL query on a RedshiftDataApi connection and returns the result as a dataframe.
+    """Run an SQL query on a RedshiftDataApi connection and return the result as a dataframe.
 
     Parameters
     ----------
@@ -52,7 +52,25 @@ def read_sql_query(sql: str, con: RedshiftDataApi, database: Optional[str] = Non
 
 
 class RedshiftDataApi(connector.DataApiConnector):
-    """Provides access to a Redshift cluster via the Data API."""
+    """Provides access to a Redshift cluster via the Data API.
+
+    Parameters
+    ----------
+    cluster_id: str
+        Id for the target Redshift cluster.
+    database: str
+        Target database name.
+    secret_arn: str
+        The ARN for the secret to be used for authentication - only required if `db_user` not provided.
+    db_user: str
+        The database user to generate temporary credentials for - only required if `secret_arn` not provided.
+    sleep: float
+        Number of seconds to sleep between result fetch attempts - defaults to 0.25.
+    backoff: float
+        Factor by which to increase the sleep between result fetch attempts - defaults to 1.5.
+    retries: int
+        Maximum number of result fetch attempts - defaults to 15.
+    """
 
     def __init__(
         self,
@@ -64,24 +82,6 @@ class RedshiftDataApi(connector.DataApiConnector):
         backoff: float = 1.5,
         retries: int = 15,
     ) -> None:
-        """
-        Parameters
-        ----------
-        cluster_id: str
-            Id for the target Redshift cluster.
-        database: str
-            Target database name.
-        secret_arn: str
-            The ARN for the secret to be used for authentication - only required if `db_user` not provided.
-        db_user: str
-            The database user to generate temporary credentials for - only required if `secret_arn` not provided.
-        sleep: float
-            Number of seconds to sleep between result fetch attempts - defaults to 0.25.
-        backoff: float
-            Factor by which to increase the sleep between result fetch attempts - defaults to 1.5.
-        retries: int
-            Maximum number of result fetch attempts - defaults to 15.
-        """
         self.cluster_id = cluster_id
         self.database = database
         self.secret_arn = secret_arn
@@ -137,7 +137,7 @@ class RedshiftDataApi(connector.DataApiConnector):
 
 
 class RedshiftDataApiWaiter:
-    """Waits for a  DescribeStatement call to return a completed status.
+    """Waits for a DescribeStatement call to return a completed status.
 
     Parameters
     ----------
@@ -157,7 +157,7 @@ class RedshiftDataApiWaiter:
         self.logger: logging.Logger = logging.getLogger(__name__)
 
     def wait(self, request_id: str) -> bool:
-        """Waits for the `describe_statement` function of self.client to return a completed status.
+        """Wait for the `describe_statement` function of self.client to return a completed status.
 
         Parameters
         ----------
@@ -170,7 +170,6 @@ class RedshiftDataApiWaiter:
         Raises RedshiftDataApiExecutionFailedException if FAILED or ABORTED.
         Raises RedshiftDataApiExecutionTimeoutException if retries exceeded before completion.
         """
-
         sleep: float = self.wait_config.sleep
         total_sleep: float = 0
         total_tries: int = 0
