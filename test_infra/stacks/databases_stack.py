@@ -401,7 +401,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
             subnet=self.vpc.private_subnets[0],
             security_groups=[self.db_security_group],
         )
-        secret = secrets.Secret(
+        secrets.Secret(
             self,
             "aws-data-wrangler-mysql-secret",
             secret_name="aws-data-wrangler/mysql",
@@ -421,12 +421,10 @@ class DatabasesStack(cdk.Stack):  # type: ignore
                 ),
             ),
         )
-        cdk.CfnOutput(self, "MysqlSecretArn", value=secret.secret_arn)
         cdk.CfnOutput(self, "MysqlAddress", value=aurora_mysql.cluster_endpoint.hostname)
         cdk.CfnOutput(self, "MysqlPort", value=str(port))
         cdk.CfnOutput(self, "MysqlDatabase", value=database)
         cdk.CfnOutput(self, "MysqlSchema", value=schema)
-        cdk.CfnOutput(self, "MysqlIdentifier", value=aurora_mysql.cluster_identifier)
 
     def _setup_mysql_serverless(self) -> None:
         port = 3306
