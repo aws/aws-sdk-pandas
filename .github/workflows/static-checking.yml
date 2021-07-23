@@ -31,7 +31,7 @@ jobs:
           poetry config virtualenvs.create false --local
           poetry install --extras "sqlserver" -vvv
       - name: mypy check
-        run: yes y | mypy --install-types awswrangler
+        run: mypy --install-types --non-interactive awswrangler
       - name: Flake8 Lint
         run: flake8 .
       - name: Pylint Lint
