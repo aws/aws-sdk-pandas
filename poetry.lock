@@ -756,7 +756,7 @@ traitlets = "*"
 
 [[package]]
 name = "jupyter-server"
-version = "1.10.0"
+version = "1.10.1"
 description = "The backend—i.e. core services, APIs, and REST endpoints—to Jupyter web applications."
 category = "dev"
 optional = false
@@ -2521,8 +2521,8 @@ jupyter-core = [
     {file = "jupyter_core-4.7.1.tar.gz", hash = "sha256:79025cb3225efcd36847d0840f3fc672c0abd7afd0de83ba8a1d3837619122b4"},
 ]
 jupyter-server = [
-    {file = "jupyter_server-1.10.0-py3-none-any.whl", hash = "sha256:ef6ccd8ac90c32b65fb9b0f1fad833c7de806ad0de0dc41190cd7d249f492ac0"},
-    {file = "jupyter_server-1.10.0.tar.gz", hash = "sha256:5c954876b1e82458cf8d48e6ad0dd4db70190df28902eb4b5257e9813a4c3832"},
+    {file = "jupyter_server-1.10.1-py3-none-any.whl", hash = "sha256:b3eef770ffa34595ed26a6e4460866eaf0f4ff710eccc7648f701bb8c1d0443c"},
+    {file = "jupyter_server-1.10.1.tar.gz", hash = "sha256:fe6b589bd8d8fe08f608e90ce7da1e6bbfd020d99897453b45149a7853e9188f"},
 ]
 jupyterlab = [
     {file = "jupyterlab-3.0.16-py3-none-any.whl", hash = "sha256:88f6e7580c15cf731d96495fda362e786753e18d1e3e7e735915862efb602a92"},
