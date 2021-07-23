@@ -18,7 +18,7 @@ from awswrangler._config import apply_configs
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _validate_connection(con: pymysql.connections.Connection) -> None:
+def _validate_connection(con: "pymysql.connections.Connection[Any]") -> None:
     if not isinstance(con, pymysql.connections.Connection):
         raise exceptions.InvalidConnection(
             "Invalid 'conn' argument, please pass a "
@@ -77,7 +77,7 @@ def connect(
     read_timeout: Optional[int] = None,
     write_timeout: Optional[int] = None,
     connect_timeout: int = 10,
-) -> pymysql.connections.Connection:
+) -> "pymysql.connections.Connection[Any]":
     """Return a pymysql connection from a Glue Catalog Connection or Secrets Manager.
 
     https://pymysql.readthedocs.io
@@ -150,7 +150,7 @@ def connect(
 
 def read_sql_query(
     sql: str,
-    con: pymysql.connections.Connection,
+    con: "pymysql.connections.Connection[Any]",
     index_col: Optional[Union[str, List[str]]] = None,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
     chunksize: Optional[int] = None,
@@ -206,7 +206,7 @@ def read_sql_query(
 
 def read_sql_table(
     table: str,
-    con: pymysql.connections.Connection,
+    con: "pymysql.connections.Connection[Any]",
     schema: Optional[str] = None,
     index_col: Optional[Union[str, List[str]]] = None,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
@@ -268,7 +268,7 @@ def read_sql_table(
 @apply_configs
 def to_sql(
     df: pd.DataFrame,
-    con: pymysql.connections.Connection,
+    con: "pymysql.connections.Connection[Any]",
     table: str,
     schema: str,
     mode: str = "append",
