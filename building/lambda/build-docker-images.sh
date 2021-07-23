@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -ex
 
-cp ../../requirements.txt .
-cp ../../requirements-dev.txt .
+cp ../../pyproject.toml .
+cp ../../poetry.lock .
 
 # Python 3.6
 docker build \
@@ -28,4 +28,4 @@ docker build \
   --build-arg py_dev=python38-devel \
   .
 
-rm -rf requirements*
+rm -rf pyproject.toml poetry.lock
