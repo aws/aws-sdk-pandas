@@ -13,7 +13,7 @@ pytest-rerunfailures==10.1
 pytest-xdist==2.3.0
 pytest-timeout==1.4.2
 pydot==1.4.2
-twine==3.4.1
+twine==3.4.2
 sphinx==4.0.3
 sphinx_bootstrap_theme==0.7.1
 nbsphinx==0.8.6
