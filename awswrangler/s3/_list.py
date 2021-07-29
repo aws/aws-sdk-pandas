@@ -149,10 +149,12 @@ def does_object_exist(
     path: str
         S3 path (e.g. s3://bucket/key).
     s3_additional_kwargs : Optional[Dict[str, Any]]
-        Forward to botocore requests. Valid parameters: "RequestPayer", "ExpectedBucketOwner".
+        Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    version_id: str, optional
+        Specific version of the object that should exist.
 
     Returns
     -------
@@ -216,7 +218,7 @@ def list_directories(
     path : str
         S3 path (e.g. s3://bucket/prefix).
     s3_additional_kwargs : Optional[Dict[str, Any]]
-        Forward to botocore requests. Valid parameters: "RequestPayer", "ExpectedBucketOwner".
+        Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
@@ -286,7 +288,7 @@ def list_objects(
     ignore_empty: bool
         Ignore files with 0 bytes.
     s3_additional_kwargs : Optional[Dict[str, Any]]
-        Forward to botocore requests. Valid parameters: "RequestPayer", "ExpectedBucketOwner".
+        Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.

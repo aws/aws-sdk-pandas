@@ -779,7 +779,7 @@ def read_sql_query(
         The dict needs to contain the information in the form {'name': 'value'} and the SQL query needs to contain
         `:name;`. Note that for varchar columns and similar, you must surround the value in single quotes.
     s3_additional_kwargs : Optional[Dict[str, Any]]
-        Forward to botocore requests. Valid parameters: "RequestPayer", "ExpectedBucketOwner".
+        Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
 
     Returns
@@ -1043,7 +1043,7 @@ def read_sql_table(
     data_source : str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
     s3_additional_kwargs : Optional[Dict[str, Any]]
-        Forward to botocore requests. Valid parameters: "RequestPayer", "ExpectedBucketOwner".
+        Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
 
     Returns
