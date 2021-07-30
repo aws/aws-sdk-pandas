@@ -73,7 +73,7 @@ def test_versioned(timestream_database_and_table):
                 "dim1": [1, 2, 3],
                 "measure": [1.0, 1.1, 1.9],
             }
-        )
+        ),
     ]
     versions = [1, 1, 2]
     rejected_rec_nums = [0, 1, 0]
