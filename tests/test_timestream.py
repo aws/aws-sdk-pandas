@@ -2,13 +2,15 @@ import logging
 from datetime import datetime
 
 import pandas as pd
+import pytest
 
 import awswrangler as wr
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
-def test_basic_scenario(timestream_database_and_table):
+@pytest.mark.parametrize("pagination", [None, {}, {"MaxItems": 3, "PageSize": 2}])
+def test_basic_scenario(timestream_database_and_table, pagination):
     name = timestream_database_and_table
     df = pd.DataFrame(
         {
@@ -41,7 +43,8 @@ def test_basic_scenario(timestream_database_and_table):
         FROM "{name}"."{name}"
         ORDER BY time
         DESC LIMIT 10
-    """
+        """,
+        pagination_config=pagination,
     )
     assert df.shape == (3, 8)
 

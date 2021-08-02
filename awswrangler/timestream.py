@@ -199,13 +199,17 @@ def write(
         return [item for sublist in res for item in sublist]
 
 
-def query(sql: str, boto3_session: Optional[boto3.Session] = None) -> pd.DataFrame:
+def query(
+    sql: str, pagination_config: Dict[str, Any] = None, boto3_session: Optional[boto3.Session] = None
+) -> pd.DataFrame:
     """Run a query and retrieve the result as a Pandas DataFrame.
 
     Parameters
     ----------
     sql: str
         SQL query.
+    pagination_config: Dict[str, Any]
+        Pagination configuration dictionary of a form {'MaxItems': 10, 'PageSize': 10, 'StartingToken': '...'}
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
 
@@ -230,7 +234,7 @@ def query(sql: str, boto3_session: Optional[boto3.Session] = None) -> pd.DataFra
     paginator = client.get_paginator("query")
     rows: List[List[Any]] = []
     schema: List[Dict[str, str]] = []
-    for page in paginator.paginate(QueryString=sql):
+    for page in paginator.paginate(QueryString=sql, PaginationConfig=pagination_config or {}):
         if not schema:
             schema = _process_schema(page=page)
         for row in page["Rows"]:
