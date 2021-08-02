@@ -46,6 +46,59 @@ def test_basic_scenario(timestream_database_and_table):
     assert df.shape == (3, 8)
 
 
+def test_versioned(timestream_database_and_table):
+    name = timestream_database_and_table
+    time = [datetime.now(), datetime.now(), datetime.now()]
+    dfs = [
+        pd.DataFrame(
+            {
+                "time": time,
+                "dim0": ["foo", "boo", "bar"],
+                "dim1": [1, 2, 3],
+                "measure": [1.0, 1.1, 1.2],
+            }
+        ),
+        pd.DataFrame(
+            {
+                "time": time,
+                "dim0": ["foo", "boo", "bar"],
+                "dim1": [1, 2, 3],
+                "measure": [1.0, 1.1, 1.9],
+            }
+        ),
+        pd.DataFrame(
+            {
+                "time": time,
+                "dim0": ["foo", "boo", "bar"],
+                "dim1": [1, 2, 3],
+                "measure": [1.0, 1.1, 1.9],
+            }
+        ),
+    ]
+    versions = [1, 1, 2]
+    rejected_rec_nums = [0, 1, 0]
+    for df, version, rejected_rec_num in zip(dfs, versions, rejected_rec_nums):
+        rejected_records = wr.timestream.write(
+            df=df,
+            database=name,
+            table=name,
+            time_col="time",
+            measure_col="measure",
+            dimensions_cols=["dim0", "dim1"],
+            version=version,
+        )
+        assert len(rejected_records) == rejected_rec_num
+        df_out = wr.timestream.query(
+            f"""
+            SELECT
+                *
+            FROM "{name}"."{name}"
+            DESC LIMIT 10
+        """
+        )
+        assert df_out.shape == (3, 5)
+
+
 def test_real_csv_load_scenario(timestream_database_and_table):
     name = timestream_database_and_table
     df = pd.read_csv(
