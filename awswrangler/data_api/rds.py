@@ -1,6 +1,4 @@
 """RDS Data API Connector."""
-from __future__ import annotations
-
 import logging
 import time
 import uuid
@@ -10,44 +8,6 @@ import boto3
 import pandas as pd
 
 from awswrangler.data_api import connector
-
-
-def connect(resource_arn: str, database: str, secret_arn: str = "", **kwargs: Any) -> RdsDataApi:
-    """Create a RDS Data API connection.
-
-    Parameters
-    ----------
-    resource_arn: str
-        ARN for the RDS resource.
-    database: str
-        Target database name.
-    secret_arn: str
-        The ARN for the secret to be used for authentication.
-    **kwargs
-        Any additional kwargs are passed to the underlying RdsDataApi class.
-
-    Returns
-    -------
-    A RdsDataApi connection instance that can be used with `wr.rds.data_api.read_sql_query`.
-    """
-    return RdsDataApi(resource_arn, database, secret_arn=secret_arn, **kwargs)
-
-
-def read_sql_query(sql: str, con: RdsDataApi, database: Optional[str] = None) -> pd.DataFrame:
-    """Run an SQL query on an RdsDataApi connection and return the result as a dataframe.
-
-    Parameters
-    ----------
-    sql: str
-        SQL query to run.
-    database: str
-        Database to run query on - defaults to the database specified by `con`.
-
-    Returns
-    -------
-    A Pandas dataframe containing the query results.
-    """
-    return con.execute(sql, database=database)
 
 
 class RdsDataApi(connector.DataApiConnector):
@@ -149,3 +109,41 @@ class RdsDataApi(connector.DataApiConnector):
         column_names: List[str] = [column["name"] for column in result["columnMetadata"]]
         dataframe = pd.DataFrame(rows, columns=column_names)
         return dataframe
+
+
+def connect(resource_arn: str, database: str, secret_arn: str = "", **kwargs: Any) -> RdsDataApi:
+    """Create a RDS Data API connection.
+
+    Parameters
+    ----------
+    resource_arn: str
+        ARN for the RDS resource.
+    database: str
+        Target database name.
+    secret_arn: str
+        The ARN for the secret to be used for authentication.
+    **kwargs
+        Any additional kwargs are passed to the underlying RdsDataApi class.
+
+    Returns
+    -------
+    A RdsDataApi connection instance that can be used with `wr.rds.data_api.read_sql_query`.
+    """
+    return RdsDataApi(resource_arn, database, secret_arn=secret_arn, **kwargs)
+
+
+def read_sql_query(sql: str, con: RdsDataApi, database: Optional[str] = None) -> pd.DataFrame:
+    """Run an SQL query on an RdsDataApi connection and return the result as a dataframe.
+
+    Parameters
+    ----------
+    sql: str
+        SQL query to run.
+    database: str
+        Database to run query on - defaults to the database specified by `con`.
+
+    Returns
+    -------
+    A Pandas dataframe containing the query results.
+    """
+    return con.execute(sql, database=database)

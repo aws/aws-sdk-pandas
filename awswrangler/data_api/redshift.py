@@ -1,6 +1,4 @@
 """Redshift Data API Connector."""
-from __future__ import annotations
-
 import logging
 import time
 from typing import Any, Dict, List, Optional
@@ -9,46 +7,6 @@ import boto3
 import pandas as pd
 
 from awswrangler.data_api import connector
-
-
-def connect(cluster_id: str, database: str, secret_arn: str = "", db_user: str = "", **kwargs: Any) -> RedshiftDataApi:
-    """Create a Redshift Data API connection.
-
-    Parameters
-    ----------
-    cluster_id: str
-        Id for the target Redshift cluster.
-    database: str
-        Target database name.
-    secret_arn: str
-        The ARN for the secret to be used for authentication - only required if `db_user` not provided.
-    db_user: str
-        The database user to generate temporary credentials for - only required if `secret_arn` not provided.
-    **kwargs
-        Any additional kwargs are passed to the underlying RedshiftDataApi class.
-
-    Returns
-    -------
-    A RedshiftDataApi connection instance that can be used with `wr.redshift.data_api.read_sql_query`.
-    """
-    return RedshiftDataApi(cluster_id, database, secret_arn=secret_arn, db_user=db_user, **kwargs)
-
-
-def read_sql_query(sql: str, con: RedshiftDataApi, database: Optional[str] = None) -> pd.DataFrame:
-    """Run an SQL query on a RedshiftDataApi connection and return the result as a dataframe.
-
-    Parameters
-    ----------
-    sql: str
-        SQL query to run.
-    database: str
-        Database to run query on - defaults to the database specified by `con`.
-
-    Returns
-    -------
-    A Pandas dataframe containing the query results.
-    """
-    return con.execute(sql, database=database)
 
 
 class RedshiftDataApi(connector.DataApiConnector):
@@ -199,3 +157,43 @@ class RedshiftDataApiFailedException(Exception):
 
 class RedshiftDataApiTimeoutException(Exception):
     """Indicates a statement execution did not complete in the expected wait time."""
+
+
+def connect(cluster_id: str, database: str, secret_arn: str = "", db_user: str = "", **kwargs: Any) -> RedshiftDataApi:
+    """Create a Redshift Data API connection.
+
+    Parameters
+    ----------
+    cluster_id: str
+        Id for the target Redshift cluster.
+    database: str
+        Target database name.
+    secret_arn: str
+        The ARN for the secret to be used for authentication - only required if `db_user` not provided.
+    db_user: str
+        The database user to generate temporary credentials for - only required if `secret_arn` not provided.
+    **kwargs
+        Any additional kwargs are passed to the underlying RedshiftDataApi class.
+
+    Returns
+    -------
+    A RedshiftDataApi connection instance that can be used with `wr.redshift.data_api.read_sql_query`.
+    """
+    return RedshiftDataApi(cluster_id, database, secret_arn=secret_arn, db_user=db_user, **kwargs)
+
+
+def read_sql_query(sql: str, con: RedshiftDataApi, database: Optional[str] = None) -> pd.DataFrame:
+    """Run an SQL query on a RedshiftDataApi connection and return the result as a dataframe.
+
+    Parameters
+    ----------
+    sql: str
+        SQL query to run.
+    database: str
+        Database to run query on - defaults to the database specified by `con`.
+
+    Returns
+    -------
+    A Pandas dataframe containing the query results.
+    """
+    return con.execute(sql, database=database)
