@@ -200,7 +200,7 @@ def write(
 
 
 def query(
-    sql: str, pagination_config: Dict[str, Any] = None, boto3_session: Optional[boto3.Session] = None
+    sql: str, pagination_config: Optional[Dict[str, Any]] = None, boto3_session: Optional[boto3.Session] = None
 ) -> pd.DataFrame:
     """Run a query and retrieve the result as a Pandas DataFrame.
 
@@ -208,7 +208,7 @@ def query(
     ----------
     sql: str
         SQL query.
-    pagination_config: Dict[str, Any]
+    pagination_config: Dict[str, Any], optional
         Pagination configuration dictionary of a form {'MaxItems': 10, 'PageSize': 10, 'StartingToken': '...'}
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
