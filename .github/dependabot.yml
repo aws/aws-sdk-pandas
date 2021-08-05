@@ -10,4 +10,3 @@ updates:
       prefix: "[skip ci] pip"
       prefix-development: "[skip ci] pip"
       include: "scope"
-    open-pull-requests-limit: 5
