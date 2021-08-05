@@ -256,3 +256,9 @@ def generate_placeholder_parameter_pairs(
         chunk_placeholders = ", ".join([f"({column_placeholders})" for _ in range(len(parameters_chunk))])
         flattened_chunk = [convert_value_to_native_python_type(value) for row in parameters_chunk for value in row]
         yield chunk_placeholders, flattened_chunk
+
+
+def validate_mode(mode: str, allowed_modes: List[str]) -> None:
+    """Check if mode is included in allowed_modes."""
+    if mode not in allowed_modes:
+        raise exceptions.InvalidArgumentValue(f"mode must be one of {', '.join(allowed_modes)}")

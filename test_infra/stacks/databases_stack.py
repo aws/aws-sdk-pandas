@@ -37,6 +37,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
         self._setup_redshift()
         self._setup_postgresql()
         self._setup_mysql()
+        self._setup_mysql_serverless()
         self._setup_sqlserver()
 
     def _set_db_infra(self) -> None:
@@ -232,7 +233,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
             subnet=self.vpc.private_subnets[0],
             security_groups=[self.db_security_group],
         )
-        secrets.Secret(
+        secret = secrets.Secret(
             self,
             "aws-data-wrangler-redshift-secret",
             secret_name="aws-data-wrangler/redshift",
@@ -251,6 +252,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
                 ),
             ),
         )
+        cdk.CfnOutput(self, "RedshiftSecretArn", value=secret.secret_arn)
         cdk.CfnOutput(self, "RedshiftIdentifier", value=redshift_cluster.cluster_name)
         cdk.CfnOutput(
             self,
@@ -423,6 +425,62 @@ class DatabasesStack(cdk.Stack):  # type: ignore
         cdk.CfnOutput(self, "MysqlPort", value=str(port))
         cdk.CfnOutput(self, "MysqlDatabase", value=database)
         cdk.CfnOutput(self, "MysqlSchema", value=schema)
+
+    def _setup_mysql_serverless(self) -> None:
+        port = 3306
+        database = "test"
+        schema = "test"
+        aurora_mysql = rds.ServerlessCluster(
+            self,
+            "aws-data-wrangler-aurora-cluster-mysql-serverless",
+            removal_policy=cdk.RemovalPolicy.DESTROY,
+            engine=rds.DatabaseClusterEngine.aurora_mysql(
+                version=rds.AuroraMysqlEngineVersion.VER_5_7_12,
+            ),
+            cluster_identifier="mysql-serverless-cluster-wrangler",
+            default_database_name=database,
+            credentials=rds.Credentials.from_password(
+                username=self.db_username,
+                password=self.db_password_secret,
+            ),
+            scaling=rds.ServerlessScalingOptions(
+                auto_pause=cdk.Duration.minutes(5),
+                min_capacity=rds.AuroraCapacityUnit.ACU_1,
+                max_capacity=rds.AuroraCapacityUnit.ACU_1,
+            ),
+            backup_retention=cdk.Duration.days(1),
+            vpc=self.vpc,
+            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE),
+            subnet_group=self.rds_subnet_group,
+            security_groups=[self.db_security_group],
+            enable_data_api=True,
+        )
+        secret = secrets.Secret(
+            self,
+            "aws-data-wrangler-mysql-serverless-secret",
+            secret_name="aws-data-wrangler/mysql-serverless",
+            description="MySQL serverless credentials",
+            generate_secret_string=secrets.SecretStringGenerator(
+                generate_string_key="dummy",
+                secret_string_template=json.dumps(
+                    {
+                        "username": self.db_username,
+                        "password": self.db_password,
+                        "engine": "mysql",
+                        "host": aurora_mysql.cluster_endpoint.hostname,
+                        "port": port,
+                        "dbClusterIdentifier": aurora_mysql.cluster_identifier,
+                        "dbname": database,
+                    }
+                ),
+            ),
+        )
+        cdk.CfnOutput(self, "MysqlServerlessSecretArn", value=secret.secret_arn)
+        cdk.CfnOutput(self, "MysqlServerlessClusterArn", value=aurora_mysql.cluster_arn)
+        cdk.CfnOutput(self, "MysqlServerlessAddress", value=aurora_mysql.cluster_endpoint.hostname)
+        cdk.CfnOutput(self, "MysqlServerlessPort", value=str(port))
+        cdk.CfnOutput(self, "MysqlServerlessDatabase", value=database)
+        cdk.CfnOutput(self, "MysqlServerlessSchema", value=schema)
 
     def _setup_sqlserver(self) -> None:
         port = 1433

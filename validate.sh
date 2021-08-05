@@ -3,7 +3,7 @@ set -ex
 
 isort --check .
 black --check .
-yes y | mypy --install-types awswrangler
+mypy --install-types --non-interactive awswrangler
 flake8 .
 pylint -j 0 awswrangler
 pydocstyle awswrangler/ --convention=numpy

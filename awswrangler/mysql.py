@@ -18,7 +18,7 @@ from awswrangler._config import apply_configs
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _validate_connection(con: pymysql.connections.Connection) -> None:
+def _validate_connection(con: "pymysql.connections.Connection[Any]") -> None:
     if not isinstance(con, pymysql.connections.Connection):
         raise exceptions.InvalidConnection(
             "Invalid 'conn' argument, please pass a "
@@ -77,7 +77,7 @@ def connect(
     read_timeout: Optional[int] = None,
     write_timeout: Optional[int] = None,
     connect_timeout: int = 10,
-) -> pymysql.connections.Connection:
+) -> "pymysql.connections.Connection[Any]":
     """Return a pymysql connection from a Glue Catalog Connection or Secrets Manager.
 
     https://pymysql.readthedocs.io
@@ -150,7 +150,7 @@ def connect(
 
 def read_sql_query(
     sql: str,
-    con: pymysql.connections.Connection,
+    con: "pymysql.connections.Connection[Any]",
     index_col: Optional[Union[str, List[str]]] = None,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
     chunksize: Optional[int] = None,
@@ -206,7 +206,7 @@ def read_sql_query(
 
 def read_sql_table(
     table: str,
-    con: pymysql.connections.Connection,
+    con: "pymysql.connections.Connection[Any]",
     schema: Optional[str] = None,
     index_col: Optional[Union[str, List[str]]] = None,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
@@ -268,7 +268,7 @@ def read_sql_table(
 @apply_configs
 def to_sql(
     df: pd.DataFrame,
-    con: pymysql.connections.Connection,
+    con: "pymysql.connections.Connection[Any]",
     table: str,
     schema: str,
     mode: str = "append",
@@ -292,8 +292,8 @@ def to_sql(
         Schema name
     mode : str
         Append, overwrite, upsert_duplicate_key, upsert_replace_into, upsert_distinct.
-            append: Inserts new records into table
-            overwrite: Drops table and recreates
+            append: Inserts new records into table.
+            overwrite: Drops table and recreates.
             upsert_duplicate_key: Performs an upsert using `ON DUPLICATE KEY` clause. Requires table schema to have
             defined keys, otherwise duplicate records will be inserted.
             upsert_replace_into: Performs upsert using `REPLACE INTO` clause. Less efficient and still requires the
@@ -340,17 +340,16 @@ def to_sql(
     """
     if df.empty is True:
         raise exceptions.EmptyDataFrame()
+
     mode = mode.strip().lower()
-    modes = [
+    allowed_modes = [
         "append",
         "overwrite",
         "upsert_replace_into",
         "upsert_duplicate_key",
         "upsert_distinct",
     ]
-    if mode not in modes:
-        raise exceptions.InvalidArgumentValue(f"mode must be one of {', '.join(modes)}")
-
+    _db_utils.validate_mode(mode=mode, allowed_modes=allowed_modes)
     _validate_connection(con=con)
     try:
         with con.cursor() as cursor:

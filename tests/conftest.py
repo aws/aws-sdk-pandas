@@ -129,7 +129,7 @@ def workgroup3(bucket, kms_key):
 
 @pytest.fixture(scope="session")
 def databases_parameters(cloudformation_outputs, db_password):
-    parameters = dict(postgresql={}, mysql={}, redshift={}, sqlserver={})
+    parameters = dict(postgresql={}, mysql={}, redshift={}, sqlserver={}, mysql_serverless={})
     parameters["postgresql"]["host"] = cloudformation_outputs["PostgresqlAddress"]
     parameters["postgresql"]["port"] = 3306
     parameters["postgresql"]["schema"] = "public"
@@ -138,6 +138,7 @@ def databases_parameters(cloudformation_outputs, db_password):
     parameters["mysql"]["port"] = 3306
     parameters["mysql"]["schema"] = "test"
     parameters["mysql"]["database"] = "test"
+    parameters["redshift"]["secret_arn"] = cloudformation_outputs["RedshiftSecretArn"]
     parameters["redshift"]["host"] = cloudformation_outputs["RedshiftAddress"]
     parameters["redshift"]["port"] = cloudformation_outputs["RedshiftPort"]
     parameters["redshift"]["identifier"] = cloudformation_outputs["RedshiftIdentifier"]
@@ -150,6 +151,10 @@ def databases_parameters(cloudformation_outputs, db_password):
     parameters["sqlserver"]["port"] = 1433
     parameters["sqlserver"]["schema"] = "dbo"
     parameters["sqlserver"]["database"] = "test"
+    parameters["mysql_serverless"]["secret_arn"] = cloudformation_outputs["MysqlServerlessSecretArn"]
+    parameters["mysql_serverless"]["schema"] = "test"
+    parameters["mysql_serverless"]["database"] = "test"
+    parameters["mysql_serverless"]["arn"] = cloudformation_outputs["MysqlServerlessClusterArn"]
     return parameters
 
 
