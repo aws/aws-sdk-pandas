@@ -1,6 +1,90 @@
+[tool.poetry]
+name = "awswrangler"
+version = "2.10.0"
+description = "Pandas on AWS."
+authors = ["Igor Tavares"]
+license = "Apache License 2.0"
+
+readme = "README.md"
+
+include = ["README.md", "LICENSE.txt", "NOTICE.txt", "THIRD_PARTY.txt", "awswrangler/py.typed"]
+
+exclude = ["*.so", "*.pyc", "*~", "#*", ".git*", ".coverage*", "DS_Store", "__pycache__"]
+
+homepage = "https://aws-data-wrangler.readthedocs.io/"
+repository = "https://github.com/awslabs/aws-data-wrangler"
+documentation = "https://aws-data-wrangler.readthedocs.io/"
+
+keywords = ["pandas", "aws"]
+
+classifiers = [
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+]
+
+[tool.poetry.dependencies]
+python = ">=3.6.2, <3.10"
+
+boto3 = "^1.16.8"
+botocore = "^1.19.8"
+# python_full_version instead of just python is needed until the changes
+# from https://github.com/python-poetry/poetry-core/pull/180 are released
+pandas = [
+    { version = "~1.1.0", markers = "python_full_version ~= '3.6.2'" },
+    { version = "^1.2.0", markers = "python_full_version >= '3.7.1' and python_full_version < '4.0.0'" },
+]
+numpy = "^1.18.0"
+pyarrow = ">=2.0.0, <5.1.0"
+redshift-connector = "~2.0.884"
+pymysql = ">=0.9.0, <1.1.0"
+pg8000 = ">=1.16.0,<1.22.0"
+openpyxl = "~3.0.0"
+xlrd = { version = "^2.0.1", python = "~3.6" }
+xlwt = { version = "^1.3.0", python = "~3.6" }
+
+pyodbc = { version = "~4.0.30", optional = true }
+
+
+[tool.poetry.extras]
+sqlserver = ["pyodbc"]
+
+[tool.poetry.dev-dependencies]
+wheel = "^0.36.2"
+isort = "^5.9.2"
+black = "^21.7b0"
+pylint = "^2.9.6"
+flake8 = "^3.9.2"
+mypy = "^0.910"
+pydocstyle = "^6.1.1"
+doc8 = "^0.9.0"
+tox = "^3.24.1"
+pytest = "^6.2.4"
+pytest-cov = "^2.12.1"
+pytest-rerunfailures = "^10.1"
+pytest-xdist = "^2.3.0"
+pytest-timeout = "^1.4.2"
+pydot = "^1.4.2"
+Sphinx = "^4.0.3"
+sphinx-bootstrap-theme = "^0.7.1"
+nbsphinx = "^0.8.6"
+nbsphinx-link = "^1.3.0"
+IPython = "^7.16.0"
+moto = "^2.2.1"
+jupyterlab = "^3.1.4"
+s3fs = "^2021.7.0"
+python-Levenshtein = "^0.12.2"
+bump2version = "^1.0.1"
+
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
 [tool.black]
 line-length = 120
-target-version = ["py36", "py37", "py38"]
+target-version = ["py36", "py37", "py38", "py39"]
 exclude = '''
 /(
     \.eggs
@@ -27,6 +111,16 @@ force_grid_wrap = 0
 use_parentheses = true
 ensure_newline_before_comments = true
 line_length = 120
-src_paths = ["setup.py", "awswrangler"]
+src_paths = ["awswrangler"]
 py_version = 37
 skip_gitignore = true
+
+[tool.mypy]
+python_version = 3.7
+strict = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+log_cli = false
+filterwarnings = "ignore::DeprecationWarning"
+addopts = "--log-cli-format \"[%(name)s][%(funcName)s] %(message)s\" --verbose --capture=sys"

@@ -12,17 +12,13 @@ RUN yum install -y \
     ninja-build \
     ${py_dev}
 
-RUN pip3 install --upgrade pip six cython cmake hypothesis
+RUN pip3 install --upgrade pip six cython cmake hypothesis poetry==1.1.7
 
-ADD requirements.txt /root/
-RUN pip3 install -r /root/requirements.txt
+WORKDIR /root
 
-ADD requirements-dev.txt /root/
-# Removing "-e ." installation
-RUN head -n -3 /root/requirements-dev.txt > /root/temp.txt
-RUN mv /root/temp.txt /root/requirements-dev.txt
-RUN pip3 install -r /root/requirements-dev.txt
+COPY pyproject.toml poetry.lock ./
+RUN poetry config virtualenvs.create false --local && poetry install --no-root
 
-RUN rm -rf /root/requirements*
+RUN rm -f pyproject.toml poetry.lock
 
 ENTRYPOINT ["/bin/sh"]
