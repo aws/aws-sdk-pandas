@@ -12,7 +12,7 @@ RUN yum install -y \
     ninja-build \
     ${py_dev}
 
-RUN pip3 install --upgrade pip six cython cmake hypothesis poetry==1.1.7
+RUN pip3 install --upgrade pip six cython cmake hypothesis poetry
 
 WORKDIR /root
 
