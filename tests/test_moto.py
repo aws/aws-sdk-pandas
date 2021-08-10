@@ -522,3 +522,75 @@ def test_dynamodb_fail_on_invalid_items(moto_dynamodb):
 
     with pytest.raises(InvalidArgumentValue):
         wr.dynamodb.put_items(items=items, table_name=table_name)
+
+
+def mock_data_api_connector(connector, has_result_set=True):
+    request_id = "1234"
+    statement_response = {"ColumnMetadata": [{"name": "col1"}], "Records": [[{"stringValue": "test"}]]}
+    column_names = [column["name"] for column in statement_response["ColumnMetadata"]]
+    data = [[col["stringValue"] for col in record] for record in statement_response["Records"]]
+    response_dataframe = pd.DataFrame(data, columns=column_names)
+
+    if type(connector) == wr.data_api.redshift.RedshiftDataApi:
+        connector.client.execute_statement = mock.MagicMock(return_value={"Id": request_id})
+        connector.client.describe_statement = mock.MagicMock(
+            return_value={"Status": "FINISHED", "HasResultSet": has_result_set}
+        )
+        connector.client.get_statement_result = mock.MagicMock(return_value=statement_response)
+    elif type(connector) == wr.data_api.rds.RdsDataApi:
+        records = statement_response["Records"]
+        metadata = statement_response["ColumnMetadata"]
+        del statement_response["Records"]
+        del statement_response["ColumnMetadata"]
+        if has_result_set:
+            statement_response["columnMetadata"] = metadata
+            statement_response["records"] = records
+        connector.client.execute_statement = mock.MagicMock(return_value=statement_response)
+    else:
+        raise ValueError(f"Unsupported connector type {type(connector)}")
+
+    return response_dataframe
+
+
+def test_data_api_redshift_create_connection():
+    cluster_id = "cluster123"
+    conn = wr.data_api.redshift.connect(cluster_id, "db1", db_user="admin")
+    assert conn.cluster_id == cluster_id
+
+
+def test_data_api_redshift_read_sql_results():
+    cluster_id = "cluster123"
+    con = wr.data_api.redshift.connect(cluster_id, "db1", db_user="admin")
+    expected_dataframe = mock_data_api_connector(con)
+    dataframe = wr.data_api.redshift.read_sql_query("SELECT * FROM test", con=con)
+    pd.testing.assert_frame_equal(dataframe, expected_dataframe)
+
+
+def test_data_api_redshift_read_sql_no_results():
+    cluster_id = "cluster123"
+    con = wr.data_api.redshift.connect(cluster_id, "db1", db_user="admin")
+    mock_data_api_connector(con, has_result_set=False)
+    dataframe = wr.data_api.redshift.read_sql_query("DROP TABLE test", con=con)
+    assert dataframe.empty is True
+
+
+def test_data_api_rds_create_connection():
+    resource_arn = "arn123"
+    conn = wr.data_api.rds.connect(resource_arn, "db1", secret_arn="arn123")
+    assert conn.resource_arn == resource_arn
+
+
+def test_data_api_rds_read_sql_results():
+    resource_arn = "arn123"
+    con = wr.data_api.rds.connect(resource_arn, "db1", secret_arn="arn123")
+    expected_dataframe = mock_data_api_connector(con)
+    dataframe = wr.data_api.rds.read_sql_query("SELECT * FROM test", con=con)
+    pd.testing.assert_frame_equal(dataframe, expected_dataframe)
+
+
+def test_data_api_rds_read_sql_no_results():
+    resource_arn = "arn123"
+    con = wr.data_api.rds.connect(resource_arn, "db1", secret_arn="arn123")
+    mock_data_api_connector(con, has_result_set=False)
+    dataframe = wr.data_api.rds.read_sql_query("DROP TABLE test", con=con)
+    assert dataframe.empty is True

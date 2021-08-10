@@ -8,6 +8,8 @@ API Reference
 * `PostgreSQL`_
 * `MySQL`_
 * `Microsoft SQL Server`_
+* `Data API Redshift`_
+* `Data API RDS`_
 * `DynamoDB`_
 * `Amazon Timestream`_
 * `Amazon EMR`_
@@ -172,6 +174,28 @@ ____________________
     read_sql_query
     read_sql_table
     to_sql
+
+Data API Redshift
+-----------------
+
+.. currentmodule:: awswrangler.data_api.redshift
+
+.. autosummary::
+    :toctree: stubs
+
+    connect
+    read_sql_query
+
+Data API RDS
+------------
+
+.. currentmodule:: awswrangler.data_api.rds
+
+.. autosummary::
+    :toctree: stubs
+
+    connect
+    read_sql_query
 
 DynamoDB
 --------

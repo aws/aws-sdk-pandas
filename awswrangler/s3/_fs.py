@@ -8,10 +8,12 @@ import math
 import socket
 from contextlib import contextmanager
 from errno import ESPIPE
-from typing import Any, BinaryIO, Dict, Iterator, List, Optional, Set, Tuple, Union, cast
+from typing import Any, BinaryIO, Dict, Iterator, List, Optional, Tuple, Union, cast
 
 import boto3
 from botocore.exceptions import ReadTimeoutError
+from botocore.loaders import Loader
+from botocore.model import ServiceModel
 
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
@@ -24,84 +26,20 @@ _S3_RETRYABLE_ERRORS: Tuple[Any, Any, Any] = (socket.timeout, ConnectionError, R
 _MIN_WRITE_BLOCK: int = 5_242_880  # 5 MB (5 * 2**20)
 _MIN_PARALLEL_READ_BLOCK: int = 5_242_880  # 5 MB (5 * 2**20)
 
-BOTOCORE_ACCEPTED_KWARGS: Dict[str, Set[str]] = {
-    "get_object": {
-        "SSECustomerAlgorithm",
-        "SSECustomerKey",
-        "RequestPayer",
-        "ExpectedBucketOwner",
-        "VersionId",
-    },
-    "copy_object": {
-        "ACL",
-        "Metadata",
-        "ServerSideEncryption",
-        "StorageClass",
-        "SSECustomerAlgorithm",
-        "SSECustomerKey",
-        "SSEKMSKeyId",
-        "SSEKMSEncryptionContext",
-        "Tagging",
-        "RequestPayer",
-        "ExpectedBucketOwner",
-        "CopySource",
-    },
-    "create_multipart_upload": {
-        "ACL",
-        "Metadata",
-        "ServerSideEncryption",
-        "StorageClass",
-        "SSECustomerAlgorithm",
-        "SSECustomerKey",
-        "SSEKMSKeyId",
-        "SSEKMSEncryptionContext",
-        "Tagging",
-        "RequestPayer",
-        "ExpectedBucketOwner",
-    },
-    "upload_part": {
-        "SSECustomerAlgorithm",
-        "SSECustomerKey",
-        "RequestPayer",
-        "ExpectedBucketOwner",
-    },
-    "complete_multipart_upload": {
-        "RequestPayer",
-        "ExpectedBucketOwner",
-    },
-    "put_object": {
-        "ACL",
-        "Metadata",
-        "ServerSideEncryption",
-        "StorageClass",
-        "SSECustomerAlgorithm",
-        "SSECustomerKey",
-        "SSEKMSKeyId",
-        "SSEKMSEncryptionContext",
-        "Tagging",
-        "RequestPayer",
-        "ExpectedBucketOwner",
-    },
-    "list_objects_v2": {
-        "RequestPayer",
-        "ExpectedBucketOwner",
-    },
-    "delete_objects": {
-        "RequestPayer",
-        "ExpectedBucketOwner",
-        "Objects",
-    },
-    "head_object": {
-        "RequestPayer",
-        "ExpectedBucketOwner",
-        "VersionId",
-    },
-}
+_BOTOCORE_LOADER = Loader()
+_S3_JSON_MODEL = _BOTOCORE_LOADER.load_service_model(service_name="s3", type_name="service-2")
+_S3_SERVICE_MODEL = ServiceModel(_S3_JSON_MODEL, service_name="s3")
+
+
+def _snake_to_camel_case(s: str) -> str:
+    return "".join(c.title() for c in s.split("_"))
 
 
 def get_botocore_valid_kwargs(function_name: str, s3_additional_kwargs: Dict[str, Any]) -> Dict[str, Any]:
     """Filter and keep only the valid botocore key arguments."""
-    return {k: v for k, v in s3_additional_kwargs.items() if k in BOTOCORE_ACCEPTED_KWARGS[function_name]}
+    s3_operation_model = _S3_SERVICE_MODEL.operation_model(_snake_to_camel_case(function_name))
+    allowed_kwargs = s3_operation_model.input_shape.members.keys()  # pylint: disable=E1101
+    return {k: v for k, v in s3_additional_kwargs.items() if k in allowed_kwargs}
 
 
 def _fetch_range(
