@@ -49,6 +49,41 @@ def test_basic_scenario(timestream_database_and_table, pagination):
     assert df.shape == (3, 8)
 
 
+def test_chunked_scenario(timestream_database_and_table):
+    df = pd.DataFrame(
+        {
+            "time": [datetime.now() for _ in range(5)],
+            "dim0": ["foo", "boo", "bar", "fizz", "buzz"],
+            "dim1": [1, 2, 3, 4, 5],
+            "measure": [1.0, 1.1, 1.2, 1.3, 1.4],
+        }
+    )
+    rejected_records = wr.timestream.write(
+        df=df,
+        database=timestream_database_and_table,
+        table=timestream_database_and_table,
+        time_col="time",
+        measure_col="measure",
+        dimensions_cols=["dim0", "dim1"],
+    )
+    assert len(rejected_records) == 0
+    shapes = [(3, 5), (2, 5)]
+    for df, shape in zip(
+        wr.timestream.query(
+            f"""
+        SELECT
+            *
+        FROM "{timestream_database_and_table}"."{timestream_database_and_table}"
+        ORDER BY time ASC
+        """,
+            chunked=True,
+            pagination_config={"MaxItems": 5, "PageSize": 3},
+        ),
+        shapes,
+    ):
+        assert df.shape == shape
+
+
 def test_versioned(timestream_database_and_table):
     name = timestream_database_and_table
     time = [datetime.now(), datetime.now(), datetime.now()]
