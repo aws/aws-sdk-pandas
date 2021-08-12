@@ -92,7 +92,7 @@ You can choose from three different environments to test your fixes/changes, bas
 ### Mocked test environment
 
 * Pick up a Linux or MacOS.
-* Install Python 3.7, 3.8 or 3.9
+* Install Python 3.7, 3.8 or 3.9 with [poetry](https://github.com/python-poetry/poetry) for package management
 * Fork the AWS Data Wrangler repository and clone that into your development environment
 * Go to the project's directory create a Python's virtual environment for the project
 
@@ -104,7 +104,7 @@ or
 
 * Install dependencies:
 
-``pip install -r requirements-dev.txt``
+``poetry install --extras "sqlserver"``
 
 * Run the validation script:
 
@@ -123,7 +123,7 @@ or
 **DISCLAIMER**: Make sure you know what you are doing. These steps will charge some services on your AWS account and require a minimum security skill to keep your environment safe.
 
 * Pick up a Linux or MacOS.
-* Install Python 3.7, 3.8 or 3.9
+* Install Python 3.7, 3.8 or 3.9 with [poetry](https://github.com/python-poetry/poetry) for package management
 * Fork the AWS Data Wrangler repository and clone that into your development environment
 * Go to the project's directory create a Python's virtual environment for the project
 
@@ -135,7 +135,7 @@ or
 
 * Install dependencies:
 
-``pip install -r requirements-dev.txt``
+``poetry install --extras "sqlserver"``
 
 * Go to the ``test_infra`` directory
 
@@ -143,7 +143,7 @@ or
 
 * Install CDK dependencies:
 
-``pip install -r requirements.txt``
+``poetry install``
 
 * [OPTIONAL] Set AWS_DEFAULT_REGION to define the region the Data Lake Test environment will deploy into. You may want to choose a region which you don't currently use:
 
@@ -184,7 +184,7 @@ or
 **DISCLAIMER**: This environment contains Aurora MySQL, Aurora PostgreSQL and Redshift (single-node) clusters which will incur cost while running.
 
 * Pick up a Linux or MacOS.
-* Install Python 3.7, 3.8 or 3.9
+* Install Python 3.7, 3.8 or 3.9 with [poetry](https://github.com/python-poetry/poetry) for package management
 * Fork the AWS Data Wrangler repository and clone that into your development environment
 * Go to the project's directory create a Python's virtual environment for the project
 
@@ -192,7 +192,7 @@ or
 
 * Then run the command bellow to install all dependencies:
 
-``pip install -r requirements-dev.txt``
+``poetry install --extras "sqlserver"``
 
 * Go to the ``test_infra`` directory
 
@@ -200,9 +200,9 @@ or
 
 * Install CDK dependencies:
 
-``pip install -r requirements.txt``
+``poetry install``
 
-* [OPTIONAL] Set AWS_DEFAULT_REGION to define the region the Full Test envrioment will deploy into. You may want to choose a region which you don't currently use:
+* [OPTIONAL] Set AWS_DEFAULT_REGION to define the region the Full Test environment will deploy into. You may want to choose a region which you don't currently use:
 
 ``export AWS_DEFAULT_REGION=ap-northeast-1``
 

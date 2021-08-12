@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "awswrangler - test infrastructure"
+version = "2.10.0"
+description = "CDK test infrastructure for AWS"
+authors = ["Igor Tavares"]
+license = "Apache License 2.0"
+
+[tool.poetry.dependencies]
+python = ">=3.6.2, <3.10"
+"aws-cdk.core" = "^1.115.0"
+"aws-cdk.aws-ec2" = "^1.115.0"
+"aws-cdk.aws-glue" = "^1.115.0"
+"aws-cdk.aws-iam" = "^1.115.0"
+"aws-cdk.aws-kms" = "^1.115.0"
+"aws-cdk.aws-logs" = "^1.115.0"
+"aws-cdk.aws-s3" = "^1.115.0"
+"aws-cdk.aws-redshift" = "^1.115.0"
+"aws-cdk.aws-rds" = "^1.115.0"
+"aws-cdk.aws-secretsmanager" = "^1.115.0"
+"aws-cdk.aws-ssm" = "^1.115.0"
