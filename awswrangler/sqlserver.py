@@ -120,6 +120,8 @@ def connect(
     secret_id: Optional[str]:
         Specifies the secret containing the version that you want to retrieve.
         You can specify either the Amazon Resource Name (ARN) or the friendly name of the secret.
+        The secret value must be a json dictionary with keys: ``username``, ``password``,
+        ``host``, ``port``, ``engine``=``"sqlserver"``, and optionally ``dbname``.
     catalog_id : str, optional
         The ID of the Data Catalog.
         If none is provided, the AWS account ID is used by default.
@@ -209,6 +211,7 @@ def read_sql_query(
     Examples
     --------
     Reading from Microsoft SQL Server using a Glue Catalog Connections
+    
     >>> import awswrangler as wr
     >>> con = wr.sqlserver.connect(connection="MY_GLUE_CONNECTION", odbc_driver_version=17)
     >>> df = wr.sqlserver.read_sql_query(
