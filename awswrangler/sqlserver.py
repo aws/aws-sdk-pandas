@@ -222,6 +222,7 @@ def read_sql_query(
     Examples
     --------
     Reading from Microsoft SQL Server using a Glue Catalog Connections
+
     >>> import awswrangler as wr
     >>> con = wr.sqlserver.connect(connection="MY_GLUE_CONNECTION", odbc_driver_version=17)
     >>> df = wr.sqlserver.read_sql_query(
