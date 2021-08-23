@@ -86,12 +86,25 @@ def connect(
 
     https://github.com/tlocke/pg8000
 
+    Note
+    ----
+    You MUST pass a `connection` OR `secret_id`.
+    Here is an example of the secret structure in Secrets Manager:
+    {
+    "host":"postgresql-instance-wrangler.dr8vkeyrb9m1.us-east-1.rds.amazonaws.com",
+    "username":"test",
+    "password":"test",
+    "engine":"postgresql",
+    "port":"3306",
+    "dbname": "mydb" # Optional
+    }
+
     Parameters
     ----------
     connection : Optional[str]
         Glue Catalog Connection name.
     secret_id: Optional[str]:
-        Specifies the secret containing the version that you want to retrieve.
+        Specifies the secret containing the connection details that you want to retrieve.
         You can specify either the Amazon Resource Name (ARN) or the friendly name of the secret.
     catalog_id : str, optional
         The ID of the Data Catalog.
