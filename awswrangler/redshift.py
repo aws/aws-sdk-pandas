@@ -398,7 +398,7 @@ def connect(
     connection : Optional[str]
         Glue Catalog Connection name.
     secret_id: Optional[str]:
-        Specifies the secret containing the version that you want to retrieve.
+        Specifies the secret containing the connection details that you want to retrieve.
         You can specify either the Amazon Resource Name (ARN) or the friendly name of the secret.
     catalog_id : str, optional
         The ID of the Data Catalog.
