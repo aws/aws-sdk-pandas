@@ -29,6 +29,7 @@ from awswrangler.s3._read import (
     _read_dfs_from_multiple_paths,
     _union,
 )
+from awswrangler.catalog._get import _get_partitions
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -524,6 +525,7 @@ def read_parquet(
     last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    path_root: Optional[str] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read Apache Parquet file(s) from from a received S3 prefix or list of S3 objects paths.
 
@@ -663,25 +665,48 @@ def read_parquet(
 
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    paths: List[str] = _path2list(
-        path=path,
-        boto3_session=session,
-        suffix=path_suffix,
-        ignore_suffix=_get_path_ignore_suffix(path_ignore_suffix=path_ignore_suffix),
-        last_modified_begin=last_modified_begin,
-        last_modified_end=last_modified_end,
-        ignore_empty=ignore_empty,
-        s3_additional_kwargs=s3_additional_kwargs,
-    )
-    versions: Optional[Dict[str, str]] = (
-        version_id if isinstance(version_id, dict) else {paths[0]: version_id} if isinstance(version_id, str) else None
-    )
-    path_root: Optional[str] = _get_path_root(path=path, dataset=dataset)
-    if path_root is not None:
+
+    isTable = True
+
+    if path_root is None:
+        path_root: Optional[str] = _get_path_root(path=path, dataset=dataset)
+        isTable = False
+
+    if isinstance(path, list) and (isTable is True):
+        paths: List[str] = []
+        for x in path:
+            paths += _path2list(
+                path=x,
+                boto3_session=session,
+                suffix=path_suffix,
+                ignore_suffix=_get_path_ignore_suffix(path_ignore_suffix=path_ignore_suffix),
+                last_modified_begin=last_modified_begin,
+                last_modified_end=last_modified_end,
+                ignore_empty=ignore_empty,
+                s3_additional_kwargs=s3_additional_kwargs
+            )
+    else:
+        paths: List[str] = _path2list(
+            path=path,
+            boto3_session=session,
+            suffix=path_suffix,
+            ignore_suffix=_get_path_ignore_suffix(path_ignore_suffix=path_ignore_suffix),
+            last_modified_begin=last_modified_begin,
+            last_modified_end=last_modified_end,
+            ignore_empty=ignore_empty,
+            s3_additional_kwargs=s3_additional_kwargs
+        )
+
+    if path_root is not None and isTable is False:
         paths = _apply_partition_filter(path_root=path_root, paths=paths, filter_func=partition_filter)
     if len(paths) < 1:
         raise exceptions.NoFilesFound(f"No files Found on: {path}.")
     _logger.debug("paths:\n%s", paths)
+
+    versions: Optional[Dict[str, str]] = (
+        version_id if isinstance(version_id, dict) else {paths[0]: version_id} if isinstance(version_id, str) else None
+    )
+
     args: Dict[str, Any] = {
         "columns": columns,
         "categories": categories,
@@ -867,8 +892,27 @@ def read_parquet_table(
         path: str = location if location.endswith("/") else f"{location}/"
     except KeyError as ex:
         raise exceptions.InvalidTable(f"Missing s3 location for {database}.{table}.") from ex
+
+    available_partitions = _get_partitions(
+        database=database,
+        table=table,
+        catalog_id=catalog_id,
+        boto3_session=boto3_session,
+    )
+
+    available_partitions = list(available_partitions.keys())
+
+    # validar si hay particiones , si no ejecutar la llamada actual
+    # cuando no hay particiones regresa una lista vacia
+    if len(available_partitions) > 0:
+        paths = _apply_partition_filter(path_root=path, paths=available_partitions, filter_func=partition_filter)
+        path_root = path
+    else:
+        paths = path
+        path_root = None
+
     df = read_parquet(
-        path=path,
+        path=paths,
         path_suffix=filename_suffix,
         path_ignore_suffix=filename_ignore_suffix,
         partition_filter=partition_filter,
@@ -882,6 +926,7 @@ def read_parquet_table(
         use_threads=use_threads,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
+        path_root=path_root
     )
     partial_cast_function = functools.partial(
         _data_types.cast_pandas_with_athena_types, dtype=_extract_partitions_dtypes_from_table_details(response=res)
