@@ -189,6 +189,8 @@ def read_sql_query(sql: str, con: RedshiftDataApi, database: Optional[str] = Non
     ----------
     sql: str
         SQL query to run.
+    con: RedshiftDataApi
+        A RedshiftDataApi connection instance
     database: str
         Database to run query on - defaults to the database specified by `con`.
 
