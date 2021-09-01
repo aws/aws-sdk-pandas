@@ -183,6 +183,7 @@ Data API Redshift
 .. autosummary::
     :toctree: stubs
 
+    RedshiftDataApi
     connect
     read_sql_query
 
@@ -194,6 +195,7 @@ Data API RDS
 .. autosummary::
     :toctree: stubs
 
+    RdsDataApi
     connect
     read_sql_query
 

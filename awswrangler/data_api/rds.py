@@ -139,6 +139,8 @@ def read_sql_query(sql: str, con: RdsDataApi, database: Optional[str] = None) ->
     ----------
     sql: str
         SQL query to run.
+    con: RdsDataApi
+        A RdsDataApi connection instance
     database: str
         Database to run query on - defaults to the database specified by `con`.
 
