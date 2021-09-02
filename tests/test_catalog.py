@@ -205,7 +205,7 @@ def test_catalog_versioning(path, glue_database, glue_table, glue_table2):
     assert len(df.columns) == 1
     assert str(df.c1.dtype).startswith("float")
 
-    # Version 1 - CSV (No evolution)
+    # Version 1 - CSV
     df = pd.DataFrame({"c1": [True, False]})
     wr.s3.to_csv(
         df=df,
@@ -215,6 +215,7 @@ def test_catalog_versioning(path, glue_database, glue_table, glue_table2):
         table=glue_table2,
         mode="overwrite",
         catalog_versioning=False,
+        schema_evolution=True,
         index=False,
     )
     assert wr.catalog.get_table_number_of_versions(table=glue_table2, database=glue_database) == 1
@@ -233,6 +234,7 @@ def test_catalog_versioning(path, glue_database, glue_table, glue_table2):
         table=glue_table2,
         mode="overwrite",
         catalog_versioning=True,
+        schema_evolution=True,
         index=False,
     )
     assert wr.catalog.get_table_number_of_versions(table=glue_table2, database=glue_database) == 2
