@@ -81,7 +81,7 @@ rm -f /aws-data-wrangler/dist/pyarrow_files/pyarrow/libarrow_python.so
 cp -r /aws-data-wrangler/dist/pyarrow_files/pyarrow* python/
 
 # Removing nonessential files
-find python -name '*.so*' -type f -exec strip "{}" \;
+# find python -name '*.so*' -type f -exec strip "{}" \;
 find python -wholename "*/tests/*" -type f -delete
 find python -regex '^.*\(__pycache__\|\.py[co]\)$' -delete
 
