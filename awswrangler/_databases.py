@@ -143,16 +143,19 @@ def _records2df(
                 array = pa.array(obj=col_values, safe=safe)  # Creating Arrow array
                 array = array.cast(target_type=dtype[col_name], safe=safe)  # Casting
         arrays.append(array)
-    table = pa.Table.from_arrays(arrays=arrays, names=cols_names)  # Creating arrow Table
-    df: pd.DataFrame = table.to_pandas(  # Creating Pandas DataFrame
-        use_threads=True,
-        split_blocks=True,
-        self_destruct=True,
-        integer_object_nulls=False,
-        date_as_object=True,
-        types_mapper=_data_types.pyarrow2pandas_extension,
-        safe=safe,
-    )
+    if not arrays:
+        df = pd.DataFrame(columns=cols_names)
+    else:
+        table = pa.Table.from_arrays(arrays=arrays, names=cols_names)  # Creating arrow Table
+        df = table.to_pandas(  # Creating Pandas DataFrame
+            use_threads=True,
+            split_blocks=True,
+            self_destruct=True,
+            integer_object_nulls=False,
+            date_as_object=True,
+            types_mapper=_data_types.pyarrow2pandas_extension,
+            safe=safe,
+        )
     if index is not None:
         df.set_index(index, inplace=True)
     return df
