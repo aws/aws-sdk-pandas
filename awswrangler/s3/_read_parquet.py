@@ -17,6 +17,7 @@ import pyarrow.parquet
 
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._config import apply_configs
+from awswrangler.catalog._get import _get_partitions
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import (
@@ -29,7 +30,6 @@ from awswrangler.s3._read import (
     _read_dfs_from_multiple_paths,
     _union,
 )
-from awswrangler.catalog._get import _get_partitions
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -669,7 +669,7 @@ def read_parquet(
     isTable = True
 
     if path_root is None:
-        path_root: Optional[str] = _get_path_root(path=path, dataset=dataset)
+        path_root = _get_path_root(path=path, dataset=dataset)
         isTable = False
 
     if isinstance(path, list) and (isTable is True):
@@ -683,10 +683,10 @@ def read_parquet(
                 last_modified_begin=last_modified_begin,
                 last_modified_end=last_modified_end,
                 ignore_empty=ignore_empty,
-                s3_additional_kwargs=s3_additional_kwargs
+                s3_additional_kwargs=s3_additional_kwargs,
             )
     else:
-        paths: List[str] = _path2list(
+        paths = _path2list(
             path=path,
             boto3_session=session,
             suffix=path_suffix,
@@ -694,7 +694,7 @@ def read_parquet(
             last_modified_begin=last_modified_begin,
             last_modified_end=last_modified_end,
             ignore_empty=ignore_empty,
-            s3_additional_kwargs=s3_additional_kwargs
+            s3_additional_kwargs=s3_additional_kwargs,
         )
 
     if path_root is not None and isTable is False:
@@ -893,20 +893,22 @@ def read_parquet_table(
     except KeyError as ex:
         raise exceptions.InvalidTable(f"Missing s3 location for {database}.{table}.") from ex
 
-    available_partitions = _get_partitions(
+    available_partitions_dict = _get_partitions(
         database=database,
         table=table,
         catalog_id=catalog_id,
         boto3_session=boto3_session,
     )
 
-    available_partitions = list(available_partitions.keys())
+    available_partitions = list(available_partitions_dict.keys())
 
     # validar si hay particiones , si no ejecutar la llamada actual
     # cuando no hay particiones regresa una lista vacia
     if len(available_partitions) > 0:
-        paths = _apply_partition_filter(path_root=path, paths=available_partitions, filter_func=partition_filter)
-        path_root = path
+        paths: Union[str, List[str]] = _apply_partition_filter(
+            path_root=path, paths=available_partitions, filter_func=partition_filter
+        )
+        path_root: Optional[str] = path
     else:
         paths = path
         path_root = None
@@ -926,7 +928,7 @@ def read_parquet_table(
         use_threads=use_threads,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
-        path_root=path_root
+        path_root=path_root,
     )
     partial_cast_function = functools.partial(
         _data_types.cast_pandas_with_athena_types, dtype=_extract_partitions_dtypes_from_table_details(response=res)
