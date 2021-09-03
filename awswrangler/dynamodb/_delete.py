@@ -5,11 +5,14 @@ from typing import Any, Dict, List, Optional
 
 import boto3
 
+from awswrangler._config import apply_configs
+
 from ._utils import _validate_items, get_table
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
+@apply_configs
 def delete_items(
     items: List[Dict[str, Any]],
     table_name: str,
