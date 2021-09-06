@@ -127,6 +127,7 @@ def _build_cluster_args(**pars: Any) -> Dict[str, Any]:  # pylint: disable=too-m
             "Ec2SubnetId": pars["subnet_id"],
             "InstanceFleets": [],
         },
+        "StepConcurrencyLevel": pars["step_concurrency_level"],
     }
 
     # EC2 Key Pair
@@ -441,6 +442,7 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
     custom_classifications: Optional[List[Dict[str, Any]]] = None,
     maximize_resource_allocation: bool = False,
     steps: Optional[List[Dict[str, Any]]] = None,
+    step_concurrency_level: int = 1,
     keep_cluster_alive_when_no_steps: bool = True,
     termination_protected: bool = False,
     tags: Optional[Dict[str, str]] = None,
