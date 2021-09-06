@@ -373,3 +373,21 @@ def block_waiting_available_thread(seq: Sequence[Future], max_workers: int) -> N
     while len(running) >= max_workers:
         wait_any_future_available(seq=running)
         running = get_running_futures(seq=running)
+
+
+def check_schema_changes(columns_types: Dict[str, str], table_input: Optional[Dict[str, Any]], mode: str) -> None:
+    """Check schema changes."""
+    if (table_input is not None) and (mode in ("append", "overwrite_partitions")):
+        catalog_cols: Dict[str, str] = {x["Name"]: x["Type"] for x in table_input["StorageDescriptor"]["Columns"]}
+        for c, t in columns_types.items():
+            if c not in catalog_cols:
+                raise exceptions.InvalidArgumentValue(
+                    f"Schema change detected: New column {c} with type {t}. "
+                    "Please pass schema_evolution=True to allow new columns "
+                    "behaviour."
+                )
+            if t != catalog_cols[c]:  # Data type change detected!
+                raise exceptions.InvalidArgumentValue(
+                    f"Schema change detected: Data type change on column {c} "
+                    f"(Old type: {catalog_cols[c]} / New type {t})."
+                )
