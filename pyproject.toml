@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "awswrangler"
-version = "2.10.0"
+version = "2.11.0"
 description = "Pandas on AWS."
 authors = ["Igor Tavares"]
 license = "Apache License 2.0"
@@ -85,7 +85,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.black]
 line-length = 120
 target-version = ["py36", "py37", "py38", "py39"]
-exclude = '''
+extend_exclude = '''
 /(
     \.eggs
   | \.git

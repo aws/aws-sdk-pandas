@@ -326,6 +326,7 @@ def _create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     mode: str,
     transaction_id: Optional[str],
     catalog_versioning: bool,
+    schema_evolution: bool,
     sep: str,
     skip_header_line_count: Optional[int],
     serde_library: Optional[str],
@@ -344,15 +345,10 @@ def _create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     partitions_types = {} if partitions_types is None else partitions_types
     _logger.debug("catalog_table_input: %s", catalog_table_input)
     table_input: Dict[str, Any]
+    if schema_evolution is False:
+        _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
     if (catalog_table_input is not None) and (mode in ("append", "overwrite_partitions")):
         table_input = catalog_table_input
-        catalog_cols: Dict[str, str] = {x["Name"]: x["Type"] for x in table_input["StorageDescriptor"]["Columns"]}
-        for c, t in columns_types.items():
-            if c not in catalog_cols:
-                _logger.debug("New column %s with type %s.", c, t)
-                raise exceptions.InvalidArgumentValue(
-                    f"Schema change detected - New column {c}. Schema evolution is not supported for CSV tables."
-                )
     else:
         table_input = _csv_table_definition(
             table=table,
@@ -724,6 +720,7 @@ def create_csv_table(  # pylint: disable=too-many-arguments
     columns_comments: Optional[Dict[str, str]] = None,
     mode: str = "overwrite",
     catalog_versioning: bool = False,
+    schema_evolution: bool = False,
     sep: str = ",",
     skip_header_line_count: Optional[int] = None,
     serde_library: Optional[str] = None,
@@ -772,6 +769,11 @@ def create_csv_table(  # pylint: disable=too-many-arguments
         'overwrite' to recreate any possible axisting table or 'append' to keep any possible axisting table.
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
+    schema_evolution : bool
+        If True allows schema evolution (new or missing columns), otherwise a exception will be raised.
+        (Only considered if dataset=True and mode in ("append", "overwrite_partitions"))
+        Related tutorial:
+        https://aws-data-wrangler.readthedocs.io/en/2.11.0/tutorials/014%20-%20Schema%20Evolution.html
     sep : str
         String of length 1. Field delimiter for the output file.
     skip_header_line_count : Optional[int]
@@ -855,6 +857,7 @@ def create_csv_table(  # pylint: disable=too-many-arguments
         mode=mode,
         catalog_versioning=catalog_versioning,
         transaction_id=transaction_id,
+        schema_evolution=schema_evolution,
         projection_enabled=projection_enabled,
         projection_types=projection_types,
         projection_ranges=projection_ranges,

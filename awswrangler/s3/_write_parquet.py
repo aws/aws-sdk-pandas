@@ -17,7 +17,7 @@ from awswrangler._config import apply_configs
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._read_parquet import _read_parquet_metadata
-from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _check_schema_changes, _sanitize, _validate_args
+from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_concurrent import _WriteProxy
 from awswrangler.s3._write_dataset import _to_dataset
 
@@ -281,18 +281,18 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     concurrent_partitioning: bool
         If True will increase the parallelism level during the partitions writing. It will decrease the
         writing time and increase the memory usage.
-        https://aws-data-wrangler.readthedocs.io/en/2.10.0/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
+        https://aws-data-wrangler.readthedocs.io/en/2.11.0/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
     mode: str, optional
         ``append`` (Default), ``overwrite``, ``overwrite_partitions``. Only takes effect if dataset=True.
         For details check the related tutorial:
-        https://aws-data-wrangler.readthedocs.io/en/2.10.0/stubs/awswrangler.s3.to_parquet.html#awswrangler.s3.to_parquet
+        https://aws-data-wrangler.readthedocs.io/en/2.11.0/stubs/awswrangler.s3.to_parquet.html#awswrangler.s3.to_parquet
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     schema_evolution : bool
         If True allows schema evolution (new or missing columns), otherwise a exception will be raised.
         (Only considered if dataset=True and mode in ("append", "overwrite_partitions"))
         Related tutorial:
-        https://aws-data-wrangler.readthedocs.io/en/2.10.0/tutorials/014%20-%20Schema%20Evolution.html
+        https://aws-data-wrangler.readthedocs.io/en/2.11.0/tutorials/014%20-%20Schema%20Evolution.html
     database : str, optional
         Glue/Athena catalog: Database name.
     table : str, optional
@@ -580,7 +580,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
                 df=df, index=index, partition_cols=partition_cols, dtype=dtype
             )
             if schema_evolution is False:
-                _check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
+                _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
             if (catalog_table_input is None) and (table_type == "GOVERNED"):
                 catalog._create_parquet_table(  # pylint: disable=protected-access
                     database=database,
