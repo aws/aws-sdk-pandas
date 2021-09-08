@@ -581,6 +581,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
             )
             if schema_evolution is False:
                 _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
+
             if (catalog_table_input is None) and (table_type == "GOVERNED"):
                 catalog._create_parquet_table(  # pylint: disable=protected-access
                     database=database,
