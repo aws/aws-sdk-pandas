@@ -615,6 +615,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
                     transaction_id=transaction_id,
                     catalog_id=catalog_id,
                 )
+
         paths, partitions_values = _to_dataset(
             func=_to_parquet,
             concurrent_partitioning=concurrent_partitioning,
