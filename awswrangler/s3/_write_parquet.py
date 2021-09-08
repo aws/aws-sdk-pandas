@@ -17,7 +17,7 @@ from awswrangler._config import apply_configs
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._read_parquet import _read_parquet_metadata
-from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _check_schema_changes, _sanitize, _validate_args
+from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_concurrent import _WriteProxy
 from awswrangler.s3._write_dataset import _to_dataset
 
@@ -542,7 +542,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
                 df=df, index=index, partition_cols=partition_cols, dtype=dtype
             )
             if schema_evolution is False:
-                _check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
+                _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
         paths, partitions_values = _to_dataset(
             func=_to_parquet,
             concurrent_partitioning=concurrent_partitioning,

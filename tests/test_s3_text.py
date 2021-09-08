@@ -337,8 +337,18 @@ def test_to_csv_schema_evolution(path, glue_database, glue_table) -> None:
     path_file = f"{path}0.csv"
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5]})
     wr.s3.to_csv(df=df, path=path_file, dataset=True, database=glue_database, table=glue_table)
-    df["test"] = 1
+    df["c2"] = [6, 7, 8]
+    wr.s3.to_csv(
+        df=df,
+        path=path_file,
+        dataset=True,
+        database=glue_database,
+        table=glue_table,
+        mode="overwrite",
+        schema_evolution=True,
+    )
+    df["c3"] = [9, 10, 11]
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.s3.to_csv(
-            df=df, path=path_file, dataset=True, database=glue_database, table=glue_table, schema_evolution=True
+            df=df, path=path_file, dataset=True, database=glue_database, table=glue_table, schema_evolution=False
         )
