@@ -5,8 +5,10 @@ from typing import Any, Dict, List, Mapping, Optional, Union
 import boto3
 
 from awswrangler import _utils, exceptions
+from awswrangler._config import apply_configs
 
 
+@apply_configs
 def get_table(
     table_name: str,
     boto3_session: Optional[boto3.Session] = None,
