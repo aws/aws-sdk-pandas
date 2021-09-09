@@ -667,7 +667,7 @@ def read_parquet(
 
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    paths = _path2list(
+    paths: List[str] = _path2list(
         path=path,
         boto3_session=session,
         suffix=path_suffix,
@@ -875,6 +875,8 @@ def read_parquet_table(
         raise exceptions.InvalidTable(f"Missing s3 location for {database}.{table}.") from ex
     path_root: Optional[str] = None
     paths: Union[str, List[str]] = path
+    # If filter is available, fetch & filter out partitions
+    # Then list objects & process individual object keys under path_root
     if partition_filter is not None:
         available_partitions_dict = _get_partitions(
             database=database,
@@ -900,6 +902,8 @@ def read_parquet_table(
     df = read_parquet(
         path=paths,
         path_root=path_root,
+        path_suffix=filename_suffix if path_root is None else None,
+        path_ignore_suffix=filename_ignore_suffix if path_root is None else None,
         columns=columns,
         validate_schema=validate_schema,
         categories=categories,
