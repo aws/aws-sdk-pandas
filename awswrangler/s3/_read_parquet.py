@@ -17,6 +17,7 @@ import pyarrow.parquet
 
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._config import apply_configs
+from awswrangler.catalog._get import _get_partitions
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import (
@@ -506,6 +507,7 @@ def _read_parquet(
 
 def read_parquet(
     path: Union[str, List[str]],
+    path_root: Optional[str] = None,
     path_suffix: Union[str, List[str], None] = None,
     path_ignore_suffix: Union[str, List[str], None] = None,
     version_id: Optional[Union[str, Dict[str, str]]] = None,
@@ -565,6 +567,8 @@ def read_parquet(
     path : Union[str, List[str]]
         S3 prefix (accepts Unix shell-style wildcards)
         (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+    path_root : Optional[str]
+        Root path of the table. If dataset=`True`, will be used as a starting point to load partition columns.
     path_suffix: Union[str, List[str], None]
         Suffix or List of suffixes to be read (e.g. [".gz.parquet", ".snappy.parquet"]).
         If None, will try to read all files. (default)
@@ -676,12 +680,14 @@ def read_parquet(
     versions: Optional[Dict[str, str]] = (
         version_id if isinstance(version_id, dict) else {paths[0]: version_id} if isinstance(version_id, str) else None
     )
-    path_root: Optional[str] = _get_path_root(path=path, dataset=dataset)
-    if path_root is not None:
+    if path_root is None:
+        path_root = _get_path_root(path=path, dataset=dataset)
+    if path_root is not None and partition_filter is not None:
         paths = _apply_partition_filter(path_root=path_root, paths=paths, filter_func=partition_filter)
     if len(paths) < 1:
         raise exceptions.NoFilesFound(f"No files Found on: {path}.")
     _logger.debug("paths:\n%s", paths)
+
     args: Dict[str, Any] = {
         "columns": columns,
         "categories": categories,
@@ -867,11 +873,37 @@ def read_parquet_table(
         path: str = location if location.endswith("/") else f"{location}/"
     except KeyError as ex:
         raise exceptions.InvalidTable(f"Missing s3 location for {database}.{table}.") from ex
+    path_root: Optional[str] = None
+    paths: Union[str, List[str]] = path
+    # If filter is available, fetch & filter out partitions
+    # Then list objects & process individual object keys under path_root
+    if partition_filter is not None:
+        available_partitions_dict = _get_partitions(
+            database=database,
+            table=table,
+            catalog_id=catalog_id,
+            boto3_session=boto3_session,
+        )
+        available_partitions = list(available_partitions_dict.keys())
+        if available_partitions:
+            paths = []
+            path_root = path
+            partitions: Union[str, List[str]] = _apply_partition_filter(
+                path_root=path_root, paths=available_partitions, filter_func=partition_filter
+            )
+            for partition in partitions:
+                paths += _path2list(
+                    path=partition,
+                    boto3_session=boto3_session,
+                    suffix=filename_suffix,
+                    ignore_suffix=_get_path_ignore_suffix(path_ignore_suffix=filename_ignore_suffix),
+                    s3_additional_kwargs=s3_additional_kwargs,
+                )
     df = read_parquet(
-        path=path,
-        path_suffix=filename_suffix,
-        path_ignore_suffix=filename_ignore_suffix,
-        partition_filter=partition_filter,
+        path=paths,
+        path_root=path_root,
+        path_suffix=filename_suffix if path_root is None else None,
+        path_ignore_suffix=filename_ignore_suffix if path_root is None else None,
         columns=columns,
         validate_schema=validate_schema,
         categories=categories,
