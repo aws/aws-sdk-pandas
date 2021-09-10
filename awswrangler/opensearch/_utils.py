@@ -1,4 +1,4 @@
-"""Amazon Elasticsearch Utils Module (PRIVATE)."""
+"""Amazon OpenSearch Utils Module (PRIVATE)."""
 
 from typing import Optional
 
@@ -12,13 +12,13 @@ def connect(
     host: str,
     boto3_session: Optional[boto3.Session] = None
 ) -> Elasticsearch:
-    """Establishes a secure connection to the specified Amazon ES domain.
+    """Establishes a secure connection to the specified Amazon OpenSearch domain.
 
     Note
     ----
     We use [elasticsearch-py](https://elasticsearch-py.readthedocs.io/en/v7.13.4/), an Elasticsearch client for Python,
-    version 7.13.4, which is the recommended version for best compatibility Amazon ES,
-    since later versions may reject connections to Amazon ES clusters.
+    version 7.13.4, which is the recommended version for best compatibility Amazon OpenSearch,
+    since later versions may reject connections to Amazon OpenSearch clusters.
     In the future will move to a new open source client under the [OpenSearch project](https://www.opensearch.org/)
     You can read more here:
     https://aws.amazon.com/blogs/opensource/keeping-clients-of-opensearch-and-elasticsearch-compatible-with-open-source/
@@ -27,7 +27,7 @@ def connect(
     Parameters
     ----------
     host : str
-        Amazon Elasticsearch domain, for example: my-test-domain.us-east-1.es.amazonaws.com.
+        Amazon OpenSearch domain, for example: my-test-domain.us-east-1.es.amazonaws.com.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
 
@@ -38,4 +38,4 @@ def connect(
         https://elasticsearch-py.readthedocs.io/en/v7.13.4/api.html#elasticsearch
     """
 
-    pass  # connect to Amazon ES
+    pass  # connect to Amazon OpenSearch

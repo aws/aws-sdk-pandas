@@ -1,4 +1,4 @@
-"""Amazon Elasticsearch Write Module (PRIVATE)."""
+"""Amazon OpenSearch Write Module (PRIVATE)."""
 
 import json
 import logging
@@ -43,7 +43,7 @@ def create_index(
     Returns
     -------
     Dict[str, Any]
-        Elasticsearch rest api response
+        OpenSearch rest api response
         https://opensearch.org/docs/opensearch/rest-api/create-index/#response.
 
     Examples
@@ -51,7 +51,7 @@ def create_index(
     Creating an index.
 
     >>> import awswrangler as wr
-    >>> response = wr.elasticsearch.create_index(
+    >>> response = wr.opensearch.create_index(
     ...     index="sample-index1",
     ...     mappings={
     ...        "properties": {
@@ -77,7 +77,7 @@ def index_json(
     boto3_session: Optional[boto3.Session] = None,
     **kwargs
 ) -> Dict[str, Any]:
-    """Index all documents from JSON file to Elasticsearch index.
+    """Index all documents from JSON file to OpenSearch index.
 
     The JSON file should be in a JSON-Lines text format (newline-delimited JSON) - https://jsonlines.org/.
 
@@ -92,12 +92,12 @@ def index_json(
     bulk_params :  Union[List, Tuple, Dict], optional
         List of parameters to pass to bulk operation.
         References:
-        elasticsearch >= 7.10.2: https://opensearch.org/docs/opensearch/rest-api/document-apis/bulk/#url-parameters
+        elasticsearch >= 7.10.2 / opensearch: https://opensearch.org/docs/opensearch/rest-api/document-apis/bulk/#url-parameters
         elasticsearch < 7.10.2: https://opendistro.github.io/for-elasticsearch-docs/docs/elasticsearch/rest-api-reference/#url-parameters
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
     **kwargs :
-        KEYWORD arguments forwarded to :func:`~awswrangler.elasticsearch.index_documents`
+        KEYWORD arguments forwarded to :func:`~awswrangler.opensearch.index_documents`
         which is used to execute the operation
 
     Returns
@@ -111,7 +111,7 @@ def index_json(
     Writing contents of JSON file
 
     >>> import awswrangler as wr
-    >>> wr.elasticsearch.index_json(
+    >>> wr.opensearch.index_json(
     ...     path='docs.json',
     ...     index='sample-index1'
     ... )
@@ -128,7 +128,7 @@ def index_csv(
     boto3_session: Optional[boto3.Session] = None,
     pandas_params: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
-    """Index all documents from a CSV file to Elasticsearch index.
+    """Index all documents from a CSV file to OpenSearch index.
 
     Parameters
     ----------
@@ -156,7 +156,7 @@ def index_csv(
     Writing contents of CSV file
 
     >>> import awswrangler as wr
-    >>> wr.elasticsearch.index_csv(
+    >>> wr.opensearch.index_csv(
     ...     path='docs.csv',
     ...     index='sample-index1'
     ... )
@@ -164,7 +164,7 @@ def index_csv(
     Writing contents of CSV file using pandas_kwargs
 
     >>> import awswrangler as wr
-    >>> wr.elasticsearch.index_csv(
+    >>> wr.opensearch.index_csv(
     ...     path='docs.csv',
     ...     index='sample-index1',
     ...     pandas_params={'sep': '|', 'na_values': ['null', 'none'], 'skip_blank_lines': True}
@@ -179,7 +179,7 @@ def index_df(
     doc_type: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, Any]:
-    """Index all documents from a DataFrame to Elasticsearch index.
+    """Index all documents from a DataFrame to OpenSearch index.
 
     Parameters
     ----------
@@ -204,7 +204,7 @@ def index_df(
 
     >>> import awswrangler as wr
     >>> import pandas as pd
-    >>> wr.elasticsearch.index_df(
+    >>> wr.opensearch.index_df(
     ...     df=pd.DataFrame([{'_id': '1'}, {'_id': '2'}, {'_id': '3'}]),
     ...     index='sample-index1'
     ... )
@@ -227,7 +227,7 @@ def index_documents(
     **kwargs
 
 ) -> Dict[str, Any]:
-    """Index all documents to Elasticsearch index.
+    """Index all documents to OpenSearch index.
 
     Note
     ----
@@ -263,7 +263,7 @@ def index_documents(
         maximum number of seconds a retry will wait (default: 600)
     **kwargs :
         KEYWORD arguments forwarded to bulk operation
-        elasticsearch >= 7.10.2: https://opensearch.org/docs/opensearch/rest-api/document-apis/bulk/#url-parameters
+        elasticsearch >= 7.10.2 / opensearch: https://opensearch.org/docs/opensearch/rest-api/document-apis/bulk/#url-parameters
         elasticsearch < 7.10.2: https://opendistro.github.io/for-elasticsearch-docs/docs/elasticsearch/rest-api-reference/#url-parameters
 
     Returns
@@ -277,7 +277,7 @@ def index_documents(
     Writing documents
 
     >>> import awswrangler as wr
-    >>> wr.elasticsearch.index_documents(
+    >>> wr.opensearch.index_documents(
     ...     documents=[{'_id': '1', 'value': 'foo'}, {'_id': '2', 'value': 'bar'}],
     ...     index='sample-index1'
     ... )
