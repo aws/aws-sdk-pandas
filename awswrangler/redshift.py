@@ -1265,7 +1265,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     --------
     >>> import awswrangler as wr
     >>> con = wr.redshift.connect("MY_GLUE_CONNECTION")
-    >>> wr.db.copy_from_files(
+    >>> wr.redshift.copy_from_files(
     ...     path="s3://bucket/my_parquet_files/",
     ...     con=con,
     ...     table="my_table",
@@ -1467,7 +1467,7 @@ def copy(  # pylint: disable=too-many-arguments
     >>> import awswrangler as wr
     >>> import pandas as pd
     >>> con = wr.redshift.connect("MY_GLUE_CONNECTION")
-    >>> wr.db.copy(
+    >>> wr.redshift.copy(
     ...     df=pd.DataFrame({'col': [1, 2, 3]}),
     ...     path="s3://bucket/my_parquet_files/",
     ...     con=con,
