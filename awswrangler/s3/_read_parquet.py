@@ -885,11 +885,11 @@ def read_parquet_table(
             boto3_session=boto3_session,
         )
         available_partitions = list(available_partitions_dict.keys())
-        if len(available_partitions) > 0:
+        if available_partitions:
             paths = []
             path_root = path
             partitions: Union[str, List[str]] = _apply_partition_filter(
-                path_root=path, paths=available_partitions, filter_func=partition_filter
+                path_root=path_root, paths=available_partitions, filter_func=partition_filter
             )
             for partition in partitions:
                 paths += _path2list(
