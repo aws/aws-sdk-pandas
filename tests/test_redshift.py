@@ -48,6 +48,13 @@ def test_to_sql_simple(redshift_table, redshift_con, overwrite_method):
     wr.redshift.to_sql(df, redshift_con, redshift_table, "public", "overwrite", overwrite_method, True)
 
 
+def test_empty_table(redshift_table, redshift_con):
+    with redshift_con.cursor() as cursor:
+        cursor.execute(f"CREATE TABLE public.{redshift_table}(c0 integer not null, c1 integer, primary key(c0));")
+    df = wr.redshift.read_sql_table(table=redshift_table, con=redshift_con, schema="public")
+    assert df.columns.values.tolist() == ["c0", "c1"]
+
+
 def test_sql_types(redshift_table, redshift_con):
     table = redshift_table
     df = get_df()
