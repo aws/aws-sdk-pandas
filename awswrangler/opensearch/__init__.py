@@ -1,6 +1,15 @@
 """Utilities Module for Amazon OpenSearch."""
 
-from awswrangler.elasticsearch._utils import connect
-from awswrangler.elasticsearch._write import create_index, index_csv, index_documents, index_df, index_json
+from awswrangler.opensearch._utils import connect
+from awswrangler.opensearch._write import create_index, index_csv, index_documents, index_df, index_json
+from awswrangler.opensearch._read import search, search_by_sql
 
-__all__ = ["connect", "create_index", "index_csv", "index_documents", "index_df", "index_json"]
+__all__ = ["connect",
+           "create_index",
+           "index_csv",
+           "index_documents",
+           "index_df",
+           "index_json",
+           "search",
+           "search_by_sql"
+           ]

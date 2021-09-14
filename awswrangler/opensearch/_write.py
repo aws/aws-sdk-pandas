@@ -1,33 +1,65 @@
 """Amazon OpenSearch Write Module (PRIVATE)."""
 
-import json
 import logging
+import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Union, Tuple, Iterable
-
-import boto3
+from ._utils import _get_distribution, _get_version_major
 import pandas as pd
 
 from elasticsearch import Elasticsearch
+from elasticsearch.helpers import bulk
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
+def _selected_keys(document: Dict, keys_to_write: Optional[List[str]]):
+    if keys_to_write is None:
+        keys_to_write = document.keys()
+    keys_to_write = filter(lambda x: x != '_id', keys_to_write)
+    return {key: document[key] for key in keys_to_write }
+
+
+def _actions_generator(documents: Union[Iterable[Dict[str, Any]], Iterable[Mapping[str, Any]]],
+                   index: str,
+                   doc_type: Optional[str],
+                   keys_to_write: Optional[List[str]],
+                   id_keys: Optional[List[str]]):
+    for document in documents:
+        if id_keys:
+            _id = '-'.join(list(map(lambda x: str(document[x]), id_keys)))
+        else:
+            _id = document.get('_id', uuid.uuid4())
+        yield {
+                "_index": index,
+                "_type": doc_type,
+                "_id" : _id,
+                "_source": _selected_keys(document, keys_to_write),
+            }
+
+
+def _df_doc_generator(df: pd.DataFrame):
+    df_iter = df.iterrows()
+    for i, document in df_iter:
+        yield document
+
+
 def create_index(
+    client: Elasticsearch,
     index: str,
     doc_type: Optional[str] = None,
     settings: Optional[Dict[str, Any]] = None,
-    mappings: Optional[Dict[str, Any]] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    con: Optional[Elasticsearch] = None
+    mappings: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """Creates an index.
 
     Parameters
     ----------
+    client : Elasticsearch
+        instance of elasticsearch.Elasticsearch to use.
     index : str
         Name of the index.
-    doc_type : str
+    doc_type : str, optional
         Name of the document type (for Elasticsearch versions 5.x and earlier).
     settings : Dict[str, Any], optional
         Index settings
@@ -35,10 +67,6 @@ def create_index(
     mappings : Dict[str, Any], optional
         Index mappings
         https://opensearch.org/docs/opensearch/rest-api/create-index/#mappings
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
-    con : elasticsearch.Elasticsearch, optional
-        Elasticsearch client. A new connection will be established if con receive None.
 
     Returns
     -------
@@ -51,7 +79,9 @@ def create_index(
     Creating an index.
 
     >>> import awswrangler as wr
+    >>> client = wr.opensearch.connect(host='DOMAIN-ENDPOINT')
     >>> response = wr.opensearch.create_index(
+    ...     client=client,
     ...     index="sample-index1",
     ...     mappings={
     ...        "properties": {
@@ -68,13 +98,28 @@ def create_index(
 
     """
 
+    body = {}
+    if mappings:
+        if _get_distribution(client) == 'opensearch' or _get_version_major(client) >= 7:
+            body['mappings'] = mappings  # doc type deprecated
+        else:
+            if doc_type:
+                body['mappings'] = {doc_type: mappings}
+            else:
+                body['mappings'] = {index: mappings}
+    if settings:
+        body['settings'] = settings
+    if body == {}:
+        body = None
+    return client.indices.create(index, body, ignore=[400, 404])
+
 
 def index_json(
+    client: Elasticsearch,
     path: Union[str, Path],
     index: str,
     doc_type: Optional[str] = None,
     bulk_params: Optional[Union[List[Any], Tuple[Any], Dict[Any, Any]]] = None,
-    boto3_session: Optional[boto3.Session] = None,
     **kwargs
 ) -> Dict[str, Any]:
     """Index all documents from JSON file to OpenSearch index.
@@ -83,19 +128,19 @@ def index_json(
 
     Parameters
     ----------
+    client : Elasticsearch
+        instance of elasticsearch.Elasticsearch to use.
     path : Union[str, Path]
         Path as str or Path object to the JSON file which contains the documents.
     index : str
         Name of the index.
-    doc_type : str
+    doc_type : str, optional
         Name of the document type (only for Elasticsearch versions 5.x and earlier).
     bulk_params :  Union[List, Tuple, Dict], optional
         List of parameters to pass to bulk operation.
         References:
         elasticsearch >= 7.10.2 / opensearch: https://opensearch.org/docs/opensearch/rest-api/document-apis/bulk/#url-parameters
         elasticsearch < 7.10.2: https://opendistro.github.io/for-elasticsearch-docs/docs/elasticsearch/rest-api-reference/#url-parameters
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
     **kwargs :
         KEYWORD arguments forwarded to :func:`~awswrangler.opensearch.index_documents`
         which is used to execute the operation
@@ -111,7 +156,9 @@ def index_json(
     Writing contents of JSON file
 
     >>> import awswrangler as wr
+    >>> client = wr.opensearch.connect(host='DOMAIN-ENDPOINT')
     >>> wr.opensearch.index_json(
+    ...     client=client,
     ...     path='docs.json',
     ...     index='sample-index1'
     ... )
@@ -122,24 +169,24 @@ def index_json(
 
 
 def index_csv(
+    client: Elasticsearch,
     path: Union[str, Path],
     index: str,
     doc_type: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
     pandas_params: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """Index all documents from a CSV file to OpenSearch index.
 
     Parameters
     ----------
+    client : Elasticsearch
+        instance of elasticsearch.Elasticsearch to use.
     path : Union[str, Path]
         Path as str or Path object to the CSV file which contains the documents.
     index : str
         Name of the index.
-    doc_type : str
+    doc_type : str, optional
         Name of the document type (only for Elasticsearch versions 5.x and older).
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
     pandas_params :
         Dictionary of arguments forwarded to pandas.read_csv().
         e.g. pandas_kwargs={'sep': '|', 'na_values': ['null', 'none'], 'skip_blank_lines': True}
@@ -156,7 +203,9 @@ def index_csv(
     Writing contents of CSV file
 
     >>> import awswrangler as wr
+    >>> client = wr.opensearch.connect(host='DOMAIN-ENDPOINT')
     >>> wr.opensearch.index_csv(
+    ...     client=client,
     ...     path='docs.csv',
     ...     index='sample-index1'
     ... )
@@ -164,7 +213,9 @@ def index_csv(
     Writing contents of CSV file using pandas_kwargs
 
     >>> import awswrangler as wr
+    >>> client = wr.opensearch.connect(host='DOMAIN-ENDPOINT')
     >>> wr.opensearch.index_csv(
+    ...     client=client,
     ...     path='docs.csv',
     ...     index='sample-index1',
     ...     pandas_params={'sep': '|', 'na_values': ['null', 'none'], 'skip_blank_lines': True}
@@ -174,23 +225,27 @@ def index_csv(
 
 
 def index_df(
+    client: Elasticsearch,
     df: pd.DataFrame,
     index: str,
     doc_type: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    **kwargs
 ) -> Dict[str, Any]:
     """Index all documents from a DataFrame to OpenSearch index.
 
     Parameters
     ----------
+    client : Elasticsearch
+        instance of elasticsearch.Elasticsearch to use.
     df : pd.DataFrame
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
     index : str
         Name of the index.
-    doc_type : str
+    doc_type : str, optional
         Name of the document type (only for Elasticsearch versions 5.x and older).
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
+    **kwargs :
+        KEYWORD arguments forwarded to :func:`~awswrangler.opensearch.index_documents`
+        which is used to execute the operation
 
     Returns
     -------
@@ -204,20 +259,30 @@ def index_df(
 
     >>> import awswrangler as wr
     >>> import pandas as pd
+    >>> client = wr.opensearch.connect(host='DOMAIN-ENDPOINT')
     >>> wr.opensearch.index_df(
+    ...     client=client,
     ...     df=pd.DataFrame([{'_id': '1'}, {'_id': '2'}, {'_id': '3'}]),
     ...     index='sample-index1'
     ... )
     """
-    pass  # TODO: load data from dataframe
+
+    return index_documents(
+        client=client,
+        documents=_df_doc_generator(df),
+        index=index,
+        doc_type=doc_type,
+        **kwargs
+    )
 
 
 def index_documents(
+    client: Elasticsearch,
     documents: Union[Iterable[Dict[str, Any]], Iterable[Mapping[str, Any]]],
     index: str,
     doc_type: Optional[str] = None,
-    boto3_session: Optional[boto3.Session] = None,
-    con: Optional[Elasticsearch] = None,
+    keys_to_write: Optional[List[str]] = None,
+    id_keys: Optional[List[str]] = None,
     ignore_status: Optional[Union[List[Any], Tuple[Any]]] = None,
     chunk_size: Optional[int] = 500,
     max_chunk_bytes: Optional[int] = 100 * 1024 * 1024,
@@ -237,16 +302,19 @@ def index_documents(
 
     Parameters
     ----------
+    client : Elasticsearch
+        instance of elasticsearch.Elasticsearch to use.
     documents : Union[Iterable[Dict[str, Any]], Iterable[Mapping[str, Any]]]
         List which contains the documents that will be inserted.
     index : str
         Name of the index.
-    doc_type : str
+    doc_type : str, optional
         Name of the document type (only for Elasticsearch versions 5.x and older).
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
-    con : elasticsearch.Elasticsearch, optional
-        Elasticsearch client. A new connection will be established if con receive None.
+    keys_to_write : List[str], optional
+        list of keys to index. If not provided all keys will be indexed
+    id_keys : List[str], optional
+        list of keys that compound document unique id. If not provided will use `_id` key if exists,
+        otherwise will generate unique identifier for each document.
     ignore_status:  Union[List[Any], Tuple[Any]], optional
         list of HTTP status codes that you want to ignore (not raising an exception)
     chunk_size : int, optional
@@ -277,9 +345,24 @@ def index_documents(
     Writing documents
 
     >>> import awswrangler as wr
+    >>> client = wr.opensearch.connect(host='DOMAIN-ENDPOINT')
     >>> wr.opensearch.index_documents(
     ...     documents=[{'_id': '1', 'value': 'foo'}, {'_id': '2', 'value': 'bar'}],
     ...     index='sample-index1'
     ... )
     """
-    pass  # TODO: load documents
+    success, errors = bulk(
+        client=client,
+        actions=_actions_generator(documents, index, doc_type, keys_to_write=keys_to_write, id_keys=id_keys),
+        ignore_status=ignore_status,
+        chunk_size=chunk_size,
+        max_chunk_bytes=max_chunk_bytes,
+        max_retries=max_retries,
+        initial_backoff=initial_backoff,
+        max_backoff=max_backoff,
+        **kwargs
+    )
+    return {
+        'success': success,
+        'errors': errors
+    }
