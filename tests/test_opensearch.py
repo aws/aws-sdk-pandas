@@ -14,6 +14,15 @@ OPENSEARCH_DOMAIN = 'search-es71-public-z63iyqxccc4ungar5vx45xwgfi.us-east-1.es.
 OPENSEARCH_DOMAIN_FGAC = 'search-os1-public-urixc6vui2il7oawwiox2e57n4.us-east-1.es.amazonaws.com'
 
 
+inspections_documents = [
+{"business_address":"315 California St","business_city":"San Francisco","business_id":"24936","business_latitude":"37.793199","business_location":{"lon": -122.400152,"lat": 37.793199},"business_longitude":"-122.400152","business_name":"San Francisco Soup Company","business_postal_code":"94104","business_state":"CA","inspection_date":"2016-06-09T00:00:00.000","inspection_id":"24936_20160609","inspection_score":77,"inspection_type":"Routine - Unscheduled","risk_category":"Low Risk","violation_description":"Improper food labeling or menu misrepresentation","violation_id":"24936_20160609_103141"},
+{"business_address":"10 Mason St","business_city":"San Francisco","business_id":"60354","business_latitude":"37.783527","business_location":{"lon": -122.409061,"lat": 37.783527},"business_longitude":"-122.409061","business_name":"Soup Unlimited","business_postal_code":"94102","business_state":"CA","inspection_date":"2016-11-23T00:00:00.000","inspection_id":"60354_20161123","inspection_type":"Routine", "inspection_score": 95},
+{"business_address":"2872 24th St","business_city":"San Francisco","business_id":"1797","business_latitude":"37.752807","business_location":{"lon": -122.409752,"lat": 37.752807},"business_longitude":"-122.409752","business_name":"TIO CHILOS GRILL","business_postal_code":"94110","business_state":"CA","inspection_date":"2016-07-05T00:00:00.000","inspection_id":"1797_20160705","inspection_score":90,"inspection_type":"Routine - Unscheduled","risk_category":"Low Risk","violation_description":"Unclean nonfood contact surfaces","violation_id":"1797_20160705_103142"},
+{"business_address":"1661 Tennessee St Suite 3B","business_city":"San Francisco Whard Restaurant","business_id":"66198","business_latitude":"37.75072","business_location":{"lon": -122.388478,"lat": 37.75072},"business_longitude":"-122.388478","business_name":"San Francisco Restaurant","business_postal_code":"94107","business_state":"CA","inspection_date":"2016-05-27T00:00:00.000","inspection_id":"66198_20160527","inspection_type":"Routine","inspection_score":56 },
+{"business_address":"2162 24th Ave","business_city":"San Francisco","business_id":"5794","business_latitude":"37.747228","business_location":{"lon": -122.481299,"lat": 37.747228},"business_longitude":"-122.481299","business_name":"Soup House","business_phone_number":"+14155752700","business_postal_code":"94116","business_state":"CA","inspection_date":"2016-09-07T00:00:00.000","inspection_id":"5794_20160907","inspection_score":96,"inspection_type":"Routine - Unscheduled","risk_category":"Low Risk","violation_description":"Unapproved or unmaintained equipment or utensils","violation_id":"5794_20160907_103144"},
+{"business_address":"2162 24th Ave","business_city":"San Francisco","business_id":"5794","business_latitude":"37.747228","business_location":{"lon": -122.481299,"lat": 37.747228},"business_longitude":"-122.481299","business_name":"Soup-or-Salad","business_phone_number":"+14155752700","business_postal_code":"94116","business_state":"CA","inspection_date":"2016-09-07T00:00:00.000","inspection_id":"5794_20160907","inspection_score":96,"inspection_type":"Routine - Unscheduled","risk_category":"Low Risk","violation_description":"Unapproved or unmaintained equipment or utensils","violation_id":"5794_20160907_103144"}
+]
+
 def test_connection():
     client = wr.opensearch.connect(host=OPENSEARCH_DOMAIN)
     print(client.info())
@@ -69,3 +78,73 @@ def test_index_documents():
                                       index='test_index_documents1'
                                       )
     print(response)
+
+
+def test_index_documents_id_keys():
+    client = wr.opensearch.connect(host=OPENSEARCH_DOMAIN)
+    response = wr.opensearch.index_documents(client,
+                                             documents=inspections_documents,
+                                             index='test_index_documents_id_keys',
+                                             id_keys=['inspection_id']
+                                             )
+    print(response)
+
+
+def test_index_documents_no_id_keys():
+    client = wr.opensearch.connect(host=OPENSEARCH_DOMAIN)
+    response = wr.opensearch.index_documents(client,
+                                             documents=inspections_documents,
+                                             index='test_index_documents_no_id_keys'
+                                             )
+    print(response)
+
+
+def test_search():
+    index = 'test_search'
+    client = wr.opensearch.connect(host=OPENSEARCH_DOMAIN)
+    response = wr.opensearch.index_documents(client,
+                                             documents=inspections_documents,
+                                             index=index,
+                                             id_keys=['inspection_id']
+                                             )
+    df = wr.opensearch.search(
+        client,
+        index=index,
+        search_body={
+            "query": {
+                "match": {
+                    "business_name": "soup"
+                }
+            }
+        },
+        _source=['inspection_id', 'business_name', 'business_location']
+    )
+
+    print('')
+    print(df.to_string())
+
+
+def test_search_filter_path():
+    index = 'test_search'
+    client = wr.opensearch.connect(host=OPENSEARCH_DOMAIN)
+    response = wr.opensearch.index_documents(client,
+                                             documents=inspections_documents,
+                                             index=index,
+                                             id_keys=['inspection_id']
+                                             )
+    df = wr.opensearch.search(
+        client,
+        index=index,
+        search_body={
+            "query": {
+                "match": {
+                    "business_name": "soup"
+                }
+            }
+        },
+        _source=['inspection_id', 'business_name', 'business_location'],
+        filter_path=['hits.hits._source']
+    )
+
+    print('')
+    print(df.to_string())

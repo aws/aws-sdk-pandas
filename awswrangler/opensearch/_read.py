@@ -45,7 +45,6 @@ def search(
         Because scroll search contexts consume a lot of memory, we suggest you don’t use the scroll operation for frequent user queries.
     **kwargs :
         KEYWORD arguments forwarded to [elasticsearch.Elasticsearch.search](https://elasticsearch-py.readthedocs.io/en/v7.13.4/api.html#elasticsearch.Elasticsearch.search).
-        If ``is_scroll=True`` arguments will be forwarded to [elasticsearch.helpers.scan](https://elasticsearch-py.readthedocs.io/en/master/helpers.html#scan)
 
     Returns
     -------
@@ -74,6 +73,11 @@ def search(
     """
     if doc_type:
         kwargs['doc_type'] = doc_type
+
+    # pandasticsearch.Select.from_dict requires `took` field
+    if 'filter_path' in kwargs:
+        if 'took' not in kwargs['filter_path']:
+            kwargs['filter_path'].append('took')
     if is_scroll:
         # TODO: write logic
         # documents = _scan(client, index, search_body, doc_type, **kwargs)
