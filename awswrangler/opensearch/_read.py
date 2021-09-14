@@ -6,18 +6,6 @@ from elasticsearch import Elasticsearch
 from elasticsearch.helpers import scan
 
 
-def _scan(
-    client: Elasticsearch,
-    index: Optional[str] = '_all',
-    search_body: Optional[Dict[str, Any]] = None,
-    doc_type: Optional[str] = None,
-    scroll: Optional[str] = '10m',
-    **kwargs
-):
-    # TODO: write logic based on https://elasticsearch-py.readthedocs.io/en/master/helpers.html#scan
-    pass
-
-
 def search(
     client: Elasticsearch,
     index: Optional[str] = '_all',
@@ -79,8 +67,7 @@ def search(
         if 'took' not in kwargs['filter_path']:
             kwargs['filter_path'].append('took')
     if is_scroll:
-        # TODO: write logic
-        # documents = _scan(client, index, search_body, doc_type, **kwargs)
+        # TODO: write logic based on https://elasticsearch-py.readthedocs.io/en/master/helpers.html#scan
         pass
     else:
         documents = client.search(index=index, body=search_body, **kwargs)
@@ -120,3 +107,4 @@ def search_by_sql(
 
     """
     # TODO: write logic
+    pass
