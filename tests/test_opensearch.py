@@ -2,7 +2,7 @@ import logging
 
 import boto3
 import pandas as pd
-
+import json
 
 import awswrangler as wr
 
@@ -12,7 +12,7 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 # TODO: create test_infra for opensearch
 OPENSEARCH_DOMAIN = 'search-es71-public-z63iyqxccc4ungar5vx45xwgfi.us-east-1.es.amazonaws.com'  # change to your domain
 OPENSEARCH_DOMAIN_FGAC = 'search-os1-public-urixc6vui2il7oawwiox2e57n4.us-east-1.es.amazonaws.com'
-
+BUCKET = 'mentzera'
 
 inspections_documents = [
 {"business_address":"315 California St","business_city":"San Francisco","business_id":"24936","business_latitude":"37.793199","business_location":{"lon": -122.400152,"lat": 37.793199},"business_longitude":"-122.400152","business_name":"San Francisco Soup Company","business_postal_code":"94104","business_state":"CA","inspection_date":"2016-06-09T00:00:00.000","inspection_id":"24936_20160609","inspection_score":77,"inspection_type":"Routine - Unscheduled","risk_category":"Low Risk","violation_description":"Improper food labeling or menu misrepresentation","violation_id":"24936_20160609_103141"},
@@ -162,3 +162,34 @@ def test_search_filter_path():
 
     print('')
     print(df.to_string())
+
+
+def test_index_json_local():
+    file_path = '/tmp/inspections.json'
+    client = wr.opensearch.connect(host=OPENSEARCH_DOMAIN)
+    with open(file_path, 'w') as filehandle:
+        for doc in inspections_documents:
+            filehandle.write('%s\n' % json.dumps(doc))
+    response = wr.opensearch.index_json(
+        client,
+        index='test_index_json_local',
+        path=file_path
+    )
+    print(response)
+
+
+def test_index_json_s3():
+    file_path = '/tmp/inspections.json'
+    s3_key = 'tmp/inspections.json'
+    client = wr.opensearch.connect(host=OPENSEARCH_DOMAIN)
+    with open(file_path, 'w') as filehandle:
+        for doc in inspections_documents:
+            filehandle.write('%s\n' % json.dumps(doc))
+    s3 = boto3.client('s3')
+    s3.upload_file(file_path, BUCKET, s3_key)
+    response = wr.opensearch.index_json(
+        client,
+        index='test_index_json_s3',
+        path=f's3://{BUCKET}/{s3_key}'
+    )
+    print(response)

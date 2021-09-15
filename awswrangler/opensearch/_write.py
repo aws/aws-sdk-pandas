@@ -2,9 +2,12 @@
 
 import logging
 import uuid
+import boto3
+import json
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Union, Tuple, Iterable
-from ._utils import _get_distribution, _get_version_major
+from awswrangler.opensearch._utils import _get_distribution, _get_version_major
+from awswrangler._utils import parse_path
 import pandas as pd
 
 from elasticsearch import Elasticsearch
@@ -42,6 +45,15 @@ def _df_doc_generator(df: pd.DataFrame):
     df_iter = df.iterrows()
     for i, document in df_iter:
         yield document
+
+
+def _file_line_generator(path: str, is_json: bool = False):
+    with open(path) as fp:
+        for line in fp:
+            if is_json:
+                yield json.loads(line)
+            else:
+                yield line.strip()
 
 
 def create_index(
@@ -160,7 +172,7 @@ def index_json(
     path: Union[str, Path],
     index: str,
     doc_type: Optional[str] = None,
-    bulk_params: Optional[Union[List[Any], Tuple[Any], Dict[Any, Any]]] = None,
+    boto3_session: Optional[boto3.Session] = boto3.Session(),
     **kwargs
 ) -> Dict[str, Any]:
     """Index all documents from JSON file to OpenSearch index.
@@ -177,11 +189,9 @@ def index_json(
         Name of the index.
     doc_type : str, optional
         Name of the document type (only for Elasticsearch versions 5.x and earlier).
-    bulk_params :  Union[List, Tuple, Dict], optional
-        List of parameters to pass to bulk operation.
-        References:
-        elasticsearch >= 7.10.2 / opensearch: https://opensearch.org/docs/opensearch/rest-api/document-apis/bulk/#url-parameters
-        elasticsearch < 7.10.2: https://opendistro.github.io/for-elasticsearch-docs/docs/elasticsearch/rest-api-reference/#url-parameters
+    boto3_session : boto3.Session(), optional
+        Boto3 Session to be used to access s3 if s3 path is provided.
+        The default boto3 Session will be used if boto3_session receive None.
     **kwargs :
         KEYWORD arguments forwarded to :func:`~awswrangler.opensearch.index_documents`
         which is used to execute the operation
@@ -206,7 +216,22 @@ def index_json(
     """
     # Loading data from file
 
-    pass  # TODO: load data from json file
+    if path.startswith("s3://"):
+        bucket, key = parse_path(path)
+        s3 = boto3_session.client('s3')
+        obj = s3.get_object(Bucket=bucket, Key=key)
+        body = obj['Body'].read()
+        lines = body.splitlines()
+        documents = map(lambda x: json.loads(x), lines)
+    else: # local path
+        documents = _file_line_generator(path, is_json=True)
+    return index_documents(
+        client=client,
+        documents=documents,
+        index=index,
+        doc_type=doc_type,
+        **kwargs
+    )
 
 
 def index_csv(
