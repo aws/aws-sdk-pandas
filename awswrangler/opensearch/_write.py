@@ -131,7 +131,7 @@ def index_json(
     client : Elasticsearch
         instance of elasticsearch.Elasticsearch to use.
     path : Union[str, Path]
-        Path as str or Path object to the JSON file which contains the documents.
+        s3 or local path to the JSON file which contains the documents.
     index : str
         Name of the index.
     doc_type : str, optional
@@ -173,7 +173,7 @@ def index_csv(
     path: Union[str, Path],
     index: str,
     doc_type: Optional[str] = None,
-    pandas_params: Optional[Dict[str, Any]] = None
+    pandas_kwargs: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """Index all documents from a CSV file to OpenSearch index.
 
@@ -182,12 +182,12 @@ def index_csv(
     client : Elasticsearch
         instance of elasticsearch.Elasticsearch to use.
     path : Union[str, Path]
-        Path as str or Path object to the CSV file which contains the documents.
+        s3 or local path to the CSV file which contains the documents.
     index : str
         Name of the index.
     doc_type : str, optional
         Name of the document type (only for Elasticsearch versions 5.x and older).
-    pandas_params :
+    pandas_kwargs :
         Dictionary of arguments forwarded to pandas.read_csv().
         e.g. pandas_kwargs={'sep': '|', 'na_values': ['null', 'none'], 'skip_blank_lines': True}
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
@@ -218,7 +218,7 @@ def index_csv(
     ...     client=client,
     ...     path='docs.csv',
     ...     index='sample-index1',
-    ...     pandas_params={'sep': '|', 'na_values': ['null', 'none'], 'skip_blank_lines': True}
+    ...     pandas_kwargs={'sep': '|', 'na_values': ['null', 'none'], 'skip_blank_lines': True}
     ... )
     """
     pass  # TODO: load data from csv file
