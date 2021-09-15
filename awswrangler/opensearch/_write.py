@@ -136,7 +136,6 @@ def delete_index(
     -------
     Dict[str, Any]
         OpenSearch rest api response
-        https://opensearch.org/docs/opensearch/rest-api/create-index/#response.
 
     Examples
     --------
