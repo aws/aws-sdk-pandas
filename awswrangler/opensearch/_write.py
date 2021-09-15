@@ -4,11 +4,13 @@ import logging
 import uuid
 import boto3
 import json
+import ast
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Union, Tuple, Iterable
 from awswrangler.opensearch._utils import _get_distribution, _get_version_major
 from awswrangler._utils import parse_path
 import pandas as pd
+from pandas import notna
 
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk
@@ -42,9 +44,28 @@ def _actions_generator(documents: Union[Iterable[Dict[str, Any]], Iterable[Mappi
 
 
 def _df_doc_generator(df: pd.DataFrame):
+    def _deserialize(v):
+        if isinstance(v, str):
+            v = v.strip()
+            if (v.startswith('{') and v.endswith('}')
+                    or
+                    v.startswith('[') and v.endswith(']')
+            ):
+                try:
+                    v = json.loads(v)
+                except Exception as e:
+                    try:
+                        v = ast.literal_eval(v)  # if properties are enclosed with single quotes
+                    except:
+                        _logger.warning(f'could not convert string to json: {v}')
+                        _logger.warning(e)
+        return v
+
     df_iter = df.iterrows()
     for i, document in df_iter:
-        yield document
+        # print(document)
+        # yield document
+        yield {k: _deserialize(v) for k, v in document.items() if notna(v)}
 
 
 def _file_line_generator(path: str, is_json: bool = False):
@@ -239,7 +260,8 @@ def index_csv(
     path: Union[str, Path],
     index: str,
     doc_type: Optional[str] = None,
-    pandas_kwargs: Optional[Dict[str, Any]] = None
+    pandas_kwargs: Optional[Dict[str, Any]] = {},
+    **kwargs
 ) -> Dict[str, Any]:
     """Index all documents from a CSV file to OpenSearch index.
 
@@ -257,6 +279,9 @@ def index_csv(
         Dictionary of arguments forwarded to pandas.read_csv().
         e.g. pandas_kwargs={'sep': '|', 'na_values': ['null', 'none'], 'skip_blank_lines': True}
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
+    **kwargs :
+        KEYWORD arguments forwarded to :func:`~awswrangler.opensearch.index_documents`
+        which is used to execute the operation
 
     Returns
     -------
@@ -287,7 +312,19 @@ def index_csv(
     ...     pandas_kwargs={'sep': '|', 'na_values': ['null', 'none'], 'skip_blank_lines': True}
     ... )
     """
-    pass  # TODO: load data from csv file
+    custom_pandas_params = {
+        'skip_blank_lines': True,
+        'na_filter': True # will generate Nan value for empty cells. We remove Nan keys in _df_doc_generator
+    }
+    pandas_kwargs.update(custom_pandas_params)
+    df = pd.read_csv(path, **pandas_kwargs)
+    return index_df(
+        client,
+        df=df,
+        index=index,
+        doc_type=doc_type,
+        **kwargs
+    )
 
 
 def index_df(

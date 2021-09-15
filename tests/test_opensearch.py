@@ -193,3 +193,18 @@ def test_index_json_s3():
         path=f's3://{BUCKET}/{s3_key}'
     )
     print(response)
+
+
+def test_index_csv_local():
+    file_path = '/tmp/inspections.csv'
+    index = 'test_index_csv_local'
+    df=pd.DataFrame(inspections_documents)
+    df.to_csv(file_path, index=False)
+    client = wr.opensearch.connect(OPENSEARCH_DOMAIN)
+    wr.opensearch.delete_index(client, index)
+    response = wr.opensearch.index_csv(
+        client,
+        path=file_path,
+        index=index
+    )
+    print(response)
