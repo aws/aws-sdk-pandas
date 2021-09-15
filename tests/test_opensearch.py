@@ -56,6 +56,20 @@ def test_create_index():
     print(response)
 
 
+def test_delete_index():
+    index = 'test_delete_index'
+    client = wr.opensearch.connect(host=OPENSEARCH_DOMAIN)
+    wr.opensearch.create_index(
+        client,
+        index=index
+    )
+    response = wr.opensearch.delete_index(
+        client,
+        index=index
+    )
+    print(response)
+
+
 def test_index_df():
     client = wr.opensearch.connect(host=OPENSEARCH_DOMAIN)
     response = wr.opensearch.index_df(client,

@@ -111,7 +111,49 @@ def create_index(
         body['settings'] = settings
     if body == {}:
         body = None
-    return client.indices.create(index, body, ignore=[400, 404])
+    response = client.indices.create(index, body, ignore=[400, 404])
+    if 'error' in response:
+        _logger.warning(response)
+        if str(response['error']).startswith(u'MapperParsingException'):
+            raise ValueError(response['error'])
+    return response
+
+
+def delete_index(
+    client: Elasticsearch,
+    index: str
+) -> Dict[str, Any]:
+    """Creates an index.
+
+    Parameters
+    ----------
+    client : Elasticsearch
+        instance of elasticsearch.Elasticsearch to use.
+    index : str
+        Name of the index.
+
+    Returns
+    -------
+    Dict[str, Any]
+        OpenSearch rest api response
+        https://opensearch.org/docs/opensearch/rest-api/create-index/#response.
+
+    Examples
+    --------
+    Creating an index.
+
+    >>> import awswrangler as wr
+    >>> client = wr.opensearch.connect(host='DOMAIN-ENDPOINT')
+    >>> response = wr.opensearch.delete_index(
+    ...     client=client,
+    ...     index="sample-index1"
+    ... )
+
+    """
+    response = client.indices.delete(index, ignore=[400, 404])
+    if 'error' in response:
+        _logger.warning(response)
+    return response
 
 
 def index_json(
