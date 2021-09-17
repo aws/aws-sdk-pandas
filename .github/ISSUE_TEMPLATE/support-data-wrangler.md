@@ -7,7 +7,7 @@ assignees: ''
 
 ---
 
-Thank your for letting us use your organisation's name on the Data Wrangler read.me page and letting other customers know that you support the project!  If you would like us to also display your organisation's logo. please raise a linked pull request to provide an image file for the logo.
+Thank you for letting us use your organisation's name on the Data Wrangler read.me page and letting other customers know that you support the project!  If you would like us to also display your organisation's logo. please raise a linked pull request to provide an image file for the logo.
 
 Please add any files to *docs/source/_static/*
 
@@ -16,4 +16,4 @@ Your Name:
 Your Position:
 I have included a logo: y/n
 
-*By raising a Public Reference issue (and related pull request), you are granting AWS permission to use your company’s name (and logo) for the limited purpose described here and you are confirming that you have authority to grant such permission.*
+*By raising a Support the SDLF issue (and related pull request), you are granting AWS permission to use your company’s name (and logo) for the limited purpose described here and you are confirming that you have authority to grant such permission.*
