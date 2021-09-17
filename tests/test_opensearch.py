@@ -186,6 +186,24 @@ def test_search_scroll():
     print(df.to_string())
 
 
+def test_search_sql():
+    index = 'test_search_sql'
+    client = wr.opensearch.connect(host=OPENSEARCH_DOMAIN)
+    response = wr.opensearch.index_documents(client,
+                                             documents=inspections_documents,
+                                             index=index,
+                                             id_keys=['inspection_id'],
+                                             refresh='wait_for'
+                                             )
+    df = wr.opensearch.search_by_sql(
+        client,
+        sql_query=f'select * from {index}'
+    )
+
+    print('')
+    print(df.to_string())
+
+
 def test_index_json_local():
     file_path = '/tmp/inspections.json'
     client = wr.opensearch.connect(host=OPENSEARCH_DOMAIN)

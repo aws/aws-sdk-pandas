@@ -4,6 +4,7 @@ from pandasticsearch import Select, DataFrame
 from typing import Any, Dict, Optional
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import scan
+from awswrangler.opensearch._utils import _get_distribution
 import pandas as pd
 
 
@@ -86,7 +87,8 @@ def search(
 
 def search_by_sql(
     client: Elasticsearch,
-    sql_query: str
+    sql_query: str,
+    **kwargs
 ) -> DataFrame:
     """Returns results matching [SQL query](https://opensearch.org/docs/search-plugins/sql/index/) as pandas dataframe
 
@@ -96,6 +98,8 @@ def search_by_sql(
         instance of elasticsearch.Elasticsearch to use.
     sql_query : str
         SQL query
+    **kwargs :
+        KEYWORD arguments forwarded to request url (e.g.: filter_path, etc.)
 
     Returns
     -------
@@ -115,5 +119,31 @@ def search_by_sql(
 
 
     """
-    # TODO: write logic
-    pass
+
+    # can be used if not passing format
+    def _sql_response_to_docs(response: Dict[str, Any]):
+        header = list(map(lambda x: x['name'], response.get('schema', [])))
+        for datarow in response.get('datarows', []):
+            yield dict(zip(header, datarow))
+
+    if _get_distribution(client) == 'opensearch':
+        url = '/_plugins/_sql'
+    else:
+        url = '/_opendistro/_sql'
+
+    kwargs['format'] = 'json'
+    body = {'query': sql_query}
+    for size_att in ['size', 'fetch_size']:
+        if size_att in kwargs:
+            body['fetch_size'] = kwargs[size_att]
+            del kwargs[size_att]  # unrecognized parameter
+    response = client.transport.perform_request(
+        "POST",
+        url,
+        headers={'Content-Type': 'application/json'},
+        body=body,
+        params=kwargs
+    )
+
+    df = Select.from_dict(response).to_pandas()
+    return df
