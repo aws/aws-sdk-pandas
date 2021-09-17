@@ -4,6 +4,7 @@ from pandasticsearch import Select, DataFrame
 from typing import Any, Dict, Optional
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import scan
+import pandas as pd
 
 
 def search(
@@ -32,7 +33,8 @@ def search(
         for example, for machine learning jobs.
         Because scroll search contexts consume a lot of memory, we suggest you don’t use the scroll operation for frequent user queries.
     **kwargs :
-        KEYWORD arguments forwarded to [elasticsearch.Elasticsearch.search](https://elasticsearch-py.readthedocs.io/en/v7.13.4/api.html#elasticsearch.Elasticsearch.search).
+        KEYWORD arguments forwarded to [elasticsearch.Elasticsearch.search](https://elasticsearch-py.readthedocs.io/en/v7.13.4/api.html#elasticsearch.Elasticsearch.search)
+        and also to [elasticsearch.helpers.scan](https://elasticsearch-py.readthedocs.io/en/master/helpers.html#scan) if `is_scroll=True`
 
     Returns
     -------
@@ -67,11 +69,18 @@ def search(
         if 'took' not in kwargs['filter_path']:
             kwargs['filter_path'].append('took')
     if is_scroll:
-        # TODO: write logic based on https://elasticsearch-py.readthedocs.io/en/master/helpers.html#scan
-        pass
+        documents_generator = scan(
+            client,
+            index=index,
+            query=search_body,
+            **kwargs
+        )
+        s = Select()
+        documents = map(lambda x: s.hit_to_row(x), documents_generator)
+        df = pd.DataFrame(documents)
     else:
         documents = client.search(index=index, body=search_body, **kwargs)
-    df = Select.from_dict(documents).to_pandas()
+        df = Select.from_dict(documents).to_pandas()
     return df
 
 

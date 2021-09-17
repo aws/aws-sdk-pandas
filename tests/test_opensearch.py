@@ -119,7 +119,8 @@ def test_search():
     response = wr.opensearch.index_documents(client,
                                              documents=inspections_documents,
                                              index=index,
-                                             id_keys=['inspection_id']
+                                             id_keys=['inspection_id'],
+                                             refresh='wait_for'
                                              )
     df = wr.opensearch.search(
         client,
@@ -144,7 +145,8 @@ def test_search_filter_path():
     response = wr.opensearch.index_documents(client,
                                              documents=inspections_documents,
                                              index=index,
-                                             id_keys=['inspection_id']
+                                             id_keys=['inspection_id'],
+                                             refresh='wait_for'
                                              )
     df = wr.opensearch.search(
         client,
@@ -158,6 +160,26 @@ def test_search_filter_path():
         },
         _source=['inspection_id', 'business_name', 'business_location'],
         filter_path=['hits.hits._source']
+    )
+
+    print('')
+    print(df.to_string())
+
+
+def test_search_scroll():
+    index = 'test_search_scroll'
+    client = wr.opensearch.connect(host=OPENSEARCH_DOMAIN)
+    response = wr.opensearch.index_documents(client,
+                                             documents=inspections_documents,
+                                             index=index,
+                                             id_keys=['inspection_id'],
+                                             refresh='wait_for'
+                                             )
+    df = wr.opensearch.search(
+        client,
+        index=index,
+        is_scroll=True,
+        _source=['inspection_id', 'business_name', 'business_location']
     )
 
     print('')
