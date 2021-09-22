@@ -130,6 +130,10 @@ def _build_cluster_args(**pars: Any) -> Dict[str, Any]:  # pylint: disable=too-m
         "StepConcurrencyLevel": pars["step_concurrency_level"],
     }
 
+    # Custom AMI
+    if pars["custom_ami_id"] is not None:
+        args["CustomAmiId"] = pars["custom_ami_id"]
+
     # EC2 Key Pair
     if pars["key_pair_name"] is not None:
         args["Instances"]["Ec2KeyName"] = pars["key_pair_name"]
@@ -442,6 +446,7 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
     custom_classifications: Optional[List[Dict[str, Any]]] = None,
     maximize_resource_allocation: bool = False,
     steps: Optional[List[Dict[str, Any]]] = None,
+    custom_ami_id: Optional[str] = None,
     step_concurrency_level: int = 1,
     keep_cluster_alive_when_no_steps: bool = True,
     termination_protected: bool = False,
@@ -586,6 +591,8 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
     maximize_resource_allocation : bool
         Configure your executors to utilize the maximum resources possible
         https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark-configure.html#emr-spark-maximizeresourceallocation
+    custom_ami_id : Optional[str]
+        The custom AMI ID to use for the provisioned instance group
     steps : List[Dict[str, Any]], optional
         Steps definitions (Obs : str Use EMR.build_step() to build it)
     keep_cluster_alive_when_no_steps : bool
