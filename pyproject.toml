@@ -45,6 +45,9 @@ xlrd = { version = "^2.0.1", python = "~3.6" }
 xlwt = { version = "^1.3.0", python = "~3.6" }
 
 pyodbc = { version = "~4.0.30", optional = true }
+sphinx-bootstrap-theme = "^0.8.0"
+Sphinx = "^4.2.0"
+tox = "^3.24.4"
 
 
 [tool.poetry.extras]
@@ -59,15 +62,15 @@ flake8 = "^3.9.2"
 mypy = "^0.910"
 pydocstyle = "^6.1.1"
 doc8 = "^0.9.0"
-tox = "^3.24.1"
+tox = "^3.24.4"
 pytest = "^6.2.4"
 pytest-cov = "^2.12.1"
 pytest-rerunfailures = "^10.1"
 pytest-xdist = "^2.3.0"
 pytest-timeout = "^1.4.2"
 pydot = "^1.4.2"
-sphinx = "^4.1.2"
-sphinx-bootstrap-theme = "^0.7.1"
+sphinx = "^4.2.0"
+sphinx-bootstrap-theme = "^0.8.0"
 nbsphinx = "^0.8.7"
 nbsphinx-link = "^1.3.0"
 IPython = "^7.16.0"
