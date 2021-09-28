@@ -39,12 +39,18 @@ def _get_file_path(file_counter: int, file_path: str) -> str:
 def _new_writer(
     file_path: str,
     compression: Optional[str],
+    pyarrow_additional_kwargs: Optional[Dict[str, str]],
     schema: pa.Schema,
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: bool,
 ) -> Iterator[pyarrow.parquet.ParquetWriter]:
     writer: Optional[pyarrow.parquet.ParquetWriter] = None
+    if not pyarrow_additional_kwargs:
+        pyarrow_additional_kwargs = {}
+    if not pyarrow_additional_kwargs.get("coerce_timestamps"):
+        pyarrow_additional_kwargs["coerce_timestamps"] = "ms"
+
     with open_s3_object(
         path=file_path,
         mode="wb",
@@ -57,10 +63,10 @@ def _new_writer(
                 where=f,
                 write_statistics=True,
                 use_dictionary=True,
-                coerce_timestamps="ms",
                 compression="NONE" if compression is None else compression,
                 flavor="spark",
                 schema=schema,
+                **pyarrow_additional_kwargs,
             )
             yield writer
         finally:
@@ -73,6 +79,7 @@ def _write_chunk(
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
     compression: Optional[str],
+    pyarrow_additional_kwargs: Optional[Dict[str, str]],
     table: pa.Table,
     offset: int,
     chunk_size: int,
@@ -81,6 +88,7 @@ def _write_chunk(
     with _new_writer(
         file_path=file_path,
         compression=compression,
+        pyarrow_additional_kwargs=pyarrow_additional_kwargs,
         schema=table.schema,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
@@ -95,6 +103,7 @@ def _to_parquet_chunked(
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
     compression: Optional[str],
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]],
     table: pa.Table,
     max_rows_by_file: int,
     num_of_rows: int,
@@ -112,6 +121,7 @@ def _to_parquet_chunked(
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
             compression=compression,
+            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
             table=table,
             offset=offset,
             chunk_size=max_rows_by_file,
@@ -126,6 +136,7 @@ def _to_parquet(
     index: bool,
     compression: Optional[str],
     compression_ext: str,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]],
     cpus: int,
     dtype: Dict[str, str],
     boto3_session: Optional[boto3.Session],
@@ -157,6 +168,7 @@ def _to_parquet(
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
             compression=compression,
+            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
             table=table,
             max_rows_by_file=max_rows_by_file,
             num_of_rows=df.shape[0],
@@ -166,6 +178,7 @@ def _to_parquet(
         with _new_writer(
             file_path=file_path,
             compression=compression,
+            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
             schema=table.schema,
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
@@ -182,6 +195,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     path: Optional[str] = None,
     index: bool = False,
     compression: Optional[str] = "snappy",
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
     max_rows_by_file: Optional[int] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
@@ -246,6 +260,10 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
         True to store the DataFrame index in file, otherwise False to ignore it.
     compression: str, optional
         Compression style (``None``, ``snappy``, ``gzip``).
+    pyarrow_additional_kwargs : Optional[Dict[str, Any]]
+        Additional parameters forwarded to pyarrow.
+        e.g. pyarrow_additional_kwargs={'coerce_timestamps': 'ns', 'use_deprecated_int96_timestamps': False,
+        'allow_truncated_timestamps'=False}
     max_rows_by_file : int
         Max number of rows in each file.
         Default is None i.e. dont split the files.
@@ -528,6 +546,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
             cpus=cpus,
             compression=compression,
             compression_ext=compression_ext,
+            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
             boto3_session=session,
             s3_additional_kwargs=s3_additional_kwargs,
             dtype=dtype,
@@ -552,6 +571,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
             index=index,
             compression=compression,
             compression_ext=compression_ext,
+            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
             cpus=cpus,
             use_threads=use_threads,
             partition_cols=partition_cols,
