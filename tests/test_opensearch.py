@@ -1,18 +1,17 @@
 import logging
 
 import boto3
+import pytest  # type: ignore
 import pandas as pd
 import json
+import tempfile
 
 import awswrangler as wr
 
+from ._utils import extract_cloudformation_outputs
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
-# TODO: create test_infra for opensearch
-OPENSEARCH_DOMAIN = 'search-es71-public-z63iyqxccc4ungar5vx45xwgfi.us-east-1.es.amazonaws.com'  # change to your domain
-OPENSEARCH_DOMAIN_FGAC = 'search-os1-public-urixc6vui2il7oawwiox2e57n4.us-east-1.es.amazonaws.com'
-BUCKET = 'mentzera'
 
 inspections_documents = [
 {"business_address":"315 California St","business_city":"San Francisco","business_id":"24936","business_latitude":"37.793199","business_location":{"lon": -122.400152,"lat": 37.793199},"business_longitude":"-122.400152","business_name":"San Francisco Soup Company","business_postal_code":"94104","business_state":"CA","inspection_date":"2016-06-09T00:00:00.000","inspection_id":"24936_20160609","inspection_score":77,"inspection_type":"Routine - Unscheduled","risk_category":"Low Risk","violation_description":"Improper food labeling or menu misrepresentation","violation_id":"24936_20160609_103141"},
@@ -23,23 +22,70 @@ inspections_documents = [
 {"business_address":"2162 24th Ave","business_city":"San Francisco","business_id":"5794","business_latitude":"37.747228","business_location":{"lon": -122.481299,"lat": 37.747228},"business_longitude":"-122.481299","business_name":"Soup-or-Salad","business_phone_number":"+14155752700","business_postal_code":"94116","business_state":"CA","inspection_date":"2016-09-07T00:00:00.000","inspection_id":"5794_20160907","inspection_score":96,"inspection_type":"Routine - Unscheduled","risk_category":"Low Risk","violation_description":"Unapproved or unmaintained equipment or utensils","violation_id":"5794_20160907_103144"}
 ]
 
-def test_connection():
-    client = wr.opensearch.connect(host=OPENSEARCH_DOMAIN)
+
+@pytest.fixture(scope="session")
+def cloudformation_outputs():
+    return extract_cloudformation_outputs()
+
+
+@pytest.fixture(scope="session")
+def opensearch_password():
+    return boto3.client("secretsmanager").get_secret_value(SecretId="aws-data-wrangler/opensearch_password")["SecretString"]
+
+
+@pytest.fixture(scope="session")
+def domain_endpoint_opensearch_1_0(cloudformation_outputs):
+    return cloudformation_outputs["DomainEndpointwrangleros10"]
+
+
+@pytest.fixture(scope="session")
+def domain_endpoint_elasticsearch_7_10_fgac(cloudformation_outputs):
+    return cloudformation_outputs["DomainEndpointwrangleres710fgac"]
+
+
+def test_connection_opensearch_1_0(domain_endpoint_opensearch_1_0):
+    client = wr.opensearch.connect(host=domain_endpoint_opensearch_1_0)
     print(client.info())
+    assert len(client.info()) > 0
 
 
-# def test_fgac_connection():
-#     client = wr.opensearch.connect(host=OPENSEARCH_DOMAIN_FGAC,
-#                                    fgac_user='admin',
-#                                    fgac_password='SECRET')
-#     print(client.info())
+def test_connection_elasticsearch_7_10_fgac(domain_endpoint_elasticsearch_7_10_fgac, opensearch_password):
+    client = wr.opensearch.connect(
+        host=domain_endpoint_elasticsearch_7_10_fgac,
+        fgac_user='test',
+        fgac_password=opensearch_password
+    )
+    print(client.info())
+    assert len(client.info()) > 0
 
 
-def test_create_index():
-    client = wr.opensearch.connect(host=OPENSEARCH_DOMAIN)
+@pytest.fixture(scope="session")
+def opensearch_1_0_client(domain_endpoint_opensearch_1_0):
+    client = wr.opensearch.connect(host=domain_endpoint_opensearch_1_0)
+    return client
+
+
+@pytest.fixture(scope="session")
+def elasticsearch_7_10_fgac_client(domain_endpoint_elasticsearch_7_10_fgac, opensearch_password):
+    client = wr.opensearch.connect(
+        host=domain_endpoint_elasticsearch_7_10_fgac,
+        fgac_user='test',
+        fgac_password=opensearch_password
+    )
+    return client
+
+# testing multiple versions
+@pytest.fixture(params=['opensearch_1_0_client', 'elasticsearch_7_10_fgac_client'])
+def client(request):
+    return request.getfixturevalue(request.param)
+
+
+def test_create_index(client):
+    index = 'test_create_index'
+    wr.opensearch.delete_index(client, index)
     response = wr.opensearch.create_index(
-        client,
-        index='test-index1',
+        client=client,
+        index=index,
         mappings={
             'properties': {
                 'name': {'type': 'text'},
@@ -53,12 +99,11 @@ def test_create_index():
             }
         }
     )
-    print(response)
+    assert response.get('acknowledged', False) is True
 
 
-def test_delete_index():
+def test_delete_index(client):
     index = 'test_delete_index'
-    client = wr.opensearch.connect(host=OPENSEARCH_DOMAIN)
     wr.opensearch.create_index(
         client,
         index=index
@@ -68,10 +113,10 @@ def test_delete_index():
         index=index
     )
     print(response)
+    assert response.get('acknowledged', False) is True
 
 
-def test_index_df():
-    client = wr.opensearch.connect(host=OPENSEARCH_DOMAIN)
+def test_index_df(client):
     response = wr.opensearch.index_df(client,
                                       df=pd.DataFrame([{'_id': '1', 'name': 'John'},
                                                        {'_id': '2', 'name': 'George'},
@@ -82,8 +127,7 @@ def test_index_df():
     print(response)
 
 
-def test_index_documents():
-    client = wr.opensearch.connect(host=OPENSEARCH_DOMAIN)
+def test_index_documents(client):
     response = wr.opensearch.index_documents(client,
                                       documents=[{'_id': '1', 'name': 'John'},
                                                  {'_id': '2', 'name': 'George'},
@@ -94,8 +138,7 @@ def test_index_documents():
     print(response)
 
 
-def test_index_documents_id_keys():
-    client = wr.opensearch.connect(host=OPENSEARCH_DOMAIN)
+def test_index_documents_id_keys(client):
     response = wr.opensearch.index_documents(client,
                                              documents=inspections_documents,
                                              index='test_index_documents_id_keys',
@@ -104,8 +147,7 @@ def test_index_documents_id_keys():
     print(response)
 
 
-def test_index_documents_no_id_keys():
-    client = wr.opensearch.connect(host=OPENSEARCH_DOMAIN)
+def test_index_documents_no_id_keys(client):
     response = wr.opensearch.index_documents(client,
                                              documents=inspections_documents,
                                              index='test_index_documents_no_id_keys'
@@ -113,9 +155,8 @@ def test_index_documents_no_id_keys():
     print(response)
 
 
-def test_search():
+def test_search(client):
     index = 'test_search'
-    client = wr.opensearch.connect(host=OPENSEARCH_DOMAIN)
     response = wr.opensearch.index_documents(client,
                                              documents=inspections_documents,
                                              index=index,
@@ -139,9 +180,8 @@ def test_search():
     print(df.to_string())
 
 
-def test_search_filter_path():
+def test_search_filter_path(client):
     index = 'test_search'
-    client = wr.opensearch.connect(host=OPENSEARCH_DOMAIN)
     response = wr.opensearch.index_documents(client,
                                              documents=inspections_documents,
                                              index=index,
@@ -166,9 +206,8 @@ def test_search_filter_path():
     print(df.to_string())
 
 
-def test_search_scroll():
+def test_search_scroll(client):
     index = 'test_search_scroll'
-    client = wr.opensearch.connect(host=OPENSEARCH_DOMAIN)
     response = wr.opensearch.index_documents(client,
                                              documents=inspections_documents,
                                              index=index,
@@ -186,9 +225,8 @@ def test_search_scroll():
     print(df.to_string())
 
 
-def test_search_sql():
+def test_search_sql(client):
     index = 'test_search_sql'
-    client = wr.opensearch.connect(host=OPENSEARCH_DOMAIN)
     response = wr.opensearch.index_documents(client,
                                              documents=inspections_documents,
                                              index=index,
@@ -204,9 +242,8 @@ def test_search_sql():
     print(df.to_string())
 
 
-def test_index_json_local():
-    file_path = '/tmp/inspections.json'
-    client = wr.opensearch.connect(host=OPENSEARCH_DOMAIN)
+def test_index_json_local(client):
+    file_path = f'{tempfile.gettempdir()}/inspections.json'
     with open(file_path, 'w') as filehandle:
         for doc in inspections_documents:
             filehandle.write('%s\n' % json.dumps(doc))
@@ -218,33 +255,48 @@ def test_index_json_local():
     print(response)
 
 
-def test_index_json_s3():
-    file_path = '/tmp/inspections.json'
-    s3_key = 'tmp/inspections.json'
-    client = wr.opensearch.connect(host=OPENSEARCH_DOMAIN)
+def test_index_json_s3(client, path):
+    file_path = f'{tempfile.gettempdir()}/inspections.json'
     with open(file_path, 'w') as filehandle:
         for doc in inspections_documents:
             filehandle.write('%s\n' % json.dumps(doc))
     s3 = boto3.client('s3')
-    s3.upload_file(file_path, BUCKET, s3_key)
+    path = f"{path}opensearch/inspections.json"
+    bucket, key = wr._utils.parse_path(path)
+    s3.upload_file(file_path, bucket, key)
     response = wr.opensearch.index_json(
         client,
         index='test_index_json_s3',
-        path=f's3://{BUCKET}/{s3_key}'
+        path=path
     )
     print(response)
 
 
-def test_index_csv_local():
-    file_path = '/tmp/inspections.csv'
+def test_index_csv_local(client):
+    file_path = f'{tempfile.gettempdir()}/inspections.csv'
     index = 'test_index_csv_local'
     df=pd.DataFrame(inspections_documents)
     df.to_csv(file_path, index=False)
-    client = wr.opensearch.connect(OPENSEARCH_DOMAIN)
-    wr.opensearch.delete_index(client, index)
     response = wr.opensearch.index_csv(
         client,
         path=file_path,
+        index=index
+    )
+    print(response)
+
+
+def test_index_csv_s3(client, path):
+    file_path = f'{tempfile.gettempdir()}/inspections.csv'
+    index = 'test_index_csv_s3'
+    df=pd.DataFrame(inspections_documents)
+    df.to_csv(file_path, index=False)
+    s3 = boto3.client('s3')
+    path = f"{path}opensearch/inspections.csv"
+    bucket, key = wr._utils.parse_path(path)
+    s3.upload_file(file_path, bucket, key)
+    response = wr.opensearch.index_csv(
+        client,
+        path=path,
         index=index
     )
     print(response)
