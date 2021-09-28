@@ -16,7 +16,7 @@ DatabasesStack(
 )
 
 OpenSearchStack(
-app,
+    app,
     "aws-data-wrangler-opensearch",
     base.get_vpc,
     base.get_bucket,

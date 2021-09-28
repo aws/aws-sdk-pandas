@@ -1,10 +1,12 @@
 """Amazon OpenSearch Read Module (PRIVATE)."""
 
 from typing import Any, Dict, Optional
+
+import pandas as pd
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import scan
+
 from awswrangler.opensearch._utils import _get_distribution
-import pandas as pd
 
 
 def _resolve_fields(row):
@@ -22,16 +24,16 @@ def _resolve_fields(row):
 def _hit_to_row(hit):
     row = {}
     for k in hit.keys():
-        if k == '_source':
-            solved_fields = _resolve_fields(hit['_source'])
+        if k == "_source":
+            solved_fields = _resolve_fields(hit["_source"])
             row.update(solved_fields)
-        elif k.startswith('_'):
+        elif k.startswith("_"):
             row[k] = hit[k]
     return row
 
 
 def _search_response_to_documents(response: dict):
-    return [_hit_to_row(hit) for hit in response['hits']['hits']]
+    return [_hit_to_row(hit) for hit in response["hits"]["hits"]]
 
 
 def _search_response_to_df(response: dict):
@@ -40,11 +42,11 @@ def _search_response_to_df(response: dict):
 
 def search(
     client: Elasticsearch,
-    index: Optional[str] = '_all',
+    index: Optional[str] = "_all",
     search_body: Optional[Dict[str, Any]] = None,
     doc_type: Optional[str] = None,
     is_scroll: Optional[bool] = False,
-    **kwargs
+    **kwargs,
 ) -> pd.DataFrame:
     """Returns results matching query DSL as pandas dataframe.
 
@@ -93,15 +95,10 @@ def search(
 
     """
     if doc_type:
-        kwargs['doc_type'] = doc_type
+        kwargs["doc_type"] = doc_type
 
     if is_scroll:
-        documents_generator = scan(
-            client,
-            index=index,
-            query=search_body,
-            **kwargs
-        )
+        documents_generator = scan(client, index=index, query=search_body, **kwargs)
         documents = map(lambda x: _hit_to_row(x), documents_generator)
         df = pd.DataFrame(documents)
     else:
@@ -110,11 +107,7 @@ def search(
     return df
 
 
-def search_by_sql(
-    client: Elasticsearch,
-    sql_query: str,
-    **kwargs
-) -> pd.DataFrame:
+def search_by_sql(client: Elasticsearch, sql_query: str, **kwargs) -> pd.DataFrame:
     """Returns results matching [SQL query](https://opensearch.org/docs/search-plugins/sql/index/) as pandas dataframe
 
     Parameters
@@ -147,27 +140,23 @@ def search_by_sql(
 
     # can be used if not passing format
     def _sql_response_to_docs(response: Dict[str, Any]):
-        header = list(map(lambda x: x['name'], response.get('schema', [])))
-        for datarow in response.get('datarows', []):
+        header = list(map(lambda x: x["name"], response.get("schema", [])))
+        for datarow in response.get("datarows", []):
             yield dict(zip(header, datarow))
 
-    if _get_distribution(client) == 'opensearch':
-        url = '/_plugins/_sql'
+    if _get_distribution(client) == "opensearch":
+        url = "/_plugins/_sql"
     else:
-        url = '/_opendistro/_sql'
+        url = "/_opendistro/_sql"
 
-    kwargs['format'] = 'json'
-    body = {'query': sql_query}
-    for size_att in ['size', 'fetch_size']:
+    kwargs["format"] = "json"
+    body = {"query": sql_query}
+    for size_att in ["size", "fetch_size"]:
         if size_att in kwargs:
-            body['fetch_size'] = kwargs[size_att]
+            body["fetch_size"] = kwargs[size_att]
             del kwargs[size_att]  # unrecognized parameter
     response = client.transport.perform_request(
-        "POST",
-        url,
-        headers={'Content-Type': 'application/json'},
-        body=body,
-        params=kwargs
+        "POST", url, headers={"Content-Type": "application/json"}, body=body, params=kwargs
     )
     df = _search_response_to_df(response)
     return df

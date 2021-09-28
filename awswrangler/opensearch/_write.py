@@ -1,19 +1,20 @@
 """Amazon OpenSearch Write Module (PRIVATE)."""
 
+import ast
+import json
 import logging
 import uuid
-import boto3
-import json
-import ast
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Union, Tuple, Iterable
-from awswrangler.opensearch._utils import _get_distribution, _get_version_major
-from awswrangler._utils import parse_path
-import pandas as pd
-from pandas import notna
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple, Union
 
+import boto3
+import pandas as pd
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk
+from pandas import notna
+
+from awswrangler._utils import parse_path
+from awswrangler.opensearch._utils import _get_distribution, _get_version_major
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -21,43 +22,42 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def _selected_keys(document: Dict, keys_to_write: Optional[List[str]]):
     if keys_to_write is None:
         keys_to_write = document.keys()
-    keys_to_write = filter(lambda x: x != '_id', keys_to_write)
-    return {key: document[key] for key in keys_to_write }
+    keys_to_write = filter(lambda x: x != "_id", keys_to_write)
+    return {key: document[key] for key in keys_to_write}
 
 
-def _actions_generator(documents: Union[Iterable[Dict[str, Any]], Iterable[Mapping[str, Any]]],
-                   index: str,
-                   doc_type: Optional[str],
-                   keys_to_write: Optional[List[str]],
-                   id_keys: Optional[List[str]]):
+def _actions_generator(
+    documents: Union[Iterable[Dict[str, Any]], Iterable[Mapping[str, Any]]],
+    index: str,
+    doc_type: Optional[str],
+    keys_to_write: Optional[List[str]],
+    id_keys: Optional[List[str]],
+):
     for document in documents:
         if id_keys:
-            _id = '-'.join(list(map(lambda x: str(document[x]), id_keys)))
+            _id = "-".join(list(map(lambda x: str(document[x]), id_keys)))
         else:
-            _id = document.get('_id', uuid.uuid4())
+            _id = document.get("_id", uuid.uuid4())
         yield {
-                "_index": index,
-                "_type": doc_type,
-                "_id" : _id,
-                "_source": _selected_keys(document, keys_to_write),
-            }
+            "_index": index,
+            "_type": doc_type,
+            "_id": _id,
+            "_source": _selected_keys(document, keys_to_write),
+        }
 
 
 def _df_doc_generator(df: pd.DataFrame):
     def _deserialize(v):
         if isinstance(v, str):
             v = v.strip()
-            if (v.startswith('{') and v.endswith('}')
-                    or
-                    v.startswith('[') and v.endswith(']')
-            ):
+            if v.startswith("{") and v.endswith("}") or v.startswith("[") and v.endswith("]"):
                 try:
                     v = json.loads(v)
                 except Exception as e:
                     try:
                         v = ast.literal_eval(v)  # if properties are enclosed with single quotes
                     except:
-                        _logger.warning(f'could not convert string to json: {v}')
+                        _logger.warning(f"could not convert string to json: {v}")
                         _logger.warning(e)
         return v
 
@@ -80,7 +80,7 @@ def create_index(
     index: str,
     doc_type: Optional[str] = None,
     settings: Optional[Dict[str, Any]] = None,
-    mappings: Optional[Dict[str, Any]] = None
+    mappings: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Creates an index.
 
@@ -131,31 +131,28 @@ def create_index(
 
     body = {}
     if mappings:
-        if _get_distribution(client) == 'opensearch' or _get_version_major(client) >= 7:
-            body['mappings'] = mappings  # doc type deprecated
+        if _get_distribution(client) == "opensearch" or _get_version_major(client) >= 7:
+            body["mappings"] = mappings  # doc type deprecated
         else:
             if doc_type:
-                body['mappings'] = {doc_type: mappings}
+                body["mappings"] = {doc_type: mappings}
             else:
-                body['mappings'] = {index: mappings}
+                body["mappings"] = {index: mappings}
     if settings:
-        body['settings'] = settings
+        body["settings"] = settings
     if body == {}:
         body = None
 
     # ignore 400 cause by IndexAlreadyExistsException when creating an index
     response = client.indices.create(index, body, ignore=400)
-    if 'error' in response:
+    if "error" in response:
         _logger.warning(response)
-        if str(response['error']).startswith(u'MapperParsingException'):
-            raise ValueError(response['error'])
+        if str(response["error"]).startswith("MapperParsingException"):
+            raise ValueError(response["error"])
     return response
 
 
-def delete_index(
-    client: Elasticsearch,
-    index: str
-) -> Dict[str, Any]:
+def delete_index(client: Elasticsearch, index: str) -> Dict[str, Any]:
     """Creates an index.
 
     Parameters
@@ -185,7 +182,7 @@ def delete_index(
 
     # ignore 400/404 IndexNotFoundError exception
     response = client.indices.delete(index, ignore=[400, 404])
-    if 'error' in response:
+    if "error" in response:
         _logger.warning(response)
     return response
 
@@ -196,7 +193,7 @@ def index_json(
     index: str,
     doc_type: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = boto3.Session(),
-    **kwargs
+    **kwargs,
 ) -> Dict[str, Any]:
     """Index all documents from JSON file to OpenSearch index.
 
@@ -241,20 +238,14 @@ def index_json(
 
     if path.startswith("s3://"):
         bucket, key = parse_path(path)
-        s3 = boto3_session.client('s3')
+        s3 = boto3_session.client("s3")
         obj = s3.get_object(Bucket=bucket, Key=key)
-        body = obj['Body'].read()
+        body = obj["Body"].read()
         lines = body.splitlines()
         documents = map(lambda x: json.loads(x), lines)
-    else: # local path
+    else:  # local path
         documents = _file_line_generator(path, is_json=True)
-    return index_documents(
-        client=client,
-        documents=documents,
-        index=index,
-        doc_type=doc_type,
-        **kwargs
-    )
+    return index_documents(client=client, documents=documents, index=index, doc_type=doc_type, **kwargs)
 
 
 def index_csv(
@@ -263,7 +254,7 @@ def index_csv(
     index: str,
     doc_type: Optional[str] = None,
     pandas_kwargs: Optional[Dict[str, Any]] = {},
-    **kwargs
+    **kwargs,
 ) -> Dict[str, Any]:
     """Index all documents from a CSV file to OpenSearch index.
 
@@ -316,27 +307,17 @@ def index_csv(
     ... )
     """
     enforced_pandas_params = {
-        'skip_blank_lines': True,
+        "skip_blank_lines": True,
         # 'na_filter': True  # will generate Nan value for empty cells. We remove Nan keys in _df_doc_generator
         # Note: if the user will pass na_filter=False null fields will be indexed as well ({"k1": null, "k2": null})
     }
     pandas_kwargs.update(enforced_pandas_params)
     df = pd.read_csv(path, **pandas_kwargs)
-    return index_df(
-        client,
-        df=df,
-        index=index,
-        doc_type=doc_type,
-        **kwargs
-    )
+    return index_df(client, df=df, index=index, doc_type=doc_type, **kwargs)
 
 
 def index_df(
-    client: Elasticsearch,
-    df: pd.DataFrame,
-    index: str,
-    doc_type: Optional[str] = None,
-    **kwargs
+    client: Elasticsearch, df: pd.DataFrame, index: str, doc_type: Optional[str] = None, **kwargs
 ) -> Dict[str, Any]:
     """Index all documents from a DataFrame to OpenSearch index.
 
@@ -374,13 +355,7 @@ def index_df(
     ... )
     """
 
-    return index_documents(
-        client=client,
-        documents=_df_doc_generator(df),
-        index=index,
-        doc_type=doc_type,
-        **kwargs
-    )
+    return index_documents(client=client, documents=_df_doc_generator(df), index=index, doc_type=doc_type, **kwargs)
 
 
 def index_documents(
@@ -396,8 +371,7 @@ def index_documents(
     max_retries: Optional[int] = 0,
     initial_backoff: Optional[int] = 2,
     max_backoff: Optional[int] = 600,
-    **kwargs
-
+    **kwargs,
 ) -> Dict[str, Any]:
     """Index all documents to OpenSearch index.
 
@@ -467,9 +441,6 @@ def index_documents(
         max_retries=max_retries,
         initial_backoff=initial_backoff,
         max_backoff=max_backoff,
-        **kwargs
+        **kwargs,
     )
-    return {
-        'success': success,
-        'errors': errors
-    }
+    return {"success": success, "errors": errors}

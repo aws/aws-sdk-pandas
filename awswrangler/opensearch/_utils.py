@@ -1,29 +1,27 @@
 """Amazon OpenSearch Utils Module (PRIVATE)."""
 
+import logging
 from typing import Optional
 
 import boto3
-import logging
-
 from elasticsearch import Elasticsearch, RequestsHttpConnection
 from requests_aws4auth import AWS4Auth
-
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _get_distribution(client: Elasticsearch):
-    return client.info().get('version', {}).get('distribution', 'elasticsearch')
+def _get_distribution(client: Elasticsearch) -> str:
+    return client.info().get("version", {}).get("distribution", "elasticsearch")
 
 
 def _get_version(client: Elasticsearch):
-    return client.info().get('version', {}).get('number')
+    return client.info().get("version", {}).get("number")
 
 
 def _get_version_major(client: Elasticsearch):
     version = _get_version(client)
     if version:
-        return int(version.split('.')[0])
+        return int(version.split(".")[0])
     return None
 
 
@@ -33,8 +31,7 @@ def connect(
     boto3_session: Optional[boto3.Session] = boto3.Session(),
     region: Optional[str] = None,
     fgac_user: Optional[str] = None,
-    fgac_password: Optional[str] = None
-
+    fgac_password: Optional[str] = None,
 ) -> Elasticsearch:
     """Creates a secure connection to the specified Amazon OpenSearch domain.
 
@@ -84,13 +81,7 @@ def connect(
         if region is None:
             region = boto3_session.region_name
         creds = boto3_session.get_credentials()
-        http_auth = AWS4Auth(
-            creds.access_key,
-            creds.secret_key,
-            region,
-            'es',
-            creds.token
-        )
+        http_auth = AWS4Auth(creds.access_key, creds.secret_key, region, "es", creds.token)
     try:
         es = Elasticsearch(
             host=host,
@@ -98,7 +89,7 @@ def connect(
             http_auth=http_auth,
             use_ssl=True,
             verify_certs=True,
-            connection_class=RequestsHttpConnection
+            connection_class=RequestsHttpConnection,
         )
     except Exception as e:
         _logger.error("Error connecting to Opensearch cluster. Please verify authentication details")
