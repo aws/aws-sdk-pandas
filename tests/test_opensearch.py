@@ -178,6 +178,7 @@ def test_search(client):
 
     print('')
     print(df.to_string())
+    assert df.shape[0] == 3
 
 
 def test_search_filter_path(client):
@@ -204,6 +205,7 @@ def test_search_filter_path(client):
 
     print('')
     print(df.to_string())
+    assert df.shape[0] == 3
 
 
 def test_search_scroll(client):
@@ -223,6 +225,7 @@ def test_search_scroll(client):
 
     print('')
     print(df.to_string())
+    assert df.shape[0] == 5
 
 
 def test_search_sql(client):
@@ -240,6 +243,7 @@ def test_search_sql(client):
 
     print('')
     print(df.to_string())
+    assert df.shape[0] == 5
 
 
 def test_index_json_local(client):
@@ -253,6 +257,7 @@ def test_index_json_local(client):
         path=file_path
     )
     print(response)
+    assert response.get('success', 0) == 6
 
 
 def test_index_json_s3(client, path):
@@ -270,6 +275,7 @@ def test_index_json_s3(client, path):
         path=path
     )
     print(response)
+    assert response.get('success', 0) == 6
 
 
 def test_index_csv_local(client):
@@ -283,6 +289,7 @@ def test_index_csv_local(client):
         index=index
     )
     print(response)
+    assert response.get('success', 0) == 6
 
 
 def test_index_csv_s3(client, path):
@@ -300,3 +307,4 @@ def test_index_csv_s3(client, path):
         index=index
     )
     print(response)
+    assert response.get('success', 0) == 6

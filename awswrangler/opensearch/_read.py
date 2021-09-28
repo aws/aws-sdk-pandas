@@ -1,11 +1,41 @@
 """Amazon OpenSearch Read Module (PRIVATE)."""
 
-from pandasticsearch import Select, DataFrame
 from typing import Any, Dict, Optional
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import scan
 from awswrangler.opensearch._utils import _get_distribution
 import pandas as pd
+
+
+def _resolve_fields(row):
+    fields = {}
+    for field in row:
+        if isinstance(row[field], dict):
+            nested_fields = _resolve_fields(row[field])
+            for n_field, val in nested_fields.items():
+                fields["{}.{}".format(field, n_field)] = val
+        else:
+            fields[field] = row[field]
+    return fields
+
+
+def _hit_to_row(hit):
+    row = {}
+    for k in hit.keys():
+        if k == '_source':
+            solved_fields = _resolve_fields(hit['_source'])
+            row.update(solved_fields)
+        elif k.startswith('_'):
+            row[k] = hit[k]
+    return row
+
+
+def _search_response_to_documents(response: dict):
+    return [_hit_to_row(hit) for hit in response['hits']['hits']]
+
+
+def _search_response_to_df(response: dict):
+    return pd.DataFrame(_search_response_to_documents(response))
 
 
 def search(
@@ -15,7 +45,7 @@ def search(
     doc_type: Optional[str] = None,
     is_scroll: Optional[bool] = False,
     **kwargs
-) -> DataFrame:
+) -> pd.DataFrame:
     """Returns results matching query DSL as pandas dataframe.
 
     Parameters
@@ -65,10 +95,6 @@ def search(
     if doc_type:
         kwargs['doc_type'] = doc_type
 
-    # pandasticsearch.Select.from_dict requires `took` field
-    if 'filter_path' in kwargs:
-        if 'took' not in kwargs['filter_path']:
-            kwargs['filter_path'].append('took')
     if is_scroll:
         documents_generator = scan(
             client,
@@ -76,12 +102,11 @@ def search(
             query=search_body,
             **kwargs
         )
-        s = Select()
-        documents = map(lambda x: s.hit_to_row(x), documents_generator)
+        documents = map(lambda x: _hit_to_row(x), documents_generator)
         df = pd.DataFrame(documents)
     else:
-        documents = client.search(index=index, body=search_body, **kwargs)
-        df = Select.from_dict(documents).to_pandas()
+        response = client.search(index=index, body=search_body, **kwargs)
+        df = _search_response_to_df(response)
     return df
 
 
@@ -89,7 +114,7 @@ def search_by_sql(
     client: Elasticsearch,
     sql_query: str,
     **kwargs
-) -> DataFrame:
+) -> pd.DataFrame:
     """Returns results matching [SQL query](https://opensearch.org/docs/search-plugins/sql/index/) as pandas dataframe
 
     Parameters
@@ -144,6 +169,5 @@ def search_by_sql(
         body=body,
         params=kwargs
     )
-
-    df = Select.from_dict(response).to_pandas()
+    df = _search_response_to_df(response)
     return df
