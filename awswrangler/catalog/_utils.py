@@ -40,6 +40,7 @@ def does_table_exist(
     database: str, table: str, boto3_session: Optional[boto3.Session] = None, catalog_id: Optional[str] = None
 ) -> bool:
     """Check if the table exists.
+
     Parameters
     ----------
     database : str
@@ -51,10 +52,12 @@ def does_table_exist(
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
+
     Returns
     -------
     bool
         True if exists, otherwise False.
+
     Examples
     --------
     >>> import awswrangler as wr
