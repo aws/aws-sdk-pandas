@@ -63,8 +63,6 @@ def _df_doc_generator(df: pd.DataFrame):
 
     df_iter = df.iterrows()
     for i, document in df_iter:
-        # print(document)
-        # yield document
         yield {k: _deserialize(v) for k, v in document.items() if notna(v)}
 
 
@@ -281,8 +279,9 @@ def index_csv(
         Name of the document type (only for Elasticsearch versions 5.x and older).
     pandas_kwargs :
         Dictionary of arguments forwarded to pandas.read_csv().
-        e.g. pandas_kwargs={'sep': '|', 'na_values': ['null', 'none'], 'skip_blank_lines': True}
+        e.g. pandas_kwargs={'sep': '|', 'na_values': ['null', 'none']}
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
+        Note: these params values are enforced: `skip_blank_lines=True`
     **kwargs :
         KEYWORD arguments forwarded to :func:`~awswrangler.opensearch.index_documents`
         which is used to execute the operation
@@ -313,14 +312,15 @@ def index_csv(
     ...     client=client,
     ...     path='docs.csv',
     ...     index='sample-index1',
-    ...     pandas_kwargs={'sep': '|', 'na_values': ['null', 'none'], 'skip_blank_lines': True}
+    ...     pandas_kwargs={'sep': '|', 'na_values': ['null', 'none']}
     ... )
     """
-    custom_pandas_params = {
+    enforced_pandas_params = {
         'skip_blank_lines': True,
-        'na_filter': True # will generate Nan value for empty cells. We remove Nan keys in _df_doc_generator
+        # 'na_filter': True  # will generate Nan value for empty cells. We remove Nan keys in _df_doc_generator
+        # Note: if the user will pass na_filter=False null fields will be indexed as well ({"k1": null, "k2": null})
     }
-    pandas_kwargs.update(custom_pandas_params)
+    pandas_kwargs.update(enforced_pandas_params)
     df = pd.read_csv(path, **pandas_kwargs)
     return index_df(
         client,
