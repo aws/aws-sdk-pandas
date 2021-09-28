@@ -1,7 +1,7 @@
 """Amazon OpenSearch Utils Module (PRIVATE)."""
 
 import logging
-from typing import Optional, Any
+from typing import Any, Optional
 
 import boto3
 from elasticsearch import Elasticsearch, RequestsHttpConnection

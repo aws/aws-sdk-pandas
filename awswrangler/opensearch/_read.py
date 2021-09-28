@@ -1,6 +1,6 @@
 """Amazon OpenSearch Read Module (PRIVATE)."""
 
-from typing import Any, Dict, Optional, Mapping, List, Union
+from typing import Any, Dict, List, Mapping, Optional, Union
 
 import pandas as pd
 from elasticsearch import Elasticsearch

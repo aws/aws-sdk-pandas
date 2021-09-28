@@ -5,7 +5,7 @@ import json
 import logging
 import uuid
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple, Union, Generator
+from typing import Any, Dict, Generator, Iterable, List, Mapping, Optional, Tuple, Union
 
 import boto3
 import pandas as pd
