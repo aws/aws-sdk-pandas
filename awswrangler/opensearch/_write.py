@@ -411,7 +411,7 @@ def index_documents(
     ----------
     client : Elasticsearch
         instance of elasticsearch.Elasticsearch to use.
-    documents : Union[Iterable[Dict[str, Any]], Iterable[Mapping[str, Any]]]
+    documents : Iterable[Mapping[str, Any]]
         List which contains the documents that will be inserted.
     index : str
         Name of the index.
