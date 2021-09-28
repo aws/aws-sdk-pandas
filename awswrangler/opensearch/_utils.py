@@ -5,7 +5,6 @@ from typing import Optional
 import boto3
 import logging
 
-from awswrangler import _utils, exceptions
 from elasticsearch import Elasticsearch, RequestsHttpConnection
 from requests_aws4auth import AWS4Auth
 
@@ -77,7 +76,7 @@ def connect(
     valid_ports = {80, 443}
 
     if port not in valid_ports:
-        raise ValueError("results: status must be one of %r." % valid_ports)
+        raise ValueError("results: port must be one of %r." % valid_ports)
 
     if fgac_user and fgac_password:
         http_auth = (fgac_user, fgac_password)
