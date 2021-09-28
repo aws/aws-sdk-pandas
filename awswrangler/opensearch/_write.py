@@ -144,7 +144,9 @@ def create_index(
         body['settings'] = settings
     if body == {}:
         body = None
-    response = client.indices.create(index, body, ignore=[400, 404])
+
+    # ignore 400 cause by IndexAlreadyExistsException when creating an index
+    response = client.indices.create(index, body, ignore=400)
     if 'error' in response:
         _logger.warning(response)
         if str(response['error']).startswith(u'MapperParsingException'):
@@ -182,6 +184,8 @@ def delete_index(
     ... )
 
     """
+
+    # ignore 400/404 IndexNotFoundError exception
     response = client.indices.delete(index, ignore=[400, 404])
     if 'error' in response:
         _logger.warning(response)
@@ -381,7 +385,7 @@ def index_df(
 
 def index_documents(
     client: Elasticsearch,
-    documents: Union[Iterable[Dict[str, Any]], Iterable[Mapping[str, Any]]],
+    documents: Iterable[Mapping[str, Any]],
     index: str,
     doc_type: Optional[str] = None,
     keys_to_write: Optional[List[str]] = None,
