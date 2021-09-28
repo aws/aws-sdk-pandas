@@ -1,6 +1,6 @@
 """Amazon OpenSearch Read Module (PRIVATE)."""
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Mapping, List, Union
 
 import pandas as pd
 from elasticsearch import Elasticsearch
@@ -9,7 +9,7 @@ from elasticsearch.helpers import scan
 from awswrangler.opensearch._utils import _get_distribution
 
 
-def _resolve_fields(row):
+def _resolve_fields(row: Mapping[str, Any]) -> Mapping[str, Any]:
     fields = {}
     for field in row:
         if isinstance(row[field], dict):
@@ -21,8 +21,8 @@ def _resolve_fields(row):
     return fields
 
 
-def _hit_to_row(hit):
-    row = {}
+def _hit_to_row(hit: Mapping[str, Any]) -> Mapping[str, Any]:
+    row: Dict[str, Any] = {}
     for k in hit.keys():
         if k == "_source":
             solved_fields = _resolve_fields(hit["_source"])
@@ -32,11 +32,11 @@ def _hit_to_row(hit):
     return row
 
 
-def _search_response_to_documents(response: dict):
+def _search_response_to_documents(response: Mapping[str, Any]) -> List[Mapping[str, Any]]:
     return [_hit_to_row(hit) for hit in response["hits"]["hits"]]
 
 
-def _search_response_to_df(response: dict):
+def _search_response_to_df(response: Union[Mapping[str, Any], Any]) -> pd.DataFrame:
     return pd.DataFrame(_search_response_to_documents(response))
 
 
@@ -46,7 +46,7 @@ def search(
     search_body: Optional[Dict[str, Any]] = None,
     doc_type: Optional[str] = None,
     is_scroll: Optional[bool] = False,
-    **kwargs,
+    **kwargs: Any,
 ) -> pd.DataFrame:
     """Returns results matching query DSL as pandas dataframe.
 
@@ -107,7 +107,7 @@ def search(
     return df
 
 
-def search_by_sql(client: Elasticsearch, sql_query: str, **kwargs) -> pd.DataFrame:
+def search_by_sql(client: Elasticsearch, sql_query: str, **kwargs: Any) -> pd.DataFrame:
     """Returns results matching [SQL query](https://opensearch.org/docs/search-plugins/sql/index/) as pandas dataframe
 
     Parameters
@@ -137,12 +137,6 @@ def search_by_sql(client: Elasticsearch, sql_query: str, **kwargs) -> pd.DataFra
 
 
     """
-
-    # can be used if not passing format
-    def _sql_response_to_docs(response: Dict[str, Any]):
-        header = list(map(lambda x: x["name"], response.get("schema", [])))
-        for datarow in response.get("datarows", []):
-            yield dict(zip(header, datarow))
 
     if _get_distribution(client) == "opensearch":
         url = "/_plugins/_sql"

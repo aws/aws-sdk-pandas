@@ -5,7 +5,7 @@ import json
 import logging
 import uuid
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple, Union, Generator
 
 import boto3
 import pandas as pd
@@ -19,10 +19,10 @@ from awswrangler.opensearch._utils import _get_distribution, _get_version_major
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _selected_keys(document: Dict, keys_to_write: Optional[List[str]]):
+def _selected_keys(document: Mapping[str, Any], keys_to_write: Optional[List[str]]) -> Mapping[str, Any]:
     if keys_to_write is None:
-        keys_to_write = document.keys()
-    keys_to_write = filter(lambda x: x != "_id", keys_to_write)
+        keys_to_write = list(document.keys())
+    keys_to_write = list(filter(lambda x: x != "_id", keys_to_write))
     return {key: document[key] for key in keys_to_write}
 
 
@@ -32,7 +32,7 @@ def _actions_generator(
     doc_type: Optional[str],
     keys_to_write: Optional[List[str]],
     id_keys: Optional[List[str]],
-):
+) -> Generator[Dict[str, Any], None, None]:
     for document in documents:
         if id_keys:
             _id = "-".join(list(map(lambda x: str(document[x]), id_keys)))
@@ -46,8 +46,8 @@ def _actions_generator(
         }
 
 
-def _df_doc_generator(df: pd.DataFrame):
-    def _deserialize(v):
+def _df_doc_generator(df: pd.DataFrame) -> Generator[Dict[str, Any], None, None]:
+    def _deserialize(v: Any) -> Any:
         if isinstance(v, str):
             v = v.strip()
             if v.startswith("{") and v.endswith("}") or v.startswith("[") and v.endswith("]"):
@@ -66,7 +66,7 @@ def _df_doc_generator(df: pd.DataFrame):
         yield {k: _deserialize(v) for k, v in document.items() if notna(v)}
 
 
-def _file_line_generator(path: str, is_json: bool = False):
+def _file_line_generator(path: str, is_json: bool = False) -> Generator[Any, None, None]:
     with open(path) as fp:
         for line in fp:
             if is_json:
@@ -141,10 +141,10 @@ def create_index(
     if settings:
         body["settings"] = settings
     if body == {}:
-        body = None
+        body = None  # type: ignore
 
     # ignore 400 cause by IndexAlreadyExistsException when creating an index
-    response = client.indices.create(index, body, ignore=400)
+    response: Dict[str, Any] = client.indices.create(index, body=body, ignore=400)
     if "error" in response:
         _logger.warning(response)
         if str(response["error"]).startswith("MapperParsingException"):
@@ -181,7 +181,7 @@ def delete_index(client: Elasticsearch, index: str) -> Dict[str, Any]:
     """
 
     # ignore 400/404 IndexNotFoundError exception
-    response = client.indices.delete(index, ignore=[400, 404])
+    response: Dict[str, Any] = client.indices.delete(index, ignore=[400, 404])
     if "error" in response:
         _logger.warning(response)
     return response
@@ -189,11 +189,11 @@ def delete_index(client: Elasticsearch, index: str) -> Dict[str, Any]:
 
 def index_json(
     client: Elasticsearch,
-    path: Union[str, Path],
+    path: str,
     index: str,
     doc_type: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = boto3.Session(),
-    **kwargs,
+    **kwargs: Any,
 ) -> Dict[str, Any]:
     """Index all documents from JSON file to OpenSearch index.
 
@@ -203,7 +203,7 @@ def index_json(
     ----------
     client : Elasticsearch
         instance of elasticsearch.Elasticsearch to use.
-    path : Union[str, Path]
+    path : str
         s3 or local path to the JSON file which contains the documents.
     index : str
         Name of the index.
@@ -236,25 +236,28 @@ def index_json(
     """
     # Loading data from file
 
+    if boto3_session is None:
+        raise ValueError('boto3_session cannot be None')
+
     if path.startswith("s3://"):
         bucket, key = parse_path(path)
         s3 = boto3_session.client("s3")
         obj = s3.get_object(Bucket=bucket, Key=key)
         body = obj["Body"].read()
         lines = body.splitlines()
-        documents = map(lambda x: json.loads(x), lines)
+        documents = list(map(lambda x: json.loads(x), lines))  # type: ignore
     else:  # local path
-        documents = _file_line_generator(path, is_json=True)
+        documents = list(_file_line_generator(path, is_json=True))
     return index_documents(client=client, documents=documents, index=index, doc_type=doc_type, **kwargs)
 
 
 def index_csv(
     client: Elasticsearch,
-    path: Union[str, Path],
+    path: str,
     index: str,
     doc_type: Optional[str] = None,
-    pandas_kwargs: Optional[Dict[str, Any]] = {},
-    **kwargs,
+    pandas_kwargs: Dict[str, Any] = {},
+    **kwargs: Any,
 ) -> Dict[str, Any]:
     """Index all documents from a CSV file to OpenSearch index.
 
@@ -262,13 +265,13 @@ def index_csv(
     ----------
     client : Elasticsearch
         instance of elasticsearch.Elasticsearch to use.
-    path : Union[str, Path]
+    path : str
         s3 or local path to the CSV file which contains the documents.
     index : str
         Name of the index.
     doc_type : str, optional
         Name of the document type (only for Elasticsearch versions 5.x and older).
-    pandas_kwargs :
+    pandas_kwargs : Dict[str, Any], optional
         Dictionary of arguments forwarded to pandas.read_csv().
         e.g. pandas_kwargs={'sep': '|', 'na_values': ['null', 'none']}
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
@@ -317,7 +320,7 @@ def index_csv(
 
 
 def index_df(
-    client: Elasticsearch, df: pd.DataFrame, index: str, doc_type: Optional[str] = None, **kwargs
+    client: Elasticsearch, df: pd.DataFrame, index: str, doc_type: Optional[str] = None, **kwargs: Any
 ) -> Dict[str, Any]:
     """Index all documents from a DataFrame to OpenSearch index.
 
@@ -371,7 +374,7 @@ def index_documents(
     max_retries: Optional[int] = 0,
     initial_backoff: Optional[int] = 2,
     max_backoff: Optional[int] = 600,
-    **kwargs,
+    **kwargs: Any,
 ) -> Dict[str, Any]:
     """Index all documents to OpenSearch index.
 

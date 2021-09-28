@@ -1,7 +1,7 @@
 """Amazon OpenSearch Utils Module (PRIVATE)."""
 
 import logging
-from typing import Optional
+from typing import Optional, Any
 
 import boto3
 from elasticsearch import Elasticsearch, RequestsHttpConnection
@@ -10,15 +10,15 @@ from requests_aws4auth import AWS4Auth
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _get_distribution(client: Elasticsearch) -> str:
+def _get_distribution(client: Elasticsearch) -> Any:
     return client.info().get("version", {}).get("distribution", "elasticsearch")
 
 
-def _get_version(client: Elasticsearch):
+def _get_version(client: Elasticsearch) -> Any:
     return client.info().get("version", {}).get("number")
 
 
-def _get_version_major(client: Elasticsearch):
+def _get_version_major(client: Elasticsearch) -> Any:
     version = _get_version(client)
     if version:
         return int(version.split(".")[0])
@@ -78,10 +78,13 @@ def connect(
     if fgac_user and fgac_password:
         http_auth = (fgac_user, fgac_password)
     else:
-        if region is None:
-            region = boto3_session.region_name
-        creds = boto3_session.get_credentials()
-        http_auth = AWS4Auth(creds.access_key, creds.secret_key, region, "es", creds.token)
+        if boto3_session is None:
+            raise ValueError('Please provide either boto3_session or fgac_user+fgac_password')
+        else:
+            if region is None:
+                region = boto3_session.region_name
+            creds = boto3_session.get_credentials()
+            http_auth = AWS4Auth(creds.access_key, creds.secret_key, region, "es", creds.token)
     try:
         es = Elasticsearch(
             host=host,

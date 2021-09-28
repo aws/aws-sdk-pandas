@@ -60,9 +60,7 @@ class OpenSearchStack(cdk.Stack):  # type: ignore
             domain_name,
             domain_name=domain_name,
             version=opensearch.EngineVersion.OPENSEARCH_1_0,
-            capacity=opensearch.CapacityConfig(
-                data_node_instance_type="t3.small.search", data_nodes=1
-            ),
+            capacity=opensearch.CapacityConfig(data_node_instance_type="t3.small.search", data_nodes=1),
             access_policies=[
                 iam.PolicyStatement(
                     effect=iam.Effect.ALLOW,
@@ -74,9 +72,7 @@ class OpenSearchStack(cdk.Stack):  # type: ignore
             removal_policy=cdk.RemovalPolicy.DESTROY,
         )
 
-        cdk.CfnOutput(
-            self, f"DomainEndpoint-{domain_name}", value=domain.domain_endpoint
-        )
+        cdk.CfnOutput(self, f"DomainEndpoint-{domain_name}", value=domain.domain_endpoint)
 
     def _setup_elasticsearch_7_10_fgac(self) -> None:
         domain_name = "wrangler-es-7-10-fgac"
@@ -87,9 +83,7 @@ class OpenSearchStack(cdk.Stack):  # type: ignore
             domain_name,
             domain_name=domain_name,
             version=opensearch.EngineVersion.ELASTICSEARCH_7_10,
-            capacity=opensearch.CapacityConfig(
-                data_node_instance_type="t3.small.search", data_nodes=1
-            ),
+            capacity=opensearch.CapacityConfig(data_node_instance_type="t3.small.search", data_nodes=1),
             access_policies=[
                 iam.PolicyStatement(
                     effect=iam.Effect.ALLOW,
@@ -103,13 +97,9 @@ class OpenSearchStack(cdk.Stack):  # type: ignore
                 master_user_password=self.password_secret,
             ),
             node_to_node_encryption=True,
-            encryption_at_rest=opensearch.EncryptionAtRestOptions(
-                enabled=True, kms_key=self.key
-            ),
+            encryption_at_rest=opensearch.EncryptionAtRestOptions(enabled=True, kms_key=self.key),
             enforce_https=True,
             removal_policy=cdk.RemovalPolicy.DESTROY,
         )
 
-        cdk.CfnOutput(
-            self, f"DomainEndpoint-{domain_name}", value=domain.domain_endpoint
-        )
+        cdk.CfnOutput(self, f"DomainEndpoint-{domain_name}", value=domain.domain_endpoint)
