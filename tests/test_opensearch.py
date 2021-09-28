@@ -231,7 +231,7 @@ def test_index_documents_no_id_keys(client):
 
 def test_search(client):
     index = "test_search"
-    response = wr.opensearch.index_documents(
+    wr.opensearch.index_documents(
         client, documents=inspections_documents, index=index, id_keys=["inspection_id"], refresh="wait_for"
     )
     df = wr.opensearch.search(
@@ -248,7 +248,7 @@ def test_search(client):
 
 def test_search_filter_path(client):
     index = "test_search"
-    response = wr.opensearch.index_documents(
+    wr.opensearch.index_documents(
         client, documents=inspections_documents, index=index, id_keys=["inspection_id"], refresh="wait_for"
     )
     df = wr.opensearch.search(
@@ -266,7 +266,7 @@ def test_search_filter_path(client):
 
 def test_search_scroll(client):
     index = "test_search_scroll"
-    response = wr.opensearch.index_documents(
+    wr.opensearch.index_documents(
         client, documents=inspections_documents, index=index, id_keys=["inspection_id"], refresh="wait_for"
     )
     df = wr.opensearch.search(
@@ -280,7 +280,7 @@ def test_search_scroll(client):
 
 def test_search_sql(client):
     index = "test_search_sql"
-    response = wr.opensearch.index_documents(
+    wr.opensearch.index_documents(
         client, documents=inspections_documents, index=index, id_keys=["inspection_id"], refresh="wait_for"
     )
     df = wr.opensearch.search_by_sql(client, sql_query=f"select * from {index}")

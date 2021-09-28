@@ -33,7 +33,7 @@ def connect(
     fgac_user: Optional[str] = None,
     fgac_password: Optional[str] = None,
 ) -> Elasticsearch:
-    """Creates a secure connection to the specified Amazon OpenSearch domain.
+    """Create a secure connection to the specified Amazon OpenSearch domain.
 
     Note
     ----
@@ -45,7 +45,8 @@ def connect(
     https://aws.amazon.com/blogs/opensource/keeping-clients-of-opensearch-and-elasticsearch-compatible-with-open-source/
     https://opensearch.org/docs/clients/index/
 
-    The username and password are mandatory if the OS Cluster uses [Fine Grained Access Control](https://docs.aws.amazon.com/opensearch-service/latest/developerguide/fgac.html).
+    The username and password are mandatory if the OS Cluster uses [Fine Grained Access Control]\
+(https://docs.aws.amazon.com/opensearch-service/latest/developerguide/fgac.html).
     If fine grained access control is disabled, session access key and secret keys are used.
 
     Parameters
@@ -69,7 +70,6 @@ def connect(
         Elasticsearch low-level client.
         https://elasticsearch-py.readthedocs.io/en/v7.13.4/api.html#elasticsearch
     """
-
     valid_ports = {80, 443}
 
     if port not in valid_ports:
@@ -80,11 +80,11 @@ def connect(
     else:
         if boto3_session is None:
             raise ValueError("Please provide either boto3_session or fgac_user+fgac_password")
-        else:
-            if region is None:
-                region = boto3_session.region_name
-            creds = boto3_session.get_credentials()
-            http_auth = AWS4Auth(creds.access_key, creds.secret_key, region, "es", creds.token)
+        # else:
+        if region is None:
+            region = boto3_session.region_name
+        creds = boto3_session.get_credentials()
+        http_auth = AWS4Auth(creds.access_key, creds.secret_key, region, "es", creds.token)
     try:
         es = Elasticsearch(
             host=host,

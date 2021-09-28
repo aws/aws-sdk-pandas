@@ -4,7 +4,6 @@ import ast
 import json
 import logging
 import uuid
-from pathlib import Path
 from typing import Any, Dict, Generator, Iterable, List, Mapping, Optional, Tuple, Union
 
 import boto3
@@ -35,7 +34,7 @@ def _actions_generator(
 ) -> Generator[Dict[str, Any], None, None]:
     for document in documents:
         if id_keys:
-            _id = "-".join(list(map(lambda x: str(document[x]), id_keys)))
+            _id = "-".join([document[id_key] for id_key in id_keys])
         else:
             _id = document.get("_id", uuid.uuid4())
         yield {
@@ -53,16 +52,18 @@ def _df_doc_generator(df: pd.DataFrame) -> Generator[Dict[str, Any], None, None]
             if v.startswith("{") and v.endswith("}") or v.startswith("[") and v.endswith("]"):
                 try:
                     v = json.loads(v)
-                except Exception as e:
+                except json.decoder.JSONDecodeError:
                     try:
                         v = ast.literal_eval(v)  # if properties are enclosed with single quotes
-                    except:
-                        _logger.warning(f"could not convert string to json: {v}")
+                        if not isinstance(v, dict):
+                            _logger.warning("could not convert string to json: %s", v)
+                    except SyntaxError as e:
+                        _logger.warning("could not convert string to json: %s", v)
                         _logger.warning(e)
         return v
 
     df_iter = df.iterrows()
-    for i, document in df_iter:
+    for _, document in df_iter:
         yield {k: _deserialize(v) for k, v in document.items() if notna(v)}
 
 
@@ -82,7 +83,7 @@ def create_index(
     settings: Optional[Dict[str, Any]] = None,
     mappings: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Creates an index.
+    """Create an index.
 
     Parameters
     ----------
@@ -128,7 +129,6 @@ def create_index(
     ... )
 
     """
-
     body = {}
     if mappings:
         if _get_distribution(client) == "opensearch" or _get_version_major(client) >= 7:
@@ -153,7 +153,7 @@ def create_index(
 
 
 def delete_index(client: Elasticsearch, index: str) -> Dict[str, Any]:
-    """Creates an index.
+    """Create an index.
 
     Parameters
     ----------
@@ -179,7 +179,6 @@ def delete_index(client: Elasticsearch, index: str) -> Dict[str, Any]:
     ... )
 
     """
-
     # ignore 400/404 IndexNotFoundError exception
     response: Dict[str, Any] = client.indices.delete(index, ignore=[400, 404])
     if "error" in response:
@@ -245,7 +244,7 @@ def index_json(
         obj = s3.get_object(Bucket=bucket, Key=key)
         body = obj["Body"].read()
         lines = body.splitlines()
-        documents = list(map(lambda x: json.loads(x), lines))  # type: ignore
+        documents = [json.loads(line) for line in lines]
     else:  # local path
         documents = list(_file_line_generator(path, is_json=True))
     return index_documents(client=client, documents=documents, index=index, doc_type=doc_type, **kwargs)
@@ -256,7 +255,7 @@ def index_csv(
     path: str,
     index: str,
     doc_type: Optional[str] = None,
-    pandas_kwargs: Dict[str, Any] = {},
+    pandas_kwargs: Optional[Dict[str, Any]] = None,
     **kwargs: Any,
 ) -> Dict[str, Any]:
     """Index all documents from a CSV file to OpenSearch index.
@@ -309,6 +308,8 @@ def index_csv(
     ...     pandas_kwargs={'sep': '|', 'na_values': ['null', 'none']}
     ... )
     """
+    if pandas_kwargs is None:
+        pandas_kwargs = {}
     enforced_pandas_params = {
         "skip_blank_lines": True,
         # 'na_filter': True  # will generate Nan value for empty cells. We remove Nan keys in _df_doc_generator
@@ -357,7 +358,6 @@ def index_df(
     ...     index='sample-index1'
     ... )
     """
-
     return index_documents(client=client, documents=_df_doc_generator(df), index=index, doc_type=doc_type, **kwargs)
 
 
@@ -415,8 +415,10 @@ def index_documents(
         maximum number of seconds a retry will wait (default: 600)
     **kwargs :
         KEYWORD arguments forwarded to bulk operation
-        elasticsearch >= 7.10.2 / opensearch: https://opensearch.org/docs/opensearch/rest-api/document-apis/bulk/#url-parameters
-        elasticsearch < 7.10.2: https://opendistro.github.io/for-elasticsearch-docs/docs/elasticsearch/rest-api-reference/#url-parameters
+        elasticsearch >= 7.10.2 / opensearch: \
+https://opensearch.org/docs/opensearch/rest-api/document-apis/bulk/#url-parameters
+        elasticsearch < 7.10.2: \
+https://opendistro.github.io/for-elasticsearch-docs/docs/elasticsearch/rest-api-reference/#url-parameters
 
     Returns
     -------

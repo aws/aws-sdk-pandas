@@ -48,7 +48,7 @@ def search(
     is_scroll: Optional[bool] = False,
     **kwargs: Any,
 ) -> pd.DataFrame:
-    """Returns results matching query DSL as pandas dataframe.
+    """Return results matching query DSL as pandas dataframe.
 
     Parameters
     ----------
@@ -62,12 +62,16 @@ def search(
     doc_type : str, optional
         Name of the document type (for Elasticsearch versions 5.x and earlier).
     is_scroll : bool, optional
-        Allows to retrieve a large numbers of results from a single search request using [scroll](https://opensearch.org/docs/opensearch/rest-api/scroll/)
+        Allows to retrieve a large numbers of results from a single search request using
+        [scroll](https://opensearch.org/docs/opensearch/rest-api/scroll/)
         for example, for machine learning jobs.
-        Because scroll search contexts consume a lot of memory, we suggest you don’t use the scroll operation for frequent user queries.
+        Because scroll search contexts consume a lot of memory, we suggest you don’t use the scroll operation
+        for frequent user queries.
     **kwargs :
-        KEYWORD arguments forwarded to [elasticsearch.Elasticsearch.search](https://elasticsearch-py.readthedocs.io/en/v7.13.4/api.html#elasticsearch.Elasticsearch.search)
-        and also to [elasticsearch.helpers.scan](https://elasticsearch-py.readthedocs.io/en/master/helpers.html#scan) if `is_scroll=True`
+        KEYWORD arguments forwarded to [elasticsearch.Elasticsearch.search]\
+(https://elasticsearch-py.readthedocs.io/en/v7.13.4/api.html#elasticsearch.Elasticsearch.search)
+        and also to [elasticsearch.helpers.scan](https://elasticsearch-py.readthedocs.io/en/master/helpers.html#scan)
+         if `is_scroll=True`
 
     Returns
     -------
@@ -99,7 +103,7 @@ def search(
 
     if is_scroll:
         documents_generator = scan(client, index=index, query=search_body, **kwargs)
-        documents = map(lambda x: _hit_to_row(x), documents_generator)
+        documents = [_hit_to_row(doc) for doc in documents_generator]
         df = pd.DataFrame(documents)
     else:
         response = client.search(index=index, body=search_body, **kwargs)
@@ -108,7 +112,7 @@ def search(
 
 
 def search_by_sql(client: Elasticsearch, sql_query: str, **kwargs: Any) -> pd.DataFrame:
-    """Returns results matching [SQL query](https://opensearch.org/docs/search-plugins/sql/index/) as pandas dataframe
+    """Return results matching [SQL query](https://opensearch.org/docs/search-plugins/sql/index/) as pandas dataframe.
 
     Parameters
     ----------
@@ -137,7 +141,6 @@ def search_by_sql(client: Elasticsearch, sql_query: str, **kwargs: Any) -> pd.Da
 
 
     """
-
     if _get_distribution(client) == "opensearch":
         url = "/_plugins/_sql"
     else:
