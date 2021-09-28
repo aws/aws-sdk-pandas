@@ -237,7 +237,7 @@ def index_json(
     # Loading data from file
 
     if boto3_session is None:
-        raise ValueError('boto3_session cannot be None')
+        raise ValueError("boto3_session cannot be None")
 
     if path.startswith("s3://"):
         bucket, key = parse_path(path)

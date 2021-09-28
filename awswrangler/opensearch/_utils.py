@@ -79,7 +79,7 @@ def connect(
         http_auth = (fgac_user, fgac_password)
     else:
         if boto3_session is None:
-            raise ValueError('Please provide either boto3_session or fgac_user+fgac_password')
+            raise ValueError("Please provide either boto3_session or fgac_user+fgac_password")
         else:
             if region is None:
                 region = boto3_session.region_name
