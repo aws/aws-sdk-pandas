@@ -149,6 +149,12 @@ def test_connection_opensearch_1_0(domain_endpoint_opensearch_1_0):
     assert len(client.info()) > 0
 
 
+def test_connection_opensearch_1_0_https(domain_endpoint_opensearch_1_0):
+    client = wr.opensearch.connect(host=f"https://{domain_endpoint_opensearch_1_0}")
+    print(client.info())
+    assert len(client.info()) > 0
+
+
 def test_connection_elasticsearch_7_10_fgac(domain_endpoint_elasticsearch_7_10_fgac, opensearch_password):
     client = wr.opensearch.connect(
         host=domain_endpoint_elasticsearch_7_10_fgac, fgac_user="test", fgac_password=opensearch_password

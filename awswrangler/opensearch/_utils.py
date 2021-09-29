@@ -1,6 +1,7 @@
 """Amazon OpenSearch Utils Module (PRIVATE)."""
 
 import logging
+import re
 from typing import Any, Optional
 
 import boto3
@@ -23,6 +24,11 @@ def _get_version_major(client: Elasticsearch) -> Any:
     if version:
         return int(version.split(".")[0])
     return None
+
+
+def _strip_endpoint(endpoint: str) -> str:
+    uri_schema = re.compile(r"https?://")
+    return uri_schema.sub("", endpoint).strip().strip("/")
 
 
 def connect(
@@ -87,7 +93,7 @@ def connect(
         http_auth = AWS4Auth(creds.access_key, creds.secret_key, region, "es", creds.token)
     try:
         es = Elasticsearch(
-            host=host,
+            host=_strip_endpoint(host),
             port=port,
             http_auth=http_auth,
             use_ssl=True,
