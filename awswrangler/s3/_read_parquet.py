@@ -35,10 +35,15 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _pyarrow_parquet_file_wrapper(
-    source: Any, read_dictionary: Optional[List[str]] = None
+    source: Any, read_dictionary: Optional[List[str]] = None,
+    coerce_int96_timestamp_unit: str = None
 ) -> pyarrow.parquet.ParquetFile:
     try:
-        return pyarrow.parquet.ParquetFile(source=source, read_dictionary=read_dictionary)
+        return pyarrow.parquet.ParquetFile(
+            source=source,
+            read_dictionary=read_dictionary,
+            coerce_int96_timestamp_unit=coerce_int96_timestamp_unit
+        )
     except pyarrow.ArrowInvalid as ex:
         if str(ex) == "Parquet file size is 0 bytes":
             _logger.warning("Ignoring empty file...xx")
@@ -270,6 +275,14 @@ def _arrowtable2df(
     metadata: Dict[str, Any] = {}
     if table.schema.metadata is not None and b"pandas" in table.schema.metadata:
         metadata = json.loads(table.schema.metadata[b"pandas"])
+    
+    # Will return datetime obj (instead of pd.Timestamp) if Arrow TS unit is not NS 
+    timestamps_not_ns: bool = any([
+        _data_types._get_arrow_timestamp_unit(field.type) in ["s", "ms", "us"]
+        for field
+        in table.schema
+    ])
+    
     if type(use_threads) == int:  # pylint: disable=unidiomatic-typecheck
         use_threads = bool(use_threads > 1)
     df: pd.DataFrame = _apply_partitions(
@@ -279,6 +292,7 @@ def _arrowtable2df(
             self_destruct=True,
             integer_object_nulls=False,
             date_as_object=True,
+            timestamp_as_object=timestamps_not_ns,
             ignore_metadata=True,
             strings_to_categorical=False,
             safe=safe,
@@ -426,8 +440,11 @@ def _read_parquet_file(
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
     version_id: Optional[str] = None,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> pa.Table:
     s3_block_size: int = 20_971_520 if columns else -1  # One shot for a full read otherwise 20 MB (20 * 2**20)
+    if pyarrow_additional_kwargs is None:
+        pyarrow_additional_kwargs = {}
     with open_s3_object(
         path=path,
         mode="rb",
@@ -438,7 +455,11 @@ def _read_parquet_file(
         boto3_session=boto3_session,
     ) as f:
         pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(
-            source=f, read_dictionary=categories
+            source=f, read_dictionary=categories,
+            coerce_int96_timestamp_unit=pyarrow_additional_kwargs.get(
+                "coerce_int96_timestamp_unit",
+                None
+            )
         )
         if pq_file is None:
             raise exceptions.InvalidFile(f"Invalid Parquet file: {path}")
@@ -483,6 +504,7 @@ def _read_parquet(
     path_root: Optional[str],
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> pd.DataFrame:
     boto3_session = _utils.ensure_session(boto3_session)
     return _arrowtable2df(
@@ -494,6 +516,7 @@ def _read_parquet(
             s3_additional_kwargs=s3_additional_kwargs,
             use_threads=use_threads,
             version_id=version_id,
+            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
         ),
         categories=categories,
         safe=safe,
@@ -526,6 +549,7 @@ def read_parquet(
     last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read Apache Parquet file(s) from from a received S3 prefix or list of S3 objects paths.
 
@@ -627,6 +651,8 @@ def read_parquet(
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
+    pyarrow_additional_kwargs : Optional[Dict[str, Any]]
+        Forward to the ParquetFile class, currently only an "coerce_int96_timestamp_unit" argument will be considered.
 
     Returns
     -------
@@ -698,6 +724,7 @@ def read_parquet(
         "path_root": path_root,
         "s3_additional_kwargs": s3_additional_kwargs,
         "use_threads": use_threads,
+        "pyarrow_additional_kwargs": pyarrow_additional_kwargs,
     }
     _logger.debug("args:\n%s", pprint.pformat(args))
     if chunked is not False:
