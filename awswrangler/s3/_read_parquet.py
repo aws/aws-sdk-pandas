@@ -35,14 +35,11 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _pyarrow_parquet_file_wrapper(
-    source: Any, read_dictionary: Optional[List[str]] = None,
-    coerce_int96_timestamp_unit: str = None
+    source: Any, read_dictionary: Optional[List[str]] = None, coerce_int96_timestamp_unit: str = None
 ) -> pyarrow.parquet.ParquetFile:
     try:
         return pyarrow.parquet.ParquetFile(
-            source=source,
-            read_dictionary=read_dictionary,
-            coerce_int96_timestamp_unit=coerce_int96_timestamp_unit
+            source=source, read_dictionary=read_dictionary, coerce_int96_timestamp_unit=coerce_int96_timestamp_unit
         )
     except pyarrow.ArrowInvalid as ex:
         if str(ex) == "Parquet file size is 0 bytes":
@@ -275,14 +272,12 @@ def _arrowtable2df(
     metadata: Dict[str, Any] = {}
     if table.schema.metadata is not None and b"pandas" in table.schema.metadata:
         metadata = json.loads(table.schema.metadata[b"pandas"])
-    
-    # Will return datetime obj (instead of pd.Timestamp) if Arrow TS unit is not NS 
-    timestamps_not_ns: bool = any([
-        _data_types._get_arrow_timestamp_unit(field.type) in ["s", "ms", "us"]
-        for field
-        in table.schema
-    ])
-    
+
+    # Will return datetime obj (instead of pd.Timestamp) if Arrow TS unit is not NS
+    timestamps_not_ns: bool = any(
+        [_data_types._get_arrow_timestamp_unit(field.type) in ["s", "ms", "us"] for field in table.schema]
+    )
+
     if type(use_threads) == int:  # pylint: disable=unidiomatic-typecheck
         use_threads = bool(use_threads > 1)
     df: pd.DataFrame = _apply_partitions(
@@ -333,10 +328,7 @@ def _pyarrow_chunk_generator(
 
 
 def _row_group_chunk_generator(
-    pq_file: pyarrow.parquet.ParquetFile,
-    columns: Optional[List[str]],
-    use_threads_flag: bool,
-    num_row_groups: int,
+    pq_file: pyarrow.parquet.ParquetFile, columns: Optional[List[str]], use_threads_flag: bool, num_row_groups: int,
 ) -> Iterator[pa.Table]:
     for i in range(num_row_groups):
         _logger.debug("Reading Row Group %s...", i)
@@ -455,11 +447,9 @@ def _read_parquet_file(
         boto3_session=boto3_session,
     ) as f:
         pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(
-            source=f, read_dictionary=categories,
-            coerce_int96_timestamp_unit=pyarrow_additional_kwargs.get(
-                "coerce_int96_timestamp_unit",
-                None
-            )
+            source=f,
+            read_dictionary=categories,
+            coerce_int96_timestamp_unit=pyarrow_additional_kwargs.get("coerce_int96_timestamp_unit", None),
         )
         if pq_file is None:
             raise exceptions.InvalidFile(f"Invalid Parquet file: {path}")
@@ -906,10 +896,7 @@ def read_parquet_table(
     # Then list objects & process individual object keys under path_root
     if partition_filter is not None:
         available_partitions_dict = _get_partitions(
-            database=database,
-            table=table,
-            catalog_id=catalog_id,
-            boto3_session=boto3_session,
+            database=database, table=table, catalog_id=catalog_id, boto3_session=boto3_session,
         )
         available_partitions = list(available_partitions_dict.keys())
         if available_partitions:
