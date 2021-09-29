@@ -48,6 +48,8 @@ pyodbc = { version = "~4.0.30", optional = true }
 sphinx-bootstrap-theme = "^0.8.0"
 Sphinx = "^4.2.0"
 tox = "^3.24.4"
+elasticsearch = "7.13.4"
+requests-aws4auth = "^1.1.1"
 
 
 [tool.poetry.extras]
