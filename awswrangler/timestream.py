@@ -52,7 +52,7 @@ def _write_batch(
             Records=[
                 {
                     "Dimensions": [
-                        {"Name": name, "DimensionValueType": "VARCHAR", "Value": str(value) if value else None}
+                        {"Name": name, "DimensionValueType": "VARCHAR", "Value": str(value)}
                         for name, value in zip(cols_names[2:], rec[2:])
                     ],
                     "MeasureName": cols_names[1],
