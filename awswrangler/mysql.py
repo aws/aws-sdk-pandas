@@ -383,7 +383,7 @@ def to_sql(
             upsert_columns = ""
             upsert_str = ""
             if use_column_names:
-                insertion_columns = f"({', '.join(df.columns)})"
+                insertion_columns = f"(`{'`, `'.join(df.columns)}`)"
             if mode == "upsert_duplicate_key":
                 upsert_columns = ", ".join(df.columns.map(lambda column: f"`{column}`=VALUES(`{column}`)"))
                 upsert_str = f" ON DUPLICATE KEY UPDATE {upsert_columns}"

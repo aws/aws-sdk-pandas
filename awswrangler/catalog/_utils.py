@@ -36,7 +36,9 @@ def _extract_dtypes_from_table_details(response: Dict[str, Any]) -> Dict[str, st
 
 
 @apply_configs
-def does_table_exist(database: str, table: str, boto3_session: Optional[boto3.Session] = None) -> bool:
+def does_table_exist(
+    database: str, table: str, boto3_session: Optional[boto3.Session] = None, catalog_id: Optional[str] = None
+) -> bool:
     """Check if the table exists.
 
     Parameters
@@ -47,6 +49,9 @@ def does_table_exist(database: str, table: str, boto3_session: Optional[boto3.Se
         Table name.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
 
     Returns
     -------
@@ -57,11 +62,10 @@ def does_table_exist(database: str, table: str, boto3_session: Optional[boto3.Se
     --------
     >>> import awswrangler as wr
     >>> wr.catalog.does_table_exist(database='default', table='my_table')
-
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
     try:
-        client_glue.get_table(DatabaseName=database, Name=table)
+        client_glue.get_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table))
         return True
     except client_glue.exceptions.EntityNotFoundException:
         return False
