@@ -50,6 +50,7 @@ Sphinx = "^4.2.0"
 tox = "^3.24.4"
 elasticsearch = "7.13.4"
 requests-aws4auth = "^1.1.1"
+jsonpath-ng = "^1.5.3"
 
 
 [tool.poetry.extras]
