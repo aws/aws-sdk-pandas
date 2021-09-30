@@ -157,7 +157,7 @@ def test_connection_opensearch_1_0_https(domain_endpoint_opensearch_1_0):
 
 def test_connection_elasticsearch_7_10_fgac(domain_endpoint_elasticsearch_7_10_fgac, opensearch_password):
     client = wr.opensearch.connect(
-        host=domain_endpoint_elasticsearch_7_10_fgac, fgac_user="test", fgac_password=opensearch_password
+        host=domain_endpoint_elasticsearch_7_10_fgac, user="test", password=opensearch_password
     )
     print(client.info())
     assert len(client.info()) > 0
@@ -172,7 +172,7 @@ def opensearch_1_0_client(domain_endpoint_opensearch_1_0):
 @pytest.fixture(scope="session")
 def elasticsearch_7_10_fgac_client(domain_endpoint_elasticsearch_7_10_fgac, opensearch_password):
     client = wr.opensearch.connect(
-        host=domain_endpoint_elasticsearch_7_10_fgac, fgac_user="test", fgac_password=opensearch_password
+        host=domain_endpoint_elasticsearch_7_10_fgac, user="test", password=opensearch_password
     )
     return client
 

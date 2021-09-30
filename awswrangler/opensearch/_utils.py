@@ -36,8 +36,8 @@ def connect(
     port: Optional[int] = 443,
     boto3_session: Optional[boto3.Session] = boto3.Session(),
     region: Optional[str] = None,
-    fgac_user: Optional[str] = None,
-    fgac_password: Optional[str] = None,
+    user: Optional[str] = None,
+    password: Optional[str] = None,
 ) -> Elasticsearch:
     """Create a secure connection to the specified Amazon OpenSearch domain.
 
@@ -65,9 +65,9 @@ def connect(
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
     region :
         AWS region of the Amazon OS domain. If not provided will be extracted from boto3_session.
-    fgac_user :
+    user :
         Fine-grained access control user. Mandatory if OS Cluster uses Fine Grained Access Control.
-    fgac_password :
+    password :
         Fine-grained access control password. Mandatory if OS Cluster uses Fine Grained Access Control.
 
     Returns
@@ -81,11 +81,11 @@ def connect(
     if port not in valid_ports:
         raise ValueError("results: port must be one of %r." % valid_ports)
 
-    if fgac_user and fgac_password:
-        http_auth = (fgac_user, fgac_password)
+    if user and password:
+        http_auth = (user, password)
     else:
         if boto3_session is None:
-            raise ValueError("Please provide either boto3_session or fgac_user+fgac_password")
+            raise ValueError("Please provide either boto3_session or FGAC user+password")
         # else:
         if region is None:
             region = boto3_session.region_name
