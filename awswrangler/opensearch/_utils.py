@@ -36,7 +36,7 @@ def connect(
     port: Optional[int] = 443,
     boto3_session: Optional[boto3.Session] = boto3.Session(),
     region: Optional[str] = None,
-    user: Optional[str] = None,
+    username: Optional[str] = None,
     password: Optional[str] = None,
 ) -> Elasticsearch:
     """Create a secure connection to the specified Amazon OpenSearch domain.
@@ -46,7 +46,8 @@ def connect(
     We use [elasticsearch-py](https://elasticsearch-py.readthedocs.io/en/v7.13.4/), an Elasticsearch client for Python,
     version 7.13.4, which is the recommended version for best compatibility Amazon OpenSearch,
     since later versions may reject connections to Amazon OpenSearch clusters.
-    In the future will move to a new open source client under the [OpenSearch project](https://www.opensearch.org/)
+    In the future we will use [opensearch-py](https://github.com/opensearch-project/opensearch-py) \
+(currently in the works).
     You can read more here:
     https://aws.amazon.com/blogs/opensource/keeping-clients-of-opensearch-and-elasticsearch-compatible-with-open-source/
     https://opensearch.org/docs/clients/index/
@@ -65,7 +66,7 @@ def connect(
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
     region :
         AWS region of the Amazon OS domain. If not provided will be extracted from boto3_session.
-    user :
+    username :
         Fine-grained access control user. Mandatory if OS Cluster uses Fine Grained Access Control.
     password :
         Fine-grained access control password. Mandatory if OS Cluster uses Fine Grained Access Control.
@@ -81,8 +82,8 @@ def connect(
     if port not in valid_ports:
         raise ValueError("results: port must be one of %r." % valid_ports)
 
-    if user and password:
-        http_auth = (user, password)
+    if username and password:
+        http_auth = (username, password)
     else:
         if boto3_session is None:
             raise ValueError("Please provide either boto3_session or FGAC user+password")
@@ -99,6 +100,9 @@ def connect(
             use_ssl=True,
             verify_certs=True,
             connection_class=RequestsHttpConnection,
+            timeout=30,
+            max_retries=10,
+            retry_on_timeout=True,
         )
     except Exception as e:
         _logger.error("Error connecting to Opensearch cluster. Please verify authentication details")
