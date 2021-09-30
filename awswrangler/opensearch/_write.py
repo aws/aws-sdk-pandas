@@ -9,13 +9,17 @@ from typing import Any, Dict, Generator, Iterable, List, Mapping, Optional, Tupl
 import boto3
 import pandas as pd
 from elasticsearch import Elasticsearch
+from elasticsearch.exceptions import NotFoundError
 from elasticsearch.helpers import bulk
+from jsonpath_ng import parse
+from jsonpath_ng.exceptions import JsonPathParserError
 from pandas import notna
 
 from awswrangler._utils import parse_path
 from awswrangler.opensearch._utils import _get_distribution, _get_version_major
 
 _logger: logging.Logger = logging.getLogger(__name__)
+_logger.setLevel(logging.DEBUG)
 
 
 def _selected_keys(document: Mapping[str, Any], keys_to_write: Optional[List[str]]) -> Mapping[str, Any]:
@@ -31,18 +35,27 @@ def _actions_generator(
     doc_type: Optional[str],
     keys_to_write: Optional[List[str]],
     id_keys: Optional[List[str]],
-) -> Generator[Dict[str, Any], None, None]:
-    for document in documents:
+    bulk_size: int = 10000,
+) -> Generator[List[Dict[str, Any]], None, None]:
+    bulk_chunk_documents = []
+    for i, document in enumerate(documents):
         if id_keys:
             _id = "-".join([document[id_key] for id_key in id_keys])
         else:
             _id = document.get("_id", uuid.uuid4())
-        yield {
-            "_index": index,
-            "_type": doc_type,
-            "_id": _id,
-            "_source": _selected_keys(document, keys_to_write),
-        }
+        bulk_chunk_documents.append(
+            {
+                "_index": index,
+                "_type": doc_type,
+                "_id": _id,
+                "_source": _selected_keys(document, keys_to_write),
+            }
+        )
+        if (i + 1) % bulk_size == 0:
+            yield bulk_chunk_documents
+            bulk_chunk_documents = []
+    if len(bulk_chunk_documents) > 0:
+        yield bulk_chunk_documents
 
 
 def _df_doc_generator(df: pd.DataFrame) -> Generator[Dict[str, Any], None, None]:
@@ -74,6 +87,51 @@ def _file_line_generator(path: str, is_json: bool = False) -> Generator[Any, Non
                 yield json.loads(line)
             else:
                 yield line.strip()
+
+
+def _get_documents_w_json_path(documents: List[Mapping[str, Any]], json_path: str) -> List[Any]:
+    try:
+        jsonpath_expression = parse(json_path)
+    except JsonPathParserError as e:
+        _logger.error("invalid json_path: %s", json_path)
+        raise e
+    output_documents = []
+    for doc in documents:
+        for match in jsonpath_expression.find(doc):
+            match_value = match.value
+            if isinstance(match_value, list):
+                output_documents += match_value
+            elif isinstance(match_value, dict):
+                output_documents.append(match_value)
+            else:
+                msg = f"expected json_path value to be a list/dict. received type {type(match_value)} ({match_value})"
+                raise ValueError(msg)
+    return output_documents
+
+
+def _get_refresh_interval(client: Elasticsearch, index: str) -> Any:
+    url = f"/{index}/_settings"
+    try:
+        response = client.transport.perform_request("GET", url)
+        refresh_interval = response.get(index, {}).get("index", {}).get("refresh_interval", "1s")  # type: ignore
+        return refresh_interval
+    except NotFoundError:
+        return None
+
+
+def _set_refresh_interval(client: Elasticsearch, index: str, refresh_interval: str) -> Any:
+    url = f"/{index}/_settings"
+    body = {"index": {"refresh_interval": refresh_interval}}
+    response = client.transport.perform_request("PUT", url, headers={"Content-Type": "application/json"}, body=body)
+
+    return response
+
+
+def _disable_refresh_interval(
+    client: Elasticsearch,
+    index: str,
+) -> Any:
+    return _set_refresh_interval(client=client, index=index, refresh_interval="-1")
 
 
 def create_index(
@@ -192,11 +250,13 @@ def index_json(
     index: str,
     doc_type: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = boto3.Session(),
+    json_path: Optional[str] = None,
     **kwargs: Any,
 ) -> Dict[str, Any]:
     """Index all documents from JSON file to OpenSearch index.
 
-    The JSON file should be in a JSON-Lines text format (newline-delimited JSON) - https://jsonlines.org/.
+    The JSON file should be in a JSON-Lines text format (newline-delimited JSON) - https://jsonlines.org/
+    OR if the is a single large JSON please provide `json_path`.
 
     Parameters
     ----------
@@ -208,6 +268,10 @@ def index_json(
         Name of the index.
     doc_type : str, optional
         Name of the document type (only for Elasticsearch versions 5.x and earlier).
+    json_path : str, optional
+        JsonPath expression to specify explicit path to a single name element
+        in a JSON hierarchical data structure.
+        Read more about [JsonPath](https://jsonpath.com)
     boto3_session : boto3.Session(), optional
         Boto3 Session to be used to access s3 if s3 path is provided.
         The default boto3 Session will be used if boto3_session receive None.
@@ -233,7 +297,7 @@ def index_json(
     ...     index='sample-index1'
     ... )
     """
-    # Loading data from file
+    _logger.debug("indexing %s from %s", index, path)
 
     if boto3_session is None:
         raise ValueError("boto3_session cannot be None")
@@ -245,8 +309,12 @@ def index_json(
         body = obj["Body"].read()
         lines = body.splitlines()
         documents = [json.loads(line) for line in lines]
+        if json_path:
+            documents = _get_documents_w_json_path(documents, json_path)
     else:  # local path
         documents = list(_file_line_generator(path, is_json=True))
+        if json_path:
+            documents = _get_documents_w_json_path(documents, json_path)
     return index_documents(client=client, documents=documents, index=index, doc_type=doc_type, **kwargs)
 
 
@@ -308,6 +376,7 @@ def index_csv(
     ...     pandas_kwargs={'sep': '|', 'na_values': ['null', 'none']}
     ... )
     """
+    _logger.debug("indexing %s from %s", index, path)
     if pandas_kwargs is None:
         pandas_kwargs = {}
     enforced_pandas_params = {
@@ -369,9 +438,10 @@ def index_documents(
     keys_to_write: Optional[List[str]] = None,
     id_keys: Optional[List[str]] = None,
     ignore_status: Optional[Union[List[Any], Tuple[Any]]] = None,
+    bulk_size: int = 1000,
     chunk_size: Optional[int] = 500,
     max_chunk_bytes: Optional[int] = 100 * 1024 * 1024,
-    max_retries: Optional[int] = 0,
+    max_retries: Optional[int] = 2,
     initial_backoff: Optional[int] = 2,
     max_backoff: Optional[int] = 600,
     **kwargs: Any,
@@ -383,6 +453,10 @@ def index_documents(
     Some of the args are referenced from elasticsearch-py client library (bulk helpers)
     https://elasticsearch-py.readthedocs.io/en/v7.13.4/helpers.html#elasticsearch.helpers.bulk
     https://elasticsearch-py.readthedocs.io/en/v7.13.4/helpers.html#elasticsearch.helpers.streaming_bulk
+
+    If you receive `Error 429 (Too Many Requests) /_bulk` please to to decrease `bulk_size` value.
+    Please also consider modifying the cluster size and instance type -
+    Read more here: https://aws.amazon.com/premiumsupport/knowledge-center/resolve-429-error-es/
 
     Parameters
     ----------
@@ -401,13 +475,15 @@ def index_documents(
         otherwise will generate unique identifier for each document.
     ignore_status:  Union[List[Any], Tuple[Any]], optional
         list of HTTP status codes that you want to ignore (not raising an exception)
+    bulk_size: int,
+        number of docs in each _bulk request (default: 1000)
     chunk_size : int, optional
         number of docs in one chunk sent to es (default: 500)
     max_chunk_bytes: int, optional
         the maximum size of the request in bytes (default: 100MB)
     max_retries : int, optional
         maximum number of times a document will be retried when
-        ``429`` is received, set to 0 (default) for no retries on ``429`` (default: 0)
+        ``429`` is received, set to 0 (default) for no retries on ``429`` (default: 2)
     initial_backoff : int, optional
         number of seconds we should wait before the first retry.
         Any subsequent retries will be powers of ``initial_backoff*2**retry_number`` (default: 2)
@@ -437,15 +513,42 @@ https://opendistro.github.io/for-elasticsearch-docs/docs/elasticsearch/rest-api-
     ...     index='sample-index1'
     ... )
     """
-    success, errors = bulk(
-        client=client,
-        actions=_actions_generator(documents, index, doc_type, keys_to_write=keys_to_write, id_keys=id_keys),
-        ignore_status=ignore_status,
-        chunk_size=chunk_size,
-        max_chunk_bytes=max_chunk_bytes,
-        max_retries=max_retries,
-        initial_backoff=initial_backoff,
-        max_backoff=max_backoff,
-        **kwargs,
+    if not isinstance(documents, list):
+        documents = list(documents)
+    total_documents = len(documents)
+    _logger.debug("indexing %s documents into %s", total_documents, index)
+
+    actions = _actions_generator(
+        documents, index, doc_type, keys_to_write=keys_to_write, id_keys=id_keys, bulk_size=bulk_size
     )
+
+    success = 0
+    errors: List[Any] = []
+    refresh_interval = None
+    try:
+        if total_documents > bulk_size:
+            refresh_interval = _get_refresh_interval(client, index)
+            if refresh_interval:
+                _disable_refresh_interval(client, index)
+        for bulk_chunk_documents in actions:
+            _logger.debug("running bulk index of %s documents", len(bulk_chunk_documents))
+            _success, _errors = bulk(
+                client=client,
+                actions=bulk_chunk_documents,
+                ignore_status=ignore_status,
+                chunk_size=chunk_size,
+                max_chunk_bytes=max_chunk_bytes,
+                max_retries=max_retries,
+                initial_backoff=initial_backoff,
+                max_backoff=max_backoff,
+                request_timeout=30,
+                **kwargs,
+            )
+            success += _success
+            errors += _errors  # type: ignore
+            _logger.debug("indexed %s documents (%s/%s)", _success, success, total_documents)
+    finally:
+        if refresh_interval:
+            _set_refresh_interval(client, index, refresh_interval)
+
     return {"success": success, "errors": errors}

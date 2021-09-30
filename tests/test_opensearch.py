@@ -210,6 +210,7 @@ def test_index_df(client):
         index="test_index_df1",
     )
     print(response)
+    assert response.get("success", 0) == 3
 
 
 def test_index_documents(client):
@@ -219,6 +220,7 @@ def test_index_documents(client):
         index="test_index_documents1",
     )
     print(response)
+    assert response.get("success", 0) == 3
 
 
 def test_index_documents_id_keys(client):
@@ -342,3 +344,13 @@ def test_index_csv_s3(client, path):
     response = wr.opensearch.index_csv(client, path=path, index=index)
     print(response)
     assert response.get("success", 0) == 6
+
+
+@pytest.mark.skip(reason="takes a long time (~5 mins) since testing against small clusters")
+def test_index_json_s3_large_file(client):
+    path = "s3://irs-form-990/index_2011.json"
+    response = wr.opensearch.index_json(
+        client, index="test_index_json_s3_large_file", path=path, json_path="Filings2011", id_keys=["EIN"], bulk_size=20
+    )
+    print(response)
+    assert response.get("success", 0) > 0
