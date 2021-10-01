@@ -8,6 +8,8 @@ import boto3
 from elasticsearch import Elasticsearch, RequestsHttpConnection
 from requests_aws4auth import AWS4Auth
 
+from awswrangler import _utils, exceptions
+
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
@@ -67,7 +69,7 @@ def connect(
     region :
         AWS region of the Amazon OS domain. If not provided will be extracted from boto3_session.
     username :
-        Fine-grained access control user. Mandatory if OS Cluster uses Fine Grained Access Control.
+        Fine-grained access control username. Mandatory if OS Cluster uses Fine Grained Access Control.
     password :
         Fine-grained access control password. Mandatory if OS Cluster uses Fine Grained Access Control.
 
@@ -85,13 +87,16 @@ def connect(
     if username and password:
         http_auth = (username, password)
     else:
-        if boto3_session is None:
-            raise ValueError("Please provide either boto3_session or FGAC user+password")
-        # else:
         if region is None:
-            region = boto3_session.region_name
-        creds = boto3_session.get_credentials()
-        http_auth = AWS4Auth(creds.access_key, creds.secret_key, region, "es", creds.token)
+            region = _utils.get_region_from_session(boto3_session=boto3_session)
+        creds = _utils.get_credentials_from_session(boto3_session=boto3_session)
+        if creds.access_key is None or creds.secret_key is None:
+            raise exceptions.InvalidArgument(
+                "One of IAM Role or AWS ACCESS_KEY_ID and SECRET_ACCESS_KEY must be "
+                "given. Unable to find ACCESS_KEY_ID and SECRET_ACCESS_KEY in boto3 "
+                "session."
+            )
+        http_auth = AWS4Auth(creds.access_key, creds.secret_key, region, "es", session_token=creds.token)
     try:
         es = Elasticsearch(
             host=_strip_endpoint(host),
