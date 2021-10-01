@@ -1309,6 +1309,22 @@ optional = false
 python-versions = "*"
 
 [[package]]
+name = "progressbar2"
+version = "3.53.3"
+description = "A Python Progressbar library to provide visual (yet text based) progress to long running operations."
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+python-utils = ">=2.3.0"
+six = "*"
+
+[package.extras]
+docs = ["sphinx (>=1.7.4)"]
+tests = ["flake8 (>=3.7.7)", "pytest (>=4.6.9)", "pytest-cov (>=2.6.1)", "freezegun (>=0.3.11)", "sphinx (>=1.8.5)"]
+
+[[package]]
 name = "prometheus-client"
 version = "0.11.0"
 description = "Python client for the Prometheus monitoring system."
@@ -1572,6 +1588,17 @@ description = "Python extension for computing string edit distances and similari
 category = "dev"
 optional = false
 python-versions = "*"
+
+[[package]]
+name = "python-utils"
+version = "2.5.6"
+description = "Python Utils is a module with some convenient utilities not included with the standard Python install"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+six = "*"
 
 [[package]]
 name = "pytz"
@@ -2164,7 +2191,7 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.6.2, <3.10"
-content-hash = "e01439ee1c27186731e13aa463473f281cf349c44dd7c9dc3b6112a6c49c533c"
+content-hash = "dc43ca4a72073bdd82a0c36ec5b1b60eb68ae95055e885b190dc35b36a89137f"
 
 [metadata.files]
 aiobotocore = [
@@ -2993,6 +3020,10 @@ ply = [
     {file = "ply-3.11-py2.py3-none-any.whl", hash = "sha256:096f9b8350b65ebd2fd1346b12452efe5b9607f7482813ffca50c22722a807ce"},
     {file = "ply-3.11.tar.gz", hash = "sha256:00c7c1aaa88358b9c765b6d3000c6eec0ba42abca5351b095321aef446081da3"},
 ]
+progressbar2 = [
+    {file = "progressbar2-3.53.3-py2.py3-none-any.whl", hash = "sha256:6610fe393a4591967ecf9062d42c0663c8862092245c490e5971ec5f348755ca"},
+    {file = "progressbar2-3.53.3.tar.gz", hash = "sha256:f4e1c2d48e608850c59f793d6e74ccdebbcbaac7ffe917d45e9646ec0d664d6d"},
+]
 prometheus-client = [
     {file = "prometheus_client-0.11.0-py2.py3-none-any.whl", hash = "sha256:b014bc76815eb1399da8ce5fc84b7717a3e63652b0c0f8804092c9363acab1b2"},
     {file = "prometheus_client-0.11.0.tar.gz", hash = "sha256:3a8baade6cb80bcfe43297e33e7623f3118d660d41387593758e2fb1ea173a86"},
@@ -3143,6 +3174,10 @@ python-dateutil = [
 ]
 python-levenshtein = [
     {file = "python-Levenshtein-0.12.2.tar.gz", hash = "sha256:dc2395fbd148a1ab31090dd113c366695934b9e85fe5a4b2a032745efd0346f6"},
+]
+python-utils = [
+    {file = "python-utils-2.5.6.tar.gz", hash = "sha256:352d5b1febeebf9b3cdb9f3c87a3b26ef22d3c9e274a8ec1e7048ecd2fac4349"},
+    {file = "python_utils-2.5.6-py2.py3-none-any.whl", hash = "sha256:18fbc1a1df9a9061e3059a48ebe5c8a66b654d688b0e3ecca8b339a7f168f208"},
 ]
 pytz = [
     {file = "pytz-2021.1-py2.py3-none-any.whl", hash = "sha256:eb10ce3e7736052ed3623d49975ce333bcd712c7bb19a58b9e2089d4057d0798"},

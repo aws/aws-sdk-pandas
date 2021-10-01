@@ -8,7 +8,8 @@ from typing import Any, Dict, Generator, Iterable, List, Mapping, Optional, Tupl
 
 import boto3
 import pandas as pd
-from elasticsearch import Elasticsearch
+import progressbar
+from elasticsearch import Elasticsearch, TransportError
 from elasticsearch.exceptions import NotFoundError
 from elasticsearch.helpers import bulk
 from jsonpath_ng import parse
@@ -20,6 +21,8 @@ from awswrangler.opensearch._utils import _get_distribution, _get_version_major
 
 _logger: logging.Logger = logging.getLogger(__name__)
 _logger.setLevel(logging.DEBUG)
+
+_DEFAULT_REFRESH_INTERVAL = "1s"
 
 
 def _selected_keys(document: Mapping[str, Any], keys_to_write: Optional[List[str]]) -> Mapping[str, Any]:
@@ -40,7 +43,7 @@ def _actions_generator(
     bulk_chunk_documents = []
     for i, document in enumerate(documents):
         if id_keys:
-            _id = "-".join([document[id_key] for id_key in id_keys])
+            _id = "-".join([str(document[id_key]) for id_key in id_keys])
         else:
             _id = document.get("_id", uuid.uuid4())
         bulk_chunk_documents.append(
@@ -113,13 +116,14 @@ def _get_refresh_interval(client: Elasticsearch, index: str) -> Any:
     url = f"/{index}/_settings"
     try:
         response = client.transport.perform_request("GET", url)
-        refresh_interval = response.get(index, {}).get("index", {}).get("refresh_interval", "1s")  # type: ignore
+        index_settings = response.get(index, {}).get("index", {})  # type: ignore
+        refresh_interval = index_settings.get("refresh_interval", _DEFAULT_REFRESH_INTERVAL)
         return refresh_interval
     except NotFoundError:
         return None
 
 
-def _set_refresh_interval(client: Elasticsearch, index: str, refresh_interval: str) -> Any:
+def _set_refresh_interval(client: Elasticsearch, index: str, refresh_interval: Optional[Any]) -> Any:
     url = f"/{index}/_settings"
     body = {"index": {"refresh_interval": refresh_interval}}
     response = client.transport.perform_request("PUT", url, headers={"Content-Type": "application/json"}, body=body)
@@ -526,11 +530,17 @@ https://opendistro.github.io/for-elasticsearch-docs/docs/elasticsearch/rest-api-
     errors: List[Any] = []
     refresh_interval = None
     try:
-        if total_documents > bulk_size:
-            refresh_interval = _get_refresh_interval(client, index)
-            if refresh_interval:
+        widgets = [
+            progressbar.Percentage(),
+            progressbar.SimpleProgress(format=" (%(value_s)s/%(max_value_s)s)"),
+            progressbar.Bar(),
+            progressbar.Timer(),
+        ]
+        progress_bar = progressbar.ProgressBar(widgets=widgets, max_value=total_documents, prefix="Indexing: ").start()
+        for i, bulk_chunk_documents in enumerate(actions):
+            if i == 1:  # second bulk iteration, in case the index didn't exist before
+                refresh_interval = _get_refresh_interval(client, index)
                 _disable_refresh_interval(client, index)
-        for bulk_chunk_documents in actions:
             _logger.debug("running bulk index of %s documents", len(bulk_chunk_documents))
             _success, _errors = bulk(
                 client=client,
@@ -547,8 +557,17 @@ https://opendistro.github.io/for-elasticsearch-docs/docs/elasticsearch/rest-api-
             success += _success
             errors += _errors  # type: ignore
             _logger.debug("indexed %s documents (%s/%s)", _success, success, total_documents)
+            progress_bar.update(success, force=True)
+    except TransportError as e:
+        if str(e.status_code) == "429":  # Too Many Requests
+            _logger.error(
+                "Error 429 (Too Many Requests):"
+                "Try to tune bulk_size parameter."
+                "Read more here: https://aws.amazon.com/premiumsupport/knowledge-center/resolve-429-error-es"
+            )
+            raise e
+
     finally:
-        if refresh_interval:
-            _set_refresh_interval(client, index, refresh_interval)
+        _set_refresh_interval(client, index, refresh_interval)
 
     return {"success": success, "errors": errors}

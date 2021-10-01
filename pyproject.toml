@@ -51,6 +51,7 @@ tox = "^3.24.4"
 elasticsearch = "7.13.4"
 requests-aws4auth = "^1.1.1"
 jsonpath-ng = "^1.5.3"
+progressbar2 = "^3.53.3"
 
 
 [tool.poetry.extras]

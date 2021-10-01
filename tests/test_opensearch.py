@@ -1,6 +1,7 @@
 import json
 import logging
 import tempfile
+import time
 
 import boto3
 import pandas as pd
@@ -186,6 +187,7 @@ def client(request):
 def test_create_index(client):
     index = "test_create_index"
     wr.opensearch.delete_index(client, index)
+    time.sleep(0.5)  # let the cluster clean up
     response = wr.opensearch.create_index(
         client=client,
         index=index,
