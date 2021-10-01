@@ -5,6 +5,7 @@ import pandas as pd
 import pyarrow as pa
 import pymysql
 import pytest
+from pymysql.cursors import SSCursor
 
 import awswrangler as wr
 
@@ -43,6 +44,12 @@ def test_read_sql_query_simple(databases_parameters):
     df = wr.mysql.read_sql_query("SELECT 1", con=con)
     con.close()
     assert df.shape == (1, 1)
+
+
+def test_conn_cursor():
+    con = wr.mysql.connect("aws-data-wrangler-mysql", cursorclass=SSCursor)
+
+    assert type(con.cursorclass) == SScursor
 
 
 def test_to_sql_simple(mysql_table, mysql_con):
