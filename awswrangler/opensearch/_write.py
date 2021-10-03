@@ -445,7 +445,7 @@ def index_documents(
     bulk_size: int = 1000,
     chunk_size: Optional[int] = 500,
     max_chunk_bytes: Optional[int] = 100 * 1024 * 1024,
-    max_retries: Optional[int] = 2,
+    max_retries: Optional[int] = 5,
     initial_backoff: Optional[int] = 2,
     max_backoff: Optional[int] = 600,
     **kwargs: Any,
