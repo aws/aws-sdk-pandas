@@ -3,8 +3,8 @@
 from typing import Any, Dict, List, Mapping, Optional, Union
 
 import pandas as pd
-from elasticsearch import Elasticsearch
-from elasticsearch.helpers import scan
+from opensearchpy import OpenSearch
+from opensearchpy.helpers import scan
 
 from awswrangler.opensearch._utils import _get_distribution
 
@@ -41,7 +41,7 @@ def _search_response_to_df(response: Union[Mapping[str, Any], Any]) -> pd.DataFr
 
 
 def search(
-    client: Elasticsearch,
+    client: OpenSearch,
     index: Optional[str] = "_all",
     search_body: Optional[Dict[str, Any]] = None,
     doc_type: Optional[str] = None,
@@ -52,8 +52,8 @@ def search(
 
     Parameters
     ----------
-    client : Elasticsearch
-        instance of elasticsearch.Elasticsearch to use.
+    client : OpenSearch
+        instance of opensearchpy.OpenSearch to use.
     index : str, optional
         A comma-separated list of index names to search.
         use `_all` or empty string to perform the operation on all indices.
@@ -68,9 +68,9 @@ def search(
         Because scroll search contexts consume a lot of memory, we suggest you don’t use the scroll operation
         for frequent user queries.
     **kwargs :
-        KEYWORD arguments forwarded to [elasticsearch.Elasticsearch.search]\
-(https://elasticsearch-py.readthedocs.io/en/v7.13.4/api.html#elasticsearch.Elasticsearch.search)
-        and also to [elasticsearch.helpers.scan](https://elasticsearch-py.readthedocs.io/en/master/helpers.html#scan)
+        KEYWORD arguments forwarded to [opensearchpy.OpenSearch.search]\
+(https://opensearch-py.readthedocs.io/en/latest/api.html#opensearchpy.OpenSearch.search)
+        and also to [opensearchpy.helpers.scan](https://opensearch-py.readthedocs.io/en/master/helpers.html#scan)
          if `is_scroll=True`
 
     Returns
@@ -111,13 +111,13 @@ def search(
     return df
 
 
-def search_by_sql(client: Elasticsearch, sql_query: str, **kwargs: Any) -> pd.DataFrame:
+def search_by_sql(client: OpenSearch, sql_query: str, **kwargs: Any) -> pd.DataFrame:
     """Return results matching [SQL query](https://opensearch.org/docs/search-plugins/sql/index/) as pandas dataframe.
 
     Parameters
     ----------
-    client : Elasticsearch
-        instance of elasticsearch.Elasticsearch to use.
+    client : OpenSearch
+        instance of opensearchpy.OpenSearch to use.
     sql_query : str
         SQL query
     **kwargs :

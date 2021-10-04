@@ -5,7 +5,7 @@ import re
 from typing import Any, Optional
 
 import boto3
-from elasticsearch import Elasticsearch, RequestsHttpConnection
+from opensearchpy import OpenSearch, RequestsHttpConnection
 from requests_aws4auth import AWS4Auth
 
 from awswrangler import _utils, exceptions
@@ -13,15 +13,15 @@ from awswrangler import _utils, exceptions
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _get_distribution(client: Elasticsearch) -> Any:
+def _get_distribution(client: OpenSearch) -> Any:
     return client.info().get("version", {}).get("distribution", "elasticsearch")
 
 
-def _get_version(client: Elasticsearch) -> Any:
+def _get_version(client: OpenSearch) -> Any:
     return client.info().get("version", {}).get("number")
 
 
-def _get_version_major(client: Elasticsearch) -> Any:
+def _get_version_major(client: OpenSearch) -> Any:
     version = _get_version(client)
     if version:
         return int(version.split(".")[0])
@@ -40,19 +40,12 @@ def connect(
     region: Optional[str] = None,
     username: Optional[str] = None,
     password: Optional[str] = None,
-) -> Elasticsearch:
+) -> OpenSearch:
     """Create a secure connection to the specified Amazon OpenSearch domain.
 
     Note
     ----
-    We use [elasticsearch-py](https://elasticsearch-py.readthedocs.io/en/v7.13.4/), an Elasticsearch client for Python,
-    version 7.13.4, which is the recommended version for best compatibility Amazon OpenSearch,
-    since later versions may reject connections to Amazon OpenSearch clusters.
-    In the future we will use [opensearch-py](https://github.com/opensearch-project/opensearch-py) \
-(currently in the works).
-    You can read more here:
-    https://aws.amazon.com/blogs/opensource/keeping-clients-of-opensearch-and-elasticsearch-compatible-with-open-source/
-    https://opensearch.org/docs/clients/index/
+    We use [opensearch-py](https://github.com/opensearch-project/opensearch-py), an OpenSearch low-level python client.
 
     The username and password are mandatory if the OS Cluster uses [Fine Grained Access Control]\
 (https://docs.aws.amazon.com/opensearch-service/latest/developerguide/fgac.html).
@@ -75,9 +68,9 @@ def connect(
 
     Returns
     -------
-    elasticsearch.Elasticsearch
-        Elasticsearch low-level client.
-        https://elasticsearch-py.readthedocs.io/en/v7.13.4/api.html#elasticsearch
+    opensearchpy.OpenSearch
+        OpenSearch low-level client.
+        https://github.com/opensearch-project/opensearch-py/blob/main/opensearchpy/client/__init__.py
     """
     valid_ports = {80, 443}
 
@@ -98,7 +91,7 @@ def connect(
             )
         http_auth = AWS4Auth(creds.access_key, creds.secret_key, region, "es", session_token=creds.token)
     try:
-        es = Elasticsearch(
+        es = OpenSearch(
             host=_strip_endpoint(host),
             port=port,
             http_auth=http_auth,

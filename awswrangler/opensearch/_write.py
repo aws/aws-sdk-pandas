@@ -9,11 +9,11 @@ from typing import Any, Dict, Generator, Iterable, List, Mapping, Optional, Tupl
 import boto3
 import pandas as pd
 import progressbar
-from elasticsearch import Elasticsearch, TransportError
-from elasticsearch.exceptions import NotFoundError
-from elasticsearch.helpers import bulk
 from jsonpath_ng import parse
 from jsonpath_ng.exceptions import JsonPathParserError
+from opensearchpy import OpenSearch, TransportError
+from opensearchpy.exceptions import NotFoundError
+from opensearchpy.helpers import bulk
 from pandas import notna
 
 from awswrangler._utils import parse_path
@@ -112,7 +112,7 @@ def _get_documents_w_json_path(documents: List[Mapping[str, Any]], json_path: st
     return output_documents
 
 
-def _get_refresh_interval(client: Elasticsearch, index: str) -> Any:
+def _get_refresh_interval(client: OpenSearch, index: str) -> Any:
     url = f"/{index}/_settings"
     try:
         response = client.transport.perform_request("GET", url)
@@ -123,7 +123,7 @@ def _get_refresh_interval(client: Elasticsearch, index: str) -> Any:
         return None
 
 
-def _set_refresh_interval(client: Elasticsearch, index: str, refresh_interval: Optional[Any]) -> Any:
+def _set_refresh_interval(client: OpenSearch, index: str, refresh_interval: Optional[Any]) -> Any:
     url = f"/{index}/_settings"
     body = {"index": {"refresh_interval": refresh_interval}}
     response = client.transport.perform_request("PUT", url, headers={"Content-Type": "application/json"}, body=body)
@@ -132,14 +132,14 @@ def _set_refresh_interval(client: Elasticsearch, index: str, refresh_interval: O
 
 
 def _disable_refresh_interval(
-    client: Elasticsearch,
+    client: OpenSearch,
     index: str,
 ) -> Any:
     return _set_refresh_interval(client=client, index=index, refresh_interval="-1")
 
 
 def create_index(
-    client: Elasticsearch,
+    client: OpenSearch,
     index: str,
     doc_type: Optional[str] = None,
     settings: Optional[Dict[str, Any]] = None,
@@ -149,8 +149,8 @@ def create_index(
 
     Parameters
     ----------
-    client : Elasticsearch
-        instance of elasticsearch.Elasticsearch to use.
+    client : OpenSearch
+        instance of opensearchpy.OpenSearch to use.
     index : str
         Name of the index.
     doc_type : str, optional
@@ -214,13 +214,13 @@ def create_index(
     return response
 
 
-def delete_index(client: Elasticsearch, index: str) -> Dict[str, Any]:
+def delete_index(client: OpenSearch, index: str) -> Dict[str, Any]:
     """Create an index.
 
     Parameters
     ----------
-    client : Elasticsearch
-        instance of elasticsearch.Elasticsearch to use.
+    client : OpenSearch
+        instance of opensearchpy.OpenSearch to use.
     index : str
         Name of the index.
 
@@ -249,7 +249,7 @@ def delete_index(client: Elasticsearch, index: str) -> Dict[str, Any]:
 
 
 def index_json(
-    client: Elasticsearch,
+    client: OpenSearch,
     path: str,
     index: str,
     doc_type: Optional[str] = None,
@@ -264,14 +264,14 @@ def index_json(
 
     Parameters
     ----------
-    client : Elasticsearch
-        instance of elasticsearch.Elasticsearch to use.
+    client : OpenSearch
+        instance of opensearchpy.OpenSearch to use.
     path : str
         s3 or local path to the JSON file which contains the documents.
     index : str
         Name of the index.
     doc_type : str, optional
-        Name of the document type (only for Elasticsearch versions 5.x and earlier).
+        Name of the document type (for Elasticsearch versions 5.x and earlier).
     json_path : str, optional
         JsonPath expression to specify explicit path to a single name element
         in a JSON hierarchical data structure.
@@ -323,7 +323,7 @@ def index_json(
 
 
 def index_csv(
-    client: Elasticsearch,
+    client: OpenSearch,
     path: str,
     index: str,
     doc_type: Optional[str] = None,
@@ -334,14 +334,14 @@ def index_csv(
 
     Parameters
     ----------
-    client : Elasticsearch
-        instance of elasticsearch.Elasticsearch to use.
+    client : OpenSearch
+        instance of opensearchpy.OpenSearch to use.
     path : str
         s3 or local path to the CSV file which contains the documents.
     index : str
         Name of the index.
     doc_type : str, optional
-        Name of the document type (only for Elasticsearch versions 5.x and older).
+        Name of the document type (for Elasticsearch versions 5.x and earlier).
     pandas_kwargs : Dict[str, Any], optional
         Dictionary of arguments forwarded to pandas.read_csv().
         e.g. pandas_kwargs={'sep': '|', 'na_values': ['null', 'none']}
@@ -394,20 +394,20 @@ def index_csv(
 
 
 def index_df(
-    client: Elasticsearch, df: pd.DataFrame, index: str, doc_type: Optional[str] = None, **kwargs: Any
+    client: OpenSearch, df: pd.DataFrame, index: str, doc_type: Optional[str] = None, **kwargs: Any
 ) -> Dict[str, Any]:
     """Index all documents from a DataFrame to OpenSearch index.
 
     Parameters
     ----------
-    client : Elasticsearch
-        instance of elasticsearch.Elasticsearch to use.
+    client : OpenSearch
+        instance of opensearchpy.OpenSearch to use.
     df : pd.DataFrame
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
     index : str
         Name of the index.
     doc_type : str, optional
-        Name of the document type (only for Elasticsearch versions 5.x and older).
+        Name of the document type (for Elasticsearch versions 5.x and earlier).
     **kwargs :
         KEYWORD arguments forwarded to :func:`~awswrangler.opensearch.index_documents`
         which is used to execute the operation
@@ -435,7 +435,7 @@ def index_df(
 
 
 def index_documents(
-    client: Elasticsearch,
+    client: OpenSearch,
     documents: Iterable[Mapping[str, Any]],
     index: str,
     doc_type: Optional[str] = None,
@@ -454,9 +454,9 @@ def index_documents(
 
     Note
     ----
-    Some of the args are referenced from elasticsearch-py client library (bulk helpers)
-    https://elasticsearch-py.readthedocs.io/en/v7.13.4/helpers.html#elasticsearch.helpers.bulk
-    https://elasticsearch-py.readthedocs.io/en/v7.13.4/helpers.html#elasticsearch.helpers.streaming_bulk
+    Some of the args are referenced from opensearch-py client library (bulk helpers)
+    https://opensearch-py.readthedocs.io/en/latest/helpers.html#opensearchpy.helpers.bulk
+    https://opensearch-py.readthedocs.io/en/latest/helpers.html#opensearchpy.helpers.streaming_bulk
 
     If you receive `Error 429 (Too Many Requests) /_bulk` please to to decrease `bulk_size` value.
     Please also consider modifying the cluster size and instance type -
@@ -464,14 +464,14 @@ def index_documents(
 
     Parameters
     ----------
-    client : Elasticsearch
-        instance of elasticsearch.Elasticsearch to use.
+    client : OpenSearch
+        instance of opensearchpy.OpenSearch to use.
     documents : Iterable[Mapping[str, Any]]
         List which contains the documents that will be inserted.
     index : str
         Name of the index.
     doc_type : str, optional
-        Name of the document type (only for Elasticsearch versions 5.x and older).
+        Name of the document type (for Elasticsearch versions 5.x and earlier).
     keys_to_write : List[str], optional
         list of keys to index. If not provided all keys will be indexed
     id_keys : List[str], optional
