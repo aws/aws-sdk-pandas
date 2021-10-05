@@ -1,6 +1,6 @@
 """Amazon OpenSearch Read Module (PRIVATE)."""
 
-from typing import Any, Dict, List, Mapping, Optional, Union
+from typing import Any, Collection, Dict, List, Mapping, Optional, Union
 
 import pandas as pd
 from opensearchpy import OpenSearch
@@ -46,6 +46,7 @@ def search(
     search_body: Optional[Dict[str, Any]] = None,
     doc_type: Optional[str] = None,
     is_scroll: Optional[bool] = False,
+    filter_path: Optional[Union[str, Collection[str]]] = None,
     **kwargs: Any,
 ) -> pd.DataFrame:
     """Return results matching query DSL as pandas dataframe.
@@ -67,6 +68,9 @@ def search(
         for example, for machine learning jobs.
         Because scroll search contexts consume a lot of memory, we suggest you don’t use the scroll operation
         for frequent user queries.
+    filter_path : Union[str, Collection[str]], optional
+        Use the filter_path parameter to reduce the size of the OpenSearch Service response \
+(default: ['hits.hits._id','hits.hits._source'])
     **kwargs :
         KEYWORD arguments forwarded to [opensearchpy.OpenSearch.search]\
 (https://opensearch-py.readthedocs.io/en/latest/api.html#opensearchpy.OpenSearch.search)
@@ -101,12 +105,18 @@ def search(
     if doc_type:
         kwargs["doc_type"] = doc_type
 
+    if filter_path is None:
+        filter_path = ["hits.hits._id", "hits.hits._source"]
+
     if is_scroll:
-        documents_generator = scan(client, index=index, query=search_body, **kwargs)
+        if isinstance(filter_path, str):
+            filter_path = [filter_path]
+        filter_path = ["_scroll_id", "_shards"] + list(filter_path)  # required for scroll
+        documents_generator = scan(client, index=index, query=search_body, filter_path=filter_path, **kwargs)
         documents = [_hit_to_row(doc) for doc in documents_generator]
         df = pd.DataFrame(documents)
     else:
-        response = client.search(index=index, body=search_body, **kwargs)
+        response = client.search(index=index, body=search_body, filter_path=filter_path, **kwargs)
         df = _search_response_to_df(response)
     return df
 
