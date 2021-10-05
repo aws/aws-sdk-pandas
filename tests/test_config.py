@@ -29,6 +29,8 @@ def _urls_test(glue_database):
             assert url == wr.config.s3_endpoint_url
         elif name == "glue":
             assert url == wr.config.glue_endpoint_url
+        elif name == "secretsmanager":
+            assert url == wr.config.secretsmanager_endpoint_url
         return original(self, **kwarg)
 
     with patch("botocore.client.ClientCreator.create_client", new=wrapper):
@@ -112,11 +114,13 @@ def test_basics(path, glue_database, glue_table, workgroup0, workgroup1):
     wr.config.s3_endpoint_url = f"https://s3.{region}.amazonaws.com"
     wr.config.athena_endpoint_url = f"https://athena.{region}.amazonaws.com"
     wr.config.glue_endpoint_url = f"https://glue.{region}.amazonaws.com"
+    wr.config.secretsmanager_endpoint_url = f"https://secretsmanager.{region}.amazonaws.com"
     _urls_test(glue_database)
     os.environ["WR_STS_ENDPOINT_URL"] = f"https://sts.{region}.amazonaws.com"
     os.environ["WR_S3_ENDPOINT_URL"] = f"https://s3.{region}.amazonaws.com"
     os.environ["WR_ATHENA_ENDPOINT_URL"] = f"https://athena.{region}.amazonaws.com"
     os.environ["WR_GLUE_ENDPOINT_URL"] = f"https://glue.{region}.amazonaws.com"
+    os.environ["WR_SECRETSMANAGER_ENDPOINT_URL"] = f"https://secretsmanager.{region}.amazonaws.com"
     wr.config.reset()
     _urls_test(glue_database)
 
