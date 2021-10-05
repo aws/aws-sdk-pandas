@@ -864,7 +864,6 @@ def unload_to_files(
     max_file_size: Optional[float] = None,
     kms_key_id: Optional[str] = None,
     manifest: bool = False,
-    use_threads: bool = True,
     partition_cols: Optional[List[str]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
@@ -910,9 +909,6 @@ def unload_to_files(
     kms_key_id : str, optional
         Specifies the key ID for an AWS Key Management Service (AWS KMS) key to be
         used to encrypt data files on Amazon S3.
-    use_threads : bool
-        True to enable concurrent requests, False to disable multiple threads.
-        If enabled os.cpu_count() will be used as the max number of threads.
     manifest : bool
         Unload a manifest file on S3.
     partition_cols: List[str], optional
@@ -941,7 +937,6 @@ def unload_to_files(
     if unload_format not in [None, "CSV", "PARQUET"]:
         raise exceptions.InvalidArgumentValue("<unload_format> argument must be 'CSV' or 'PARQUET'")
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    s3.delete_objects(path=path, use_threads=use_threads, boto3_session=session)
     with con.cursor() as cursor:
         format_str: str = unload_format or "PARQUET"
         partition_str: str = f"\nPARTITION BY ({','.join(partition_cols)})" if partition_cols else ""
@@ -955,7 +950,7 @@ def unload_to_files(
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
             aws_session_token=aws_session_token,
-            boto3_session=boto3_session,
+            boto3_session=session,
         )
 
         sql = (
@@ -1106,7 +1101,6 @@ def unload(
         max_file_size=max_file_size,
         kms_key_id=kms_key_id,
         manifest=False,
-        use_threads=use_threads,
         boto3_session=session,
     )
     if chunked is False:
