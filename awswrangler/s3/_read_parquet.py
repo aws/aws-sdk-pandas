@@ -274,9 +274,12 @@ def _arrowtable2df(
         metadata = json.loads(table.schema.metadata[b"pandas"])
 
     # Will return datetime obj (instead of pd.Timestamp) if Arrow TS unit is not NS
-    timestamps_not_ns: bool = any(
-        [_data_types._get_arrow_timestamp_unit(field.type) in ["s", "ms", "us"] for field in table.schema]
-    )
+    timestamp_as_object: bool = False
+    for field in table.schema:
+        timestamp_as_object = (
+            _data_types.get_arrow_timestamp_unit(field.type) in ["s", "ms", "us"]
+            or timestamp_as_object
+        )
 
     if type(use_threads) == int:  # pylint: disable=unidiomatic-typecheck
         use_threads = bool(use_threads > 1)
@@ -287,7 +290,7 @@ def _arrowtable2df(
             self_destruct=True,
             integer_object_nulls=False,
             date_as_object=True,
-            timestamp_as_object=timestamps_not_ns,
+            timestamp_as_object=timestamp_as_object,
             ignore_metadata=True,
             strings_to_categorical=False,
             safe=safe,
@@ -353,9 +356,14 @@ def _read_parquet_chunked(  # pylint: disable=too-many-branches
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
     version_ids: Optional[Dict[str, str]] = None,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Iterator[pd.DataFrame]:
     next_slice: Optional[pd.DataFrame] = None
     last_schema: Optional[Dict[str, str]] = None
+
+    if pyarrow_additional_kwargs is None:
+        pyarrow_additional_kwargs = {}
+
     last_path: str = ""
     for path in paths:
         with open_s3_object(
@@ -368,7 +376,9 @@ def _read_parquet_chunked(  # pylint: disable=too-many-branches
             boto3_session=boto3_session,
         ) as f:
             pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(
-                source=f, read_dictionary=categories
+                source=f,
+                read_dictionary=categories,
+                coerce_int96_timestamp_unit=pyarrow_additional_kwargs.get("coerce_int96_timestamp_unit", None),
             )
             if pq_file is None:
                 continue

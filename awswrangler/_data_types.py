@@ -703,7 +703,7 @@ def timestream_type_from_pandas(df: pd.DataFrame) -> str:
     return pyarrow2timestream(dtype=pyarrow_type)
 
 
-def _get_arrow_timestamp_unit(data_type: pa.lib.DataType) -> Any:
+def get_arrow_timestamp_unit(data_type: pa.lib.DataType) -> Any:
     """Returns unit of pyarrow timestamp. If the pyarrow type is not timestamp then None is returned"""
     if isinstance(data_type, pa.lib.TimestampType):
         return data_type.unit

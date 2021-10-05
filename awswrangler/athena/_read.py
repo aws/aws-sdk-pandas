@@ -249,6 +249,7 @@ def _fetch_parquet_result(
         chunked=chunked,
         categories=categories,
         ignore_index=True,
+        pyarrow_additional_kwargs={"coerce_int96_timestamp_unit": "ms"}
     )
     if chunked is False:
         ret = _apply_query_metadata(df=ret, query_metadata=query_metadata)
