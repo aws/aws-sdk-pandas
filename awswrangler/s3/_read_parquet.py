@@ -277,8 +277,7 @@ def _arrowtable2df(
     timestamp_as_object: bool = False
     for field in table.schema:
         timestamp_as_object = (
-            _data_types.get_arrow_timestamp_unit(field.type) in ["s", "ms", "us"]
-            or timestamp_as_object
+            _data_types.get_arrow_timestamp_unit(field.type) in ["s", "ms", "us"] or timestamp_as_object
         )
 
     if type(use_threads) == int:  # pylint: disable=unidiomatic-typecheck
@@ -331,10 +330,7 @@ def _pyarrow_chunk_generator(
 
 
 def _row_group_chunk_generator(
-    pq_file: pyarrow.parquet.ParquetFile,
-    columns: Optional[List[str]],
-    use_threads_flag: bool,
-    num_row_groups: int,
+    pq_file: pyarrow.parquet.ParquetFile, columns: Optional[List[str]], use_threads_flag: bool, num_row_groups: int,
 ) -> Iterator[pa.Table]:
     for i in range(num_row_groups):
         _logger.debug("Reading Row Group %s...", i)
@@ -909,10 +905,7 @@ def read_parquet_table(
     # Then list objects & process individual object keys under path_root
     if partition_filter is not None:
         available_partitions_dict = _get_partitions(
-            database=database,
-            table=table,
-            catalog_id=catalog_id,
-            boto3_session=boto3_session,
+            database=database, table=table, catalog_id=catalog_id, boto3_session=boto3_session,
         )
         available_partitions = list(available_partitions_dict.keys())
         if available_partitions:

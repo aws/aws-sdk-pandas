@@ -105,9 +105,7 @@ def _compare_query_string(sql: str, other: str) -> bool:
 
 
 def _get_last_query_infos(
-    max_remote_cache_entries: int,
-    boto3_session: Optional[boto3.Session] = None,
-    workgroup: Optional[str] = None,
+    max_remote_cache_entries: int, boto3_session: Optional[boto3.Session] = None, workgroup: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """Return an iterator of `query_execution_info`s run by the workgroup in Athena."""
     client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
@@ -176,9 +174,7 @@ def _check_for_cached_results(
     current_timestamp: datetime.datetime = datetime.datetime.now(datetime.timezone.utc)
     _logger.debug("current_timestamp: %s", current_timestamp)
     for query_info in _get_last_query_infos(
-        max_remote_cache_entries=max_remote_cache_entries,
-        boto3_session=boto3_session,
-        workgroup=workgroup,
+        max_remote_cache_entries=max_remote_cache_entries, boto3_session=boto3_session, workgroup=workgroup,
     ):
         query_execution_id: str = query_info["QueryExecutionId"]
         query_timestamp: datetime.datetime = query_info["Status"]["CompletionDateTime"]
@@ -249,7 +245,7 @@ def _fetch_parquet_result(
         chunked=chunked,
         categories=categories,
         ignore_index=True,
-        pyarrow_additional_kwargs={"coerce_int96_timestamp_unit": "ms"}
+        pyarrow_additional_kwargs={"coerce_int96_timestamp_unit": "ms"},
     )
     if chunked is False:
         ret = _apply_query_metadata(df=ret, query_metadata=query_metadata)
