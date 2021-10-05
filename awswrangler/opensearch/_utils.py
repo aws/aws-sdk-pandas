@@ -75,7 +75,7 @@ def connect(
     valid_ports = {80, 443}
 
     if port not in valid_ports:
-        raise ValueError("results: port must be one of %r." % valid_ports)
+        raise ValueError(f"results: port must be one of {valid_ports}.")
 
     if username and password:
         http_auth = (username, password)

@@ -84,7 +84,7 @@ def _df_doc_generator(df: pd.DataFrame) -> Generator[Dict[str, Any], None, None]
 
 
 def _file_line_generator(path: str, is_json: bool = False) -> Generator[Any, None, None]:
-    with open(path) as fp:
+    with open(path, encoding="utf-8") as fp:
         for line in fp:
             if is_json:
                 yield json.loads(line)

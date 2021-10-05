@@ -15,7 +15,7 @@ def _resolve_fields(row: Mapping[str, Any]) -> Mapping[str, Any]:
         if isinstance(row[field], dict):
             nested_fields = _resolve_fields(row[field])
             for n_field, val in nested_fields.items():
-                fields["{}.{}".format(field, n_field)] = val
+                fields[f"{field}.{n_field}"] = val
         else:
             fields[field] = row[field]
     return fields
