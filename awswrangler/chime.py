@@ -26,7 +26,7 @@ def post_message(webhook: str, message: str) -> Optional[Any]:
         Represents the response from Chime
     """
     response = None
-    chime_message = {"Content": "Message: %s" % (message)}
+    chime_message = {"Content": f"Message: {message}"}
     req = Request(webhook, json.dumps(chime_message).encode("utf-8"))
     try:
         response = urlopen(req)  # pylint: disable=R1732
