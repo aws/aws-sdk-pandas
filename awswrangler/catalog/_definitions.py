@@ -190,7 +190,7 @@ def _check_column_type(column_type: str) -> bool:
 
 
 def _update_table_definition(current_definition: Dict[str, Any]) -> Dict[str, Any]:
-    definition: Dict[str, Any] = dict()
+    definition: Dict[str, Any] = {}
     keep_keys = [
         "Name",
         "Description",
