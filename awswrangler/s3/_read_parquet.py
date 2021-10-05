@@ -35,7 +35,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _pyarrow_parquet_file_wrapper(
-    source: Any, read_dictionary: Optional[List[str]] = None, coerce_int96_timestamp_unit: str = None
+    source: Any, read_dictionary: Optional[List[str]] = None, coerce_int96_timestamp_unit: Optional[str] = None
 ) -> pyarrow.parquet.ParquetFile:
     try:
         return pyarrow.parquet.ParquetFile(
@@ -328,7 +328,10 @@ def _pyarrow_chunk_generator(
 
 
 def _row_group_chunk_generator(
-    pq_file: pyarrow.parquet.ParquetFile, columns: Optional[List[str]], use_threads_flag: bool, num_row_groups: int,
+    pq_file: pyarrow.parquet.ParquetFile,
+    columns: Optional[List[str]],
+    use_threads_flag: bool,
+    num_row_groups: int,
 ) -> Iterator[pa.Table]:
     for i in range(num_row_groups):
         _logger.debug("Reading Row Group %s...", i)
@@ -896,7 +899,10 @@ def read_parquet_table(
     # Then list objects & process individual object keys under path_root
     if partition_filter is not None:
         available_partitions_dict = _get_partitions(
-            database=database, table=table, catalog_id=catalog_id, boto3_session=boto3_session,
+            database=database,
+            table=table,
+            catalog_id=catalog_id,
+            boto3_session=boto3_session,
         )
         available_partitions = list(available_partitions_dict.keys())
         if available_partitions:
