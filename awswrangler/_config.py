@@ -44,6 +44,7 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "kms_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
     "emr_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
     "dynamodb_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
+    "secretsmanager_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
     # Botocore config
     "botocore_config": _ConfigArg(dtype=botocore.config.Config, nullable=True),
 }
@@ -63,6 +64,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes, too-many-public-
         self.kms_endpoint_url = None
         self.emr_endpoint_url = None
         self.dynamodb_endpoint_url = None
+        self.secretsmanager_endpoint_url = None
         self.botocore_config = None
         for name in _CONFIG_ARGS:
             self._load_config(name=name)
@@ -362,6 +364,15 @@ class _Config:  # pylint: disable=too-many-instance-attributes, too-many-public-
     @dynamodb_endpoint_url.setter
     def dynamodb_endpoint_url(self, value: Optional[str]) -> None:
         self._set_config_value(key="dynamodb_endpoint_url", value=value)
+
+    @property
+    def secretsmanager_endpoint_url(self) -> Optional[str]:
+        """Property secretsmanager_endpoint_url."""
+        return cast(Optional[str], self["secretsmanager_endpoint_url"])
+
+    @secretsmanager_endpoint_url.setter
+    def secretsmanager_endpoint_url(self, value: Optional[str]) -> None:
+        self._set_config_value(key="secretsmanager_endpoint_url", value=value)
 
     @property
     def botocore_config(self) -> botocore.config.Config:
