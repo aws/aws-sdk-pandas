@@ -215,6 +215,10 @@ or
 ``./deploy-base.sh``
 ``./deploy-databases.sh``
 
+* [OPTIONAL] Deploy the Cloudformation template `opensearch.yaml` (if you need to test Amazon OpenSearch Service). This step could take about 15 minutes to deploy.
+
+``./deploy-opensearch.sh``
+
 * Go to the `EC2 -> SecurityGroups` console, open the `aws-data-wrangler-*` security group and configure to accept your IP from any TCP port.
   - Alternatively run:
   
@@ -244,7 +248,7 @@ or
 
 ``pytest -n 8 tests/test_db.py``
 
-* To run all data lake test functions for all python versions (Only if Amazon QuickSight is activated):
+* To run all data lake test functions for all python versions (Only if Amazon QuickSight is activated and Amazon OpenSearch template is deployed):
 
 ``./test.sh``
 
