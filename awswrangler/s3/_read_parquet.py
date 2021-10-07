@@ -1076,7 +1076,7 @@ def read_parquet_metadata(
     )[:2]
 
 
-def _set_default_pyarrow_additional_kwargs(pyarrow_additional_kwargs: Dict[str, Any]) -> Dict[str, Any]:
+def _set_default_pyarrow_additional_kwargs(pyarrow_additional_kwargs: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     if pyarrow_additional_kwargs is None:
         pyarrow_additional_kwargs = {}
     defaults = {
