@@ -222,6 +222,7 @@ def _fetch_parquet_result(
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, Any]],
     temp_table_fqn: Optional[str] = None,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     ret: Union[pd.DataFrame, Iterator[pd.DataFrame]]
     chunked: Union[bool, int] = False if chunksize is None else chunksize
@@ -249,6 +250,7 @@ def _fetch_parquet_result(
         chunked=chunked,
         categories=categories,
         ignore_index=True,
+        pyarrow_additional_kwargs=pyarrow_additional_kwargs,
     )
     if chunked is False:
         ret = _apply_query_metadata(df=ret, query_metadata=query_metadata)
@@ -337,6 +339,7 @@ def _resolve_query_with_cache(
     use_threads: bool,
     session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, Any]],
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Fetch cached data and return it as a pandas DataFrame (or list of DataFrames)."""
     _logger.debug("cache_info:\n%s", cache_info)
@@ -358,6 +361,7 @@ def _resolve_query_with_cache(
             use_threads=use_threads,
             boto3_session=session,
             s3_additional_kwargs=s3_additional_kwargs,
+            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
         )
     if cache_info.file_format == "csv":
         return _fetch_csv_result(
@@ -389,6 +393,7 @@ def _resolve_query_without_cache_ctas(
     use_threads: bool,
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     path: str = f"{s3_output}/{name}"
     ext_location: str = "\n" if wg_config.enforced is True else f",\n    external_location = '{path}'\n"
@@ -465,6 +470,7 @@ def _resolve_query_without_cache_ctas(
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
         temp_table_fqn=fully_qualified_name,
+        pyarrow_additional_kwargs=pyarrow_additional_kwargs,
     )
 
 
@@ -532,6 +538,7 @@ def _resolve_query_without_cache(
     use_threads: bool,
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """
     Execute a query in Athena and returns results as DataFrame, back to `read_sql_query`.
@@ -565,6 +572,7 @@ def _resolve_query_without_cache(
                 use_threads=use_threads,
                 s3_additional_kwargs=s3_additional_kwargs,
                 boto3_session=boto3_session,
+                pyarrow_additional_kwargs=pyarrow_additional_kwargs,
             )
         finally:
             catalog.delete_table_if_exists(
@@ -612,6 +620,7 @@ def read_sql_query(
     data_source: Optional[str] = None,
     params: Optional[Dict[str, Any]] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Execute any SQL query on AWS Athena and return the results as a Pandas DataFrame.
 
@@ -781,6 +790,14 @@ def read_sql_query(
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
+    pyarrow_additional_kwargs : Optional[Dict[str, Any]]
+        Forward to the ParquetFile class or converting an Arrow table to Pandas, currently only an
+        "coerce_int96_timestamp_unit" or "timestamp_as_object" argument will be considered. If reading parquet
+        files where you cannot convert a timestamp to pandas Timestamp[ns] consider setting timestamp_as_object=True,
+        to allow for timestamp units larger than "ns". If reading parquet data that still uses INT96 (like Athena
+        outputs) you can use coerce_int96_timestamp_unit to specify what timestamp unit to encode INT96 to (by default
+        this is "ns", if you know the output parquet came from a system that encodes timestamp to a particular unit
+        then set this to that same unit e.g. coerce_int96_timestamp_unit="ms").
 
     Returns
     -------
@@ -837,6 +854,7 @@ def read_sql_query(
                 use_threads=use_threads,
                 session=session,
                 s3_additional_kwargs=s3_additional_kwargs,
+                pyarrow_additional_kwargs=pyarrow_additional_kwargs,
             )
         except Exception as e:  # pylint: disable=broad-except
             _logger.error(e)  # if there is anything wrong with the cache, just fallback to the usual path
@@ -859,6 +877,7 @@ def read_sql_query(
         use_threads=use_threads,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=session,
+        pyarrow_additional_kwargs=pyarrow_additional_kwargs,
     )
 
 
@@ -885,6 +904,7 @@ def read_sql_table(
     max_local_cache_entries: int = 100,
     data_source: Optional[str] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Extract the full table AWS Athena and return the results as a Pandas DataFrame.
 
@@ -1045,6 +1065,15 @@ def read_sql_table(
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
+    pyarrow_additional_kwargs : Optional[Dict[str, Any]]
+        Forward to the ParquetFile class or converting an Arrow table to Pandas, currently only an
+        "coerce_int96_timestamp_unit" or "timestamp_as_object" argument will be considered. If
+        reading parquet fileswhere you cannot convert a timestamp to pandas Timestamp[ns] consider
+        setting timestamp_as_object=True, to allow for timestamp units > NS. If reading parquet data that
+        still uses INT96 (like Athena outputs) you can use coerce_int96_timestamp_unit to specify what
+        timestamp unit to encode INT96 to (by default this is "ns", if you know the output parquet came from
+        a system that encodes timestamp to a particular unit then set this to that same unit e.g.
+        coerce_int96_timestamp_unit="ms").
 
     Returns
     -------
@@ -1081,6 +1110,7 @@ def read_sql_table(
         max_remote_cache_entries=max_remote_cache_entries,
         max_local_cache_entries=max_local_cache_entries,
         s3_additional_kwargs=s3_additional_kwargs,
+        pyarrow_additional_kwargs=pyarrow_additional_kwargs,
     )
 
 
