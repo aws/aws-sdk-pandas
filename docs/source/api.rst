@@ -10,6 +10,7 @@ API Reference
 * `Microsoft SQL Server`_
 * `Data API Redshift`_
 * `Data API RDS`_
+* `OpenSearch`_
 * `DynamoDB`_
 * `Amazon Timestream`_
 * `Amazon EMR`_
@@ -198,6 +199,24 @@ Data API RDS
     RdsDataApi
     connect
     read_sql_query
+
+OpenSearch
+----------
+
+.. currentmodule:: awswrangler.opensearch
+
+.. autosummary::
+    :toctree: stubs
+
+    connect
+    create_index
+    delete_index
+    index_csv
+    index_documents
+    index_df
+    index_json
+    search
+    search_by_sql
 
 DynamoDB
 --------

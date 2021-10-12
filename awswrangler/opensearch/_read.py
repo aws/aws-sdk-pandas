@@ -59,12 +59,12 @@ def search(
         A comma-separated list of index names to search.
         use `_all` or empty string to perform the operation on all indices.
     search_body : Dict[str, Any], optional
-        The search definition using the [Query DSL](https://opensearch.org/docs/opensearch/query-dsl/full-text/).
+        The search definition using the `Query DSL <https://opensearch.org/docs/opensearch/query-dsl/full-text/>`_.
     doc_type : str, optional
         Name of the document type (for Elasticsearch versions 5.x and earlier).
     is_scroll : bool, optional
         Allows to retrieve a large numbers of results from a single search request using
-        [scroll](https://opensearch.org/docs/opensearch/rest-api/scroll/)
+        `scroll <https://opensearch.org/docs/opensearch/rest-api/scroll/>`_
         for example, for machine learning jobs.
         Because scroll search contexts consume a lot of memory, we suggest you don’t use the scroll operation
         for frequent user queries.
@@ -72,9 +72,9 @@ def search(
         Use the filter_path parameter to reduce the size of the OpenSearch Service response \
 (default: ['hits.hits._id','hits.hits._source'])
     **kwargs :
-        KEYWORD arguments forwarded to [opensearchpy.OpenSearch.search]\
-(https://opensearch-py.readthedocs.io/en/latest/api.html#opensearchpy.OpenSearch.search)
-        and also to [opensearchpy.helpers.scan](https://opensearch-py.readthedocs.io/en/master/helpers.html#scan)
+        KEYWORD arguments forwarded to `opensearchpy.OpenSearch.search \
+<https://opensearch-py.readthedocs.io/en/latest/api.html#opensearchpy.OpenSearch.search>`_
+        and also to `opensearchpy.helpers.scan <https://opensearch-py.readthedocs.io/en/master/helpers.html#scan>`_
          if `is_scroll=True`
 
     Returns
@@ -122,7 +122,7 @@ def search(
 
 
 def search_by_sql(client: OpenSearch, sql_query: str, **kwargs: Any) -> pd.DataFrame:
-    """Return results matching [SQL query](https://opensearch.org/docs/search-plugins/sql/index/) as pandas dataframe.
+    """Return results matching `SQL query <https://opensearch.org/docs/search-plugins/sql/index/>`_ as pandas dataframe.
 
     Parameters
     ----------

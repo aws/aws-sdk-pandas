@@ -45,10 +45,10 @@ def connect(
 
     Note
     ----
-    We use [opensearch-py](https://github.com/opensearch-project/opensearch-py), an OpenSearch low-level python client.
+    We use `opensearch-py <https://github.com/opensearch-project/opensearch-py>`_, an OpenSearch python client.
 
-    The username and password are mandatory if the OS Cluster uses [Fine Grained Access Control]\
-(https://docs.aws.amazon.com/opensearch-service/latest/developerguide/fgac.html).
+    The username and password are mandatory if the OS Cluster uses `Fine Grained Access Control \
+<https://docs.aws.amazon.com/opensearch-service/latest/developerguide/fgac.html>`_.
     If fine grained access control is disabled, session access key and secret keys are used.
 
     Parameters

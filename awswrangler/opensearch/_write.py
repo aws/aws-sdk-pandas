@@ -275,7 +275,7 @@ def index_json(
     json_path : str, optional
         JsonPath expression to specify explicit path to a single name element
         in a JSON hierarchical data structure.
-        Read more about [JsonPath](https://jsonpath.com)
+        Read more about `JsonPath <https://jsonpath.com>`_
     boto3_session : boto3.Session(), optional
         Boto3 Session to be used to access s3 if s3 path is provided.
         The default boto3 Session will be used if boto3_session receive None.
