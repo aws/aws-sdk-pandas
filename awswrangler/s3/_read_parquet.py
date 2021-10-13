@@ -45,9 +45,7 @@ def _pyarrow_parquet_file_wrapper(
         except TypeError as ex:
             if "got an unexpected keyword argument" in str(ex):
                 _logger.warning("coerce_int96_timestamp_unit is not supported in pyarrow 2 and below")
-                return pyarrow.parquet.ParquetFile(
-                    source=source, read_dictionary=read_dictionary
-                )
+                return pyarrow.parquet.ParquetFile(source=source, read_dictionary=read_dictionary)
             raise
     except pyarrow.ArrowInvalid as ex:
         if str(ex) == "Parquet file size is 0 bytes":
