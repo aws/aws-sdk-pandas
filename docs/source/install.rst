@@ -62,7 +62,7 @@ Go to your Glue PySpark job and create a new *Job parameters* key/value:
 
 To install a specific version, set the value for above Job parameter as follows:
 
-* Value: ``cython==0.29.21,pg8000==1.21.0,pyarrow==2,pandas==1.3.0,awswrangler==2.11.0``
+* Value: ``cython==0.29.21,pg8000==1.21.0,pyarrow==2,pandas==1.3.0,awswrangler==2.12.0``
 
 .. note:: Pyarrow 3 is not currently supported in Glue PySpark Jobs, which is why a previous installation of pyarrow 2 is required.
 
@@ -95,7 +95,7 @@ Here is an example of how to reference the Lambda layer in your CDK app:
             "wrangler-bucket",
             bucket_arn="arn:aws:s3:::aws-data-wrangler-public-artifacts",
         ),
-        key="releases/2.11.0/awswrangler-layer-2.11.0-py3.8.zip",
+        key="releases/2.12.0/awswrangler-layer-2.12.0-py3.8.zip",
       ),
       layer_version_name="aws-data-wrangler"
     )
@@ -190,7 +190,7 @@ complement Big Data pipelines.
         sudo pip install pyarrow==2 awswrangler
 
 .. note:: Make sure to freeze the Wrangler version in the bootstrap for productive
-          environments (e.g. awswrangler==2.11.0)
+          environments (e.g. awswrangler==2.12.0)
 
 .. note:: Pyarrow 3 is not currently supported in the default EMR image, which is why a previous installation of pyarrow 2 is required.
 
