@@ -51,6 +51,7 @@ def to_excel(
     use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     pandas_kwargs:
         KEYWORD arguments forwarded to pandas.DataFrame.to_excel(). You can NOT pass `pandas_kwargs` explicit, just add
         valid Pandas arguments in the function call and Wrangler will accept it.

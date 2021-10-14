@@ -271,6 +271,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs : Optional[Dict[str, Any]]
@@ -719,6 +720,7 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
     use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     description: str, optional
         Glue/Athena catalog: Table description
     parameters: Dict[str, str], optional

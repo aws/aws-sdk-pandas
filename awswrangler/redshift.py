@@ -1064,6 +1064,7 @@ def unload(
     use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
@@ -1240,6 +1241,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     lock : bool
         True to execute LOCK command inside the transaction to force serializable isolation.
     commit_transaction: bool
@@ -1439,6 +1441,7 @@ def copy(  # pylint: disable=too-many-arguments
     use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     lock : bool
         True to execute LOCK command inside the transaction to force serializable isolation.
     boto3_session : boto3.Session(), optional

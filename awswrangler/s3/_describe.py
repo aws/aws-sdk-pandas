@@ -93,6 +93,7 @@ def describe_objects(
     use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     last_modified_begin
         Filter the s3 files by the Last modified date of the object.
         The filter is applied only after list all s3 files.
@@ -196,6 +197,7 @@ def size_objects(
     use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}

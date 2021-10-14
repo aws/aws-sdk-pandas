@@ -149,6 +149,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
     s3_additional_kwargs : Optional[Dict[str, Any]]
@@ -605,6 +606,7 @@ def to_json(
     use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     pandas_kwargs:
         KEYWORD arguments forwarded to pandas.DataFrame.to_json(). You can NOT pass `pandas_kwargs` explicit, just add
         valid Pandas arguments in the function call and Wrangler will accept it.
