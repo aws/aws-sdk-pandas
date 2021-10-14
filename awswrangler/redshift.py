@@ -1061,7 +1061,7 @@ def unload(
         If passed will split the data in a Iterable of DataFrames (Memory friendly).
         If `True` wrangler will iterate on the data by files in the most efficient way without guarantee of chunksize.
         If an `INTEGER` is passed Wrangler will iterate on the data by number of rows igual the received INTEGER.
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
     boto3_session : boto3.Session(), optional
@@ -1237,7 +1237,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
         (e.g. [".csv", "_SUCCESS"]).
         Only has effect during the table creation.
         If None, will try to read all files. (default)
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
     lock : bool
@@ -1436,7 +1436,7 @@ def copy(  # pylint: disable=too-many-arguments
         Dict of VARCHAR length by columns. (e.g. {"col1": 10, "col5": 200}).
     keep_files : bool
         Should keep stage files?
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
     lock : bool

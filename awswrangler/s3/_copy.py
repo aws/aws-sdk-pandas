@@ -79,7 +79,7 @@ def merge_datasets(
         ``append`` (Default), ``overwrite``, ``overwrite_partitions``.
     ignore_empty: bool
         Ignore files with 0 bytes.
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
     boto3_session : boto3.Session(), optional
@@ -181,7 +181,7 @@ def copy_objects(
         S3 Path for the target directory.
     replace_filenames : Dict[str, str], optional
         e.g. {"old_name.csv": "new_name.csv", "old_name2.csv": "new_name2.csv"}
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
     boto3_session : boto3.Session(), optional

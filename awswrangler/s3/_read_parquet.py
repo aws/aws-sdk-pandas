@@ -1031,7 +1031,7 @@ def read_parquet_metadata(
         The lower, the faster.
     dataset: bool
         If True read a parquet dataset instead of simple file(s) loading all the related partitions as columns.
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
     boto3_session : boto3.Session(), optional

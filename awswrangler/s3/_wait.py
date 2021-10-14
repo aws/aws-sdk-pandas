@@ -99,7 +99,7 @@ def wait_objects_exist(
         The amount of time in seconds to wait between attempts. Default: 5
     max_attempts : int, optional
         The maximum number of attempts to be made. Default: 20
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
     boto3_session : boto3.Session(), optional
@@ -152,7 +152,7 @@ def wait_objects_not_exist(
         The amount of time in seconds to wait between attempts. Default: 5
     max_attempts : int, optional
         The maximum number of attempts to be made. Default: 20
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
     boto3_session : boto3.Session(), optional

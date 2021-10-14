@@ -31,7 +31,7 @@ def upload(
         A file-like object in binary mode or a path to local file (e.g. ``./local/path/to/key0``).
     path : str
         S3 path (e.g. ``s3://bucket/key0``).
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
     boto3_session : boto3.Session(), optional

@@ -268,7 +268,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
         Max number of rows in each file.
         Default is None i.e. dont split the files.
         (e.g. 33554432, 268435456)
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
     boto3_session : boto3.Session(), optional
@@ -716,7 +716,7 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
         The lower, the faster.
     dataset: bool
         If True read a parquet dataset instead of simple file(s) loading all the related partitions as columns.
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
     description: str, optional

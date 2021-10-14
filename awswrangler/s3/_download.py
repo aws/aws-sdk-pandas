@@ -34,7 +34,7 @@ def download(
         A file-like object in binary mode or a path to local file (e.g. ``./local/path/to/key0``).
     version_id: Optional[str]
         Version id of the object.
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
     boto3_session : boto3.Session(), optional

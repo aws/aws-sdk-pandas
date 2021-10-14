@@ -111,7 +111,7 @@ def delete_objects(
     path : Union[str, List[str]]
         S3 prefix (accepts Unix shell-style wildcards)
         (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
     last_modified_begin

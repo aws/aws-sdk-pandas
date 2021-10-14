@@ -90,7 +90,7 @@ def describe_objects(
     version_id: Optional[Union[str, Dict[str, str]]]
         Version id of the object or mapping of object path to version id.
         (e.g. {'s3://bucket/key0': '121212', 's3://bucket/key1': '343434'})
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
     last_modified_begin
@@ -193,7 +193,7 @@ def size_objects(
     version_id: Optional[Union[str, Dict[str, str]]]
         Version id of the object or mapping of object path to version id.
         (e.g. {'s3://bucket/key0': '121212', 's3://bucket/key1': '343434'})
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
     s3_additional_kwargs : Optional[Dict[str, Any]]

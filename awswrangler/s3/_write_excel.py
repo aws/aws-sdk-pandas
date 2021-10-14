@@ -48,7 +48,7 @@ def to_excel(
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
     pandas_kwargs:
