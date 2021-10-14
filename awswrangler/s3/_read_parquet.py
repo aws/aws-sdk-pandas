@@ -983,7 +983,7 @@ def read_parquet_metadata(
     dtype: Optional[Dict[str, str]] = None,
     sampling: float = 1.0,
     dataset: bool = False,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,

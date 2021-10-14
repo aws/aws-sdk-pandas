@@ -32,7 +32,7 @@ def _get_write_details(path: str, pandas_kwargs: Dict[str, Any]) -> Tuple[str, O
 def _to_text(
     file_format: str,
     df: pd.DataFrame,
-    use_threads: bool,
+    use_threads: Union[bool, int],
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
     path: Optional[str] = None,
@@ -76,7 +76,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     sep: str = ",",
     index: bool = True,
     columns: Optional[List[str]] = None,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     sanitize_columns: bool = False,
@@ -577,7 +577,7 @@ def to_json(
     path: str,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     **pandas_kwargs: Any,
 ) -> List[str]:
     """Write JSON file on Amazon S3.

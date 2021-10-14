@@ -16,7 +16,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 def _copy_objects(
     batch: List[Tuple[str, str]],
-    use_threads: bool,
+    use_threads: Union[bool, int],
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, Any]],
 ) -> None:
@@ -46,7 +46,7 @@ def merge_datasets(
     target_path: str,
     mode: str = "append",
     ignore_empty: bool = False,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> List[str]:
@@ -160,7 +160,7 @@ def copy_objects(
     source_path: str,
     target_path: str,
     replace_filenames: Optional[Dict[str, str]] = None,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> List[str]:

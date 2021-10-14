@@ -42,7 +42,7 @@ def _read_text_chunked(
     pandas_kwargs: Dict[str, Any],
     s3_additional_kwargs: Optional[Dict[str, str]],
     dataset: bool,
-    use_threads: bool,
+    use_threads: Union[bool, int],
     version_ids: Optional[Dict[str, str]] = None,
 ) -> Iterator[pd.DataFrame]:
     for path in paths:
@@ -73,7 +73,7 @@ def _read_text_file(
     pandas_kwargs: Dict[str, Any],
     s3_additional_kwargs: Optional[Dict[str, str]],
     dataset: bool,
-    use_threads: bool,
+    use_threads: Union[bool, int],
 ) -> pd.DataFrame:
     boto3_session = _utils.ensure_session(boto3_session)
     mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)

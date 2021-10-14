@@ -83,7 +83,7 @@ def _delete_objects_concurrent(
 
 def delete_objects(
     path: Union[str, List[str]],
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,

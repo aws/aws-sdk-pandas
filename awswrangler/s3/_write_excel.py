@@ -17,7 +17,7 @@ def to_excel(
     path: str,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     **pandas_kwargs: Any,
 ) -> str:
     """Write EXCEL file on Amazon S3.

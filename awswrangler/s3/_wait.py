@@ -35,7 +35,7 @@ def _wait_objects(
     paths: List[str],
     delay: Optional[float] = None,
     max_attempts: Optional[int] = None,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
     delay = 5 if delay is None else delay
@@ -77,7 +77,7 @@ def wait_objects_exist(
     paths: List[str],
     delay: Optional[float] = None,
     max_attempts: Optional[int] = None,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
     """Wait Amazon S3 objects exist.
@@ -130,7 +130,7 @@ def wait_objects_not_exist(
     paths: List[str],
     delay: Optional[float] = None,
     max_attempts: Optional[int] = None,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
     """Wait Amazon S3 objects not exist.

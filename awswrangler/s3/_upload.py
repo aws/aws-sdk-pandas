@@ -14,7 +14,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def upload(
     local_file: Union[str, Any],
     path: str,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> None:

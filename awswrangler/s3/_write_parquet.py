@@ -43,7 +43,7 @@ def _new_writer(
     schema: pa.Schema,
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
-    use_threads: bool,
+    use_threads: Union[bool, int],
 ) -> Iterator[pyarrow.parquet.ParquetWriter]:
     writer: Optional[pyarrow.parquet.ParquetWriter] = None
     if not pyarrow_additional_kwargs:
@@ -83,7 +83,7 @@ def _write_chunk(
     table: pa.Table,
     offset: int,
     chunk_size: int,
-    use_threads: bool,
+    use_threads: Union[bool, int],
 ) -> List[str]:
     with _new_writer(
         file_path=file_path,
@@ -110,7 +110,7 @@ def _to_parquet_chunked(
     cpus: int,
 ) -> List[str]:
     chunks: int = math.ceil(num_of_rows / max_rows_by_file)
-    use_threads: bool = cpus > 1
+    use_threads: Union[bool, int] = cpus > 1
     proxy: _WriteProxy = _WriteProxy(use_threads=use_threads)
     for chunk in range(chunks):
         offset: int = chunk * max_rows_by_file
@@ -141,7 +141,7 @@ def _to_parquet(
     dtype: Dict[str, str],
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
-    use_threads: bool,
+    use_threads: Union[bool, int],
     path: Optional[str] = None,
     path_root: Optional[str] = None,
     filename_prefix: Optional[str] = uuid.uuid4().hex,
@@ -197,7 +197,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     compression: Optional[str] = "snappy",
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
     max_rows_by_file: Optional[int] = None,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     sanitize_columns: bool = False,
@@ -644,7 +644,7 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
     dtype: Optional[Dict[str, str]] = None,
     sampling: float = 1.0,
     dataset: bool = False,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     description: Optional[str] = None,
     parameters: Optional[Dict[str, str]] = None,
     columns_comments: Optional[Dict[str, str]] = None,

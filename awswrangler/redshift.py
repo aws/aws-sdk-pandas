@@ -210,7 +210,7 @@ def _redshift_types_from_path(
     parquet_infer_sampling: float,
     path_suffix: Optional[str],
     path_ignore_suffix: Optional[str],
-    use_threads: bool,
+    use_threads: Union[bool, int],
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
 ) -> Dict[str, str]:
@@ -257,7 +257,7 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments
     parquet_infer_sampling: float = 1.0,
     path_suffix: Optional[str] = None,
     path_ignore_suffix: Optional[str] = None,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
 ) -> Tuple[str, Optional[str]]:
@@ -342,7 +342,7 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments
 def _read_parquet_iterator(
     path: str,
     keep_files: bool,
-    use_threads: bool,
+    use_threads: Union[bool, int],
     categories: Optional[List[str]],
     chunked: Union[bool, int],
     boto3_session: Optional[boto3.Session],
@@ -985,7 +985,7 @@ def unload(
     categories: Optional[List[str]] = None,
     chunked: Union[bool, int] = False,
     keep_files: bool = False,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
@@ -1151,7 +1151,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     serialize_to_json: bool = False,
     path_suffix: Optional[str] = None,
     path_ignore_suffix: Optional[str] = None,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     lock: bool = False,
     commit_transaction: bool = True,
     boto3_session: Optional[boto3.Session] = None,
@@ -1350,7 +1350,7 @@ def copy(  # pylint: disable=too-many-arguments
     varchar_lengths: Optional[Dict[str, int]] = None,
     serialize_to_json: bool = False,
     keep_files: bool = False,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     lock: bool = False,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,

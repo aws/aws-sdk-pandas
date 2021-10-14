@@ -15,7 +15,7 @@ def download(
     path: str,
     local_file: Union[str, Any],
     version_id: Optional[str] = None,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> None:

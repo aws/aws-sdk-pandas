@@ -55,7 +55,7 @@ def _describe_object_concurrent(
 def describe_objects(
     path: Union[str, List[str]],
     version_id: Optional[Union[str, Dict[str, str]]] = None,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -168,7 +168,7 @@ def describe_objects(
 def size_objects(
     path: Union[str, List[str]],
     version_id: Optional[Union[str, Dict[str, str]]] = None,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, Optional[int]]:
