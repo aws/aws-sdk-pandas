@@ -2,7 +2,7 @@
 
 import concurrent.futures
 import logging
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import boto3
 import pandas as pd

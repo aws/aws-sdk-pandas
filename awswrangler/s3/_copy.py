@@ -1,7 +1,7 @@
 """Amazon S3 Copy Module (PRIVATE)."""
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import boto3
 from boto3.s3.transfer import TransferConfig

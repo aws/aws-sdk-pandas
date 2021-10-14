@@ -3,7 +3,7 @@
 import concurrent.futures
 import itertools
 import logging
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import boto3
 

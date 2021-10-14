@@ -1,7 +1,7 @@
 """Amazon S3 Excel Write Module (PRIVATE)."""
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 import boto3
 import pandas as pd
