@@ -596,7 +596,7 @@ def to_json(
     df: pandas.DataFrame
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
     path : str
-        Amazon S3 path (e.g. s3://bucket/filename.csv).
+        Amazon S3 path (e.g. s3://bucket/filename.json).
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
     s3_additional_kwargs : Optional[Dict[str, Any]]
