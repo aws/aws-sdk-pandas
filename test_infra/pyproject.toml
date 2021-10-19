@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "awswrangler - test infrastructure"
-version = "2.12.0"
+version = "2.12.1"
 description = "CDK test infrastructure for AWS"
 authors = ["Igor Tavares"]
 license = "Apache License 2.0"

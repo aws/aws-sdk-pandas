@@ -43,7 +43,7 @@ def _new_writer(
     schema: pa.Schema,
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
-    use_threads: bool,
+    use_threads: Union[bool, int],
 ) -> Iterator[pyarrow.parquet.ParquetWriter]:
     writer: Optional[pyarrow.parquet.ParquetWriter] = None
     if not pyarrow_additional_kwargs:
@@ -83,7 +83,7 @@ def _write_chunk(
     table: pa.Table,
     offset: int,
     chunk_size: int,
-    use_threads: bool,
+    use_threads: Union[bool, int],
 ) -> List[str]:
     with _new_writer(
         file_path=file_path,
@@ -110,7 +110,7 @@ def _to_parquet_chunked(
     cpus: int,
 ) -> List[str]:
     chunks: int = math.ceil(num_of_rows / max_rows_by_file)
-    use_threads: bool = cpus > 1
+    use_threads: Union[bool, int] = cpus > 1
     proxy: _WriteProxy = _WriteProxy(use_threads=use_threads)
     for chunk in range(chunks):
         offset: int = chunk * max_rows_by_file
@@ -141,7 +141,7 @@ def _to_parquet(
     dtype: Dict[str, str],
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
-    use_threads: bool,
+    use_threads: Union[bool, int],
     path: Optional[str] = None,
     path_root: Optional[str] = None,
     filename_prefix: Optional[str] = uuid.uuid4().hex,
@@ -197,7 +197,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     compression: Optional[str] = "snappy",
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
     max_rows_by_file: Optional[int] = None,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     sanitize_columns: bool = False,
@@ -268,9 +268,10 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
         Max number of rows in each file.
         Default is None i.e. dont split the files.
         (e.g. 33554432, 268435456)
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs : Optional[Dict[str, Any]]
@@ -297,18 +298,18 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals
     concurrent_partitioning: bool
         If True will increase the parallelism level during the partitions writing. It will decrease the
         writing time and increase the memory usage.
-        https://aws-data-wrangler.readthedocs.io/en/2.12.0/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
+        https://aws-data-wrangler.readthedocs.io/en/2.12.1/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
     mode: str, optional
         ``append`` (Default), ``overwrite``, ``overwrite_partitions``. Only takes effect if dataset=True.
         For details check the related tutorial:
-        https://aws-data-wrangler.readthedocs.io/en/2.12.0/stubs/awswrangler.s3.to_parquet.html#awswrangler.s3.to_parquet
+        https://aws-data-wrangler.readthedocs.io/en/2.12.1/stubs/awswrangler.s3.to_parquet.html#awswrangler.s3.to_parquet
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     schema_evolution : bool
         If True allows schema evolution (new or missing columns), otherwise a exception will be raised.
         (Only considered if dataset=True and mode in ("append", "overwrite_partitions"))
         Related tutorial:
-        https://aws-data-wrangler.readthedocs.io/en/2.12.0/tutorials/014%20-%20Schema%20Evolution.html
+        https://aws-data-wrangler.readthedocs.io/en/2.12.1/tutorials/014%20-%20Schema%20Evolution.html
     database : str, optional
         Glue/Athena catalog: Database name.
     table : str, optional
@@ -644,7 +645,7 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
     dtype: Optional[Dict[str, str]] = None,
     sampling: float = 1.0,
     dataset: bool = False,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     description: Optional[str] = None,
     parameters: Optional[Dict[str, str]] = None,
     columns_comments: Optional[Dict[str, str]] = None,
@@ -716,9 +717,10 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
         The lower, the faster.
     dataset: bool
         If True read a parquet dataset instead of simple file(s) loading all the related partitions as columns.
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     description: str, optional
         Glue/Athena catalog: Table description
     parameters: Dict[str, str], optional

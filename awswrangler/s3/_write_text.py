@@ -32,7 +32,7 @@ def _get_write_details(path: str, pandas_kwargs: Dict[str, Any]) -> Tuple[str, O
 def _to_text(
     file_format: str,
     df: pd.DataFrame,
-    use_threads: bool,
+    use_threads: Union[bool, int],
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
     path: Optional[str] = None,
@@ -76,7 +76,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     sep: str = ",",
     index: bool = True,
     columns: Optional[List[str]] = None,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     sanitize_columns: bool = False,
@@ -146,9 +146,10 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         Write row names (index).
     columns : Optional[List[str]]
         Columns to write.
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
     s3_additional_kwargs : Optional[Dict[str, Any]]
@@ -174,18 +175,18 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     concurrent_partitioning: bool
         If True will increase the parallelism level during the partitions writing. It will decrease the
         writing time and increase the memory usage.
-        https://aws-data-wrangler.readthedocs.io/en/2.12.0/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
+        https://aws-data-wrangler.readthedocs.io/en/2.12.1/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
     mode : str, optional
         ``append`` (Default), ``overwrite``, ``overwrite_partitions``. Only takes effect if dataset=True.
         For details check the related tutorial:
-        https://aws-data-wrangler.readthedocs.io/en/2.12.0/stubs/awswrangler.s3.to_parquet.html#awswrangler.s3.to_parquet
+        https://aws-data-wrangler.readthedocs.io/en/2.12.1/stubs/awswrangler.s3.to_parquet.html#awswrangler.s3.to_parquet
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     schema_evolution : bool
         If True allows schema evolution (new or missing columns), otherwise a exception will be raised.
         (Only considered if dataset=True and mode in ("append", "overwrite_partitions"))
         Related tutorial:
-        https://aws-data-wrangler.readthedocs.io/en/2.12.0/tutorials/014%20-%20Schema%20Evolution.html
+        https://aws-data-wrangler.readthedocs.io/en/2.12.1/tutorials/014%20-%20Schema%20Evolution.html
     database : str, optional
         Glue/Athena catalog: Database name.
     table : str, optional
@@ -577,7 +578,7 @@ def to_json(
     path: str,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     **pandas_kwargs: Any,
 ) -> List[str]:
     """Write JSON file on Amazon S3.
@@ -596,15 +597,16 @@ def to_json(
     df: pandas.DataFrame
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
     path : str
-        Amazon S3 path (e.g. s3://bucket/filename.csv).
+        Amazon S3 path (e.g. s3://bucket/filename.json).
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     pandas_kwargs:
         KEYWORD arguments forwarded to pandas.DataFrame.to_json(). You can NOT pass `pandas_kwargs` explicit, just add
         valid Pandas arguments in the function call and Wrangler will accept it.

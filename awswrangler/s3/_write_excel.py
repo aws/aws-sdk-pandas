@@ -1,7 +1,7 @@
 """Amazon S3 Excel Write Module (PRIVATE)."""
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 import boto3
 import pandas as pd
@@ -17,7 +17,7 @@ def to_excel(
     path: str,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     **pandas_kwargs: Any,
 ) -> str:
     """Write EXCEL file on Amazon S3.
@@ -48,9 +48,10 @@ def to_excel(
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     pandas_kwargs:
         KEYWORD arguments forwarded to pandas.DataFrame.to_excel(). You can NOT pass `pandas_kwargs` explicit, just add
         valid Pandas arguments in the function call and Wrangler will accept it.
