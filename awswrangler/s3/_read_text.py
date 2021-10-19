@@ -42,7 +42,7 @@ def _read_text_chunked(
     pandas_kwargs: Dict[str, Any],
     s3_additional_kwargs: Optional[Dict[str, str]],
     dataset: bool,
-    use_threads: bool,
+    use_threads: Union[bool, int],
     version_ids: Optional[Dict[str, str]] = None,
 ) -> Iterator[pd.DataFrame]:
     for path in paths:
@@ -73,7 +73,7 @@ def _read_text_file(
     pandas_kwargs: Dict[str, Any],
     s3_additional_kwargs: Optional[Dict[str, str]],
     dataset: bool,
-    use_threads: bool,
+    use_threads: Union[bool, int],
 ) -> pd.DataFrame:
     boto3_session = _utils.ensure_session(boto3_session)
     mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
@@ -219,7 +219,7 @@ def read_csv(
     use_threads : Union[bool, int]
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
-        If given an int will use the given amount of threads.
+        If integer is provided, specified number is used.
     last_modified_begin
         Filter the s3 files by the Last modified date of the object.
         The filter is applied only after list all s3 files.
@@ -367,7 +367,7 @@ def read_fwf(
     use_threads : Union[bool, int]
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
-        If given an int will use the given amount of threads.
+        If integer is provided, specified number is used.
     last_modified_begin
         Filter the s3 files by the Last modified date of the object.
         The filter is applied only after list all s3 files.
@@ -518,7 +518,7 @@ def read_json(
     use_threads : Union[bool, int]
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
-        If given an int will use the given amount of threads.
+        If integer is provided, specified number is used.
     last_modified_begin
         Filter the s3 files by the Last modified date of the object.
         The filter is applied only after list all s3 files.

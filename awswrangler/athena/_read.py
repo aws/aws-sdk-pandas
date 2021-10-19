@@ -75,7 +75,7 @@ def _fix_csv_types(df: pd.DataFrame, parse_dates: List[str], binaries: List[str]
 def _delete_after_iterate(
     dfs: Iterator[pd.DataFrame],
     paths: List[str],
-    use_threads: bool,
+    use_threads: Union[bool, int],
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
 ) -> Iterator[pd.DataFrame]:
@@ -218,7 +218,7 @@ def _fetch_parquet_result(
     keep_files: bool,
     categories: Optional[List[str]],
     chunksize: Optional[int],
-    use_threads: bool,
+    use_threads: Union[bool, int],
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, Any]],
     temp_table_fqn: Optional[str] = None,
@@ -282,7 +282,7 @@ def _fetch_csv_result(
     query_metadata: _QueryMetadata,
     keep_files: bool,
     chunksize: Optional[int],
-    use_threads: bool,
+    use_threads: Union[bool, int],
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, Any]],
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
@@ -336,7 +336,7 @@ def _resolve_query_with_cache(
     cache_info: _CacheInfo,
     categories: Optional[List[str]],
     chunksize: Optional[Union[int, bool]],
-    use_threads: bool,
+    use_threads: Union[bool, int],
     session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -390,7 +390,7 @@ def _resolve_query_without_cache_ctas(
     alt_database: Optional[str],
     name: Optional[str],
     ctas_bucketing_info: Optional[Tuple[List[str], int]],
-    use_threads: bool,
+    use_threads: Union[bool, int],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -486,7 +486,7 @@ def _resolve_query_without_cache_regular(
     workgroup: Optional[str],
     kms_key: Optional[str],
     wg_config: _WorkGroupConfig,
-    use_threads: bool,
+    use_threads: Union[bool, int],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
@@ -535,7 +535,7 @@ def _resolve_query_without_cache(
     ctas_database_name: Optional[str],
     ctas_temp_table_name: Optional[str],
     ctas_bucketing_info: Optional[Tuple[List[str], int]],
-    use_threads: bool,
+    use_threads: Union[bool, int],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -611,7 +611,7 @@ def read_sql_query(
     ctas_database_name: Optional[str] = None,
     ctas_temp_table_name: Optional[str] = None,
     ctas_bucketing_info: Optional[Tuple[List[str], int]] = None,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     max_cache_seconds: int = 0,
     max_cache_query_inspections: int = 50,
@@ -756,9 +756,10 @@ def read_sql_query(
         Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
         second element.
         Only `str`, `int` and `bool` are supported as column data types for bucketing.
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     max_cache_seconds : int
@@ -896,7 +897,7 @@ def read_sql_table(
     ctas_database_name: Optional[str] = None,
     ctas_temp_table_name: Optional[str] = None,
     ctas_bucketing_info: Optional[Tuple[List[str], int]] = None,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     max_cache_seconds: int = 0,
     max_cache_query_inspections: int = 50,
@@ -1035,9 +1036,10 @@ def read_sql_table(
         Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
         second element.
         Only `str`, `int` and `bool` are supported as column data types for bucketing.
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     max_cache_seconds: int
