@@ -55,7 +55,7 @@ def _describe_object_concurrent(
 def describe_objects(
     path: Union[str, List[str]],
     version_id: Optional[Union[str, Dict[str, str]]] = None,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -90,9 +90,10 @@ def describe_objects(
     version_id: Optional[Union[str, Dict[str, str]]]
         Version id of the object or mapping of object path to version id.
         (e.g. {'s3://bucket/key0': '121212', 's3://bucket/key1': '343434'})
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     last_modified_begin
         Filter the s3 files by the Last modified date of the object.
         The filter is applied only after list all s3 files.
@@ -168,7 +169,7 @@ def describe_objects(
 def size_objects(
     path: Union[str, List[str]],
     version_id: Optional[Union[str, Dict[str, str]]] = None,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, Optional[int]]:
@@ -193,9 +194,10 @@ def size_objects(
     version_id: Optional[Union[str, Dict[str, str]]]
         Version id of the object or mapping of object path to version id.
         (e.g. {'s3://bucket/key0': '121212', 's3://bucket/key1': '343434'})
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}

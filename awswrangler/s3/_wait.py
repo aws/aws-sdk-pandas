@@ -3,7 +3,7 @@
 import concurrent.futures
 import itertools
 import logging
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import boto3
 
@@ -35,7 +35,7 @@ def _wait_objects(
     paths: List[str],
     delay: Optional[float] = None,
     max_attempts: Optional[int] = None,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
     delay = 5 if delay is None else delay
@@ -77,7 +77,7 @@ def wait_objects_exist(
     paths: List[str],
     delay: Optional[float] = None,
     max_attempts: Optional[int] = None,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
     """Wait Amazon S3 objects exist.
@@ -99,9 +99,10 @@ def wait_objects_exist(
         The amount of time in seconds to wait between attempts. Default: 5
     max_attempts : int, optional
         The maximum number of attempts to be made. Default: 20
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -130,7 +131,7 @@ def wait_objects_not_exist(
     paths: List[str],
     delay: Optional[float] = None,
     max_attempts: Optional[int] = None,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
     """Wait Amazon S3 objects not exist.
@@ -152,9 +153,10 @@ def wait_objects_not_exist(
         The amount of time in seconds to wait between attempts. Default: 5
     max_attempts : int, optional
         The maximum number of attempts to be made. Default: 20
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
