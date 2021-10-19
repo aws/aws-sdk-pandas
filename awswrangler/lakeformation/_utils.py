@@ -41,7 +41,7 @@ def _build_partition_predicate(
 def _build_table_objects(
     paths: List[str],
     partitions_values: Dict[str, List[str]],
-    use_threads: bool,
+    use_threads: Union[bool, int],
     boto3_session: Optional[boto3.Session],
 ) -> List[Dict[str, Any]]:
     table_objects: List[Dict[str, Any]] = []

@@ -59,7 +59,7 @@ def _resolve_sql_query(
         next_token = response.get("NextToken", None)
         scan_kwargs["NextToken"] = next_token
 
-    tables: List[Table] = list()
+    tables: List[Table] = []
     if use_threads is False:
         tables = list(
             _get_work_unit_results(
