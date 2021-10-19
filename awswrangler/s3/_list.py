@@ -87,14 +87,19 @@ def _list_objects(  # pylint: disable=too-many-branches
     _suffix: Union[List[str], None] = [suffix] if isinstance(suffix, str) else suffix
     _ignore_suffix: Union[List[str], None] = [ignore_suffix] if isinstance(ignore_suffix, str) else ignore_suffix
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    default_pagination: Dict[str, int] = {"PageSize": 1000}
+    extra_kwargs: Dict[str, Any] = {"PaginationConfig": default_pagination}
     if s3_additional_kwargs:
-        extra_kwargs: Dict[str, Any] = _fs.get_botocore_valid_kwargs(
+        extra_kwargs = _fs.get_botocore_valid_kwargs(
             function_name="list_objects_v2", s3_additional_kwargs=s3_additional_kwargs
         )
-    else:
-        extra_kwargs = {}
+        extra_kwargs["PaginationConfig"] = (
+            s3_additional_kwargs["PaginationConfig"]
+            if "PaginationConfig" in s3_additional_kwargs
+            else default_pagination
+        )
     paginator = client_s3.get_paginator("list_objects_v2")
-    args: Dict[str, Any] = {"Bucket": bucket, "Prefix": prefix, "PaginationConfig": {"PageSize": 1000}, **extra_kwargs}
+    args: Dict[str, Any] = {"Bucket": bucket, "Prefix": prefix, **extra_kwargs}
     if delimiter is not None:
         args["Delimiter"] = delimiter
     _logger.debug("args: %s", args)
