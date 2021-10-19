@@ -210,7 +210,7 @@ def _redshift_types_from_path(
     parquet_infer_sampling: float,
     path_suffix: Optional[str],
     path_ignore_suffix: Optional[str],
-    use_threads: bool,
+    use_threads: Union[bool, int],
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
 ) -> Dict[str, str]:
@@ -257,7 +257,7 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments
     parquet_infer_sampling: float = 1.0,
     path_suffix: Optional[str] = None,
     path_ignore_suffix: Optional[str] = None,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
 ) -> Tuple[str, Optional[str]]:
@@ -342,7 +342,7 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments
 def _read_parquet_iterator(
     path: str,
     keep_files: bool,
-    use_threads: bool,
+    use_threads: Union[bool, int],
     categories: Optional[List[str]],
     chunked: Union[bool, int],
     boto3_session: Optional[boto3.Session],
@@ -864,7 +864,6 @@ def unload_to_files(
     max_file_size: Optional[float] = None,
     kms_key_id: Optional[str] = None,
     manifest: bool = False,
-    use_threads: bool = True,
     partition_cols: Optional[List[str]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
@@ -910,9 +909,6 @@ def unload_to_files(
     kms_key_id : str, optional
         Specifies the key ID for an AWS Key Management Service (AWS KMS) key to be
         used to encrypt data files on Amazon S3.
-    use_threads : bool
-        True to enable concurrent requests, False to disable multiple threads.
-        If enabled os.cpu_count() will be used as the max number of threads.
     manifest : bool
         Unload a manifest file on S3.
     partition_cols: List[str], optional
@@ -941,7 +937,6 @@ def unload_to_files(
     if unload_format not in [None, "CSV", "PARQUET"]:
         raise exceptions.InvalidArgumentValue("<unload_format> argument must be 'CSV' or 'PARQUET'")
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    s3.delete_objects(path=path, use_threads=use_threads, boto3_session=session)
     with con.cursor() as cursor:
         format_str: str = unload_format or "PARQUET"
         partition_str: str = f"\nPARTITION BY ({','.join(partition_cols)})" if partition_cols else ""
@@ -955,7 +950,7 @@ def unload_to_files(
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
             aws_session_token=aws_session_token,
-            boto3_session=boto3_session,
+            boto3_session=session,
         )
 
         sql = (
@@ -990,7 +985,7 @@ def unload(
     categories: Optional[List[str]] = None,
     chunked: Union[bool, int] = False,
     keep_files: bool = False,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
@@ -1066,9 +1061,10 @@ def unload(
         If passed will split the data in a Iterable of DataFrames (Memory friendly).
         If `True` wrangler will iterate on the data by files in the most efficient way without guarantee of chunksize.
         If an `INTEGER` is passed Wrangler will iterate on the data by number of rows igual the received INTEGER.
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
@@ -1106,7 +1102,6 @@ def unload(
         max_file_size=max_file_size,
         kms_key_id=kms_key_id,
         manifest=False,
-        use_threads=use_threads,
         boto3_session=session,
     )
     if chunked is False:
@@ -1157,7 +1152,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     serialize_to_json: bool = False,
     path_suffix: Optional[str] = None,
     path_ignore_suffix: Optional[str] = None,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     lock: bool = False,
     commit_transaction: bool = True,
     boto3_session: Optional[boto3.Session] = None,
@@ -1243,9 +1238,10 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
         (e.g. [".csv", "_SUCCESS"]).
         Only has effect during the table creation.
         If None, will try to read all files. (default)
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     lock : bool
         True to execute LOCK command inside the transaction to force serializable isolation.
     commit_transaction: bool
@@ -1356,7 +1352,7 @@ def copy(  # pylint: disable=too-many-arguments
     varchar_lengths: Optional[Dict[str, int]] = None,
     serialize_to_json: bool = False,
     keep_files: bool = False,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     lock: bool = False,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
@@ -1442,9 +1438,10 @@ def copy(  # pylint: disable=too-many-arguments
         Dict of VARCHAR length by columns. (e.g. {"col1": 10, "col5": 200}).
     keep_files : bool
         Should keep stage files?
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     lock : bool
         True to execute LOCK command inside the transaction to force serializable isolation.
     boto3_session : boto3.Session(), optional

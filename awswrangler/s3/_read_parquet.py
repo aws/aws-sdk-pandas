@@ -17,6 +17,7 @@ import pyarrow.parquet
 
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._config import apply_configs
+from awswrangler.catalog._get import _get_partitions
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import (
@@ -34,10 +35,18 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _pyarrow_parquet_file_wrapper(
-    source: Any, read_dictionary: Optional[List[str]] = None
+    source: Any, read_dictionary: Optional[List[str]] = None, coerce_int96_timestamp_unit: Optional[str] = None
 ) -> pyarrow.parquet.ParquetFile:
     try:
-        return pyarrow.parquet.ParquetFile(source=source, read_dictionary=read_dictionary)
+        try:
+            return pyarrow.parquet.ParquetFile(
+                source=source, read_dictionary=read_dictionary, coerce_int96_timestamp_unit=coerce_int96_timestamp_unit
+            )
+        except TypeError as ex:
+            if "got an unexpected keyword argument" in str(ex):
+                _logger.warning("coerce_int96_timestamp_unit is not supported in pyarrow 2 and below")
+                return pyarrow.parquet.ParquetFile(source=source, read_dictionary=read_dictionary)
+            raise
     except pyarrow.ArrowInvalid as ex:
         if str(ex) == "Parquet file size is 0 bytes":
             _logger.warning("Ignoring empty file...xx")
@@ -51,7 +60,9 @@ def _read_parquet_metadata_file(
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
     version_id: Optional[str] = None,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Optional[Dict[str, str]]:
+    pyarrow_args = _set_default_pyarrow_additional_kwargs(pyarrow_additional_kwargs)
     with open_s3_object(
         path=path,
         mode="rb",
@@ -61,7 +72,9 @@ def _read_parquet_metadata_file(
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
     ) as f:
-        pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(source=f)
+        pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(
+            source=f, coerce_int96_timestamp_unit=pyarrow_args["coerce_int96_timestamp_unit"]
+        )
         if pq_file is None:
             return None
         return _data_types.athena_types_from_pyarrow_schema(schema=pq_file.schema.to_arrow_schema(), partitions=None)[0]
@@ -74,7 +87,9 @@ def _read_schemas_from_files(
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
     version_ids: Optional[Dict[str, str]] = None,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Tuple[Dict[str, str], ...]:
+
     paths = _utils.list_sampling(lst=paths, sampling=sampling)
     schemas: Tuple[Optional[Dict[str, str]], ...] = tuple()
     n_paths: int = len(paths)
@@ -87,6 +102,7 @@ def _read_schemas_from_files(
                 s3_additional_kwargs=s3_additional_kwargs,
                 use_threads=use_threads,
                 version_id=version_ids.get(p) if isinstance(version_ids, dict) else None,
+                pyarrow_additional_kwargs=pyarrow_additional_kwargs,
             )
             for p in paths
         )
@@ -101,6 +117,7 @@ def _read_schemas_from_files(
                     itertools.repeat(s3_additional_kwargs),
                     itertools.repeat(use_threads),
                     versions,
+                    itertools.repeat(pyarrow_additional_kwargs),
                 )
             )
     schemas = cast(Tuple[Dict[str, str], ...], tuple(x for x in schemas if x is not None))
@@ -127,6 +144,7 @@ def _validate_schemas_from_files(
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
     version_ids: Optional[Dict[str, str]] = None,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> None:
     schemas: Tuple[Dict[str, str], ...] = _read_schemas_from_files(
         paths=paths,
@@ -135,6 +153,7 @@ def _validate_schemas_from_files(
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
         version_ids=version_ids,
+        pyarrow_additional_kwargs=pyarrow_additional_kwargs,
     )
     _validate_schemas(schemas=schemas)
 
@@ -163,6 +182,7 @@ def _read_parquet_metadata(
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
     version_id: Optional[Union[str, Dict[str, str]]] = None,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Tuple[Dict[str, str], Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]:
     """Handle wr.s3.read_parquet_metadata internally."""
     path_root: Optional[str] = _get_path_root(path=path, dataset=dataset)
@@ -187,6 +207,7 @@ def _read_parquet_metadata(
         else {paths[0]: version_id}
         if isinstance(version_id, str)
         else None,
+        pyarrow_additional_kwargs=pyarrow_additional_kwargs,
     )
     columns_types: Dict[str, str] = _merge_schemas(schemas=schemas)
 
@@ -265,10 +286,12 @@ def _arrowtable2df(
     dataset: bool,
     path: str,
     path_root: Optional[str],
+    timestamp_as_object: bool = False,
 ) -> pd.DataFrame:
     metadata: Dict[str, Any] = {}
     if table.schema.metadata is not None and b"pandas" in table.schema.metadata:
         metadata = json.loads(table.schema.metadata[b"pandas"])
+
     if type(use_threads) == int:  # pylint: disable=unidiomatic-typecheck
         use_threads = bool(use_threads > 1)
     df: pd.DataFrame = _apply_partitions(
@@ -278,6 +301,7 @@ def _arrowtable2df(
             self_destruct=True,
             integer_object_nulls=False,
             date_as_object=True,
+            timestamp_as_object=timestamp_as_object,
             ignore_metadata=True,
             strings_to_categorical=False,
             safe=safe,
@@ -343,9 +367,12 @@ def _read_parquet_chunked(  # pylint: disable=too-many-branches
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
     version_ids: Optional[Dict[str, str]] = None,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Iterator[pd.DataFrame]:
     next_slice: Optional[pd.DataFrame] = None
     last_schema: Optional[Dict[str, str]] = None
+
+    pyarrow_args = _set_default_pyarrow_additional_kwargs(pyarrow_additional_kwargs)
     last_path: str = ""
     for path in paths:
         with open_s3_object(
@@ -358,7 +385,9 @@ def _read_parquet_chunked(  # pylint: disable=too-many-branches
             boto3_session=boto3_session,
         ) as f:
             pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(
-                source=f, read_dictionary=categories
+                source=f,
+                read_dictionary=categories,
+                coerce_int96_timestamp_unit=pyarrow_args["coerce_int96_timestamp_unit"],
             )
             if pq_file is None:
                 continue
@@ -398,6 +427,7 @@ def _read_parquet_chunked(  # pylint: disable=too-many-branches
                     dataset=dataset,
                     path=path,
                     path_root=path_root,
+                    timestamp_as_object=pyarrow_args["timestamp_as_object"],
                 )
                 if chunked is True:
                     yield df
@@ -425,7 +455,9 @@ def _read_parquet_file(
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
     version_id: Optional[str] = None,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> pa.Table:
+    pyarrow_args = _set_default_pyarrow_additional_kwargs(pyarrow_additional_kwargs)
     s3_block_size: int = 20_971_520 if columns else -1  # One shot for a full read otherwise 20 MB (20 * 2**20)
     with open_s3_object(
         path=path,
@@ -437,7 +469,9 @@ def _read_parquet_file(
         boto3_session=boto3_session,
     ) as f:
         pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(
-            source=f, read_dictionary=categories
+            source=f,
+            read_dictionary=categories,
+            coerce_int96_timestamp_unit=pyarrow_args["coerce_int96_timestamp_unit"],
         )
         if pq_file is None:
             raise exceptions.InvalidFile(f"Invalid Parquet file: {path}")
@@ -482,7 +516,9 @@ def _read_parquet(
     path_root: Optional[str],
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> pd.DataFrame:
+    pyarrow_args = _set_default_pyarrow_additional_kwargs(pyarrow_additional_kwargs)
     boto3_session = _utils.ensure_session(boto3_session)
     return _arrowtable2df(
         table=_read_parquet_file(
@@ -493,6 +529,7 @@ def _read_parquet(
             s3_additional_kwargs=s3_additional_kwargs,
             use_threads=use_threads,
             version_id=version_id,
+            pyarrow_additional_kwargs=pyarrow_args,
         ),
         categories=categories,
         safe=safe,
@@ -501,11 +538,13 @@ def _read_parquet(
         dataset=dataset,
         path=path,
         path_root=path_root,
+        timestamp_as_object=pyarrow_args["timestamp_as_object"],
     )
 
 
 def read_parquet(
     path: Union[str, List[str]],
+    path_root: Optional[str] = None,
     path_suffix: Union[str, List[str], None] = None,
     path_ignore_suffix: Union[str, List[str], None] = None,
     version_id: Optional[Union[str, Dict[str, str]]] = None,
@@ -524,6 +563,7 @@ def read_parquet(
     last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read Apache Parquet file(s) from from a received S3 prefix or list of S3 objects paths.
 
@@ -565,6 +605,8 @@ def read_parquet(
     path : Union[str, List[str]]
         S3 prefix (accepts Unix shell-style wildcards)
         (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
+    path_root : Optional[str]
+        Root path of the table. If dataset=`True`, will be used as a starting point to load partition columns.
     path_suffix: Union[str, List[str], None]
         Suffix or List of suffixes to be read (e.g. [".gz.parquet", ".snappy.parquet"]).
         If None, will try to read all files. (default)
@@ -612,7 +654,7 @@ def read_parquet(
     use_threads : Union[bool, int]
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
-        If given an int will use the given amount of threads.
+        If integer is provided, specified number is used.
     last_modified_begin
         Filter the s3 files by the Last modified date of the object.
         The filter is applied only after list all s3 files.
@@ -623,6 +665,14 @@ def read_parquet(
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
+    pyarrow_additional_kwargs : Optional[Dict[str, Any]]
+        Forward to the ParquetFile class or converting an Arrow table to Pandas, currently only an
+        "coerce_int96_timestamp_unit" or "timestamp_as_object" argument will be considered. If reading parquet
+        files where you cannot convert a timestamp to pandas Timestamp[ns] consider setting timestamp_as_object=True,
+        to allow for timestamp units larger than "ns". If reading parquet data that still uses INT96 (like Athena
+        outputs) you can use coerce_int96_timestamp_unit to specify what timestamp unit to encode INT96 to (by default
+        this is "ns", if you know the output parquet came from a system that encodes timestamp to a particular unit
+        then set this to that same unit e.g. coerce_int96_timestamp_unit="ms").
 
     Returns
     -------
@@ -676,12 +726,14 @@ def read_parquet(
     versions: Optional[Dict[str, str]] = (
         version_id if isinstance(version_id, dict) else {paths[0]: version_id} if isinstance(version_id, str) else None
     )
-    path_root: Optional[str] = _get_path_root(path=path, dataset=dataset)
-    if path_root is not None:
+    if path_root is None:
+        path_root = _get_path_root(path=path, dataset=dataset)
+    if path_root is not None and partition_filter is not None:
         paths = _apply_partition_filter(path_root=path_root, paths=paths, filter_func=partition_filter)
     if len(paths) < 1:
         raise exceptions.NoFilesFound(f"No files Found on: {path}.")
     _logger.debug("paths:\n%s", paths)
+
     args: Dict[str, Any] = {
         "columns": columns,
         "categories": categories,
@@ -692,6 +744,7 @@ def read_parquet(
         "path_root": path_root,
         "s3_additional_kwargs": s3_additional_kwargs,
         "use_threads": use_threads,
+        "pyarrow_additional_kwargs": pyarrow_additional_kwargs,
     }
     _logger.debug("args:\n%s", pprint.pformat(args))
     if chunked is not False:
@@ -788,7 +841,7 @@ def read_parquet_table(
         This function MUST return a bool, True to read the partition or False to ignore it.
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
-        https://aws-data-wrangler.readthedocs.io/en/2.11.0/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+        https://aws-data-wrangler.readthedocs.io/en/2.12.1/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
     columns : List[str], optional
         Names of columns to read from the file(s).
     validate_schema:
@@ -813,7 +866,7 @@ def read_parquet_table(
     use_threads : Union[bool, int]
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
-        If given an int will use the given amount of threads.
+        If integer is provided, specified number is used.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs : Optional[Dict[str, Any]]
@@ -867,11 +920,37 @@ def read_parquet_table(
         path: str = location if location.endswith("/") else f"{location}/"
     except KeyError as ex:
         raise exceptions.InvalidTable(f"Missing s3 location for {database}.{table}.") from ex
+    path_root: Optional[str] = None
+    paths: Union[str, List[str]] = path
+    # If filter is available, fetch & filter out partitions
+    # Then list objects & process individual object keys under path_root
+    if partition_filter is not None:
+        available_partitions_dict = _get_partitions(
+            database=database,
+            table=table,
+            catalog_id=catalog_id,
+            boto3_session=boto3_session,
+        )
+        available_partitions = list(available_partitions_dict.keys())
+        if available_partitions:
+            paths = []
+            path_root = path
+            partitions: Union[str, List[str]] = _apply_partition_filter(
+                path_root=path_root, paths=available_partitions, filter_func=partition_filter
+            )
+            for partition in partitions:
+                paths += _path2list(
+                    path=partition,
+                    boto3_session=boto3_session,
+                    suffix=filename_suffix,
+                    ignore_suffix=_get_path_ignore_suffix(path_ignore_suffix=filename_ignore_suffix),
+                    s3_additional_kwargs=s3_additional_kwargs,
+                )
     df = read_parquet(
-        path=path,
-        path_suffix=filename_suffix,
-        path_ignore_suffix=filename_ignore_suffix,
-        partition_filter=partition_filter,
+        path=paths,
+        path_root=path_root,
+        path_suffix=filename_suffix if path_root is None else None,
+        path_ignore_suffix=filename_ignore_suffix if path_root is None else None,
         columns=columns,
         validate_schema=validate_schema,
         categories=categories,
@@ -904,9 +983,10 @@ def read_parquet_metadata(
     dtype: Optional[Dict[str, str]] = None,
     sampling: float = 1.0,
     dataset: bool = False,
-    use_threads: bool = True,
+    use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Tuple[Dict[str, str], Optional[Dict[str, str]]]:
     """Read Apache Parquet file(s) metadata from from a received S3 prefix or list of S3 objects paths.
 
@@ -951,13 +1031,17 @@ def read_parquet_metadata(
         The lower, the faster.
     dataset: bool
         If True read a parquet dataset instead of simple file(s) loading all the related partitions as columns.
-    use_threads : bool
+    use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]]
+        Forward kwargs to parquet reader currently only excepts "coerce_int96_timestamp_unit". Which can be used to cast
+        deprecated Parquet INT96 into a specified timestamp unit (e.g. "ms").
 
     Returns
     -------
@@ -995,4 +1079,19 @@ def read_parquet_metadata(
         use_threads=use_threads,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=_utils.ensure_session(session=boto3_session),
+        pyarrow_additional_kwargs=pyarrow_additional_kwargs,
     )[:2]
+
+
+def _set_default_pyarrow_additional_kwargs(pyarrow_additional_kwargs: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    if pyarrow_additional_kwargs is None:
+        pyarrow_additional_kwargs = {}
+    defaults = {
+        "coerce_int96_timestamp_unit": None,
+        "timestamp_as_object": False,
+    }
+    defaulted_args = {
+        **defaults,
+        **pyarrow_additional_kwargs,
+    }
+    return defaulted_args

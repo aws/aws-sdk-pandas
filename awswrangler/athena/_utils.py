@@ -43,7 +43,7 @@ class _WorkGroupConfig(NamedTuple):
 
 class _LocalMetadataCacheManager:
     def __init__(self) -> None:
-        self._cache: Dict[str, Any] = dict()
+        self._cache: Dict[str, Any] = {}
         self._pqueue: List[Tuple[datetime.datetime, str]] = []
         self._max_cache_size = 100
 

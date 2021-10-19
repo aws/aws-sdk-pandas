@@ -752,3 +752,18 @@ def test_ignore_suffix(glue_database, glue_table, path):
     boto3.client("s3").put_object(Body=b"garbage", Bucket=bucket, Key=f"{directory}to_be_ignored")
     df2 = wr.s3.read_parquet_table(database=glue_database, table=glue_table, filename_ignore_suffix="ignored")
     assert df2.shape == df.shape
+
+
+def test_athena_timestamp_overflow():
+    sql = "SELECT timestamp '2262-04-11 23:47:17' AS c0"
+    df1 = wr.athena.read_sql_query(sql, "default")
+
+    df_overflow = pd.DataFrame({"c0": [pd.Timestamp("1677-09-21 00:12:43.290448384")]})
+    assert df_overflow.c0.values[0] == df1.c0.values[0]
+
+    df2 = wr.athena.read_sql_query(
+        sql, "default", pyarrow_additional_kwargs={"coerce_int96_timestamp_unit": "ms", "timestamp_as_object": True}
+    )
+
+    df_overflow_fix = pd.DataFrame({"c0": [datetime.datetime(2262, 4, 11, 23, 47, 17)]})
+    df_overflow_fix.c0.values[0] == df2.c0.values[0]

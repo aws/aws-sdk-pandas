@@ -108,6 +108,7 @@ def add_csv_partitions(
     ... )
 
     """
+    table = sanitize_table_name(table=table)
     inputs: List[Dict[str, Any]] = [
         _csv_partition_definition(
             location=k,
