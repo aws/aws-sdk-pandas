@@ -49,7 +49,7 @@ def test_read_sql_query_simple(databases_parameters):
 def test_conn_cursor():
     con = wr.mysql.connect("aws-data-wrangler-mysql", cursorclass=SSCursor)
 
-    assert type(con.cursorclass) == SScursor
+    assert type(con.cursorclass) == SSCursor
 
 
 def test_to_sql_simple(mysql_table, mysql_con):
