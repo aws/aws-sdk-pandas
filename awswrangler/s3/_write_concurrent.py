@@ -2,7 +2,7 @@
 
 import concurrent.futures
 import logging
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import boto3
 import pandas as pd
@@ -13,7 +13,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 class _WriteProxy:
-    def __init__(self, use_threads: bool):
+    def __init__(self, use_threads: Union[bool, int]):
         self._exec: Optional[concurrent.futures.ThreadPoolExecutor]
         self._results: List[str] = []
         self._cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
