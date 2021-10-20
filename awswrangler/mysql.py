@@ -2,7 +2,7 @@
 
 import logging
 import uuid
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Type, Union
 
 import boto3
 import pandas as pd
@@ -77,7 +77,7 @@ def connect(
     read_timeout: Optional[int] = None,
     write_timeout: Optional[int] = None,
     connect_timeout: int = 10,
-    cursorclass: Cursor = Cursor,
+    cursorclass: Type[Cursor] = Cursor,
 ) -> "pymysql.connections.Connection[Any]":
     """Return a pymysql connection from a Glue Catalog Connection or Secrets Manager.
 
@@ -162,7 +162,7 @@ def connect(
         read_timeout=read_timeout,
         write_timeout=write_timeout,
         connect_timeout=connect_timeout,
-        cursorclass=Cursor,
+        cursorclass=cursorclass,
     )
 
 
@@ -295,7 +295,7 @@ def to_sql(
     varchar_lengths: Optional[Dict[str, int]] = None,
     use_column_names: bool = False,
     chunksize: int = 200,
-    cursorclass: Cursor = Cursor,
+    cursorclass: Type[Cursor] = Cursor,
 ) -> None:
     """Write records stored in a DataFrame into MySQL.
 
