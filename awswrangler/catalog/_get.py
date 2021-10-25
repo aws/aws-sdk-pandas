@@ -347,9 +347,10 @@ def tables(
         df_dict["Database"].append(tbl["DatabaseName"])
         df_dict["Table"].append(tbl["Name"])
         df_dict["Description"].append(tbl.get("Description", ""))
-        if "Columns" in tbl["StorageDescriptor"]:
-            df_dict["Columns"].append(", ".join([x["Name"] for x in tbl["StorageDescriptor"]["Columns"]]))
-        else:
+        try:
+            columns = tbl["StorageDescriptor"]["Columns"]
+            df_dict["Columns"].append(", ".join([x["Name"] for x in columns]))
+        except KeyError:
             df_dict["Columns"].append("")
         if "PartitionKeys" in tbl:
             df_dict["Partitions"].append(", ".join([x["Name"] for x in tbl["PartitionKeys"]]))
@@ -430,14 +431,15 @@ def table(
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
     tbl = client_glue.get_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table))["Table"]
     df_dict: Dict[str, List[Union[str, bool]]] = {"Column Name": [], "Type": [], "Partition": [], "Comment": []}
-    for col in tbl["StorageDescriptor"]["Columns"]:
-        df_dict["Column Name"].append(col["Name"])
-        df_dict["Type"].append(col["Type"])
-        df_dict["Partition"].append(False)
-        if "Comment" in col:
-            df_dict["Comment"].append(col["Comment"])
-        else:
-            df_dict["Comment"].append("")
+    if "StorageDescriptor" in tbl:
+        for col in tbl["StorageDescriptor"].get("Columns", {}):
+            df_dict["Column Name"].append(col["Name"])
+            df_dict["Type"].append(col["Type"])
+            df_dict["Partition"].append(False)
+            if "Comment" in col:
+                df_dict["Comment"].append(col["Comment"])
+            else:
+                df_dict["Comment"].append("")
     if "PartitionKeys" in tbl:
         for col in tbl["PartitionKeys"]:
             df_dict["Column Name"].append(col["Name"])
