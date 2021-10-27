@@ -458,19 +458,18 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         )
         paths = [path]  # type: ignore
     else:
+        compression: Optional[str] = pandas_kwargs.get("compression", None)
         if database and table:
             quoting: Optional[int] = csv.QUOTE_NONE
             escapechar: Optional[str] = "\\"
             header: Union[bool, List[str]] = pandas_kwargs.get("header", False)
             date_format: Optional[str] = "%Y-%m-%d %H:%M:%S.%f"
             pd_kwargs: Dict[str, Any] = {}
-            compression: Optional[str] = pandas_kwargs.get("compression", None)
         else:
             quoting = pandas_kwargs.get("quoting", None)
             escapechar = pandas_kwargs.get("escapechar", None)
             header = pandas_kwargs.get("header", True)
             date_format = pandas_kwargs.get("date_format", None)
-            compression = pandas_kwargs.get("compression", None)
             pd_kwargs = pandas_kwargs.copy()
             pd_kwargs.pop("quoting", None)
             pd_kwargs.pop("escapechar", None)
@@ -575,12 +574,37 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
 
 def to_json(
     df: pd.DataFrame,
-    path: str,
+    path: Optional[str] = None,
+    index: bool = True,
+    columns: Optional[List[str]] = None,
+    use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    use_threads: Union[bool, int] = True,
+    sanitize_columns: bool = False,
+    dataset: bool = False,
+    filename_prefix: Optional[str] = None,
+    partition_cols: Optional[List[str]] = None,
+    bucketing_info: Optional[Tuple[List[str], int]] = None,
+    concurrent_partitioning: bool = False,
+    mode: Optional[str] = None,
+    catalog_versioning: bool = False,
+    schema_evolution: bool = True,
+    database: Optional[str] = None,
+    table: Optional[str] = None,
+    dtype: Optional[Dict[str, str]] = None,
+    description: Optional[str] = None,
+    parameters: Optional[Dict[str, str]] = None,
+    columns_comments: Optional[Dict[str, str]] = None,
+    regular_partitions: bool = True,
+    projection_enabled: bool = False,
+    projection_types: Optional[Dict[str, str]] = None,
+    projection_ranges: Optional[Dict[str, str]] = None,
+    projection_values: Optional[Dict[str, str]] = None,
+    projection_intervals: Optional[Dict[str, str]] = None,
+    projection_digits: Optional[Dict[str, str]] = None,
+    catalog_id: Optional[str] = None,
     **pandas_kwargs: Any,
-) -> List[str]:
+) -> Union[List[str], Dict[str, Union[List[str], Dict[str, List[str]]]]]:
     """Write JSON file on Amazon S3.
 
     Note
@@ -665,12 +689,150 @@ def to_json(
             f"JSON compression on S3 is not supported for Pandas version {pd.__version__}. "
             "The minimum acceptable version to achive it is Pandas 1.2.0 that requires Python >=3.7.1."
         )
-    return _to_text(
-        file_format="json",
+
+    _validate_args(
         df=df,
+        table=table,
+        database=database,
+        dataset=dataset,
         path=path,
-        use_threads=use_threads,
-        boto3_session=boto3_session,
-        s3_additional_kwargs=s3_additional_kwargs,
-        **pandas_kwargs,
+        partition_cols=partition_cols,
+        bucketing_info=bucketing_info,
+        mode=mode,
+        description=description,
+        parameters=parameters,
+        columns_comments=columns_comments,
     )
+
+    # Initializing defaults
+    partition_cols = partition_cols if partition_cols else []
+    dtype = dtype if dtype else {}
+    partitions_values: Dict[str, List[str]] = {}
+    mode = "append" if mode is None else mode
+    filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+
+    # Sanitize table to respect Athena's standards
+    if (sanitize_columns is True) or (database is not None and table is not None):
+        df, dtype, partition_cols = _sanitize(df=df, dtype=dtype, partition_cols=partition_cols)
+
+    # Evaluating dtype
+    catalog_table_input: Optional[Dict[str, Any]] = None
+    if database is not None and table is not None:
+        catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
+            database=database, table=table, boto3_session=session, catalog_id=catalog_id
+        )
+        catalog_path = catalog_table_input["StorageDescriptor"]["Location"] if catalog_table_input else None
+        if path is None:
+            if catalog_path:
+                path = catalog_path
+            else:
+                raise exceptions.InvalidArgumentValue(
+                    "Glue table does not exist in the catalog. Please pass the `path` argument to create it."
+                )
+        elif path and catalog_path:
+            if path.rstrip("/") != catalog_path.rstrip("/"):
+                raise exceptions.InvalidArgumentValue(
+                    f"The specified path: {path}, does not match the existing Glue catalog table path: {catalog_path}"
+                )
+        if pandas_kwargs.get("compression") not in ("gzip", "bz2", None):
+            raise exceptions.InvalidArgumentCombination(
+                "If database and table are given, you must use one of these compressions: gzip, bz2 or None."
+            )
+    df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
+
+    if dataset is False:
+        return _to_text(
+            file_format="json",
+            df=df,
+            path=path,
+            use_threads=use_threads,
+            boto3_session=session,
+            s3_additional_kwargs=s3_additional_kwargs,
+            **pandas_kwargs,
+        )
+    else:
+        compression: Optional[str] = pandas_kwargs.get("compression", None)
+        df = df[columns] if columns else df
+
+        columns_types: Dict[str, str] = {}
+        partitions_types: Dict[str, str] = {}
+        if (database is not None) and (table is not None):
+            columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
+                df=df, index=index, partition_cols=partition_cols, dtype=dtype
+            )
+            if schema_evolution is False:
+                _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
+        paths, partitions_values = _to_dataset(
+            func=_to_text,
+            concurrent_partitioning=concurrent_partitioning,
+            df=df,
+            path_root=path,  # type: ignore
+            filename_prefix=filename_prefix,
+            index=index,
+            compression=compression,
+            use_threads=use_threads,
+            partition_cols=partition_cols,
+            bucketing_info=bucketing_info,
+            mode=mode,
+            boto3_session=session,
+            s3_additional_kwargs=s3_additional_kwargs,
+            file_format="json",
+        )
+        if database and table:
+            try:
+                serde_info: Dict[str, Any] = {}
+                if catalog_table_input:
+                    serde_info = catalog_table_input["StorageDescriptor"]["SerdeInfo"]
+                serde_library: Optional[str] = serde_info.get("SerializationLibrary", None)
+                serde_parameters: Optional[Dict[str, str]] = serde_info.get("Parameters", None)
+                catalog._create_json_table(  # pylint: disable=protected-access
+                    database=database,
+                    table=table,
+                    path=path,  # type: ignore
+                    columns_types=columns_types,
+                    partitions_types=partitions_types,
+                    bucketing_info=bucketing_info,
+                    description=description,
+                    parameters=parameters,
+                    columns_comments=columns_comments,
+                    boto3_session=session,
+                    mode=mode,
+                    catalog_versioning=catalog_versioning,
+                    schema_evolution=schema_evolution,
+                    projection_enabled=projection_enabled,
+                    projection_types=projection_types,
+                    projection_ranges=projection_ranges,
+                    projection_values=projection_values,
+                    projection_intervals=projection_intervals,
+                    projection_digits=projection_digits,
+                    catalog_table_input=catalog_table_input,
+                    catalog_id=catalog_id,
+                    compression=pandas_kwargs.get("compression"),
+                    serde_library=serde_library,
+                    serde_parameters=serde_parameters,
+                )
+                if partitions_values and (regular_partitions is True):
+                    _logger.debug("partitions_values:\n%s", partitions_values)
+                    catalog.add_json_partitions(
+                        database=database,
+                        table=table,
+                        partitions_values=partitions_values,
+                        bucketing_info=bucketing_info,
+                        boto3_session=session,
+                        serde_library=serde_library,
+                        serde_parameters=serde_parameters,
+                        catalog_id=catalog_id,
+                        columns_types=columns_types,
+                        compression=pandas_kwargs.get("compression"),
+                    )
+            except Exception:
+                _logger.debug("Catalog write failed, cleaning up S3 (paths: %s).", paths)
+                delete_objects(
+                    path=paths,
+                    use_threads=use_threads,
+                    boto3_session=session,
+                    s3_additional_kwargs=s3_additional_kwargs,
+                )
+                raise
+        return {"paths": paths, "partitions_values": partitions_values}
