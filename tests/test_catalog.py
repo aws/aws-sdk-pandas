@@ -358,3 +358,26 @@ def test_create_database(random_glue_database: str, account_id: str, use_catalog
     r = glue_client.get_database(Name=random_glue_database)
     assert r["Database"]["Name"] == random_glue_database
     assert r["Database"]["Description"] == description
+
+
+def test_catalog_json(path: str, glue_database: str, glue_table: str, account_id: str):
+    # Create JSON table
+    assert not wr.catalog.does_table_exist(database=glue_database, table=glue_table)
+    wr.catalog.create_json_table(
+        database=glue_database,
+        table=glue_table,
+        path=path,
+        columns_types={"id": "int", "value": "string"},
+        partitions_types={"y": "int", "m": "int"},
+        compression="snappy",
+    )
+    assert wr.catalog.does_table_exist(database=glue_database, table=glue_table)
+    # Add JSON partitions
+    wr.catalog.add_json_partitions(
+        database=glue_database,
+        table=glue_table,
+        partitions_values={f"{path}y=2020/m=1/": ["2020", "1"], f"{path}y=2021/m=2/": ["2021", "2"]},
+        compression="snappy",
+    )
+    partitions_values = wr.catalog.get_partitions(database=glue_database, table=glue_table)
+    assert len(partitions_values) == 2
