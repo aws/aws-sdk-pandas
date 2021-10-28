@@ -535,6 +535,7 @@ def _resolve_query_without_cache(
     ctas_database_name: Optional[str],
     ctas_temp_table_name: Optional[str],
     ctas_bucketing_info: Optional[Tuple[List[str], int]],
+    keep_ctas_table: bool,
     use_threads: Union[bool, int],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
@@ -575,9 +576,10 @@ def _resolve_query_without_cache(
                 pyarrow_additional_kwargs=pyarrow_additional_kwargs,
             )
         finally:
-            catalog.delete_table_if_exists(
-                database=ctas_database_name or database, table=name, boto3_session=boto3_session
-            )
+            if keep_ctas_table is False:
+                catalog.delete_table_if_exists(
+                    database=ctas_database_name or database, table=name, boto3_session=boto3_session
+                )
     return _resolve_query_without_cache_regular(
         sql=sql,
         database=database,
@@ -611,6 +613,7 @@ def read_sql_query(
     ctas_database_name: Optional[str] = None,
     ctas_temp_table_name: Optional[str] = None,
     ctas_bucketing_info: Optional[Tuple[List[str], int]] = None,
+    keep_ctas_table: bool = False,
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     max_cache_seconds: int = 0,
@@ -756,6 +759,8 @@ def read_sql_query(
         Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
         second element.
         Only `str`, `int` and `bool` are supported as column data types for bucketing.
+    keep_ctas_table : bool
+        Should Wrangler drop or keep the CTAS temporary table?
     use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -875,6 +880,7 @@ def read_sql_query(
         ctas_database_name=ctas_database_name,
         ctas_temp_table_name=ctas_temp_table_name,
         ctas_bucketing_info=ctas_bucketing_info,
+        keep_ctas_table=keep_ctas_table,
         use_threads=use_threads,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=session,
