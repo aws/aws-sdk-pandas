@@ -572,7 +572,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     return {"paths": paths, "partitions_values": partitions_values}
 
 
-def to_json(
+def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-statements,too-many-branches
     df: pd.DataFrame,
     path: Optional[str] = None,
     index: bool = True,
@@ -751,88 +751,88 @@ def to_json(
             s3_additional_kwargs=s3_additional_kwargs,
             **pandas_kwargs,
         )
-    else:
-        compression: Optional[str] = pandas_kwargs.get("compression", None)
-        df = df[columns] if columns else df
 
-        columns_types: Dict[str, str] = {}
-        partitions_types: Dict[str, str] = {}
-        if (database is not None) and (table is not None):
-            columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
-                df=df, index=index, partition_cols=partition_cols, dtype=dtype
-            )
-            if schema_evolution is False:
-                _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
-        paths, partitions_values = _to_dataset(
-            func=_to_text,
-            concurrent_partitioning=concurrent_partitioning,
-            df=df,
-            path_root=path,  # type: ignore
-            filename_prefix=filename_prefix,
-            index=index,
-            compression=compression,
-            use_threads=use_threads,
-            partition_cols=partition_cols,
-            bucketing_info=bucketing_info,
-            mode=mode,
-            boto3_session=session,
-            s3_additional_kwargs=s3_additional_kwargs,
-            file_format="json",
+    compression: Optional[str] = pandas_kwargs.get("compression", None)
+    df = df[columns] if columns else df
+
+    columns_types: Dict[str, str] = {}
+    partitions_types: Dict[str, str] = {}
+    if (database is not None) and (table is not None):
+        columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
+            df=df, index=index, partition_cols=partition_cols, dtype=dtype
         )
-        if database and table:
-            try:
-                serde_info: Dict[str, Any] = {}
-                if catalog_table_input:
-                    serde_info = catalog_table_input["StorageDescriptor"]["SerdeInfo"]
-                serde_library: Optional[str] = serde_info.get("SerializationLibrary", None)
-                serde_parameters: Optional[Dict[str, str]] = serde_info.get("Parameters", None)
-                catalog._create_json_table(  # pylint: disable=protected-access
+        if schema_evolution is False:
+            _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
+    paths, partitions_values = _to_dataset(
+        func=_to_text,
+        concurrent_partitioning=concurrent_partitioning,
+        df=df,
+        path_root=path,  # type: ignore
+        filename_prefix=filename_prefix,
+        index=index,
+        compression=compression,
+        use_threads=use_threads,
+        partition_cols=partition_cols,
+        bucketing_info=bucketing_info,
+        mode=mode,
+        boto3_session=session,
+        s3_additional_kwargs=s3_additional_kwargs,
+        file_format="json",
+    )
+    if database and table:
+        try:
+            serde_info: Dict[str, Any] = {}
+            if catalog_table_input:
+                serde_info = catalog_table_input["StorageDescriptor"]["SerdeInfo"]
+            serde_library: Optional[str] = serde_info.get("SerializationLibrary", None)
+            serde_parameters: Optional[Dict[str, str]] = serde_info.get("Parameters", None)
+            catalog._create_json_table(  # pylint: disable=protected-access
+                database=database,
+                table=table,
+                path=path,  # type: ignore
+                columns_types=columns_types,
+                partitions_types=partitions_types,
+                bucketing_info=bucketing_info,
+                description=description,
+                parameters=parameters,
+                columns_comments=columns_comments,
+                boto3_session=session,
+                mode=mode,
+                catalog_versioning=catalog_versioning,
+                schema_evolution=schema_evolution,
+                projection_enabled=projection_enabled,
+                projection_types=projection_types,
+                projection_ranges=projection_ranges,
+                projection_values=projection_values,
+                projection_intervals=projection_intervals,
+                projection_digits=projection_digits,
+                catalog_table_input=catalog_table_input,
+                catalog_id=catalog_id,
+                compression=pandas_kwargs.get("compression"),
+                serde_library=serde_library,
+                serde_parameters=serde_parameters,
+            )
+            if partitions_values and (regular_partitions is True):
+                _logger.debug("partitions_values:\n%s", partitions_values)
+                catalog.add_json_partitions(
                     database=database,
                     table=table,
-                    path=path,  # type: ignore
-                    columns_types=columns_types,
-                    partitions_types=partitions_types,
+                    partitions_values=partitions_values,
                     bucketing_info=bucketing_info,
-                    description=description,
-                    parameters=parameters,
-                    columns_comments=columns_comments,
                     boto3_session=session,
-                    mode=mode,
-                    catalog_versioning=catalog_versioning,
-                    schema_evolution=schema_evolution,
-                    projection_enabled=projection_enabled,
-                    projection_types=projection_types,
-                    projection_ranges=projection_ranges,
-                    projection_values=projection_values,
-                    projection_intervals=projection_intervals,
-                    projection_digits=projection_digits,
-                    catalog_table_input=catalog_table_input,
-                    catalog_id=catalog_id,
-                    compression=pandas_kwargs.get("compression"),
                     serde_library=serde_library,
                     serde_parameters=serde_parameters,
+                    catalog_id=catalog_id,
+                    columns_types=columns_types,
+                    compression=pandas_kwargs.get("compression"),
                 )
-                if partitions_values and (regular_partitions is True):
-                    _logger.debug("partitions_values:\n%s", partitions_values)
-                    catalog.add_json_partitions(
-                        database=database,
-                        table=table,
-                        partitions_values=partitions_values,
-                        bucketing_info=bucketing_info,
-                        boto3_session=session,
-                        serde_library=serde_library,
-                        serde_parameters=serde_parameters,
-                        catalog_id=catalog_id,
-                        columns_types=columns_types,
-                        compression=pandas_kwargs.get("compression"),
-                    )
-            except Exception:
-                _logger.debug("Catalog write failed, cleaning up S3 (paths: %s).", paths)
-                delete_objects(
-                    path=paths,
-                    use_threads=use_threads,
-                    boto3_session=session,
-                    s3_additional_kwargs=s3_additional_kwargs,
-                )
-                raise
-        return {"paths": paths, "partitions_values": partitions_values}
+        except Exception:
+            _logger.debug("Catalog write failed, cleaning up S3 (paths: %s).", paths)
+            delete_objects(
+                path=paths,
+                use_threads=use_threads,
+                boto3_session=session,
+                s3_additional_kwargs=s3_additional_kwargs,
+            )
+            raise
+    return {"paths": paths, "partitions_values": partitions_values}
