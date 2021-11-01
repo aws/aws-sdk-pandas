@@ -25,8 +25,29 @@ Conda
 AWS Lambda Layer
 ----------------
 
+AWS Data Wrangler is available as a Lambda Managed layer in the following regions:
+
+- ap-northeast-1
+- ap-southeast-2
+- eu-central-1
+- eu-west-1
+- us-east-1
+- us-east-2
+- us-west-2
+
+It can be access directly in the AWS Lambda console:
+
+.. image:: _static/aws_lambda_managed_layer.png
+  :width: 400
+  :alt: AWS Managed Lambda Layer
+
+Or via its arn: ``arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python37:1``. Both of Python 3.7 and 3.8 are supported at the moment.
+
+For AWS regions not in the above list, you can create your own Lambda layer following these instructions:
+
+
 1 - Go to `GitHub's release section <https://github.com/awslabs/aws-data-wrangler/releases>`_
-and download the layer zip related to the desired version.
+and download the layer zip related to the desired version. Alternatively, you can download the zip from the `public artifacts bucket <https://aws-data-wrangler.readthedocs.io/en/latest/install.html#public-artifacts>`_.
 
 2 - Go to the AWS Lambda Panel, open the layer section (left side)
 and click **create layer**.
@@ -36,11 +57,13 @@ and press **create** to create the layer.
 
 4 - Go to your Lambda and select your new layer!
 
+
+
 AWS Glue Python Shell Jobs
 --------------------------
 
 1 - Go to `GitHub's release page <https://github.com/awslabs/aws-data-wrangler/releases>`_ and download the wheel file
-(.whl) related to the desired version.
+(.whl) related to the desired version. Alternatively, you can download the wheel from the `public artifacts bucket <https://aws-data-wrangler.readthedocs.io/en/latest/install.html#public-artifacts>`_.
 
 2 - Upload the wheel file to any Amazon S3 location.
 
@@ -81,23 +104,22 @@ Lambda zipped layers and Python wheels are stored in a publicly accessible S3 bu
 
   * Python wheel: ``awswrangler-<version>-py3-none-any.whl``
 
-Here is an example of how to reference the Lambda layer in your CDK app:
+Serverless Application Repository (SAR)
+--------------------------------------------
+
+AWS Data Wrangler layers are also available in the `AWS Serverless Application Repository <https://serverlessrepo.aws.amazon.com/applications>`_ (SAR).
+
+Here is an example of how to create the Lambda layer in your CDK app:
 
 .. code-block:: python
 
-    wrangler_layer = LayerVersion(
-      self,
-      "wrangler-layer",
-      compatible_runtimes=[Runtime.PYTHON_3_8],
-      code=S3Code(
-        bucket=Bucket.from_bucket_arn(
-            self,
-            "wrangler-bucket",
-            bucket_arn="arn:aws:s3:::aws-data-wrangler-public-artifacts",
+    CfnApplication(
+        self,
+        "wrangler-layer",
+        location=CfnApplication.ApplicationLocationProperty(
+            application_id="arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-data-wrangler-layer-py3-8",
+            semantic_version="2.12.0",
         ),
-        key="releases/2.12.1/awswrangler-layer-2.12.1-py3.8.zip",
-      ),
-      layer_version_name="aws-data-wrangler"
     )
 
 Amazon SageMaker Notebook
