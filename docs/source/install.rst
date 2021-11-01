@@ -25,6 +25,9 @@ Conda
 AWS Lambda Layer
 ----------------
 
+Managed Layer
+^^^^^^^^^^^^^^
+
 AWS Data Wrangler is available as a Lambda Managed layer in the following regions:
 
 - ap-northeast-1
@@ -35,16 +38,31 @@ AWS Data Wrangler is available as a Lambda Managed layer in the following region
 - us-east-2
 - us-west-2
 
-It can be access directly in the AWS Lambda console:
+It can be accessed in the AWS Lambda console directly:
 
 .. image:: _static/aws_lambda_managed_layer.png
   :width: 400
   :alt: AWS Managed Lambda Layer
 
-Or via its arn: ``arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python37:1``. Both of Python 3.7 and 3.8 are supported at the moment.
+Or via its arn: ``arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python<version>:<layer-version>``.
+For example: ``arn:aws:lambda:us-east-1:336392948345:layer:AWSDataWrangler-Python37:1``.
+Both Python 3.7 and 3.8 are supported.
+
+Here is a mapping of layer version to library version:
+
+.. list-table:: Lambda layer to Python library versions mapping
+   :widths: 25 25
+   :header-rows: 1
+
+   * - Lambda Layer Version
+     - Python Library Version
+   * - 1
+     - 2.12.0
+
+Custom Layer
+^^^^^^^^^^^^^^
 
 For AWS regions not in the above list, you can create your own Lambda layer following these instructions:
-
 
 1 - Go to `GitHub's release section <https://github.com/awslabs/aws-data-wrangler/releases>`_
 and download the layer zip related to the desired version. Alternatively, you can download the zip from the `public artifacts bucket <https://aws-data-wrangler.readthedocs.io/en/latest/install.html#public-artifacts>`_.
@@ -103,6 +121,8 @@ Lambda zipped layers and Python wheels are stored in a publicly accessible S3 bu
   * Lambda layer: ``awswrangler-layer-<version>-py<py-version>.zip``
 
   * Python wheel: ``awswrangler-<version>-py3-none-any.whl``
+
+For example: ``s3://aws-data-wrangler-public-artifacts/releases/2.12.1/awswrangler-layer-2.12.1-py3.8.zip``
 
 Serverless Application Repository (SAR)
 --------------------------------------------
