@@ -2,7 +2,7 @@
 
 import logging
 import uuid
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Type, Union
 
 import boto3
 import pandas as pd
@@ -77,6 +77,7 @@ def connect(
     read_timeout: Optional[int] = None,
     write_timeout: Optional[int] = None,
     connect_timeout: int = 10,
+    cursorclass: Type[Cursor] = Cursor,
 ) -> "pymysql.connections.Connection[Any]":
     """Return a pymysql connection from a Glue Catalog Connection or Secrets Manager.
 
@@ -127,6 +128,9 @@ def connect(
         (default: 10, min: 1, max: 31536000)
         This parameter is forward to pymysql.
         https://pymysql.readthedocs.io/en/latest/modules/connections.html
+    cursorclass : Cursor
+        Cursor class to use, e.g. SSCrusor; defaults to :class:`pymysql.cursors.Cursor`
+        https://pymysql.readthedocs.io/en/latest/modules/cursors.html
 
     Returns
     -------
@@ -158,6 +162,7 @@ def connect(
         read_timeout=read_timeout,
         write_timeout=write_timeout,
         connect_timeout=connect_timeout,
+        cursorclass=cursorclass,
     )
 
 
@@ -290,6 +295,7 @@ def to_sql(
     varchar_lengths: Optional[Dict[str, int]] = None,
     use_column_names: bool = False,
     chunksize: int = 200,
+    cursorclass: Type[Cursor] = Cursor,
 ) -> None:
     """Write records stored in a DataFrame into MySQL.
 
@@ -330,6 +336,9 @@ def to_sql(
         inserted into the database columns `col1` and `col3`.
     chunksize: int
         Number of rows which are inserted with each SQL query. Defaults to inserting 200 rows per query.
+    cursorclass : Cursor
+        Cursor class to use, e.g. SSCrusor; defaults to :class:`pymysql.cursors.Cursor`
+        https://pymysql.readthedocs.io/en/latest/modules/cursors.html
 
     Returns
     -------
@@ -365,7 +374,7 @@ def to_sql(
     _db_utils.validate_mode(mode=mode, allowed_modes=allowed_modes)
     _validate_connection(con=con)
     try:
-        with con.cursor() as cursor:
+        with con.cursor(cursor=cursorclass) as cursor:
             _create_table(
                 df=df,
                 cursor=cursor,
