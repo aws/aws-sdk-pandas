@@ -159,8 +159,6 @@ def add_json_partitions(
         If none is provided, the AWS account ID is used by default.
     compression: str, optional
         Compression style (``None``, ``gzip``, etc).
-    sep : str
-        String of length 1. Field delimiter for the output file.
     serde_library : Optional[str]
         Specifies the SerDe Serialization library which will be used. You need to provide the Class library name
         as a string.
