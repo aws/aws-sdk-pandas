@@ -184,7 +184,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     schema_evolution : bool
         If True allows schema evolution (new or missing columns), otherwise a exception will be raised.
-        (Only considered if dataset=True and mode in ("append", "overwrite_partitions"))
+        (Only considered if dataset=True and mode in ("append", "overwrite_partitions")). False by default.
         Related tutorial:
         https://aws-data-wrangler.readthedocs.io/en/2.12.1/tutorials/014%20-%20Schema%20Evolution.html
     database : str, optional
