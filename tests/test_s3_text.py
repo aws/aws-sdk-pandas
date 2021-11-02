@@ -41,7 +41,7 @@ def test_csv_encoding(path, encoding, strings, wrong_encoding, exception, line_t
 
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 @pytest.mark.parametrize("chunksize", [None, 1])
-def test_read_partitioned_json(path, use_threads, chunksize):
+def test_read_partitioned_json_paths(path, use_threads, chunksize):
     df = pd.DataFrame({"c0": [0, 1], "c1": ["foo", "boo"]})
     paths = [f"{path}year={y}/month={m}/0.json" for y, m in [(2020, 1), (2020, 2), (2021, 1)]]
     for p in paths:
@@ -57,7 +57,7 @@ def test_read_partitioned_json(path, use_threads, chunksize):
 
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 @pytest.mark.parametrize("chunksize", [None, 1])
-def test_read_partitioned_csv(path, use_threads, chunksize):
+def test_read_partitioned_csv_paths(path, use_threads, chunksize):
     df = pd.DataFrame({"c0": [0, 1], "c1": ["foo", "boo"]})
     paths = [f"{path}year={y}/month={m}/0.csv" for y, m in [(2020, 1), (2020, 2), (2021, 1)]]
     for p in paths:
@@ -174,6 +174,13 @@ def test_json(path):
     assert df0.equals(wr.s3.read_json(path=path0, use_threads=False))
     df1 = pd.concat(objs=[df0, df0], sort=False, ignore_index=False)
     assert df1.equals(wr.s3.read_json(path=[path0, path1], use_threads=True))
+
+
+def test_to_json_partitioned(path, glue_database, glue_table):
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5], "c2": [6, 7, 8]})
+    partitions = wr.s3.to_json(df, path, dataset=True, database=glue_database, table=glue_table, partition_cols=["c0"])
+    assert len(partitions["paths"]) == 3
+    assert len(partitions["partitions_values"]) == 3
 
 
 @pytest.mark.parametrize("filename_prefix", [None, "my_prefix"])

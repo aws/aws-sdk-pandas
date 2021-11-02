@@ -36,10 +36,10 @@ pandas = [
     { version = "^1.2.0", markers = "python_full_version >= '3.7.1' and python_full_version < '4.0.0'" },
 ]
 numpy = "^1.18.0"
-pyarrow = ">=2.0.0, <5.1.0"
-redshift-connector = "~2.0.887"
+pyarrow = ">=2.0.0, <6.1.0"
+redshift-connector = "~2.0.889"
 pymysql = ">=0.9.0, <1.1.0"
-pg8000 = ">=1.16.0, <1.22.0"
+pg8000 = ">=1.16.0, <1.23.0"
 openpyxl = "~3.0.0"
 requests-aws4auth = "^1.1.1"
 jsonpath-ng = "^1.5.3"
@@ -55,7 +55,7 @@ sqlserver = ["pyodbc"]
 [tool.poetry.dev-dependencies]
 wheel = "^0.36.2"
 isort = "^5.9.2"
-black = "^21.9b0"
+black = "^21.10b0"
 pylint = "^2.11.1"
 flake8 = "^4.0.0"
 mypy = "^0.910"

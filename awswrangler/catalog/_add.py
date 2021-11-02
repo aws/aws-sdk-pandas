@@ -10,6 +10,7 @@ from awswrangler._config import apply_configs
 from awswrangler.catalog._definitions import (
     _check_column_type,
     _csv_partition_definition,
+    _json_partition_definition,
     _parquet_partition_definition,
     _update_table_definition,
 )
@@ -116,6 +117,88 @@ def add_csv_partitions(
             bucketing_info=bucketing_info,
             compression=compression,
             sep=sep,
+            columns_types=columns_types,
+            serde_library=serde_library,
+            serde_parameters=serde_parameters,
+        )
+        for k, v in partitions_values.items()
+    ]
+    _add_partitions(database=database, table=table, boto3_session=boto3_session, inputs=inputs, catalog_id=catalog_id)
+
+
+@apply_configs
+def add_json_partitions(
+    database: str,
+    table: str,
+    partitions_values: Dict[str, List[str]],
+    bucketing_info: Optional[Tuple[List[str], int]] = None,
+    catalog_id: Optional[str] = None,
+    compression: Optional[str] = None,
+    serde_library: Optional[str] = None,
+    serde_parameters: Optional[Dict[str, str]] = None,
+    boto3_session: Optional[boto3.Session] = None,
+    columns_types: Optional[Dict[str, str]] = None,
+) -> None:
+    r"""Add partitions (metadata) to a JSON Table in the AWS Glue Catalog.
+
+    Parameters
+    ----------
+    database : str
+        Database name.
+    table : str
+        Table name.
+    partitions_values: Dict[str, List[str]]
+        Dictionary with keys as S3 path locations and values as a list of partitions values as str
+        (e.g. {'s3://bucket/prefix/y=2020/m=10/': ['2020', '10']}).
+    bucketing_info: Tuple[List[str], int], optional
+        Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
+        second element.
+        Only `str`, `int` and `bool` are supported as column data types for bucketing.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    compression: str, optional
+        Compression style (``None``, ``gzip``, etc).
+    serde_library : Optional[str]
+        Specifies the SerDe Serialization library which will be used. You need to provide the Class library name
+        as a string.
+        If no library is provided the default is `org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe`.
+    serde_parameters : Optional[str]
+        Dictionary of initialization parameters for the SerDe.
+        The default is `{"field.delim": sep, "escape.delim": "\\"}`.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    columns_types: Optional[Dict[str, str]]
+        Only required for Hive compability.
+        Dictionary with keys as column names and values as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
+        P.S. Only materialized columns please, not partition columns.
+
+    Returns
+    -------
+    None
+        None.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> wr.catalog.add_json_partitions(
+    ...     database='default',
+    ...     table='my_table',
+    ...     partitions_values={
+    ...         's3://bucket/prefix/y=2020/m=10/': ['2020', '10'],
+    ...         's3://bucket/prefix/y=2020/m=11/': ['2020', '11'],
+    ...         's3://bucket/prefix/y=2020/m=12/': ['2020', '12']
+    ...     }
+    ... )
+
+    """
+    table = sanitize_table_name(table=table)
+    inputs: List[Dict[str, Any]] = [
+        _json_partition_definition(
+            location=k,
+            values=v,
+            bucketing_info=bucketing_info,
+            compression=compression,
             columns_types=columns_types,
             serde_library=serde_library,
             serde_parameters=serde_parameters,

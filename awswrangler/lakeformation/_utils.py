@@ -86,7 +86,14 @@ def _get_table_objects(
     next_token: str = "init_token"  # Dummy token
     table_objects: List[Dict[str, Any]] = []
     while next_token:
-        response = client_lakeformation.get_table_objects(**scan_kwargs)
+        response = _utils.try_it(
+            f=client_lakeformation.get_table_objects,
+            ex=botocore.exceptions.ClientError,
+            ex_code="ResourceNotReadyException",
+            base=1.0,
+            max_num_tries=5,
+            **scan_kwargs,
+        )
         for objects in response["Objects"]:
             for table_object in objects["Objects"]:
                 if objects["PartitionValues"]:
@@ -117,7 +124,7 @@ def _update_table_objects(
     write_operations: List[Dict[str, Dict[str, Any]]] = []
     if add_objects:
         write_operations.extend({"AddObject": obj} for obj in add_objects)
-    elif del_objects:
+    if del_objects:
         write_operations.extend({"DeleteObject": _without_keys(obj, ["Size"])} for obj in del_objects)
     update_kwargs["WriteOperations"] = write_operations
 
