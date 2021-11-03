@@ -75,6 +75,23 @@ and press **create** to create the layer.
 
 4 - Go to your Lambda and select your new layer!
 
+Serverless Application Repository (SAR)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+AWS Data Wrangler layers are also available in the `AWS Serverless Application Repository <https://serverlessrepo.aws.amazon.com/applications>`_ (SAR).
+
+Here is an example of how to create the Lambda layer in your CDK app:
+
+.. code-block:: python
+
+    CfnApplication(
+        self,
+        "wrangler-layer",
+        location=CfnApplication.ApplicationLocationProperty(
+            application_id="arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-data-wrangler-layer-py3-8",
+            semantic_version="2.12.0",
+        ),
+    )
 
 
 AWS Glue Python Shell Jobs
@@ -110,7 +127,7 @@ To install a specific version, set the value for above Job parameter as follows:
 `Official Glue PySpark Reference <https://docs.aws.amazon.com/glue/latest/dg/reduced-start-times-spark-etl-jobs.html#reduced-start-times-new-features>`_
 
 Public Artifacts
----------------------
+-----------------
 
 Lambda zipped layers and Python wheels are stored in a publicly accessible S3 bucket for all versions.
 
@@ -123,24 +140,6 @@ Lambda zipped layers and Python wheels are stored in a publicly accessible S3 bu
   * Python wheel: ``awswrangler-<version>-py3-none-any.whl``
 
 For example: ``s3://aws-data-wrangler-public-artifacts/releases/2.12.1/awswrangler-layer-2.12.1-py3.8.zip``
-
-Serverless Application Repository (SAR)
---------------------------------------------
-
-AWS Data Wrangler layers are also available in the `AWS Serverless Application Repository <https://serverlessrepo.aws.amazon.com/applications>`_ (SAR).
-
-Here is an example of how to create the Lambda layer in your CDK app:
-
-.. code-block:: python
-
-    CfnApplication(
-        self,
-        "wrangler-layer",
-        location=CfnApplication.ApplicationLocationProperty(
-            application_id="arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-data-wrangler-layer-py3-8",
-            semantic_version="2.12.0",
-        ),
-    )
 
 Amazon SageMaker Notebook
 -------------------------
