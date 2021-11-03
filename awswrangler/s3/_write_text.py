@@ -900,6 +900,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
 
     # Evaluating dtype
     catalog_table_input: Optional[Dict[str, Any]] = None
+
     if database and table:
         catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
             database=database, table=table, boto3_session=session, transaction_id=transaction_id, catalog_id=catalog_id
