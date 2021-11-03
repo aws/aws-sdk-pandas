@@ -251,7 +251,7 @@ def query(
 
     Returns
     -------
-    pd.DataFrame
+    Union[pd.DataFrame, Iterator[pd.DataFrame]]
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
 
     Examples

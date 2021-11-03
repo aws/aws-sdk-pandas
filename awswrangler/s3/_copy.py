@@ -125,7 +125,9 @@ def merge_datasets(
     target_path = target_path[:-1] if target_path[-1] == "/" else target_path
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
-    paths: List[str] = list_objects(path=f"{source_path}/", ignore_empty=ignore_empty, boto3_session=session)
+    paths: List[str] = list_objects(  # type: ignore
+        path=f"{source_path}/", ignore_empty=ignore_empty, boto3_session=session
+    )
     _logger.debug("len(paths): %s", len(paths))
     if len(paths) < 1:
         return []

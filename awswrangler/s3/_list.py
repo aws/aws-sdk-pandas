@@ -3,7 +3,7 @@
 import datetime
 import fnmatch
 import logging
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Union
 
 import boto3
 import botocore.exceptions
@@ -28,7 +28,7 @@ def _path2list(
     _suffix: Optional[List[str]] = [suffix] if isinstance(suffix, str) else suffix
     _ignore_suffix: Optional[List[str]] = [ignore_suffix] if isinstance(ignore_suffix, str) else ignore_suffix
     if isinstance(path, str):  # prefix
-        paths: List[str] = list_objects(
+        paths: List[str] = list_objects(  # type: ignore
             path=path,
             suffix=_suffix,
             ignore_suffix=_ignore_suffix,
@@ -79,7 +79,7 @@ def _list_objects(  # pylint: disable=too-many-branches
     last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
     ignore_empty: bool = False,
-) -> List[str]:
+) -> Iterator[List[str]]:
     bucket: str
     prefix_original: str
     bucket, prefix_original = _utils.parse_path(path=path)
@@ -132,13 +132,13 @@ def _list_objects(  # pylint: disable=too-many-branches
                         key = pfx["Prefix"]
                         paths.append(f"s3://{bucket}/{key}")
 
-    if prefix != prefix_original:
-        paths = fnmatch.filter(paths, path)
+        if prefix != prefix_original:
+            paths = fnmatch.filter(paths, path)
 
-    if _ignore_suffix is not None:
-        paths = [p for p in paths if p.endswith(tuple(_ignore_suffix)) is False]
+        if _ignore_suffix is not None:
+            paths = [p for p in paths if p.endswith(tuple(_ignore_suffix)) is False]
 
-    return paths
+        yield paths
 
 
 def does_object_exist(
@@ -208,8 +208,11 @@ def does_object_exist(
 
 
 def list_directories(
-    path: str, s3_additional_kwargs: Optional[Dict[str, Any]] = None, boto3_session: Optional[boto3.Session] = None
-) -> List[str]:
+    path: str,
+    chunked: bool = False,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> Union[List[str], Iterator[List[str]]]:
     """List Amazon S3 objects from a prefix.
 
     This function accepts Unix shell-style wildcards in the path argument.
@@ -222,6 +225,8 @@ def list_directories(
     ----------
     path : str
         S3 path (e.g. s3://bucket/prefix).
+    chunked: bool
+        If True returns iterator, and a single list otherwise. False by default.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
@@ -230,7 +235,7 @@ def list_directories(
 
     Returns
     -------
-    List[str]
+    Union[List[str], Iterator[List[str]]]
         List of objects paths.
 
     Examples
@@ -249,9 +254,15 @@ def list_directories(
     ['s3://bucket/prefix/dir0/', 's3://bucket/prefix/dir1/', 's3://bucket/prefix/dir2/']
 
     """
-    return _list_objects(
-        path=path, delimiter="/", boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs
+    result_iterator = _list_objects(
+        path=path,
+        delimiter="/",
+        boto3_session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,
     )
+    if chunked:
+        return result_iterator
+    return [path for paths in result_iterator for path in paths]
 
 
 def list_objects(
@@ -261,9 +272,10 @@ def list_objects(
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     ignore_empty: bool = False,
+    chunked: bool = False,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     boto3_session: Optional[boto3.Session] = None,
-) -> List[str]:
+) -> Union[List[str], Iterator[List[str]]]:
     """List Amazon S3 objects from a prefix.
 
     This function accepts Unix shell-style wildcards in the path argument.
@@ -292,6 +304,8 @@ def list_objects(
         The filter is applied only after list all s3 files.
     ignore_empty: bool
         Ignore files with 0 bytes.
+    chunked: bool
+        If True returns iterator, and a single list otherwise. False by default.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
@@ -300,7 +314,7 @@ def list_objects(
 
     Returns
     -------
-    List[str]
+    Union[List[str], Iterator[List[str]]]
         List of objects paths.
 
     Examples
@@ -319,7 +333,7 @@ def list_objects(
     ['s3://bucket/prefix0', 's3://bucket/prefix1', 's3://bucket/prefix2']
 
     """
-    paths: List[str] = _list_objects(
+    result_iterator = _list_objects(
         path=path,
         delimiter=None,
         suffix=suffix,
@@ -330,4 +344,6 @@ def list_objects(
         ignore_empty=ignore_empty,
         s3_additional_kwargs=s3_additional_kwargs,
     )
-    return [p for p in paths if not p.endswith("/")]
+    if chunked:
+        return result_iterator
+    return [path for paths in result_iterator for path in paths if not path.endswith("/")]
