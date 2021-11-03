@@ -223,7 +223,9 @@ def delete_column(
     ... )
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    table_res: Dict[str, Any] = client_glue.get_table(DatabaseName=database, Name=table)
+    table_res: Dict[str, Any] = client_glue.get_table(
+        **_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table)
+    )
     table_input: Dict[str, Any] = _update_table_definition(table_res)
     table_input["StorageDescriptor"]["Columns"] = [
         i for i in table_input["StorageDescriptor"]["Columns"] if i["Name"] != column_name
