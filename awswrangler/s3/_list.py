@@ -333,11 +333,16 @@ def list_objects(
     ['s3://bucket/prefix0', 's3://bucket/prefix1', 's3://bucket/prefix2']
 
     """
+    ignore_suffix_acc = set("/")
+    if isinstance(ignore_suffix, str):
+        ignore_suffix_acc.add(ignore_suffix)
+    elif isinstance(ignore_suffix, list):
+        ignore_suffix_acc.update(ignore_suffix)
     result_iterator = _list_objects(
         path=path,
         delimiter=None,
         suffix=suffix,
-        ignore_suffix=ignore_suffix,
+        ignore_suffix=list(ignore_suffix_acc),
         boto3_session=boto3_session,
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
@@ -346,4 +351,4 @@ def list_objects(
     )
     if chunked:
         return result_iterator
-    return [path for paths in result_iterator for path in paths if not path.endswith("/")]
+    return [path for paths in result_iterator for path in paths]
