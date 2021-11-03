@@ -29,6 +29,7 @@ def test_create_table(path: str, glue_database: str, glue_table: str, table_type
         query_as_of_time = calendar.timegm(time.gmtime()) + 5  # Adding minor delay to avoid concurrency
         df = wr.catalog.table(database=glue_database, table=glue_table, query_as_of_time=query_as_of_time)
         assert df.shape == (4, 4)
+        time.sleep(5)  # Delay to avoid Delete concurrency
     assert wr.catalog.does_table_exist(database=glue_database, table=glue_table) is True
 
 
@@ -120,12 +121,7 @@ def test_catalog(
     )
     dtypes = wr.catalog.get_table_types(database=glue_database, table=glue_table, transaction_id=transaction_id)
     assert len(dtypes) == 4
-    # search
-    tables = list(wr.catalog.search_tables(text="parquet", catalog_id=account_id))
-    assert len(tables) > 0
-    for tbl in tables:
-        if tbl["Name"] == glue_table:
-            assert tbl["TableType"] == table_type
+
     # prefix
     tables = list(
         wr.catalog.get_tables(name_prefix=glue_table[:4], catalog_id=account_id, transaction_id=transaction_id)
@@ -171,22 +167,31 @@ def test_catalog(
     for tbl in tables:
         if tbl["Name"] == glue_table:
             assert tbl["TableType"] == table_type
+
+    # search (Not supported for Governed tables)
+    if table_type != "GOVERNED":
+        assert (
+            len(
+                wr.catalog.tables(
+                    database=glue_database,
+                    search_text="parquet",
+                    name_prefix=glue_table[0],
+                    name_contains=glue_table[3],
+                    name_suffix=glue_table[-1],
+                    catalog_id=account_id,
+                ).index
+            )
+            > 0
+        )
+        tables = list(wr.catalog.search_tables(text="parquet", catalog_id=account_id))
+        assert len(tables) > 0
+        for tbl in tables:
+            if tbl["Name"] == glue_table:
+                assert tbl["TableType"] == table_type
+
     # DataFrames
     assert len(wr.catalog.databases().index) > 0
-    assert len(wr.catalog.tables().index) > 0
-    assert (
-        len(
-            wr.catalog.tables(
-                database=glue_database,
-                search_text="parquet",
-                name_prefix=glue_table[0],
-                name_contains=glue_table[3],
-                name_suffix=glue_table[-1],
-                catalog_id=account_id,
-            ).index
-        )
-        > 0
-    )
+    assert len(wr.catalog.tables(transaction_id=transaction_id).index) > 0
     assert len(wr.catalog.table(database=glue_database, table=glue_table, transaction_id=transaction_id).index) > 0
     assert (
         len(

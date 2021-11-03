@@ -312,6 +312,7 @@ def tables(
     limit: int = 100,
     catalog_id: Optional[str] = None,
     database: Optional[str] = None,
+    transaction_id: Optional[str] = None,
     search_text: Optional[str] = None,
     name_contains: Optional[str] = None,
     name_prefix: Optional[str] = None,
@@ -319,6 +320,10 @@ def tables(
     boto3_session: Optional[boto3.Session] = None,
 ) -> pd.DataFrame:
     """Get a DataFrame with tables filtered by a search term, prefix, suffix.
+
+    Note
+    ----
+    Search feature is not supported for Governed tables.
 
     Parameters
     ----------
@@ -329,6 +334,8 @@ def tables(
         If none is provided, the AWS account ID is used by default.
     database : str, optional
         Database name.
+    transaction_id: str, optional
+        The ID of the transaction (i.e. used with GOVERNED tables).
     search_text : str, optional
         Select only tables with the given string in table's properties.
     name_contains : str, optional
@@ -355,6 +362,7 @@ def tables(
         table_iter = get_tables(
             catalog_id=catalog_id,
             database=database,
+            transaction_id=transaction_id,
             name_contains=name_contains,
             name_prefix=name_prefix,
             name_suffix=name_suffix,
@@ -401,6 +409,10 @@ def search_tables(
     text: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None
 ) -> Iterator[Dict[str, Any]]:
     """Get Pandas DataFrame of tables filtered by a search string.
+
+    Note
+    ----
+    Search feature is not supported for Governed tables.
 
     Parameters
     ----------
