@@ -333,11 +333,13 @@ def list_objects(
     ['s3://bucket/prefix0', 's3://bucket/prefix1', 's3://bucket/prefix2']
 
     """
+    # On top of user provided ignore_suffix input, add "/"
     ignore_suffix_acc = set("/")
     if isinstance(ignore_suffix, str):
         ignore_suffix_acc.add(ignore_suffix)
     elif isinstance(ignore_suffix, list):
         ignore_suffix_acc.update(ignore_suffix)
+
     result_iterator = _list_objects(
         path=path,
         delimiter=None,
