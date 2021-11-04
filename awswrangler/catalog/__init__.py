@@ -1,11 +1,13 @@
 """Amazon Glue Catalog Module."""
 
-from awswrangler.catalog._add import add_column, add_csv_partitions, add_parquet_partitions  # noqa
+from awswrangler.catalog._add import add_column, add_csv_partitions, add_json_partitions, add_parquet_partitions  # noqa
 from awswrangler.catalog._create import (  # noqa
     _create_csv_table,
+    _create_json_table,
     _create_parquet_table,
     create_csv_table,
     create_database,
+    create_json_table,
     create_parquet_table,
     overwrite_table_parameters,
     upsert_table_parameters,
@@ -49,6 +51,7 @@ from awswrangler.catalog._utils import (  # noqa
 __all__ = [
     "add_column",
     "add_csv_partitions",
+    "add_json_partitions",
     "add_parquet_partitions",
     "does_table_exist",
     "delete_column",
@@ -59,9 +62,11 @@ __all__ = [
     "sanitize_table_name",
     "_create_csv_table",
     "_create_parquet_table",
+    "_create_json_table",
     "create_csv_table",
     "create_database",
     "create_parquet_table",
+    "create_json_table",
     "overwrite_table_parameters",
     "upsert_table_parameters",
     "_get_table_input",

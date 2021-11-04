@@ -136,6 +136,8 @@ FROM "sampleDB"."sampleTable" ORDER BY time DESC LIMIT 3
   - [026 - Amazon Timestream](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/026%20-%20Amazon%20Timestream.ipynb)
   - [027 - Amazon Timestream 2](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/027%20-%20Amazon%20Timestream%202.ipynb)
   - [028 - Amazon DynamoDB](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/028%20-%20DynamoDB.ipynb)
+  - [029 - S3 Select](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/029%20-%20S3%20Select.ipynb)
+  - [030 - Data Api](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/030%20-%20Data%20Api.ipynb)
   - [031 - OpenSearch](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/031%20-%20OpenSearch.ipynb)
 - [**API Reference**](https://aws-data-wrangler.readthedocs.io/en/2.12.1/api.html)
   - [Amazon S3](https://aws-data-wrangler.readthedocs.io/en/2.12.1/api.html#amazon-s3)
