@@ -249,7 +249,10 @@ platformdirs = ">=2"
 regex = ">=2020.1.8"
 tomli = ">=0.2.6,<2.0.0"
 typed-ast = {version = ">=1.4.2", markers = "python_version < \"3.8\""}
-typing-extensions = ">=3.10.0.0"
+typing-extensions = [
+    {version = ">=3.10.0.0", markers = "python_version < \"3.10\""},
+    {version = "!=3.10.0.1", markers = "python_version >= \"3.10\""},
+]
 
 [package.extras]
 colorama = ["colorama (>=0.4.3)"]
@@ -2244,8 +2247,8 @@ sqlserver = ["pyodbc"]
 
 [metadata]
 lock-version = "1.1"
-python-versions = ">=3.6.2, <3.10"
-content-hash = "362de619e655549b97c4721d9fa957aa7f43777f35d1ac9e8a72e682ee5e63cc"
+python-versions = ">=3.6.2, <=3.10.0"
+content-hash = "6319f70971609c4173b70aa14eab47069eea4c42741538fdbc843bbd9a43386a"
 
 [metadata.files]
 aiobotocore = [
