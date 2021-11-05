@@ -798,7 +798,7 @@ def to_sql(  # pylint: disable=too-many-locals
 
     """
     if df.empty is True:
-        raise exceptions.EmptyDataFrame()
+        raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
     _validate_connection(con=con)
     autocommit_temp: bool = con.autocommit
     con.autocommit = False
