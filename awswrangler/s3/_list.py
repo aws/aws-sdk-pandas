@@ -138,7 +138,9 @@ def _list_objects(  # pylint: disable=too-many-branches
         if _ignore_suffix is not None:
             paths = [p for p in paths if p.endswith(tuple(_ignore_suffix)) is False]
 
-        yield paths
+        if paths:
+            yield paths
+        paths = []
 
 
 def does_object_exist(
