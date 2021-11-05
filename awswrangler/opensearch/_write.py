@@ -20,7 +20,6 @@ from awswrangler._utils import parse_path
 from awswrangler.opensearch._utils import _get_distribution, _get_version_major
 
 _logger: logging.Logger = logging.getLogger(__name__)
-_logger.setLevel(logging.DEBUG)
 
 _DEFAULT_REFRESH_INTERVAL = "1s"
 
