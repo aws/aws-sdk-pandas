@@ -350,7 +350,7 @@ def to_sql(
 
     """
     if df.empty is True:
-        raise exceptions.EmptyDataFrame()
+        raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
 
     mode = mode.strip().lower()
     allowed_modes = ["append", "overwrite", "upsert"]
