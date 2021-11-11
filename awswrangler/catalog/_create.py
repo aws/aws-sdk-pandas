@@ -47,6 +47,9 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
     # Description
     mode = _update_if_necessary(dic=table_input, key="Description", value=description, mode=mode)
 
+    if "Parameters" not in table_input:
+        table_input["Parameters"] = {}
+
     # Parameters
     parameters = parameters if parameters else {}
     for k, v in parameters.items():
