@@ -28,4 +28,12 @@ docker build \
   --build-arg py_dev=python38-devel \
   .
 
+# Python 3.9
+docker build \
+  --pull \
+  --tag awswrangler-build-py39 \
+  --build-arg base_image=public.ecr.aws/sam/build-python3.9:latest \
+  --build-arg py_dev=python39-devel \
+  .
+
 rm -rf pyproject.toml poetry.lock
