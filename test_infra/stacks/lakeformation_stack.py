@@ -1,4 +1,3 @@
-from aws_cdk import aws_glue as glue
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_lakeformation as lf
 from aws_cdk import aws_s3 as s3
@@ -20,24 +19,8 @@ class LakeFormationStack(cdk.Stack):  # type: ignore
         self._set_lakeformation_infra()
 
     def _set_lakeformation_infra(self) -> None:
-        bucket = s3.Bucket(
-            self,
-            id="aws-data-wrangler-lf",
-            block_public_access=s3.BlockPublicAccess(
-                block_public_acls=True,
-                block_public_policy=True,
-                ignore_public_acls=True,
-                restrict_public_buckets=True,
-            ),
-            lifecycle_rules=[
-                s3.LifecycleRule(
-                    id="CleaningUp",
-                    enabled=True,
-                    expiration=cdk.Duration.days(1),
-                    abort_incomplete_multipart_upload_after=cdk.Duration.days(1),
-                ),
-            ],
-            versioned=True,
+        bucket = s3.Bucket.from_bucket_name(
+            self, "aws-data-wrangler-bucket", bucket_name=cdk.Fn.import_value("aws-data-wrangler-base-BucketName")
         )
 
         transaction_role = iam.Role(
@@ -108,11 +91,3 @@ class LakeFormationStack(cdk.Stack):  # type: ignore
             use_service_linked_role=False,
             role_arn=transaction_role.role_arn,
         )
-
-        glue_db = glue.Database(
-            self,
-            id="aws-data-wrangler-lf-glue-db",
-            database_name="aws_data_wrangler_lakeformation",
-        )
-
-        cdk.CfnOutput(self, "LakeFormationGlueDatabase", value=glue_db.database_name)

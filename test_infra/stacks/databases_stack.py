@@ -57,9 +57,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
             vpc=self.vpc,
             description="AWS Data Wrangler Test Arena - Database security group",
         )
-        self.db_security_group.add_ingress_rule(
-            ec2.Peer.any_ipv4(), ec2.Port.all_traffic()
-        )
+        self.db_security_group.add_ingress_rule(ec2.Peer.any_ipv4(), ec2.Port.all_traffic())
         ssm.StringParameter(
             self,
             "db-security-group-parameter",
@@ -339,9 +337,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
                 ),
             ),
         )
-        cdk.CfnOutput(
-            self, "PostgresqlAddress", value=aurora_pg.cluster_endpoint.hostname
-        )
+        cdk.CfnOutput(self, "PostgresqlAddress", value=aurora_pg.cluster_endpoint.hostname)
         cdk.CfnOutput(self, "PostgresqlPort", value=str(port))
         cdk.CfnOutput(self, "PostgresqlDatabase", value=database)
         cdk.CfnOutput(self, "PostgresqlSchema", value=schema)
@@ -425,9 +421,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
                 ),
             ),
         )
-        cdk.CfnOutput(
-            self, "MysqlAddress", value=aurora_mysql.cluster_endpoint.hostname
-        )
+        cdk.CfnOutput(self, "MysqlAddress", value=aurora_mysql.cluster_endpoint.hostname)
         cdk.CfnOutput(self, "MysqlPort", value=str(port))
         cdk.CfnOutput(self, "MysqlDatabase", value=database)
         cdk.CfnOutput(self, "MysqlSchema", value=schema)
@@ -483,9 +477,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
         )
         cdk.CfnOutput(self, "MysqlServerlessSecretArn", value=secret.secret_arn)
         cdk.CfnOutput(self, "MysqlServerlessClusterArn", value=aurora_mysql.cluster_arn)
-        cdk.CfnOutput(
-            self, "MysqlServerlessAddress", value=aurora_mysql.cluster_endpoint.hostname
-        )
+        cdk.CfnOutput(self, "MysqlServerlessAddress", value=aurora_mysql.cluster_endpoint.hostname)
         cdk.CfnOutput(self, "MysqlServerlessPort", value=str(port))
         cdk.CfnOutput(self, "MysqlServerlessDatabase", value=database)
         cdk.CfnOutput(self, "MysqlServerlessSchema", value=schema)
@@ -498,12 +490,8 @@ class DatabasesStack(cdk.Stack):  # type: ignore
             self,
             "aws-data-wrangler-sqlserver-instance",
             instance_identifier="sqlserver-instance-wrangler",
-            engine=rds.DatabaseInstanceEngine.sql_server_ex(
-                version=rds.SqlServerEngineVersion.VER_15
-            ),
-            instance_type=ec2.InstanceType.of(
-                ec2.InstanceClass.BURSTABLE3, ec2.InstanceSize.SMALL
-            ),
+            engine=rds.DatabaseInstanceEngine.sql_server_ex(version=rds.SqlServerEngineVersion.VER_15),
+            instance_type=ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE3, ec2.InstanceSize.SMALL),
             credentials=rds.Credentials.from_password(
                 username=self.db_username,
                 password=self.db_password_secret,
@@ -550,9 +538,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
                 ),
             ),
         )
-        cdk.CfnOutput(
-            self, "SqlServerAddress", value=sqlserver.instance_endpoint.hostname
-        )
+        cdk.CfnOutput(self, "SqlServerAddress", value=sqlserver.instance_endpoint.hostname)
         cdk.CfnOutput(self, "SqlServerPort", value=str(port))
         cdk.CfnOutput(self, "SqlServerDatabase", value=database)
         cdk.CfnOutput(self, "SqlServerSchema", value=schema)

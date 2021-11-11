@@ -15,6 +15,7 @@ from awswrangler.s3._describe import describe_objects
 _QUERY_FINAL_STATES: List[str] = ["ERROR", "FINISHED"]
 _QUERY_WAIT_POLLING_DELAY: float = 2  # SECONDS
 _TRANSACTION_FINAL_STATES: List[str] = ["aborted", "committed"]
+_TRANSACTION_WAIT_COMMIT_DELAY: float = 5  # SECONDS
 _TRANSACTION_WAIT_POLLING_DELAY: float = 10  # SECONDS
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -270,6 +271,15 @@ def commit_transaction(transaction_id: str, boto3_session: Optional[boto3.Sessio
     client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
 
     client_lakeformation.commit_transaction(TransactionId=transaction_id)
+    committed: bool = False
+    # Confirm transaction was committed
+    while not committed:
+        state: str = describe_transaction(transaction_id=transaction_id, boto3_session=session)
+        if state == "committed":
+            committed = True
+        elif state == "aborted":
+            raise exceptions.CommitCancelled(f"Transaction commit with id {transaction_id} was aborted.")
+        time.sleep(_TRANSACTION_WAIT_COMMIT_DELAY)
 
 
 def extend_transaction(transaction_id: str, boto3_session: Optional[boto3.Session] = None) -> None:

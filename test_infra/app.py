@@ -17,6 +17,8 @@ DatabasesStack(
     base.get_key,
 )
 
+LakeFormationStack(app, "aws-data-wrangler-lakeformation")
+
 OpenSearchStack(
     app,
     "aws-data-wrangler-opensearch",
@@ -24,7 +26,5 @@ OpenSearchStack(
     base.get_bucket,
     base.get_key,
 )
-
-LakeFormationStack(app, "aws-data-wrangler-lakeformation")
 
 app.synth()
