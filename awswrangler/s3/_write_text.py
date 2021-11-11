@@ -41,7 +41,7 @@ def _to_text(
     **pandas_kwargs: Any,
 ) -> List[str]:
     if df.empty is True:
-        raise exceptions.EmptyDataFrame()
+        raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
     if path is None and path_root is not None:
         file_path: str = (
             f"{path_root}{filename_prefix}.{file_format}{_COMPRESSION_2_EXT.get(pandas_kwargs.get('compression'))}"
