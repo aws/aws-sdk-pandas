@@ -22,10 +22,11 @@ classifiers = [
     "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.6.2, <3.10"
+python = ">=3.6.2, <=3.10.0"
 
 boto3 = "^1.16.8"
 botocore = "^1.19.8"
