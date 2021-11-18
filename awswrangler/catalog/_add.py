@@ -288,7 +288,7 @@ def add_column(
     table: str,
     column_name: str,
     column_type: str = "string",
-    column_comment: Optional[str] = None,
+    column_comment: Optional[str] = "",
     boto3_session: Optional[boto3.Session] = None,
     catalog_id: Optional[str] = None,
 ) -> None:
