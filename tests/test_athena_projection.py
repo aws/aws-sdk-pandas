@@ -114,7 +114,7 @@ def test_to_parquet_storage_location(glue_database, glue_table, path):
         regular_partitions=False,
         projection_enabled=True,
         projection_types={"c1": "injected", "c2": "injected"},
-        projection_storage_location_template=f"{path}${{c1}}/${{c2}}"
+        projection_storage_location_template=f"{path}${{c1}}/${{c2}}",
     )
 
     df5 = wr.athena.read_sql_query(f"SELECT * FROM {glue_table} WHERE c1='foo' AND c2='0'", glue_database)

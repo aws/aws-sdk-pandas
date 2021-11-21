@@ -96,7 +96,12 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
             mode = _update_if_necessary(
                 dic=table_input["Parameters"], key=f"projection.{k}.digits", value=str(v), mode=mode
             )
-        mode = _update_if_necessary(table_input["Parameters"], key="storage.location.template", value=projection_storage_location_template, mode=mode)
+        mode = _update_if_necessary(
+            table_input["Parameters"],
+            key="storage.location.template",
+            value=projection_storage_location_template,
+            mode=mode,
+        )
     else:
         table_input["Parameters"]["projection.enabled"] = "false"
 
