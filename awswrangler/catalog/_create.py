@@ -72,7 +72,7 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
         projection_digits = {sanitize_column_name(k): v for k, v in projection_digits.items()}
         for k, v in projection_types.items():
             dtype: Optional[str] = partitions_types.get(k)
-            if dtype is None:
+            if dtype is None and projection_storage_location_template is None:
                 raise exceptions.InvalidArgumentCombination(
                     f"Column {k} appears as projected column but not as partitioned column."
                 )
@@ -747,7 +747,7 @@ def create_parquet_table(
 
 
 @apply_configs
-def create_csv_table(
+def create_csv_table(  # pylint: disable=too-many-arguments
     database: str,
     table: str,
     path: str,

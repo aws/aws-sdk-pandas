@@ -101,7 +101,6 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     projection_values: Optional[Dict[str, str]] = None,
     projection_intervals: Optional[Dict[str, str]] = None,
     projection_digits: Optional[Dict[str, str]] = None,
-    projection_storage_location_template: Optional[str] = None,
     catalog_id: Optional[str] = None,
     **pandas_kwargs: Any,
 ) -> Dict[str, Union[List[str], Dict[str, List[str]]]]:
@@ -231,11 +230,6 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         Dictionary of partitions names and Athena projections digits.
         https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
         (e.g. {'col_name': '1', 'col2_name': '2'})
-    projection_storage_location_template: Optional[str]
-        Value which is allows Athena to properly map partition values if the S3 file locations do not follow
-        a typical `.../column=value/...` pattern.
-        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-setting-up.html
-        (e.g. s3://bucket/table_root/a=${a}/${b}/some_static_subdirectory/${c}/)
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
@@ -544,7 +538,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                     projection_values=projection_values,
                     projection_intervals=projection_intervals,
                     projection_digits=projection_digits,
-                    projection_storage_location_template=projection_storage_location_template,
+                    projection_storage_location_template=None,
                     catalog_table_input=catalog_table_input,
                     catalog_id=catalog_id,
                     compression=pandas_kwargs.get("compression"),
@@ -609,7 +603,6 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
     projection_values: Optional[Dict[str, str]] = None,
     projection_intervals: Optional[Dict[str, str]] = None,
     projection_digits: Optional[Dict[str, str]] = None,
-    projection_storage_location_template: Optional[str] = None,
     catalog_id: Optional[str] = None,
     **pandas_kwargs: Any,
 ) -> Union[List[str], Dict[str, Union[List[str], Dict[str, List[str]]]]]:
@@ -718,11 +711,6 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         Dictionary of partitions names and Athena projections digits.
         https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
         (e.g. {'col_name': '1', 'col2_name': '2'})
-    projection_storage_location_template: Optional[str]
-        Value which is allows Athena to properly map partition values if the S3 file locations do not follow
-        a typical `.../column=value/...` pattern.
-        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-setting-up.html
-        (e.g. s3://bucket/table_root/a=${a}/${b}/some_static_subdirectory/${c}/)
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
@@ -901,7 +889,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
                 projection_values=projection_values,
                 projection_intervals=projection_intervals,
                 projection_digits=projection_digits,
-                projection_storage_location_template=projection_storage_location_template,
+                projection_storage_location_template=None,
                 catalog_table_input=catalog_table_input,
                 catalog_id=catalog_id,
                 compression=pandas_kwargs.get("compression"),
