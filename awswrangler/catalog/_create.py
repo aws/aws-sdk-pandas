@@ -42,6 +42,7 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
     projection_values: Optional[Dict[str, str]],
     projection_intervals: Optional[Dict[str, str]],
     projection_digits: Optional[Dict[str, str]],
+    projection_storage_location_template: Optional[str],
     catalog_id: Optional[str],
 ) -> None:
     # Description
@@ -95,6 +96,7 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements
             mode = _update_if_necessary(
                 dic=table_input["Parameters"], key=f"projection.{k}.digits", value=str(v), mode=mode
             )
+        mode = _update_if_necessary(table_input["Parameters"], key="storage.location.template", value=projection_storage_location_template, mode=mode)
     else:
         table_input["Parameters"]["projection.enabled"] = "false"
 
@@ -232,6 +234,7 @@ def _create_parquet_table(
     projection_values: Optional[Dict[str, str]],
     projection_intervals: Optional[Dict[str, str]],
     projection_digits: Optional[Dict[str, str]],
+    projection_storage_location_template: Optional[str],
     boto3_session: Optional[boto3.Session],
     catalog_table_input: Optional[Dict[str, Any]],
 ) -> None:
@@ -280,6 +283,7 @@ def _create_parquet_table(
         projection_values=projection_values,
         projection_intervals=projection_intervals,
         projection_digits=projection_digits,
+        projection_storage_location_template=projection_storage_location_template,
         catalog_id=catalog_id,
     )
 
@@ -309,6 +313,7 @@ def _create_csv_table(  # pylint: disable=too-many-arguments
     projection_values: Optional[Dict[str, str]],
     projection_intervals: Optional[Dict[str, str]],
     projection_digits: Optional[Dict[str, str]],
+    projection_storage_location_template: Optional[str],
     catalog_table_input: Optional[Dict[str, Any]],
     catalog_id: Optional[str],
 ) -> None:
@@ -353,6 +358,7 @@ def _create_csv_table(  # pylint: disable=too-many-arguments
         projection_values=projection_values,
         projection_intervals=projection_intervals,
         projection_digits=projection_digits,
+        projection_storage_location_template=projection_storage_location_template,
         catalog_id=catalog_id,
     )
 
@@ -380,6 +386,7 @@ def _create_json_table(  # pylint: disable=too-many-arguments
     projection_values: Optional[Dict[str, str]],
     projection_intervals: Optional[Dict[str, str]],
     projection_digits: Optional[Dict[str, str]],
+    projection_storage_location_template: Optional[str],
     catalog_table_input: Optional[Dict[str, Any]],
     catalog_id: Optional[str],
 ) -> None:
@@ -422,6 +429,7 @@ def _create_json_table(  # pylint: disable=too-many-arguments
         projection_values=projection_values,
         projection_intervals=projection_intervals,
         projection_digits=projection_digits,
+        projection_storage_location_template=projection_storage_location_template,
         catalog_id=catalog_id,
     )
 
@@ -613,6 +621,7 @@ def create_parquet_table(
     projection_values: Optional[Dict[str, str]] = None,
     projection_intervals: Optional[Dict[str, str]] = None,
     projection_digits: Optional[Dict[str, str]] = None,
+    projection_storage_location_template: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
     """Create a Parquet Table (Metadata Only) in the AWS Glue Catalog.
@@ -673,6 +682,11 @@ def create_parquet_table(
         Dictionary of partitions names and Athena projections digits.
         https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
         (e.g. {'col_name': '1', 'col2_name': '2'})
+    projection_storage_location_template: Optional[str]
+        Value which is allows Athena to properly map partition values if the S3 file locations do not follow
+        a typical `.../column=value/...` pattern.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-setting-up.html
+        (e.g. s3://bucket/table_root/a=${a}/${b}/some_static_subdirectory/${c}/)
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -721,6 +735,7 @@ def create_parquet_table(
         projection_values=projection_values,
         projection_intervals=projection_intervals,
         projection_digits=projection_digits,
+        projection_storage_location_template=projection_storage_location_template,
         boto3_session=boto3_session,
         catalog_table_input=catalog_table_input,
     )
@@ -752,6 +767,7 @@ def create_csv_table(
     projection_values: Optional[Dict[str, str]] = None,
     projection_intervals: Optional[Dict[str, str]] = None,
     projection_digits: Optional[Dict[str, str]] = None,
+    projection_storage_location_template: Optional[str] = None,
     catalog_id: Optional[str] = None,
 ) -> None:
     r"""Create a CSV Table (Metadata Only) in the AWS Glue Catalog.
@@ -825,6 +841,11 @@ def create_csv_table(
         Dictionary of partitions names and Athena projections digits.
         https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
         (e.g. {'col_name': '1', 'col2_name': '2'})
+    projection_storage_location_template: Optional[str]
+        Value which is allows Athena to properly map partition values if the S3 file locations do not follow
+        a typical `.../column=value/...` pattern.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-setting-up.html
+        (e.g. s3://bucket/table_root/a=${a}/${b}/some_static_subdirectory/${c}/)
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     catalog_id : str, optional
@@ -877,6 +898,7 @@ def create_csv_table(
         projection_values=projection_values,
         projection_intervals=projection_intervals,
         projection_digits=projection_digits,
+        projection_storage_location_template=projection_storage_location_template,
         boto3_session=boto3_session,
         catalog_table_input=catalog_table_input,
         sep=sep,
@@ -910,6 +932,7 @@ def create_json_table(
     projection_values: Optional[Dict[str, str]] = None,
     projection_intervals: Optional[Dict[str, str]] = None,
     projection_digits: Optional[Dict[str, str]] = None,
+    projection_storage_location_template: Optional[str] = None,
     catalog_id: Optional[str] = None,
 ) -> None:
     r"""Create a JSON Table (Metadata Only) in the AWS Glue Catalog.
@@ -979,6 +1002,11 @@ def create_json_table(
         Dictionary of partitions names and Athena projections digits.
         https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
         (e.g. {'col_name': '1', 'col2_name': '2'})
+    projection_storage_location_template: Optional[str]
+        Value which is allows Athena to properly map partition values if the S3 file locations do not follow
+        a typical `.../column=value/...` pattern.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-setting-up.html
+        (e.g. s3://bucket/table_root/a=${a}/${b}/some_static_subdirectory/${c}/)
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     catalog_id : str, optional
@@ -1030,6 +1058,7 @@ def create_json_table(
         projection_values=projection_values,
         projection_intervals=projection_intervals,
         projection_digits=projection_digits,
+        projection_storage_location_template=projection_storage_location_template,
         boto3_session=boto3_session,
         catalog_table_input=catalog_table_input,
         serde_library=serde_library,
