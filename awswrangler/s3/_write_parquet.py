@@ -667,7 +667,7 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
 
     Infer Apache Parquet file(s) metadata from from a received S3 prefix or list of S3 objects paths
     And then stores it on AWS Glue Catalog including all inferred partitions
-    (No need of 'MCSK REPAIR TABLE')
+    (No need of 'MSCK REPAIR TABLE')
 
     The concept of Dataset goes beyond the simple idea of files and enable more
     complex features like partitioning and catalog integration (AWS Glue Catalog).
