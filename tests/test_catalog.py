@@ -41,6 +41,7 @@ def test_catalog(
         pytest.skip()
 
     assert wr.catalog.does_table_exist(database=glue_database, table=glue_table) is False
+    transaction_id = wr.lakeformation.start_transaction() if table_type == "GOVERNED" else None
     wr.catalog.create_parquet_table(
         database=glue_database,
         table=glue_table,
@@ -49,7 +50,10 @@ def test_catalog(
         partitions_types={"y": "int", "m": "int"},
         compression="snappy",
         table_type=table_type,
+        transaction_id=transaction_id,
     )
+    if transaction_id:
+        wr.lakeformation.commit_transaction(transaction_id=transaction_id)
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.catalog.create_parquet_table(
             database=glue_database,
@@ -62,7 +66,7 @@ def test_catalog(
 
     assert wr.catalog.does_table_exist(database=glue_database, table=glue_table) is True
     assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table) is True
-    assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table) is False
+    transaction_id = wr.lakeformation.start_transaction() if table_type == "GOVERNED" else None
     wr.catalog.create_parquet_table(
         database=glue_database,
         table=glue_table,
@@ -75,14 +79,13 @@ def test_catalog(
         columns_comments={"col0": "my int", "y": "year"},
         mode="overwrite",
         table_type=table_type,
+        transaction_id=transaction_id,
     )
+    if transaction_id:
+        wr.lakeformation.commit_transaction(transaction_id=transaction_id)
 
-    if table_type == "GOVERNED":
-        # Cannot start a transaction before creating a table
-        transaction_id = wr.lakeformation.start_transaction() if start_transaction else None
-    else:
-        transaction_id = None
-
+    # Cannot start a transaction before creating a table
+    transaction_id = wr.lakeformation.start_transaction() if table_type == "GOVERNED" and start_transaction else None
     assert (
         wr.catalog.get_table_location(database=glue_database, table=glue_table, transaction_id=transaction_id) == path
     )
@@ -206,7 +209,7 @@ def test_catalog(
         )
 
 
-def test_catalog_partitions(glue_database, glue_table, path, account_id):
+def test_catalog_partitions(glue_database: str, glue_table: str, path: str, account_id: str) -> None:
     assert wr.catalog.does_table_exist(database=glue_database, table=glue_table) is False
     wr.catalog.create_parquet_table(
         database=glue_database,
@@ -240,13 +243,13 @@ def test_catalog_partitions(glue_database, glue_table, path, account_id):
     assert len(set(partitions_values[f"{path}y=2021/m=2/"]) & {"2021", "2"}) == 2
 
 
-def test_catalog_get_databases(glue_database):
+def test_catalog_get_databases(glue_database: str) -> None:
     dbs = [db["Name"] for db in wr.catalog.get_databases()]
     assert len(dbs) > 0
     assert glue_database in dbs
 
 
-def test_catalog_versioning(path, glue_database, glue_table, glue_table2):
+def test_catalog_versioning(path: str, glue_database: str, glue_table: str, glue_table2: str) -> None:
     wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
     wr.s3.delete_objects(path=path)
 
@@ -335,7 +338,7 @@ def test_catalog_versioning(path, glue_database, glue_table, glue_table2):
     assert str(df.c1.dtype).startswith("boolean")
 
 
-def test_catalog_parameters(path, glue_database, glue_table):
+def test_catalog_parameters(path: str, glue_database: str, glue_table: str) -> None:
     wr.s3.to_parquet(
         df=pd.DataFrame({"c0": [1, 2]}),
         path=path,
@@ -387,7 +390,7 @@ def test_catalog_parameters(path, glue_database, glue_table):
     assert df.c0.sum() == 10
 
 
-def test_catalog_columns(path, glue_table, glue_database):
+def test_catalog_columns(path: str, glue_table: str, glue_database: str) -> None:
     wr.s3.to_parquet(
         df=get_df_csv()[["id", "date", "timestamp", "par0", "par1"]],
         path=path,
@@ -430,7 +433,7 @@ def test_catalog_columns(path, glue_table, glue_database):
 
 
 @pytest.mark.parametrize("use_catalog_id", [False, True])
-def test_create_database(random_glue_database: str, account_id: str, use_catalog_id: bool):
+def test_create_database(random_glue_database: str, account_id: str, use_catalog_id: bool) -> None:
     if not use_catalog_id:
         account_id = None
     description = "foo"
@@ -451,7 +454,7 @@ def test_create_database(random_glue_database: str, account_id: str, use_catalog
     assert r["Database"]["Description"] == description
 
 
-def test_catalog_json(path: str, glue_database: str, glue_table: str, account_id: str):
+def test_catalog_json(path: str, glue_database: str, glue_table: str) -> None:
     # Create JSON table
     assert not wr.catalog.does_table_exist(database=glue_database, table=glue_table)
     wr.catalog.create_json_table(
