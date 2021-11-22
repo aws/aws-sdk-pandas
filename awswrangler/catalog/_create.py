@@ -978,7 +978,7 @@ def create_csv_table(  # pylint: disable=too-many-arguments
 
 
 @apply_configs
-def create_json_table(
+def create_json_table(  # pylint: disable=too-many-arguments
     database: str,
     table: str,
     path: str,
