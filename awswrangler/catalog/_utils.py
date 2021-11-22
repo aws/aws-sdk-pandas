@@ -50,7 +50,11 @@ def _extract_dtypes_from_table_details(response: Dict[str, Any]) -> Dict[str, st
 
 @apply_configs
 def does_table_exist(
-    database: str, table: str, boto3_session: Optional[boto3.Session] = None, catalog_id: Optional[str] = None
+    database: str,
+    table: str,
+    boto3_session: Optional[boto3.Session] = None,
+    catalog_id: Optional[str] = None,
+    transaction_id: Optional[str] = None,
 ) -> bool:
     """Check if the table exists.
 
@@ -65,6 +69,8 @@ def does_table_exist(
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
+    transaction_id: str, optional
+        The ID of the transaction (i.e. used with GOVERNED tables).
 
     Returns
     -------
@@ -78,7 +84,12 @@ def does_table_exist(
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
     try:
-        client_glue.get_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table))
+        client_glue.get_table(
+            **_catalog_id(
+                catalog_id=catalog_id,
+                **_transaction_id(transaction_id=transaction_id, DatabaseName=database, Name=table),
+            )
+        )
         return True
     except client_glue.exceptions.EntityNotFoundException:
         return False
