@@ -687,6 +687,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
                     projection_values=projection_values,
                     projection_intervals=projection_intervals,
                     projection_digits=projection_digits,
+                    projection_storage_location_template=None,
                     catalog_id=catalog_id,
                     catalog_table_input=catalog_table_input,
                 )
@@ -751,7 +752,7 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
 
     Infer Apache Parquet file(s) metadata from from a received S3 prefix or list of S3 objects paths
     And then stores it on AWS Glue Catalog including all inferred partitions
-    (No need of 'MCSK REPAIR TABLE')
+    (No need of 'MSCK REPAIR TABLE')
 
     The concept of Dataset goes beyond the simple idea of files and enable more
     complex features like partitioning and catalog integration (AWS Glue Catalog).

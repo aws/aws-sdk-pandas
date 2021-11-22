@@ -126,6 +126,7 @@ def test_basics(path, glue_database, glue_table, workgroup0, workgroup1):
 
 
 def test_athena_cache_configuration():
+    wr.config.max_remote_cache_entries = 50
     wr.config.max_local_cache_entries = 20
     assert wr.config.max_remote_cache_entries == 20
 

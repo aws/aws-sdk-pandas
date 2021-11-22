@@ -1265,7 +1265,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     ...     path="s3://bucket/my_parquet_files/",
     ...     con=con,
     ...     table="my_table",
-    ...     schema="public"
+    ...     schema="public",
     ...     iam_role="arn:aws:iam::XXX:role/XXX"
     ... )
     >>> con.close()
@@ -1469,7 +1469,7 @@ def copy(  # pylint: disable=too-many-arguments
     ...     path="s3://bucket/my_parquet_files/",
     ...     con=con,
     ...     table="my_table",
-    ...     schema="public"
+    ...     schema="public",
     ...     iam_role="arn:aws:iam::XXX:role/XXX"
     ... )
     >>> con.close()
