@@ -34,6 +34,7 @@ Amazon S3
     does_object_exist
     download
     get_bucket_region
+    list_buckets
     list_directories
     list_objects
     merge_datasets

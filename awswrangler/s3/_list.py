@@ -356,3 +356,22 @@ def list_objects(
     if chunked:
         return result_iterator
     return [path for paths in result_iterator for path in paths]
+
+
+def list_buckets(boto3_session: Optional[boto3.Session] = None) -> List[str]:
+    """List Amazon S3 buckets.
+
+    Parameters
+    ----------
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session to use, default to None.
+
+    Returns
+    -------
+    List[str]
+        List of bucket names.
+
+    """
+    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    buckets = client_s3.list_buckets()["Buckets"]
+    return [bucket["Name"] for bucket in buckets]
