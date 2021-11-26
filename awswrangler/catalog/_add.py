@@ -53,6 +53,7 @@ def add_csv_partitions(
     serde_parameters: Optional[Dict[str, str]] = None,
     boto3_session: Optional[boto3.Session] = None,
     columns_types: Optional[Dict[str, str]] = None,
+    partitions_parameters: Optional[Dict[str, str]] = None,
 ) -> None:
     r"""Add partitions (metadata) to a CSV Table in the AWS Glue Catalog.
 
@@ -89,6 +90,8 @@ def add_csv_partitions(
         Only required for Hive compability.
         Dictionary with keys as column names and values as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
         P.S. Only materialized columns please, not partition columns.
+    partitions_parameters: Optional[Dict[str, str]]
+        Dictionary with key-value pairs defining partition parameters.
 
     Returns
     -------
@@ -120,6 +123,7 @@ def add_csv_partitions(
             columns_types=columns_types,
             serde_library=serde_library,
             serde_parameters=serde_parameters,
+            partitions_parameters=partitions_parameters,
         )
         for k, v in partitions_values.items()
     ]
@@ -138,6 +142,7 @@ def add_json_partitions(
     serde_parameters: Optional[Dict[str, str]] = None,
     boto3_session: Optional[boto3.Session] = None,
     columns_types: Optional[Dict[str, str]] = None,
+    partitions_parameters: Optional[Dict[str, str]] = None,
 ) -> None:
     r"""Add partitions (metadata) to a JSON Table in the AWS Glue Catalog.
 
@@ -172,6 +177,8 @@ def add_json_partitions(
         Only required for Hive compability.
         Dictionary with keys as column names and values as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
         P.S. Only materialized columns please, not partition columns.
+    partitions_parameters: Optional[Dict[str, str]]
+        Dictionary with key-value pairs defining partition parameters.
 
     Returns
     -------
@@ -202,6 +209,7 @@ def add_json_partitions(
             columns_types=columns_types,
             serde_library=serde_library,
             serde_parameters=serde_parameters,
+            partitions_parameters=partitions_parameters,
         )
         for k, v in partitions_values.items()
     ]
@@ -218,6 +226,7 @@ def add_parquet_partitions(
     compression: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
     columns_types: Optional[Dict[str, str]] = None,
+    partitions_parameters: Optional[Dict[str, str]] = None,
 ) -> None:
     """Add partitions (metadata) to a Parquet Table in the AWS Glue Catalog.
 
@@ -245,6 +254,8 @@ def add_parquet_partitions(
         Only required for Hive compability.
         Dictionary with keys as column names and values as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
         P.S. Only materialized columns please, not partition columns.
+    partitions_parameters: Optional[Dict[str, str]]
+        Dictionary with key-value pairs defining partition parameters.
 
     Returns
     -------
@@ -274,6 +285,7 @@ def add_parquet_partitions(
                 bucketing_info=bucketing_info,
                 compression=compression,
                 columns_types=columns_types,
+                partitions_parameters=partitions_parameters,
             )
             for k, v in partitions_values.items()
         ]

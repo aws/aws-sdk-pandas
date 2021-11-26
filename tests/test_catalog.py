@@ -378,6 +378,7 @@ def test_catalog_json(path: str, glue_database: str, glue_table: str, account_id
         table=glue_table,
         partitions_values={f"{path}y=2020/m=1/": ["2020", "1"], f"{path}y=2021/m=2/": ["2021", "2"]},
         compression="snappy",
+        partitions_parameters={"retention": "365"},
     )
     partitions_values = wr.catalog.get_partitions(database=glue_database, table=glue_table)
     assert len(partitions_values) == 2
