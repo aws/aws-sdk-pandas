@@ -1,13 +1,11 @@
 """Utilities Module for Amazon Athena."""
 import csv
-import datetime
 import logging
 import pprint
 import time
 import warnings
 from decimal import Decimal
-from heapq import heappop, heappush
-from typing import Any, Dict, Generator, List, NamedTuple, Optional, Tuple, Union, cast
+from typing import Any, Dict, Generator, List, NamedTuple, Optional, Union, cast
 
 import boto3
 import botocore.exceptions
@@ -15,6 +13,8 @@ import pandas as pd
 
 from awswrangler import _data_types, _utils, exceptions, s3, sts
 from awswrangler._config import apply_configs
+
+from ._cache import _cache_manager, _CacheInfo, _check_for_cached_results, _LocalMetadataCacheManager
 
 _QUERY_FINAL_STATES: List[str] = ["FAILED", "SUCCEEDED", "CANCELLED"]
 _QUERY_WAIT_POLLING_DELAY: float = 0.25  # SECONDS
@@ -39,71 +39,6 @@ class _WorkGroupConfig(NamedTuple):
     s3_output: Optional[str]
     encryption: Optional[str]
     kms_key: Optional[str]
-
-
-class _LocalMetadataCacheManager:
-    def __init__(self) -> None:
-        self._cache: Dict[str, Any] = {}
-        self._pqueue: List[Tuple[datetime.datetime, str]] = []
-        self._max_cache_size = 100
-
-    def update_cache(self, items: List[Dict[str, Any]]) -> None:
-        """
-        Update the local metadata cache with new query metadata.
-
-        Parameters
-        ----------
-        items : List[Dict[str, Any]]
-            List of query execution metadata which is returned by boto3 `batch_get_query_execution()`.
-
-        Returns
-        -------
-        None
-            None.
-        """
-        if self._pqueue:
-            oldest_item = self._cache[self._pqueue[0][1]]
-            items = list(
-                filter(lambda x: x["Status"]["SubmissionDateTime"] > oldest_item["Status"]["SubmissionDateTime"], items)
-            )
-
-        cache_oversize = len(self._cache) + len(items) - self._max_cache_size
-        for _ in range(cache_oversize):
-            _, query_execution_id = heappop(self._pqueue)
-            del self._cache[query_execution_id]
-
-        for item in items[: self._max_cache_size]:
-            heappush(self._pqueue, (item["Status"]["SubmissionDateTime"], item["QueryExecutionId"]))
-            self._cache[item["QueryExecutionId"]] = item
-
-    def sorted_successful_generator(self) -> List[Dict[str, Any]]:
-        """
-        Sorts the entries in the local cache based on query Completion DateTime.
-
-        This is useful to guarantee LRU caching rules.
-
-        Returns
-        -------
-        List[Dict[str, Any]]
-            Returns successful DDL and DML queries sorted by query completion time.
-        """
-        filtered: List[Dict[str, Any]] = []
-        for query in self._cache.values():
-            if (query["Status"].get("State") == "SUCCEEDED") and (query.get("StatementType") in ["DDL", "DML"]):
-                filtered.append(query)
-        return sorted(filtered, key=lambda e: str(e["Status"]["CompletionDateTime"]), reverse=True)
-
-    def __contains__(self, key: str) -> bool:
-        return key in self._cache
-
-    @property
-    def max_cache_size(self) -> int:
-        """Property max_cache_size."""
-        return self._max_cache_size
-
-    @max_cache_size.setter
-    def max_cache_size(self, value: int) -> None:
-        self._max_cache_size = value
 
 
 def _get_s3_output(s3_output: Optional[str], wg_config: _WorkGroupConfig, boto3_session: boto3.Session) -> str:
@@ -422,8 +357,13 @@ def start_query_execution(
     kms_key: Optional[str] = None,
     params: Optional[Dict[str, Any]] = None,
     boto3_session: Optional[boto3.Session] = None,
+    max_cache_seconds: int = 0,
+    max_cache_query_inspections: int = 50,
+    max_remote_cache_entries: int = 50,
+    max_local_cache_entries: int = 100,
     data_source: Optional[str] = None,
-) -> str:
+    wait: bool = False,
+) -> Union[str, Dict[str, Any]]:
     """Start a SQL Query against AWS Athena.
 
     Note
@@ -451,13 +391,34 @@ def start_query_execution(
         `:name;`. Note that for varchar columns and similar, you must surround the value in single quotes.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    max_cache_seconds: int
+        Wrangler can look up in Athena's history if this query has been run before.
+        If so, and its completion time is less than `max_cache_seconds` before now, wrangler
+        skips query execution and just returns the same results as last time.
+        If cached results are valid, wrangler ignores the `s3_output`, `encryption` and `kms_key` params.
+        If reading cached data fails for any reason, execution falls back to the usual query run path.
+    max_cache_query_inspections : int
+        Max number of queries that will be inspected from the history to try to find some result to reuse.
+        The bigger the number of inspection, the bigger will be the latency for not cached queries.
+        Only takes effect if max_cache_seconds > 0.
+    max_remote_cache_entries : int
+        Max number of queries that will be retrieved from AWS for cache inspection.
+        The bigger the number of inspection, the bigger will be the latency for not cached queries.
+        Only takes effect if max_cache_seconds > 0 and default value is 50.
+    max_local_cache_entries : int
+        Max number of queries for which metadata will be cached locally. This will reduce the latency and also
+        enables keeping more than `max_remote_cache_entries` available for the cache. This value should not be
+        smaller than max_remote_cache_entries.
+        Only takes effect if max_cache_seconds > 0 and default value is 100.
     data_source : str, optional
         Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
+    wait : bool, default False
+        Indicates whether to wait for the query to finish and return a dictionary with the query execution response.
 
     Returns
     -------
-    str
-        Query execution ID
+    Union[str, Dict[str, Any]]
+        Query execution ID if `wait` is set to `False`, dictionary with the get_query_execution response otherwise.
 
     Examples
     --------
@@ -477,18 +438,38 @@ def start_query_execution(
     for key, value in params.items():
         sql = sql.replace(f":{key};", str(value))
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    wg_config: _WorkGroupConfig = _get_workgroup_config(session=session, workgroup=workgroup)
-    return _start_query_execution(
+
+    max_remote_cache_entries = min(max_remote_cache_entries, max_local_cache_entries)
+
+    _cache_manager.max_cache_size = max_local_cache_entries
+    cache_info: _CacheInfo = _check_for_cached_results(
         sql=sql,
-        wg_config=wg_config,
-        database=database,
-        data_source=data_source,
-        s3_output=s3_output,
-        workgroup=workgroup,
-        encryption=encryption,
-        kms_key=kms_key,
         boto3_session=session,
+        workgroup=workgroup,
+        max_cache_seconds=max_cache_seconds,
+        max_cache_query_inspections=max_cache_query_inspections,
+        max_remote_cache_entries=max_remote_cache_entries,
     )
+
+    if cache_info.has_valid_cache and cache_info.query_execution_id is not None:
+        query_execution_id = cache_info.query_execution_id
+    else:
+        wg_config: _WorkGroupConfig = _get_workgroup_config(session=session, workgroup=workgroup)
+        query_execution_id = _start_query_execution(
+            sql=sql,
+            wg_config=wg_config,
+            database=database,
+            data_source=data_source,
+            s3_output=s3_output,
+            workgroup=workgroup,
+            encryption=encryption,
+            kms_key=kms_key,
+            boto3_session=session,
+        )
+    if wait:
+        return wait_query(query_execution_id=query_execution_id, boto3_session=session)
+
+    return query_execution_id
 
 
 @apply_configs
