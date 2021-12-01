@@ -489,11 +489,7 @@ def _unload(
     if partitioned_by:
         unload_parameters += f"  , partitioned_by=ARRAY{partitioned_by}"
 
-    sql = (
-        f"UNLOAD ({sql})"
-        f"TO '{path}'"
-        f"WITH ({unload_parameters})"
-    )
+    sql = f"UNLOAD ({sql})" f"TO '{path}'" f"WITH ({unload_parameters})"
     _logger.debug("sql: %s", sql)
     try:
         query_id: str = _start_query_execution(
@@ -509,9 +505,7 @@ def _unload(
         msg: str = str(ex)
         error: Dict[str, Any] = ex.response["Error"]
         if error["Code"] == "InvalidRequestException":
-            raise exceptions.InvalidArgumentValue(
-                f"Exception parsing query. Root error message: {msg}"
-            )
+            raise exceptions.InvalidArgumentValue(f"Exception parsing query. Root error message: {msg}")
         raise ex
     _logger.debug("query_id: %s", query_id)
     try:
