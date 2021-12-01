@@ -72,6 +72,7 @@ def _parquet_partition_definition(
     bucketing_info: Optional[Tuple[List[str], int]],
     compression: Optional[str],
     columns_types: Optional[Dict[str, str]],
+    partitions_parameters: Optional[Dict[str, str]],
 ) -> Dict[str, Any]:
     compressed: bool = compression is not None
     definition: Dict[str, Any] = {
@@ -89,6 +90,7 @@ def _parquet_partition_definition(
             "BucketColumns": [] if bucketing_info is None else bucketing_info[0],
         },
         "Values": values,
+        "Parameters": {} if partitions_parameters is None else partitions_parameters,
     }
     if columns_types is not None:
         definition["StorageDescriptor"]["Columns"] = [
@@ -157,6 +159,7 @@ def _csv_partition_definition(
     serde_library: Optional[str],
     serde_parameters: Optional[Dict[str, str]],
     columns_types: Optional[Dict[str, str]],
+    partitions_parameters: Optional[Dict[str, str]],
 ) -> Dict[str, Any]:
     compressed: bool = compression is not None
     serde_info = {
@@ -177,6 +180,7 @@ def _csv_partition_definition(
             "BucketColumns": [] if bucketing_info is None else bucketing_info[0],
         },
         "Values": values,
+        "Parameters": {} if partitions_parameters is None else partitions_parameters,
     }
     if columns_types is not None:
         definition["StorageDescriptor"]["Columns"] = [
@@ -235,6 +239,7 @@ def _json_partition_definition(
     serde_library: Optional[str],
     serde_parameters: Optional[Dict[str, str]],
     columns_types: Optional[Dict[str, str]],
+    partitions_parameters: Optional[Dict[str, str]],
 ) -> Dict[str, Any]:
     compressed: bool = compression is not None
     serde_info = {
@@ -253,6 +258,7 @@ def _json_partition_definition(
             "BucketColumns": [] if bucketing_info is None else bucketing_info[0],
         },
         "Values": values,
+        "Parameters": {} if partitions_parameters is None else partitions_parameters,
     }
     if columns_types is not None:
         definition["StorageDescriptor"]["Columns"] = [
