@@ -28,8 +28,8 @@ classifiers = [
 [tool.poetry.dependencies]
 python = ">=3.6.2, <=3.10.0"
 
-boto3 = "^1.16.8"
-botocore = "^1.19.8"
+boto3 = "^1.20.17"
+botocore = "^1.23.17"
 # python_full_version instead of just python is needed until the changes
 # from https://github.com/python-poetry/poetry-core/pull/180 are released
 pandas = [
@@ -76,7 +76,6 @@ nbsphinx-link = "^1.3.0"
 IPython = "^7.16.0"
 moto = "^2.2.12"
 jupyterlab = "^3.1.4"
-s3fs = "^2021.10.0"
 python-Levenshtein = "^0.12.2"
 bump2version = "^1.0.1"
 
@@ -126,4 +125,4 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 log_cli = false
 filterwarnings = "ignore::DeprecationWarning"
-addopts = "--log-cli-format \"[%(name)s][%(funcName)s] %(message)s\" --verbose --capture=sys"
+addopts = "--log-cli-format \"[%(name)s][%(funcName)s] %(message)s\" --verbose --capture=sys --ignore=tests/test_fs.py"
