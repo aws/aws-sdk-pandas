@@ -19,10 +19,23 @@ def _catalog_id(catalog_id: Optional[str] = None, **kwargs: Any) -> Dict[str, An
     return kwargs
 
 
+def _transaction_id(
+    transaction_id: Optional[str] = None, query_as_of_time: Optional[str] = None, **kwargs: Any
+) -> Dict[str, Any]:
+    if transaction_id is not None and query_as_of_time is not None:
+        raise exceptions.InvalidArgumentCombination(
+            "Please pass only one of `transaction_id` or `query_as_of_time`, not both"
+        )
+    if transaction_id is not None:
+        kwargs["TransactionId"] = transaction_id
+    elif query_as_of_time is not None:
+        kwargs["QueryAsOfTime"] = query_as_of_time
+    return kwargs
+
+
 def _sanitize_name(name: str) -> str:
     name = "".join(c for c in unicodedata.normalize("NFD", name) if unicodedata.category(c) != "Mn")  # strip accents
-    name = re.sub("[^A-Za-z0-9_]+", "_", name)  # Replacing non alphanumeric characters by underscore
-    return re.sub("([a-z0-9])([A-Z])", r"\1_\2", name).lower()  # Converting CamelCase to snake_case
+    return re.sub("[^A-Za-z0-9_]+", "_", name).lower()  # Replacing non alphanumeric characters by underscore
 
 
 def _extract_dtypes_from_table_details(response: Dict[str, Any]) -> Dict[str, str]:
@@ -37,7 +50,11 @@ def _extract_dtypes_from_table_details(response: Dict[str, Any]) -> Dict[str, st
 
 @apply_configs
 def does_table_exist(
-    database: str, table: str, boto3_session: Optional[boto3.Session] = None, catalog_id: Optional[str] = None
+    database: str,
+    table: str,
+    boto3_session: Optional[boto3.Session] = None,
+    catalog_id: Optional[str] = None,
+    transaction_id: Optional[str] = None,
 ) -> bool:
     """Check if the table exists.
 
@@ -52,6 +69,8 @@ def does_table_exist(
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
+    transaction_id: str, optional
+        The ID of the transaction (i.e. used with GOVERNED tables).
 
     Returns
     -------
@@ -65,7 +84,12 @@ def does_table_exist(
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
     try:
-        client_glue.get_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table))
+        client_glue.get_table(
+            **_catalog_id(
+                catalog_id=catalog_id,
+                **_transaction_id(transaction_id=transaction_id, DatabaseName=database, Name=table),
+            )
+        )
         return True
     except client_glue.exceptions.EntityNotFoundException:
         return False

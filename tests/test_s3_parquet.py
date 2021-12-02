@@ -195,9 +195,9 @@ def test_to_parquet_file_sanitize(path):
     wr.s3.to_parquet(df, path_file, sanitize_columns=True)
     df2 = wr.s3.read_parquet(path_file)
     assert df.shape == df2.shape
-    assert list(df2.columns) == ["c0", "camel_case", "c_2"]
+    assert list(df2.columns) == ["c0", "camelcase", "c_2"]
     assert df2.c0.sum() == 1
-    assert df2.camel_case.sum() == 5
+    assert df2.camelcase.sum() == 5
     assert df2.c_2.sum() == 9
 
 
@@ -423,9 +423,9 @@ def test_to_parquet_dataset_sanitize(path):
     wr.s3.to_parquet(df, path, dataset=True, partition_cols=["par"], sanitize_columns=True, mode="overwrite")
     df2 = wr.s3.read_parquet(path, dataset=True)
     assert df.shape == df2.shape
-    assert list(df2.columns) == ["c0", "camel_case", "c_2", "par"]
+    assert list(df2.columns) == ["c0", "camelcase", "c_2", "par"]
     assert df2.c0.sum() == 1
-    assert df2.camel_case.sum() == 5
+    assert df2.camelcase.sum() == 5
     assert df2.c_2.sum() == 9
     assert df2.par.to_list() == ["a", "b"]
 

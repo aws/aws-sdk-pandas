@@ -153,9 +153,9 @@ or
 
 ``cd scripts``
 
-* Deploy the Cloudformation template `base.yaml`
+* Deploy the `base` CDK stack
 
-``./deploy-base.sh``
+``./deploy-stack.sh base``
 
 * Return to the project root directory
 
@@ -175,7 +175,7 @@ or
 
 * [OPTIONAL] To remove the base test environment cloud formation stack post testing:
 
-``./test_infra/scripts/delete-base.sh``
+``./test_infra/scripts/delete-stack.sh base``
 
 ### Full test environment
 
@@ -210,14 +210,18 @@ or
 
 ``cd scripts``
 
-* Deploy the Cloudformation templates `base.yaml` and `databases.yaml`. This step could take about 15 minutes to deploy.
+* Deploy the `base` and `databases` CDK stacks. This step could take about 15 minutes to deploy.
 
-``./deploy-base.sh``
-``./deploy-databases.sh``
+``./deploy-stack.sh base``
+``./deploy-stack.sh databases``
 
-* [OPTIONAL] Deploy the Cloudformation template `opensearch.yaml` (if you need to test Amazon OpenSearch Service). This step could take about 15 minutes to deploy.
+* [OPTIONAL] Deploy the `lakeformation` CDK stack (if you need to test against the AWS Lake Formation Service). You must ensure Lake Formation is enabled in the account.
 
-``./deploy-opensearch.sh``
+``./deploy-stack.sh lakeformation``
+
+* [OPTIONAL] Deploy the `opensearch` CDK stack (if you need to test against the Amazon OpenSearch Service). This step could take about 15 minutes to deploy.
+
+``./deploy-stack.sh opensearch``
 
 * Go to the `EC2 -> SecurityGroups` console, open the `aws-data-wrangler-*` security group and configure to accept your IP from any TCP port.
   - Alternatively run:
@@ -254,9 +258,9 @@ or
 
 * [OPTIONAL] To remove the base test environment cloud formation stack post testing:
 
-``./test_infra/scripts/delete-base.sh``
+``./test_infra/scripts/delete-stack.sh base``
 
-``./test_infra/scripts/delete-databases.sh``
+``./test_infra/scripts/delete-stack.sh databases``
 
 ## Recommended Visual Studio Code Recommended setting
 

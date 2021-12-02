@@ -21,7 +21,7 @@ def test_list_buckets() -> None:
     assert len(wr.s3.list_buckets()) > 0
 
 
-@pytest.mark.parametrize("sanitize_columns,col", [(True, "foo_boo"), (False, "FooBoo")])
+@pytest.mark.parametrize("sanitize_columns,col", [(True, "fooboo"), (False, "FooBoo")])
 def test_sanitize_columns(path, sanitize_columns, col):
     df = pd.DataFrame({"FooBoo": [1, 2, 3]})
 

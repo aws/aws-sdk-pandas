@@ -10,7 +10,7 @@ import boto3
 import pandas as pd
 from pandas.io.common import infer_compression
 
-from awswrangler import _data_types, _utils, catalog, exceptions
+from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation
 from awswrangler._config import apply_configs
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
@@ -90,6 +90,8 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     schema_evolution: bool = False,
     database: Optional[str] = None,
     table: Optional[str] = None,
+    table_type: Optional[str] = None,
+    transaction_id: Optional[str] = None,
     dtype: Optional[Dict[str, str]] = None,
     description: Optional[str] = None,
     parameters: Optional[Dict[str, str]] = None,
@@ -191,6 +193,10 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         Glue/Athena catalog: Database name.
     table : str, optional
         Glue/Athena catalog: Table name.
+    table_type: str, optional
+        The type of the Glue Table. Set to EXTERNAL_TABLE if None
+    transaction_id: str, optional
+        The ID of the transaction when writing to a Governed Table.
     dtype : Dict[str, str], optional
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined or mixed data types.
@@ -357,6 +363,28 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         }
     }
 
+    Writing dataset to Glue governed table
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>> wr.s3.to_csv(
+    ...     df=pd.DataFrame({
+    ...         'col': [1, 2, 3],
+    ...         'col2': ['A', 'A', 'B'],
+    ...         'col3': [None, None, None]
+    ...     }),
+    ...     dataset=True,
+    ...     mode='append',
+    ...     database='default',  # Athena/Glue database
+    ...     table='my_table',  # Athena/Glue table
+    ...     table_type='GOVERNED',
+    ...     transaction_id="xxx",
+    ... )
+    {
+        'paths': ['s3://.../x.csv'],
+        'partitions_values: {}
+    }
+
     Writing dataset casting empty column data type
 
     >>> import awswrangler as wr
@@ -409,6 +437,9 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     dtype = dtype if dtype else {}
     partitions_values: Dict[str, List[str]] = {}
     mode = "append" if mode is None else mode
+    commit_trans: bool = False
+    if transaction_id:
+        table_type = "GOVERNED"
     filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
@@ -420,9 +451,13 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     catalog_table_input: Optional[Dict[str, Any]] = None
     if database and table:
         catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
-            database=database, table=table, boto3_session=session, catalog_id=catalog_id
+            database=database, table=table, boto3_session=session, transaction_id=transaction_id, catalog_id=catalog_id
         )
-        catalog_path = catalog_table_input.get("StorageDescriptor", {}).get("Location") if catalog_table_input else None
+
+        catalog_path: Optional[str] = None
+        if catalog_table_input:
+            table_type = catalog_table_input["TableType"]
+            catalog_path = catalog_table_input.get("StorageDescriptor", {}).get("Location")
         if path is None:
             if catalog_path:
                 path = catalog_path
@@ -439,6 +474,10 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             raise exceptions.InvalidArgumentCombination(
                 "If database and table are given, you must use one of these compressions: gzip, bz2 or None."
             )
+        if (table_type == "GOVERNED") and (not transaction_id):
+            _logger.debug("`transaction_id` not specified for GOVERNED table, starting transaction")
+            transaction_id = lakeformation.start_transaction(read_only=False, boto3_session=boto3_session)
+            commit_trans = True
 
     df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
 
@@ -481,12 +520,53 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
 
         columns_types: Dict[str, str] = {}
         partitions_types: Dict[str, str] = {}
-        if (database is not None) and (table is not None):
+
+        if database and table:
             columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
                 df=df, index=index, partition_cols=partition_cols, dtype=dtype, index_left=True
             )
             if schema_evolution is False:
                 _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
+
+            if (catalog_table_input is None) and (table_type == "GOVERNED"):
+                catalog._create_csv_table(  # pylint: disable=protected-access
+                    database=database,
+                    table=table,
+                    path=path,
+                    columns_types=columns_types,
+                    table_type=table_type,
+                    partitions_types=partitions_types,
+                    bucketing_info=bucketing_info,
+                    description=description,
+                    parameters=parameters,
+                    columns_comments=columns_comments,
+                    boto3_session=session,
+                    mode=mode,
+                    transaction_id=transaction_id,
+                    schema_evolution=schema_evolution,
+                    catalog_versioning=catalog_versioning,
+                    sep=sep,
+                    projection_enabled=projection_enabled,
+                    projection_types=projection_types,
+                    projection_ranges=projection_ranges,
+                    projection_values=projection_values,
+                    projection_intervals=projection_intervals,
+                    projection_digits=projection_digits,
+                    projection_storage_location_template=None,
+                    catalog_table_input=catalog_table_input,
+                    catalog_id=catalog_id,
+                    compression=pandas_kwargs.get("compression"),
+                    skip_header_line_count=None,
+                    serde_library=None,
+                    serde_parameters=None,
+                )
+                catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
+                    database=database,
+                    table=table,
+                    boto3_session=session,
+                    transaction_id=transaction_id,
+                    catalog_id=catalog_id,
+                )
 
         paths, partitions_values = _to_dataset(
             func=_to_text,
@@ -496,9 +576,15 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             index=index,
             sep=sep,
             compression=compression,
+            catalog_id=catalog_id,
+            database=database,
+            table=table,
+            table_type=table_type,
+            transaction_id=transaction_id,
             filename_prefix=filename_prefix,
             use_threads=use_threads,
             partition_cols=partition_cols,
+            partitions_types=partitions_types,
             bucketing_info=bucketing_info,
             mode=mode,
             boto3_session=session,
@@ -520,8 +606,9 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                 catalog._create_csv_table(  # pylint: disable=protected-access
                     database=database,
                     table=table,
-                    path=path,  # type: ignore
+                    path=path,
                     columns_types=columns_types,
+                    table_type=table_type,
                     partitions_types=partitions_types,
                     bucketing_info=bucketing_info,
                     description=description,
@@ -529,6 +616,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                     columns_comments=columns_comments,
                     boto3_session=session,
                     mode=mode,
+                    transaction_id=transaction_id,
                     catalog_versioning=catalog_versioning,
                     schema_evolution=schema_evolution,
                     sep=sep,
@@ -546,7 +634,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                     serde_library=serde_library,
                     serde_parameters=serde_parameters,
                 )
-                if partitions_values and (regular_partitions is True):
+                if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
                     _logger.debug("partitions_values:\n%s", partitions_values)
                     catalog.add_csv_partitions(
                         database=database,
@@ -560,6 +648,10 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                         catalog_id=catalog_id,
                         columns_types=columns_types,
                         compression=pandas_kwargs.get("compression"),
+                    )
+                if commit_trans:
+                    lakeformation.commit_transaction(
+                        transaction_id=transaction_id, boto3_session=boto3_session  # type: ignore
                     )
             except Exception:
                 _logger.debug("Catalog write failed, cleaning up S3 (paths: %s).", paths)
@@ -592,6 +684,8 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
     schema_evolution: bool = True,
     database: Optional[str] = None,
     table: Optional[str] = None,
+    table_type: Optional[str] = None,
+    transaction_id: Optional[str] = None,
     dtype: Optional[Dict[str, str]] = None,
     description: Optional[str] = None,
     parameters: Optional[Dict[str, str]] = None,
@@ -672,6 +766,10 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         Glue/Athena catalog: Database name.
     table : str, optional
         Glue/Athena catalog: Table name.
+    table_type: str, optional
+        The type of the Glue Table. Set to EXTERNAL_TABLE if None
+    transaction_id: str, optional
+        The ID of the transaction when writing to a Governed Table.
     dtype : Dict[str, str], optional
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined or mixed data types.
@@ -792,6 +890,9 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
     dtype = dtype if dtype else {}
     partitions_values: Dict[str, List[str]] = {}
     mode = "append" if mode is None else mode
+    commit_trans: bool = False
+    if transaction_id:
+        table_type = "GOVERNED"
     filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
@@ -801,11 +902,15 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
 
     # Evaluating dtype
     catalog_table_input: Optional[Dict[str, Any]] = None
-    if database is not None and table is not None:
+
+    if database and table:
         catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
-            database=database, table=table, boto3_session=session, catalog_id=catalog_id
+            database=database, table=table, boto3_session=session, transaction_id=transaction_id, catalog_id=catalog_id
         )
-        catalog_path = catalog_table_input["StorageDescriptor"]["Location"] if catalog_table_input else None
+        catalog_path: Optional[str] = None
+        if catalog_table_input:
+            table_type = catalog_table_input["TableType"]
+            catalog_path = catalog_table_input.get("StorageDescriptor", {}).get("Location")
         if path is None:
             if catalog_path:
                 path = catalog_path
@@ -822,6 +927,11 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
             raise exceptions.InvalidArgumentCombination(
                 "If database and table are given, you must use one of these compressions: gzip, bz2 or None."
             )
+        if (table_type == "GOVERNED") and (not transaction_id):
+            _logger.debug("`transaction_id` not specified for GOVERNED table, starting transaction")
+            transaction_id = lakeformation.start_transaction(read_only=False, boto3_session=boto3_session)
+            commit_trans = True
+
     df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
 
     if dataset is False:
@@ -840,12 +950,52 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
 
     columns_types: Dict[str, str] = {}
     partitions_types: Dict[str, str] = {}
-    if (database is not None) and (table is not None):
+
+    if database and table:
         columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
             df=df, index=index, partition_cols=partition_cols, dtype=dtype
         )
         if schema_evolution is False:
             _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
+
+        if (catalog_table_input is None) and (table_type == "GOVERNED"):
+            catalog._create_json_table(  # pylint: disable=protected-access
+                database=database,
+                table=table,
+                path=path,  # type: ignore
+                columns_types=columns_types,
+                table_type=table_type,
+                partitions_types=partitions_types,
+                bucketing_info=bucketing_info,
+                description=description,
+                parameters=parameters,
+                columns_comments=columns_comments,
+                boto3_session=session,
+                mode=mode,
+                transaction_id=transaction_id,
+                catalog_versioning=catalog_versioning,
+                schema_evolution=schema_evolution,
+                projection_enabled=projection_enabled,
+                projection_types=projection_types,
+                projection_ranges=projection_ranges,
+                projection_values=projection_values,
+                projection_intervals=projection_intervals,
+                projection_digits=projection_digits,
+                projection_storage_location_template=None,
+                catalog_table_input=catalog_table_input,
+                catalog_id=catalog_id,
+                compression=pandas_kwargs.get("compression"),
+                serde_library=None,
+                serde_parameters=None,
+            )
+            catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
+                database=database,
+                table=table,
+                boto3_session=session,
+                transaction_id=transaction_id,
+                catalog_id=catalog_id,
+            )
+
     paths, partitions_values = _to_dataset(
         func=_to_text,
         concurrent_partitioning=concurrent_partitioning,
@@ -854,8 +1004,14 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         filename_prefix=filename_prefix,
         index=index,
         compression=compression,
+        catalog_id=catalog_id,
+        database=database,
+        table=table,
+        table_type=table_type,
+        transaction_id=transaction_id,
         use_threads=use_threads,
         partition_cols=partition_cols,
+        partitions_types=partitions_types,
         bucketing_info=bucketing_info,
         mode=mode,
         boto3_session=session,
@@ -874,6 +1030,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
                 table=table,
                 path=path,  # type: ignore
                 columns_types=columns_types,
+                table_type=table_type,
                 partitions_types=partitions_types,
                 bucketing_info=bucketing_info,
                 description=description,
@@ -881,6 +1038,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
                 columns_comments=columns_comments,
                 boto3_session=session,
                 mode=mode,
+                transaction_id=transaction_id,
                 catalog_versioning=catalog_versioning,
                 schema_evolution=schema_evolution,
                 projection_enabled=projection_enabled,
@@ -896,7 +1054,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
                 serde_library=serde_library,
                 serde_parameters=serde_parameters,
             )
-            if partitions_values and (regular_partitions is True):
+            if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
                 _logger.debug("partitions_values:\n%s", partitions_values)
                 catalog.add_json_partitions(
                     database=database,
@@ -910,6 +1068,10 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
                     columns_types=columns_types,
                     compression=pandas_kwargs.get("compression"),
                 )
+                if commit_trans:
+                    lakeformation.commit_transaction(
+                        transaction_id=transaction_id, boto3_session=boto3_session  # type: ignore
+                    )
         except Exception:
             _logger.debug("Catalog write failed, cleaning up S3 (paths: %s).", paths)
             delete_objects(

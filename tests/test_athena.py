@@ -247,8 +247,8 @@ def test_athena_read_list(glue_database):
 
 
 def test_sanitize_names():
-    assert wr.catalog.sanitize_column_name("CamelCase") == "camel_case"
-    assert wr.catalog.sanitize_column_name("CamelCase2") == "camel_case2"
+    assert wr.catalog.sanitize_column_name("CamelCase") == "camelcase"
+    assert wr.catalog.sanitize_column_name("CamelCase2") == "camelcase2"
     assert wr.catalog.sanitize_column_name("Camel_Case3") == "camel_case3"
     assert wr.catalog.sanitize_column_name("Cámël_Casë4仮") == "camel_case4_"
     assert wr.catalog.sanitize_column_name("Camel__Case5") == "camel__case5"
@@ -256,8 +256,8 @@ def test_sanitize_names():
     assert wr.catalog.sanitize_column_name("Camel.Case7") == "camel_case7"
     assert wr.catalog.sanitize_column_name("xyz_cd") == "xyz_cd"
     assert wr.catalog.sanitize_column_name("xyz_Cd") == "xyz_cd"
-    assert wr.catalog.sanitize_table_name("CamelCase") == "camel_case"
-    assert wr.catalog.sanitize_table_name("CamelCase2") == "camel_case2"
+    assert wr.catalog.sanitize_table_name("CamelCase") == "camelcase"
+    assert wr.catalog.sanitize_table_name("CamelCase2") == "camelcase2"
     assert wr.catalog.sanitize_table_name("Camel_Case3") == "camel_case3"
     assert wr.catalog.sanitize_table_name("Cámël_Casë4仮") == "camel_case4_"
     assert wr.catalog.sanitize_table_name("Camel__Case5") == "camel__case5"

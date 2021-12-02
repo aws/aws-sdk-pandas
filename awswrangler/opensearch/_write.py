@@ -201,7 +201,7 @@ def create_index(
                 body["mappings"] = {index: mappings}
     if settings:
         body["settings"] = settings
-    if body == {}:
+    if not body:
         body = None  # type: ignore
 
     # ignore 400 cause by IndexAlreadyExistsException when creating an index
