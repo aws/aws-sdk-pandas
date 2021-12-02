@@ -103,7 +103,10 @@ class RdsDataApi(connector.DataApiConnector):
 
         rows: List[List[Any]] = []
         for record in result["records"]:
-            row: List[Any] = [connector.DataApiConnector._get_column_value(column) for column in record]
+            row: List[Any] = [
+                connector.DataApiConnector._get_column_value(column)  # pylint: disable=protected-access
+                for column in record
+            ]
             rows.append(row)
 
         column_names: List[str] = [column["name"] for column in result["columnMetadata"]]

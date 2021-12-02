@@ -64,6 +64,7 @@ class BaseStack(cdk.Stack):  # type: ignore
             self,
             id="aws_data_wrangler_glue_database",
             database_name="aws_data_wrangler",
+            location_uri=f"s3://{self.bucket.bucket_name}",
         )
         log_group = logs.LogGroup(
             self,

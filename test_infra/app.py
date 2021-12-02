@@ -2,11 +2,13 @@
 from aws_cdk import core as cdk
 from stacks.base_stack import BaseStack
 from stacks.databases_stack import DatabasesStack
+from stacks.lakeformation_stack import LakeFormationStack
 from stacks.opensearch_stack import OpenSearchStack
 
 app = cdk.App()
 
 base = BaseStack(app, "aws-data-wrangler-base")
+
 DatabasesStack(
     app,
     "aws-data-wrangler-databases",
@@ -14,6 +16,8 @@ DatabasesStack(
     base.get_bucket,
     base.get_key,
 )
+
+LakeFormationStack(app, "aws-data-wrangler-lakeformation")
 
 OpenSearchStack(
     app,

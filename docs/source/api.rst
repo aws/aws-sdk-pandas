@@ -4,6 +4,7 @@ API Reference
 * `Amazon S3`_
 * `AWS Glue Catalog`_
 * `Amazon Athena`_
+* `AWS Lake Formation`_
 * `Amazon Redshift`_
 * `PostgreSQL`_
 * `MySQL`_
@@ -118,6 +119,23 @@ Amazon Athena
     repair_table
     start_query_execution
     stop_query_execution
+    wait_query
+
+AWS Lake Formation
+------------------
+
+.. currentmodule:: awswrangler.lakeformation
+
+.. autosummary::
+    :toctree: stubs
+
+    read_sql_query
+    read_sql_table
+    cancel_transaction
+    commit_transaction
+    describe_transaction
+    extend_transaction
+    start_transaction
     wait_query
 
 Amazon Redshift
