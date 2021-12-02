@@ -126,4 +126,4 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 log_cli = false
 filterwarnings = "ignore::DeprecationWarning"
-addopts = "--log-cli-format \"[%(name)s][%(funcName)s] %(message)s\" --verbose --capture=sys --ignore=tests/test_fs.py"
+addopts = "--log-cli-format \"[%(name)s][%(funcName)s] %(message)s\" --verbose --capture=sys"
