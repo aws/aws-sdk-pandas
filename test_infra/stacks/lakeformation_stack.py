@@ -44,7 +44,7 @@ class LakeFormationStack(cdk.Stack):  # type: ignore
                         iam.PolicyStatement(
                             effect=iam.Effect.ALLOW,
                             actions=[
-                                "s3:ListObject",
+                                "s3:ListBucket",
                             ],
                             resources=[
                                 f"{bucket.bucket_arn}",
