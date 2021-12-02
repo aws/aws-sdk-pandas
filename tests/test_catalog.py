@@ -45,39 +45,6 @@ def test_catalog(
     if table_type != "GOVERNED" and start_transaction:
         pytest.skip()
 
-    assert wr.catalog.does_table_exist(database=glue_database, table=glue_table) is False
-    transaction_id = wr.lakeformation.start_transaction() if table_type == "GOVERNED" else None
-    wr.catalog.create_parquet_table(
-        database=glue_database,
-        table=glue_table,
-        path=path,
-        columns_types={"col0": "int", "col1": "double"},
-        partitions_types={"y": "int", "m": "int"},
-        compression="snappy",
-        table_type=table_type,
-        transaction_id=transaction_id,
-    )
-    if transaction_id:
-        try:
-            wr.lakeformation.commit_transaction(transaction_id=transaction_id)
-        except botocore.exceptions.ClientError as ex:
-            if ex.response["Error"]["Code"] in ["ConcurrentModificationException"]:
-                logger.debug(f"Transaction: {transaction_id} commit is in progress.")
-                time.sleep(5)
-            else:
-                raise ex
-    with pytest.raises(wr.exceptions.InvalidArgumentValue):
-        wr.catalog.create_parquet_table(
-            database=glue_database,
-            table=glue_table,
-            path=path,
-            columns_types={"col0": "string"},
-            mode="append",
-            table_type=table_type,
-        )
-
-    assert wr.catalog.does_table_exist(database=glue_database, table=glue_table) is True
-    assert wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table) is True
     transaction_id = wr.lakeformation.start_transaction() if table_type == "GOVERNED" else None
     wr.catalog.create_parquet_table(
         database=glue_database,
@@ -89,19 +56,21 @@ def test_catalog(
         description="Foo boo bar",
         parameters={"tag": "test"},
         columns_comments={"col0": "my int", "y": "year"},
-        mode="overwrite",
         table_type=table_type,
         transaction_id=transaction_id,
     )
     if transaction_id:
-        try:
-            wr.lakeformation.commit_transaction(transaction_id=transaction_id)
-        except botocore.exceptions.ClientError as ex:
-            if ex.response["Error"]["Code"] in ["ConcurrentModificationException"]:
-                logger.debug(f"Transaction: {transaction_id} commit is in progress.")
-                time.sleep(5)
-            else:
-                raise ex
+        wr.lakeformation.commit_transaction(transaction_id=transaction_id)
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.catalog.create_parquet_table(
+            database=glue_database,
+            table=glue_table,
+            path=path,
+            columns_types={"col0": "string"},
+            mode="append",
+            table_type=table_type,
+        )
+    assert wr.catalog.does_table_exist(database=glue_database, table=glue_table) is True
 
     # Cannot start a transaction before creating a table
     transaction_id = wr.lakeformation.start_transaction() if table_type == "GOVERNED" and start_transaction else None
