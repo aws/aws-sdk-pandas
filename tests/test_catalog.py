@@ -4,7 +4,6 @@ import time
 from typing import Optional
 
 import boto3
-import botocore
 import pandas as pd
 import pytest
 
