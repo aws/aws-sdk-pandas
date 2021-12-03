@@ -81,9 +81,6 @@ def test_lakeformation(path, path2, glue_database, glue_table, glue_table2, use_
     )
     assert len(df4.index) == 3
 
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table2)
-
 
 def test_lakeformation_multi_transaction(path, path2, glue_database, glue_table, glue_table2, use_threads=True):
     wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
@@ -139,6 +136,3 @@ def test_lakeformation_multi_transaction(path, path2, glue_database, glue_table,
 
     assert df2.shape == df4.shape
     assert df2.c1.sum() == df4.c1.sum()
-
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table2)

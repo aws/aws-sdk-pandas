@@ -168,8 +168,6 @@ def test_routine_0(glue_database, glue_table, table_type, path, use_threads, con
     assert comments["c2"] == "2!"
     assert comments["c3"] == "3"
 
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
-
 
 @pytest.mark.parametrize("use_threads", [True, False])
 @pytest.mark.parametrize("concurrent_partitioning", [True, False])
@@ -273,8 +271,6 @@ def test_routine_1(glue_database, glue_table, table_type, path, use_threads, con
     assert comments["c0"] == "zero"
     assert comments["c1"] == "one"
     assert comments["c2"] == "two"
-
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
 
 
 def test_routine_2(glue_database, glue_table, path):
