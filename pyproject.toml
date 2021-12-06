@@ -56,7 +56,7 @@ sqlserver = ["pyodbc"]
 [tool.poetry.dev-dependencies]
 wheel = "^0.36.2"
 isort = "^5.9.2"
-black = "^21.10b0"
+black = "^21.12b0"
 pylint = "^2.11.1"
 flake8 = "^4.0.0"
 mypy = "^0.910"
