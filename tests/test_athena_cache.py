@@ -170,3 +170,36 @@ def test_paginated_remote_cache(path, glue_database, glue_table, workgroup1):
     )
     assert df.shape == df2.shape
     assert df.c0.sum() == df2.c0.sum()
+
+
+@pytest.mark.parametrize("data_source", [None, "AwsDataCatalog"])
+def test_cache_start_query(path, glue_database, glue_table, data_source):
+    df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
+    wr.s3.to_parquet(
+        df=df,
+        path=path,
+        dataset=True,
+        mode="overwrite",
+        database=glue_database,
+        table=glue_table,
+        description="c0",
+        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
+        columns_comments={"c0": "0"},
+    )
+
+    with patch(
+        "awswrangler.athena._utils._check_for_cached_results",
+        return_value=wr.athena._read._CacheInfo(has_valid_cache=False),
+    ) as mocked_cache_attempt:
+        query_id = wr.athena.start_query_execution(sql=f"SELECT * FROM {glue_table}", database=glue_database)
+        mocked_cache_attempt.assert_called()
+
+    # Wait for query to finish in order to successfully check cache
+    wr.athena.wait_query(query_execution_id=query_id)
+
+    with patch("awswrangler.athena._utils._start_query_execution") as internal_start_query:
+        query_id_2 = wr.athena.start_query_execution(
+            sql=f"SELECT * FROM {glue_table}", database=glue_database, max_cache_seconds=900
+        )
+        internal_start_query.assert_not_called()
+        assert query_id == query_id_2

@@ -979,3 +979,29 @@ def test_bucketing_combined_csv_saving(path, glue_database, glue_table):
 
     assert df2.equals(df3)
     assert scanned_regular >= scanned_bucketed * nb_of_buckets
+
+
+def test_start_query_execution_wait(path, glue_database, glue_table):
+    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
+    wr.s3.to_parquet(
+        df=get_df(),
+        path=path,
+        index=True,
+        use_threads=True,
+        dataset=True,
+        mode="overwrite",
+        database=glue_database,
+        table=glue_table,
+        partition_cols=["par0", "par1"],
+    )
+
+    sql = f"SELECT * FROM {glue_table}"
+    query_id = wr.athena.start_query_execution(sql=sql, database=glue_database, wait=False)
+
+    query_execution_result = wr.athena.start_query_execution(sql=sql, database=glue_database, wait=True)
+
+    assert isinstance(query_id, str)
+    assert isinstance(query_execution_result, dict)
+    assert query_execution_result["Query"] == sql
+    assert query_execution_result["StatementType"] == "DML"
+    assert query_execution_result["QueryExecutionContext"]["Database"] == glue_database
