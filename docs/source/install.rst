@@ -120,7 +120,7 @@ Go to your Glue PySpark job and create a new *Job parameters* key/value:
 
 To install a specific version, set the value for above Job parameter as follows:
 
-* Value: ``cython==0.29.21,pg8000==1.21.0,pyarrow==2,pandas==1.3.0,awswrangler==2.12.1``
+* Value: ``cython==0.29.21,pg8000==1.21.0,pyarrow==2,pandas==1.3.0,awswrangler==2.13.0``
 
 .. note:: Pyarrow 3 is not currently supported in Glue PySpark Jobs, which is why a previous installation of pyarrow 2 is required.
 
@@ -139,7 +139,7 @@ Lambda zipped layers and Python wheels are stored in a publicly accessible S3 bu
 
   * Python wheel: ``awswrangler-<version>-py3-none-any.whl``
 
-For example: ``s3://aws-data-wrangler-public-artifacts/releases/2.12.1/awswrangler-layer-2.12.1-py3.8.zip``
+For example: ``s3://aws-data-wrangler-public-artifacts/releases/2.13.0/awswrangler-layer-2.13.0-py3.8.zip``
 
 Amazon SageMaker Notebook
 -------------------------
@@ -231,7 +231,7 @@ complement Big Data pipelines.
         sudo pip install pyarrow==2 awswrangler
 
 .. note:: Make sure to freeze the Wrangler version in the bootstrap for productive
-          environments (e.g. awswrangler==2.12.1)
+          environments (e.g. awswrangler==2.13.0)
 
 .. note:: Pyarrow 3 is not currently supported in the default EMR image, which is why a previous installation of pyarrow 2 is required.
 

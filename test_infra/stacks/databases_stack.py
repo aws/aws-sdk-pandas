@@ -4,6 +4,7 @@ from aws_cdk import aws_ec2 as ec2
 from aws_cdk import aws_glue as glue
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_kms as kms
+from aws_cdk import aws_lakeformation as lf
 from aws_cdk import aws_rds as rds
 from aws_cdk import aws_redshift as redshift
 from aws_cdk import aws_s3 as s3
@@ -60,7 +61,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
         self.db_security_group.add_ingress_rule(ec2.Peer.any_ipv4(), ec2.Port.all_traffic())
         ssm.StringParameter(
             self,
-            "db-secruity-group-parameter",
+            "db-security-group-parameter",
             parameter_name="/Wrangler/EC2/DatabaseSecurityGroupId",
             string_value=self.db_security_group.security_group_id,
         )
@@ -161,7 +162,12 @@ class DatabasesStack(cdk.Stack):  # type: ignore
                         iam.PolicyStatement(
                             effect=iam.Effect.ALLOW,
                             actions=[
+                                "lakeformation:GetDataAccess",
                                 "lakeformation:GrantPermissions",
+                                "lakeformation:GetWorkUnits",
+                                "lakeformation:StartQueryPlanning",
+                                "lakeformation:GetWorkUnitResults",
+                                "lakeformation:GetQueryState",
                             ],
                             resources=["*"],
                         )
@@ -195,6 +201,20 @@ class DatabasesStack(cdk.Stack):  # type: ignore
                     ]
                 ),
             },
+        )
+        lf.CfnPermissions(
+            self,
+            "CodeBuildTestRoleLFPermissions",
+            data_lake_principal=lf.CfnPermissions.DataLakePrincipalProperty(
+                data_lake_principal_identifier=redshift_role.role_arn
+            ),
+            resource=lf.CfnPermissions.ResourceProperty(
+                table_resource=lf.CfnPermissions.TableResourceProperty(
+                    database_name="aws_data_wrangler",
+                    table_wildcard={},  # type: ignore
+                )
+            ),
+            permissions=["SELECT", "ALTER", "DESCRIBE", "DROP", "DELETE", "INSERT"],
         )
         redshift.ClusterSubnetGroup(
             self,
