@@ -50,6 +50,8 @@ def _new_writer(
         pyarrow_additional_kwargs = {}
     if not pyarrow_additional_kwargs.get("coerce_timestamps"):
         pyarrow_additional_kwargs["coerce_timestamps"] = "ms"
+    if "flavor" not in pyarrow_additional_kwargs:
+        pyarrow_additional_kwargs["flavor"] = "spark"
 
     with open_s3_object(
         path=file_path,
@@ -64,7 +66,6 @@ def _new_writer(
                 write_statistics=True,
                 use_dictionary=True,
                 compression="NONE" if compression is None else compression,
-                flavor="spark",
                 schema=schema,
                 **pyarrow_additional_kwargs,
             )
