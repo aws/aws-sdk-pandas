@@ -139,7 +139,7 @@ FROM "sampleDB"."sampleTable" ORDER BY time DESC LIMIT 3
   - [029 - S3 Select](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/029%20-%20S3%20Select.ipynb)
   - [030 - Data Api](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/030%20-%20Data%20Api.ipynb)
   - [031 - OpenSearch](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/031%20-%20OpenSearch.ipynb)
-  - [032 - Lake Formation Governed Tables](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/032%20-%Lake%20Formation%20Governed%20Tables.ipynb)
+  - [032 - Lake Formation Governed Tables](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/032%20-%20Lake%20Formation%20Governed%20Tables.ipynb)
 - [**API Reference**](https://aws-data-wrangler.readthedocs.io/en/2.13.0/api.html)
   - [Amazon S3](https://aws-data-wrangler.readthedocs.io/en/2.13.0/api.html#amazon-s3)
   - [AWS Glue Catalog](https://aws-data-wrangler.readthedocs.io/en/2.13.0/api.html#aws-glue-catalog)
