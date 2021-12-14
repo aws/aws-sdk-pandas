@@ -173,7 +173,6 @@ def test_size_list_of_objects_succeed(moto_s3):
     assert size == {"s3://bucket/foo/foo.tmp": 6, "s3://bucket/bar/bar.tmp": 3}
 
 
-@pytest.mark.xfail()
 def test_copy_one_object_without_replace_filename_succeed(moto_s3):
     bucket = "bucket"
     key = "foo/foo.tmp"
@@ -194,7 +193,6 @@ def test_copy_one_object_without_replace_filename_succeed(moto_s3):
     )
 
 
-@pytest.mark.xfail()
 def test_copy_one_object_with_replace_filename_succeed(moto_s3):
     bucket = "bucket"
     key = "foo/foo.tmp"
