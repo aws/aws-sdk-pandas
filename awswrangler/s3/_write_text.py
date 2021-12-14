@@ -1017,6 +1017,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         boto3_session=session,
         s3_additional_kwargs=s3_additional_kwargs,
         file_format="json",
+        **pandas_kwargs,
     )
     if database and table:
         try:
