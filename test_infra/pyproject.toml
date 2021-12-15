@@ -6,7 +6,7 @@ authors = ["Amazon Web Services"]
 license = "Apache License 2.0"
 
 [tool.poetry.dependencies]
-python = ">=3.6.2, <3.10"
+python = ">=3.6.2, <3.11"
 "aws-cdk.core" = "^1.124.0"
 "aws-cdk.aws-ec2" = "^1.124.0"
 "aws-cdk.aws-glue" = "^1.124.0"
