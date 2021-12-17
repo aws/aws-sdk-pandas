@@ -461,6 +461,84 @@ def _resolve_query_without_cache(
     )
 
 
+def _unload(
+    sql: str,
+    path: str,
+    file_format,
+    compression,
+    field_delimiter,
+    partitioned_by,
+    wg_config,
+    encryption,
+    kms_key,
+    boto3_session,
+    data_source,
+    params,
+):
+    # Substitute query parameters
+    if params is None:
+        params = {}
+    for key, value in params.items():
+        sql = sql.replace(f":{key};", str(value))
+    # Set UNLOAD parameters
+    unload_parameters = f"  format='{file_format}'"
+    if compression:
+        unload_parameters += f"  , compression='{compression}'"
+    if field_delimiter:
+        unload_parameters += f"  , field_delimiter='{field_delimiter}'"
+    if partitioned_by:
+        unload_parameters += f"  , partitioned_by=ARRAY{partitioned_by}"
+
+    sql = (
+        f"UNLOAD ({sql})"
+        f"TO '{path}'"
+        f"WITH ({unload_parameters})"
+    )
+    _logger.debug("sql: %s", sql)
+    try:
+        query_id: str = _start_query_execution(
+            sql=sql,
+            wg_config=wg_config,
+            data_source=data_source,
+            s3_output=path,
+            encryption=encryption,
+            kms_key=kms_key,
+            boto3_session=boto3_session,
+        )
+    except botocore.exceptions.ClientError as ex:
+        msg: str = str(ex)
+        error: Dict[str, Any] = ex.response["Error"]
+        if error["Code"] == "InvalidRequestException":
+            raise exceptions.InvalidArgumentValue(
+                f"Exception parsing query. Root error message: {msg}"
+            )
+        raise ex
+    _logger.debug("query_id: %s", query_id)
+    try:
+        query_metadata: _QueryMetadata = _get_query_metadata(
+            query_execution_id=query_id,
+            boto3_session=boto3_session,
+            metadata_cache_manager=_cache_manager,
+        )
+    except exceptions.QueryFailed as ex:
+        msg: str = str(ex)
+        if "Column name" in msg and "specified more than once" in msg:
+            raise exceptions.InvalidArgumentValue(
+                f"Please, define distinct names for your columns. Root error message: {msg}"
+            )
+        if "Column name not specified" in msg:
+            raise exceptions.InvalidArgumentValue(
+                "Please, define all columns names in your query. (E.g. 'SELECT MAX(col1) AS max_col1, ...')"
+            )
+        if "Column type is unknown" in msg:
+            raise exceptions.InvalidArgumentValue(
+                "Please, don't leave undefined columns types in your query. You can cast to ensure it. "
+                "(E.g. 'SELECT CAST(NULL AS INTEGER) AS MY_COL, ...')"
+            )
+        raise ex
+    return query_metadata
+
+
 @apply_configs
 def read_sql_query(
     sql: str,
@@ -978,4 +1056,84 @@ def read_sql_table(
         max_local_cache_entries=max_local_cache_entries,
         s3_additional_kwargs=s3_additional_kwargs,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+    )
+
+
+@apply_configs
+def unload(
+    sql: str,
+    path: str,
+    file_format: str = "PARQUET",
+    compression: Optional[str] = None,
+    field_delimiter: str = None,
+    partitioned_by: Optional[List[str]] = None,
+    workgroup: Optional[str] = None,
+    encryption: Optional[str] = None,
+    kms_key: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+    data_source: Optional[str] = None,
+    params: Optional[Dict[str, Any]] = None,
+) -> _QueryMetadata:
+    """Execute any SQL query on AWS Athena and write the results to S3 in the specified format.
+
+    Parameters
+    ----------
+    sql : str
+        SQL query.
+    path : str, optional
+        Amazon S3 path.
+    file_format : str
+        File format of the output. Possible values are ORC, PARQUET, AVRO, JSON, or TEXTFILE
+    compression : Optional[str]
+        This option is specific to the ORC and Parquet formats. For ORC, possible values are lz4, snappy, zlib, or zstd.
+        For Parquet, possible values are gzip or snappy. For ORC, the default is zlib, and for Parquet,
+        the default is gzip.
+    field_delimiter : str
+        A single-character field delimiter for files in CSV, TSV, and other text formats.
+    partitioned_by : Optional[List[str]]
+        An array list of columns by which the output is partitioned.
+    workgroup : str, optional
+        Athena workgroup.
+    encryption : str, optional
+        Valid values: [None, 'SSE_S3', 'SSE_KMS']. Notice: 'CSE_KMS' is not supported.
+    kms_key : str, optional
+        For SSE-KMS, this is the KMS key ARN or ID.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    data_source : str, optional
+        Data Source / Catalog name. If None, 'AwsDataCatalog' will be used by default.
+    params: Dict[str, any], optional
+        Dict of parameters that will be used for constructing the SQL query. Only named parameters are supported.
+        The dict needs to contain the information in the form {'name': 'value'} and the SQL query needs to contain
+        `:name;`. Note that for varchar columns and similar, you must surround the value in single quotes.
+
+    Returns
+    -------
+    Union[pd.DataFrame, Iterator[pd.DataFrame]]
+        Pandas DataFrame or Generator of Pandas DataFrames if chunksize is passed.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> res = wr.athena.unload(
+    ...     sql="SELECT * FROM my_table WHERE name=:name; AND city=:city;",
+    ...     params={"name": "'filtered_name'", "city": "'filtered_city'"}
+    ... )
+
+    """
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    wg_config: _WorkGroupConfig = _get_workgroup_config(session=session, workgroup=workgroup)
+    return _unload(
+        sql,
+        path,
+        file_format,
+        compression,
+        field_delimiter,
+        partitioned_by,
+        wg_config,
+        encryption,
+        kms_key,
+        session,
+        data_source,
+        params,
     )
