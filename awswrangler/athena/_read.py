@@ -339,6 +339,54 @@ def _resolve_query_without_cache_ctas(
     )
 
 
+def _resolve_query_without_cache_unload(
+    sql: str,
+    file_format: str,
+    compression: Optional[str],
+    field_delimiter: Optional[str],
+    partitioned_by: Optional[List[str]],
+    database: Optional[str],
+    data_source: Optional[str],
+    s3_output: str,
+    keep_files: bool,
+    chunksize: Union[int, bool, None],
+    categories: Optional[List[str]],
+    encryption: Optional[str],
+    kms_key: Optional[str],
+    wg_config: _WorkGroupConfig,
+    use_threads: Union[bool, int],
+    s3_additional_kwargs: Optional[Dict[str, Any]],
+    boto3_session: boto3.Session,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    query_metadata = _unload(
+        sql,
+        s3_output,
+        file_format,
+        compression,
+        field_delimiter,
+        partitioned_by,
+        wg_config,
+        database,
+        encryption,
+        kms_key,
+        boto3_session,
+        data_source,
+    )
+    if file_format == "PARQUET":
+        return _fetch_parquet_result(
+            query_metadata=query_metadata,
+            keep_files=keep_files,
+            categories=categories,
+            chunksize=chunksize,
+            use_threads=use_threads,
+            s3_additional_kwargs=s3_additional_kwargs,
+            boto3_session=boto3_session,
+            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+        )
+    raise exceptions.InvalidArgumentValue("Only PARQUET file format is supported when unload_approach=True.")
+
+
 def _resolve_query_without_cache_regular(
     sql: str,
     database: Optional[str],
@@ -390,6 +438,8 @@ def _resolve_query_without_cache(
     database: str,
     data_source: Optional[str],
     ctas_approach: bool,
+    unload_approach: bool,
+    unload_parameters: Optional[Dict[str, Any]],
     categories: Optional[List[str]],
     chunksize: Union[int, bool, None],
     s3_output: Optional[str],
@@ -443,6 +493,29 @@ def _resolve_query_without_cache(
             catalog.delete_table_if_exists(
                 database=ctas_database_name or database, table=name, boto3_session=boto3_session
             )
+    elif unload_approach is True:
+        if unload_parameters is None:
+            unload_parameters = {}
+        return _resolve_query_without_cache_unload(
+            sql=sql,
+            file_format=unload_parameters.get("file_format") or "PARQUET",
+            compression=unload_parameters.get("compression"),
+            field_delimiter=unload_parameters.get("field_delimiter"),
+            partitioned_by=unload_parameters.get("partitioned_by"),
+            database=database,
+            data_source=data_source,
+            s3_output=_s3_output,
+            keep_files=keep_files,
+            chunksize=chunksize,
+            categories=categories,
+            encryption=encryption,
+            kms_key=kms_key,
+            wg_config=wg_config,
+            use_threads=use_threads,
+            s3_additional_kwargs=s3_additional_kwargs,
+            boto3_session=boto3_session,
+            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+        )
     return _resolve_query_without_cache_regular(
         sql=sql,
         database=database,
@@ -464,22 +537,17 @@ def _resolve_query_without_cache(
 def _unload(
     sql: str,
     path: str,
-    file_format,
-    compression,
-    field_delimiter,
-    partitioned_by,
-    wg_config,
-    encryption,
-    kms_key,
-    boto3_session,
-    data_source,
-    params,
-):
-    # Substitute query parameters
-    if params is None:
-        params = {}
-    for key, value in params.items():
-        sql = sql.replace(f":{key};", str(value))
+    file_format: str,
+    compression: Optional[str],
+    field_delimiter: Optional[str],
+    partitioned_by: Optional[List[str]],
+    wg_config: _WorkGroupConfig,
+    database: Optional[str],
+    encryption: Optional[str],
+    kms_key: Optional[str],
+    boto3_session: boto3.Session,
+    data_source: Optional[str],
+) -> _QueryMetadata:
     # Set UNLOAD parameters
     unload_parameters = f"  format='{file_format}'"
     if compression:
@@ -489,12 +557,13 @@ def _unload(
     if partitioned_by:
         unload_parameters += f"  , partitioned_by=ARRAY{partitioned_by}"
 
-    sql = f"UNLOAD ({sql})" f"TO '{path}'" f"WITH ({unload_parameters})"
+    sql = f"UNLOAD ({sql}) " f"TO '{path}' " f"WITH ({unload_parameters})"
     _logger.debug("sql: %s", sql)
     try:
         query_id: str = _start_query_execution(
             sql=sql,
             wg_config=wg_config,
+            database=database,
             data_source=data_source,
             s3_output=path,
             encryption=encryption,
@@ -515,7 +584,7 @@ def _unload(
             metadata_cache_manager=_cache_manager,
         )
     except exceptions.QueryFailed as ex:
-        msg: str = str(ex)
+        msg = str(ex)
         if "Column name" in msg and "specified more than once" in msg:
             raise exceptions.InvalidArgumentValue(
                 f"Please, define distinct names for your columns. Root error message: {msg}"
@@ -538,6 +607,8 @@ def read_sql_query(
     sql: str,
     database: str,
     ctas_approach: bool = True,
+    unload_approach: bool = False,
+    unload_parameters: Optional[Dict[str, Any]] = None,
     categories: Optional[List[str]] = None,
     chunksize: Optional[Union[int, bool]] = None,
     s3_output: Optional[str] = None,
@@ -665,6 +736,11 @@ def read_sql_query(
     ctas_approach: bool
         Wraps the query using a CTAS, and read the resulted parquet data on S3.
         If false, read the regular CSV on S3.
+    unload_approach: bool
+        Wraps the query using UNLOAD, and read the results from S3.
+        Only PARQUET format is supported.
+    unload_parameters : Optional[Dict[str, Any]]
+        Params of the UNLOAD such as format, compression, field_delimiter, and partitioned_by.
     categories: List[str], optional
         List of columns names that should be returned as pandas.Categorical.
         Recommended for memory restricted environments.
@@ -763,6 +839,10 @@ def read_sql_query(
             "(https://github.com/awslabs/aws-data-wrangler/blob/main/"
             "tutorials/006%20-%20Amazon%20Athena.ipynb)"
         )
+    if ctas_approach and unload_approach:
+        raise exceptions.InvalidArgumentCombination("Only one of ctas_approach=True or unload_approach=True is allowed")
+    if unload_parameters and unload_parameters.get("file_format") not in (None, "PARQUET"):
+        raise exceptions.InvalidArgumentCombination("Only PARQUET file format is supported if unload_approach=True")
     chunksize = sys.maxsize if ctas_approach is False and chunksize is True else chunksize
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if params is None:
@@ -802,6 +882,8 @@ def read_sql_query(
         database=database,
         data_source=data_source,
         ctas_approach=ctas_approach,
+        unload_approach=unload_approach,
+        unload_parameters=unload_parameters,
         categories=categories,
         chunksize=chunksize,
         s3_output=s3_output,
@@ -1057,9 +1139,10 @@ def read_sql_table(
 def unload(
     sql: str,
     path: str,
+    database: str,
     file_format: str = "PARQUET",
     compression: Optional[str] = None,
-    field_delimiter: str = None,
+    field_delimiter: Optional[str] = None,
     partitioned_by: Optional[List[str]] = None,
     workgroup: Optional[str] = None,
     encryption: Optional[str] = None,
@@ -1076,6 +1159,10 @@ def unload(
         SQL query.
     path : str, optional
         Amazon S3 path.
+    database : str
+        AWS Glue/Athena database name - It is only the origin database from where the query will be launched.
+        You can still using and mixing several databases writing the full table name within the sql
+        (e.g. `database.table`).
     file_format : str
         File format of the output. Possible values are ORC, PARQUET, AVRO, JSON, or TEXTFILE
     compression : Optional[str]
@@ -1117,6 +1204,11 @@ def unload(
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     wg_config: _WorkGroupConfig = _get_workgroup_config(session=session, workgroup=workgroup)
+    # Substitute query parameters
+    if params is None:
+        params = {}
+    for key, value in params.items():
+        sql = sql.replace(f":{key};", str(value))
     return _unload(
         sql,
         path,
@@ -1125,9 +1217,9 @@ def unload(
         field_delimiter,
         partitioned_by,
         wg_config,
+        database,
         encryption,
         kms_key,
         session,
         data_source,
-        params,
     )
