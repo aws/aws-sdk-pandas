@@ -641,7 +641,7 @@ def read_sql_query(
     - `Global Configurations <https://aws-data-wrangler.readthedocs.io/en/2.13.0/
       tutorials/021%20-%20Global%20Configurations.html>`_
 
-    **There are two approaches to be defined through ctas_approach parameter:**
+    **There are three approaches available through ctas_approach and unload_approach parameters:**
 
     **1** - ctas_approach=True (Default):
 
@@ -661,7 +661,25 @@ def read_sql_query(
     - A temporary table will be created and then deleted immediately.
     - Does not support custom data_source/catalog_id.
 
-    **2** - ctas_approach=False:
+    **2** - unload_approach=True and ctas_approach=False:
+
+    Does an UNLOAD query on Athena and parse the Parquet result on s3.
+
+    PROS:
+
+    - Faster for mid and big result sizes.
+    - Can handle some level of nested types.
+    - Does not modify Glue Data Catalog
+
+    CONS:
+
+    - Output S3 path must be empty.
+    - Does not support timestamp with time zone.
+    - Does not support columns with repeated names.
+    - Does not support columns with undefined data types.
+    - Does not support custom data_source/catalog_id.
+
+    **3** - ctas_approach=False:
 
     Does a regular query on Athena and parse the regular CSV result on s3.
 
@@ -676,7 +694,6 @@ def read_sql_query(
 
     - Slower for big results (But stills faster than other libraries that uses the regular Athena's API)
     - Does not handle nested types at all.
-
 
     Note
     ----
@@ -717,7 +734,7 @@ def read_sql_query(
     `P.S.` `chunksize=True` is faster and uses less memory while `chunksize=INTEGER` is more precise
     in number of rows for each Dataframe.
 
-    `P.P.S.` If `ctas_approach=False` and `chunksize=True`, you will always receive an interador with a
+    `P.P.S.` If `ctas_approach=False` and `chunksize=True`, you will always receive an iterator with a
     single DataFrame because regular Athena queries only produces a single output file.
 
     Note
