@@ -1,17 +1,11 @@
-"""Utilities Module for Amazon OpenSearch."""
+"""Utilities Module for Amazon Neptune."""
 
-from awswrangler.opensearch._read import search, search_by_sql
-from awswrangler.opensearch._utils import connect
-from awswrangler.opensearch._write import create_index, delete_index, index_csv, index_df, index_documents, index_json
+from awswrangler.neptune.neptune import read_gremlin, read_opencypher, read_sparql, to_graph
+from awswrangler.neptune.client import NeptuneClient
 
 __all__ = [
-    "connect",
-    "create_index",
-    "delete_index",
-    "index_csv",
-    "index_documents",
-    "index_df",
-    "index_json",
-    "search",
-    "search_by_sql",
+    "read_gremlin",
+    "read_opencypher",
+    "read_sparql",
+    "to_graph"
 ]
