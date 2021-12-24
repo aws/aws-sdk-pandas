@@ -56,6 +56,7 @@ def _pyarrow_parquet_file_wrapper(
 
 def _read_parquet_metadata_file(
     path: str,
+    override_dtype: Optional[Dict[str, str]],
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
@@ -77,12 +78,13 @@ def _read_parquet_metadata_file(
         )
         if pq_file is None:
             return None
-        return _data_types.athena_types_from_pyarrow_schema(schema=pq_file.schema.to_arrow_schema(), partitions=None)[0]
+        return _data_types.athena_types_from_pyarrow_schema(schema=pq_file.schema.to_arrow_schema(), partitions=None, override_dtype=override_dtype)[0]
 
 
 def _read_schemas_from_files(
     paths: List[str],
     sampling: float,
+    override_dtype: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
@@ -98,6 +100,7 @@ def _read_schemas_from_files(
         schemas = tuple(
             _read_parquet_metadata_file(
                 path=p,
+                override_dtype=override_dtype,
                 boto3_session=boto3_session,
                 s3_additional_kwargs=s3_additional_kwargs,
                 use_threads=use_threads,
@@ -199,6 +202,7 @@ def _read_parquet_metadata(
     schemas: Tuple[Dict[str, str], ...] = _read_schemas_from_files(
         paths=paths,
         sampling=sampling,
+        override_dtype=dtype,
         use_threads=use_threads,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,

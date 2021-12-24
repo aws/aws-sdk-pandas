@@ -585,10 +585,10 @@ def pyarrow_schema_from_pandas(
 
 
 def athena_types_from_pyarrow_schema(
-    schema: pa.Schema, partitions: Optional[pyarrow.parquet.ParquetPartitions]
+    schema: pa.Schema, partitions: Optional[pyarrow.parquet.ParquetPartitions], override_dtype: Optional[Dict[str, str]],
 ) -> Tuple[Dict[str, str], Optional[Dict[str, str]]]:
     """Extract the related Athena data types from any PyArrow Schema considering possible partitions."""
-    columns_types: Dict[str, str] = {str(f.name): pyarrow2athena(dtype=f.type) for f in schema}
+    columns_types: Dict[str, str] = {str(f.name): pyarrow2athena(dtype=f.type) if not override_dtype or f.name not in override_dtype else override_dtype[f.name] for f in schema}
     _logger.debug("columns_types: %s", columns_types)
     partitions_types: Optional[Dict[str, str]] = None
     if partitions is not None:
