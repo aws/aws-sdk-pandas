@@ -60,8 +60,9 @@ def _append_partitions(partitions_values: Dict[str, List[str]], response: Dict[s
         for partition in response["Partitions"]:
             location: Optional[str] = partition["StorageDescriptor"].get("Location")
             if location is not None:
+                key: str = f"{location}/" if not location.endswith("/") else location
                 values: List[str] = partition["Values"]
-                partitions_values[location] = values
+                partitions_values[key] = values
     else:
         token = None
     return token
@@ -82,6 +83,7 @@ def _get_partitions(
         TableName=table,
         MaxResults=1_000,
         Segment={"SegmentNumber": 0, "TotalSegments": 1},
+        ExcludeColumnSchema=True,
     )
     if expression is not None:
         args["Expression"] = expression
