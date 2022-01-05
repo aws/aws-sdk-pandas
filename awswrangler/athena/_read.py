@@ -1168,7 +1168,9 @@ def unload(
     data_source: Optional[str] = None,
     params: Optional[Dict[str, Any]] = None,
 ) -> _QueryMetadata:
-    """Execute any SQL query on AWS Athena and write the results to S3 in the specified format.
+    """Write query results from a SELECT statement to the specified data format using UNLOAD.
+
+    https://docs.aws.amazon.com/athena/latest/ug/unload.html
 
     Parameters
     ----------
@@ -1207,8 +1209,8 @@ def unload(
 
     Returns
     -------
-    Union[pd.DataFrame, Iterator[pd.DataFrame]]
-        Pandas DataFrame or Generator of Pandas DataFrames if chunksize is passed.
+    _QueryMetadata
+        Query metadata including query execution id, dtypes, manifest & output location.
 
     Examples
     --------
