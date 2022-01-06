@@ -60,9 +60,8 @@ def _append_partitions(partitions_values: Dict[str, List[str]], response: Dict[s
         for partition in response["Partitions"]:
             location: Optional[str] = partition["StorageDescriptor"].get("Location")
             if location is not None:
-                key: str = f"{location}/" if not location.endswith("/") else location
                 values: List[str] = partition["Values"]
-                partitions_values[key] = values
+                partitions_values[location] = values
     else:
         token = None
     return token
