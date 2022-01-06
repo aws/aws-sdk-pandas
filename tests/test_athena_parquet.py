@@ -767,3 +767,45 @@ def test_athena_timestamp_overflow():
 
     df_overflow_fix = pd.DataFrame({"c0": [datetime.datetime(2262, 4, 11, 23, 47, 17)]})
     df_overflow_fix.c0.values[0] == df2.c0.values[0]
+
+
+@pytest.mark.parametrize("file_format", ["ORC", "PARQUET", "AVRO", "JSON", "TEXTFILE"])
+@pytest.mark.parametrize("partitioned_by", [None, ["c1", "c2"]])
+def test_unload(path, glue_table, glue_database, file_format, partitioned_by):
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 1, 2]})
+    wr.s3.to_parquet(
+        df,
+        path,
+        dataset=True,
+        table=glue_table,
+        database=glue_database,
+    )
+    query_metadata = wr.athena.unload(
+        sql=f"SELECT * FROM {glue_database}.{glue_table}",
+        path=f"{path}/test_{file_format}/",
+        database=glue_database,
+        file_format=file_format,
+        partitioned_by=partitioned_by,
+    )
+    assert query_metadata is not None
+
+
+@pytest.mark.parametrize("file_format", [None, "PARQUET"])
+def test_read_sql_query_unload(path, glue_table, glue_database, file_format):
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 1, 2]})
+    wr.s3.to_parquet(
+        df,
+        path,
+        dataset=True,
+        table=glue_table,
+        database=glue_database,
+    )
+    df_out = wr.athena.read_sql_query(
+        sql=f"SELECT * FROM {glue_database}.{glue_table}",
+        s3_output=f"{path}unload/",
+        database=glue_database,
+        ctas_approach=False,
+        unload_approach=True,
+        unload_parameters={"file_format": file_format},
+    )
+    assert df.shape == df_out.shape
