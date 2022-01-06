@@ -208,13 +208,13 @@ def _get_query_metadata(  # pylint: disable=too-many-statements
     for col_name, col_type in cols_types.items():
         if col_type == "array":
             raise exceptions.UnsupportedType(
-                "List data type is not support with ctas_approach=False. "
-                "Please use ctas_approach=True for List columns."
+                "List data type is not supported with regular (non-CTAS and non-UNLOAD) queries. "
+                "Please use ctas_approach=True or unload_approach=True for List columns."
             )
         if col_type == "row":
             raise exceptions.UnsupportedType(
-                "Struct data type is not support with ctas_approach=False. "
-                "Please use ctas_approach=True for Struct columns."
+                "Struct data type is not supported with regular (non-CTAS and non-UNLOAD) queries. "
+                "Please use ctas_approach=True or unload_approach=True for Struct columns."
             )
         pandas_type: str = _data_types.athena2pandas(dtype=col_type)
         if (categories is not None) and (col_name in categories):
