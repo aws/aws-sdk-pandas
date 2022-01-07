@@ -282,24 +282,47 @@ def test_athena_ctas_empty(glue_database):
     assert len(list(wr.athena.read_sql_query(sql=sql, database=glue_database, chunksize=1))) == 1
 
 
-@pytest.mark.xfail()
-def test_athena_struct(glue_database):
+def test_athena_struct_simple(path, glue_database):
     sql = "SELECT CAST(ROW(1, 'foo') AS ROW(id BIGINT, value VARCHAR)) AS col0"
+    # Regular approach
     with pytest.raises(wr.exceptions.UnsupportedType):
         wr.athena.read_sql_query(sql=sql, database=glue_database, ctas_approach=False)
-    df = wr.athena.read_sql_query(sql=sql, database=glue_database, ctas_approach=True)
-    assert len(df.index) == 1
-    assert len(df.columns) == 1
-    assert df["col0"].iloc[0]["id"] == 1
-    assert df["col0"].iloc[0]["value"] == "foo"
-    sql = "SELECT ROW(1, ROW(2, ROW(3, '4'))) AS col0"
-    df = wr.athena.read_sql_query(sql=sql, database=glue_database, ctas_approach=True)
-    assert len(df.index) == 1
-    assert len(df.columns) == 1
-    assert df["col0"].iloc[0]["field0"] == 1
-    assert df["col0"].iloc[0]["field1"]["field0"] == 2
-    assert df["col0"].iloc[0]["field1"]["field1"]["field0"] == 3
-    assert df["col0"].iloc[0]["field1"]["field1"]["field1"] == "4"
+    # CTAS and UNLOAD
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.athena.read_sql_query(sql=sql, database=glue_database, ctas_approach=True, unload_approach=True)
+    # CTAS approach
+    df_ctas = wr.athena.read_sql_query(sql=sql, database=glue_database, ctas_approach=True)
+    assert len(df_ctas.index) == 1
+    assert len(df_ctas.columns) == 1
+    assert df_ctas["col0"].iloc[0]["id"] == 1
+    assert df_ctas["col0"].iloc[0]["value"] == "foo"
+    # UNLOAD approach
+    df_unload = wr.athena.read_sql_query(
+        sql=sql, database=glue_database, ctas_approach=False, unload_approach=True, s3_output=path
+    )
+    assert df_unload.equals(df_ctas)
+
+
+def test_athena_struct_nested(path, glue_database):
+    sql = (
+        "SELECT CAST("
+        "    ROW(1, ROW(2, ROW(3, '4'))) AS"
+        "    ROW(field0 BIGINT, field1 ROW(field2 BIGINT, field3 ROW(field4 BIGINT, field5 VARCHAR)))"
+        ") AS col0"
+    )
+    # CTAS approach
+    df_ctas = wr.athena.read_sql_query(sql=sql, database=glue_database, ctas_approach=True)
+    assert len(df_ctas.index) == 1
+    assert len(df_ctas.columns) == 1
+    assert df_ctas["col0"].iloc[0]["field0"] == 1
+    assert df_ctas["col0"].iloc[0]["field1"]["field2"] == 2
+    assert df_ctas["col0"].iloc[0]["field1"]["field3"]["field4"] == 3
+    assert df_ctas["col0"].iloc[0]["field1"]["field3"]["field5"] == "4"
+    # UNLOAD approach
+    df_unload = wr.athena.read_sql_query(
+        sql=sql, database=glue_database, ctas_approach=False, unload_approach=True, s3_output=path
+    )
+    assert df_unload.equals(df_ctas)
 
 
 def test_athena_time_zone(glue_database):
