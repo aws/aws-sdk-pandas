@@ -67,7 +67,7 @@ and press **create** to create the layer.
 Serverless Application Repository (SAR)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-AWS Data Wrangler layers are also available in the `AWS Serverless Application Repository <https://serverlessrepo.aws.amazon.com/applications>`_ (SAR).
+Starting version `2.12.0`, AWS Data Wrangler layers are also available in the `AWS Serverless Application Repository <https://serverlessrepo.aws.amazon.com/applications>`_ (SAR).
 
 The app deploys the Lambda layer version in your own AWS account and region via a CloudFormation stack.
 This option provides the ability to use semantic versions (i.e. library version) instead of Lambda layer versions. 
@@ -102,7 +102,7 @@ Here is an example of how to create and use the AWS Data Wrangler Lambda layer i
         wrangler_layer = sam.CfnApplication(
           self,
           "wrangler-layer",
-          location=CfnApplication.ApplicationLocationProperty(
+          location=sam.CfnApplication.ApplicationLocationProperty(
             application_id="arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-data-wrangler-layer-py3-8",
             semantic_version="2.13.0",  # Get the latest version from https://github.com/awslabs/aws-data-wrangler/releases
           ),
@@ -116,7 +116,7 @@ Here is an example of how to create and use the AWS Data Wrangler Lambda layer i
           "wrangler-function",
           runtime=aws_lambda.Runtime.PYTHON_3_8,
           function_name="sample-wrangler-lambda-function",
-          code=aws_lambda.Code.asset("./src/wrangler-lambda"),
+          code=aws_lambda.Code.from_asset("./src/wrangler-lambda"),
           handler='lambda_function.lambda_handler',
           layers=[wrangler_layer_version]
         )
