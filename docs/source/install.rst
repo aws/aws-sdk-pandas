@@ -79,8 +79,9 @@ Serverless Application Repository (SAR)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 AWS Data Wrangler layers are also available in the `AWS Serverless Application Repository <https://serverlessrepo.aws.amazon.com/applications>`_ (SAR).
-The SAR App can be used to deploy a CloudFormation stack with a copy of the Lambda layer in your own AWS account and region. This option provides furthermore 
-the possibility to use semantic versions instead of Lambda layer versions. 
+
+The app deploys the Lambda layer version in your own AWS account and region via a CloudFormation stack.
+This option provides the ability to use semantic versions (i.e. library version) instead of Lambda layer versions. 
 
 .. list-table:: AWS Data Wrangler Layer Apps
    :widths: 25 25 50
@@ -109,7 +110,6 @@ Here is an example of how to create and use the AWS Data Wrangler Lambda layer i
       def __init__(self, scope: core.Construct, id_: str):
         super.__init__(scope,id)
 
-
         wrangler_layer = sam.CfnApplication(
           self,
           "wrangler-layer",
@@ -120,19 +120,17 @@ Here is an example of how to create and use the AWS Data Wrangler Lambda layer i
         )
 
         wrangler_layer_arn = wrangler_layer.get_att("Outputs.WranglerLayer38Arn").to_string()
-        wrangler_layer_version = aws_lambda.LayerVersion.from_layer_version_arn(self, "AWSDataWranglerLayer", wrangler_layer_arn)
+        wrangler_layer_version = aws_lambda.LayerVersion.from_layer_version_arn(self, "wrangler-layer-version", wrangler_layer_arn)
 
-        aws_lambda.Function(self,
-          "sample-wrangler-function",
-          runtime=aws_lambda.Runtime.PYHTON_3_8,
+        aws_lambda.Function(
+          self,
+          "wrangler-function",
+          runtime=aws_lambda.Runtime.PYTHON_3_8,
           function_name="sample-wrangler-lambda-function",
           code=aws_lambda.Code.asset("./src/wrangler-lambda"),
           handler='lambda_function.lambda_handler',
           layers=[wrangler_layer_version]
         )
-
-.. note:: The attribute ``Outputs.WranglerLayer38Arn`` is dependent to the layer for the Python version you want to use. Remind to change 
-          ``38`` to ``37`` or ``39`` if using a layer for ``Python 3.7.x`` or ``Python 3.9.x`` instead of ``Python 3.8.x``.
 
 AWS Glue Python Shell Jobs
 --------------------------
