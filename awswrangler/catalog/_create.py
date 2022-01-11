@@ -323,6 +323,85 @@ def _create_parquet_table(
     )
 
 
+def _create_legacy_delta_table(
+    database: str,
+    table: str,
+    path: str,
+    columns_types: Dict[str, str],
+    table_type: Optional[str],
+    partitions_types: Optional[Dict[str, str]],
+    bucketing_info: Optional[Tuple[List[str], int]],
+    catalog_id: Optional[str],
+    compression: Optional[str],
+    description: Optional[str],
+    parameters: Optional[Dict[str, str]],
+    columns_comments: Optional[Dict[str, str]],
+    mode: str,
+    catalog_versioning: bool,
+    projection_enabled: bool,
+    transaction_id: Optional[str],
+    projection_types: Optional[Dict[str, str]],
+    projection_ranges: Optional[Dict[str, str]],
+    projection_values: Optional[Dict[str, str]],
+    projection_intervals: Optional[Dict[str, str]],
+    projection_digits: Optional[Dict[str, str]],
+    projection_storage_location_template: Optional[str],
+    boto3_session: Optional[boto3.Session],
+    catalog_table_input: Optional[Dict[str, Any]],
+) -> None:
+    table = sanitize_table_name(table=table)
+    partitions_types = {} if partitions_types is None else partitions_types
+    _logger.debug("catalog_table_input: %s", catalog_table_input)
+    table_input: Dict[str, Any]
+    if (catalog_table_input is not None) and (mode in ("append", "overwrite_partitions")):
+        table_input = catalog_table_input
+        catalog_cols: Dict[str, str] = {x["Name"]: x["Type"] for x in table_input["StorageDescriptor"]["Columns"]}
+        for c, t in columns_types.items():
+            if c not in catalog_cols:
+                _logger.debug("New column %s with type %s.", c, t)
+                table_input["StorageDescriptor"]["Columns"].append({"Name": c, "Type": t})
+                mode = "update"
+            elif t != catalog_cols[c]:  # Data type change detected!
+                raise exceptions.InvalidArgumentValue(
+                    f"Data type change detected on column {c} (Old type: {catalog_cols[c]} / New type {t})."
+                )
+    else:
+        table_input = _parquet_table_definition(
+            table=table,
+            path=path,
+            columns_types=columns_types,
+            table_type=table_type,
+            partitions_types=partitions_types,
+            bucketing_info=bucketing_info,
+            compression=compression,
+        )
+    table_exist: bool = catalog_table_input is not None
+    _logger.debug("table_exist: %s", table_exist)
+    _create_table(
+        database=database,
+        table=table,
+        description=description,
+        parameters=parameters,
+        columns_comments=columns_comments,
+        mode=mode,
+        catalog_versioning=catalog_versioning,
+        boto3_session=boto3_session,
+        table_input=table_input,
+        table_type=table_type,
+        table_exist=table_exist,
+        partitions_types=partitions_types,
+        transaction_id=transaction_id,
+        projection_enabled=projection_enabled,
+        projection_types=projection_types,
+        projection_ranges=projection_ranges,
+        projection_values=projection_values,
+        projection_intervals=projection_intervals,
+        projection_digits=projection_digits,
+        projection_storage_location_template=projection_storage_location_template,
+        catalog_id=catalog_id,
+    )
+
+
 def _create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     database: str,
     table: str,
@@ -775,6 +854,158 @@ def create_parquet_table(
         database=database, table=table, boto3_session=session, transaction_id=transaction_id, catalog_id=catalog_id
     )
     _create_parquet_table(
+        database=database,
+        table=table,
+        path=path,
+        columns_types=columns_types,
+        table_type=table_type,
+        partitions_types=partitions_types,
+        bucketing_info=bucketing_info,
+        catalog_id=catalog_id,
+        compression=compression,
+        description=description,
+        parameters=parameters,
+        columns_comments=columns_comments,
+        mode=mode,
+        catalog_versioning=catalog_versioning,
+        transaction_id=transaction_id,
+        projection_enabled=projection_enabled,
+        projection_types=projection_types,
+        projection_ranges=projection_ranges,
+        projection_values=projection_values,
+        projection_intervals=projection_intervals,
+        projection_digits=projection_digits,
+        projection_storage_location_template=projection_storage_location_template,
+        boto3_session=boto3_session,
+        catalog_table_input=catalog_table_input,
+    )
+
+
+@apply_configs
+def create_legacy_delta_table(
+    database: str,
+    table: str,
+    path: str,
+    columns_types: Dict[str, str],
+    table_type: Optional[str] = None,
+    partitions_types: Optional[Dict[str, str]] = None,
+    bucketing_info: Optional[Tuple[List[str], int]] = None,
+    catalog_id: Optional[str] = None,
+    compression: Optional[str] = None,
+    description: Optional[str] = None,
+    parameters: Optional[Dict[str, str]] = None,
+    columns_comments: Optional[Dict[str, str]] = None,
+    mode: str = "overwrite",
+    catalog_versioning: bool = False,
+    transaction_id: Optional[str] = None,
+    projection_enabled: bool = False,
+    projection_types: Optional[Dict[str, str]] = None,
+    projection_ranges: Optional[Dict[str, str]] = None,
+    projection_values: Optional[Dict[str, str]] = None,
+    projection_intervals: Optional[Dict[str, str]] = None,
+    projection_digits: Optional[Dict[str, str]] = None,
+    projection_storage_location_template: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> None:
+    """Create a Legacy Delta Table (Metadata Only) in the AWS Glue Catalog.
+
+    Legacy means that it's suited for non-native Delta implementations such as those for Redshift Spectrum and Athena.
+    These leverage a manifest specifying which files to process and is otherwise processed as a normal Parquet table.
+
+    'https://docs.aws.amazon.com/athena/latest/ug/data-types.html'
+
+    Parameters
+    ----------
+    database : str
+        Database name.
+    table : str
+        Table name.
+    path : str
+        Amazon S3 path (e.g. s3://bucket/prefix/).
+    columns_types: Dict[str, str]
+        Dictionary with keys as column names and values as data types (e.g. {'col0': 'bigint', 'col1': 'double'}).
+    table_type: str, optional
+        The type of the Glue Table (EXTERNAL_TABLE, GOVERNED...). Set to EXTERNAL_TABLE if None
+    partitions_types: Dict[str, str], optional
+        Dictionary with keys as partition names and values as data types (e.g. {'col2': 'date'}).
+    bucketing_info: Tuple[List[str], int], optional
+        Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
+        second element.
+        Only `str`, `int` and `bool` are supported as column data types for bucketing.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    compression: str, optional
+        Compression style (``None``, ``snappy``, ``gzip``, etc).
+    description: str, optional
+        Table description
+    parameters: Dict[str, str], optional
+        Key/value pairs to tag the table.
+    columns_comments: Dict[str, str], optional
+        Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
+    mode: str
+        'overwrite' to recreate any possible existing table or 'append' to keep any possible existing table.
+    catalog_versioning : bool
+        If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
+    transaction_id: str, optional
+        The ID of the transaction (i.e. used with GOVERNED tables).
+    projection_enabled : bool
+        Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
+    projection_types : Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections types.
+        Valid types: "enum", "integer", "date", "injected"
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': 'enum', 'col2_name': 'integer'})
+    projection_ranges: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections ranges.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': '0,10', 'col2_name': '-1,8675309'})
+    projection_values: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections values.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': 'A,B,Unknown', 'col2_name': 'foo,boo,bar'})
+    projection_intervals: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections intervals.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': '1', 'col2_name': '5'})
+    projection_digits: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections digits.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': '1', 'col2_name': '2'})
+    projection_storage_location_template: Optional[str]
+        Value which is allows Athena to properly map partition values if the S3 file locations do not follow
+        a typical `.../column=value/...` pattern.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-setting-up.html
+        (e.g. s3://bucket/table_root/a=${a}/${b}/some_static_subdirectory/${c}/)
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    None
+        None.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> wr.catalog.create_legacy_delta_table(
+    ...     database='default',
+    ...     table='my_table',
+    ...     path='s3://bucket/prefix/',
+    ...     columns_types={'col0': 'bigint', 'col1': 'double'},
+    ...     partitions_types={'col2': 'date'},
+    ...     compression='snappy',
+    ...     description='My own table!',
+    ...     parameters={'source': 'postgresql'},
+    ...     columns_comments={'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}
+    ... )
+
+    """
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    catalog_table_input: Optional[Dict[str, Any]] = _get_table_input(
+        database=database, table=table, boto3_session=session, transaction_id=transaction_id, catalog_id=catalog_id
+    )
+    _create_legacy_delta_table(
         database=database,
         table=table,
         path=path,
