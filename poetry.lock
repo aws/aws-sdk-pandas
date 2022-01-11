@@ -2141,7 +2141,7 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.6.2, <3.11"
-content-hash = "7f9d70cc7700b0a6005dd675907bd960f684a52d0756a66ca82d20d67f50f1d6"
+content-hash = "87068395350b46ec4bfdae0a07271120ed2ab4af8377581825e487c085a82915"
 
 [metadata.files]
 alabaster = [
