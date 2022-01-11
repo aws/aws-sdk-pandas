@@ -48,17 +48,6 @@ Or via its arn: ``arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Pyt
 For example: ``arn:aws:lambda:us-east-1:336392948345:layer:AWSDataWrangler-Python37:1``.
 Both Python 3.7 and 3.8 are supported.
 
-Here is a mapping of layer version to library version:
-
-.. list-table:: Lambda layer to Python library versions mapping
-   :widths: 25 25
-   :header-rows: 1
-
-   * - Lambda Layer Version
-     - Python Library Version
-   * - 1
-     - 2.12.0
-
 Custom Layer
 ^^^^^^^^^^^^^^
 
