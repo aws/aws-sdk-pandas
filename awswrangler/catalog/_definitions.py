@@ -37,7 +37,7 @@ def _parquet_table_definition(
     compression: Optional[str],
 ) -> Dict[str, Any]:
     compressed: bool = compression is not None
-    definition = {
+    return {
         "Name": table,
         "PartitionKeys": [{"Name": cname, "Type": dtype} for cname, dtype in partitions_types.items()],
         "TableType": "EXTERNAL_TABLE" if table_type is None else table_type,
@@ -64,8 +64,6 @@ def _parquet_table_definition(
             },
         },
     }
-
-    return definition
 
 
 def _parquet_partition_definition(
@@ -119,7 +117,7 @@ def _legacy_delta_table_definition(
         )
 
     compressed: bool = compression is not None
-    definition = {
+    return {
         "Name": table,
         "PartitionKeys": [{"Name": cname, "Type": dtype} for cname, dtype in partitions_types.items()],
         "TableType": "EXTERNAL_TABLE" if table_type is None else table_type,
@@ -146,8 +144,6 @@ def _legacy_delta_table_definition(
             },
         },
     }
-
-    return definition
 
 
 def _legacy_delta_partition_definition(
