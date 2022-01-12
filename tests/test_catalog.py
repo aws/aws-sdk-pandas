@@ -463,3 +463,30 @@ def test_catalog_json(path: str, glue_database: str, glue_table: str) -> None:
     )
     partitions_values = wr.catalog.get_partitions(database=glue_database, table=glue_table)
     assert len(partitions_values) == 2
+
+
+def test_catalog_legacy_delta(path: str, glue_database: str, glue_table: str) -> None:
+    # Create Legacy Delta table
+    assert not wr.catalog.does_table_exist(database=glue_database, table=glue_table)
+    wr.catalog.create_legacy_delta_table(
+        database=glue_database,
+        table=glue_table,
+        path=f"{path}_symlink_format_manifest/",
+        columns_types={"id": "int", "value": "string"},
+        partitions_types={"y": "int", "m": "int"},
+        compression="snappy",
+    )
+    assert wr.catalog.does_table_exist(database=glue_database, table=glue_table)
+    # Add Legacy Delta partitions
+    wr.catalog.add_legacy_delta_partitions(
+        database=glue_database,
+        table=glue_table,
+        partitions_values={
+            f"{path}_symlink_format_manifest/y=2020/m=1/": ["2020", "1"],
+            f"{path}_symlink_format_manifest/y=2021/m=2/": ["2021", "2"],
+        },
+        compression="snappy",
+        partitions_parameters={"retention": "365"},
+    )
+    partitions_values = wr.catalog.get_partitions(database=glue_database, table=glue_table)
+    assert len(partitions_values) == 2
