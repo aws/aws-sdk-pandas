@@ -113,7 +113,8 @@ def _legacy_delta_table_definition(
     if "_symlink_format_manifest" not in path:
         _logger.warning(
             "Location should typically have _symlink_format_manifest in the path. "
-            "Please ensure you have generated a manifest for Redshift for your Delta table"
+            "Please ensure you have generated a manifest for Redshift for your Delta table and "
+            "specified the manifest path i.e. path/to/table/_symlink_format_manifest"
         )
 
     compressed: bool = compression is not None
@@ -158,7 +159,8 @@ def _legacy_delta_partition_definition(
     if "_symlink_format_manifest" not in location:
         _logger.warning(
             "Location should typically have _symlink_format_manifest in the path. "
-            "Please ensure you have generated a manifest for Redshift for your Delta table"
+            "Please ensure you have generated a manifest for Redshift for your Delta table and "
+            "specified the manifest path i.e. path/to/table/_symlink_format_manifest"
         )
 
     compressed: bool = compression is not None
