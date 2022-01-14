@@ -3,7 +3,8 @@
 import datetime
 import fnmatch
 import logging
-from typing import Any, Dict, Iterator, List, Optional, Sequence, Union
+from typing import Any, Dict, Iterator, List, Optional, overload, Sequence, Union
+from typing_extensions import Literal
 
 import boto3
 import botocore.exceptions
@@ -265,6 +266,36 @@ def list_directories(
     if chunked:
         return result_iterator
     return [path for paths in result_iterator for path in paths]
+
+
+@overload
+def list_objects(
+    path: str,
+    suffix: Union[str, List[str], None] = None,
+    ignore_suffix: Union[str, List[str], None] = None,
+    last_modified_begin: Optional[datetime.datetime] = None,
+    last_modified_end: Optional[datetime.datetime] = None,
+    ignore_empty: bool = False,
+    chunked: Literal[False] = False,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> List[str]:
+    ...
+
+
+@overload
+def list_objects(
+    path: str,
+    suffix: Union[str, List[str], None] = None,
+    ignore_suffix: Union[str, List[str], None] = None,
+    last_modified_begin: Optional[datetime.datetime] = None,
+    last_modified_end: Optional[datetime.datetime] = None,
+    ignore_empty: bool = False,
+    chunked: bool = False,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> Union[List[str], Iterator[List[str]]]:
+    ...
 
 
 def list_objects(
