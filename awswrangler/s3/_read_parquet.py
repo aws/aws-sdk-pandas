@@ -8,7 +8,7 @@ import json
 import logging
 import pprint
 import warnings
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union, cast
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, Union, cast
 
 import boto3
 import pandas as pd
@@ -801,7 +801,7 @@ def read_parquet_table(
     ----
     ``Batching`` (`chunked` argument) (Memory Friendly):
 
-    Will anable the function to return a Iterable of DataFrames instead of a regular DataFrame.
+    Will enable the function to return an Iterable of DataFrames instead of a regular DataFrame.
 
     There are two batching strategies on Wrangler:
 
@@ -836,8 +836,8 @@ def read_parquet_table(
         If none is provided, the AWS account ID is used by default.
     partition_filter: Optional[Callable[[Dict[str, str]], bool]]
         Callback Function filters to apply on PARTITION columns (PUSH-DOWN filter).
-        This function MUST receive a single argument (Dict[str, str]) where keys are partitions
-        names and values are partitions values. Partitions values will be always strings extracted from S3.
+        This function MUST receive a single argument (Dict[str, str]) where keys are partition
+        names and values are partition values. Partition values will be always strings extracted from S3.
         This function MUST return a bool, True to read the partition or False to ignore it.
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
@@ -861,7 +861,7 @@ def read_parquet_table(
         used to override the default pandas type for conversion of built-in
         pyarrow types or in absence of pandas_metadata in the Table schema.
     chunked : bool
-        If True will break the data in smaller DataFrames (Non deterministic number of lines).
+        If True will break the data in smaller DataFrames (Non-deterministic number of lines).
         Otherwise return a single DataFrame with the whole data.
     use_threads : Union[bool, int]
         True to enable concurrent requests, False to disable multiple threads.
@@ -931,7 +931,7 @@ def read_parquet_table(
             catalog_id=catalog_id,
             boto3_session=boto3_session,
         )
-        available_partitions = list(available_partitions_dict.keys())
+        available_partitions = list(_ensure_locations_are_valid(available_partitions_dict.keys()))
         if available_partitions:
             paths = []
             path_root = path
@@ -971,6 +971,16 @@ def read_parquet_table(
 
     # df is a generator, so map is needed for casting dtypes
     return map(partial_cast_function, df)
+
+
+def _ensure_locations_are_valid(paths: Iterable[str]) -> Iterator[str]:
+    for path in paths:
+        suffix: str = path.rpartition("/")[2]
+        # If the suffix looks like a partition,
+        if (suffix != "") and (suffix.count("=") == 1):
+            # the path should end in a '/' character.
+            path = f"{path}/"
+        yield path
 
 
 @apply_configs

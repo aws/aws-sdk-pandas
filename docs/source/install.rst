@@ -28,7 +28,7 @@ AWS Lambda Layer
 Managed Layer
 ^^^^^^^^^^^^^^
 
-AWS Data Wrangler is available as a Lambda Managed layer in the following regions:
+AWS Data Wrangler is available as an AWS Lambda Managed layer in the following regions:
 
 - ap-northeast-1
 - ap-southeast-2
@@ -44,20 +44,17 @@ It can be accessed in the AWS Lambda console directly:
   :width: 400
   :alt: AWS Managed Lambda Layer
 
-Or via its arn: ``arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python<version>:<layer-version>``.
-For example: ``arn:aws:lambda:us-east-1:336392948345:layer:AWSDataWrangler-Python37:1``.
-Both Python 3.7 and 3.8 are supported.
+Or via its ARN:
 
-Here is a mapping of layer version to library version:
-
-.. list-table:: Lambda layer to Python library versions mapping
-   :widths: 25 25
-   :header-rows: 1
-
-   * - Lambda Layer Version
-     - Python Library Version
-   * - 1
-     - 2.12.0
+=============================  ================  =======================================================================
+ AWS Data Wrangler Version      Python Version    Layer ARN
+=============================  ================  =======================================================================
+ 2.12.0                         3.7               arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python37:1
+ 2.12.0                         3.8               arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python38:1
+ 2.13.0                         3.7               arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python37:2
+ 2.13.0                         3.8               arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python38:2
+ 2.13.0                         3.9               arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python39:1
+=============================  ================  =======================================================================
 
 Custom Layer
 ^^^^^^^^^^^^^^
@@ -78,21 +75,59 @@ and press **create** to create the layer.
 Serverless Application Repository (SAR)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-AWS Data Wrangler layers are also available in the `AWS Serverless Application Repository <https://serverlessrepo.aws.amazon.com/applications>`_ (SAR).
+Starting version `2.12.0`, AWS Data Wrangler layers are also available in the `AWS Serverless Application Repository <https://serverlessrepo.aws.amazon.com/applications>`_ (SAR).
 
-Here is an example of how to create the Lambda layer in your CDK app:
+The app deploys the Lambda layer version in your own AWS account and region via a CloudFormation stack.
+This option provides the ability to use semantic versions (i.e. library version) instead of Lambda layer versions. 
+
+.. list-table:: AWS Data Wrangler Layer Apps
+   :widths: 25 25 50
+   :header-rows: 1
+
+   * - App
+     - ARN
+     - Description
+   * - aws-data-wrangler-layer-py3-7
+     - arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-data-wrangler-layer-py3-7
+     - Layer for ``Python 3.7.x`` runtimes
+   * - aws-data-wrangler-layer-py3-8
+     - arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-data-wrangler-layer-py3-8
+     - Layer for ``Python 3.8.x`` runtimes
+   * - aws-data-wrangler-layer-py3-9
+     - arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-data-wrangler-layer-py3-9
+     - Layer for ``Python 3.9.x`` runtimes     
+
+Here is an example of how to create and use the AWS Data Wrangler Lambda layer in your CDK app:
 
 .. code-block:: python
+    
+    from aws_cdk import core, aws_sam as sam, aws_lambda
 
-    CfnApplication(
-        self,
-        "wrangler-layer",
-        location=CfnApplication.ApplicationLocationProperty(
+    class DataWranglerApp(core.Construct):
+      def __init__(self, scope: core.Construct, id_: str):
+        super.__init__(scope,id)
+
+        wrangler_layer = sam.CfnApplication(
+          self,
+          "wrangler-layer",
+          location=sam.CfnApplication.ApplicationLocationProperty(
             application_id="arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-data-wrangler-layer-py3-8",
-            semantic_version="2.12.0",
-        ),
-    )
+            semantic_version="2.13.0",  # Get the latest version from https://github.com/awslabs/aws-data-wrangler/releases
+          ),
+        )
 
+        wrangler_layer_arn = wrangler_layer.get_att("Outputs.WranglerLayer38Arn").to_string()
+        wrangler_layer_version = aws_lambda.LayerVersion.from_layer_version_arn(self, "wrangler-layer-version", wrangler_layer_arn)
+
+        aws_lambda.Function(
+          self,
+          "wrangler-function",
+          runtime=aws_lambda.Runtime.PYTHON_3_8,
+          function_name="sample-wrangler-lambda-function",
+          code=aws_lambda.Code.from_asset("./src/wrangler-lambda"),
+          handler='lambda_function.lambda_handler',
+          layers=[wrangler_layer_version]
+        )
 
 AWS Glue Python Shell Jobs
 --------------------------

@@ -82,6 +82,7 @@ def _get_partitions(
         TableName=table,
         MaxResults=1_000,
         Segment={"SegmentNumber": 0, "TotalSegments": 1},
+        ExcludeColumnSchema=True,
     )
     if expression is not None:
         args["Expression"] = expression

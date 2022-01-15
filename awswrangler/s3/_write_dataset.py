@@ -114,7 +114,8 @@ def _to_buckets(
         lambda row: _get_bucket_number(bucketing_info[1], [row[col_name] for col_name in bucketing_info[0]]),
         axis="columns",
     )
-    for bucket_number, subgroup in df.groupby(by=bucket_number_series, observed=True):
+    bucket_number_series = bucket_number_series.astype(pd.CategoricalDtype(range(bucketing_info[1])))
+    for bucket_number, subgroup in df.groupby(by=bucket_number_series, observed=False):
         _proxy.write(
             func=func,
             df=subgroup,
@@ -131,21 +132,38 @@ def _to_buckets(
     return paths
 
 
+def _simulate_overflow(value: int, bits: int = 31, signed: bool = False) -> int:
+    base = 1 << bits
+    value %= base
+    return value - base if signed and value.bit_length() == bits else value
+
+
 def _get_bucket_number(number_of_buckets: int, values: List[Union[str, int, bool]]) -> int:
     hash_code = 0
     for value in values:
         hash_code = 31 * hash_code + _get_value_hash(value)
+        hash_code = _simulate_overflow(hash_code)
 
     return hash_code % number_of_buckets
 
 
 def _get_value_hash(value: Union[str, int, bool]) -> int:
     if isinstance(value, (int, np.int_)):
+        value = int(value)
+        bigint_min, bigint_max = -(2 ** 63), 2 ** 63 - 1
+        int_min, int_max = -(2 ** 31), 2 ** 31 - 1
+        if not bigint_min <= value <= bigint_max:
+            raise ValueError(f"{value} exceeds the range that Athena cannot handle as bigint.")
+        if not int_min <= value <= int_max:
+            value = (value >> 32) ^ value
+        if value < 0:
+            return -value - 1
         return int(value)
     if isinstance(value, (str, np.str_)):
         value_hash = 0
         for byte in value.encode():
             value_hash = value_hash * 31 + byte
+            value_hash = _simulate_overflow(value_hash)
         return value_hash
     if isinstance(value, (bool, np.bool_)):
         return int(value)

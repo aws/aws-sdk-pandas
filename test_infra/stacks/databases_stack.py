@@ -56,9 +56,9 @@ class DatabasesStack(cdk.Stack):  # type: ignore
             self,
             "aws-data-wrangler-database-sg",
             vpc=self.vpc,
-            description="AWS Data Wrangler Test Arena - Database security group",
+            description="AWS Data Wrangler Test Athena - Database security group",
         )
-        self.db_security_group.add_ingress_rule(ec2.Peer.any_ipv4(), ec2.Port.all_traffic())
+        self.db_security_group.add_ingress_rule(self.db_security_group, ec2.Port.all_traffic())
         ssm.StringParameter(
             self,
             "db-security-group-parameter",
@@ -219,7 +219,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
         redshift.ClusterSubnetGroup(
             self,
             "aws-data-wrangler-redshift-subnet-group",
-            description="AWS Data Wrangler Test Arena - Redshift Subnet Group",
+            description="AWS Data Wrangler Test Athena - Redshift Subnet Group",
             vpc=self.vpc,
             vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
         )
