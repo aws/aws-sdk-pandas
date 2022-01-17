@@ -245,10 +245,6 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
 
     Note
     ----
-    On `append` mode, the `parameters` will be upsert on an existing table.
-
-    Note
-    ----
     In case of `use_threads=True` the number of threads
     that will be spawned will be gotten from os.cpu_count().
 
