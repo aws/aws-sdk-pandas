@@ -16,4 +16,4 @@ Your Name:
 Your Position:
 I have included a logo: y/n
 
-*By raising a Support the SDLF issue (and related pull request), you are granting AWS permission to use your company’s name (and logo) for the limited purpose described here and you are confirming that you have authority to grant such permission.*
+*By raising a Support Data Wrangler issue (and related pull request), you are granting AWS permission to use your company’s name (and logo) for the limited purpose described here and you are confirming that you have authority to grant such permission.*

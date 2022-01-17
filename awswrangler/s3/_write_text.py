@@ -124,11 +124,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
 
     Note
     ----
-    Compression: The minimum acceptable version to achive it is Pandas 1.2.0 that requires Python >= 3.7.1.
-
-    Note
-    ----
-    On `append` mode, the `parameters` will be upsert on an existing table.
+    Compression: The minimum acceptable version to achieve it is Pandas 1.2.0 that requires Python >= 3.7.1.
 
     Note
     ----

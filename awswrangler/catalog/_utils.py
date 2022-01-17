@@ -96,14 +96,13 @@ def does_table_exist(
 
 
 def sanitize_column_name(column: str) -> str:
-    """Convert the column name to be compatible with Amazon Athena.
+    """Convert the column name to be compatible with Amazon Athena and the AWS Glue Catalog.
 
     https://docs.aws.amazon.com/athena/latest/ug/tables-databases-columns-names.html
 
     Possible transformations:
     - Strip accents
     - Remove non alphanumeric characters
-    - Convert CamelCase to snake_case
 
     Parameters
     ----------
@@ -119,21 +118,20 @@ def sanitize_column_name(column: str) -> str:
     --------
     >>> import awswrangler as wr
     >>> wr.catalog.sanitize_column_name('MyNewColumn')
-    'my_new_column'
+    'mynewcolumn'
 
     """
     return _sanitize_name(name=column)
 
 
 def sanitize_dataframe_columns_names(df: pd.DataFrame) -> pd.DataFrame:
-    """Normalize all columns names to be compatible with Amazon Athena.
+    """Normalize all columns names to be compatible with Amazon Athena and the AWS Glue Catalog.
 
     https://docs.aws.amazon.com/athena/latest/ug/tables-databases-columns-names.html
 
     Possible transformations:
     - Strip accents
     - Remove non alphanumeric characters
-    - Convert CamelCase to snake_case
 
     Note
     ----
@@ -162,14 +160,13 @@ def sanitize_dataframe_columns_names(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def sanitize_table_name(table: str) -> str:
-    """Convert the table name to be compatible with Amazon Athena.
+    """Convert the table name to be compatible with Amazon Athena and the AWS Glue Catalog.
 
     https://docs.aws.amazon.com/athena/latest/ug/tables-databases-columns-names.html
 
     Possible transformations:
     - Strip accents
     - Remove non alphanumeric characters
-    - Convert CamelCase to snake_case
 
     Parameters
     ----------
@@ -185,7 +182,7 @@ def sanitize_table_name(table: str) -> str:
     --------
     >>> import awswrangler as wr
     >>> wr.catalog.sanitize_table_name('MyNewTable')
-    'my_new_table'
+    'mynewtable'
 
     """
     return _sanitize_name(name=table)
