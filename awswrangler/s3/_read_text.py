@@ -179,7 +179,7 @@ def read_csv(
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    """Read CSV file(s) from from a received S3 prefix or list of S3 objects paths.
+    """Read CSV file(s) from a received S3 prefix or list of S3 objects paths.
 
     This function accepts Unix shell-style wildcards in the path argument.
     * (matches everything), ? (matches any single character),
@@ -327,7 +327,7 @@ def read_fwf(
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    """Read fixed-width formatted file(s) from from a received S3 prefix or list of S3 objects paths.
+    """Read fixed-width formatted file(s) from a received S3 prefix or list of S3 objects paths.
 
     This function accepts Unix shell-style wildcards in the path argument.
     * (matches everything), ? (matches any single character),
@@ -476,7 +476,7 @@ def read_json(
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    """Read JSON file(s) from from a received S3 prefix or list of S3 objects paths.
+    """Read JSON file(s) from a received S3 prefix or list of S3 objects paths.
 
     This function accepts Unix shell-style wildcards in the path argument.
     * (matches everything), ? (matches any single character),
