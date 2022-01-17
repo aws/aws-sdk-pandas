@@ -313,9 +313,7 @@ def check_duplicated_columns(df: pd.DataFrame) -> Any:
         raise exceptions.InvalidDataFrame(
             f"There are duplicated column names in your DataFrame: {duplicated}. "
             f"Note that your columns may have been sanitized and it can be the cause of "
-            f"the duplicity. Wrangler sanitization removes all special characters and "
-            f"also converts CamelCase to snake_case. So you must avoid columns like "
-            f"['MyCol', 'my_col'] in your DataFrame."
+            f"the duplicity."
         )
 
 
