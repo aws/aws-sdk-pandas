@@ -3,11 +3,11 @@
 import datetime
 import fnmatch
 import logging
-from typing import Any, Dict, Iterator, List, Optional, overload, Sequence, Union
-from typing_extensions import Literal
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Union, overload
 
 import boto3
 import botocore.exceptions
+from typing_extensions import Literal
 
 from awswrangler import _utils, exceptions
 from awswrangler.s3 import _fs
