@@ -565,7 +565,7 @@ def read_parquet(
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    """Read Apache Parquet file(s) from from a received S3 prefix or list of S3 objects paths.
+    """Read Apache Parquet file(s) from a received S3 prefix or list of S3 objects paths.
 
     The concept of Dataset goes beyond the simple idea of files and enable more
     complex features like partitioning and catalog integration (AWS Glue Catalog).
@@ -998,7 +998,7 @@ def read_parquet_metadata(
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Tuple[Dict[str, str], Optional[Dict[str, str]]]:
-    """Read Apache Parquet file(s) metadata from from a received S3 prefix or list of S3 objects paths.
+    """Read Apache Parquet file(s) metadata from a received S3 prefix or list of S3 objects paths.
 
     The concept of Dataset goes beyond the simple idea of files and enable more
     complex features like partitioning and catalog integration (AWS Glue Catalog).

@@ -20,7 +20,7 @@ def read_excel(
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     **pandas_kwargs: Any,
 ) -> pd.DataFrame:
-    """Read EXCEL file(s) from from a received S3 path.
+    """Read EXCEL file(s) from a received S3 path.
 
     Note
     ----

@@ -748,11 +748,11 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
 ) -> Tuple[Dict[str, str], Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]:
     """Infer and store parquet metadata on AWS Glue Catalog.
 
-    Infer Apache Parquet file(s) metadata from from a received S3 prefix or list of S3 objects paths
+    Infer Apache Parquet file(s) metadata from a received S3 prefix
     And then stores it on AWS Glue Catalog including all inferred partitions
-    (No need of 'MSCK REPAIR TABLE')
+    (No need for 'MSCK REPAIR TABLE')
 
-    The concept of Dataset goes beyond the simple idea of files and enable more
+    The concept of Dataset goes beyond the simple idea of files and enables more
     complex features like partitioning and catalog integration (AWS Glue Catalog).
 
     This function accepts Unix shell-style wildcards in the path argument.
@@ -763,20 +763,13 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
 
     Note
     ----
-    On `append` mode, the `parameters` will be upsert on an existing table.
-
-    Note
-    ----
     In case of `use_threads=True` the number of threads
     that will be spawned will be gotten from os.cpu_count().
 
     Parameters
     ----------
-    path : Union[str, List[str]]
-        S3 prefix (accepts Unix shell-style wildcards)
-        (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. [s3://bucket/key0, s3://bucket/key1]).
-        database : str
-        Glue/Athena catalog: Database name.
+    path : str
+        S3 prefix (accepts Unix shell-style wildcards) (e.g. s3://bucket/prefix).
     table : str
         Glue/Athena catalog: Table name.
     database : str
