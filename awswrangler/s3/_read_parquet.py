@@ -78,7 +78,9 @@ def _read_parquet_metadata_file(
         )
         if pq_file is None:
             return None
-        return _data_types.athena_types_from_pyarrow_schema(schema=pq_file.schema.to_arrow_schema(), partitions=None, ignore_null=ignore_null)[0]
+        return _data_types.athena_types_from_pyarrow_schema(
+            schema=pq_file.schema.to_arrow_schema(), partitions=None, ignore_null=ignore_null
+        )[0]
 
 
 def _read_schemas_from_files(

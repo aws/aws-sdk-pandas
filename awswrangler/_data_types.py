@@ -16,7 +16,9 @@ from awswrangler import _utils, exceptions
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def pyarrow2athena(dtype: pa.DataType, ignore_null: bool) -> Optional[str]:  # pylint: disable=too-many-branches,too-many-return-statements
+def pyarrow2athena(
+    dtype: pa.DataType, ignore_null: bool
+) -> Optional[str]:  # pylint: disable=too-many-branches,too-many-return-statements
     """Pyarrow to Athena data types conversion."""
     if pa.types.is_int8(dtype):
         return "tinyint"
@@ -587,7 +589,9 @@ def pyarrow_schema_from_pandas(
 
 
 def athena_types_from_pyarrow_schema(
-    schema: pa.Schema, partitions: Optional[pyarrow.parquet.ParquetPartitions], ignore_null: bool,
+    schema: pa.Schema,
+    partitions: Optional[pyarrow.parquet.ParquetPartitions],
+    ignore_null: bool,
 ) -> Tuple[Dict[str, str], Optional[Dict[str, str]]]:
     """Extract the related Athena data types from any PyArrow Schema considering possible partitions."""
     columns_types: Dict[str, str] = {str(f.name): pyarrow2athena(dtype=f.type, ignore_null=ignore_null) for f in schema}
