@@ -212,7 +212,7 @@ def sanitize_dataframe_columns_names(
         if handle_duplicate_columns == "warn":
             warnings.warn(
                 "Some columns names are duplicated, consider using `handle_duplicate_columns='[drop|rename]'`",
-                UserWarning
+                UserWarning,
             )
 
         elif handle_duplicate_columns == "drop":
