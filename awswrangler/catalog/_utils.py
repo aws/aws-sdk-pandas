@@ -2,8 +2,8 @@
 import logging
 import re
 import unicodedata
-from typing import Any, Dict, List, Optional, Tuple
 import warnings
+from typing import Any, Dict, List, Optional, Tuple
 
 import boto3
 import pandas as pd
