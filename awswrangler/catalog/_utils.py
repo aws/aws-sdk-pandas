@@ -146,7 +146,7 @@ def rename_duplicated_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def sanitize_dataframe_columns_names(df: pd.DataFrame, handle_dup_cols: Optional[str] = "warn") -> pd.DataFrame:
+def sanitize_dataframe_columns_names(df: pd.DataFrame, handle_duplicate_columns: Optional[str] = "warn") -> pd.DataFrame:
     """Normalize all columns names to be compatible with Amazon Athena.
 
     https://docs.aws.amazon.com/athena/latest/ug/tables-databases-columns-names.html
@@ -165,7 +165,7 @@ def sanitize_dataframe_columns_names(df: pd.DataFrame, handle_dup_cols: Optional
     ----------
     df : pandas.DataFrame
         Original Pandas DataFrame.
-    handle_dup_cols : str, optional
+    handle_duplicate_columns : str, optional
         How to handle duplicate columns. Can be "warn" or "drop" or "rename".
         The default is "warn". "drop" will drop all but the first duplicated column.
         "rename" will rename all duplicated columns with an incremental number.
@@ -178,24 +178,24 @@ def sanitize_dataframe_columns_names(df: pd.DataFrame, handle_dup_cols: Optional
     --------
     >>> import awswrangler as wr
     >>> df_normalized = wr.catalog.sanitize_dataframe_columns_names(df=pd.DataFrame({'A': [1, 2]}))
-    >>> df_normalized_drop = wr.catalog.sanitize_dataframe_columns_names(df=pd.DataFrame({'A': [1, 2], 'a': [3, 4]}), handle_dup_cols="drop")
-    >>> df_normalized_rename = wr.catalog.sanitize_dataframe_columns_names(df=pd.DataFrame({'A': [1, 2], 'a': [3, 4], 'a_1': [4, 6]}), handle_dup_cols="rename")
+    >>> df_normalized_drop = wr.catalog.sanitize_dataframe_columns_names(df=pd.DataFrame({'A': [1, 2], 'a': [3, 4]}), handle_duplicate_columns="drop")
+    >>> df_normalized_rename = wr.catalog.sanitize_dataframe_columns_names(df=pd.DataFrame({'A': [1, 2], 'a': [3, 4], 'a_1': [4, 6]}), handle_duplicate_columns="rename")
     """
     df.columns = [sanitize_column_name(x) for x in df.columns]
     df.index.names = [None if x is None else sanitize_column_name(x) for x in df.index.names]
     if df.columns.duplicated().any():
-        if handle_dup_cols == "warn":
+        if handle_duplicate_columns == "warn":
             warnings.warn("Some columns names are duplicated, consider using "+
-                          "`handle_dup_cols='[drop|rename]'`")
+                          "`handle_duplicate_columns='[drop|rename]'`")
 
-        elif handle_dup_cols == "drop":
+        elif handle_duplicate_columns == "drop":
             df = drop_duplicated_columns(df)
             
-        elif handle_dup_cols == "rename":
+        elif handle_duplicate_columns == "rename":
             df = rename_duplicated_columns(df)
             
         else:
-            raise ValueError("handle_dup_cols must be one of ['warn', 'drop', 'rename']")
+            raise ValueError("handle_duplicate_columns must be one of ['warn', 'drop', 'rename']")
 
     return df
 
