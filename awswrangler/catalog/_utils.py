@@ -141,7 +141,7 @@ def rename_duplicated_columns(df: pd.DataFrame) -> pd.DataFrame:
     ----------
     df : pandas.DataFrame
         Original Pandas DataFrame.
-    
+
     Returns
     -------
     pandas.DataFrame
