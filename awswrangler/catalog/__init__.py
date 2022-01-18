@@ -42,7 +42,7 @@ from awswrangler.catalog._get import (  # noqa
 from awswrangler.catalog._utils import (  # noqa
     does_table_exist,
     drop_duplicated_columns,
-    rename_duplicate_columns,
+    rename_duplicated_columns,
     extract_athena_types,
     sanitize_column_name,
     sanitize_dataframe_columns_names,
