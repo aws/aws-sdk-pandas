@@ -246,6 +246,12 @@ def test_athena_read_list(glue_database):
         wr.athena.read_sql_query(sql="SELECT ARRAY[1, 2, 3]", database=glue_database, ctas_approach=False)
 
 
+def test_sanitize_dataframe_column_names():
+    assert  wr.catalog.sanitize_dataframe_columns_names(df=pd.DataFrame({'A': [1, 2]})).equals(pd.DataFrame({'a': [1, 2]})) # Unsure how to test for warnings
+    assert wr.catalog.sanitize_dataframe_columns_names(df=pd.DataFrame({'A': [1, 2], 'a': [3, 4]}), handle_dup_cols="drop").equals(pd.DataFrame({'a': [1, 2]}))
+    assert wr.catalog.sanitize_dataframe_columns_names(df=pd.DataFrame({'A': [1, 2], 'a': [3, 4], 'a_1': [5, 6]}), handle_dup_cols="rename").equals(pd.DataFrame({'a': [1, 2], 'a_1': [3, 4], 'a_1_1': [5, 6]}))
+
+
 def test_sanitize_names():
     assert wr.catalog.sanitize_column_name("CamelCase") == "camelcase"
     assert wr.catalog.sanitize_column_name("CamelCase2") == "camelcase2"

@@ -3,6 +3,7 @@ import logging
 import re
 import unicodedata
 from typing import Any, Dict, List, Optional, Tuple
+import warnings
 
 import boto3
 import pandas as pd
@@ -124,14 +125,35 @@ def sanitize_column_name(column: str) -> str:
     return _sanitize_name(name=column)
 
 
-def sanitize_dataframe_columns_names(df: pd.DataFrame) -> pd.DataFrame:
-    """Normalize all columns names to be compatible with Amazon Athena and the AWS Glue Catalog.
+def rename_duplicate_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Append an incremental number to duplicate column names to conform with Amazon Athena.
+    
+    Also handles potential new duplicated conflicts by appending another `_n`
+    to the end of the column name if it conflicts.
+
+    >>> df_rename = wr.catalog.rename_duplicate_columns(df=pd.DataFrame({'A': [1, 2], 'a': [3, 4], 'a_1': [4, 6]}))
+    """
+    names = df.columns
+    name_df = pd.DataFrame(names, columns=["name"])
+    name_df["col_count"] = name_df.groupby("name").cumcount().astype(str)
+    name_df["new_names"] = name_df["name"]
+    name_df.loc[name_df.col_count > "0", "new_names"] += "_" + name_df.col_count
+    df.columns = name_df.new_names.values
+    while df.columns.duplicated().any():
+                # Catches edge cases where pd.DataFrame({"A": [1, 2], "a": [3, 4], "a_1": [5, 6]})
+                df = rename_duplicate_columns(df)
+    return df
+
+
+def sanitize_dataframe_columns_names(df: pd.DataFrame, handle_dup_cols: Optional[str] = "warn") -> pd.DataFrame:
+    """Normalize all columns names to be compatible with Amazon Athena.
 
     https://docs.aws.amazon.com/athena/latest/ug/tables-databases-columns-names.html
 
     Possible transformations:
     - Strip accents
     - Remove non alphanumeric characters
+    - Convert CamelCase to snake_case
 
     Note
     ----
@@ -142,7 +164,10 @@ def sanitize_dataframe_columns_names(df: pd.DataFrame) -> pd.DataFrame:
     ----------
     df : pandas.DataFrame
         Original Pandas DataFrame.
-
+    handle_dup_cols : str, optional
+        How to handle duplicate columns. Can be "warn" or "drop" or "rename".
+        The default is "warn". "drop" will drop all but the first duplicated column.
+        "rename" will rename all duplicated columns with an incremental number.
     Returns
     -------
     pandas.DataFrame
@@ -152,10 +177,25 @@ def sanitize_dataframe_columns_names(df: pd.DataFrame) -> pd.DataFrame:
     --------
     >>> import awswrangler as wr
     >>> df_normalized = wr.catalog.sanitize_dataframe_columns_names(df=pd.DataFrame({'A': [1, 2]}))
-
+    >>> df_normalized_drop = wr.catalog.sanitize_dataframe_columns_names(df=pd.DataFrame({'A': [1, 2], 'a': [3, 4]}), handle_dup_cols="drop")
+    >>> df_normalized_rename = wr.catalog.sanitize_dataframe_columns_names(df=pd.DataFrame({'A': [1, 2], 'a': [3, 4], 'a_1': [4, 6]}), handle_dup_cols="rename")
     """
     df.columns = [sanitize_column_name(x) for x in df.columns]
     df.index.names = [None if x is None else sanitize_column_name(x) for x in df.index.names]
+    if df.columns.duplicated().any():
+        if handle_dup_cols == "warn":
+            warnings.warn("Some columns names are duplicated, consider using "+
+                          "`handle_dup_cols='[drop|rename]'`")
+
+        elif handle_dup_cols == "drop":
+            df = drop_duplicated_columns(df)
+            
+        elif handle_dup_cols == "rename":
+            df = rename_duplicate_columns(df)
+            
+        else:
+            raise ValueError("handle_dup_cols must be one of ['warn', 'drop', 'rename']")
+
     return df
 
 
