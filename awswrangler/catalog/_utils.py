@@ -125,13 +125,13 @@ def sanitize_column_name(column: str) -> str:
     return _sanitize_name(name=column)
 
 
-def rename_duplicate_columns(df: pd.DataFrame) -> pd.DataFrame:
+def rename_duplicated_columns(df: pd.DataFrame) -> pd.DataFrame:
     """Append an incremental number to duplicate column names to conform with Amazon Athena.
     
     Also handles potential new duplicated conflicts by appending another `_n`
     to the end of the column name if it conflicts.
 
-    >>> df_rename = wr.catalog.rename_duplicate_columns(df=pd.DataFrame({'A': [1, 2], 'a': [3, 4], 'a_1': [4, 6]}))
+    >>> df_rename = wr.catalog.rename_duplicated_columns(df=pd.DataFrame({'A': [1, 2], 'a': [3, 4], 'a_1': [4, 6]}))
     """
     names = df.columns
     name_df = pd.DataFrame(names, columns=["name"])
@@ -141,7 +141,7 @@ def rename_duplicate_columns(df: pd.DataFrame) -> pd.DataFrame:
     df.columns = name_df.new_names.values
     while df.columns.duplicated().any():
                 # Catches edge cases where pd.DataFrame({"A": [1, 2], "a": [3, 4], "a_1": [5, 6]})
-                df = rename_duplicate_columns(df)
+                df = rename_duplicated_columns(df)
     return df
 
 
@@ -191,7 +191,7 @@ def sanitize_dataframe_columns_names(df: pd.DataFrame, handle_dup_cols: Optional
             df = drop_duplicated_columns(df)
             
         elif handle_dup_cols == "rename":
-            df = rename_duplicate_columns(df)
+            df = rename_duplicated_columns(df)
             
         else:
             raise ValueError("handle_dup_cols must be one of ['warn', 'drop', 'rename']")
