@@ -42,8 +42,8 @@ from awswrangler.catalog._get import (  # noqa
 from awswrangler.catalog._utils import (  # noqa
     does_table_exist,
     drop_duplicated_columns,
-    rename_duplicated_columns,
     extract_athena_types,
+    rename_duplicated_columns,
     sanitize_column_name,
     sanitize_dataframe_columns_names,
     sanitize_table_name,
@@ -58,6 +58,7 @@ __all__ = [
     "delete_column",
     "drop_duplicated_columns",
     "extract_athena_types",
+    "rename_duplicated_columns",
     "sanitize_column_name",
     "sanitize_dataframe_columns_names",
     "sanitize_table_name",

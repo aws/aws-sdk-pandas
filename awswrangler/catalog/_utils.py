@@ -127,7 +127,7 @@ def sanitize_column_name(column: str) -> str:
 
 def rename_duplicated_columns(df: pd.DataFrame) -> pd.DataFrame:
     """Append an incremental number to duplicate column names to conform with Amazon Athena.
-    
+
     Also handles potential new duplicated conflicts by appending another `_n`
     to the end of the column name if it conflicts.
 
@@ -137,16 +137,18 @@ def rename_duplicated_columns(df: pd.DataFrame) -> pd.DataFrame:
     set_names = set(names)
     if len(names) == len(set_names):
         return df
-    d = {key: [name + f"_{i}"  if i > 0 else name for i, name in enumerate(names[names==key])] for key in set_names}
+    d = {key: [name + f"_{i}" if i > 0 else name for i, name in enumerate(names[names == key])] for key in set_names}
     df.rename(columns=lambda c: d[c].pop(0), inplace=True)
     while df.columns.duplicated().any():
-                # Catches edge cases where pd.DataFrame({"A": [1, 2], "a": [3, 4], "a_1": [5, 6]})
-                df = rename_duplicated_columns(df)
-    
+        # Catches edge cases where pd.DataFrame({"A": [1, 2], "a": [3, 4], "a_1": [5, 6]})
+        df = rename_duplicated_columns(df)
+
     return df
 
 
-def sanitize_dataframe_columns_names(df: pd.DataFrame, handle_duplicate_columns: Optional[str] = "warn") -> pd.DataFrame:
+def sanitize_dataframe_columns_names(
+    df: pd.DataFrame, handle_duplicate_columns: Optional[str] = "warn"
+) -> pd.DataFrame:
     """Normalize all columns names to be compatible with Amazon Athena.
 
     https://docs.aws.amazon.com/athena/latest/ug/tables-databases-columns-names.html
@@ -185,15 +187,16 @@ def sanitize_dataframe_columns_names(df: pd.DataFrame, handle_duplicate_columns:
     df.index.names = [None if x is None else sanitize_column_name(x) for x in df.index.names]
     if df.columns.duplicated().any():
         if handle_duplicate_columns == "warn":
-            warnings.warn("Some columns names are duplicated, consider using "+
-                          "`handle_duplicate_columns='[drop|rename]'`")
+            warnings.warn(
+                "Some columns names are duplicated, consider using " + "`handle_duplicate_columns='[drop|rename]'`"
+            )
 
         elif handle_duplicate_columns == "drop":
             df = drop_duplicated_columns(df)
-            
+
         elif handle_duplicate_columns == "rename":
             df = rename_duplicated_columns(df)
-            
+
         else:
             raise ValueError("handle_duplicate_columns must be one of ['warn', 'drop', 'rename']")
 

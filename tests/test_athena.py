@@ -247,9 +247,15 @@ def test_athena_read_list(glue_database):
 
 
 def test_sanitize_dataframe_column_names():
-    assert  wr.catalog.sanitize_dataframe_columns_names(df=pd.DataFrame({'A': [1, 2]})).equals(pd.DataFrame({'a': [1, 2]})) # Unsure how to test for warnings
-    assert wr.catalog.sanitize_dataframe_columns_names(df=pd.DataFrame({'A': [1, 2], 'a': [3, 4]}), handle_duplicate_columns="drop").equals(pd.DataFrame({'a': [1, 2]}))
-    assert wr.catalog.sanitize_dataframe_columns_names(df=pd.DataFrame({'A': [1, 2], 'a': [3, 4], 'a_1': [5, 6]}), handle_duplicate_columns="rename").equals(pd.DataFrame({'a': [1, 2], 'a_1': [3, 4], 'a_1_1': [5, 6]}))
+    assert wr.catalog.sanitize_dataframe_columns_names(df=pd.DataFrame({"A": [1, 2]})).equals(
+        pd.DataFrame({"a": [1, 2]})
+    )  # Unsure how to test for warnings
+    assert wr.catalog.sanitize_dataframe_columns_names(
+        df=pd.DataFrame({"A": [1, 2], "a": [3, 4]}), handle_duplicate_columns="drop"
+    ).equals(pd.DataFrame({"a": [1, 2]}))
+    assert wr.catalog.sanitize_dataframe_columns_names(
+        df=pd.DataFrame({"A": [1, 2], "a": [3, 4], "a_1": [5, 6]}), handle_duplicate_columns="rename"
+    ).equals(pd.DataFrame({"a": [1, 2], "a_1": [3, 4], "a_1_1": [5, 6]}))
 
 
 def test_sanitize_names():
