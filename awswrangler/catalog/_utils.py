@@ -134,14 +134,15 @@ def rename_duplicated_columns(df: pd.DataFrame) -> pd.DataFrame:
     >>> df_rename = wr.catalog.rename_duplicated_columns(df=pd.DataFrame({'A': [1, 2], 'a': [3, 4], 'a_1': [4, 6]}))
     """
     names = df.columns
-    name_df = pd.DataFrame(names, columns=["name"])
-    name_df["col_count"] = name_df.groupby("name").cumcount().astype(str)
-    name_df["new_names"] = name_df["name"]
-    name_df.loc[name_df.col_count > "0", "new_names"] += "_" + name_df.col_count
-    df.columns = name_df.new_names.values
+    set_names = set(names)
+    if len(names) == len(set_names):
+        return df
+    d = {key: [name + f"_{i}"  if i > 0 else name for i, name in enumerate(names[names==key])] for key in set_names}
+    df.rename(columns=lambda c: d[c].pop(0), inplace=True)
     while df.columns.duplicated().any():
                 # Catches edge cases where pd.DataFrame({"A": [1, 2], "a": [3, 4], "a_1": [5, 6]})
                 df = rename_duplicated_columns(df)
+    
     return df
 
 
