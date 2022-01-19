@@ -194,6 +194,7 @@ def sanitize_dataframe_columns_names(
         How to handle duplicate columns. Can be "warn" or "drop" or "rename".
         The default is "warn". "drop" will drop all but the first duplicated column.
         "rename" will rename all duplicated columns with an incremental number.
+
     Returns
     -------
     pandas.DataFrame
@@ -202,13 +203,18 @@ def sanitize_dataframe_columns_names(
     Examples
     --------
     >>> import awswrangler as wr
-    >>> df_normalized = wr.catalog.sanitize_dataframe_columns_names(df=pd.DataFrame({'A': [1, 2]}))
-    >>> df_normalized_drop = wr.catalog.sanitize_dataframe_columns_names(df=pd.DataFrame({'A': [1, 2], 'a': [3, 4]}), handle_duplicate_columns="drop")
-    >>> df_normalized_rename = wr.catalog.sanitize_dataframe_columns_names(df=pd.DataFrame({'A': [1, 2], 'a': [3, 4], 'a_1': [4, 6]}), handle_duplicate_columns="rename")
+    >>> df_normalized = wr.catalog.sanitize_dataframe_columns_names(df=pd.DataFrame({"A": [1, 2]}))
+    >>> df_normalized_drop = wr.catalog.sanitize_dataframe_columns_names(
+            df=pd.DataFrame({"A": [1, 2], "a": [3, 4]}), handle_duplicate_columns="drop"
+        )
+    >>> df_normalized_rename = wr.catalog.sanitize_dataframe_columns_names(
+            df=pd.DataFrame({"A": [1, 2], "a": [3, 4], "a_1": [4, 6]}), handle_duplicate_columns="rename"
+        )
+
     """
     df.columns = [sanitize_column_name(x) for x in df.columns]
     df.index.names = [None if x is None else sanitize_column_name(x) for x in df.index.names]
-    if len(set(df.columns)) != len(df.columns):  # df.columns.duplicated().any():
+    if len(set(df.columns)) != len(df.columns):
         if handle_duplicate_columns == "warn":
             warnings.warn(
                 "Some columns names are duplicated, consider using `handle_duplicate_columns='[drop|rename]'`",
