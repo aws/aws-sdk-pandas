@@ -208,7 +208,7 @@ def sanitize_dataframe_columns_names(
     """
     df.columns = [sanitize_column_name(x) for x in df.columns]
     df.index.names = [None if x is None else sanitize_column_name(x) for x in df.index.names]
-    if df.columns.duplicated().any():
+    if len(set(df.columns)) != len(df.columns):  # df.columns.duplicated().any():
         if handle_duplicate_columns == "warn":
             warnings.warn(
                 "Some columns names are duplicated, consider using `handle_duplicate_columns='[drop|rename]'`",
