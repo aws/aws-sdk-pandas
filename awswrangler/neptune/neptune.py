@@ -1,10 +1,11 @@
-from awswrangler.neptune import client
-from typing import Any
+from awswrangler.neptune.client import NeptuneClient
+from typing import Any, Dict
 import pandas as pd
 
+
 def read_gremlin(
-    client: client,
-    traversal: str
+    client: NeptuneClient,
+    query: str
 ) -> pd.DataFrame:
     """Return results of a Gremlin traversal as pandas dataframe.
 
@@ -25,25 +26,28 @@ def read_gremlin(
     Run a Gremlin Query
 
     >>> import awswrangler as wr
-    >>> client = wr.neptune.Client(host='NEPTUNE-ENDPOINT')
-    >>> df = wr.neptune.read_gremlin(client, "g.V().limit(5).valueMap()")
-
-
+    >>> client = wr.neptune.connect(neptune_endpoint, neptune_port, ssl=False, iam_enabled=False)
+    >>> df = wr.neptune.read_gremlin(client, "g.V().limit(1)")
     """
-    raise NotImplementedError
+    results = client.read_gremlin(query)
+    df = pd.DataFrame.from_dict(results, orient='index')
+    return df
+
+
+
 
 def read_opencypher(
-    client: client,
-    traversal: str
+    client: NeptuneClient,
+    query: str
 ) -> pd.DataFrame:
     """Return results of a openCypher traversal as pandas dataframe.
 
     Parameters
     ----------
-    client : neptune.Client
+    client : NeptuneClient
         instance of the neptune client to use
-    traversal : str
-        The gremlin traversal to execute
+    query : str
+        The openCypher query to execute
 
     Returns
     -------
@@ -55,25 +59,26 @@ def read_opencypher(
     Run an openCypher query
 
     >>> import awswrangler as wr
-    >>> client = wr.neptune.Client(host='NEPTUNE-ENDPOINT')
-    >>> df = wr.neptune.read_opencypher(client, "MATCH (n) RETURN n LIMIT 5")
-
-
+    >>> client = wr.neptune.connect(neptune_endpoint, neptune_port, ssl=True, iam_enabled=False)
+    >>> resp = wr.neptune.read_opencypher(client, "MATCH (n) RETURN n LIMIT 1")
     """
-    raise NotImplementedError
+    resp = client.read_opencypher(query)
+    df = pd.DataFrame.from_dict(resp)
+    return df
+
 
 def read_sparql(
-    client: client,
-    traversal: str
+    client: NeptuneClient,
+    query: str
 ) -> pd.DataFrame:
     """Return results of a SPARQL query as pandas dataframe.
 
     Parameters
     ----------
-    client : neptune.Client
+    client : NeptuneClient
         instance of the neptune client to use
-    traversal : str
-        The gremlin traversal to execute
+    query : str
+        The SPARQL traversal to execute
 
     Returns
     -------
@@ -94,8 +99,9 @@ def read_sparql(
     """
     raise NotImplementedError
 
+
 def to_property_graph(
-    client: client,
+    client: NeptuneClient,
     df: pd.DataFrame
 ) -> None:
     """Write records stored in a DataFrame into Amazon Neptune.    
@@ -109,7 +115,7 @@ def to_property_graph(
 
     Parameters
     ----------
-    client : neptune.Client
+    client : NeptuneClient
         instance of the neptune client to use
     df : pandas.DataFrame
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
@@ -131,8 +137,9 @@ def to_property_graph(
     """
     raise NotImplementedError
 
+
 def to_rdf_graph(
-    client: client,
+    client: NeptuneClient,
     df: pd.DataFrame
 ) -> None:
     """Write records stored in a DataFrame into Amazon Neptune.    
@@ -141,7 +148,7 @@ def to_rdf_graph(
 
     Parameters
     ----------
-    client : neptune.Client
+    client : NeptuneClient
         instance of the neptune client to use
     df : pandas.DataFrame
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
@@ -162,3 +169,4 @@ def to_rdf_graph(
     ... )
     """
     raise NotImplementedError
+

@@ -1,23 +1,40 @@
-import boto3
 from awswrangler import exceptions
-from typing import  Optional
+import boto3
+from botocore.auth import SigV4Auth
+from botocore.awsrequest import AWSRequest
+import requests
+from typing import Dict, Optional, Any
+import nest_asyncio
+from gremlin_python.driver import client
+from gremlin_python.structure.graph import Path
+from gremlin_python.structure.graph import Vertex
+from gremlin_python.structure.graph import Edge
+import logging
+
+_logger: logging.Logger = logging.getLogger(__name__)
 
 DEFAULT_PORT = 8182
+NEPTUNE_SERVICE_NAME = 'neptune-db'
+
 
 class NeptuneClient():
-    def __init__(self, host: str, port: int = DEFAULT_PORT, ssl: bool = True, 
-        boto3_session: Optional[boto3.Session] = None,
-        region: Optional[str] = None,
-    ):
+    def __init__(self, host: str,
+                port: int = DEFAULT_PORT,
+                ssl: bool = True,
+                iam_enabled: bool = False,
+                boto3_session: Optional[boto3.Session] = None,
+                region: Optional[str] = None):
         self.host = host
         self.port = port
-        self.ssl = ssl
+        self._http_protocol = "https" if ssl else "http"
+        self._ws_protocol = "wss" if ssl else "ws"
+        self.iam_enabled = iam_enabled
         self.boto3_session = self.__ensure_session(session=boto3_session)
         if region is None:
-            region = self.__get_region_from_session()
+            self.region = self.__get_region_from_session()
         else:
             self.region = region
-
+        self._http_session = requests.Session()
 
     def __get_region_from_session(self) -> str:
         """Extract region from session."""
@@ -25,6 +42,7 @@ class NeptuneClient():
         if region is not None:
             return region
         raise exceptions.InvalidArgument("There is no region_name defined on boto3, please configure it.")
+
 
     def __ensure_session(self, session: boto3.Session = None) -> boto3.Session:
         """Ensure that a valid boto3.Session will be returned."""
@@ -34,3 +52,136 @@ class NeptuneClient():
             return boto3.DEFAULT_SESSION
         else:
             return boto3.Session()
+
+
+    def _prepare_request(self, method, url, *, data=None, params=None, headers=None, service=NEPTUNE_SERVICE_NAME) -> requests.PreparedRequest:
+        request = requests.Request(method=method, url=url, data=data, params=params, headers=headers)
+        if self.boto3_session is not None:
+            aws_request = self._get_aws_request(method=method, url=url, data=data, params=params, headers=headers,
+                                                service=service)
+            request.headers = dict(aws_request.headers)
+
+        return request.prepare()
+
+
+    def _get_aws_request(self, method, url, *, data=None, params=None, headers=None, service=NEPTUNE_SERVICE_NAME) -> AWSRequest:
+        req = AWSRequest(method=method, url=url, data=data, params=params, headers=headers)
+        if self.iam_enabled:
+            credentials = self.boto3_session.get_credentials()
+            try:
+                frozen_creds = credentials.get_frozen_credentials()
+            except AttributeError:
+                print("Could not find valid IAM credentials in any the following locations:\n")
+                print("env, assume-role, assume-role-with-web-identity, sso, shared-credential-file, custom-process, "
+                      "config-file, ec2-credentials-file, boto-config, container-role, iam-role\n")
+                print("Go to https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html for more "
+                      "details on configuring your IAM credentials.")
+                return req
+            SigV4Auth(frozen_creds, service, self.region).add_auth(req)
+            prepared_iam_req = req.prepare()
+            return prepared_iam_req
+        else:
+            return req
+
+
+    def read_opencypher(self, query: str, headers:Dict[str, Any] = None) -> Dict[str, Any]:
+        if headers is None:
+            headers = {}
+
+        if 'content-type' not in headers:
+            headers['content-type'] = 'application/x-www-form-urlencoded'
+
+        url = f'{self._http_protocol}://{self.host}:{self.port}/openCypher'
+        data = {
+            'query': query
+        }
+
+        req = self._prepare_request('POST', url, data=data, headers=headers)
+        res = self._http_session.send(req)
+
+        return res.json()
+
+    
+    def read_gremlin(self, query, headers:Dict[str, Any] = None) -> Dict[str, Any]:
+        try:
+            nest_asyncio.apply()
+            uri = f'{self._http_protocol}://{self.host}:{self.port}/gremlin'
+            request = self._prepare_request('GET', uri)
+            ws_url = f'{self._ws_protocol}://{self.host}:{self.port}/gremlin'
+            c = client.Client(ws_url, 'g', headers=dict(request.headers))
+            result = c.submit(query)
+            future_results = result.all()
+            results = future_results.result()
+            c.close()
+            return self.gremlin_results_to_dict(results)
+        except Exception as e:
+            c.close()
+            raise e
+
+
+    def status(self):
+        url = f'{self._http_protocol}://{self.host}:{self.port}/status'
+        req = self._prepare_request('GET', url, data='')
+        res = self._http_session.send(req)
+        if res.status_code == 200:
+            return res.json()
+        else:
+            _logger.error("Error connecting to Amazon Neptune cluster. Please verify your connection details")
+            raise ConnectionError(res.status_code)
+
+
+    def gremlin_results_to_dict(self, result) -> Dict[str, Any]:
+        # We can accept a dict by itself or a list with a dict at position [0]
+        if isinstance(result, list):
+            if isinstance(result[0], dict):
+                tmp = result[0]
+            else:
+                tmp = dict(zip(result, result))
+        elif isinstance(result, dict):
+            tmp = result
+        else:
+            return False
+
+        # Even though we know we have a dict now, we still have work to do. It is quite
+        # likely that due to the way TinkerPop works, the dict values could be wrapped
+        # in a list of length one. In order to render the data, we first need to unroll
+        # those lists. If the length of the list is greater than one currently we will fail
+        # gracefully as we don't know what to do with a result of the form {"k":[1,2]}.
+
+        # If the value is a simple type like Str, Int etc. we render it as is. If the value
+        # is a Vertex, for now we use the ID of the vertex as the value that is sent to the
+        # plot as the y-axis value. This yields a plot but not always a useful one!
+
+        # It is also possible that the key is a Vertex or an Edge. For a Vertex we can just
+        # use the str() representation. For an Edge using the ID probably makes more sense.
+
+        d = dict()
+
+        for (k, v) in tmp.items():
+            # If the key is a Vertex or an Edge do special processing
+            if isinstance(k, Vertex):
+                k = str(k)
+            elif isinstance(k, Edge):
+                k = k.id
+
+            # If the value is a list do special processing
+            if isinstance(v, list):
+                if len(v) == 1:
+                    d[k] = v[0]
+                else:
+                    return False
+            else:
+                d[k] = v
+
+            # If the value is a Vertex or Edge do special processing
+            if isinstance(d[k], Vertex):
+                # d[k] = d[k].id
+                d[k] = d[k].__dict__
+            elif isinstance(d[k], Edge):
+                d[k] = d[k].__dict__
+        
+        return d
+
+
+def connect(host: str, port: str, iam_enabled: bool = False, ssl: bool = True, **kwargs: Any) -> NeptuneClient:
+    return NeptuneClient(host, port, iam_enabled, ssl, **kwargs)

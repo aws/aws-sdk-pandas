@@ -1,11 +1,13 @@
 """Utilities Module for Amazon Neptune."""
 
-from awswrangler.neptune.neptune import read_gremlin, read_opencypher, read_sparql, to_graph
-from awswrangler.neptune.client import NeptuneClient
+from awswrangler.neptune.neptune import read_gremlin, read_opencypher, read_sparql, to_property_graph, to_rdf_graph
+from awswrangler.neptune.client import connect
 
 __all__ = [
     "read_gremlin",
     "read_opencypher",
     "read_sparql",
-    "to_graph"
+    "to_property_graph",
+    "to_rdf_graph",
+    "connect"
 ]
