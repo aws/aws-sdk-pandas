@@ -128,6 +128,7 @@ def _records2df(
     index: Optional[Union[str, List[str]]],
     safe: bool,
     dtype: Optional[Dict[str, pa.DataType]],
+    timestamp_as_object: bool,
 ) -> pd.DataFrame:
     arrays: List[pa.Array] = []
     for col_values, col_name in zip(tuple(zip(*records)), cols_names):  # Transposing
@@ -155,6 +156,7 @@ def _records2df(
             date_as_object=True,
             types_mapper=_data_types.pyarrow2pandas_extension,
             safe=safe,
+            timestamp_as_object=timestamp_as_object,
         )
     if index is not None:
         df.set_index(index, inplace=True)
@@ -175,6 +177,7 @@ def _iterate_results(
     index_col: Optional[Union[str, List[str]]],
     safe: bool,
     dtype: Optional[Dict[str, pa.DataType]],
+    timestamp_as_object: bool,
 ) -> Iterator[pd.DataFrame]:
     with con.cursor() as cursor:
         cursor.execute(*cursor_args)
@@ -183,7 +186,14 @@ def _iterate_results(
             records = cursor.fetchmany(chunksize)
             if not records:
                 break
-            yield _records2df(records=records, cols_names=cols_names, index=index_col, safe=safe, dtype=dtype)
+            yield _records2df(
+                records=records,
+                cols_names=cols_names,
+                index=index_col,
+                safe=safe,
+                dtype=dtype,
+                timestamp_as_object=timestamp_as_object,
+            )
 
 
 def _fetch_all_results(
@@ -192,6 +202,7 @@ def _fetch_all_results(
     index_col: Optional[Union[str, List[str]]] = None,
     dtype: Optional[Dict[str, pa.DataType]] = None,
     safe: bool = True,
+    timestamp_as_object: bool = False,
 ) -> pd.DataFrame:
     with con.cursor() as cursor:
         cursor.execute(*cursor_args)
@@ -202,6 +213,7 @@ def _fetch_all_results(
             index=index_col,
             dtype=dtype,
             safe=safe,
+            timestamp_as_object=timestamp_as_object,
         )
 
 
@@ -213,6 +225,7 @@ def read_sql_query(
     chunksize: Optional[int] = None,
     dtype: Optional[Dict[str, pa.DataType]] = None,
     safe: bool = True,
+    timestamp_as_object: bool = False,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read SQL Query (generic)."""
     args = _convert_params(sql, params)
@@ -224,6 +237,7 @@ def read_sql_query(
                 index_col=index_col,
                 dtype=dtype,
                 safe=safe,
+                timestamp_as_object=timestamp_as_object,
             )
 
         return _iterate_results(
@@ -233,6 +247,7 @@ def read_sql_query(
             index_col=index_col,
             dtype=dtype,
             safe=safe,
+            timestamp_as_object=timestamp_as_object,
         )
     except Exception as ex:
         con.rollback()
