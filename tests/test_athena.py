@@ -247,7 +247,7 @@ def test_athena_read_list(glue_database):
 
 
 def test_sanitize_dataframe_column_names():
-    with pytest.warns(UserWarning, match=r"Some*"):
+    with pytest.warns(UserWarning, match=r"Duplicate*"):
         test_df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
         test_df.columns = ["a", "a"]
         assert wr.catalog.sanitize_dataframe_columns_names(df=pd.DataFrame({"A": [1, 2], "a": [3, 4]})).equals(test_df)

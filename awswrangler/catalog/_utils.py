@@ -130,12 +130,11 @@ def rename_duplicated_columns(df: pd.DataFrame) -> pd.DataFrame:
 
     Note
     ----
-    This transformation will run `inplace` and will make changes in the original DataFrame.
+    This transformation will run `inplace` and will make changes to the original DataFrame.
 
     Note
     ----
-    Also handles potential new duplicated conflicts by appending another `_n`
-    to the end of the column name if it conflicts.
+    Also handles potential new column duplicate conflicts by appending an additional `_n`.
 
     Parameters
     ----------
@@ -165,7 +164,6 @@ def rename_duplicated_columns(df: pd.DataFrame) -> pd.DataFrame:
     while df.columns.duplicated().any():
         # Catches edge cases where pd.DataFrame({"A": [1, 2], "a": [3, 4], "a_1": [5, 6]})
         df = rename_duplicated_columns(df)
-
     return df
 
 
@@ -179,7 +177,6 @@ def sanitize_dataframe_columns_names(
     Possible transformations:
     - Strip accents
     - Remove non alphanumeric characters
-    - Convert CamelCase to snake_case
 
     Note
     ----
@@ -192,8 +189,9 @@ def sanitize_dataframe_columns_names(
         Original Pandas DataFrame.
     handle_duplicate_columns : str, optional
         How to handle duplicate columns. Can be "warn" or "drop" or "rename".
-        The default is "warn". "drop" will drop all but the first duplicated column.
+        "drop" will drop all but the first duplicated column.
         "rename" will rename all duplicated columns with an incremental number.
+        Defaults to "warn".
 
     Returns
     -------
@@ -214,23 +212,18 @@ def sanitize_dataframe_columns_names(
     """
     df.columns = [sanitize_column_name(x) for x in df.columns]
     df.index.names = [None if x is None else sanitize_column_name(x) for x in df.index.names]
-    # Ignore mypy error from pandas.DataFrame.columns.duplicated().any()
-    if df.columns.duplicated.any():  # type:ignore
+    if df.columns.duplicated().any():  # type: ignore
         if handle_duplicate_columns == "warn":
             warnings.warn(
-                "Some columns names are duplicated, consider using `handle_duplicate_columns='[drop|rename]'`",
+                "Duplicate columns were detected, consider using `handle_duplicate_columns='[drop|rename]'`",
                 UserWarning,
             )
-
         elif handle_duplicate_columns == "drop":
             df = drop_duplicated_columns(df)
-
         elif handle_duplicate_columns == "rename":
             df = rename_duplicated_columns(df)
-
         else:
             raise ValueError("handle_duplicate_columns must be one of ['warn', 'drop', 'rename']")
-
     return df
 
 
