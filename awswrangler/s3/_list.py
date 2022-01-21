@@ -271,14 +271,14 @@ def list_directories(
 @overload
 def list_objects(
     path: str,
-    suffix: Union[str, List[str], None] = None,
-    ignore_suffix: Union[str, List[str], None] = None,
-    last_modified_begin: Optional[datetime.datetime] = None,
-    last_modified_end: Optional[datetime.datetime] = None,
-    ignore_empty: bool = False,
+    suffix: Union[str, List[str], None] = ...,
+    ignore_suffix: Union[str, List[str], None] = ...,
+    last_modified_begin: Optional[datetime.datetime] = ...,
+    last_modified_end: Optional[datetime.datetime] = ...,
+    ignore_empty: bool = ...,
     chunked: Literal[False] = False,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
 ) -> List[str]:
     ...
 
@@ -286,14 +286,14 @@ def list_objects(
 @overload
 def list_objects(
     path: str,
-    suffix: Union[str, List[str], None] = None,
-    ignore_suffix: Union[str, List[str], None] = None,
-    last_modified_begin: Optional[datetime.datetime] = None,
-    last_modified_end: Optional[datetime.datetime] = None,
-    ignore_empty: bool = False,
-    chunked: bool = False,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    suffix: Union[str, List[str], None] = ...,
+    ignore_suffix: Union[str, List[str], None] = ...,
+    last_modified_begin: Optional[datetime.datetime] = ...,
+    last_modified_end: Optional[datetime.datetime] = ...,
+    ignore_empty: bool = ...,
+    chunked: Literal[True] = True,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
 ) -> Union[List[str], Iterator[List[str]]]:
     ...
 
