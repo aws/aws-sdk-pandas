@@ -1,6 +1,18 @@
-*Issue #, if available:*
+Subject: <short purpose of this pull request>
 
-*Description of changes:*
+### Feature or Bugfix
+<!-- please choose -->
+- Feature
+- Bugfix
+- Refactoring
 
+### Purpose
+- <long purpose of this pull request>
+- <Environment if this PR depends on>
 
-By submitting this pull request, I confirm that my contribution is made under the terms of the Apache 2.0 license.
+### Detail
+- <feature1 or bug1>
+- <feature2 or bug2>
+
+### Relates
+- <URL or Ticket>
