@@ -60,7 +60,7 @@ def _read_parquet_metadata_file(
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
     version_id: Optional[str] = None,
-    ignore_null=False,
+    ignore_null: bool = False,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Optional[Dict[str, str]]:
     pyarrow_args = _set_default_pyarrow_additional_kwargs(pyarrow_additional_kwargs)

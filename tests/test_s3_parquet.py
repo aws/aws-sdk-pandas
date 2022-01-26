@@ -36,7 +36,7 @@ def test_read_parquet_metadata_nulls(path):
         wr.s3.read_parquet_metadata(path)
     columns_types, _ = wr.s3.read_parquet_metadata(path, ignore_null=True)
     assert len(columns_types) == len(df.columns)
-    assert columns_types.get("c0") == None
+    assert columns_types.get("c0") == ""
     assert columns_types.get("c1") == "bigint"
     assert columns_types.get("c2") == "string"
 
