@@ -60,6 +60,7 @@ def _read_parquet_metadata_file(
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
     version_id: Optional[str] = None,
+    ignore_null: bool = False,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Optional[Dict[str, str]]:
     pyarrow_args = _set_default_pyarrow_additional_kwargs(pyarrow_additional_kwargs)
@@ -77,7 +78,9 @@ def _read_parquet_metadata_file(
         )
         if pq_file is None:
             return None
-        return _data_types.athena_types_from_pyarrow_schema(schema=pq_file.schema.to_arrow_schema(), partitions=None)[0]
+        return _data_types.athena_types_from_pyarrow_schema(
+            schema=pq_file.schema.to_arrow_schema(), partitions=None, ignore_null=ignore_null
+        )[0]
 
 
 def _read_schemas_from_files(
@@ -87,6 +90,7 @@ def _read_schemas_from_files(
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
     version_ids: Optional[Dict[str, str]] = None,
+    ignore_null: bool = False,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Tuple[Dict[str, str], ...]:
 
@@ -102,6 +106,7 @@ def _read_schemas_from_files(
                 s3_additional_kwargs=s3_additional_kwargs,
                 use_threads=use_threads,
                 version_id=version_ids.get(p) if isinstance(version_ids, dict) else None,
+                ignore_null=ignore_null,
                 pyarrow_additional_kwargs=pyarrow_additional_kwargs,
             )
             for p in paths
@@ -117,6 +122,7 @@ def _read_schemas_from_files(
                     itertools.repeat(s3_additional_kwargs),
                     itertools.repeat(use_threads),
                     versions,
+                    itertools.repeat(ignore_null),
                     itertools.repeat(pyarrow_additional_kwargs),
                 )
             )
@@ -175,6 +181,7 @@ def _read_parquet_metadata(
     path_suffix: Optional[str],
     path_ignore_suffix: Optional[str],
     ignore_empty: bool,
+    ignore_null: bool,
     dtype: Optional[Dict[str, str]],
     sampling: float,
     dataset: bool,
@@ -207,6 +214,7 @@ def _read_parquet_metadata(
         else {paths[0]: version_id}
         if isinstance(version_id, str)
         else None,
+        ignore_null=ignore_null,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,
     )
     columns_types: Dict[str, str] = _merge_schemas(schemas=schemas)
@@ -990,6 +998,7 @@ def read_parquet_metadata(
     path_suffix: Optional[str] = None,
     path_ignore_suffix: Optional[str] = None,
     ignore_empty: bool = True,
+    ignore_null: bool = False,
     dtype: Optional[Dict[str, str]] = None,
     sampling: float = 1.0,
     dataset: bool = False,
@@ -1030,6 +1039,8 @@ def read_parquet_metadata(
         If None, will try to read all files. (default)
     ignore_empty: bool
         Ignore files with 0 bytes.
+    ignore_null: bool
+        Ignore columns with null type.
     dtype : Dict[str, str], optional
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined data types as partitions columns.
@@ -1083,6 +1094,7 @@ def read_parquet_metadata(
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,
         ignore_empty=ignore_empty,
+        ignore_null=ignore_null,
         dtype=dtype,
         sampling=sampling,
         dataset=dataset,

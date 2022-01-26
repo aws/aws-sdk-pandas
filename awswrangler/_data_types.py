@@ -16,7 +16,9 @@ from awswrangler import _utils, exceptions
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def pyarrow2athena(dtype: pa.DataType) -> str:  # pylint: disable=too-many-branches,too-many-return-statements
+def pyarrow2athena(  # pylint: disable=too-many-branches,too-many-return-statements
+    dtype: pa.DataType, ignore_null: bool = False
+) -> str:
     """Pyarrow to Athena data types conversion."""
     if pa.types.is_int8(dtype):
         return "tinyint"
@@ -53,6 +55,8 @@ def pyarrow2athena(dtype: pa.DataType) -> str:  # pylint: disable=too-many-branc
     if pa.types.is_map(dtype):
         return f"map<{pyarrow2athena(dtype=dtype.key_type)}, {pyarrow2athena(dtype=dtype.item_type)}>"
     if dtype == pa.null():
+        if ignore_null:
+            return ""
         raise exceptions.UndetectedType("We can not infer the data type from an entire null object column")
     raise exceptions.UnsupportedType(f"Unsupported Pyarrow type: {dtype}")
 
@@ -585,14 +589,16 @@ def pyarrow_schema_from_pandas(
 
 
 def athena_types_from_pyarrow_schema(
-    schema: pa.Schema, partitions: Optional[pyarrow.parquet.ParquetPartitions]
+    schema: pa.Schema,
+    partitions: Optional[pyarrow.parquet.ParquetPartitions],
+    ignore_null: bool = False,
 ) -> Tuple[Dict[str, str], Optional[Dict[str, str]]]:
     """Extract the related Athena data types from any PyArrow Schema considering possible partitions."""
-    columns_types: Dict[str, str] = {str(f.name): pyarrow2athena(dtype=f.type) for f in schema}
+    columns_types: Dict[str, str] = {str(f.name): pyarrow2athena(dtype=f.type, ignore_null=ignore_null) for f in schema}
     _logger.debug("columns_types: %s", columns_types)
     partitions_types: Optional[Dict[str, str]] = None
     if partitions is not None:
-        partitions_types = {p.name: pyarrow2athena(p.dictionary.type) for p in partitions}
+        partitions_types = {p.name: pyarrow2athena(p.dictionary.type, ignore_null=ignore_null) for p in partitions}
     _logger.debug("partitions_types: %s", partitions_types)
     return columns_types, partitions_types
 
