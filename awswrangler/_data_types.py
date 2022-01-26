@@ -16,9 +16,9 @@ from awswrangler import _utils, exceptions
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def pyarrow2athena(
+def pyarrow2athena(  # pylint: disable=too-many-branches,too-many-return-statements
     dtype: pa.DataType, ignore_null: bool = False
-) -> str:  # pylint: disable=too-many-branches,too-many-return-statements
+) -> str:
     """Pyarrow to Athena data types conversion."""
     if pa.types.is_int8(dtype):
         return "tinyint"
