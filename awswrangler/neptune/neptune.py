@@ -30,7 +30,7 @@ def read_gremlin(
     >>> df = wr.neptune.read_gremlin(client, "g.V().limit(1)")
     """
     results = client.read_gremlin(query)
-    df = pd.DataFrame.from_dict(results, orient='index')
+    df = pd.DataFrame.from_records(results)
     return df
 
 
@@ -97,7 +97,11 @@ def read_sparql(
             ?person foaf:name ?name .
     }")
     """
-    raise NotImplementedError
+    resp = client.read_sparql(query)
+    data = resp.json()
+    df = pd.DataFrame(data['results']['bindings'])
+    df.applymap(lambda x: x['value'])
+    return df
 
 
 def to_property_graph(

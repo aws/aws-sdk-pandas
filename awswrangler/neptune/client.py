@@ -9,7 +9,10 @@ from gremlin_python.driver import client
 from gremlin_python.structure.graph import Path
 from gremlin_python.structure.graph import Vertex
 from gremlin_python.structure.graph import Edge
+from gremlin_python.structure.graph import VertexProperty
+from gremlin_python.structure.graph import Property
 import logging
+
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -113,10 +116,25 @@ class NeptuneClient():
             future_results = result.all()
             results = future_results.result()
             c.close()
-            return self.gremlin_results_to_dict(results)
+            return self._gremlin_results_to_dict(results)
         except Exception as e:
             c.close()
             raise e
+
+    
+    def read_sparql(self, query, headers:Dict[str, Any] = None) -> Dict[str, Any]:
+        if headers is None:
+            headers = {}
+        
+        data = {'query': query}
+
+        if 'content-type' not in headers:
+            headers['content-type'] = 'application/x-www-form-urlencoded'
+
+        uri = f'{self._http_protocol}://{self.host}:{self.port}/sparql'
+        req = self._prepare_request('POST', uri, data=data, headers=headers)
+        res = self._http_session.send(req)
+        return res
 
 
     def status(self):
@@ -130,56 +148,56 @@ class NeptuneClient():
             raise ConnectionError(res.status_code)
 
 
-    def gremlin_results_to_dict(self, result) -> Dict[str, Any]:
-        # We can accept a dict by itself or a list with a dict at position [0]
-        if isinstance(result, list):
-            if isinstance(result[0], dict):
-                tmp = result[0]
-            else:
-                tmp = dict(zip(result, result))
+    def _gremlin_results_to_dict(self, result) -> Dict[str, Any]:
+        res=[]
+
+        # For lists or paths unwind them
+        if isinstance(result, list) or isinstance(result, Path):
+            for x in result:
+                res.append(self._parse_dict(x))
+
+        # For dictionaries just add them
         elif isinstance(result, dict):
-            tmp = result
+            res.append(result)
+
+        # For everything else parse them
         else:
-            return False
+            res.append(self._parse_dict(result))            
+        return res
 
-        # Even though we know we have a dict now, we still have work to do. It is quite
-        # likely that due to the way TinkerPop works, the dict values could be wrapped
-        # in a list of length one. In order to render the data, we first need to unroll
-        # those lists. If the length of the list is greater than one currently we will fail
-        # gracefully as we don't know what to do with a result of the form {"k":[1,2]}.
 
-        # If the value is a simple type like Str, Int etc. we render it as is. If the value
-        # is a Vertex, for now we use the ID of the vertex as the value that is sent to the
-        # plot as the y-axis value. This yields a plot but not always a useful one!
-
-        # It is also possible that the key is a Vertex or an Edge. For a Vertex we can just
-        # use the str() representation. For an Edge using the ID probably makes more sense.
-
+    def _parse_dict(self, data) -> Dict[str, Any]:
         d = dict()
 
-        for (k, v) in tmp.items():
+        # If this is a list or Path then unwind it
+        if isinstance(data, list) or isinstance(data, Path):
+            res=[]        
+            for x in data:
+                res.append(self._parse_dict(x))
+            return res
+        
+        # If this is an element then make it a dictionary
+        elif isinstance(data, Vertex) or isinstance(data,Edge) or isinstance(data, VertexProperty) or isinstance(data, Property):
+            data=data.__dict__
+        
+        # If this is a scalar then create a Map with it
+        elif not hasattr(data, "__len__") or isinstance(data, str):
+            data = {0: data}
+
+        for (k, v) in data.items():
             # If the key is a Vertex or an Edge do special processing
-            if isinstance(k, Vertex):
-                k = str(k)
-            elif isinstance(k, Edge):
+            if isinstance(k, Vertex) or isinstance(k, Edge):
                 k = k.id
 
-            # If the value is a list do special processing
-            if isinstance(v, list):
-                if len(v) == 1:
-                    d[k] = v[0]
-                else:
-                    return False
+            # If the value is a list do special processing to make it a scalar if the list is of length 1
+            if isinstance(v, list) and len(v) == 1:
+                d[k] = v[0]
             else:
                 d[k] = v
 
             # If the value is a Vertex or Edge do special processing
-            if isinstance(d[k], Vertex):
-                # d[k] = d[k].id
+            if isinstance(d[k], Vertex) or isinstance(d[k], Edge) or isinstance(d[k], VertexProperty) or isinstance(d[k], Property):
                 d[k] = d[k].__dict__
-            elif isinstance(d[k], Edge):
-                d[k] = d[k].__dict__
-        
         return d
 
 
