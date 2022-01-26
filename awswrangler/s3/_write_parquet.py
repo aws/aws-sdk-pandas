@@ -881,6 +881,7 @@ def store_parquet_metadata(  # pylint: disable=too-many-arguments
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,
         ignore_empty=ignore_empty,
+        ignore_null=False,
         use_threads=use_threads,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=session,
