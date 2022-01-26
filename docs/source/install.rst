@@ -28,7 +28,7 @@ AWS Lambda Layer
 Managed Layer
 ^^^^^^^^^^^^^^
 
-AWS Data Wrangler is available as a Lambda Managed layer in the following regions:
+AWS Data Wrangler is available as an AWS Lambda Managed layer in the following regions:
 
 - ap-northeast-1
 - ap-southeast-2
@@ -44,9 +44,17 @@ It can be accessed in the AWS Lambda console directly:
   :width: 400
   :alt: AWS Managed Lambda Layer
 
-Or via its arn: ``arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python<version>:<layer-version>``.
-For example: ``arn:aws:lambda:us-east-1:336392948345:layer:AWSDataWrangler-Python37:1``.
-Both Python 3.7 and 3.8 are supported.
+Or via its ARN:
+
+=============================  ================  =======================================================================
+ AWS Data Wrangler Version      Python Version    Layer ARN
+=============================  ================  =======================================================================
+ 2.12.0                         3.7               arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python37:1
+ 2.12.0                         3.8               arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python38:1
+ 2.13.0                         3.7               arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python37:2
+ 2.13.0                         3.8               arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python38:2
+ 2.13.0                         3.9               arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python39:1
+=============================  ================  =======================================================================
 
 Custom Layer
 ^^^^^^^^^^^^^^

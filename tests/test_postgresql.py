@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from decimal import Decimal
 
 import pandas as pd
@@ -371,3 +372,18 @@ def test_upsert_multiple_conflict_columns(postgresql_table, postgresql_con):
     df7["c1"] = df7["c1"].astype("Int64")
     df7["c2"] = df7["c2"].astype("Int64")
     assert df6.equals(df7)
+
+
+def test_timestamp_overflow(postgresql_table, postgresql_con):
+    df = pd.DataFrame({"c0": [datetime.strptime("1677-01-01 00:00:00.0", "%Y-%m-%d %H:%M:%S.%f")]})
+    wr.postgresql.to_sql(df=df, con=postgresql_con, schema="public", table=postgresql_table)
+
+    with pytest.raises(pa._lib.ArrowInvalid):
+        wr.postgresql.read_sql_table(
+            con=postgresql_con, schema="public", table=postgresql_table, timestamp_as_object=False
+        )
+
+    df2 = wr.postgresql.read_sql_table(
+        con=postgresql_con, schema="public", table=postgresql_table, timestamp_as_object=True
+    )
+    assert df.c0.values[0] == df2.c0.values[0]

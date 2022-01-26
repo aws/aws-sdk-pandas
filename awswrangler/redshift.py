@@ -574,6 +574,7 @@ def read_sql_query(
     chunksize: Optional[int] = None,
     dtype: Optional[Dict[str, pa.DataType]] = None,
     safe: bool = True,
+    timestamp_as_object: bool = False,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Return a DataFrame corresponding to the result set of the query string.
 
@@ -602,6 +603,8 @@ def read_sql_query(
         The keys should be the column names and the values should be the PyArrow types.
     safe : bool
         Check for overflows or other unsafe data type conversions.
+    timestamp_as_object : bool
+        Cast non-nanosecond timestamps (np.datetime64) to objects.
 
     Returns
     -------
@@ -623,7 +626,14 @@ def read_sql_query(
     """
     _validate_connection(con=con)
     return _db_utils.read_sql_query(
-        sql=sql, con=con, index_col=index_col, params=params, chunksize=chunksize, dtype=dtype, safe=safe
+        sql=sql,
+        con=con,
+        index_col=index_col,
+        params=params,
+        chunksize=chunksize,
+        dtype=dtype,
+        safe=safe,
+        timestamp_as_object=timestamp_as_object,
     )
 
 
@@ -636,6 +646,7 @@ def read_sql_table(
     chunksize: Optional[int] = None,
     dtype: Optional[Dict[str, pa.DataType]] = None,
     safe: bool = True,
+    timestamp_as_object: bool = False,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Return a DataFrame corresponding the table.
 
@@ -667,6 +678,8 @@ def read_sql_table(
         The keys should be the column names and the values should be the PyArrow types.
     safe : bool
         Check for overflows or other unsafe data type conversions.
+    timestamp_as_object : bool
+        Cast non-nanosecond timestamps (np.datetime64) to objects.
 
     Returns
     -------
@@ -689,7 +702,14 @@ def read_sql_table(
     """
     sql: str = f'SELECT * FROM "{table}"' if schema is None else f'SELECT * FROM "{schema}"."{table}"'
     return read_sql_query(
-        sql=sql, con=con, index_col=index_col, params=params, chunksize=chunksize, dtype=dtype, safe=safe
+        sql=sql,
+        con=con,
+        index_col=index_col,
+        params=params,
+        chunksize=chunksize,
+        dtype=dtype,
+        safe=safe,
+        timestamp_as_object=timestamp_as_object,
     )
 
 
