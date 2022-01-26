@@ -2007,7 +2007,7 @@ python-versions = "*"
 name = "typing-extensions"
 version = "4.0.1"
 description = "Backported and Experimental Type Hints for Python 3.6+"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.6"
 
@@ -2142,7 +2142,7 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.6.2, <3.11"
-content-hash = "7f9d70cc7700b0a6005dd675907bd960f684a52d0756a66ca82d20d67f50f1d6"
+content-hash = "a56307b70ac4d36625c43a75a91dd3581f7c20633bc22875b9b5da91e5fcb6e3"
 
 [metadata.files]
 alabaster = [
