@@ -1,0 +1,54 @@
+name: cfn_nag
+
+on:
+  push:
+    paths:
+    - "test_infra/**"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: '14.x'
+      - name: Cache Node.js modules
+        uses: actions/cache@v2
+        with:
+          path: ~/.npm
+          key: ${{ runner.OS }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.OS }}-node-
+            ${{ runner.OS }}-
+      - name: Install CDK 
+        run: |
+          npm install -g aws-cdk
+      - name: Install cfn_nag 
+        run: |
+          brew install ruby brew-gem
+          gem --version
+          gem install cfn-nag
+          cp /home/linuxbrew/.linuxbrew/lib/ruby/gems/3.0.0/bin/cfn_nag /usr/local/bin
+      - name: Validate Installation
+        run: |
+          cdk --version
+          cfn_nag --version
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install Requirements
+        run: |
+          cd test_infra
+          python -m pip install --upgrade pip
+          python -m pip install poetry
+          poetry config virtualenvs.create false --local
+          poetry install -vvv
+      - name: CFN Nag
+        run: |
+          cd test_infra/scripts
+          ./cfn-nag.sh
