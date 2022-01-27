@@ -1,4 +1,4 @@
-name: cfn_nag
+name: CFN Nag
 
 on:
   push:
