@@ -10,7 +10,7 @@ stacks=( base lakeformation databases opensearch )
 for stack in "${stacks[@]}"
 do
   rm -rf cdk.out || true
-	echo "running cdk-nag for stack: $stack"
+	echo "[*] running cfn-nag for stack: $stack"
   cdk synth aws-data-wrangler-${stack} | cfn_nag
 done
 
