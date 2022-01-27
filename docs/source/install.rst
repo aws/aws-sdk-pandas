@@ -51,9 +51,9 @@ Or via its ARN:
 =============================  ================  =======================================================================
  2.12.0                         3.7               arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python37:1
  2.12.0                         3.8               arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python38:1
- 2.14.0                         3.7               arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python37:2
- 2.14.0                         3.8               arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python38:2
- 2.14.0                         3.9               arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python39:1
+ 2.13.0                         3.7               arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python37:2
+ 2.13.0                         3.8               arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python38:2
+ 2.13.0                         3.9               arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python39:1
 =============================  ================  =======================================================================
 
 Custom Layer
