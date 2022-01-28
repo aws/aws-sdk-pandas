@@ -4,6 +4,11 @@ on:
   push:
     paths:
     - "test_infra/**"
+    branches:
+    - main
+  pull_request:
+    branches:
+    - main
   workflow_dispatch:
 
 jobs:
@@ -50,5 +55,5 @@ jobs:
           poetry install -vvv
       - name: CFN Nag
         run: |
-          cd test_infra/scripts
-          ./cfn-nag.sh
+          cd test_infra
+          cdk synth && cfn_nag_scan  --ignore-fatal --input-path cdk.out
