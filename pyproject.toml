@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "awswrangler"
-version = "2.13.0"
+version = "2.14.0"
 description = "Pandas on AWS."
 authors = ["Igor Tavares"]
 license = "Apache License 2.0"
@@ -32,7 +32,7 @@ boto3 = "^1.20.17"
 botocore = "^1.23.17"
 pandas = [
     { version = "~1.1.0", markers = "python_full_version ~= '3.6.2'" },
-    { version = "^1.2.0", markers = "python_full_version >= '3.7.1' and python_full_version < '4.0.0'" },
+    { version = "^1.2.0, < 1.4.0", markers = "python_full_version >= '3.7.1' and python_full_version < '4.0.0'" },
 ]
 numpy = [
     { version = "~1.18.0", markers = "python_full_version ~= '3.6.2'" },
