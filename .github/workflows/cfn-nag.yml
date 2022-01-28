@@ -7,6 +7,8 @@ on:
     branches:
     - main
   pull_request:
+    paths:
+    - "test_infra/**"
     branches:
     - main
   workflow_dispatch:
@@ -31,16 +33,7 @@ jobs:
       - name: Install CDK 
         run: |
           npm install -g aws-cdk
-      - name: Install cfn_nag 
-        run: |
-          brew install ruby brew-gem
-          gem --version
-          gem install cfn-nag
-          cp /home/linuxbrew/.linuxbrew/lib/ruby/gems/3.0.0/bin/cfn_nag /usr/local/bin
-      - name: Validate Installation
-        run: |
           cdk --version
-          cfn_nag --version
       - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
@@ -53,7 +46,11 @@ jobs:
           python -m pip install poetry
           poetry config virtualenvs.create false --local
           poetry install -vvv
-      - name: CFN Nag
+      - name: CDK Synth
         run: |
           cd test_infra
-          cdk synth && cfn_nag_scan  --ignore-fatal --input-path cdk.out
+          cdk synth
+      - uses: stelligent/cfn_nag@master
+        with:
+          input_path: test_infra/cdk.out
+          extra_args: --ignore-fatal
