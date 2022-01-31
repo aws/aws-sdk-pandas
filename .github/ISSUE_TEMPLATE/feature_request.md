@@ -19,4 +19,4 @@ A clear and concise description of any alternative solutions or features you've 
 **Additional context**
 Add any other context or screenshots about the feature request here.
 
-*P.S. Don't attach files. Please, prefer add code snippets directly in the message body.*
+*P.S. Please Don't attach files. Add code snippets directly in the message body instead.*
