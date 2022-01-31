@@ -24,4 +24,4 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install bandit
       - name: Bandit
-        run: bandit -r -l -ii .
+        run: bandit -r -lll -ii .
