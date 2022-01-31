@@ -1,6 +1,7 @@
 name: CFN Nag
 
 on:
+  workflow_dispatch:
   push:
     paths:
     - "test_infra/**"
