@@ -3,11 +3,10 @@
 import datetime
 import fnmatch
 import logging
-from typing import Any, Dict, Iterator, List, Optional, Sequence, Union, overload
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Union
 
 import boto3
 import botocore.exceptions
-from typing_extensions import Literal
 
 from awswrangler import _utils, exceptions
 from awswrangler.s3 import _fs
@@ -266,36 +265,6 @@ def list_directories(
     if chunked:
         return result_iterator
     return [path for paths in result_iterator for path in paths]
-
-
-@overload
-def list_objects(
-    path: str,
-    suffix: Union[str, List[str], None] = ...,
-    ignore_suffix: Union[str, List[str], None] = ...,
-    last_modified_begin: Optional[datetime.datetime] = ...,
-    last_modified_end: Optional[datetime.datetime] = ...,
-    ignore_empty: bool = ...,
-    chunked: Literal[False] = False,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-) -> List[str]:
-    ...
-
-
-@overload
-def list_objects(
-    path: str,
-    suffix: Union[str, List[str], None] = ...,
-    ignore_suffix: Union[str, List[str], None] = ...,
-    last_modified_begin: Optional[datetime.datetime] = ...,
-    last_modified_end: Optional[datetime.datetime] = ...,
-    ignore_empty: bool = ...,
-    chunked: Literal[True] = True,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-) -> Union[List[str], Iterator[List[str]]]:
-    ...
 
 
 def list_objects(
