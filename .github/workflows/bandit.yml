@@ -5,7 +5,6 @@ on:
   push:
     branches:
     - main
-    - bandit
   pull_request:
     branches:
     - main
