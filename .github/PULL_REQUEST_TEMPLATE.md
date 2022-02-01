@@ -1,6 +1,16 @@
-*Issue #, if available:*
+Subject: <short purpose of this pull request>
 
-*Description of changes:*
+### Feature or Bugfix
+<!-- please choose -->
+- Feature
+- Bugfix
+- Refactoring
 
+### Detail
+- <feature1 or bug1>
+- <feature2 or bug2>
 
-By submitting this pull request, I confirm that my contribution is made under the terms of the Apache 2.0 license.
+### Relates
+- <URL or Ticket>
+
+- By submitting this pull request, I confirm that my contribution is made under the terms of the Apache 2.0 license.

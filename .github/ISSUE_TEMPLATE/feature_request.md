@@ -1,7 +1,7 @@
 ---
 name: Feature request
 about: Suggest an idea for this project
-title: ''
+title: '<short description for the feature>'
 labels: feature
 assignees: ''
 
@@ -13,4 +13,10 @@ A clear and concise description of what the problem is. Ex. I'm always frustrate
 **Describe the solution you'd like**
 A clear and concise description of what you want to happen.
 
-*P.S. Don't attach files. Please, prefer add code snippets directly in the message body.*
+**Describe alternatives you've considered**
+A clear and concise description of any alternative solutions or features you've considered.
+
+**Additional context**
+Add any other context or screenshots about the feature request here.
+
+*P.S. Please Don't attach files. Add code snippets directly in the message body instead.*
