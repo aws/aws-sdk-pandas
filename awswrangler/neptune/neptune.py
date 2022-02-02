@@ -5,7 +5,8 @@ import pandas as pd
 
 def read_gremlin(
     client: NeptuneClient,
-    query: str
+    query: str,
+    **kwargs
 ) -> pd.DataFrame:
     """Return results of a Gremlin traversal as pandas dataframe.
 
@@ -29,11 +30,9 @@ def read_gremlin(
     >>> client = wr.neptune.connect(neptune_endpoint, neptune_port, ssl=False, iam_enabled=False)
     >>> df = wr.neptune.read_gremlin(client, "g.V().limit(1)")
     """
-    results = client.read_gremlin(query)
+    results = client.read_gremlin(query, kwargs)
     df = pd.DataFrame.from_records(results)
     return df
-
-
 
 
 def read_opencypher(
@@ -106,7 +105,9 @@ def read_sparql(
 
 def to_property_graph(
     client: NeptuneClient,
-    df: pd.DataFrame
+    df: pd.DataFrame, 
+    batch_size: int=50,
+    **kwargs
 ) -> None:
     """Write records stored in a DataFrame into Amazon Neptune.    
     
@@ -139,6 +140,11 @@ def to_property_graph(
     ...     df=df
     ... )
     """
+    #check if ~id and ~label column exist and if not throw error
+
+    #Loop through items in the DF
+        # build up a query 
+        # run the query
     raise NotImplementedError
 
 

@@ -18,19 +18,14 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 DEFAULT_PORT = 8182
 NEPTUNE_SERVICE_NAME = 'neptune-db'
+HTTP_PROTOCOL = 'https'
+WS_PROTOCOL = 'wss'
 
 
 class NeptuneClient():
-    def __init__(self, host: str,
-                port: int = DEFAULT_PORT,
-                ssl: bool = True,
-                iam_enabled: bool = False,
-                boto3_session: Optional[boto3.Session] = None,
-                region: Optional[str] = None):
+    def __init__(self, host: str, port: int = DEFAULT_PORT, iam_enabled: bool = False, boto3_session: Optional[boto3.Session] = None, region: Optional[str] = None):
         self.host = host
         self.port = port
-        self._http_protocol = "https" if ssl else "http"
-        self._ws_protocol = "wss" if ssl else "ws"
         self.iam_enabled = iam_enabled
         self.boto3_session = self.__ensure_session(session=boto3_session)
         if region is None:
@@ -94,23 +89,23 @@ class NeptuneClient():
         if 'content-type' not in headers:
             headers['content-type'] = 'application/x-www-form-urlencoded'
 
-        url = f'{self._http_protocol}://{self.host}:{self.port}/openCypher'
+        url = f'{HTTP_PROTOCOL}://{self.host}:{self.port}/openCypher'
         data = {
             'query': query
         }
 
         req = self._prepare_request('POST', url, data=data, headers=headers)
         res = self._http_session.send(req)
-
-        return res.json()
+        return res.json()['results']
 
     
-    def read_gremlin(self, query, headers:Dict[str, Any] = None) -> Dict[str, Any]:
+    def read_gremlin(self, query, headers:Dict[str, Any] = None, nest_event_loop:bool=False) -> Dict[str, Any]:
         try:
-            nest_asyncio.apply()
-            uri = f'{self._http_protocol}://{self.host}:{self.port}/gremlin'
+            if nest_event_loop:
+                nest_asyncio.apply()
+            uri = f'{HTTP_PROTOCOL}://{self.host}:{self.port}/gremlin'
             request = self._prepare_request('GET', uri)
-            ws_url = f'{self._ws_protocol}://{self.host}:{self.port}/gremlin'
+            ws_url = f'{WS_PROTOCOL}://{self.host}:{self.port}/gremlin'
             c = client.Client(ws_url, 'g', headers=dict(request.headers))
             result = c.submit(query)
             future_results = result.all()
@@ -131,14 +126,14 @@ class NeptuneClient():
         if 'content-type' not in headers:
             headers['content-type'] = 'application/x-www-form-urlencoded'
 
-        uri = f'{self._http_protocol}://{self.host}:{self.port}/sparql'
+        uri = f'{HTTP_PROTOCOL}://{self.host}:{self.port}/sparql'
         req = self._prepare_request('POST', uri, data=data, headers=headers)
         res = self._http_session.send(req)
         return res
 
 
     def status(self):
-        url = f'{self._http_protocol}://{self.host}:{self.port}/status'
+        url = f'{HTTP_PROTOCOL}://{self.host}:{self.port}/status'
         req = self._prepare_request('GET', url, data='')
         res = self._http_session.send(req)
         if res.status_code == 200:
@@ -201,5 +196,5 @@ class NeptuneClient():
         return d
 
 
-def connect(host: str, port: str, iam_enabled: bool = False, ssl: bool = True, **kwargs: Any) -> NeptuneClient:
-    return NeptuneClient(host, port, iam_enabled, ssl, **kwargs)
+def connect(host: str, port: str, iam_enabled: bool = False, **kwargs: Any) -> NeptuneClient:
+    return NeptuneClient(host, port, iam_enabled, **kwargs)
