@@ -1,6 +1,19 @@
+from pyparsing import col
 from awswrangler.neptune.client import NeptuneClient
 from typing import Any, Dict
 import pandas as pd
+from awswrangler import exceptions
+from gremlin_python.process.graph_traversal import GraphTraversalSource
+from gremlin_python.process.anonymous_traversal import AnonymousTraversalSource
+from gremlin_python.process.translator import Translator
+from gremlin_python.process.traversal import T
+from gremlin_python.process.graph_traversal import __
+from gremlin_python.process.traversal import Cardinality
+
+import logging
+
+
+_logger: logging.Logger = logging.getLogger(__name__)
 
 
 def read_gremlin(
@@ -30,7 +43,7 @@ def read_gremlin(
     >>> client = wr.neptune.connect(neptune_endpoint, neptune_port, ssl=False, iam_enabled=False)
     >>> df = wr.neptune.read_gremlin(client, "g.V().limit(1)")
     """
-    results = client.read_gremlin(query, kwargs)
+    results = client.read_gremlin(query, **kwargs)
     df = pd.DataFrame.from_records(results)
     return df
 
@@ -141,12 +154,76 @@ def to_property_graph(
     ... )
     """
     #check if ~id and ~label column exist and if not throw error
+    g = client.get_graph_traversal_source()
+    is_edge_df=False
+    if '~id' in df.columns and '~label' in df.columns:
+        if '~to' in df.columns and '~from' in df.columns:
+            is_edge_df=True
+    else:
+        raise exceptions.InvalidArgumentValue(
+            "Dataframe must contain at least a ~id and a ~label column to be saved to Amazon Neptune" 
+        )
 
     #Loop through items in the DF
+    for (index, row) in df.iterrows():
         # build up a query 
+        if is_edge_df:
+            g=_build_gremlin_insert_edges(g, row.to_dict())
+        else:
+            g=_build_gremlin_insert_vertices(g, row.to_dict())
         # run the query
-    raise NotImplementedError
+        if index > 0 and index % batch_size == 0:
+            res = _run_gremlin_insert(client, g)
+            if res:
+                g = client.get_graph_traversal_source()
+            else:
+                raise Exception("Need to fix why this errors")
 
+    return _run_gremlin_insert(client, g)
+
+def _build_gremlin_insert_vertices(g:GraphTraversalSource, row:Dict) -> str:
+    g = (g.V(str(row['~id'])).
+        fold().
+        coalesce(
+            __.unfold(),
+            __.addV(row['~label']).property(T.id, str(row['~id'])))
+    )
+    for (column, value) in row.items():
+        if column not in ['~id', '~label']:
+            if type(value) is list and len(value) > 0:
+                for item in value:
+                    g = g.property(Cardinality.set_, column, item)
+            elif not pd.isna(value) and not pd.isnull(value):
+                g = g.property(column, value)
+
+    return g
+
+def _build_gremlin_insert_edges(g:GraphTraversalSource, row:pd.Series) -> str:
+    g = (g.V(str(row['~from'])).
+            fold().
+            coalesce(
+                __.unfold(),
+                _build_gremlin_insert_vertices(__, {"~id": row['~from'], "~label": "Vertex" })).
+            addE(row['~label']).
+            to(__.V(str(row['~to'])).fold().coalesce(__.unfold(), _build_gremlin_insert_vertices(__, {"~id": row['~to'], "~label": "Vertex" })))
+    )
+    for (column, value) in row.items():
+        if column not in ['~id', '~label', '~to', '~from']:
+            if type(value) is list and len(value) > 0:
+                for item in value:
+                    g = g.property(Cardinality.set_, column, item)
+            elif not pd.isna(value) and not pd.isnull(value):
+                g = g.property(column, value)
+            
+    return g
+
+def _run_gremlin_insert(client:NeptuneClient, g:GraphTraversalSource) -> bool:
+    translator = Translator('g')
+    s = translator.translate(g.bytecode)
+    s = s.replace('Cardinality.', '') # hack to fix parser error for set cardinality
+    _logger.debug(s)
+    res = client.write_gremlin(s)
+    return res
 
 def to_rdf_graph(
     client: NeptuneClient,

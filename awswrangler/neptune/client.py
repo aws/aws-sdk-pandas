@@ -4,15 +4,14 @@ from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSRequest
 import requests
 from typing import Dict, Optional, Any
-import nest_asyncio
 from gremlin_python.driver import client
 from gremlin_python.structure.graph import Path
 from gremlin_python.structure.graph import Vertex
 from gremlin_python.structure.graph import Edge
 from gremlin_python.structure.graph import VertexProperty
 from gremlin_python.structure.graph import Property
+from gremlin_python.structure.graph import Graph
 import logging
-
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -33,6 +32,7 @@ class NeptuneClient():
         else:
             self.region = region
         self._http_session = requests.Session()
+
 
     def __get_region_from_session(self) -> str:
         """Extract region from session."""
@@ -99,10 +99,15 @@ class NeptuneClient():
         return res.json()['results']
 
     
-    def read_gremlin(self, query, headers:Dict[str, Any] = None, nest_event_loop:bool=False) -> Dict[str, Any]:
+    def read_gremlin(self, query) -> Dict[str, Any]:
+        return self._execute_gremlin(query)
+
+    def write_gremlin(self, query) -> bool:
+        self._execute_gremlin(query)
+        return True
+    
+    def _execute_gremlin(self, query) -> Dict[str, Any]:
         try:
-            if nest_event_loop:
-                nest_asyncio.apply()
             uri = f'{HTTP_PROTOCOL}://{self.host}:{self.port}/gremlin'
             request = self._prepare_request('GET', uri)
             ws_url = f'{WS_PROTOCOL}://{self.host}:{self.port}/gremlin'
@@ -141,6 +146,10 @@ class NeptuneClient():
         else:
             _logger.error("Error connecting to Amazon Neptune cluster. Please verify your connection details")
             raise ConnectionError(res.status_code)
+
+
+    def get_graph_traversal_source(self):
+        return Graph().traversal()
 
 
     def _gremlin_results_to_dict(self, result) -> Dict[str, Any]:

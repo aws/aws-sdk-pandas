@@ -9,5 +9,6 @@ __all__ = [
     "read_sparql",
     "to_property_graph",
     "to_rdf_graph",
-    "connect"
+    "connect",
+    "get_graph_traversal_source"
 ]
