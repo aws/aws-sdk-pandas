@@ -14,11 +14,12 @@ export ARROW_HOME=$(pwd)/dist
 export LD_LIBRARY_PATH=$(pwd)/dist/lib:$LD_LIBRARY_PATH
 
 git clone \
+  --depth 1 \
   --branch apache-arrow-6.0.0 \
   --single-branch \
   https://github.com/apache/arrow.git
 
-mkdir dist
+mkdir $ARROW_HOME
 mkdir arrow/cpp/build
 pushd arrow/cpp/build
 
@@ -58,18 +59,18 @@ export PYARROW_WITH_CUDA=0
 export PYARROW_WITH_PLASMA=0
 export PYARROW_WITH_PARQUET=1
 
-python setup.py build_ext \
+python3 setup.py build_ext \
   --build-type=release \
   --bundle-arrow-cpp \
   bdist_wheel
 
-pip install dist/pyarrow-*.whl -t /aws-data-wrangler/dist/pyarrow_files
+pip3 install dist/pyarrow-*.whl -t /aws-data-wrangler/dist/pyarrow_files
 
 popd
 
 pushd /aws-data-wrangler
 
-pip install . -t ./python
+pip3 install . -t ./python
 
 rm -rf python/pyarrow*
 rm -rf python/boto*

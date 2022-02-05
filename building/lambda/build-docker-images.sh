@@ -9,23 +9,20 @@ docker build \
   --pull \
   --tag awswrangler-build-py36 \
   --build-arg base_image=lambci/lambda:build-python3.6 \
-  --build-arg py_dev=python36-devel \
   .
 
 # Python 3.7
 docker build \
   --pull \
   --tag awswrangler-build-py37 \
-  --build-arg base_image=lambci/lambda:build-python3.7 \
-  --build-arg py_dev=python37-devel \
+  --build-arg base_image=public.ecr.aws/lambda/python:3.7 \
   .
 
 # Python 3.8
 docker build \
   --pull \
   --tag awswrangler-build-py38 \
-  --build-arg base_image=lambci/lambda:build-python3.8 \
-  --build-arg py_dev=python38-devel \
+  --build-arg base_image=public.ecr.aws/lambda/python:3.8 \
   .
 
 rm -rf pyproject.toml poetry.lock

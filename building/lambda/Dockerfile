@@ -1,5 +1,4 @@
 ARG base_image
-ARG py_dev
 
 FROM ${base_image}
 
@@ -7,12 +6,16 @@ RUN yum install -y \
     boost-devel \
     jemalloc-devel \
     bison \
+    make \
+    gcc \
+    gcc-c++ \
     flex \
     autoconf \
-    ninja-build \
-    ${py_dev}
+    zip \
+    git \
+    ninja-build
 
-RUN pip3 install --upgrade pip six cython cmake hypothesis poetry
+RUN pip3 install --upgrade pip wheel && pip3 install --upgrade six cython cmake hypothesis poetry
 
 WORKDIR /root
 
