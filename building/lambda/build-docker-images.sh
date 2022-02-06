@@ -4,11 +4,14 @@ set -ex
 cp ../../pyproject.toml .
 cp ../../poetry.lock .
 
+export DOCKER_BUILDKIT=1
+
 # Python 3.6
 docker build \
   --pull \
   --tag awswrangler-build-py36 \
-  --build-arg base_image=lambci/lambda:build-python3.6 \
+  --build-arg base_image=public.ecr.aws/lambda/python:3.6 \
+  --build-arg python_version=python36 \
   .
 
 # Python 3.7
