@@ -17,7 +17,7 @@ docker run \
  --workdir /aws-data-wrangler/building/lambda \
  --rm \
  awswrangler-build-py36 \
- build-lambda-layer.sh "${VERSION}-py3.6" "ninja"
+ build-lambda-layer.sh "${VERSION}-py3.6" "ninja-build"
 
 # Python 3.7
 docker run \
@@ -25,7 +25,7 @@ docker run \
  --workdir /aws-data-wrangler/building/lambda \
  --rm \
  awswrangler-build-py37 \
- build-lambda-layer.sh "${VERSION}-py3.7" "ninja"
+ build-lambda-layer.sh "${VERSION}-py3.7" "ninja-build"
 
 # Python 3.8
 docker run \
