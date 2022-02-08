@@ -120,6 +120,7 @@ def _copy(
     aws_session_token: Optional[str] = None,
     boto3_session: Optional[str] = None,
     schema: Optional[str] = None,
+    manifest: Optional[str] = None,
 ) -> None:
     if schema is None:
         table_name: str = f'"{table}"'
@@ -134,7 +135,11 @@ def _copy(
         boto3_session=boto3_session,
     )
     ser_json_str: str = " SERIALIZETOJSON" if serialize_to_json else ""
-    sql: str = f"COPY {table_name}\nFROM '{path}' {auth_str}\nFORMAT AS PARQUET{ser_json_str}"
+    sql: str = (
+        f"COPY {table_name}\nFROM '{path}' {auth_str}\nFORMAT AS PARQUET{ser_json_str}"
+        if manifest is None
+        else f"COPY {table_name}\nFROM '{manifest}' {auth_str}\nMANIFEST\nFORMAT AS PARQUET{ser_json_str}"
+    )
     _logger.debug("copy query:\n%s", sql)
     cursor.execute(sql)
 
@@ -1175,6 +1180,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     use_threads: Union[bool, int] = True,
     lock: bool = False,
     commit_transaction: bool = True,
+    manifest: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
 ) -> None:
@@ -1266,6 +1272,9 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
         True to execute LOCK command inside the transaction to force serializable isolation.
     commit_transaction: bool
         Whether to commit the transaction. True by default.
+    manifest: str
+        Specifies the Amazon S3 object key for a manifest file that lists the data files to be loaded
+        (e.g. s3://bucket/prefix/)
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
@@ -1334,6 +1343,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
                 aws_session_token=aws_session_token,
                 boto3_session=boto3_session,
                 serialize_to_json=serialize_to_json,
+                manifest=manifest,
             )
             if table != created_table:  # upsert
                 if lock:
