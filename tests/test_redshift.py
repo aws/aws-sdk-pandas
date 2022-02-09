@@ -1,3 +1,4 @@
+import json
 import logging
 import random
 import string
@@ -728,6 +729,32 @@ def test_copy_from_files(path, redshift_table, redshift_con, databases_parameter
         iam_role=databases_parameters["redshift"]["role"],
     )
     df2 = wr.redshift.read_sql_query(sql=f"SELECT count(*) AS counter FROM public.{redshift_table}", con=redshift_con)
+    assert df2["counter"].iloc[0] == 3
+
+
+def test_copy_from_files_manifest(path, redshift_table, redshift_con, databases_parameters):
+    df = get_df_category().drop(["binary"], axis=1, inplace=False)
+    wr.s3.to_parquet(df, f"{path}test.parquet")
+    bucket, key = wr._utils.parse_path(f"{path}test.parquet")
+    content_length = boto3.client("s3").head_object(Bucket=bucket, Key=key)["ContentLength"]
+    manifest_content = {
+        "entries": [{"url": f"{path}test.parquet", "mandatory": False, "meta": {"content_length": content_length}}]
+    }
+    manifest_bucket, manifest_key = wr._utils.parse_path(f"{path}manifest.json")
+    boto3.client("s3").put_object(
+        Body=bytes(json.dumps(manifest_content).encode("UTF-8")), Bucket=manifest_bucket, Key=manifest_key
+    )
+    wr.redshift.copy_from_files(
+        path=path,
+        path_suffix=[".parquet"],
+        con=redshift_con,
+        table=redshift_table,
+        schema="public",
+        iam_role=databases_parameters["redshift"]["role"],
+        manifest=f"{path}manifest.json",
+    )
+    df2 = wr.redshift.read_sql_query(sql=f"SELECT count(*) AS counter FROM public.{redshift_table}", con=redshift_con)
+    print(df2)
     assert df2["counter"].iloc[0] == 3
 
 

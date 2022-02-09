@@ -138,7 +138,7 @@ def _copy(
     sql: str = (
         f"COPY {table_name}\nFROM '{path}' {auth_str}\nFORMAT AS PARQUET{ser_json_str}"
         if manifest is None
-        else f"COPY {table_name}\nFROM '{manifest}' {auth_str}\nMANIFEST\nFORMAT AS PARQUET{ser_json_str}"
+        else f"COPY {table_name}\nFROM '{manifest}' {auth_str}\nFORMAT AS PARQUET{ser_json_str}\nMANIFEST"
     )
     _logger.debug("copy query:\n%s", sql)
     cursor.execute(sql)
