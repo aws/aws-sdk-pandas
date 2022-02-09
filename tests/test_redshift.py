@@ -732,6 +732,25 @@ def test_copy_from_files(path, redshift_table, redshift_con, databases_parameter
     assert df2["counter"].iloc[0] == 3
 
 
+def test_get_paths_from_manifest(path):
+    manifest_content = {
+        "entries": [
+            {"url": f"{path}test0.parquet", "mandatory": False},
+            {"url": f"{path}test1.parquet", "mandatory": False},
+            {"url": f"{path}test2.parquet", "mandatory": True},
+        ]
+    }
+    manifest_bucket, manifest_key = wr._utils.parse_path(f"{path}manifest.json")
+    boto3.client("s3").put_object(
+        Body=bytes(json.dumps(manifest_content).encode("UTF-8")), Bucket=manifest_bucket, Key=manifest_key
+    )
+    paths = wr.redshift._get_paths_from_manifest(
+        path=f"{path}manifest.json",
+    )
+
+    assert len(paths) == 3
+
+
 def test_copy_from_files_manifest(path, redshift_table, redshift_con, databases_parameters):
     df = get_df_category().drop(["binary"], axis=1, inplace=False)
     wr.s3.to_parquet(df, f"{path}test.parquet")
@@ -745,16 +764,15 @@ def test_copy_from_files_manifest(path, redshift_table, redshift_con, databases_
         Body=bytes(json.dumps(manifest_content).encode("UTF-8")), Bucket=manifest_bucket, Key=manifest_key
     )
     wr.redshift.copy_from_files(
-        path=path,
+        path=f"{path}manifest.json",
         path_suffix=[".parquet"],
         con=redshift_con,
         table=redshift_table,
         schema="public",
         iam_role=databases_parameters["redshift"]["role"],
-        manifest=f"{path}manifest.json",
+        manifest=True,
     )
     df2 = wr.redshift.read_sql_query(sql=f"SELECT count(*) AS counter FROM public.{redshift_table}", con=redshift_con)
-    print(df2)
     assert df2["counter"].iloc[0] == 3
 
 
