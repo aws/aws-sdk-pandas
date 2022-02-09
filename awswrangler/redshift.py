@@ -235,6 +235,7 @@ def _redshift_types_from_path(
     athena_types, _ = s3.read_parquet_metadata(
         path=path,
         sampling=parquet_infer_sampling,
+        path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,
         dataset=False,
         use_threads=use_threads,
