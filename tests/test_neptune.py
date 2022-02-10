@@ -114,6 +114,20 @@ def test_sparql_query(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     assert df.shape == (2,3)
 
 
+def test_gremlin_write_updates(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+    client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
+    id=uuid.uuid4()
+    wr.neptune.execute_gremlin(client, f"g.addV().property(T.id, '{str(id)}')")
+
+    data=[{'~id': id, 'age': 50}]
+    df = pd.DataFrame(data)
+    res = wr.neptune.to_property_graph(client, df)
+    assert res
+
+    final_df  = wr.neptune.execute_gremlin(client, f"g.V('{str(id)}').values('age')")
+    assert final_df.iloc[0][0] == 50
+    
+
 def test_gremlin_write_vertices(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
     initial_cnt_df = wr.neptune.execute_gremlin(client, "g.V().hasLabel('foo').count()")
@@ -136,6 +150,7 @@ def test_gremlin_write_vertices(neptune_endpoint, neptune_port) -> Dict[str, Any
 
     batch_cnt_df  = wr.neptune.execute_gremlin(client, "g.V().hasLabel('foo').count()")
     assert batch_cnt_df.iloc[0][0] == final_cnt_df.iloc[0][0] + 50
+
 
 def test_gremlin_write_edges(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)

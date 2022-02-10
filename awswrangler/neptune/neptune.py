@@ -153,9 +153,12 @@ def to_property_graph(
     # check if ~id and ~label column exist and if not throw error
     g = Graph().traversal()
     is_edge_df = False
-    if '~id' in df.columns and '~label' in df.columns:
-        if '~to' in df.columns and '~from' in df.columns:
-            is_edge_df = True
+    is_update_df=True
+    if '~id' in df.columns:
+        if '~label' in df.columns:
+            is_update_df = False
+            if '~to' in df.columns and '~from' in df.columns:
+                is_edge_df = True
     else:
         raise exceptions.InvalidArgumentValue(
             "Dataframe must contain at least a ~id and a ~label column to be saved to Amazon Neptune"
@@ -164,7 +167,9 @@ def to_property_graph(
     # Loop through items in the DF
     for (index, row) in df.iterrows():
         # build up a query 
-        if is_edge_df:
+        if is_update_df:
+            g = _build_gremlin_update(g, row)
+        elif is_edge_df:
             g = _build_gremlin_insert_edges(g, row.to_dict())
         else:
             g = _build_gremlin_insert_vertices(g, row.to_dict())
@@ -176,6 +181,18 @@ def to_property_graph(
 
     return _run_gremlin_insert(client, g)
 
+
+def _build_gremlin_update(g: GraphTraversalSource, row: Dict) -> str:
+    g = g.V(str(row['~id']))
+    for (column, value) in row.items():
+        if column not in ['~id', '~label']:
+            if type(value) is list and len(value) > 0:
+                for item in value:
+                    g = g.property(Cardinality.set_, column, item)
+            elif not pd.isna(value) and not pd.isnull(value):
+                g = g.property(column, value)
+
+    return g
 
 def _build_gremlin_insert_vertices(g: GraphTraversalSource, row: Dict) -> str:
     g = (g.V(str(row['~id'])).

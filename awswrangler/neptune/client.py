@@ -6,6 +6,7 @@ import requests
 from typing import Dict, Optional, Any
 from gremlin_python.driver import client
 from awswrangler.neptune.gremlin_parser import GremlinParser
+import nest_asyncio
 
 import logging
 
@@ -106,6 +107,7 @@ class NeptuneClient:
 
     def _execute_gremlin(self, query) -> Dict[str, Any]:
         try:
+            nest_asyncio.apply()
             uri = f'{HTTP_PROTOCOL}://{self.host}:{self.port}/gremlin'
             request = self._prepare_request('GET', uri)
             ws_url = f'{WS_PROTOCOL}://{self.host}:{self.port}/gremlin'
