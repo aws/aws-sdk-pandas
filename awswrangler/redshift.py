@@ -79,12 +79,7 @@ def _does_table_exist(cursor: redshift_connector.Cursor, schema: Optional[str], 
     return len(cursor.fetchall()) > 0
 
 
-def _get_paths_from_manifest(path: Union[str, List[str]], boto3_session: Optional[boto3.Session] = None) -> List[str]:
-    if not isinstance(path, str):
-        raise TypeError(
-            f"""type: {type(path)} is not a valid type for 'path' when 'manifest' is set to True;
-            must be a string"""
-        )
+def _get_paths_from_manifest(path: str, boto3_session: Optional[boto3.Session] = None) -> List[str]:
     resource_s3: boto3.resource = _utils.resource(service_name="s3", session=boto3_session)
     bucket, key = _utils.parse_path(path)
     content_object = resource_s3.Object(bucket, key)
@@ -321,6 +316,11 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments
         )
     elif path is not None:
         if manifest:
+            if not isinstance(path, str):
+                raise TypeError(
+                    f"""type: {type(path)} is not a valid type for 'path' when 'manifest' is set to True;
+                    must be a string"""
+                )
             path = _get_paths_from_manifest(
                 path=path,
                 boto3_session=boto3_session,
