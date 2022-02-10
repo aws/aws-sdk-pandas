@@ -765,7 +765,6 @@ def test_copy_from_files_manifest(path, redshift_table, redshift_con, databases_
     )
     wr.redshift.copy_from_files(
         path=f"{path}manifest.json",
-        path_suffix=[".parquet"],
         con=redshift_con,
         table=redshift_table,
         schema="public",
