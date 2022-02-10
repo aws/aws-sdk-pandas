@@ -30,6 +30,7 @@ class NeptuneClient:
             self.region = region
         self._http_session = requests.Session()
 
+
     def __get_region_from_session(self) -> str:
         """Extract region from session."""
         region: Optional[str] = self.boto3_session.region_name
@@ -47,6 +48,7 @@ class NeptuneClient:
         else:
             return boto3.Session()
 
+
     def _prepare_request(self, method, url, *, data=None, params=None, headers=None,
                          service=NEPTUNE_SERVICE_NAME) -> requests.PreparedRequest:
         request = requests.Request(method=method, url=url, data=data, params=params, headers=headers)
@@ -56,6 +58,7 @@ class NeptuneClient:
             request.headers = dict(aws_request.headers)
 
         return request.prepare()
+
 
     def _get_aws_request(self, method, url, *, data=None, params=None, headers=None,
                          service=NEPTUNE_SERVICE_NAME) -> AWSRequest:
@@ -76,6 +79,7 @@ class NeptuneClient:
             return prepared_iam_req
         else:
             return req
+
 
     def read_opencypher(self, query: str, headers: Dict[str, Any] = None) -> Dict[str, Any]:
         if headers is None:
@@ -116,11 +120,23 @@ class NeptuneClient:
             raise e
 
     def read_sparql(self, query, headers: Dict[str, Any] = None) -> Dict[str, Any]:
+        return self._execute_sparql(query, headers)
+    
+    
+    def write_sparql(self, query, headers: Dict[str, Any] = None) -> Dict[str, Any]:
+        self._execute_sparql(query, headers, is_update=True)
+        return True
+    
+
+    def _execute_sparql(self, query, headers, is_update=False):
         if headers is None:
             headers = {}
 
-        data = {'query': query}
-
+        if is_update:
+            data = {'update': query}            
+        else:
+            data = {'query': query}
+        
         if 'content-type' not in headers:
             headers['content-type'] = 'application/x-www-form-urlencoded'
 

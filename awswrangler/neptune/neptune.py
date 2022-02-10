@@ -1,4 +1,3 @@
-from pyparsing import col
 from awswrangler.neptune.client import NeptuneClient
 from typing import Dict, Any
 import pandas as pd
@@ -18,7 +17,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def execute_gremlin(
         client: NeptuneClient,
         query: str,
-        **kwargs
+        **kwargs: str
 ) -> pd.DataFrame:
     """Return results of a Gremlin traversal as pandas dataframe.
 
@@ -118,8 +117,7 @@ def execute_sparql(
 def to_property_graph(
         client: NeptuneClient,
         df: pd.DataFrame,
-        batch_size: int = 50,
-        **kwargs
+        batch_size: int = 50
 ) -> None:
     """Write records stored in a DataFrame into Amazon Neptune.    
     
@@ -175,8 +173,6 @@ def to_property_graph(
             res = _run_gremlin_insert(client, g)
             if res:
                 g = Graph().traversal()
-            else:
-                raise Exception("Need to fix why this errors")
 
     return _run_gremlin_insert(client, g)
 
@@ -231,11 +227,17 @@ def _run_gremlin_insert(client: NeptuneClient, g: GraphTraversalSource) -> bool:
 
 def to_rdf_graph(
         client: NeptuneClient,
-        df: pd.DataFrame
+        df: pd.DataFrame,
+        batch_size: int = 50,
+        subject_column:str = 's',
+        predicate_column:str = 'p',
+        object_column:str = 'o',
+        graph_column:str = 'g'
 ) -> None:
     """Write records stored in a DataFrame into Amazon Neptune.    
     
-    The DataFrame must consist of triples with column names of s, p, and o.
+    The DataFrame must consist of triples with column names for the subject, predicate, and object specified.  
+    If you want to add data into a named graph then you will also need the graph column.
 
     Parameters
     ----------
@@ -259,7 +261,31 @@ def to_rdf_graph(
     ...     df=df
     ... )
     """
-    raise NotImplementedError
+    is_quads = False
+    if pd.Series([subject_column, object_column, predicate_column]).isin(df.columns).all():
+        if graph_column in df.columns:
+            is_quads = True
+    else:
+        raise exceptions.InvalidArgumentValue(
+            "Dataframe must contain at least the subject, predicate, and object columns defined or the defaults (s, p, o) to be saved to Amazon Neptune"
+        )
+
+    query = ""
+    # Loop through items in the DF
+    for (index, row) in df.iterrows():
+        # build up a query 
+        if is_quads:            
+            insert = f"INSERT DATA {{ GRAPH <{row[graph_column]}> {{<{row[subject_column]}> <{str(row[predicate_column])}> <{row[object_column]}> . }} }}; "
+            query = query + insert
+        else:
+            insert = f"INSERT DATA {{ <{row[subject_column]}> <{str(row[predicate_column])}> <{row[object_column]}> . }}; "
+            query = query + insert
+        # run the query
+        if index > 0 and index % batch_size == 0:
+            res = client.write_sparql(query)
+            if res:
+                query=""
+    return client.write_sparql(query)
 
 
 def connect(host: str, port: str, iam_enabled: bool = False, **kwargs: Any) -> NeptuneClient:

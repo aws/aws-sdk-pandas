@@ -1,7 +1,6 @@
 import logging
 from typing import Any, Dict
 
-import boto3
 import pandas as pd
 import pytest  # type: ignore
 import uuid
@@ -17,7 +16,6 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 @pytest.fixture(scope="session")
 def cloudformation_outputs():
     outputs = {}
-    outputs['cluster_resource_id']='XXX'
     outputs['endpoint'] = 'air-routes-oc.cluster-cei5pmtr7fqq.us-west-2.neptune.amazonaws.com'
     outputs['read_endpoint'] = 'air-routes-oc.cluster-cei5pmtr7fqq.us-west-2.neptune.amazonaws.com'
     outputs['port'] = 8182
@@ -162,6 +160,56 @@ def test_gremlin_write_edges(neptune_endpoint, neptune_port) -> Dict[str, Any]:
 
     batch_cnt_df  = wr.neptune.execute_gremlin(client, "g.E().hasLabel('bar').count()")
     assert batch_cnt_df.iloc[0][0] == final_cnt_df.iloc[0][0] + 50
+    
+
+def test_sparql_write_triples(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+    client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
+    initial_df = wr.neptune.execute_sparql(client, "SELECT ?p ?o WHERE { <foo> ?p ?o .}")
+    
+    data = [_create_dummy_triple(), _create_dummy_triple(), _create_dummy_triple()]
+    df = pd.DataFrame(data)
+    res = wr.neptune.to_rdf_graph(client, df)
+    assert res
+
+    final_df  = wr.neptune.execute_sparql(client, "SELECT ?p ?o WHERE { <foo> ?p ?o .}")
+    assert len(final_df.index) == len(initial_df.index) + 3
+    
+    # check to make sure batch addition of edges works
+    data=[]
+    for i in range(0, 50):
+        data.append(_create_dummy_triple())
+    
+    df = pd.DataFrame(data)
+    res = wr.neptune.to_rdf_graph(client, df)
+    assert res
+
+    batch_df  = wr.neptune.execute_sparql(client, "SELECT ?p ?o WHERE { <foo> ?p ?o .}")
+    assert len(batch_df.index) == len(final_df.index) + 50
+    
+def test_sparql_write_quads(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+    client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
+    initial_df = wr.neptune.execute_sparql(client, "SELECT ?p ?o FROM <bar> WHERE { <foo> ?p ?o .}")
+    
+    data = [_create_dummy_quad(), _create_dummy_quad(), _create_dummy_quad()]
+    df = pd.DataFrame(data)
+    res = wr.neptune.to_rdf_graph(client, df)
+    assert res
+
+    final_df  = wr.neptune.execute_sparql(client, "SELECT ?p ?o  FROM <bar> WHERE { <foo> ?p ?o .}")
+    assert len(final_df.index) == len(initial_df.index) + 3
+    
+    # check to make sure batch addition of edges works
+    data=[]
+    for i in range(0, 50):
+        data.append(_create_dummy_quad())
+    
+    df = pd.DataFrame(data)
+    res = wr.neptune.to_rdf_graph(client, df)
+    assert res
+
+    batch_df  = wr.neptune.execute_sparql(client, "SELECT ?p ?o FROM <bar> WHERE { <foo> ?p ?o .}")
+    assert len(batch_df.index) == len(final_df.index) + 50
+
 
 def _create_dummy_vertex() -> Dict[str, Any]:
     data = dict()
@@ -180,4 +228,17 @@ def _create_dummy_edge() -> Dict[str, Any]:
     data['~from']=uuid.uuid4()
     data['int'] = random.randint(0, 1000)
     data['str'] = ''.join(random.choice(string.ascii_lowercase) for i in range(10))
+    return data
+
+
+def _create_dummy_triple() -> Dict[str, Any]:
+    data = dict()
+    data['s']='foo'
+    data['p']=uuid.uuid4()
+    data['o'] = random.randint(0, 1000)
+    return data
+
+def _create_dummy_quad() -> Dict[str, Any]:
+    data = _create_dummy_triple()
+    data['g']='bar'
     return data
