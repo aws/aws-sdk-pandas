@@ -751,6 +751,14 @@ def test_get_paths_from_manifest(path):
     assert len(paths) == 3
 
 
+def test_get_paths_from_manifest_type_exception(path):
+
+    with pytest.raises(TypeError):
+        wr.redshift._get_paths_from_manifest(
+            path=[],
+        )
+
+
 def test_copy_from_files_manifest(path, redshift_table, redshift_con, databases_parameters):
     df = get_df_category().drop(["binary"], axis=1, inplace=False)
     wr.s3.to_parquet(df, f"{path}test.parquet")

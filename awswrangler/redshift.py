@@ -79,7 +79,12 @@ def _does_table_exist(cursor: redshift_connector.Cursor, schema: Optional[str], 
     return len(cursor.fetchall()) > 0
 
 
-def _get_paths_from_manifest(path: str, boto3_session: Optional[boto3.Session] = None) -> List[str]:
+def _get_paths_from_manifest(path: Union[str, List[str]], boto3_session: Optional[boto3.Session] = None) -> List[str]:
+    if not isinstance(path, str):
+        raise TypeError(
+            f"""type: {type(path)} is not a valid type for 'path' when 'manifest' is set to True;
+            must be a string"""
+        )
     resource_s3: boto3.resource = _utils.resource(service_name="s3", session=boto3_session)
     bucket, key = _utils.parse_path(path)
     content_object = resource_s3.Object(bucket, key)
@@ -144,11 +149,9 @@ def _copy(
         boto3_session=boto3_session,
     )
     ser_json_str: str = " SERIALIZETOJSON" if serialize_to_json else ""
-    sql: str = (
-        f"COPY {table_name}\nFROM '{path}' {auth_str}\nFORMAT AS PARQUET{ser_json_str}\nMANIFEST"
-        if manifest
-        else f"COPY {table_name}\nFROM '{path}' {auth_str}\nFORMAT AS PARQUET{ser_json_str}"
-    )
+    sql: str = f"COPY {table_name}\nFROM '{path}' {auth_str}\nFORMAT AS PARQUET{ser_json_str}"
+    if manifest:
+        sql += "\nMANIFEST"
     _logger.debug("copy query:\n%s", sql)
     cursor.execute(sql)
 
@@ -318,16 +321,10 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments
         )
     elif path is not None:
         if manifest:
-            if isinstance(path, str):
-                path = _get_paths_from_manifest(
-                    path=path,
-                    boto3_session=boto3_session,
-                )
-            else:
-                raise TypeError(
-                    f"""type: {type(path)} is not a valid type for 'path' when 'manifest' is set to True;
-                    must be a string"""
-                )
+            path = _get_paths_from_manifest(
+                path=path,
+                boto3_session=boto3_session,
+            )
         redshift_types = _redshift_types_from_path(
             path=path,
             varchar_lengths_default=varchar_lengths_default,
