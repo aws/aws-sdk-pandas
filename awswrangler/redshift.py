@@ -1,6 +1,7 @@
 """Amazon Redshift Module."""
 # pylint: disable=too-many-lines
 
+import json
 import logging
 import uuid
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
@@ -78,6 +79,14 @@ def _does_table_exist(cursor: redshift_connector.Cursor, schema: Optional[str], 
     return len(cursor.fetchall()) > 0
 
 
+def _get_paths_from_manifest(path: str, boto3_session: Optional[boto3.Session] = None) -> List[str]:
+    resource_s3: boto3.resource = _utils.resource(service_name="s3", session=boto3_session)
+    bucket, key = _utils.parse_path(path)
+    content_object = resource_s3.Object(bucket, key)
+    manifest_content = json.loads(content_object.get()["Body"].read().decode("utf-8"))
+    return [path["url"] for path in manifest_content["entries"]]
+
+
 def _make_s3_auth_string(
     aws_access_key_id: Optional[str] = None,
     aws_secret_access_key: Optional[str] = None,
@@ -120,6 +129,7 @@ def _copy(
     aws_session_token: Optional[str] = None,
     boto3_session: Optional[str] = None,
     schema: Optional[str] = None,
+    manifest: Optional[bool] = False,
 ) -> None:
     if schema is None:
         table_name: str = f'"{table}"'
@@ -135,6 +145,8 @@ def _copy(
     )
     ser_json_str: str = " SERIALIZETOJSON" if serialize_to_json else ""
     sql: str = f"COPY {table_name}\nFROM '{path}' {auth_str}\nFORMAT AS PARQUET{ser_json_str}"
+    if manifest:
+        sql += "\nMANIFEST"
     _logger.debug("copy query:\n%s", sql)
     cursor.execute(sql)
 
@@ -257,6 +269,7 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments
     parquet_infer_sampling: float = 1.0,
     path_suffix: Optional[str] = None,
     path_ignore_suffix: Optional[str] = None,
+    manifest: Optional[bool] = False,
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
@@ -302,6 +315,16 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments
             converter_func=_data_types.pyarrow2redshift,
         )
     elif path is not None:
+        if manifest:
+            if not isinstance(path, str):
+                raise TypeError(
+                    f"""type: {type(path)} is not a valid type for 'path' when 'manifest' is set to True;
+                    must be a string"""
+                )
+            path = _get_paths_from_manifest(
+                path=path,
+                boto3_session=boto3_session,
+            )
         redshift_types = _redshift_types_from_path(
             path=path,
             varchar_lengths_default=varchar_lengths_default,
@@ -1175,6 +1198,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     use_threads: Union[bool, int] = True,
     lock: bool = False,
     commit_transaction: bool = True,
+    manifest: Optional[bool] = False,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
 ) -> None:
@@ -1266,6 +1290,8 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
         True to execute LOCK command inside the transaction to force serializable isolation.
     commit_transaction: bool
         Whether to commit the transaction. True by default.
+    manifest: bool
+        If set to true path argument accepts a S3 uri to a manifest file.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
@@ -1316,6 +1342,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
                 varchar_lengths=varchar_lengths,
                 index=False,
                 dtype=None,
+                manifest=manifest,
                 use_threads=use_threads,
                 boto3_session=boto3_session,
                 s3_additional_kwargs=s3_additional_kwargs,
@@ -1334,6 +1361,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
                 aws_session_token=aws_session_token,
                 boto3_session=boto3_session,
                 serialize_to_json=serialize_to_json,
+                manifest=manifest,
             )
             if table != created_table:  # upsert
                 if lock:
