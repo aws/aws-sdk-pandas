@@ -1,19 +1,26 @@
-from typing import Dict, Any
+"""Amazon Neptune GremlinParser Module (PRIVATE)."""
+from typing import Any, Dict
 
-from gremlin_python.structure.graph import Path
-from gremlin_python.structure.graph import Vertex
-from gremlin_python.structure.graph import Edge
-from gremlin_python.structure.graph import VertexProperty
-from gremlin_python.structure.graph import Property
+from gremlin_python.structure.graph import Edge, Path, Property, Vertex, VertexProperty
 
 
 class GremlinParser:
+    """This represents a parser for returning Gremlin results as a dictionary."""
+
     @staticmethod
-    def gremlin_results_to_dict(result) -> Dict[str, Any]:
+    def gremlin_results_to_dict(result: Any) -> Any:
+        """Takes a Gremlin ResultSet and returns a dictionary
+
+        Args:
+            result (Any): The Gremlin resultset to convert
+
+        Returns:
+            Any: A dictionary of the results
+        """
         res = []
 
         # For lists or paths unwind them
-        if isinstance(result, list) or isinstance(result, Path):
+        if isinstance(result, (list, Path)):
             for x in result:
                 res.append(GremlinParser._parse_dict(x))
 
@@ -27,19 +34,18 @@ class GremlinParser:
         return res
 
     @staticmethod
-    def _parse_dict(data) -> Dict[str, Any]:
-        d = dict()
+    def _parse_dict(data: Any) -> Any:
+        d: Dict[str, Any] = {}
 
         # If this is a list or Path then unwind it
-        if isinstance(data, list) or isinstance(data, Path):
+        if isinstance(data, (list, Path)):
             res = []
             for x in data:
                 res.append(GremlinParser._parse_dict(x))
             return res
 
         # If this is an element then make it a dictionary
-        elif isinstance(data, Vertex) or isinstance(data, Edge) or isinstance(data, VertexProperty) or isinstance(data,
-                                                                                                                  Property):
+        elif isinstance(data, (Vertex, Edge, VertexProperty, Property)):
             data = data.__dict__
 
         # If this is a scalar then create a Map with it
@@ -48,7 +54,7 @@ class GremlinParser:
 
         for (k, v) in data.items():
             # If the key is a Vertex or an Edge do special processing
-            if isinstance(k, Vertex) or isinstance(k, Edge):
+            if isinstance(k, (Vertex, Edge)):
                 k = k.id
 
             # If the value is a list do special processing to make it a scalar if the list is of length 1
@@ -58,7 +64,6 @@ class GremlinParser:
                 d[k] = v
 
             # If the value is a Vertex or Edge do special processing
-            if isinstance(d[k], Vertex) or isinstance(d[k], Edge) or isinstance(d[k], VertexProperty) or isinstance(
-                    d[k], Property):
+            if isinstance(data, (Vertex, Edge, VertexProperty, Property)):
                 d[k] = d[k].__dict__
         return d

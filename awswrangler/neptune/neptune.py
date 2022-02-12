@@ -1,24 +1,21 @@
-from awswrangler.neptune.client import NeptuneClient
-from typing import Dict, Any
-import pandas as pd
-from awswrangler import exceptions
-from gremlin_python.process.graph_traversal import GraphTraversalSource
-from gremlin_python.process.translator import Translator
-from gremlin_python.process.traversal import T
-from gremlin_python.process.graph_traversal import __
-from gremlin_python.process.traversal import Cardinality
-from gremlin_python.structure.graph import Graph
+"""Amazon Neptune Module"""
 
 import logging
+from typing import Any
+
+import pandas as pd
+from gremlin_python.process.graph_traversal import GraphTraversalSource, __
+from gremlin_python.process.translator import Translator
+from gremlin_python.process.traversal import Cardinality, T
+from gremlin_python.structure.graph import Graph
+
+from awswrangler import exceptions
+from awswrangler.neptune.client import NeptuneClient
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def execute_gremlin(
-        client: NeptuneClient,
-        query: str,
-        **kwargs: str
-) -> pd.DataFrame:
+def execute_gremlin(client: NeptuneClient, query: str) -> pd.DataFrame:
     """Return results of a Gremlin traversal as pandas dataframe.
 
     Parameters
@@ -38,18 +35,15 @@ def execute_gremlin(
     Run a Gremlin Query
 
     >>> import awswrangler as wr
-    >>> client = wr.neptune.connect(neptune_endpoint, neptune_port, ssl=False, iam_enabled=False)
+        >>> client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
     >>> df = wr.neptune.execute_gremlin(client, "g.V().limit(1)")
     """
-    results = client.read_gremlin(query, **kwargs)
+    results = client.read_gremlin(query)
     df = pd.DataFrame.from_records(results)
     return df
 
 
-def execute_opencypher(
-        client: NeptuneClient,
-        query: str
-) -> pd.DataFrame:
+def execute_opencypher(client: NeptuneClient, query: str) -> pd.DataFrame:
     """Return results of a openCypher traversal as pandas dataframe.
 
     Parameters
@@ -69,7 +63,7 @@ def execute_opencypher(
     Run an openCypher query
 
     >>> import awswrangler as wr
-    >>> client = wr.neptune.connect(neptune_endpoint, neptune_port, ssl=True, iam_enabled=False)
+    >>> client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
     >>> resp = wr.neptune.execute_opencypher(client, "MATCH (n) RETURN n LIMIT 1")
     """
     resp = client.read_opencypher(query)
@@ -77,10 +71,7 @@ def execute_opencypher(
     return df
 
 
-def execute_sparql(
-        client: NeptuneClient,
-        query: str
-) -> pd.DataFrame:
+def execute_sparql(client: NeptuneClient, query: str) -> pd.DataFrame:
     """Return results of a SPARQL query as pandas dataframe.
 
     Parameters
@@ -100,33 +91,31 @@ def execute_sparql(
     Run a SPARQL query
 
     >>> import awswrangler as wr
-    >>> client = wr.neptune.Client(host='NEPTUNE-ENDPOINT')
+    >>> client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
     >>> df = wr.neptune.execute_sparql(client, "PREFIX foaf:  <http://xmlns.com/foaf/0.1/>
     SELECT ?name
     WHERE {
             ?person foaf:name ?name .
-    }")
     """
-    resp = client.read_sparql(query)
-    data = resp.json()
-    df = pd.DataFrame(data['results']['bindings'])
-    df.applymap(lambda x: x['value'])
-    return df
+    data = client.read_sparql(query)
+    if "results" in data and "bindings" in data["results"]:
+        df = pd.DataFrame(data["results"]["bindings"])
+        df.applymap(lambda x: x["value"])
+        return df
+    else:
+        return pd.DataFrame(data)
 
 
-def to_property_graph(
-        client: NeptuneClient,
-        df: pd.DataFrame,
-        batch_size: int = 50
-) -> None:
-    """Write records stored in a DataFrame into Amazon Neptune.    
-    
-    If writing to a property graph then DataFrames for vertices and edges must be written separately. 
-    DataFrames for vertices must have a ~label column with the label and a ~id column for the vertex id.  
-    If the ~id column does not exist, the specified id does not exists, or is empty then a new vertex will be added.  
-    If no ~label column exists an exception will be thrown.  
-    DataFrames for edges must have a ~id, ~label, ~to, and ~from column.  If the ~id column does not exist, 
-    the specified id does not exists, or is empty then a new edge will be added. If no ~label, ~to, or ~from column exists an exception will be thrown.  
+def to_property_graph(client: NeptuneClient, df: pd.DataFrame, batch_size: int = 50) -> bool:
+    """Write records stored in a DataFrame into Amazon Neptune.
+
+    If writing to a property graph then DataFrames for vertices and edges must be written separately.
+    DataFrames for vertices must have a ~label column with the label and a ~id column for the vertex id.
+    If the ~id column does not exist, the specified id does not exists, or is empty then a new vertex will be added.
+    If no ~label column exists an exception will be thrown.
+    DataFrames for edges must have a ~id, ~label, ~to, and ~from column.  If the ~id column does not exist
+    the specified id does not exists, or is empty then a new edge will be added. If no ~label, ~to, or ~from column
+    exists an exception will be thrown.
 
     Parameters
     ----------
@@ -142,10 +131,10 @@ def to_property_graph(
 
     Examples
     --------
-    Writing to Amazon Neptune 
+    Writing to Amazon Neptune
 
     >>> import awswrangler as wr
-    >>> client = wr.neptune.Client(host='NEPTUNE-ENDPOINT')
+    >>> client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
     >>> wr.neptune.gremlin.to_property_graph(
     ...     df=df
     ... )
@@ -153,11 +142,11 @@ def to_property_graph(
     # check if ~id and ~label column exist and if not throw error
     g = Graph().traversal()
     is_edge_df = False
-    is_update_df=True
-    if '~id' in df.columns:
-        if '~label' in df.columns:
+    is_update_df = True
+    if "~id" in df.columns:
+        if "~label" in df.columns:
             is_update_df = False
-            if '~to' in df.columns and '~from' in df.columns:
+            if "~to" in df.columns and "~from" in df.columns:
                 is_edge_df = True
     else:
         raise exceptions.InvalidArgumentValue(
@@ -166,7 +155,7 @@ def to_property_graph(
 
     # Loop through items in the DF
     for (index, row) in df.iterrows():
-        # build up a query 
+        # build up a query
         if is_update_df:
             g = _build_gremlin_update(g, row)
         elif is_edge_df:
@@ -182,86 +171,34 @@ def to_property_graph(
     return _run_gremlin_insert(client, g)
 
 
-def _build_gremlin_update(g: GraphTraversalSource, row: Dict) -> str:
-    g = g.V(str(row['~id']))
-    for (column, value) in row.items():
-        if column not in ['~id', '~label']:
-            if type(value) is list and len(value) > 0:
-                for item in value:
-                    g = g.property(Cardinality.set_, column, item)
-            elif not pd.isna(value) and not pd.isnull(value):
-                g = g.property(column, value)
-
-    return g
-
-def _build_gremlin_insert_vertices(g: GraphTraversalSource, row: Dict) -> str:
-    g = (g.V(str(row['~id'])).
-        fold().
-        coalesce(
-        __.unfold(),
-        __.addV(row['~label']).property(T.id, str(row['~id'])))
-    )
-    for (column, value) in row.items():
-        if column not in ['~id', '~label']:
-            if type(value) is list and len(value) > 0:
-                for item in value:
-                    g = g.property(Cardinality.set_, column, item)
-            elif not pd.isna(value) and not pd.isnull(value):
-                g = g.property(column, value)
-
-    return g
-
-
-def _build_gremlin_insert_edges(g: GraphTraversalSource, row: pd.Series) -> str:
-    g = (g.V(str(row['~from'])).
-         fold().
-         coalesce(
-        __.unfold(),
-        _build_gremlin_insert_vertices(__, {"~id": row['~from'], "~label": "Vertex"})).
-         addE(row['~label']).
-         to(__.V(str(row['~to'])).fold().coalesce(__.unfold(), _build_gremlin_insert_vertices(__, {"~id": row['~to'],
-                                                                                                   "~label": "Vertex"})))
-         )
-    for (column, value) in row.items():
-        if column not in ['~id', '~label', '~to', '~from']:
-            if type(value) is list and len(value) > 0:
-                for item in value:
-                    g = g.property(Cardinality.set_, column, item)
-            elif not pd.isna(value) and not pd.isnull(value):
-                g = g.property(column, value)
-
-    return g
-
-
-def _run_gremlin_insert(client: NeptuneClient, g: GraphTraversalSource) -> bool:
-    translator = Translator('g')
-    s = translator.translate(g.bytecode)
-    s = s.replace('Cardinality.', '')  # hack to fix parser error for set cardinality
-    _logger.debug(s)
-    res = client.write_gremlin(s)
-    return res
-
-
 def to_rdf_graph(
-        client: NeptuneClient,
-        df: pd.DataFrame,
-        batch_size: int = 50,
-        subject_column:str = 's',
-        predicate_column:str = 'p',
-        object_column:str = 'o',
-        graph_column:str = 'g'
-) -> None:
-    """Write records stored in a DataFrame into Amazon Neptune.    
-    
-    The DataFrame must consist of triples with column names for the subject, predicate, and object specified.  
+    client: NeptuneClient,
+    df: pd.DataFrame,
+    batch_size: int = 50,
+    subject_column: str = "s",
+    predicate_column: str = "p",
+    object_column: str = "o",
+    graph_column: str = "g",
+) -> bool:
+    """Write records stored in a DataFrame into Amazon Neptune.
+
+    The DataFrame must consist of triples with column names for the subject, predicate, and object specified.
     If you want to add data into a named graph then you will also need the graph column.
 
     Parameters
     ----------
-    client : NeptuneClient
+    client (NeptuneClient) :
         instance of the neptune client to use
-    df : pandas.DataFrame
+    df (pandas.DataFrame) :
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
+    subject_column (str, optional) :
+        The column name in the dataframe for the subject.  Defaults to 's'
+    predicate_column (str, optional) :
+        The column name in the dataframe for the predicate.  Defaults to 'p'
+    object_column (str, optional) :
+        The column name in the dataframe for the object.  Defaults to 'o'
+    graph_column (str, optional) :
+        The column name in the dataframe for the graph if sending across quads.  Defaults to 'g'
 
     Returns
     -------
@@ -270,10 +207,10 @@ def to_rdf_graph(
 
     Examples
     --------
-    Writing to Amazon Neptune 
+    Writing to Amazon Neptune
 
     >>> import awswrangler as wr
-    >>> client = wr.neptune.Client(host='NEPTUNE-ENDPOINT')
+    >>> client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
     >>> wr.neptune.gremlin.to_rdf_graph(
     ...     df=df
     ... )
@@ -284,26 +221,97 @@ def to_rdf_graph(
             is_quads = True
     else:
         raise exceptions.InvalidArgumentValue(
-            "Dataframe must contain at least the subject, predicate, and object columns defined or the defaults (s, p, o) to be saved to Amazon Neptune"
+            """Dataframe must contain at least the subject, predicate, and object columns defined or the defaults
+            (s, p, o) to be saved to Amazon Neptune"""
         )
 
     query = ""
     # Loop through items in the DF
     for (index, row) in df.iterrows():
-        # build up a query 
-        if is_quads:            
-            insert = f"INSERT DATA {{ GRAPH <{row[graph_column]}> {{<{row[subject_column]}> <{str(row[predicate_column])}> <{row[object_column]}> . }} }}; "
+        # build up a query
+        if is_quads:
+            insert = f"""INSERT DATA {{ GRAPH <{row[graph_column]}> {{<{row[subject_column]}>
+                    <{str(row[predicate_column])}> <{row[object_column]}> . }} }}; """
             query = query + insert
         else:
-            insert = f"INSERT DATA {{ <{row[subject_column]}> <{str(row[predicate_column])}> <{row[object_column]}> . }}; "
+            insert = f"""INSERT DATA {{ <{row[subject_column]}> <{str(row[predicate_column])}>
+                    <{row[object_column]}> . }}; """
             query = query + insert
         # run the query
         if index > 0 and index % batch_size == 0:
             res = client.write_sparql(query)
             if res:
-                query=""
+                query = ""
     return client.write_sparql(query)
 
 
-def connect(host: str, port: str, iam_enabled: bool = False, **kwargs: Any) -> NeptuneClient:
+def connect(host: str, port: int, iam_enabled: bool = False, **kwargs: Any) -> NeptuneClient:
+    """Creates a connection to a Neptune cluster
+
+    Args:
+        host (str): The host endpoint to connect to
+        port (int): The port endpoint to connect to
+        iam_enabled (bool, optional): set to True if IAM is enabled on the cluster. Defaults to False.
+
+    Returns:
+        NeptuneClient: [description]
+    """
     return NeptuneClient(host, port, iam_enabled, **kwargs)
+
+
+def _build_gremlin_update(g: GraphTraversalSource, row: Any) -> GraphTraversalSource:
+    g = g.V(str(row["~id"]))
+    for (column, value) in row.items():
+        if column not in ["~id", "~label"]:
+            if isinstance(value, list) and len(value) > 0:
+                for item in value:
+                    g = g.property(Cardinality.set_, column, item)
+            elif not pd.isna(value) and not pd.isnull(value):
+                g = g.property(column, value)
+
+    return g
+
+
+def _build_gremlin_insert_vertices(g: GraphTraversalSource, row: Any) -> GraphTraversalSource:
+    g = g.V(str(row["~id"])).fold().coalesce(__.unfold(), __.addV(row["~label"]).property(T.id, str(row["~id"])))
+    for (column, value) in row.items():
+        if column not in ["~id", "~label"]:
+            if isinstance(value, list) and len(value) > 0:
+                for item in value:
+                    g = g.property(Cardinality.set_, column, item)
+            elif not pd.isna(value) and not pd.isnull(value):
+                g = g.property(column, value)
+
+    return g
+
+
+def _build_gremlin_insert_edges(g: GraphTraversalSource, row: pd.Series) -> GraphTraversalSource:
+    g = (
+        g.V(str(row["~from"]))
+        .fold()
+        .coalesce(__.unfold(), _build_gremlin_insert_vertices(__, {"~id": row["~from"], "~label": "Vertex"}))
+        .addE(row["~label"])
+        .to(
+            __.V(str(row["~to"]))
+            .fold()
+            .coalesce(__.unfold(), _build_gremlin_insert_vertices(__, {"~id": row["~to"], "~label": "Vertex"}))
+        )
+    )
+    for (column, value) in row.items():
+        if column not in ["~id", "~label", "~to", "~from"]:
+            if isinstance(value, list) and len(value) > 0:
+                for item in value:
+                    g = g.property(Cardinality.set_, column, item)
+            elif not pd.isna(value) and not pd.isnull(value):
+                g = g.property(column, value)
+
+    return g
+
+
+def _run_gremlin_insert(client: NeptuneClient, g: GraphTraversalSource) -> bool:
+    translator = Translator("g")
+    s = translator.translate(g.bytecode)
+    s = s.replace("Cardinality.", "")  # hack to fix parser error for set cardinality
+    _logger.debug(s)
+    res = client.write_gremlin(s)
+    return res
