@@ -1,17 +1,17 @@
 ---
 name: Support Data Wrangler
-about: Add your organisation's name or logo to the Data Wrangler read.me
-title: "[Support Data Wrangler]: <your organisation name>"
+about: Add your organization's name or logo to the Data Wrangler read.me
+title: "[Support Data Wrangler]: <your organization name>"
 labels: ''
 assignees: ''
 
 ---
 
-Thank you for letting us use your organisation's name on the Data Wrangler read.me page and letting other customers know that you support the project!  If you would like us to also display your organisation's logo. please raise a linked pull request to provide an image file for the logo.
+Thank you for letting us use your organization's name on the Data Wrangler read.me page and letting other customers know that you support the project!  If you would like us to also display your organization's logo. please raise a pull request to provide an image file for the logo.
 
 Please add any files to *docs/source/_static/*
 
-Organisation Name: 
+Organization Name: 
 Your Name:
 Your Position:
 I have included a logo: y/n

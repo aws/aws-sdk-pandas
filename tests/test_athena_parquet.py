@@ -244,25 +244,25 @@ def test_parquet_chunked(path, glue_database, glue_table, col2, chunked):
 
 def test_unsigned_parquet(path, glue_database, glue_table):
     wr.s3.delete_objects(path=path)
-    df = pd.DataFrame({"c0": [0, 0, (2 ** 8) - 1], "c1": [0, 0, (2 ** 16) - 1], "c2": [0, 0, (2 ** 32) - 1]})
+    df = pd.DataFrame({"c0": [0, 0, (2**8) - 1], "c1": [0, 0, (2**16) - 1], "c2": [0, 0, (2**32) - 1]})
     df["c0"] = df.c0.astype("uint8")
     df["c1"] = df.c1.astype("uint16")
     df["c2"] = df.c2.astype("uint32")
     wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table, mode="overwrite")
     df = wr.athena.read_sql_table(table=glue_table, database=glue_database)
-    assert df.c0.sum() == (2 ** 8) - 1
-    assert df.c1.sum() == (2 ** 16) - 1
-    assert df.c2.sum() == (2 ** 32) - 1
+    assert df.c0.sum() == (2**8) - 1
+    assert df.c1.sum() == (2**16) - 1
+    assert df.c2.sum() == (2**32) - 1
     schema = wr.s3.read_parquet_metadata(path=path)[0]
     assert schema["c0"] == "smallint"
     assert schema["c1"] == "int"
     assert schema["c2"] == "bigint"
     df = wr.s3.read_parquet(path=path)
-    assert df.c0.sum() == (2 ** 8) - 1
-    assert df.c1.sum() == (2 ** 16) - 1
-    assert df.c2.sum() == (2 ** 32) - 1
+    assert df.c0.sum() == (2**8) - 1
+    assert df.c1.sum() == (2**16) - 1
+    assert df.c2.sum() == (2**32) - 1
 
-    df = pd.DataFrame({"c0": [0, 0, (2 ** 64) - 1]})
+    df = pd.DataFrame({"c0": [0, 0, (2**64) - 1]})
     df["c0"] = df.c0.astype("uint64")
     with pytest.raises(wr.exceptions.UnsupportedType):
         wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table, mode="overwrite")

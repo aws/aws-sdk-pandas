@@ -44,17 +44,6 @@ body:
     validations:
       required: false
 
-  - type: textarea
-    attributes:
-      label: Environment
-      description: Environment Information.
-      value: |
-        ```
-        Provide your `pip list` output, particularly the version of the AWS Data Wrangler library you used. Providing this information may significantly improve resolution times.
-        ```
-    validations:
-      required: false
-
   - type: input
     attributes:
       label: OS
