@@ -11,7 +11,7 @@ assignees: ''
 A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
 
 **Describe the solution you'd like**
-A clear and concise description of what you want to happen.
+A clear and concise description of what you are expecting.
 
 **Describe alternatives you've considered**
 A clear and concise description of any alternative solutions or features you've considered.
@@ -19,4 +19,4 @@ A clear and concise description of any alternative solutions or features you've 
 **Additional context**
 Add any other context or screenshots about the feature request here.
 
-*P.S. Please Don't attach files. Add code snippets directly in the message body instead.*
+*P.S. Please do not attach files as it's considered a security risk. Add code snippets directly in the message body as much as possible.*

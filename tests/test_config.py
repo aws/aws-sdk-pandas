@@ -59,7 +59,7 @@ def test_basics(path, glue_database, glue_table, workgroup0, workgroup1):
     wr.catalog.create_parquet_table(database=glue_database, **args)
 
     # Testing configured s3 block size
-    size = 1 * 2 ** 20  # 1 MB
+    size = 1 * 2**20  # 1 MB
     wr.config.s3_block_size = size
     with open_s3_object(path, mode="wb") as s3obj:
         s3obj.write(b"foo")
