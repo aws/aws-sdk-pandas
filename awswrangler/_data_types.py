@@ -234,9 +234,9 @@ def _split_fields(s: str) -> Iterator[str]:
     counter: int = 0
     last: int = 0
     for i, x in enumerate(s):
-        if x == "<":
+        if x in ("<", "("):
             counter += 1
-        elif x == ">":
+        elif x in (">", ")"):
             counter -= 1
         elif x == "," and counter == 0:
             yield s[last:i]
