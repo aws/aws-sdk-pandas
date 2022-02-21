@@ -774,7 +774,7 @@ def read_sql_query(
     kms_key : str, optional
         For SSE-KMS, this is the KMS key ARN or ID.
     keep_files : bool
-        Should Wrangler delete or keep the staging files produced by Athena?
+        Whether staging files produced by Athena are retained. 'True' by default.
     ctas_database_name : str, optional
         The name of the alternative database where the CTAS temporary table is stored.
         If None, the default `database` is used.

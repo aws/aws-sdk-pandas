@@ -113,6 +113,7 @@ Amazon Athena
     create_athena_bucket
     get_query_columns_types
     get_query_execution
+    get_named_query_statement
     get_work_group
     read_sql_query
     read_sql_table
