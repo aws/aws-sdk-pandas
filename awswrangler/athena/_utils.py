@@ -273,6 +273,32 @@ def _apply_query_metadata(df: pd.DataFrame, query_metadata: _QueryMetadata) -> p
     return df
 
 
+def get_named_query_statement(
+    named_query_id: str,
+    boto3_session: Optional[boto3.Session] = None,
+) -> str:
+    """
+    Get the named query statement string from a query ID.
+
+    Parameters
+    ----------
+    named_query_id: str
+        The unique ID of the query. Used to get the query statement from a saved query.
+        Requires access to the workgroup where the query is saved.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. If none, the default boto3 session is used.
+
+    Returns
+    -------
+    str
+        The named query statement string
+    """
+    client_athena: boto3.client = _utils.client(
+        service_name="athena", session=_utils.ensure_session(session=boto3_session)
+    )
+    return client_athena.get_named_query(NamedQueryId=named_query_id)["NamedQuery"]["QueryString"]  # type: ignore
+
+
 def get_query_columns_types(query_execution_id: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, str]:
     """Get the data type of all columns queried.
 
@@ -283,7 +309,7 @@ def get_query_columns_types(query_execution_id: str, boto3_session: Optional[bot
     query_execution_id : str
         Athena query execution ID.
     boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+        Boto3 Session. If none, the default boto3 session is used.
 
     Returns
     -------
@@ -297,7 +323,9 @@ def get_query_columns_types(query_execution_id: str, boto3_session: Optional[bot
     {'col0': 'int', 'col1': 'double'}
 
     """
-    client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
+    client_athena: boto3.client = _utils.client(
+        service_name="athena", session=_utils.ensure_session(session=boto3_session)
+    )
     response: Dict[str, Any] = client_athena.get_query_results(QueryExecutionId=query_execution_id, MaxResults=1)
     col_info: List[Dict[str, str]] = response["ResultSet"]["ResultSetMetadata"]["ColumnInfo"]
     return dict(
