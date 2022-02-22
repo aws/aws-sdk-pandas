@@ -56,6 +56,8 @@ class DataApiConnector:
         """
         for key in column_value:
             if column_value[key] is not None:
+                if (key == "isNull") and column_value[key]:
+                    return None
                 if key == "arrayValue":
                     raise ValueError(f"arrayValue not supported yet - could not extract {column_value[key]}")
                 return column_value[key]
