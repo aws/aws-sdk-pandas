@@ -5,7 +5,7 @@ name: "Close Stale Issues"
 on:
   workflow_dispatch:
   schedule:
-  - cron: "0 */8 * * *"
+  - cron: "0 */3 * * *"
 
 jobs:
   cleanup:
@@ -33,9 +33,9 @@ jobs:
         closed-for-staleness-label: closed-for-staleness
 
         # Issue timing
-        days-before-stale: 60
+        days-before-stale: 30
         days-before-close: 7
-        days-before-ancient: 730
+        days-before-ancient: 365
         minimum-upvotes-to-exempt: 5
 
         # Misc Settings
