@@ -996,6 +996,8 @@ def unload_to_files(
             boto3_session=session,
         )
 
+        sql.replace(r"'", r"\'")
+
         sql = (
             f"UNLOAD ('{sql}')\n"
             f"TO '{path}'\n"
