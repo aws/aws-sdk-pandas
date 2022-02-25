@@ -1,5 +1,3 @@
-Subject: <short purpose of this pull request>
-
 ### Feature or Bugfix
 <!-- please choose -->
 - Feature
