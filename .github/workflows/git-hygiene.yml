@@ -1,5 +1,3 @@
-
-   
 name: "Close Stale Issues"
 
 on:
@@ -23,6 +21,8 @@ jobs:
         exempt-issue-labels: 'needs-triage'
         exempt-pr-labels: 'needs-triage'
         stale-issue-label: 'closing-soon'
+        operations-per-run: 100
+        enable-statistics: true
         stale-issue-message: |
           Marking this issue as stale due to inactivity. This helps our maintainers find and focus on the active issues. If this issue receives no comments in the next 7 days it will automatically be closed. 
         stale-pr-label: 'closing-soon'
