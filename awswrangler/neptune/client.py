@@ -133,7 +133,10 @@ class NeptuneClient:
         req = self._prepare_request("POST", url, data=data, headers=headers)
         res = self._http_session.send(req)
         _logger.debug(res)
-        return res.json()["results"]
+        if res.ok:
+            return res.json()["results"]
+        else:
+            raise exceptions.QueryFailed(f"Status Code: {res.status_code} Reason: {res.reason} Message: {res.text}")
 
     def read_gremlin(self, query: str) -> Any:
         """Executes the provided Gremlin traversal and returns the results
@@ -174,7 +177,7 @@ class NeptuneClient:
         except Exception as e:
             c.close()
             _logger.error(e)
-            raise e
+            raise exceptions.QueryFailed(e)
 
     def read_sparql(self, query: str, headers: Any = None) -> Any:
         """Executes the given query and returns the results
@@ -222,7 +225,10 @@ class NeptuneClient:
         req = self._prepare_request("POST", uri, data=data, headers=headers)
         res = self._http_session.send(req)
         _logger.debug(res)
-        return res.json()
+        if res.ok:
+            return res.json()
+        else:
+            raise exceptions.QueryFailed(f"Status Code: {res.status_code} Reason: {res.reason} Message: {res.text}")
 
     def status(self) -> Any:
         """Returns the status of the Neptune cluster

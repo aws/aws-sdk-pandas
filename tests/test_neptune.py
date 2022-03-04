@@ -69,10 +69,31 @@ def test_opencypher_query(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     assert row["labels(n)"]
 
 
+def test_opencypher_malformed_query(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+    client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
+    with pytest.raises(wr.exceptions.QueryFailed):
+        wr.neptune.execute_opencypher(client, "MATCH (n) LIMIT 2")
+    with pytest.raises(wr.exceptions.QueryFailed):
+        wr.neptune.execute_opencypher(client, "")
+
+def test_gremlin_malformed_query(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+    client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
+    with pytest.raises(wr.exceptions.QueryFailed):
+        wr.neptune.execute_gremlin(client, "g.V().limit(1")
+    with pytest.raises(wr.exceptions.QueryFailed):
+        wr.neptune.execute_gremlin(client, "")
+
+def test_sparql_malformed_query(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+    client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
+    with pytest.raises(wr.exceptions.QueryFailed):
+        wr.neptune.execute_sparql(client, "SELECT ?s ?p ?o {?s ?pLIMIT 1")
+    with pytest.raises(wr.exceptions.QueryFailed):
+        wr.neptune.execute_sparql(client, "")
+
 def test_gremlin_query_vertices(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
 
-    wr.neptune.execute_gremlin(client, f"g.addV().property(T.id, '{str(id)}')")
+    wr.neptune.execute_gremlin(client, f"g.addV().property(T.id, '{uuid.uuid4()}')")
     df = wr.neptune.execute_gremlin(client, "g.V().limit(1)")
     assert isinstance(df, pd.DataFrame)
     assert df.shape == (1, 2)
