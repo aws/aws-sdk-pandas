@@ -15,7 +15,7 @@ export LD_LIBRARY_PATH=$(pwd)/dist/lib:$LD_LIBRARY_PATH
 
 git clone \
   --depth 1 \
-  --branch apache-arrow-6.0.0 \
+  --branch apache-arrow-6.0.1 \
   --single-branch \
   https://github.com/apache/arrow.git
 

@@ -34,3 +34,11 @@ docker run \
  --rm \
  awswrangler-build-py38 \
  build-lambda-layer.sh "${VERSION}-py3.8" "ninja-build"
+
+# Python 3.9
+docker run \
+ --volume "$DIR_NAME":/aws-data-wrangler/ \
+ --workdir /aws-data-wrangler/building/lambda \
+ --rm \
+ awswrangler-build-py39 \
+ build-lambda-layer.sh "${VERSION}-py3.9" "ninja-build"
