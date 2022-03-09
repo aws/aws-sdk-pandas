@@ -98,12 +98,14 @@ def execute_sparql(client: NeptuneClient, query: str) -> pd.DataFrame:
             ?person foaf:name ?name .
     """
     data = client.read_sparql(query)
+    df = None
     if "results" in data and "bindings" in data["results"]:
         df = pd.DataFrame(data["results"]["bindings"])
         df.applymap(lambda x: x["value"])
-        return df
     else:
-        return pd.DataFrame(data)
+        df = pd.DataFrame(data)
+
+    return df
 
 
 def to_property_graph(client: NeptuneClient, df: pd.DataFrame, batch_size: int = 50) -> bool:
@@ -315,3 +317,60 @@ def _run_gremlin_insert(client: NeptuneClient, g: GraphTraversalSource) -> bool:
     _logger.debug(s)
     res = client.write_gremlin(s)
     return res
+
+
+def flatten_nested_df(
+    df: pd.DataFrame, include_prefix: bool = True, seperator: str = "_", recursive: bool = True
+) -> pd.DataFrame:
+    """This will flatten the lists and dictionaries of the input data frame
+
+    Args:
+        df (pd.DataFrame): The input data frame
+        include_prefix (bool, optional): If True, then it will prefix the new column name with the original column name.
+        Defaults to True.
+        seperator (str, optional): The seperator to use between field names when a dictionary is exploded.
+        Defaults to "_".
+        recursive (bool, optional): If True, then this will recurse  the fields in the data frame. Defaults to True.
+
+    Returns:
+        pd.DataFrame: The flattened data frame
+    """
+    if seperator is None:
+        seperator = "_"
+    df = df.reset_index()
+
+    # search for list and map
+    s = (df.applymap(type) == list).all()
+    list_columns = s[s].index.tolist()
+
+    s = (df.applymap(type) == dict).all()
+    dict_columns = s[s].index.tolist()
+
+    if len(list_columns) > 0 or len(dict_columns) > 0:
+        new_columns = []
+
+        for col in dict_columns:
+            # expand dictionaries horizontally
+            expanded = None
+            if include_prefix:
+                expanded = pd.json_normalize(df[col], sep=seperator).add_prefix(f"{col}")
+            else:
+                expanded = pd.json_normalize(df[col], sep=seperator)
+            expanded.index = df.index
+            df = pd.concat([df, expanded], axis=1).drop(columns=[col])
+            new_columns.extend(expanded.columns)
+
+        for col in list_columns:
+            df = df.drop(columns=[col]).join(df[col].explode().to_frame())
+            new_columns.append(col)
+
+        # check if there are still dict o list fields to flatten
+        s = (df[new_columns].applymap(type) == list).all()
+        list_columns = s[s].index.tolist()
+
+        s = (df[new_columns].applymap(type) == dict).all()
+        dict_columns = s[s].index.tolist()
+        if recursive and (len(list_columns) > 0 or len(dict_columns) > 0):
+            df = flatten_nested_df(df, include_prefix=include_prefix, seperator=seperator, recursive=recursive)
+
+    return df

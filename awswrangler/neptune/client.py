@@ -138,7 +138,7 @@ class NeptuneClient:
         else:
             raise exceptions.QueryFailed(f"Status Code: {res.status_code} Reason: {res.reason} Message: {res.text}")
 
-    def read_gremlin(self, query: str) -> Any:
+    def read_gremlin(self, query: str, headers: Any = None) -> Any:
         """Executes the provided Gremlin traversal and returns the results
 
         Args:
@@ -147,7 +147,7 @@ class NeptuneClient:
         Returns:
             Any: [description]
         """
-        return self._execute_gremlin(query)
+        return self._execute_gremlin(query, headers)
 
     def write_gremlin(self, query: str) -> bool:
         """Executes a Gremlin write query
@@ -162,11 +162,11 @@ class NeptuneClient:
         _logger.debug(res)
         return True
 
-    def _execute_gremlin(self, query: str) -> Any:
+    def _execute_gremlin(self, query: str, headers: Any = None) -> Any:
         try:
             nest_asyncio.apply()
             uri = f"{HTTP_PROTOCOL}://{self.host}:{self.port}/gremlin"
-            request = self._prepare_request("GET", uri)
+            request = self._prepare_request("GET", uri, headers=headers)
             ws_url = f"{WS_PROTOCOL}://{self.host}:{self.port}/gremlin"
             c = client.Client(ws_url, "g", headers=dict(request.headers))
             result = c.submit(query)

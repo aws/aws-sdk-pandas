@@ -48,7 +48,7 @@ def test_connection_neptune_https_iam(neptune_endpoint, neptune_port):
 
 def test_opencypher_query(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
-    wr.neptune.execute_opencypher(client, "create (a { name: 'foo' })-[:TEST]->(b {name : 'bar'})")
+    wr.neptune.execute_opencypher(client, "create (a:Foo { name: 'foo' })-[:TEST]->(b {name : 'bar'})")
     df = wr.neptune.execute_opencypher(client, "MATCH (n) RETURN n LIMIT 1")
     assert isinstance(df, pd.DataFrame)
     assert df.shape == (1, 1)
@@ -67,6 +67,29 @@ def test_opencypher_query(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     row = df.iloc[0]
     assert row["id(n)"]
     assert row["labels(n)"]
+
+
+def test_flatten_df(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+    client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
+    wr.neptune.execute_opencypher(client, "create (a:Foo { name: 'foo' })-[:TEST]->(b {name : 'bar'})")
+    df = wr.neptune.execute_opencypher(client, "MATCH (n:Foo) RETURN n LIMIT 1")
+    df_test = wr.neptune.flatten_nested_df(df)
+    assert isinstance(df_test, pd.DataFrame)
+    assert df_test.shape == (1, 6)
+    row = df_test.iloc[0]
+    assert row["n~properties_name"]
+
+    df_test = wr.neptune.flatten_nested_df(df, include_prefix=False)
+    assert isinstance(df_test, pd.DataFrame)
+    assert df_test.shape == (1, 6)
+    row = df_test.iloc[0]
+    assert row["~properties_name"]
+
+    df_test = wr.neptune.flatten_nested_df(df, seperator="|")
+    assert isinstance(df_test, pd.DataFrame)
+    assert df_test.shape == (1, 6)
+    row = df_test.iloc[0]
+    assert row["n~properties|name"]
 
 
 def test_opencypher_malformed_query(neptune_endpoint, neptune_port) -> Dict[str, Any]:
