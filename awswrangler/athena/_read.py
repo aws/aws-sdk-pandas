@@ -261,7 +261,7 @@ def _resolve_query_without_cache_ctas(
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     fully_qualified_name: str = f'"{alt_database}"."{name}"' if alt_database else f'"{database}"."{name}"'
-    query_id: str = create_ctas_table(
+    ctas_query_info: Dict[str, str] = create_ctas_table(
         sql=sql,
         database=database,
         ctas_table=name,
@@ -274,10 +274,11 @@ def _resolve_query_without_cache_ctas(
         kms_key=kms_key,
         boto3_session=boto3_session,
     )
-    _logger.debug("query_id: %s", query_id)
+    ctas_query_id: str = ctas_query_info["ctas_query_id"]
+    _logger.debug("ctas_query_id: %s", ctas_query_id)
     try:
         query_metadata: _QueryMetadata = _get_query_metadata(
-            query_execution_id=query_id,
+            query_execution_id=ctas_query_id,
             boto3_session=boto3_session,
             categories=categories,
             metadata_cache_manager=_cache_manager,

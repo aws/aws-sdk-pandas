@@ -659,7 +659,7 @@ def create_ctas_table(
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
-) -> str:
+) -> Dict[str, str]:
     """Create a new table populated with the results of a SELECT query.
 
     https://docs.aws.amazon.com/athena/latest/ug/create-table-as.html
@@ -708,11 +708,12 @@ def create_ctas_table(
 
     Returns
     -------
-    str
-        The ID of the query.
+    Dict[str, str]
+        A dictionary with the ID of the query, and the CTAS database and table names
     """
     ctas_table = catalog.sanitize_table_name(ctas_table) if ctas_table else f"temp_table_{uuid.uuid4().hex}"
-    fully_qualified_name = f'"{ctas_database}"."{ctas_table}"' if ctas_database else f'"{database}"."{ctas_table}"'
+    ctas_database = ctas_database if ctas_database else database
+    fully_qualified_name = f'"{ctas_database}"."{ctas_table}"'
 
     wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
     s3_output = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=boto3_session)
@@ -722,7 +723,7 @@ def create_ctas_table(
         f"    external_location = '{s3_output}/{ctas_table}',\n" if (not wg_config.enforced) and (s3_output) else ""
     )
 
-    # At least one property must be specified within `WITH()` in the query. We default to `PARQUET` for storage format here
+    # At least one property must be specified within `WITH()` in the query. We default to `PARQUET` for `storage_format`
     storage_format_str: str = f"""    format = '{storage_format.upper() if storage_format else "PARQUET"}'"""
     write_compression_str: str = (
         f"    write_compression = '{write_compression.upper()}',\n" if write_compression else ""
@@ -774,7 +775,7 @@ def create_ctas_table(
                 f"It is not possible to wrap this query into a CTAS statement. Root error message: {error['Message']}"
             )
         raise ex
-    return query_id
+    return {"ctas_database": ctas_database, "ctas_table": ctas_table, "ctas_query_id": query_id}
 
 
 @apply_configs
