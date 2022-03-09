@@ -104,8 +104,8 @@ def _get_endpoint_url(service_name: str) -> Optional[str]:
 
 @apply_configs
 def client(
-    service_name: str, 
-    session: Optional[boto3.Session] = None, 
+    service_name: str,
+    session: Optional[boto3.Session] = None,
     botocore_config: Optional[botocore.config.Config] = None,
     verify: Optional[Union[str, bool]] = None,
 ) -> boto3.client:
@@ -122,8 +122,8 @@ def client(
 
 @apply_configs
 def resource(
-    service_name: str, 
-    session: Optional[boto3.Session] = None, 
+    service_name: str,
+    session: Optional[boto3.Session] = None,
     botocore_config: Optional[botocore.config.Config] = None,
     verify: Optional[Union[str, bool]] = None,
 ) -> boto3.resource:
