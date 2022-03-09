@@ -77,19 +77,25 @@ def test_flatten_df(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     assert isinstance(df_test, pd.DataFrame)
     assert df_test.shape == (1, 6)
     row = df_test.iloc[0]
-    assert row["n~properties_name"]
+    assert row["n_~properties_name"]
 
     df_test = wr.neptune.flatten_nested_df(df, include_prefix=False)
     assert isinstance(df_test, pd.DataFrame)
     assert df_test.shape == (1, 6)
     row = df_test.iloc[0]
-    assert row["~properties_name"]
+    assert row["_~properties_name"]
 
     df_test = wr.neptune.flatten_nested_df(df, seperator="|")
     assert isinstance(df_test, pd.DataFrame)
     assert df_test.shape == (1, 6)
     row = df_test.iloc[0]
-    assert row["n~properties|name"]
+    assert row["n|~properties|name"]
+
+    df_new = pd.DataFrame([{"~id": "0", "~labels": ["version"], "~properties": {"type": "version"}}])
+    df_test = wr.neptune.flatten_nested_df(df_new)
+    assert df_test.shape == (1, 4)
+    row = df_test.iloc[0]
+    assert row["~properties_type"]
 
 
 def test_opencypher_malformed_query(neptune_endpoint, neptune_port) -> Dict[str, Any]:

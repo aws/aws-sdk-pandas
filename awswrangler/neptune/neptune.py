@@ -353,9 +353,9 @@ def flatten_nested_df(
             # expand dictionaries horizontally
             expanded = None
             if include_prefix:
-                expanded = pd.json_normalize(df[col], sep=seperator).add_prefix(f"{col}")
+                expanded = pd.json_normalize(df[col], sep=seperator).add_prefix(f"{col}{seperator}")
             else:
-                expanded = pd.json_normalize(df[col], sep=seperator)
+                expanded = pd.json_normalize(df[col], sep=seperator).add_prefix(f"{seperator}")
             expanded.index = df.index
             df = pd.concat([df, expanded], axis=1).drop(columns=[col])
             new_columns.extend(expanded.columns)
