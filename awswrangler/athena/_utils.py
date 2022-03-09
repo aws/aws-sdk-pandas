@@ -679,7 +679,7 @@ def create_ctas_table(
     s3_output : Optional[str], optional
         The output Amazon S3 path.
         If None, either the Athena workgroup or client-side location setting is used.
-        If a workgroup enforces a query results location, then this parameter must be set to None.
+        If a workgroup enforces a query results location, then it overrides this argument.
     storage_format : Optional[str], optional
         The storage format for the CTAS query results, such as ORC, PARQUET, AVRO, JSON, or TEXTFILE.
         PARQUET by default.
@@ -717,10 +717,12 @@ def create_ctas_table(
     wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
     s3_output = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=boto3_session)
     s3_output = s3_output[:-1] if s3_output[-1] == "/" else s3_output
+    # If the workgroup enforces an external location, then it overrides the user supplied argument
     external_location_str: str = (
         f"    external_location = '{s3_output}/{ctas_table}',\n" if (not wg_config.enforced) and (s3_output) else ""
     )
 
+    # At least one property must be specified within `WITH()` in the query. We default to `PARQUET` for storage format here
     storage_format_str: str = f"""    format = '{storage_format.upper() if storage_format else "PARQUET"}'"""
     write_compression_str: str = (
         f"    write_compression = '{write_compression.upper()}',\n" if write_compression else ""
@@ -732,7 +734,7 @@ def create_ctas_table(
         else ""
     )
     field_delimiter_str: str = f"    field_delimiter = '{field_delimiter}',\n" if field_delimiter else ""
-    schema_only_str: str = f"WITH {'NO ' if schema_only else ''}DATA"
+    schema_only_str: str = "\nWITH NO DATA" if schema_only else ""
 
     ctas_sql = (
         f"CREATE TABLE {fully_qualified_name}\n"
@@ -744,7 +746,7 @@ def create_ctas_table(
         f"{write_compression_str}"
         f"{storage_format_str}"
         f")\n"
-        f"AS {sql}\n"
+        f"AS {sql}"
         f"{schema_only_str}"
     )
     _logger.debug("ctas sql: %s", ctas_sql)
