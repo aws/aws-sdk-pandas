@@ -28,6 +28,6 @@ jobs:
         stale-pr-label: 'closing-soon'
         stale-pr-message: |
           Marking this pull request as stale due to inactivity. This helps our maintainers find and focus on the active pull requests.
-        debug-only: true
+        debug-only: false
         ascending: true
         exempt-all-milestones: true
