@@ -28,5 +28,5 @@ jobs:
         stale-pr-label: 'needs-triage'
         stale-pr-message: |
           PR requires assignment.
-        debug-only: true
+        debug-only: false
         exempt-all-milestones: true
