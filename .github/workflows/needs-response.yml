@@ -18,7 +18,7 @@ jobs:
         repo-token: ${{ secrets.GITHUB_TOKEN }}
         days-before-stale: 5
         days-before-close: -1
-        exempt-issue-labels: 'needs-triage'
+        exempt-issue-labels: 'needs-triage,help wanted'
         exempt-pr-labels: 'needs-triage'
         stale-issue-label: 'needs-triage'
         operations-per-run: 250
