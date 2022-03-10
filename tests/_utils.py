@@ -2,7 +2,7 @@ import random
 import time
 from datetime import datetime
 from decimal import Decimal
-from typing import Iterator
+from typing import Dict, Iterator
 
 import boto3
 import botocore.exceptions
@@ -499,6 +499,14 @@ def ensure_data_types_csv(df, governed=False):
         assert str(df["par0"].dtype).startswith("Int")
     if "par1" in df:
         assert str(df["par1"].dtype) == "string"
+
+
+def ensure_athena_ctas_table(ctas_query_info: Dict[str, str], boto3_session: boto3.Session) -> None:
+    query_metadata = wr.athena._utils._get_query_metadata(
+        query_execution_id=ctas_query_info["ctas_query_id"], boto3_session=boto3_session
+    )
+    assert query_metadata.raw_payload["Status"]["State"] == "SUCCEEDED"
+    wr.catalog.delete_table_if_exists(table=ctas_query_info["ctas_table"], database=ctas_query_info["ctas_database"])
 
 
 def ensure_athena_query_metadata(df, ctas_approach=True, encrypted=False):
