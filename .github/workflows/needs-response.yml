@@ -24,9 +24,9 @@ jobs:
         operations-per-run: 250
         enable-statistics: true
         stale-issue-message: |
-          Marking this issue as stale due to inactivity. This helps our maintainers find and focus on the active issues. If this issue receives no comments in the next 7 days it will automatically be closed. 
-        stale-pr-label: 'closing-soon'
+          This issue requires triage and should be assigned. 
+        stale-pr-label: 'needs-triage'
         stale-pr-message: |
-          Marking this pull request as stale due to inactivity. This helps our maintainers find and focus on the active pull requests.
+          PR requires assignment.
         debug-only: true
         exempt-all-milestones: true
