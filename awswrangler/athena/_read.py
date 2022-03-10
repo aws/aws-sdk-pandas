@@ -22,6 +22,7 @@ from awswrangler.athena._utils import (
     _QueryMetadata,
     _start_query_execution,
     _WorkGroupConfig,
+    create_ctas_table,
 )
 
 from ._cache import _cache_manager, _CacheInfo, _check_for_cached_results
@@ -251,7 +252,6 @@ def _resolve_query_without_cache_ctas(
     encryption: Optional[str],
     workgroup: Optional[str],
     kms_key: Optional[str],
-    wg_config: _WorkGroupConfig,
     alt_database: Optional[str],
     name: Optional[str],
     ctas_bucketing_info: Optional[Tuple[List[str], int]],
@@ -260,52 +260,25 @@ def _resolve_query_without_cache_ctas(
     boto3_session: boto3.Session,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    path: str = f"{s3_output}/{name}"
-    ext_location: str = "\n" if wg_config.enforced is True else f",\n    external_location = '{path}'\n"
     fully_qualified_name: str = f'"{alt_database}"."{name}"' if alt_database else f'"{database}"."{name}"'
-    bucketing_str = (
-        (f",\n" f"    bucketed_by = ARRAY{ctas_bucketing_info[0]},\n" f"    bucket_count = {ctas_bucketing_info[1]}")
-        if ctas_bucketing_info
-        else ""
+    ctas_query_info: Dict[str, str] = create_ctas_table(
+        sql=sql,
+        database=database,
+        ctas_table=name,
+        ctas_database=alt_database,
+        bucketing_info=ctas_bucketing_info,
+        data_source=data_source,
+        s3_output=s3_output,
+        workgroup=workgroup,
+        encryption=encryption,
+        kms_key=kms_key,
+        boto3_session=boto3_session,
     )
-    sql = (
-        f"CREATE TABLE {fully_qualified_name}\n"
-        f"WITH(\n"
-        f"    format = 'Parquet',\n"
-        f"    parquet_compression = 'SNAPPY'"
-        f"{bucketing_str}"
-        f"{ext_location}"
-        f") AS\n"
-        f"{sql}"
-    )
-    _logger.debug("sql: %s", sql)
-    try:
-        query_id: str = _start_query_execution(
-            sql=sql,
-            wg_config=wg_config,
-            database=database,
-            data_source=data_source,
-            s3_output=s3_output,
-            workgroup=workgroup,
-            encryption=encryption,
-            kms_key=kms_key,
-            boto3_session=boto3_session,
-        )
-    except botocore.exceptions.ClientError as ex:
-        error: Dict[str, Any] = ex.response["Error"]
-        if error["Code"] == "InvalidRequestException" and "Exception parsing query" in error["Message"]:
-            raise exceptions.InvalidCtasApproachQuery(
-                "Is not possible to wrap this query into a CTAS statement. Please use ctas_approach=False."
-            )
-        if error["Code"] == "InvalidRequestException" and "extraneous input" in error["Message"]:
-            raise exceptions.InvalidCtasApproachQuery(
-                "Is not possible to wrap this query into a CTAS statement. Please use ctas_approach=False."
-            )
-        raise ex
-    _logger.debug("query_id: %s", query_id)
+    ctas_query_id: str = ctas_query_info["ctas_query_id"]
+    _logger.debug("ctas_query_id: %s", ctas_query_id)
     try:
         query_metadata: _QueryMetadata = _get_query_metadata(
-            query_execution_id=query_id,
+            query_execution_id=ctas_query_id,
             boto3_session=boto3_session,
             categories=categories,
             metadata_cache_manager=_cache_manager,
@@ -482,7 +455,6 @@ def _resolve_query_without_cache(
                 encryption=encryption,
                 workgroup=workgroup,
                 kms_key=kms_key,
-                wg_config=wg_config,
                 alt_database=ctas_database_name,
                 name=name,
                 ctas_bucketing_info=ctas_bucketing_info,

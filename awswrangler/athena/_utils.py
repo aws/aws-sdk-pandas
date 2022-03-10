@@ -3,15 +3,16 @@ import csv
 import logging
 import pprint
 import time
+import uuid
 import warnings
 from decimal import Decimal
-from typing import Any, Dict, Generator, List, NamedTuple, Optional, Union, cast
+from typing import Any, Dict, Generator, List, NamedTuple, Optional, Tuple, Union, cast
 
 import boto3
 import botocore.exceptions
 import pandas as pd
 
-from awswrangler import _data_types, _utils, exceptions, s3, sts
+from awswrangler import _data_types, _utils, catalog, exceptions, s3, sts
 from awswrangler._config import apply_configs
 
 from ._cache import _cache_manager, _CacheInfo, _check_for_cached_results, _LocalMetadataCacheManager
@@ -638,6 +639,143 @@ def describe_table(
         query_metadata=query_metadata, keep_files=True, boto3_session=session, s3_additional_kwargs=s3_additional_kwargs
     )
     return _parse_describe_table(raw_result)
+
+
+@apply_configs
+def create_ctas_table(
+    sql: str,
+    database: str,
+    ctas_table: Optional[str] = None,
+    ctas_database: Optional[str] = None,
+    s3_output: Optional[str] = None,
+    storage_format: Optional[str] = None,
+    write_compression: Optional[str] = None,
+    partitioning_info: Optional[List[str]] = None,
+    bucketing_info: Optional[Tuple[List[str], int]] = None,
+    field_delimiter: Optional[str] = None,
+    schema_only: bool = False,
+    workgroup: Optional[str] = None,
+    data_source: Optional[str] = None,
+    encryption: Optional[str] = None,
+    kms_key: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> Dict[str, str]:
+    """Create a new table populated with the results of a SELECT query.
+
+    https://docs.aws.amazon.com/athena/latest/ug/create-table-as.html
+
+    Parameters
+    ----------
+    sql : str
+        SELECT SQL query.
+    database : str
+        The name of the database where the original table is stored.
+    ctas_table : Optional[str], optional
+        The name of the CTAS table.
+        If None, a random string is used.
+    ctas_database : Optional[str], optional
+        The name of the alternative database where the CTAS table should be stored.
+        If None, `database` is used, that is the CTAS table is stored in the same database as the original table.
+    s3_output : Optional[str], optional
+        The output Amazon S3 path.
+        If None, either the Athena workgroup or client-side location setting is used.
+        If a workgroup enforces a query results location, then it overrides this argument.
+    storage_format : Optional[str], optional
+        The storage format for the CTAS query results, such as ORC, PARQUET, AVRO, JSON, or TEXTFILE.
+        PARQUET by default.
+    write_compression : Optional[str], optional
+        The compression type to use for any storage format that allows compression to be specified.
+    partitioning_info : Optional[List[str]], optional
+        A list of columns by which the CTAS table will be partitioned.
+    bucketing_info : Optional[Tuple[List[str], int]], optional
+        Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
+        second element.
+        Only `str`, `int` and `bool` are supported as column data types for bucketing.
+    field_delimiter : Optional[str], optional
+        The single-character field delimiter for files in CSV, TSV, and text files.
+    schema_only : bool, optional
+        _description_, by default False
+    workgroup : Optional[str], optional
+        Athena workgroup.
+    data_source : Optional[str], optional
+        Data Source / Catalog name. If None, 'AwsDataCatalog' is used.
+    encryption : str, optional
+        Valid values: [None, 'SSE_S3', 'SSE_KMS']. Note: 'CSE_KMS' is not supported.
+    kms_key : str, optional
+        For SSE-KMS, this is the KMS key ARN or ID.
+    boto3_session : Optional[boto3.Session], optional
+        Boto3 Session. The default boto3 session is used if boto3_session is None.
+
+    Returns
+    -------
+    Dict[str, str]
+        A dictionary with the ID of the query, and the CTAS database and table names
+    """
+    ctas_table = catalog.sanitize_table_name(ctas_table) if ctas_table else f"temp_table_{uuid.uuid4().hex}"
+    ctas_database = ctas_database if ctas_database else database
+    fully_qualified_name = f'"{ctas_database}"."{ctas_table}"'
+
+    wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
+    s3_output = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=boto3_session)
+    s3_output = s3_output[:-1] if s3_output[-1] == "/" else s3_output
+    # If the workgroup enforces an external location, then it overrides the user supplied argument
+    external_location_str: str = (
+        f"    external_location = '{s3_output}/{ctas_table}',\n" if (not wg_config.enforced) and (s3_output) else ""
+    )
+
+    # At least one property must be specified within `WITH()` in the query. We default to `PARQUET` for `storage_format`
+    storage_format_str: str = f"""    format = '{storage_format.upper() if storage_format else "PARQUET"}'"""
+    write_compression_str: str = (
+        f"    write_compression = '{write_compression.upper()}',\n" if write_compression else ""
+    )
+    partitioning_str: str = f"    partitioned_by = ARRAY{partitioning_info},\n" if partitioning_info else ""
+    bucketing_str: str = (
+        f"    bucketed_by = ARRAY{bucketing_info[0]},\n    bucket_count = {bucketing_info[1]},\n"
+        if bucketing_info
+        else ""
+    )
+    field_delimiter_str: str = f"    field_delimiter = '{field_delimiter}',\n" if field_delimiter else ""
+    schema_only_str: str = "\nWITH NO DATA" if schema_only else ""
+
+    ctas_sql = (
+        f"CREATE TABLE {fully_qualified_name}\n"
+        f"WITH(\n"
+        f"{external_location_str}"
+        f"{partitioning_str}"
+        f"{bucketing_str}"
+        f"{field_delimiter_str}"
+        f"{write_compression_str}"
+        f"{storage_format_str}"
+        f")\n"
+        f"AS {sql}"
+        f"{schema_only_str}"
+    )
+    _logger.debug("ctas sql: %s", ctas_sql)
+
+    try:
+        query_id: str = _start_query_execution(
+            sql=ctas_sql,
+            wg_config=wg_config,
+            database=database,
+            data_source=data_source,
+            s3_output=s3_output,
+            workgroup=workgroup,
+            encryption=encryption,
+            kms_key=kms_key,
+            boto3_session=boto3_session,
+        )
+    except botocore.exceptions.ClientError as ex:
+        error: Dict[str, Any] = ex.response["Error"]
+        if error["Code"] == "InvalidRequestException" and "Exception parsing query" in error["Message"]:
+            raise exceptions.InvalidCtasApproachQuery(
+                f"It is not possible to wrap this query into a CTAS statement. Root error message: {error['Message']}"
+            )
+        if error["Code"] == "InvalidRequestException" and "extraneous input" in error["Message"]:
+            raise exceptions.InvalidCtasApproachQuery(
+                f"It is not possible to wrap this query into a CTAS statement. Root error message: {error['Message']}"
+            )
+        raise ex
+    return {"ctas_database": ctas_database, "ctas_table": ctas_table, "ctas_query_id": query_id}
 
 
 @apply_configs
