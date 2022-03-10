@@ -732,6 +732,24 @@ def test_copy_from_files(path, redshift_table, redshift_con, databases_parameter
     assert df2["counter"].iloc[0] == 3
 
 
+def test_copy_from_files_extra_params(path, redshift_table, redshift_con, databases_parameters):
+    df = get_df_category().drop(["binary"], axis=1, inplace=False)
+    wr.s3.to_parquet(df, f"{path}test.parquet")
+    bucket, key = wr._utils.parse_path(f"{path}test.csv")
+    boto3.client("s3").put_object(Body=b"", Bucket=bucket, Key=key)
+    wr.redshift.copy_from_files(
+        path=path,
+        path_suffix=[".parquet"],
+        con=redshift_con,
+        table=redshift_table,
+        schema="public",
+        iam_role=databases_parameters["redshift"]["role"],
+        sql_copy_extra_params=["STATUPDATE ON"],
+    )
+    df2 = wr.redshift.read_sql_query(sql=f"SELECT count(*) AS counter FROM public.{redshift_table}", con=redshift_con)
+    assert df2["counter"].iloc[0] == 3
+
+
 def test_get_paths_from_manifest(path):
     manifest_content = {
         "entries": [
