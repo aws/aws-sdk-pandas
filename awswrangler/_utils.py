@@ -115,7 +115,7 @@ def client(
         service_name=service_name,
         endpoint_url=endpoint_url,
         use_ssl=True,
-        verify=_config.config.verify if _config.config.verify else verify,
+        verify=_config.config.verify if verify is None else verify,
         config=default_botocore_config() if botocore_config is None else botocore_config,
     )
 
