@@ -10,6 +10,7 @@ import pytest
 import awswrangler as wr
 
 from ._utils import (
+    ensure_athena_ctas_table,
     ensure_athena_query_metadata,
     ensure_data_types,
     ensure_data_types_category,
@@ -146,6 +147,57 @@ def test_athena_read_sql_ctas_bucketing(path, path2, glue_table, glue_table2, gl
         s3_output=path2,
     )
     assert df_ctas.equals(df_no_ctas)
+
+
+def test_athena_create_ctas(path, glue_table, glue_table2, glue_database, glue_ctas_database, kms_key):
+    boto3_session = boto3.DEFAULT_SESSION
+    wr.s3.to_parquet(
+        df=get_df_list(),
+        path=path,
+        index=False,
+        use_threads=True,
+        dataset=True,
+        mode="overwrite",
+        database=glue_database,
+        table=glue_table,
+        partition_cols=["par0", "par1"],
+    )
+
+    # Select *
+    ctas_query_info = wr.athena.create_ctas_table(
+        sql=f"select * from {glue_table}",
+        database=glue_database,
+        encryption="SSE_KMS",
+        kms_key=kms_key,
+    )
+    ensure_athena_ctas_table(ctas_query_info=ctas_query_info, boto3_session=boto3_session)
+
+    # Schema only (i.e. WITH NO DATA)
+    ctas_query_info = wr.athena.create_ctas_table(
+        sql=f"select * from {glue_table}",
+        database=glue_database,
+        ctas_table=glue_table2,
+        schema_only=True,
+    )
+    ensure_athena_ctas_table(ctas_query_info=ctas_query_info, boto3_session=boto3_session)
+
+    # Convert to new data storage and compression
+    ctas_query_info = wr.athena.create_ctas_table(
+        sql=f"select string, bool from {glue_table}",
+        database=glue_database,
+        storage_format="avro",
+        write_compression="snappy",
+    )
+    ensure_athena_ctas_table(ctas_query_info=ctas_query_info, boto3_session=boto3_session)
+
+    # Partition and save to CTAS database
+    ctas_query_info = wr.athena.create_ctas_table(
+        sql=f"select * from {glue_table}",
+        database=glue_database,
+        ctas_database=glue_ctas_database,
+        partitioning_info=["par0", "par1"],
+    )
+    ensure_athena_ctas_table(ctas_query_info=ctas_query_info, boto3_session=boto3_session)
 
 
 def test_athena(path, glue_database, glue_table, kms_key, workgroup0, workgroup1):

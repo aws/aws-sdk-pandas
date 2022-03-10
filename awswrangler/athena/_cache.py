@@ -87,7 +87,7 @@ class _LocalMetadataCacheManager:
 def _parse_select_query_from_possible_ctas(possible_ctas: str) -> Optional[str]:
     """Check if `possible_ctas` is a valid parquet-generating CTAS and returns the full SELECT statement."""
     possible_ctas = possible_ctas.lower()
-    parquet_format_regex: str = r"format\s*=\s*\'parquet\'\s*,"
+    parquet_format_regex: str = r"format\s*=\s*\'parquet\'\s*"
     is_parquet_format: Optional[Match[str]] = re.search(pattern=parquet_format_regex, string=possible_ctas)
     if is_parquet_format is not None:
         unstripped_select_statement_regex: str = r"\s+as\s+\(*(select|with).*"

@@ -111,6 +111,7 @@ Amazon Athena
     :toctree: stubs
 
     create_athena_bucket
+    create_ctas_table
     get_query_columns_types
     get_query_execution
     get_named_query_statement
