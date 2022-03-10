@@ -13,11 +13,11 @@ logger = logging.getLogger("awswrangler")
 logger.setLevel(logging.DEBUG)
 
 
-@pytest.mark.parametrize("length", [-1])
+@pytest.mark.parametrize("length", [-1, 1, 2])
 @pytest.mark.parametrize(
     "seq",
     [
-        (1, 6, 9),
+        (1, 6, 9, 4, 0, 3, 5, 7, 8, 2),
     ],
 )
 def test_read_one_shot(path, seq, length):
