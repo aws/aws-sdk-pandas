@@ -155,7 +155,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
 
     def _reset_item(self, item: str) -> None:
         if item in self._loaded_values:
-            if item.endswith("_endpoint_url"):
+            if item.endswith("_endpoint_url") or item == "verify":
                 self._loaded_values[item] = None
             else:
                 del self._loaded_values[item]
