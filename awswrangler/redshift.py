@@ -130,7 +130,7 @@ def _copy(
     boto3_session: Optional[str] = None,
     schema: Optional[str] = None,
     manifest: Optional[bool] = False,
-    sql_copy_extra_params: Optional[List[str]] = [],
+    sql_copy_extra_params: Optional[List[str]] = None,
 ) -> None:
     if schema is None:
         table_name: str = f'"{table}"'
@@ -148,8 +148,9 @@ def _copy(
     sql: str = f"COPY {table_name}\nFROM '{path}' {auth_str}\nFORMAT AS PARQUET{ser_json_str}"
     if manifest:
         sql += "\nMANIFEST"
-    for param in sql_copy_extra_params:
-        sql += f"\n{param}"
+    if sql_copy_extra_params:
+        for param in sql_copy_extra_params:
+            sql += f"\n{param}"
     _logger.debug("copy query:\n%s", sql)
     cursor.execute(sql)
 
@@ -1202,7 +1203,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     lock: bool = False,
     commit_transaction: bool = True,
     manifest: Optional[bool] = False,
-    sql_copy_extra_params: Optional[List[str]] = [],
+    sql_copy_extra_params: Optional[List[str]] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
 ) -> None:
