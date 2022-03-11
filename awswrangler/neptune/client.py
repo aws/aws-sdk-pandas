@@ -55,7 +55,7 @@ class NeptuneClient:
         """Ensure that a valid boto3.Session will be returned."""
         if session is not None:
             return session
-        elif boto3.DEFAULT_SESSION:
+        if boto3.DEFAULT_SESSION:
             return boto3.DEFAULT_SESSION
 
         return boto3.Session()
@@ -95,12 +95,12 @@ class NeptuneClient:
             try:
                 frozen_creds = credentials.get_frozen_credentials()
             except AttributeError:
-                print("Could not find valid IAM credentials in any the following locations:\n")
-                print(
+                _logger.warning("Could not find valid IAM credentials in any the following locations:\n")
+                _logger.warning(
                     "env, assume-role, assume-role-with-web-identity, sso, shared-credential-file, custom-process, "
                     "config-file, ec2-credentials-file, boto-config, container-role, iam-role\n"
                 )
-                print(
+                _logger.warning(
                     "Go to https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html for more "
                     "details on configuring your IAM credentials."
                 )
@@ -108,8 +108,7 @@ class NeptuneClient:
             SigV4Auth(frozen_creds, service, self.region).add_auth(req)
             prepared_iam_req = req.prepare()
             return prepared_iam_req
-        else:
-            return req
+        return req
 
     def read_opencypher(self, query: str, headers: Any = None) -> Any:
         """Executes the provided openCypher query
@@ -135,8 +134,7 @@ class NeptuneClient:
         _logger.debug(res)
         if res.ok:
             return res.json()["results"]
-        else:
-            raise exceptions.QueryFailed(f"Status Code: {res.status_code} Reason: {res.reason} Message: {res.text}")
+        raise exceptions.QueryFailed(f"Status Code: {res.status_code} Reason: {res.reason} Message: {res.text}")
 
     def read_gremlin(self, query: str, headers: Any = None) -> Any:
         """Executes the provided Gremlin traversal and returns the results
@@ -227,8 +225,7 @@ class NeptuneClient:
         _logger.debug(res)
         if res.ok:
             return res.json()
-        else:
-            raise exceptions.QueryFailed(f"Status Code: {res.status_code} Reason: {res.reason} Message: {res.text}")
+        raise exceptions.QueryFailed(f"Status Code: {res.status_code} Reason: {res.reason} Message: {res.text}")
 
     def status(self) -> Any:
         """Returns the status of the Neptune cluster

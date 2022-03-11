@@ -45,7 +45,7 @@ class GremlinParser:
             return res
 
         # If this is an element then make it a dictionary
-        elif isinstance(data, (Vertex, Edge, VertexProperty, Property)):
+        if isinstance(data, (Vertex, Edge, VertexProperty, Property)):
             data = data.__dict__
 
         # If this is a scalar then create a Map with it
