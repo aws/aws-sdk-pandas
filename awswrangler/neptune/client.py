@@ -1,4 +1,4 @@
-"""Amazon NeptuneClient Module"""
+"""Amazon NeptuneClient Module."""
 
 import logging
 from typing import Any, Optional
@@ -23,7 +23,7 @@ WS_PROTOCOL = "wss"
 
 
 class NeptuneClient:
-    """This object represents a Neptune cluster connection."""
+    """Class representing a Neptune cluster connection."""
 
     def __init__(
         self,
@@ -111,14 +111,19 @@ class NeptuneClient:
         return req
 
     def read_opencypher(self, query: str, headers: Any = None) -> Any:
-        """Executes the provided openCypher query
+        """Execute the provided openCypher query.
 
-        Args:
-            query (str): The query to execute
-            headers (Any, optional): Any additional headers that should be associated with the query. Defaults to None.
+        Parameters
+        ----------
+        query : str
+            The query to execute
+        headers : Any, optional
+            Any additional headers that should be associated with the query. Defaults to None.
 
-        Returns:
-            Any: [description] The result of the query
+        Returns
+        -------
+        Any
+            The result of the query.
         """
         if headers is None:
             headers = {}
@@ -137,24 +142,31 @@ class NeptuneClient:
         raise exceptions.QueryFailed(f"Status Code: {res.status_code} Reason: {res.reason} Message: {res.text}")
 
     def read_gremlin(self, query: str, headers: Any = None) -> Any:
-        """Executes the provided Gremlin traversal and returns the results
+        """Execute the provided Gremlin traversal and returns the results.
 
-        Args:
-            query (str): The Gremlin query
+        Parameters
+        ----------
+        query : str
+            The Gremlin query
 
-        Returns:
-            Any: [description]
+        Returns
+        -------
+        Any
+            [description]
         """
         return self._execute_gremlin(query, headers)
 
     def write_gremlin(self, query: str) -> bool:
-        """Executes a Gremlin write query
+        """Execute a Gremlin write query.
 
-        Args:
+        Parameters
+        ----------
             query (str): The query to execute
 
-        Returns:
-            bool: The success of the Gremlin write query
+        Returns
+        -------
+        bool
+            The success of the Gremlin write query
         """
         res = self._execute_gremlin(query)
         _logger.debug(res)
@@ -178,28 +190,38 @@ class NeptuneClient:
             raise exceptions.QueryFailed(e)
 
     def read_sparql(self, query: str, headers: Any = None) -> Any:
-        """Executes the given query and returns the results
+        """Execute the given query and returns the results.
 
-        Args:
-            query ([type]): The SPARQL query to execute
-            headers (Any, optional): Any additional headers to include with the request. Defaults to None.
+        Parameters
+        ----------
+        query : str
+            The SPARQL query to execute
+        headers : Any, optional
+            Any additional headers to include with the request. Defaults to None.
 
-        Returns:
-            Any: [description]
+        Returns
+        -------
+        Any
+            [description]
         """
         res = self._execute_sparql(query, headers)
         _logger.debug(res)
         return res
 
     def write_sparql(self, query: str, headers: Any = None) -> bool:
-        """Executes the specified SPARQL write statements
+        """Execute the specified SPARQL write statements.
 
-        Args:
-            query ([type]): The SPARQL query to execute
-            headers (Any, optional): Any additional headers to include with the request. Defaults to None.
+        Parameters
+        ----------
+        query : str
+            The SPARQL query to execute
+        headers : Any, optional
+            Any additional headers to include with the request. Defaults to None.
 
-        Returns:
-            bool: The success of the query
+        Returns
+        -------
+        bool
+            The success of the query
         """
         self._execute_sparql(query, headers)
         return True
@@ -228,10 +250,12 @@ class NeptuneClient:
         raise exceptions.QueryFailed(f"Status Code: {res.status_code} Reason: {res.reason} Message: {res.text}")
 
     def status(self) -> Any:
-        """Returns the status of the Neptune cluster
+        """Return the status of the Neptune cluster.
 
-        Returns:
-            str: The result of the call to the status API for the Neptune cluster
+        Returns
+        -------
+        str
+            The result of the call to the status API for the Neptune cluster
         """
         url = f"{HTTP_PROTOCOL}://{self.host}:{self.port}/status"
         req = self._prepare_request("GET", url, data="")
