@@ -121,6 +121,7 @@ Amazon Athena
     repair_table
     start_query_execution
     stop_query_execution
+    unload
     wait_query
 
 AWS Lake Formation
