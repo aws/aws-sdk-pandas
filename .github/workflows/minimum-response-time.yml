@@ -9,10 +9,8 @@ jobs:
     permissions:
       issues: write
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v2
       - name: Issue Minimum Response ⏰
-        uses: malachi-constant/issue-minimum-response@0.1.2
+        uses: malachi-constant/issue-minimum-response@latest
         with:
           exempt_user_list: "github-actions[bot]"
           exempt_labels: "help wanted"
