@@ -674,7 +674,7 @@ def create_ctas_table(  # pylint: disable=too-many-locals
         The name of the database where the original table is stored.
     ctas_table : Optional[str], optional
         The name of the CTAS table.
-        If None, a random string is used.
+        If None, a name with a random string is used.
     ctas_database : Optional[str], optional
         The name of the alternative database where the CTAS table should be stored.
         If None, `database` is used, that is the CTAS table is stored in the same database as the original table.
@@ -718,6 +718,42 @@ def create_ctas_table(  # pylint: disable=too-many-locals
     Dict[str, Union[str, _QueryMetadata]]
         A dictionary with the the CTAS database and table names.
         If `wait` is `False`, the query ID is included, otherwise a Query metadata object is added instead.
+
+    Examples
+    --------
+    Select all into a new table and encrypt the results
+
+    >>> import awswrangler as wr
+    >>> wr.athena.create_ctas_table(
+    ...     sql="select * from table",
+    ...     database="default",
+    ...     encryption="SSE_KMS",
+    ...     kms_key="1234abcd-12ab-34cd-56ef-1234567890ab",
+    ... )
+    {'ctas_database': 'default', 'ctas_table': 'temp_table_5669340090094....', 'ctas_query_id': 'cc7dfa81-831d-...'}
+
+    Create a table with schema only
+
+    >>> wr.athena.create_ctas_table(
+    ...     sql="select col1, col2 from table",
+    ...     database="default",
+    ...     ctas_table="my_ctas_table",
+    ...     schema_only=True,
+    ...     wait=True,
+    ... )
+
+    Partition data and save to alternative CTAS database
+
+    >>> wr.athena.create_ctas_table(
+    ...     sql="select * from table",
+    ...     database="default",
+    ...     ctas_database="my_ctas_db",
+    ...     storage_format="avro",
+    ...     write_compression="snappy",
+    ...     partitioning_info=["par0", "par1"],
+    ...     wait=True,
+    ... )
+
     """
     ctas_table = catalog.sanitize_table_name(ctas_table) if ctas_table else f"temp_table_{uuid.uuid4().hex}"
     ctas_database = ctas_database if ctas_database else database
