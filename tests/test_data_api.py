@@ -89,15 +89,16 @@ def test_data_api_mysql_columnless_query(mysql_serverless_connector):
 
 def test_data_api_mysql_basic_select(mysql_serverless_connector, mysql_serverless_table):
     wr.data_api.rds.read_sql_query(
-        f"CREATE TABLE test.{mysql_serverless_table} (id INT, name VARCHAR(128))", con=mysql_serverless_connector
+        f"CREATE TABLE test.{mysql_serverless_table} (id INT, name VARCHAR(128), missing VARCHAR(256))",
+        con=mysql_serverless_connector,
     )
     wr.data_api.rds.read_sql_query(
-        f"INSERT INTO test.{mysql_serverless_table} VALUES (42, 'test')", con=mysql_serverless_connector
+        f"INSERT INTO test.{mysql_serverless_table} (id, name) VALUES (42, 'test')", con=mysql_serverless_connector
     )
     dataframe = wr.data_api.rds.read_sql_query(
         f"SELECT * FROM test.{mysql_serverless_table}", con=mysql_serverless_connector
     )
-    expected_dataframe = pd.DataFrame([[42, "test"]], columns=["id", "name"])
+    expected_dataframe = pd.DataFrame([[42, "test", None]], columns=["id", "name", "missing"])
     pd.testing.assert_frame_equal(dataframe, expected_dataframe)
 
 

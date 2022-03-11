@@ -1,0 +1,33 @@
+name: "Close Stale Issues"
+
+on:
+  workflow_dispatch:
+  schedule:
+  - cron: "0 */3 * * *"
+
+jobs:
+  cleanup:
+    permissions:
+      issues: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    name: Stale issue job
+    steps:
+    - uses: actions/stale@v4
+      with:
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        days-before-stale: 60
+        days-before-close: 7
+        exempt-issue-labels: 'needs-triage,help wanted'
+        exempt-pr-labels: 'needs-triage'
+        stale-issue-label: 'closing-soon'
+        operations-per-run: 100
+        enable-statistics: true
+        stale-issue-message: |
+          Marking this issue as stale due to inactivity. This helps our maintainers find and focus on the active issues. If this issue receives no comments in the next 7 days it will automatically be closed. 
+        stale-pr-label: 'closing-soon'
+        stale-pr-message: |
+          Marking this pull request as stale due to inactivity. This helps our maintainers find and focus on the active pull requests.
+        debug-only: false
+        ascending: true
+        exempt-all-milestones: true
