@@ -169,6 +169,7 @@ def test_athena_create_ctas(path, glue_table, glue_table2, glue_database, glue_c
         database=glue_database,
         encryption="SSE_KMS",
         kms_key=kms_key,
+        wait=False,
     )
     ensure_athena_ctas_table(ctas_query_info=ctas_query_info, boto3_session=boto3_session)
 
@@ -178,6 +179,7 @@ def test_athena_create_ctas(path, glue_table, glue_table2, glue_database, glue_c
         database=glue_database,
         ctas_table=glue_table2,
         schema_only=True,
+        wait=True,
     )
     ensure_athena_ctas_table(ctas_query_info=ctas_query_info, boto3_session=boto3_session)
 
@@ -187,6 +189,7 @@ def test_athena_create_ctas(path, glue_table, glue_table2, glue_database, glue_c
         database=glue_database,
         storage_format="avro",
         write_compression="snappy",
+        wait=False,
     )
     ensure_athena_ctas_table(ctas_query_info=ctas_query_info, boto3_session=boto3_session)
 
@@ -196,6 +199,7 @@ def test_athena_create_ctas(path, glue_table, glue_table2, glue_database, glue_c
         database=glue_database,
         ctas_database=glue_ctas_database,
         partitioning_info=["par0", "par1"],
+        wait=True,
     )
     ensure_athena_ctas_table(ctas_query_info=ctas_query_info, boto3_session=boto3_session)
 

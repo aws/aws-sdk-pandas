@@ -642,7 +642,7 @@ def describe_table(
 
 
 @apply_configs
-def create_ctas_table(
+def create_ctas_table(  # pylint: disable=too-many-locals
     sql: str,
     database: str,
     ctas_table: Optional[str] = None,
@@ -658,8 +658,10 @@ def create_ctas_table(
     data_source: Optional[str] = None,
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
+    categories: Optional[List[str]] = None,
+    wait: bool = False,
     boto3_session: Optional[boto3.Session] = None,
-) -> Dict[str, str]:
+) -> Dict[str, Union[str, _QueryMetadata]]:
     """Create a new table populated with the results of a SELECT query.
 
     https://docs.aws.amazon.com/athena/latest/ug/create-table-as.html
@@ -703,13 +705,19 @@ def create_ctas_table(
         Valid values: [None, 'SSE_S3', 'SSE_KMS']. Note: 'CSE_KMS' is not supported.
     kms_key : str, optional
         For SSE-KMS, this is the KMS key ARN or ID.
+    categories: List[str], optional
+        List of columns names that should be returned as pandas.Categorical.
+        Recommended for memory restricted environments.
+    wait : bool, default False
+        Whether to wait for the query to finish and return a dictionary with the Query metadata.
     boto3_session : Optional[boto3.Session], optional
         Boto3 Session. The default boto3 session is used if boto3_session is None.
 
     Returns
     -------
-    Dict[str, str]
-        A dictionary with the ID of the query, and the CTAS database and table names
+    Dict[str, Union[str, _QueryMetadata]]
+        A dictionary with the the CTAS database and table names.
+        If `wait` is `False`, the query ID is included, otherwise a Query metadata object is added instead.
     """
     ctas_table = catalog.sanitize_table_name(ctas_table) if ctas_table else f"temp_table_{uuid.uuid4().hex}"
     ctas_database = ctas_database if ctas_database else database
@@ -753,7 +761,7 @@ def create_ctas_table(
     _logger.debug("ctas sql: %s", ctas_sql)
 
     try:
-        query_id: str = _start_query_execution(
+        query_execution_id: str = _start_query_execution(
             sql=ctas_sql,
             wg_config=wg_config,
             database=database,
@@ -775,7 +783,35 @@ def create_ctas_table(
                 f"It is not possible to wrap this query into a CTAS statement. Root error message: {error['Message']}"
             )
         raise ex
-    return {"ctas_database": ctas_database, "ctas_table": ctas_table, "ctas_query_id": query_id}
+
+    response: Dict[str, Union[str, _QueryMetadata]] = {"ctas_database": ctas_database, "ctas_table": ctas_table}
+    if wait:
+        try:
+            response["ctas_query_metadata"] = _get_query_metadata(
+                query_execution_id=query_execution_id,
+                boto3_session=boto3_session,
+                categories=categories,
+                metadata_cache_manager=_cache_manager,
+            )
+        except exceptions.QueryFailed as ex:
+            msg: str = str(ex)
+            if "Column name" in msg and "specified more than once" in msg:
+                raise exceptions.InvalidCtasApproachQuery(
+                    f"Please, define distinct names for your columns. Root error message: {msg}"
+                )
+            if "Column name not specified" in msg:
+                raise exceptions.InvalidArgumentValue(
+                    "Please, define all columns names in your query. (E.g. 'SELECT MAX(col1) AS max_col1, ...')"
+                )
+            if "Column type is unknown" in msg:
+                raise exceptions.InvalidArgumentValue(
+                    "Please, don't leave undefined columns types in your query. You can cast to ensure it. "
+                    "(E.g. 'SELECT CAST(NULL AS INTEGER) AS MY_COL, ...')"
+                )
+            raise ex
+    else:
+        response["ctas_query_id"] = query_execution_id
+    return response
 
 
 @apply_configs

@@ -260,8 +260,7 @@ def _resolve_query_without_cache_ctas(
     boto3_session: boto3.Session,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    fully_qualified_name: str = f'"{alt_database}"."{name}"' if alt_database else f'"{database}"."{name}"'
-    ctas_query_info: Dict[str, str] = create_ctas_table(
+    ctas_query_info: Dict[str, Union[str, _QueryMetadata]] = create_ctas_table(
         sql=sql,
         database=database,
         ctas_table=name,
@@ -272,35 +271,14 @@ def _resolve_query_without_cache_ctas(
         workgroup=workgroup,
         encryption=encryption,
         kms_key=kms_key,
+        wait=True,
         boto3_session=boto3_session,
     )
-    ctas_query_id: str = ctas_query_info["ctas_query_id"]
-    _logger.debug("ctas_query_id: %s", ctas_query_id)
-    try:
-        query_metadata: _QueryMetadata = _get_query_metadata(
-            query_execution_id=ctas_query_id,
-            boto3_session=boto3_session,
-            categories=categories,
-            metadata_cache_manager=_cache_manager,
-        )
-    except exceptions.QueryFailed as ex:
-        msg: str = str(ex)
-        if "Column name" in msg and "specified more than once" in msg:
-            raise exceptions.InvalidCtasApproachQuery(
-                f"Please, define distinct names for your columns OR pass ctas_approach=False. Root error message: {msg}"
-            )
-        if "Column name not specified" in msg:
-            raise exceptions.InvalidArgumentValue(
-                "Please, define all columns names in your query. (E.g. 'SELECT MAX(col1) AS max_col1, ...')"
-            )
-        if "Column type is unknown" in msg:
-            raise exceptions.InvalidArgumentValue(
-                "Please, don't leave undefined columns types in your query. You can cast to ensure it. "
-                "(E.g. 'SELECT CAST(NULL AS INTEGER) AS MY_COL, ...')"
-            )
-        raise ex
+    fully_qualified_name: str = f'"{ctas_query_info["ctas_database"]}"."{ctas_query_info["ctas_table"]}"'
+    ctas_query_metadata: _QueryMetadata = ctas_query_info["ctas_query_metadata"]  # type: ignore
+    _logger.debug("ctas_query_metadata: %s", ctas_query_metadata)
     return _fetch_parquet_result(
-        query_metadata=query_metadata,
+        query_metadata=ctas_query_metadata,
         keep_files=keep_files,
         categories=categories,
         chunksize=chunksize,
