@@ -1,15 +1,18 @@
 name: Issue Minimum Response Time
-on: push
+on:
+  workflow_dispatch:
+  schedule:
+  - cron: "0 */3 * * *"
 jobs:
   evaluate:
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2
       - name: Issue Minimum Response ⏰
         uses: malachi-constant/issue-minimum-response@latest
-        permissions:
-          issues: write
         with:
           exempt_user_list: "github-actions[bot]"
           exempt_labels: "help wanted"
