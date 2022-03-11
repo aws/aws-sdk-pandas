@@ -1,0 +1,17 @@
+name: Issue Minimum Response Time
+on: push
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+      - name: Issue Minimum Response ⏰
+        uses: malachi-constant/issue-minimum-response@latest
+        permissions:
+          issues: write
+        with:
+          exempt_user_list: "github-actions[bot]"
+          exempt_labels: "help wanted"
+          token: ${{secrets.GITHUB_TOKEN}}
+          label: needs-triage
