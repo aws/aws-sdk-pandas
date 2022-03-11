@@ -12,7 +12,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v2
       - name: Issue Minimum Response ⏰
-        uses: malachi-constant/issue-minimum-response@latest
+        uses: malachi-constant/issue-minimum-response@0.1.2
         with:
           exempt_user_list: "github-actions[bot]"
           exempt_labels: "help wanted"
