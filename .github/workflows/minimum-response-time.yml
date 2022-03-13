@@ -14,5 +14,6 @@ jobs:
         with:
           exempt_user_list: "github-actions[bot]"
           exempt_labels: "help wanted"
+          exempt_authors: "malachi-constant,jaidisido,kukushking,cfait"
           token: ${{secrets.GITHUB_TOKEN}}
           label: needs-triage
