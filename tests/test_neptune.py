@@ -6,6 +6,7 @@ from typing import Any, Dict
 
 import pandas as pd
 import pytest  # type: ignore
+from gremlin_python.process.traversal import Direction, T
 
 import awswrangler as wr
 
@@ -173,13 +174,24 @@ def test_gremlin_write_updates(neptune_endpoint, neptune_port) -> Dict[str, Any]
     id = uuid.uuid4()
     wr.neptune.execute_gremlin(client, f"g.addV().property(T.id, '{str(id)}')")
 
-    data = [{"~id": id, "age": 50}]
+    data = [{"~id": id, "age": 50, "name": "foo"}]
     df = pd.DataFrame(data)
     res = wr.neptune.to_property_graph(client, df)
-    assert res
+    res = wr.neptune.execute_gremlin(client, f"g.V('{id}').valueMap().with(WithOptions.tokens)")
+    saved_row = res.iloc[0]
+    assert saved_row["age"] == 50
 
     final_df = wr.neptune.execute_gremlin(client, f"g.V('{str(id)}').values('age')")
     assert final_df.iloc[0][0] == 50
+
+    # check write cardinality
+    data = [{"~id": id, "age(single)": 55, "name": "bar"}]
+    df = pd.DataFrame(data)
+    res = wr.neptune.to_property_graph(client, df, use_header_cardinality=True)
+    res = wr.neptune.execute_gremlin(client, f"g.V('{id}').valueMap().with(WithOptions.tokens)")
+    saved_row = res.iloc[0]
+    assert saved_row["age"] == 55
+    assert saved_row["name"] == ["foo", "bar"]
 
 
 def test_gremlin_write_vertices(neptune_endpoint, neptune_port) -> Dict[str, Any]:
@@ -190,6 +202,14 @@ def test_gremlin_write_vertices(neptune_endpoint, neptune_port) -> Dict[str, Any
     df = pd.DataFrame(data)
     res = wr.neptune.to_property_graph(client, df)
     assert res
+
+    original_row = df.iloc[0]
+    res = wr.neptune.execute_gremlin(client, f"g.V('{original_row['~id']}').elementMap()")
+    saved_row = res.iloc[0]
+    assert saved_row[T.id] == original_row["~id"]
+    assert saved_row[T.label] == original_row["~label"]
+    assert saved_row["int"] == original_row["int"]
+    assert saved_row["str"] == original_row["str"]
 
     final_cnt_df = wr.neptune.execute_gremlin(client, "g.V().hasLabel('foo').count()")
     assert final_cnt_df.iloc[0][0] == initial_cnt_df.iloc[0][0] + 3
@@ -206,6 +226,25 @@ def test_gremlin_write_vertices(neptune_endpoint, neptune_port) -> Dict[str, Any
     batch_cnt_df = wr.neptune.execute_gremlin(client, "g.V().hasLabel('foo').count()")
     assert batch_cnt_df.iloc[0][0] == final_cnt_df.iloc[0][0] + 50
 
+    # check write cardinality
+    v = _create_dummy_vertex()
+    v2 = _create_dummy_vertex()
+    v2["~id"] = v["~id"]
+    df = pd.DataFrame([v])
+    res = wr.neptune.to_property_graph(client, df)
+    original_row = df.iloc[0]
+
+    # save it a second time to make sure it updates correctly when re-adding
+    df = pd.DataFrame([v2])
+    df.rename(columns={"int": "int(single)"}, inplace=True)
+    res = wr.neptune.to_property_graph(client, df, use_header_cardinality=True)
+    res = wr.neptune.execute_gremlin(client, f"g.V('{original_row['~id']}').valueMap().with(WithOptions.tokens)")
+    saved_row = res.iloc[0]
+    assert saved_row[T.id] == original_row["~id"]
+    assert saved_row[T.label] == original_row["~label"]
+    assert saved_row["int"] == v2["int"]
+    assert len(saved_row["str"]) == 2
+
 
 def test_gremlin_write_edges(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
@@ -216,6 +255,16 @@ def test_gremlin_write_edges(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     df = pd.DataFrame(data)
     res = wr.neptune.to_property_graph(client, df)
     assert res
+
+    original_row = df.iloc[0]
+    res = wr.neptune.execute_gremlin(client, f"g.E('{original_row['~id']}').elementMap()")
+    saved_row = res.iloc[0]
+    assert saved_row[T.id] == original_row["~id"]
+    assert saved_row[T.label] == original_row["~label"]
+    assert saved_row[Direction.IN][T.id] == original_row["~to"]
+    assert saved_row[Direction.OUT][T.id] == original_row["~from"]
+    assert saved_row["int"] == original_row["int"]
+    assert saved_row["str"] == original_row["str"]
 
     final_cnt_df = wr.neptune.execute_gremlin(client, "g.E().hasLabel('bar').count()")
     assert final_cnt_df.iloc[0][0] == initial_cnt_df.iloc[0][0] + 3
@@ -285,7 +334,7 @@ def test_sparql_write_quads(neptune_endpoint, neptune_port) -> Dict[str, Any]:
 
 def _create_dummy_vertex() -> Dict[str, Any]:
     data = dict()
-    data["~id"] = uuid.uuid4()
+    data["~id"] = str(uuid.uuid4())
     data["~label"] = "foo"
     data["int"] = random.randint(0, 1000)
     data["str"] = "".join(random.choice(string.ascii_lowercase) for i in range(10))
@@ -295,10 +344,10 @@ def _create_dummy_vertex() -> Dict[str, Any]:
 
 def _create_dummy_edge() -> Dict[str, Any]:
     data = dict()
-    data["~id"] = uuid.uuid4()
+    data["~id"] = str(uuid.uuid4())
     data["~label"] = "bar"
-    data["~to"] = uuid.uuid4()
-    data["~from"] = uuid.uuid4()
+    data["~to"] = str(uuid.uuid4())
+    data["~from"] = str(uuid.uuid4())
     data["int"] = random.randint(0, 1000)
     data["str"] = "".join(random.choice(string.ascii_lowercase) for i in range(10))
     return data
@@ -307,7 +356,7 @@ def _create_dummy_edge() -> Dict[str, Any]:
 def _create_dummy_triple() -> Dict[str, Any]:
     data = dict()
     data["s"] = "foo"
-    data["p"] = uuid.uuid4()
+    data["p"] = str(uuid.uuid4())
     data["o"] = random.randint(0, 1000)
     return data
 

@@ -1,6 +1,7 @@
 """Amazon Neptune Module"""
 
 import logging
+import re
 from typing import Any
 
 import pandas as pd
@@ -108,7 +109,9 @@ def execute_sparql(client: NeptuneClient, query: str) -> pd.DataFrame:
     return df
 
 
-def to_property_graph(client: NeptuneClient, df: pd.DataFrame, batch_size: int = 50) -> bool:
+def to_property_graph(
+    client: NeptuneClient, df: pd.DataFrame, batch_size: int = 50, use_header_cardinality: bool = False
+) -> bool:
     """Write records stored in a DataFrame into Amazon Neptune.
 
     If writing to a property graph then DataFrames for vertices and edges must be written separately.
@@ -119,12 +122,18 @@ def to_property_graph(client: NeptuneClient, df: pd.DataFrame, batch_size: int =
     the specified id does not exists, or is empty then a new edge will be added. If no ~label, ~to, or ~from column
     exists an exception will be thrown.
 
+    If you would like to save data using `single` cardinality then you can postfix (single) to the column header and
+    set use_header_cardinality=True.  e.g. A column named `name(single)` will save the `name` property as single
+    cardinality.
+
     Parameters
     ----------
     client : NeptuneClient
         instance of the neptune client to use
     df : pandas.DataFrame
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
+    batch_size: The number of rows to save at a time. Default 50
+    use_header_cardinality: If True, then the header cardinality will be used to save the data. Default False
 
     Returns
     -------
@@ -159,11 +168,11 @@ def to_property_graph(client: NeptuneClient, df: pd.DataFrame, batch_size: int =
     for (index, row) in df.iterrows():
         # build up a query
         if is_update_df:
-            g = _build_gremlin_update(g, row)
+            g = _build_gremlin_update(g, row, use_header_cardinality)
         elif is_edge_df:
-            g = _build_gremlin_insert_edges(g, row.to_dict())
+            g = _build_gremlin_insert_edges(g, row.to_dict(), use_header_cardinality)
         else:
-            g = _build_gremlin_insert_vertices(g, row.to_dict())
+            g = _build_gremlin_insert_vertices(g, row.to_dict(), use_header_cardinality)
         # run the query
         if index > 0 and index % batch_size == 0:
             res = _run_gremlin_insert(client, g)
@@ -261,51 +270,68 @@ def connect(host: str, port: int, iam_enabled: bool = False, **kwargs: Any) -> N
     return NeptuneClient(host, port, iam_enabled, **kwargs)
 
 
-def _build_gremlin_update(g: GraphTraversalSource, row: Any) -> GraphTraversalSource:
+def _get_column_name(column: str) -> str:
+    if "(single)" in column.lower():
+        return re.compile(r"\(single\)", re.IGNORECASE).sub("", column)
+    else:
+        return column
+
+
+def _set_properties(g: GraphTraversalSource, use_header_cardinality: bool, row: Any) -> GraphTraversalSource:
+    for (column, value) in row.items():
+        if column not in ["~id", "~label", "~to", "~from"]:
+            # If the column header is specifying the cardinality then use it
+            if use_header_cardinality:
+                if column.lower().find("(single)") > 0:
+                    g = g.property(Cardinality.single, _get_column_name(column), value)
+                else:
+                    g = _expand_properties(g, _get_column_name(column), value)
+            else:
+                # If not using header cardinality then use the default of set
+                g = _expand_properties(g, _get_column_name(column), value)
+    return g
+
+
+def _expand_properties(g: GraphTraversalSource, column: str, value: Any) -> GraphTraversalSource:
+    # If this is a list then expand it out into multiple property calls
+    if isinstance(value, list) and len(value) > 0:
+        for item in value:
+            g = g.property(Cardinality.set_, _get_column_name(column), item)
+    else:
+        g = g.property(Cardinality.set_, _get_column_name(column), value)
+    return g
+
+
+def _build_gremlin_update(g: GraphTraversalSource, row: Any, use_header_cardinality: bool) -> GraphTraversalSource:
     g = g.V(str(row["~id"]))
-    for (column, value) in row.items():
-        if column not in ["~id", "~label"]:
-            if isinstance(value, list) and len(value) > 0:
-                for item in value:
-                    g = g.property(Cardinality.set_, column, item)
-            elif not pd.isna(value) and not pd.isnull(value):
-                g = g.property(column, value)
-
+    g = _set_properties(g, use_header_cardinality, row)
     return g
 
 
-def _build_gremlin_insert_vertices(g: GraphTraversalSource, row: Any) -> GraphTraversalSource:
+def _build_gremlin_insert_vertices(
+    g: GraphTraversalSource, row: Any, use_header_cardinality: bool = False
+) -> GraphTraversalSource:
     g = g.V(str(row["~id"])).fold().coalesce(__.unfold(), __.addV(row["~label"]).property(T.id, str(row["~id"])))
-    for (column, value) in row.items():
-        if column not in ["~id", "~label"]:
-            if isinstance(value, list) and len(value) > 0:
-                for item in value:
-                    g = g.property(Cardinality.set_, column, item)
-            elif not pd.isna(value) and not pd.isnull(value):
-                g = g.property(column, value)
-
+    g = _set_properties(g, use_header_cardinality, row)
     return g
 
 
-def _build_gremlin_insert_edges(g: GraphTraversalSource, row: pd.Series) -> GraphTraversalSource:
+def _build_gremlin_insert_edges(
+    g: GraphTraversalSource, row: pd.Series, use_header_cardinality: bool
+) -> GraphTraversalSource:
     g = (
         g.V(str(row["~from"]))
         .fold()
         .coalesce(__.unfold(), _build_gremlin_insert_vertices(__, {"~id": row["~from"], "~label": "Vertex"}))
         .addE(row["~label"])
+        .property(T.id, str(row["~id"]))
         .to(
             __.V(str(row["~to"]))
             .fold()
             .coalesce(__.unfold(), _build_gremlin_insert_vertices(__, {"~id": row["~to"], "~label": "Vertex"}))
         )
     )
-    for (column, value) in row.items():
-        if column not in ["~id", "~label", "~to", "~from"]:
-            if isinstance(value, list) and len(value) > 0:
-                for item in value:
-                    g = g.property(Cardinality.set_, column, item)
-            elif not pd.isna(value) and not pd.isnull(value):
-                g = g.property(column, value)
+    g = _set_properties(g, use_header_cardinality, row)
 
     return g
 
