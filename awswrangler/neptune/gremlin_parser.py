@@ -5,17 +5,21 @@ from gremlin_python.structure.graph import Edge, Path, Property, Vertex, VertexP
 
 
 class GremlinParser:
-    """This represents a parser for returning Gremlin results as a dictionary."""
+    """Class representing a parser for returning Gremlin results as a dictionary."""
 
     @staticmethod
     def gremlin_results_to_dict(result: Any) -> Any:
-        """Takes a Gremlin ResultSet and returns a dictionary
+        """Take a Gremlin ResultSet and return a dictionary.
 
-        Args:
-            result (Any): The Gremlin resultset to convert
+        Parameters
+        ----------
+        result : Any
+            The Gremlin resultset to convert
 
-        Returns:
-            Any: A dictionary of the results
+        Returns
+        -------
+        Any
+            A dictionary of the results
         """
         res = []
 
@@ -45,7 +49,7 @@ class GremlinParser:
             return res
 
         # If this is an element then make it a dictionary
-        elif isinstance(data, (Vertex, Edge, VertexProperty, Property)):
+        if isinstance(data, (Vertex, Edge, VertexProperty, Property)):
             data = data.__dict__
 
         # If this is a scalar then create a Map with it

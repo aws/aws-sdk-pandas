@@ -150,8 +150,8 @@ def _get_bucket_number(number_of_buckets: int, values: List[Union[str, int, bool
 def _get_value_hash(value: Union[str, int, bool]) -> int:
     if isinstance(value, (int, np.int_)):
         value = int(value)
-        bigint_min, bigint_max = -(2 ** 63), 2 ** 63 - 1
-        int_min, int_max = -(2 ** 31), 2 ** 31 - 1
+        bigint_min, bigint_max = -(2**63), 2**63 - 1
+        int_min, int_max = -(2**31), 2**31 - 1
         if not bigint_min <= value <= bigint_max:
             raise ValueError(f"{value} exceeds the range that Athena cannot handle as bigint.")
         if not int_min <= value <= int_max:

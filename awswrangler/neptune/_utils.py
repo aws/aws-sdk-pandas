@@ -1,4 +1,4 @@
-"""Amazon Neptune Utils Module (PRIVATE)"""
+"""Amazon Neptune Utils Module (PRIVATE)."""
 
 import logging
 from enum import Enum
@@ -16,7 +16,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 class WriteDFType(Enum):
-    """Dataframe type enum"""
+    """Dataframe type enum."""
 
     VERTEX = 1
     EDGE = 2
@@ -24,19 +24,23 @@ class WriteDFType(Enum):
 
 
 def write_gremlin_df(client: NeptuneClient, df: pd.DataFrame, mode: WriteDFType, batch_size: int) -> bool:
-    """Write the provided dataframe using Gremlin
+    """Write the provided dataframe using Gremlin.
 
-    Args:
-        client (NeptuneClient): The Neptune client to write the dataframe
-        df (pd.DataFrame): The dataframe to write
-        mode (WriteDFType): The type of dataframe to write
-        batch_size (int): The size of the batch to write
+    Parameters
+    ----------
+    client : NeptuneClient
+        The Neptune client to write the dataframe
+    df : pd.DataFrame
+        The dataframe to write
+    mode : WriteDFType
+        The type of dataframe to write
+    batch_size : int
+        The size of the batch to write
 
-    Raises:
-        Exception: The underlying write exception is raised
-
-    Returns:
-        (bool): True if the write operation succeeded
+    Returns
+    -------
+    bool
+        True if the write operation succeeded
     """
     g = Graph().traversal()
     # Loop through items in the DF

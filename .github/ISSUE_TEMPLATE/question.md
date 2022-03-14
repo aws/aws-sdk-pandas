@@ -7,4 +7,4 @@ assignees: ''
 
 ---
 
-*P.S. Don't attach files. Please, prefer add code snippets directly in the message body.*
+*P.S. Please do not attach files as it's considered a security risk. Add code snippets directly in the message body as much as possible.*

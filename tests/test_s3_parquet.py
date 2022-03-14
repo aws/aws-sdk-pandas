@@ -28,6 +28,19 @@ def test_parquet_metadata_partitions_dataset(path, partition_cols):
     assert (columns_types.get("c1") == "bigint") or (partitions_types.get("c1") == "string")
 
 
+def test_read_parquet_metadata_nulls(path):
+    df = pd.DataFrame({"c0": [None, None, None], "c1": [1, 2, 3], "c2": ["a", "b", "c"]})
+    path = f"{path}df.parquet"
+    wr.s3.to_parquet(df, path)
+    with pytest.raises(wr.exceptions.UndetectedType):
+        wr.s3.read_parquet_metadata(path)
+    columns_types, _ = wr.s3.read_parquet_metadata(path, ignore_null=True)
+    assert len(columns_types) == len(df.columns)
+    assert columns_types.get("c0") == ""
+    assert columns_types.get("c1") == "bigint"
+    assert columns_types.get("c2") == "string"
+
+
 @pytest.mark.parametrize("partition_cols", [None, ["c2"], ["value", "c2"]])
 def test_parquet_cast_string_dataset(path, partition_cols):
     df = pd.DataFrame({"id": [1, 2, 3], "value": ["foo", "boo", "bar"], "c2": [4, 5, 6], "c3": [7.0, 8.0, 9.0]})
@@ -144,10 +157,10 @@ def test_parquet_uint64(path):
     wr.s3.delete_objects(path=path)
     df = pd.DataFrame(
         {
-            "c0": [0, 0, (2 ** 8) - 1],
-            "c1": [0, 0, (2 ** 16) - 1],
-            "c2": [0, 0, (2 ** 32) - 1],
-            "c3": [0, 0, (2 ** 64) - 1],
+            "c0": [0, 0, (2**8) - 1],
+            "c1": [0, 0, (2**16) - 1],
+            "c2": [0, 0, (2**32) - 1],
+            "c3": [0, 0, (2**64) - 1],
             "c4": [0, 1, 2],
         }
     )
@@ -159,10 +172,10 @@ def test_parquet_uint64(path):
     df = wr.s3.read_parquet(path=path, dataset=True)
     assert len(df.index) == 3
     assert len(df.columns) == 5
-    assert df.c0.max() == (2 ** 8) - 1
-    assert df.c1.max() == (2 ** 16) - 1
-    assert df.c2.max() == (2 ** 32) - 1
-    assert df.c3.max() == (2 ** 64) - 1
+    assert df.c0.max() == (2**8) - 1
+    assert df.c1.max() == (2**16) - 1
+    assert df.c2.max() == (2**32) - 1
+    assert df.c3.max() == (2**64) - 1
     assert df.c4.astype("uint8").sum() == 3
     wr.s3.delete_objects(path=path)
 

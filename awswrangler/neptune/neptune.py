@@ -1,4 +1,4 @@
-"""Amazon Neptune Module"""
+"""Amazon Neptune Module."""
 
 import logging
 import re
@@ -257,15 +257,21 @@ def to_rdf_graph(
 
 
 def connect(host: str, port: int, iam_enabled: bool = False, **kwargs: Any) -> NeptuneClient:
-    """Creates a connection to a Neptune cluster
+    """Create a connection to a Neptune cluster.
 
-    Args:
-        host (str): The host endpoint to connect to
-        port (int): The port endpoint to connect to
-        iam_enabled (bool, optional): set to True if IAM is enabled on the cluster. Defaults to False.
+    Parameters
+    ----------
+    host : str
+        The host endpoint to connect to
+    port : int
+        The port endpoint to connect to
+    iam_enabled : bool, optional
+        True if IAM is enabled on the cluster. Defaults to False.
 
-    Returns:
-        NeptuneClient: [description]
+    Returns
+    -------
+    NeptuneClient
+        [description]
     """
     return NeptuneClient(host, port, iam_enabled, **kwargs)
 
@@ -348,17 +354,23 @@ def _run_gremlin_insert(client: NeptuneClient, g: GraphTraversalSource) -> bool:
 def flatten_nested_df(
     df: pd.DataFrame, include_prefix: bool = True, seperator: str = "_", recursive: bool = True
 ) -> pd.DataFrame:
-    """This will flatten the lists and dictionaries of the input data frame
+    """Flatten the lists and dictionaries of the input data frame.
 
-    Args:
-        df (pd.DataFrame): The input data frame
-        include_prefix (bool, optional): If True, then it will prefix the new column name with the original column name.
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The input data frame
+    include_prefix : bool, optional
+        If True, then it will prefix the new column name with the original column name.
         Defaults to True.
-        seperator (str, optional): The seperator to use between field names when a dictionary is exploded.
+    seperator : str, optional
+        The seperator to use between field names when a dictionary is exploded.
         Defaults to "_".
-        recursive (bool, optional): If True, then this will recurse  the fields in the data frame. Defaults to True.
+    recursive : bool, optional
+        If True, then this will recurse the fields in the data frame. Defaults to True.
 
-    Returns:
+    Returns
+    -------
         pd.DataFrame: The flattened data frame
     """
     if seperator is None:

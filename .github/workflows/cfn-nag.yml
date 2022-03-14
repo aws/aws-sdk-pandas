@@ -1,0 +1,56 @@
+name: CFN Nag
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+    - "test_infra/**"
+    branches:
+    - main
+  pull_request:
+    paths:
+    - "test_infra/**"
+    branches:
+    - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: '14.x'
+      - name: Cache Node.js modules
+        uses: actions/cache@v2
+        with:
+          path: ~/.npm
+          key: ${{ runner.OS }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.OS }}-node-
+            ${{ runner.OS }}-
+      - name: Install CDK 
+        run: |
+          npm install -g aws-cdk
+          cdk --version
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install Requirements
+        run: |
+          cd test_infra && rm -rf poetry.lock
+          python -m pip install --upgrade pip
+          python -m pip install poetry
+          poetry config virtualenvs.create false --local
+          poetry install -vvv
+      - name: CDK Synth
+        run: |
+          cd test_infra
+          cdk synth
+      - uses: stelligent/cfn_nag@master
+        with:
+          input_path: test_infra/cdk.out
+          extra_args: --ignore-fatal
