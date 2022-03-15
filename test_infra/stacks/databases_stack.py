@@ -565,13 +565,14 @@ class DatabasesStack(cdk.Stack):  # type: ignore
         cdk.CfnOutput(self, "SqlServerDatabase", value=database)
         cdk.CfnOutput(self, "SqlServerSchema", value=schema)
 
-    def _setup_neptune(self, iam_enabled=False, port=8182) -> None:
+    def _setup_neptune(self, iam_enabled: bool = False, port: int = 8182) -> None:
         cluster = neptune.DatabaseCluster(
             self,
             "DataWrangler",
             vpc=self.vpc,
             instance_type=neptune.InstanceType.R5_LARGE,
             iam_authentication=iam_enabled,
+            security_groups=[self.db_security_group],
         )
 
         cdk.CfnOutput(self, "NeptuneClusterEndpoint", value=cluster.cluster_endpoint.hostname)

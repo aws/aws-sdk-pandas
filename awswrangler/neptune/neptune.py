@@ -279,8 +279,7 @@ def connect(host: str, port: int, iam_enabled: bool = False, **kwargs: Any) -> N
 def _get_column_name(column: str) -> str:
     if "(single)" in column.lower():
         return re.compile(r"\(single\)", re.IGNORECASE).sub("", column)
-    else:
-        return column
+    return column
 
 
 def _set_properties(g: GraphTraversalSource, use_header_cardinality: bool, row: Any) -> GraphTraversalSource:
