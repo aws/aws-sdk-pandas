@@ -4,7 +4,6 @@ import logging
 from typing import Any, Dict, List, Optional
 
 import boto3
-import nest_asyncio
 import requests
 from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSRequest
@@ -174,11 +173,10 @@ class NeptuneClient:
 
     def _execute_gremlin(self, query: str, headers: Any = None) -> List[Dict[str, Any]]:
         try:
-            nest_asyncio.apply()
             uri = f"{HTTP_PROTOCOL}://{self.host}:{self.port}/gremlin"
             request = self._prepare_request("GET", uri, headers=headers)
             ws_url = f"{WS_PROTOCOL}://{self.host}:{self.port}/gremlin"
-            c = client.Client(ws_url, "g", headers=dict(request.headers))
+            c = client.Client(ws_url, "g", headers=dict(request.headers), call_from_event_loop=True)
             result = c.submit(query)
             future_results = result.all()
             results = future_results.result()
