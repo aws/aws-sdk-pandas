@@ -1,5 +1,5 @@
 """Amazon Neptune GremlinParser Module (PRIVATE)."""
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from gremlin_python.structure.graph import Edge, Path, Property, Vertex, VertexProperty
 
@@ -8,7 +8,7 @@ class GremlinParser:
     """Class representing a parser for returning Gremlin results as a dictionary."""
 
     @staticmethod
-    def gremlin_results_to_dict(result: Any) -> Any:
+    def gremlin_results_to_dict(result: Any) -> List[Dict[str, Any]]:
         """Take a Gremlin ResultSet and return a dictionary.
 
         Parameters
@@ -18,8 +18,8 @@ class GremlinParser:
 
         Returns
         -------
-        Any
-            A dictionary of the results
+        List[Dict[str, Any]]
+            A list of dictionary results
         """
         res = []
 

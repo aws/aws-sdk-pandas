@@ -1,7 +1,7 @@
 """Amazon NeptuneClient Module."""
 
 import logging
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 import boto3
 import nest_asyncio
@@ -141,7 +141,7 @@ class NeptuneClient:
             return res.json()["results"]
         raise exceptions.QueryFailed(f"Status Code: {res.status_code} Reason: {res.reason} Message: {res.text}")
 
-    def read_gremlin(self, query: str, headers: Any = None) -> Any:
+    def read_gremlin(self, query: str, headers: Any = None) -> List[Dict[str, Any]]:
         """Execute the provided Gremlin traversal and returns the results.
 
         Parameters
@@ -151,8 +151,8 @@ class NeptuneClient:
 
         Returns
         -------
-        Any
-            [description]
+        Dict[str, Any]
+            Dictionary with the results
         """
         return self._execute_gremlin(query, headers)
 
@@ -172,7 +172,7 @@ class NeptuneClient:
         _logger.debug(res)
         return True
 
-    def _execute_gremlin(self, query: str, headers: Any = None) -> Any:
+    def _execute_gremlin(self, query: str, headers: Any = None) -> List[Dict[str, Any]]:
         try:
             nest_asyncio.apply()
             uri = f"{HTTP_PROTOCOL}://{self.host}:{self.port}/gremlin"
