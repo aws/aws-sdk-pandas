@@ -31,7 +31,7 @@ def _write_batch(
     database: str,
     table: str,
     cols_names: List[str],
-    measure_cols: List[str],
+    measure_cols_names: List[str],
     measure_types: List[str],
     version: int,
     batch: List[Any],
@@ -46,7 +46,7 @@ def _write_batch(
     try:
         time_loc = 0
         measure_cols_loc = 1
-        dimensions_cols_loc = 1 + len(measure_cols)
+        dimensions_cols_loc = 1 + len(measure_cols_names)
 
         _utils.try_it(
             f=client.write_records,
@@ -60,16 +60,16 @@ def _write_batch(
                         {"Name": name, "DimensionValueType": "VARCHAR", "Value": str(value)}
                         for name, value in zip(cols_names[dimensions_cols_loc:], rec[dimensions_cols_loc:])
                     ],
-                    "MeasureName": measure_cols[0] if len(measure_cols) == 1 else None,
+                    "MeasureName": measure_cols_names[0] if len(measure_cols_names) == 1 else None,
                     "MeasureValueType": measure_types[0] if len(measure_types) == 1 else "MULTI",
-                    "MeasureValue": str(rec[measure_cols_loc]) if len(measure_cols) == 1 else None,
+                    "MeasureValue": str(rec[measure_cols_loc]) if len(measure_cols_names) == 1 else None,
                     "MeasureValues": [
                         {"Name": measure_name, "Value": str(measure_value), "Type": measure_value_type}
                         for measure_name, measure_value, measure_value_type in zip(
-                            measure_cols, rec[measure_cols_loc:dimensions_cols_loc], measure_types
+                            measure_cols_names, rec[measure_cols_loc:dimensions_cols_loc], measure_types
                         )
                     ]
-                    if len(measure_cols) > 1
+                    if len(measure_cols_names) > 1
                     else None,
                     "Time": str(round(rec[time_loc].timestamp() * 1_000)),
                     "TimeUnit": "MILLISECONDS",
@@ -224,13 +224,13 @@ def write(
     >>> assert len(rejected_records) == 0
 
     """
-    measure_cols: List[str] = measure_cols or [measure_col]
-    _logger.debug("measure_cols: %s", measure_cols)
+    measure_cols_names: List[str] = measure_cols or [measure_col]
+    _logger.debug("measure_cols_names: %s", measure_cols_names)
     measure_types: List[str] = [
-        _data_types.timestream_type_from_pandas(df[[measure_col]]) for measure_col in measure_cols
+        _data_types.timestream_type_from_pandas(df[[measure_col_name]]) for measure_col_name in measure_cols_names
     ]
     _logger.debug("measure_types: %s", measure_types)
-    cols_names: List[str] = [time_col] + measure_cols + dimensions_cols
+    cols_names: List[str] = [time_col] + measure_cols_names + dimensions_cols
     _logger.debug("cols_names: %s", cols_names)
     batches: List[List[Any]] = _utils.chunkify(lst=_df2list(df=df[cols_names]), max_length=100)
     _logger.debug("len(batches): %s", len(batches))
@@ -241,7 +241,7 @@ def write(
                 itertools.repeat(database),
                 itertools.repeat(table),
                 itertools.repeat(cols_names),
-                itertools.repeat(measure_cols),
+                itertools.repeat(measure_cols_names),
                 itertools.repeat(measure_types),
                 itertools.repeat(version),
                 batches,
