@@ -31,7 +31,6 @@ def _write_batch(
     database: str,
     table: str,
     cols_names: List[str],
-    measure_name: str,
     measure_cols: List[str],
     measure_types: List[str],
     version: int,
@@ -63,14 +62,15 @@ def _write_batch(
                     ],
                     "MeasureName": measure_cols[0] if len(measure_cols) == 1 else None,
                     "MeasureValueType": measure_types[0] if len(measure_types) == 1 else "MULTI",
-                    "MeasureValue": str(rec[measure_cols_loc])
-                    if len(measure_cols) == 1
-                    else (
+                    "MeasureValue": str(rec[measure_cols_loc]) if len(measure_cols) == 1 else None,
+                    "MeasureValues": [
                         {"Name": measure_name, "Value": str(measure_value), "Type": measure_value_type}
                         for measure_name, measure_value, measure_value_type in zip(
                             measure_cols, rec[measure_cols_loc:dimensions_cols_loc], measure_types
                         )
-                    ),
+                    ]
+                    if len(measure_cols) > 1
+                    else None,
                     "Time": str(round(rec[time_loc].timestamp() * 1_000)),
                     "TimeUnit": "MILLISECONDS",
                     "Version": version,
