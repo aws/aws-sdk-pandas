@@ -31,7 +31,9 @@ def _write_batch(
     database: str,
     table: str,
     cols_names: List[str],
-    measure_type: str,
+    measure_name: str,
+    measure_cols: List[str],
+    measure_types: List[str],
     version: int,
     batch: List[Any],
     boto3_primitives: _utils.Boto3PrimitivesType,
@@ -43,6 +45,10 @@ def _write_batch(
         botocore_config=Config(read_timeout=20, max_pool_connections=5000, retries={"max_attempts": 10}),
     )
     try:
+        time_loc = 0
+        measure_cols_loc = 1
+        dimensions_cols_loc = 1 + len(measure_cols)
+
         _utils.try_it(
             f=client.write_records,
             ex=(client.exceptions.ThrottlingException, client.exceptions.InternalServerException),
@@ -53,12 +59,19 @@ def _write_batch(
                 {
                     "Dimensions": [
                         {"Name": name, "DimensionValueType": "VARCHAR", "Value": str(value)}
-                        for name, value in zip(cols_names[2:], rec[2:])
+                        for name, value in zip(cols_names[dimensions_cols_loc:], rec[dimensions_cols_loc:])
                     ],
-                    "MeasureName": cols_names[1],
-                    "MeasureValueType": measure_type,
-                    "MeasureValue": str(rec[1]),
-                    "Time": str(round(rec[0].timestamp() * 1_000)),
+                    "MeasureName": measure_cols[0] if len(measure_cols) == 1 else None,
+                    "MeasureValueType": measure_types[0] if len(measure_types) == 1 else "MULTI",
+                    "MeasureValue": str(rec[measure_cols_loc])
+                    if len(measure_cols) == 1
+                    else (
+                        {"Name": measure_name, "Value": str(measure_value), "Type": measure_value_type}
+                        for measure_name, measure_value, measure_value_type in zip(
+                            measure_cols, rec[measure_cols_loc:dimensions_cols_loc], measure_types
+                        )
+                    ),
+                    "Time": str(round(rec[time_loc].timestamp() * 1_000)),
                     "TimeUnit": "MILLISECONDS",
                     "Version": version,
                 }
@@ -149,6 +162,7 @@ def write(
     table: str,
     time_col: str,
     measure_col: str,
+    measure_cols: List[str],
     dimensions_cols: List[str],
     version: int = 1,
     num_threads: int = 32,
@@ -168,6 +182,8 @@ def write(
         DataFrame column name to be used as time. MUST be a timestamp column.
     measure_col : str
         DataFrame column name to be used as measure.
+    measure_cols : List[str]
+        DataFrame column names to be used as measures. Takes precedence over measure_col.
     dimensions_cols : List[str]
         List of DataFrame column names to be used as dimensions.
     version : int
@@ -208,9 +224,13 @@ def write(
     >>> assert len(rejected_records) == 0
 
     """
-    measure_type: str = _data_types.timestream_type_from_pandas(df[[measure_col]])
-    _logger.debug("measure_type: %s", measure_type)
-    cols_names: List[str] = [time_col, measure_col] + dimensions_cols
+    measure_cols: List[str] = measure_cols or [measure_col]
+    _logger.debug("measure_cols: %s", measure_cols)
+    measure_types: List[str] = [
+        _data_types.timestream_type_from_pandas(df[[measure_col]]) for measure_col in measure_cols
+    ]
+    _logger.debug("measure_types: %s", measure_types)
+    cols_names: List[str] = [time_col] + measure_cols + dimensions_cols
     _logger.debug("cols_names: %s", cols_names)
     batches: List[List[Any]] = _utils.chunkify(lst=_df2list(df=df[cols_names]), max_length=100)
     _logger.debug("len(batches): %s", len(batches))
@@ -221,7 +241,8 @@ def write(
                 itertools.repeat(database),
                 itertools.repeat(table),
                 itertools.repeat(cols_names),
-                itertools.repeat(measure_type),
+                itertools.repeat(measure_cols),
+                itertools.repeat(measure_types),
                 itertools.repeat(version),
                 batches,
                 itertools.repeat(_utils.boto3_to_primitives(boto3_session=boto3_session)),
