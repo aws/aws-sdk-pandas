@@ -123,7 +123,8 @@ def to_property_graph(
     exists an exception will be thrown.
 
     If you would like to save data using `single` cardinality then you can postfix (single) to the column header and
-    set use_header_cardinality=True (default).  e.g. A column named `name(single)` will save the `name` property as single
+    set use_header_cardinality=True (default).  e.g. A column named `name(single)` will save the `name` property
+    as single
     cardinality.  You can disable this by setting by setting `use_header_cardinality=False`.
 
     Parameters

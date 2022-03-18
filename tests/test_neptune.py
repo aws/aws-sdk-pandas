@@ -17,12 +17,7 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 @pytest.fixture(scope="session")
 def cloudformation_outputs():
-    #return extract_cloudformation_outputs()
-    outputs = {}
-    outputs['NeptuneClusterEndpoint'] = 'air-routes-oc.cluster-cei5pmtr7fqq.us-west-2.neptune.amazonaws.com'
-    outputs['NeptunePort'] = 8182
-    outputs['NeptuneIAMEnabled'] = False
-    return outputs
+    return extract_cloudformation_outputs()
 
 
 @pytest.fixture(scope="session")
@@ -254,7 +249,7 @@ def test_gremlin_write_vertices(neptune_endpoint, neptune_port) -> Dict[str, Any
     assert saved_row[T.label] == original_row["~label"]
     assert saved_row["int"] == v2["int"]
     assert len(saved_row["str"]) == 2
-    
+
     # Check that it is respecting the header cardinality
     df = pd.DataFrame([v2])
     df.rename(columns={"int": "int(single)"}, inplace=True)
