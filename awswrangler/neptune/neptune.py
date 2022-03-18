@@ -110,7 +110,7 @@ def execute_sparql(client: NeptuneClient, query: str) -> pd.DataFrame:
 
 
 def to_property_graph(
-    client: NeptuneClient, df: pd.DataFrame, batch_size: int = 50, use_header_cardinality: bool = False
+    client: NeptuneClient, df: pd.DataFrame, batch_size: int = 50, use_header_cardinality: bool = True
 ) -> bool:
     """Write records stored in a DataFrame into Amazon Neptune.
 
@@ -123,8 +123,8 @@ def to_property_graph(
     exists an exception will be thrown.
 
     If you would like to save data using `single` cardinality then you can postfix (single) to the column header and
-    set use_header_cardinality=True.  e.g. A column named `name(single)` will save the `name` property as single
-    cardinality.
+    set use_header_cardinality=True (default).  e.g. A column named `name(single)` will save the `name` property as single
+    cardinality.  You can disable this by setting by setting `use_header_cardinality=False`.
 
     Parameters
     ----------
@@ -132,10 +132,8 @@ def to_property_graph(
         instance of the neptune client to use
     df : pandas.DataFrame
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
-    batch_size : int
-        The number of rows to save at a time. Default 50
-    use_header_cardinality : bool
-        If True, then the header cardinality will be used to save the data. Default False
+    batch_size: The number of rows to save at a time. Default 50
+    use_header_cardinality: If True, then the header cardinality will be used to save the data. Default True
 
     Returns
     -------
@@ -295,7 +293,7 @@ def _set_properties(g: GraphTraversalSource, use_header_cardinality: bool, row: 
                     g = _expand_properties(g, _get_column_name(column), value)
             else:
                 # If not using header cardinality then use the default of set
-                g = _expand_properties(g, _get_column_name(column), value)
+                g = _expand_properties(g, column, value)
     return g
 
 
@@ -303,9 +301,9 @@ def _expand_properties(g: GraphTraversalSource, column: str, value: Any) -> Grap
     # If this is a list then expand it out into multiple property calls
     if isinstance(value, list) and len(value) > 0:
         for item in value:
-            g = g.property(Cardinality.set_, _get_column_name(column), item)
+            g = g.property(Cardinality.set_, column, item)
     else:
-        g = g.property(Cardinality.set_, _get_column_name(column), value)
+        g = g.property(Cardinality.set_, column, value)
     return g
 
 

@@ -17,7 +17,12 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 @pytest.fixture(scope="session")
 def cloudformation_outputs():
-    return extract_cloudformation_outputs()
+    #return extract_cloudformation_outputs()
+    outputs = {}
+    outputs['NeptuneClusterEndpoint'] = 'air-routes-oc.cluster-cei5pmtr7fqq.us-west-2.neptune.amazonaws.com'
+    outputs['NeptunePort'] = 8182
+    outputs['NeptuneIAMEnabled'] = False
+    return outputs
 
 
 @pytest.fixture(scope="session")
@@ -72,8 +77,8 @@ def test_opencypher_query(neptune_endpoint, neptune_port) -> Dict[str, Any]:
 
 def test_flatten_df(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
-    wr.neptune.execute_opencypher(client, "create (a:Foo { name: 'foo' })-[:TEST]->(b {name : 'bar'})")
-    df = wr.neptune.execute_opencypher(client, "MATCH (n:Foo) RETURN n LIMIT 1")
+    wr.neptune.execute_opencypher(client, "create (a:Foo1 { name: 'foo' })-[:TEST]->(b {name : 'bar'})")
+    df = wr.neptune.execute_opencypher(client, "MATCH (n:Foo1) RETURN n LIMIT 1")
     df_test = wr.neptune.flatten_nested_df(df)
     assert isinstance(df_test, pd.DataFrame)
     assert df_test.shape == (1, 6)
@@ -192,6 +197,11 @@ def test_gremlin_write_updates(neptune_endpoint, neptune_port) -> Dict[str, Any]
     saved_row = res.iloc[0]
     assert saved_row["age"] == 55
     assert saved_row["name"] == ["foo", "bar"]
+    res = wr.neptune.to_property_graph(client, df, use_header_cardinality=False)
+    res = wr.neptune.execute_gremlin(client, f"g.V('{id}').valueMap().with(WithOptions.tokens)")
+    saved_row = res.iloc[0]
+    assert saved_row["age(single)"] == 55
+    assert saved_row["name"] == ["foo", "bar"]
 
 
 def test_gremlin_write_vertices(neptune_endpoint, neptune_port) -> Dict[str, Any]:
@@ -235,6 +245,17 @@ def test_gremlin_write_vertices(neptune_endpoint, neptune_port) -> Dict[str, Any
     original_row = df.iloc[0]
 
     # save it a second time to make sure it updates correctly when re-adding
+    df = pd.DataFrame([v2])
+    df.rename(columns={"int": "int(single)"}, inplace=True)
+    res = wr.neptune.to_property_graph(client, df, use_header_cardinality=True)
+    res = wr.neptune.execute_gremlin(client, f"g.V('{original_row['~id']}').valueMap().with(WithOptions.tokens)")
+    saved_row = res.iloc[0]
+    assert saved_row[T.id] == original_row["~id"]
+    assert saved_row[T.label] == original_row["~label"]
+    assert saved_row["int"] == v2["int"]
+    assert len(saved_row["str"]) == 2
+    
+    # Check that it is respecting the header cardinality
     df = pd.DataFrame([v2])
     df.rename(columns={"int": "int(single)"}, inplace=True)
     res = wr.neptune.to_property_graph(client, df, use_header_cardinality=True)

@@ -42,7 +42,12 @@ class NeptuneClient:
         else:
             self.region = region
         self._http_session = requests.Session()
+        self.gremlin_connection = None
 
+    def __del__(self):
+        if isinstance(self.gremlin_connection, client.Client):
+            self.gremlin_connection.close()
+            
     def __get_region_from_session(self) -> str:
         """Extract region from session."""
         region: Optional[str] = self.boto3_session.region_name
@@ -174,24 +179,28 @@ class NeptuneClient:
 
     def _execute_gremlin(self, query: str, headers: Any = None) -> List[Dict[str, Any]]:
         try:
-            uri = f"{HTTP_PROTOCOL}://{self.host}:{self.port}/gremlin"
-            request = self._prepare_request("GET", uri, headers=headers)
-            ws_url = f"{WS_PROTOCOL}://{self.host}:{self.port}/gremlin"
-            c = client.Client(
-                ws_url,
-                "g",
-                headers=dict(request.headers),
-                transport_factory=AiohttpTransport(call_from_event_loop=True),
-            )
+            c = self._get_gremlin_connection(headers)
             result = c.submit(query)
             future_results = result.all()
             results = future_results.result()
-            c.close()
             return GremlinParser.gremlin_results_to_dict(results)
         except Exception as e:
-            c.close()
+            if isinstance(self.gremlin_connection, client.Client):
+                self.gremlin_connection.close()
+            self.gremlin_connection = None
             _logger.error(e)
             raise exceptions.QueryFailed(e)
+
+
+    def _get_gremlin_connection(self, headers: Any = None) -> client.Client:
+        if self.gremlin_connection is None:
+            nest_asyncio.apply()
+            uri = f"{HTTP_PROTOCOL}://{self.host}:{self.port}/gremlin"
+            request = self._prepare_request("GET", uri, headers=headers)
+            ws_url = f"{WS_PROTOCOL}://{self.host}:{self.port}/gremlin"
+            self.gremlin_connection = client.Client(ws_url, "g", headers=dict(request.headers))
+        return self.gremlin_connection
+
 
     def read_sparql(self, query: str, headers: Any = None) -> Any:
         """Execute the given query and returns the results.
