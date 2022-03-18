@@ -179,7 +179,14 @@ class NeptuneClient:
 
     def _execute_gremlin(self, query: str, headers: Any = None) -> List[Dict[str, Any]]:
         try:
+<<<<<<< HEAD
             c = self._get_gremlin_connection(headers)
+=======
+            uri = f"{HTTP_PROTOCOL}://{self.host}:{self.port}/gremlin"
+            request = self._prepare_request("GET", uri, headers=headers)
+            ws_url = f"{WS_PROTOCOL}://{self.host}:{self.port}/gremlin"
+            c = client.Client(ws_url, "g", headers=dict(request.headers), call_from_event_loop=True)
+>>>>>>> 6ba9ccd84be7379d54355efeb467421752164113
             result = c.submit(query)
             future_results = result.all()
             results = future_results.result()
