@@ -61,8 +61,7 @@ def write_gremlin_df(client: NeptuneClient, df: pd.DataFrame, mode: WriteDFType,
             else:
                 _logger.debug(res)
                 raise exceptions.QueryFailed(
-                    """Failed to insert part or all of the data in the DataFrame, 
-                                             please check the log output for details."""
+                    """Failed to insert part or all of the data in the DataFrame, please check the log output."""
                 )
 
     return _run_gremlin_insert(client, g)
