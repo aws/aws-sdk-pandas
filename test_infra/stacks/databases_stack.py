@@ -5,6 +5,7 @@ from aws_cdk import aws_glue as glue
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_kms as kms
 from aws_cdk import aws_lakeformation as lf
+from aws_cdk import aws_neptune as neptune
 from aws_cdk import aws_rds as rds
 from aws_cdk import aws_redshift as redshift
 from aws_cdk import aws_s3 as s3
@@ -40,6 +41,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
         self._setup_mysql()
         self._setup_mysql_serverless()
         self._setup_sqlserver()
+        self._setup_neptune()
 
     def _set_db_infra(self) -> None:
         self.db_username = "test"
@@ -562,3 +564,18 @@ class DatabasesStack(cdk.Stack):  # type: ignore
         cdk.CfnOutput(self, "SqlServerPort", value=str(port))
         cdk.CfnOutput(self, "SqlServerDatabase", value=database)
         cdk.CfnOutput(self, "SqlServerSchema", value=schema)
+
+    def _setup_neptune(self, iam_enabled: bool = False, port: int = 8182) -> None:
+        cluster = neptune.DatabaseCluster(
+            self,
+            "DataWrangler",
+            vpc=self.vpc,
+            instance_type=neptune.InstanceType.R5_LARGE,
+            iam_authentication=iam_enabled,
+            security_groups=[self.db_security_group],
+        )
+
+        cdk.CfnOutput(self, "NeptuneClusterEndpoint", value=cluster.cluster_endpoint.hostname)
+        cdk.CfnOutput(self, "NeptuneReaderEndpoint", value=cluster.cluster_read_endpoint.hostname)
+        cdk.CfnOutput(self, "NeptunePort", value=str(port))
+        cdk.CfnOutput(self, "NeptuneIAMEnabled", value=str(iam_enabled))
