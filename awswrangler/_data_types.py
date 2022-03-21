@@ -3,6 +3,7 @@
 import datetime
 import logging
 import re
+import warnings
 from decimal import Decimal
 from typing import Any, Callable, Dict, Iterator, List, Match, Optional, Sequence, Tuple, Union
 
@@ -661,6 +662,12 @@ def _cast_pandas_column(df: pd.DataFrame, col: str, current_type: str, desired_t
             _logger.debug("Column: %s", col)
             if "object cannot be converted to an IntegerDtype" not in str(ex):
                 raise ex
+            warnings.warn(
+                "Object cannot be converted to an IntegerDtype. Integer columns in Python cannot contain "
+                "missing values. If your input data contains missing values, it will be encoded as floats"
+                "which may cause precision loss.",
+                UserWarning,
+            )
             df[col] = (
                 df[col]
                 .apply(lambda x: int(x) if str(x) not in ("", "none", "None", " ", "<NA>") else None)
