@@ -10,7 +10,7 @@ import boto3
 import pandas as pd
 from botocore.config import Config
 
-from awswrangler import _data_types, _utils
+from awswrangler import _data_types, _utils, exceptions
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -47,36 +47,36 @@ def _write_batch(
         time_loc = 0
         measure_cols_loc = 1
         dimensions_cols_loc = 1 + len(measure_cols_names)
-
+        records: List[Dict[str, Any]] = []
+        for rec in batch:
+            record: Dict[str, Any] = {
+                "Dimensions": [
+                    {"Name": name, "DimensionValueType": "VARCHAR", "Value": str(value)}
+                    for name, value in zip(cols_names[dimensions_cols_loc:], rec[dimensions_cols_loc:])
+                ],
+                "Time": str(round(rec[time_loc].timestamp() * 1_000)),
+                "TimeUnit": "MILLISECONDS",
+                "Version": version,
+            }
+            if len(measure_cols_names) == 1:
+                record["MeasureName"] = measure_cols_names[0]
+                record["MeasureValueType"] = measure_types[0]
+                record["MeasureValue"] = str(rec[measure_cols_loc])
+            else:
+                record["MeasureValues"] = [
+                    {"Name": measure_name, "Value": str(measure_value), "Type": measure_value_type}
+                    for measure_name, measure_value, measure_value_type in zip(
+                        measure_cols_names, rec[measure_cols_loc:dimensions_cols_loc], measure_types
+                    )
+                ]
+            records.append(record)
         _utils.try_it(
             f=client.write_records,
             ex=(client.exceptions.ThrottlingException, client.exceptions.InternalServerException),
             max_num_tries=5,
             DatabaseName=database,
             TableName=table,
-            Records=[
-                {
-                    "Dimensions": [
-                        {"Name": name, "DimensionValueType": "VARCHAR", "Value": str(value)}
-                        for name, value in zip(cols_names[dimensions_cols_loc:], rec[dimensions_cols_loc:])
-                    ],
-                    "MeasureName": measure_cols_names[0] if len(measure_cols_names) == 1 else None,
-                    "MeasureValueType": measure_types[0] if len(measure_types) == 1 else "MULTI",
-                    "MeasureValue": str(rec[measure_cols_loc]) if len(measure_cols_names) == 1 else None,
-                    "MeasureValues": [
-                        {"Name": measure_name, "Value": str(measure_value), "Type": measure_value_type}
-                        for measure_name, measure_value, measure_value_type in zip(
-                            measure_cols_names, rec[measure_cols_loc:dimensions_cols_loc], measure_types
-                        )
-                    ]
-                    if len(measure_cols_names) > 1
-                    else None,
-                    "Time": str(round(rec[time_loc].timestamp() * 1_000)),
-                    "TimeUnit": "MILLISECONDS",
-                    "Version": version,
-                }
-                for rec in batch
-            ],
+            Records=records,
         )
     except client.exceptions.RejectedRecordsException as ex:
         return cast(List[Dict[str, str]], ex.response["RejectedRecords"])
@@ -161,9 +161,9 @@ def write(
     database: str,
     table: str,
     time_col: str,
-    measure_col: str,
-    measure_cols: List[str],
-    dimensions_cols: List[str],
+    measure_col: Optional[str] = None,
+    measure_cols: Optional[List[str]] = None,
+    dimensions_cols: Optional[List[str]] = None,
     version: int = 1,
     num_threads: int = 32,
     boto3_session: Optional[boto3.Session] = None,
@@ -180,11 +180,11 @@ def write(
         Amazon Timestream table name.
     time_col : str
         DataFrame column name to be used as time. MUST be a timestamp column.
-    measure_col : str
+    measure_col : Optional[str]
         DataFrame column name to be used as measure.
-    measure_cols : List[str]
+    measure_cols : Optional[List[str]]
         DataFrame column names to be used as measures. Takes precedence over measure_col.
-    dimensions_cols : List[str]
+    dimensions_cols : Optional[List[str]]
         List of DataFrame column names to be used as dimensions.
     version : int
         Version number used for upserts.
@@ -224,7 +224,11 @@ def write(
     >>> assert len(rejected_records) == 0
 
     """
-    measure_cols_names: List[str] = measure_cols or [measure_col]
+    if not measure_col and not measure_cols:
+        raise exceptions.InvalidArgumentCombination("Either `measure_col` or `measure_cols` is required.")
+    if not dimensions_cols:
+        raise exceptions.InvalidArgumentValue("`dimensions_cols` is required.")
+    measure_cols_names: List[str] = measure_cols if measure_cols else [measure_col] if measure_col else []
     _logger.debug("measure_cols_names: %s", measure_cols_names)
     measure_types: List[str] = [
         _data_types.timestream_type_from_pandas(df[[measure_col_name]]) for measure_col_name in measure_cols_names
