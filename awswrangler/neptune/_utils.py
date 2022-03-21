@@ -10,6 +10,7 @@ from gremlin_python.process.translator import Translator
 from gremlin_python.process.traversal import Cardinality, T
 from gremlin_python.structure.graph import Graph
 
+from awswrangler import exceptions
 from awswrangler.neptune.client import NeptuneClient
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -58,7 +59,11 @@ def write_gremlin_df(client: NeptuneClient, df: pd.DataFrame, mode: WriteDFType,
             if res:
                 g = Graph().traversal()
             else:
-                raise Exception("Need to fix why this errors")
+                _logger.debug(res)
+                raise exceptions.QueryFailed(
+                    """Failed to insert part or all of the data in the DataFrame, 
+                                             please check the log output for details."""
+                )
 
     return _run_gremlin_insert(client, g)
 
