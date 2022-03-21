@@ -53,7 +53,6 @@ gremlinpython = "^3.5.2"
 backoff = "^1.11.1"
 SPARQLWrapper = "^1.8.5"
 pyodbc = { version = "~4.0.32", optional = true }
-nest-asyncio = "^1.5.4"
 
 [tool.poetry.extras]
 sqlserver = ["pyodbc"]
