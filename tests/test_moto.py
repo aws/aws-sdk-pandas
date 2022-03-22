@@ -66,6 +66,7 @@ def moto_dynamodb():
             TableName="table",
             KeySchema=[{"AttributeName": "key", "KeyType": "HASH"}],
             AttributeDefinitions=[{"AttributeName": "key", "AttributeType": "N"}],
+            BillingMode="PAY_PER_REQUEST",
         )
         yield dynamodb
 

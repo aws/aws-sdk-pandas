@@ -12,6 +12,7 @@ API Reference
 * `Data API Redshift`_
 * `Data API RDS`_
 * `OpenSearch`_
+* `Amazon Neptune`_
 * `DynamoDB`_
 * `Amazon Timestream`_
 * `Amazon EMR`_
@@ -239,6 +240,22 @@ OpenSearch
     index_json
     search
     search_by_sql
+
+Amazon Neptune
+--------------
+
+.. currentmodule:: awswrangler.neptune
+
+.. autosummary::
+    :toctree: stubs
+
+    connect
+    execute_gremlin
+    execute_opencypher
+    execute_sparql
+    flatten_nested_df
+    to_property_graph
+    to_rdf_graph
 
 DynamoDB
 --------
