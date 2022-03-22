@@ -180,3 +180,34 @@ def test_real_csv_load_scenario(timestream_database_and_table):
     assert len(rejected_records) == 0
     df = wr.timestream.query(f'SELECT COUNT(*) AS counter FROM "{name}"."{name}"')
     assert df["counter"].iloc[0] == 126_000
+
+
+def test_multimeasure_scenario(timestream_database_and_table):
+    df = pd.DataFrame(
+        {
+            "time": [datetime.now(), datetime.now(), datetime.now()],
+            "dim0": ["foo", "boo", "bar"],
+            "dim1": [1, 2, 3],
+            "measure1": [1.0, 1.1, 1.2],
+            "measure2": [2.0, 2.1, 2.2],
+        }
+    )
+    rejected_records = wr.timestream.write(
+        df=df,
+        database=timestream_database_and_table,
+        table=timestream_database_and_table,
+        time_col="time",
+        measure_col=["measure1", "measure2"],
+        dimensions_cols=["dim0", "dim1"],
+    )
+    assert len(rejected_records) == 0
+    df = wr.timestream.query(
+        f"""
+        SELECT
+            *
+        FROM "{timestream_database_and_table}"."{timestream_database_and_table}"
+        ORDER BY time
+        DESC LIMIT 10
+        """,
+    )
+    assert df.shape == (3, 6)
