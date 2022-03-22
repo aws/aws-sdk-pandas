@@ -133,8 +133,10 @@ def to_property_graph(
         instance of the neptune client to use
     df : pandas.DataFrame
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
-    batch_size: The number of rows to save at a time. Default 50
-    use_header_cardinality: If True, then the header cardinality will be used to save the data. Default True
+    batch_size: int
+        The number of rows to save at a time. Default 50
+    use_header_cardinality: bool
+        If True, then the header cardinality will be used to save the data. Default True
 
     Returns
     -------
