@@ -10,7 +10,7 @@ import boto3
 import pandas as pd
 from botocore.config import Config
 
-from awswrangler import _data_types, _utils, exceptions
+from awswrangler import _data_types, _utils
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -63,6 +63,8 @@ def _write_batch(
                 record["MeasureValueType"] = measure_types[0]
                 record["MeasureValue"] = str(rec[measure_cols_loc])
             else:
+                record["MeasureName"] = measure_cols_names[0]
+                record["MeasureValueType"] = "MULTI"
                 record["MeasureValues"] = [
                     {"Name": measure_name, "Value": str(measure_value), "Type": measure_value_type}
                     for measure_name, measure_value, measure_value_type in zip(
@@ -161,9 +163,8 @@ def write(
     database: str,
     table: str,
     time_col: str,
-    measure_col: Optional[str] = None,
-    measure_cols: Optional[List[str]] = None,
-    dimensions_cols: Optional[List[str]] = None,
+    measure_col: Union[str, List[str]],
+    dimensions_cols: List[str],
     version: int = 1,
     num_threads: int = 32,
     boto3_session: Optional[boto3.Session] = None,
@@ -180,11 +181,9 @@ def write(
         Amazon Timestream table name.
     time_col : str
         DataFrame column name to be used as time. MUST be a timestamp column.
-    measure_col : Optional[str]
-        DataFrame column name to be used as measure.
-    measure_cols : Optional[List[str]]
-        DataFrame column names to be used as measures. Takes precedence over measure_col.
-    dimensions_cols : Optional[List[str]]
+    measure_col : Union[str, List[str]]
+        DataFrame column name(s) to be used as measure.
+    dimensions_cols : List[str]
         List of DataFrame column names to be used as dimensions.
     version : int
         Version number used for upserts.
@@ -224,11 +223,7 @@ def write(
     >>> assert len(rejected_records) == 0
 
     """
-    if not measure_col and not measure_cols:
-        raise exceptions.InvalidArgumentCombination("Either `measure_col` or `measure_cols` is required.")
-    if not dimensions_cols:
-        raise exceptions.InvalidArgumentValue("`dimensions_cols` is required.")
-    measure_cols_names: List[str] = measure_cols if measure_cols else [measure_col] if measure_col else []
+    measure_cols_names: List[str] = measure_col if isinstance(measure_col, list) else [measure_col]
     _logger.debug("measure_cols_names: %s", measure_cols_names)
     measure_types: List[str] = [
         _data_types.timestream_type_from_pandas(df[[measure_col_name]]) for measure_col_name in measure_cols_names
