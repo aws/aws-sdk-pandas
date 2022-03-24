@@ -2,7 +2,7 @@
 
 *Pandas on AWS*
 
-Easy integration with Athena, Glue, Redshift, Timestream, QuickSight, Chime, CloudWatchLogs, DynamoDB, EMR, SecretManager, PostgreSQL, MySQL, SQLServer and S3 (Parquet, CSV, JSON and EXCEL).
+Easy integration with Athena, Glue, Redshift, Timestream, OpenSearch, Neptune, QuickSight, Chime, CloudWatchLogs, DynamoDB, EMR, SecretManager, PostgreSQL, MySQL, SQLServer and S3 (Parquet, CSV, JSON and EXCEL).
 
 ![AWS Data Wrangler](docs/source/_static/logo2.png?raw=true "AWS Data Wrangler")
 
@@ -224,6 +224,7 @@ If you would like us to include your company’s name and/or logo in the README 
 - [Shipwell](https://shipwell.com/) [[@zacharycarter](https://github.com/zacharycarter)]
 - [strongDM](https://www.strongdm.com/) [[@mrtns](https://github.com/mrtns)]
 - [Thinkbumblebee](https://www.thinkbumblebee.com/) [[@dheerajsharma21]](https://github.com/dheerajsharma21)
+- [VTEX](https://vtex.com/us-en/) [[@igorborgest]](https://github.com/igorborgest)
 - [Zillow](https://www.zillow.com/) [[@nicholas-miles]](https://github.com/nicholas-miles)
 
 ## What is Amazon SageMaker Data Wrangler?
