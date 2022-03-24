@@ -290,7 +290,7 @@ def _set_properties(g: GraphTraversalSource, use_header_cardinality: bool, row: 
         if column not in ["~id", "~label", "~to", "~from"]:
             # If the column header is specifying the cardinality then use it
             if use_header_cardinality:
-                if column.lower().find("(single)") > 0:
+                if column.lower().find("(single)") > 0 and pd.notna(value):
                     g = g.property(Cardinality.single, _get_column_name(column), value)
                 else:
                     g = _expand_properties(g, _get_column_name(column), value)
@@ -305,7 +305,7 @@ def _expand_properties(g: GraphTraversalSource, column: str, value: Any) -> Grap
     if isinstance(value, list) and len(value) > 0:
         for item in value:
             g = g.property(Cardinality.set_, column, item)
-    else:
+    elif pd.notna(value):
         g = g.property(Cardinality.set_, column, value)
     return g
 
