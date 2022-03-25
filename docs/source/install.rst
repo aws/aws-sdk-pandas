@@ -1,7 +1,7 @@
 Install
 =======
 
-**AWS Data Wrangler** runs with Python ``3.6``, ``3.7``, ``3.8`` and ``3.9``
+**AWS Data Wrangler** runs with Python ``3.7``, ``3.8``, ``3.9`` and ``3.10``.
 and on several platforms (AWS Lambda, AWS Glue Python Shell, EMR, EC2,
 on-premises, Amazon SageMaker, local, etc).
 

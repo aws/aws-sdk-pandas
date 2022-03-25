@@ -9,14 +9,6 @@ export DOCKER_BUILDKIT=1
 ARCH=$(arch)
 
 if [ "${ARCH}" != "aarch64" ]; then
-  # Python 3.6
-  docker build \
-    --pull \
-    --tag awswrangler-build-py36 \
-    --build-arg base_image=public.ecr.aws/lambda/python:3.6 \
-    --build-arg python_version=python36 \
-    .
-
   # Python 3.7
   docker build \
     --pull \
