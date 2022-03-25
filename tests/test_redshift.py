@@ -294,6 +294,7 @@ def test_spectrum(path, redshift_table, redshift_con, glue_database, redshift_ex
     wr.catalog.delete_table_if_exists(database=glue_database, table=redshift_table)
 
 
+@pytest.mark.xfail(raises=NotImplementedError, reason="Unable to create pandas categorical from pyarrow table")
 def test_category(path, redshift_table, redshift_con, databases_parameters):
     df = get_df_category().drop(["binary"], axis=1, inplace=False)
     wr.redshift.copy(

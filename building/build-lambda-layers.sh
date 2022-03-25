@@ -15,14 +15,6 @@ pushd lambda
 ./build-docker-images.sh
 
 if [ "${ARCH}" != "aarch64" ]; then # https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html
-  # Python 3.6
-  docker run \
-    --volume "$DIR_NAME":/aws-data-wrangler/ \
-    --workdir /aws-data-wrangler/building/lambda \
-    --rm \
-    awswrangler-build-py36 \
-    build-lambda-layer.sh "${VERSION}-py3.6" "ninja-build"
-
   # Python 3.7
   docker run \
     --volume "$DIR_NAME":/aws-data-wrangler/ \

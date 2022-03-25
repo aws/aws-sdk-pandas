@@ -1,7 +1,7 @@
 Install
 =======
 
-**AWS Data Wrangler** runs with Python ``3.6``, ``3.7``, ``3.8`` and ``3.9``
+**AWS Data Wrangler** runs with Python ``3.7``, ``3.8``, ``3.9`` and ``3.10``.
 and on several platforms (AWS Lambda, AWS Glue Python Shell, EMR, EC2,
 on-premises, Amazon SageMaker, local, etc).
 
@@ -115,7 +115,7 @@ Here is an example of how to create and use the AWS Data Wrangler Lambda layer i
           "wrangler-layer",
           location=sam.CfnApplication.ApplicationLocationProperty(
             application_id="arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-data-wrangler-layer-py3-8",
-            semantic_version="2.14.0",  # Get the latest version from https://github.com/awslabs/aws-data-wrangler/releases
+            semantic_version="2.15.0",  # Get the latest version from https://github.com/awslabs/aws-data-wrangler/releases
           ),
         )
 
@@ -158,7 +158,7 @@ Go to your Glue PySpark job and create a new *Job parameters* key/value:
 
 To install a specific version, set the value for above Job parameter as follows:
 
-* Value: ``cython==0.29.21,pg8000==1.21.0,pyarrow==2,pandas==1.3.0,awswrangler==2.14.0``
+* Value: ``cython==0.29.21,pg8000==1.21.0,pyarrow==2,pandas==1.3.0,awswrangler==2.15.0``
 
 .. note:: Pyarrow 3 is not currently supported in Glue PySpark Jobs, which is why a previous installation of pyarrow 2 is required.
 
@@ -177,7 +177,7 @@ Lambda zipped layers and Python wheels are stored in a publicly accessible S3 bu
 
   * Python wheel: ``awswrangler-<version>-py3-none-any.whl``
 
-For example: ``s3://aws-data-wrangler-public-artifacts/releases/2.14.0/awswrangler-layer-2.14.0-py3.8.zip``
+For example: ``s3://aws-data-wrangler-public-artifacts/releases/2.15.0/awswrangler-layer-2.15.0-py3.8.zip``
 
 Amazon SageMaker Notebook
 -------------------------
@@ -269,7 +269,7 @@ complement Big Data pipelines.
         sudo pip install pyarrow==2 awswrangler
 
 .. note:: Make sure to freeze the Wrangler version in the bootstrap for productive
-          environments (e.g. awswrangler==2.14.0)
+          environments (e.g. awswrangler==2.15.0)
 
 .. note:: Pyarrow 3 is not currently supported in the default EMR image, which is why a previous installation of pyarrow 2 is required.
 
