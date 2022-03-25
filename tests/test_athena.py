@@ -403,6 +403,7 @@ def test_athena_time_zone(glue_database):
     assert df["value"][0].year == datetime.datetime.utcnow().year
 
 
+@pytest.mark.xfail(raises=NotImplementedError, reason="Unable to create pandas categorical from pyarrow table")
 def test_category(path, glue_table, glue_database):
     df = get_df_category()
     wr.s3.to_parquet(
