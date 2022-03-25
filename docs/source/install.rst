@@ -135,6 +135,8 @@ Here is an example of how to create and use the AWS Data Wrangler Lambda layer i
 AWS Glue Python Shell Jobs
 --------------------------
 
+.. note:: Glue Python Shell only supports Python3.6, for which support was dropped in version 2.15.0 of Wrangler. Please use version 2.14.0 or below.
+
 1 - Go to `GitHub's release page <https://github.com/awslabs/aws-data-wrangler/releases>`_ and download the wheel file
 (.whl) related to the desired version. Alternatively, you can download the wheel from the `public artifacts bucket <https://aws-data-wrangler.readthedocs.io/en/latest/install.html#public-artifacts>`_.
 
