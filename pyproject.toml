@@ -42,7 +42,7 @@ progressbar2 = "^3.53.3"
 opensearch-py = "^1.0.0"
 gremlinpython = "^3.5.2"
 backoff = "^1.11.1"
-SPARQLWrapper = "^1.8.5"
+SPARQLWrapper = ">=1.8.5,<3.0.0"
 pyodbc = { version = "~4.0.32", optional = true }
 
 [tool.poetry.extras]
