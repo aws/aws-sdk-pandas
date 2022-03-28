@@ -311,7 +311,7 @@ def to_sql(
     use_column_names: bool = False,
     chunksize: int = 200,
     upsert_conflict_columns: Optional[List[str]] = None,
-    insert_conflict_columns: Optional[List[str]] = None
+    insert_conflict_columns: Optional[List[str]] = None,
 ) -> None:
     """Write records stored in a DataFrame into PostgreSQL.
 
