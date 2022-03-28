@@ -7,8 +7,8 @@ on-premises, Amazon SageMaker, local, etc).
 
 Some good practices to follow for options below are:
 
-  - Use new and isolated Virtual Environments for each project (`venv <https://docs.python.org/3/library/venv.html>`_).
-  - On Notebooks, always restart your kernel after installations.
+- Use new and isolated Virtual Environments for each project (`venv <https://docs.python.org/3/library/venv.html>`_).
+- On Notebooks, always restart your kernel after installations.
 
 .. note:: If you want to use ``awswrangler`` to connect to Microsoft SQL Server, some additional configuration is needed. Please have a look at the corresponding section below.
 
