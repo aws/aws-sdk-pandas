@@ -937,7 +937,7 @@ python-versions = "*"
 
 [[package]]
 name = "moto"
-version = "3.1.1"
+version = "3.1.3"
 description = "A library that allows your python tests to easily mock out the boto library"
 category = "dev"
 optional = false
@@ -2230,7 +2230,7 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.7.1, <3.11"
-content-hash = "64757fdf7b759041f03d391143eaa266716030c768727138bb722c28ae3652d7"
+content-hash = "8159c737ac0fbd0b808833870c52a1913b0b757a928ff96363baf57ba955812a"
 
 [metadata.files]
 aenum = [
@@ -2948,8 +2948,8 @@ mistune = [
     {file = "mistune-0.8.4.tar.gz", hash = "sha256:59a3429db53c50b5c6bcc8a07f8848cb00d7dc8bdb431a4ab41920d201d4756e"},
 ]
 moto = [
-    {file = "moto-3.1.1-py2.py3-none-any.whl", hash = "sha256:462495563847134ea8ef4135a229731a598a8e7b6b10a74f8d745815aa20a25b"},
-    {file = "moto-3.1.1.tar.gz", hash = "sha256:9b5446b3d1f7505d32616209ae09f02123ebc583387f7c182f11e4175754034f"},
+    {file = "moto-3.1.3-py2.py3-none-any.whl", hash = "sha256:9f1740576beb5bbc7958fcc9f35e6635c19833b6366dbb98abc137847ea34efc"},
+    {file = "moto-3.1.3.tar.gz", hash = "sha256:fa481595f5611d9febdaf0a0d129307b5e37de6876c37d035ceefe46ce7d8ac0"},
 ]
 multidict = [
     {file = "multidict-6.0.2-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:0b9e95a740109c6047602f4db4da9949e6c5945cefbad34a1299775ddc9a62e2"},
