@@ -1,16 +1,16 @@
 Install
 =======
 
-**AWS Data Wrangler** runs with Python ``3.7``, ``3.8``, ``3.9`` and ``3.10``.
+**AWS Data Wrangler** runs on Python ``3.7``, ``3.8``, ``3.9`` and ``3.10``,
 and on several platforms (AWS Lambda, AWS Glue Python Shell, EMR, EC2,
 on-premises, Amazon SageMaker, local, etc).
 
-Some good practices for most of the methods below are:
+Some good practices to follow for options below are:
 
-  - Use new and individual Virtual Environments for each project (`venv <https://docs.python.org/3/library/venv.html>`_).
-  - On Notebooks, always restart your kernel after installations.
+- Use new and isolated Virtual Environments for each project (`venv <https://docs.python.org/3/library/venv.html>`_).
+- On Notebooks, always restart your kernel after installations.
 
-.. note:: If you want to use ``awswrangler`` for connecting to Microsoft SQL Server, some additional configuration is needed. Please have a look at the corresponding section below.
+.. note:: If you want to use ``awswrangler`` to connect to Microsoft SQL Server, some additional configuration is needed. Please have a look at the corresponding section below.
 
 PyPI (pip)
 ----------
@@ -28,15 +28,9 @@ AWS Lambda Layer
 Managed Layer
 ^^^^^^^^^^^^^^
 
-AWS Data Wrangler is available as an AWS Lambda Managed layer in the following regions:
+.. note:: There is a one week minimum delay between version release and layers being available in the AWS Lambda console.
 
-- ap-northeast-1
-- ap-southeast-2
-- eu-central-1
-- eu-west-1
-- us-east-1
-- us-east-2
-- us-west-2
+AWS Data Wrangler is available as an AWS Lambda Managed layer in all AWS commercial regions.
 
 It can be accessed in the AWS Lambda console directly:
 
@@ -44,36 +38,27 @@ It can be accessed in the AWS Lambda console directly:
   :width: 400
   :alt: AWS Managed Lambda Layer
 
-Or via its ARN:
+Or via its ARN: ``arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python<python-version>:<layer-version>``.
 
-=============================  ================  =======================================================================
- AWS Data Wrangler Version      Python Version    Layer ARN
-=============================  ================  =======================================================================
- 2.12.0                         3.7               arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python37:1
- 2.12.0                         3.8               arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python38:1
- 2.13.0                         3.7               arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python37:2
- 2.13.0                         3.8               arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python38:2
- 2.13.0                         3.9               arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python39:1
- 2.14.0                         3.7               arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python37:3
- 2.14.0                         3.8               arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python38:3
- 2.14.0                         3.9               arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python39:2
-=============================  ================  =======================================================================
+For example: ``arn:aws:lambda:us-east-1:336392948345:layer:AWSDataWrangler-Python37:1``.
+
+The full list of ARNs is available `here <layers.rst>`__.
 
 Custom Layer
 ^^^^^^^^^^^^^^
 
-For AWS regions not in the above list, you can create your own Lambda layer following these instructions:
+You can also create your own Lambda layer with these instructions:
 
 1 - Go to `GitHub's release section <https://github.com/awslabs/aws-data-wrangler/releases>`_
-and download the layer zip related to the desired version. Alternatively, you can download the zip from the `public artifacts bucket <https://aws-data-wrangler.readthedocs.io/en/latest/install.html#public-artifacts>`_.
+and download the zipped layer for to the desired version. Alternatively, you can download the zip from the `public artifacts bucket <https://aws-data-wrangler.readthedocs.io/en/latest/install.html#public-artifacts>`_.
 
-2 - Go to the AWS Lambda Panel, open the layer section (left side)
+2 - Go to the AWS Lambda console, open the layer section (left side)
 and click **create layer**.
 
-3 - Set name and python version, upload your fresh downloaded zip file
-and press **create** to create the layer.
+3 - Set name and python version, upload your downloaded zip file
+and press **create**.
 
-4 - Go to your Lambda and select your new layer!
+4 - Go to your Lambda function and select your new layer!
 
 Serverless Application Repository (SAR)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -81,7 +66,7 @@ Serverless Application Repository (SAR)
 Starting version `2.12.0`, AWS Data Wrangler layers are also available in the `AWS Serverless Application Repository <https://serverlessrepo.aws.amazon.com/applications>`_ (SAR).
 
 The app deploys the Lambda layer version in your own AWS account and region via a CloudFormation stack.
-This option provides the ability to use semantic versions (i.e. library version) instead of Lambda layer versions. 
+This option provides the ability to use semantic versions (i.e. library version) instead of Lambda layer versions.
 
 .. list-table:: AWS Data Wrangler Layer Apps
    :widths: 25 25 50
@@ -135,34 +120,33 @@ Here is an example of how to create and use the AWS Data Wrangler Lambda layer i
 AWS Glue Python Shell Jobs
 --------------------------
 
-.. note:: Glue Python Shell only supports Python3.6, for which support was dropped in version 2.15.0 of Wrangler. Please use version 2.14.0 or below.
+.. note:: Glue Python Shell runs on Python3.6, for which support was dropped in version 2.15.0 of Wrangler. Please use version 2.14.0 of the library or below.
 
 1 - Go to `GitHub's release page <https://github.com/awslabs/aws-data-wrangler/releases>`_ and download the wheel file
 (.whl) related to the desired version. Alternatively, you can download the wheel from the `public artifacts bucket <https://aws-data-wrangler.readthedocs.io/en/latest/install.html#public-artifacts>`_.
 
-2 - Upload the wheel file to any Amazon S3 location.
+2 - Upload the wheel file to the Amazon S3 location of your choice.
 
-3 - Go to your Glue Python Shell job and point to the wheel file on S3 in
+3 - Go to your Glue Python Shell job and point to the S3 wheel file in
 the *Python library path* field.
-
 
 `Official Glue Python Shell Reference <https://docs.aws.amazon.com/glue/latest/dg/add-job-python.html#create-python-extra-library>`_
 
 AWS Glue PySpark Jobs
 ---------------------
 
-.. note:: AWS Data Wrangler has compiled dependencies (C/C++) so there is only support for ``Glue PySpark Jobs >= 2.0``.
+.. note:: AWS Data Wrangler has compiled dependencies (C/C++) so support is only available for ``Glue PySpark Jobs >= 2.0``.
 
 Go to your Glue PySpark job and create a new *Job parameters* key/value:
 
 * Key: ``--additional-python-modules``
 * Value: ``pyarrow==2,awswrangler``
 
-To install a specific version, set the value for above Job parameter as follows:
+To install a specific version, set the value for the above Job parameter as follows:
 
 * Value: ``cython==0.29.21,pg8000==1.21.0,pyarrow==2,pandas==1.3.0,awswrangler==2.15.0``
 
-.. note:: Pyarrow 3 is not currently supported in Glue PySpark Jobs, which is why a previous installation of pyarrow 2 is required.
+.. note:: Pyarrow 3 is not currently supported in Glue PySpark Jobs, which is why an installation of pyarrow 2 is required.
 
 `Official Glue PySpark Reference <https://docs.aws.amazon.com/glue/latest/dg/reduced-start-times-spark-etl-jobs.html#reduced-start-times-new-features>`_
 
@@ -184,16 +168,16 @@ For example: ``s3://aws-data-wrangler-public-artifacts/releases/2.15.0/awswrangl
 Amazon SageMaker Notebook
 -------------------------
 
-Run this command in any Python 3 notebook paragraph and then make sure to
-**restart the kernel** before import the **awswrangler** package.
+Run this command in any Python 3 notebook cell and then make sure to
+**restart the kernel** before importing the **awswrangler** package.
 
     >>> !pip install awswrangler
 
 Amazon SageMaker Notebook Lifecycle
 -----------------------------------
 
-Open SageMaker console, go to the lifecycle section and
-use the follow snippet to configure AWS Data Wrangler for all compatible
+Open the AWS SageMaker console, go to the lifecycle section and
+use the below snippet to configure AWS Data Wrangler for all compatible
 SageMaker kernels (`Reference <https://github.com/aws-samples/amazon-sagemaker-notebook-instance-lifecycle-config-samples/blob/master/scripts/install-pip-package-all-environments/on-start.sh>`_).
 
 .. code-block:: sh
@@ -227,9 +211,7 @@ SageMaker kernels (`Reference <https://github.com/aws-samples/amazon-sagemaker-n
 EMR Cluster
 -----------
 
-Even not being a distributed library,
-AWS Data Wrangler could be a good helper to
-complement Big Data pipelines.
+Despite not being a distributed library, AWS Data Wrangler could be used to complement Big Data pipelines.
 
 - Configure Python 3 as the default interpreter for
   PySpark on your cluster configuration [ONLY REQUIRED FOR EMR < 6]
@@ -270,10 +252,10 @@ complement Big Data pipelines.
 
         sudo pip install pyarrow==2 awswrangler
 
-.. note:: Make sure to freeze the Wrangler version in the bootstrap for productive
+.. note:: Make sure to freeze the library version in the bootstrap for production
           environments (e.g. awswrangler==2.15.0)
 
-.. note:: Pyarrow 3 is not currently supported in the default EMR image, which is why a previous installation of pyarrow 2 is required.
+.. note:: Pyarrow 3 is not currently supported in the default EMR image, which is why an installation of pyarrow 2 is required.
 
 From Source
 -----------
@@ -286,9 +268,9 @@ From Source
 Notes for Microsoft SQL Server
 ------------------------------
 
-``awswrangler`` is using the `pyodbc <https://github.com/mkleehammer/pyodbc>`_
-for interacting with Microsoft SQL Server. For installing this package you need the ODBC header files,
-which can be installed, for example, with the following commands:
+``awswrangler`` uses `pyodbc <https://github.com/mkleehammer/pyodbc>`_
+for interacting with Microsoft SQL Server. To install this package you need the ODBC header files,
+which can be installed, with the following commands:
 
     >>> sudo apt install unixodbc-dev
     >>> yum install unixODBC-devel

@@ -20,6 +20,7 @@ API Reference
 * `Amazon QuickSight`_
 * `AWS STS`_
 * `AWS Secrets Manager`_
+* `Amazon Chime`_
 * `Global Configurations`_
 
 Amazon S3
