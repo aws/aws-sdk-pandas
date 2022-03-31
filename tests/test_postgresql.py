@@ -408,15 +408,6 @@ def test_insert_ignore_duplicate_columns(postgresql_table, postgresql_con):
     df2 = wr.postgresql.read_sql_table(con=postgresql_con, schema="public", table=postgresql_table)
     assert bool(len(df2) == 2)
 
-    wr.postgresql.to_sql(
-        df=df,
-        con=postgresql_con,
-        schema="public",
-        table=postgresql_table,
-        mode="append",
-        insert_conflict_columns=["c0"],
-        use_column_names=True,
-    )
     df3 = pd.DataFrame({"c0": ["baz", "bar"], "c2": [30, 20]})
     wr.postgresql.to_sql(
         df=df3,
