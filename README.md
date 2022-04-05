@@ -8,7 +8,7 @@ Easy integration with Athena, Glue, Redshift, Timestream, OpenSearch, Neptune, Q
 
 > An [AWS Professional Service](https://aws.amazon.com/professional-services/) open source initiative | aws-proserve-opensource@amazon.com
 
-[![Release](https://img.shields.io/badge/release-2.15.0-brightgreen.svg)](https://pypi.org/project/awswrangler/)
+[![Release](https://img.shields.io/badge/release-2.15.1-brightgreen.svg)](https://pypi.org/project/awswrangler/)
 [![Python Version](https://img.shields.io/badge/python-3.7%20%7C%203.7%20%7C%203.8%20%7C%203.10-brightgreen.svg)](https://anaconda.org/conda-forge/awswrangler)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -23,7 +23,7 @@ Easy integration with Athena, Glue, Redshift, Timestream, OpenSearch, Neptune, Q
 | **[PyPi](https://pypi.org/project/awswrangler/)**  | [![PyPI Downloads](https://pepy.tech/badge/awswrangler)](https://pypi.org/project/awswrangler/) | `pip install awswrangler` |
 | **[Conda](https://anaconda.org/conda-forge/awswrangler)** | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/awswrangler.svg)](https://anaconda.org/conda-forge/awswrangler) | `conda install -c conda-forge awswrangler` |
 
-> ⚠️ **For platforms without PyArrow 3 support (e.g. [EMR](https://aws-data-wrangler.readthedocs.io/en/2.15.0/install.html#emr-cluster), [Glue PySpark Job](https://aws-data-wrangler.readthedocs.io/en/2.15.0/install.html#aws-glue-pyspark-jobs), MWAA):**<br>
+> ⚠️ **For platforms without PyArrow 3 support (e.g. [EMR](https://aws-data-wrangler.readthedocs.io/en/2.15.1/install.html#emr-cluster), [Glue PySpark Job](https://aws-data-wrangler.readthedocs.io/en/2.15.1/install.html#aws-glue-pyspark-jobs), MWAA):**<br>
 ➡️ `pip install pyarrow==2 awswrangler`
 
 Powered By [<img src="https://arrow.apache.org/img/arrow.png" width="200">](https://arrow.apache.org/powered_by/)
@@ -42,7 +42,7 @@ Powered By [<img src="https://arrow.apache.org/img/arrow.png" width="200">](http
 
 Installation command: `pip install awswrangler`
 
-> ⚠️ **For platforms without PyArrow 3 support (e.g. [EMR](https://aws-data-wrangler.readthedocs.io/en/2.15.0/install.html#emr-cluster), [Glue PySpark Job](https://aws-data-wrangler.readthedocs.io/en/2.15.0/install.html#aws-glue-pyspark-jobs), MWAA):**<br>
+> ⚠️ **For platforms without PyArrow 3 support (e.g. [EMR](https://aws-data-wrangler.readthedocs.io/en/2.15.1/install.html#emr-cluster), [Glue PySpark Job](https://aws-data-wrangler.readthedocs.io/en/2.15.1/install.html#aws-glue-pyspark-jobs), MWAA):**<br>
 ➡️`pip install pyarrow==2 awswrangler`
 
 ```py3
@@ -96,17 +96,17 @@ FROM "sampleDB"."sampleTable" ORDER BY time DESC LIMIT 3
 
 ## [Read The Docs](https://aws-data-wrangler.readthedocs.io/)
 
-- [**What is AWS Data Wrangler?**](https://aws-data-wrangler.readthedocs.io/en/2.15.0/what.html)
-- [**Install**](https://aws-data-wrangler.readthedocs.io/en/2.15.0/install.html)
-  - [PyPi (pip)](https://aws-data-wrangler.readthedocs.io/en/2.15.0/install.html#pypi-pip)
-  - [Conda](https://aws-data-wrangler.readthedocs.io/en/2.15.0/install.html#conda)
-  - [AWS Lambda Layer](https://aws-data-wrangler.readthedocs.io/en/2.15.0/install.html#aws-lambda-layer)
-  - [AWS Glue Python Shell Jobs](https://aws-data-wrangler.readthedocs.io/en/2.15.0/install.html#aws-glue-python-shell-jobs)
-  - [AWS Glue PySpark Jobs](https://aws-data-wrangler.readthedocs.io/en/2.15.0/install.html#aws-glue-pyspark-jobs)
-  - [Amazon SageMaker Notebook](https://aws-data-wrangler.readthedocs.io/en/2.15.0/install.html#amazon-sagemaker-notebook)
-  - [Amazon SageMaker Notebook Lifecycle](https://aws-data-wrangler.readthedocs.io/en/2.15.0/install.html#amazon-sagemaker-notebook-lifecycle)
-  - [EMR](https://aws-data-wrangler.readthedocs.io/en/2.15.0/install.html#emr)
-  - [From source](https://aws-data-wrangler.readthedocs.io/en/2.15.0/install.html#from-source)
+- [**What is AWS Data Wrangler?**](https://aws-data-wrangler.readthedocs.io/en/2.15.1/what.html)
+- [**Install**](https://aws-data-wrangler.readthedocs.io/en/2.15.1/install.html)
+  - [PyPi (pip)](https://aws-data-wrangler.readthedocs.io/en/2.15.1/install.html#pypi-pip)
+  - [Conda](https://aws-data-wrangler.readthedocs.io/en/2.15.1/install.html#conda)
+  - [AWS Lambda Layer](https://aws-data-wrangler.readthedocs.io/en/2.15.1/install.html#aws-lambda-layer)
+  - [AWS Glue Python Shell Jobs](https://aws-data-wrangler.readthedocs.io/en/2.15.1/install.html#aws-glue-python-shell-jobs)
+  - [AWS Glue PySpark Jobs](https://aws-data-wrangler.readthedocs.io/en/2.15.1/install.html#aws-glue-pyspark-jobs)
+  - [Amazon SageMaker Notebook](https://aws-data-wrangler.readthedocs.io/en/2.15.1/install.html#amazon-sagemaker-notebook)
+  - [Amazon SageMaker Notebook Lifecycle](https://aws-data-wrangler.readthedocs.io/en/2.15.1/install.html#amazon-sagemaker-notebook-lifecycle)
+  - [EMR](https://aws-data-wrangler.readthedocs.io/en/2.15.1/install.html#emr)
+  - [From source](https://aws-data-wrangler.readthedocs.io/en/2.15.1/install.html#from-source)
 - [**Tutorials**](https://github.com/awslabs/aws-data-wrangler/tree/main/tutorials)
   - [001 - Introduction](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/001%20-%20Introduction.ipynb)
   - [002 - Sessions](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/002%20-%20Sessions.ipynb)
@@ -141,28 +141,28 @@ FROM "sampleDB"."sampleTable" ORDER BY time DESC LIMIT 3
   - [031 - OpenSearch](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/031%20-%20OpenSearch.ipynb)
   - [032 - Lake Formation Governed Tables](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/032%20-%20Lake%20Formation%20Governed%20Tables.ipynb)
   - [033 - Amazon Neptune](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/033%20-%20Amazon%20Neptune.ipynb)
-- [**API Reference**](https://aws-data-wrangler.readthedocs.io/en/2.15.0/api.html)
-  - [Amazon S3](https://aws-data-wrangler.readthedocs.io/en/2.15.0/api.html#amazon-s3)
-  - [AWS Glue Catalog](https://aws-data-wrangler.readthedocs.io/en/2.15.0/api.html#aws-glue-catalog)
-  - [Amazon Athena](https://aws-data-wrangler.readthedocs.io/en/2.15.0/api.html#amazon-athena)
-  - [AWS Lake Formation](https://aws-data-wrangler.readthedocs.io/en/2.15.0/api.html#aws-lake-formation)
-  - [Amazon Redshift](https://aws-data-wrangler.readthedocs.io/en/2.15.0/api.html#amazon-redshift)
-  - [PostgreSQL](https://aws-data-wrangler.readthedocs.io/en/2.15.0/api.html#postgresql)
-  - [MySQL](https://aws-data-wrangler.readthedocs.io/en/2.15.0/api.html#mysql)
-  - [SQL Server](https://aws-data-wrangler.readthedocs.io/en/2.15.0/api.html#sqlserver)
-  - [Data API Redshift](https://aws-data-wrangler.readthedocs.io/en/2.15.0/api.html#data-api-redshift)
-  - [Data API RDS](https://aws-data-wrangler.readthedocs.io/en/2.15.0/api.html#data-api-rds)
-  - [OpenSearch](https://aws-data-wrangler.readthedocs.io/en/2.15.0/api.html#opensearch)
-  - [Amazon Neptune](https://aws-data-wrangler.readthedocs.io/en/2.15.0/api.html#amazon-neptune)
-  - [DynamoDB](https://aws-data-wrangler.readthedocs.io/en/2.15.0/api.html#dynamodb)
-  - [Amazon Timestream](https://aws-data-wrangler.readthedocs.io/en/2.15.0/api.html#amazon-timestream)
-  - [Amazon EMR](https://aws-data-wrangler.readthedocs.io/en/2.15.0/api.html#amazon-emr)
-  - [Amazon CloudWatch Logs](https://aws-data-wrangler.readthedocs.io/en/2.15.0/api.html#amazon-cloudwatch-logs)
-  - [Amazon Chime](https://aws-data-wrangler.readthedocs.io/en/2.15.0/api.html#amazon-chime)
-  - [Amazon QuickSight](https://aws-data-wrangler.readthedocs.io/en/2.15.0/api.html#amazon-quicksight)
-  - [AWS STS](https://aws-data-wrangler.readthedocs.io/en/2.15.0/api.html#aws-sts)
-  - [AWS Secrets Manager](https://aws-data-wrangler.readthedocs.io/en/2.15.0/api.html#aws-secrets-manager)
-  - [Global Configurations](https://aws-data-wrangler.readthedocs.io/en/2.15.0/api.html#global-configurations)
+- [**API Reference**](https://aws-data-wrangler.readthedocs.io/en/2.15.1/api.html)
+  - [Amazon S3](https://aws-data-wrangler.readthedocs.io/en/2.15.1/api.html#amazon-s3)
+  - [AWS Glue Catalog](https://aws-data-wrangler.readthedocs.io/en/2.15.1/api.html#aws-glue-catalog)
+  - [Amazon Athena](https://aws-data-wrangler.readthedocs.io/en/2.15.1/api.html#amazon-athena)
+  - [AWS Lake Formation](https://aws-data-wrangler.readthedocs.io/en/2.15.1/api.html#aws-lake-formation)
+  - [Amazon Redshift](https://aws-data-wrangler.readthedocs.io/en/2.15.1/api.html#amazon-redshift)
+  - [PostgreSQL](https://aws-data-wrangler.readthedocs.io/en/2.15.1/api.html#postgresql)
+  - [MySQL](https://aws-data-wrangler.readthedocs.io/en/2.15.1/api.html#mysql)
+  - [SQL Server](https://aws-data-wrangler.readthedocs.io/en/2.15.1/api.html#sqlserver)
+  - [Data API Redshift](https://aws-data-wrangler.readthedocs.io/en/2.15.1/api.html#data-api-redshift)
+  - [Data API RDS](https://aws-data-wrangler.readthedocs.io/en/2.15.1/api.html#data-api-rds)
+  - [OpenSearch](https://aws-data-wrangler.readthedocs.io/en/2.15.1/api.html#opensearch)
+  - [Amazon Neptune](https://aws-data-wrangler.readthedocs.io/en/2.15.1/api.html#amazon-neptune)
+  - [DynamoDB](https://aws-data-wrangler.readthedocs.io/en/2.15.1/api.html#dynamodb)
+  - [Amazon Timestream](https://aws-data-wrangler.readthedocs.io/en/2.15.1/api.html#amazon-timestream)
+  - [Amazon EMR](https://aws-data-wrangler.readthedocs.io/en/2.15.1/api.html#amazon-emr)
+  - [Amazon CloudWatch Logs](https://aws-data-wrangler.readthedocs.io/en/2.15.1/api.html#amazon-cloudwatch-logs)
+  - [Amazon Chime](https://aws-data-wrangler.readthedocs.io/en/2.15.1/api.html#amazon-chime)
+  - [Amazon QuickSight](https://aws-data-wrangler.readthedocs.io/en/2.15.1/api.html#amazon-quicksight)
+  - [AWS STS](https://aws-data-wrangler.readthedocs.io/en/2.15.1/api.html#aws-sts)
+  - [AWS Secrets Manager](https://aws-data-wrangler.readthedocs.io/en/2.15.1/api.html#aws-secrets-manager)
+  - [Global Configurations](https://aws-data-wrangler.readthedocs.io/en/2.15.1/api.html#global-configurations)
 - [**License**](https://github.com/awslabs/aws-data-wrangler/blob/main/LICENSE.txt)
 - [**Contributing**](https://github.com/awslabs/aws-data-wrangler/blob/main/CONTRIBUTING.md)
 - [**Legacy Docs** (pre-1.0.0)](https://aws-data-wrangler.readthedocs.io/en/0.3.3/)
