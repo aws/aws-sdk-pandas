@@ -24,7 +24,7 @@ def _get_write_details(path: str, pandas_kwargs: Dict[str, Any]) -> Tuple[str, O
     if pandas_kwargs.get("compression", "infer") == "infer":
         pandas_kwargs["compression"] = infer_compression(path, compression="infer")
     mode: str = "w" if pandas_kwargs.get("compression") is None else "wb"
-    encoding: Optional[str] = pandas_kwargs.get("encoding", None)
+    encoding: Optional[str] = pandas_kwargs.get("encoding", "utf-8")
     newline: Optional[str] = pandas_kwargs.get("lineterminator", "")
     return mode, encoding, newline
 
