@@ -1022,7 +1022,7 @@ def build_spark_step(
     else:
         config: str = "hdfs:///user/hadoop/config.json"
         cmd = (
-            f"spark-submit --deploy-mode cluster "
+            f"spark-submit --deploy-mode {deploy_mode} "
             f"--conf spark.executorEnv.YARN_CONTAINER_RUNTIME_TYPE=docker "
             f"--conf spark.executorEnv.YARN_CONTAINER_RUNTIME_DOCKER_IMAGE={docker_image} "
             f"--conf spark.executorEnv.YARN_CONTAINER_RUNTIME_DOCKER_CLIENT_CONFIG={config} "
