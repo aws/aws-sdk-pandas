@@ -1411,6 +1411,7 @@ def copy(  # pylint: disable=too-many-arguments
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     max_rows_by_file: Optional[int] = 10_000_000,
+    sql_copy_extra_params: Optional[List[str]] = None,
 ) -> None:
     """Load Pandas DataFrame as a Table on Amazon Redshift using parquet files on S3 as stage.
 
@@ -1573,6 +1574,7 @@ def copy(  # pylint: disable=too-many-arguments
             lock=lock,
             boto3_session=session,
             s3_additional_kwargs=s3_additional_kwargs,
+            sql_copy_extra_params=sql_copy_extra_params,
         )
     finally:
         if keep_files is False:
