@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 import boto3
 import pandas as pd
 
+from awswrangler import _utils
 from awswrangler.data_api import connector
 
 
@@ -27,6 +28,8 @@ class RdsDataApi(connector.DataApiConnector):
         Factor by which to increase the sleep between connection attempts to paused clusters - defaults to 1.0.
     retries: int
         Maximum number of connection attempts to paused clusters - defaults to 10.
+    boto3_session : boto3.Session(), optional
+        The boto3 session. If `None`, the default boto3 session is used.
     """
 
     def __init__(
@@ -37,12 +40,13 @@ class RdsDataApi(connector.DataApiConnector):
         sleep: float = 0.5,
         backoff: float = 1.0,
         retries: int = 30,
+        boto3_session: Optional[boto3.Session] = None,
     ) -> None:
         self.resource_arn = resource_arn
         self.database = database
         self.secret_arn = secret_arn
         self.wait_config = connector.WaitConfig(sleep, backoff, retries)
-        self.client = boto3.client("rds-data")
+        self.client: boto3.client = _utils.client(service_name="rds-data", session=boto3_session)
         self.results: Dict[str, Dict[str, Any]] = {}
         logger: logging.Logger = logging.getLogger(__name__)
         super().__init__(self.client, logger)
@@ -114,7 +118,9 @@ class RdsDataApi(connector.DataApiConnector):
         return dataframe
 
 
-def connect(resource_arn: str, database: str, secret_arn: str = "", **kwargs: Any) -> RdsDataApi:
+def connect(
+    resource_arn: str, database: str, secret_arn: str = "", boto3_session: Optional[boto3.Session] = None, **kwargs: Any
+) -> RdsDataApi:
     """Create a RDS Data API connection.
 
     Parameters
@@ -125,6 +131,8 @@ def connect(resource_arn: str, database: str, secret_arn: str = "", **kwargs: An
         Target database name.
     secret_arn: str
         The ARN for the secret to be used for authentication.
+    boto3_session : boto3.Session(), optional
+        The boto3 session. If `None`, the default boto3 session is used.
     **kwargs
         Any additional kwargs are passed to the underlying RdsDataApi class.
 
@@ -132,7 +140,7 @@ def connect(resource_arn: str, database: str, secret_arn: str = "", **kwargs: An
     -------
     A RdsDataApi connection instance that can be used with `wr.rds.data_api.read_sql_query`.
     """
-    return RdsDataApi(resource_arn, database, secret_arn=secret_arn, **kwargs)
+    return RdsDataApi(resource_arn, database, secret_arn=secret_arn, boto3_session=boto3_session, **kwargs)
 
 
 def read_sql_query(sql: str, con: RdsDataApi, database: Optional[str] = None) -> pd.DataFrame:

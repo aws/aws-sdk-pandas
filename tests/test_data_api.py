@@ -1,3 +1,4 @@
+import boto3
 import pandas as pd
 import pytest
 
@@ -11,7 +12,7 @@ def redshift_connector(databases_parameters):
     cluster_id = databases_parameters["redshift"]["identifier"]
     database = databases_parameters["redshift"]["database"]
     secret_arn = databases_parameters["redshift"]["secret_arn"]
-    conn = wr.data_api.redshift.connect(cluster_id, database, secret_arn=secret_arn)
+    conn = wr.data_api.redshift.connect(cluster_id, database, secret_arn=secret_arn, boto3_session=None)
     return conn
 
 
@@ -19,7 +20,7 @@ def create_rds_connector(rds_type, parameters):
     cluster_id = parameters[rds_type]["arn"]
     database = parameters[rds_type]["database"]
     secret_arn = parameters[rds_type]["secret_arn"]
-    conn = wr.data_api.rds.connect(cluster_id, database, secret_arn=secret_arn)
+    conn = wr.data_api.rds.connect(cluster_id, database, secret_arn=secret_arn, boto3_session=boto3.DEFAULT_SESSION)
     return conn
 
 
