@@ -1297,6 +1297,8 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
         Whether to commit the transaction. True by default.
     manifest: bool
         If set to true path argument accepts a S3 uri to a manifest file.
+    sql_copy_extra_params: Optional[List[str]]
+        Additional copy parameters to pass to the command. For example: ["STATUPDATE ON"]
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
@@ -1408,10 +1410,10 @@ def copy(  # pylint: disable=too-many-arguments
     keep_files: bool = False,
     use_threads: Union[bool, int] = True,
     lock: bool = False,
+    sql_copy_extra_params: Optional[List[str]] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     max_rows_by_file: Optional[int] = 10_000_000,
-    sql_copy_extra_params: Optional[List[str]] = None,
 ) -> None:
     """Load Pandas DataFrame as a Table on Amazon Redshift using parquet files on S3 as stage.
 
@@ -1499,6 +1501,8 @@ def copy(  # pylint: disable=too-many-arguments
         If integer is provided, specified number is used.
     lock : bool
         True to execute LOCK command inside the transaction to force serializable isolation.
+    sql_copy_extra_params: Optional[List[str]]
+        Additional copy parameters to pass to the command. For example: ["STATUPDATE ON"]
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs:
