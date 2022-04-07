@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 import boto3
 import pandas as pd
 
+from awswrangler import _utils
 from awswrangler.data_api import connector
 
 
@@ -28,6 +29,8 @@ class RedshiftDataApi(connector.DataApiConnector):
         Factor by which to increase the sleep between result fetch attempts - defaults to 1.5.
     retries: int
         Maximum number of result fetch attempts - defaults to 15.
+    boto3_session : boto3.Session(), optional
+        The boto3 session. If `None`, the default boto3 session is used.
     """
 
     def __init__(
@@ -39,12 +42,13 @@ class RedshiftDataApi(connector.DataApiConnector):
         sleep: float = 0.25,
         backoff: float = 1.5,
         retries: int = 15,
+        boto3_session: Optional[boto3.Session] = None,
     ) -> None:
         self.cluster_id = cluster_id
         self.database = database
         self.secret_arn = secret_arn
         self.db_user = db_user
-        self.client = boto3.client("redshift-data")
+        self.client: boto3.client = _utils.client(service_name="redshift-data", session=boto3_session)
         self.waiter = RedshiftDataApiWaiter(self.client, sleep, backoff, retries)
         logger: logging.Logger = logging.getLogger(__name__)
         super().__init__(self.client, logger)
@@ -162,7 +166,14 @@ class RedshiftDataApiTimeoutException(Exception):
     """Indicates a statement execution did not complete in the expected wait time."""
 
 
-def connect(cluster_id: str, database: str, secret_arn: str = "", db_user: str = "", **kwargs: Any) -> RedshiftDataApi:
+def connect(
+    cluster_id: str,
+    database: str,
+    secret_arn: str = "",
+    db_user: str = "",
+    boto3_session: Optional[boto3.Session] = None,
+    **kwargs: Any,
+) -> RedshiftDataApi:
     """Create a Redshift Data API connection.
 
     Parameters
@@ -175,6 +186,8 @@ def connect(cluster_id: str, database: str, secret_arn: str = "", db_user: str =
         The ARN for the secret to be used for authentication - only required if `db_user` not provided.
     db_user: str
         The database user to generate temporary credentials for - only required if `secret_arn` not provided.
+    boto3_session : boto3.Session(), optional
+        The boto3 session. If `None`, the default boto3 session is used.
     **kwargs
         Any additional kwargs are passed to the underlying RedshiftDataApi class.
 
@@ -182,7 +195,9 @@ def connect(cluster_id: str, database: str, secret_arn: str = "", db_user: str =
     -------
     A RedshiftDataApi connection instance that can be used with `wr.redshift.data_api.read_sql_query`.
     """
-    return RedshiftDataApi(cluster_id, database, secret_arn=secret_arn, db_user=db_user, **kwargs)
+    return RedshiftDataApi(
+        cluster_id, database, secret_arn=secret_arn, db_user=db_user, boto3_session=boto3_session, **kwargs
+    )
 
 
 def read_sql_query(sql: str, con: RedshiftDataApi, database: Optional[str] = None) -> pd.DataFrame:
