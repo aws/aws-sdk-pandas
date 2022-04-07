@@ -8,7 +8,6 @@ import requests
 from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSRequest
 from gremlin_python.driver import client
-from SPARQLWrapper import SPARQLWrapper
 
 from awswrangler import exceptions
 from awswrangler.neptune.gremlin_parser import GremlinParser
@@ -200,66 +199,6 @@ class NeptuneClient:
                 ws_url, "g", headers=dict(request.headers), call_from_event_loop=True
             )
         return self.gremlin_connection
-
-    def read_sparql(self, query: str, headers: Any = None) -> Any:
-        """Execute the given query and returns the results.
-
-        Parameters
-        ----------
-        query : str
-            The SPARQL query to execute
-        headers : Any, optional
-            Any additional headers to include with the request. Defaults to None.
-
-        Returns
-        -------
-        Any
-            [description]
-        """
-        res = self._execute_sparql(query, headers)
-        _logger.debug(res)
-        return res
-
-    def write_sparql(self, query: str, headers: Any = None) -> bool:
-        """Execute the specified SPARQL write statements.
-
-        Parameters
-        ----------
-        query : str
-            The SPARQL query to execute
-        headers : Any, optional
-            Any additional headers to include with the request. Defaults to None.
-
-        Returns
-        -------
-        bool
-            The success of the query
-        """
-        self._execute_sparql(query, headers)
-        return True
-
-    def _execute_sparql(self, query: str, headers: Any) -> Any:
-        if headers is None:
-            headers = {}
-
-        s = SPARQLWrapper("")
-        s.setQuery(query)
-        query_type = s.queryType.upper()
-        if query_type in ["SELECT", "CONSTRUCT", "ASK", "DESCRIBE"]:
-            data = {"query": query}
-        else:
-            data = {"update": query}
-
-        if "content-type" not in headers:
-            headers["content-type"] = "application/x-www-form-urlencoded"
-
-        uri = f"{HTTP_PROTOCOL}://{self.host}:{self.port}/sparql"
-        req = self._prepare_request("POST", uri, data=data, headers=headers)
-        res = self._http_session.send(req)
-        _logger.debug(res)
-        if res.ok:
-            return res.json()
-        raise exceptions.QueryFailed(f"Status Code: {res.status_code} Reason: {res.reason} Message: {res.text}")
 
     def status(self) -> Any:
         """Return the status of the Neptune cluster.

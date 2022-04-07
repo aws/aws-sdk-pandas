@@ -253,10 +253,8 @@ Amazon Neptune
     connect
     execute_gremlin
     execute_opencypher
-    execute_sparql
     flatten_nested_df
     to_property_graph
-    to_rdf_graph
 
 DynamoDB
 --------
