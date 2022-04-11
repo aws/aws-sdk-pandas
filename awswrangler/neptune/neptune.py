@@ -72,6 +72,43 @@ def execute_opencypher(client: NeptuneClient, query: str) -> pd.DataFrame:
     return df
 
 
+def execute_sparql(client: NeptuneClient, query: str) -> pd.DataFrame:
+    """Return results of a SPARQL query as pandas dataframe.
+
+    Parameters
+    ----------
+    client : NeptuneClient
+        instance of the neptune client to use
+    query : str
+        The SPARQL traversal to execute
+
+    Returns
+    -------
+    Union[pandas.DataFrame, Iterator[pandas.DataFrame]]
+        Results as Pandas DataFrame
+
+    Examples
+    --------
+    Run a SPARQL query
+
+    >>> import awswrangler as wr
+    >>> client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
+    >>> df = wr.neptune.execute_sparql(client, "PREFIX foaf:  <http://xmlns.com/foaf/0.1/>
+    SELECT ?name
+    WHERE {
+            ?person foaf:name ?name .
+    """
+    data = client.read_sparql(query)
+    df = None
+    if "results" in data and "bindings" in data["results"]:
+        df = pd.DataFrame(data["results"]["bindings"])
+        df.applymap(lambda x: x["value"])
+    else:
+        df = pd.DataFrame(data)
+
+    return df
+
+
 def to_property_graph(
     client: NeptuneClient, df: pd.DataFrame, batch_size: int = 50, use_header_cardinality: bool = True
 ) -> bool:
@@ -146,6 +183,80 @@ def to_property_graph(
                 g = Graph().traversal()
 
     return _run_gremlin_insert(client, g)
+
+
+def to_rdf_graph(
+    client: NeptuneClient,
+    df: pd.DataFrame,
+    batch_size: int = 50,
+    subject_column: str = "s",
+    predicate_column: str = "p",
+    object_column: str = "o",
+    graph_column: str = "g",
+) -> bool:
+    """Write records stored in a DataFrame into Amazon Neptune.
+
+    The DataFrame must consist of triples with column names for the subject, predicate, and object specified.
+    If you want to add data into a named graph then you will also need the graph column.
+
+    Parameters
+    ----------
+    client (NeptuneClient) :
+        instance of the neptune client to use
+    df (pandas.DataFrame) :
+        Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
+    subject_column (str, optional) :
+        The column name in the dataframe for the subject.  Defaults to 's'
+    predicate_column (str, optional) :
+        The column name in the dataframe for the predicate.  Defaults to 'p'
+    object_column (str, optional) :
+        The column name in the dataframe for the object.  Defaults to 'o'
+    graph_column (str, optional) :
+        The column name in the dataframe for the graph if sending across quads.  Defaults to 'g'
+
+    Returns
+    -------
+    bool
+        True if records were written
+
+    Examples
+    --------
+    Writing to Amazon Neptune
+
+    >>> import awswrangler as wr
+    >>> client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
+    >>> wr.neptune.gremlin.to_rdf_graph(
+    ...     df=df
+    ... )
+    """
+    is_quads = False
+    if pd.Series([subject_column, object_column, predicate_column]).isin(df.columns).all():
+        if graph_column in df.columns:
+            is_quads = True
+    else:
+        raise exceptions.InvalidArgumentValue(
+            """Dataframe must contain at least the subject, predicate, and object columns defined or the defaults
+            (s, p, o) to be saved to Amazon Neptune"""
+        )
+
+    query = ""
+    # Loop through items in the DF
+    for (index, row) in df.iterrows():
+        # build up a query
+        if is_quads:
+            insert = f"""INSERT DATA {{ GRAPH <{row[graph_column]}> {{<{row[subject_column]}>
+                    <{str(row[predicate_column])}> <{row[object_column]}> . }} }}; """
+            query = query + insert
+        else:
+            insert = f"""INSERT DATA {{ <{row[subject_column]}> <{str(row[predicate_column])}>
+                    <{row[object_column]}> . }}; """
+            query = query + insert
+        # run the query
+        if index > 0 and index % batch_size == 0:
+            res = client.write_sparql(query)
+            if res:
+                query = ""
+    return client.write_sparql(query)
 
 
 def connect(host: str, port: int, iam_enabled: bool = False, **kwargs: Any) -> NeptuneClient:

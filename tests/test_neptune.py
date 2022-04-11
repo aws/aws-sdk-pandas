@@ -116,6 +116,14 @@ def test_gremlin_malformed_query(neptune_endpoint, neptune_port) -> Dict[str, An
         wr.neptune.execute_gremlin(client, "")
 
 
+def test_sparql_malformed_query(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+    client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
+    with pytest.raises(wr.exceptions.QueryFailed):
+        wr.neptune.execute_sparql(client, "SELECT ?s ?p ?o {?s ?pLIMIT 1")
+    with pytest.raises(wr.exceptions.QueryFailed):
+        wr.neptune.execute_sparql(client, "")
+
+
 def test_gremlin_query_vertices(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
 
@@ -147,6 +155,19 @@ def test_gremlin_query_no_results(neptune_endpoint, neptune_port) -> Dict[str, A
 
     df = wr.neptune.execute_gremlin(client, "g.V('foo').drop()")
     assert isinstance(df, pd.DataFrame)
+
+
+def test_sparql_query(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+    client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
+    df = wr.neptune.execute_sparql(client, "INSERT DATA { <test> <test> <test>}")
+    df = wr.neptune.execute_sparql(client, "INSERT DATA { <test1> <test1> <test1>}")
+    df = wr.neptune.execute_sparql(client, "SELECT ?s ?p ?o {?s ?p ?o} LIMIT 1")
+    assert isinstance(df, pd.DataFrame)
+    assert df.shape == (1, 3)
+
+    df = wr.neptune.execute_sparql(client, "SELECT ?s ?p ?o {?s ?p ?o} LIMIT 2")
+    assert isinstance(df, pd.DataFrame)
+    assert df.shape == (2, 3)
 
 
 def test_gremlin_write_different_cols(neptune_endpoint, neptune_port) -> Dict[str, Any]:
@@ -305,6 +326,72 @@ def test_gremlin_write_edges(neptune_endpoint, neptune_port) -> Dict[str, Any]:
 
     batch_cnt_df = wr.neptune.execute_gremlin(client, "g.E().hasLabel('bar').count()")
     assert batch_cnt_df.iloc[0][0] == final_cnt_df.iloc[0][0] + 50
+
+
+def test_sparql_write_different_cols(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+    client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
+
+    data = [_create_dummy_triple(), _create_dummy_triple()]
+    del data[1]["o"]
+    df = pd.DataFrame(data)
+    res = wr.neptune.to_rdf_graph(client, df)
+    assert res
+
+    data = [_create_dummy_quad(), _create_dummy_quad()]
+    del data[1]["o"]
+    df = pd.DataFrame(data)
+    res = wr.neptune.to_rdf_graph(client, df)
+    assert res
+
+
+def test_sparql_write_triples(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+    client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
+    initial_df = wr.neptune.execute_sparql(client, "SELECT ?p ?o WHERE { <foo> ?p ?o .}")
+
+    data = [_create_dummy_triple(), _create_dummy_triple(), _create_dummy_triple()]
+    df = pd.DataFrame(data)
+    res = wr.neptune.to_rdf_graph(client, df)
+    assert res
+
+    final_df = wr.neptune.execute_sparql(client, "SELECT ?p ?o WHERE { <foo> ?p ?o .}")
+    assert len(final_df.index) == len(initial_df.index) + 3
+
+    # check to make sure batch addition of edges works
+    data = []
+    for i in range(0, 50):
+        data.append(_create_dummy_triple())
+
+    df = pd.DataFrame(data)
+    res = wr.neptune.to_rdf_graph(client, df)
+    assert res
+
+    batch_df = wr.neptune.execute_sparql(client, "SELECT ?p ?o WHERE { <foo> ?p ?o .}")
+    assert len(batch_df.index) == len(final_df.index) + 50
+
+
+def test_sparql_write_quads(neptune_endpoint, neptune_port) -> Dict[str, Any]:
+    client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
+    initial_df = wr.neptune.execute_sparql(client, "SELECT ?p ?o FROM <bar> WHERE { <foo> ?p ?o .}")
+
+    data = [_create_dummy_quad(), _create_dummy_quad(), _create_dummy_quad()]
+    df = pd.DataFrame(data)
+    res = wr.neptune.to_rdf_graph(client, df)
+    assert res
+
+    final_df = wr.neptune.execute_sparql(client, "SELECT ?p ?o  FROM <bar> WHERE { <foo> ?p ?o .}")
+    assert len(final_df.index) == len(initial_df.index) + 3
+
+    # check to make sure batch addition of edges works
+    data = []
+    for i in range(0, 50):
+        data.append(_create_dummy_quad())
+
+    df = pd.DataFrame(data)
+    res = wr.neptune.to_rdf_graph(client, df)
+    assert res
+
+    batch_df = wr.neptune.execute_sparql(client, "SELECT ?p ?o FROM <bar> WHERE { <foo> ?p ?o .}")
+    assert len(batch_df.index) == len(final_df.index) + 50
 
 
 def _create_dummy_vertex() -> Dict[str, Any]:
