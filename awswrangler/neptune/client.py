@@ -1,5 +1,6 @@
 """Amazon NeptuneClient Module."""
 
+import importlib.util
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -8,12 +9,16 @@ import requests
 from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSRequest
 from gremlin_python.driver import client
-from SPARQLWrapper import SPARQLWrapper
 
 from awswrangler import exceptions
 from awswrangler.neptune.gremlin_parser import GremlinParser
 
+_SPARQLWrapper_found = importlib.util.find_spec("SPARQLWrapper")
+if _SPARQLWrapper_found:
+    from SPARQLWrapper import SPARQLWrapper  # pylint: disable=import-error
+
 _logger: logging.Logger = logging.getLogger(__name__)
+
 
 DEFAULT_PORT = 8182
 NEPTUNE_SERVICE_NAME = "neptune-db"
