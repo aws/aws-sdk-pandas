@@ -293,3 +293,13 @@ If you maintain your own environment, you need to take care of the above steps.
 Because of this limitation usage in combination with Glue jobs is limited and you need to rely on the
 provided `functionality inside Glue itself <https://docs.aws.amazon.com/glue/latest/dg/
 aws-glue-programming-etl-connect.html#aws-glue-programming-etl-connect-jdbc>`_.
+
+
+Notes for SPARQL support
+------------------------------
+
+To be able to use SPARQL either just install ``SPARQLWrapper`` or
+``awswrangler`` with the ``sparql`` extra, which will also install ``SPARQLWrapper``:
+
+    >>> pip install SPARQLWrapper
+    >>> pip install awswrangler[sparql]
