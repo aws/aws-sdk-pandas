@@ -19,6 +19,7 @@ if _SPARQLWrapper_found:
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
+
 DEFAULT_PORT = 8182
 NEPTUNE_SERVICE_NAME = "neptune-db"
 HTTP_PROTOCOL = "https"

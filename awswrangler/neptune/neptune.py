@@ -1,8 +1,10 @@
 """Amazon Neptune Module."""
 
+import importlib.util
+import inspect
 import logging
 import re
-from typing import Any
+from typing import Any, Callable, TypeVar
 
 import pandas as pd
 from gremlin_python.process.graph_traversal import GraphTraversalSource, __
@@ -13,7 +15,25 @@ from gremlin_python.structure.graph import Graph
 from awswrangler import exceptions
 from awswrangler.neptune.client import NeptuneClient
 
+_SPARQLWrapper_found = importlib.util.find_spec("SPARQLWrapper")
+
 _logger: logging.Logger = logging.getLogger(__name__)
+FuncT = TypeVar("FuncT", bound=Callable[..., Any])
+
+
+def _check_for_sparqlwrapper(func: FuncT) -> FuncT:
+    def inner(*args: Any, **kwargs: Any) -> Any:
+        if not _SPARQLWrapper_found:
+            raise ModuleNotFoundError(
+                "You need to install SPARQLWrapper respectively the "
+                "AWS Data Wrangler package with the `sparql` extra for being able to use SPARQL "
+            )
+        return func(*args, **kwargs)
+
+    inner.__doc__ = func.__doc__
+    inner.__name__ = func.__name__
+    inner.__setattr__("__signature__", inspect.signature(func))  # pylint: disable=no-member
+    return inner  # type: ignore
 
 
 def execute_gremlin(client: NeptuneClient, query: str) -> pd.DataFrame:
@@ -72,6 +92,7 @@ def execute_opencypher(client: NeptuneClient, query: str) -> pd.DataFrame:
     return df
 
 
+@_check_for_sparqlwrapper
 def execute_sparql(client: NeptuneClient, query: str) -> pd.DataFrame:
     """Return results of a SPARQL query as pandas dataframe.
 
@@ -185,6 +206,7 @@ def to_property_graph(
     return _run_gremlin_insert(client, g)
 
 
+@_check_for_sparqlwrapper
 def to_rdf_graph(
     client: NeptuneClient,
     df: pd.DataFrame,
