@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "awswrangler"
-version = "2.15.0"
+version = "2.15.1"
 description = "Pandas on AWS."
 authors = ["Igor Tavares"]
 license = "Apache License 2.0"
@@ -38,15 +38,16 @@ pg8000 = "^1.20.0"
 openpyxl = "~3.0.0"
 requests-aws4auth = "^1.1.1"
 jsonpath-ng = "^1.5.3"
-progressbar2 = "^3.53.3"
+progressbar2 = "^4.0.0"
 opensearch-py = "^1.0.0"
 gremlinpython = "^3.5.2"
 backoff = "^1.11.1"
-SPARQLWrapper = "^1.8.5"
+SPARQLWrapper = { version = "^1.8.5", optional = true }
 pyodbc = { version = "~4.0.32", optional = true }
 
 [tool.poetry.extras]
 sqlserver = ["pyodbc"]
+sparql = ["SPARQLWrapper"]
 
 [tool.poetry.dev-dependencies]
 wheel = "^0.36.2"

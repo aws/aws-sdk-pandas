@@ -100,7 +100,7 @@ Here is an example of how to create and use the AWS Data Wrangler Lambda layer i
           "wrangler-layer",
           location=sam.CfnApplication.ApplicationLocationProperty(
             application_id="arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-data-wrangler-layer-py3-8",
-            semantic_version="2.15.0",  # Get the latest version from https://github.com/awslabs/aws-data-wrangler/releases
+            semantic_version="2.15.1",  # Get the latest version from https://github.com/awslabs/aws-data-wrangler/releases
           ),
         )
 
@@ -144,7 +144,7 @@ Go to your Glue PySpark job and create a new *Job parameters* key/value:
 
 To install a specific version, set the value for the above Job parameter as follows:
 
-* Value: ``cython==0.29.21,pg8000==1.21.0,pyarrow==2,pandas==1.3.0,awswrangler==2.15.0``
+* Value: ``cython==0.29.21,pg8000==1.21.0,pyarrow==2,pandas==1.3.0,awswrangler==2.15.1``
 
 .. note:: Pyarrow 3 is not currently supported in Glue PySpark Jobs, which is why an installation of pyarrow 2 is required.
 
@@ -163,7 +163,7 @@ Lambda zipped layers and Python wheels are stored in a publicly accessible S3 bu
 
   * Python wheel: ``awswrangler-<version>-py3-none-any.whl``
 
-For example: ``s3://aws-data-wrangler-public-artifacts/releases/2.15.0/awswrangler-layer-2.15.0-py3.8.zip``
+For example: ``s3://aws-data-wrangler-public-artifacts/releases/2.15.1/awswrangler-layer-2.15.1-py3.8.zip``
 
 Amazon SageMaker Notebook
 -------------------------
@@ -253,7 +253,7 @@ Despite not being a distributed library, AWS Data Wrangler could be used to comp
         sudo pip install pyarrow==2 awswrangler
 
 .. note:: Make sure to freeze the library version in the bootstrap for production
-          environments (e.g. awswrangler==2.15.0)
+          environments (e.g. awswrangler==2.15.1)
 
 .. note:: Pyarrow 3 is not currently supported in the default EMR image, which is why an installation of pyarrow 2 is required.
 
@@ -293,3 +293,13 @@ If you maintain your own environment, you need to take care of the above steps.
 Because of this limitation usage in combination with Glue jobs is limited and you need to rely on the
 provided `functionality inside Glue itself <https://docs.aws.amazon.com/glue/latest/dg/
 aws-glue-programming-etl-connect.html#aws-glue-programming-etl-connect-jdbc>`_.
+
+
+Notes for SPARQL support
+------------------------------
+
+To be able to use SPARQL either just install ``SPARQLWrapper`` or
+``awswrangler`` with the ``sparql`` extra, which will also install ``SPARQLWrapper``:
+
+    >>> pip install SPARQLWrapper
+    >>> pip install awswrangler[sparql]
