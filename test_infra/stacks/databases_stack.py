@@ -26,7 +26,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
     ) -> None:
         """
         AWS Data Wrangler Development Databases Infrastructure.
-        Includes Redshift, Aurora PostgreSQL, Aurora MySQL, Microsoft SQL Server.
+        Includes Redshift, Aurora PostgreSQL, Aurora MySQL, Microsoft SQL Server, Oracle Database.
         """
         super().__init__(scope, construct_id, **kwargs)
 
@@ -41,6 +41,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
         self._setup_mysql()
         self._setup_mysql_serverless()
         self._setup_sqlserver()
+        self._setup_oracle()
         self._setup_neptune()
 
     def _set_db_infra(self) -> None:
@@ -50,7 +51,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
             self,
             "db-password-secret",
             secret_name="aws-data-wrangler/db_password",
-            generate_secret_string=secrets.SecretStringGenerator(exclude_characters="/@\"\' \\"),
+            generate_secret_string=secrets.SecretStringGenerator(exclude_characters="/@\"\' \\", password_length=30),
         ).secret_value
         # fmt: on
         self.db_password = self.db_password_secret.to_string()
@@ -294,7 +295,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
             self,
             "aws-data-wrangler-postgresql-params",
             engine=rds.DatabaseClusterEngine.aurora_postgres(
-                version=rds.AuroraPostgresEngineVersion.VER_11_6,
+                version=rds.AuroraPostgresEngineVersion.VER_11_13,
             ),
             parameters={
                 "apg_plan_mgmt.capture_plan_baselines": "off",
@@ -305,7 +306,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
             "aws-data-wrangler-aurora-cluster-postgresql",
             removal_policy=cdk.RemovalPolicy.DESTROY,
             engine=rds.DatabaseClusterEngine.aurora_postgres(
-                version=rds.AuroraPostgresEngineVersion.VER_11_6,
+                version=rds.AuroraPostgresEngineVersion.VER_11_13,
             ),
             cluster_identifier="postgresql-cluster-wrangler",
             instances=1,
@@ -564,6 +565,67 @@ class DatabasesStack(cdk.Stack):  # type: ignore
         cdk.CfnOutput(self, "SqlServerPort", value=str(port))
         cdk.CfnOutput(self, "SqlServerDatabase", value=database)
         cdk.CfnOutput(self, "SqlServerSchema", value=schema)
+
+    def _setup_oracle(self) -> None:
+        port = 1521
+        database = "ORCL"
+        schema = "TEST"
+        oracle = rds.DatabaseInstance(
+            self,
+            "aws-data-wrangler-oracle-instance",
+            instance_identifier="oracle-instance-wrangler",
+            engine=rds.DatabaseInstanceEngine.oracle_ee(version=rds.OracleEngineVersion.VER_19_0_0_0_2021_04_R1),
+            instance_type=ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE3, ec2.InstanceSize.SMALL),
+            credentials=rds.Credentials.from_password(
+                username=self.db_username,
+                password=self.db_password_secret,
+            ),
+            port=port,
+            vpc=self.vpc,
+            subnet_group=self.rds_subnet_group,
+            security_groups=[self.db_security_group],
+            publicly_accessible=True,
+            s3_import_role=self.rds_role,
+            s3_export_role=self.rds_role,
+        )
+        glue.Connection(
+            self,
+            "aws-data-wrangler-oracle-glue-connection",
+            description="Connect to Oracle.",
+            type=glue.ConnectionType.JDBC,
+            connection_name="aws-data-wrangler-oracle",
+            properties={
+                "JDBC_CONNECTION_URL": f"jdbc:oracle:thin://@{oracle.instance_endpoint.hostname}:{port}/{database}",  # noqa: E501
+                "USERNAME": self.db_username,
+                "PASSWORD": self.db_password,
+            },
+            subnet=self.vpc.private_subnets[0],
+            security_groups=[self.db_security_group],
+        )
+        secrets.Secret(
+            self,
+            "aws-data-wrangler-oracle-secret",
+            secret_name="aws-data-wrangler/oracle",
+            description="Oracle credentials",
+            generate_secret_string=secrets.SecretStringGenerator(
+                generate_string_key="dummy",
+                secret_string_template=json.dumps(
+                    {
+                        "username": self.db_username,
+                        "password": self.db_password,
+                        "engine": "oracle",
+                        "host": oracle.instance_endpoint.hostname,
+                        "port": port,
+                        "dbClusterIdentifier": oracle.instance_identifier,
+                        "dbname": database,
+                    }
+                ),
+            ),
+        )
+        cdk.CfnOutput(self, "OracleAddress", value=oracle.instance_endpoint.hostname)
+        cdk.CfnOutput(self, "OraclePort", value=str(port))
+        cdk.CfnOutput(self, "OracleDatabase", value=database)
+        cdk.CfnOutput(self, "OracleSchema", value=schema)
 
     def _setup_neptune(self, iam_enabled: bool = False, port: int = 8182) -> None:
         cluster = neptune.DatabaseCluster(
