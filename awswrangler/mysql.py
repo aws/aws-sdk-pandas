@@ -101,6 +101,11 @@ def connect(
     It is only possible to configure SSL using Glue Catalog Connection. More at:
     https://docs.aws.amazon.com/glue/latest/dg/connection-defining.html
 
+    Note
+    ----
+    Consider using SSCursor `cursorclass` for queries that return a lot of data. More at:
+    https://pymysql.readthedocs.io/en/latest/modules/cursors.html#pymysql.cursors.SSCursor
+
     Parameters
     ----------
     connection : str
@@ -129,7 +134,7 @@ def connect(
         This parameter is forward to pymysql.
         https://pymysql.readthedocs.io/en/latest/modules/connections.html
     cursorclass : Cursor
-        Cursor class to use, e.g. SSCrusor; defaults to :class:`pymysql.cursors.Cursor`
+        Cursor class to use, e.g. SSCursor; defaults to :class:`pymysql.cursors.Cursor`
         https://pymysql.readthedocs.io/en/latest/modules/cursors.html
 
     Returns
