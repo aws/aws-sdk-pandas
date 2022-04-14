@@ -1,5 +1,6 @@
 """Databases Utilities."""
 
+import importlib.util
 import logging
 import ssl
 from typing import Any, Dict, Generator, Iterator, List, NamedTuple, Optional, Tuple, Union, cast
@@ -10,6 +11,10 @@ import pyarrow as pa
 
 from awswrangler import _data_types, _utils, exceptions, secretsmanager
 from awswrangler.catalog import get_connection
+
+_cx_Oracle_found = importlib.util.find_spec("cx_Oracle")
+if _cx_Oracle_found:
+    import cx_Oracle  # pylint: disable=import-error
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -42,7 +47,7 @@ def _get_connection_attributes_from_catalog(
         database_sep = ";databaseName="
     else:
         database_sep = "/"
-    port, database = details["JDBC_CONNECTION_URL"].split(":")[3].split(database_sep)
+    port, database = details["JDBC_CONNECTION_URL"].split(":")[-1].split(database_sep)
     ssl_context: Optional[ssl.SSLContext] = None
     if details.get("JDBC_ENFORCE_SSL") == "true":
         ssl_cert_path: Optional[str] = details.get("CUSTOM_JDBC_CERT")
@@ -57,11 +62,12 @@ def _get_connection_attributes_from_catalog(
                     f"No CA certificate found at {ssl_cert_path}."
                 )
         ssl_context = ssl.create_default_context(cadata=ssl_cadata)
+
     return ConnectionAttributes(
         kind=details["JDBC_CONNECTION_URL"].split(":")[1].lower(),
         user=details["USERNAME"],
         password=details["PASSWORD"],
-        host=details["JDBC_CONNECTION_URL"].split(":")[2].replace("/", ""),
+        host=details["JDBC_CONNECTION_URL"].split(":")[-2].replace("/", "").replace("@", ""),
         port=int(port),
         database=dbname if dbname is not None else database,
         ssl_context=ssl_context,
@@ -122,6 +128,16 @@ def _convert_params(sql: str, params: Optional[Union[List[Any], Tuple[Any, ...],
     return args
 
 
+def _convert_db_specific_objects(col_values: List[Any]) -> List[Any]:
+    if _cx_Oracle_found:
+        if any(isinstance(col_value, cx_Oracle.LOB) for col_value in col_values):
+            col_values = [
+                col_value.read() if isinstance(col_value, cx_Oracle.LOB) else col_value for col_value in col_values
+            ]
+
+    return col_values
+
+
 def _records2df(
     records: List[Tuple[Any]],
     cols_names: List[str],
@@ -133,12 +149,15 @@ def _records2df(
     arrays: List[pa.Array] = []
     for col_values, col_name in zip(tuple(zip(*records)), cols_names):  # Transposing
         if (dtype is None) or (col_name not in dtype):
+            col_values = _convert_db_specific_objects(col_values)
             try:
                 array: pa.Array = pa.array(obj=col_values, safe=safe)  # Creating Arrow array
             except pa.ArrowInvalid as ex:
                 array = _data_types.process_not_inferred_array(ex, values=col_values)  # Creating Arrow array
         else:
             try:
+                if dtype[col_name] == pa.string():
+                    col_values = _convert_db_specific_objects(col_values)
                 array = pa.array(obj=col_values, type=dtype[col_name], safe=safe)  # Creating Arrow array with dtype
             except pa.ArrowInvalid:
                 array = pa.array(obj=col_values, safe=safe)  # Creating Arrow array

@@ -138,6 +138,41 @@ def pyarrow2mysql(  # pylint: disable=too-many-branches,too-many-return-statemen
     raise exceptions.UnsupportedType(f"Unsupported MySQL type: {dtype}")
 
 
+def pyarrow2oracle(  # pylint: disable=too-many-branches,too-many-return-statements
+    dtype: pa.DataType, string_type: str
+) -> str:
+    """Pyarrow to Oracle Database data types conversion."""
+    if pa.types.is_int8(dtype):
+        return "NUMBER(3)"
+    if pa.types.is_int16(dtype) or pa.types.is_uint8(dtype):
+        return "NUMBER(5)"
+    if pa.types.is_int32(dtype) or pa.types.is_uint16(dtype):
+        return "NUMBER(10)"
+    if pa.types.is_int64(dtype) or pa.types.is_uint32(dtype):
+        return "NUMBER(19)"
+    if pa.types.is_uint64(dtype):
+        raise exceptions.UnsupportedType("There is no support for uint64, please consider int64 or uint32.")
+    if pa.types.is_float32(dtype):
+        return "BINARY_FLOAT"
+    if pa.types.is_float64(dtype):
+        return "BINARY_DOUBLE"
+    if pa.types.is_boolean(dtype):
+        return "NUMBER(3)"
+    if pa.types.is_string(dtype):
+        return string_type
+    if pa.types.is_timestamp(dtype):
+        return "TIMESTAMP"
+    if pa.types.is_date(dtype):
+        return "DATE"
+    if pa.types.is_decimal(dtype):
+        return f"NUMBER({dtype.precision},{dtype.scale})"
+    if pa.types.is_dictionary(dtype):
+        return pyarrow2oracle(dtype=dtype.value_type, string_type=string_type)
+    if pa.types.is_binary(dtype):
+        return "RAW"
+    raise exceptions.UnsupportedType(f"Unsupported Oracle type: {dtype}")
+
+
 def pyarrow2postgresql(  # pylint: disable=too-many-branches,too-many-return-statements
     dtype: pa.DataType, string_type: str
 ) -> str:
