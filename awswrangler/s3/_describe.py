@@ -153,15 +153,13 @@ def describe_objects(
         cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
         versions = [version_id.get(p) if isinstance(version_id, dict) else version_id for p in paths]
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
-            resp_list = [
-                executor.map(
-                    _describe_object_concurrent,
-                    paths,
-                    versions,
-                    itertools.repeat(_utils.boto3_to_primitives(boto3_session=boto3_session)),
-                    itertools.repeat(s3_additional_kwargs),
-                )
-            ]
+            resp_list = [executor.map(
+                _describe_object_concurrent,
+                paths,
+                versions,
+                itertools.repeat(_utils.boto3_to_primitives(boto3_session=boto3_session)),
+                itertools.repeat(s3_additional_kwargs),
+                )]
     desc_dict: Dict[str, Dict[str, Any]] = dict(resp_list)
     return desc_dict
 
