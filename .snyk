@@ -1,0 +1,5 @@
+ignore:
+    'SNYK-PYTHON-RDFLIB-1324490':
+        - '* > rdflib':
+            reason: 'No fix available'
+            expires: '2023-01-01T00:00:00.000Z'
