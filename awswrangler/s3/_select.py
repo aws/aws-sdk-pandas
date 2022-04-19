@@ -47,7 +47,7 @@ def _select_object_content(
 
 def _paginate_stream(
     args: Dict[str, Any], path: str, use_threads: Union[bool, int], boto3_session: Optional[boto3.Session]
-) -> pd.DataFrame:
+) -> List[Any]:
     obj_size: int = size_objects(  # type: ignore
         path=[path],
         use_threads=False,
