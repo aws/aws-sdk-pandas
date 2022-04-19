@@ -1,5 +1,14 @@
 name: Snyk
-on: workflow_dispatch
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
 jobs:
   security:
     runs-on: ubuntu-latest
