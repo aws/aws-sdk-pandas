@@ -34,15 +34,23 @@ class DatabasesStack(cdk.Stack):  # type: ignore
         self.key = key
         self.bucket = bucket
 
+        databases_context = self.node.try_get_context("databases")
+
         self._set_db_infra()
         self._set_catalog_encryption()
-        self._setup_redshift()
-        self._setup_postgresql()
-        self._setup_mysql()
-        self._setup_mysql_serverless()
-        self._setup_sqlserver()
-        self._setup_oracle()
-        self._setup_neptune()
+        if databases_context["redshift"]:
+            self._setup_redshift()
+        if databases_context["postgresql"]:
+            self._setup_postgresql()
+        if databases_context["mysql"]:
+            self._setup_mysql()
+            self._setup_mysql_serverless()
+        if databases_context["sqlserver"]:
+            self._setup_sqlserver()
+        if databases_context["oracle"]:
+            self._setup_oracle()
+        if databases_context["neptune"]:
+            self._setup_neptune()
 
     def _set_db_infra(self) -> None:
         self.db_username = "test"
