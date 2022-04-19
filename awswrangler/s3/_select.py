@@ -56,7 +56,6 @@ def _paginate_stream(
     if obj_size is None:
         raise exceptions.InvalidArgumentValue(f"S3 object w/o defined size: {path}")
 
-    stream_records: List[pd.Dataframe] = []
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
 
     if use_threads is False:
