@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-from aws_cdk import core as cdk
+from aws_cdk import App
 from stacks.base_stack import BaseStack
 from stacks.databases_stack import DatabasesStack
 from stacks.lakeformation_stack import LakeFormationStack
 from stacks.opensearch_stack import OpenSearchStack
 
-app = cdk.App()
+app = App()
 
 base = BaseStack(app, "aws-data-wrangler-base")
 

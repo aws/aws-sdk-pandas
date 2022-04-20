@@ -1,23 +1,25 @@
 import json
 
+from aws_cdk import Aws, CfnOutput, Duration, RemovalPolicy, Stack
 from aws_cdk import aws_ec2 as ec2
-from aws_cdk import aws_glue as glue
+from aws_cdk import aws_glue_alpha as glue
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_kms as kms
 from aws_cdk import aws_lakeformation as lf
-from aws_cdk import aws_neptune as neptune
+from aws_cdk import aws_neptune_alpha as neptune
 from aws_cdk import aws_rds as rds
-from aws_cdk import aws_redshift as redshift
+from aws_cdk import aws_redshift_alpha as redshift
 from aws_cdk import aws_s3 as s3
 from aws_cdk import aws_secretsmanager as secrets
 from aws_cdk import aws_ssm as ssm
-from aws_cdk import core as cdk
+from aws_cdk.aws_glue import CfnDataCatalogEncryptionSettings
+from constructs import Construct
 
 
-class DatabasesStack(cdk.Stack):  # type: ignore
+class DatabasesStack(Stack):  # type: ignore
     def __init__(
         self,
-        scope: cdk.Construct,
+        scope: Construct,
         construct_id: str,
         vpc: ec2.IVpc,
         bucket: s3.IBucket,
@@ -107,23 +109,23 @@ class DatabasesStack(cdk.Stack):  # type: ignore
                 ),
             },
         )
-        cdk.CfnOutput(self, "DatabasesUsername", value=self.db_username)
-        cdk.CfnOutput(
+        CfnOutput(self, "DatabasesUsername", value=self.db_username)
+        CfnOutput(
             self,
             "DatabaseSecurityGroupId",
             value=self.db_security_group.security_group_id,
         )
 
     def _set_catalog_encryption(self) -> None:
-        glue.CfnDataCatalogEncryptionSettings(
+        CfnDataCatalogEncryptionSettings(
             self,
             "aws-data-wrangler-catalog-encryption",
-            catalog_id=cdk.Aws.ACCOUNT_ID,
-            data_catalog_encryption_settings=glue.CfnDataCatalogEncryptionSettings.DataCatalogEncryptionSettingsProperty(  # noqa: E501
-                encryption_at_rest=glue.CfnDataCatalogEncryptionSettings.EncryptionAtRestProperty(
+            catalog_id=Aws.ACCOUNT_ID,
+            data_catalog_encryption_settings=CfnDataCatalogEncryptionSettings.DataCatalogEncryptionSettingsProperty(  # noqa: E501
+                encryption_at_rest=CfnDataCatalogEncryptionSettings.EncryptionAtRestProperty(
                     catalog_encryption_mode="DISABLED",
                 ),
-                connection_password_encryption=glue.CfnDataCatalogEncryptionSettings.ConnectionPasswordEncryptionProperty(  # noqa: E501
+                connection_password_encryption=CfnDataCatalogEncryptionSettings.ConnectionPasswordEncryptionProperty(  # noqa: E501
                     kms_key_id=self.key.key_id,
                     return_connection_password_encrypted=True,
                 ),
@@ -283,17 +285,17 @@ class DatabasesStack(cdk.Stack):  # type: ignore
                 ),
             ),
         )
-        cdk.CfnOutput(self, "RedshiftSecretArn", value=secret.secret_arn)
-        cdk.CfnOutput(self, "RedshiftIdentifier", value=redshift_cluster.cluster_name)
-        cdk.CfnOutput(
+        CfnOutput(self, "RedshiftSecretArn", value=secret.secret_arn)
+        CfnOutput(self, "RedshiftIdentifier", value=redshift_cluster.cluster_name)
+        CfnOutput(
             self,
             "RedshiftAddress",
             value=redshift_cluster.cluster_endpoint.hostname,
         )
-        cdk.CfnOutput(self, "RedshiftPort", value=str(port))
-        cdk.CfnOutput(self, "RedshiftDatabase", value=database)
-        cdk.CfnOutput(self, "RedshiftSchema", value=schema)
-        cdk.CfnOutput(self, "RedshiftRole", value=redshift_role.role_arn)
+        CfnOutput(self, "RedshiftPort", value=str(port))
+        CfnOutput(self, "RedshiftDatabase", value=database)
+        CfnOutput(self, "RedshiftSchema", value=schema)
+        CfnOutput(self, "RedshiftRole", value=redshift_role.role_arn)
 
     def _setup_postgresql(self) -> None:
         port = 3306
@@ -312,7 +314,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
         aurora_pg = rds.DatabaseCluster(
             self,
             "aws-data-wrangler-aurora-cluster-postgresql",
-            removal_policy=cdk.RemovalPolicy.DESTROY,
+            removal_policy=RemovalPolicy.DESTROY,
             engine=rds.DatabaseClusterEngine.aurora_postgres(
                 version=rds.AuroraPostgresEngineVersion.VER_11_13,
             ),
@@ -323,7 +325,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
                 password=self.db_password_secret,
             ),
             port=port,
-            backup=rds.BackupProps(retention=cdk.Duration.days(1)),
+            backup=rds.BackupProps(retention=Duration.days(1)),
             parameter_group=pg,
             s3_import_buckets=[self.bucket],
             s3_export_buckets=[self.bucket],
@@ -368,10 +370,10 @@ class DatabasesStack(cdk.Stack):  # type: ignore
                 ),
             ),
         )
-        cdk.CfnOutput(self, "PostgresqlAddress", value=aurora_pg.cluster_endpoint.hostname)
-        cdk.CfnOutput(self, "PostgresqlPort", value=str(port))
-        cdk.CfnOutput(self, "PostgresqlDatabase", value=database)
-        cdk.CfnOutput(self, "PostgresqlSchema", value=schema)
+        CfnOutput(self, "PostgresqlAddress", value=aurora_pg.cluster_endpoint.hostname)
+        CfnOutput(self, "PostgresqlPort", value=str(port))
+        CfnOutput(self, "PostgresqlDatabase", value=database)
+        CfnOutput(self, "PostgresqlSchema", value=schema)
 
     def _setup_mysql(self) -> None:
         port = 3306
@@ -380,7 +382,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
         aurora_mysql = rds.DatabaseCluster(
             self,
             "aws-data-wrangler-aurora-cluster-mysql",
-            removal_policy=cdk.RemovalPolicy.DESTROY,
+            removal_policy=RemovalPolicy.DESTROY,
             engine=rds.DatabaseClusterEngine.aurora_mysql(
                 version=rds.AuroraMysqlEngineVersion.VER_5_7_12,
             ),
@@ -392,7 +394,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
                 password=self.db_password_secret,
             ),
             port=port,
-            backup=rds.BackupProps(retention=cdk.Duration.days(1)),
+            backup=rds.BackupProps(retention=Duration.days(1)),
             instance_props=rds.InstanceProps(
                 vpc=self.vpc,
                 security_groups=[self.db_security_group],
@@ -452,10 +454,10 @@ class DatabasesStack(cdk.Stack):  # type: ignore
                 ),
             ),
         )
-        cdk.CfnOutput(self, "MysqlAddress", value=aurora_mysql.cluster_endpoint.hostname)
-        cdk.CfnOutput(self, "MysqlPort", value=str(port))
-        cdk.CfnOutput(self, "MysqlDatabase", value=database)
-        cdk.CfnOutput(self, "MysqlSchema", value=schema)
+        CfnOutput(self, "MysqlAddress", value=aurora_mysql.cluster_endpoint.hostname)
+        CfnOutput(self, "MysqlPort", value=str(port))
+        CfnOutput(self, "MysqlDatabase", value=database)
+        CfnOutput(self, "MysqlSchema", value=schema)
 
     def _setup_mysql_serverless(self) -> None:
         port = 3306
@@ -464,7 +466,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
         aurora_mysql = rds.ServerlessCluster(
             self,
             "aws-data-wrangler-aurora-cluster-mysql-serverless",
-            removal_policy=cdk.RemovalPolicy.DESTROY,
+            removal_policy=RemovalPolicy.DESTROY,
             engine=rds.DatabaseClusterEngine.aurora_mysql(
                 version=rds.AuroraMysqlEngineVersion.VER_5_7_12,
             ),
@@ -475,13 +477,13 @@ class DatabasesStack(cdk.Stack):  # type: ignore
                 password=self.db_password_secret,
             ),
             scaling=rds.ServerlessScalingOptions(
-                auto_pause=cdk.Duration.minutes(5),
+                auto_pause=Duration.minutes(5),
                 min_capacity=rds.AuroraCapacityUnit.ACU_1,
                 max_capacity=rds.AuroraCapacityUnit.ACU_1,
             ),
-            backup_retention=cdk.Duration.days(1),
+            backup_retention=Duration.days(1),
             vpc=self.vpc,
-            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE),
+            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_NAT),
             subnet_group=self.rds_subnet_group,
             security_groups=[self.db_security_group],
             enable_data_api=True,
@@ -506,12 +508,12 @@ class DatabasesStack(cdk.Stack):  # type: ignore
                 ),
             ),
         )
-        cdk.CfnOutput(self, "MysqlServerlessSecretArn", value=secret.secret_arn)
-        cdk.CfnOutput(self, "MysqlServerlessClusterArn", value=aurora_mysql.cluster_arn)
-        cdk.CfnOutput(self, "MysqlServerlessAddress", value=aurora_mysql.cluster_endpoint.hostname)
-        cdk.CfnOutput(self, "MysqlServerlessPort", value=str(port))
-        cdk.CfnOutput(self, "MysqlServerlessDatabase", value=database)
-        cdk.CfnOutput(self, "MysqlServerlessSchema", value=schema)
+        CfnOutput(self, "MysqlServerlessSecretArn", value=secret.secret_arn)
+        CfnOutput(self, "MysqlServerlessClusterArn", value=aurora_mysql.cluster_arn)
+        CfnOutput(self, "MysqlServerlessAddress", value=aurora_mysql.cluster_endpoint.hostname)
+        CfnOutput(self, "MysqlServerlessPort", value=str(port))
+        CfnOutput(self, "MysqlServerlessDatabase", value=database)
+        CfnOutput(self, "MysqlServerlessSchema", value=schema)
 
     def _setup_sqlserver(self) -> None:
         port = 1433
@@ -569,10 +571,10 @@ class DatabasesStack(cdk.Stack):  # type: ignore
                 ),
             ),
         )
-        cdk.CfnOutput(self, "SqlServerAddress", value=sqlserver.instance_endpoint.hostname)
-        cdk.CfnOutput(self, "SqlServerPort", value=str(port))
-        cdk.CfnOutput(self, "SqlServerDatabase", value=database)
-        cdk.CfnOutput(self, "SqlServerSchema", value=schema)
+        CfnOutput(self, "SqlServerAddress", value=sqlserver.instance_endpoint.hostname)
+        CfnOutput(self, "SqlServerPort", value=str(port))
+        CfnOutput(self, "SqlServerDatabase", value=database)
+        CfnOutput(self, "SqlServerSchema", value=schema)
 
     def _setup_oracle(self) -> None:
         port = 1521
@@ -630,10 +632,10 @@ class DatabasesStack(cdk.Stack):  # type: ignore
                 ),
             ),
         )
-        cdk.CfnOutput(self, "OracleAddress", value=oracle.instance_endpoint.hostname)
-        cdk.CfnOutput(self, "OraclePort", value=str(port))
-        cdk.CfnOutput(self, "OracleDatabase", value=database)
-        cdk.CfnOutput(self, "OracleSchema", value=schema)
+        CfnOutput(self, "OracleAddress", value=oracle.instance_endpoint.hostname)
+        CfnOutput(self, "OraclePort", value=str(port))
+        CfnOutput(self, "OracleDatabase", value=database)
+        CfnOutput(self, "OracleSchema", value=schema)
 
     def _setup_neptune(self, iam_enabled: bool = False, port: int = 8182) -> None:
         cluster = neptune.DatabaseCluster(
@@ -645,7 +647,7 @@ class DatabasesStack(cdk.Stack):  # type: ignore
             security_groups=[self.db_security_group],
         )
 
-        cdk.CfnOutput(self, "NeptuneClusterEndpoint", value=cluster.cluster_endpoint.hostname)
-        cdk.CfnOutput(self, "NeptuneReaderEndpoint", value=cluster.cluster_read_endpoint.hostname)
-        cdk.CfnOutput(self, "NeptunePort", value=str(port))
-        cdk.CfnOutput(self, "NeptuneIAMEnabled", value=str(iam_enabled))
+        CfnOutput(self, "NeptuneClusterEndpoint", value=cluster.cluster_endpoint.hostname)
+        CfnOutput(self, "NeptuneReaderEndpoint", value=cluster.cluster_read_endpoint.hostname)
+        CfnOutput(self, "NeptunePort", value=str(port))
+        CfnOutput(self, "NeptuneIAMEnabled", value=str(iam_enabled))
