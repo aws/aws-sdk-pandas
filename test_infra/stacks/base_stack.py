@@ -1,14 +1,15 @@
+from aws_cdk import CfnOutput, Duration, Stack, Tags
 from aws_cdk import aws_ec2 as ec2
-from aws_cdk import aws_glue as glue
+from aws_cdk import aws_glue_alpha as glue
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_kms as kms
 from aws_cdk import aws_logs as logs
 from aws_cdk import aws_s3 as s3
-from aws_cdk import core as cdk
+from constructs import Construct
 
 
-class BaseStack(cdk.Stack):  # type: ignore
-    def __init__(self, scope: cdk.Construct, construct_id: str, **kwargs: str) -> None:
+class BaseStack(Stack):  # type: ignore
+    def __init__(self, scope: Construct, construct_id: str, **kwargs: str) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
         self.vpc = ec2.Vpc(
@@ -18,7 +19,7 @@ class BaseStack(cdk.Stack):  # type: ignore
             enable_dns_hostnames=True,
             enable_dns_support=True,
         )
-        cdk.Tags.of(self.vpc).add("Name", "aws-data-wrangler")
+        Tags.of(self.vpc).add("Name", "aws-data-wrangler")
         self.key = kms.Key(
             self,
             id="aws-data-wrangler-key",
@@ -54,8 +55,8 @@ class BaseStack(cdk.Stack):  # type: ignore
                 s3.LifecycleRule(
                     id="CleaningUp",
                     enabled=True,
-                    expiration=cdk.Duration.days(1),
-                    abort_incomplete_multipart_upload_after=cdk.Duration.days(1),
+                    expiration=Duration.days(1),
+                    abort_incomplete_multipart_upload_after=Duration.days(1),
                 ),
             ],
             versioned=True,
@@ -76,46 +77,46 @@ class BaseStack(cdk.Stack):  # type: ignore
             id="aws_data_wrangler_log_stream",
             log_group=log_group,
         )
-        cdk.CfnOutput(self, "Region", value=self.region)
-        cdk.CfnOutput(
+        CfnOutput(self, "Region", value=self.region)
+        CfnOutput(
             self,
             "VPC",
             value=self.vpc.vpc_id,
             export_name="aws-data-wrangler-base-VPC",
         )
-        cdk.CfnOutput(
+        CfnOutput(
             self,
             "PublicSubnet1",
             value=self.vpc.public_subnets[0].subnet_id,
             export_name="aws-data-wrangler-base-PublicSubnet1",
         )
-        cdk.CfnOutput(
+        CfnOutput(
             self,
             "PublicSubnet2",
             value=self.vpc.public_subnets[1].subnet_id,
             export_name="aws-data-wrangler-base-PublicSubnet2",
         )
-        cdk.CfnOutput(
+        CfnOutput(
             self,
             "PrivateSubnet",
             value=self.vpc.private_subnets[0].subnet_id,
             export_name="aws-data-wrangler-base-PrivateSubnet",
         )
-        cdk.CfnOutput(
+        CfnOutput(
             self,
             "KmsKeyArn",
             value=self.key.key_arn,
             export_name="aws-data-wrangler-base-KmsKeyArn",
         )
-        cdk.CfnOutput(
+        CfnOutput(
             self,
             "BucketName",
             value=self.bucket.bucket_name,
             export_name="aws-data-wrangler-base-BucketName",
         )
-        cdk.CfnOutput(self, "GlueDatabaseName", value=glue_db.database_name)
-        cdk.CfnOutput(self, "LogGroupName", value=log_group.log_group_name)
-        cdk.CfnOutput(self, "LogStream", value=log_stream.log_stream_name)
+        CfnOutput(self, "GlueDatabaseName", value=glue_db.database_name)
+        CfnOutput(self, "LogGroupName", value=log_group.log_group_name)
+        CfnOutput(self, "LogStream", value=log_stream.log_stream_name)
 
     @property
     def get_bucket(self) -> s3.Bucket:

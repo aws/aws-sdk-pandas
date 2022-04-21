@@ -1,10 +1,11 @@
+from aws_cdk import CfnOutput, RemovalPolicy, Stack
 from aws_cdk import aws_ec2 as ec2
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_kms as kms
 from aws_cdk import aws_opensearchservice as opensearch
 from aws_cdk import aws_s3 as s3
 from aws_cdk import aws_secretsmanager as secrets
-from aws_cdk import core as cdk
+from constructs import Construct
 
 
 def validate_domain_name(name: str):
@@ -15,10 +16,10 @@ def validate_domain_name(name: str):
             raise ValueError(f'invalid domain name ({name}) - bad character ("{c}")')
 
 
-class OpenSearchStack(cdk.Stack):  # type: ignore
+class OpenSearchStack(Stack):  # type: ignore
     def __init__(
         self,
-        scope: cdk.Construct,
+        scope: Construct,
         construct_id: str,
         vpc: ec2.IVpc,
         bucket: s3.IBucket,
@@ -69,10 +70,10 @@ class OpenSearchStack(cdk.Stack):  # type: ignore
                     resources=[f"{domain_arn}/*"],
                 )
             ],
-            removal_policy=cdk.RemovalPolicy.DESTROY,
+            removal_policy=RemovalPolicy.DESTROY,
         )
 
-        cdk.CfnOutput(self, f"DomainEndpoint-{domain_name}", value=domain.domain_endpoint)
+        CfnOutput(self, f"DomainEndpoint-{domain_name}", value=domain.domain_endpoint)
 
     def _setup_elasticsearch_7_10_fgac(self) -> None:
         domain_name = "wrangler-es-7-10-fgac"
@@ -99,7 +100,7 @@ class OpenSearchStack(cdk.Stack):  # type: ignore
             node_to_node_encryption=True,
             encryption_at_rest=opensearch.EncryptionAtRestOptions(enabled=True, kms_key=self.key),
             enforce_https=True,
-            removal_policy=cdk.RemovalPolicy.DESTROY,
+            removal_policy=RemovalPolicy.DESTROY,
         )
 
-        cdk.CfnOutput(self, f"DomainEndpoint-{domain_name}", value=domain.domain_endpoint)
+        CfnOutput(self, f"DomainEndpoint-{domain_name}", value=domain.domain_endpoint)
