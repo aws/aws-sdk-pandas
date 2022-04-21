@@ -25,9 +25,11 @@ def _gen_scan_range(obj_size: int) -> Iterator[Tuple[int, int]]:
 
 def _select_object_content(
     args: Dict[str, Any],
-    client_s3: boto3.Session,
+    boto3_session: Optional[boto3.Session],
     scan_range: Optional[Tuple[int, int]] = None,
-) -> List[Any]:
+) -> List[Dict[str, Any]]:
+    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+
     if scan_range:
         response = client_s3.select_object_content(**args, ScanRange={"Start": scan_range[0], "End": scan_range[1]})
     else:
@@ -47,7 +49,7 @@ def _select_object_content(
 
 def _paginate_stream(
     args: Dict[str, Any], path: str, use_threads: Union[bool, int], boto3_session: Optional[boto3.Session]
-) -> List[Any]:
+) -> pd.DataFrame:
     obj_size: int = size_objects(  # type: ignore
         path=[path],
         use_threads=False,
@@ -55,17 +57,16 @@ def _paginate_stream(
     ).get(path)
     if obj_size is None:
         raise exceptions.InvalidArgumentValue(f"S3 object w/o defined size: {path}")
-
-    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    scan_ranges = _gen_scan_range(obj_size=obj_size)
 
     if use_threads is False:
         stream_records = list(
             _select_object_content(
                 args=args,
-                client_s3=client_s3,
+                boto3_session=boto3_session,
                 scan_range=scan_range,
             )
-            for scan_range in _gen_scan_range(obj_size=obj_size)
+            for scan_range in scan_ranges
         )
     else:
         cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
@@ -74,11 +75,11 @@ def _paginate_stream(
                 executor.map(
                     _select_object_content,
                     itertools.repeat(args),
-                    itertools.repeat(client_s3),
-                    _gen_scan_range(obj_size=obj_size),
+                    itertools.repeat(boto3_session),
+                    scan_ranges,
                 )
             )
-    return [item for sublist in stream_records for item in sublist]
+    return pd.DataFrame([item for sublist in stream_records for item in sublist])  # Flatten list of lists
 
 
 def select_query(
@@ -204,8 +205,5 @@ def select_query(
     ):  # Scan range is only supported for uncompressed CSV/JSON, CSV (without quoted delimiters)
         # and JSON objects (in LINES mode only)
         _logger.debug("Scan ranges are not supported given provided input.")
-        client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
-        records = _select_object_content(args=args, client_s3=client_s3)
-    else:
-        records = _paginate_stream(args=args, path=path, use_threads=use_threads, boto3_session=boto3_session)
-    return pd.DataFrame(records)
+        return pd.DataFrame(_select_object_content(args=args, boto3_session=boto3_session))
+    return _paginate_stream(args=args, path=path, use_threads=use_threads, boto3_session=boto3_session)
