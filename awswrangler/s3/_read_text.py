@@ -5,6 +5,7 @@ import pprint
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
+import botocore.exceptions
 import pandas as pd
 import pandas.io.parsers
 from pandas.io.common import infer_compression
@@ -77,18 +78,23 @@ def _read_text_file(
 ) -> pd.DataFrame:
     boto3_session = _utils.ensure_session(boto3_session)
     mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
-    with open_s3_object(
-        path=path,
-        version_id=version_id,
-        mode=mode,
-        use_threads=use_threads,
-        s3_block_size=-1,  # One shot download
-        encoding=encoding,
-        s3_additional_kwargs=s3_additional_kwargs,
-        newline=newline,
-        boto3_session=boto3_session,
-    ) as f:
-        df: pd.DataFrame = parser_func(f, **pandas_kwargs)
+    try:
+        with open_s3_object(
+            path=path,
+            version_id=version_id,
+            mode=mode,
+            use_threads=use_threads,
+            s3_block_size=-1,  # One shot download
+            encoding=encoding,
+            s3_additional_kwargs=s3_additional_kwargs,
+            newline=newline,
+            boto3_session=boto3_session,
+        ) as f:
+            df: pd.DataFrame = parser_func(f, **pandas_kwargs)
+    except botocore.exceptions.ClientError as e:
+        if e.response["Error"]["Code"] == "404":
+            raise exceptions.NoFilesFound(f"No files Found on: {path}.")
+        raise e
     return _apply_partitions(df=df, dataset=dataset, path=path, path_root=path_root)
 
 
