@@ -1,0 +1,13 @@
+name: Unlabel Assigned Issues
+on:
+  issues:
+    types:
+      - assigned
+jobs:
+  unlabel-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: unlabel-issues
+        uses: andymckay/labeler@master
+        with:
+          remove-labels: "needs-triage"
