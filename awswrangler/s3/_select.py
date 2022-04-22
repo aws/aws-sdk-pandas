@@ -1,9 +1,11 @@
 """Amazon S3 Select Module (PRIVATE)."""
 
 import concurrent.futures
+import importlib.util
 import itertools
 import json
 import logging
+import os
 import pprint
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
@@ -12,6 +14,12 @@ import pandas as pd
 
 from awswrangler import _utils, exceptions
 from awswrangler.s3._describe import size_objects
+
+_ray_found = importlib.util.find_spec("ray")
+if _ray_found:
+    import ray
+
+    ray.init(address=os.environ.get("RAY_ADDRESS"), ignore_reinit_error=True)
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -23,6 +31,13 @@ def _gen_scan_range(obj_size: int) -> Iterator[Tuple[int, int]]:
         yield (i, i + min(_RANGE_CHUNK_SIZE, obj_size - i))
 
 
+def _ray_remote(function: Any) -> Any:
+    if _ray_found:
+        return ray.remote(function)
+    return function
+
+
+@_ray_remote
 def _select_object_content(
     args: Dict[str, Any],
     boto3_session: Optional[boto3.Session],
@@ -59,7 +74,17 @@ def _paginate_stream(
         raise exceptions.InvalidArgumentValue(f"S3 object w/o defined size: {path}")
     scan_ranges = _gen_scan_range(obj_size=obj_size)
 
-    if use_threads is False:
+    if _ray_found:
+        stream_records_futures = list(
+            _select_object_content.remote(
+                args=args,
+                boto3_session=boto3_session,
+                scan_range=scan_range,
+            )
+            for scan_range in scan_ranges
+        )
+        stream_records = ray.get(stream_records_futures)
+    elif use_threads is False:
         stream_records = list(
             _select_object_content(
                 args=args,
@@ -205,5 +230,9 @@ def select_query(
     ):  # Scan range is only supported for uncompressed CSV/JSON, CSV (without quoted delimiters)
         # and JSON objects (in LINES mode only)
         _logger.debug("Scan ranges are not supported given provided input.")
-        return pd.DataFrame(_select_object_content(args=args, boto3_session=boto3_session))
+        return pd.DataFrame(
+            ray.get(_select_object_content.remote(args=args, boto3_session=boto3_session))
+            if _ray_found
+            else _select_object_content(args=args, boto3_session=boto3_session)
+        )
     return _paginate_stream(args=args, path=path, use_threads=use_threads, boto3_session=boto3_session)
