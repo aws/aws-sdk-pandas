@@ -130,7 +130,6 @@ def test_to_sql_fast_executemany(sqlserver_table, sqlserver_con):
         table=sqlserver_table,
         schema="dbo",
         mode="overwrite",
-        index=False,
         fast_executemany=True,
     )
     df2 = wr.sqlserver.read_sql_query(sql=f"SELECT * FROM dbo.{sqlserver_table}", con=sqlserver_con)
