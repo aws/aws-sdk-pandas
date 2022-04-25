@@ -9,7 +9,6 @@ import pprint
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
-import pandas as pd
 
 from awswrangler import _utils, exceptions
 from awswrangler._distributed import _ray_remote
@@ -18,6 +17,13 @@ from awswrangler.s3._describe import size_objects
 _ray_found = importlib.util.find_spec("ray")
 if _ray_found:
     import ray
+
+_modin_found = importlib.util.find_spec("modin")
+if _modin_found:
+    import modin.pandas as pd
+else:
+    import pandas as pd
+
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -54,6 +60,11 @@ def _select_object_content(
     return payload_records
 
 
+@_ray_remote
+def _flatten_list(*elements: List[Any]) -> List[Dict[str, Any]]:
+    return [item for sublist in elements for item in sublist]
+
+
 def _paginate_stream(
     args: Dict[str, Any], path: str, use_threads: Union[bool, int], boto3_session: Optional[boto3.Session]
 ) -> pd.DataFrame:
@@ -75,8 +86,8 @@ def _paginate_stream(
             )
             for scan_range in scan_ranges
         )
-        stream_records = ray.get(stream_records_futures)
-    elif use_threads is False:
+        return pd.DataFrame(ray.get(_flatten_list.remote(*stream_records_futures)))
+    if use_threads is False:
         stream_records = list(
             _select_object_content(
                 args=args,
@@ -96,7 +107,7 @@ def _paginate_stream(
                     scan_ranges,
                 )
             )
-    return pd.DataFrame([item for sublist in stream_records for item in sublist])  # Flatten list of lists
+    return pd.DataFrame(_flatten_list(*stream_records))
 
 
 def select_query(
