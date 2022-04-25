@@ -123,7 +123,7 @@ def test_to_sql_cast(sqlserver_table, sqlserver_con):
 
 
 def test_to_sql_fast_executemany(sqlserver_table, sqlserver_con):
-    df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "boo", "bar"]})
+    df = pd.DataFrame({"c0": [1, 2, 3]}, dtype="Int64")
     wr.sqlserver.to_sql(
         df=df,
         con=sqlserver_con,
@@ -132,7 +132,11 @@ def test_to_sql_fast_executemany(sqlserver_table, sqlserver_con):
         mode="overwrite",
         fast_executemany=True,
     )
-    df2 = wr.sqlserver.read_sql_query(sql=f"SELECT * FROM dbo.{sqlserver_table}", con=sqlserver_con)
+    df2 = wr.sqlserver.read_sql_table(
+        table=sqlserver_table,
+        con=sqlserver_con,
+        schema="dbo",
+    )
     assert df.equals(df2)
 
 
