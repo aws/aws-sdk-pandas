@@ -5,7 +5,6 @@ import importlib.util
 import itertools
 import json
 import logging
-import os
 import pprint
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
@@ -13,13 +12,12 @@ import boto3
 import pandas as pd
 
 from awswrangler import _utils, exceptions
+from awswrangler._distributed import _ray_remote
 from awswrangler.s3._describe import size_objects
 
 _ray_found = importlib.util.find_spec("ray")
 if _ray_found:
     import ray
-
-    ray.init(address=os.environ.get("RAY_ADDRESS"), ignore_reinit_error=True)
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -29,12 +27,6 @@ _RANGE_CHUNK_SIZE: int = int(1024 * 1024)
 def _gen_scan_range(obj_size: int) -> Iterator[Tuple[int, int]]:
     for i in range(0, obj_size, _RANGE_CHUNK_SIZE):
         yield (i, i + min(_RANGE_CHUNK_SIZE, obj_size - i))
-
-
-def _ray_remote(function: Any) -> Any:
-    if _ray_found:
-        return ray.remote(function)
-    return function
 
 
 @_ray_remote
