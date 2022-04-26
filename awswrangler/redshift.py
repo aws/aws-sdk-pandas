@@ -277,6 +277,7 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    lock: bool = False,
 ) -> Tuple[str, Optional[str]]:
     if mode == "overwrite":
         if overwrite_method == "truncate":
@@ -291,14 +292,21 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments
                 _logger.debug(str(e))
                 con.rollback()
             _begin_transaction(cursor=cursor)
+            if lock:
+                _lock(cursor, [table], schema=schema)
         elif overwrite_method == "delete":
             if _does_table_exist(cursor=cursor, schema=schema, table=table):
+                if lock:
+                    _lock(cursor, [table], schema=schema)
                 # Atomic, but slow.
                 _delete_all(cursor=cursor, schema=schema, table=table)
         else:
             # Fast, atomic, but either fails if there are any dependent views or, in cascade mode, deletes them.
             _drop_table(cursor=cursor, schema=schema, table=table, cascade=bool(overwrite_method == "cascade"))
+            # No point in locking here, the oid will change.
     elif _does_table_exist(cursor=cursor, schema=schema, table=table) is True:
+        if lock:
+            _lock(cursor, [table], schema=schema)
         if mode == "upsert":
             guid: str = uuid.uuid4().hex
             temp_table: str = f"temp_redshift_{guid}"
@@ -363,6 +371,8 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments
     )
     _logger.debug("Create table query:\n%s", sql)
     cursor.execute(sql)
+    if lock:
+        _lock(cursor, [table], schema=schema)
     return table, schema
 
 
@@ -869,6 +879,7 @@ def to_sql(  # pylint: disable=too-many-locals
                 primary_keys=primary_keys,
                 varchar_lengths_default=varchar_lengths_default,
                 varchar_lengths=varchar_lengths,
+                lock=lock,
             )
             if index:
                 df.reset_index(level=df.index.names, inplace=True)
@@ -885,8 +896,6 @@ def to_sql(  # pylint: disable=too-many-locals
                 _logger.debug("sql: %s", sql)
                 cursor.executemany(sql, (parameters,))
             if table != created_table:  # upsert
-                if lock:
-                    _lock(cursor, [table], schema=schema)
                 _upsert(cursor=cursor, schema=schema, table=table, temp_table=created_table, primary_keys=primary_keys)
             if commit_transaction:
                 con.commit()
@@ -1354,9 +1363,6 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
                 boto3_session=boto3_session,
                 s3_additional_kwargs=s3_additional_kwargs,
             )
-            if lock and table == created_table:
-                # Lock before copy if copying into target (not temp) table
-                _lock(cursor, [table], schema=schema)
             _copy(
                 cursor=cursor,
                 path=path,
@@ -1372,8 +1378,6 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
                 manifest=manifest,
             )
             if table != created_table:  # upsert
-                if lock:
-                    _lock(cursor, [table], schema=schema)
                 _upsert(cursor=cursor, schema=schema, table=table, temp_table=created_table, primary_keys=primary_keys)
             if commit_transaction:
                 con.commit()
