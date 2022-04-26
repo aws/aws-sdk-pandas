@@ -27,7 +27,7 @@ def _initialize_ray() -> None:
     if not ray.is_initialized() or redis_address:  # pylint: disable=too-many-nested-blocks
         if redis_address:
             ray.init(
-                address=redis_address or "auto",
+                address=redis_address,
                 include_dashboard=False,
                 ignore_reinit_error=True,
                 _redis_password=redis_password,

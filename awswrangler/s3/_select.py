@@ -38,6 +38,7 @@ def _gen_scan_range(obj_size: int) -> Iterator[Tuple[int, int]]:
         yield (i, i + min(_RANGE_CHUNK_SIZE, obj_size - i))
 
 
+@_ray_remote
 def _flatten_list(*elements: List[Any]) -> List[Dict[str, Any]]:
     return [item for sublist in elements for item in sublist]
 
@@ -47,7 +48,7 @@ def _select_object_content(
     args: Dict[str, Any],
     boto3_session: Optional[boto3.Session],
     scan_range: Optional[Tuple[int, int]] = None,
-) -> Union["ray.data.Dataset[Any]", List[Dict[str, Any]]]:
+) -> List[Dict[str, Any]]:
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
 
     if scan_range:
@@ -64,14 +65,12 @@ def _select_object_content(
             # Record end can either be a partial record or a return char
             partial_record = records.pop()
             payload_records.extend([json.loads(record) for record in records])
-    if _ray_found:
-        return ray.data.from_items(payload_records)  # type: ignore
     return payload_records
 
 
 def _paginate_stream(
     args: Dict[str, Any], path: str, use_threads: Union[bool, int], boto3_session: Optional[boto3.Session]
-) -> Union[List["ray.data.Dataset[Any]"], pd.DataFrame]:
+) -> pd.DataFrame:
     obj_size: int = size_objects(  # type: ignore
         path=[path],
         use_threads=False,
@@ -90,7 +89,7 @@ def _paginate_stream(
             )
             for scan_range in scan_ranges
         )
-        return ray.get(stream_records_futures)
+        return pd.DataFrame(ray.get(_flatten_list.remote(*stream_records_futures)))
     if use_threads is False:
         stream_records = list(
             _select_object_content(
@@ -124,7 +123,7 @@ def _select_query(
     use_threads: Union[bool, int] = False,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-) -> Union[List["ray.data.Dataset[Any]"], pd.DataFrame]:
+) -> pd.DataFrame:
     bucket, key = _utils.parse_path(path)
 
     args: Dict[str, Any] = {
@@ -154,10 +153,10 @@ def _select_query(
     ):  # Scan range is only supported for uncompressed CSV/JSON, CSV (without quoted delimiters)
         # and JSON objects (in LINES mode only)
         _logger.debug("Scan ranges are not supported given provided input.")
-        return (
+        return pd.DataFrame(
             ray.get(_select_object_content.remote(args=args, boto3_session=boto3_session))
             if _ray_found
-            else pd.DataFrame(_select_object_content(args=args, boto3_session=boto3_session))
+            else _select_object_content(args=args, boto3_session=boto3_session)
         )
     return _paginate_stream(args=args, path=path, use_threads=use_threads, boto3_session=boto3_session)
 
@@ -302,7 +301,7 @@ def select_query(
 
     if _ray_found:
         ret = _union(
-            dfs=[ds.to_modin() for ds in ray.get([_select_query.remote(path=path, **args) for path in paths])],
+            ray.get([_select_query.remote(path=path, **args) for path in paths]),
             ignore_index=None,
         )
     elif len(paths) == 1:
