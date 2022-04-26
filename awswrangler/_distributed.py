@@ -5,7 +5,7 @@ import multiprocessing
 import os
 import sys
 import warnings
-from typing import Any
+from typing import Any, Callable
 
 import psutil
 
@@ -14,7 +14,7 @@ if _ray_found:
     import ray
 
 
-def _ray_remote(function: Any) -> Any:
+def _ray_remote(function: Callable[..., Any]) -> Any:
     if _ray_found:
         return ray.remote(function)
     return function

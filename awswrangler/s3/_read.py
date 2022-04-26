@@ -1,17 +1,23 @@
 """Amazon S3 Read Module (PRIVATE)."""
 
 import concurrent.futures
+import importlib.util
 import logging
 from functools import partial
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union, cast
 
 import numpy as np
-import pandas as pd
 from pandas.api.types import union_categoricals
 
 from awswrangler import exceptions
 from awswrangler._utils import boto3_to_primitives, ensure_cpu_count
 from awswrangler.s3._list import _prefix_cleanup
+
+_modin_found = importlib.util.find_spec("modin")
+if _modin_found:
+    import modin.pandas as pd
+else:
+    import pandas as pd
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -136,10 +142,14 @@ def _read_dfs_from_multiple_paths(
 ) -> List[pd.DataFrame]:
     cpus = ensure_cpu_count(use_threads)
     if cpus < 2:
-        return [read_func(path, version_id=version_ids.get(path) if version_ids else None, **kwargs) for path in paths]
+        if version_ids:
+            return [read_func(path, version_id=version_ids.get(path), **kwargs) for path in paths]
+        return [read_func(path, **kwargs) for path in paths]
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=ensure_cpu_count(use_threads)) as executor:
         kwargs["boto3_session"] = boto3_to_primitives(kwargs["boto3_session"])
         partial_read_func = partial(read_func, **kwargs)
-        versions = [version_ids.get(p) if isinstance(version_ids, dict) else None for p in paths]
-        return list(df for df in executor.map(partial_read_func, paths, versions))
+        if version_ids:
+            versions = [version_ids.get(p) if isinstance(version_ids, dict) else None for p in paths]
+            return list(df for df in executor.map(partial_read_func, paths, versions))
+        return list(df for df in executor.map(partial_read_func, paths))

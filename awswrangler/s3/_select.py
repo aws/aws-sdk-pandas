@@ -1,6 +1,7 @@
 """Amazon S3 Select Module (PRIVATE)."""
 
 import concurrent.futures
+import datetime
 import importlib.util
 import itertools
 import json
@@ -13,6 +14,8 @@ import boto3
 from awswrangler import _utils, exceptions
 from awswrangler._distributed import _ray_remote
 from awswrangler.s3._describe import size_objects
+from awswrangler.s3._list import _path2list
+from awswrangler.s3._read import _get_path_ignore_suffix, _read_dfs_from_multiple_paths, _union
 
 _ray_found = importlib.util.find_spec("ray")
 if _ray_found:
@@ -35,12 +38,16 @@ def _gen_scan_range(obj_size: int) -> Iterator[Tuple[int, int]]:
         yield (i, i + min(_RANGE_CHUNK_SIZE, obj_size - i))
 
 
+def _flatten_list(*elements: List[Any]) -> List[Dict[str, Any]]:
+    return [item for sublist in elements for item in sublist]
+
+
 @_ray_remote
 def _select_object_content(
     args: Dict[str, Any],
     boto3_session: Optional[boto3.Session],
     scan_range: Optional[Tuple[int, int]] = None,
-) -> List[Dict[str, Any]]:
+) -> Union["ray.data.Dataset[Any]", List[Dict[str, Any]]]:
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
 
     if scan_range:
@@ -57,17 +64,14 @@ def _select_object_content(
             # Record end can either be a partial record or a return char
             partial_record = records.pop()
             payload_records.extend([json.loads(record) for record in records])
+    if _ray_found:
+        return ray.data.from_items(payload_records)  # type: ignore
     return payload_records
-
-
-@_ray_remote
-def _flatten_list(*elements: List[Any]) -> List[Dict[str, Any]]:
-    return [item for sublist in elements for item in sublist]
 
 
 def _paginate_stream(
     args: Dict[str, Any], path: str, use_threads: Union[bool, int], boto3_session: Optional[boto3.Session]
-) -> pd.DataFrame:
+) -> Union[List["ray.data.Dataset[Any]"], pd.DataFrame]:
     obj_size: int = size_objects(  # type: ignore
         path=[path],
         use_threads=False,
@@ -86,7 +90,7 @@ def _paginate_stream(
             )
             for scan_range in scan_ranges
         )
-        return pd.DataFrame(ray.get(_flatten_list.remote(*stream_records_futures)))
+        return ray.get(stream_records_futures)
     if use_threads is False:
         stream_records = list(
             _select_object_content(
@@ -110,13 +114,66 @@ def _paginate_stream(
     return pd.DataFrame(_flatten_list(*stream_records))
 
 
-def select_query(
-    sql: str,
+@_ray_remote
+def _select_query(
     path: str,
+    sql: str,
     input_serialization: str,
     input_serialization_params: Dict[str, Union[bool, str]],
     compression: Optional[str] = None,
     use_threads: Union[bool, int] = False,
+    boto3_session: Optional[boto3.Session] = None,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+) -> Union[List["ray.data.Dataset[Any]"], pd.DataFrame]:
+    bucket, key = _utils.parse_path(path)
+
+    args: Dict[str, Any] = {
+        "Bucket": bucket,
+        "Key": key,
+        "Expression": sql,
+        "ExpressionType": "SQL",
+        "RequestProgress": {"Enabled": False},
+        "InputSerialization": {
+            input_serialization: input_serialization_params,
+            "CompressionType": compression.upper() if compression else "NONE",
+        },
+        "OutputSerialization": {
+            "JSON": {},
+        },
+    }
+    if s3_additional_kwargs:
+        args.update(s3_additional_kwargs)
+    _logger.debug("args:\n%s", pprint.pformat(args))
+
+    if any(
+        [
+            compression,
+            input_serialization_params.get("AllowQuotedRecordDelimiter"),
+            input_serialization_params.get("Type") == "Document",
+        ]
+    ):  # Scan range is only supported for uncompressed CSV/JSON, CSV (without quoted delimiters)
+        # and JSON objects (in LINES mode only)
+        _logger.debug("Scan ranges are not supported given provided input.")
+        return (
+            ray.get(_select_object_content.remote(args=args, boto3_session=boto3_session))
+            if _ray_found
+            else pd.DataFrame(_select_object_content(args=args, boto3_session=boto3_session))
+        )
+    return _paginate_stream(args=args, path=path, use_threads=use_threads, boto3_session=boto3_session)
+
+
+def select_query(
+    sql: str,
+    path: Union[str, List[str]],
+    input_serialization: str,
+    input_serialization_params: Dict[str, Union[bool, str]],
+    compression: Optional[str] = None,
+    path_suffix: Union[str, List[str], None] = None,
+    path_ignore_suffix: Union[str, List[str], None] = None,
+    ignore_empty: bool = True,
+    use_threads: Union[bool, int] = False,
+    last_modified_begin: Optional[datetime.datetime] = None,
+    last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> pd.DataFrame:
@@ -130,8 +187,9 @@ def select_query(
     ----------
     sql: str
         SQL statement used to query the object.
-    path: str
-        S3 path to the object (e.g. s3://bucket/key).
+    path : Union[str, List[str]]
+        S3 prefix (accepts Unix shell-style wildcards)
+        (e.g. s3://bucket/prefix) or list of S3 objects paths (e.g. ``[s3://bucket/key0, s3://bucket/key1]``).
     input_serialization: str,
         Format of the S3 object queried.
         Valid values: "CSV", "JSON", or "Parquet". Case sensitive.
@@ -140,10 +198,24 @@ def select_query(
     compression: Optional[str]
         Compression type of the S3 object.
         Valid values: None, "gzip", or "bzip2". gzip and bzip2 are only valid for CSV and JSON objects.
+    path_suffix: Union[str, List[str], None]
+        Suffix or List of suffixes to be read (e.g. [".csv"]).
+        If None, read all files. (default)
+    path_ignore_suffix: Union[str, List[str], None]
+        Suffix or List of suffixes for S3 keys to be ignored. (e.g. ["_SUCCESS"]).
+        If None, read all files. (default)
+    ignore_empty: bool
+        Ignore files with 0 bytes.
     use_threads : Union[bool, int]
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() is used as the max number of threads.
         If integer is provided, specified number is used.
+    last_modified_begin
+        Filter S3 objects by Last modified date.
+        Filter is only applied after listing all objects.
+    last_modified_end: datetime, optional
+        Filter S3 objects by Last modified date.
+        Filter is only applied after listing all objects.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session is used if none is provided.
     s3_additional_kwargs : Optional[Dict[str, Any]]
@@ -194,8 +266,6 @@ def select_query(
     ...     input_serialization='Parquet',
     ... )
     """
-    if path.endswith("/"):
-        raise exceptions.InvalidArgumentValue("<path> argument should be an S3 key, not a prefix.")
     if input_serialization not in ["CSV", "JSON", "Parquet"]:
         raise exceptions.InvalidArgumentValue("<input_serialization> argument must be 'CSV', 'JSON' or 'Parquet'")
     if compression not in [None, "gzip", "bzip2"]:
@@ -204,38 +274,48 @@ def select_query(
         raise exceptions.InvalidArgumentCombination(
             "'gzip' or 'bzip2' are only valid for input 'CSV' or 'JSON' objects."
         )
-    bucket, key = _utils.parse_path(path)
+
+    paths: List[str] = _path2list(
+        path=path,
+        boto3_session=boto3_session,
+        suffix=path_suffix,
+        ignore_suffix=_get_path_ignore_suffix(path_ignore_suffix=path_ignore_suffix),
+        ignore_empty=ignore_empty,
+        last_modified_begin=last_modified_begin,
+        last_modified_end=last_modified_end,
+        s3_additional_kwargs=s3_additional_kwargs,
+    )
+    if len(paths) < 1:
+        raise exceptions.NoFilesFound(f"No files Found on: {path}.")
+    _logger.debug("paths:\n%s", paths)
 
     args: Dict[str, Any] = {
-        "Bucket": bucket,
-        "Key": key,
-        "Expression": sql,
-        "ExpressionType": "SQL",
-        "RequestProgress": {"Enabled": False},
-        "InputSerialization": {
-            input_serialization: input_serialization_params,
-            "CompressionType": compression.upper() if compression else "NONE",
-        },
-        "OutputSerialization": {
-            "JSON": {},
-        },
+        "sql": sql,
+        "input_serialization": input_serialization,
+        "input_serialization_params": input_serialization_params,
+        "compression": compression,
+        "use_threads": use_threads,
+        "boto3_session": boto3_session,
+        "s3_additional_kwargs": s3_additional_kwargs,
     }
-    if s3_additional_kwargs:
-        args.update(s3_additional_kwargs)
     _logger.debug("args:\n%s", pprint.pformat(args))
 
-    if any(
-        [
-            compression,
-            input_serialization_params.get("AllowQuotedRecordDelimiter"),
-            input_serialization_params.get("Type") == "Document",
-        ]
-    ):  # Scan range is only supported for uncompressed CSV/JSON, CSV (without quoted delimiters)
-        # and JSON objects (in LINES mode only)
-        _logger.debug("Scan ranges are not supported given provided input.")
-        return pd.DataFrame(
-            ray.get(_select_object_content.remote(args=args, boto3_session=boto3_session))
-            if _ray_found
-            else _select_object_content(args=args, boto3_session=boto3_session)
+    if _ray_found:
+        ret = _union(
+            dfs=[ds.to_modin() for ds in ray.get([_select_query.remote(path=path, **args) for path in paths])],
+            ignore_index=None,
         )
-    return _paginate_stream(args=args, path=path, use_threads=use_threads, boto3_session=boto3_session)
+    elif len(paths) == 1:
+        ret = _select_query(path=paths[0], **args)
+    else:
+        ret = _union(
+            dfs=_read_dfs_from_multiple_paths(
+                read_func=_select_query,
+                paths=paths,
+                version_ids=None,
+                use_threads=use_threads,
+                kwargs=args,
+            ),
+            ignore_index=None,
+        )
+    return ret
