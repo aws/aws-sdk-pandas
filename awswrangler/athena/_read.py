@@ -634,7 +634,6 @@ def read_sql_query(
     - Does not support timestamp with time zone.
     - Does not support columns with repeated names.
     - Does not support columns with undefined data types.
-    - Does not support custom data_source/catalog_id.
 
     **3** - ctas_approach=False:
 
