@@ -3,6 +3,7 @@
 import concurrent.futures
 import datetime
 import functools
+import importlib.util
 import itertools
 import json
 import logging
@@ -11,12 +12,12 @@ import warnings
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, Union, cast
 
 import boto3
-import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet
 
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._config import apply_configs
+from awswrangler._distributed import _ray_remote
 from awswrangler.catalog._get import _get_partitions
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._list import _path2list
@@ -30,6 +31,17 @@ from awswrangler.s3._read import (
     _read_dfs_from_multiple_paths,
     _union,
 )
+
+
+_ray_found = importlib.util.find_spec("ray")
+if _ray_found:
+    import ray
+
+_modin_found = importlib.util.find_spec("modin")
+if _modin_found:
+    import modin.pandas as pd
+else:
+    import pandas as pd
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -455,6 +467,61 @@ def _read_parquet_chunked(  # pylint: disable=too-many-branches
         yield next_slice
 
 
+@_ray_remote
+def _read_parquet_chunked_ref(  # pylint: disable=too-many-branches
+    path: str,
+    validate_schema: bool,
+    columns: Optional[List[str]],
+    categories: Optional[List[str]],
+    safe: bool,
+    map_types: bool,
+    boto3_session: boto3.Session,
+    dataset: bool,
+    path_root: Optional[str],
+    s3_additional_kwargs: Optional[Dict[str, str]],
+    use_threads: Union[bool, int],
+    version_id: Optional[str] = None,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+) -> pd.DataFrame:
+    pyarrow_args = _set_default_pyarrow_additional_kwargs(pyarrow_additional_kwargs)
+
+    with open_s3_object(
+        path=path,
+        version_id=version_id,
+        mode="rb",
+        use_threads=use_threads,
+        s3_block_size=10_485_760,  # 10 MB (10 * 2**20)
+        s3_additional_kwargs=s3_additional_kwargs,
+        boto3_session=boto3_session,
+    ) as f:
+        pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(
+            source=f,
+            read_dictionary=categories,
+            coerce_int96_timestamp_unit=pyarrow_args["coerce_int96_timestamp_unit"],
+        )
+        if pq_file is None:
+            return
+        if validate_schema is True:
+            schema: Dict[str, str] = _data_types.athena_types_from_pyarrow_schema(
+                schema=pq_file.schema.to_arrow_schema(), partitions=None
+            )[0]
+        num_row_groups: int = pq_file.num_row_groups
+        _logger.debug("num_row_groups: %s", num_row_groups)
+        use_threads_flag: bool = use_threads if isinstance(use_threads, bool) else bool(use_threads > 1)
+
+        return _arrowtable2df(
+            table=pq_file.read(columns=columns, use_threads=use_threads_flag, use_pandas_metadata=False),
+            categories=categories,
+            safe=safe,
+            map_types=map_types,
+            use_threads=use_threads,
+            dataset=dataset,
+            path=path,
+            path_root=path_root,
+            timestamp_as_object=pyarrow_args["timestamp_as_object"],
+        )
+
+
 def _read_parquet_file(
     path: str,
     columns: Optional[List[str]],
@@ -755,6 +822,27 @@ def read_parquet(
         "pyarrow_additional_kwargs": pyarrow_additional_kwargs,
     }
     _logger.debug("args:\n%s", pprint.pformat(args))
+
+    if _modin_found:
+        return ray.data.from_arrow_refs([
+            _read_parquet_chunked_ref.remote(
+                p,
+                validate_schema,
+                columns,
+                categories,
+                safe,
+                map_types,
+                boto3_session,
+                dataset,
+                path_root,
+                s3_additional_kwargs,
+                use_threads,
+                versions.get(p) if versions else None,
+                pyarrow_additional_kwargs,
+            )
+            for p in paths
+        ]).to_modin()
+
     if chunked is not False:
         return _read_parquet_chunked(
             paths=paths,
