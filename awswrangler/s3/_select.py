@@ -34,9 +34,10 @@ _logger: logging.Logger = logging.getLogger(__name__)
 _RANGE_CHUNK_SIZE: int = int(1024 * 1024)
 
 
-def _gen_scan_range(obj_size: int) -> Iterator[Tuple[int, int]]:
-    for i in range(0, obj_size, _RANGE_CHUNK_SIZE):
-        yield (i, i + min(_RANGE_CHUNK_SIZE, obj_size - i))
+def _gen_scan_range(obj_size: int, scan_range_chunk_size: Optional[int] = None) -> Iterator[Tuple[int, int]]:
+    chunk_size = scan_range_chunk_size or _RANGE_CHUNK_SIZE
+    for i in range(0, obj_size, chunk_size):
+        yield (i, i + min(chunk_size, obj_size - i))
 
 
 def _flatten_list(
@@ -54,6 +55,7 @@ def _select_object_content(
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
 
     if scan_range:
+        _logger.debug(f"scan_range: {scan_range}, key: {args['Key']}")
         response = client_s3.select_object_content(**args, ScanRange={"Start": scan_range[0], "End": scan_range[1]})
     else:
         response = client_s3.select_object_content(**args)
@@ -72,7 +74,11 @@ def _select_object_content(
 
 @_ray_remote
 def _paginate_stream(
-    args: Dict[str, Any], path: str, use_threads: Union[bool, int], boto3_session: Optional[boto3.Session]
+    args: Dict[str, Any],
+    path: str,
+    scan_range_chunk_size: Optional[int],
+    use_threads: Union[bool, int],
+    boto3_session: Optional[boto3.Session],
 ) -> List[Union[Table, "ray.types.ObjectRef[Union[Table, bytes]]"]]:
     obj_size: int = size_objects(  # type: ignore
         path=[path],
@@ -81,7 +87,7 @@ def _paginate_stream(
     ).get(path)
     if obj_size is None:
         raise exceptions.InvalidArgumentValue(f"S3 object w/o defined size: {path}")
-    scan_ranges = _gen_scan_range(obj_size=obj_size)
+    scan_ranges = _gen_scan_range(obj_size=obj_size, scan_range_chunk_size=scan_range_chunk_size)
 
     if _ray_found:
         return list(
@@ -122,6 +128,7 @@ def _select_query(
     input_serialization: str,
     input_serialization_params: Dict[str, Union[bool, str]],
     compression: Optional[str] = None,
+    scan_range_chunk_size: Optional[int] = None,
     use_threads: Union[bool, int] = False,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -161,9 +168,23 @@ def _select_query(
             else _select_object_content(args=args, boto3_session=boto3_session)
         ]
     return (  # type: ignore
-        ray.get(_paginate_stream.remote(args=args, path=path, use_threads=use_threads, boto3_session=boto3_session))
+        ray.get(
+            _paginate_stream.remote(
+                args=args,
+                path=path,
+                scan_range_chunk_size=scan_range_chunk_size,
+                use_threads=use_threads,
+                boto3_session=boto3_session,
+            )
+        )
         if _ray_found
-        else _paginate_stream(args=args, path=path, use_threads=use_threads, boto3_session=boto3_session)
+        else _paginate_stream(
+            args=args,
+            path=path,
+            scan_range_chunk_size=scan_range_chunk_size,
+            use_threads=use_threads,
+            boto3_session=boto3_session,
+        )
     )
 
 
@@ -173,6 +194,7 @@ def select_query(
     input_serialization: str,
     input_serialization_params: Dict[str, Union[bool, str]],
     compression: Optional[str] = None,
+    scan_range_chunk_size: Optional[int] = None,
     path_suffix: Union[str, List[str], None] = None,
     path_ignore_suffix: Union[str, List[str], None] = None,
     ignore_empty: bool = True,
@@ -203,6 +225,8 @@ def select_query(
     compression: Optional[str]
         Compression type of the S3 object.
         Valid values: None, "gzip", or "bzip2". gzip and bzip2 are only valid for CSV and JSON objects.
+    scan_range_chunk_size: int, optional
+        Chunk size used to split the S3 object into scan ranges. 1,048,576 by default.
     path_suffix: Union[str, List[str], None]
         Suffix or List of suffixes to be read (e.g. [".csv"]).
         If None, read all files. (default)
@@ -215,7 +239,7 @@ def select_query(
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() is used as the max number of threads.
         If integer is provided, specified number is used.
-    last_modified_begin
+    last_modified_begin: datetime, optional
         Filter S3 objects by Last modified date.
         Filter is only applied after listing all objects.
     last_modified_end: datetime, optional
@@ -299,6 +323,7 @@ def select_query(
         "input_serialization": input_serialization,
         "input_serialization_params": input_serialization_params,
         "compression": compression,
+        "scan_range_chunk_size": scan_range_chunk_size,
         "use_threads": use_threads,
         "boto3_session": boto3_session,
         "s3_additional_kwargs": s3_additional_kwargs,

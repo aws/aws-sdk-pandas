@@ -32,7 +32,6 @@ from awswrangler.s3._read import (
     _union,
 )
 
-
 _ray_found = importlib.util.find_spec("ray")
 if _ray_found:
     import ray
@@ -502,9 +501,7 @@ def _read_parquet_chunked_ref(  # pylint: disable=too-many-branches
         if pq_file is None:
             return
         if validate_schema is True:
-            schema: Dict[str, str] = _data_types.athena_types_from_pyarrow_schema(
-                schema=pq_file.schema.to_arrow_schema(), partitions=None
-            )[0]
+            _data_types.athena_types_from_pyarrow_schema(schema=pq_file.schema.to_arrow_schema(), partitions=None)[0]
         num_row_groups: int = pq_file.num_row_groups
         _logger.debug("num_row_groups: %s", num_row_groups)
         use_threads_flag: bool = use_threads if isinstance(use_threads, bool) else bool(use_threads > 1)
@@ -824,24 +821,26 @@ def read_parquet(
     _logger.debug("args:\n%s", pprint.pformat(args))
 
     if _modin_found:
-        return ray.data.from_arrow_refs([
-            _read_parquet_chunked_ref.remote(
-                p,
-                validate_schema,
-                columns,
-                categories,
-                safe,
-                map_types,
-                boto3_session,
-                dataset,
-                path_root,
-                s3_additional_kwargs,
-                use_threads,
-                versions.get(p) if versions else None,
-                pyarrow_additional_kwargs,
-            )
-            for p in paths
-        ]).to_modin()
+        return ray.data.from_arrow_refs(
+            [
+                _read_parquet_chunked_ref.remote(
+                    p,
+                    validate_schema,
+                    columns,
+                    categories,
+                    safe,
+                    map_types,
+                    boto3_session,
+                    dataset,
+                    path_root,
+                    s3_additional_kwargs,
+                    use_threads,
+                    versions.get(p) if versions else None,
+                    pyarrow_additional_kwargs,
+                )
+                for p in paths
+            ]
+        ).to_modin()
 
     if chunked is not False:
         return _read_parquet_chunked(
