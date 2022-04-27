@@ -5,7 +5,7 @@ import multiprocessing
 import os
 import sys
 import warnings
-from typing import Any
+from typing import Any, Callable
 
 import psutil
 
@@ -14,7 +14,7 @@ if _ray_found:
     import ray
 
 
-def _ray_remote(function: Any) -> Any:
+def _ray_remote(function: Callable[..., Any]) -> Any:
     if _ray_found:
         return ray.remote(function)
     return function
@@ -27,7 +27,7 @@ def _initialize_ray() -> None:
     if not ray.is_initialized() or redis_address:  # pylint: disable=too-many-nested-blocks
         if redis_address:
             ray.init(
-                address=redis_address or "auto",
+                address=redis_address,
                 include_dashboard=False,
                 ignore_reinit_error=True,
                 _redis_password=redis_password,
