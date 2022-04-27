@@ -10,12 +10,13 @@ import pprint
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
+from pyarrow import Table, concat_tables
 
 from awswrangler import _utils, exceptions
 from awswrangler._distributed import _ray_remote
 from awswrangler.s3._describe import size_objects
 from awswrangler.s3._list import _path2list
-from awswrangler.s3._read import _get_path_ignore_suffix, _read_dfs_from_multiple_paths, _union
+from awswrangler.s3._read import _get_path_ignore_suffix, _read_dfs_from_multiple_paths
 
 _ray_found = importlib.util.find_spec("ray")
 if _ray_found:
@@ -38,8 +39,9 @@ def _gen_scan_range(obj_size: int) -> Iterator[Tuple[int, int]]:
         yield (i, i + min(_RANGE_CHUNK_SIZE, obj_size - i))
 
 
-@_ray_remote
-def _flatten_list(*elements: List[Any]) -> List[Dict[str, Any]]:
+def _flatten_list(
+    *elements: List[List[Union[Table, "ray.types.ObjectRef[Union[Table, bytes]]"]]]
+) -> List[Union[Table, "ray.types.ObjectRef[Union[Table, bytes]]"]]:
     return [item for sublist in elements for item in sublist]
 
 
@@ -48,7 +50,7 @@ def _select_object_content(
     args: Dict[str, Any],
     boto3_session: Optional[boto3.Session],
     scan_range: Optional[Tuple[int, int]] = None,
-) -> List[Dict[str, Any]]:
+) -> Table:
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
 
     if scan_range:
@@ -65,12 +67,13 @@ def _select_object_content(
             # Record end can either be a partial record or a return char
             partial_record = records.pop()
             payload_records.extend([json.loads(record) for record in records])
-    return payload_records
+    return _utils.pylist_to_arrow(Table, payload_records)
 
 
+@_ray_remote
 def _paginate_stream(
     args: Dict[str, Any], path: str, use_threads: Union[bool, int], boto3_session: Optional[boto3.Session]
-) -> pd.DataFrame:
+) -> List[Union[Table, "ray.types.ObjectRef[Union[Table, bytes]]"]]:
     obj_size: int = size_objects(  # type: ignore
         path=[path],
         use_threads=False,
@@ -81,7 +84,7 @@ def _paginate_stream(
     scan_ranges = _gen_scan_range(obj_size=obj_size)
 
     if _ray_found:
-        stream_records_futures = list(
+        return list(
             _select_object_content.remote(
                 args=args,
                 boto3_session=boto3_session,
@@ -89,9 +92,8 @@ def _paginate_stream(
             )
             for scan_range in scan_ranges
         )
-        return pd.DataFrame(ray.get(_flatten_list.remote(*stream_records_futures)))
     if use_threads is False:
-        stream_records = list(
+        tables = list(
             _select_object_content(
                 args=args,
                 boto3_session=boto3_session,
@@ -102,7 +104,7 @@ def _paginate_stream(
     else:
         cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
         with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
-            stream_records = list(
+            tables = list(
                 executor.map(
                     _select_object_content,
                     itertools.repeat(args),
@@ -110,7 +112,7 @@ def _paginate_stream(
                     scan_ranges,
                 )
             )
-    return pd.DataFrame(_flatten_list(*stream_records))
+    return tables
 
 
 @_ray_remote
@@ -123,7 +125,7 @@ def _select_query(
     use_threads: Union[bool, int] = False,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-) -> pd.DataFrame:
+) -> List[Union[Table, "ray.types.ObjectRef[Union[Table, bytes]]"]]:
     bucket, key = _utils.parse_path(path)
 
     args: Dict[str, Any] = {
@@ -153,12 +155,16 @@ def _select_query(
     ):  # Scan range is only supported for uncompressed CSV/JSON, CSV (without quoted delimiters)
         # and JSON objects (in LINES mode only)
         _logger.debug("Scan ranges are not supported given provided input.")
-        return pd.DataFrame(
-            ray.get(_select_object_content.remote(args=args, boto3_session=boto3_session))
+        return [
+            _select_object_content.remote(args=args, boto3_session=boto3_session)
             if _ray_found
             else _select_object_content(args=args, boto3_session=boto3_session)
-        )
-    return _paginate_stream(args=args, path=path, use_threads=use_threads, boto3_session=boto3_session)
+        ]
+    return (  # type: ignore
+        ray.get(_paginate_stream.remote(args=args, path=path, use_threads=use_threads, boto3_session=boto3_session))
+        if _ray_found
+        else _paginate_stream(args=args, path=path, use_threads=use_threads, boto3_session=boto3_session)
+    )
 
 
 def select_query(
@@ -300,21 +306,17 @@ def select_query(
     _logger.debug("args:\n%s", pprint.pformat(args))
 
     if _ray_found:
-        ret = _union(
-            ray.get([_select_query.remote(path=path, **args) for path in paths]),
-            ignore_index=None,
-        )
-    elif len(paths) == 1:
-        ret = _select_query(path=paths[0], **args)
-    else:
-        ret = _union(
-            dfs=_read_dfs_from_multiple_paths(
+        return ray.data.from_arrow_refs(
+            _flatten_list(*ray.get([_select_query.remote(path=path, **args) for path in paths]))
+        ).to_modin()
+    return concat_tables(
+        _flatten_list(
+            *_read_dfs_from_multiple_paths(
                 read_func=_select_query,
                 paths=paths,
                 version_ids=None,
                 use_threads=use_threads,
                 kwargs=args,
-            ),
-            ignore_index=None,
-        )
-    return ret
+            )
+        ),
+    ).to_pandas()

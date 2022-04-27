@@ -8,6 +8,7 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union, cast
 
 import numpy as np
 from pandas.api.types import union_categoricals
+from pyarrow import Table
 
 from awswrangler import exceptions
 from awswrangler._utils import boto3_to_primitives, ensure_cpu_count
@@ -139,7 +140,7 @@ def _read_dfs_from_multiple_paths(
     version_ids: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
     kwargs: Dict[str, Any],
-) -> List[pd.DataFrame]:
+) -> List[Union[pd.DataFrame, Table]]:
     cpus = ensure_cpu_count(use_threads)
     if cpus < 2:
         if version_ids:
