@@ -1,0 +1,43 @@
+cluster_name: ray-cluster
+
+initial_workers: 2
+min_workers: 2
+max_workers: 2
+
+provider:
+    type: aws
+    region: us-west-2
+    availability_zone: us-west-2a,us-west-2b
+    security_group:
+        GroupName: ray_client_security_group
+        IpPermissions:
+              - FromPort: 10001
+                ToPort: 10001
+                IpProtocol: TCP
+                IpRanges:
+                    - CidrIp: pl-f8a64391
+    cache_stopped_nodes: False 
+
+available_node_types:
+  ray.head.default:
+    node_config:
+      InstanceType: r5n.2xlarge
+      ImageId: ami-06d3d2ee794b34a21
+
+  ray.worker.default:
+      min_workers: 2
+      max_workers: 2
+      node_config:
+        InstanceType: r5n.2xlarge
+        ImageId: ami-06d3d2ee794b34a21
+
+file_mounts: {
+  "~/.aws": "~/.aws"
+}
+file_mounts_sync_continuously: True
+
+setup_commands:
+- pip install git+https://github.com/awslabs/aws-data-wrangler.git@wrangler-3.0.0
+- pip install ray[default,data]
+- pip install modin
+- pip uninstall -y awswrangler
