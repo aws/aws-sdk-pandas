@@ -1362,6 +1362,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
                 use_threads=use_threads,
                 boto3_session=boto3_session,
                 s3_additional_kwargs=s3_additional_kwargs,
+                lock=lock,
             )
             _copy(
                 cursor=cursor,
