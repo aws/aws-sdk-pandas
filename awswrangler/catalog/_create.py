@@ -1048,7 +1048,7 @@ def create_json_table(  # pylint: disable=too-many-arguments
     serde_library : Optional[str]
         Specifies the SerDe Serialization library which will be used. You need to provide the Class library name
         as a string.
-        If no library is provided the default is `org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe`.
+        If no library is provided the default is `org.openx.data.jsonserde.JsonSerDe`.
     serde_parameters : Optional[str]
         Dictionary of initialization parameters for the SerDe.
         The default is `{"field.delim": sep, "escape.delim": "\\"}`.
