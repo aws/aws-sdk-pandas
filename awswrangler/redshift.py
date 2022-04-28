@@ -185,21 +185,23 @@ def _upsert(
     if precombine_key:
         delete_from_target_filter: str = f"AND {table}.{precombine_key} <= {temp_table}.{precombine_key}"
         delete_from_temp_filter: str = f"AND {table}.{precombine_key} > {temp_table}.{precombine_key}"
-        sql: str = (
+        target_del_sql: str = (
             f'DELETE FROM "{schema}"."{table}" USING {temp_table} WHERE {join_clause} {delete_from_target_filter}'
         )
-        _logger.debug(sql)
-        cursor.execute(sql)
-        sql: str = f'DELETE FROM {temp_table} USING "{schema}"."{table}" WHERE {join_clause} {delete_from_temp_filter}'
-        _logger.debug(sql)
-        cursor.execute(sql)
+        _logger.debug(target_del_sql)
+        cursor.execute(target_del_sql)
+        source_del_sql: str = (
+            f'DELETE FROM {temp_table} USING "{schema}"."{table}" WHERE {join_clause} {delete_from_temp_filter}'
+        )
+        _logger.debug(source_del_sql)
+        cursor.execute(source_del_sql)
     else:
         sql: str = f'DELETE FROM "{schema}"."{table}" USING {temp_table} WHERE {join_clause}'
         _logger.debug(sql)
         cursor.execute(sql)
-    sql = f"INSERT INTO {schema}.{table} SELECT * FROM {temp_table}"
-    _logger.debug(sql)
-    cursor.execute(sql)
+    insert_sql = f"INSERT INTO {schema}.{table} SELECT * FROM {temp_table}"
+    _logger.debug(insert_sql)
+    cursor.execute(insert_sql)
     _drop_table(cursor=cursor, schema=schema, table=temp_table)
 
 
