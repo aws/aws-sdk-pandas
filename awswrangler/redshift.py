@@ -183,9 +183,11 @@ def _upsert(
     equals_clause: str = f"{table}.%s = {temp_table}.%s"
     join_clause: str = " AND ".join([equals_clause % (pk, pk) for pk in primary_keys])
     if precombine_key:
-        delete_from_target_filter: str = f'AND {table}.{precombine_key} <= {temp_table}.{precombine_key}'
-        delete_from_temp_filter: str = f'AND {table}.{precombine_key} > {temp_table}.{precombine_key}'
-        sql: str = f'DELETE FROM "{schema}"."{table}" USING {temp_table} WHERE {join_clause} {delete_from_target_filter}'
+        delete_from_target_filter: str = f"AND {table}.{precombine_key} <= {temp_table}.{precombine_key}"
+        delete_from_temp_filter: str = f"AND {table}.{precombine_key} > {temp_table}.{precombine_key}"
+        sql: str = (
+            f'DELETE FROM "{schema}"."{table}" USING {temp_table} WHERE {join_clause} {delete_from_target_filter}'
+        )
         _logger.debug(sql)
         cursor.execute(sql)
         sql: str = f'DELETE FROM {temp_table} USING "{schema}"."{table}" WHERE {join_clause} {delete_from_temp_filter}'
@@ -772,7 +774,7 @@ def to_sql(  # pylint: disable=too-many-locals
     lock: bool = False,
     chunksize: int = 200,
     commit_transaction: bool = True,
-    precombine_key: Optional[str] = None
+    precombine_key: Optional[str] = None,
 ) -> None:
     """Write records stored in a DataFrame into Redshift.
 
