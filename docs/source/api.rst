@@ -73,6 +73,7 @@ AWS Glue Catalog
     add_parquet_partitions
     create_csv_table
     create_database
+    create_json_table
     create_parquet_table
     databases
     delete_column
