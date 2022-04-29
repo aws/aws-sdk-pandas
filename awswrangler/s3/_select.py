@@ -55,7 +55,7 @@ def _select_object_content(
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
 
     if scan_range:
-        _logger.debug(f"scan_range: {scan_range}, key: {args['Key']}")
+        _logger.debug("scan_range: %s, key: %s", scan_range, args["Key"])
         response = client_s3.select_object_content(**args, ScanRange={"Start": scan_range[0], "End": scan_range[1]})
     else:
         response = client_s3.select_object_content(**args)
@@ -344,4 +344,4 @@ def select_query(
                 kwargs=args,
             )
         ),
-    ).to_pandas()
+    ).to_pandas(use_threads=use_threads, split_blocks=True, self_destruct=True, ignore_metadata=True)
