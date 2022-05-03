@@ -736,7 +736,8 @@ def test_upsert_precombine(redshift_table, redshift_con):
         sql=f"SELECT * FROM public.{redshift_table} order by id",
         con=redshift_con,
     )
-    assert df_m.equals(df4)
+    # df4 needs to be converted from iterator to full dataframe
+    assert df_m.equals(pd.DataFrame(df4))
 
     # UPSERT 2
     wr.redshift.to_sql(
@@ -749,7 +750,8 @@ def test_upsert_precombine(redshift_table, redshift_con):
         precombine_key="val",
     )
     df4 = wr.redshift.read_sql_query(sql=f"SELECT * FROM public.{redshift_table} order by id", con=redshift_con)
-    assert df_m.equals(df4)
+    # df4 needs to be converted from iterator to full dataframe
+    assert df_m.equals(pd.DataFrame(df4))
 
 
 def test_read_retry(redshift_con):
