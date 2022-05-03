@@ -711,7 +711,6 @@ def test_upsert_precombine(redshift_table, redshift_con):
     df_m["val"] = df_m["val"].fillna(df_m["val_y"])
     df_m = df_m.drop(columns=["val_x", "val_y"])
 
-
     # CREATE
     wr.redshift.to_sql(
         df=df,
