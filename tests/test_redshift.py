@@ -723,6 +723,7 @@ def test_upsert_precombine(redshift_table, redshift_con):
         primary_keys=["id"],
     )
     df2 = wr.redshift.read_sql_query(sql=f"SELECT * FROM public.{redshift_table}", con=redshift_con)
+    df2.set_index("id", inplace=True)
     assert df.shape == df2.shape
 
     # UPSERT
