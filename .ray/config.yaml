@@ -40,4 +40,3 @@ setup_commands:
 - pip install git+https://github.com/awslabs/aws-data-wrangler.git@wrangler-3.0.0
 - pip install ray[default,data]
 - pip install modin
-- pip uninstall -y awswrangler
