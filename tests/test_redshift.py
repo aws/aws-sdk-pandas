@@ -5,8 +5,8 @@ import string
 from decimal import Decimal
 
 import boto3
-import pandas as pd
 import numpy as np
+import pandas as pd
 import pyarrow as pa
 import pytest
 import redshift_connector
