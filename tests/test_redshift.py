@@ -699,8 +699,8 @@ def test_upsert(redshift_table, redshift_con):
 
 
 def test_upsert_precombine(redshift_table, redshift_con):
-    df = pd.DataFrame({"id": list((range(10))), "val": list([1 if i % 2 == 0 else 10 for i in range(10)])})
-    df3 = pd.DataFrame({"id": list((range(6, 14))), "val": list([10 if i % 2 == 0 else 1 for i in range(8)])})
+    df = pd.DataFrame({"id": list((range(10))), "val": list([1.0 if i % 2 == 0 else 10.0 for i in range(10)])})
+    df3 = pd.DataFrame({"id": list((range(6, 14))), "val": list([10.0 if i % 2 == 0 else 1.0 for i in range(8)])})
 
     # Do upsert in pandas
     df_m = pd.merge(df, df3, on="id", how="outer")
@@ -718,7 +718,7 @@ def test_upsert_precombine(redshift_table, redshift_con):
         index=False,
         primary_keys=["id"],
     )
-    df2 = wr.redshift.read_sql_query(sql=f"SELECT * FROM public.{redshift_table}", con=redshift_con)
+    df2 = wr.redshift.read_sql_query(sql=f"SELECT * FROM public.{redshift_table} order by id", con=redshift_con)
     assert df.shape == df2.shape
 
     # UPSERT
@@ -733,7 +733,7 @@ def test_upsert_precombine(redshift_table, redshift_con):
         precombine_key="val",
     )
     df4 = wr.redshift.read_sql_query(
-        sql=f"SELECT * FROM public.{redshift_table}",
+        sql=f"SELECT * FROM public.{redshift_table} order by id",
         con=redshift_con,
     )
     assert df_m.equals(df4)
@@ -748,7 +748,7 @@ def test_upsert_precombine(redshift_table, redshift_con):
         index=False,
         precombine_key="val",
     )
-    df4 = wr.redshift.read_sql_query(sql=f"SELECT * FROM public.{redshift_table}", con=redshift_con)
+    df4 = wr.redshift.read_sql_query(sql=f"SELECT * FROM public.{redshift_table} order by id", con=redshift_con)
     assert df_m.equals(df4)
 
 
