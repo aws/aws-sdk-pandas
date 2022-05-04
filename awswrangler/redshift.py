@@ -173,6 +173,7 @@ def _upsert(
     temp_table: str,
     schema: str,
     primary_keys: Optional[List[str]] = None,
+    precombine_key: Optional[str] = None,
 ) -> None:
     if not primary_keys:
         primary_keys = _get_primary_keys(cursor=cursor, schema=schema, table=table)
@@ -181,12 +182,26 @@ def _upsert(
         raise exceptions.InvalidRedshiftPrimaryKeys()
     equals_clause: str = f"{table}.%s = {temp_table}.%s"
     join_clause: str = " AND ".join([equals_clause % (pk, pk) for pk in primary_keys])
-    sql: str = f'DELETE FROM "{schema}"."{table}" USING {temp_table} WHERE {join_clause}'
-    _logger.debug(sql)
-    cursor.execute(sql)
-    sql = f"INSERT INTO {schema}.{table} SELECT * FROM {temp_table}"
-    _logger.debug(sql)
-    cursor.execute(sql)
+    if precombine_key:
+        delete_from_target_filter: str = f"AND {table}.{precombine_key} <= {temp_table}.{precombine_key}"
+        delete_from_temp_filter: str = f"AND {table}.{precombine_key} > {temp_table}.{precombine_key}"
+        target_del_sql: str = (
+            f'DELETE FROM "{schema}"."{table}" USING {temp_table} WHERE {join_clause} {delete_from_target_filter}'
+        )
+        _logger.debug(target_del_sql)
+        cursor.execute(target_del_sql)
+        source_del_sql: str = (
+            f'DELETE FROM {temp_table} USING "{schema}"."{table}" WHERE {join_clause} {delete_from_temp_filter}'
+        )
+        _logger.debug(source_del_sql)
+        cursor.execute(source_del_sql)
+    else:
+        sql: str = f'DELETE FROM "{schema}"."{table}" USING {temp_table} WHERE {join_clause}'
+        _logger.debug(sql)
+        cursor.execute(sql)
+    insert_sql = f"INSERT INTO {schema}.{table} SELECT * FROM {temp_table}"
+    _logger.debug(insert_sql)
+    cursor.execute(insert_sql)
     _drop_table(cursor=cursor, schema=schema, table=temp_table)
 
 
@@ -424,29 +439,29 @@ def connect(
     ----------
     connection : Optional[str]
         Glue Catalog Connection name.
-    secret_id: Optional[str]:
+    secret_id : Optional[str]:
         Specifies the secret containing the connection details that you want to retrieve.
         You can specify either the Amazon Resource Name (ARN) or the friendly name of the secret.
     catalog_id : str, optional
         The ID of the Data Catalog.
         If none is provided, the AWS account ID is used by default.
-    dbname: Optional[str]
+    dbname : Optional[str]
         Optional database name to overwrite the stored one.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    ssl: bool
+    ssl : bool
         This governs SSL encryption for TCP/IP sockets.
         This parameter is forward to redshift_connector.
         https://github.com/aws/amazon-redshift-python-driver
-    timeout: Optional[int]
+    timeout : Optional[int]
         This is the time in seconds before the connection to the server will time out.
         The default is None which means no timeout.
         This parameter is forward to redshift_connector.
         https://github.com/aws/amazon-redshift-python-driver
-    max_prepared_statements: int
+    max_prepared_statements : int
         This parameter is forward to redshift_connector.
         https://github.com/aws/amazon-redshift-python-driver
-    tcp_keepalive: bool
+    tcp_keepalive : bool
         If True then use TCP keepalive. The default is True.
         This parameter is forward to redshift_connector.
         https://github.com/aws/amazon-redshift-python-driver
@@ -534,19 +549,19 @@ def connect_temp(
         in addition to any group memberships for an existing user. If not specified, a new user is added only to PUBLIC.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    ssl: bool
+    ssl : bool
         This governs SSL encryption for TCP/IP sockets.
         This parameter is forward to redshift_connector.
         https://github.com/aws/amazon-redshift-python-driver
-    timeout: Optional[int]
+    timeout : Optional[int]
         This is the time in seconds before the connection to the server will time out.
         The default is None which means no timeout.
         This parameter is forward to redshift_connector.
         https://github.com/aws/amazon-redshift-python-driver
-    max_prepared_statements: int
+    max_prepared_statements : int
         This parameter is forward to redshift_connector.
         https://github.com/aws/amazon-redshift-python-driver
-    tcp_keepalive: bool
+    tcp_keepalive : bool
         If True then use TCP keepalive. The default is True.
         This parameter is forward to redshift_connector.
         https://github.com/aws/amazon-redshift-python-driver
@@ -697,7 +712,7 @@ def read_sql_table(
         List of parameters to pass to execute method.
         The syntax used to pass parameters is database driver dependent.
         Check your database driver documentation for which of the five syntax styles,
-        described in PEP 249’s paramstyle, is supported.
+        described in PEP 249's paramstyle, is supported.
     chunksize : int, optional
         If specified, return an iterator where chunksize is the number of rows to include in each chunk.
     dtype : Dict[str, pyarrow.DataType], optional
@@ -761,6 +776,7 @@ def to_sql(  # pylint: disable=too-many-locals
     lock: bool = False,
     chunksize: int = 200,
     commit_transaction: bool = True,
+    precombine_key: Optional[str] = None,
 ) -> None:
     """Write records stored in a DataFrame into Redshift.
 
@@ -793,7 +809,7 @@ def to_sql(  # pylint: disable=too-many-locals
     index : bool
         True to store the DataFrame index as a column in the table,
         otherwise False to ignore it.
-    dtype: Dict[str, str], optional
+    dtype : Dict[str, str], optional
         Dictionary of columns names and Redshift types to be casted.
         Useful when you have columns with undetermined or mixed data types.
         (e.g. {'col name': 'VARCHAR(10)', 'col2 name': 'FLOAT'})
@@ -819,10 +835,14 @@ def to_sql(  # pylint: disable=too-many-locals
         inserted into the database columns `col1` and `col3`.
     lock : bool
         True to execute LOCK command inside the transaction to force serializable isolation.
-    chunksize: int
+    chunksize : int
         Number of rows which are inserted with each SQL query. Defaults to inserting 200 rows per query.
-    commit_transaction: bool
+    commit_transaction : bool
         Whether to commit the transaction. True by default.
+    precombine_key : str, optional
+        When there is a primary_key match during upsert, this column will change the upsert method,
+        comparing the values of the specified column from source and target, and keeping the
+        larger of the two. Will only work when mode = upsert.
 
     Returns
     -------
@@ -887,7 +907,14 @@ def to_sql(  # pylint: disable=too-many-locals
             if table != created_table:  # upsert
                 if lock:
                     _lock(cursor, [table], schema=schema)
-                _upsert(cursor=cursor, schema=schema, table=table, temp_table=created_table, primary_keys=primary_keys)
+                _upsert(
+                    cursor=cursor,
+                    schema=schema,
+                    table=table,
+                    temp_table=created_table,
+                    primary_keys=primary_keys,
+                    precombine_key=precombine_key,
+                )
             if commit_transaction:
                 con.commit()
     except Exception as ex:
@@ -1071,7 +1098,7 @@ def unload(
 
     Parameters
     ----------
-    sql: str
+    sql : str
         SQL query.
     path : Union[str, List[str]]
         S3 path to write stage files (e.g. s3://bucket_name/any_name/)
@@ -1114,7 +1141,7 @@ def unload(
         If integer is provided, specified number is used.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs:
+    s3_additional_kwargs : Dict[str, str], optional
         Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
 
     Returns
@@ -1206,6 +1233,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     sql_copy_extra_params: Optional[List[str]] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    precombine_key: Optional[str] = None,
 ) -> None:
     """Load Parquet files from S3 to a Table on Amazon Redshift (Through COPY command).
 
@@ -1277,12 +1305,12 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
         Should Wrangler add SERIALIZETOJSON parameter into the COPY command?
         SERIALIZETOJSON is necessary to load nested data
         https://docs.aws.amazon.com/redshift/latest/dg/ingest-super.html#copy_json
-    path_suffix: Union[str, List[str], None]
+    path_suffix : Union[str, List[str], None]
         Suffix or List of suffixes to be scanned on s3 for the schema extraction
         (e.g. [".gz.parquet", ".snappy.parquet"]).
         Only has effect during the table creation.
         If None, will try to read all files. (default)
-    path_ignore_suffix: Union[str, List[str], None]
+    path_ignore_suffix : Union[str, List[str], None]
         Suffix or List of suffixes for S3 keys to be ignored during the schema extraction.
         (e.g. [".csv", "_SUCCESS"]).
         Only has effect during the table creation.
@@ -1293,17 +1321,21 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
         If integer is provided, specified number is used.
     lock : bool
         True to execute LOCK command inside the transaction to force serializable isolation.
-    commit_transaction: bool
+    commit_transaction : bool
         Whether to commit the transaction. True by default.
-    manifest: bool
+    manifest : bool
         If set to true path argument accepts a S3 uri to a manifest file.
-    sql_copy_extra_params: Optional[List[str]]
+    sql_copy_extra_params : Optional[List[str]]
         Additional copy parameters to pass to the command. For example: ["STATUPDATE ON"]
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs:
+    s3_additional_kwargs : Dict[str, str], optional
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
+    precombine_key : str, optional
+        When there is a primary_key match during upsert, this column will change the upsert method,
+        comparing the values of the specified column from source and target, and keeping the
+        larger of the two. Will only work when mode = upsert.
 
     Returns
     -------
@@ -1374,7 +1406,14 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
             if table != created_table:  # upsert
                 if lock:
                     _lock(cursor, [table], schema=schema)
-                _upsert(cursor=cursor, schema=schema, table=table, temp_table=created_table, primary_keys=primary_keys)
+                _upsert(
+                    cursor=cursor,
+                    schema=schema,
+                    table=table,
+                    temp_table=created_table,
+                    primary_keys=primary_keys,
+                    precombine_key=precombine_key,
+                )
             if commit_transaction:
                 con.commit()
     except Exception as ex:
@@ -1440,7 +1479,7 @@ def copy(  # pylint: disable=too-many-arguments
 
     Parameters
     ----------
-    df: pandas.DataFrame
+    df : pandas.DataFrame
         Pandas DataFrame.
     path : str
         S3 path to write stage files (e.g. s3://bucket_name/any_name/).
@@ -1462,12 +1501,12 @@ def copy(  # pylint: disable=too-many-arguments
         The session key for your AWS account. This is only needed when you are using temporary credentials.
     index : bool
         True to store the DataFrame index in file, otherwise False to ignore it.
-    dtype: Dict[str, str], optional
+    dtype : Dict[str, str], optional
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined or mixed data types.
         Only takes effect if dataset=True.
         (e.g. {'col name': 'bigint', 'col2 name': 'int'})
-    mode: str
+    mode : str
         Append, overwrite or upsert.
     overwrite_method : str
         Drop, cascade, truncate, or delete. Only applicable in overwrite mode.
@@ -1477,7 +1516,7 @@ def copy(  # pylint: disable=too-many-arguments
         "truncate" - ``TRUNCATE ...`` - truncates the table, but immediatly commits current
         transaction & starts a new one, hence the overwrite happens in two transactions and is not atomic.
         "delete" - ``DELETE FROM ...`` - deletes all rows from the table. Slow relative to the other methods.
-    diststyle: str
+    diststyle : str
         Redshift distribution styles. Must be in ["AUTO", "EVEN", "ALL", "KEY"].
         https://docs.aws.amazon.com/redshift/latest/dg/t_Distributing_data.html
     distkey : str, optional
@@ -1501,11 +1540,11 @@ def copy(  # pylint: disable=too-many-arguments
         If integer is provided, specified number is used.
     lock : bool
         True to execute LOCK command inside the transaction to force serializable isolation.
-    sql_copy_extra_params: Optional[List[str]]
+    sql_copy_extra_params : Optional[List[str]]
         Additional copy parameters to pass to the command. For example: ["STATUPDATE ON"]
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-    s3_additional_kwargs:
+    s3_additional_kwargs : Dict[str, str], optional
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
     max_rows_by_file : int

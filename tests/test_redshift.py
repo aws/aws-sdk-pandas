@@ -5,6 +5,7 @@ import string
 from decimal import Decimal
 
 import boto3
+import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pytest
@@ -695,6 +696,60 @@ def test_upsert(redshift_table, redshift_con):
     df4 = wr.redshift.read_sql_query(sql=f"SELECT * FROM public.{redshift_table}", con=redshift_con)
     assert len(df.index) + len(df3.index) == len(df4.index)
     assert len(df.columns) == len(df4.columns)
+
+
+def test_upsert_precombine(redshift_table, redshift_con):
+    df = pd.DataFrame({"id": list((range(10))), "val": list([1.0 if i % 2 == 0 else 10.0 for i in range(10)])})
+    df3 = pd.DataFrame({"id": list((range(6, 14))), "val": list([10.0 if i % 2 == 0 else 1.0 for i in range(8)])})
+
+    # Do upsert in pandas
+    df_m = pd.merge(df, df3, on="id", how="outer")
+    df_m["val"] = np.where(df_m["val_y"] >= df_m["val_x"], df_m["val_y"], df_m["val_x"])
+    df_m["val"] = df_m["val"].fillna(df_m["val_y"])
+    df_m = df_m.drop(columns=["val_x", "val_y"])
+
+    # CREATE
+    wr.redshift.to_sql(
+        df=df,
+        con=redshift_con,
+        schema="public",
+        table=redshift_table,
+        mode="overwrite",
+        index=False,
+        primary_keys=["id"],
+    )
+    df2 = wr.redshift.read_sql_query(sql=f"SELECT * FROM public.{redshift_table} order by id", con=redshift_con)
+    assert df.shape == df2.shape
+
+    # UPSERT
+    wr.redshift.to_sql(
+        df=df3,
+        con=redshift_con,
+        schema="public",
+        table=redshift_table,
+        mode="upsert",
+        index=False,
+        primary_keys=["id"],
+        precombine_key="val",
+    )
+    df4 = wr.redshift.read_sql_query(
+        sql=f"SELECT * FROM public.{redshift_table} order by id",
+        con=redshift_con,
+    )
+    assert np.array_equal(df_m.to_numpy(), df4.to_numpy())
+
+    # UPSERT 2
+    wr.redshift.to_sql(
+        df=df3,
+        con=redshift_con,
+        schema="public",
+        table=redshift_table,
+        mode="upsert",
+        index=False,
+        precombine_key="val",
+    )
+    df4 = wr.redshift.read_sql_query(sql=f"SELECT * FROM public.{redshift_table} order by id", con=redshift_con)
+    assert np.array_equal(df_m.to_numpy(), df4.to_numpy())
 
 
 def test_read_retry(redshift_con):
