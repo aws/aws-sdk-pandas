@@ -267,7 +267,7 @@ def _redshift_types_from_path(
     return redshift_types
 
 
-def _create_table(  # pylint: disable=too-many-locals,too-many-arguments
+def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-many-branches,too-many-statements
     df: Optional[pd.DataFrame],
     path: Optional[Union[str, List[str]]],
     con: redshift_connector.Connection,
