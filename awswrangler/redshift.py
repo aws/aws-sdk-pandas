@@ -174,7 +174,7 @@ def _upsert(
     schema: str,
     primary_keys: Optional[List[str]] = None,
     precombine_key: Optional[str] = None,
-    column_names: List[str] = None
+    column_names: Optional[List[str]] = None
 ) -> None:
     if not primary_keys:
         primary_keys = _get_primary_keys(cursor=cursor, schema=schema, table=table)
@@ -908,11 +908,12 @@ def to_sql(  # pylint: disable=too-many-locals
             )
             if index:
                 df.reset_index(level=df.index.names, inplace=True)
-            column_placeholders: str = ", ".join(["%s"] * len(df.columns))
+            column_names = [c for c in df.columns]
+            column_placeholders: str = ", ".join(["%s"] * len(column_names))
             schema_str = f'"{created_schema}".' if created_schema else ""
             insertion_columns = ""
             if use_column_names:
-                insertion_columns = f"({', '.join(df.columns)})"
+                insertion_columns = f"({', '.join(column_names)})"
             placeholder_parameter_pair_generator = _db_utils.generate_placeholder_parameter_pairs(
                 df=df, column_placeholders=column_placeholders, chunksize=chunksize
             )
@@ -928,7 +929,7 @@ def to_sql(  # pylint: disable=too-many-locals
                     temp_table=created_table,
                     primary_keys=primary_keys,
                     precombine_key=precombine_key,
-                    column_names=df.columns
+                    column_names=column_names
                 )
             if commit_transaction:
                 con.commit()
