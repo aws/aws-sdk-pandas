@@ -17,19 +17,11 @@ class RayStack(Stack):  # type: ignore
             "ray-execution-role",
             assumed_by=iam.ServicePrincipal("ec2.amazonaws.com"),
             managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "AmazonEC2FullAccess"
-                ),
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "AmazonS3FullAccess"
-                ),
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "CloudWatchFullAccess"
-                ),
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "AmazonSSMFullAccess"
-                ),
-            ]
+                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonEC2FullAccess"),
+                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonS3FullAccess"),
+                iam.ManagedPolicy.from_aws_managed_policy_name("CloudWatchFullAccess"),
+                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonSSMFullAccess"),
+            ],
         )
 
         # Add IAM pass role for a head instance to launch worker nodes
@@ -41,11 +33,9 @@ class RayStack(Stack):  # type: ignore
             roles=[ray_exec_role],
             statements=[
                 iam.PolicyStatement(
-                    effect=iam.Effect.ALLOW,
-                    actions=["iam:PassRole"],
-                    resources=[ray_exec_role.role_arn]
+                    effect=iam.Effect.ALLOW, actions=["iam:PassRole"], resources=[ray_exec_role.role_arn]
                 ),
-            ]
+            ],
         )
 
         # Add instance profile
@@ -53,5 +43,5 @@ class RayStack(Stack):  # type: ignore
             self,
             "ray-instance-profile",
             roles=[ray_exec_role.role_name],
-            instance_profile_name="ray-cluster-instance-profile"
+            instance_profile_name="ray-cluster-instance-profile",
         )

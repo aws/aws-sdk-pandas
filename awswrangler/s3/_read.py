@@ -11,8 +11,13 @@ from pandas.api.types import union_categoricals
 from pyarrow import Table
 
 from awswrangler import exceptions
+from awswrangler._data_types import pyarrow2pandas_extension
 from awswrangler._utils import boto3_to_primitives, ensure_cpu_count
 from awswrangler.s3._list import _prefix_cleanup
+
+_ray_found = importlib.util.find_spec("ray")
+if _ray_found:
+    from ray.data.impl.arrow_block import ArrowBlockAccessor
 
 _modin_found = importlib.util.find_spec("modin")
 if _modin_found:
@@ -154,3 +159,25 @@ def _read_dfs_from_multiple_paths(
             versions = [version_ids.get(p) if isinstance(version_ids, dict) else None for p in paths]
             return list(df for df in executor.map(partial_read_func, paths, versions))
         return list(df for df in executor.map(partial_read_func, paths))
+
+
+def _block_to_df(
+    block: Any,
+    categories: Optional[List[str]],
+    safe: bool,
+    map_types: bool,
+    timestamp_as_object: bool = False,
+) -> Table:
+    block = ArrowBlockAccessor.for_block(block)
+    return block._table.to_pandas(
+        split_blocks=True,
+        self_destruct=True,
+        integer_object_nulls=False,
+        date_as_object=True,
+        timestamp_as_object=timestamp_as_object,
+        ignore_metadata=True,
+        strings_to_categorical=False,
+        safe=safe,
+        categories=categories,
+        types_mapper=pyarrow2pandas_extension if map_types else None,
+    )
