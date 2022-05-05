@@ -172,6 +172,7 @@ def _upsert(
     table: str,
     temp_table: str,
     schema: str,
+    column_names: List[str],
     primary_keys: Optional[List[str]] = None,
     precombine_key: Optional[str] = None,
 ) -> None:
@@ -199,7 +200,8 @@ def _upsert(
         sql: str = f'DELETE FROM "{schema}"."{table}" USING {temp_table} WHERE {join_clause}'
         _logger.debug(sql)
         cursor.execute(sql)
-    insert_sql = f"INSERT INTO {schema}.{table} SELECT * FROM {temp_table}"
+    column_names_str = ",".join(column_names)
+    insert_sql = f"INSERT INTO {schema}.{table}({column_names_str}) SELECT {column_names_str} FROM {temp_table}"
     _logger.debug(insert_sql)
     cursor.execute(insert_sql)
     _drop_table(cursor=cursor, schema=schema, table=temp_table)
@@ -923,6 +925,7 @@ def to_sql(  # pylint: disable=too-many-locals
                     temp_table=created_table,
                     primary_keys=primary_keys,
                     precombine_key=precombine_key,
+                    column_names=df.columns
                 )
             if commit_transaction:
                 con.commit()
@@ -1418,6 +1421,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
                     temp_table=created_table,
                     primary_keys=primary_keys,
                     precombine_key=precombine_key,
+                    column_names=df.columns
                 )
             if commit_transaction:
                 con.commit()
