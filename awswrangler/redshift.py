@@ -172,9 +172,9 @@ def _upsert(
     table: str,
     temp_table: str,
     schema: str,
-    column_names: List[str],
     primary_keys: Optional[List[str]] = None,
     precombine_key: Optional[str] = None,
+    column_names: List[str] = None
 ) -> None:
     if not primary_keys:
         primary_keys = _get_primary_keys(cursor=cursor, schema=schema, table=table)
@@ -200,8 +200,11 @@ def _upsert(
         sql: str = f'DELETE FROM "{schema}"."{table}" USING {temp_table} WHERE {join_clause}'
         _logger.debug(sql)
         cursor.execute(sql)
-    column_names_str = ",".join(column_names)
-    insert_sql = f"INSERT INTO {schema}.{table}({column_names_str}) SELECT {column_names_str} FROM {temp_table}"
+    if column_names:
+        column_names_str = ",".join(column_names)
+        insert_sql = f"INSERT INTO {schema}.{table}({column_names_str}) SELECT {column_names_str} FROM {temp_table}"
+    else:
+        insert_sql = f"INSERT INTO {schema}.{table} SELECT * FROM {temp_table}"
     _logger.debug(insert_sql)
     cursor.execute(insert_sql)
     _drop_table(cursor=cursor, schema=schema, table=temp_table)
@@ -1420,8 +1423,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
                     table=table,
                     temp_table=created_table,
                     primary_keys=primary_keys,
-                    precombine_key=precombine_key,
-                    column_names=df.columns
+                    precombine_key=precombine_key
                 )
             if commit_transaction:
                 con.commit()
