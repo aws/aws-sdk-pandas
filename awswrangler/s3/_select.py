@@ -16,7 +16,7 @@ from awswrangler import _utils, exceptions
 from awswrangler._distributed import _ray_remote
 from awswrangler.s3._describe import size_objects
 from awswrangler.s3._list import _path2list
-from awswrangler.s3._read import _get_path_ignore_suffix, _read_dfs_from_multiple_paths
+from awswrangler.s3._read import _get_path_ignore_suffix, _read_tables_from_multiple_paths
 
 _ray_found = importlib.util.find_spec("ray")
 if _ray_found:
@@ -198,7 +198,7 @@ def select_query(
     path_suffix: Union[str, List[str], None] = None,
     path_ignore_suffix: Union[str, List[str], None] = None,
     ignore_empty: bool = True,
-    use_threads: Union[bool, int] = False,
+    use_threads: Union[bool, int] = True,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
@@ -336,10 +336,9 @@ def select_query(
         ).to_modin()
     return concat_tables(
         _flatten_list(
-            *_read_dfs_from_multiple_paths(
+            *_read_tables_from_multiple_paths(
                 read_func=_select_query,
                 paths=paths,
-                version_ids=None,
                 use_threads=use_threads,
                 kwargs=args,
             )
