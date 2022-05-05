@@ -1458,6 +1458,7 @@ def copy(  # pylint: disable=too-many-arguments
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     max_rows_by_file: Optional[int] = 10_000_000,
+    precombine_key: Optional[str] = None,
 ) -> None:
     """Load Pandas DataFrame as a Table on Amazon Redshift using parquet files on S3 as stage.
 
@@ -1556,6 +1557,10 @@ def copy(  # pylint: disable=too-many-arguments
         Max number of rows in each file.
         Default is None i.e. dont split the files.
         (e.g. 33554432, 268435456)
+    precombine_key : str, optional
+        When there is a primary_key match during upsert, this column will change the upsert method,
+        comparing the values of the specified column from source and target, and keeping the
+        larger of the two. Will only work when mode = upsert.
 
     Returns
     -------
@@ -1623,6 +1628,7 @@ def copy(  # pylint: disable=too-many-arguments
             boto3_session=session,
             s3_additional_kwargs=s3_additional_kwargs,
             sql_copy_extra_params=sql_copy_extra_params,
+            precombine_key=precombine_key,
         )
     finally:
         if keep_files is False:
