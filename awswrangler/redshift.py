@@ -174,7 +174,7 @@ def _upsert(
     schema: str,
     primary_keys: Optional[List[str]] = None,
     precombine_key: Optional[str] = None,
-    column_names: Optional[List[str]] = None
+    column_names: Optional[List[str]] = None,
 ) -> None:
     if not primary_keys:
         primary_keys = _get_primary_keys(cursor=cursor, schema=schema, table=table)
@@ -929,7 +929,7 @@ def to_sql(  # pylint: disable=too-many-locals
                     temp_table=created_table,
                     primary_keys=primary_keys,
                     precombine_key=precombine_key,
-                    column_names=column_names
+                    column_names=column_names,
                 )
             if commit_transaction:
                 con.commit()
@@ -1424,7 +1424,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
                     table=table,
                     temp_table=created_table,
                     primary_keys=primary_keys,
-                    precombine_key=precombine_key
+                    precombine_key=precombine_key,
                 )
             if commit_transaction:
                 con.commit()
