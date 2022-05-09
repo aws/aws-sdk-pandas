@@ -34,7 +34,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def _get_work_unit_results(
     query_id: str,
     token_work_unit: Tuple[str, int],
-    boto3_session: Optional[boto3.Session],
+    boto3_session: Optional[boto3.Session] = None,
 ) -> Table:
     client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
 
@@ -83,7 +83,6 @@ def _resolve_sql_query(
                 _get_work_unit_results.remote(
                     query_id=query_id,
                     token_work_unit=token_work_unit,
-                    boto3_session=boto3_session,
                 )
                 for token_work_unit in token_work_units
             )
@@ -235,7 +234,8 @@ def read_sql_query(
     ... )
 
     """
-    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
+    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
     commit_trans: bool = False
     if params is None:
         params = {}
@@ -244,7 +244,7 @@ def read_sql_query(
 
     if not any([transaction_id, query_as_of_time]):
         _logger.debug("Neither `transaction_id` nor `query_as_of_time` were specified, starting transaction")
-        transaction_id = start_transaction(read_only=True, boto3_session=boto3_session)
+        transaction_id = start_transaction(read_only=True, boto3_session=session)
         commit_trans = True
     args: Dict[str, Optional[str]] = _catalog_id(
         catalog_id=catalog_id,
@@ -257,7 +257,7 @@ def read_sql_query(
         safe=safe,
         map_types=map_types,
         use_threads=use_threads,
-        boto3_session=boto3_session,
+        boto3_session=session,
     )
     if commit_trans:
         commit_transaction(transaction_id=transaction_id)  # type: ignore

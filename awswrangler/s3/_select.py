@@ -49,7 +49,7 @@ def _flatten_list(
 @_ray_remote
 def _select_object_content(
     args: Dict[str, Any],
-    boto3_session: Optional[boto3.Session],
+    boto3_session: Optional[boto3.Session] = None,
     scan_range: Optional[Tuple[int, int]] = None,
 ) -> Table:
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
@@ -93,7 +93,6 @@ def _paginate_stream(
         return list(
             _select_object_content.remote(
                 args=args,
-                boto3_session=boto3_session,
                 scan_range=scan_range,
             )
             for scan_range in scan_ranges

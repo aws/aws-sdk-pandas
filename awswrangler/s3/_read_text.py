@@ -7,7 +7,6 @@ from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
 import botocore.exceptions
-import modin.pandas
 import pandas.io.parsers
 from pandas.io.common import infer_compression
 
@@ -128,8 +127,8 @@ def _read_text(
     version_id: Optional[Union[str, Dict[str, str]]] = None,
     parallelism: int = 200,
     **pandas_kwargs: Any,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame], ray.data.Dataset[Any], modin.pandas.DataFrame]:
-    ret: Union[pd.DataFrame, Iterator[pd.DataFrame], ray.data.Dataset[Any], modin.pandas.DataFrame]
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ret: Union[pd.DataFrame, Iterator[pd.DataFrame]]
     if _ray_found:
         # Pass complete path for Ray to load partitions as columns
         ret = parser_func(paths=path, parallelism=parallelism)
@@ -206,7 +205,7 @@ def read_csv(
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
     parallelism: int = 200,
     **pandas_kwargs: Any,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame], ray.data.Dataset[Any], modin.pandas.DataFrame]:
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read CSV file(s) from a received S3 prefix or list of S3 objects paths.
 
     This function accepts Unix shell-style wildcards in the path argument.
@@ -359,7 +358,7 @@ def read_fwf(
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
     parallelism: int = 200,
     **pandas_kwargs: Any,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame], ray.data.Dataset[Any], modin.pandas.DataFrame]:
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read fixed-width formatted file(s) from a received S3 prefix or list of S3 objects paths.
 
     This function accepts Unix shell-style wildcards in the path argument.
@@ -513,7 +512,7 @@ def read_json(
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
     parallelism: int = 200,
     **pandas_kwargs: Any,
-) -> Union[pd.DataFrame, Iterator[pd.DataFrame], ray.data.Dataset[Any], modin.pandas.DataFrame]:
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read JSON file(s) from a received S3 prefix or list of S3 objects paths.
 
     This function accepts Unix shell-style wildcards in the path argument.
