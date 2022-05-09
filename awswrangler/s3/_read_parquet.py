@@ -3,6 +3,7 @@
 import concurrent.futures
 import datetime
 import functools
+import importlib.util
 import itertools
 import json
 import logging
@@ -11,7 +12,6 @@ import warnings
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, Union, cast
 
 import boto3
-import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet
 
@@ -23,6 +23,7 @@ from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import (
     _apply_partition_filter,
     _apply_partitions,
+    _block_to_df,
     _extract_partitions_dtypes_from_table_details,
     _extract_partitions_metadata_from_paths,
     _get_path_ignore_suffix,
@@ -30,6 +31,18 @@ from awswrangler.s3._read import (
     _read_dfs_from_multiple_paths,
     _union,
 )
+
+_ray_found = importlib.util.find_spec("ray")
+if _ray_found:
+    import ray
+    from ray.data.impl.remote_fn import cached_remote_fn
+
+_modin_found = importlib.util.find_spec("modin")
+if _modin_found:
+    import modin.pandas as pd
+    from modin.distributed.dataframe.pandas.partitions import from_partitions
+else:
+    import pandas as pd
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -571,6 +584,7 @@ def read_parquet(
     last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    parallelism: int = 200,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read Apache Parquet file(s) from a received S3 prefix or list of S3 objects paths.
@@ -673,6 +687,9 @@ def read_parquet(
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
+    parallelism : int
+        The requested parallelism of the read. Parallelism may be limited by the number of files of the dataset.
+        200 by default.
     pyarrow_additional_kwargs : Optional[Dict[str, Any]]
         Forward to the ParquetFile class or converting an Arrow table to Pandas, currently only an
         "coerce_int96_timestamp_unit" or "timestamp_as_object" argument will be considered. If reading parquet
@@ -755,6 +772,25 @@ def read_parquet(
         "pyarrow_additional_kwargs": pyarrow_additional_kwargs,
     }
     _logger.debug("args:\n%s", pprint.pformat(args))
+
+    if _ray_found:
+        ds = ray.data.read_parquet(paths=paths, parallelism=parallelism)
+        if _modin_found:
+            pyarrow_args = _set_default_pyarrow_additional_kwargs(pyarrow_additional_kwargs)
+            block_to_df = cached_remote_fn(_block_to_df)
+            pd_objs = [
+                block_to_df.remote(
+                    block,
+                    safe=safe,
+                    categories=categories,
+                    map_types=map_types,
+                    timestamp_as_object=pyarrow_args["timestamp_as_object"],
+                )
+                for block in ds.get_internal_block_refs()
+            ]
+            return from_partitions(pd_objs, axis=0)
+        return ds
+
     if chunked is not False:
         return _read_parquet_chunked(
             paths=paths,

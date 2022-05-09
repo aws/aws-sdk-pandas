@@ -1,17 +1,29 @@
 """Amazon S3 Read Module (PRIVATE)."""
 
 import concurrent.futures
+import importlib.util
 import logging
 from functools import partial
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union, cast
 
 import numpy as np
-import pandas as pd
 from pandas.api.types import union_categoricals
+from pyarrow import Table
 
 from awswrangler import exceptions
+from awswrangler._data_types import pyarrow2pandas_extension
 from awswrangler._utils import boto3_to_primitives, ensure_cpu_count
 from awswrangler.s3._list import _prefix_cleanup
+
+_ray_found = importlib.util.find_spec("ray")
+if _ray_found:
+    from ray.data.impl.arrow_block import ArrowBlockAccessor
+
+_modin_found = importlib.util.find_spec("modin")
+if _modin_found:
+    import modin.pandas as pd
+else:
+    import pandas as pd
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -143,3 +155,41 @@ def _read_dfs_from_multiple_paths(
         partial_read_func = partial(read_func, **kwargs)
         versions = [version_ids.get(p) if isinstance(version_ids, dict) else None for p in paths]
         return list(df for df in executor.map(partial_read_func, paths, versions))
+
+
+def _read_tables_from_multiple_paths(
+    read_func: Callable[..., pd.DataFrame],
+    paths: List[str],
+    use_threads: Union[bool, int],
+    kwargs: Dict[str, Any],
+) -> List[Table]:
+    cpus = ensure_cpu_count(use_threads)
+    if cpus < 2:
+        return [read_func(path, **kwargs) for path in paths]
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=ensure_cpu_count(use_threads)) as executor:
+        kwargs["boto3_session"] = boto3_to_primitives(kwargs["boto3_session"])
+        partial_read_func = partial(read_func, **kwargs)
+        return list(tb for tb in executor.map(partial_read_func, paths))
+
+
+def _block_to_df(
+    block: Any,
+    categories: Optional[List[str]],
+    safe: bool,
+    map_types: bool,
+    timestamp_as_object: bool = False,
+) -> Table:
+    block = ArrowBlockAccessor.for_block(block)
+    return block._table.to_pandas(
+        split_blocks=True,
+        self_destruct=True,
+        integer_object_nulls=False,
+        date_as_object=True,
+        timestamp_as_object=timestamp_as_object,
+        ignore_metadata=True,
+        strings_to_categorical=False,
+        safe=safe,
+        categories=categories,
+        types_mapper=pyarrow2pandas_extension if map_types else None,
+    )

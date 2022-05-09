@@ -14,6 +14,7 @@ import boto3
 import botocore.config
 import numpy as np
 import pandas as pd
+import pyarrow as pa
 
 from awswrangler import _config, exceptions
 from awswrangler.__metadata__ import __version__
@@ -401,3 +402,28 @@ def check_schema_changes(columns_types: Dict[str, str], table_input: Optional[Di
                     f"Schema change detected: Data type change on column {c} "
                     f"(Old type: {catalog_cols[c]} / New type {t})."
                 )
+
+
+def pylist_to_arrow(
+    cls: Union[pa.Table, pa.RecordBatch],
+    mapping: List[Dict[str, Any]],
+    schema: Optional[pa.Schema] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> Union[pa.Table, pa.RecordBatch]:
+    """Construct a Table/RecordBatch from list of rows / dictionaries."""
+    arrays = []
+    if schema is None:
+        names = []
+        if mapping:
+            names = list(mapping[0].keys())
+        for n in names:
+            v = [row[n] if n in row else None for row in mapping]
+            arrays.append(v)
+        return cls.from_arrays(arrays, names, metadata=metadata)
+    if isinstance(schema, pa.Schema):
+        for n in schema.names:
+            v = [row[n] if n in row else None for row in mapping]
+            arrays.append(v)
+        # Will raise if metadata is not None
+        return cls.from_arrays(arrays, schema=schema, metadata=metadata)
+    raise TypeError("Schema must be an instance of pyarrow.Schema")

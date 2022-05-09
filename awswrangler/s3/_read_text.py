@@ -1,12 +1,12 @@
 """Amazon S3 Read Module (PRIVATE)."""
 import datetime
+import importlib.util
 import logging
 import pprint
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
 import botocore.exceptions
-import pandas as pd
 import pandas.io.parsers
 from pandas.io.common import infer_compression
 
@@ -21,6 +21,17 @@ from awswrangler.s3._read import (
     _read_dfs_from_multiple_paths,
     _union,
 )
+
+_ray_found = importlib.util.find_spec("ray")
+if _ray_found:
+    import ray
+
+_modin_found = importlib.util.find_spec("modin")
+if _modin_found:
+    import modin.pandas as pd
+else:
+    import pandas as pd
+
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -114,8 +125,18 @@ def _read_text(
     partition_filter: Optional[Callable[[Dict[str, str]], bool]],
     ignore_index: bool,
     version_id: Optional[Union[str, Dict[str, str]]] = None,
+    parallelism: int = 200,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ret: Union[pd.DataFrame, Iterator[pd.DataFrame]]
+    if _ray_found:
+        # Pass complete path for Ray to load partitions as columns
+        ret = parser_func(paths=path, parallelism=parallelism)
+        if partition_filter:
+            ret = ret.filter(fn=partition_filter)
+        if _modin_found:
+            ret = ret.to_modin()
+        return ret
     if "iterator" in pandas_kwargs:
         raise exceptions.InvalidArgument("Please, use the chunksize argument instead of iterator.")
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
@@ -146,7 +167,6 @@ def _read_text(
         "use_threads": use_threads,
     }
     _logger.debug("args:\n%s", pprint.pformat(args))
-    ret: Union[pd.DataFrame, Iterator[pd.DataFrame]]
     if chunksize is not None:
         ret = _read_text_chunked(
             paths=paths, version_ids=version_id if isinstance(version_id, dict) else None, chunksize=chunksize, **args
@@ -183,6 +203,7 @@ def read_csv(
     chunksize: Optional[int] = None,
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
+    parallelism: int = 200,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read CSV file(s) from a received S3 prefix or list of S3 objects paths.
@@ -248,6 +269,9 @@ def read_csv(
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
         https://aws-data-wrangler.readthedocs.io/en/2.15.1/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+    parallelism : int
+        The requested parallelism of the read. Parallelism may be limited by the number of files of the dataset.
+        200 by default
     pandas_kwargs :
         KEYWORD arguments forwarded to pandas.read_csv(). You can NOT pass `pandas_kwargs` explicit, just add valid
         Pandas arguments in the function call and Wrangler will accept it.
@@ -298,7 +322,7 @@ def read_csv(
         )
     ignore_index: bool = "index_col" not in pandas_kwargs
     return _read_text(
-        parser_func=pd.read_csv,
+        parser_func=ray.data.read_csv if _ray_found else pd.read_csv,
         path=path,
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,
@@ -313,6 +337,7 @@ def read_csv(
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
         ignore_index=ignore_index,
+        parallelism=parallelism,
         **pandas_kwargs,
     )
 
@@ -331,6 +356,7 @@ def read_fwf(
     chunksize: Optional[int] = None,
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
+    parallelism: int = 200,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read fixed-width formatted file(s) from a received S3 prefix or list of S3 objects paths.
@@ -396,6 +422,9 @@ def read_fwf(
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
         https://aws-data-wrangler.readthedocs.io/en/2.15.1/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+    parallelism : int
+        The requested parallelism of the read. Parallelism may be limited by the number of files of the dataset.
+        200 by default
     pandas_kwargs:
         KEYWORD arguments forwarded to pandas.read_fwf(). You can NOT pass `pandas_kwargs` explicit, just add valid
         Pandas arguments in the function call and Wrangler will accept it.
@@ -445,7 +474,7 @@ def read_fwf(
             "e.g. wr.s3.read_fwf(path, widths=[1, 3], names=['c0', 'c1'])"
         )
     return _read_text(
-        parser_func=pd.read_fwf,
+        parser_func=ray.data.read_text if _ray_found else pd.read_fwf,
         path=path,
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,
@@ -461,6 +490,7 @@ def read_fwf(
         last_modified_end=last_modified_end,
         ignore_index=True,
         sort_index=False,
+        parallelism=parallelism,
         **pandas_kwargs,
     )
 
@@ -480,6 +510,7 @@ def read_json(
     chunksize: Optional[int] = None,
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
+    parallelism: int = 200,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read JSON file(s) from a received S3 prefix or list of S3 objects paths.
@@ -548,6 +579,9 @@ def read_json(
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
         https://aws-data-wrangler.readthedocs.io/en/2.15.1/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+    parallelism : int
+        The requested parallelism of the read. Parallelism may be limited by the number of files of the dataset.
+        200 by default.
     pandas_kwargs:
         KEYWORD arguments forwarded to pandas.read_json(). You can NOT pass `pandas_kwargs` explicit, just add valid
         Pandas arguments in the function call and Wrangler will accept it.
@@ -601,7 +635,7 @@ def read_json(
     pandas_kwargs["orient"] = orient
     ignore_index: bool = orient not in ("split", "index", "columns")
     return _read_text(
-        parser_func=pd.read_json,
+        parser_func=ray.data.read_json if _ray_found else pd.read_json,
         path=path,
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,
@@ -616,5 +650,6 @@ def read_json(
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
         ignore_index=ignore_index,
+        parallelism=parallelism,
         **pandas_kwargs,
     )

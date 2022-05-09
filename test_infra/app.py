@@ -4,6 +4,7 @@ from stacks.base_stack import BaseStack
 from stacks.databases_stack import DatabasesStack
 from stacks.lakeformation_stack import LakeFormationStack
 from stacks.opensearch_stack import OpenSearchStack
+from stacks.ray_stack import RayStack
 
 app = App()
 
@@ -26,5 +27,7 @@ OpenSearchStack(
     base.get_bucket,
     base.get_key,
 )
+
+RayStack(app, "aws-data-wrangler-ray")
 
 app.synth()
