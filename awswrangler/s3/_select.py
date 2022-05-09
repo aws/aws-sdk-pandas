@@ -330,9 +330,12 @@ def select_query(
     _logger.debug("args:\n%s", pprint.pformat(args))
 
     if _ray_found:
-        return ray.data.from_arrow_refs(
+        ds = ray.data.from_arrow_refs(
             _flatten_list(*ray.get([_select_query.remote(path=path, **args) for path in paths]))
-        ).to_modin()
+        )
+        if _modin_found:
+            return ds.to_modin()
+        return ds
     return concat_tables(
         _flatten_list(
             *_read_tables_from_multiple_paths(
