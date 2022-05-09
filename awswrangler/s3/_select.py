@@ -236,7 +236,7 @@ def select_query(
     ignore_empty: bool
         Ignore files with 0 bytes.
     use_threads : Union[bool, int]
-        True to enable concurrent requests, False to disable multiple threads.
+        True (default) to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() is used as the max number of threads.
         If integer is provided, specified number is used.
     last_modified_begin: datetime, optional
@@ -272,7 +272,7 @@ def select_query(
     ...     compression="gzip",
     ... )
 
-    Reading an entire CSV object using threads
+    Reading an entire CSV object
 
     >>> import awswrangler as wr
     >>> df = wr.s3.select_query(
@@ -283,7 +283,6 @@ def select_query(
     ...         'FileHeaderInfo': 'Use',
     ...         'RecordDelimiter': '\r\n'
     ...     },
-    ...     use_threads=True,
     ... )
 
     Reading a single column from Parquet object with pushdown filter
