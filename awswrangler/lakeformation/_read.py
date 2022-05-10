@@ -17,8 +17,9 @@ from awswrangler.s3._read import _block_to_df
 
 _ray_found = importlib.util.find_spec("ray")
 if _ray_found:
-    import ray
     from ray.data.impl.remote_fn import cached_remote_fn
+
+    import ray
 
 _modin_found = importlib.util.find_spec("modin")
 if _modin_found:
