@@ -17,6 +17,7 @@ import pyarrow.parquet
 
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._config import apply_configs
+from awswrangler._distributed import to_modin
 from awswrangler.catalog._get import _get_partitions
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._list import _path2list
@@ -777,18 +778,13 @@ def read_parquet(
         ds = ray.data.read_parquet(paths=paths, parallelism=parallelism)
         if _modin_found:
             pyarrow_args = _set_default_pyarrow_additional_kwargs(pyarrow_additional_kwargs)
-            block_to_df = cached_remote_fn(_block_to_df)
-            pd_objs = [
-                block_to_df.remote(
-                    block,
-                    safe=safe,
-                    categories=categories,
-                    map_types=map_types,
-                    timestamp_as_object=pyarrow_args["timestamp_as_object"],
-                )
-                for block in ds.get_internal_block_refs()
-            ]
-            return from_partitions(pd_objs, axis=0)
+            return to_modin(
+                ds,
+                safe=safe,
+                categories=categories,
+                map_types=map_types,
+                timestamp_as_object=pyarrow_args["timestamp_as_object"],
+            )
         return ds
 
     if chunked is not False:

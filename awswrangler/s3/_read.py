@@ -175,9 +175,9 @@ def _read_tables_from_multiple_paths(
 
 def _block_to_df(
     block: Any,
-    categories: Optional[List[str]],
-    safe: bool,
-    map_types: bool,
+    categories: Optional[List[str]] = None,
+    safe: Optional[bool] = None,
+    map_types: Optional[bool] = None,
     timestamp_as_object: bool = False,
 ) -> Table:
     block = ArrowBlockAccessor.for_block(block)

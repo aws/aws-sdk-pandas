@@ -1,6 +1,7 @@
 """Amazon Redshift Module."""
 # pylint: disable=too-many-lines
 
+import importlib.util
 import json
 import logging
 import uuid
@@ -8,7 +9,6 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
 import botocore
-import pandas as pd
 import pyarrow as pa
 import redshift_connector
 
@@ -16,6 +16,19 @@ from awswrangler import _data_types
 from awswrangler import _databases as _db_utils
 from awswrangler import _utils, exceptions, s3
 from awswrangler._config import apply_configs
+from awswrangler._distributed import to_modin
+
+_ray_found = importlib.util.find_spec("ray")
+if _ray_found:
+    import ray
+
+_modin_found = importlib.util.find_spec("modin")
+if _modin_found:
+    import modin
+    import modin.pandas as pd
+else:
+    import pandas as pd
+
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -602,6 +615,10 @@ def read_sql_query(
     dtype: Optional[Dict[str, pa.DataType]] = None,
     safe: bool = True,
     timestamp_as_object: bool = False,
+    unload_path: Optional[str] = None,
+    unload_manifest: bool = False,
+    unload_max_file_size: Optional[float] = None,
+    parallelism: int = 200,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Return a DataFrame corresponding to the result set of the query string.
 
@@ -652,6 +669,25 @@ def read_sql_query(
 
     """
     _validate_connection(con=con)
+    if _ray_found:
+        if not unload_path:
+            raise exceptions.InvalidArgumentValue("<unload_path> argument must be provided when using Ray")
+        unload_to_files(
+            sql=sql,
+            path=unload_path,
+            con=con,
+            unload_format="PARQUET",
+            manifest=unload_manifest,
+            max_file_size=unload_max_file_size,
+        )
+        ds = ray.data.read_datasource(
+            ray.data.datasource.ParquetDatasource(),
+            parallelism=parallelism,
+            paths=_get_paths_from_manifest(f"{unload_path}manifest") if unload_manifest else unload_path,
+        )
+        if _modin_found:
+            return to_modin(ds, safe=safe, timestamp_as_object=timestamp_as_object)
+        return ds
     return _db_utils.read_sql_query(
         sql=sql,
         con=con,
@@ -674,6 +710,10 @@ def read_sql_table(
     dtype: Optional[Dict[str, pa.DataType]] = None,
     safe: bool = True,
     timestamp_as_object: bool = False,
+    unload_path: Optional[str] = None,
+    unload_manifest: bool = False,
+    unload_max_file_size: Optional[float] = None,
+    parallelism: int = 200,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Return a DataFrame corresponding the table.
 
@@ -737,6 +777,10 @@ def read_sql_table(
         dtype=dtype,
         safe=safe,
         timestamp_as_object=timestamp_as_object,
+        unload_path=unload_path,
+        unload_manifest=unload_manifest,
+        unload_max_file_size=unload_max_file_size,
+        parallelism=parallelism,
     )
 
 

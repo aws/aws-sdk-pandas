@@ -5,9 +5,11 @@ import multiprocessing
 import os
 import sys
 import warnings
-from typing import Any, Callable
+from typing import Any, Callable, Dict, Optional
 
 import psutil
+
+from awswrangler.s3._read import _block_to_df
 
 _ray_found = importlib.util.find_spec("ray")
 if _ray_found:
@@ -82,3 +84,11 @@ def _initialize_ray() -> None:
                 "_memory": object_store_memory,
             }
             ray.init(**ray_init_kwargs)
+
+
+def to_modin(ds: ray.data.Dataset[Any], **pandas_kwargs: Any) -> Any:
+    from modin.distributed.dataframe.pandas.partitions import from_partitions
+
+    block_to_df = ray.data.impl.remote_fn.cached_remote_fn(_block_to_df)
+    pd_objs = [block_to_df.remote(block, **pandas_kwargs) for block in ds.get_internal_block_refs()]
+    return from_partitions(pd_objs, axis=0)
