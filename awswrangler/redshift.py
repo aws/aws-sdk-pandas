@@ -265,6 +265,7 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    columns: Optional[List[str]] = None,
 ) -> Tuple[str, Optional[str]]:
     if mode == "overwrite":
         if overwrite_method == "truncate":
@@ -290,7 +291,10 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments
         if mode == "upsert":
             guid: str = uuid.uuid4().hex
             temp_table: str = f"temp_redshift_{guid}"
-            sql: str = f'CREATE TEMPORARY TABLE {temp_table} (LIKE "{schema}"."{table}")'
+            sql = f'CREATE TEMPORARY TABLE {temp_table} (LIKE "{schema}"."{table}")'
+            if columns:
+                col_names_str = ",".join(columns)
+                sql = f'CREATE TEMPORARY TABLE {temp_table} AS SELECT {col_names_str} FROM "{schema}"."{table}" LIMIT 0'
             _logger.debug(sql)
             cursor.execute(sql)
             return temp_table, None
@@ -1327,6 +1331,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
                 use_threads=use_threads,
                 boto3_session=boto3_session,
                 s3_additional_kwargs=s3_additional_kwargs,
+                columns=columns,
             )
             if lock and table == created_table:
                 # Lock before copy if copying into target (not temp) table
