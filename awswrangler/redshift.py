@@ -157,6 +157,7 @@ def _upsert(
     temp_table: str,
     schema: str,
     primary_keys: Optional[List[str]] = None,
+    columns: Optional[List[str]] = None,
 ) -> None:
     if not primary_keys:
         primary_keys = _get_primary_keys(cursor=cursor, schema=schema, table=table)
@@ -168,7 +169,11 @@ def _upsert(
     sql: str = f'DELETE FROM "{schema}"."{table}" USING {temp_table} WHERE {join_clause}'
     _logger.debug(sql)
     cursor.execute(sql)
-    sql = f"INSERT INTO {schema}.{table} SELECT * FROM {temp_table}"
+    if columns:
+        columns_str = ",".join(columns)
+        sql = f"INSERT INTO {schema}.{table} ({columns_str}) SELECT {columns_str} FROM {temp_table}"
+    else:
+        sql = f"INSERT INTO {schema}.{table} SELECT * FROM {temp_table}"
     _logger.debug(sql)
     cursor.execute(sql)
     _drop_table(cursor=cursor, schema=schema, table=temp_table)
@@ -1177,6 +1182,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     commit_transaction: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    columns: Optional[List[str]] = None,
 ) -> None:
     """Load Parquet files from S3 to a Table on Amazon Redshift (Through COPY command).
 
@@ -1271,6 +1277,8 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     s3_additional_kwargs:
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
+    columns : List[str], optional
+        List of column names to be loaded in UPSERT mode
 
     Returns
     -------
@@ -1338,7 +1346,14 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
             if table != created_table:  # upsert
                 if lock:
                     _lock(cursor, [table], schema=schema)
-                _upsert(cursor=cursor, schema=schema, table=table, temp_table=created_table, primary_keys=primary_keys)
+                _upsert(
+                    cursor=cursor,
+                    schema=schema,
+                    table=table,
+                    temp_table=created_table,
+                    primary_keys=primary_keys,
+                    columns=columns,
+                )
             if commit_transaction:
                 con.commit()
     except Exception as ex:
@@ -1377,6 +1392,7 @@ def copy(  # pylint: disable=too-many-arguments
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     max_rows_by_file: Optional[int] = 10_000_000,
+    columns: Optional[List[str]] = None,
 ) -> None:
     """Load Pandas DataFrame as a Table on Amazon Redshift using parquet files on S3 as stage.
 
@@ -1473,6 +1489,8 @@ def copy(  # pylint: disable=too-many-arguments
         Max number of rows in each file.
         Default is None i.e. dont split the files.
         (e.g. 33554432, 268435456)
+    columns : List[str], optional
+        List of column names to load into Redshift
 
     Returns
     -------
@@ -1539,6 +1557,7 @@ def copy(  # pylint: disable=too-many-arguments
             lock=lock,
             boto3_session=session,
             s3_additional_kwargs=s3_additional_kwargs,
+            columns=columns,
         )
     finally:
         if keep_files is False:
