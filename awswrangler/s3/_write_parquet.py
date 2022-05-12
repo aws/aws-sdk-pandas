@@ -1,5 +1,6 @@
 """Amazon PARQUET S3 Parquet Write Module (PRIVATE)."""
 
+import importlib.util
 import logging
 import math
 import uuid
@@ -7,7 +8,6 @@ from contextlib import contextmanager
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
-import pandas as pd
 import pyarrow as pa
 import pyarrow.lib
 import pyarrow.parquet
@@ -17,9 +17,16 @@ from awswrangler._config import apply_configs
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._read_parquet import _read_parquet_metadata
-from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
+from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _df_to_dataset, _sanitize, _validate_args
 from awswrangler.s3._write_concurrent import _WriteProxy
 from awswrangler.s3._write_dataset import _to_dataset
+
+_ray_found = importlib.util.find_spec("ray")
+_modin_found = importlib.util.find_spec("modin")
+if _modin_found:
+    import modin.pandas as pd
+else:
+    import pandas as pd
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -155,37 +162,40 @@ def _to_parquet(
     else:
         raise RuntimeError("path and path_root received at the same time.")
     _logger.debug("file_path: %s", file_path)
-    table: pa.Table = pyarrow.Table.from_pandas(df=df, schema=schema, nthreads=cpus, preserve_index=index, safe=True)
-    for col_name, col_type in dtype.items():
-        if col_name in table.column_names:
-            col_index = table.column_names.index(col_name)
-            pyarrow_dtype = _data_types.athena2pyarrow(col_type)
-            field = pa.field(name=col_name, type=pyarrow_dtype)
-            table = table.set_column(col_index, field, table.column(col_name).cast(pyarrow_dtype))
-            _logger.debug("Casting column %s (%s) to %s (%s)", col_name, col_index, col_type, pyarrow_dtype)
+    dataset = _df_to_dataset(df=df, schema=schema, index=index, dtype=dtype, nthreads=cpus)
+    paths: List[str]
     if max_rows_by_file is not None and max_rows_by_file > 0:
-        paths: List[str] = _to_parquet_chunked(
-            file_path=file_path,
-            boto3_session=boto3_session,
-            s3_additional_kwargs=s3_additional_kwargs,
-            compression=compression,
-            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
-            table=table,
-            max_rows_by_file=max_rows_by_file,
-            num_of_rows=df.shape[0],
-            cpus=cpus,
-        )
+        if _ray_found:
+            dataset.repartition(math.ceil(dataset.count() / max_rows_by_file)).write_parquet(
+                path_root if path_root else path
+            )
+            paths = []
+        else:
+            paths = _to_parquet_chunked(
+                file_path=file_path,
+                boto3_session=boto3_session,
+                s3_additional_kwargs=s3_additional_kwargs,
+                compression=compression,
+                pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+                table=dataset,
+                max_rows_by_file=max_rows_by_file,
+                num_of_rows=df.shape[0],
+                cpus=cpus,
+            )
     else:
-        with _new_writer(
-            file_path=file_path,
-            compression=compression,
-            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
-            schema=table.schema,
-            boto3_session=boto3_session,
-            s3_additional_kwargs=s3_additional_kwargs,
-            use_threads=use_threads,
-        ) as writer:
-            writer.write_table(table)
+        if _ray_found:
+            dataset.repartition(1).write_parquet(file_path)
+        else:
+            with _new_writer(
+                file_path=file_path,
+                compression=compression,
+                pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+                schema=dataset.schema,
+                boto3_session=boto3_session,
+                s3_additional_kwargs=s3_additional_kwargs,
+                use_threads=use_threads,
+            ) as writer:
+                writer.write_table(dataset)
         paths = [file_path]
     return paths
 

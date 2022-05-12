@@ -1,11 +1,32 @@
 """Amazon CSV S3 Write Module (PRIVATE)."""
 
+import importlib.util
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-import pandas as pd
+import pyarrow as pa
 
 from awswrangler import _data_types, _utils, catalog, exceptions
+
+_ray_found = importlib.util.find_spec("ray")
+if _ray_found:
+    from ray.data.block import Block, BlockAccessor, BlockExecStats
+    from ray.data.dataset import Dataset
+    from ray.data.impl.arrow_block import ArrowRow
+    from ray.data.impl.block_list import BlockList
+    from ray.data.impl.plan import ExecutionPlan
+    from ray.data.impl.remote_fn import cached_remote_fn
+    from ray.data.impl.stats import DatasetStats
+    from ray.types import ObjectRef
+
+    import ray
+
+_modin_found = importlib.util.find_spec("modin")
+if _modin_found:
+    import modin.pandas as pd
+    from modin.distributed.dataframe.pandas.partitions import unwrap_partitions
+else:
+    import pandas as pd
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -99,3 +120,72 @@ def _sanitize(
     dtype = {catalog.sanitize_column_name(k): v.lower() for k, v in dtype.items()}
     _utils.check_duplicated_columns(df=df)
     return df, dtype, partition_cols
+
+
+def _df_to_block(
+    df: pd.DataFrame,
+    schema: pa.Schema,
+    index: bool,
+    dtype: Dict[str, str],
+    nthreads: Optional[int] = None,
+) -> Union[pa.Table, "Block[ArrowRow]"]:
+    block = pa.Table.from_pandas(df=df, schema=schema, nthreads=nthreads, preserve_index=index, safe=True)
+    for col_name, col_type in dtype.items():
+        if col_name in block.column_names:
+            col_index = block.column_names.index(col_name)
+            pyarrow_dtype = _data_types.athena2pyarrow(col_type)
+            field = pa.field(name=col_name, type=pyarrow_dtype)
+            block = block.set_column(col_index, field, block.column(col_name).cast(pyarrow_dtype))
+            _logger.debug("Casting column %s (%s) to %s (%s)", col_name, col_index, col_type, pyarrow_dtype)
+    if _ray_found:
+        return (
+            block,
+            BlockAccessor.for_block(block).get_metadata(input_files=None, exec_stats=BlockExecStats.builder().build()),
+        )
+    return block
+
+
+def _from_pandas_refs(
+    dfs: Union["ObjectRef[pd.DataFrame]", List["ObjectRef[pd.DataFrame]"]],
+    schema: pa.Schema,
+    index: bool,
+    dtype: Dict[str, str],
+) -> "Dataset[ArrowRow]":
+    if isinstance(dfs, ray.ObjectRef):
+        dfs = [dfs]  # type: ignore
+    elif isinstance(dfs, list):
+        for df in dfs:
+            if not isinstance(df, ray.ObjectRef):
+                raise ValueError("Expected list of Ray object refs, " f"got list containing {type(df)}")
+    else:
+        raise ValueError("Expected Ray object ref or list of Ray object refs, " f"got {type(df)}")
+
+    df_to_block = cached_remote_fn(_df_to_block, num_returns=2)
+
+    res = [df_to_block.remote(df, schema, index, dtype) for df in dfs]
+    blocks, metadata = zip(*res)
+    return Dataset(
+        ExecutionPlan(
+            BlockList(blocks, ray.get(list(metadata))),
+            DatasetStats(stages={"from_pandas_refs": metadata}, parent=None),
+        ),
+        0,
+        False,
+    )
+
+
+def _df_to_dataset(
+    df: pd.DataFrame,
+    schema: pa.Schema,
+    index: bool,
+    dtype: Dict[str, str],
+    nthreads: Optional[int] = None,
+) -> Union[pa.Table, "Dataset[ArrowRow]"]:
+    if _ray_found:
+        return _from_pandas_refs(
+            dfs=unwrap_partitions(df, axis=0) if _modin_found else [ray.put(df)],
+            schema=schema,
+            index=index,
+            dtype=dtype,
+        )
+    return _df_to_block(df=df, schema=schema, index=index, dtype=dtype, nthreads=nthreads)
