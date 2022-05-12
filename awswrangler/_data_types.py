@@ -467,7 +467,14 @@ def pyarrow_types_from_pandas(
     # Filling indexes
     indexes: List[str] = []
     if index is True:
-        for field in pa.Schema.from_pandas(df=df[[]], preserve_index=True):
+        try:
+            fields = pa.Schema.from_pandas(df=df[[]], preserve_index=True)
+        except AttributeError as ae:
+            if "'Index' object has no attribute 'head'" not in str(ae):
+                raise ae
+            # Get index fields from a new df with only index columns
+            fields = pa.Schema.from_pandas(df=df.reset_index().drop(columns=cols), preserve_index=False)
+        for field in fields:
             name = str(field.name)
             _logger.debug("Inferring PyArrow type from index: %s", name)
             cols_dtypes[name] = field.type
