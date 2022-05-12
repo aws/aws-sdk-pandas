@@ -5,7 +5,6 @@ SECONDS=0
 
 set -e
 
-
 ./validate.sh
 mkdir -p test-reports
 tox -e ${versions} -- ${posargs}
