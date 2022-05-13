@@ -11,6 +11,10 @@ from awswrangler import exceptions, lakeformation
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._write_concurrent import _WriteProxy
 
+_ray_found = importlib.util.find_spec("ray")
+if _ray_found:
+    import ray
+
 _modin_found = importlib.util.find_spec("modin")
 if _modin_found:
     import modin.pandas as pd
@@ -18,6 +22,12 @@ else:
     import pandas as pd
 
 _logger: logging.Logger = logging.getLogger(__name__)
+
+
+def _get_subgroup_prefix(keys: Any, partition_cols: List[str], path_root: str) -> str:
+    keys = (keys,) if not isinstance(keys, tuple) else keys
+    subdir = "/".join([f"{name}={val}" for name, val in zip(partition_cols, keys)])
+    return f"{path_root}{subdir}/"
 
 
 def _to_partitions(
@@ -42,11 +52,11 @@ def _to_partitions(
     partitions_values: Dict[str, List[str]] = {}
     proxy: _WriteProxy = _WriteProxy(use_threads=concurrent_partitioning)
 
-    for keys, subgroup in df.groupby(by=partition_cols, observed=True):
-        subgroup = subgroup.drop(partition_cols, axis="columns")
+    df_groups = df.groupby(by=partition_cols, observed=True)
+
+    for keys in list(df_groups.groups):
         keys = (keys,) if not isinstance(keys, tuple) else keys
-        subdir = "/".join([f"{name}={val}" for name, val in zip(partition_cols, keys)])
-        prefix: str = f"{path_root}{subdir}/"
+        prefix = _get_subgroup_prefix(keys, partition_cols, path_root)
         if mode == "overwrite_partitions":
             if (table_type == "GOVERNED") and (table is not None) and (database is not None):
                 del_objects: List[
@@ -77,30 +87,50 @@ def _to_partitions(
                     boto3_session=boto3_session,
                     s3_additional_kwargs=func_kwargs.get("s3_additional_kwargs"),
                 )
-        if bucketing_info:
-            _to_buckets(
-                func=func,
-                df=subgroup,
-                path_root=prefix,
-                bucketing_info=bucketing_info,
-                boto3_session=boto3_session,
-                use_threads=use_threads,
-                proxy=proxy,
-                filename_prefix=filename_prefix,
-                **func_kwargs,
-            )
-        else:
-            proxy.write(
-                func=func,
-                df=subgroup,
-                path_root=prefix,
-                filename_prefix=filename_prefix,
-                boto3_session=boto3_session,
-                use_threads=use_threads,
-                **func_kwargs,
-            )
         partitions_values[prefix] = [str(k) for k in keys]
-    paths: List[str] = proxy.close()  # blocking
+
+    paths: List[str]
+    if _ray_found:
+        paths = ray.get(
+            list(
+                func.remote(  # type: ignore
+                    df=subgroup.drop(partition_cols, axis="columns"),
+                    path_root=_get_subgroup_prefix(keys, partition_cols, path_root),
+                    filename_prefix=filename_prefix,
+                    boto3_session=None,
+                    use_threads=False,
+                    **func_kwargs,
+                )
+                for keys, subgroup in df_groups
+            )
+        )
+    else:
+        for keys, subgroup in df_groups:
+            subgroup = subgroup.drop(partition_cols, axis="columns")
+            prefix = _get_subgroup_prefix(keys, partition_cols, path_root)
+            if bucketing_info:
+                _to_buckets(
+                    func=func,
+                    df=subgroup,
+                    path_root=prefix,
+                    bucketing_info=bucketing_info,
+                    boto3_session=boto3_session,
+                    use_threads=use_threads,
+                    proxy=proxy,
+                    filename_prefix=filename_prefix,
+                    **func_kwargs,
+                )
+            else:
+                proxy.write(
+                    func=func,
+                    df=subgroup,
+                    path_root=prefix,
+                    filename_prefix=filename_prefix,
+                    boto3_session=boto3_session,
+                    use_threads=use_threads,
+                    **func_kwargs,
+                )
+        paths = proxy.close()  # blocking
     return paths, partitions_values
 
 

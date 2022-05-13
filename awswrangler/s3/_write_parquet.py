@@ -14,6 +14,7 @@ import pyarrow.parquet
 
 from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation
 from awswrangler._config import apply_configs
+from awswrangler._distributed import _ray_remote
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._read_parquet import _read_parquet_metadata
@@ -131,6 +132,7 @@ def _to_parquet_chunked(
     return proxy.close()  # blocking
 
 
+@_ray_remote
 def _to_parquet(
     df: pd.DataFrame,
     schema: pa.Schema,
