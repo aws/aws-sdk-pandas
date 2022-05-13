@@ -43,14 +43,15 @@ gremlinpython = "^3.5.2"
 backoff = "^1.11.1"
 SPARQLWrapper = { version = "^1.8.5", optional = true }
 pyodbc = { version = "~4.0.32", optional = true }
-modin = {version = "^0.14.0", optional = true}
-ray = {extras = ["default", "data"], version = "^1.12.0", optional = true}
+modin = { version = "^0.14.0", optional = true }
+ray = { extras = ["default", "data"], version = "^1.12.0", optional = true }
+tqdm = { version = "^4.64.0", optional = true }
 
 [tool.poetry.extras]
 sqlserver = ["pyodbc"]
 sparql = ["SPARQLWrapper"]
 modin = ["modin"]
-ray = ["ray"]
+ray = ["ray", "tqdm"]
 
 [tool.poetry.dev-dependencies]
 wheel = "^0.36.2"

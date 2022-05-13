@@ -5,7 +5,7 @@ import multiprocessing
 import os
 import sys
 import warnings
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable
 
 import psutil
 

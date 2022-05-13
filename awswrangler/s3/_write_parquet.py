@@ -17,11 +17,21 @@ from awswrangler._config import apply_configs
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._read_parquet import _read_parquet_metadata
-from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _df_to_dataset, _sanitize, _validate_args
+from awswrangler.s3._write import (
+    _COMPRESSION_2_EXT,
+    _apply_dtype,
+    _df_to_dataset,
+    _get_file_path,
+    _sanitize,
+    _validate_args,
+)
 from awswrangler.s3._write_concurrent import _WriteProxy
 from awswrangler.s3._write_dataset import _to_dataset
 
 _ray_found = importlib.util.find_spec("ray")
+if _ray_found:
+    from awswrangler.ray._utils import CustomBlockWritePathProvider
+
 _modin_found = importlib.util.find_spec("modin")
 if _modin_found:
     import modin.pandas as pd
@@ -29,17 +39,6 @@ else:
     import pandas as pd
 
 _logger: logging.Logger = logging.getLogger(__name__)
-
-
-def _get_file_path(file_counter: int, file_path: str) -> str:
-    slash_index: int = file_path.rfind("/")
-    dot_index: int = file_path.find(".", slash_index)
-    file_index: str = "_" + str(file_counter)
-    if dot_index == -1:
-        file_path = file_path + file_index
-    else:
-        file_path = file_path[:dot_index] + file_index + file_path[dot_index:]
-    return file_path
 
 
 @contextmanager
@@ -53,12 +52,6 @@ def _new_writer(
     use_threads: Union[bool, int],
 ) -> Iterator[pyarrow.parquet.ParquetWriter]:
     writer: Optional[pyarrow.parquet.ParquetWriter] = None
-    if not pyarrow_additional_kwargs:
-        pyarrow_additional_kwargs = {}
-    if not pyarrow_additional_kwargs.get("coerce_timestamps"):
-        pyarrow_additional_kwargs["coerce_timestamps"] = "ms"
-    if "flavor" not in pyarrow_additional_kwargs:
-        pyarrow_additional_kwargs["flavor"] = "spark"
 
     with open_s3_object(
         path=file_path,
@@ -155,6 +148,13 @@ def _to_parquet(
     filename_prefix: Optional[str] = uuid.uuid4().hex,
     max_rows_by_file: Optional[int] = 0,
 ) -> List[str]:
+    if not pyarrow_additional_kwargs:
+        pyarrow_additional_kwargs = {}
+    if not pyarrow_additional_kwargs.get("coerce_timestamps"):
+        pyarrow_additional_kwargs["coerce_timestamps"] = "ms"
+    if "flavor" not in pyarrow_additional_kwargs:
+        pyarrow_additional_kwargs["flavor"] = "spark"
+
     if path is None and path_root is not None:
         file_path: str = f"{path_root}{filename_prefix}{compression_ext}.parquet"
     elif path is not None and path_root is None:
@@ -164,38 +164,41 @@ def _to_parquet(
     _logger.debug("file_path: %s", file_path)
     dataset = _df_to_dataset(df=df, schema=schema, index=index, dtype=dtype, nthreads=cpus)
     paths: List[str]
+    if _ray_found:
+        file_root = file_path.rsplit("/", 1)[0]
+        file_name = file_path.rsplit("/", 1)[1]
+        num_files = math.ceil(dataset.count() / max_rows_by_file) if (max_rows_by_file and max_rows_by_file > 0) else 1
+        block_path_provider = CustomBlockWritePathProvider(file_name=file_name, num_files=num_files)
+        dataset.repartition(num_files).write_parquet(
+            path=file_root,
+            block_path_provider=block_path_provider,
+            compression=compression,
+            **pyarrow_additional_kwargs,
+        )
+        return [block_path_provider.get_file_path(file_path, num_files, num_file) for num_file in range(num_files)]
     if max_rows_by_file is not None and max_rows_by_file > 0:
-        if _ray_found:
-            dataset.repartition(math.ceil(dataset.count() / max_rows_by_file)).write_parquet(
-                path_root if path_root else path
-            )
-            paths = []
-        else:
-            paths = _to_parquet_chunked(
-                file_path=file_path,
-                boto3_session=boto3_session,
-                s3_additional_kwargs=s3_additional_kwargs,
-                compression=compression,
-                pyarrow_additional_kwargs=pyarrow_additional_kwargs,
-                table=dataset,
-                max_rows_by_file=max_rows_by_file,
-                num_of_rows=df.shape[0],
-                cpus=cpus,
-            )
+        paths = _to_parquet_chunked(
+            file_path=file_path,
+            boto3_session=boto3_session,
+            s3_additional_kwargs=s3_additional_kwargs,
+            compression=compression,
+            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+            table=dataset,
+            max_rows_by_file=max_rows_by_file,
+            num_of_rows=df.shape[0],
+            cpus=cpus,
+        )
     else:
-        if _ray_found:
-            dataset.repartition(1).write_parquet(file_path)
-        else:
-            with _new_writer(
-                file_path=file_path,
-                compression=compression,
-                pyarrow_additional_kwargs=pyarrow_additional_kwargs,
-                schema=dataset.schema,
-                boto3_session=boto3_session,
-                s3_additional_kwargs=s3_additional_kwargs,
-                use_threads=use_threads,
-            ) as writer:
-                writer.write_table(dataset)
+        with _new_writer(
+            file_path=file_path,
+            compression=compression,
+            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+            schema=dataset.schema,
+            boto3_session=boto3_session,
+            s3_additional_kwargs=s3_additional_kwargs,
+            use_threads=use_threads,
+        ) as writer:
+            writer.write_table(dataset)
         paths = [file_path]
     return paths
 

@@ -1,15 +1,21 @@
 """Amazon S3 Write Dataset (PRIVATE)."""
 
+import importlib.util
 import logging
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import boto3
 import numpy as np
-import pandas as pd
 
 from awswrangler import exceptions, lakeformation
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._write_concurrent import _WriteProxy
+
+_modin_found = importlib.util.find_spec("modin")
+if _modin_found:
+    import modin.pandas as pd
+else:
+    import pandas as pd
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
