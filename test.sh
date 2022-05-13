@@ -5,7 +5,7 @@ SECONDS=0
 
 set -e
 
-./validate.sh
+#./validate.sh
 mkdir -p test-reports
 tox -e ${versions} -- ${posargs}
 if [ $versions = "ALL" ]; then
