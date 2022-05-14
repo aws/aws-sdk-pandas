@@ -427,3 +427,7 @@ def pylist_to_arrow(
         # Will raise if metadata is not None
         return cls.from_arrays(arrays, schema=schema, metadata=metadata)
     raise TypeError("Schema must be an instance of pyarrow.Schema")
+
+
+def flatten_list(*elements: List[List[Any]]) -> List[Any]:
+    return [item for sublist in elements for item in sublist]

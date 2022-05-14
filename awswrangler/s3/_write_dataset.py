@@ -7,7 +7,8 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import boto3
 import numpy as np
 
-from awswrangler import exceptions, lakeformation
+from awswrangler import _utils, exceptions, lakeformation
+from awswrangler._distributed import _ray_remote
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._write_concurrent import _WriteProxy
 
@@ -91,19 +92,44 @@ def _to_partitions(
 
     paths: List[str]
     if _ray_found:
-        paths = ray.get(
-            list(
-                func.remote(  # type: ignore
-                    df=subgroup.drop(partition_cols, axis="columns"),
-                    path_root=_get_subgroup_prefix(keys, partition_cols, path_root),
-                    filename_prefix=filename_prefix,
-                    boto3_session=None,
-                    use_threads=False,
-                    **func_kwargs,
+        if bucketing_info:
+            paths = _utils.flatten_list(
+                *ray.get(
+                    _utils.flatten_list(
+                        *ray.get(
+                            list(
+                                _to_buckets.remote(
+                                    func=func,
+                                    df=subgroup.drop(partition_cols, axis="columns"),
+                                    path_root=_get_subgroup_prefix(keys, partition_cols, path_root),
+                                    bucketing_info=bucketing_info,
+                                    boto3_session=None,
+                                    use_threads=False,
+                                    filename_prefix=filename_prefix,
+                                    **func_kwargs,
+                                )
+                                for keys, subgroup in df_groups
+                            )
+                        )
+                    )
                 )
-                for keys, subgroup in df_groups
             )
-        )
+        else:
+            paths = _utils.flatten_list(
+                *ray.get(
+                    list(
+                        func.remote(  # type: ignore
+                            df=subgroup.drop(partition_cols, axis="columns"),
+                            path_root=_get_subgroup_prefix(keys, partition_cols, path_root),
+                            filename_prefix=filename_prefix,
+                            boto3_session=None,
+                            use_threads=False,
+                            **func_kwargs,
+                        )
+                        for keys, subgroup in df_groups
+                    )
+                )
+            )
     else:
         for keys, subgroup in df_groups:
             subgroup = subgroup.drop(partition_cols, axis="columns")
@@ -134,6 +160,7 @@ def _to_partitions(
     return paths, partitions_values
 
 
+@_ray_remote
 def _to_buckets(
     func: Callable[..., List[str]],
     df: pd.DataFrame,
@@ -151,20 +178,33 @@ def _to_buckets(
         axis="columns",
     )
     bucket_number_series = bucket_number_series.astype(pd.CategoricalDtype(range(bucketing_info[1])))
-    for bucket_number, subgroup in df.groupby(by=bucket_number_series, observed=False):
-        _proxy.write(
-            func=func,
-            df=subgroup,
-            path_root=path_root,
-            filename_prefix=f"{filename_prefix}_bucket-{bucket_number:05d}",
-            boto3_session=boto3_session,
-            use_threads=use_threads,
-            **func_kwargs,
+    paths: List[str]
+    if _ray_found:
+        paths = list(
+            func.remote(  # type: ignore
+                df=subgroup,
+                path_root=path_root,
+                filename_prefix=f"{filename_prefix}_bucket-{bucket_number:05d}",
+                boto3_session=None,
+                use_threads=False,
+                **func_kwargs,
+            )
+            for bucket_number, subgroup in df.groupby(by=bucket_number_series, observed=False)
         )
-    if proxy:
-        return []
-
-    paths: List[str] = _proxy.close()  # blocking
+    else:
+        for bucket_number, subgroup in df.groupby(by=bucket_number_series, observed=False):
+            _proxy.write(
+                func=func,
+                df=subgroup,
+                path_root=path_root,
+                filename_prefix=f"{filename_prefix}_bucket-{bucket_number:05d}",
+                boto3_session=boto3_session,
+                use_threads=use_threads,
+                **func_kwargs,
+            )
+        if proxy:
+            return []
+        paths = _proxy.close()  # blocking
     return paths
 
 
@@ -282,17 +322,36 @@ def _to_dataset(
             **func_kwargs,
         )
     elif bucketing_info:
-        paths = _to_buckets(
-            func=func,
-            df=df,
-            path_root=path_root,
-            use_threads=use_threads,
-            bucketing_info=bucketing_info,
-            filename_prefix=filename_prefix,
-            boto3_session=boto3_session,
-            index=index,
-            **func_kwargs,
-        )
+        if _ray_found:
+            paths = _utils.flatten_list(
+                *ray.get(
+                    ray.get(
+                        _to_buckets.remote(
+                            func=func,
+                            df=df,
+                            path_root=path_root,
+                            use_threads=False,
+                            bucketing_info=bucketing_info,
+                            filename_prefix=filename_prefix,
+                            boto3_session=None,
+                            index=index,
+                            **func_kwargs,
+                        )
+                    )
+                )
+            )
+        else:
+            paths = _to_buckets(
+                func=func,
+                df=df,
+                path_root=path_root,
+                use_threads=use_threads,
+                bucketing_info=bucketing_info,
+                filename_prefix=filename_prefix,
+                boto3_session=boto3_session,
+                index=index,
+                **func_kwargs,
+            )
     else:
         paths = func(
             df=df,

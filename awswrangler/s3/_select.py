@@ -40,12 +40,6 @@ def _gen_scan_range(obj_size: int, scan_range_chunk_size: Optional[int] = None) 
         yield (i, i + min(chunk_size, obj_size - i))
 
 
-def _flatten_list(
-    *elements: List[List[Union[Table, "ray.types.ObjectRef[Union[Table, bytes]]"]]]
-) -> List[Union[Table, "ray.types.ObjectRef[Union[Table, bytes]]"]]:
-    return [item for sublist in elements for item in sublist]
-
-
 @_ray_remote
 def _select_object_content(
     args: Dict[str, Any],
@@ -330,13 +324,13 @@ def select_query(
 
     if _ray_found:
         ds = ray.data.from_arrow_refs(
-            _flatten_list(*ray.get([_select_query.remote(path=path, **args) for path in paths]))
+            _utils.flatten_list(*ray.get([_select_query.remote(path=path, **args) for path in paths]))
         )
         if _modin_found:
             return ds.to_modin()
         return ds
     return concat_tables(
-        _flatten_list(
+        _utils.flatten_list(
             *_read_tables_from_multiple_paths(
                 read_func=_select_query,
                 paths=paths,

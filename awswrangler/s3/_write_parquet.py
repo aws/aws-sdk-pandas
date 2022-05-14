@@ -31,6 +31,7 @@ from awswrangler.s3._write_dataset import _to_dataset
 
 _ray_found = importlib.util.find_spec("ray")
 if _ray_found:
+    import ray
     from awswrangler.ray._utils import CustomBlockWritePathProvider
 
 _modin_found = importlib.util.find_spec("modin")
@@ -589,21 +590,40 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     _logger.debug("schema: \n%s", schema)
 
     if dataset is False:
-        paths = _to_parquet(
-            df=df,
-            path=path,
-            schema=schema,
-            index=index,
-            cpus=cpus,
-            compression=compression,
-            compression_ext=compression_ext,
-            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
-            boto3_session=session,
-            s3_additional_kwargs=s3_additional_kwargs,
-            dtype=dtype,
-            max_rows_by_file=max_rows_by_file,
-            use_threads=use_threads,
-        )
+        if _ray_found:
+            paths = ray.get(
+                _to_parquet.remote(
+                    df=df,
+                    path=path,
+                    schema=schema,
+                    index=index,
+                    cpus=cpus,
+                    compression=compression,
+                    compression_ext=compression_ext,
+                    pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+                    boto3_session=None,
+                    s3_additional_kwargs=s3_additional_kwargs,
+                    dtype=dtype,
+                    max_rows_by_file=max_rows_by_file,
+                    use_threads=False,
+                )
+            )
+        else:
+            paths = _to_parquet(
+                df=df,
+                path=path,
+                schema=schema,
+                index=index,
+                cpus=cpus,
+                compression=compression,
+                compression_ext=compression_ext,
+                pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+                boto3_session=session,
+                s3_additional_kwargs=s3_additional_kwargs,
+                dtype=dtype,
+                max_rows_by_file=max_rows_by_file,
+                use_threads=use_threads,
+            )
     else:
         columns_types: Dict[str, str] = {}
         partitions_types: Dict[str, str] = {}
