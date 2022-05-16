@@ -353,15 +353,26 @@ def _to_dataset(
                 **func_kwargs,
             )
     else:
-        paths = func(
-            df=df,
-            path_root=path_root,
-            filename_prefix=filename_prefix,
-            use_threads=use_threads,
-            boto3_session=boto3_session,
-            index=index,
-            **func_kwargs,
-        )
+        if _ray_found:
+            paths = ray.get(func.remote(  # type: ignore
+                df=df,
+                path_root=path_root,
+                filename_prefix=filename_prefix,
+                use_threads=False,
+                boto3_session=None,
+                index=index,
+                **func_kwargs,
+            ))
+        else:
+            paths = func(
+                df=df,
+                path_root=path_root,
+                filename_prefix=filename_prefix,
+                use_threads=use_threads,
+                boto3_session=boto3_session,
+                index=index,
+                **func_kwargs,
+            )
     _logger.debug("paths: %s", paths)
     _logger.debug("partitions_values: %s", partitions_values)
     if (table_type == "GOVERNED") and (table is not None) and (database is not None):
