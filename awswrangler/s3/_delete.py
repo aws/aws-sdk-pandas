@@ -23,7 +23,6 @@ if _ray_found:
     import ray
 
 
-@_ray_remote
 def _split_paths_by_bucket(paths: List[str]) -> Dict[str, List[str]]:
     buckets: Dict[str, List[str]] = {}
     bucket: str
@@ -161,13 +160,41 @@ def delete_objects(
     for bucket, keys in buckets.items():
         chunks: List[List[str]] = _utils.chunkify(lst=keys, max_length=1_000)
         if len(chunks) == 1:
-            _delete_objects(
-                bucket=bucket, keys=chunks[0], boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs
+            (
+                _delete_objects(
+                    bucket=bucket,
+                    keys=chunks[0],
+                    boto3_session=boto3_session,
+                    s3_additional_kwargs=s3_additional_kwargs,
+                )
+                if not _ray_found
+                else ray.get(
+                    _delete_objects(
+                        bucket=bucket,
+                        keys=chunks[0],
+                        boto3_session=boto3_session,
+                        s3_additional_kwargs=s3_additional_kwargs,
+                    )
+                )
             )
         elif use_threads is False:
             for chunk in chunks:
-                _delete_objects(
-                    bucket=bucket, keys=chunk, boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs
+                (
+                    _delete_objects(
+                        bucket=bucket,
+                        keys=chunk,
+                        boto3_session=boto3_session,
+                        s3_additional_kwargs=s3_additional_kwargs,
+                    )
+                    if not _ray_found
+                    else ray.get(
+                        _delete_objects(
+                            bucket=bucket,
+                            keys=chunk,
+                            boto3_session=boto3_session,
+                            s3_additional_kwargs=s3_additional_kwargs,
+                        )
+                    )
                 )
         else:
             cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
