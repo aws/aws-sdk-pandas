@@ -85,7 +85,7 @@ def _paginate_stream(
 
     if _ray_found:
         return list(
-            _select_object_content.remote(
+            _select_object_content(
                 args=args,
                 scan_range=scan_range,
             )
@@ -156,13 +156,13 @@ def _select_query(
         # and JSON objects (in LINES mode only)
         _logger.debug("Scan ranges are not supported given provided input.")
         return [
-            _select_object_content.remote(args=args, boto3_session=boto3_session)
+            _select_object_content(args=args, boto3_session=boto3_session)
             if _ray_found
             else _select_object_content(args=args, boto3_session=boto3_session)
         ]
     return (  # type: ignore
         ray.get(
-            _paginate_stream.remote(
+            _paginate_stream(
                 args=args,
                 path=path,
                 scan_range_chunk_size=scan_range_chunk_size,
@@ -324,7 +324,7 @@ def select_query(
 
     if _ray_found:
         ds = ray.data.from_arrow_refs(
-            _utils.flatten_list(*ray.get([_select_query.remote(path=path, **args) for path in paths]))
+            _utils.flatten_list(*ray.get([_select_query(path=path, **args) for path in paths]))
         )
         if _modin_found:
             return ds.to_modin()

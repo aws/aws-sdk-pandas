@@ -18,7 +18,11 @@ if _ray_found:
 
 def _ray_remote(function: Callable[..., Any]) -> Any:
     if _ray_found:
-        return ray.remote(function)
+
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            return ray.remote(function).remote(*args, **kwargs)
+
+        return wrapper
     return function
 
 

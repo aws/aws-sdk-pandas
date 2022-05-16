@@ -592,7 +592,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     if dataset is False:
         if _ray_found:
             paths = ray.get(
-                _to_parquet.remote(
+                _to_parquet(
                     df=df,
                     path=path,
                     schema=schema,

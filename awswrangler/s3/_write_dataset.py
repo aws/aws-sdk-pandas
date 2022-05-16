@@ -98,7 +98,7 @@ def _to_partitions(
                     _utils.flatten_list(
                         *ray.get(
                             list(
-                                _to_buckets.remote(
+                                _to_buckets(
                                     func=func,
                                     df=subgroup.drop(partition_cols, axis="columns"),
                                     path_root=_get_subgroup_prefix(keys, partition_cols, path_root),
@@ -118,7 +118,7 @@ def _to_partitions(
             paths = _utils.flatten_list(
                 *ray.get(
                     list(
-                        func.remote(  # type: ignore
+                        func(  # type: ignore
                             df=subgroup.drop(partition_cols, axis="columns"),
                             path_root=_get_subgroup_prefix(keys, partition_cols, path_root),
                             filename_prefix=filename_prefix,
@@ -181,7 +181,7 @@ def _to_buckets(
     paths: List[str]
     if _ray_found:
         paths = list(
-            func.remote(  # type: ignore
+            func(  # type: ignore
                 df=subgroup,
                 path_root=path_root,
                 filename_prefix=f"{filename_prefix}_bucket-{bucket_number:05d}",
@@ -326,7 +326,7 @@ def _to_dataset(
             paths = _utils.flatten_list(
                 *ray.get(
                     ray.get(
-                        _to_buckets.remote(
+                        _to_buckets(
                             func=func,
                             df=df,
                             path_root=path_root,
@@ -354,15 +354,17 @@ def _to_dataset(
             )
     else:
         if _ray_found:
-            paths = ray.get(func.remote(  # type: ignore
-                df=df,
-                path_root=path_root,
-                filename_prefix=filename_prefix,
-                use_threads=False,
-                boto3_session=None,
-                index=index,
-                **func_kwargs,
-            ))
+            paths = ray.get(
+                func(  # type: ignore
+                    df=df,
+                    path_root=path_root,
+                    filename_prefix=filename_prefix,
+                    use_threads=False,
+                    boto3_session=None,
+                    index=index,
+                    **func_kwargs,
+                )
+            )
         else:
             paths = func(
                 df=df,

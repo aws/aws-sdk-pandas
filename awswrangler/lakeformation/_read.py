@@ -80,7 +80,7 @@ def _resolve_sql_query(
     if _ray_found:
         ds = ray.data.from_arrow_refs(
             list(
-                _get_work_unit_results.remote(
+                _get_work_unit_results(
                     query_id=query_id,
                     token_work_unit=token_work_unit,
                 )
