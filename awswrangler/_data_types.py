@@ -468,11 +468,17 @@ def pyarrow_types_from_pandas(  # pylint: disable=too-many-branches
     indexes: List[str] = []
     if index is True:
         # Get index columns
-        # Adding indexes as columns via .reset_index() because
-        # pa.Schema.from_pandas(.., preserve_index=True) fails with
-        # "'Index' object has no attribute 'head'" if using extension
-        # dtypes on pandas 1.4.x
-        fields = pa.Schema.from_pandas(df=df[[]].reset_index(), preserve_index=False)
+        try:
+            fields = pa.Schema.from_pandas(df=df[[]], preserve_index=True)
+        except AttributeError as ae:
+            if "'Index' object has no attribute 'head'" not in str(ae):
+                raise ae
+            # Get index fields from a new df with only index columns
+            # Adding indexes as columns via .reset_index() because
+            # pa.Schema.from_pandas(.., preserve_index=True) fails with
+            # "'Index' object has no attribute 'head'" if using extension
+            # dtypes on pandas 1.4.x
+            fields = pa.Schema.from_pandas(df=df.reset_index().drop(columns=cols), preserve_index=False)
         for field in fields:
             name = str(field.name)
             _logger.debug("Inferring PyArrow type from index: %s", name)
