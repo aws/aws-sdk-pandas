@@ -2,6 +2,7 @@
 
 import concurrent.futures
 import datetime
+import importlib.util
 import itertools
 import logging
 import time
@@ -11,12 +12,18 @@ from urllib.parse import unquote_plus as _unquote_plus
 import boto3
 
 from awswrangler import _utils, exceptions
+from awswrangler._distributed import _ray_remote
 from awswrangler.s3._fs import get_botocore_valid_kwargs
 from awswrangler.s3._list import _path2list
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
+_ray_found = importlib.util.find_spec("ray")
+if _ray_found:
+    import ray
 
+
+@_ray_remote
 def _split_paths_by_bucket(paths: List[str]) -> Dict[str, List[str]]:
     buckets: Dict[str, List[str]] = {}
     bucket: str
@@ -29,6 +36,7 @@ def _split_paths_by_bucket(paths: List[str]) -> Dict[str, List[str]]:
     return buckets
 
 
+@_ray_remote
 def _delete_objects(
     bucket: str,
     keys: List[str],
@@ -69,6 +77,7 @@ def _delete_objects(
         )
 
 
+@_ray_remote
 def _delete_objects_concurrent(
     bucket: str,
     keys: List[str],
