@@ -12,9 +12,10 @@ from urllib.parse import unquote_plus as _unquote_plus
 import boto3
 
 from awswrangler import _utils, exceptions
-from awswrangler._distributed import _ray_remote
 from awswrangler.s3._fs import get_botocore_valid_kwargs
 from awswrangler.s3._list import _path2list
+from awswrangler._distributed import _ray_remote
+
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -98,22 +99,18 @@ def delete_objects(
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
     """Delete Amazon S3 objects from a received S3 prefix or list of S3 objects paths.
-
     This function accepts Unix shell-style wildcards in the path argument.
     * (matches everything), ? (matches any single character),
     [seq] (matches any character in seq), [!seq] (matches any character not in seq).
     If you want to use a path which includes Unix shell-style wildcard characters (`*, ?, []`),
     you can use `glob.escape(path)` before passing the path to this function.
-
     Note
     ----
     In case of `use_threads=True` the number of threads
     that will be spawned will be gotten from os.cpu_count().
-
     Note
     ----
     The filter by last_modified begin last_modified end is applied after list all S3 files
-
     Parameters
     ----------
     path : Union[str, List[str]]
@@ -134,18 +131,15 @@ def delete_objects(
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-
     Returns
     -------
     None
         None.
-
     Examples
     --------
     >>> import awswrangler as wr
     >>> wr.s3.delete_objects(['s3://bucket/key0', 's3://bucket/key1'])  # Delete both objects
     >>> wr.s3.delete_objects('s3://bucket/prefix')  # Delete all objects under the received prefix
-
     """
     paths: List[str] = _path2list(
         path=path,
