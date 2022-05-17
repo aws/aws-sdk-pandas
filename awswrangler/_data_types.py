@@ -345,7 +345,9 @@ def athena2quicksight(dtype: str) -> str:  # pylint: disable=too-many-branches,t
         return "DECIMAL"
     if dtype in ("boolean", "bool"):
         return "BOOLEAN"
-    if dtype in ("string", "char", "varchar"):
+    if dtype.startswith(("char", "varchar")):
+        return "STRING"
+    if dtype == "string":
         return "STRING"
     if dtype == "timestamp":
         return "DATETIME"
