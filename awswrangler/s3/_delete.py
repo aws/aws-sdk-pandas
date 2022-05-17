@@ -2,6 +2,7 @@
 
 import concurrent.futures
 import datetime
+import importlib.util
 import itertools
 import logging
 import time
@@ -13,8 +14,14 @@ import boto3
 from awswrangler import _utils, exceptions
 from awswrangler.s3._fs import get_botocore_valid_kwargs
 from awswrangler.s3._list import _path2list
+from awswrangler._distributed import _ray_remote
+
 
 _logger: logging.Logger = logging.getLogger(__name__)
+
+_ray_found = importlib.util.find_spec("ray")
+if _ray_found:
+    import ray
 
 
 def _split_paths_by_bucket(paths: List[str]) -> Dict[str, List[str]]:
@@ -29,6 +36,7 @@ def _split_paths_by_bucket(paths: List[str]) -> Dict[str, List[str]]:
     return buckets
 
 
+@_ray_remote
 def _delete_objects(
     bucket: str,
     keys: List[str],
@@ -69,6 +77,7 @@ def _delete_objects(
         )
 
 
+@_ray_remote
 def _delete_objects_concurrent(
     bucket: str,
     keys: List[str],
@@ -90,22 +99,18 @@ def delete_objects(
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
     """Delete Amazon S3 objects from a received S3 prefix or list of S3 objects paths.
-
     This function accepts Unix shell-style wildcards in the path argument.
     * (matches everything), ? (matches any single character),
     [seq] (matches any character in seq), [!seq] (matches any character not in seq).
     If you want to use a path which includes Unix shell-style wildcard characters (`*, ?, []`),
     you can use `glob.escape(path)` before passing the path to this function.
-
     Note
     ----
     In case of `use_threads=True` the number of threads
     that will be spawned will be gotten from os.cpu_count().
-
     Note
     ----
     The filter by last_modified begin last_modified end is applied after list all S3 files
-
     Parameters
     ----------
     path : Union[str, List[str]]
@@ -126,18 +131,15 @@ def delete_objects(
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
-
     Returns
     -------
     None
         None.
-
     Examples
     --------
     >>> import awswrangler as wr
     >>> wr.s3.delete_objects(['s3://bucket/key0', 's3://bucket/key1'])  # Delete both objects
     >>> wr.s3.delete_objects('s3://bucket/prefix')  # Delete all objects under the received prefix
-
     """
     paths: List[str] = _path2list(
         path=path,
@@ -152,13 +154,41 @@ def delete_objects(
     for bucket, keys in buckets.items():
         chunks: List[List[str]] = _utils.chunkify(lst=keys, max_length=1_000)
         if len(chunks) == 1:
-            _delete_objects(
-                bucket=bucket, keys=chunks[0], boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs
+            (
+                _delete_objects(
+                    bucket=bucket,
+                    keys=chunks[0],
+                    boto3_session=boto3_session,
+                    s3_additional_kwargs=s3_additional_kwargs,
+                )
+                if not _ray_found
+                else ray.get(
+                    _delete_objects(
+                        bucket=bucket,
+                        keys=chunks[0],
+                        boto3_session=boto3_session,
+                        s3_additional_kwargs=s3_additional_kwargs,
+                    )
+                )
             )
         elif use_threads is False:
             for chunk in chunks:
-                _delete_objects(
-                    bucket=bucket, keys=chunk, boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs
+                (
+                    _delete_objects(
+                        bucket=bucket,
+                        keys=chunk,
+                        boto3_session=boto3_session,
+                        s3_additional_kwargs=s3_additional_kwargs,
+                    )
+                    if not _ray_found
+                    else ray.get(
+                        _delete_objects(
+                            bucket=bucket,
+                            keys=chunk,
+                            boto3_session=boto3_session,
+                            s3_additional_kwargs=s3_additional_kwargs,
+                        )
+                    )
                 )
         else:
             cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
