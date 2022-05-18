@@ -59,7 +59,7 @@ def _fix_csv_types(df: pd.DataFrame, parse_dates: List[str], binaries: List[str]
     """Apply data types cast to a Pandas DataFrames."""
     if len(df.index) > 0:
         for col in parse_dates:
-            df[col] = df[col].dt.date.replace(to_replace={pd.NaT: None})
+            df[col] = df[col].replace(to_replace={pd.NaT: None})
         for col in binaries:
             df[col] = df[col].str.encode(encoding="utf-8")
     return df
