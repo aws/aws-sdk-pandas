@@ -211,3 +211,39 @@ def test_multimeasure_scenario(timestream_database_and_table):
         """,
     )
     assert df.shape == (3, 6)
+
+
+def test_list_databases(timestream_database_and_table):
+    dbs = wr.timestream.list_databases()
+
+    assert timestream_database_and_table in dbs
+    # not sure about that
+    assert len(dbs) == 1
+
+
+def test_list_tables(timestream_database_and_table):
+    all_tables = wr.timestream.list_tables()
+
+    assert timestream_database_and_table in all_tables
+
+    tables_in_db = wr.timestream.list_tables(database=timestream_database_and_table)
+    assert timestream_database_and_table in tables_in_db
+    assert len(tables_in_db) <= len(all_tables)
+
+    wr.timestream.create_table(
+        database=timestream_database_and_table,
+        table=f"{timestream_database_and_table}_2",
+        memory_retention_hours=1,
+        magnetic_retention_days=1
+    )
+
+    tables_in_db = wr.timestream.list_tables(database=timestream_database_and_table)
+    assert f"{timestream_database_and_table}_2" in tables_in_db
+
+    wr.timestream.delete_table(
+        database=timestream_database_and_table,
+        table=f"{timestream_database_and_table}_2"
+    )
+
+    tables_in_db = wr.timestream.list_tables(database=timestream_database_and_table)
+    assert f"{timestream_database_and_table}_2" not in tables_in_db
