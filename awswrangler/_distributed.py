@@ -37,9 +37,9 @@ def _initialize_ray() -> None:
                 _redis_password=redis_password,
             )
         else:
-            object_store_memory = int(os.getenv("RAY_OBJECT_STORE_MEMORY", 0))
+            object_store_memory = os.getenv("RAY_OBJECT_STORE_MEMORY")
             mac_size_limit = getattr(ray.ray_constants, "MAC_DEGRADED_PERF_MMAP_SIZE_LIMIT", None)
-            if sys.platform == "darwin" and mac_size_limit is not None and object_store_memory > mac_size_limit:
+            if sys.platform == "darwin" and mac_size_limit is not None and object_store_memory is not None and object_store_memory > mac_size_limit:
                 warnings.warn(
                     "On Macs, Ray's performance is known to degrade with "
                     + "object store size greater than "
