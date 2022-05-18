@@ -217,6 +217,7 @@ If you would like us to include your company’s name and/or logo in the README 
 - [Digio](https://www.digio.com.br/) [[@afonsomy](https://github.com/afonsomy)]
 - [DNX](https://www.dnx.solutions/) [[@DNXLabs](https://github.com/DNXLabs)]
 - [Funcional Health Tech](https://www.funcionalcorp.com.br/) [[@webysther](https://github.com/webysther)]
+- [Infomach](https://www.infomach.com.br/)
 - [Informa Markets](https://www.informamarkets.com/en/home.html) [[@mateusmorato]](http://github.com/mateusmorato)
 - [LINE TV](https://www.linetv.tw/) [[@bryanyang0528](https://github.com/bryanyang0528)]
 - [Magnataur](https://magnataur.com) [[@brianmingus2](https://github.com/brianmingus2)]
