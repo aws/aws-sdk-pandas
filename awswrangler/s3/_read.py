@@ -179,9 +179,11 @@ def _block_to_df(
     safe: Optional[bool] = None,
     map_types: Optional[bool] = None,
     timestamp_as_object: bool = False,
+    dtype: Optional[Dict[str, str]] = None,
+    **pandas_kwargs: Any,
 ) -> Table:
     block = ArrowBlockAccessor.for_block(block)
-    return block._table.to_pandas(
+    df = block._table.to_pandas(
         split_blocks=True,
         self_destruct=True,
         integer_object_nulls=False,
@@ -193,3 +195,4 @@ def _block_to_df(
         categories=categories,
         types_mapper=pyarrow2pandas_extension if map_types else None,
     )
+    return df.astype(dtype=dtype) if dtype else df

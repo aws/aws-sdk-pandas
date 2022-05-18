@@ -24,7 +24,6 @@ from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import (
     _apply_partition_filter,
     _apply_partitions,
-    _block_to_df,
     _extract_partitions_dtypes_from_table_details,
     _extract_partitions_metadata_from_paths,
     _get_path_ignore_suffix,
@@ -35,14 +34,11 @@ from awswrangler.s3._read import (
 
 _ray_found = importlib.util.find_spec("ray")
 if _ray_found:
-    from ray.data.impl.remote_fn import cached_remote_fn
-
     import ray
 
 _modin_found = importlib.util.find_spec("modin")
 if _modin_found:
     import modin.pandas as pd
-    from modin.distributed.dataframe.pandas.partitions import from_partitions
 else:
     import pandas as pd
 

@@ -10,6 +10,7 @@ from awswrangler import _data_types, _utils, catalog, exceptions
 
 _ray_found = importlib.util.find_spec("ray")
 if _ray_found:
+    import ray
     from ray.data.block import Block, BlockAccessor, BlockExecStats
     from ray.data.dataset import Dataset
     from ray.data.impl.arrow_block import ArrowRow
@@ -18,8 +19,6 @@ if _ray_found:
     from ray.data.impl.remote_fn import cached_remote_fn
     from ray.data.impl.stats import DatasetStats
     from ray.types import ObjectRef
-
-    import ray
 
 _modin_found = importlib.util.find_spec("modin")
 if _modin_found:
@@ -140,7 +139,9 @@ def _df_to_block(
     if _ray_found:
         return (
             block,
-            BlockAccessor.for_block(block).get_metadata(input_files=None, exec_stats=BlockExecStats.builder().build()),
+            BlockAccessor.for_block(block).get_metadata(
+                input_files=None, exec_stats=BlockExecStats.builder().build()  # type: ignore
+            ),
         )
     return block
 
@@ -189,3 +190,14 @@ def _df_to_dataset(
             dtype=dtype,
         )
     return _df_to_block(df=df, schema=schema, index=index, dtype=dtype, nthreads=nthreads)
+
+
+def _get_file_path(file_counter: int, file_path: str) -> str:
+    slash_index: int = file_path.rfind("/")
+    dot_index: int = file_path.find(".", slash_index)
+    file_index: str = "_" + str(file_counter)
+    if dot_index == -1:
+        file_path = file_path + file_index
+    else:
+        file_path = file_path[:dot_index] + file_index + file_path[dot_index:]
+    return file_path

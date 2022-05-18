@@ -21,6 +21,12 @@ def test_list_buckets() -> None:
     assert len(wr.s3.list_buckets()) > 0
 
 
+@pytest.mark.distributed
+def test_delete_objects(bucket) -> None:
+    path = f"s3://{bucket}/foo/bar.txt"
+    wr.s3.delete_objects(path=[path])
+
+
 @pytest.mark.parametrize("sanitize_columns,col", [(True, "fooboo"), (False, "FooBoo")])
 def test_sanitize_columns(path, sanitize_columns, col):
     df = pd.DataFrame({"FooBoo": [1, 2, 3]})

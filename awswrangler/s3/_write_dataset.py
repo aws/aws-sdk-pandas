@@ -1,17 +1,34 @@
 """Amazon S3 Write Dataset (PRIVATE)."""
 
+import importlib.util
 import logging
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import boto3
 import numpy as np
-import pandas as pd
 
-from awswrangler import exceptions, lakeformation
+from awswrangler import _utils, exceptions, lakeformation
+from awswrangler._distributed import _ray_remote
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._write_concurrent import _WriteProxy
 
+_ray_found = importlib.util.find_spec("ray")
+if _ray_found:
+    import ray
+
+_modin_found = importlib.util.find_spec("modin")
+if _modin_found:
+    import modin.pandas as pd
+else:
+    import pandas as pd
+
 _logger: logging.Logger = logging.getLogger(__name__)
+
+
+def _get_subgroup_prefix(keys: Any, partition_cols: List[str], path_root: str) -> str:
+    keys = (keys,) if not isinstance(keys, tuple) else keys
+    subdir = "/".join([f"{name}={val}" for name, val in zip(partition_cols, keys)])
+    return f"{path_root}{subdir}/"
 
 
 def _to_partitions(
@@ -36,11 +53,11 @@ def _to_partitions(
     partitions_values: Dict[str, List[str]] = {}
     proxy: _WriteProxy = _WriteProxy(use_threads=concurrent_partitioning)
 
-    for keys, subgroup in df.groupby(by=partition_cols, observed=True):
-        subgroup = subgroup.drop(partition_cols, axis="columns")
+    df_groups = df.groupby(by=partition_cols, observed=True)
+
+    for keys in list(df_groups.groups):
         keys = (keys,) if not isinstance(keys, tuple) else keys
-        subdir = "/".join([f"{name}={val}" for name, val in zip(partition_cols, keys)])
-        prefix: str = f"{path_root}{subdir}/"
+        prefix = _get_subgroup_prefix(keys, partition_cols, path_root)
         if mode == "overwrite_partitions":
             if (table_type == "GOVERNED") and (table is not None) and (database is not None):
                 del_objects: List[
@@ -71,33 +88,79 @@ def _to_partitions(
                     boto3_session=boto3_session,
                     s3_additional_kwargs=func_kwargs.get("s3_additional_kwargs"),
                 )
+        partitions_values[prefix] = [str(k) for k in keys]
+
+    paths: List[str]
+    if _ray_found:
         if bucketing_info:
-            _to_buckets(
-                func=func,
-                df=subgroup,
-                path_root=prefix,
-                bucketing_info=bucketing_info,
-                boto3_session=boto3_session,
-                use_threads=use_threads,
-                proxy=proxy,
-                filename_prefix=filename_prefix,
-                **func_kwargs,
+            paths = _utils.flatten_list(
+                *ray.get(
+                    _utils.flatten_list(
+                        *ray.get(
+                            list(
+                                _to_buckets(
+                                    func=func,
+                                    df=subgroup.drop(partition_cols, axis="columns"),
+                                    path_root=_get_subgroup_prefix(keys, partition_cols, path_root),
+                                    bucketing_info=bucketing_info,
+                                    boto3_session=None,
+                                    use_threads=False,
+                                    filename_prefix=filename_prefix,
+                                    **func_kwargs,
+                                )
+                                for keys, subgroup in df_groups
+                            )
+                        )
+                    )
+                )
             )
         else:
-            proxy.write(
-                func=func,
-                df=subgroup,
-                path_root=prefix,
-                filename_prefix=filename_prefix,
-                boto3_session=boto3_session,
-                use_threads=use_threads,
-                **func_kwargs,
+            paths = _utils.flatten_list(
+                *ray.get(
+                    list(
+                        func(  # type: ignore
+                            df=subgroup.drop(partition_cols, axis="columns"),
+                            path_root=_get_subgroup_prefix(keys, partition_cols, path_root),
+                            filename_prefix=filename_prefix,
+                            boto3_session=None,
+                            use_threads=False,
+                            **func_kwargs,
+                        )
+                        for keys, subgroup in df_groups
+                    )
+                )
             )
-        partitions_values[prefix] = [str(k) for k in keys]
-    paths: List[str] = proxy.close()  # blocking
+    else:
+        for keys, subgroup in df_groups:
+            subgroup = subgroup.drop(partition_cols, axis="columns")
+            prefix = _get_subgroup_prefix(keys, partition_cols, path_root)
+            if bucketing_info:
+                _to_buckets(
+                    func=func,
+                    df=subgroup,
+                    path_root=prefix,
+                    bucketing_info=bucketing_info,
+                    boto3_session=boto3_session,
+                    use_threads=use_threads,
+                    proxy=proxy,
+                    filename_prefix=filename_prefix,
+                    **func_kwargs,
+                )
+            else:
+                proxy.write(
+                    func=func,
+                    df=subgroup,
+                    path_root=prefix,
+                    filename_prefix=filename_prefix,
+                    boto3_session=boto3_session,
+                    use_threads=use_threads,
+                    **func_kwargs,
+                )
+        paths = proxy.close()  # blocking
     return paths, partitions_values
 
 
+@_ray_remote
 def _to_buckets(
     func: Callable[..., List[str]],
     df: pd.DataFrame,
@@ -115,20 +178,33 @@ def _to_buckets(
         axis="columns",
     )
     bucket_number_series = bucket_number_series.astype(pd.CategoricalDtype(range(bucketing_info[1])))
-    for bucket_number, subgroup in df.groupby(by=bucket_number_series, observed=False):
-        _proxy.write(
-            func=func,
-            df=subgroup,
-            path_root=path_root,
-            filename_prefix=f"{filename_prefix}_bucket-{bucket_number:05d}",
-            boto3_session=boto3_session,
-            use_threads=use_threads,
-            **func_kwargs,
+    paths: List[str]
+    if _ray_found:
+        paths = list(
+            func(  # type: ignore
+                df=subgroup,
+                path_root=path_root,
+                filename_prefix=f"{filename_prefix}_bucket-{bucket_number:05d}",
+                boto3_session=None,
+                use_threads=False,
+                **func_kwargs,
+            )
+            for bucket_number, subgroup in df.groupby(by=bucket_number_series, observed=False)
         )
-    if proxy:
-        return []
-
-    paths: List[str] = _proxy.close()  # blocking
+    else:
+        for bucket_number, subgroup in df.groupby(by=bucket_number_series, observed=False):
+            _proxy.write(
+                func=func,
+                df=subgroup,
+                path_root=path_root,
+                filename_prefix=f"{filename_prefix}_bucket-{bucket_number:05d}",
+                boto3_session=boto3_session,
+                use_threads=use_threads,
+                **func_kwargs,
+            )
+        if proxy:
+            return []
+        paths = _proxy.close()  # blocking
     return paths
 
 
@@ -246,27 +322,59 @@ def _to_dataset(
             **func_kwargs,
         )
     elif bucketing_info:
-        paths = _to_buckets(
-            func=func,
-            df=df,
-            path_root=path_root,
-            use_threads=use_threads,
-            bucketing_info=bucketing_info,
-            filename_prefix=filename_prefix,
-            boto3_session=boto3_session,
-            index=index,
-            **func_kwargs,
-        )
+        if _ray_found:
+            paths = _utils.flatten_list(
+                *ray.get(
+                    ray.get(
+                        _to_buckets(
+                            func=func,
+                            df=df,
+                            path_root=path_root,
+                            use_threads=False,
+                            bucketing_info=bucketing_info,
+                            filename_prefix=filename_prefix,
+                            boto3_session=None,
+                            index=index,
+                            **func_kwargs,
+                        )
+                    )
+                )
+            )
+        else:
+            paths = _to_buckets(
+                func=func,
+                df=df,
+                path_root=path_root,
+                use_threads=use_threads,
+                bucketing_info=bucketing_info,
+                filename_prefix=filename_prefix,
+                boto3_session=boto3_session,
+                index=index,
+                **func_kwargs,
+            )
     else:
-        paths = func(
-            df=df,
-            path_root=path_root,
-            filename_prefix=filename_prefix,
-            use_threads=use_threads,
-            boto3_session=boto3_session,
-            index=index,
-            **func_kwargs,
-        )
+        if _ray_found:
+            paths = ray.get(
+                func(  # type: ignore
+                    df=df,
+                    path_root=path_root,
+                    filename_prefix=filename_prefix,
+                    use_threads=False,
+                    boto3_session=None,
+                    index=index,
+                    **func_kwargs,
+                )
+            )
+        else:
+            paths = func(
+                df=df,
+                path_root=path_root,
+                filename_prefix=filename_prefix,
+                use_threads=use_threads,
+                boto3_session=boto3_session,
+                index=index,
+                **func_kwargs,
+            )
     _logger.debug("paths: %s", paths)
     _logger.debug("partitions_values: %s", partitions_values)
     if (table_type == "GOVERNED") and (table is not None) and (database is not None):

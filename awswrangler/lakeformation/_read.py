@@ -17,9 +17,8 @@ from awswrangler.s3._read import _block_to_df
 
 _ray_found = importlib.util.find_spec("ray")
 if _ray_found:
-    from ray.data.impl.remote_fn import cached_remote_fn
-
     import ray
+    from ray.data.impl.remote_fn import cached_remote_fn
 
 _modin_found = importlib.util.find_spec("modin")
 if _modin_found:
@@ -81,7 +80,7 @@ def _resolve_sql_query(
     if _ray_found:
         ds = ray.data.from_arrow_refs(
             list(
-                _get_work_unit_results.remote(
+                _get_work_unit_results(
                     query_id=query_id,
                     token_work_unit=token_work_unit,
                 )

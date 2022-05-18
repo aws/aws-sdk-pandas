@@ -21,6 +21,7 @@ from awswrangler.s3._read import (
     _read_dfs_from_multiple_paths,
     _union,
 )
+from awswrangler._distributed import to_modin
 
 _ray_found = importlib.util.find_spec("ray")
 if _ray_found:
@@ -131,11 +132,11 @@ def _read_text(
     ret: Union[pd.DataFrame, Iterator[pd.DataFrame]]
     if _ray_found:
         # Pass complete path for Ray to load partitions as columns
-        ret = parser_func(paths=path, parallelism=parallelism)
+        ds = parser_func(paths=path, parallelism=parallelism)
         if partition_filter:
-            ret = ret.filter(fn=partition_filter)
+            ds = ds.filter(fn=partition_filter)
         if _modin_found:
-            ret = ret.to_modin()
+            return to_modin(ds, **pandas_kwargs)
         return ret
     if "iterator" in pandas_kwargs:
         raise exceptions.InvalidArgument("Please, use the chunksize argument instead of iterator.")

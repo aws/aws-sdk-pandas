@@ -12,6 +12,7 @@ import botocore
 import pyarrow as pa
 import redshift_connector
 
+import awswrangler.s3
 from awswrangler import _data_types
 from awswrangler import _databases as _db_utils
 from awswrangler import _utils, exceptions, s3
@@ -98,6 +99,23 @@ def _get_paths_from_manifest(path: str, boto3_session: Optional[boto3.Session] =
     content_object = resource_s3.Object(bucket, key)
     manifest_content = json.loads(content_object.get()["Body"].read().decode("utf-8"))
     return [path["url"] for path in manifest_content["entries"]]
+
+
+def _write_manifest(path_root: str, boto3_session: Optional[boto3.Session] = None) -> str:
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
+    manifest = {
+        "entries": [
+            {"url": key, "meta": {"content_length": int(obj["ResponseMetadata"]["HTTPHeaders"]["content-length"])}}
+            for key, obj in s3.describe_objects(path=path_root).items()
+        ],
+    }
+    if path_root.endswith("/"):
+        manifest_path = f"{path_root}manifest"
+    else:
+        manifest_path = f"{path_root}/manifest"
+    bucket, key = _utils.parse_path(manifest_path)
+    s3_client.put_object(Body=json.dumps(manifest), Bucket=bucket, Key=key)
+    return manifest_path
 
 
 def _make_s3_auth_string(
@@ -672,6 +690,9 @@ def read_sql_query(
     if _ray_found:
         if not unload_path:
             raise exceptions.InvalidArgumentValue("<unload_path> argument must be provided when using Ray")
+        # Cleanup the staging area
+        s3.delete_objects(path=unload_path)
+        # UNLOAD to Parquet
         unload_to_files(
             sql=sql,
             path=unload_path,
@@ -680,6 +701,7 @@ def read_sql_query(
             manifest=unload_manifest,
             max_file_size=unload_max_file_size,
         )
+        # Read Parquet
         ds = ray.data.read_datasource(
             ray.data.datasource.ParquetDatasource(),
             parallelism=parallelism,
@@ -805,6 +827,8 @@ def to_sql(  # pylint: disable=too-many-locals
     lock: bool = False,
     chunksize: int = 200,
     commit_transaction: bool = True,
+    copy_path: Optional[str] = None,
+    copy_manifest: bool = False,
 ) -> None:
     """Write records stored in a DataFrame into Redshift.
 
@@ -916,22 +940,45 @@ def to_sql(  # pylint: disable=too-many-locals
             )
             if index:
                 df.reset_index(level=df.index.names, inplace=True)
-            column_placeholders: str = ", ".join(["%s"] * len(df.columns))
-            schema_str = f'"{created_schema}".' if created_schema else ""
-            insertion_columns = ""
-            if use_column_names:
-                insertion_columns = f"({', '.join(df.columns)})"
-            placeholder_parameter_pair_generator = _db_utils.generate_placeholder_parameter_pairs(
-                df=df, column_placeholders=column_placeholders, chunksize=chunksize
-            )
-            for placeholders, parameters in placeholder_parameter_pair_generator:
-                sql: str = f'INSERT INTO {schema_str}"{created_table}" {insertion_columns} VALUES {placeholders}'
-                _logger.debug("sql: %s", sql)
-                cursor.executemany(sql, (parameters,))
-            if table != created_table:  # upsert
-                if lock:
-                    _lock(cursor, [table], schema=schema)
-                _upsert(cursor=cursor, schema=schema, table=table, temp_table=created_table, primary_keys=primary_keys)
+
+            if _ray_found:
+                if not copy_path:
+                    raise exceptions.InvalidArgumentValue("<copy_path> argument must be provided when using Ray")
+                # Cleanup the staging area & write to parquet
+                s3.delete_objects(path=copy_path)
+                s3.to_parquet(df=df, path=copy_path, dataset=True)
+                # Create manifest
+                if copy_manifest:
+                    manifest_path = _write_manifest(path_root=copy_path)
+                # LOAD into Redshift
+                copy_from_files(
+                    path=manifest_path if copy_manifest else copy_path,
+                    con=con,
+                    table=table,
+                    schema=schema,
+                    mode=mode,
+                    commit_transaction=False,
+                    manifest=copy_manifest,
+                )
+            else:
+                column_placeholders: str = ", ".join(["%s"] * len(df.columns))
+                schema_str = f'"{created_schema}".' if created_schema else ""
+                insertion_columns = ""
+                if use_column_names:
+                    insertion_columns = f"({', '.join(df.columns)})"
+                placeholder_parameter_pair_generator = _db_utils.generate_placeholder_parameter_pairs(
+                    df=df, column_placeholders=column_placeholders, chunksize=chunksize
+                )
+                for placeholders, parameters in placeholder_parameter_pair_generator:
+                    sql: str = f'INSERT INTO {schema_str}"{created_table}" {insertion_columns} VALUES {placeholders}'
+                    _logger.debug("sql: %s", sql)
+                    cursor.executemany(sql, (parameters,))
+                if table != created_table:  # upsert
+                    if lock:
+                        _lock(cursor, [table], schema=schema)
+                    _upsert(
+                        cursor=cursor, schema=schema, table=table, temp_table=created_table, primary_keys=primary_keys
+                    )
             if commit_transaction:
                 con.commit()
     except Exception as ex:
