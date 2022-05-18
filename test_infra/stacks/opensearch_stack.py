@@ -61,7 +61,7 @@ class OpenSearchStack(Stack):  # type: ignore
             domain_name,
             domain_name=domain_name,
             version=opensearch.EngineVersion.OPENSEARCH_1_0,
-            capacity=opensearch.CapacityConfig(data_node_instance_type="t3.small.search", data_nodes=1),
+            capacity=opensearch.CapacityConfig(data_node_instance_type="t3.medium.search", data_nodes=1),
             access_policies=[
                 iam.PolicyStatement(
                     effect=iam.Effect.ALLOW,
@@ -84,7 +84,7 @@ class OpenSearchStack(Stack):  # type: ignore
             domain_name,
             domain_name=domain_name,
             version=opensearch.EngineVersion.ELASTICSEARCH_7_10,
-            capacity=opensearch.CapacityConfig(data_node_instance_type="t3.small.search", data_nodes=1),
+            capacity=opensearch.CapacityConfig(data_node_instance_type="t3.medium.search", data_nodes=1),
             access_policies=[
                 iam.PolicyStatement(
                     effect=iam.Effect.ALLOW,
