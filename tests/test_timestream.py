@@ -234,16 +234,13 @@ def test_list_tables(timestream_database_and_table):
         database=timestream_database_and_table,
         table=f"{timestream_database_and_table}_2",
         memory_retention_hours=1,
-        magnetic_retention_days=1
+        magnetic_retention_days=1,
     )
 
     tables_in_db = wr.timestream.list_tables(database=timestream_database_and_table)
     assert f"{timestream_database_and_table}_2" in tables_in_db
 
-    wr.timestream.delete_table(
-        database=timestream_database_and_table,
-        table=f"{timestream_database_and_table}_2"
-    )
+    wr.timestream.delete_table(database=timestream_database_and_table, table=f"{timestream_database_and_table}_2")
 
     tables_in_db = wr.timestream.list_tables(database=timestream_database_and_table)
     assert f"{timestream_database_and_table}_2" not in tables_in_db
