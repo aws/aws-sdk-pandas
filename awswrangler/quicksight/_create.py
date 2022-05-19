@@ -98,7 +98,9 @@ def _generate_permissions(
 
 
 def _generate_transformations(
-    rename_columns: Optional[Dict[str, str]], cast_columns_types: Optional[Dict[str, str]]
+    rename_columns: Optional[Dict[str, str]],
+    cast_columns_types: Optional[Dict[str, str]],
+    tag_columns: Optional[Dict[str, str]],
 ) -> List[Dict[str, Dict[str, Any]]]:
     trans: List[Dict[str, Dict[str, Any]]] = []
     if rename_columns is not None:
@@ -107,6 +109,9 @@ def _generate_transformations(
     if cast_columns_types is not None:
         for k, v in cast_columns_types.items():
             trans.append({"CastColumnTypeOperation": {"ColumnName": k, "NewColumnType": v.upper()}})
+    if tag_columns is not None:
+        for k, v in tag_columns.items():
+            trans.append({"TagColumnOperation": {"ColumnName": k, "Tags": v}})
     return trans
 
 
@@ -204,6 +209,7 @@ def create_athena_dataset(
     logical_table_alias: str = "LogicalTable",
     rename_columns: Optional[Dict[str, str]] = None,
     cast_columns_types: Optional[Dict[str, str]] = None,
+    tag_columns: Optional[Dict[str, str]] = None,
     tags: Optional[Dict[str, str]] = None,
     account_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
@@ -245,7 +251,7 @@ def create_athena_dataset(
         'SPICE'|'DIRECT_QUERY'
     tags : Dict[str, str], optional
         Key/Value collection to put on the Cluster.
-        e.g. {"foo": "boo", "bar": "xoo"})
+        e.g. {"foo": "boo", "bar": "xoo"}
     allowed_to_use : optional
         List of usernames that will be allowed to see and use the data source.
         e.g. ["john", "Mary"]
@@ -259,6 +265,11 @@ def create_athena_dataset(
     cast_columns_types : Dict[str, str], optional
         Dictionary to map column casts. e.g. {"col_name": "STRING", "col_name2": "DECIMAL"}
         Valid types: 'STRING'|'INTEGER'|'DECIMAL'|'DATETIME'
+    tag_columns : Dict[str, str], optional
+        Dictionary to map column tags.
+        e.g. {"col_name": [{ "ColumnGeographicRole": "CITY" }],
+              "col_name2": [{ "ColumnDescription": { "Text": "description" }}]}
+        Valid geospatial roles: 'COUNTRY'|'STATE'|'COUNTY'|'CITY'|'POSTCODE'|'LONGITUDE'|'LATITUDE'
     account_id : str, optional
         If None, the account ID will be inferred from your boto3 session.
     boto3_session : boto3.Session(), optional
@@ -335,7 +346,7 @@ def create_athena_dataset(
         "LogicalTableMap": {table_uuid: {"Alias": logical_table_alias, "Source": {"PhysicalTableId": table_uuid}}},
     }
     trans: List[Dict[str, Dict[str, Any]]] = _generate_transformations(
-        rename_columns=rename_columns, cast_columns_types=cast_columns_types
+        rename_columns=rename_columns, cast_columns_types=cast_columns_types, tag_columns=tag_columns
     )
     if trans:
         args["LogicalTableMap"][table_uuid]["DataTransforms"] = trans
