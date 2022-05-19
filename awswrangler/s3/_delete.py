@@ -12,10 +12,9 @@ from urllib.parse import unquote_plus as _unquote_plus
 import boto3
 
 from awswrangler import _utils, exceptions
+from awswrangler._distributed import _ray_remote
 from awswrangler.s3._fs import get_botocore_valid_kwargs
 from awswrangler.s3._list import _path2list
-from awswrangler._distributed import _ray_remote
-
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
