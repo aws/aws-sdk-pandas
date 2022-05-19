@@ -548,6 +548,9 @@ def list_tables(database: Optional[str] = None, boto3_session: Optional[boto3.Se
 
     """
     client: boto3.client = _utils.client(service_name="timestream-write", session=boto3_session)
-    tables = client.list_tables(DatabaseName=database)
+    if database:
+        tables = client.list_tables(DatabaseName=database)
+    else:
+        tables = client.list_tables()
 
     return [tbl["TableName"] for tbl in tables["Tables"]]
