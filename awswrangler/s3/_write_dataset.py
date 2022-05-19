@@ -53,7 +53,7 @@ def _to_partitions(
     partitions_values: Dict[str, List[str]] = {}
     proxy: _WriteProxy = _WriteProxy(use_threads=concurrent_partitioning)
 
-    df_groups = df.groupby(by=partition_cols, observed=True)
+    df_groups = df.groupby(by=partition_cols, observed=True, sort=False)
 
     for keys in list(df_groups.groups):
         keys = (keys,) if not isinstance(keys, tuple) else keys
