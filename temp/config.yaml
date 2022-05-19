@@ -15,12 +15,30 @@ provider:
                 ToPort: 22
                 IpProtocol: TCP
                 IpRanges:
-                    - CidrIp: pl-3b927c52
+                    - CidrIp: 72.21.199.80/28
+                    - CidrIp: 52.46.250.0/23
+                    - CidrIp: 72.21.196.64/29
+                    - CidrIp: 72.21.217.0/24
+                    - CidrIp: 72.21.198.64/29
+                    - CidrIp: 54.240.217.0/27
+                    - CidrIp: 54.239.112.0/24
+                    - CidrIp: 15.221.4.0/23
+                    - CidrIp: 54.239.98.0/24
+                    - CidrIp: 52.94.133.128/25
               - FromPort: 10001
                 ToPort: 10001
                 IpProtocol: TCP
                 IpRanges:
-                    - CidrIp: pl-3b927c52
+                    - CidrIp: 72.21.199.80/28
+                    - CidrIp: 52.46.250.0/23
+                    - CidrIp: 72.21.196.64/29
+                    - CidrIp: 72.21.217.0/24
+                    - CidrIp: 72.21.198.64/29
+                    - CidrIp: 54.240.217.0/27
+                    - CidrIp: 54.239.112.0/24
+                    - CidrIp: 15.221.4.0/23
+                    - CidrIp: 54.239.98.0/24
+                    - CidrIp: 52.94.133.128/25
     cache_stopped_nodes: False
 
 available_node_types:
@@ -29,7 +47,7 @@ available_node_types:
       InstanceType: r5n.2xlarge
       IamInstanceProfile:
         Arn: arn:aws:iam::336392948345:instance-profile/ray-cluster-instance-profile
-      ImageId: ami-06d3d2ee794b34a21
+      ImageId: ami-0ea510fcb67686b48
 
   ray.worker.default:
       min_workers: 2
@@ -38,7 +56,7 @@ available_node_types:
         InstanceType: r5n.2xlarge
         IamInstanceProfile:
           Arn: arn:aws:iam::336392948345:instance-profile/ray-cluster-instance-profile
-        ImageId: ami-06d3d2ee794b34a21
+        ImageId: ami-0ea510fcb67686b48
 
 setup_commands:
 - pip install git+https://github.com/awslabs/aws-data-wrangler.git@wrangler-3.0.0
