@@ -217,8 +217,22 @@ def test_list_databases(timestream_database_and_table):
     dbs = wr.timestream.list_databases()
 
     assert timestream_database_and_table in dbs
-    # not sure about that
-    assert len(dbs) == 1
+    dummy_db_name = f"{timestream_database_and_table}_2"
+
+    wr.timestream.create_database(dummy_db_name)
+    dbs_tmp = wr.timestream.list_databases()
+
+    assert timestream_database_and_table in dbs_tmp
+    assert dummy_db_name in dbs_tmp
+    assert len(dbs_tmp) == len(dbs) + 1
+
+    wr.timestream.delete_database(dummy_db_name)
+
+    dbs_tmp = wr.timestream.list_databases()
+    assert timestream_database_and_table in dbs_tmp
+    assert dummy_db_name not in dbs_tmp
+    assert len(dbs_tmp) == len(dbs)
+    assert dbs_tmp == dbs
 
 
 def test_list_tables(timestream_database_and_table):
