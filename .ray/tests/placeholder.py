@@ -1,7 +1,7 @@
 import ray
 import awswrangler as wr
 
-ray.init("ray://localhost:10001", runtime_env={"py_modules": [wr]})
+ray.init(address="auto", runtime_env={"py_modules": [wr]})
 
 import time
 import logging
