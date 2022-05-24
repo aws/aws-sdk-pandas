@@ -9,11 +9,11 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
 
 start = time.time()
-path = "s3://nyc-tlc/trip data/yellow_tripdata_2021-01.parquet"
-print(f"S3 Select path: {path}")
+paths = ["s3://nyc-tlc/trip data/yellow_tripdata_2021-01.parquet", "s3://nyc-tlc/trip data/yellow_tripdata_2021-02.parquet"]
+print(f"S3 Select path: {paths}")
 df = wr.s3.select_query(
     sql="SELECT * FROM s3object",
-    path=path,
+    path=paths,
     input_serialization="Parquet",
     input_serialization_params={},
     use_threads=True,
