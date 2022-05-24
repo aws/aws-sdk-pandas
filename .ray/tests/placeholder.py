@@ -9,7 +9,7 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
 
 start = time.time()
-path = "s3://nyc-tlc/trip data/fhvhv_tripdata_2020-*"
+path = "s3://nyc-tlc/trip data/fhv_tripdata_2020-*"
 print(f"S3 Select path: {path}")
 df = wr.s3.select_query(
     sql="SELECT * FROM s3object",
