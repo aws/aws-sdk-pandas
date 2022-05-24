@@ -9,18 +9,12 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
 
 start = time.time()
-path = "s3://nyc-tlc/csv_backup/fhv_tripdata_2020-*"
-print(f"S3 Select path: {path}")
 df = wr.s3.select_query(
-    sql="SELECT * FROM s3object",
-    path=path,
-    input_serialization="CSV",
-    input_serialization_params={
-        "FileHeaderInfo": "Use",
-        "RecordDelimiter": "\r\n",
-    },
-    use_threads=True,
-    scan_range_chunk_size=1024*1024*32,
+        sql="SELECT * FROM s3object s where s.\"star_rating\" >= 5",
+        path="s3://amazon-reviews-pds/parquet/product_category=Gift_Card/part-00000-495c48e6-96d6-4650-aa65-3c36a3516ddd.c000.snappy.parquet",
+        input_serialization="Parquet",
+        input_serialization_params={},
+        use_threads=True,
 )
 end = time.time()
 
