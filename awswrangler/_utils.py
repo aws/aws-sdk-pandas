@@ -404,13 +404,12 @@ def check_schema_changes(columns_types: Dict[str, str], table_input: Optional[Di
                 )
 
 
-def pylist_to_arrow(
-    cls: Union[pa.Table, pa.RecordBatch],
+def list_to_arrow_table(
     mapping: List[Dict[str, Any]],
     schema: Optional[pa.Schema] = None,
     metadata: Optional[Dict[str, Any]] = None,
-) -> Union[pa.Table, pa.RecordBatch]:
-    """Construct a Table/RecordBatch from list of rows / dictionaries."""
+) -> pa.Table:
+    """Construct a PyArrow Table from list of dictionaries."""
     arrays = []
     if schema is None:
         names = []
@@ -419,13 +418,13 @@ def pylist_to_arrow(
         for n in names:
             v = [row[n] if n in row else None for row in mapping]
             arrays.append(v)
-        return cls.from_arrays(arrays, names, metadata=metadata)
+        return pa.Table.from_arrays(arrays, names, metadata=metadata)
     if isinstance(schema, pa.Schema):
         for n in schema.names:
             v = [row[n] if n in row else None for row in mapping]
             arrays.append(v)
         # Will raise if metadata is not None
-        return cls.from_arrays(arrays, schema=schema, metadata=metadata)
+        return pa.Table.from_arrays(arrays, schema=schema, metadata=metadata)
     raise TypeError("Schema must be an instance of pyarrow.Schema")
 
 

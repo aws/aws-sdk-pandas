@@ -50,7 +50,7 @@ def _select_object_content(
             # Record end can either be a partial record or a return char
             partial_record = records.pop()
             payload_records.extend([json.loads(record) for record in records])
-    return _utils.pylist_to_arrow(Table, payload_records)
+    return _utils.list_to_arrow_table(mapping=payload_records)
 
 
 def _paginate_stream(
