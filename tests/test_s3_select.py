@@ -7,8 +7,6 @@ import pytest
 
 import awswrangler as wr
 
-from ._utils import get_df_list
-
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
@@ -41,7 +39,7 @@ def test_full_table(path, use_threads):
         input_serialization="CSV",
         input_serialization_params={"FileHeaderInfo": "Use", "RecordDelimiter": "\n"},
         use_threads=use_threads,
-        scan_range_chunk_size=1024*1024*32,
+        scan_range_chunk_size=1024 * 1024 * 32,
         path_suffix=[".csv"],
     )
     assert len(df.index) == len(df3.index)
