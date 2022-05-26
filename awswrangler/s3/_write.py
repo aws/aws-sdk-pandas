@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import pyarrow as pa
 
 from awswrangler import _data_types, _utils, catalog, exceptions
+from pandas import DataFrame as PandasDataFrame
 
 _ray_found = importlib.util.find_spec("ray")
 if _ray_found:
@@ -184,7 +185,7 @@ def _df_to_dataset(
 ) -> Union[pa.Table, "Dataset[ArrowRow]"]:
     if _ray_found:
         return _from_pandas_refs(
-            dfs=unwrap_partitions(df, axis=0) if _modin_found else [ray.put(df)],
+            dfs=[ray.put(df)] if isinstance(df, PandasDataFrame) else unwrap_partitions(df, axis=0),
             schema=schema,
             index=index,
             dtype=dtype,
