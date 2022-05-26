@@ -8,6 +8,7 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union, cast
 import numpy as np
 import pandas as pd
 from pandas.api.types import union_categoricals
+from pyarrow import Table
 
 from awswrangler import exceptions
 from awswrangler._utils import boto3_to_primitives, ensure_cpu_count
@@ -143,3 +144,19 @@ def _read_dfs_from_multiple_paths(
         partial_read_func = partial(read_func, **kwargs)
         versions = [version_ids.get(p) if isinstance(version_ids, dict) else None for p in paths]
         return list(df for df in executor.map(partial_read_func, paths, versions))
+
+
+def _read_tables_from_multiple_paths(
+    read_func: Callable[..., pd.DataFrame],
+    paths: List[str],
+    use_threads: Union[bool, int],
+    kwargs: Dict[str, Any],
+) -> List[Table]:
+    cpus = ensure_cpu_count(use_threads)
+    if cpus < 2:
+        return [read_func(path, **kwargs) for path in paths]
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=ensure_cpu_count(use_threads)) as executor:
+        kwargs["boto3_session"] = boto3_to_primitives(kwargs["boto3_session"])
+        partial_read_func = partial(read_func, **kwargs)
+        return list(tb for tb in executor.map(partial_read_func, paths))
