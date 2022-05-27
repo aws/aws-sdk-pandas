@@ -154,9 +154,9 @@ def _read_tables_from_multiple_paths(
 ) -> List[Table]:
     cpus = ensure_cpu_count(use_threads)
     if cpus < 2:
-        return [read_func(path, **kwargs) for path in paths]
+        return [tb for path in paths for tb in read_func(path, **kwargs)]
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=ensure_cpu_count(use_threads)) as executor:
         kwargs["boto3_session"] = boto3_to_primitives(kwargs["boto3_session"])
         partial_read_func = partial(read_func, **kwargs)
-        return list(tb for tb in executor.map(partial_read_func, paths))
+        return list(tb for tbs in executor.map(partial_read_func, paths) for tb in tbs)

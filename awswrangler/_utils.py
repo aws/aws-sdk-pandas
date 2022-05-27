@@ -426,8 +426,3 @@ def list_to_arrow_table(
         # Will raise if metadata is not None
         return pa.Table.from_arrays(arrays, schema=schema, metadata=metadata)
     raise TypeError("Schema must be an instance of pyarrow.Schema")
-
-
-def flatten_list(*elements: List[List[Any]]) -> List[Any]:
-    """Flatten list of lists."""
-    return [item for sublist in elements for item in sublist]

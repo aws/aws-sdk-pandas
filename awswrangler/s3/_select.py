@@ -284,12 +284,10 @@ def select_query(
     _logger.debug("kwargs:\n%s", pprint.pformat(kwargs))
 
     return concat_tables(
-        _utils.flatten_list(
-            *_read_tables_from_multiple_paths(
-                read_func=_select_query,
-                paths=paths,
-                use_threads=use_threads,
-                kwargs=kwargs,
-            )
+        _read_tables_from_multiple_paths(
+            read_func=_select_query,
+            paths=paths,
+            use_threads=use_threads,
+            kwargs=kwargs,
         )
     ).to_pandas(use_threads=use_threads, split_blocks=True, self_destruct=True, ignore_metadata=True)
