@@ -202,9 +202,9 @@ def _upsert(
         cursor.execute(sql)
     if column_names:
         column_names_str = ",".join(column_names)
-        insert_sql = f"INSERT INTO {schema}.{table}({column_names_str}) SELECT {column_names_str} FROM {temp_table}"
+        insert_sql = f'INSERT INTO "{schema}"."{table}"({column_names_str}) SELECT {column_names_str} FROM {temp_table}'
     else:
-        insert_sql = f"INSERT INTO {schema}.{table} SELECT * FROM {temp_table}"
+        insert_sql = f'INSERT INTO "{schema}"."{table}" SELECT * FROM {temp_table}'
     _logger.debug(insert_sql)
     cursor.execute(insert_sql)
     _drop_table(cursor=cursor, schema=schema, table=temp_table)
