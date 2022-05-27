@@ -292,6 +292,7 @@ def test_gremlin_write_vertices(neptune_endpoint, neptune_port) -> Dict[str, Any
     assert len(saved_row["str"]) == 2
 
 
+@pytest.mark.skip(reason="In quarantine due to breaking change in Neptune engine.")
 def test_gremlin_write_edges(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
 
@@ -328,6 +329,7 @@ def test_gremlin_write_edges(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     assert batch_cnt_df.iloc[0][0] == final_cnt_df.iloc[0][0] + 50
 
 
+@pytest.mark.skip(reason="In quarantine due to breaking change in Neptune engine.")
 def test_sparql_write_different_cols(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
 
