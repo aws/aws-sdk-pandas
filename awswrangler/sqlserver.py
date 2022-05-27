@@ -332,6 +332,7 @@ def to_sql(
     varchar_lengths: Optional[Dict[str, int]] = None,
     use_column_names: bool = False,
     chunksize: int = 200,
+    fast_executemany: bool = False,
 ) -> None:
     """Write records stored in a DataFrame into Microsoft SQL Server.
 
@@ -362,6 +363,15 @@ def to_sql(
         inserted into the database columns `col1` and `col3`.
     chunksize: int
         Number of rows which are inserted with each SQL query. Defaults to inserting 200 rows per query.
+    fast_executemany: bool
+        Mode of execution which greatly reduces round trips for a DBAPI executemany() call when using
+        Microsoft ODBC drivers, for limited size batches that fit in memory. `False` by default.
+
+        https://github.com/mkleehammer/pyodbc/wiki/Cursor#executemanysql-params-with-fast_executemanytrue
+
+        Note: when using this mode, pyodbc converts the Python parameter values to their ODBC "C" equivalents,
+        based on the target column types in the database which may lead to subtle data type conversion
+        diffferences depending on whether fast_executemany is True or False.
 
     Returns
     -------
@@ -388,6 +398,8 @@ def to_sql(
     _validate_connection(con=con)
     try:
         with con.cursor() as cursor:
+            if fast_executemany:
+                cursor.fast_executemany = True
             _create_table(
                 df=df,
                 cursor=cursor,

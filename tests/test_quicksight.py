@@ -37,6 +37,7 @@ def test_quicksight(path, glue_database, glue_table):
         allowed_to_manage=[wr.sts.get_current_identity_name()],
         rename_columns={"iint16": "new_col"},
         cast_columns_types={"new_col": "STRING"},
+        tag_columns={"string": [{"ColumnGeographicRole": "CITY"}, {"ColumnDescription": {"Text": "some description"}}]},
     )
     assert wr.quicksight.describe_dataset("test-table")["Name"] == "test-table"
 
@@ -49,6 +50,7 @@ def test_quicksight(path, glue_database, glue_table):
         allowed_to_manage=[wr.sts.get_current_identity_name()],
         rename_columns={"iint16": "new_col"},
         cast_columns_types={"new_col": "STRING"},
+        tag_columns={"string": [{"ColumnGeographicRole": "CITY"}, {"ColumnDescription": {"Text": "some description"}}]},
         tags={"foo": "boo"},
     )
 

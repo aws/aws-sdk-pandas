@@ -260,8 +260,7 @@ def _resolve_query_without_cache_ctas(
     boto3_session: boto3.Session,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    fully_qualified_name: str = f'"{alt_database}"."{name}"' if alt_database else f'"{database}"."{name}"'
-    ctas_query_info: Dict[str, str] = create_ctas_table(
+    ctas_query_info: Dict[str, Union[str, _QueryMetadata]] = create_ctas_table(
         sql=sql,
         database=database,
         ctas_table=name,
@@ -272,35 +271,14 @@ def _resolve_query_without_cache_ctas(
         workgroup=workgroup,
         encryption=encryption,
         kms_key=kms_key,
+        wait=True,
         boto3_session=boto3_session,
     )
-    ctas_query_id: str = ctas_query_info["ctas_query_id"]
-    _logger.debug("ctas_query_id: %s", ctas_query_id)
-    try:
-        query_metadata: _QueryMetadata = _get_query_metadata(
-            query_execution_id=ctas_query_id,
-            boto3_session=boto3_session,
-            categories=categories,
-            metadata_cache_manager=_cache_manager,
-        )
-    except exceptions.QueryFailed as ex:
-        msg: str = str(ex)
-        if "Column name" in msg and "specified more than once" in msg:
-            raise exceptions.InvalidCtasApproachQuery(
-                f"Please, define distinct names for your columns OR pass ctas_approach=False. Root error message: {msg}"
-            )
-        if "Column name not specified" in msg:
-            raise exceptions.InvalidArgumentValue(
-                "Please, define all columns names in your query. (E.g. 'SELECT MAX(col1) AS max_col1, ...')"
-            )
-        if "Column type is unknown" in msg:
-            raise exceptions.InvalidArgumentValue(
-                "Please, don't leave undefined columns types in your query. You can cast to ensure it. "
-                "(E.g. 'SELECT CAST(NULL AS INTEGER) AS MY_COL, ...')"
-            )
-        raise ex
+    fully_qualified_name: str = f'"{ctas_query_info["ctas_database"]}"."{ctas_query_info["ctas_table"]}"'
+    ctas_query_metadata: _QueryMetadata = ctas_query_info["ctas_query_metadata"]  # type: ignore
+    _logger.debug("ctas_query_metadata: %s", ctas_query_metadata)
     return _fetch_parquet_result(
-        query_metadata=query_metadata,
+        query_metadata=ctas_query_metadata,
         keep_files=keep_files,
         categories=categories,
         chunksize=chunksize,
@@ -320,33 +298,31 @@ def _resolve_query_without_cache_unload(
     partitioned_by: Optional[List[str]],
     database: Optional[str],
     data_source: Optional[str],
-    s3_output: str,
+    s3_output: Optional[str],
     keep_files: bool,
     chunksize: Union[int, bool, None],
     categories: Optional[List[str]],
     encryption: Optional[str],
     kms_key: Optional[str],
     workgroup: Optional[str],
-    wg_config: _WorkGroupConfig,
     use_threads: Union[bool, int],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     query_metadata = _unload(
-        sql,
-        s3_output,
-        file_format,
-        compression,
-        field_delimiter,
-        partitioned_by,
-        workgroup,
-        wg_config,
-        database,
-        encryption,
-        kms_key,
-        boto3_session,
-        data_source,
+        sql=sql,
+        path=s3_output,
+        file_format=file_format,
+        compression=compression,
+        field_delimiter=field_delimiter,
+        partitioned_by=partitioned_by,
+        workgroup=workgroup,
+        database=database,
+        encryption=encryption,
+        kms_key=kms_key,
+        boto3_session=boto3_session,
+        data_source=data_source,
     )
     if file_format == "PARQUET":
         return _fetch_parquet_result(
@@ -373,11 +349,13 @@ def _resolve_query_without_cache_regular(
     encryption: Optional[str],
     workgroup: Optional[str],
     kms_key: Optional[str],
-    wg_config: _WorkGroupConfig,
     use_threads: Union[bool, int],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
+    s3_output = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=boto3_session)
+    s3_output = s3_output[:-1] if s3_output[-1] == "/" else s3_output
     _logger.debug("sql: %s", sql)
     query_id: str = _start_query_execution(
         sql=sql,
@@ -435,9 +413,6 @@ def _resolve_query_without_cache(
 
     Usually called by `read_sql_query` when using cache is not possible.
     """
-    wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
-    _s3_output: str = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=boto3_session)
-    _s3_output = _s3_output[:-1] if _s3_output[-1] == "/" else _s3_output
     if ctas_approach is True:
         if ctas_temp_table_name is not None:
             name: str = catalog.sanitize_table_name(ctas_temp_table_name)
@@ -448,7 +423,7 @@ def _resolve_query_without_cache(
                 sql=sql,
                 database=database,
                 data_source=data_source,
-                s3_output=_s3_output,
+                s3_output=s3_output,
                 keep_files=keep_files,
                 chunksize=chunksize,
                 categories=categories,
@@ -478,14 +453,13 @@ def _resolve_query_without_cache(
             partitioned_by=unload_parameters.get("partitioned_by"),
             database=database,
             data_source=data_source,
-            s3_output=_s3_output,
+            s3_output=s3_output,
             keep_files=keep_files,
             chunksize=chunksize,
             categories=categories,
             encryption=encryption,
             kms_key=kms_key,
             workgroup=workgroup,
-            wg_config=wg_config,
             use_threads=use_threads,
             s3_additional_kwargs=s3_additional_kwargs,
             boto3_session=boto3_session,
@@ -495,14 +469,13 @@ def _resolve_query_without_cache(
         sql=sql,
         database=database,
         data_source=data_source,
-        s3_output=_s3_output,
+        s3_output=s3_output,
         keep_files=keep_files,
         chunksize=chunksize,
         categories=categories,
         encryption=encryption,
         workgroup=workgroup,
         kms_key=kms_key,
-        wg_config=wg_config,
         use_threads=use_threads,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
@@ -511,19 +484,26 @@ def _resolve_query_without_cache(
 
 def _unload(
     sql: str,
-    path: str,
+    path: Optional[str],
     file_format: str,
     compression: Optional[str],
     field_delimiter: Optional[str],
     partitioned_by: Optional[List[str]],
     workgroup: Optional[str],
-    wg_config: _WorkGroupConfig,
     database: Optional[str],
     encryption: Optional[str],
     kms_key: Optional[str],
     boto3_session: boto3.Session,
     data_source: Optional[str],
 ) -> _QueryMetadata:
+    wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
+    s3_output: str = _get_s3_output(s3_output=path, wg_config=wg_config, boto3_session=boto3_session)
+    s3_output = s3_output[:-1] if s3_output[-1] == "/" else s3_output
+    # Athena does not enforce a Query Result Location for UNLOAD. Thus, the workgroup output location
+    # is only used if no path is supplied.
+    if not path:
+        path = s3_output
+
     # Set UNLOAD parameters
     unload_parameters = f"  format='{file_format}'"
     if compression:
@@ -542,7 +522,7 @@ def _unload(
             wg_config=wg_config,
             database=database,
             data_source=data_source,
-            s3_output=path,
+            s3_output=s3_output,
             encryption=encryption,
             kms_key=kms_key,
             boto3_session=boto3_session,
@@ -611,11 +591,11 @@ def read_sql_query(
 
     **Related tutorial:**
 
-    - `Amazon Athena <https://aws-data-wrangler.readthedocs.io/en/2.14.0/
+    - `Amazon Athena <https://aws-data-wrangler.readthedocs.io/en/2.15.1/
       tutorials/006%20-%20Amazon%20Athena.html>`_
-    - `Athena Cache <https://aws-data-wrangler.readthedocs.io/en/2.14.0/
+    - `Athena Cache <https://aws-data-wrangler.readthedocs.io/en/2.15.1/
       tutorials/019%20-%20Athena%20Cache.html>`_
-    - `Global Configurations <https://aws-data-wrangler.readthedocs.io/en/2.14.0/
+    - `Global Configurations <https://aws-data-wrangler.readthedocs.io/en/2.15.1/
       tutorials/021%20-%20Global%20Configurations.html>`_
 
     **There are three approaches available through ctas_approach and unload_approach parameters:**
@@ -654,7 +634,6 @@ def read_sql_query(
     - Does not support timestamp with time zone.
     - Does not support columns with repeated names.
     - Does not support columns with undefined data types.
-    - Does not support custom data_source/catalog_id.
 
     **3** - ctas_approach=False:
 
@@ -680,7 +659,7 @@ def read_sql_query(
     /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a practical example check out the
-    `related tutorial <https://aws-data-wrangler.readthedocs.io/en/2.14.0/
+    `related tutorial <https://aws-data-wrangler.readthedocs.io/en/2.15.1/
     tutorials/024%20-%20Athena%20Query%20Metadata.html>`_!
 
 
@@ -924,11 +903,11 @@ def read_sql_table(
 
     **Related tutorial:**
 
-    - `Amazon Athena <https://aws-data-wrangler.readthedocs.io/en/2.14.0/
+    - `Amazon Athena <https://aws-data-wrangler.readthedocs.io/en/2.15.1/
       tutorials/006%20-%20Amazon%20Athena.html>`_
-    - `Athena Cache <https://aws-data-wrangler.readthedocs.io/en/2.14.0/
+    - `Athena Cache <https://aws-data-wrangler.readthedocs.io/en/2.15.1/
       tutorials/019%20-%20Athena%20Cache.html>`_
-    - `Global Configurations <https://aws-data-wrangler.readthedocs.io/en/2.14.0/
+    - `Global Configurations <https://aws-data-wrangler.readthedocs.io/en/2.15.1/
       tutorials/021%20-%20Global%20Configurations.html>`_
 
     **There are two approaches to be defined through ctas_approach parameter:**
@@ -973,7 +952,7 @@ def read_sql_table(
     /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a practical example check out the
-    `related tutorial <https://aws-data-wrangler.readthedocs.io/en/2.14.0/
+    `related tutorial <https://aws-data-wrangler.readthedocs.io/en/2.15.1/
     tutorials/024%20-%20Athena%20Query%20Metadata.html>`_!
 
 
@@ -1199,24 +1178,22 @@ def unload(
 
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    wg_config: _WorkGroupConfig = _get_workgroup_config(session=session, workgroup=workgroup)
     # Substitute query parameters
     if params is None:
         params = {}
     for key, value in params.items():
         sql = sql.replace(f":{key};", str(value))
     return _unload(
-        sql,
-        path,
-        file_format,
-        compression,
-        field_delimiter,
-        partitioned_by,
-        workgroup,
-        wg_config,
-        database,
-        encryption,
-        kms_key,
-        session,
-        data_source,
+        sql=sql,
+        path=path,
+        file_format=file_format,
+        compression=compression,
+        field_delimiter=field_delimiter,
+        partitioned_by=partitioned_by,
+        workgroup=workgroup,
+        database=database,
+        encryption=encryption,
+        kms_key=kms_key,
+        boto3_session=session,
+        data_source=data_source,
     )

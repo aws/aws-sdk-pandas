@@ -1,13 +1,14 @@
+from aws_cdk import Fn, Stack
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_lakeformation as lf
 from aws_cdk import aws_s3 as s3
-from aws_cdk import core as cdk
+from constructs import Construct
 
 
-class LakeFormationStack(cdk.Stack):  # type: ignore
+class LakeFormationStack(Stack):  # type: ignore
     def __init__(
         self,
-        scope: cdk.Construct,
+        scope: Construct,
         construct_id: str,
         **kwargs: str,
     ) -> None:
@@ -20,7 +21,7 @@ class LakeFormationStack(cdk.Stack):  # type: ignore
 
     def _set_lakeformation_infra(self) -> None:
         bucket = s3.Bucket.from_bucket_name(
-            self, "aws-data-wrangler-bucket", bucket_name=cdk.Fn.import_value("aws-data-wrangler-base-BucketName")
+            self, "aws-data-wrangler-bucket", bucket_name=Fn.import_value("aws-data-wrangler-base-BucketName")
         )
 
         transaction_role = iam.Role(

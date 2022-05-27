@@ -5,6 +5,7 @@ import pprint
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
+import botocore.exceptions
 import pandas as pd
 import pandas.io.parsers
 from pandas.io.common import infer_compression
@@ -28,7 +29,7 @@ def _get_read_details(path: str, pandas_kwargs: Dict[str, Any]) -> Tuple[str, Op
     if pandas_kwargs.get("compression", "infer") == "infer":
         pandas_kwargs["compression"] = infer_compression(path, compression="infer")
     mode: str = "r" if pandas_kwargs.get("compression") is None else "rb"
-    encoding: Optional[str] = pandas_kwargs.get("encoding", None)
+    encoding: Optional[str] = pandas_kwargs.get("encoding", "utf-8")
     newline: Optional[str] = pandas_kwargs.get("lineterminator", None)
     return mode, encoding, newline
 
@@ -77,18 +78,23 @@ def _read_text_file(
 ) -> pd.DataFrame:
     boto3_session = _utils.ensure_session(boto3_session)
     mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
-    with open_s3_object(
-        path=path,
-        version_id=version_id,
-        mode=mode,
-        use_threads=use_threads,
-        s3_block_size=-1,  # One shot download
-        encoding=encoding,
-        s3_additional_kwargs=s3_additional_kwargs,
-        newline=newline,
-        boto3_session=boto3_session,
-    ) as f:
-        df: pd.DataFrame = parser_func(f, **pandas_kwargs)
+    try:
+        with open_s3_object(
+            path=path,
+            version_id=version_id,
+            mode=mode,
+            use_threads=use_threads,
+            s3_block_size=-1,  # One shot download
+            encoding=encoding,
+            s3_additional_kwargs=s3_additional_kwargs,
+            newline=newline,
+            boto3_session=boto3_session,
+        ) as f:
+            df: pd.DataFrame = parser_func(f, **pandas_kwargs)
+    except botocore.exceptions.ClientError as e:
+        if e.response["Error"]["Code"] == "404":
+            raise exceptions.NoFilesFound(f"No files Found on: {path}.")
+        raise e
     return _apply_partitions(df=df, dataset=dataset, path=path, path_root=path_root)
 
 
@@ -241,7 +247,7 @@ def read_csv(
         This function MUST return a bool, True to read the partition or False to ignore it.
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
-        https://aws-data-wrangler.readthedocs.io/en/2.14.0/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+        https://aws-data-wrangler.readthedocs.io/en/2.15.1/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
     pandas_kwargs :
         KEYWORD arguments forwarded to pandas.read_csv(). You can NOT pass `pandas_kwargs` explicit, just add valid
         Pandas arguments in the function call and Wrangler will accept it.
@@ -389,7 +395,7 @@ def read_fwf(
         This function MUST return a bool, True to read the partition or False to ignore it.
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
-        https://aws-data-wrangler.readthedocs.io/en/2.14.0/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+        https://aws-data-wrangler.readthedocs.io/en/2.15.1/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
     pandas_kwargs:
         KEYWORD arguments forwarded to pandas.read_fwf(). You can NOT pass `pandas_kwargs` explicit, just add valid
         Pandas arguments in the function call and Wrangler will accept it.
@@ -541,7 +547,7 @@ def read_json(
         This function MUST return a bool, True to read the partition or False to ignore it.
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
-        https://aws-data-wrangler.readthedocs.io/en/2.14.0/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+        https://aws-data-wrangler.readthedocs.io/en/2.15.1/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
     pandas_kwargs:
         KEYWORD arguments forwarded to pandas.read_json(). You can NOT pass `pandas_kwargs` explicit, just add valid
         Pandas arguments in the function call and Wrangler will accept it.

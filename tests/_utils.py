@@ -2,7 +2,7 @@ import random
 import time
 from datetime import datetime
 from decimal import Decimal
-from typing import Dict, Iterator
+from typing import Any, Dict, Iterator
 
 import boto3
 import botocore.exceptions
@@ -28,7 +28,7 @@ def get_df(governed=False):
             "ddouble": [0.0, None, 1.1],
             "decimal": [Decimal((0, (1, 9, 9), -2)), None, Decimal((0, (1, 9, 0), -2))],
             "string_object": ["foo", None, "boo"],
-            "string": ["foo", None, "boo"],
+            "string": ["Seattle", None, "Washington"],
             "date": [dt("2020-01-01"), None, dt("2020-01-02")],
             "timestamp": [ts("2020-01-01 00:00:00.0"), None, ts("2020-01-02 00:00:01.0")],
             "bool": [True, None, False],
@@ -438,7 +438,7 @@ def ensure_data_types(df, has_list=False):
     if "string_object" in df.columns:
         assert str(df["string_object"].dtype) == "string"
     assert str(df["string"].dtype) == "string"
-    assert str(df["date"].dtype) == "object"
+    assert str(df["date"].dtype) in ("object", "O", "datetime64[ns]")
     assert str(df["timestamp"].dtype) == "datetime64[ns]"
     assert str(df["bool"].dtype) in ("boolean", "Int64", "object")
     if "binary" in df.columns:
@@ -501,12 +501,16 @@ def ensure_data_types_csv(df, governed=False):
         assert str(df["par1"].dtype) == "string"
 
 
-def ensure_athena_ctas_table(ctas_query_info: Dict[str, str], boto3_session: boto3.Session) -> None:
-    query_metadata = wr.athena._utils._get_query_metadata(
-        query_execution_id=ctas_query_info["ctas_query_id"], boto3_session=boto3_session
+def ensure_athena_ctas_table(ctas_query_info: Dict[str, Any], boto3_session: boto3.Session) -> None:
+    query_metadata = (
+        wr.athena._utils._get_query_metadata(
+            query_execution_id=ctas_query_info["ctas_query_id"], boto3_session=boto3_session
+        )
+        if "ctas_query_id" in ctas_query_info
+        else ctas_query_info["ctas_query_metadata"]
     )
     assert query_metadata.raw_payload["Status"]["State"] == "SUCCEEDED"
-    wr.catalog.delete_table_if_exists(table=ctas_query_info["ctas_table"], database=ctas_query_info["ctas_database"])
+    wr.catalog.delete_table_if_exists(database=ctas_query_info["ctas_database"], table=ctas_query_info["ctas_table"])
 
 
 def ensure_athena_query_metadata(df, ctas_approach=True, encrypted=False):

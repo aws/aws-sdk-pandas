@@ -3,6 +3,7 @@
 import datetime
 import logging
 import re
+import warnings
 from decimal import Decimal
 from typing import Any, Callable, Dict, Iterator, List, Match, Optional, Sequence, Tuple, Union
 
@@ -344,7 +345,9 @@ def athena2quicksight(dtype: str) -> str:  # pylint: disable=too-many-branches,t
         return "DECIMAL"
     if dtype in ("boolean", "bool"):
         return "BOOLEAN"
-    if dtype in ("string", "char", "varchar"):
+    if dtype.startswith(("char", "varchar")):
+        return "STRING"
+    if dtype == "string":
         return "STRING"
     if dtype == "timestamp":
         return "DATETIME"
@@ -416,7 +419,7 @@ def pyarrow2pandas_extension(  # pylint: disable=too-many-branches,too-many-retu
     return None
 
 
-def pyarrow_types_from_pandas(
+def pyarrow_types_from_pandas(  # pylint: disable=too-many-branches
     df: pd.DataFrame, index: bool, ignore_cols: Optional[List[str]] = None, index_left: bool = False
 ) -> Dict[str, pa.DataType]:
     """Extract the related Pyarrow data types from any Pandas DataFrame."""
@@ -466,7 +469,19 @@ def pyarrow_types_from_pandas(
     # Filling indexes
     indexes: List[str] = []
     if index is True:
-        for field in pa.Schema.from_pandas(df=df[[]], preserve_index=True):
+        # Get index columns
+        try:
+            fields = pa.Schema.from_pandas(df=df[[]], preserve_index=True)
+        except AttributeError as ae:
+            if "'Index' object has no attribute 'head'" not in str(ae):
+                raise ae
+            # Get index fields from a new df with only index columns
+            # Adding indexes as columns via .reset_index() because
+            # pa.Schema.from_pandas(.., preserve_index=True) fails with
+            # "'Index' object has no attribute 'head'" if using extension
+            # dtypes on pandas 1.4.x
+            fields = pa.Schema.from_pandas(df=df.reset_index().drop(columns=cols), preserve_index=False)
+        for field in fields:
             name = str(field.name)
             _logger.debug("Inferring PyArrow type from index: %s", name)
             cols_dtypes[name] = field.type
@@ -661,6 +676,12 @@ def _cast_pandas_column(df: pd.DataFrame, col: str, current_type: str, desired_t
             _logger.debug("Column: %s", col)
             if "object cannot be converted to an IntegerDtype" not in str(ex):
                 raise ex
+            warnings.warn(
+                "Object cannot be converted to an IntegerDtype. Integer columns in Python cannot contain "
+                "missing values. If your input data contains missing values, it will be encoded as floats"
+                "which may cause precision loss.",
+                UserWarning,
+            )
             df[col] = (
                 df[col]
                 .apply(lambda x: int(x) if str(x) not in ("", "none", "None", " ", "<NA>") else None)

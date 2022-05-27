@@ -214,7 +214,7 @@ def create_index(
 
 
 def delete_index(client: OpenSearch, index: str) -> Dict[str, Any]:
-    """Create an index.
+    """Delete an index.
 
     Parameters
     ----------
@@ -230,7 +230,7 @@ def delete_index(client: OpenSearch, index: str) -> Dict[str, Any]:
 
     Examples
     --------
-    Creating an index.
+    Deleting an index.
 
     >>> import awswrangler as wr
     >>> client = wr.opensearch.connect(host='DOMAIN-ENDPOINT')

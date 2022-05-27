@@ -311,6 +311,7 @@ def to_sql(
     use_column_names: bool = False,
     chunksize: int = 200,
     upsert_conflict_columns: Optional[List[str]] = None,
+    insert_conflict_columns: Optional[List[str]] = None,
 ) -> None:
     """Write records stored in a DataFrame into PostgreSQL.
 
@@ -348,6 +349,9 @@ def to_sql(
     upsert_conflict_columns: List[str], optional
         This parameter is only supported if `mode` is set top `upsert`. In this case conflicts for the given columns are
         checked for evaluating the upsert.
+    insert_conflict_columns: List[str], optional
+        This parameter is only supported if `mode` is set top `append`. In this case conflicts for the given columns are
+        checked for evaluating the insert 'ON CONFLICT DO NOTHING'.
 
     Returns
     -------
@@ -401,6 +405,9 @@ def to_sql(
                 upsert_columns = ", ".join(df.columns.map(lambda column: f"{column}=EXCLUDED.{column}"))
                 conflict_columns = ", ".join(upsert_conflict_columns)  # type: ignore
                 upsert_str = f" ON CONFLICT ({conflict_columns}) DO UPDATE SET {upsert_columns}"
+            if mode == "append" and insert_conflict_columns:
+                conflict_columns = ", ".join(insert_conflict_columns)  # type: ignore
+                upsert_str = f" ON CONFLICT ({conflict_columns}) DO NOTHING"
             placeholder_parameter_pair_generator = _db_utils.generate_placeholder_parameter_pairs(
                 df=df, column_placeholders=column_placeholders, chunksize=chunksize
             )

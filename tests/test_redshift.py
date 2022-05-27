@@ -5,6 +5,7 @@ import string
 from decimal import Decimal
 
 import boto3
+import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pytest
@@ -294,6 +295,7 @@ def test_spectrum(path, redshift_table, redshift_con, glue_database, redshift_ex
     wr.catalog.delete_table_if_exists(database=glue_database, table=redshift_table)
 
 
+@pytest.mark.xfail(raises=NotImplementedError, reason="Unable to create pandas categorical from pyarrow table")
 def test_category(path, redshift_table, redshift_con, databases_parameters):
     df = get_df_category().drop(["binary"], axis=1, inplace=False)
     wr.redshift.copy(
@@ -696,6 +698,60 @@ def test_upsert(redshift_table, redshift_con):
     assert len(df.columns) == len(df4.columns)
 
 
+def test_upsert_precombine(redshift_table, redshift_con):
+    df = pd.DataFrame({"id": list((range(10))), "val": list([1.0 if i % 2 == 0 else 10.0 for i in range(10)])})
+    df3 = pd.DataFrame({"id": list((range(6, 14))), "val": list([10.0 if i % 2 == 0 else 1.0 for i in range(8)])})
+
+    # Do upsert in pandas
+    df_m = pd.merge(df, df3, on="id", how="outer")
+    df_m["val"] = np.where(df_m["val_y"] >= df_m["val_x"], df_m["val_y"], df_m["val_x"])
+    df_m["val"] = df_m["val"].fillna(df_m["val_y"])
+    df_m = df_m.drop(columns=["val_x", "val_y"])
+
+    # CREATE
+    wr.redshift.to_sql(
+        df=df,
+        con=redshift_con,
+        schema="public",
+        table=redshift_table,
+        mode="overwrite",
+        index=False,
+        primary_keys=["id"],
+    )
+    df2 = wr.redshift.read_sql_query(sql=f"SELECT * FROM public.{redshift_table} order by id", con=redshift_con)
+    assert df.shape == df2.shape
+
+    # UPSERT
+    wr.redshift.to_sql(
+        df=df3,
+        con=redshift_con,
+        schema="public",
+        table=redshift_table,
+        mode="upsert",
+        index=False,
+        primary_keys=["id"],
+        precombine_key="val",
+    )
+    df4 = wr.redshift.read_sql_query(
+        sql=f"SELECT * FROM public.{redshift_table} order by id",
+        con=redshift_con,
+    )
+    assert np.array_equal(df_m.to_numpy(), df4.to_numpy())
+
+    # UPSERT 2
+    wr.redshift.to_sql(
+        df=df3,
+        con=redshift_con,
+        schema="public",
+        table=redshift_table,
+        mode="upsert",
+        index=False,
+        precombine_key="val",
+    )
+    df4 = wr.redshift.read_sql_query(sql=f"SELECT * FROM public.{redshift_table} order by id", con=redshift_con)
+    assert np.array_equal(df_m.to_numpy(), df4.to_numpy())
+
+
 def test_read_retry(redshift_con):
     try:
         wr.redshift.read_sql_query("ERROR", redshift_con)
@@ -727,6 +783,24 @@ def test_copy_from_files(path, redshift_table, redshift_con, databases_parameter
         table=redshift_table,
         schema="public",
         iam_role=databases_parameters["redshift"]["role"],
+    )
+    df2 = wr.redshift.read_sql_query(sql=f"SELECT count(*) AS counter FROM public.{redshift_table}", con=redshift_con)
+    assert df2["counter"].iloc[0] == 3
+
+
+def test_copy_from_files_extra_params(path, redshift_table, redshift_con, databases_parameters):
+    df = get_df_category().drop(["binary"], axis=1, inplace=False)
+    wr.s3.to_parquet(df, f"{path}test.parquet")
+    bucket, key = wr._utils.parse_path(f"{path}test.csv")
+    boto3.client("s3").put_object(Body=b"", Bucket=bucket, Key=key)
+    wr.redshift.copy_from_files(
+        path=path,
+        path_suffix=[".parquet"],
+        con=redshift_con,
+        table=redshift_table,
+        schema="public",
+        iam_role=databases_parameters["redshift"]["role"],
+        sql_copy_extra_params=["STATUPDATE ON"],
     )
     df2 = wr.redshift.read_sql_query(sql=f"SELECT count(*) AS counter FROM public.{redshift_table}", con=redshift_con)
     assert df2["counter"].iloc[0] == 3

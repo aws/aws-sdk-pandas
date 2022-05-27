@@ -12,6 +12,7 @@ API Reference
 * `Data API Redshift`_
 * `Data API RDS`_
 * `OpenSearch`_
+* `Amazon Neptune`_
 * `DynamoDB`_
 * `Amazon Timestream`_
 * `Amazon EMR`_
@@ -19,6 +20,7 @@ API Reference
 * `Amazon QuickSight`_
 * `AWS STS`_
 * `AWS Secrets Manager`_
+* `Amazon Chime`_
 * `Global Configurations`_
 
 Amazon S3
@@ -71,6 +73,7 @@ AWS Glue Catalog
     add_parquet_partitions
     create_csv_table
     create_database
+    create_json_table
     create_parquet_table
     databases
     delete_column
@@ -121,6 +124,7 @@ Amazon Athena
     repair_table
     start_query_execution
     stop_query_execution
+    unload
     wait_query
 
 AWS Lake Formation
@@ -238,6 +242,22 @@ OpenSearch
     index_json
     search
     search_by_sql
+
+Amazon Neptune
+--------------
+
+.. currentmodule:: awswrangler.neptune
+
+.. autosummary::
+    :toctree: stubs
+
+    connect
+    execute_gremlin
+    execute_opencypher
+    execute_sparql
+    flatten_nested_df
+    to_property_graph
+    to_rdf_graph
 
 DynamoDB
 --------

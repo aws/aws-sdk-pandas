@@ -180,3 +180,81 @@ def test_real_csv_load_scenario(timestream_database_and_table):
     assert len(rejected_records) == 0
     df = wr.timestream.query(f'SELECT COUNT(*) AS counter FROM "{name}"."{name}"')
     assert df["counter"].iloc[0] == 126_000
+
+
+def test_multimeasure_scenario(timestream_database_and_table):
+    df = pd.DataFrame(
+        {
+            "time": [datetime.now(), datetime.now(), datetime.now()],
+            "dim0": ["foo", "boo", "bar"],
+            "dim1": [1, 2, 3],
+            "measure1": [1.0, 1.1, 1.2],
+            "measure2": [2.0, 2.1, 2.2],
+        }
+    )
+    rejected_records = wr.timestream.write(
+        df=df,
+        database=timestream_database_and_table,
+        table=timestream_database_and_table,
+        time_col="time",
+        measure_col=["measure1", "measure2"],
+        dimensions_cols=["dim0", "dim1"],
+    )
+    assert len(rejected_records) == 0
+    df = wr.timestream.query(
+        f"""
+        SELECT
+            *
+        FROM "{timestream_database_and_table}"."{timestream_database_and_table}"
+        ORDER BY time
+        DESC LIMIT 10
+        """,
+    )
+    assert df.shape == (3, 6)
+
+
+def test_list_databases(timestream_database_and_table):
+    dbs = wr.timestream.list_databases()
+
+    assert timestream_database_and_table in dbs
+    dummy_db_name = f"{timestream_database_and_table}_2"
+
+    wr.timestream.create_database(dummy_db_name)
+    dbs_tmp = wr.timestream.list_databases()
+
+    assert timestream_database_and_table in dbs_tmp
+    assert dummy_db_name in dbs_tmp
+    assert len(dbs_tmp) == len(dbs) + 1
+
+    wr.timestream.delete_database(dummy_db_name)
+
+    dbs_tmp = wr.timestream.list_databases()
+    assert timestream_database_and_table in dbs_tmp
+    assert dummy_db_name not in dbs_tmp
+    assert len(dbs_tmp) == len(dbs)
+    assert dbs_tmp == dbs
+
+
+def test_list_tables(timestream_database_and_table):
+    all_tables = wr.timestream.list_tables()
+
+    assert timestream_database_and_table in all_tables
+
+    tables_in_db = wr.timestream.list_tables(database=timestream_database_and_table)
+    assert timestream_database_and_table in tables_in_db
+    assert len(tables_in_db) <= len(all_tables)
+
+    wr.timestream.create_table(
+        database=timestream_database_and_table,
+        table=f"{timestream_database_and_table}_2",
+        memory_retention_hours=1,
+        magnetic_retention_days=1,
+    )
+
+    tables_in_db = wr.timestream.list_tables(database=timestream_database_and_table)
+    assert f"{timestream_database_and_table}_2" in tables_in_db
+
+    wr.timestream.delete_table(database=timestream_database_and_table, table=f"{timestream_database_and_table}_2")
+
+    tables_in_db = wr.timestream.list_tables(database=timestream_database_and_table)
+    assert f"{timestream_database_and_table}_2" not in tables_in_db

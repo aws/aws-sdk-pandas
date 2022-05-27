@@ -104,7 +104,7 @@ or
 
 * Install dependencies:
 
-``poetry install --extras "sqlserver"``
+``poetry install --extras "sqlserver sparql"``
 
 * Run the validation script:
 
@@ -135,7 +135,7 @@ or
 
 * Install dependencies:
 
-``poetry install --extras "sqlserver"``
+``poetry install --extras "sqlserver sparql"``
 
 * Go to the ``test_infra`` directory
 
@@ -192,7 +192,7 @@ or
 
 * Then run the command bellow to install all dependencies:
 
-``poetry install --extras "sqlserver"``
+``poetry install --extras "sqlserver sparql"``
 
 * Go to the ``test_infra`` directory
 

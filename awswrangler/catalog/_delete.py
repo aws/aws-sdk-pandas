@@ -16,7 +16,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 @apply_configs
 def delete_database(name: str, catalog_id: Optional[str] = None, boto3_session: Optional[boto3.Session] = None) -> None:
-    """Create a database in AWS Glue Catalog.
+    """Delete a database in AWS Glue Catalog.
 
     Parameters
     ----------
