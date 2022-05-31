@@ -1,6 +1,7 @@
 """Amazon Timestream Module."""
 
 import concurrent.futures
+import importlib.util
 import itertools
 import logging
 from datetime import datetime
@@ -11,8 +12,13 @@ import pandas as pd
 from botocore.config import Config
 
 from awswrangler import _data_types, _utils
+from awswrangler._distributed import _ray_remote
 
 _logger: logging.Logger = logging.getLogger(__name__)
+
+_ray_found = importlib.util.find_spec("ray")
+if _ray_found:
+    import ray
 
 
 def _df2list(df: pd.DataFrame) -> List[List[Any]]:
@@ -27,6 +33,7 @@ def _df2list(df: pd.DataFrame) -> List[List[Any]]:
     return parameters
 
 
+@_ray_remote
 def _write_batch(
     database: str,
     table: str,
@@ -233,21 +240,44 @@ def write(
     _logger.debug("cols_names: %s", cols_names)
     batches: List[List[Any]] = _utils.chunkify(lst=_df2list(df=df[cols_names]), max_length=100)
     _logger.debug("len(batches): %s", len(batches))
-    with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
-        res: List[List[Any]] = list(
-            executor.map(
-                _write_batch,
-                itertools.repeat(database),
-                itertools.repeat(table),
-                itertools.repeat(cols_names),
-                itertools.repeat(measure_cols_names),
-                itertools.repeat(measure_types),
-                itertools.repeat(version),
-                batches,
-                itertools.repeat(_utils.boto3_to_primitives(boto3_session=boto3_session)),
+
+    if num_threads == 1 and _ray_found:
+        res: List[List[Any]] = []
+        for batch in batches:
+            (
+                res.append(
+                    ray.get(
+                        _write_batch(
+                            database=database,
+                            table=table,
+                            cols_names=cols_names,
+                            measure_cols_names=measure_cols_names,
+                            measure_types=measure_types,
+                            version=version,
+                            batch=batches[batch],
+                            boto3_session=_utils.boto3_to_primitives(boto3_session=boto3_session),
+                        )
+                    )
+                )
             )
-        )
-        return [item for sublist in res for item in sublist]
+    else:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
+            res.append(
+                list(
+                    executor.map(
+                        _write_batch,
+                        itertools.repeat(database),
+                        itertools.repeat(table),
+                        itertools.repeat(cols_names),
+                        itertools.repeat(measure_cols_names),
+                        itertools.repeat(measure_types),
+                        itertools.repeat(version),
+                        batches,
+                        itertools.repeat(_utils.boto3_to_primitives(boto3_session=boto3_session)),
+                    )
+                )
+            )
+    return [item for sublist in res for item in sublist]
 
 
 def query(
