@@ -488,8 +488,8 @@ def _read_parquet_file(
                 for column in columns:
                     try:
                         pq_file_table.column(column)
-                    except KeyError:
-                        raise exceptions.InvalidArgument(f"column: {column} does not exits")
+                    except KeyError as ex:
+                        raise exceptions.InvalidArgument(f"column: {column} does not exist\n{ex}")
 
         if pq_file is None:
             raise exceptions.InvalidFile(f"Invalid Parquet file: {path}")
