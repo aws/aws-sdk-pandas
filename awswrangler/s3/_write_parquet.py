@@ -153,7 +153,7 @@ def _to_parquet(
 ) -> List[str]:
     if not pyarrow_additional_kwargs:
         pyarrow_additional_kwargs = {}
-    if not pyarrow_additional_kwargs.get("coerce_timestamps"):
+    if "coerce_timestamps" not in pyarrow_additional_kwargs:
         pyarrow_additional_kwargs["coerce_timestamps"] = "ms"
     if "flavor" not in pyarrow_additional_kwargs:
         pyarrow_additional_kwargs["flavor"] = "spark"
@@ -170,15 +170,17 @@ def _to_parquet(
     if _ray_found:
         file_root = file_path.rsplit("/", 1)[0]
         file_name = file_path.rsplit("/", 1)[1]
-        num_files = math.ceil(dataset.count() / max_rows_by_file) if (max_rows_by_file and max_rows_by_file > 0) else 1
-        block_path_provider = CustomBlockWritePathProvider(file_name=file_name, num_files=num_files)
-        dataset.repartition(num_files).write_parquet(
+        if max_rows_by_file and (max_rows_by_file > 0):
+            dataset = dataset.repartition(math.ceil(dataset.count() / max_rows_by_file))
+        num_blocks = dataset.num_blocks()
+        block_path_provider = CustomBlockWritePathProvider(file_name=file_name, num_blocks=num_blocks)
+        dataset.write_parquet(
             path=file_root,
             block_path_provider=block_path_provider,
             compression=compression,
             **pyarrow_additional_kwargs,
         )
-        return [block_path_provider.get_file_path(file_path, num_files, num_file) for num_file in range(num_files)]
+        return [block_path_provider.get_file_path(file_path, num_blocks, num_block) for num_block in range(num_blocks)]
     if max_rows_by_file is not None and max_rows_by_file > 0:
         paths = _to_parquet_chunked(
             file_path=file_path,

@@ -111,7 +111,7 @@ def _paginate_stream(
                     scan_ranges,
                 )
             )
-    return tables
+    return [table for table in tables if table.schema]
 
 
 @_ray_remote
