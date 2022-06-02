@@ -17,4 +17,3 @@ jobs:
           exempt_authors: "malachi-constant,jaidisido,kukushking,cnfait,dependabot[bot]"
           token: ${{secrets.GITHUB_TOKEN}}
           label: needs-triage
-          debug: 'true'
