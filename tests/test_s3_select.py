@@ -1,12 +1,20 @@
+import importlib.util
 import logging
 import sys
 
-import pandas as pd
+_modin_found = importlib.util.find_spec("modin")
+if _modin_found:
+    import modin.pandas as pd
+else:
+    import pandas as pd
+
 import pytest
 
 import awswrangler as wr
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
+
+pytestmark = pytest.mark.distributed
 
 
 @pytest.mark.parametrize("use_threads", [True, False, 2])
