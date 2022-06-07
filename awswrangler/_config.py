@@ -48,6 +48,7 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "secretsmanager_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
     # Botocore config
     "botocore_config": _ConfigArg(dtype=botocore.config.Config, nullable=True),
+    "verify": _ConfigArg(dtype=str, nullable=True),
 }
 
 
@@ -68,6 +69,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         self.dynamodb_endpoint_url = None
         self.secretsmanager_endpoint_url = None
         self.botocore_config = None
+        self.verify = None
         for name in _CONFIG_ARGS:
             self._load_config(name=name)
 
@@ -153,7 +155,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
 
     def _reset_item(self, item: str) -> None:
         if item in self._loaded_values:
-            if item.endswith("_endpoint_url"):
+            if item.endswith("_endpoint_url") or item == "verify":
                 self._loaded_values[item] = None
             else:
                 del self._loaded_values[item]
@@ -393,6 +395,15 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     @botocore_config.setter
     def botocore_config(self, value: Optional[botocore.config.Config]) -> None:
         self._set_config_value(key="botocore_config", value=value)
+
+    @property
+    def verify(self) -> Optional[str]:
+        """Property verify."""
+        return cast(Optional[str], self["verify"])
+
+    @verify.setter
+    def verify(self, value: Optional[str]) -> None:
+        self._set_config_value(key="verify", value=value)
 
 
 def _insert_str(text: str, token: str, insert: str) -> str:
