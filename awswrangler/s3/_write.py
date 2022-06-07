@@ -16,6 +16,7 @@ _COMPRESSION_2_EXT: Dict[Optional[str], str] = {
     "bz2": ".bz2",
     "xz": ".xz",
     "zip": ".zip",
+    "zstd": ".zstd",
 }
 
 
