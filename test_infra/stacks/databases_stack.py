@@ -522,6 +522,7 @@ class DatabasesStack(Stack):  # type: ignore
         sqlserver = rds.DatabaseInstance(
             self,
             "aws-data-wrangler-sqlserver-instance",
+            removal_policy=RemovalPolicy.DESTROY,
             instance_identifier="sqlserver-instance-wrangler",
             engine=rds.DatabaseInstanceEngine.sql_server_ex(version=rds.SqlServerEngineVersion.VER_15),
             instance_type=ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE3, ec2.InstanceSize.SMALL),
@@ -583,6 +584,7 @@ class DatabasesStack(Stack):  # type: ignore
         oracle = rds.DatabaseInstance(
             self,
             "aws-data-wrangler-oracle-instance",
+            removal_policy=RemovalPolicy.DESTROY,
             instance_identifier="oracle-instance-wrangler",
             engine=rds.DatabaseInstanceEngine.oracle_ee(version=rds.OracleEngineVersion.VER_19_0_0_0_2021_04_R1),
             instance_type=ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE3, ec2.InstanceSize.SMALL),
