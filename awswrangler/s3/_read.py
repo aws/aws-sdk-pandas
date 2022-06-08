@@ -93,7 +93,6 @@ def _apply_partitions(df: pd.DataFrame, dataset: bool, path: str, path_root: Opt
         return df
     if dataset is True and path_root is None:
         raise exceptions.InvalidArgument("A path_root is required when dataset=True.")
-    path_root = cast(str, path_root)
     partitions: Dict[str, str] = _extract_partitions_from_path(path_root=path_root, path=path)
     _logger.debug("partitions: %s", partitions)
     count: int = len(df.index)
