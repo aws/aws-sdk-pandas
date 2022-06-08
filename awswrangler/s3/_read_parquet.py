@@ -482,14 +482,11 @@ def _read_parquet_file(
             read_dictionary=categories,
             coerce_int96_timestamp_unit=pyarrow_args["coerce_int96_timestamp_unit"],
         )
-        if validate_schema and pq_file:
-            pq_file_table: pyarrow.lib.Table = pq_file.read()
-            if columns:
-                for column in columns:
-                    try:
-                        pq_file_table.column(column)
-                    except KeyError as ex:
-                        raise exceptions.InvalidArgument(f"column: {column} does not exist\n{ex}")
+        if validate_schema and pq_file and columns:
+            pq_file_columns: List[str] = pq_file.schema.names()
+            for column in columns:
+                if column not in pq_file_columns:
+                    raise exceptions.InvalidArgument(f"column: {column} does not exist")
 
         if pq_file is None:
             raise exceptions.InvalidFile(f"Invalid Parquet file: {path}")
