@@ -11,6 +11,7 @@ import pandas.io.parsers
 from pandas.io.common import infer_compression
 
 from awswrangler import _utils, exceptions
+from awswrangler._distributed import to_modin
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import (
@@ -21,7 +22,6 @@ from awswrangler.s3._read import (
     _read_dfs_from_multiple_paths,
     _union,
 )
-from awswrangler._distributed import to_modin
 
 _ray_found = importlib.util.find_spec("ray")
 if _ray_found:
