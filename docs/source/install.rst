@@ -298,16 +298,17 @@ aws-glue-programming-etl-connect.html#aws-glue-programming-etl-connect-jdbc>`_.
 Notes for Oracle Database
 ------------------------------
 
-``awswrangler`` is using the `cx_Oracle <https://github.com/oracle/python-cx_Oracle>`_
-for interacting with Oracle Database. For installing this package you need the Oracle Client libraries.
+``awswrangler`` is using the `oracledb <https://github.com/oracle/python-oracledb>`_
+for interacting with Oracle Database. For installing this package you do not need the Oracle Client libraries
+unless you want to use the Thick mode.
 You can have a look at the `documentation from Oracle <https://cx-oracle.readthedocs.io/en/latest/user_guide/
 installation.html#oracle-client-and-oracle-database-interoperability>`_
 to see how they can be installed in your environment.
 
-After installing these client libraries you can either just install ``cx_Oracle`` or
-``awswrangler`` with the ``oracle`` extra, which will also install ``cx_Oracle``:
+After installing these client libraries you can either just install ``oracledb`` or
+``awswrangler`` with the ``oracle`` extra, which will also install ``oracledb``:
 
-    >>> pip install cx_Oracle
+    >>> pip install oracledb
     >>> pip install awswrangler[oracle]
 
 If you maintain your own environment, you need to take care of the above steps.
