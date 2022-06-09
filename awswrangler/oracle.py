@@ -3,6 +3,7 @@
 import importlib.util
 import inspect
 import logging
+from decimal import Decimal
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, TypeVar, Union
 
 import boto3
@@ -16,19 +17,19 @@ from awswrangler._config import apply_configs
 
 __all__ = ["connect", "read_sql_query", "read_sql_table", "to_sql"]
 
-_cx_Oracle_found = importlib.util.find_spec("cx_Oracle")
-if _cx_Oracle_found:
-    import cx_Oracle  # pylint: disable=import-error
+_oracledb_found = importlib.util.find_spec("oracledb")
+if _oracledb_found:
+    import oracledb  # pylint: disable=import-error
 
 _logger: logging.Logger = logging.getLogger(__name__)
 FuncT = TypeVar("FuncT", bound=Callable[..., Any])
 
 
-def _check_for_cx_Oracle(func: FuncT) -> FuncT:
+def _check_for_oracledb(func: FuncT) -> FuncT:
     def inner(*args: Any, **kwargs: Any) -> Any:
-        if not _cx_Oracle_found:
+        if not _oracledb_found:
             raise ModuleNotFoundError(
-                "You need to install cx_Oracle respectively the "
+                "You need to install oracledb respectively the "
                 "AWS Data Wrangler package with the `oracle` extra for using the oracle module"
             )
         return func(*args, **kwargs)
@@ -39,11 +40,11 @@ def _check_for_cx_Oracle(func: FuncT) -> FuncT:
     return inner  # type: ignore
 
 
-def _validate_connection(con: "cx_Oracle.Connection") -> None:
-    if not isinstance(con, cx_Oracle.Connection):
+def _validate_connection(con: "oracledb.Connection") -> None:
+    if not isinstance(con, oracledb.Connection):
         raise exceptions.InvalidConnection(
             "Invalid 'conn' argument, please pass a "
-            "cx_Oracle.Connection object. Use cx_Oracle.connect() to use "
+            "oracledb.Connection object. Use oracledb.connect() to use "
             "credentials directly or wr.oracle.connect() to fetch it from the Glue Catalog."
         )
 
@@ -54,7 +55,7 @@ def _get_table_identifier(schema: Optional[str], table: str) -> str:
     return table_identifier
 
 
-def _drop_table(cursor: "cx_Oracle.Cursor", schema: Optional[str], table: str) -> None:
+def _drop_table(cursor: "oracledb.Cursor", schema: Optional[str], table: str) -> None:
     table_identifier = _get_table_identifier(schema, table)
     sql = f"""
 BEGIN
@@ -70,7 +71,7 @@ END;
     cursor.execute(sql)
 
 
-def _does_table_exist(cursor: "cx_Oracle.Cursor", schema: Optional[str], table: str) -> bool:
+def _does_table_exist(cursor: "oracledb.Cursor", schema: Optional[str], table: str) -> bool:
     schema_str = f"OWNER = '{schema}' AND" if schema else ""
     cursor.execute(f"SELECT * FROM ALL_TABLES WHERE {schema_str} TABLE_NAME = '{table}'")
     return len(cursor.fetchall()) > 0
@@ -78,7 +79,7 @@ def _does_table_exist(cursor: "cx_Oracle.Cursor", schema: Optional[str], table: 
 
 def _create_table(
     df: pd.DataFrame,
-    cursor: "cx_Oracle.Cursor",
+    cursor: "oracledb.Cursor",
     table: str,
     schema: str,
     mode: str,
@@ -105,7 +106,7 @@ def _create_table(
     cursor.execute(sql)
 
 
-@_check_for_cx_Oracle
+@_check_for_oracledb
 def connect(
     connection: Optional[str] = None,
     secret_id: Optional[str] = None,
@@ -113,10 +114,10 @@ def connect(
     dbname: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
     call_timeout: Optional[int] = 0,
-) -> "cx_Oracle.Connection":
-    """Return a cx_Oracle connection from a Glue Catalog Connection.
+) -> "oracledb.Connection":
+    """Return a oracledb connection from a Glue Catalog Connection.
 
-    https://github.com/oracle/python-cx_Oracle
+    https://github.com/oracle/python-oracledb
 
     Note
     ----
@@ -148,13 +149,13 @@ def connect(
     call_timeout: Optional[int]
         This is the time in milliseconds that a single round-trip to the database may take before a timeout will occur.
         The default is None which means no timeout.
-        This parameter is forwarded to cx_Oracle.
+        This parameter is forwarded to oracledb.
         https://cx-oracle.readthedocs.io/en/latest/api_manual/connection.html#Connection.call_timeout
 
     Returns
     -------
-    cx_Oracle.Connection
-        cx_Oracle connection.
+    oracledb.Connection
+        oracledb connection.
 
     Examples
     --------
@@ -174,22 +175,22 @@ def connect(
             f"Invalid connection type ({attrs.kind}. It must be an oracle connection.)"
         )
 
-    connection_dsn = cx_Oracle.makedsn(attrs.host, attrs.port, service_name=attrs.database)
+    connection_dsn = oracledb.makedsn(attrs.host, attrs.port, service_name=attrs.database)
     _logger.debug("DSN: %s", connection_dsn)
-    oracle_connection = cx_Oracle.connect(
+    oracle_connection = oracledb.connect(
         user=attrs.user,
         password=attrs.password,
         dsn=connection_dsn,
     )
-    # cx_Oracle.connect does not have a call_timeout attribute, it has to be set separatly
+    # oracledb.connect does not have a call_timeout attribute, it has to be set separatly
     oracle_connection.call_timeout = call_timeout
     return oracle_connection
 
 
-@_check_for_cx_Oracle
+@_check_for_oracledb
 def read_sql_query(
     sql: str,
-    con: "cx_Oracle.Connection",
+    con: "oracledb.Connection",
     index_col: Optional[Union[str, List[str]]] = None,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
     chunksize: Optional[int] = None,
@@ -203,8 +204,8 @@ def read_sql_query(
     ----------
     sql : str
         SQL query.
-    con : cx_Oracle.Connection
-        Use cx_Oracle.connect() to use credentials directly or wr.oracle.connect() to fetch it from the Glue Catalog.
+    con : oracledb.Connection
+        Use oracledb.connect() to use credentials directly or wr.oracle.connect() to fetch it from the Glue Catalog.
     index_col : Union[str, List[str]], optional
         Column(s) to set as index(MultiIndex).
     params :  Union[List, Tuple, Dict], optional
@@ -252,10 +253,10 @@ def read_sql_query(
     )
 
 
-@_check_for_cx_Oracle
+@_check_for_oracledb
 def read_sql_table(
     table: str,
-    con: "cx_Oracle.Connection",
+    con: "oracledb.Connection",
     schema: Optional[str] = None,
     index_col: Optional[Union[str, List[str]]] = None,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
@@ -270,8 +271,8 @@ def read_sql_table(
     ----------
     table : str
         Table name.
-    con : cx_Oracle.Connection
-        Use cx_Oracle.connect() to use credentials directly or wr.oracle.connect() to fetch it from the Glue Catalog.
+    con : oracledb.Connection
+        Use oracledb.connect() to use credentials directly or wr.oracle.connect() to fetch it from the Glue Catalog.
     schema : str, optional
         Name of SQL schema in database to query (if database flavor supports this).
         Uses default schema if None (default).
@@ -324,11 +325,11 @@ def read_sql_table(
     )
 
 
-@_check_for_cx_Oracle
+@_check_for_oracledb
 @apply_configs
 def to_sql(
     df: pd.DataFrame,
-    con: "cx_Oracle.Connection",
+    con: "oracledb.Connection",
     table: str,
     schema: str,
     mode: str = "append",
@@ -344,8 +345,8 @@ def to_sql(
     ----------
     df : pandas.DataFrame
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
-    con : cx_Oracle.Connection
-        Use cx_Oracle.connect() to use credentials directly or wr.oracle.connect() to fetch it from the Glue Catalog.
+    con : oracledb.Connection
+        Use oracledb.connect() to use credentials directly or wr.oracle.connect() to fetch it from the Glue Catalog.
     table : str
         Table name
     schema : str
@@ -424,3 +425,36 @@ def to_sql(
         con.rollback()
         _logger.error(ex)
         raise
+
+
+def detect_oracle_decimal_datatype(cursor: Any) -> Dict[str, pa.DataType]:
+    """Determine if a given Oracle column is a decimal, not just a standard float value."""
+    dtype = {}
+    _logger.debug("cursor type: %s", type(cursor))
+    if isinstance(cursor, oracledb.Cursor):
+        # Oracle stores DECIMAL as the NUMBER type
+        for row in cursor.description:
+            if row[1] == oracledb.DB_TYPE_NUMBER and row[5] > 0:
+                dtype[row[0]] = pa.decimal128(row[4], row[5])
+
+    _logger.debug("decimal dtypes: %s", dtype)
+    return dtype
+
+
+def handle_oracle_objects(
+    col_values: List[Any], col_name: str, dtype: Optional[Dict[str, pa.DataType]] = None
+) -> List[Any]:
+    """Get the string representation of an Oracle LOB value, and convert float to decimal."""
+    if any(isinstance(col_value, oracledb.LOB) for col_value in col_values):
+        col_values = [
+            col_value.read() if isinstance(col_value, oracledb.LOB) else col_value for col_value in col_values
+        ]
+
+    if dtype is not None:
+        if isinstance(dtype[col_name], pa.Decimal128Type):
+            _logger.debug("decimal_col_values:\n%s", col_values)
+            col_values = [
+                Decimal(repr(col_value)) if isinstance(col_value, float) else col_value for col_value in col_values
+            ]
+
+    return col_values

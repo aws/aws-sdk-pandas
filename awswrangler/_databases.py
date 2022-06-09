@@ -9,12 +9,10 @@ import boto3
 import pandas as pd
 import pyarrow as pa
 
-from awswrangler import _data_types, _utils, exceptions, secretsmanager
+from awswrangler import _data_types, _utils, exceptions, oracle, secretsmanager
 from awswrangler.catalog import get_connection
 
-_cx_Oracle_found = importlib.util.find_spec("cx_Oracle")
-if _cx_Oracle_found:
-    import cx_Oracle  # pylint: disable=import-error
+_oracledb_found = importlib.util.find_spec("oracledb")
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -128,16 +126,6 @@ def _convert_params(sql: str, params: Optional[Union[List[Any], Tuple[Any, ...],
     return args
 
 
-def _convert_db_specific_objects(col_values: List[Any]) -> List[Any]:
-    if _cx_Oracle_found:
-        if any(isinstance(col_value, cx_Oracle.LOB) for col_value in col_values):
-            col_values = [
-                col_value.read() if isinstance(col_value, cx_Oracle.LOB) else col_value for col_value in col_values
-            ]
-
-    return col_values
-
-
 def _records2df(
     records: List[Tuple[Any]],
     cols_names: List[str],
@@ -149,15 +137,17 @@ def _records2df(
     arrays: List[pa.Array] = []
     for col_values, col_name in zip(tuple(zip(*records)), cols_names):  # Transposing
         if (dtype is None) or (col_name not in dtype):
-            col_values = _convert_db_specific_objects(col_values)
+            if _oracledb_found:
+                col_values = oracle.handle_oracle_objects(col_values, col_name)
             try:
                 array: pa.Array = pa.array(obj=col_values, safe=safe)  # Creating Arrow array
             except pa.ArrowInvalid as ex:
                 array = _data_types.process_not_inferred_array(ex, values=col_values)  # Creating Arrow array
         else:
             try:
-                if dtype[col_name] == pa.string():
-                    col_values = _convert_db_specific_objects(col_values)
+                if _oracledb_found:
+                    if dtype[col_name] == pa.string() or isinstance(dtype[col_name], pa.Decimal128Type):
+                        col_values = oracle.handle_oracle_objects(col_values, col_name, dtype)
                 array = pa.array(obj=col_values, type=dtype[col_name], safe=safe)  # Creating Arrow array with dtype
             except pa.ArrowInvalid:
                 array = pa.array(obj=col_values, safe=safe)  # Creating Arrow array
@@ -200,6 +190,14 @@ def _iterate_results(
 ) -> Iterator[pd.DataFrame]:
     with con.cursor() as cursor:
         cursor.execute(*cursor_args)
+        if _oracledb_found:
+            decimal_dtypes = oracle.detect_oracle_decimal_datatype(cursor)
+            _logger.debug("steporig: %s", dtype)
+            if decimal_dtypes and dtype is not None:
+                dtype = dict(list(decimal_dtypes.items()) + list(dtype.items()))
+            elif decimal_dtypes:
+                dtype = decimal_dtypes
+
         cols_names = _get_cols_names(cursor.description)
         while True:
             records = cursor.fetchmany(chunksize)
@@ -226,6 +224,14 @@ def _fetch_all_results(
     with con.cursor() as cursor:
         cursor.execute(*cursor_args)
         cols_names = _get_cols_names(cursor.description)
+        if _oracledb_found:
+            decimal_dtypes = oracle.detect_oracle_decimal_datatype(cursor)
+            _logger.debug("steporig: %s", dtype)
+            if decimal_dtypes and dtype is not None:
+                dtype = dict(list(decimal_dtypes.items()) + list(dtype.items()))
+            elif decimal_dtypes:
+                dtype = decimal_dtypes
+
         return _records2df(
             records=cast(List[Tuple[Any]], cursor.fetchall()),
             cols_names=cols_names,
