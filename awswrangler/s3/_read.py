@@ -135,7 +135,14 @@ def _read_dfs_from_multiple_paths(
 ) -> List[pd.DataFrame]:
     cpus = ensure_cpu_count(use_threads)
     if cpus < 2:
-        return [read_func(path, version_id=version_ids.get(path) if version_ids else None, **kwargs) for path in paths]
+        return [
+            read_func(
+                path,
+                version_id=version_ids.get(path) if version_ids else None,
+                **kwargs,
+            )
+            for path in paths
+        ]
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=ensure_cpu_count(use_threads)) as executor:
         kwargs["boto3_session"] = boto3_to_primitives(kwargs["boto3_session"])
