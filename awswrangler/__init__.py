@@ -31,6 +31,11 @@ from awswrangler import (  # noqa
 )
 from awswrangler.__metadata__ import __description__, __license__, __title__, __version__  # noqa
 from awswrangler._config import config  # noqa
+from awswrangler._distributed import _initialize_ray
+
+if config.distributed:
+    _initialize_ray()
+
 
 __all__ = [
     "athena",
