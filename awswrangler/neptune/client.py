@@ -249,7 +249,7 @@ class NeptuneClient:
 
         s = SPARQLWrapper("")
         s.setQuery(query)
-        query_type = s.queryType.upper()
+        query_type = s.queryType.upper()  # type: ignore
         if query_type in ["SELECT", "CONSTRUCT", "ASK", "DESCRIBE"]:
             data = {"query": query}
         else:
