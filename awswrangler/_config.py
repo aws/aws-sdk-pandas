@@ -51,7 +51,7 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "botocore_config": _ConfigArg(dtype=botocore.config.Config, nullable=True),
     "verify": _ConfigArg(dtype=str, nullable=True),
     # Distributed
-    "distributed": _ConfigArg(dtype=botocore.config.Config, nullable=False),
+    "distributed": _ConfigArg(dtype=bool, nullable=True),
     "address": _ConfigArg(dtype=str, nullable=True),
     "redis_password": _ConfigArg(dtype=str, nullable=True),
     "ignore_reinit_error": _ConfigArg(dtype=bool, nullable=True),
@@ -80,9 +80,9 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         self.secretsmanager_endpoint_url = None
         self.botocore_config = None
         self.verify = None
+        self.distributed = all(importlib.util.find_spec(pkg) for pkg in ("modin", "ray"))
         for name in _CONFIG_ARGS:
             self._load_config(name=name)
-        self.distributed: bool = all(importlib.util.find_spec(pkg) for pkg in ("modin", "ray"))
 
     def reset(self, item: Optional[str] = None) -> None:
         """Reset one or all (if None is received) configuration values.
@@ -166,7 +166,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
 
     def _reset_item(self, item: str) -> None:
         if item in self._loaded_values:
-            if item.endswith("_endpoint_url") or item == "verify":
+            if item.endswith("_endpoint_url") or item in ["verify", "distributed"]:
                 self._loaded_values[item] = None
             else:
                 del self._loaded_values[item]
@@ -415,6 +415,15 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     @verify.setter
     def verify(self, value: Optional[str]) -> None:
         self._set_config_value(key="verify", value=value)
+
+    @property
+    def distributed(self) -> Optional[bool]:
+        """Property distributed."""
+        return cast(Optional[bool], self["distributed"])
+
+    @distributed.setter
+    def distributed(self, value: Optional[bool]) -> None:
+        self._set_config_value(key="distributed", value=value)
 
     @property
     def ignore_reinit_error(self) -> Optional[bool]:
