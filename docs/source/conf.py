@@ -97,6 +97,7 @@ html_theme_options = {
         ("License", "https://github.com/awslabs/aws-data-wrangler/blob/main/LICENSE.txt", True),
         ("Contributing", "https://github.com/awslabs/aws-data-wrangler/blob/main/CONTRIBUTING.md", True),
         ("GitHub", "https://github.com/awslabs/aws-data-wrangler", True),
+        ("", "https://d3tiqpr4kkkomd.cloudfront.net/img/pixel.png?asset=RIXAH6KDSYAI1HHEBLTY", True),
     ],
     # Render the next and previous page links in navbar. (Default: true)
     "navbar_sidebarrel": False,

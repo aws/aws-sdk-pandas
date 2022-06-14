@@ -28,7 +28,7 @@ def get_df(governed=False):
             "ddouble": [0.0, None, 1.1],
             "decimal": [Decimal((0, (1, 9, 9), -2)), None, Decimal((0, (1, 9, 0), -2))],
             "string_object": ["foo", None, "boo"],
-            "string": ["foo", None, "boo"],
+            "string": ["Seattle", None, "Washington"],
             "date": [dt("2020-01-01"), None, dt("2020-01-02")],
             "timestamp": [ts("2020-01-01 00:00:00.0"), None, ts("2020-01-02 00:00:01.0")],
             "bool": [True, None, False],

@@ -504,10 +504,11 @@ def test_mixed_types_column(path) -> None:
         wr.s3.to_parquet(df, path, dataset=True, partition_cols=["par"])
 
 
-def test_parquet_plain(path) -> None:
+@pytest.mark.parametrize("compression", [None, "snappy", "gzip", "zstd"])
+def test_parquet_compression(path, compression) -> None:
     df = pd.DataFrame({"id": [1, 2, 3]}, dtype="Int64")
     path_file = f"{path}0.parquet"
-    wr.s3.to_parquet(df=df, path=path_file, compression=None)
+    wr.s3.to_parquet(df=df, path=path_file, compression=compression)
     df2 = wr.s3.read_parquet([path_file])
     assert df.equals(df2)
 

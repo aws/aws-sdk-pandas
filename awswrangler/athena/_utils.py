@@ -505,6 +505,7 @@ def start_query_execution(
 def repair_table(
     table: str,
     database: Optional[str] = None,
+    data_source: Optional[str] = None,
     s3_output: Optional[str] = None,
     workgroup: Optional[str] = None,
     encryption: Optional[str] = None,
@@ -530,6 +531,8 @@ def repair_table(
         Table name.
     database : str, optional
         AWS Glue/Athena database name.
+    data_source : Optional[str], optional
+        Data Source / Catalog name. If None, 'AwsDataCatalog' is used.
     s3_output : str, optional
         AWS S3 path.
     workgroup : str, optional
@@ -559,6 +562,7 @@ def repair_table(
     query_id = start_query_execution(
         sql=query,
         database=database,
+        data_source=data_source,
         s3_output=s3_output,
         workgroup=workgroup,
         encryption=encryption,

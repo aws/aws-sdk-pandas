@@ -174,6 +174,7 @@ def _upsert(
     schema: str,
     primary_keys: Optional[List[str]] = None,
     precombine_key: Optional[str] = None,
+    column_names: Optional[List[str]] = None,
 ) -> None:
     if not primary_keys:
         primary_keys = _get_primary_keys(cursor=cursor, schema=schema, table=table)
@@ -199,7 +200,11 @@ def _upsert(
         sql: str = f'DELETE FROM "{schema}"."{table}" USING {temp_table} WHERE {join_clause}'
         _logger.debug(sql)
         cursor.execute(sql)
-    insert_sql = f"INSERT INTO {schema}.{table} SELECT * FROM {temp_table}"
+    if column_names:
+        column_names_str = ",".join(column_names)
+        insert_sql = f'INSERT INTO "{schema}"."{table}"({column_names_str}) SELECT {column_names_str} FROM {temp_table}'
+    else:
+        insert_sql = f'INSERT INTO "{schema}"."{table}" SELECT * FROM {temp_table}'
     _logger.debug(insert_sql)
     cursor.execute(insert_sql)
     _drop_table(cursor=cursor, schema=schema, table=temp_table)
@@ -903,11 +908,12 @@ def to_sql(  # pylint: disable=too-many-locals
             )
             if index:
                 df.reset_index(level=df.index.names, inplace=True)
-            column_placeholders: str = ", ".join(["%s"] * len(df.columns))
+            column_names = list(df.columns)
+            column_placeholders: str = ", ".join(["%s"] * len(column_names))
             schema_str = f'"{created_schema}".' if created_schema else ""
             insertion_columns = ""
             if use_column_names:
-                insertion_columns = f"({', '.join(df.columns)})"
+                insertion_columns = f"({', '.join(column_names)})"
             placeholder_parameter_pair_generator = _db_utils.generate_placeholder_parameter_pairs(
                 df=df, column_placeholders=column_placeholders, chunksize=chunksize
             )
@@ -923,6 +929,7 @@ def to_sql(  # pylint: disable=too-many-locals
                     temp_table=created_table,
                     primary_keys=primary_keys,
                     precombine_key=precombine_key,
+                    column_names=column_names,
                 )
             if commit_transaction:
                 con.commit()
@@ -1458,6 +1465,7 @@ def copy(  # pylint: disable=too-many-arguments
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     max_rows_by_file: Optional[int] = 10_000_000,
+    precombine_key: Optional[str] = None,
 ) -> None:
     """Load Pandas DataFrame as a Table on Amazon Redshift using parquet files on S3 as stage.
 
@@ -1556,6 +1564,10 @@ def copy(  # pylint: disable=too-many-arguments
         Max number of rows in each file.
         Default is None i.e. dont split the files.
         (e.g. 33554432, 268435456)
+    precombine_key : str, optional
+        When there is a primary_key match during upsert, this column will change the upsert method,
+        comparing the values of the specified column from source and target, and keeping the
+        larger of the two. Will only work when mode = upsert.
 
     Returns
     -------
@@ -1623,6 +1635,7 @@ def copy(  # pylint: disable=too-many-arguments
             boto3_session=session,
             s3_additional_kwargs=s3_additional_kwargs,
             sql_copy_extra_params=sql_copy_extra_params,
+            precombine_key=precombine_key,
         )
     finally:
         if keep_files is False:
