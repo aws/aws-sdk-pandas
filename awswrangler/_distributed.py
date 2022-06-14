@@ -14,7 +14,19 @@ if config.distributed or TYPE_CHECKING:
     import ray
 
 
-def _ray_remote(function: Callable[..., Any]) -> Any:
+def ray_remote(function: Callable[..., Any]) -> Callable[..., Any]:
+    """
+    Decorator used to wrap callable within ray.remote.
+
+    Parameters
+    ----------
+    function : Callable[..., Any]
+        Callable as input to ray.remote
+
+    Returns
+    -------
+    Callable[..., Any]
+    """
     if config.distributed:
 
         def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -25,7 +37,7 @@ def _ray_remote(function: Callable[..., Any]) -> Any:
 
 
 @apply_configs
-def _initialize_ray(
+def initialize_ray(
     address: Optional[str] = None,
     redis_password: Optional[str] = None,
     ignore_reinit_error: Optional[bool] = True,
@@ -34,6 +46,26 @@ def _initialize_ray(
     cpu_count: Optional[int] = None,
     gpu_count: Optional[int] = 0,
 ) -> None:
+    """
+    Connect to an existing Ray cluster or start one and connect to it.
+
+    Parameters
+    ----------
+    address : Optional[str]
+        Address of the Ray cluster to connect to, by default None
+    redis_password : Optional[str]
+        Password to the Redis cluster, by default None
+    ignore_reinit_error : Optional[bool]
+        If true, Ray suppress errors from calling ray.init() twice, by default True
+    include_dashboard : Optional[bool]
+        Boolean flag indicating whether or not to start the Ray dashboard, by default False
+    object_store_memory : Optional[int]
+        The amount of memory (in bytes) to start the object store with, by default None
+    cpu_count : Optional[int]
+        Number of CPUs to assign to each raylet, by default None
+    gpu_count : Optional[int]
+        Number of GPUs to assign to each raylet, by default 0
+    """
     if address:
         ray.init(
             address=address,

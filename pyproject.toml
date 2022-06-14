@@ -50,7 +50,7 @@ tqdm = { version = "^4.64.0", optional = true }
 [tool.poetry.extras]
 sqlserver = ["pyodbc"]
 sparql = ["SPARQLWrapper"]
-distributed = ["modin", "ray", "tqdm"]
+distributed = ["modin", "ray", "psutil", "tqdm"]
 
 [tool.poetry.dev-dependencies]
 wheel = "^0.36.2"
