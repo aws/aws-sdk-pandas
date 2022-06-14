@@ -16,7 +16,7 @@ if config.distributed or TYPE_CHECKING:
 
 def ray_remote(function: Callable[..., Any]) -> Callable[..., Any]:
     """
-    Decorator used to wrap callable within ray.remote.
+    Decorate callable to wrap within ray.remote.
 
     Parameters
     ----------
