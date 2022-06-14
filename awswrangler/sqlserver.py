@@ -90,7 +90,7 @@ def _create_table(
         varchar_lengths=varchar_lengths,
         converter_func=_data_types.pyarrow2sqlserver,
     )
-    cols_str: str = "".join([f"{k} {v},\n" for k, v in sqlserver_types.items()])[:-2]
+    cols_str: str = "".join([f'"{k}" {v},\n' for k, v in sqlserver_types.items()])[:-2]
     table_identifier = _get_table_identifier(schema, table)
     sql = (
         f"IF OBJECT_ID(N'{table_identifier}', N'U') IS NULL BEGIN CREATE TABLE {table_identifier} (\n{cols_str}); END;"
@@ -416,7 +416,7 @@ def to_sql(
             table_identifier = _get_table_identifier(schema, table)
             insertion_columns = ""
             if use_column_names:
-                insertion_columns = f"({', '.join(df.columns)})"
+                insertion_columns = "({})".format(", ".join(f'"{col}"' for col in df.columns))
             placeholder_parameter_pair_generator = _db_utils.generate_placeholder_parameter_pairs(
                 df=df, column_placeholders=column_placeholders, chunksize=chunksize
             )
