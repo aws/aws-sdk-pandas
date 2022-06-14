@@ -34,6 +34,11 @@ def get_table(
     return dynamodb_table
 
 
+@apply_configs
+def get_client(boto3_session: Optional[boto3.Session] = None) -> boto3.client:
+    return _utils.client(service_name="dynamodb", session=boto3_session)
+
+
 def _validate_items(
     items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]], dynamodb_table: boto3.resource
 ) -> None:
