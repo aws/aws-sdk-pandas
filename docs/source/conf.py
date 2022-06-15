@@ -150,12 +150,6 @@ html_static_path = ["_static"]
 nbsphinx_allow_errors = True
 nbsphinx_execute = "never"
 
-rst_epilog = """
-
-.. |tracking| image:: https://d3tiqpr4kkkomd.cloudfront.net/img/pixel.png?asset=RIXAH6KDSYAI1HHEBLTY
-           :alt: tracking
-
-"""
 
 def setup(app):
     app.add_css_file("css/max_width.css")

@@ -69,3 +69,6 @@ Read The Docs
    License <https://github.com/awslabs/aws-data-wrangler/blob/main/LICENSE.txt>
    Contributing <https://github.com/awslabs/aws-data-wrangler/blob/main/CONTRIBUTING.md>
    Legacy Docs (pre-1.0.0) <https://aws-data-wrangler.readthedocs.io/en/legacy/>
+
+.. image:: https://d3tiqpr4kkkomd.cloudfront.net/img/pixel.png?asset=RIXAH6KDSYAI1HHEBLTY
+   :align: left
