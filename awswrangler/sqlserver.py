@@ -416,7 +416,8 @@ def to_sql(
             table_identifier = _get_table_identifier(schema, table)
             insertion_columns = ""
             if use_column_names:
-                insertion_columns = "({})".format(", ".join(f'"{col}"' for col in df.columns))
+                quoted_columns = ", ".join(f'"{col}"' for col in df.columns)
+                insertion_columns = f"({quoted_columns})"
             placeholder_parameter_pair_generator = _db_utils.generate_placeholder_parameter_pairs(
                 df=df, column_placeholders=column_placeholders, chunksize=chunksize
             )
