@@ -100,6 +100,8 @@ def _cast_value(value: str, dtype: str) -> Any:  # pylint: disable=too-many-bran
         return datetime.strptime(value, "%Y-%m-%d").date()
     if dtype == "TIME":
         return datetime.strptime(value[:-3], "%H:%M:%S.%f").time()
+    if dtype == "ARRAY":
+        return str(value)
     raise ValueError(f"Not supported Amazon Timestream type: {dtype}")
 
 
@@ -110,9 +112,11 @@ def _process_row(schema: List[Dict[str, str]], row: Dict[str, Any]) -> List[Any]
             row_processed.append(None)
         elif "ScalarValue" in col:
             row_processed.append(_cast_value(value=col["ScalarValue"], dtype=col_schema["type"]))
+        elif "ArrayValue" in col:
+            row_processed.append(_cast_value(value=col["ArrayValue"], dtype="ARRAY"))
         else:
             raise ValueError(
-                f"Query with non ScalarType/NullValue for column {col_schema['name']}. "
+                f"Query with non ScalarType/ArrayColumnInfo/NullValue for column {col_schema['name']}. "
                 f"Expected {col_schema['type']} instead of {col}"
             )
     return row_processed
@@ -129,9 +133,12 @@ def _rows_to_df(rows: List[List[Any]], schema: List[Dict[str, str]]) -> pd.DataF
 def _process_schema(page: Dict[str, Any]) -> List[Dict[str, str]]:
     schema: List[Dict[str, str]] = []
     for col in page["ColumnInfo"]:
-        if "ScalarType" not in col["Type"]:
-            raise ValueError(f"Query with non ScalarType for column {col['Name']}: {col['Type']}")
-        schema.append({"name": col["Name"], "type": col["Type"]["ScalarType"]})
+        if "ScalarType" in col["Type"]:
+            schema.append({"name": col["Name"], "type": col["Type"]["ScalarType"]})
+        elif "ArrayColumnInfo" in col["Type"]:
+            schema.append({"name": col["Name"], "type": col["Type"]["ArrayColumnInfo"]})
+        else:
+            raise ValueError(f"Query with non ScalarType or ArrayColumnInfo for column {col['Name']}: {col['Type']}")
     return schema
 
 

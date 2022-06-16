@@ -94,7 +94,6 @@ def _apply_partitions(df: pd.DataFrame, dataset: bool, path: str, path_root: Opt
         return df
     if dataset is True and path_root is None:
         raise exceptions.InvalidArgument("A path_root is required when dataset=True.")
-    path_root = cast(str, path_root)
     partitions: Dict[str, str] = _extract_partitions_from_path(path_root=path_root, path=path)
     _logger.debug("partitions: %s", partitions)
     count: int = len(df.index)
@@ -137,7 +136,14 @@ def _read_dfs_from_multiple_paths(
 ) -> List[pd.DataFrame]:
     cpus = ensure_cpu_count(use_threads)
     if cpus < 2:
-        return [read_func(path, version_id=version_ids.get(path) if version_ids else None, **kwargs) for path in paths]
+        return [
+            read_func(
+                path,
+                version_id=version_ids.get(path) if version_ids else None,
+                **kwargs,
+            )
+            for path in paths
+        ]
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=ensure_cpu_count(use_threads)) as executor:
         kwargs["boto3_session"] = boto3_to_primitives(kwargs["boto3_session"])
