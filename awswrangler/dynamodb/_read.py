@@ -16,7 +16,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _get_terms_groups(terms: List[str]) -> Tuple[List[str], List[str], List[str]]:
-    """Determine to which group of a PartiQL query each term belongs, e.g. it describes a column, table or filter"""
+    """Determine to which group of a PartiQL query each term belongs, e.g. it describes a column, table or filter."""
     is_select_term = False
     is_from_term = False
     is_where_term = False
@@ -43,7 +43,7 @@ def _get_terms_groups(terms: List[str]) -> Tuple[List[str], List[str], List[str]
 
 
 def _get_scan_response(table_name: str, select_terms: List[str], client: boto3.resource) -> List[Dict[str, Any]]:
-    """Performs a scan to the Dynamo DB table and returns the data fetched"""
+    """Perform a scan to the Dynamo DB table and returns the data fetched."""
     scan_config: Dict[str, Any] = {"TableName": table_name}
     if len(select_terms) > 1 or select_terms[0] != "*":
         scan_config["AttributesToGet"] = select_terms
