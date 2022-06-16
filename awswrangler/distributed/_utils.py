@@ -1,4 +1,4 @@
-"""Distributed Module gathering all read functions."""
+"""Utilities Module for Distributed methods."""
 
 from typing import Any, Callable, Dict, List, Optional
 
