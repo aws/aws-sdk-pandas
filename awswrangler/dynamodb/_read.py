@@ -1,10 +1,12 @@
-from typing import List, Dict, Any, Optional, Tuple
+"""Amazon DynamoDB Read Module (PRIVATE)."""
 
-import re
 import logging
+import re
+from typing import Any, Dict, List, Optional, Tuple
+
 import boto3
-from boto3.dynamodb.types import TypeDeserializer
 import pandas as pd
+from boto3.dynamodb.types import TypeDeserializer
 
 from awswrangler._config import apply_configs
 
@@ -62,7 +64,7 @@ def _get_items(client: boto3.resource, query: str) -> List[Dict[str, Any]]:
     terms = re.split(" |,", query)
     if terms[0].upper() != "SELECT":
         raise ValueError("The PartiQL query does not start with a 'SELECT'.")
-    select_terms, from_terms, where_terms = _get_terms_groups(terms)
+    select_terms, from_terms, _ = _get_terms_groups(terms)
     if len(from_terms) > 1:
         raise ValueError("The PartiQL query contains multiple tables but only one needed.")
     if len(from_terms) == 0:
@@ -139,7 +141,7 @@ def read_partiql_query(
     ... )
     """
     client = get_client(boto3_session)
-    _logger.debug(f"Reading results for PartiQL query: {query}")
+    _logger.debug("Reading results for PartiQL query:  %s", query)
     items = _get_items(client, query)
     df = _parse_dynamodb_results(items)
     if dtype:
