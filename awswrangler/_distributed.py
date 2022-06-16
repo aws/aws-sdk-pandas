@@ -11,7 +11,7 @@ import psutil
 from awswrangler._config import apply_configs, config
 
 if config.distributed or TYPE_CHECKING:
-    import ray
+    import ray  # pylint: disable=import-error
 
 
 def ray_remote(function: Callable[..., Any]) -> Callable[..., Any]:
