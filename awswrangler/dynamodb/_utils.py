@@ -34,23 +34,6 @@ def get_table(
     return dynamodb_table
 
 
-@apply_configs
-def get_client(boto3_session: Optional[boto3.Session] = None) -> boto3.client:
-    """Get DynamoDB client.
-
-    Parameters
-    ----------
-    boto3_session : Optional[boto3.Session()]
-        Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
-
-    Returns
-    -------
-    client : boto3.Client
-        Boto3 DynamoDB client.
-    """
-    return _utils.client(service_name="dynamodb", session=boto3_session)
-
-
 def _validate_items(
     items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]], dynamodb_table: boto3.resource
 ) -> None:
