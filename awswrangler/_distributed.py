@@ -66,39 +66,40 @@ def initialize_ray(
     gpu_count : Optional[int]
         Number of GPUs to assign to each raylet, by default 0
     """
-    if address:
-        ray.init(
-            address=address,
-            include_dashboard=include_dashboard,
-            ignore_reinit_error=ignore_reinit_error,
-        )
-    else:
-        if not object_store_memory:
-            object_store_memory = _get_ray_object_store_memory()
-
-        mac_size_limit = getattr(ray.ray_constants, "MAC_DEGRADED_PERF_MMAP_SIZE_LIMIT", None)
-        if sys.platform == "darwin" and mac_size_limit is not None and object_store_memory > mac_size_limit:
-            warnings.warn(
-                "On Macs, Ray's performance is known to degrade with "
-                + "object store size greater than "
-                + f"{mac_size_limit / 2 ** 30:.4} GiB. Ray by default does "
-                + "not allow setting an object store size greater than "
-                + "that. This default is overridden to avoid "
-                + "spilling to disk more often. To override this "
-                + "behavior, you can initialize Ray yourself."
+    if not ray.is_initialized():
+        if address:
+            ray.init(
+                address=address,
+                include_dashboard=include_dashboard,
+                ignore_reinit_error=ignore_reinit_error,
             )
-            os.environ["RAY_ENABLE_MAC_LARGE_OBJECT_STORE"] = "1"
+        else:
+            if not object_store_memory:
+                object_store_memory = _get_ray_object_store_memory()
 
-        ray_init_kwargs = {
-            "num_cpus": cpu_count or multiprocessing.cpu_count(),
-            "num_gpus": gpu_count,
-            "include_dashboard": include_dashboard,
-            "ignore_reinit_error": ignore_reinit_error,
-            "object_store_memory": object_store_memory,
-            "_redis_password": redis_password,
-            "_memory": object_store_memory,
-        }
-        ray.init(**ray_init_kwargs)
+            mac_size_limit = getattr(ray.ray_constants, "MAC_DEGRADED_PERF_MMAP_SIZE_LIMIT", None)
+            if sys.platform == "darwin" and mac_size_limit is not None and object_store_memory > mac_size_limit:
+                warnings.warn(
+                    "On Macs, Ray's performance is known to degrade with "
+                    + "object store size greater than "
+                    + f"{mac_size_limit / 2 ** 30:.4} GiB. Ray by default does "
+                    + "not allow setting an object store size greater than "
+                    + "that. This default is overridden to avoid "
+                    + "spilling to disk more often. To override this "
+                    + "behavior, you can initialize Ray yourself."
+                )
+                os.environ["RAY_ENABLE_MAC_LARGE_OBJECT_STORE"] = "1"
+
+            ray_init_kwargs = {
+                "num_cpus": cpu_count or multiprocessing.cpu_count(),
+                "num_gpus": gpu_count,
+                "include_dashboard": include_dashboard,
+                "ignore_reinit_error": ignore_reinit_error,
+                "object_store_memory": object_store_memory,
+                "_redis_password": redis_password,
+                "_memory": object_store_memory,
+            }
+            ray.init(**ray_init_kwargs)
 
 
 def _get_ray_object_store_memory() -> Optional[int]:

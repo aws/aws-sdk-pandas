@@ -26,6 +26,7 @@ def _get_work_unit_results(
     token_work_unit: Tuple[str, int],
     boto3_session: Optional[boto3.Session] = None,
 ) -> Table:
+    _logger.debug("Query id: %s Token work unit: %s", query_id, token_work_unit)
     client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
 
     token, work_unit = token_work_unit
