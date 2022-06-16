@@ -512,9 +512,27 @@ def test_dynamodb_basic_usage(moto_dynamodb):
     table = wr.dynamodb.get_table(table_name=table_name)
     assert table.item_count == len(items)
 
+    query: str = "SELECT * FROM table"
+    df = wr.dynamodb.read_partiql_query(query)
+    assert df.shape[0] == len(items)
+
     wr.dynamodb.delete_items(items=items, table_name=table_name)
     table = wr.dynamodb.get_table(table_name=table_name)
     assert table.item_count == 0
+
+
+def test_dynamodb_partiql(moto_dynamodb):
+    table_name = "table"
+    items = [{"key": 1}, {"key": 2, "my_value": "Hello"}]
+
+    wr.dynamodb.put_items(items=items, table_name=table_name)
+    query: str = "SELECT * FROM table"
+    df = wr.dynamodb.read_partiql_query(query)
+    assert df.shape[0] == len(items)
+
+    dtype = {"key": int, "my_value": str}
+    df = wr.dynamodb.read_partiql_query(query, dtype=dtype)
+    assert df.shape[0] == len(items)
 
 
 def test_dynamodb_fail_on_invalid_items(moto_dynamodb):
