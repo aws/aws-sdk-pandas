@@ -42,12 +42,12 @@ def _get_terms_groups(terms: List[str]) -> Tuple[List[str], List[str], List[str]
 
 def _get_scan_response(table_name: str, select_terms: List[str], client: boto3.resource) -> List[Dict[str, Any]]:
     """Performs a scan to the Dynamo DB table and returns the data fetched"""
-    scan_config = {"TableName": table_name}
+    scan_config: Dict[str, Any] = {"TableName": table_name}
     if len(select_terms) > 1 or select_terms[0] != "*":
         scan_config["AttributesToGet"] = select_terms
     # get all responses even if pagination is necessary
     response = client.scan(**scan_config)
-    data = response["Items"]
+    data: List[Dict[str, Any]] = response["Items"]
     while "LastEvaluatedKey" in response:
         scan_config["ExclusiveStartKey"] = response["LastEvaluatedKey"]
         response = client.scan(**scan_config)
@@ -85,7 +85,7 @@ def _deserialize_data(df: pd.DataFrame, columns: pd.Index) -> pd.DataFrame:
     return df
 
 
-def _parse_dynamodb_results(results: List[Dict]) -> pd.DataFrame:
+def _parse_dynamodb_results(results: List[Dict[str, Any]]) -> pd.DataFrame:
     df = pd.DataFrame(results)
     columns = df.columns
     df = _deserialize_data(df, columns)
@@ -95,7 +95,7 @@ def _parse_dynamodb_results(results: List[Dict]) -> pd.DataFrame:
 @apply_configs
 def read_partiql_query(
     query: str,
-    dtype: Optional[Dict] = None,
+    dtype: Optional[Dict[str, str]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> pd.DataFrame:
     """Read data from a DynamoDB table via a PartiQL query.
