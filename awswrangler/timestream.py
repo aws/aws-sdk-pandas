@@ -100,6 +100,8 @@ def _cast_value(value: str, dtype: str) -> Any:  # pylint: disable=too-many-bran
         return datetime.strptime(value, "%Y-%m-%d").date()
     if dtype == "TIME":
         return datetime.strptime(value[:-3], "%H:%M:%S.%f").time()
+    if dtype == "ARRAY":
+        return str(value)
     raise ValueError(f"Not supported Amazon Timestream type: {dtype}")
 
 
@@ -110,9 +112,11 @@ def _process_row(schema: List[Dict[str, str]], row: Dict[str, Any]) -> List[Any]
             row_processed.append(None)
         elif "ScalarValue" in col:
             row_processed.append(_cast_value(value=col["ScalarValue"], dtype=col_schema["type"]))
+        elif "ArrayValue" in col:
+            row_processed.append(_cast_value(value=col["ArrayValue"], dtype="ARRAY"))
         else:
             raise ValueError(
-                f"Query with non ScalarType/NullValue for column {col_schema['name']}. "
+                f"Query with non ScalarType/ArrayColumnInfo/NullValue for column {col_schema['name']}. "
                 f"Expected {col_schema['type']} instead of {col}"
             )
     return row_processed
@@ -129,9 +133,12 @@ def _rows_to_df(rows: List[List[Any]], schema: List[Dict[str, str]]) -> pd.DataF
 def _process_schema(page: Dict[str, Any]) -> List[Dict[str, str]]:
     schema: List[Dict[str, str]] = []
     for col in page["ColumnInfo"]:
-        if "ScalarType" not in col["Type"]:
-            raise ValueError(f"Query with non ScalarType for column {col['Name']}: {col['Type']}")
-        schema.append({"name": col["Name"], "type": col["Type"]["ScalarType"]})
+        if "ScalarType" in col["Type"]:
+            schema.append({"name": col["Name"], "type": col["Type"]["ScalarType"]})
+        elif "ArrayColumnInfo" in col["Type"]:
+            schema.append({"name": col["Name"], "type": col["Type"]["ArrayColumnInfo"]})
+        else:
+            raise ValueError(f"Query with non ScalarType or ArrayColumnInfo for column {col['Name']}: {col['Type']}")
     return schema
 
 
@@ -482,3 +489,75 @@ def delete_table(
     """
     client: boto3.client = _utils.client(service_name="timestream-write", session=boto3_session)
     client.delete_table(DatabaseName=database, TableName=table)
+
+
+def list_databases(
+    boto3_session: Optional[boto3.Session] = None,
+) -> List[str]:
+    """
+    List all databases in timestream.
+
+    Parameters
+    ----------
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    List[str]
+        a list of available timestream databases.
+
+    Examples
+    --------
+    Querying the list of all available databases
+
+    >>> import awswrangler as wr
+    >>> wr.timestream.list_databases()
+    ... ["database1", "database2"]
+
+
+    """
+    client: boto3.client = _utils.client(service_name="timestream-write", session=boto3_session)
+    dbs = client.list_databases()
+    return [db["DatabaseName"] for db in dbs["Databases"]]
+
+
+def list_tables(database: Optional[str] = None, boto3_session: Optional[boto3.Session] = None) -> List[str]:
+    """
+    List tables in timestream.
+
+    Parameters
+    ----------
+    database: str
+        Database name. If None, all tables in Timestream will be returned. Otherwise, only the tables inside the
+        given database are returned.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    List[str]
+        A list of table names.
+
+    Examples
+    --------
+    Listing all tables in timestream across databases
+
+    >>> import awswrangler as wr
+    >>> wr.timestream.list_tables()
+    ... ["table1", "table2"]
+
+    Listing all tables in timestream in a specific database
+
+    >>> import awswrangler as wr
+    >>> wr.timestream.list_tables(DatabaseName="database1")
+    ... ["table1"]
+
+    """
+    client: boto3.client = _utils.client(service_name="timestream-write", session=boto3_session)
+    if database:
+        tables = client.list_tables(DatabaseName=database)
+    else:
+        tables = client.list_tables()
+
+    return [tbl["TableName"] for tbl in tables["Tables"]]
