@@ -173,18 +173,18 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     concurrent_partitioning: bool
         If True will increase the parallelism level during the partitions writing. It will decrease the
         writing time and increase the memory usage.
-        https://aws-data-wrangler.readthedocs.io/en/2.15.1/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
+        https://aws-data-wrangler.readthedocs.io/en/2.16.0/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
     mode : str, optional
         ``append`` (Default), ``overwrite``, ``overwrite_partitions``. Only takes effect if dataset=True.
         For details check the related tutorial:
-        https://aws-data-wrangler.readthedocs.io/en/2.15.1/stubs/awswrangler.s3.to_parquet.html#awswrangler.s3.to_parquet
+        https://aws-data-wrangler.readthedocs.io/en/2.16.0/stubs/awswrangler.s3.to_parquet.html#awswrangler.s3.to_parquet
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     schema_evolution : bool
         If True allows schema evolution (new or missing columns), otherwise a exception will be raised.
         (Only considered if dataset=True and mode in ("append", "overwrite_partitions")). False by default.
         Related tutorial:
-        https://aws-data-wrangler.readthedocs.io/en/2.15.1/tutorials/014%20-%20Schema%20Evolution.html
+        https://aws-data-wrangler.readthedocs.io/en/2.16.0/tutorials/014%20-%20Schema%20Evolution.html
     database : str, optional
         Glue/Athena catalog: Database name.
     table : str, optional
@@ -746,18 +746,18 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
     concurrent_partitioning: bool
         If True will increase the parallelism level during the partitions writing. It will decrease the
         writing time and increase the memory usage.
-        https://aws-data-wrangler.readthedocs.io/en/2.15.1/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
+        https://aws-data-wrangler.readthedocs.io/en/2.16.0/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
     mode : str, optional
         ``append`` (Default), ``overwrite``, ``overwrite_partitions``. Only takes effect if dataset=True.
         For details check the related tutorial:
-        https://aws-data-wrangler.readthedocs.io/en/2.15.1/stubs/awswrangler.s3.to_parquet.html#awswrangler.s3.to_parquet
+        https://aws-data-wrangler.readthedocs.io/en/2.16.0/stubs/awswrangler.s3.to_parquet.html#awswrangler.s3.to_parquet
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     schema_evolution : bool
         If True allows schema evolution (new or missing columns), otherwise a exception will be raised.
         (Only considered if dataset=True and mode in ("append", "overwrite_partitions"))
         Related tutorial:
-        https://aws-data-wrangler.readthedocs.io/en/2.15.1/tutorials/014%20-%20Schema%20Evolution.html
+        https://aws-data-wrangler.readthedocs.io/en/2.16.0/tutorials/014%20-%20Schema%20Evolution.html
     database : str, optional
         Glue/Athena catalog: Database name.
     table : str, optional

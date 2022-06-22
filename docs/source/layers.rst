@@ -1,151 +1,151 @@
 AWS Lambda Managed Layers
 ==========================
 
-Version 2.15.1
+Version 2.16.0
 ^^^^^^^^^^^^^^
 
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
 | AWS Region     | Python | Arch  | Layer Arn                                                                         |
 +================+========+=======+===================================================================================+
-| ap-northeast-1 | 3.7    | x86   | arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSDataWrangler-Python37:5       |
+| ap-northeast-1 | 3.7    | x86   | arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSDataWrangler-Python37:7       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-1 | 3.8    | Arm64 | arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSDataWrangler-Python38-Arm64:2 |
+| ap-northeast-1 | 3.8    | Arm64 | arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSDataWrangler-Python38-Arm64:3 |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-1 | 3.8    | x86   | arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSDataWrangler-Python38:6       |
+| ap-northeast-1 | 3.8    | x86   | arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSDataWrangler-Python38:7       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-1 | 3.9    | Arm64 | arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSDataWrangler-Python39-Arm64:2 |
+| ap-northeast-1 | 3.9    | Arm64 | arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSDataWrangler-Python39-Arm64:3 |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-1 | 3.9    | x86   | arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSDataWrangler-Python39:5       |
+| ap-northeast-1 | 3.9    | x86   | arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSDataWrangler-Python39:6       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-2 | 3.7    | x86   | arn:aws:lambda:ap-northeast-2:336392948345:layer:AWSDataWrangler-Python37:2       |
+| ap-northeast-2 | 3.7    | x86   | arn:aws:lambda:ap-northeast-2:336392948345:layer:AWSDataWrangler-Python37:3       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-2 | 3.8    | x86   | arn:aws:lambda:ap-northeast-2:336392948345:layer:AWSDataWrangler-Python38:3       |
+| ap-northeast-2 | 3.8    | x86   | arn:aws:lambda:ap-northeast-2:336392948345:layer:AWSDataWrangler-Python38:4       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-2 | 3.9    | x86   | arn:aws:lambda:ap-northeast-2:336392948345:layer:AWSDataWrangler-Python39:3       |
+| ap-northeast-2 | 3.9    | x86   | arn:aws:lambda:ap-northeast-2:336392948345:layer:AWSDataWrangler-Python39:4       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-3 | 3.7    | x86   | arn:aws:lambda:ap-northeast-3:336392948345:layer:AWSDataWrangler-Python37:3       |
+| ap-northeast-3 | 3.7    | x86   | arn:aws:lambda:ap-northeast-3:336392948345:layer:AWSDataWrangler-Python37:4       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-3 | 3.8    | x86   | arn:aws:lambda:ap-northeast-3:336392948345:layer:AWSDataWrangler-Python38:3       |
+| ap-northeast-3 | 3.8    | x86   | arn:aws:lambda:ap-northeast-3:336392948345:layer:AWSDataWrangler-Python38:4       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-northeast-3 | 3.9    | x86   | arn:aws:lambda:ap-northeast-3:336392948345:layer:AWSDataWrangler-Python39:3       |
+| ap-northeast-3 | 3.9    | x86   | arn:aws:lambda:ap-northeast-3:336392948345:layer:AWSDataWrangler-Python39:4       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-south-1     | 3.7    | x86   | arn:aws:lambda:ap-south-1:336392948345:layer:AWSDataWrangler-Python37:2           |
+| ap-south-1     | 3.7    | x86   | arn:aws:lambda:ap-south-1:336392948345:layer:AWSDataWrangler-Python37:3           |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-south-1     | 3.8    | Arm64 | arn:aws:lambda:ap-south-1:336392948345:layer:AWSDataWrangler-Python38-Arm64:2     |
+| ap-south-1     | 3.8    | Arm64 | arn:aws:lambda:ap-south-1:336392948345:layer:AWSDataWrangler-Python38-Arm64:3     |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-south-1     | 3.8    | x86   | arn:aws:lambda:ap-south-1:336392948345:layer:AWSDataWrangler-Python38:3           |
+| ap-south-1     | 3.8    | x86   | arn:aws:lambda:ap-south-1:336392948345:layer:AWSDataWrangler-Python38:4           |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-south-1     | 3.9    | Arm64 | arn:aws:lambda:ap-south-1:336392948345:layer:AWSDataWrangler-Python39-Arm64:2     |
+| ap-south-1     | 3.9    | Arm64 | arn:aws:lambda:ap-south-1:336392948345:layer:AWSDataWrangler-Python39-Arm64:3     |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-south-1     | 3.9    | x86   | arn:aws:lambda:ap-south-1:336392948345:layer:AWSDataWrangler-Python39:3           |
+| ap-south-1     | 3.9    | x86   | arn:aws:lambda:ap-south-1:336392948345:layer:AWSDataWrangler-Python39:4           |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-1 | 3.7    | x86   | arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSDataWrangler-Python37:2       |
+| ap-southeast-1 | 3.7    | x86   | arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSDataWrangler-Python37:3       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-1 | 3.8    | Arm64 | arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSDataWrangler-Python38-Arm64:2 |
+| ap-southeast-1 | 3.8    | Arm64 | arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSDataWrangler-Python38-Arm64:3 |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-1 | 3.8    | x86   | arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSDataWrangler-Python38:3       |
+| ap-southeast-1 | 3.8    | x86   | arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSDataWrangler-Python38:4       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-1 | 3.9    | Arm64 | arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSDataWrangler-Python39-Arm64:2 |
+| ap-southeast-1 | 3.9    | Arm64 | arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSDataWrangler-Python39-Arm64:4 |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-1 | 3.9    | x86   | arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSDataWrangler-Python39:3       |
+| ap-southeast-1 | 3.9    | x86   | arn:aws:lambda:ap-southeast-1:336392948345:layer:AWSDataWrangler-Python39:4       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-2 | 3.7    | x86   | arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSDataWrangler-Python37:5       |
+| ap-southeast-2 | 3.7    | x86   | arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSDataWrangler-Python37:6       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-2 | 3.8    | Arm64 | arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSDataWrangler-Python38-Arm64:2 |
+| ap-southeast-2 | 3.8    | Arm64 | arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSDataWrangler-Python38-Arm64:3 |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-2 | 3.8    | x86   | arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSDataWrangler-Python38:6       |
+| ap-southeast-2 | 3.8    | x86   | arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSDataWrangler-Python38:7       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-2 | 3.9    | Arm64 | arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSDataWrangler-Python39-Arm64:2 |
+| ap-southeast-2 | 3.9    | Arm64 | arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSDataWrangler-Python39-Arm64:3 |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ap-southeast-2 | 3.9    | x86   | arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSDataWrangler-Python39:5       |
+| ap-southeast-2 | 3.9    | x86   | arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSDataWrangler-Python39:6       |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ca-central-1   | 3.7    | x86   | arn:aws:lambda:ca-central-1:336392948345:layer:AWSDataWrangler-Python37:2         |
+| ca-central-1   | 3.7    | x86   | arn:aws:lambda:ca-central-1:336392948345:layer:AWSDataWrangler-Python37:3         |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ca-central-1   | 3.8    | x86   | arn:aws:lambda:ca-central-1:336392948345:layer:AWSDataWrangler-Python38:3         |
+| ca-central-1   | 3.8    | x86   | arn:aws:lambda:ca-central-1:336392948345:layer:AWSDataWrangler-Python38:4         |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| ca-central-1   | 3.9    | x86   | arn:aws:lambda:ca-central-1:336392948345:layer:AWSDataWrangler-Python39:3         |
+| ca-central-1   | 3.9    | x86   | arn:aws:lambda:ca-central-1:336392948345:layer:AWSDataWrangler-Python39:4         |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-central-1   | 3.7    | x86   | arn:aws:lambda:eu-central-1:336392948345:layer:AWSDataWrangler-Python37:5         |
+| eu-central-1   | 3.7    | x86   | arn:aws:lambda:eu-central-1:336392948345:layer:AWSDataWrangler-Python37:6         |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-central-1   | 3.8    | Arm64 | arn:aws:lambda:eu-central-1:336392948345:layer:AWSDataWrangler-Python38-Arm64:2   |
+| eu-central-1   | 3.8    | Arm64 | arn:aws:lambda:eu-central-1:336392948345:layer:AWSDataWrangler-Python38-Arm64:3   |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-central-1   | 3.8    | x86   | arn:aws:lambda:eu-central-1:336392948345:layer:AWSDataWrangler-Python38:6         |
+| eu-central-1   | 3.8    | x86   | arn:aws:lambda:eu-central-1:336392948345:layer:AWSDataWrangler-Python38:7         |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-central-1   | 3.9    | Arm64 | arn:aws:lambda:eu-central-1:336392948345:layer:AWSDataWrangler-Python39-Arm64:2   |
+| eu-central-1   | 3.9    | Arm64 | arn:aws:lambda:eu-central-1:336392948345:layer:AWSDataWrangler-Python39-Arm64:3   |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-central-1   | 3.9    | x86   | arn:aws:lambda:eu-central-1:336392948345:layer:AWSDataWrangler-Python39:4         |
+| eu-central-1   | 3.9    | x86   | arn:aws:lambda:eu-central-1:336392948345:layer:AWSDataWrangler-Python39:6         |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-north-1     | 3.7    | x86   | arn:aws:lambda:eu-north-1:336392948345:layer:AWSDataWrangler-Python37:2           |
+| eu-north-1     | 3.7    | x86   | arn:aws:lambda:eu-north-1:336392948345:layer:AWSDataWrangler-Python37:3           |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-north-1     | 3.8    | x86   | arn:aws:lambda:eu-north-1:336392948345:layer:AWSDataWrangler-Python38:2           |
+| eu-north-1     | 3.8    | x86   | arn:aws:lambda:eu-north-1:336392948345:layer:AWSDataWrangler-Python38:3           |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-north-1     | 3.9    | x86   | arn:aws:lambda:eu-north-1:336392948345:layer:AWSDataWrangler-Python39:2           |
+| eu-north-1     | 3.9    | x86   | arn:aws:lambda:eu-north-1:336392948345:layer:AWSDataWrangler-Python39:3           |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-1      | 3.7    | x86   | arn:aws:lambda:eu-west-1:336392948345:layer:AWSDataWrangler-Python37:5            |
+| eu-west-1      | 3.7    | x86   | arn:aws:lambda:eu-west-1:336392948345:layer:AWSDataWrangler-Python37:6            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-1      | 3.8    | Arm64 | arn:aws:lambda:eu-west-1:336392948345:layer:AWSDataWrangler-Python38-Arm64:2      |
+| eu-west-1      | 3.8    | Arm64 | arn:aws:lambda:eu-west-1:336392948345:layer:AWSDataWrangler-Python38-Arm64:3      |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-1      | 3.8    | x86   | arn:aws:lambda:eu-west-1:336392948345:layer:AWSDataWrangler-Python38:7            |
+| eu-west-1      | 3.8    | x86   | arn:aws:lambda:eu-west-1:336392948345:layer:AWSDataWrangler-Python38:9            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-1      | 3.9    | Arm64 | arn:aws:lambda:eu-west-1:336392948345:layer:AWSDataWrangler-Python39-Arm64:2      |
+| eu-west-1      | 3.9    | Arm64 | arn:aws:lambda:eu-west-1:336392948345:layer:AWSDataWrangler-Python39-Arm64:3      |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-1      | 3.9    | x86   | arn:aws:lambda:eu-west-1:336392948345:layer:AWSDataWrangler-Python39:5            |
+| eu-west-1      | 3.9    | x86   | arn:aws:lambda:eu-west-1:336392948345:layer:AWSDataWrangler-Python39:6            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-2      | 3.7    | x86   | arn:aws:lambda:eu-west-2:336392948345:layer:AWSDataWrangler-Python37:3            |
+| eu-west-2      | 3.7    | x86   | arn:aws:lambda:eu-west-2:336392948345:layer:AWSDataWrangler-Python37:4            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-2      | 3.8    | Arm64 | arn:aws:lambda:eu-west-2:336392948345:layer:AWSDataWrangler-Python38-Arm64:2      |
+| eu-west-2      | 3.8    | Arm64 | arn:aws:lambda:eu-west-2:336392948345:layer:AWSDataWrangler-Python38-Arm64:3      |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-2      | 3.8    | x86   | arn:aws:lambda:eu-west-2:336392948345:layer:AWSDataWrangler-Python38:3            |
+| eu-west-2      | 3.8    | x86   | arn:aws:lambda:eu-west-2:336392948345:layer:AWSDataWrangler-Python38:4            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-2      | 3.9    | Arm64 | arn:aws:lambda:eu-west-2:336392948345:layer:AWSDataWrangler-Python39-Arm64:2      |
+| eu-west-2      | 3.9    | Arm64 | arn:aws:lambda:eu-west-2:336392948345:layer:AWSDataWrangler-Python39-Arm64:3      |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-2      | 3.9    | x86   | arn:aws:lambda:eu-west-2:336392948345:layer:AWSDataWrangler-Python39:3            |
+| eu-west-2      | 3.9    | x86   | arn:aws:lambda:eu-west-2:336392948345:layer:AWSDataWrangler-Python39:4            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-3      | 3.7    | x86   | arn:aws:lambda:eu-west-3:336392948345:layer:AWSDataWrangler-Python37:2            |
+| eu-west-3      | 3.7    | x86   | arn:aws:lambda:eu-west-3:336392948345:layer:AWSDataWrangler-Python37:3            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-3      | 3.8    | x86   | arn:aws:lambda:eu-west-3:336392948345:layer:AWSDataWrangler-Python38:3            |
+| eu-west-3      | 3.8    | x86   | arn:aws:lambda:eu-west-3:336392948345:layer:AWSDataWrangler-Python38:4            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| eu-west-3      | 3.9    | x86   | arn:aws:lambda:eu-west-3:336392948345:layer:AWSDataWrangler-Python39:3            |
+| eu-west-3      | 3.9    | x86   | arn:aws:lambda:eu-west-3:336392948345:layer:AWSDataWrangler-Python39:4            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| sa-east-1      | 3.7    | x86   | arn:aws:lambda:sa-east-1:336392948345:layer:AWSDataWrangler-Python37:2            |
+| sa-east-1      | 3.7    | x86   | arn:aws:lambda:sa-east-1:336392948345:layer:AWSDataWrangler-Python37:3            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| sa-east-1      | 3.8    | x86   | arn:aws:lambda:sa-east-1:336392948345:layer:AWSDataWrangler-Python38:2            |
+| sa-east-1      | 3.8    | x86   | arn:aws:lambda:sa-east-1:336392948345:layer:AWSDataWrangler-Python38:3            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| sa-east-1      | 3.9    | x86   | arn:aws:lambda:sa-east-1:336392948345:layer:AWSDataWrangler-Python39:2            |
+| sa-east-1      | 3.9    | x86   | arn:aws:lambda:sa-east-1:336392948345:layer:AWSDataWrangler-Python39:3            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-1      | 3.7    | x86   | arn:aws:lambda:us-east-1:336392948345:layer:AWSDataWrangler-Python37:5            |
+| us-east-1      | 3.7    | x86   | arn:aws:lambda:us-east-1:336392948345:layer:AWSDataWrangler-Python37:6            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-1      | 3.8    | Arm64 | arn:aws:lambda:us-east-1:336392948345:layer:AWSDataWrangler-Python38-Arm64:2      |
+| us-east-1      | 3.8    | Arm64 | arn:aws:lambda:us-east-1:336392948345:layer:AWSDataWrangler-Python38-Arm64:3      |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-1      | 3.8    | x86   | arn:aws:lambda:us-east-1:336392948345:layer:AWSDataWrangler-Python38:6            |
+| us-east-1      | 3.8    | x86   | arn:aws:lambda:us-east-1:336392948345:layer:AWSDataWrangler-Python38:7            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-1      | 3.9    | Arm64 | arn:aws:lambda:us-east-1:336392948345:layer:AWSDataWrangler-Python39-Arm64:2      |
+| us-east-1      | 3.9    | Arm64 | arn:aws:lambda:us-east-1:336392948345:layer:AWSDataWrangler-Python39-Arm64:3      |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-1      | 3.9    | x86   | arn:aws:lambda:us-east-1:336392948345:layer:AWSDataWrangler-Python39:5            |
+| us-east-1      | 3.9    | x86   | arn:aws:lambda:us-east-1:336392948345:layer:AWSDataWrangler-Python39:7            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-2      | 3.7    | x86   | arn:aws:lambda:us-east-2:336392948345:layer:AWSDataWrangler-Python37:5            |
+| us-east-2      | 3.7    | x86   | arn:aws:lambda:us-east-2:336392948345:layer:AWSDataWrangler-Python37:6            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-2      | 3.8    | Arm64 | arn:aws:lambda:us-east-2:336392948345:layer:AWSDataWrangler-Python38-Arm64:2      |
+| us-east-2      | 3.8    | Arm64 | arn:aws:lambda:us-east-2:336392948345:layer:AWSDataWrangler-Python38-Arm64:3      |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-2      | 3.8    | x86   | arn:aws:lambda:us-east-2:336392948345:layer:AWSDataWrangler-Python38:6            |
+| us-east-2      | 3.8    | x86   | arn:aws:lambda:us-east-2:336392948345:layer:AWSDataWrangler-Python38:7            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-2      | 3.9    | Arm64 | arn:aws:lambda:us-east-2:336392948345:layer:AWSDataWrangler-Python39-Arm64:2      |
+| us-east-2      | 3.9    | Arm64 | arn:aws:lambda:us-east-2:336392948345:layer:AWSDataWrangler-Python39-Arm64:3      |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-east-2      | 3.9    | x86   | arn:aws:lambda:us-east-2:336392948345:layer:AWSDataWrangler-Python39:5            |
+| us-east-2      | 3.9    | x86   | arn:aws:lambda:us-east-2:336392948345:layer:AWSDataWrangler-Python39:6            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-west-1      | 3.7    | x86   | arn:aws:lambda:us-west-1:336392948345:layer:AWSDataWrangler-Python37:3            |
+| us-west-1      | 3.7    | x86   | arn:aws:lambda:us-west-1:336392948345:layer:AWSDataWrangler-Python37:4            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-west-1      | 3.8    | x86   | arn:aws:lambda:us-west-1:336392948345:layer:AWSDataWrangler-Python38:4            |
+| us-west-1      | 3.8    | x86   | arn:aws:lambda:us-west-1:336392948345:layer:AWSDataWrangler-Python38:5            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-west-1      | 3.9    | x86   | arn:aws:lambda:us-west-1:336392948345:layer:AWSDataWrangler-Python39:4            |
+| us-west-1      | 3.9    | x86   | arn:aws:lambda:us-west-1:336392948345:layer:AWSDataWrangler-Python39:5            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-west-2      | 3.7    | x86   | arn:aws:lambda:us-west-2:336392948345:layer:AWSDataWrangler-Python37:5            |
+| us-west-2      | 3.7    | x86   | arn:aws:lambda:us-west-2:336392948345:layer:AWSDataWrangler-Python37:6            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-west-2      | 3.8    | Arm64 | arn:aws:lambda:us-west-2:336392948345:layer:AWSDataWrangler-Python38-Arm64:2      |
+| us-west-2      | 3.8    | Arm64 | arn:aws:lambda:us-west-2:336392948345:layer:AWSDataWrangler-Python38-Arm64:3      |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-west-2      | 3.8    | x86   | arn:aws:lambda:us-west-2:336392948345:layer:AWSDataWrangler-Python38:6            |
+| us-west-2      | 3.8    | x86   | arn:aws:lambda:us-west-2:336392948345:layer:AWSDataWrangler-Python38:7            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-west-2      | 3.9    | Arm64 | arn:aws:lambda:us-west-2:336392948345:layer:AWSDataWrangler-Python39-Arm64:2      |
+| us-west-2      | 3.9    | Arm64 | arn:aws:lambda:us-west-2:336392948345:layer:AWSDataWrangler-Python39-Arm64:3      |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
-| us-west-2      | 3.9    | x86   | arn:aws:lambda:us-west-2:336392948345:layer:AWSDataWrangler-Python39:6            |
+| us-west-2      | 3.9    | x86   | arn:aws:lambda:us-west-2:336392948345:layer:AWSDataWrangler-Python39:7            |
 +----------------+--------+-------+-----------------------------------------------------------------------------------+
