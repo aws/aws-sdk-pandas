@@ -308,7 +308,9 @@ def _get_column_name(column: str) -> str:
     return column
 
 
-def _set_properties(g: GraphTraversalSource, use_header_cardinality: bool, row: Any, ignore_cardinality: bool = False) -> GraphTraversalSource:
+def _set_properties(
+    g: GraphTraversalSource, use_header_cardinality: bool, row: Any, ignore_cardinality: bool = False
+) -> GraphTraversalSource:
     for (column, value) in row.items():
         if column not in ["~id", "~label", "~to", "~from"]:
             if ignore_cardinality and pd.notna(value):
@@ -374,7 +376,9 @@ def _run_gremlin_insert(client: NeptuneClient, g: GraphTraversalSource) -> bool:
     translator = Translator("g")
     s = translator.translate(g.bytecode)
     s = s.replace("Cardinality.", "")  # hack to fix parser error for set cardinality
-    s = s.replace(".values('shape')", "")  # hack to fix parser error for adding unknown values('shape') steps to translation.
+    s = s.replace(
+        ".values('shape')", ""
+    )  # hack to fix parser error for adding unknown values('shape') steps to translation.
     _logger.debug(s)
     res = client.write_gremlin(s)
     return res

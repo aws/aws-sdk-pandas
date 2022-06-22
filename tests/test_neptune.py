@@ -169,6 +169,7 @@ def test_sparql_query(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     assert isinstance(df, pd.DataFrame)
     assert df.shape == (2, 3)
 
+
 def test_write_vertex_property_nan(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
     id = uuid.uuid4()
@@ -180,6 +181,7 @@ def test_write_vertex_property_nan(neptune_endpoint, neptune_port) -> Dict[str, 
     df = pd.DataFrame(data)
     res = wr.neptune.to_property_graph(client, df)
     assert res
+
 
 def test_gremlin_write_different_cols(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
