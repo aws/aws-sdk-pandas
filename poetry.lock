@@ -1217,7 +1217,7 @@ et-xmlfile = "*"
 
 [[package]]
 name = "opensearch-py"
-version = "1.1.0"
+version = "2.0.0"
 description = "Python low-level client for OpenSearch"
 category = "main"
 optional = false
@@ -1225,13 +1225,13 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4"
 
 [package.dependencies]
 certifi = "*"
+requests = ">=2.4.0,<3.0.0"
 urllib3 = ">=1.21.1,<2"
 
 [package.extras]
 async = ["aiohttp (>=3,<4)"]
 develop = ["requests (>=2.0.0,<3.0.0)", "coverage", "mock", "pyyaml", "pytest", "pytest-cov", "sphinx", "sphinx-rtd-theme", "myst-parser", "sphinx-copybutton", "black", "jinja2", "botocore"]
 docs = ["sphinx", "sphinx-rtd-theme", "myst-parser", "sphinx-copybutton"]
-requests = ["requests (>=2.4.0,<3.0.0)"]
 
 [[package]]
 name = "oracledb"
@@ -2270,7 +2270,7 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.7.1, <3.11"
-content-hash = "1386765da9d31ee19c806435dd318419f3918c2ab1cea43c7f13d2428f316a2a"
+content-hash = "e1605fc9069e540973bd629329498e7bfb2d2854d777fb2b16a90736fab5b8dc"
 
 [metadata.files]
 aenum = [
@@ -3162,8 +3162,8 @@ openpyxl = [
     {file = "openpyxl-3.0.10.tar.gz", hash = "sha256:e47805627aebcf860edb4edf7987b1309c1b3632f3750538ed962bbcc3bd7449"},
 ]
 opensearch-py = [
-    {file = "opensearch-py-1.1.0.tar.gz", hash = "sha256:7d0c41cea61fedc34542be7fb9169931360134cf823c596f719106c3bd8466fe"},
-    {file = "opensearch_py-1.1.0-py2.py3-none-any.whl", hash = "sha256:cb573546fb373dac8091be9b8eac2ba8da277713eea4b50b4a49ccd30dec25f1"},
+    {file = "opensearch-py-2.0.0.tar.gz", hash = "sha256:1b7b451a54557de72faad004de9d338f613db3f38a78e9230105cf9fd8a81c52"},
+    {file = "opensearch_py-2.0.0-py2.py3-none-any.whl", hash = "sha256:a3e571555eda286c00facb2bff29bac3f776bdd48e8e44b56693a394e6b5199a"},
 ]
 oracledb = [
     {file = "oracledb-1.0.0-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:16f30e01d4ab843c7195a4fde7925959a92eac8bc1626ec7e6703f3be94d80a8"},
