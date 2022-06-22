@@ -258,7 +258,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     index : bool
         True to store the DataFrame index in file, otherwise False to ignore it.
     compression: str, optional
-        Compression style (``None``, ``snappy``, ``gzip``).
+        Compression style (``None``, ``snappy``, ``gzip``, ``zstd``).
     pyarrow_additional_kwargs : Optional[Dict[str, Any]]
         Additional parameters forwarded to pyarrow.
         e.g. pyarrow_additional_kwargs={'coerce_timestamps': 'ns', 'use_deprecated_int96_timestamps': False,
@@ -522,7 +522,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
 
     # Evaluating compression
     if _COMPRESSION_2_EXT.get(compression, None) is None:
-        raise exceptions.InvalidCompression(f"{compression} is invalid, please use None, 'snappy' or 'gzip'.")
+        raise exceptions.InvalidCompression(f"{compression} is invalid, please use None, 'snappy', 'gzip' or 'zstd'.")
     compression_ext: str = _COMPRESSION_2_EXT[compression]
 
     # Initializing defaults
