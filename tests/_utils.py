@@ -434,7 +434,7 @@ def ensure_data_types(df, has_list=False):
     assert str(df["iint64"].dtype) == "Int64"
     assert str(df["float"].dtype).startswith("float")
     assert str(df["ddouble"].dtype) == "float64"
-    assert str(df["decimal"].dtype) == "object"
+    assert str(df["decimal"].dtype) in ("object", "float64")
     if "string_object" in df.columns:
         assert str(df["string_object"].dtype) == "string"
     assert str(df["string"].dtype) == "string"

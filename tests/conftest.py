@@ -129,7 +129,7 @@ def workgroup3(bucket, kms_key):
 
 @pytest.fixture(scope="session")
 def databases_parameters(cloudformation_outputs, db_password):
-    parameters = dict(postgresql={}, mysql={}, redshift={}, sqlserver={}, mysql_serverless={})
+    parameters = dict(postgresql={}, mysql={}, redshift={}, sqlserver={}, mysql_serverless={}, oracle={})
     parameters["postgresql"]["host"] = cloudformation_outputs["PostgresqlAddress"]
     parameters["postgresql"]["port"] = 3306
     parameters["postgresql"]["schema"] = "public"
@@ -155,6 +155,10 @@ def databases_parameters(cloudformation_outputs, db_password):
     parameters["mysql_serverless"]["schema"] = "test"
     parameters["mysql_serverless"]["database"] = "test"
     parameters["mysql_serverless"]["arn"] = cloudformation_outputs["MysqlServerlessClusterArn"]
+    parameters["oracle"]["host"] = cloudformation_outputs["OracleAddress"]
+    parameters["oracle"]["port"] = 1521
+    parameters["oracle"]["schema"] = "TEST"
+    parameters["oracle"]["database"] = "ORCL"
     return parameters
 
 
@@ -273,6 +277,28 @@ def sqlserver_table():
     con = wr.sqlserver.connect("aws-data-wrangler-sqlserver")
     with con.cursor() as cursor:
         cursor.execute(f"IF OBJECT_ID(N'dbo.{name}', N'U') IS NOT NULL DROP TABLE dbo.{name}")
+    con.commit()
+    con.close()
+
+
+@pytest.fixture(scope="function")
+def oracle_table():
+    name = f"tbl_{get_time_str_with_random_suffix()}"
+    print(f"Table name: {name}")
+    yield name
+    con = wr.oracle.connect("aws-data-wrangler-oracle")
+    sql = f"""
+BEGIN
+   EXECUTE IMMEDIATE 'DROP TABLE "TEST"."{name}"';
+EXCEPTION
+   WHEN OTHERS THEN
+      IF SQLCODE != -942 THEN
+         RAISE;
+      END IF;
+END;
+"""
+    with con.cursor() as cursor:
+        cursor.execute(sql)
     con.commit()
     con.close()
 
