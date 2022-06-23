@@ -485,6 +485,12 @@ def test_timezone_raw_values(path):
     assert df2.equals(df3)
 
 
+def test_validate_columns(path) -> None:
+    wr.s3.to_parquet(pd.DataFrame({"a": [1], "b": [2]}), path, dataset=True)
+    with pytest.raises(wr.exceptions.InvalidArgument):
+        wr.s3.read_parquet(path, columns=["a", "b", "c"], validate_schema=True)
+
+
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_empty_column(path, use_threads):
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": [None, None, None], "par": ["a", "b", "c"]})

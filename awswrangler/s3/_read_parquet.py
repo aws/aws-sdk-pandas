@@ -483,7 +483,7 @@ def _read_parquet_file(
             coerce_int96_timestamp_unit=pyarrow_args["coerce_int96_timestamp_unit"],
         )
         if validate_schema and pq_file and columns:
-            pq_file_columns: List[str] = pq_file.schema.names()
+            pq_file_columns: List[str] = pq_file.schema.names
             for column in columns:
                 if column not in pq_file_columns:
                     raise exceptions.InvalidArgument(f"column: {column} does not exist")
