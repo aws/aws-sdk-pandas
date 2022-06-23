@@ -483,7 +483,7 @@ def _read_parquet_file(
             coerce_int96_timestamp_unit=pyarrow_args["coerce_int96_timestamp_unit"],
         )
         if validate_schema and pq_file and columns:
-            pq_file_columns: List[str] = pq_file.schema.names()
+            pq_file_columns: List[str] = pq_file.schema.names
             for column in columns:
                 if column not in pq_file_columns:
                     raise exceptions.InvalidArgument(f"column: {column} does not exist")
@@ -864,7 +864,7 @@ def read_parquet_table(
         This function MUST return a bool, True to read the partition or False to ignore it.
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
-        https://aws-data-wrangler.readthedocs.io/en/2.15.1/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+        https://aws-data-wrangler.readthedocs.io/en/2.16.0/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
     columns : List[str], optional
         Names of columns to read from the file(s).
     validate_schema:
