@@ -1235,7 +1235,7 @@ requests = ["requests (>=2.4.0,<3.0.0)"]
 
 [[package]]
 name = "oracledb"
-version = "1.0.0"
+version = "1.0.1"
 description = "Python interface to Oracle Database"
 category = "main"
 optional = true
@@ -3166,23 +3166,24 @@ opensearch-py = [
     {file = "opensearch_py-1.1.0-py2.py3-none-any.whl", hash = "sha256:cb573546fb373dac8091be9b8eac2ba8da277713eea4b50b4a49ccd30dec25f1"},
 ]
 oracledb = [
-    {file = "oracledb-1.0.0-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:16f30e01d4ab843c7195a4fde7925959a92eac8bc1626ec7e6703f3be94d80a8"},
-    {file = "oracledb-1.0.0-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:f9f2448d2228779ac4c4759af0ed55923d1a4ab3b134494f5001814502f48837"},
-    {file = "oracledb-1.0.0-cp310-cp310-win32.whl", hash = "sha256:b42bd5149f46373899b88b938a460c4ea046a8b1e1a53d116fe08e1063f4d324"},
-    {file = "oracledb-1.0.0-cp310-cp310-win_amd64.whl", hash = "sha256:cb2bd94dadeb67b8c249fabbe773573a4dd906401ee1fab1d3ba154d4ba09598"},
-    {file = "oracledb-1.0.0-cp36-cp36m-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:8232ad6839fb9b36b14ed5966ce648f7b0ee9b2439a7ab526827962568ddcea5"},
-    {file = "oracledb-1.0.0-cp37-cp37m-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:ba53493abf51f0232514530feb3a6b556826666dc1d85b481dcc80bef7c59283"},
-    {file = "oracledb-1.0.0-cp37-cp37m-win32.whl", hash = "sha256:0cb2f0ab30435439bedb4797d0f6ef366eb2a9d8c87a06b15d1adcde0c2a5303"},
-    {file = "oracledb-1.0.0-cp37-cp37m-win_amd64.whl", hash = "sha256:c288ee2e56cdbf148e7149d151b01bee142c5b2c98328c79df631126c022afaa"},
-    {file = "oracledb-1.0.0-cp38-cp38-macosx_11_0_universal2.whl", hash = "sha256:79aa57248a5477dd420d902ac857041c8ed3e6956c4cd7e55f8baebc56e5e145"},
-    {file = "oracledb-1.0.0-cp38-cp38-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:f2c37a42bec10ddc54d9b23ef13354ad53212230d12ae2b914e3ccc237634c2f"},
-    {file = "oracledb-1.0.0-cp38-cp38-win32.whl", hash = "sha256:4d24eb9930a85d8e9c4a5c572e9403ece7b7bb8b65c9468f73d675a123b60dd3"},
-    {file = "oracledb-1.0.0-cp38-cp38-win_amd64.whl", hash = "sha256:45ae8efcd232655595659339de0ae5280c7558cef47f74c11613f3b540be8e37"},
-    {file = "oracledb-1.0.0-cp39-cp39-macosx_10_9_universal2.whl", hash = "sha256:cae6bee8a748bbc404d074aac984430ac5ca131f8c3fcd8fa07cefad81f54fdb"},
-    {file = "oracledb-1.0.0-cp39-cp39-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:4ca14326ea29227260d561e9ba5864c8dcdc5e89f83330f03e8720038cb7c138"},
-    {file = "oracledb-1.0.0-cp39-cp39-win32.whl", hash = "sha256:aee133ba5d48f72ed5b68db99811c8b7575c76bddf5192cc39d3e251e212f452"},
-    {file = "oracledb-1.0.0-cp39-cp39-win_amd64.whl", hash = "sha256:0d706a5de1da4ac9006f0e96efb720c75474bec89251c845386a98e0173a73a1"},
-    {file = "oracledb-1.0.0.tar.gz", hash = "sha256:4a04de68b64789b0a5d80bcd4789c82c4f9a16435dec1b95fff1eee7ad3df6fa"},
+    {file = "oracledb-1.0.1-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:a6a1f2b073234f717233687d8bb5a5c47d746bf3386b9902d6d9d180b266376b"},
+    {file = "oracledb-1.0.1-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:e4a20f19fbc9985b124be8f55c47e611f46c4783dded3af49e54b2e1b833f425"},
+    {file = "oracledb-1.0.1-cp310-cp310-win32.whl", hash = "sha256:a2362034cd702279ea5ea35f6084e047d5080948e80ca9a775183ddf79266eba"},
+    {file = "oracledb-1.0.1-cp310-cp310-win_amd64.whl", hash = "sha256:31b2ab8cf31a0b1562520dc92de60556a806b24e4f14f306d31bdfe76fe282be"},
+    {file = "oracledb-1.0.1-cp36-cp36m-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:073efbeb640aff684ea24750a7e2769525a1e3b50aa04b083666d193cdd0a8e3"},
+    {file = "oracledb-1.0.1-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:235ba039ecd53eef5227ceb96ce983d7d64bafb345b330ed757d06aae1df963d"},
+    {file = "oracledb-1.0.1-cp37-cp37m-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:c531ebb7298f428b3e8cbfe86964a1e44af1ead5dcfb0ac0188c509009b81a68"},
+    {file = "oracledb-1.0.1-cp37-cp37m-win32.whl", hash = "sha256:eb10433a367312ece6e8e17abf4bd2440c8f0c864fe23fb6fb36e5a9f23738ea"},
+    {file = "oracledb-1.0.1-cp37-cp37m-win_amd64.whl", hash = "sha256:a12421f954437f13d57d391df10ed22e9e0bed19f4fb2f6cc4b2854716ef4f37"},
+    {file = "oracledb-1.0.1-cp38-cp38-macosx_11_0_universal2.whl", hash = "sha256:82a0a2d6178fcfdffde93943a9921b8fd49b2493c43aa77d43644c27444727cb"},
+    {file = "oracledb-1.0.1-cp38-cp38-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:9f6d14ccbc1d4f3915a54cb31ab90b711213752a7868faad46b5d406a4249486"},
+    {file = "oracledb-1.0.1-cp38-cp38-win32.whl", hash = "sha256:53f5c74a10056c5cde4b4c4c71db67c1d065026af7efabdb7e4269c4914e8a6d"},
+    {file = "oracledb-1.0.1-cp38-cp38-win_amd64.whl", hash = "sha256:248bba3984e57cb8c8c46f863521d4bddee019164472eebb3caf2d51972efbd4"},
+    {file = "oracledb-1.0.1-cp39-cp39-macosx_10_9_universal2.whl", hash = "sha256:6fc738e6936638c5010f1c3037672667391b72261db38018253c81289fc9884a"},
+    {file = "oracledb-1.0.1-cp39-cp39-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:da4d31d0d923ebf48ac2f9bbcb34f1bf8bd89abc096b6ac2d7d70568bdf62a14"},
+    {file = "oracledb-1.0.1-cp39-cp39-win32.whl", hash = "sha256:95df9795a4d1ff07607dad59628728fa1a95e329837a2aae071c66bb19d77680"},
+    {file = "oracledb-1.0.1-cp39-cp39-win_amd64.whl", hash = "sha256:30f8af7f4b5ad48a010a1fa9aa5852fa2e98eb33b38159a927e334b8510cd7f9"},
+    {file = "oracledb-1.0.1.tar.gz", hash = "sha256:9f938134e08a6d08f3886af90a0a9cee197dbe1b38ff7f75f1fc3262d27ba708"},
 ]
 packaging = [
     {file = "packaging-21.3-py3-none-any.whl", hash = "sha256:ef103e05f519cdc783ae24ea4e2e0f508a9c99b2d4969652eed6a2e1ea5bd522"},
