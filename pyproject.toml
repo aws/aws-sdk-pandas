@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "awswrangler"
-version = "2.16.0"
+version = "2.16.1"
 description = "Pandas on AWS."
 authors = ["Igor Tavares"]
 license = "Apache License 2.0"
