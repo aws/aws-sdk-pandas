@@ -54,7 +54,7 @@ sparql = ["SPARQLWrapper"]
 [tool.poetry.dev-dependencies]
 wheel = "^0.36.2"
 isort = "^5.9.2"
-black = "^22.1.0"
+black = "^22.6.0"
 pylint = "^2.11.1"
 flake8 = "^4.0.0"
 mypy = "^0.960"
