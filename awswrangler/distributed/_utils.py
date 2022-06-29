@@ -3,9 +3,9 @@
 from typing import Any, Callable, Dict, List, Optional
 
 import modin.pandas as pd
+import pyarrow as pa
 import ray
 from modin.distributed.dataframe.pandas.partitions import from_partitions
-from pyarrow import Table
 from ray.data.impl.arrow_block import ArrowBlockAccessor
 from ray.data.impl.remote_fn import cached_remote_fn
 
@@ -14,7 +14,7 @@ def _block_to_df(
     block: Any,
     kwargs: Dict[str, Any],
     dtype: Optional[Dict[str, str]] = None,
-) -> Table:
+) -> pa.Table:
     block = ArrowBlockAccessor.for_block(block)
     df = block._table.to_pandas(**kwargs)  # pylint: disable=protected-access
     return df.astype(dtype=dtype) if dtype else df

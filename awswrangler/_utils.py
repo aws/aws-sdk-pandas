@@ -8,16 +8,21 @@ import os
 import random
 import time
 from concurrent.futures import FIRST_COMPLETED, Future, wait
-from typing import Any, Callable, Dict, Generator, List, Optional, Sequence, Tuple, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, List, Optional, Sequence, Tuple, Union, cast
 
 import boto3
 import botocore.config
 import numpy as np
 import pandas as pd
+import pyarrow as pa
 
 from awswrangler import _config, exceptions
 from awswrangler.__metadata__ import __version__
-from awswrangler._config import apply_configs
+from awswrangler._config import apply_configs, config
+from awswrangler.distributed._utils import _arrow_refs_to_df
+
+if TYPE_CHECKING or config.distributed:
+    import ray
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -401,3 +406,19 @@ def check_schema_changes(columns_types: Dict[str, str], table_input: Optional[Di
                     f"Schema change detected: Data type change on column {c} "
                     f"(Old type: {catalog_cols[c]} / New type {t})."
                 )
+
+
+def pylist_to_arrow(mapping: List[Dict[str, Any]]) -> pa.Table:
+    names = list(mapping[0].keys()) if mapping else []
+    arrays = []
+    for n in names:
+        v = [row[n] if n in row else None for row in mapping]
+        arrays.append(v)
+    return pa.Table.from_arrays(arrays, names)
+
+
+def table_refs_to_df(tables: Union[List[pa.Table], List["ray.ObjectRef"]], kwargs: Dict[str, Any]) -> pd.DataFrame:  # type: ignore  # noqa: E501
+    if isinstance(tables[0], pa.Table):
+        return ensure_df_is_mutable(pa.concat_tables(tables).to_pandas(**kwargs))
+    if isinstance(tables[0], ray.ObjectRef):
+        return _arrow_refs_to_df(arrow_refs=tables, kwargs=kwargs)  # type: ignore

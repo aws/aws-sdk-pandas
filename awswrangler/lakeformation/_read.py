@@ -1,30 +1,27 @@
 """Amazon Lake Formation Module gathering all read functions."""
-import concurrent.futures
 import itertools
 import logging
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import boto3
 import pandas as pd
-from pyarrow import NativeFile, RecordBatchStreamReader, Table, concat_tables
+from pyarrow import NativeFile, RecordBatchStreamReader, Table
 
 from awswrangler import _data_types, _utils, catalog
-from awswrangler._config import apply_configs, config
-from awswrangler._distributed import ray_remote
+from awswrangler._config import apply_configs
+from awswrangler._threading import _get_executor
 from awswrangler.catalog._utils import _catalog_id, _transaction_id
+from awswrangler.distributed import ray_remote
 from awswrangler.lakeformation._utils import commit_transaction, start_transaction, wait_query
-
-if config.distributed:
-    from awswrangler.distributed._utils import _arrow_refs_to_df
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
 @ray_remote
 def _get_work_unit_results(
+    boto3_session: Optional[boto3.Session],
     query_id: str,
     token_work_unit: Tuple[str, int],
-    boto3_session: Optional[boto3.Session] = None,
 ) -> Table:
     _logger.debug("Query id: %s Token work unit: %s", query_id, token_work_unit)
     client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
@@ -66,8 +63,7 @@ def _resolve_sql_query(
         )
         next_token = response.get("NextToken", None)
         scan_kwargs["NextToken"] = next_token
-
-    tables: List[Table] = []
+    executor = _get_executor(use_threads=use_threads)
     kwargs = {
         "use_threads": use_threads,
         "split_blocks": True,
@@ -80,39 +76,13 @@ def _resolve_sql_query(
         "safe": safe,
         "types_mapper": _data_types.pyarrow2pandas_extension if map_types else None,
     }
-    if config.distributed:
-        return _arrow_refs_to_df(
-            list(
-                _get_work_unit_results(
-                    query_id=query_id,
-                    token_work_unit=token_work_unit,
-                )
-                for token_work_unit in token_work_units
-            ),
-            kwargs=kwargs,
-        )
-    if use_threads is False:
-        tables = list(
-            _get_work_unit_results(
-                query_id=query_id,
-                token_work_unit=token_work_unit,
-                boto3_session=boto3_session,
-            )
-            for token_work_unit in token_work_units
-        )
-    else:
-        cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
-        with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
-            tables = list(
-                executor.map(
-                    _get_work_unit_results,
-                    itertools.repeat(query_id),
-                    token_work_units,
-                    itertools.repeat(boto3_session),
-                )
-            )
-    table = concat_tables(tables)
-    return _utils.ensure_df_is_mutable(df=table.to_pandas(**kwargs))
+    tables = executor.map(
+        _get_work_unit_results,
+        boto3_session,
+        itertools.repeat(query_id),
+        token_work_units,
+    )
+    return _utils.table_refs_to_df(tables=tables, kwargs=kwargs)
 
 
 @apply_configs

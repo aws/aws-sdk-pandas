@@ -30,6 +30,9 @@ def ray_remote(function: Callable[..., Any]) -> Callable[..., Any]:
     if config.distributed:
 
         def wrapper(*args: Any, **kwargs: Any) -> Any:
+            # Discard boto3 Sessions in remote Ray calls since they're unpickable
+            # if "boto3_session" in kwargs:
+            #     kwargs.pop("boto3_session")
             return ray.remote(function).remote(*args, **kwargs)
 
         return wrapper
