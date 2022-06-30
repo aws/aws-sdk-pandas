@@ -462,7 +462,6 @@ def _read_parquet_file(
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
-    validate_schema: Optional[bool],
     version_id: Optional[str] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> pa.Table:
@@ -482,12 +481,6 @@ def _read_parquet_file(
             read_dictionary=categories,
             coerce_int96_timestamp_unit=pyarrow_args["coerce_int96_timestamp_unit"],
         )
-        if validate_schema and pq_file and columns:
-            pq_file_columns: List[str] = pq_file.schema.names
-            for column in columns:
-                if column not in pq_file_columns:
-                    raise exceptions.InvalidArgument(f"column: {column} does not exist")
-
         if pq_file is None:
             raise exceptions.InvalidFile(f"Invalid Parquet file: {path}")
         return pq_file.read(columns=columns, use_threads=False, use_pandas_metadata=False)
@@ -536,7 +529,7 @@ def _read_parquet(
 ) -> pd.DataFrame:
     pyarrow_args = _set_default_pyarrow_additional_kwargs(pyarrow_additional_kwargs)
     boto3_session = _utils.ensure_session(boto3_session)
-    return _arrowtable2df(
+    df: pd.DataFrame = _arrowtable2df(
         table=_read_parquet_file(
             path=path,
             columns=columns,
@@ -545,7 +538,6 @@ def _read_parquet(
             s3_additional_kwargs=s3_additional_kwargs,
             use_threads=use_threads,
             version_id=version_id,
-            validate_schema=validate_schema,
             pyarrow_additional_kwargs=pyarrow_args,
         ),
         categories=categories,
@@ -557,6 +549,11 @@ def _read_parquet(
         path_root=path_root,
         timestamp_as_object=pyarrow_args["timestamp_as_object"],
     )
+    if validate_schema and columns:
+        for column in columns:
+            if column not in df.columns:
+                raise exceptions.InvalidArgument(f"column: {column} does not exist")
+    return df
 
 
 def read_parquet(
