@@ -345,6 +345,7 @@ def to_sql(
             upsert_distinct: Inserts new records, including duplicates, then recreates the table and inserts `DISTINCT`
             records from old table. This is the least efficient approach but handles scenarios where there are no
             keys on table.
+            ignore_duplicate_key: Performs an insert using `INSERT IGNORE` clause. Duplicate records are not inserted and no error is generated.
 
     index : bool
         True to store the DataFrame index as a column in the table,
@@ -395,6 +396,7 @@ def to_sql(
         "upsert_replace_into",
         "upsert_duplicate_key",
         "upsert_distinct",
+        "ignore_duplicate_key",
     ]
     _db_utils.validate_mode(mode=mode, allowed_modes=allowed_modes)
     _validate_connection(con=con)
@@ -429,7 +431,7 @@ def to_sql(
                 if mode == "upsert_replace_into":
                     sql = f"REPLACE INTO `{schema}`.`{table}` {insertion_columns} VALUES {placeholders}"
                 else:
-                    sql = f"INSERT INTO `{schema}`.`{table}` {insertion_columns} VALUES {placeholders}{upsert_str}"
+                    sql = f"INSERT {"IGNORE" if mode == "ignore_duplicate_key" else ""} INTO `{schema}`.`{table}` {insertion_columns} VALUES {placeholders}{upsert_str}"
                 _logger.debug("sql: %s", sql)
                 cursor.executemany(sql, (parameters,))
             con.commit()
