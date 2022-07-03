@@ -335,7 +335,7 @@ def to_sql(
     schema : str
         Schema name
     mode : str
-        Append, overwrite, upsert_duplicate_key, upsert_replace_into, upsert_distinct.
+        Append, overwrite, upsert_duplicate_key, upsert_replace_into, upsert_distinct, ignore_duplicate_key.
             append: Inserts new records into table.
             overwrite: Drops table and recreates.
             upsert_duplicate_key: Performs an upsert using `ON DUPLICATE KEY` clause. Requires table schema to have
