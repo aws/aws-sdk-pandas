@@ -431,7 +431,7 @@ def to_sql(
                 if mode == "upsert_replace_into":
                     sql = f"REPLACE INTO `{schema}`.`{table}` {insertion_columns} VALUES {placeholders}"
                 else:
-                    sql = f"INSERT {"IGNORE" if mode == "ignore" else ""} INTO `{schema}`.`{table}` {insertion_columns} VALUES {placeholders}{upsert_str}"
+                    sql = f"INSERT {'IGNORE ' if mode == 'ignore' else ''}INTO `{schema}`.`{table}` {insertion_columns} VALUES {placeholders}{upsert_str}"
                 _logger.debug("sql: %s", sql)
                 cursor.executemany(sql, (parameters,))
             con.commit()
