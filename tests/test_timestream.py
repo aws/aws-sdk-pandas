@@ -71,9 +71,9 @@ def test_empty_query(timestream_database_and_table: str, chunked: bool) -> None:
 
     output = wr.timestream.query(
         f"""SELECT *
-                FROM "{timestream_database_and_table}"."{timestream_database_and_table}"
-                WHERE dimension = 'non_existing_test_dimension';
-            """,
+            FROM "{timestream_database_and_table}"."{timestream_database_and_table}"
+            WHERE dim0 = 'non_existing_test_dimension';
+        """,
     )
 
     if chunked:
