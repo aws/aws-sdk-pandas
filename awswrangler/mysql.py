@@ -418,6 +418,7 @@ def to_sql(
             insertion_columns = ""
             upsert_columns = ""
             upsert_str = ""
+            ignore_str = " IGNORE" if mode == "ignore" else ""
             if use_column_names:
                 insertion_columns = f"(`{'`, `'.join(df.columns)}`)"
             if mode == "upsert_duplicate_key":
@@ -431,7 +432,8 @@ def to_sql(
                 if mode == "upsert_replace_into":
                     sql = f"REPLACE INTO `{schema}`.`{table}` {insertion_columns} VALUES {placeholders}"
                 else:
-                    sql = f"INSERT {'IGNORE ' if mode == 'ignore' else ''}INTO `{schema}`.`{table}` {insertion_columns} VALUES {placeholders}{upsert_str}"
+                    sql = f"""INSERT{ignore_str} INTO `{schema}`.`{table}` {insertion_columns}
+VALUES {placeholders}{upsert_str}"""
                 _logger.debug("sql: %s", sql)
                 cursor.executemany(sql, (parameters,))
             con.commit()
