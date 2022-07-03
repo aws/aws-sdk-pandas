@@ -400,5 +400,5 @@ def test_ignore(mysql_table, mysql_con):
 
     df6 = wr.mysql.read_sql_table(con=mysql_con, schema="test", table=mysql_table)
     assert bool(len(df6) == 3)
-    assert bool(len(df6.loc[(df6["c0"] == "foo") & (df6["c2"] == 4)]) == 1)
-    assert bool(len(df6.loc[(df6["c0"] == "bar") & (df6["c2"] == 5)]) == 1)
+    assert bool(len(df6.loc[(df6["c0"] == "foo") & (df6["c2"] == 1)]) == 1)
+    assert bool(len(df6.loc[(df6["c0"] == "bar") & (df6["c2"] == 2)]) == 1)
