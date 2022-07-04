@@ -305,7 +305,6 @@ def test_gremlin_write_vertices(neptune_endpoint, neptune_port) -> Dict[str, Any
     assert len(saved_row["str"]) == 2
 
 
-@pytest.mark.skip(reason="In quarantine due to breaking change in Neptune engine.")
 def test_gremlin_write_edges(neptune_endpoint, neptune_port) -> Dict[str, Any]:
     client = wr.neptune.connect(neptune_endpoint, neptune_port, iam_enabled=False)
 
