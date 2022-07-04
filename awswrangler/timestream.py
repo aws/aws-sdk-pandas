@@ -292,7 +292,8 @@ def query(
     result_iterator = _paginate_query(sql, pagination_config, boto3_session)
     if chunked:
         return result_iterator
-    return pd.concat(result_iterator, ignore_index=True)
+    # Prepending an empty DataFrame ensures returning an empty DataFrame if result_iterator is empty
+    return pd.concat(itertools.chain([pd.DataFrame()], result_iterator), ignore_index=True)
 
 
 def create_database(
