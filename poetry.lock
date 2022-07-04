@@ -267,7 +267,7 @@ crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "botocore"
-version = "1.27.3"
+version = "1.27.22"
 description = "Low-level, data-driven core of boto 3."
 category = "main"
 optional = false
@@ -2469,8 +2469,8 @@ boto3 = [
     {file = "boto3-1.24.3.tar.gz", hash = "sha256:7625c5ed92bb7a953e03d2541bcbfcb66c3495f8d7b9421e47b4e2c280dc9162"},
 ]
 botocore = [
-    {file = "botocore-1.27.3-py3-none-any.whl", hash = "sha256:2d48f4ed77220d4cb6f1b1abbb1b782d1b12260645f6ba3f3cd9ae5c98546297"},
-    {file = "botocore-1.27.3.tar.gz", hash = "sha256:7be5962b956b5770799ba87b0bd2173230068d269982bdf8d16fabaa79483912"},
+    {file = "botocore-1.27.22-py3-none-any.whl", hash = "sha256:7145d9b7cae87999a9f074de700d02a1b3222ee7d1863aa631ff56c5fc868035"},
+    {file = "botocore-1.27.22.tar.gz", hash = "sha256:f57cb33446deef92e552b0be0e430d475c73cf64bc9e46cdb4783cdfe39cb6bb"},
 ]
 bump2version = [
     {file = "bump2version-1.0.1-py2.py3-none-any.whl", hash = "sha256:37f927ea17cde7ae2d7baf832f8e80ce3777624554a653006c9144f8017fe410"},
