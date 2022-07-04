@@ -282,8 +282,7 @@ def test_athena(path, glue_database, glue_table, kms_key, workgroup0, workgroup1
 
 def test_athena_query_cancelled(glue_database):
     query_execution_id = wr.athena.start_query_execution(
-        sql="SELECT " + "rand(), "*2000 + "rand()",
-        database=glue_database
+        sql="SELECT " + "rand(), " * 2000 + "rand()", database=glue_database
     )
     wr.athena.stop_query_execution(query_execution_id=query_execution_id)
     with pytest.raises(wr.exceptions.QueryCancelled):
