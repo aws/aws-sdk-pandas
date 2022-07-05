@@ -49,6 +49,39 @@ def test_basic_scenario(timestream_database_and_table, pagination):
     assert df.shape == (3, 8)
 
 
+@pytest.mark.parametrize("chunked", [False, True])
+def test_empty_query(timestream_database_and_table: str, chunked: bool) -> None:
+    df = pd.DataFrame(
+        {
+            "time": [datetime.now() for _ in range(5)],
+            "dim0": ["foo", "boo", "bar", "fizz", "buzz"],
+            "dim1": [1, 2, 3, 4, 5],
+            "measure": [1.0, 1.1, 1.2, 1.3, 1.4],
+        }
+    )
+    rejected_records = wr.timestream.write(
+        df=df,
+        database=timestream_database_and_table,
+        table=timestream_database_and_table,
+        time_col="time",
+        measure_col="measure",
+        dimensions_cols=["dim0", "dim1"],
+    )
+    assert len(rejected_records) == 0
+
+    output = wr.timestream.query(
+        f"""SELECT *
+            FROM "{timestream_database_and_table}"."{timestream_database_and_table}"
+            WHERE dim0 = 'non_existing_test_dimension'
+        """,
+    )
+
+    if chunked:
+        assert list(output) == []
+    else:
+        assert output.empty
+
+
 def test_chunked_scenario(timestream_database_and_table):
     df = pd.DataFrame(
         {
