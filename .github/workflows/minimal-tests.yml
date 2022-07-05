@@ -16,7 +16,7 @@ jobs:
       AWS_DEFAULT_REGION: us-east-1
     strategy:
       matrix:
-        python-version: [3.7]
+        python-version: [3.8]
 
     steps:
       - uses: actions/checkout@v2
