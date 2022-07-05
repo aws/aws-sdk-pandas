@@ -36,7 +36,7 @@ def _strip_endpoint(endpoint: str) -> str:
 def connect(
     host: str,
     port: Optional[int] = 443,
-    boto3_session: Optional[boto3.Session] = boto3.Session(),
+    boto3_session: Optional[boto3.Session] = None,
     region: Optional[str] = None,
     username: Optional[str] = None,
     password: Optional[str] = None,
