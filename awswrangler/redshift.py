@@ -818,7 +818,7 @@ def to_sql(  # pylint: disable=too-many-locals
 
         "drop" - ``DROP ... RESTRICT`` - drops the table. Fails if there are any views that depend on it.
         "cascade" - ``DROP ... CASCADE`` - drops the table, and all views that depend on it.
-        "truncate" - ``TRUNCATE ...`` - truncates the table, but immediatly commits current
+        "truncate" - ``TRUNCATE ...`` - truncates the table, but immediately commits current
         transaction & starts a new one, hence the overwrite happens in two transactions and is not atomic.
         "delete" - ``DELETE FROM ...`` - deletes all rows from the table. Slow relative to the other methods.
     index : bool
@@ -1298,7 +1298,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
 
         "drop" - ``DROP ... RESTRICT`` - drops the table. Fails if there are any views that depend on it.
         "cascade" - ``DROP ... CASCADE`` - drops the table, and all views that depend on it.
-        "truncate" - ``TRUNCATE ...`` - truncates the table, but immediatly commits current
+        "truncate" - ``TRUNCATE ...`` - truncates the table, but immediately commits current
         transaction & starts a new one, hence the overwrite happens in two transactions and is not atomic.
         "delete" - ``DELETE FROM ...`` - deletes all rows from the table. Slow relative to the other methods.
     diststyle : str
@@ -1526,7 +1526,7 @@ def copy(  # pylint: disable=too-many-arguments
 
         "drop" - ``DROP ... RESTRICT`` - drops the table. Fails if there are any views that depend on it.
         "cascade" - ``DROP ... CASCADE`` - drops the table, and all views that depend on it.
-        "truncate" - ``TRUNCATE ...`` - truncates the table, but immediatly commits current
+        "truncate" - ``TRUNCATE ...`` - truncates the table, but immediately commits current
         transaction & starts a new one, hence the overwrite happens in two transactions and is not atomic.
         "delete" - ``DELETE FROM ...`` - deletes all rows from the table. Slow relative to the other methods.
     diststyle : str
