@@ -323,7 +323,7 @@ def extract_athena_types(
         Useful when you have columns with undetermined or mixed data types.
         (e.g. {'col name': 'bigint', 'col2 name': 'int'})
     file_format : str, optional
-        File format to be consided to place the index column: "parquet" | "csv".
+        File format to be considered to place the index column: "parquet" | "csv".
 
     Returns
     -------
