@@ -1629,7 +1629,7 @@ def copy(  # pylint: disable=too-many-arguments
             s3_additional_kwargs=s3_additional_kwargs,
             max_rows_by_file=max_rows_by_file,
         )
-        column_names =[]
+        column_names = []
         if use_column_names:
             column_names = [f'"{column}"' for column in df.columns]
         copy_from_files(
