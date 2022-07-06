@@ -1104,3 +1104,109 @@ def test_to_sql_multi_transaction(redshift_table, redshift_con):
     df3 = wr.redshift.read_sql_query(sql=f"SELECT * FROM public.{redshift_table} ORDER BY id", con=redshift_con)
     assert len(df.index) + len(df2.index) == len(df3.index)
     assert len(df.columns) == len(df3.columns)
+
+def test_copy_with_column_names(redshift_table):
+    con = wr.redshift.connect(connection="aws-data-wrangler-redshift")
+    create_table_sql = (
+        f"CREATE TABLE public.{redshift_table} " "(c0 varchar(100), " "c1 integer default 42, " "c2 integer not null);"
+    )
+    with con.cursor() as cursor:
+        cursor.execute(create_table_sql)
+        con.commit()
+
+    df = pd.DataFrame({"c0": ["foo", "bar"], "c2": [1, 2]})
+
+    with pytest.raises(redshift_connector.error.ProgrammingError):
+        wr.redshift.to_sql(df=df, con=con, schema="public", table=redshift_table, mode="append", use_column_names=False)
+
+    wr.redshift.to_sql(df=df, con=con, schema="public", table=redshift_table, mode="append", use_column_names=True)
+
+    df2 = wr.redshift.read_sql_table(con=con, schema="public", table=redshift_table)
+
+    df["c1"] = 42
+    df["c0"] = df["c0"].astype("string")
+    df["c1"] = df["c1"].astype("Int64")
+    df["c2"] = df["c2"].astype("Int64")
+    df = df.reindex(sorted(df.columns), axis=1)
+    assert df.equals(df2)
+
+def test_copy_upsert_with_column_names(path, redshift_table, redshift_con, databases_parameters):
+    df = pd.DataFrame({"id": list((range(1_000))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(1_000)])})
+    df3 = pd.DataFrame(
+        {"id": list((range(1_000, 1_500))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(500)])}
+    )
+
+    # CREATE
+    path = f"{path}upsert/test_redshift_copy_upsert_with_column_names/"
+    wr.redshift.copy(
+        df=df,
+        path=path,
+        con=redshift_con,
+        schema="public",
+        table=redshift_table,
+        mode="overwrite",
+        index=False,
+        primary_keys=["id"],
+        iam_role=databases_parameters["redshift"]["role"],
+        use_column_names=True,
+    )
+    path = f"{path}upsert/test_redshift_copy_upsert_with_column_names2/"
+    df2 = wr.redshift.unload(
+        sql=f"SELECT * FROM public.{redshift_table}",
+        con=redshift_con,
+        iam_role=databases_parameters["redshift"]["role"],
+        path=path,
+        keep_files=False,
+    )
+    assert len(df.index) == len(df2.index)
+    assert len(df.columns) == len(df2.columns)
+
+    # UPSERT
+    path = f"{path}upsert/test_redshift_copy_upsert_with_column_names3/"
+    wr.redshift.copy(
+        df=df3,
+        path=path,
+        con=redshift_con,
+        schema="public",
+        table=redshift_table,
+        mode="upsert",
+        index=False,
+        primary_keys=["id"],
+        iam_role=databases_parameters["redshift"]["role"],
+        use_column_names=True,
+    )
+    path = f"{path}upsert/test_redshift_copy_upsert_with_column_names4/"
+    df4 = wr.redshift.unload(
+        sql=f"SELECT * FROM public.{redshift_table}",
+        con=redshift_con,
+        iam_role=databases_parameters["redshift"]["role"],
+        path=path,
+        keep_files=False,
+    )
+    assert len(df.index) + len(df3.index) == len(df4.index)
+    assert len(df.columns) == len(df4.columns)
+
+    # UPSERT 2 + lock
+    wr.redshift.copy(
+        df=df3,
+        path=path,
+        con=redshift_con,
+        schema="public",
+        table=redshift_table,
+        mode="upsert",
+        index=False,
+        iam_role=databases_parameters["redshift"]["role"],
+        lock=True,
+        use_column_names=True,
+    )
+    path = f"{path}upsert/test_redshift_copy_upsert_with_column_names4/"
+    df4 = wr.redshift.unload(
+        sql=f"SELECT * FROM public.{redshift_table}",
+        con=redshift_con,
+        iam_role=databases_parameters["redshift"]["role"],
+        path=path,
+        keep_files=False,
+    )
+    assert len(df.index) + len(df3.index) == len(df4.index)
+    assert len(df.columns) == len(df4.columns)
+
