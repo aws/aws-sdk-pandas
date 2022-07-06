@@ -152,7 +152,6 @@ def _copy(
     else:
         sql: str = f"COPY {table_name}\nFROM '{path}' {auth_str}\nFORMAT AS PARQUET{ser_json_str}"
 
-    sql: str = f"COPY {table_name}\nFROM '{path}' {auth_str}\nFORMAT AS PARQUET{ser_json_str}"
     if manifest:
         sql += "\nMANIFEST"
     if sql_copy_extra_params:
