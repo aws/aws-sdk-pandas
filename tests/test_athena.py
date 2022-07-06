@@ -281,6 +281,7 @@ def test_athena(path, glue_database, glue_table, kms_key, workgroup0, workgroup1
     )
 
 
+@pytest.mark.xfail()
 def test_athena_query_cancelled(glue_database):
     session = boto3.DEFAULT_SESSION
     query_execution_id = wr.athena.start_query_execution(
