@@ -100,7 +100,7 @@ Here is an example of how to create and use the AWS Data Wrangler Lambda layer i
           "wrangler-layer",
           location=sam.CfnApplication.ApplicationLocationProperty(
             application_id="arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-data-wrangler-layer-py3-8",
-            semantic_version="2.16.1",  # Get the latest version from https://github.com/awslabs/aws-data-wrangler/releases
+            semantic_version="2.16.0",  # Get the latest version from https://github.com/awslabs/aws-data-wrangler/releases
           ),
         )
 
