@@ -146,12 +146,8 @@ def _copy(
         boto3_session=boto3_session,
     )
     ser_json_str: str = " SERIALIZETOJSON" if serialize_to_json else ""
-    sql: str = ""
-    if column_names:
-        column_names_str = ",".join(column_names)
-        sql = f"COPY {table_name}({column_names_str})\nFROM '{path}' {auth_str}\nFORMAT AS PARQUET{ser_json_str}"
-    else:
-        sql = f"COPY {table_name}\nFROM '{path}' {auth_str}\nFORMAT AS PARQUET{ser_json_str}"
+    column_names_str: str = ",".join(column_names) if column_names else ""
+    sql = f"COPY {table_name}({column_names_str})\nFROM '{path}' {auth_str}\nFORMAT AS PARQUET{ser_json_str}"
 
     if manifest:
         sql += "\nMANIFEST"
@@ -1360,10 +1356,8 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
         When there is a primary_key match during upsert, this column will change the upsert method,
         comparing the values of the specified column from source and target, and keeping the
         larger of the two. Will only work when mode = upsert.
-    column_names: List[str]
-         If not empty, will use the column names of the DataFrame for generating the COPY SQL Query.
-         E.g. If the DataFrame has two columns `col1` and `col3` and `use_column_names` is True, data will only be
-         inserted into the database columns `col1` and `col3`.
+    column_names: List[str], optional
+        List of column names to map source data fields to the target columns.
 
     Returns
     -------
@@ -1584,9 +1578,9 @@ def copy(  # pylint: disable=too-many-arguments,too-many-locals
         comparing the values of the specified column from source and target, and keeping the
         larger of the two. Will only work when mode = upsert.
     use_column_names: bool
-         If set to True, will use the column names of the DataFrame for generating the INSERT SQL Query.
-         E.g. If the DataFrame has two columns `col1` and `col3` and `use_column_names` is True, data will only be
-         inserted into the database columns `col1` and `col3`.
+        If set to True, will use the column names of the DataFrame for generating the INSERT SQL Query.
+        E.g. If the DataFrame has two columns `col1` and `col3` and `use_column_names` is True, data will only be
+        inserted into the database columns `col1` and `col3`.
 
     Returns
     -------
@@ -1611,6 +1605,7 @@ def copy(  # pylint: disable=too-many-arguments,too-many-locals
     """
     path = path[:-1] if path.endswith("*") else path
     path = path if path.endswith("/") else f"{path}/"
+    column_names = [f'"{column}"' for column in df.columns] if use_column_names else []
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if s3.list_objects(path=path, boto3_session=session, s3_additional_kwargs=s3_additional_kwargs):
         raise exceptions.InvalidArgument(
@@ -1630,9 +1625,6 @@ def copy(  # pylint: disable=too-many-arguments,too-many-locals
             s3_additional_kwargs=s3_additional_kwargs,
             max_rows_by_file=max_rows_by_file,
         )
-        column_names = []
-        if use_column_names:
-            column_names = [f'"{column}"' for column in df.columns]
         copy_from_files(
             path=path,
             con=con,
