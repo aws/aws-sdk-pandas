@@ -1428,7 +1428,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
                 serialize_to_json=serialize_to_json,
                 sql_copy_extra_params=sql_copy_extra_params,
                 manifest=manifest,
-                column_names=column_names
+                column_names=column_names,
             )
             if table != created_table:  # upsert
                 _upsert(
@@ -1438,7 +1438,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
                     temp_table=created_table,
                     primary_keys=primary_keys,
                     precombine_key=precombine_key,
-                    column_names=column_names
+                    column_names=column_names,
                 )
             if commit_transaction:
                 con.commit()
@@ -1657,7 +1657,7 @@ def copy(  # pylint: disable=too-many-arguments
             s3_additional_kwargs=s3_additional_kwargs,
             sql_copy_extra_params=sql_copy_extra_params,
             precombine_key=precombine_key,
-            column_names=column_names
+            column_names=column_names,
         )
     finally:
         if keep_files is False:
