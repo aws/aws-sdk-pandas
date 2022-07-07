@@ -146,8 +146,8 @@ def _copy(
         boto3_session=boto3_session,
     )
     ser_json_str: str = " SERIALIZETOJSON" if serialize_to_json else ""
-    column_names_str: str = ",".join(column_names) if column_names else ""
-    sql = f"COPY {table_name}({column_names_str})\nFROM '{path}' {auth_str}\nFORMAT AS PARQUET{ser_json_str}"
+    column_names_str: str = f"({','.join(column_names)})" if column_names else ""
+    sql = f"COPY {table_name} {column_names_str}\nFROM '{path}' {auth_str}\nFORMAT AS PARQUET{ser_json_str}"
 
     if manifest:
         sql += "\nMANIFEST"
