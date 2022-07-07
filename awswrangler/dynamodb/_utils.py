@@ -19,7 +19,7 @@ def get_table(
     ----------
     table_name : str
         Name of the Amazon DynamoDB table.
-    boto3_session : boto3.Session(), optional
+    boto3_session : Optional[boto3.Session()]
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
 
     Returns

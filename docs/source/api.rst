@@ -9,6 +9,7 @@ API Reference
 * `PostgreSQL`_
 * `MySQL`_
 * `Microsoft SQL Server`_
+* `Oracle`_
 * `Data API Redshift`_
 * `Data API RDS`_
 * `OpenSearch`_
@@ -192,6 +193,19 @@ Microsoft SQL Server
 ____________________
 
 .. currentmodule:: awswrangler.sqlserver
+
+.. autosummary::
+    :toctree: stubs
+
+    connect
+    read_sql_query
+    read_sql_table
+    to_sql
+
+Oracle
+____________________
+
+.. currentmodule:: awswrangler.oracle
 
 .. autosummary::
     :toctree: stubs

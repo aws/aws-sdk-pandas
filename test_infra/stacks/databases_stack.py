@@ -384,7 +384,7 @@ class DatabasesStack(Stack):  # type: ignore
             "aws-data-wrangler-aurora-cluster-mysql",
             removal_policy=RemovalPolicy.DESTROY,
             engine=rds.DatabaseClusterEngine.aurora_mysql(
-                version=rds.AuroraMysqlEngineVersion.VER_5_7_12,
+                version=rds.AuroraMysqlEngineVersion.VER_2_10_2,
             ),
             cluster_identifier="mysql-cluster-wrangler",
             instances=1,

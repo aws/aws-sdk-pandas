@@ -377,7 +377,7 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-man
         sortstyle=sortstyle,
         sortkey=sortkey,
     )
-    cols_str: str = "".join([f"{k} {v},\n" for k, v in redshift_types.items()])[:-2]
+    cols_str: str = "".join([f'"{k}" {v},\n' for k, v in redshift_types.items()])[:-2]
     primary_keys_str: str = f",\nPRIMARY KEY ({', '.join(primary_keys)})" if primary_keys else ""
     distkey_str: str = f"\nDISTKEY({distkey})" if distkey and diststyle == "KEY" else ""
     sortkey_str: str = f"\n{sortstyle} SORTKEY({','.join(sortkey)})" if sortkey else ""
@@ -818,7 +818,7 @@ def to_sql(  # pylint: disable=too-many-locals
 
         "drop" - ``DROP ... RESTRICT`` - drops the table. Fails if there are any views that depend on it.
         "cascade" - ``DROP ... CASCADE`` - drops the table, and all views that depend on it.
-        "truncate" - ``TRUNCATE ...`` - truncates the table, but immediatly commits current
+        "truncate" - ``TRUNCATE ...`` - truncates the table, but immediately commits current
         transaction & starts a new one, hence the overwrite happens in two transactions and is not atomic.
         "delete" - ``DELETE FROM ...`` - deletes all rows from the table. Slow relative to the other methods.
     index : bool
@@ -908,7 +908,7 @@ def to_sql(  # pylint: disable=too-many-locals
             )
             if index:
                 df.reset_index(level=df.index.names, inplace=True)
-            column_names = list(df.columns)
+            column_names = [f'"{column}"' for column in df.columns]
             column_placeholders: str = ", ".join(["%s"] * len(column_names))
             schema_str = f'"{created_schema}".' if created_schema else ""
             insertion_columns = ""
@@ -1298,7 +1298,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
 
         "drop" - ``DROP ... RESTRICT`` - drops the table. Fails if there are any views that depend on it.
         "cascade" - ``DROP ... CASCADE`` - drops the table, and all views that depend on it.
-        "truncate" - ``TRUNCATE ...`` - truncates the table, but immediatly commits current
+        "truncate" - ``TRUNCATE ...`` - truncates the table, but immediately commits current
         transaction & starts a new one, hence the overwrite happens in two transactions and is not atomic.
         "delete" - ``DELETE FROM ...`` - deletes all rows from the table. Slow relative to the other methods.
     diststyle : str
@@ -1526,7 +1526,7 @@ def copy(  # pylint: disable=too-many-arguments
 
         "drop" - ``DROP ... RESTRICT`` - drops the table. Fails if there are any views that depend on it.
         "cascade" - ``DROP ... CASCADE`` - drops the table, and all views that depend on it.
-        "truncate" - ``TRUNCATE ...`` - truncates the table, but immediatly commits current
+        "truncate" - ``TRUNCATE ...`` - truncates the table, but immediately commits current
         transaction & starts a new one, hence the overwrite happens in two transactions and is not atomic.
         "delete" - ``DELETE FROM ...`` - deletes all rows from the table. Slow relative to the other methods.
     diststyle : str

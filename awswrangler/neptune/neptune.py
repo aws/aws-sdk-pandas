@@ -7,6 +7,7 @@ import re
 from typing import Any, Callable, TypeVar
 
 import pandas as pd
+from gremlin_python.process.anonymous_traversal import traversal
 from gremlin_python.process.graph_traversal import GraphTraversalSource, __
 from gremlin_python.process.translator import Translator
 from gremlin_python.process.traversal import Cardinality, T
@@ -175,7 +176,7 @@ def to_property_graph(
     ... )
     """
     # check if ~id and ~label column exist and if not throw error
-    g = Graph().traversal()
+    g = traversal().withGraph(Graph())
     is_edge_df = False
     is_update_df = True
     if "~id" in df.columns:
@@ -307,18 +308,23 @@ def _get_column_name(column: str) -> str:
     return column
 
 
-def _set_properties(g: GraphTraversalSource, use_header_cardinality: bool, row: Any) -> GraphTraversalSource:
+def _set_properties(
+    g: GraphTraversalSource, use_header_cardinality: bool, row: Any, ignore_cardinality: bool = False
+) -> GraphTraversalSource:
     for (column, value) in row.items():
         if column not in ["~id", "~label", "~to", "~from"]:
-            # If the column header is specifying the cardinality then use it
-            if use_header_cardinality:
-                if column.lower().find("(single)") > 0 and pd.notna(value):
-                    g = g.property(Cardinality.single, _get_column_name(column), value)
-                else:
-                    g = _expand_properties(g, _get_column_name(column), value)
+            if ignore_cardinality and pd.notna(value):
+                g = g.property(_get_column_name(column), value)
             else:
-                # If not using header cardinality then use the default of set
-                g = _expand_properties(g, column, value)
+                # If the column header is specifying the cardinality then use it
+                if use_header_cardinality:
+                    if column.lower().find("(single)") > 0 and pd.notna(value):
+                        g = g.property(Cardinality.single, _get_column_name(column), value)
+                    else:
+                        g = _expand_properties(g, _get_column_name(column), value)
+                else:
+                    # If not using header cardinality then use the default of set
+                    g = _expand_properties(g, column, value)
     return g
 
 
@@ -361,7 +367,7 @@ def _build_gremlin_insert_edges(
             .coalesce(__.unfold(), _build_gremlin_insert_vertices(__, {"~id": row["~to"], "~label": "Vertex"}))
         )
     )
-    g = _set_properties(g, use_header_cardinality, row)
+    g = _set_properties(g, use_header_cardinality, row, ignore_cardinality=True)
 
     return g
 
@@ -370,6 +376,9 @@ def _run_gremlin_insert(client: NeptuneClient, g: GraphTraversalSource) -> bool:
     translator = Translator("g")
     s = translator.translate(g.bytecode)
     s = s.replace("Cardinality.", "")  # hack to fix parser error for set cardinality
+    s = s.replace(
+        ".values('shape')", ""
+    )  # hack to fix parser error for adding unknown values('shape') steps to translation.
     _logger.debug(s)
     res = client.write_gremlin(s)
     return res
