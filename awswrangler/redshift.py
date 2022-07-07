@@ -1587,6 +1587,7 @@ def copy(  # pylint: disable=too-many-arguments,too-many-locals
          If set to True, will use the column names of the DataFrame for generating the INSERT SQL Query.
          E.g. If the DataFrame has two columns `col1` and `col3` and `use_column_names` is True, data will only be
          inserted into the database columns `col1` and `col3`.
+    
     Returns
     -------
     None
