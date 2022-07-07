@@ -80,7 +80,7 @@ def _df_doc_generator(df: pd.DataFrame) -> Generator[Dict[str, Any], None, None]
 
     df_iter = df.iterrows()
     for _, document in df_iter:
-        yield {k: _deserialize(v) for k, v in document.items() if np.array(notna(v)).all()}
+        yield {k: _deserialize(v) for k, v in document.items() if np.array(notna(v)).any()}
 
 
 def _file_line_generator(path: str, is_json: bool = False) -> Generator[Any, None, None]:
