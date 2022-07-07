@@ -1450,7 +1450,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
         con.autocommit = autocommit_temp
 
 
-def copy(  # pylint: disable=too-many-arguments
+def copy(  # pylint: disable=too-many-arguments,too-many-locals
     df: pd.DataFrame,
     path: str,
     con: redshift_connector.Connection,
