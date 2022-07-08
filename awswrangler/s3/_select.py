@@ -21,6 +21,7 @@ from awswrangler.s3._read import _get_path_ignore_suffix, _read_tables_from_mult
 
 if config.distributed:
     import ray
+
     from awswrangler.distributed._utils import _arrow_refs_to_df
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -76,7 +77,7 @@ def _paginate_stream(
     scan_range_chunk_size: Optional[int],
     use_threads: Union[bool, int],
     boto3_session: Optional[boto3.Session],
-) -> List[Table]:
+) -> List[Union[Table, "ray.types.ObjectRef[Union[Table, bytes]]"]]:
     obj_size: int = size_objects(  # type: ignore
         path=[path],
         use_threads=False,
@@ -119,7 +120,7 @@ def _select_query(
     use_threads: Union[bool, int] = False,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-) -> List[Table]:
+) -> List[Union[Table, "ray.types.ObjectRef[Union[Table, bytes]]"]]:
     bucket, key = _utils.parse_path(path)
 
     args: Dict[str, Any] = {
@@ -157,7 +158,7 @@ def _select_query(
         use_threads=use_threads,
         boto3_session=boto3_session,
     )
-    return ray.get(paginate_stream) if config.distributed else paginate_stream
+    return ray.get(paginate_stream) if config.distributed else paginate_stream  # type: ignore
 
 
 def select_query(
@@ -301,10 +302,11 @@ def select_query(
     }
     _logger.debug("kwargs:\n%s", pprint.pformat(kwargs))
 
+    pd_kwargs = {"use_threads": use_threads, "split_blocks": True, "self_destruct": True, "ignore_metadata": True}
     if config.distributed:
         return _arrow_refs_to_df(
             arrow_refs=_utils.flatten_list(*ray.get([_select_query(path=path, **kwargs) for path in paths])),
-            kwargs={"split_blocks": True},
+            kwargs=pd_kwargs,
         )
     return concat_tables(
         _read_tables_from_multiple_paths(
@@ -314,4 +316,4 @@ def select_query(
             kwargs=kwargs,
         ),
         promote=True,
-    ).to_pandas(use_threads=use_threads, split_blocks=True, self_destruct=True, ignore_metadata=True)
+    ).to_pandas(**pd_kwargs)
