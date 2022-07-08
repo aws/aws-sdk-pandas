@@ -14,6 +14,7 @@ import boto3
 import botocore.config
 import numpy as np
 import pandas as pd
+import pyarrow as pa
 
 from awswrangler import _config, exceptions
 from awswrangler.__metadata__ import __version__
@@ -401,3 +402,29 @@ def check_schema_changes(columns_types: Dict[str, str], table_input: Optional[Di
                     f"Schema change detected: Data type change on column {c} "
                     f"(Old type: {catalog_cols[c]} / New type {t})."
                 )
+
+
+def list_to_arrow_table(
+    mapping: List[Dict[str, Any]],
+    schema: Optional[pa.Schema] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> pa.Table:
+    """Construct a PyArrow Table from list of dictionaries."""
+    arrays = []
+    if not schema:
+        names = []
+        if mapping:
+            names = list(mapping[0].keys())
+        for n in names:
+            v = [row[n] if n in row else None for row in mapping]
+            arrays.append(v)
+        return pa.Table.from_arrays(arrays, names, metadata=metadata)
+    for n in schema.names:
+        v = [row[n] if n in row else None for row in mapping]
+        arrays.append(v)
+    # Will raise if metadata is not None
+    return pa.Table.from_arrays(arrays, schema=schema, metadata=metadata)
+
+
+def flatten_list(*elements: List[List[Any]]) -> List[Any]:
+    return [item for sublist in elements for item in sublist]
