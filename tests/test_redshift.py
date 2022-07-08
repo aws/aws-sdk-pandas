@@ -1104,3 +1104,84 @@ def test_to_sql_multi_transaction(redshift_table, redshift_con):
     df3 = wr.redshift.read_sql_query(sql=f"SELECT * FROM public.{redshift_table} ORDER BY id", con=redshift_con)
     assert len(df.index) + len(df2.index) == len(df3.index)
     assert len(df.columns) == len(df3.columns)
+
+
+def test_copy_upsert_with_column_names(path, redshift_table, redshift_con, databases_parameters):
+    df = pd.DataFrame({"id": list((range(1_000))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(1_000)])})
+    df3 = pd.DataFrame(
+        {"id": list((range(1_000, 1_500))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(500)])}
+    )
+
+    # CREATE
+    path = f"{path}upsert/test_redshift_copy_upsert_with_column_names/"
+    wr.redshift.copy(
+        df=df,
+        path=path,
+        con=redshift_con,
+        schema="public",
+        table=redshift_table,
+        mode="overwrite",
+        index=False,
+        primary_keys=["id"],
+        iam_role=databases_parameters["redshift"]["role"],
+        use_column_names=True,
+    )
+    path = f"{path}upsert/test_redshift_copy_upsert_with_column_names2/"
+    df2 = wr.redshift.unload(
+        sql=f"SELECT * FROM public.{redshift_table}",
+        con=redshift_con,
+        iam_role=databases_parameters["redshift"]["role"],
+        path=path,
+        keep_files=False,
+    )
+    assert len(df.index) == len(df2.index)
+    assert len(df.columns) == len(df2.columns)
+
+    # UPSERT
+    path = f"{path}upsert/test_redshift_copy_upsert_with_column_names3/"
+    wr.redshift.copy(
+        df=df3,
+        path=path,
+        con=redshift_con,
+        schema="public",
+        table=redshift_table,
+        mode="upsert",
+        index=False,
+        primary_keys=["id"],
+        iam_role=databases_parameters["redshift"]["role"],
+        use_column_names=True,
+    )
+    path = f"{path}upsert/test_redshift_copy_upsert_with_column_names4/"
+    df4 = wr.redshift.unload(
+        sql=f"SELECT * FROM public.{redshift_table}",
+        con=redshift_con,
+        iam_role=databases_parameters["redshift"]["role"],
+        path=path,
+        keep_files=False,
+    )
+    assert len(df.index) + len(df3.index) == len(df4.index)
+    assert len(df.columns) == len(df4.columns)
+
+    # UPSERT 2 + lock
+    wr.redshift.copy(
+        df=df3,
+        path=path,
+        con=redshift_con,
+        schema="public",
+        table=redshift_table,
+        mode="upsert",
+        index=False,
+        iam_role=databases_parameters["redshift"]["role"],
+        lock=True,
+        use_column_names=True,
+    )
+    path = f"{path}upsert/test_redshift_copy_upsert_with_column_names4/"
+    df4 = wr.redshift.unload(
+        sql=f"SELECT * FROM public.{redshift_table}",
+        con=redshift_con,
+        iam_role=databases_parameters["redshift"]["role"],
+        path=path,
+        keep_files=False,
+    )
+    assert len(df.index) + len(df3.index) == len(df4.index)
+    assert len(df.columns) == len(df4.columns)
