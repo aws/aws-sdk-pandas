@@ -15,6 +15,7 @@ class _RayPoolExecutor:
         self._exec: Pool = Pool(processes=None if isinstance(processes, bool) else processes)
 
     def map(self, func: Callable[..., List[str]], _: boto3.Session, *args: Any) -> List[Any]:
+        """Map function and its args to Ray pool."""
         futures = []
         _logger.debug("Ray map: %s", func)
         # Discard boto3.Session object & call the fn asynchronously

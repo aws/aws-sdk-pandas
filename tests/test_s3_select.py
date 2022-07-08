@@ -1,55 +1,68 @@
 import logging
-import sys
 
-import pandas as pd
 import pytest
 
 import awswrangler as wr
+
+if wr.config.distributed:
+    import modin.pandas as pd
+else:
+    import pandas as pd
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_full_table(path, use_threads):
-    df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "boo", "bar"], "c2": [4.0, 5.0, 6.0]})
+    df = pd.DataFrame(
+        {
+            "c0": [1, 1, 1, 2, 2, 2],
+            "c1": ["foo", "boo", "bar", None, "tez", "qux"],
+            "c2": [4.0, 5.0, 6.0, None, 8.0, 9.0],
+        }
+    )
 
     # Parquet
-    file_path = f"{path}test_parquet_file.snappy.parquet"
-    wr.s3.to_parquet(df, file_path, compression="snappy")
+    wr.s3.to_parquet(df, path, dataset=True, compression="snappy", max_rows_by_file=2)
     df2 = wr.s3.select_query(
         sql="select * from s3object",
-        path=file_path,
+        path=path,
         input_serialization="Parquet",
         input_serialization_params={},
         use_threads=use_threads,
     )
-    assert df.equals(df2)
+    assert len(df.index) == len(df2.index)
+    assert list(df.columns) == list(df2.columns)
+    assert df.shape == df2.shape
 
     # CSV
-    file_path = f"{path}test_csv_file.csv"
-    wr.s3.to_csv(df, file_path, index=False)
+    wr.s3.to_csv(df, path, dataset=True, index=False)
     df3 = wr.s3.select_query(
         sql="select * from s3object",
-        path=file_path,
+        path=path,
         input_serialization="CSV",
         input_serialization_params={"FileHeaderInfo": "Use", "RecordDelimiter": "\n"},
         use_threads=use_threads,
+        scan_range_chunk_size=1024 * 1024 * 32,
+        path_suffix=[".csv"],
     )
     assert len(df.index) == len(df3.index)
     assert list(df.columns) == list(df3.columns)
     assert df.shape == df3.shape
 
     # JSON
-    file_path = f"{path}test_json_file.json"
-    wr.s3.to_json(df, file_path, orient="records")
+    wr.s3.to_json(df, path, dataset=True, orient="records")
     df4 = wr.s3.select_query(
         sql="select * from s3object[*][*]",
-        path=file_path,
+        path=path,
         input_serialization="JSON",
         input_serialization_params={"Type": "Document"},
         use_threads=use_threads,
+        path_ignore_suffix=[".parquet", ".csv"],
     )
-    assert df.equals(df4)
+    assert len(df.index) == len(df4.index)
+    assert list(df.columns) == list(df4.columns)
+    assert df.shape == df4.shape
 
 
 @pytest.mark.parametrize("use_threads", [True, False, 2])
@@ -68,16 +81,16 @@ def test_push_down(path, use_threads):
     assert df2.shape == (1, 3)
     assert df2.c0.sum() == 1
 
-    file_path = f"{path}test_parquet_file.gzip.parquet"
+    file_path = f"{path}test_empty_file.gzip.parquet"
     wr.s3.to_parquet(df, file_path, compression="gzip")
-    df2 = wr.s3.select_query(
+    df_empty = wr.s3.select_query(
         sql='select * from s3object s where s."c0" = 99',
         path=file_path,
         input_serialization="Parquet",
         input_serialization_params={},
         use_threads=use_threads,
     )
-    assert df2.shape == (0, 0)
+    assert df_empty.empty
 
     file_path = f"{path}test_csv_file.csv"
     wr.s3.to_csv(df, file_path, header=False, index=False)
@@ -103,10 +116,6 @@ def test_push_down(path, use_threads):
     assert df4._1.sum() == 3
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 7),
-    reason="CSV compression on S3 is supported only starting from Pandas 1.2.0 that requires Python >=3.7.1",
-)
 @pytest.mark.parametrize("compression", ["gzip", "bz2"])
 def test_compression(path, compression):
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", "boo", "bar"], "c2": [4.0, 5.0, 6.0]})

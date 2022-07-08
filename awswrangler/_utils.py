@@ -21,9 +21,9 @@ from awswrangler.__metadata__ import __version__
 from awswrangler._config import apply_configs, config
 
 if TYPE_CHECKING or config.distributed:
-    import ray
+    import ray  # pylint: disable=unused-import
 
-    from awswrangler.distributed._utils import _arrow_refs_to_df
+    from awswrangler.distributed._utils import _arrow_refs_to_df  # pylint: disable=ungrouped-imports
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -409,16 +409,32 @@ def check_schema_changes(columns_types: Dict[str, str], table_input: Optional[Di
                 )
 
 
-def pylist_to_arrow(mapping: List[Dict[str, Any]]) -> pa.Table:
-    names = list(mapping[0].keys()) if mapping else []
+def table_refs_to_df(
+    tables: Union[List[pa.Table], List["ray.ObjectRef"]], kwargs: Dict[str, Any]  # type: ignore
+) -> pd.DataFrame:
+    """Build Pandas dataframe from list of PyArrow tables."""
+    if isinstance(tables[0], pa.Table):
+        return ensure_df_is_mutable(pa.concat_tables(tables, promote=True).to_pandas(**kwargs))
+    return _arrow_refs_to_df(arrow_refs=tables, kwargs=kwargs)  # type: ignore
+
+
+def list_to_arrow_table(
+    mapping: List[Dict[str, Any]],
+    schema: Optional[pa.Schema] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> pa.Table:
+    """Construct a PyArrow Table from list of dictionaries."""
     arrays = []
-    for n in names:
+    if not schema:
+        names = []
+        if mapping:
+            names = list(mapping[0].keys())
+        for n in names:
+            v = [row[n] if n in row else None for row in mapping]
+            arrays.append(v)
+        return pa.Table.from_arrays(arrays, names, metadata=metadata)
+    for n in schema.names:
         v = [row[n] if n in row else None for row in mapping]
         arrays.append(v)
-    return pa.Table.from_arrays(arrays, names)
-
-
-def table_refs_to_df(tables: Union[List[pa.Table], List["ray.ObjectRef"]], kwargs: Dict[str, Any]) -> pd.DataFrame:  # type: ignore  # noqa: E501
-    if isinstance(tables[0], pa.Table):
-        return ensure_df_is_mutable(pa.concat_tables(tables).to_pandas(**kwargs))
-    return _arrow_refs_to_df(arrow_refs=tables, kwargs=kwargs)  # type: ignore
+    # Will raise if metadata is not None
+    return pa.Table.from_arrays(arrays, schema=schema, metadata=metadata)

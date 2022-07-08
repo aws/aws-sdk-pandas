@@ -24,5 +24,7 @@ def _arrow_refs_to_df(arrow_refs: List[Callable[..., Any]], kwargs: Dict[str, An
     ds = ray.data.from_arrow_refs(arrow_refs)
     block_to_df = cached_remote_fn(_block_to_df)
     return from_partitions(
-        [block_to_df.remote(block=block, kwargs=kwargs) for block in ds.get_internal_block_refs()], axis=0
+        partitions=[block_to_df.remote(block=block, kwargs=kwargs) for block in ds.get_internal_block_refs()],
+        axis=0,
+        index=pd.RangeIndex(start=0, stop=ds.count()),
     )
