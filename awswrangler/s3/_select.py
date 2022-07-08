@@ -120,14 +120,13 @@ def _select_query(
         ]
     ):  # Scan range is only supported for uncompressed CSV/JSON, CSV (without quoted delimiters)
         # and JSON objects (in LINES mode only)
-        _logger.debug("Scan ranges are not supported given provided input.")
         scan_ranges = [None]  # type: ignore
 
     return executor.map(  # type: ignore
         _select_object_content,
         boto3_session,
         itertools.repeat(args),
-        scan_ranges,
+        scan_ranges
     )
 
 
@@ -279,4 +278,4 @@ def select_query(
     arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=arrow_additional_kwargs)
     executor = _get_executor(use_threads=use_threads)
     tables = _flatten_list([_select_query(path=path, executor=executor, **select_kwargs) for path in paths])
-    return _utils.table_refs_to_df(tables, kwargs=arrow_kwargs)
+    return _utils.table_refs_to_df(tables=tables, kwargs=arrow_kwargs)
