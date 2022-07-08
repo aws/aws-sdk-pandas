@@ -41,6 +41,6 @@ available_node_types:
         ImageId: ami-06d3d2ee794b34a21
 
 setup_commands:
-- pip install git+https://github.com/awslabs/aws-data-wrangler.git@wrangler-3.0.0
+- pip install git+https://github.com/awslabs/aws-data-wrangler.git@ray-experiments
 - pip install ray[default,data]
 - pip install modin
