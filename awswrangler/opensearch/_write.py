@@ -7,6 +7,7 @@ import uuid
 from typing import Any, Dict, Generator, Iterable, List, Mapping, Optional, Tuple, Union
 
 import boto3
+import numpy as np
 import pandas as pd
 import progressbar
 from jsonpath_ng import parse
@@ -79,7 +80,7 @@ def _df_doc_generator(df: pd.DataFrame) -> Generator[Dict[str, Any], None, None]
 
     df_iter = df.iterrows()
     for _, document in df_iter:
-        yield {k: _deserialize(v) for k, v in document.items() if notna(v)}
+        yield {k: _deserialize(v) for k, v in document.items() if np.array(notna(v)).any()}
 
 
 def _file_line_generator(path: str, is_json: bool = False) -> Generator[Any, None, None]:

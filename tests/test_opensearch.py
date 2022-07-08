@@ -215,6 +215,18 @@ def test_index_df(client):
     assert response.get("success", 0) == 3
 
 
+def test_index_df_with_array(client):
+    response = wr.opensearch.index_df(
+        client,
+        df=pd.DataFrame(
+            [{"_id": "1", "name": "John", "tags": ["foo", "bar"]}, {"_id": "2", "name": "George", "tags": ["foo"]}]
+        ),
+        index="test_index_df1",
+    )
+    print(response)
+    assert response.get("success", 0) == 2
+
+
 def test_index_documents(client):
     response = wr.opensearch.index_documents(
         client,
