@@ -131,6 +131,7 @@ def _copy(
     schema: Optional[str] = None,
     manifest: Optional[bool] = False,
     sql_copy_extra_params: Optional[List[str]] = None,
+    column_names: Optional[List[str]] = None,
 ) -> None:
     if schema is None:
         table_name: str = f'"{table}"'
@@ -145,7 +146,9 @@ def _copy(
         boto3_session=boto3_session,
     )
     ser_json_str: str = " SERIALIZETOJSON" if serialize_to_json else ""
-    sql: str = f"COPY {table_name}\nFROM '{path}' {auth_str}\nFORMAT AS PARQUET{ser_json_str}"
+    column_names_str: str = f"({','.join(column_names)})" if column_names else ""
+    sql = f"COPY {table_name} {column_names_str}\nFROM '{path}' {auth_str}\nFORMAT AS PARQUET{ser_json_str}"
+
     if manifest:
         sql += "\nMANIFEST"
     if sql_copy_extra_params:
@@ -1250,6 +1253,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     precombine_key: Optional[str] = None,
+    column_names: Optional[List[str]] = None,
 ) -> None:
     """Load Parquet files from S3 to a Table on Amazon Redshift (Through COPY command).
 
@@ -1352,6 +1356,8 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
         When there is a primary_key match during upsert, this column will change the upsert method,
         comparing the values of the specified column from source and target, and keeping the
         larger of the two. Will only work when mode = upsert.
+    column_names: List[str], optional
+        List of column names to map source data fields to the target columns.
 
     Returns
     -------
@@ -1416,6 +1422,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
                 serialize_to_json=serialize_to_json,
                 sql_copy_extra_params=sql_copy_extra_params,
                 manifest=manifest,
+                column_names=column_names,
             )
             if table != created_table:  # upsert
                 _upsert(
@@ -1425,6 +1432,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
                     temp_table=created_table,
                     primary_keys=primary_keys,
                     precombine_key=precombine_key,
+                    column_names=column_names,
                 )
             if commit_transaction:
                 con.commit()
@@ -1436,7 +1444,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
         con.autocommit = autocommit_temp
 
 
-def copy(  # pylint: disable=too-many-arguments
+def copy(  # pylint: disable=too-many-arguments,too-many-locals
     df: pd.DataFrame,
     path: str,
     con: redshift_connector.Connection,
@@ -1466,6 +1474,7 @@ def copy(  # pylint: disable=too-many-arguments
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     max_rows_by_file: Optional[int] = 10_000_000,
     precombine_key: Optional[str] = None,
+    use_column_names: bool = False,
 ) -> None:
     """Load Pandas DataFrame as a Table on Amazon Redshift using parquet files on S3 as stage.
 
@@ -1568,6 +1577,10 @@ def copy(  # pylint: disable=too-many-arguments
         When there is a primary_key match during upsert, this column will change the upsert method,
         comparing the values of the specified column from source and target, and keeping the
         larger of the two. Will only work when mode = upsert.
+    use_column_names: bool
+        If set to True, will use the column names of the DataFrame for generating the INSERT SQL Query.
+        E.g. If the DataFrame has two columns `col1` and `col3` and `use_column_names` is True, data will only be
+        inserted into the database columns `col1` and `col3`.
 
     Returns
     -------
@@ -1592,6 +1605,7 @@ def copy(  # pylint: disable=too-many-arguments
     """
     path = path[:-1] if path.endswith("*") else path
     path = path if path.endswith("/") else f"{path}/"
+    column_names = [f'"{column}"' for column in df.columns] if use_column_names else []
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if s3.list_objects(path=path, boto3_session=session, s3_additional_kwargs=s3_additional_kwargs):
         raise exceptions.InvalidArgument(
@@ -1636,6 +1650,7 @@ def copy(  # pylint: disable=too-many-arguments
             s3_additional_kwargs=s3_additional_kwargs,
             sql_copy_extra_params=sql_copy_extra_params,
             precombine_key=precombine_key,
+            column_names=column_names,
         )
     finally:
         if keep_files is False:
