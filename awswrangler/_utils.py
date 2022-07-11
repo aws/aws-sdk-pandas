@@ -19,10 +19,11 @@ import pyarrow as pa
 from awswrangler import _config, exceptions
 from awswrangler.__metadata__ import __version__
 from awswrangler._config import apply_configs, config
-from awswrangler.distributed._utils import _arrow_refs_to_df
 
 if TYPE_CHECKING or config.distributed:
     import ray
+
+    from awswrangler.distributed._utils import _arrow_refs_to_df
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -420,5 +421,4 @@ def pylist_to_arrow(mapping: List[Dict[str, Any]]) -> pa.Table:
 def table_refs_to_df(tables: Union[List[pa.Table], List["ray.ObjectRef"]], kwargs: Dict[str, Any]) -> pd.DataFrame:  # type: ignore  # noqa: E501
     if isinstance(tables[0], pa.Table):
         return ensure_df_is_mutable(pa.concat_tables(tables).to_pandas(**kwargs))
-    if isinstance(tables[0], ray.ObjectRef):
-        return _arrow_refs_to_df(arrow_refs=tables, kwargs=kwargs)  # type: ignore
+    return _arrow_refs_to_df(arrow_refs=tables, kwargs=kwargs)  # type: ignore

@@ -3,13 +3,15 @@
 import concurrent.futures
 import itertools
 import logging
-from typing import Any, Callable, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union
 
 import boto3
 
 from awswrangler import _utils
 from awswrangler._config import config
-from awswrangler.distributed._pool import _RayPoolExecutor
+
+if TYPE_CHECKING or config.distributed:
+    from awswrangler.distributed._pool import _RayPoolExecutor
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -22,12 +24,10 @@ def _get_executor(use_threads: Union[bool, int]) -> Union["_ThreadPoolExecutor",
 class _ThreadPoolExecutor:
     def __init__(self, use_threads: Union[bool, int]):
         super().__init__()
-        self._exec: Optional[concurrent.futures.ThreadPoolExecutor]
+        self._exec: Optional[concurrent.futures.ThreadPoolExecutor] = None
         self._cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
         if self._cpus > 1:
             self._exec = concurrent.futures.ThreadPoolExecutor(max_workers=self._cpus)  # pylint: disable=R1732
-        else:
-            self._exec = None
 
     def map(self, func: Callable[..., List[str]], boto3_session: boto3.Session, *iterables: Any) -> List[Any]:
         _logger.debug("Map: %s", func)
