@@ -31,3 +31,4 @@ jobs:
         debug-only: false
         ascending: true
         exempt-all-milestones: true
+        exempt-all-assignees: true
