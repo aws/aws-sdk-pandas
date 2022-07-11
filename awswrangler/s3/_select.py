@@ -1,17 +1,24 @@
 """Amazon S3 Select Module (PRIVATE)."""
 
-import concurrent.futures
 import itertools
 import json
 import logging
 import pprint
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
 import pandas as pd
+import pyarrow as pa
 
 from awswrangler import _utils, exceptions
+from awswrangler._config import config
+from awswrangler._threading import _get_executor
+from awswrangler._utils import pylist_to_arrow, table_refs_to_df
+from awswrangler.distributed import ray_remote
 from awswrangler.s3._describe import size_objects
+
+if TYPE_CHECKING or config.distributed:
+    import ray
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -23,11 +30,12 @@ def _gen_scan_range(obj_size: int) -> Iterator[Tuple[int, int]]:
         yield (i, i + min(_RANGE_CHUNK_SIZE, obj_size - i))
 
 
+@ray_remote
 def _select_object_content(
-    args: Dict[str, Any],
     boto3_session: Optional[boto3.Session],
+    args: Dict[str, Any],
     scan_range: Optional[Tuple[int, int]] = None,
-) -> List[Dict[str, Any]]:
+) -> Union[pa.Table, "ray.ObjectRef"]:  # type: ignore
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
 
     if scan_range:
@@ -44,12 +52,15 @@ def _select_object_content(
             # Record end can either be a partial record or a return char
             partial_record = records.pop()
             payload_records.extend([json.loads(record) for record in records])
-    return payload_records
+    return pylist_to_arrow(payload_records)
 
 
 def _paginate_stream(
-    args: Dict[str, Any], path: str, use_threads: Union[bool, int], boto3_session: Optional[boto3.Session]
-) -> pd.DataFrame:
+    args: Dict[str, Any],
+    path: str,
+    executor: Any,
+    boto3_session: Optional[boto3.Session],
+) -> List[pa.Table]:
     obj_size: int = size_objects(  # type: ignore
         path=[path],
         use_threads=False,
@@ -58,28 +69,12 @@ def _paginate_stream(
     if obj_size is None:
         raise exceptions.InvalidArgumentValue(f"S3 object w/o defined size: {path}")
     scan_ranges = _gen_scan_range(obj_size=obj_size)
-
-    if use_threads is False:
-        stream_records = list(
-            _select_object_content(
-                args=args,
-                boto3_session=boto3_session,
-                scan_range=scan_range,
-            )
-            for scan_range in scan_ranges
-        )
-    else:
-        cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
-        with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
-            stream_records = list(
-                executor.map(
-                    _select_object_content,
-                    itertools.repeat(args),
-                    itertools.repeat(boto3_session),
-                    scan_ranges,
-                )
-            )
-    return pd.DataFrame([item for sublist in stream_records for item in sublist])  # Flatten list of lists
+    return executor.map(  # type: ignore
+        _select_object_content,
+        boto3_session,
+        itertools.repeat(args),
+        scan_ranges,
+    )
 
 
 def select_query(
@@ -195,7 +190,7 @@ def select_query(
     if s3_additional_kwargs:
         args.update(s3_additional_kwargs)
     _logger.debug("args:\n%s", pprint.pformat(args))
-
+    executor = _get_executor(use_threads=use_threads)
     if any(
         [
             compression,
@@ -205,5 +200,20 @@ def select_query(
     ):  # Scan range is only supported for uncompressed CSV/JSON, CSV (without quoted delimiters)
         # and JSON objects (in LINES mode only)
         _logger.debug("Scan ranges are not supported given provided input.")
-        return pd.DataFrame(_select_object_content(args=args, boto3_session=boto3_session))
-    return _paginate_stream(args=args, path=path, use_threads=use_threads, boto3_session=boto3_session)
+        tables = [_select_object_content(boto3_session=boto3_session, args=args)]
+    else:
+        tables = _paginate_stream(args=args, path=path, executor=executor, boto3_session=boto3_session)
+    kwargs = {
+        "use_threads": use_threads,
+        "split_blocks": True,
+        "self_destruct": True,
+        "integer_object_nulls": False,
+        "date_as_object": True,
+        "ignore_metadata": True,
+        "strings_to_categorical": False,
+        # TODO: Additional pyarrow args to consider
+        # "categories": categories,
+        # "safe": safe,
+        # "types_mapper": _data_types.pyarrow2pandas_extension if map_types else None,
+    }
+    return table_refs_to_df(tables, kwargs=kwargs)
