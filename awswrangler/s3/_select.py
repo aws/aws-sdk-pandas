@@ -44,11 +44,11 @@ def _select_object_content(
 ) -> Union[pa.Table, "ray.ObjectRef[pa.Table]"]:
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
 
-    if not scan_range:
-        response = client_s3.select_object_content(**args)
-    else:
+    if scan_range:
         _logger.debug("scan_range: %s, key: %s", scan_range, args["Key"])
         response = client_s3.select_object_content(**args, ScanRange={"Start": scan_range[0], "End": scan_range[1]})
+    else:
+        response = client_s3.select_object_content(**args)
 
     payload_records = []
     partial_record: str = ""
@@ -122,12 +122,7 @@ def _select_query(
         # and JSON objects (in LINES mode only)
         scan_ranges = [None]  # type: ignore
 
-    return executor.map(  # type: ignore
-        _select_object_content,
-        boto3_session,
-        itertools.repeat(args),
-        scan_ranges
-    )
+    return executor.map(_select_object_content, boto3_session, itertools.repeat(args), scan_ranges)  # type: ignore
 
 
 def select_query(
