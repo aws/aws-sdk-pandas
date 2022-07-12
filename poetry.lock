@@ -2270,7 +2270,7 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.7.1, <3.11"
-content-hash = "1386765da9d31ee19c806435dd318419f3918c2ab1cea43c7f13d2428f316a2a"
+content-hash = "8543b98facf2d97ee44e59bb9b1ed5e187258ac62e82a26def0d045c7e76d46e"
 
 [metadata.files]
 aenum = [
@@ -3376,7 +3376,6 @@ pymysql = [
 pyodbc = [
     {file = "pyodbc-4.0.32-cp27-cp27m-win32.whl", hash = "sha256:2152ce6d5131d769ff5839aa762e12d844c95e9ec4bb2f666e8cd9dfa1ae2240"},
     {file = "pyodbc-4.0.32-cp27-cp27m-win_amd64.whl", hash = "sha256:56ec4974096d40d6c62a228799122dbc2ade6c4045cc5d31860212a32cae95b1"},
-    {file = "pyodbc-4.0.32-cp310-cp310-win_amd64.whl", hash = "sha256:b6d24b99face3a2d055b0dc7345083be2b70d02e7b45861a9afb7c21e0f5db13"},
     {file = "pyodbc-4.0.32-cp36-cp36m-win32.whl", hash = "sha256:699c080b1c1f7b4afc368b3521fd1161f46a10223443692a249cb01d90949b31"},
     {file = "pyodbc-4.0.32-cp36-cp36m-win_amd64.whl", hash = "sha256:0d4e14adb149cae45da37fa87aa297055156dae6e89ca3c75493d3d62d78e543"},
     {file = "pyodbc-4.0.32-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:6c1e1c1fe747b0f6419e8df0b5c43161e7437dbf72f93f9fcfb9b7358fad3e12"},
