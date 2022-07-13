@@ -1,6 +1,5 @@
 """Amazon Timestream Module."""
 
-import concurrent.futures
 import itertools
 import logging
 from datetime import datetime
@@ -11,6 +10,8 @@ import pandas as pd
 from botocore.config import Config
 
 from awswrangler import _data_types, _utils
+from awswrangler._threading import _get_executor
+from awswrangler.distributed import ray_get, ray_remote
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -27,7 +28,9 @@ def _df2list(df: pd.DataFrame) -> List[List[Any]]:
     return parameters
 
 
+@ray_remote
 def _write_batch(
+    boto3_primitives: _utils.Boto3PrimitivesType,
     database: str,
     table: str,
     cols_names: List[str],
@@ -35,7 +38,6 @@ def _write_batch(
     measure_types: List[str],
     version: int,
     batch: List[Any],
-    boto3_primitives: _utils.Boto3PrimitivesType,
 ) -> List[Dict[str, str]]:
     boto3_session: boto3.Session = _utils.boto3_from_primitives(primitives=boto3_primitives)
     client: boto3.client = _utils.client(
@@ -173,14 +175,19 @@ def write(
     measure_col: Union[str, List[str]],
     dimensions_cols: List[str],
     version: int = 1,
-    num_threads: int = 32,
+    use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
 ) -> List[Dict[str, str]]:
     """Store a Pandas DataFrame into a Amazon Timestream table.
 
+    Note
+    ----
+    In case of `use_threads=True` the number of threads
+    that will be spawned will be gotten from os.cpu_count().
+
     Parameters
     ----------
-    df: pandas.DataFrame
+    df : pandas.DataFrame
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
     database : str
         Amazon Timestream database name.
@@ -195,8 +202,10 @@ def write(
     version : int
         Version number used for upserts.
         Documentation https://docs.aws.amazon.com/timestream/latest/developerguide/API_WriteRecords.html.
-    num_threads : str
-        Number of thread to be used for concurrent writing.
+    use_threads : bool, int
+        True to enable concurrent writing, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
 
@@ -240,21 +249,22 @@ def write(
     _logger.debug("cols_names: %s", cols_names)
     batches: List[List[Any]] = _utils.chunkify(lst=_df2list(df=df[cols_names]), max_length=100)
     _logger.debug("len(batches): %s", len(batches))
-    with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
-        res: List[List[Any]] = list(
-            executor.map(
-                _write_batch,
-                itertools.repeat(database),
-                itertools.repeat(table),
-                itertools.repeat(cols_names),
-                itertools.repeat(measure_cols_names),
-                itertools.repeat(measure_types),
-                itertools.repeat(version),
-                batches,
-                itertools.repeat(_utils.boto3_to_primitives(boto3_session=boto3_session)),
-            )
-        )
-        return [item for sublist in res for item in sublist]
+
+    executor = _get_executor(use_threads=use_threads)
+
+    res = executor.map(
+        _write_batch,
+        boto3_session,
+        itertools.repeat(database),
+        itertools.repeat(table),
+        itertools.repeat(cols_names),
+        itertools.repeat(measure_cols_names),
+        itertools.repeat(measure_types),
+        itertools.repeat(version),
+        batches,
+    )
+
+    return [item for sublist in ray_get(res) for item in sublist]
 
 
 def query(
