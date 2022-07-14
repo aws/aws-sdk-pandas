@@ -201,6 +201,7 @@ def select_query(
             compression,
             input_serialization_params.get("AllowQuotedRecordDelimiter"),
             input_serialization_params.get("Type") == "Document",
+            input_serialization == "Parquet",
         ]
     ):  # Scan range is only supported for uncompressed CSV/JSON, CSV (without quoted delimiters)
         # and JSON objects (in LINES mode only)
