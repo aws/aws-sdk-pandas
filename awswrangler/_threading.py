@@ -17,8 +17,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _get_executor(use_threads: Union[bool, int]) -> Union["_ThreadPoolExecutor", "_RayPoolExecutor"]:
-    executor = _RayPoolExecutor if config.distributed else _ThreadPoolExecutor
-    return executor(use_threads)  # type: ignore
+    return _RayPoolExecutor() if config.distributed else _ThreadPoolExecutor(use_threads)  # type: ignore
 
 
 class _ThreadPoolExecutor:
