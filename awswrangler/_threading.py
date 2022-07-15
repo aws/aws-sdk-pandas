@@ -17,8 +17,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _get_executor(use_threads: Union[bool, int]) -> Union["_ThreadPoolExecutor", "_RayPoolExecutor"]:
-    executor = _RayPoolExecutor if config.distributed else _ThreadPoolExecutor
-    return executor(use_threads)  # type: ignore
+    return _RayPoolExecutor() if config.distributed else _ThreadPoolExecutor(use_threads)  # type: ignore
 
 
 class _ThreadPoolExecutor:
@@ -30,6 +29,7 @@ class _ThreadPoolExecutor:
             self._exec = concurrent.futures.ThreadPoolExecutor(max_workers=self._cpus)  # pylint: disable=R1732
 
     def map(self, func: Callable[..., List[str]], boto3_session: boto3.Session, *iterables: Any) -> List[Any]:
+        """Map iterables to multi-threaded function."""
         _logger.debug("Map: %s", func)
         if self._exec is not None:
             # Deserialize boto3 session into pickable object

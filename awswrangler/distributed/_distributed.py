@@ -4,7 +4,7 @@ import multiprocessing
 import os
 import sys
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, List, Optional
 
 import psutil
 
@@ -12,6 +12,24 @@ from awswrangler._config import apply_configs, config
 
 if config.distributed or TYPE_CHECKING:
     import ray  # pylint: disable=import-error
+
+
+def ray_get(futures: List[Any]) -> List[Any]:
+    """
+    Run ray.get on futures if distributed.
+
+    Parameters
+    ----------
+    futures : List[Any]
+        List of Ray futures
+
+    Returns
+    -------
+    List[Any]
+    """
+    if config.distributed:
+        return ray.get(futures)
+    return futures
 
 
 def ray_remote(function: Callable[..., Any]) -> Callable[..., Any]:
