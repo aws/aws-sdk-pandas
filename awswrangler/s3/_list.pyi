@@ -52,14 +52,14 @@ def list_directories(
 @overload
 def list_directories(
     path: str,
-    chunked: Literal[False] = ...,
+    *,
     s3_additional_kwargs: Union[Dict[str, Any], Dict[str, str], None] = ...,
     boto3_session: Optional[boto3.Session] = ...,
 ) -> List[str]: ...
 @overload
 def list_directories(
     path: str,
-    chunked: Literal[False] = ...,
+    *,
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Union[Dict[str, Any], Dict[str, str], None] = ...,
 ) -> List[str]: ...
@@ -123,8 +123,15 @@ def list_directories(
 def list_objects(
     path: str,
     *,
-    boto3_session: Optional[boto3.Session],
-    s3_additional_kwargs: Union[Dict[str, Any], Dict[str, str], None],
+    s3_additional_kwargs: Union[Dict[str, Any], Dict[str, str], None] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+) -> List[str]: ...
+@overload
+def list_objects(
+    path: str,
+    *,
+    boto3_session: Optional[boto3.Session] = ...,
+    s3_additional_kwargs: Union[Dict[str, Any], Dict[str, str], None] = ...,
 ) -> List[str]: ...
 @overload
 def list_objects(
