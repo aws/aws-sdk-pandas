@@ -1,4 +1,4 @@
-name: Static Checking
+name: isort Debug
 
 on:
   push:
@@ -18,8 +18,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: Debugging with ssh
-        uses: lhotari/action-upterm@v1
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
         with:
@@ -30,5 +28,7 @@ jobs:
           python -m pip install poetry
           poetry config virtualenvs.create false --local
           poetry install --extras "sqlserver sparql distributed" -vvv
+      - name: Debugging with ssh
+        uses: lhotari/action-upterm@v1
       - name: Imports order check (isort)
         run: isort --check .
