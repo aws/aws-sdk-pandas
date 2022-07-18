@@ -4,11 +4,10 @@ from typing import Any, Callable, Dict, List, Optional
 
 import modin.pandas as pd
 import pyarrow as pa
+import ray
 from modin.distributed.dataframe.pandas.partitions import from_partitions
 from ray.data.impl.arrow_block import ArrowBlockAccessor
 from ray.data.impl.remote_fn import cached_remote_fn
-
-import ray
 
 
 def _block_to_df(
