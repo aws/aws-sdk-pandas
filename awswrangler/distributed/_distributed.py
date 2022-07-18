@@ -6,11 +6,11 @@ import sys
 import warnings
 from typing import TYPE_CHECKING, Any, Callable, List, Optional
 
-import psutil
-
 from awswrangler._config import apply_configs, config
 
 if config.distributed or TYPE_CHECKING:
+    import psutil
+
     import ray  # pylint: disable=import-error
 
 
