@@ -171,5 +171,6 @@ def test_encryption(path, kms_key_id, s3_additional_kwargs):
         input_serialization="Parquet",
         input_serialization_params={},
         use_threads=False,
+        arrow_additional_kwargs={"types_mapper": None},
     )
     assert df.equals(df2)
