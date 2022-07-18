@@ -1,5 +1,4 @@
 import boto3
-import botocore
 import pandas as pd
 import pytest
 
@@ -134,6 +133,4 @@ def test_data_api_mysql_column_subset_select(mysql_serverless_connector, mysql_s
 
 def test_data_api_exception(mysql_serverless_connector, mysql_serverless_table):
     with pytest.raises(boto3.client("rds-data").exceptions.BadRequestException):
-        wr.data_api.rds.read_sql_query(
-            f"CUPCAKE", con=mysql_serverless_connector
-        )
+        wr.data_api.rds.read_sql_query("CUPCAKE", con=mysql_serverless_connector)
