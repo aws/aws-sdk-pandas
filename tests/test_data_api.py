@@ -129,3 +129,8 @@ def test_data_api_mysql_column_subset_select(mysql_serverless_connector, mysql_s
     )
     expected_dataframe = pd.DataFrame([["test"]], columns=["name"])
     pd.testing.assert_frame_equal(dataframe, expected_dataframe)
+
+
+def test_data_api_exception(mysql_serverless_connector, mysql_serverless_table):
+    with pytest.raises(boto3.client("rds-data").exceptions.BadRequestException):
+        wr.data_api.rds.read_sql_query("CUPCAKE", con=mysql_serverless_connector)
