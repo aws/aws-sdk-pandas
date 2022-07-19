@@ -364,6 +364,9 @@ def create_athena_bucket(boto3_session: Optional[boto3.Session] = None) -> str:
     path = f"s3://{bucket_name}/"
     resource = _utils.resource(service_name="s3", session=session)
     bucket = resource.Bucket(bucket_name)
+    if bucket.creation_date is not None:
+        # Bucket already exists, just return the path
+        return path
     args = {} if region_name == "us-east-1" else {"CreateBucketConfiguration": {"LocationConstraint": region_name}}
     try:
         bucket.create(**args)
