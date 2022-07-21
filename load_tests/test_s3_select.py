@@ -6,12 +6,12 @@ import awswrangler as wr
 
 
 @pytest.mark.repeat(1)
-@pytest.mark.parametrize("benchmark_time", [100])
+@pytest.mark.parametrize("benchmark_time", [150])
 def test_s3_select(benchmark_time):
     start = time.time()
 
     path = "s3://ursa-labs-taxi-data/2018/1*.parquet"
-    df = wr.s3.select_query(
+    wr.s3.select_query(
         sql="SELECT * FROM s3object",
         path=path,
         input_serialization="Parquet",
