@@ -69,6 +69,17 @@ def test_list_by_last_modified_date(path):
     assert len(wr.s3.read_json(path, last_modified_begin=begin_utc, last_modified_end=end_utc).index) == 6
 
 
+def test_s3_delete_objects(path):
+    df = pd.DataFrame({"id": [1, 2, 3]})
+    for i in range(10):
+        wr.s3.to_json(df, f"s3://{path}delete-test{i}.json")
+
+    wr.s3.delete_objects(path=f"{path}delete-test*")
+    time.sleep(2)  # s3 read-consistency
+
+    assert len(wr.s3.list_objects(f"{path}delete-test*")) == 0
+
+
 def test_delete_internal_error(bucket):
     response = {
         "Errors": [
