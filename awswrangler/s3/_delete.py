@@ -10,11 +10,10 @@ from urllib.parse import unquote_plus as _unquote_plus
 import boto3
 
 from awswrangler import _utils, exceptions
+from awswrangler._threading import _get_executor
+from awswrangler.distributed import ray_get, ray_remote
 from awswrangler.s3._fs import get_botocore_valid_kwargs
 from awswrangler.s3._list import _path2list
-from awswrangler._threading import _get_executor
-from awswrangler.distributed import ray_remote
-
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -29,6 +28,7 @@ def _split_paths_by_bucket(paths: List[str]) -> Dict[str, List[str]]:
             buckets[bucket] = []
         buckets[bucket].append(key)
     return buckets
+
 
 @ray_remote
 def _delete_objects(
@@ -71,16 +71,19 @@ def _delete_objects(
         )
 
 
-def _delete_objects_concurrent(
-    bucket: str,
-    keys: List[str],
-    s3_additional_kwargs: Optional[Dict[str, Any]],
-    boto3_primitives: _utils.Boto3PrimitivesType,
-) -> None:
-    boto3_session = _utils.boto3_from_primitives(primitives=boto3_primitives)
-    return _delete_objects(
-        bucket=bucket, keys=keys, boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs
-    )
+# def _delete_objects_concurrent(
+#     bucket: str,
+#     keys: List[str],
+#     s3_additional_kwargs: Optional[Dict[str, Any]],
+#     boto3_primitives: _utils.Boto3PrimitivesType,
+# ) -> None:
+#     boto3_session = _utils.boto3_from_primitives(primitives=boto3_primitives)
+
+#     return ray_get(
+#         _delete_objects(
+#             bucket=bucket, keys=keys, boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs
+#         )
+#     )
 
 
 def delete_objects(
@@ -151,7 +154,6 @@ def delete_objects(
     if len(paths) < 1:
         return
     buckets: Dict[str, List[str]] = _split_paths_by_bucket(paths=paths)
-    print(f"***** in delete_objects()")
     for bucket, keys in buckets.items():
         chunks: List[List[str]] = _utils.chunkify(lst=keys, max_length=1_000)
 
@@ -162,9 +164,8 @@ def delete_objects(
                 )
         else:
             executor = _get_executor(use_threads=use_threads)
-            _logger.debug(f"***** {type(executor)}")
             executor.map(
-                _delete_objects_concurrent,
+                _delete_objects,
                 boto3_session,
                 itertools.repeat(bucket),
                 itertools.repeat(chunks),
