@@ -434,6 +434,7 @@ def connect(
     timeout: Optional[int] = None,
     max_prepared_statements: int = 1000,
     tcp_keepalive: bool = True,
+    **kwargs: Any,
 ) -> redshift_connector.Connection:
     """Return a redshift_connector connection from a Glue Catalog or Secret Manager.
 
@@ -455,7 +456,7 @@ def connect(
 
     Parameters
     ----------
-    connection : Optional[str]
+    connection : str, optional
         Glue Catalog Connection name.
     secret_id : Optional[str]:
         Specifies the secret containing the connection details that you want to retrieve.
@@ -463,7 +464,7 @@ def connect(
     catalog_id : str, optional
         The ID of the Data Catalog.
         If none is provided, the AWS account ID is used by default.
-    dbname : Optional[str]
+    dbname : str, optional
         Optional database name to overwrite the stored one.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
@@ -471,7 +472,7 @@ def connect(
         This governs SSL encryption for TCP/IP sockets.
         This parameter is forward to redshift_connector.
         https://github.com/aws/amazon-redshift-python-driver
-    timeout : Optional[int]
+    timeout : int, optional
         This is the time in seconds before the connection to the server will time out.
         The default is None which means no timeout.
         This parameter is forward to redshift_connector.
@@ -483,6 +484,9 @@ def connect(
         If True then use TCP keepalive. The default is True.
         This parameter is forward to redshift_connector.
         https://github.com/aws/amazon-redshift-python-driver
+    **kwargs : Any
+        Forwarded to redshift_connector.connect.
+        e.g. is_serverless=True, serverless_acct_id='...', serverless_work_group='...'
 
     Returns
     -------
@@ -527,6 +531,7 @@ def connect(
         timeout=timeout,
         max_prepared_statements=max_prepared_statements,
         tcp_keepalive=tcp_keepalive,
+        **kwargs,
     )
 
 
@@ -542,6 +547,7 @@ def connect_temp(
     timeout: Optional[int] = None,
     max_prepared_statements: int = 1000,
     tcp_keepalive: bool = True,
+    **kwargs: Any,
 ) -> redshift_connector.Connection:
     """Return a redshift_connector temporary connection (No password required).
 
@@ -571,7 +577,7 @@ def connect_temp(
         This governs SSL encryption for TCP/IP sockets.
         This parameter is forward to redshift_connector.
         https://github.com/aws/amazon-redshift-python-driver
-    timeout : Optional[int]
+    timeout : int, optional
         This is the time in seconds before the connection to the server will time out.
         The default is None which means no timeout.
         This parameter is forward to redshift_connector.
@@ -583,6 +589,9 @@ def connect_temp(
         If True then use TCP keepalive. The default is True.
         This parameter is forward to redshift_connector.
         https://github.com/aws/amazon-redshift-python-driver
+    **kwargs : Any
+        Forwarded to redshift_connector.connect.
+        e.g. is_serverless=True, serverless_acct_id='...', serverless_work_group='...'
 
     Returns
     -------
@@ -623,6 +632,7 @@ def connect_temp(
         max_prepared_statements=max_prepared_statements,
         tcp_keepalive=tcp_keepalive,
         db_groups=db_groups,
+        **kwargs,
     )
 
 
