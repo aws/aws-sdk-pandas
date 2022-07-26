@@ -157,7 +157,6 @@ def test_compression(path, compression):
     [None, {"ServerSideEncryption": "AES256"}, {"ServerSideEncryption": "aws:kms", "SSEKMSKeyId": None}],
 )
 def test_encryption(path, kms_key_id, s3_additional_kwargs):
-    assert wr.config.distributed
     if s3_additional_kwargs is not None and "SSEKMSKeyId" in s3_additional_kwargs:
         s3_additional_kwargs["SSEKMSKeyId"] = kms_key_id
 
