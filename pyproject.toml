@@ -129,3 +129,6 @@ warn_unused_ignores = false
 log_cli = false
 filterwarnings = "ignore::DeprecationWarning"
 addopts = "--log-cli-format \"[%(name)s][%(funcName)s] %(message)s\" --verbose --capture=sys"
+markers = [
+    "distributed: tests againsts methods with distributed functionality",
+]
