@@ -11,7 +11,7 @@ else:
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
-pytest.mark.distributed
+pytestmark = pytest.mark.distributed
 
 
 @pytest.mark.parametrize("use_threads", [True, False, 2])
