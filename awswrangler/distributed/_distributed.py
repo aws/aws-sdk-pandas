@@ -115,6 +115,7 @@ def initialize_ray(
                 "object_store_memory": object_store_memory,
                 "_redis_password": redis_password,
                 "_memory": object_store_memory,
+                "runtime_env": {"env_vars": {"__MODIN_AUTOIMPORT_PANDAS__": "1"}},
             }
             ray.init(**ray_init_kwargs)
 
