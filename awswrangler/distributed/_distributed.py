@@ -107,6 +107,10 @@ def initialize_ray(
                 )
                 os.environ["RAY_ENABLE_MAC_LARGE_OBJECT_STORE"] = "1"
 
+            ray_runtime_env_vars = [
+                "__MODIN_AUTOIMPORT_PANDAS__",
+            ]
+
             ray_init_kwargs = {
                 "num_cpus": cpu_count or multiprocessing.cpu_count(),
                 "num_gpus": gpu_count,
@@ -115,7 +119,11 @@ def initialize_ray(
                 "object_store_memory": object_store_memory,
                 "_redis_password": redis_password,
                 "_memory": object_store_memory,
+                "runtime_env": {
+                    "env_vars": {var: os.environ.get(var) for var in ray_runtime_env_vars if os.environ.get(var)}
+                },
             }
+
             ray.init(**ray_init_kwargs)
 
 
