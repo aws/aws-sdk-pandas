@@ -99,6 +99,8 @@ def _get_endpoint_url(service_name: str) -> Optional[str]:
         endpoint_url = _config.config.dynamodb_endpoint_url
     elif service_name == "secretsmanager" and _config.config.secretsmanager_endpoint_url is not None:
         endpoint_url = _config.config.secretsmanager_endpoint_url
+    elif service_name == "timestream" and _config.config.timestream_endpoint_url is not None:
+        endpoint_url = _config.config.timestream_endpoint_url
     return endpoint_url
 
 
