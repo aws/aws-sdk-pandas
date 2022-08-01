@@ -11,6 +11,8 @@ else:
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
+pytestmark = pytest.mark.distributed
+
 
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_full_table(path, use_threads):
