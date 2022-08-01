@@ -637,7 +637,7 @@ def get_query_results(
             s3_additional_kwargs=s3_additional_kwargs,
             pyarrow_additional_kwargs=pyarrow_additional_kwargs,
         )
-    elif statement_type == "DML" and not query_info["Query"].startswith("INSERT"):
+    if statement_type == "DML" and not query_info["Query"].startswith("INSERT"):
         return _fetch_csv_result(
             query_metadata=query_metadata,
             keep_files=True,
