@@ -1115,21 +1115,21 @@ def test_get_query_results(path, glue_database, glue_table):
     sql = f"SELECT * FROM {glue_table}"
 
     df_ctas: pd.DataFrame = wr.athena.read_sql_query(
-        sql=sql, database=glue_database, ctas_aproach=True, unload_approach=False
+        sql=sql, database=glue_database, ctas_approach=True, unload_approach=False
     )
     query_id_ctas = df_ctas.query_metadata["QueryExecutionId"]
     df_get_query_results_ctas = wr.athena.get_query_results(query_execution_id=query_id_ctas)
     assert pd.testing.assert_frame_equal(df_get_query_results_ctas, df_ctas)
 
     df_unload: pd.DataFrame = wr.athena.read_sql_query(
-        sql=sql, database=glue_database, ctas_aproach=False, unload_approach=True
+        sql=sql, database=glue_database, ctas_approach=False, unload_approach=True
     )
     query_id_unload = df_unload.query_metadata["QueryExecutionId"]
     df_get_query_results_df_unload = wr.athena.get_query_results(query_execution_id=query_id_unload)
     assert pd.testing.assert_frame_equal(df_get_query_results_df_unload, df_unload)
 
     df_regular: pd.DataFrame = wr.athena.read_sql_query(
-        sql=sql, database=glue_database, ctas_aproach=False, unload_approach=False
+        sql=sql, database=glue_database, ctas_approach=False, unload_approach=False
     )
     query_id_regular = df_regular.query_metadata["QueryExecutionId"]
     df_get_query_results_df_regular = wr.athena.get_query_results(query_execution_id=query_id_regular)
