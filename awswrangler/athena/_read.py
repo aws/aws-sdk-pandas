@@ -646,7 +646,7 @@ def get_query_results(
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
         )
-    raise exceptions.UndetectedType(f"""Undetected query: {query_info["Query"]}.""")
+    raise exceptions.UndetectedType(f"""Unable to get results for: {query_info["Query"]}.""")
 
 
 @apply_configs
