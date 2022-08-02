@@ -28,7 +28,7 @@ def redshift_con():
 
 
 def test_connection():
-    wr.redshift.connect("aws-data-wrangler-redshift", timeout=10).close()
+    wr.redshift.connect("aws-data-wrangler-redshift", timeout=10, force_lowercase=False).close()
 
 
 def test_read_sql_query_simple(databases_parameters):

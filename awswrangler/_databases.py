@@ -90,7 +90,7 @@ def _get_connection_attributes_from_secrets_manager(
         user=secret_value["username"],
         password=secret_value["password"],
         host=secret_value["host"],
-        port=secret_value["port"],
+        port=int(secret_value["port"]),
         database=_dbname,
         ssl_context=None,
     )
