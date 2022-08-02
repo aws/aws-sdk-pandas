@@ -1099,20 +1099,14 @@ def test_start_query_execution_wait(path, glue_database, glue_table):
     assert query_execution_result["QueryExecutionContext"]["Database"] == glue_database
 
 
-def test_get_query_results(path, glue_database, glue_table):
-    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
-    wr.s3.to_parquet(
-        df=get_df(),
-        path=path,
-        index=True,
-        use_threads=True,
-        dataset=True,
-        mode="overwrite",
-        database=glue_database,
-        table=glue_table,
-        partition_cols=["par0", "par1"],
+def test_get_query_results(path, glue_database):
+
+    sql = (
+        "SELECT CAST("
+        "    ROW(1, ROW(2, ROW(3, '4'))) AS"
+        "    ROW(field0 BIGINT, field1 ROW(field2 BIGINT, field3 ROW(field4 BIGINT, field5 VARCHAR)))"
+        ") AS col0"
     )
-    sql = f"SELECT * FROM {glue_table}"
 
     df_ctas: pd.DataFrame = wr.athena.read_sql_query(
         sql=sql, database=glue_database, ctas_approach=True, unload_approach=False
@@ -1122,7 +1116,7 @@ def test_get_query_results(path, glue_database, glue_table):
     pd.testing.assert_frame_equal(df_get_query_results_ctas, df_ctas)
 
     df_unload: pd.DataFrame = wr.athena.read_sql_query(
-        sql=sql, database=glue_database, ctas_approach=False, unload_approach=True
+        sql=sql, database=glue_database, ctas_approach=False, unload_approach=True, s3_output=path
     )
     query_id_unload = df_unload.query_metadata["QueryExecutionId"]
     df_get_query_results_df_unload = wr.athena.get_query_results(query_execution_id=query_id_unload)
