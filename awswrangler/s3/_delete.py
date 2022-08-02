@@ -32,9 +32,9 @@ def _split_paths_by_bucket(paths: List[str]) -> Dict[str, List[str]]:
 
 @ray_remote
 def _delete_objects(
+    boto3_session: Optional[boto3.Session],
     bucket: str,
     keys: List[str],
-    boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, Any]],
     attempt: int = 1,
 ) -> None:
@@ -71,24 +71,9 @@ def _delete_objects(
         )
 
 
-# def _delete_objects_concurrent(
-#     bucket: str,
-#     keys: List[str],
-#     s3_additional_kwargs: Optional[Dict[str, Any]],
-#     boto3_primitives: _utils.Boto3PrimitivesType,
-# ) -> None:
-#     boto3_session = _utils.boto3_from_primitives(primitives=boto3_primitives)
-
-#     return ray_get(
-#         _delete_objects(
-#             bucket=bucket, keys=keys, boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs
-#         )
-#     )
-
-
 def delete_objects(
     path: Union[str, List[str]],
-    use_threads: Union[bool, int] = True,
+    use_threads: Optional[bool] = True,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -151,23 +136,11 @@ def delete_objects(
         last_modified_end=last_modified_end,
         s3_additional_kwargs=s3_additional_kwargs,
     )
-    if len(paths) < 1:
-        return
+
     buckets: Dict[str, List[str]] = _split_paths_by_bucket(paths=paths)
     for bucket, keys in buckets.items():
         chunks: List[List[str]] = _utils.chunkify(lst=keys, max_length=1_000)
-
-        if use_threads is False:
-            for chunk in chunks:
-                _delete_objects(
-                    bucket=bucket, keys=chunk, boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs
-                )
-        else:
-            executor = _get_executor(use_threads=use_threads)
-            executor.map(
-                _delete_objects,
-                boto3_session,
-                itertools.repeat(bucket),
-                itertools.repeat(chunks),
-                {} if s3_additional_kwargs is None else s3_additional_kwargs,
-            )
+        executor = _get_executor(use_threads=use_threads)
+        executor.map(
+            _delete_objects, boto3_session, itertools.repeat(bucket), chunks, itertools.repeat(s3_additional_kwargs)
+        )
