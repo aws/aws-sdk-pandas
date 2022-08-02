@@ -3,6 +3,9 @@ name: Snyk
 on:
   workflow_dispatch
 
+permissions:
+  contents: read
+
 jobs:
   security:
     runs-on: ubuntu-latest

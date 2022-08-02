@@ -3,8 +3,14 @@ on:
   issues:
     types:
       - assigned
+permissions:
+  contents: read
+
 jobs:
   unlabel-issue:
+    permissions:
+      issues: write  # for andymckay/labeler to label issues
+      pull-requests: write  # for andymckay/labeler to label PRs
     runs-on: ubuntu-latest
     steps:
       - name: unlabel-issues
