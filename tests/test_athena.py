@@ -1097,8 +1097,7 @@ def test_start_query_execution_wait(path, glue_database, glue_table):
     assert query_execution_result["Query"] == sql
     assert query_execution_result["StatementType"] == "DML"
     assert query_execution_result["QueryExecutionContext"]["Database"] == glue_database
-
-
+    
 def test_get_query_results(path, glue_table, glue_database):
 
     sql = (
@@ -1121,7 +1120,7 @@ def test_get_query_results(path, glue_table, glue_database):
     query_id_unload = df_unload.query_metadata["QueryExecutionId"]
     df_get_query_results_df_unload = wr.athena.get_query_results(query_execution_id=query_id_unload)
     pd.testing.assert_frame_equal(df_get_query_results_df_unload, df_unload)
-
+    
     wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
     wr.s3.to_parquet(
         df=get_df(),
@@ -1139,6 +1138,7 @@ def test_get_query_results(path, glue_table, glue_database):
     
     df_regular: pd.DataFrame = wr.athena.read_sql_query(
         sql=reg_sql, database=glue_database, ctas_approach=False, unload_approach=False
+
     )
     query_id_regular = df_regular.query_metadata["QueryExecutionId"]
     df_get_query_results_df_regular = wr.athena.get_query_results(query_execution_id=query_id_regular)
