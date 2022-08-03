@@ -1099,7 +1099,7 @@ def test_start_query_execution_wait(path, glue_database, glue_table):
     assert query_execution_result["QueryExecutionContext"]["Database"] == glue_database
 
 
-def test_get_query_results(path, glue_database, glue_database):
+def test_get_query_results(path, glue_table, glue_database):
 
     sql = (
         "SELECT CAST("
