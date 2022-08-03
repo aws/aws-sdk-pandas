@@ -3,13 +3,11 @@
 import datetime
 import itertools
 import logging
-import time
 from typing import Any, Dict, List, Optional, Union
-from urllib.parse import unquote_plus as _unquote_plus
 
 import boto3
 
-from awswrangler import _utils, exceptions
+from awswrangler import _utils
 from awswrangler._threading import _get_executor
 from awswrangler.distributed import ray_remote
 from awswrangler.s3._fs import get_botocore_valid_kwargs
@@ -36,9 +34,11 @@ def _delete_objects(
     bucket: str,
     keys: List[str],
     s3_additional_kwargs: Optional[Dict[str, Any]],
-    attempt: int = 1,
 ) -> None:
-    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    client_s3: boto3.client = _utils.client(
+        service_name="s3",
+        session=boto3_session,
+    )
     _logger.debug("len(keys): %s", len(keys))
     batch: List[Dict[str, str]] = [{"Key": key} for key in keys]
     if s3_additional_kwargs:
@@ -51,24 +51,6 @@ def _delete_objects(
     deleted: List[Dict[str, Any]] = res.get("Deleted", [])
     for obj in deleted:
         _logger.debug("s3://%s/%s has been deleted.", bucket, obj.get("Key"))
-    errors: List[Dict[str, Any]] = res.get("Errors", [])
-    internal_errors: List[str] = []
-    for error in errors:
-        _logger.debug("error: %s", error)
-        if "Code" not in error or error["Code"] != "InternalError":
-            raise exceptions.ServiceApiError(errors)
-        internal_errors.append(_unquote_plus(error["Key"]))
-    if len(internal_errors) > 0:
-        if attempt > 5:  # Maximum of 5 attempts (Total of 15 seconds)
-            raise exceptions.ServiceApiError(errors)
-        time.sleep(attempt)  # Incremental delay (linear)
-        _delete_objects(
-            bucket=bucket,
-            keys=internal_errors,
-            boto3_session=boto3_session,
-            s3_additional_kwargs=s3_additional_kwargs,
-            attempt=(attempt + 1),
-        )
 
 
 def delete_objects(
