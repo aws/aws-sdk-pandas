@@ -19,34 +19,33 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def _split_paths_by_bucket(paths: List[str]) -> Dict[str, List[str]]:
     buckets: Dict[str, List[str]] = {}
     bucket: str
-    key: str
     for path in paths:
-        bucket, key = _utils.parse_path(path=path)
+        bucket = _utils.parse_path(path=path)[0]
         if bucket not in buckets:
             buckets[bucket] = []
-        buckets[bucket].append(key)
+        buckets[bucket].append(path)
     return buckets
 
 
 @ray_remote
 def _delete_objects(
     boto3_session: Optional[boto3.Session],
-    bucket: str,
-    keys: List[str],
+    paths: List[str],
     s3_additional_kwargs: Optional[Dict[str, Any]],
 ) -> None:
     client_s3: boto3.client = _utils.client(
         service_name="s3",
         session=boto3_session,
     )
-    _logger.debug("len(keys): %s", len(keys))
-    batch: List[Dict[str, str]] = [{"Key": key} for key in keys]
+    _logger.debug("len(paths): %s", len(paths))
     if s3_additional_kwargs:
         extra_kwargs: Dict[str, Any] = get_botocore_valid_kwargs(
             function_name="list_objects_v2", s3_additional_kwargs=s3_additional_kwargs
         )
     else:
         extra_kwargs = {}
+    bucket = _utils.parse_path(path=paths[0])[0]
+    batch: List[Dict[str, str]] = [{"Key": _utils.parse_path(path)[1]} for path in paths]
     res = client_s3.delete_objects(Bucket=bucket, Delete={"Objects": batch}, **extra_kwargs)
     deleted: List[Dict[str, Any]] = res.get("Deleted", [])
     for obj in deleted:
@@ -118,11 +117,16 @@ def delete_objects(
         last_modified_end=last_modified_end,
         s3_additional_kwargs=s3_additional_kwargs,
     )
+    paths_by_bucket: Dict[List[str, List[str]]] = _split_paths_by_bucket(paths)
 
-    buckets: Dict[str, List[str]] = _split_paths_by_bucket(paths=paths)
-    for bucket, keys in buckets.items():
-        chunks: List[List[str]] = _utils.chunkify(lst=keys, max_length=1_000)
-        executor = _get_executor(use_threads=use_threads)
-        executor.map(
-            _delete_objects, boto3_session, itertools.repeat(bucket), chunks, itertools.repeat(s3_additional_kwargs)
-        )
+    chunks = []
+    for bucket in paths_by_bucket:
+        chunks += _utils.chunkify(lst=paths_by_bucket[bucket], max_length=5)
+
+    executor = _get_executor(use_threads=use_threads)
+    executor.map(
+        _delete_objects,
+        boto3_session,
+        chunks,
+        itertools.repeat(s3_additional_kwargs),
+    )
