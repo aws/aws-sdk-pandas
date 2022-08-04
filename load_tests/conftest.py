@@ -9,6 +9,11 @@ def cloudformation_outputs():
 
 
 @pytest.fixture(scope="session")
+def region(cloudformation_outputs):
+    return cloudformation_outputs["Region"]
+
+
+@pytest.fixture(scope="session")
 def bucket(cloudformation_outputs):
     return cloudformation_outputs["BucketName"]
 
