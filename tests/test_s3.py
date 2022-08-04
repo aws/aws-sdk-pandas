@@ -78,7 +78,6 @@ def test_s3_delete_objects(path, path2):
     for path in paths:
         wr.s3.to_json(df, path)
     wr.s3.delete_objects(path=paths)
-    time.sleep(5)  # s3 read-consistency
 
     assert len(wr.s3.list_objects(f"{path}delete-test*")) == 0
 
