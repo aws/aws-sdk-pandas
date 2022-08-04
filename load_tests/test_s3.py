@@ -27,7 +27,7 @@ def test_s3_select(benchmark_time):
 
 def test_s3_delete_objects(path, path2):
     df = pd.DataFrame({"id": [1, 2, 3]})
-    objects_per_bucket = 10
+    objects_per_bucket = 5000
     paths = [f"s3://{path}delete-test{i}.json" for i in range(objects_per_bucket)] + [
         f"s3://{path2}delete-test{i}.json" for i in range(objects_per_bucket)
     ]

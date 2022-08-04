@@ -117,7 +117,7 @@ def delete_objects(
         last_modified_end=last_modified_end,
         s3_additional_kwargs=s3_additional_kwargs,
     )
-    paths_by_bucket: Dict[List[str, List[str]]] = _split_paths_by_bucket(paths)
+    paths_by_bucket: Dict[str, List[str]] = _split_paths_by_bucket(paths)
 
     chunks = []
     for bucket in paths_by_bucket:
