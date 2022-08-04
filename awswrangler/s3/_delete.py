@@ -120,8 +120,8 @@ def delete_objects(
     paths_by_bucket: Dict[str, List[str]] = _split_paths_by_bucket(paths)
 
     chunks = []
-    for bucket in paths_by_bucket:
-        chunks += _utils.chunkify(lst=paths_by_bucket[bucket], max_length=100)
+    for _, paths in paths_by_bucket.items():
+        chunks += _utils.chunkify(lst=paths, max_length=100)
 
     executor = _get_executor(use_threads=use_threads)
     ray_get(
