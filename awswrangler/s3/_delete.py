@@ -1,4 +1,4 @@
-"""Amazon S3 Copy Delete Module (PRIVATE)."""
+"""Amazon S3 Delete Module (PRIVATE)."""
 
 import datetime
 import itertools
