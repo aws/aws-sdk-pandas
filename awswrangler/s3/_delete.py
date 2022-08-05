@@ -121,7 +121,7 @@ def delete_objects(
 
     chunks = []
     for _, paths in paths_by_bucket.items():
-        chunks += _utils.chunkify(lst=paths, max_length=100)
+        chunks += _utils.chunkify(lst=paths, max_length=1_000)
 
     executor = _get_executor(use_threads=use_threads)
     ray_get(
