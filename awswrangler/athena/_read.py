@@ -352,6 +352,7 @@ def _resolve_query_without_cache_regular(
     use_threads: Union[bool, int],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
+    client_request_token: Optional[str] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
     s3_output = _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=boto3_session)
@@ -367,6 +368,7 @@ def _resolve_query_without_cache_regular(
         encryption=encryption,
         kms_key=kms_key,
         boto3_session=boto3_session,
+        client_request_token=client_request_token,
     )
     _logger.debug("query_id: %s", query_id)
     query_metadata: _QueryMetadata = _get_query_metadata(
@@ -407,6 +409,7 @@ def _resolve_query_without_cache(
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    client_request_token: Optional[str] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """
     Execute a query in Athena and returns results as DataFrame, back to `read_sql_query`.
@@ -479,6 +482,7 @@ def _resolve_query_without_cache(
         use_threads=use_threads,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
+        client_request_token=client_request_token,
     )
 
 
@@ -586,6 +590,7 @@ def read_sql_query(
     params: Optional[Dict[str, Any]] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    client_request_token: Optional[str] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Execute any SQL query on AWS Athena and return the results as a Pandas DataFrame.
 
@@ -785,6 +790,14 @@ def read_sql_query(
         outputs) you can use coerce_int96_timestamp_unit to specify what timestamp unit to encode INT96 to (by default
         this is "ns", if you know the output parquet came from a system that encodes timestamp to a particular unit
         then set this to that same unit e.g. coerce_int96_timestamp_unit="ms").
+    client_request_token: str, optional
+        A unique case-sensitive string used to ensure the request to create the query is idempotent (executes only once).
+        If another StartQueryExecution request is received, the same response is returned and another query is not created.
+        If a parameter has changed, for example, the QueryString , an error is returned.
+        If you pass the same client_request_token value with different parameters the query fails with error
+        message "Idempotent parameters do not match"
+        It only works with ctas_approach=False
+
 
     Returns
     -------
@@ -835,6 +848,10 @@ def read_sql_query(
         max_remote_cache_entries=max_remote_cache_entries,
     )
     _logger.debug("cache_info:\n%s", cache_info)
+
+    if cache_info.has_valid_cache is True and client_request_token:
+        raise exceptions.InvalidArgumentCombination("Use cache properties OR client_request_token propertie")
+
     if cache_info.has_valid_cache is True:
         _logger.debug("Valid cache found. Retrieving...")
         try:
@@ -871,6 +888,7 @@ def read_sql_query(
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=session,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+        client_request_token=client_request_token,
     )
 
 

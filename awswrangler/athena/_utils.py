@@ -62,6 +62,7 @@ def _start_query_execution(
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
+    client_request_token: Optional[str] = None,
 ) -> str:
     args: Dict[str, Any] = {"QueryString": sql}
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
@@ -70,6 +71,11 @@ def _start_query_execution(
     args["ResultConfiguration"] = {
         "OutputLocation": _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=session)
     }
+
+    if client_request_token:
+        if len(client_request_token) < 32 or len(client_request_token) > 128:
+            raise exceptions.InvalidArgumentCombination("Invalid length for parameter client_request_token, valid min length: 32, valid max length: 128")
+        args["ClientRequestToken"] = client_request_token
 
     # encryption
     if wg_config.enforced is True:
