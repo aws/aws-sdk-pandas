@@ -246,11 +246,11 @@ or
 
 * To run a specific test function:
 
-``pytest tests/test_db.py::test_sql``
+``pytest tests/test_mysql.py::test_read_sql_query_simple``
 
-* To run all database test functions (Using 8 parallel processes):
+* To run all database test functions for MySQL (Using 8 parallel processes):
 
-``pytest -n 8 tests/test_db.py``
+``pytest -n 8 tests/test_mysql.py``
 
 * To run all data lake test functions for all python versions (Only if Amazon QuickSight is activated and Amazon OpenSearch template is deployed):
 
