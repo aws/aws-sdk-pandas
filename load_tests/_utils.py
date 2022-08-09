@@ -1,5 +1,6 @@
 import random
 from datetime import datetime
+from timeit import default_timer as timer
 from typing import Iterator
 
 import boto3
@@ -9,6 +10,20 @@ import awswrangler as wr
 from awswrangler._utils import try_it
 
 CFN_VALID_STATUS = ["CREATE_COMPLETE", "ROLLBACK_COMPLETE", "UPDATE_COMPLETE", "UPDATE_ROLLBACK_COMPLETE"]
+
+
+class ExecutionTimer:
+    def __init__(self, msg="elapsed time"):
+        self.msg = msg
+
+    def __enter__(self):
+        self.before = timer()
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.elapsed_time = round((timer() - self.before), 3)
+        print(f"{self.msg}: {self.elapsed_time:.3f} sec")
+        return None
 
 
 def extract_cloudformation_outputs():
