@@ -23,7 +23,7 @@ def test_s3_select(benchmark_time):
     assert timer.elapsed_time < benchmark_time
 
 
-@pytest.mark.parametrize("benchmark_time", [15])
+@pytest.mark.parametrize("benchmark_time", [5])
 def test_s3_delete_objects(path, path2, benchmark_time):
     df = pd.DataFrame({"id": [1, 2, 3]})
     objects_per_bucket = 505
