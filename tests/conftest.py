@@ -1,6 +1,7 @@
 from datetime import datetime
 
 import boto3  # type: ignore
+import botocore.exceptions
 import pytest  # type: ignore
 
 import awswrangler as wr
@@ -301,6 +302,19 @@ END;
         cursor.execute(sql)
     con.commit()
     con.close()
+
+
+@pytest.fixture(scope="function")
+def timestream_database():
+    name = f"tbl_{get_time_str_with_random_suffix()}"
+    print(f"Timestream name: {name}")
+    wr.timestream.create_database(name)
+    yield name
+    try:
+        wr.timestream.delete_database(name)
+    except botocore.exceptions.ClientError as err:
+        if err.response["Error"]["Code"] == "ResourceNotFound":
+            pass
 
 
 @pytest.fixture(scope="function")
