@@ -560,6 +560,96 @@ def _unload(
 
 
 @apply_configs
+def get_query_results(
+    query_execution_id: str,
+    use_threads: Union[bool, int] = True,
+    boto3_session: Optional[boto3.Session] = None,
+    categories: Optional[List[str]] = None,
+    chunksize: Optional[Union[int, bool]] = None,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    """Get AWS Athena SQL query results as a Pandas DataFrame.
+
+    Parameters
+    ----------
+    query_execution_id : str
+        SQL query's execution_id on AWS Athena.
+    use_threads : bool, int
+        True to enable concurrent requests, False to disable multiple threads.
+        If enabled os.cpu_count() will be used as the max number of threads.
+        If integer is provided, specified number is used.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    categories: List[str], optional
+        List of columns names that should be returned as pandas.Categorical.
+        Recommended for memory restricted environments.
+    chunksize : Union[int, bool], optional
+        If passed will split the data in a Iterable of DataFrames (Memory friendly).
+        If `True` wrangler will iterate on the data by files in the most efficient way without guarantee of chunksize.
+        If an `INTEGER` is passed Wrangler will iterate on the data by number of rows igual the received INTEGER.
+    s3_additional_kwargs : Optional[Dict[str, Any]]
+        Forwarded to botocore requests.
+        e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
+    pyarrow_additional_kwargs : Optional[Dict[str, Any]]
+        Forward to the ParquetFile class or converting an Arrow table to Pandas, currently only an
+        "coerce_int96_timestamp_unit" or "timestamp_as_object" argument will be considered. If reading parquet
+        files where you cannot convert a timestamp to pandas Timestamp[ns] consider setting timestamp_as_object=True,
+        to allow for timestamp units larger than "ns". If reading parquet data that still uses INT96 (like Athena
+        outputs) you can use coerce_int96_timestamp_unit to specify what timestamp unit to encode INT96 to (by default
+        this is "ns", if you know the output parquet came from a system that encodes timestamp to a particular unit
+        then set this to that same unit e.g. coerce_int96_timestamp_unit="ms").
+
+    Returns
+    -------
+    Union[pd.DataFrame, Iterator[pd.DataFrame]]
+        Pandas DataFrame or Generator of Pandas DataFrames if chunksize is passed.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> res = wr.athena.get_query_results(
+    ...     query_execution_id="cbae5b41-8103-4709-95bb-887f88edd4f2"
+    ... )
+
+    """
+    query_metadata: _QueryMetadata = _get_query_metadata(
+        query_execution_id=query_execution_id,
+        boto3_session=boto3_session,
+        categories=categories,
+        metadata_cache_manager=_cache_manager,
+    )
+    client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
+    query_info: Dict[str, Any] = client_athena.get_query_execution(QueryExecutionId=query_execution_id)[
+        "QueryExecution"
+    ]
+    statement_type: Optional[str] = query_info.get("StatementType")
+    if (statement_type == "DDL" and query_info["Query"].startswith("CREATE TABLE")) or (
+        statement_type == "DML" and query_info["Query"].startswith("UNLOAD")
+    ):
+        return _fetch_parquet_result(
+            query_metadata=query_metadata,
+            keep_files=True,
+            categories=categories,
+            chunksize=chunksize,
+            use_threads=use_threads,
+            boto3_session=boto3_session,
+            s3_additional_kwargs=s3_additional_kwargs,
+            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+        )
+    if statement_type == "DML" and not query_info["Query"].startswith("INSERT"):
+        return _fetch_csv_result(
+            query_metadata=query_metadata,
+            keep_files=True,
+            chunksize=chunksize,
+            use_threads=use_threads,
+            boto3_session=boto3_session,
+            s3_additional_kwargs=s3_additional_kwargs,
+        )
+    raise exceptions.UndetectedType(f"""Unable to get results for: {query_info["Query"]}.""")
+
+
+@apply_configs
 def read_sql_query(
     sql: str,
     database: str,

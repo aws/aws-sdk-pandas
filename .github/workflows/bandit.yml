@@ -10,6 +10,9 @@ on:
     - main
     - release-3.0.0
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
