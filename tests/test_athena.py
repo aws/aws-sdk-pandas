@@ -1174,11 +1174,11 @@ def test_athena_generate_create_query(path, glue_database, glue_table):
         database=glue_database,
         table=glue_table,
         path=path,
-        columns_types={"c0": "int", "c1": "string"},
+        columns_types={"c0": "int"},
         partitions_types={"col2": "date"},
     )
     query: str = wr.athena.generate_create_query(database=glue_database, table=glue_table)
-    create_query_no_partition: str = "\n".join(
+    create_query_partition: str = "\n".join(
         [
             f"CREATE EXTERNAL TABLE `{glue_table}`(",
             "  `c0` int)",
@@ -1200,7 +1200,7 @@ def test_athena_generate_create_query(path, glue_database, glue_table):
         ]
     )
 
-    assert query == create_query_no_partition
+    assert query == create_query_partition
 
     wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
     query: str = "\n".join(
