@@ -1,5 +1,7 @@
 """Utilities Module for Amazon Athena."""
+import base64
 import csv
+import json
 import logging
 import pprint
 import time
@@ -14,6 +16,7 @@ import pandas as pd
 
 from awswrangler import _data_types, _utils, catalog, exceptions, s3, sts
 from awswrangler._config import apply_configs
+from awswrangler.catalog._utils import _catalog_id, _transaction_id
 
 from ._cache import _cache_manager, _CacheInfo, _check_for_cached_results, _LocalMetadataCacheManager
 
@@ -923,6 +926,102 @@ def show_create_table(
         query_metadata=query_metadata, keep_files=True, boto3_session=session, s3_additional_kwargs=s3_additional_kwargs
     )
     return cast(str, raw_result.createtab_stmt.str.strip().str.cat(sep=" "))
+
+
+@apply_configs
+def generate_create_query(
+    table: str,
+    database: Optional[str] = None,
+    transaction_id: Optional[str] = None,
+    query_as_of_time: Optional[str] = None,
+    catalog_id: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> str:
+    """Generate the query that created a table(EXTERNAL_TABLE) or a view(VIRTUAL_TABLE).
+
+    Analyzes an existing table named table_name to generate the query that created it.
+
+    Parameters
+    ----------
+    table : str
+        Table name.
+    database : str
+        Database name.
+    transaction_id: str, optional
+        The ID of the transaction.
+    query_as_of_time: str, optional
+        The time as of when to read the table contents. Must be a valid Unix epoch timestamp.
+        Cannot be specified alongside transaction_id.
+    catalog_id : str, optional
+        The ID of the Data Catalog from which to retrieve Databases.
+        If none is provided, the AWS account ID is used by default.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    str
+        The query that created the table or view.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> view_create_query: str = wr.athena.generate_create_query(table='my_view', database='default')
+
+    """
+
+    def parse_columns(columns_description: List[Dict[str, str]]) -> str:
+        columns_str: List[str] = []
+        for column in columns_description:
+            column_str = f"  `{column['Name']}` {column['Type']}"
+            if "Comment" in column:
+                column_str += f" COMMENT '{column['Comment']}'"
+            columns_str.append(column_str)
+        return ", \n".join(columns_str)
+
+    def parse_properties(parameters: Dict[str, str]) -> str:
+        properties_str: List[str] = []
+        for key, value in parameters.items():
+            if key == "EXTERNAL":
+                continue
+            property_key_value = f"  '{key}'='{value}'"
+            properties_str.append(property_key_value)
+        return ", \n".join(properties_str)
+
+    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    table_detail: Dict[str, Any] = client_glue.get_table(
+        **_catalog_id(
+            catalog_id=catalog_id,
+            **_transaction_id(
+                transaction_id=transaction_id, query_as_of_time=query_as_of_time, DatabaseName=database, Name=table
+            ),
+        )
+    )["Table"]
+    if table_detail["TableType"] == "VIRTUAL_VIEW":
+        glue_base64_query: str = table_detail["ViewOriginalText"].replace("/* Presto View: ", "").replace(" */", "")
+        glue_query: str = json.loads(base64.b64decode(glue_base64_query))["originalSql"]
+        return f"""CREATE OR REPLACE VIEW "{table}" AS \n{glue_query}"""
+    if table_detail["TableType"] == "EXTERNAL_TABLE":
+        columns: str = parse_columns(columns_description=table_detail["StorageDescriptor"]["Columns"])
+        query_parts: List[str] = [f"""CREATE EXTERNAL TABLE `{table}`(\n{columns})"""]
+        partitioned_columns: str = parse_columns(columns_description=table_detail["PartitionKeys"])
+        if partitioned_columns:
+            query_parts.append(f"""PARTITIONED BY ( \n{partitioned_columns})""")
+        tblproperties: str = parse_properties(parameters=table_detail["Parameters"])
+
+        query_parts += [
+            """ROW FORMAT SERDE """,
+            f"""  '{table_detail['StorageDescriptor']['SerdeInfo']['SerializationLibrary']}' """,
+            """STORED AS INPUTFORMAT """,
+            f"""  '{table_detail['StorageDescriptor']['InputFormat']}' """,
+            """OUTPUTFORMAT """,
+            f"""  '{table_detail['StorageDescriptor']['OutputFormat']}'""",
+            """LOCATION""",
+            f"""  '{table_detail['StorageDescriptor']['Location']}'""",
+            f"""TBLPROPERTIES (\n{tblproperties})""",
+        ]
+        return "\n".join(query_parts)
+    raise NotImplementedError()
 
 
 def get_work_group(workgroup: str, boto3_session: Optional[boto3.Session] = None) -> Dict[str, Any]:
