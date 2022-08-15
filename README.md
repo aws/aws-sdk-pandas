@@ -218,6 +218,7 @@ If you would like us to include your company’s name and/or logo in the README 
 - [Cognitivo](https://www.cognitivo.ai/) [[@msantino](https://github.com/msantino)]
 - [Digio](https://www.digio.com.br/) [[@afonsomy](https://github.com/afonsomy)]
 - [DNX](https://www.dnx.solutions/) [[@DNXLabs](https://github.com/DNXLabs)]
+- [Fortescue Future Industries](https://ffi.com.au/) [[@spencervoorend](https://github.com/spencervoorend)]
 - [Funcional Health Tech](https://www.funcionalcorp.com.br/) [[@webysther](https://github.com/webysther)]
 - [Infomach](https://www.infomach.com.br/)
 - [Informa Markets](https://www.informamarkets.com/en/home.html) [[@mateusmorato]](http://github.com/mateusmorato)
