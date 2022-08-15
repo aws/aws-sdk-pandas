@@ -69,30 +69,6 @@ def test_list_by_last_modified_date(path):
     assert len(wr.s3.read_json(path, last_modified_begin=begin_utc, last_modified_end=end_utc).index) == 6
 
 
-def test_delete_internal_error(bucket):
-    response = {
-        "Errors": [
-            {
-                "Key": "foo/dt=2020-01-01 00%3A00%3A00/boo.txt",
-                "Code": "InternalError",
-                "Message": "We encountered an internal error. Please try again.",
-            }
-        ]
-    }
-
-    def mock_make_api_call(self, operation_name, kwarg):
-        if operation_name == "DeleteObjects":
-            return response
-        return API_CALL(self, operation_name, kwarg)
-
-    start = time.time()
-    with patch("botocore.client.BaseClient._make_api_call", new=mock_make_api_call):
-        path = f"s3://{bucket}/foo/dt=2020-01-01 00:00:00/boo.txt"
-        with pytest.raises(wr.exceptions.ServiceApiError):
-            wr.s3.delete_objects(path=[path])
-    assert 15 <= (time.time() - start) <= 25
-
-
 def test_delete_error(bucket):
     response = {"Errors": [{"Code": "AnyNonInternalError"}]}
 
