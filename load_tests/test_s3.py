@@ -26,17 +26,17 @@ def test_s3_select(benchmark_time):
 def test_s3_read_parquet_simple(benchmark_time):
     path = "s3://ursa-labs-taxi-data/2018/"
     with ExecutionTimer("elapsed time of wr.s3.read_parquet() simple") as timer:
-        wr.s3.read_parquet(path=path, parallelism=200)
+        wr.s3.read_parquet(path=path, parallelism=1000)
 
     assert timer.elapsed_time < benchmark_time
 
 
-@pytest.mark.parametrize("benchmark_time", [90])
+@pytest.mark.parametrize("benchmark_time", [240])
 def test_s3_read_parquet_partition_filter(benchmark_time):
     path = "s3://amazon-reviews-pds/parquet/"
     with ExecutionTimer("elapsed time of wr.s3.read_parquet() partition filter") as timer:
         filter = lambda x: True if x["product_category"].startswith("Wireless") else False  # noqa: E731
-        wr.s3.read_parquet(path=path, parallelism=200, dataset=True, partition_filter=filter)
+        wr.s3.read_parquet(path=path, parallelism=1000, dataset=True, partition_filter=filter)
 
     assert timer.elapsed_time < benchmark_time
 
