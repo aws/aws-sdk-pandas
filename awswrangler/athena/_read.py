@@ -88,7 +88,7 @@ def _fetch_parquet_result(
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, Any]],
     temp_table_fqn: Optional[str] = None,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    arrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     ret: Union[pd.DataFrame, Iterator[pd.DataFrame]]
     chunked: Union[bool, int] = False if chunksize is None else chunksize
@@ -109,14 +109,16 @@ def _fetch_parquet_result(
         df = cast_pandas_with_athena_types(df=df, dtype=dtype_dict)
         df = _apply_query_metadata(df=df, query_metadata=query_metadata)
         return df
+    if not arrow_additional_kwargs:
+        arrow_additional_kwargs = {}
+        if categories:
+            arrow_additional_kwargs["categories"] = categories
     ret = s3.read_parquet(
         path=paths,
         use_threads=use_threads,
         boto3_session=boto3_session,
         chunked=chunked,
-        categories=categories,
-        ignore_index=True,
-        pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+        arrow_additional_kwargs=arrow_additional_kwargs,
     )
     if chunked is False:
         ret = _apply_query_metadata(df=ret, query_metadata=query_metadata)
@@ -205,7 +207,7 @@ def _resolve_query_with_cache(
     use_threads: Union[bool, int],
     session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, Any]],
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    arrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Fetch cached data and return it as a pandas DataFrame (or list of DataFrames)."""
     _logger.debug("cache_info:\n%s", cache_info)
@@ -227,7 +229,7 @@ def _resolve_query_with_cache(
             use_threads=use_threads,
             boto3_session=session,
             s3_additional_kwargs=s3_additional_kwargs,
-            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+            arrow_additional_kwargs=arrow_additional_kwargs,
         )
     if cache_info.file_format == "csv":
         return _fetch_csv_result(
@@ -258,7 +260,7 @@ def _resolve_query_without_cache_ctas(
     use_threads: Union[bool, int],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    arrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     ctas_query_info: Dict[str, Union[str, _QueryMetadata]] = create_ctas_table(
         sql=sql,
@@ -286,7 +288,7 @@ def _resolve_query_without_cache_ctas(
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
         temp_table_fqn=fully_qualified_name,
-        pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+        arrow_additional_kwargs=arrow_additional_kwargs,
     )
 
 
@@ -308,7 +310,7 @@ def _resolve_query_without_cache_unload(
     use_threads: Union[bool, int],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    arrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     query_metadata = _unload(
         sql=sql,
@@ -333,7 +335,7 @@ def _resolve_query_without_cache_unload(
             use_threads=use_threads,
             s3_additional_kwargs=s3_additional_kwargs,
             boto3_session=boto3_session,
-            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+            arrow_additional_kwargs=arrow_additional_kwargs,
         )
     raise exceptions.InvalidArgumentValue("Only PARQUET file format is supported when unload_approach=True.")
 
@@ -406,7 +408,7 @@ def _resolve_query_without_cache(
     use_threads: Union[bool, int],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    arrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """
     Execute a query in Athena and returns results as DataFrame, back to `read_sql_query`.
@@ -436,7 +438,7 @@ def _resolve_query_without_cache(
                 use_threads=use_threads,
                 s3_additional_kwargs=s3_additional_kwargs,
                 boto3_session=boto3_session,
-                pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+                arrow_additional_kwargs=arrow_additional_kwargs,
             )
         finally:
             catalog.delete_table_if_exists(
@@ -463,7 +465,7 @@ def _resolve_query_without_cache(
             use_threads=use_threads,
             s3_additional_kwargs=s3_additional_kwargs,
             boto3_session=boto3_session,
-            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+            arrow_additional_kwargs=arrow_additional_kwargs,
         )
     return _resolve_query_without_cache_regular(
         sql=sql,
@@ -567,7 +569,7 @@ def get_query_results(
     categories: Optional[List[str]] = None,
     chunksize: Optional[Union[int, bool]] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    arrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Get AWS Athena SQL query results as a Pandas DataFrame.
 
@@ -591,7 +593,7 @@ def get_query_results(
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
-    pyarrow_additional_kwargs : Optional[Dict[str, Any]]
+    arrow_additional_kwargs : Optional[Dict[str, Any]]
         Forward to the ParquetFile class or converting an Arrow table to Pandas, currently only an
         "coerce_int96_timestamp_unit" or "timestamp_as_object" argument will be considered. If reading parquet
         files where you cannot convert a timestamp to pandas Timestamp[ns] consider setting timestamp_as_object=True,
@@ -635,7 +637,7 @@ def get_query_results(
             use_threads=use_threads,
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
-            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+            arrow_additional_kwargs=arrow_additional_kwargs,
         )
     if statement_type == "DML" and not query_info["Query"].startswith("INSERT"):
         return _fetch_csv_result(
@@ -675,7 +677,7 @@ def read_sql_query(
     data_source: Optional[str] = None,
     params: Optional[Dict[str, Any]] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    arrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Execute any SQL query on AWS Athena and return the results as a Pandas DataFrame.
 
@@ -867,7 +869,7 @@ def read_sql_query(
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
-    pyarrow_additional_kwargs : Optional[Dict[str, Any]]
+    arrow_additional_kwargs : Optional[Dict[str, Any]]
         Forward to the ParquetFile class or converting an Arrow table to Pandas, currently only an
         "coerce_int96_timestamp_unit" or "timestamp_as_object" argument will be considered. If reading parquet
         files where you cannot convert a timestamp to pandas Timestamp[ns] consider setting timestamp_as_object=True,
@@ -935,7 +937,7 @@ def read_sql_query(
                 use_threads=use_threads,
                 session=session,
                 s3_additional_kwargs=s3_additional_kwargs,
-                pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+                arrow_additional_kwargs=arrow_additional_kwargs,
             )
         except Exception as e:  # pylint: disable=broad-except
             _logger.error(e)  # if there is anything wrong with the cache, just fallback to the usual path
@@ -960,7 +962,7 @@ def read_sql_query(
         use_threads=use_threads,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=session,
-        pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+        arrow_additional_kwargs=arrow_additional_kwargs,
     )
 
 
@@ -987,7 +989,7 @@ def read_sql_table(
     max_local_cache_entries: int = 100,
     data_source: Optional[str] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    arrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Extract the full table AWS Athena and return the results as a Pandas DataFrame.
 
@@ -1149,7 +1151,7 @@ def read_sql_table(
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
-    pyarrow_additional_kwargs : Optional[Dict[str, Any]]
+    arrow_additional_kwargs : Optional[Dict[str, Any]]
         Forward to the ParquetFile class or converting an Arrow table to Pandas, currently only an
         "coerce_int96_timestamp_unit" or "timestamp_as_object" argument will be considered. If
         reading parquet fileswhere you cannot convert a timestamp to pandas Timestamp[ns] consider
@@ -1194,7 +1196,7 @@ def read_sql_table(
         max_remote_cache_entries=max_remote_cache_entries,
         max_local_cache_entries=max_local_cache_entries,
         s3_additional_kwargs=s3_additional_kwargs,
-        pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+        arrow_additional_kwargs=arrow_additional_kwargs,
     )
 
 

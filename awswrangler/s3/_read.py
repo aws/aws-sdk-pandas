@@ -10,6 +10,7 @@ import pandas as pd
 from pandas.api.types import union_categoricals
 
 from awswrangler import exceptions
+from awswrangler._arrow import _extract_partitions_from_path
 from awswrangler._utils import boto3_to_primitives, ensure_cpu_count
 from awswrangler.s3._list import _prefix_cleanup
 
@@ -63,21 +64,6 @@ def _extract_partitions_metadata_from_paths(
     if not partitions_types:
         return None, None
     return partitions_types, partitions_values
-
-
-def _extract_partitions_from_path(path_root: str, path: str) -> Dict[str, str]:
-    """Extract partitions values and names from Amazon S3 path."""
-    path_root = path_root if path_root.endswith("/") else f"{path_root}/"
-    if path_root not in path:
-        raise exceptions.InvalidArgumentValue(f"Object {path} is not under the root path ({path_root}).")
-    path_wo_filename: str = path.rpartition("/")[0] + "/"
-    path_wo_prefix: str = path_wo_filename.replace(f"{path_root}/", "")
-    dirs: Tuple[str, ...] = tuple(x for x in path_wo_prefix.split("/") if (x != "") and (x.count("=") == 1))
-    if not dirs:
-        return {}
-    values_tups = cast(Tuple[Tuple[str, str]], tuple(tuple(x.split("=")[:2]) for x in dirs))
-    values_dics: Dict[str, str] = dict(values_tups)
-    return values_dics
 
 
 def _apply_partition_filter(

@@ -403,19 +403,19 @@ def _read_parquet_iterator(
     path: str,
     keep_files: bool,
     use_threads: Union[bool, int],
-    categories: Optional[List[str]],
     chunked: Union[bool, int],
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
+    arrow_additional_kwargs: Optional[Dict[str, Any]],
 ) -> Iterator[pd.DataFrame]:
     dfs: Iterator[pd.DataFrame] = s3.read_parquet(
         path=path,
-        categories=categories,
         chunked=chunked,
         dataset=False,
         use_threads=use_threads,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
+        arrow_additional_kwargs=arrow_additional_kwargs,
     )
     yield from dfs
     if keep_files is False:
@@ -1085,12 +1085,12 @@ def unload(
     region: Optional[str] = None,
     max_file_size: Optional[float] = None,
     kms_key_id: Optional[str] = None,
-    categories: Optional[List[str]] = None,
     chunked: Union[bool, int] = False,
     keep_files: bool = False,
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    arrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Load Pandas DataFrame from a Amazon Redshift query result using Parquet files on s3 as stage.
 
@@ -1155,9 +1155,6 @@ def unload(
     kms_key_id : str, optional
         Specifies the key ID for an AWS Key Management Service (AWS KMS) key to be
         used to encrypt data files on Amazon S3.
-    categories: List[str], optional
-        List of columns names that should be returned as pandas.Categorical.
-        Recommended for memory restricted environments.
     keep_files : bool
         Should keep stage files?
     chunked : Union[int, bool]
@@ -1171,7 +1168,11 @@ def unload(
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs : Dict[str, str], optional
-        Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
+        Forward to botocore requests.
+    arrow_additional_kwargs : Dict[str, Any], optional
+        Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
+        Valid values include "split_blocks", "self_destruct", "ignore_metadata".
+        e.g. arrow_additional_kwargs={'split_blocks': True}.
 
     Returns
     -------
@@ -1210,12 +1211,12 @@ def unload(
     if chunked is False:
         df: pd.DataFrame = s3.read_parquet(
             path=path,
-            categories=categories,
             chunked=chunked,
             dataset=False,
             use_threads=use_threads,
             boto3_session=session,
             s3_additional_kwargs=s3_additional_kwargs,
+            arrow_additional_kwargs=arrow_additional_kwargs,
         )
         if keep_files is False:
             s3.delete_objects(
@@ -1224,12 +1225,12 @@ def unload(
         return df
     return _read_parquet_iterator(
         path=path,
-        categories=categories,
         chunked=chunked,
         use_threads=use_threads,
         boto3_session=session,
         s3_additional_kwargs=s3_additional_kwargs,
         keep_files=keep_files,
+        arrow_additional_kwargs=arrow_additional_kwargs,
     )
 
 

@@ -414,7 +414,14 @@ def test_category(path, glue_table, glue_database):
         mode="overwrite",
         partition_cols=["par0", "par1"],
     )
-    df2 = wr.s3.read_parquet(path=path, dataset=True, categories=[c for c in df.columns if c not in ["par0", "par1"]])
+    df2 = wr.s3.read_parquet(
+        path=path,
+        dataset=True,
+        arrow_additional_kwargs={
+            "categories": [c for c in df.columns if c not in ["par0", "par1"]],
+            "strings_to_categorical": True,
+        },
+    )
     ensure_data_types_category(df2)
     df2 = wr.athena.read_sql_query(f"SELECT * FROM {glue_table}", database=glue_database, categories=list(df.columns))
     ensure_data_types_category(df2)

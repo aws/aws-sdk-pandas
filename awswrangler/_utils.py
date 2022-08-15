@@ -18,6 +18,7 @@ import pyarrow as pa
 
 from awswrangler import _config, exceptions
 from awswrangler.__metadata__ import __version__
+from awswrangler._arrow import _table_to_df
 from awswrangler._config import apply_configs, config
 
 if TYPE_CHECKING or config.distributed:
@@ -416,7 +417,7 @@ def table_refs_to_df(
 ) -> pd.DataFrame:
     """Build Pandas dataframe from list of PyArrow tables."""
     if isinstance(tables[0], pa.Table):
-        return ensure_df_is_mutable(pa.concat_tables(tables, promote=True).to_pandas(**kwargs))
+        return _table_to_df(pa.concat_tables(tables, promote=True), kwargs=kwargs)
     return _arrow_refs_to_df(arrow_refs=tables, kwargs=kwargs)  # type: ignore
 
 
