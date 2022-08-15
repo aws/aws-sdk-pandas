@@ -66,7 +66,7 @@ def _select_object_content(
             request_complete = True
     # If the End Event is not received, the results may be incomplete
     if not request_complete:
-        raise Exception(f"S3 Select request for path {args['key']} is incomplete as End Event was not received")
+        raise Exception(f"S3 Select request for path {args['Key']} is incomplete as End Event was not received")
 
     return _utils.list_to_arrow_table(mapping=payload_records)
 
