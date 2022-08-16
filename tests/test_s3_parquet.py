@@ -279,7 +279,7 @@ def test_read_parquet_map_types(path):
     wr.s3.to_parquet(df, file_path)
     df2 = wr.s3.read_parquet(file_path)
     assert str(df2.c0.dtype) == "Int8"
-    df3 = wr.s3.read_parquet(file_path, arrow_additional_kwargs={"types_mapper": None})
+    df3 = wr.s3.read_parquet(file_path, pyarrow_additional_kwargs={"types_mapper": None})
     assert str(df3.c0.dtype) == "int8"
 
 
@@ -371,7 +371,7 @@ def test_range_index_recovery_pandas(path, use_threads, name):
     df.index.name = name
     path_file = f"{path}0.parquet"
     df.to_parquet(path_file)
-    df2 = wr.s3.read_parquet([path_file], use_threads=use_threads, arrow_additional_kwargs={"ignore_metadata": False})
+    df2 = wr.s3.read_parquet([path_file], use_threads=use_threads, pyarrow_additional_kwargs={"ignore_metadata": False})
     assert df.reset_index(level=0).equals(df2.reset_index(level=0))
 
 

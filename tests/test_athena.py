@@ -417,7 +417,7 @@ def test_category(path, glue_table, glue_database):
     df2 = wr.s3.read_parquet(
         path=path,
         dataset=True,
-        arrow_additional_kwargs={
+        pyarrow_additional_kwargs={
             "categories": [c for c in df.columns if c not in ["par0", "par1"]],
             "strings_to_categorical": True,
         },

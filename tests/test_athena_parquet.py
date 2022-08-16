@@ -761,7 +761,7 @@ def test_athena_timestamp_overflow():
     df_overflow = pd.DataFrame({"c0": [pd.Timestamp("1677-09-21 00:12:43.290448384")]})
     assert df_overflow.c0.values[0] == df1.c0.values[0]
 
-    df2 = wr.athena.read_sql_query(sql, "default", arrow_additional_kwargs={"timestamp_as_object": True})
+    df2 = wr.athena.read_sql_query(sql, "default", pyarrow_additional_kwargs={"timestamp_as_object": True})
 
     df_overflow_fix = pd.DataFrame({"c0": [datetime.datetime(2262, 4, 11, 23, 47, 17)]})
     df_overflow_fix.c0.values[0] == df2.c0.values[0]

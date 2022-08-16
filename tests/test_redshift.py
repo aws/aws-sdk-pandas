@@ -313,7 +313,7 @@ def test_category(path, redshift_table, redshift_con, databases_parameters):
         iam_role=databases_parameters["redshift"]["role"],
         path=path,
         keep_files=False,
-        arrow_additional_kwargs={"categories": df.columns.to_list(), "strings_to_categorical": True},
+        pyarrow_additional_kwargs={"categories": df.columns.to_list(), "strings_to_categorical": True},
     )
     ensure_data_types_category(df2)
     dfs = wr.redshift.unload(
@@ -323,7 +323,7 @@ def test_category(path, redshift_table, redshift_con, databases_parameters):
         path=path,
         keep_files=False,
         chunked=True,
-        arrow_additional_kwargs={"categories": df.columns.to_list(), "strings_to_categorical": True},
+        pyarrow_additional_kwargs={"categories": df.columns.to_list(), "strings_to_categorical": True},
     )
     for df2 in dfs:
         ensure_data_types_category(df2)

@@ -406,7 +406,7 @@ def _read_parquet_iterator(
     chunked: Union[bool, int],
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
-    arrow_additional_kwargs: Optional[Dict[str, Any]],
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]],
 ) -> Iterator[pd.DataFrame]:
     dfs: Iterator[pd.DataFrame] = s3.read_parquet(
         path=path,
@@ -415,7 +415,7 @@ def _read_parquet_iterator(
         use_threads=use_threads,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
-        arrow_additional_kwargs=arrow_additional_kwargs,
+        pyarrow_additional_kwargs=pyarrow_additional_kwargs,
     )
     yield from dfs
     if keep_files is False:
@@ -1090,7 +1090,7 @@ def unload(
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
-    arrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Load Pandas DataFrame from a Amazon Redshift query result using Parquet files on s3 as stage.
 
@@ -1169,10 +1169,10 @@ def unload(
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs : Dict[str, str], optional
         Forward to botocore requests.
-    arrow_additional_kwargs : Dict[str, Any], optional
+    pyarrow_additional_kwargs : Dict[str, Any], optional
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
-        e.g. arrow_additional_kwargs={'split_blocks': True}.
+        e.g. pyarrow_additional_kwargs={'split_blocks': True}.
 
     Returns
     -------
@@ -1216,7 +1216,7 @@ def unload(
             use_threads=use_threads,
             boto3_session=session,
             s3_additional_kwargs=s3_additional_kwargs,
-            arrow_additional_kwargs=arrow_additional_kwargs,
+            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
         )
         if keep_files is False:
             s3.delete_objects(
@@ -1230,7 +1230,7 @@ def unload(
         boto3_session=session,
         s3_additional_kwargs=s3_additional_kwargs,
         keep_files=keep_files,
-        arrow_additional_kwargs=arrow_additional_kwargs,
+        pyarrow_additional_kwargs=pyarrow_additional_kwargs,
     )
 
 

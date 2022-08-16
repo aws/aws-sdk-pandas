@@ -382,7 +382,7 @@ def read_parquet(
     parallelism: int = 200,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    arrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read Parquet file(s) from an S3 prefix or list of S3 objects paths.
 
@@ -475,10 +475,10 @@ def read_parquet(
         Boto3 Session. The default boto3 session is used if None is received.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forward to S3 botocore requests.
-    arrow_additional_kwargs : Dict[str, Any], optional
+    pyarrow_additional_kwargs : Dict[str, Any], optional
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
-        e.g. arrow_additional_kwargs={'split_blocks': True}.
+        e.g. pyarrow_additional_kwargs={'split_blocks': True}.
 
     Returns
     -------
@@ -562,7 +562,7 @@ def read_parquet(
         schema = pa.schema([schema.field(column) for column in columns], schema.metadata)
     _logger.debug("schema:\n%s", schema)
 
-    arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=arrow_additional_kwargs)
+    arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=pyarrow_additional_kwargs)
 
     return _read_parquet(
         paths=paths,
@@ -596,7 +596,7 @@ def read_parquet_table(
     parallelism: int = 200,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    arrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read Apache Parquet table registered in the AWS Glue Catalog.
 
@@ -665,10 +665,10 @@ def read_parquet_table(
         Boto3 Session. The default boto3 session is used if None is received.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forward to S3 botocore requests.
-    arrow_additional_kwargs : Dict[str, Any], optional
+    pyarrow_additional_kwargs : Dict[str, Any], optional
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
-        e.g. arrow_additional_kwargs={'split_blocks': True}.
+        e.g. pyarrow_additional_kwargs={'split_blocks': True}.
 
     Returns
     -------
@@ -742,7 +742,7 @@ def read_parquet_table(
         use_threads=use_threads,
         parallelism=parallelism,
         boto3_session=boto3_session,
-        arrow_additional_kwargs=arrow_additional_kwargs,
+        pyarrow_additional_kwargs=pyarrow_additional_kwargs,
     )
 
     partial_cast_function = functools.partial(

@@ -141,7 +141,7 @@ def select_query(
     last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    arrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> pd.DataFrame:
     r"""Filter contents of Amazon S3 objects based on SQL statement.
 
@@ -190,10 +190,10 @@ def select_query(
         Forwarded to botocore requests.
         Valid values: "SSECustomerAlgorithm", "SSECustomerKey", "ExpectedBucketOwner".
         e.g. s3_additional_kwargs={'SSECustomerAlgorithm': 'md5'}.
-    arrow_additional_kwargs : Dict[str, Any], optional
+    pyarrow_additional_kwargs : Dict[str, Any], optional
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas dataframe.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
-        e.g. arrow_additional_kwargs={'split_blocks': True}.
+        e.g. pyarrow_additional_kwargs={'split_blocks': True}.
 
     Returns
     -------
@@ -271,7 +271,7 @@ def select_query(
     }
     _logger.debug("kwargs:\n%s", pprint.pformat(select_kwargs))
 
-    arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=arrow_additional_kwargs)
+    arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=pyarrow_additional_kwargs)
     executor = _get_executor(use_threads=use_threads)
     tables = _flatten_list(ray_get([_select_query(path=path, executor=executor, **select_kwargs) for path in paths]))
     return _utils.table_refs_to_df(tables=tables, kwargs=arrow_kwargs)
