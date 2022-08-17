@@ -2,6 +2,7 @@ import random
 import time
 from datetime import datetime
 from decimal import Decimal
+from timeit import default_timer as timer
 from typing import Any, Dict, Iterator
 
 import boto3
@@ -15,6 +16,20 @@ ts = lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S.%f")  # noqa
 dt = lambda x: datetime.strptime(x, "%Y-%m-%d").date()  # noqa
 
 CFN_VALID_STATUS = ["CREATE_COMPLETE", "ROLLBACK_COMPLETE", "UPDATE_COMPLETE", "UPDATE_ROLLBACK_COMPLETE"]
+
+
+class ExecutionTimer:
+    def __init__(self, msg="elapsed time"):
+        self.msg = msg
+
+    def __enter__(self):
+        self.before = timer()
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.elapsed_time = round((timer() - self.before), 3)
+        print(f"{self.msg}: {self.elapsed_time:.3f} sec")
+        return None
 
 
 def get_df(governed=False):

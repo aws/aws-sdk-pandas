@@ -3,7 +3,7 @@ import pytest
 
 import awswrangler as wr
 
-from ._utils import ExecutionTimer
+from .._utils import ExecutionTimer
 
 
 @pytest.mark.repeat(1)

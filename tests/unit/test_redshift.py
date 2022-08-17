@@ -15,7 +15,7 @@ from redshift_connector.error import ProgrammingError
 import awswrangler as wr
 from awswrangler import _utils
 
-from ._utils import dt, ensure_data_types, ensure_data_types_category, get_df, get_df_category, ts
+from .._utils import dt, ensure_data_types, ensure_data_types_category, get_df, get_df_category, ts
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 

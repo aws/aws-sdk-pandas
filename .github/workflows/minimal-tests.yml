@@ -35,10 +35,10 @@ jobs:
           poetry config virtualenvs.create false --local
           poetry install --extras "sqlserver" -vvv
       - name: Test Metadata
-        run: pytest tests/test_metadata.py
+        run: pytest tests/unit/test_metadata.py
       - name: Test Session
-        run: pytest tests/test_session.py
+        run: pytest tests/unit/test_session.py
       - name: Test Utils
-        run: pytest tests/test_utils.py
+        run: pytest tests/unit/test_utils.py
       - name: Test Moto
-        run: pytest -n 4 tests/test_moto.py
+        run: pytest -n 4 tests/unit/test_moto.py
