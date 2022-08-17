@@ -464,7 +464,7 @@ def test_read_parquet_filter_partitions(path, glue_table, glue_database, use_thr
 @pytest.mark.parametrize("use_threads", [True, False])
 def test_read_parquet_mutability(path, glue_table, glue_database, use_threads):
     sql = "SELECT timestamp '2012-08-08 01:00' AS c0"
-    df = wr.athena.read_sql_query(sql, "default", use_threads=use_threads)
+    df = wr._utils.ensure_df_is_mutable(wr.athena.read_sql_query(sql, "default", use_threads=use_threads))
     df["c0"] = df["c0"] + pd.DateOffset(months=-2)
     assert df.c0[0].value == 1339117200000000000
 
@@ -761,9 +761,7 @@ def test_athena_timestamp_overflow():
     df_overflow = pd.DataFrame({"c0": [pd.Timestamp("1677-09-21 00:12:43.290448384")]})
     assert df_overflow.c0.values[0] == df1.c0.values[0]
 
-    df2 = wr.athena.read_sql_query(
-        sql, "default", pyarrow_additional_kwargs={"coerce_int96_timestamp_unit": "ms", "timestamp_as_object": True}
-    )
+    df2 = wr.athena.read_sql_query(sql, "default", pyarrow_additional_kwargs={"timestamp_as_object": True})
 
     df_overflow_fix = pd.DataFrame({"c0": [datetime.datetime(2262, 4, 11, 23, 47, 17)]})
     df_overflow_fix.c0.values[0] == df2.c0.values[0]

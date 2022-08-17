@@ -109,13 +109,15 @@ def _fetch_parquet_result(
         df = cast_pandas_with_athena_types(df=df, dtype=dtype_dict)
         df = _apply_query_metadata(df=df, query_metadata=query_metadata)
         return df
+    if not pyarrow_additional_kwargs:
+        pyarrow_additional_kwargs = {}
+        if categories:
+            pyarrow_additional_kwargs["categories"] = categories
     ret = s3.read_parquet(
         path=paths,
         use_threads=use_threads,
         boto3_session=boto3_session,
         chunked=chunked,
-        categories=categories,
-        ignore_index=True,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,
     )
     if chunked is False:

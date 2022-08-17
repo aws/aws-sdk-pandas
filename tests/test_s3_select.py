@@ -147,7 +147,7 @@ def test_compression(path, compression):
         input_serialization_params={"Type": "Document"},
         compression="bzip2" if compression == "bz2" else compression,
         use_threads=False,
-        arrow_additional_kwargs={"types_mapper": None},
+        pyarrow_additional_kwargs={"types_mapper": None},
     )
     assert df.equals(df3)
 
@@ -174,6 +174,6 @@ def test_encryption(path, kms_key_id, s3_additional_kwargs):
         input_serialization="Parquet",
         input_serialization_params={},
         use_threads=False,
-        arrow_additional_kwargs={"types_mapper": None},
+        pyarrow_additional_kwargs={"types_mapper": None},
     )
     assert df.equals(df2)
