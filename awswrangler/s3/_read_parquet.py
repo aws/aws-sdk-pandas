@@ -323,7 +323,7 @@ def _read_parquet(
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     if config.distributed:
         dataset = read_datasource(
-            datasource=ParquetDatasource(),
+            datasource=ParquetDatasource(),  # type: ignore
             parallelism=parallelism,
             use_threads=use_threads,
             paths=paths,

@@ -6,6 +6,18 @@ import awswrangler as wr
 from .._utils import ExecutionTimer
 
 
+@pytest.fixture(scope="function")
+def df_s():
+    # Data frame with 100000 rows
+    return wr.s3.read_parquet(path="s3://ursa-labs-taxi-data/2010/02/data.parquet", parallelism=1000)
+
+
+@pytest.fixture(scope="function")
+def df_xl():
+    # Data frame with 8759874 rows
+    return wr.s3.read_parquet(path="s3://ursa-labs-taxi-data/2018/01/data.parquet", parallelism=1000)
+
+
 @pytest.mark.repeat(1)
 @pytest.mark.parametrize("benchmark_time", [150])
 def test_s3_select(benchmark_time):
@@ -37,6 +49,24 @@ def test_s3_read_parquet_partition_filter(benchmark_time):
     with ExecutionTimer("elapsed time of wr.s3.read_parquet() partition filter") as timer:
         filter = lambda x: True if x["product_category"].startswith("Wireless") else False  # noqa: E731
         wr.s3.read_parquet(path=path, parallelism=1000, dataset=True, partition_filter=filter)
+
+    assert timer.elapsed_time < benchmark_time
+
+
+@pytest.mark.parametrize("benchmark_time", [10])
+def test_s3_write_parquet_simple(df_s, path, benchmark_time):
+    with ExecutionTimer("elapsed time of wr.s3.to_parquet() simple") as timer:
+        wr.s3.to_parquet(df_s, path=path)
+
+    assert timer.elapsed_time < benchmark_time
+
+
+@pytest.mark.parametrize("benchmark_time", [200])
+@pytest.mark.parametrize("partition_cols", [None, ["payment_type"], ["payment_type", "passenger_count"]])
+@pytest.mark.parametrize("bucketing_info", [None, (["vendor_id"], 2), (["vendor_id", "rate_code_id"], 3)])
+def test_s3_write_parquet_dataset(df_s, path, partition_cols, bucketing_info, benchmark_time):
+    with ExecutionTimer("elapsed time of wr.s3.to_parquet() with partitioning and/or bucketing") as timer:
+        wr.s3.to_parquet(df_s, path=path, dataset=True, partition_cols=partition_cols, bucketing_info=bucketing_info)
 
     assert timer.elapsed_time < benchmark_time
 
