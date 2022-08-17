@@ -7,7 +7,7 @@ import s3fs
 import awswrangler as wr
 from awswrangler.s3._fs import open_s3_object
 
-from ._utils import ensure_data_types, get_df_list
+from .._utils import ensure_data_types, get_df_list
 
 logger = logging.getLogger("awswrangler")
 logger.setLevel(logging.DEBUG)

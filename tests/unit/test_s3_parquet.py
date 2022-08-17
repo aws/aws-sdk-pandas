@@ -11,7 +11,7 @@ import pytest
 
 import awswrangler as wr
 
-from ._utils import ensure_data_types, get_df_list
+from .._utils import ensure_data_types, get_df_list
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 

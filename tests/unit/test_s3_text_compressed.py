@@ -11,7 +11,7 @@ import pytest
 
 import awswrangler as wr
 
-from ._utils import get_df_csv
+from .._utils import get_df_csv
 
 EXT = {"gzip": ".gz", "bz2": ".bz2", "xz": ".xz", "zip": ".zip"}
 

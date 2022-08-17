@@ -9,7 +9,7 @@ import pytest  # type: ignore
 
 import awswrangler as wr
 
-from ._utils import extract_cloudformation_outputs
+from .._utils import extract_cloudformation_outputs
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 

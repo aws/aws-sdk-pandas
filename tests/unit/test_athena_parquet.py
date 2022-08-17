@@ -12,7 +12,7 @@ import pytest
 import awswrangler as wr
 from awswrangler._data_types import _split_fields
 
-from ._utils import ensure_data_types, get_df, get_df_cast, get_df_list
+from .._utils import ensure_data_types, get_df, get_df_cast, get_df_list
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 

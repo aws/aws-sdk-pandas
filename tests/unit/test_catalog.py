@@ -9,7 +9,7 @@ import pytest
 
 import awswrangler as wr
 
-from ._utils import ensure_data_types_csv, get_df_csv
+from .._utils import ensure_data_types_csv, get_df_csv
 
 logger = logging.getLogger("awswrangler")
 logger.setLevel(logging.DEBUG)

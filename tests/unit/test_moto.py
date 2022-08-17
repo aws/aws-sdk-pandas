@@ -13,7 +13,7 @@ from botocore.exceptions import ClientError
 import awswrangler as wr
 from awswrangler.exceptions import EmptyDataFrame, InvalidArgumentCombination, InvalidArgumentValue
 
-from ._utils import ensure_data_types, get_df_csv, get_df_list
+from .._utils import ensure_data_types, get_df_csv, get_df_list
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 

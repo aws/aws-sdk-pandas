@@ -2,7 +2,7 @@ import logging
 
 import awswrangler as wr
 
-from ._utils import get_df_quicksight
+from .._utils import get_df_quicksight
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
