@@ -112,11 +112,11 @@ or
 
 * To run a specific test function:
 
-``pytest tests/test_moto.py::test_get_bucket_region_succeed``
+``pytest tests/unit/test_moto.py::test_get_bucket_region_succeed``
 
 * To run all mocked test functions (Using 8 parallel processes):
 
-``pytest -n 8 tests/test_moto.py``
+``pytest -n 8 tests/unit/test_moto.py``
 
 ### Data Lake test environment
 
@@ -167,11 +167,11 @@ or
 
 * To run a specific test function:
 
-``pytest tests/test_athena_parquet.py::test_parquet_catalog``
+``pytest tests/unit/test_athena_parquet.py::test_parquet_catalog``
 
 * To run all data lake test functions (Using 8 parallel processes):
 
-``pytest -n 8 tests/test_athena*``
+``pytest -n 8 tests/unit/test_athena*``
 
 * [OPTIONAL] To remove the base test environment cloud formation stack post testing:
 
@@ -246,11 +246,11 @@ or
 
 * To run a specific test function:
 
-``pytest tests/test_mysql.py::test_read_sql_query_simple``
+``pytest tests/unit/test_mysql.py::test_read_sql_query_simple``
 
 * To run all database test functions for MySQL (Using 8 parallel processes):
 
-``pytest -n 8 tests/test_mysql.py``
+``pytest -n 8 tests/unit/test_mysql.py``
 
 * To run all data lake test functions for all python versions (Only if Amazon QuickSight is activated and Amazon OpenSearch template is deployed):
 

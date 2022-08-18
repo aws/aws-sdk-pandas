@@ -83,7 +83,7 @@ def read_sql_query(
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
     params: Optional[Dict[str, Any]] = None,
-    arrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> pd.DataFrame:
     """Execute PartiQL query on AWS Glue Table (Transaction ID or time travel timestamp). Return Pandas DataFrame.
 
@@ -126,10 +126,10 @@ def read_sql_query(
         Dict of parameters used to format the partiQL query. Only named parameters are supported.
         The dict must contain the information in the form {"name": "value"} and the SQL query must contain
         `:name`.
-    arrow_additional_kwargs : Dict[str, Any], optional
+    pyarrow_additional_kwargs : Dict[str, Any], optional
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas dataframe.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
-        e.g. arrow_additional_kwargs={'split_blocks': True}.
+        e.g. pyarrow_additional_kwargs={'split_blocks': True}.
 
     Returns
     -------
@@ -178,7 +178,7 @@ def read_sql_query(
         **_transaction_id(transaction_id=transaction_id, query_as_of_time=query_as_of_time, DatabaseName=database),
     )
     query_id: str = client_lakeformation.start_query_planning(QueryString=sql, QueryPlanningContext=args)["QueryId"]
-    arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=arrow_additional_kwargs)
+    arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=pyarrow_additional_kwargs)
     df = _resolve_sql_query(
         query_id=query_id,
         use_threads=use_threads,
@@ -199,7 +199,7 @@ def read_sql_table(
     catalog_id: Optional[str] = None,
     use_threads: bool = True,
     boto3_session: Optional[boto3.Session] = None,
-    arrow_additional_kwargs: Optional[Dict[str, Any]] = None,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> pd.DataFrame:
     """Extract all rows from AWS Glue Table (Transaction ID or time travel timestamp). Return Pandas DataFrame.
 
@@ -232,10 +232,10 @@ def read_sql_table(
         When enabled, os.cpu_count() is used as the max number of threads.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session is used if boto3_session receives None.
-    arrow_additional_kwargs : Dict[str, Any], optional
+    pyarrow_additional_kwargs : Dict[str, Any], optional
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas dataframe.
         Valid values include "split_blocks", "self_destruct", "ignore_metadata".
-        e.g. arrow_additional_kwargs={'split_blocks': True}.
+        e.g. pyarrow_additional_kwargs={'split_blocks': True}.
 
     Returns
     -------
@@ -276,5 +276,5 @@ def read_sql_table(
         catalog_id=catalog_id,
         use_threads=use_threads,
         boto3_session=boto3_session,
-        arrow_additional_kwargs=arrow_additional_kwargs,
+        pyarrow_additional_kwargs=pyarrow_additional_kwargs,
     )

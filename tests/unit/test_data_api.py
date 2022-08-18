@@ -4,7 +4,7 @@ import pytest
 
 import awswrangler as wr
 
-from ._utils import get_time_str_with_random_suffix
+from .._utils import get_time_str_with_random_suffix
 
 
 @pytest.fixture

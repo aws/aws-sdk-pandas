@@ -4,7 +4,7 @@ import pandas as pd
 
 import awswrangler as wr
 
-from ._utils import dt, ts
+from .._utils import dt, ts
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 

@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import boto3
 
-from awswrangler import _utils
+from awswrangler import _utils, exceptions
 from awswrangler._threading import _get_executor
 from awswrangler.distributed import ray_get, ray_remote
 from awswrangler.s3._fs import get_botocore_valid_kwargs
@@ -50,6 +50,11 @@ def _delete_objects(
     deleted: List[Dict[str, Any]] = res.get("Deleted", [])
     for obj in deleted:
         _logger.debug("s3://%s/%s has been deleted.", bucket, obj.get("Key"))
+    errors: List[Dict[str, Any]] = res.get("Errors", [])
+    for error in errors:
+        _logger.debug("error: %s", error)
+        if "Code" not in error or error["Code"] != "InternalError":
+            raise exceptions.ServiceApiError(errors)
 
 
 def delete_objects(

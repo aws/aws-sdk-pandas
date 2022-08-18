@@ -15,7 +15,7 @@ from redshift_connector.error import ProgrammingError
 import awswrangler as wr
 from awswrangler import _utils
 
-from ._utils import dt, ensure_data_types, ensure_data_types_category, get_df, get_df_category, ts
+from .._utils import dt, ensure_data_types, ensure_data_types_category, get_df, get_df_category, ts
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -313,7 +313,7 @@ def test_category(path, redshift_table, redshift_con, databases_parameters):
         iam_role=databases_parameters["redshift"]["role"],
         path=path,
         keep_files=False,
-        categories=df.columns,
+        pyarrow_additional_kwargs={"categories": df.columns.to_list(), "strings_to_categorical": True},
     )
     ensure_data_types_category(df2)
     dfs = wr.redshift.unload(
@@ -322,8 +322,8 @@ def test_category(path, redshift_table, redshift_con, databases_parameters):
         iam_role=databases_parameters["redshift"]["role"],
         path=path,
         keep_files=False,
-        categories=df.columns,
         chunked=True,
+        pyarrow_additional_kwargs={"categories": df.columns.to_list(), "strings_to_categorical": True},
     )
     for df2 in dfs:
         ensure_data_types_category(df2)

@@ -11,7 +11,7 @@ import pytest
 
 import awswrangler as wr
 
-from ._utils import ensure_data_types, get_df_list
+from .._utils import ensure_data_types, get_df_list
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -94,13 +94,17 @@ def test_read_parquet_table_filter_partitions(path, glue_database, glue_table):
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 0, 1]})
     wr.s3.to_parquet(df, path, dataset=True, partition_cols=["c1", "c2"], database=glue_database, table=glue_table)
     df_out = wr.s3.read_parquet_table(
-        table=glue_table, database=glue_database, partition_filter=lambda x: True if x["c1"] == "0" else False
+        table=glue_table,
+        database=glue_database,
+        partition_filter=lambda x: True if x["c1"] == "0" else False,
     )
     assert df_out.shape == (1, 3)
     assert df_out.c0.astype(int).sum() == 0
     with pytest.raises(wr.exceptions.NoFilesFound):
         wr.s3.read_parquet_table(
-            table=glue_table, database=glue_database, partition_filter=lambda x: True if x["c1"] == "3" else False
+            table=glue_table,
+            database=glue_database,
+            partition_filter=lambda x: True if x["c1"] == "3" else False,
         )
 
 
@@ -275,7 +279,7 @@ def test_read_parquet_map_types(path):
     wr.s3.to_parquet(df, file_path)
     df2 = wr.s3.read_parquet(file_path)
     assert str(df2.c0.dtype) == "Int8"
-    df3 = wr.s3.read_parquet(file_path, map_types=False)
+    df3 = wr.s3.read_parquet(file_path, pyarrow_additional_kwargs={"types_mapper": None})
     assert str(df3.c0.dtype) == "int8"
 
 
@@ -367,7 +371,7 @@ def test_range_index_recovery_pandas(path, use_threads, name):
     df.index.name = name
     path_file = f"{path}0.parquet"
     df.to_parquet(path_file)
-    df2 = wr.s3.read_parquet([path_file], use_threads=use_threads)
+    df2 = wr.s3.read_parquet([path_file], use_threads=use_threads, pyarrow_additional_kwargs={"ignore_metadata": False})
     assert df.reset_index(level=0).equals(df2.reset_index(level=0))
 
 
@@ -489,7 +493,7 @@ def test_timezone_raw_values(path):
 def test_validate_columns(path, partition_cols) -> None:
     wr.s3.to_parquet(pd.DataFrame({"a": [1], "b": [2]}), path, dataset=True, partition_cols=partition_cols)
     wr.s3.read_parquet(path, columns=["a", "b"], dataset=True, validate_schema=True)
-    with pytest.raises(wr.exceptions.InvalidArgument):
+    with pytest.raises(KeyError):
         wr.s3.read_parquet(path, columns=["a", "b", "c"], dataset=True, validate_schema=True)
 
 
@@ -540,14 +544,6 @@ def test_read_chunked(path):
     wr.s3.to_parquet(df, path)
     df2 = next(wr.s3.read_parquet(path, chunked=True))
     assert df.shape == df2.shape
-
-
-def test_read_chunked_validation_exception(path):
-    path = f"{path}file.parquet"
-    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [None, None, None]})
-    wr.s3.to_parquet(df, path)
-    with pytest.raises(wr.exceptions.UndetectedType):
-        next(wr.s3.read_parquet(path, chunked=True, validate_schema=True))
 
 
 def test_read_chunked_validation_exception2(path):

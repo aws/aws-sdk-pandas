@@ -10,7 +10,7 @@ from pg8000.dbapi import ProgrammingError
 
 import awswrangler as wr
 
-from ._utils import ensure_data_types, get_df
+from .._utils import ensure_data_types, get_df
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 

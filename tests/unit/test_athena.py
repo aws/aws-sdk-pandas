@@ -9,7 +9,7 @@ import pytest
 
 import awswrangler as wr
 
-from ._utils import (
+from .._utils import (
     ensure_athena_ctas_table,
     ensure_athena_query_metadata,
     ensure_data_types,
@@ -414,7 +414,14 @@ def test_category(path, glue_table, glue_database):
         mode="overwrite",
         partition_cols=["par0", "par1"],
     )
-    df2 = wr.s3.read_parquet(path=path, dataset=True, categories=[c for c in df.columns if c not in ["par0", "par1"]])
+    df2 = wr.s3.read_parquet(
+        path=path,
+        dataset=True,
+        pyarrow_additional_kwargs={
+            "categories": [c for c in df.columns if c not in ["par0", "par1"]],
+            "strings_to_categorical": True,
+        },
+    )
     ensure_data_types_category(df2)
     df2 = wr.athena.read_sql_query(f"SELECT * FROM {glue_table}", database=glue_database, categories=list(df.columns))
     ensure_data_types_category(df2)
@@ -1143,3 +1150,74 @@ def test_get_query_results(path, glue_table, glue_database):
     query_id_regular = df_regular.query_metadata["QueryExecutionId"]
     df_get_query_results_df_regular = wr.athena.get_query_results(query_execution_id=query_id_regular)
     pd.testing.assert_frame_equal(df_get_query_results_df_regular, df_regular)
+
+
+def test_athena_generate_create_query(path, glue_database, glue_table):
+    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
+    wr.catalog.create_parquet_table(database=glue_database, table=glue_table, path=path, columns_types={"c0": "int"})
+    query: str = wr.athena.generate_create_query(database=glue_database, table=glue_table)
+    create_query_no_partition: str = "\n".join(
+        [
+            f"CREATE EXTERNAL TABLE `{glue_table}`(",
+            "  `c0` int)",
+            "ROW FORMAT SERDE ",
+            "  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' ",
+            "STORED AS INPUTFORMAT ",
+            "  'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat' ",
+            "OUTPUTFORMAT ",
+            "  'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat'",
+            "LOCATION",
+            f"  '{path}'",
+            "TBLPROPERTIES (",
+            "  'classification'='parquet', ",
+            "  'compressionType'='none', ",
+            "  'projection.enabled'='false', ",
+            "  'typeOfData'='file')",
+        ]
+    )
+    assert query == create_query_no_partition
+    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
+    wr.catalog.create_parquet_table(
+        database=glue_database,
+        table=glue_table,
+        path=path,
+        columns_types={"c0": "int"},
+        partitions_types={"col2": "date"},
+    )
+    query: str = wr.athena.generate_create_query(database=glue_database, table=glue_table)
+    create_query_partition: str = "\n".join(
+        [
+            f"CREATE EXTERNAL TABLE `{glue_table}`(",
+            "  `c0` int)",
+            "PARTITIONED BY ( ",
+            "  `col2` date)",
+            "ROW FORMAT SERDE ",
+            "  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' ",
+            "STORED AS INPUTFORMAT ",
+            "  'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat' ",
+            "OUTPUTFORMAT ",
+            "  'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat'",
+            "LOCATION",
+            f"  '{path}'",
+            "TBLPROPERTIES (",
+            "  'classification'='parquet', ",
+            "  'compressionType'='none', ",
+            "  'projection.enabled'='false', ",
+            "  'typeOfData'='file')",
+        ]
+    )
+
+    assert query == create_query_partition
+
+    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
+    query: str = "\n".join(
+        [
+            f"""CREATE OR REPLACE VIEW "{glue_table}" AS """,
+            (
+                "SELECT CAST(ROW (1, ROW (2, ROW (3, '4'))) AS "
+                "row(field0 bigint,field1 row(field2 bigint,field3 row(field4 bigint,field5 varchar)))) col0\n\n"
+            ),
+        ]
+    )
+    wr.athena.start_query_execution(sql=query, database=glue_database, wait=True)
+    assert query == wr.athena.generate_create_query(database=glue_database, table=glue_table)
