@@ -13,6 +13,7 @@ import pandas as pd
 from awswrangler import _utils, catalog, exceptions, s3
 from awswrangler._config import apply_configs
 from awswrangler._data_types import cast_pandas_with_athena_types
+from awswrangler.athena._formatter import _EngineType, _format_parameters
 from awswrangler.athena._utils import (
     _apply_query_metadata,
     _empty_dataframe_response,
@@ -910,8 +911,10 @@ def read_sql_query(
         raise exceptions.InvalidArgumentCombination("Only PARQUET file format is supported if unload_approach=True")
     chunksize = sys.maxsize if ctas_approach is False and chunksize is True else chunksize
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
+
     if params is None:
         params = {}
+    params = _format_parameters(params, engine=_EngineType.PRESTO)
     for key, value in params.items():
         sql = sql.replace(f":{key};", str(value))
 
