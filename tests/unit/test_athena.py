@@ -280,6 +280,59 @@ def test_athena(path, glue_database, glue_table, kms_key, workgroup0, workgroup1
     )
 
 
+@pytest.mark.parametrize(
+    "col_name,col_value",
+    [("string", "Seattle"), ("date", datetime.date(2020, 1, 1)), ("bool", True), ("category", 1.0)],
+)
+def test_athena_parameter_formatting(path, glue_database, glue_table, workgroup0, col_name, col_value):
+    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
+    wr.s3.to_parquet(
+        df=get_df(),
+        path=path,
+        index=True,
+        use_threads=True,
+        dataset=True,
+        mode="overwrite",
+        database=glue_database,
+        table=glue_table,
+        partition_cols=["par0", "par1"],
+    )
+    df = wr.athena.read_sql_query(
+        sql=f"SELECT * FROM {glue_table} WHERE {col_name} = :value;",
+        database=glue_database,
+        ctas_approach=False,
+        workgroup=workgroup0,
+        keep_files=False,
+        params={"value": col_value},
+    )
+    assert len(df.index) == 1
+
+
+@pytest.mark.parametrize("col_name", [("string"), ("date"), ("bool"), ("category")])
+def test_athena_parameter_formatting_null(path, glue_database, glue_table, workgroup0, col_name):
+    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
+    wr.s3.to_parquet(
+        df=get_df(),
+        path=path,
+        index=True,
+        use_threads=True,
+        dataset=True,
+        mode="overwrite",
+        database=glue_database,
+        table=glue_table,
+        partition_cols=["par0", "par1"],
+    )
+    df = wr.athena.read_sql_query(
+        sql=f"SELECT * FROM {glue_table} WHERE {col_name} IS :value;",
+        database=glue_database,
+        ctas_approach=False,
+        workgroup=workgroup0,
+        keep_files=False,
+        params={"value": None},
+    )
+    assert len(df.index) == 1
+
+
 @pytest.mark.xfail()
 def test_athena_query_cancelled(glue_database):
     query_execution_id = wr.athena.start_query_execution(
@@ -994,7 +1047,7 @@ def test_bucketing_csv_saving(path, glue_database, glue_table, dtype):
         nb_of_buckets = 10
         saving_factor = 9.9
         data = [string.ascii_letters[i % nb_of_buckets] for i in range(nb_of_rows)]
-        query_params = {"c0": "'a'"}
+        query_params = {"c0": "a"}
     elif dtype == "bool":
         nb_of_buckets = 2
         saving_factor = 2.1
