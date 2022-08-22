@@ -1,7 +1,7 @@
 import datetime
 import decimal
 from enum import Enum
-from typing import Dict, Any, Optional, TypeVar, Generic, Union, Sequence, Type
+from typing import Dict, Any, TypeVar, Generic, Sequence, Type
 
 
 class FormatterError(ValueError):
@@ -131,7 +131,7 @@ _MAP_FORMATS: Dict[Type[Any], Type[_AbstractType[_PythonType]]] = {  # type: ign
 }
 
 
-def create_abstract_type(
+def _create_abstract_type(
     data: _PythonType,
     engine: EngineType,
 ) -> _AbstractType[_PythonType]:
@@ -145,7 +145,7 @@ def create_abstract_type(
     for python_type, format_type in _ARRAY_FORMATS.items():
         if isinstance(data, python_type):
             return format_type(
-                [create_abstract_type(item, engine=engine) for item in data],
+                [_create_abstract_type(item, engine=engine) for item in data],
                 engine=engine,
             )
 
@@ -153,8 +153,8 @@ def create_abstract_type(
         if isinstance(data, python_type):
             return format_type(
                 data={
-                    create_abstract_type(mk, engine=engine):
-                        create_abstract_type(mv, engine=engine)
+                    _create_abstract_type(mk, engine=engine):
+                        _create_abstract_type(mv, engine=engine)
                     for mk, mv
                     in data.items()
                 },
@@ -164,11 +164,11 @@ def create_abstract_type(
     raise TypeError(f"Unsupported type {type(data)} in parameter.")
 
 
-def format_parameters(params: Dict[str, Any], engine: EngineType) -> Dict[str, Any]:
+def _format_parameters(params: Dict[str, Any], engine: EngineType) -> Dict[str, Any]:
     processed_params = {}
 
     for k, v in params.items():
-        abs_type = create_abstract_type(data=v, engine=engine)
+        abs_type = _create_abstract_type(data=v, engine=engine)
         processed_params[k] = str(abs_type)
 
     return processed_params

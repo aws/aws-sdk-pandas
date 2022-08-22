@@ -13,6 +13,10 @@ import pandas as pd
 from awswrangler import _utils, catalog, exceptions, s3
 from awswrangler._config import apply_configs
 from awswrangler._data_types import cast_pandas_with_athena_types
+from awswrangler.athena._formatter import (
+    EngineType,
+    _format_parameters,
+)
 from awswrangler.athena._utils import (
     _apply_query_metadata,
     _empty_dataframe_response,
@@ -912,7 +916,9 @@ def read_sql_query(
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if params is None:
         params = {}
-    for key, value in params.items():
+
+    processed_params = _format_parameters(params, engine=EngineType.PRESTO)
+    for key, value in processed_params.items():
         sql = sql.replace(f":{key};", str(value))
 
     max_remote_cache_entries = min(max_remote_cache_entries, max_local_cache_entries)
