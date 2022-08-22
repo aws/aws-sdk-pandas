@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import datetime as dt
 import decimal
 
@@ -102,7 +103,7 @@ def test_map_key_cannot_be_null(engine: EngineType) -> None:
                     None: 4,
                 }
             },
-            engine=EngineType.PRESTO,
+            engine=engine,
         )
 
 @pytest.mark.parametrize("engine", [EngineType.HIVE, EngineType.PRESTO])
@@ -115,5 +116,21 @@ def test_map_keys_cannot_have_different_types(engine: EngineType) -> None:
                     77: 10,
                 },
             },
-            engine=EngineType.PRESTO,
+            engine=engine,
+        )
+
+
+@pytest.mark.parametrize("engine", [EngineType.HIVE, EngineType.PRESTO])
+def test_invalid_parameter_type(engine: EngineType) -> None:
+    @dataclass
+    class Point:
+        x: int
+        y: int
+
+    with pytest.raises(TypeError, match=r".*Unsupported type.*Point.*"):
+        _format_parameters(
+            {
+                "point": Point(7, 1),
+            },
+            engine=engine,
         )
