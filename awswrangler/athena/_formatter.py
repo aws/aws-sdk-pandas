@@ -38,7 +38,8 @@ class _StringType(_AbstractType[str]):
     def __str__(self) -> str:
         if self.engine == _EngineType.PRESTO:
             return f"""'{self.data.replace("'", "''")}'"""
-        elif self.engine == _EngineType.HIVE:
+
+        if self.engine == _EngineType.HIVE:
             return "'{}'".format(
                 self.data.replace("\\", "\\\\")
                 .replace("'", "\\'")

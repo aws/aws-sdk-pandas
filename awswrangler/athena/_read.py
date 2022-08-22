@@ -911,11 +911,11 @@ def read_sql_query(
         raise exceptions.InvalidArgumentCombination("Only PARQUET file format is supported if unload_approach=True")
     chunksize = sys.maxsize if ctas_approach is False and chunksize is True else chunksize
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
+
     if params is None:
         params = {}
-
-    processed_params = _format_parameters(params, engine=_EngineType.PRESTO)
-    for key, value in processed_params.items():
+    params = _format_parameters(params, engine=_EngineType.PRESTO)
+    for key, value in params.items():
         sql = sql.replace(f":{key};", str(value))
 
     max_remote_cache_entries = min(max_remote_cache_entries, max_local_cache_entries)
