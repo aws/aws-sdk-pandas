@@ -66,7 +66,7 @@ def _create_table(
         varchar_lengths=varchar_lengths,
         converter_func=_data_types.pyarrow2postgresql,
     )
-    cols_str: str = "".join([f"{k} {v},\n" for k, v in postgresql_types.items()])[:-2]
+    cols_str: str = "".join([f'"{k}" {v},\n' for k, v in postgresql_types.items()])[:-2]
     sql = f'CREATE TABLE IF NOT EXISTS "{schema}"."{table}" (\n{cols_str})'
     _logger.debug("Create table query:\n%s", sql)
     cursor.execute(sql)
@@ -397,12 +397,13 @@ def to_sql(
             if index:
                 df.reset_index(level=df.index.names, inplace=True)
             column_placeholders: str = ", ".join(["%s"] * len(df.columns))
+            column_names = [f'"{column}"' for column in df.columns]
             insertion_columns = ""
             upsert_str = ""
             if use_column_names:
-                insertion_columns = f"({', '.join(df.columns)})"
+                insertion_columns = f"({', '.join(column_names)})"
             if mode == "upsert":
-                upsert_columns = ", ".join(df.columns.map(lambda column: f"{column}=EXCLUDED.{column}"))
+                upsert_columns = ", ".join(f"{column}=EXCLUDED.{column}" for column in column_names)
                 conflict_columns = ", ".join(upsert_conflict_columns)  # type: ignore
                 upsert_str = f" ON CONFLICT ({conflict_columns}) DO UPDATE SET {upsert_columns}"
             if mode == "append" and insert_conflict_columns:

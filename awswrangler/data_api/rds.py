@@ -88,9 +88,7 @@ class RdsDataApi(connector.DataApiConnector):
 
         if response is None:
             self.logger.exception("Maximum BadRequestException retries reached for query %s", sql)
-            raise self.client.exceptions.BadRequestException(
-                f"Query failed - BadRequestException received after {total_tries} tries and sleeping {total_sleep}s"
-            ) from last_exception
+            raise last_exception  # type: ignore
 
         request_id: str = uuid.uuid4().hex
         self.results[request_id] = response

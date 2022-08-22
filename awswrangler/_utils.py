@@ -8,16 +8,23 @@ import os
 import random
 import time
 from concurrent.futures import FIRST_COMPLETED, Future, wait
-from typing import Any, Callable, Dict, Generator, List, Optional, Sequence, Tuple, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, List, Optional, Sequence, Tuple, Union, cast
 
 import boto3
 import botocore.config
 import numpy as np
 import pandas as pd
+import pyarrow as pa
 
 from awswrangler import _config, exceptions
 from awswrangler.__metadata__ import __version__
-from awswrangler._config import apply_configs
+from awswrangler._arrow import _table_to_df
+from awswrangler._config import apply_configs, config
+
+if TYPE_CHECKING or config.distributed:
+    import ray  # pylint: disable=unused-import
+
+    from awswrangler.distributed._utils import _arrow_refs_to_df  # pylint: disable=ungrouped-imports
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -99,6 +106,8 @@ def _get_endpoint_url(service_name: str) -> Optional[str]:
         endpoint_url = _config.config.dynamodb_endpoint_url
     elif service_name == "secretsmanager" and _config.config.secretsmanager_endpoint_url is not None:
         endpoint_url = _config.config.secretsmanager_endpoint_url
+    elif service_name == "timestream" and _config.config.timestream_endpoint_url is not None:
+        endpoint_url = _config.config.timestream_endpoint_url
     return endpoint_url
 
 
@@ -401,3 +410,34 @@ def check_schema_changes(columns_types: Dict[str, str], table_input: Optional[Di
                     f"Schema change detected: Data type change on column {c} "
                     f"(Old type: {catalog_cols[c]} / New type {t})."
                 )
+
+
+def table_refs_to_df(
+    tables: Union[List[pa.Table], List["ray.ObjectRef"]], kwargs: Dict[str, Any]  # type: ignore
+) -> pd.DataFrame:
+    """Build Pandas dataframe from list of PyArrow tables."""
+    if isinstance(tables[0], pa.Table):
+        return _table_to_df(pa.concat_tables(tables, promote=True), kwargs=kwargs)
+    return _arrow_refs_to_df(arrow_refs=tables, kwargs=kwargs)  # type: ignore
+
+
+def list_to_arrow_table(
+    mapping: List[Dict[str, Any]],
+    schema: Optional[pa.Schema] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> pa.Table:
+    """Construct a PyArrow Table from list of dictionaries."""
+    arrays = []
+    if not schema:
+        names = []
+        if mapping:
+            names = list(mapping[0].keys())
+        for n in names:
+            v = [row[n] if n in row else None for row in mapping]
+            arrays.append(v)
+        return pa.Table.from_arrays(arrays, names, metadata=metadata)
+    for n in schema.names:
+        v = [row[n] if n in row else None for row in mapping]
+        arrays.append(v)
+    # Will raise if metadata is not None
+    return pa.Table.from_arrays(arrays, schema=schema, metadata=metadata)

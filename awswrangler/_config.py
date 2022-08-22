@@ -47,6 +47,7 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "lakeformation_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
     "dynamodb_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
     "secretsmanager_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
+    "timestream_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
     # Botocore config
     "botocore_config": _ConfigArg(dtype=botocore.config.Config, nullable=True),
     "verify": _ConfigArg(dtype=str, nullable=True),
@@ -78,6 +79,7 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         self.lakeformation_endpoint_url = None
         self.dynamodb_endpoint_url = None
         self.secretsmanager_endpoint_url = None
+        self.timestream_endpoint_url = None
         self.botocore_config = None
         self.verify = None
         self.distributed = all(importlib.util.find_spec(pkg) for pkg in ("modin", "ray"))
@@ -397,6 +399,15 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     @secretsmanager_endpoint_url.setter
     def secretsmanager_endpoint_url(self, value: Optional[str]) -> None:
         self._set_config_value(key="secretsmanager_endpoint_url", value=value)
+
+    @property
+    def timestream_endpoint_url(self) -> Optional[str]:
+        """Property timestream_endpoint_url."""
+        return cast(Optional[str], self["timestream_endpoint_url"])
+
+    @timestream_endpoint_url.setter
+    def timestream_endpoint_url(self, value: Optional[str]) -> None:
+        self._set_config_value(key="timestream_endpoint_url", value=value)
 
     @property
     def botocore_config(self) -> botocore.config.Config:

@@ -1,5 +1,6 @@
 """Databases Utilities."""
 
+import importlib.util
 import logging
 import ssl
 from typing import Any, Dict, Generator, Iterator, List, NamedTuple, Optional, Tuple, Union, cast
@@ -8,8 +9,10 @@ import boto3
 import pandas as pd
 import pyarrow as pa
 
-from awswrangler import _data_types, _utils, exceptions, secretsmanager
+from awswrangler import _data_types, _utils, exceptions, oracle, secretsmanager
 from awswrangler.catalog import get_connection
+
+_oracledb_found = importlib.util.find_spec("oracledb")
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -42,7 +45,7 @@ def _get_connection_attributes_from_catalog(
         database_sep = ";databaseName="
     else:
         database_sep = "/"
-    port, database = details["JDBC_CONNECTION_URL"].split(":")[3].split(database_sep)
+    port, database = details["JDBC_CONNECTION_URL"].split(":")[-1].split(database_sep)
     ssl_context: Optional[ssl.SSLContext] = None
     if details.get("JDBC_ENFORCE_SSL") == "true":
         ssl_cert_path: Optional[str] = details.get("CUSTOM_JDBC_CERT")
@@ -57,11 +60,12 @@ def _get_connection_attributes_from_catalog(
                     f"No CA certificate found at {ssl_cert_path}."
                 )
         ssl_context = ssl.create_default_context(cadata=ssl_cadata)
+
     return ConnectionAttributes(
         kind=details["JDBC_CONNECTION_URL"].split(":")[1].lower(),
         user=details["USERNAME"],
         password=details["PASSWORD"],
-        host=details["JDBC_CONNECTION_URL"].split(":")[2].replace("/", ""),
+        host=details["JDBC_CONNECTION_URL"].split(":")[-2].replace("/", "").replace("@", ""),
         port=int(port),
         database=dbname if dbname is not None else database,
         ssl_context=ssl_context,
@@ -86,7 +90,7 @@ def _get_connection_attributes_from_secrets_manager(
         user=secret_value["username"],
         password=secret_value["password"],
         host=secret_value["host"],
-        port=secret_value["port"],
+        port=int(secret_value["port"]),
         database=_dbname,
         ssl_context=None,
     )
@@ -133,12 +137,17 @@ def _records2df(
     arrays: List[pa.Array] = []
     for col_values, col_name in zip(tuple(zip(*records)), cols_names):  # Transposing
         if (dtype is None) or (col_name not in dtype):
+            if _oracledb_found:
+                col_values = oracle.handle_oracle_objects(col_values, col_name)
             try:
                 array: pa.Array = pa.array(obj=col_values, safe=safe)  # Creating Arrow array
             except pa.ArrowInvalid as ex:
                 array = _data_types.process_not_inferred_array(ex, values=col_values)  # Creating Arrow array
         else:
             try:
+                if _oracledb_found:
+                    if dtype[col_name] == pa.string() or isinstance(dtype[col_name], pa.Decimal128Type):
+                        col_values = oracle.handle_oracle_objects(col_values, col_name, dtype)
                 array = pa.array(obj=col_values, type=dtype[col_name], safe=safe)  # Creating Arrow array with dtype
             except pa.ArrowInvalid:
                 array = pa.array(obj=col_values, safe=safe)  # Creating Arrow array
@@ -181,6 +190,14 @@ def _iterate_results(
 ) -> Iterator[pd.DataFrame]:
     with con.cursor() as cursor:
         cursor.execute(*cursor_args)
+        if _oracledb_found:
+            decimal_dtypes = oracle.detect_oracle_decimal_datatype(cursor)
+            _logger.debug("steporig: %s", dtype)
+            if decimal_dtypes and dtype is not None:
+                dtype = dict(list(decimal_dtypes.items()) + list(dtype.items()))
+            elif decimal_dtypes:
+                dtype = decimal_dtypes
+
         cols_names = _get_cols_names(cursor.description)
         while True:
             records = cursor.fetchmany(chunksize)
@@ -207,6 +224,14 @@ def _fetch_all_results(
     with con.cursor() as cursor:
         cursor.execute(*cursor_args)
         cols_names = _get_cols_names(cursor.description)
+        if _oracledb_found:
+            decimal_dtypes = oracle.detect_oracle_decimal_datatype(cursor)
+            _logger.debug("steporig: %s", dtype)
+            if decimal_dtypes and dtype is not None:
+                dtype = dict(list(decimal_dtypes.items()) + list(dtype.items()))
+            elif decimal_dtypes:
+                dtype = decimal_dtypes
+
         return _records2df(
             records=cast(List[Tuple[Any]], cursor.fetchall()),
             cols_names=cols_names,

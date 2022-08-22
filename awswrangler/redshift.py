@@ -131,6 +131,7 @@ def _copy(
     schema: Optional[str] = None,
     manifest: Optional[bool] = False,
     sql_copy_extra_params: Optional[List[str]] = None,
+    column_names: Optional[List[str]] = None,
 ) -> None:
     if schema is None:
         table_name: str = f'"{table}"'
@@ -145,7 +146,9 @@ def _copy(
         boto3_session=boto3_session,
     )
     ser_json_str: str = " SERIALIZETOJSON" if serialize_to_json else ""
-    sql: str = f"COPY {table_name}\nFROM '{path}' {auth_str}\nFORMAT AS PARQUET{ser_json_str}"
+    column_names_str: str = f"({','.join(column_names)})" if column_names else ""
+    sql = f"COPY {table_name} {column_names_str}\nFROM '{path}' {auth_str}\nFORMAT AS PARQUET{ser_json_str}"
+
     if manifest:
         sql += "\nMANIFEST"
     if sql_copy_extra_params:
@@ -377,7 +380,7 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-man
         sortstyle=sortstyle,
         sortkey=sortkey,
     )
-    cols_str: str = "".join([f"{k} {v},\n" for k, v in redshift_types.items()])[:-2]
+    cols_str: str = "".join([f'"{k}" {v},\n' for k, v in redshift_types.items()])[:-2]
     primary_keys_str: str = f",\nPRIMARY KEY ({', '.join(primary_keys)})" if primary_keys else ""
     distkey_str: str = f"\nDISTKEY({distkey})" if distkey and diststyle == "KEY" else ""
     sortkey_str: str = f"\n{sortstyle} SORTKEY({','.join(sortkey)})" if sortkey else ""
@@ -400,19 +403,19 @@ def _read_parquet_iterator(
     path: str,
     keep_files: bool,
     use_threads: Union[bool, int],
-    categories: Optional[List[str]],
     chunked: Union[bool, int],
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]],
 ) -> Iterator[pd.DataFrame]:
     dfs: Iterator[pd.DataFrame] = s3.read_parquet(
         path=path,
-        categories=categories,
         chunked=chunked,
         dataset=False,
         use_threads=use_threads,
         boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
+        pyarrow_additional_kwargs=pyarrow_additional_kwargs,
     )
     yield from dfs
     if keep_files is False:
@@ -431,6 +434,7 @@ def connect(
     timeout: Optional[int] = None,
     max_prepared_statements: int = 1000,
     tcp_keepalive: bool = True,
+    **kwargs: Any,
 ) -> redshift_connector.Connection:
     """Return a redshift_connector connection from a Glue Catalog or Secret Manager.
 
@@ -452,7 +456,7 @@ def connect(
 
     Parameters
     ----------
-    connection : Optional[str]
+    connection : str, optional
         Glue Catalog Connection name.
     secret_id : Optional[str]:
         Specifies the secret containing the connection details that you want to retrieve.
@@ -460,7 +464,7 @@ def connect(
     catalog_id : str, optional
         The ID of the Data Catalog.
         If none is provided, the AWS account ID is used by default.
-    dbname : Optional[str]
+    dbname : str, optional
         Optional database name to overwrite the stored one.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
@@ -468,7 +472,7 @@ def connect(
         This governs SSL encryption for TCP/IP sockets.
         This parameter is forward to redshift_connector.
         https://github.com/aws/amazon-redshift-python-driver
-    timeout : Optional[int]
+    timeout : int, optional
         This is the time in seconds before the connection to the server will time out.
         The default is None which means no timeout.
         This parameter is forward to redshift_connector.
@@ -480,6 +484,9 @@ def connect(
         If True then use TCP keepalive. The default is True.
         This parameter is forward to redshift_connector.
         https://github.com/aws/amazon-redshift-python-driver
+    **kwargs : Any
+        Forwarded to redshift_connector.connect.
+        e.g. is_serverless=True, serverless_acct_id='...', serverless_work_group='...'
 
     Returns
     -------
@@ -524,6 +531,7 @@ def connect(
         timeout=timeout,
         max_prepared_statements=max_prepared_statements,
         tcp_keepalive=tcp_keepalive,
+        **kwargs,
     )
 
 
@@ -539,6 +547,7 @@ def connect_temp(
     timeout: Optional[int] = None,
     max_prepared_statements: int = 1000,
     tcp_keepalive: bool = True,
+    **kwargs: Any,
 ) -> redshift_connector.Connection:
     """Return a redshift_connector temporary connection (No password required).
 
@@ -568,7 +577,7 @@ def connect_temp(
         This governs SSL encryption for TCP/IP sockets.
         This parameter is forward to redshift_connector.
         https://github.com/aws/amazon-redshift-python-driver
-    timeout : Optional[int]
+    timeout : int, optional
         This is the time in seconds before the connection to the server will time out.
         The default is None which means no timeout.
         This parameter is forward to redshift_connector.
@@ -580,6 +589,9 @@ def connect_temp(
         If True then use TCP keepalive. The default is True.
         This parameter is forward to redshift_connector.
         https://github.com/aws/amazon-redshift-python-driver
+    **kwargs : Any
+        Forwarded to redshift_connector.connect.
+        e.g. is_serverless=True, serverless_acct_id='...', serverless_work_group='...'
 
     Returns
     -------
@@ -620,6 +632,7 @@ def connect_temp(
         max_prepared_statements=max_prepared_statements,
         tcp_keepalive=tcp_keepalive,
         db_groups=db_groups,
+        **kwargs,
     )
 
 
@@ -818,7 +831,7 @@ def to_sql(  # pylint: disable=too-many-locals
 
         "drop" - ``DROP ... RESTRICT`` - drops the table. Fails if there are any views that depend on it.
         "cascade" - ``DROP ... CASCADE`` - drops the table, and all views that depend on it.
-        "truncate" - ``TRUNCATE ...`` - truncates the table, but immediatly commits current
+        "truncate" - ``TRUNCATE ...`` - truncates the table, but immediately commits current
         transaction & starts a new one, hence the overwrite happens in two transactions and is not atomic.
         "delete" - ``DELETE FROM ...`` - deletes all rows from the table. Slow relative to the other methods.
     index : bool
@@ -908,7 +921,7 @@ def to_sql(  # pylint: disable=too-many-locals
             )
             if index:
                 df.reset_index(level=df.index.names, inplace=True)
-            column_names = list(df.columns)
+            column_names = [f'"{column}"' for column in df.columns]
             column_placeholders: str = ", ".join(["%s"] * len(column_names))
             schema_str = f'"{created_schema}".' if created_schema else ""
             insertion_columns = ""
@@ -1072,12 +1085,12 @@ def unload(
     region: Optional[str] = None,
     max_file_size: Optional[float] = None,
     kms_key_id: Optional[str] = None,
-    categories: Optional[List[str]] = None,
     chunked: Union[bool, int] = False,
     keep_files: bool = False,
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Load Pandas DataFrame from a Amazon Redshift query result using Parquet files on s3 as stage.
 
@@ -1142,9 +1155,6 @@ def unload(
     kms_key_id : str, optional
         Specifies the key ID for an AWS Key Management Service (AWS KMS) key to be
         used to encrypt data files on Amazon S3.
-    categories: List[str], optional
-        List of columns names that should be returned as pandas.Categorical.
-        Recommended for memory restricted environments.
     keep_files : bool
         Should keep stage files?
     chunked : Union[int, bool]
@@ -1158,7 +1168,11 @@ def unload(
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     s3_additional_kwargs : Dict[str, str], optional
-        Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
+        Forward to botocore requests.
+    pyarrow_additional_kwargs : Dict[str, Any], optional
+        Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
+        Valid values include "split_blocks", "self_destruct", "ignore_metadata".
+        e.g. pyarrow_additional_kwargs={'split_blocks': True}.
 
     Returns
     -------
@@ -1197,12 +1211,12 @@ def unload(
     if chunked is False:
         df: pd.DataFrame = s3.read_parquet(
             path=path,
-            categories=categories,
             chunked=chunked,
             dataset=False,
             use_threads=use_threads,
             boto3_session=session,
             s3_additional_kwargs=s3_additional_kwargs,
+            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
         )
         if keep_files is False:
             s3.delete_objects(
@@ -1211,12 +1225,12 @@ def unload(
         return df
     return _read_parquet_iterator(
         path=path,
-        categories=categories,
         chunked=chunked,
         use_threads=use_threads,
         boto3_session=session,
         s3_additional_kwargs=s3_additional_kwargs,
         keep_files=keep_files,
+        pyarrow_additional_kwargs=pyarrow_additional_kwargs,
     )
 
 
@@ -1250,6 +1264,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     precombine_key: Optional[str] = None,
+    column_names: Optional[List[str]] = None,
 ) -> None:
     """Load Parquet files from S3 to a Table on Amazon Redshift (Through COPY command).
 
@@ -1298,7 +1313,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
 
         "drop" - ``DROP ... RESTRICT`` - drops the table. Fails if there are any views that depend on it.
         "cascade" - ``DROP ... CASCADE`` - drops the table, and all views that depend on it.
-        "truncate" - ``TRUNCATE ...`` - truncates the table, but immediatly commits current
+        "truncate" - ``TRUNCATE ...`` - truncates the table, but immediately commits current
         transaction & starts a new one, hence the overwrite happens in two transactions and is not atomic.
         "delete" - ``DELETE FROM ...`` - deletes all rows from the table. Slow relative to the other methods.
     diststyle : str
@@ -1352,6 +1367,8 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
         When there is a primary_key match during upsert, this column will change the upsert method,
         comparing the values of the specified column from source and target, and keeping the
         larger of the two. Will only work when mode = upsert.
+    column_names: List[str], optional
+        List of column names to map source data fields to the target columns.
 
     Returns
     -------
@@ -1416,6 +1433,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
                 serialize_to_json=serialize_to_json,
                 sql_copy_extra_params=sql_copy_extra_params,
                 manifest=manifest,
+                column_names=column_names,
             )
             if table != created_table:  # upsert
                 _upsert(
@@ -1425,6 +1443,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
                     temp_table=created_table,
                     primary_keys=primary_keys,
                     precombine_key=precombine_key,
+                    column_names=column_names,
                 )
             if commit_transaction:
                 con.commit()
@@ -1436,7 +1455,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
         con.autocommit = autocommit_temp
 
 
-def copy(  # pylint: disable=too-many-arguments
+def copy(  # pylint: disable=too-many-arguments,too-many-locals
     df: pd.DataFrame,
     path: str,
     con: redshift_connector.Connection,
@@ -1466,6 +1485,7 @@ def copy(  # pylint: disable=too-many-arguments
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     max_rows_by_file: Optional[int] = 10_000_000,
     precombine_key: Optional[str] = None,
+    use_column_names: bool = False,
 ) -> None:
     """Load Pandas DataFrame as a Table on Amazon Redshift using parquet files on S3 as stage.
 
@@ -1526,7 +1546,7 @@ def copy(  # pylint: disable=too-many-arguments
 
         "drop" - ``DROP ... RESTRICT`` - drops the table. Fails if there are any views that depend on it.
         "cascade" - ``DROP ... CASCADE`` - drops the table, and all views that depend on it.
-        "truncate" - ``TRUNCATE ...`` - truncates the table, but immediatly commits current
+        "truncate" - ``TRUNCATE ...`` - truncates the table, but immediately commits current
         transaction & starts a new one, hence the overwrite happens in two transactions and is not atomic.
         "delete" - ``DELETE FROM ...`` - deletes all rows from the table. Slow relative to the other methods.
     diststyle : str
@@ -1568,6 +1588,10 @@ def copy(  # pylint: disable=too-many-arguments
         When there is a primary_key match during upsert, this column will change the upsert method,
         comparing the values of the specified column from source and target, and keeping the
         larger of the two. Will only work when mode = upsert.
+    use_column_names: bool
+        If set to True, will use the column names of the DataFrame for generating the INSERT SQL Query.
+        E.g. If the DataFrame has two columns `col1` and `col3` and `use_column_names` is True, data will only be
+        inserted into the database columns `col1` and `col3`.
 
     Returns
     -------
@@ -1592,6 +1616,7 @@ def copy(  # pylint: disable=too-many-arguments
     """
     path = path[:-1] if path.endswith("*") else path
     path = path if path.endswith("/") else f"{path}/"
+    column_names = [f'"{column}"' for column in df.columns] if use_column_names else []
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if s3.list_objects(path=path, boto3_session=session, s3_additional_kwargs=s3_additional_kwargs):
         raise exceptions.InvalidArgument(
@@ -1636,6 +1661,7 @@ def copy(  # pylint: disable=too-many-arguments
             s3_additional_kwargs=s3_additional_kwargs,
             sql_copy_extra_params=sql_copy_extra_params,
             precombine_key=precombine_key,
+            column_names=column_names,
         )
     finally:
         if keep_files is False:

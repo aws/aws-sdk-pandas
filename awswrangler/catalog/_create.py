@@ -644,7 +644,7 @@ def create_database(
         args["Description"] = description
 
     try:
-        r = client_glue.get_database(Name=name)
+        r = client_glue.get_database(**_catalog_id(catalog_id=catalog_id, Name=name))
         if not exist_ok:
             raise exceptions.AlreadyExists(f"Database {name} already exists and <exist_ok> is set to False.")
         if description and description != r["Database"].get("Description", ""):

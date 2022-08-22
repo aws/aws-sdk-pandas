@@ -10,7 +10,7 @@ Some good practices to follow for options below are:
 - Use new and isolated Virtual Environments for each project (`venv <https://docs.python.org/3/library/venv.html>`_).
 - On Notebooks, always restart your kernel after installations.
 
-.. note:: If you want to use ``awswrangler`` to connect to Microsoft SQL Server, some additional configuration is needed. Please have a look at the corresponding section below.
+.. note:: If you want to use ``awswrangler`` to connect to Microsoft SQL Server or Oracle, some additional configuration is needed. Please have a look at the corresponding section below.
 
 PyPI (pip)
 ----------
@@ -100,7 +100,7 @@ Here is an example of how to create and use the AWS Data Wrangler Lambda layer i
           "wrangler-layer",
           location=sam.CfnApplication.ApplicationLocationProperty(
             application_id="arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-data-wrangler-layer-py3-8",
-            semantic_version="3.0.0rc1",  # Get the latest version from https://github.com/awslabs/aws-data-wrangler/releases
+            semantic_version="2.16.0",  # Get the latest version from https://github.com/awslabs/aws-data-wrangler/releases
           ),
         )
 
@@ -144,7 +144,7 @@ Go to your Glue PySpark job and create a new *Job parameters* key/value:
 
 To install a specific version, set the value for the above Job parameter as follows:
 
-* Value: ``cython==0.29.21,pg8000==1.21.0,pyarrow==2,pandas==1.3.0,awswrangler==3.0.0rc1``
+* Value: ``cython==0.29.21,pg8000==1.21.0,pyarrow==2,pandas==1.3.0,awswrangler==3.0.0a2``
 
 .. note:: Pyarrow 3 is not currently supported in Glue PySpark Jobs, which is why an installation of pyarrow 2 is required.
 
@@ -163,7 +163,7 @@ Lambda zipped layers and Python wheels are stored in a publicly accessible S3 bu
 
   * Python wheel: ``awswrangler-<version>-py3-none-any.whl``
 
-For example: ``s3://aws-data-wrangler-public-artifacts/releases/3.0.0rc1/awswrangler-layer-3.0.0rc1-py3.8.zip``
+For example: ``s3://aws-data-wrangler-public-artifacts/releases/3.0.0a2/awswrangler-layer-3.0.0a2-py3.8.zip``
 
 Amazon SageMaker Notebook
 -------------------------
@@ -253,7 +253,7 @@ Despite not being a distributed library, AWS Data Wrangler could be used to comp
         sudo pip install pyarrow==2 awswrangler
 
 .. note:: Make sure to freeze the library version in the bootstrap for production
-          environments (e.g. awswrangler==3.0.0rc1)
+          environments (e.g. awswrangler==3.0.0a2)
 
 .. note:: Pyarrow 3 is not currently supported in the default EMR image, which is why an installation of pyarrow 2 is required.
 
@@ -288,6 +288,28 @@ to see how they can be installed in your environment.
 
 If you want to connect to Microsoft SQL Server from AWS Lambda, you can build a separate Layer including the
 needed OBDC drivers and `pyobdc`.
+
+If you maintain your own environment, you need to take care of the above steps.
+Because of this limitation usage in combination with Glue jobs is limited and you need to rely on the
+provided `functionality inside Glue itself <https://docs.aws.amazon.com/glue/latest/dg/
+aws-glue-programming-etl-connect.html#aws-glue-programming-etl-connect-jdbc>`_.
+
+
+Notes for Oracle Database
+------------------------------
+
+``awswrangler`` is using the `oracledb <https://github.com/oracle/python-oracledb>`_
+for interacting with Oracle Database. For installing this package you do not need the Oracle Client libraries
+unless you want to use the Thick mode.
+You can have a look at the `documentation from Oracle <https://cx-oracle.readthedocs.io/en/latest/user_guide/
+installation.html#oracle-client-and-oracle-database-interoperability>`_
+to see how they can be installed in your environment.
+
+After installing these client libraries you can either just install ``oracledb`` or
+``awswrangler`` with the ``oracle`` extra, which will also install ``oracledb``:
+
+    >>> pip install oracledb
+    >>> pip install awswrangler[oracle]
 
 If you maintain your own environment, you need to take care of the above steps.
 Because of this limitation usage in combination with Glue jobs is limited and you need to rely on the

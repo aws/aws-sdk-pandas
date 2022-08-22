@@ -9,6 +9,7 @@ API Reference
 * `PostgreSQL`_
 * `MySQL`_
 * `Microsoft SQL Server`_
+* `Oracle`_
 * `Data API Redshift`_
 * `Data API RDS`_
 * `OpenSearch`_
@@ -115,8 +116,10 @@ Amazon Athena
 
     create_athena_bucket
     create_ctas_table
+    generate_create_query
     get_query_columns_types
     get_query_execution
+    get_query_results
     get_named_query_statement
     get_work_group
     read_sql_query
@@ -192,6 +195,19 @@ Microsoft SQL Server
 ____________________
 
 .. currentmodule:: awswrangler.sqlserver
+
+.. autosummary::
+    :toctree: stubs
+
+    connect
+    read_sql_query
+    read_sql_table
+    to_sql
+
+Oracle
+____________________
+
+.. currentmodule:: awswrangler.oracle
 
 .. autosummary::
     :toctree: stubs

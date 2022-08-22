@@ -20,6 +20,7 @@ from awswrangler import (  # noqa
     mysql,
     neptune,
     opensearch,
+    oracle,
     postgresql,
     quicksight,
     redshift,
@@ -31,7 +32,7 @@ from awswrangler import (  # noqa
 )
 from awswrangler.__metadata__ import __description__, __license__, __title__, __version__  # noqa
 from awswrangler._config import config  # noqa
-from awswrangler._distributed import initialize_ray
+from awswrangler.distributed import initialize_ray
 
 if config.distributed:
     initialize_ray()
@@ -47,6 +48,7 @@ __all__ = [
     "dynamodb",
     "exceptions",
     "opensearch",
+    "oracle",
     "quicksight",
     "s3",
     "sts",

@@ -1,6 +1,7 @@
 from datetime import datetime
 
 import boto3  # type: ignore
+import botocore.exceptions
 import pytest  # type: ignore
 
 import awswrangler as wr
@@ -129,32 +130,36 @@ def workgroup3(bucket, kms_key):
 
 @pytest.fixture(scope="session")
 def databases_parameters(cloudformation_outputs, db_password):
-    parameters = dict(postgresql={}, mysql={}, redshift={}, sqlserver={}, mysql_serverless={})
-    parameters["postgresql"]["host"] = cloudformation_outputs["PostgresqlAddress"]
+    parameters = dict(postgresql={}, mysql={}, redshift={}, sqlserver={}, mysql_serverless={}, oracle={})
+    parameters["postgresql"]["host"] = cloudformation_outputs.get("PostgresqlAddress")
     parameters["postgresql"]["port"] = 3306
     parameters["postgresql"]["schema"] = "public"
     parameters["postgresql"]["database"] = "postgres"
-    parameters["mysql"]["host"] = cloudformation_outputs["MysqlAddress"]
+    parameters["mysql"]["host"] = cloudformation_outputs.get("MysqlAddress")
     parameters["mysql"]["port"] = 3306
     parameters["mysql"]["schema"] = "test"
     parameters["mysql"]["database"] = "test"
-    parameters["redshift"]["secret_arn"] = cloudformation_outputs["RedshiftSecretArn"]
-    parameters["redshift"]["host"] = cloudformation_outputs["RedshiftAddress"]
-    parameters["redshift"]["port"] = cloudformation_outputs["RedshiftPort"]
-    parameters["redshift"]["identifier"] = cloudformation_outputs["RedshiftIdentifier"]
+    parameters["redshift"]["secret_arn"] = cloudformation_outputs.get("RedshiftSecretArn")
+    parameters["redshift"]["host"] = cloudformation_outputs.get("RedshiftAddress")
+    parameters["redshift"]["port"] = cloudformation_outputs.get("RedshiftPort")
+    parameters["redshift"]["identifier"] = cloudformation_outputs.get("RedshiftIdentifier")
     parameters["redshift"]["schema"] = "public"
     parameters["redshift"]["database"] = "test"
-    parameters["redshift"]["role"] = cloudformation_outputs["RedshiftRole"]
+    parameters["redshift"]["role"] = cloudformation_outputs.get("RedshiftRole")
     parameters["password"] = db_password
     parameters["user"] = "test"
-    parameters["sqlserver"]["host"] = cloudformation_outputs["SqlServerAddress"]
+    parameters["sqlserver"]["host"] = cloudformation_outputs.get("SqlServerAddress")
     parameters["sqlserver"]["port"] = 1433
     parameters["sqlserver"]["schema"] = "dbo"
     parameters["sqlserver"]["database"] = "test"
-    parameters["mysql_serverless"]["secret_arn"] = cloudformation_outputs["MysqlServerlessSecretArn"]
+    parameters["mysql_serverless"]["secret_arn"] = cloudformation_outputs.get("MysqlServerlessSecretArn")
     parameters["mysql_serverless"]["schema"] = "test"
     parameters["mysql_serverless"]["database"] = "test"
-    parameters["mysql_serverless"]["arn"] = cloudformation_outputs["MysqlServerlessClusterArn"]
+    parameters["mysql_serverless"]["arn"] = cloudformation_outputs.get("MysqlServerlessClusterArn")
+    parameters["oracle"]["host"] = cloudformation_outputs.get("OracleAddress")
+    parameters["oracle"]["port"] = 1521
+    parameters["oracle"]["schema"] = "TEST"
+    parameters["oracle"]["database"] = "ORCL"
     return parameters
 
 
@@ -275,6 +280,41 @@ def sqlserver_table():
         cursor.execute(f"IF OBJECT_ID(N'dbo.{name}', N'U') IS NOT NULL DROP TABLE dbo.{name}")
     con.commit()
     con.close()
+
+
+@pytest.fixture(scope="function")
+def oracle_table():
+    name = f"tbl_{get_time_str_with_random_suffix()}"
+    print(f"Table name: {name}")
+    yield name
+    con = wr.oracle.connect("aws-data-wrangler-oracle")
+    sql = f"""
+BEGIN
+   EXECUTE IMMEDIATE 'DROP TABLE "TEST"."{name}"';
+EXCEPTION
+   WHEN OTHERS THEN
+      IF SQLCODE != -942 THEN
+         RAISE;
+      END IF;
+END;
+"""
+    with con.cursor() as cursor:
+        cursor.execute(sql)
+    con.commit()
+    con.close()
+
+
+@pytest.fixture(scope="function")
+def timestream_database():
+    name = f"tbl_{get_time_str_with_random_suffix()}"
+    print(f"Timestream name: {name}")
+    wr.timestream.create_database(name)
+    yield name
+    try:
+        wr.timestream.delete_database(name)
+    except botocore.exceptions.ClientError as err:
+        if err.response["Error"]["Code"] == "ResourceNotFound":
+            pass
 
 
 @pytest.fixture(scope="function")

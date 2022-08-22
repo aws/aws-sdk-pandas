@@ -5,6 +5,6 @@ isort --check .
 black --check .
 mypy --install-types --non-interactive awswrangler
 flake8 .
-pylint -j 0 awswrangler
+pylint -j 2 awswrangler
 pydocstyle awswrangler/ --convention=numpy
 doc8 --ignore D005,D002 --max-line-length 120 docs/source
