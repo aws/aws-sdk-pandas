@@ -13,10 +13,7 @@ import pandas as pd
 from awswrangler import _utils, catalog, exceptions, s3
 from awswrangler._config import apply_configs
 from awswrangler._data_types import cast_pandas_with_athena_types
-from awswrangler.athena._formatter import (
-    EngineType,
-    _format_parameters,
-)
+from awswrangler.athena._formatter import _EngineType, _format_parameters
 from awswrangler.athena._utils import (
     _apply_query_metadata,
     _empty_dataframe_response,
@@ -917,7 +914,7 @@ def read_sql_query(
     if params is None:
         params = {}
 
-    processed_params = _format_parameters(params, engine=EngineType.PRESTO)
+    processed_params = _format_parameters(params, engine=_EngineType.PRESTO)
     for key, value in processed_params.items():
         sql = sql.replace(f":{key};", str(value))
 

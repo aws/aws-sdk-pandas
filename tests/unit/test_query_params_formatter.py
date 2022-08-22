@@ -1,14 +1,14 @@
-from dataclasses import dataclass
 import datetime as dt
 import decimal
-
-from awswrangler.athena._formatter import EngineType, _format_parameters
+from dataclasses import dataclass
 
 import pytest
 
+from awswrangler.athena._formatter import _EngineType, _format_parameters
 
-@pytest.mark.parametrize("engine", [EngineType.HIVE, EngineType.PRESTO])
-def test_parameter_formatting(engine: EngineType) -> None:
+
+@pytest.mark.parametrize("engine", [_EngineType.HIVE, _EngineType.PRESTO])
+def test_parameter_formatting(engine: _EngineType) -> None:
     actual_params = _format_parameters(
         {
             "string": "hello",
@@ -21,10 +21,7 @@ def test_parameter_formatting(engine: EngineType) -> None:
             "decimal": decimal.Decimal("12.03"),
             "list": [decimal.Decimal("33.33"), 1, None, False],
             "tuple": (decimal.Decimal("33.33"), 1, None, False),
-            "map": {
-                "int": 4,
-                "date": dt.date(2022, 8, 22),
-            }
+            "map": {"int": 4, "date": dt.date(2022, 8, 22),},
         },
         engine=engine,
     )
@@ -46,14 +43,9 @@ def test_parameter_formatting(engine: EngineType) -> None:
     assert actual_params == expected_params
 
 
-@pytest.mark.parametrize("engine", [EngineType.HIVE, EngineType.PRESTO])
-def test_set_formatting(engine: EngineType) -> None:
-    actual_params = _format_parameters(
-        {
-            "set": {decimal.Decimal("33.33"), 1, None, False},
-        },
-        engine=engine,
-    )
+@pytest.mark.parametrize("engine", [_EngineType.HIVE, _EngineType.PRESTO])
+def test_set_formatting(engine: _EngineType) -> None:
+    actual_params = _format_parameters({"set": {decimal.Decimal("33.33"), 1, None, False},}, engine=engine,)
 
     assert len(actual_params) == 1
     assert "set" in actual_params
@@ -65,12 +57,7 @@ def test_set_formatting(engine: EngineType) -> None:
 
 
 def test_escaped_string_formatting_for_presto() -> None:
-    actual_params = _format_parameters(
-        {
-            "string": "Driver's License",
-        },
-        engine=EngineType.PRESTO,
-    )
+    actual_params = _format_parameters({"string": "Driver's License",}, engine=_EngineType.PRESTO,)
 
     expected_params = {
         "string": "'Driver''s License'",
@@ -80,12 +67,7 @@ def test_escaped_string_formatting_for_presto() -> None:
 
 
 def test_escaped_string_formatting_for_hive() -> None:
-    actual_params = _format_parameters(
-        {
-            "string": "Driver's License",
-        },
-        engine=EngineType.HIVE,
-    )
+    actual_params = _format_parameters({"string": "Driver's License",}, engine=_EngineType.HIVE,)
 
     expected_params = {
         "string": r"'Driver\'s License'",
@@ -94,34 +76,24 @@ def test_escaped_string_formatting_for_hive() -> None:
     assert actual_params == expected_params
 
 
-@pytest.mark.parametrize("engine", [EngineType.HIVE, EngineType.PRESTO])
-def test_map_key_cannot_be_null(engine: EngineType) -> None:
+@pytest.mark.parametrize("engine", [_EngineType.HIVE, _EngineType.PRESTO])
+def test_map_key_cannot_be_null(engine: _EngineType) -> None:
     with pytest.raises(TypeError, match=r".*Map key cannot be null.*"):
         _format_parameters(
-            {
-                "map": {
-                    None: 4,
-                }
-            },
-            engine=engine,
+            {"map": {None: 4,}}, engine=engine,
         )
 
-@pytest.mark.parametrize("engine", [EngineType.HIVE, EngineType.PRESTO])
-def test_map_keys_cannot_have_different_types(engine: EngineType) -> None:
+
+@pytest.mark.parametrize("engine", [_EngineType.HIVE, _EngineType.PRESTO])
+def test_map_keys_cannot_have_different_types(engine: _EngineType) -> None:
     with pytest.raises(TypeError, match=r".*All Map key elements must be the same type\..*"):
         _format_parameters(
-            {
-                "map": {
-                    "hello": 3,
-                    77: 10,
-                },
-            },
-            engine=engine,
+            {"map": {"hello": 3, 77: 10,},}, engine=engine,
         )
 
 
-@pytest.mark.parametrize("engine", [EngineType.HIVE, EngineType.PRESTO])
-def test_invalid_parameter_type(engine: EngineType) -> None:
+@pytest.mark.parametrize("engine", [_EngineType.HIVE, _EngineType.PRESTO])
+def test_invalid_parameter_type(engine: _EngineType) -> None:
     @dataclass
     class Point:
         x: int
@@ -129,8 +101,5 @@ def test_invalid_parameter_type(engine: EngineType) -> None:
 
     with pytest.raises(TypeError, match=r".*Unsupported type.*Point.*"):
         _format_parameters(
-            {
-                "point": Point(7, 1),
-            },
-            engine=engine,
+            {"point": Point(7, 1),}, engine=engine,
         )
