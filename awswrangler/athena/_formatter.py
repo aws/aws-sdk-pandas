@@ -1,4 +1,4 @@
-"""Formatting logic for Athena parameters"""
+"""Formatting logic for Athena parameters."""
 import datetime
 import decimal
 from enum import Enum
@@ -126,7 +126,10 @@ _MAP_FORMATS: Dict[Type[Any], Type[_AbstractType[_PythonType]]] = {  # type: ign
 }
 
 
-def _create_abstract_type(data: _PythonType, engine: _EngineType,) -> _AbstractType[_PythonType]:
+def _create_abstract_type(
+    data: _PythonType,
+    engine: _EngineType,
+) -> _AbstractType[_PythonType]:
     if data is None:
         return _NullType(data=data, engine=engine)
 
@@ -136,7 +139,10 @@ def _create_abstract_type(data: _PythonType, engine: _EngineType,) -> _AbstractT
 
     for python_type, format_type in _ARRAY_FORMATS.items():
         if isinstance(data, python_type):
-            return format_type([_create_abstract_type(item, engine=engine) for item in data], engine=engine,)
+            return format_type(
+                [_create_abstract_type(item, engine=engine) for item in data],
+                engine=engine,
+            )
 
     for python_type, format_type in _MAP_FORMATS.items():
         if isinstance(data, python_type):
