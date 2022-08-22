@@ -4,10 +4,6 @@ from enum import Enum
 from typing import Dict, Any, TypeVar, Generic, Sequence, Type
 
 
-class FormatterError(ValueError):
-    ...
-
-
 class EngineType(Enum):
     PRESTO = "presto"
     HIVE = "hive"
