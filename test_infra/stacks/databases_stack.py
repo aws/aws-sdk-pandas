@@ -75,7 +75,7 @@ class DatabasesStack(Stack):  # type: ignore
         ssm.StringParameter(
             self,
             "db-security-group-parameter",
-            parameter_name="/AWSSDKPandas/EC2/DatabaseSecurityGroupId",
+            parameter_name="/SDKPandas/EC2/DatabaseSecurityGroupId",
             string_value=self.db_security_group.security_group_id,
         )
         self.rds_subnet_group = rds.SubnetGroup(
