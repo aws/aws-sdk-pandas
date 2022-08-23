@@ -2,7 +2,7 @@
 
 import itertools
 import logging
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Union
 
 import boto3
 
@@ -13,23 +13,15 @@ from awswrangler.distributed import ray_get, ray_remote
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
+@ray_remote
 def _wait_object(
-    boto3_session: boto3.Session, path: Tuple[str, str], waiter_name: str, delay: int, max_attempts: int
+    boto3_session: Optional[boto3.Session], path: str, waiter_name: str, delay: int, max_attempts: int
 ) -> None:
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     waiter = client_s3.get_waiter(waiter_name)
-    bucket, key = path
+
+    bucket, key = _utils.parse_path(path=path)
     waiter.wait(Bucket=bucket, Key=key, WaiterConfig={"Delay": delay, "MaxAttempts": max_attempts})
-
-
-@ray_remote
-def _wait_object_concurrent(
-    boto3_primitives: _utils.Boto3PrimitivesType, path: Tuple[str, str], waiter_name: str, delay: int, max_attempts: int
-) -> None:
-    boto3_session = _utils.boto3_from_primitives(primitives=boto3_primitives)
-    _wait_object(
-        path=path, waiter_name=waiter_name, delay=delay, max_attempts=max_attempts, boto3_session=boto3_session
-    )
 
 
 def _wait_objects(
@@ -45,13 +37,12 @@ def _wait_objects(
     _delay: int = int(delay) if isinstance(delay, float) else delay
     if len(paths) < 1:
         return None
-    _paths: List[Tuple[str, str]] = [_utils.parse_path(path=p) for p in paths]
     executor = _get_executor(use_threads=use_threads)
     ray_get(
         executor.map(
-            _wait_object_concurrent,
+            _wait_object,
             boto3_session,
-            _paths,
+            paths,
             itertools.repeat(waiter_name),
             itertools.repeat(_delay),
             itertools.repeat(max_attempts),
