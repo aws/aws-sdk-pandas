@@ -54,7 +54,7 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
 
 
 class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-methods
-    """Wrangler's Configuration class."""
+    """AWS Wrangler's Configuration class."""
 
     def __init__(self) -> None:
         self._loaded_values: Dict[str, _ConfigValueType] = {}

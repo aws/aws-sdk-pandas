@@ -75,7 +75,7 @@ class DatabasesStack(Stack):  # type: ignore
         ssm.StringParameter(
             self,
             "db-security-group-parameter",
-            parameter_name="/Wrangler/EC2/DatabaseSecurityGroupId",
+            parameter_name="/AWSWrangler/EC2/DatabaseSecurityGroupId",
             string_value=self.db_security_group.security_group_id,
         )
         self.rds_subnet_group = rds.SubnetGroup(
@@ -642,7 +642,7 @@ class DatabasesStack(Stack):  # type: ignore
     def _setup_neptune(self, iam_enabled: bool = False, port: int = 8182) -> None:
         cluster = neptune.DatabaseCluster(
             self,
-            "DataWrangler",
+            "aws-sdk-pandas-neptune-cluster",
             vpc=self.vpc,
             instance_type=neptune.InstanceType.R5_LARGE,
             iam_authentication=iam_enabled,

@@ -75,14 +75,14 @@ This option provides the ability to use semantic versions (i.e. library version)
    * - App
      - ARN
      - Description
-   * - aws-sdk-pandas-layer-py3-7
-     - arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-sdk-pandas-layer-py3-7
+   * - aws-data-wrangler-layer-py3-7
+     - arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-data-wrangler-layer-py3-7
      - Layer for ``Python 3.7.x`` runtimes
-   * - aws-sdk-pandas-layer-py3-8
-     - arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-sdk-pandas-layer-py3-8
+   * - aws-data-wrangler-layer-py3-8
+     - arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-data-wrangler-layer-py3-8
      - Layer for ``Python 3.8.x`` runtimes
-   * - aws-sdk-pandas-layer-py3-9
-     - arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-sdk-pandas-layer-py3-9
+   * - aws-data-wrangler-layer-py3-9
+     - arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-data-wrangler-layer-py3-9
      - Layer for ``Python 3.9.x`` runtimes     
 
 Here is an example of how to create and use the AWS SDK for pandas Lambda layer in your CDK app:
@@ -91,30 +91,30 @@ Here is an example of how to create and use the AWS SDK for pandas Lambda layer 
     
     from aws_cdk import core, aws_sam as sam, aws_lambda
 
-    class DataWranglerApp(core.Construct):
+    class AWSWranglerApp(core.Construct):
       def __init__(self, scope: core.Construct, id_: str):
         super.__init__(scope,id)
 
         awswrangler_layer = sam.CfnApplication(
           self,
-          "wrangler-layer",
+          "awswrangler-layer",
           location=sam.CfnApplication.ApplicationLocationProperty(
-            application_id="arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-sdk-pandas-layer-py3-8",
+            application_id="arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-data-wrangler-layer-py3-8",
             semantic_version="2.16.0",  # Get the latest version from https://github.com/aws/aws-sdk-pandas/releases
           ),
         )
 
         awswrangler_layer_arn = awswrangler_layer.get_att("Outputs.WranglerLayer38Arn").to_string()
-        awswrangler_layer_version = aws_lambda.LayerVersion.from_layer_version_arn(self, "wrangler-layer-version", awswrangler_layer_arn)
+        awswrangler_layer_version = aws_lambda.LayerVersion.from_layer_version_arn(self, "awswrangler-layer-version", awswrangler_layer_arn)
 
         aws_lambda.Function(
           self,
-          "wrangler-function",
+          "awswrangler-function",
           runtime=aws_lambda.Runtime.PYTHON_3_8,
-          function_name="sample-wrangler-lambda-function",
-          code=aws_lambda.Code.from_asset("./src/wrangler-lambda"),
+          function_name="sample-awswrangler-lambda-function",
+          code=aws_lambda.Code.from_asset("./src/awswrangler-lambda"),
           handler='lambda_function.lambda_handler',
-          layers=[wrangler_layer_version]
+          layers=[awswrangler_layer_version]
         )
 
 AWS Glue Python Shell Jobs
@@ -155,7 +155,7 @@ Public Artifacts
 
 Lambda zipped layers and Python wheels are stored in a publicly accessible S3 bucket for all versions.
 
-* Bucket: ``aws-sdk-pandas-public-artifacts``
+* Bucket: ``aws-data-wrangler-public-artifacts``
 
 * Prefix: ``releases/<version>/``
 
@@ -163,7 +163,7 @@ Lambda zipped layers and Python wheels are stored in a publicly accessible S3 bu
 
   * Python wheel: ``awswrangler-<version>-py3-none-any.whl``
 
-For example: ``s3://aws-sdk-pandas-public-artifacts/releases/2.16.1/awswrangler-layer-2.16.1-py3.8.zip``
+For example: ``s3://aws-data-wrangler-public-artifacts/releases/2.16.1/awswrangler-layer-2.16.1-py3.8.zip``
 
 Amazon SageMaker Notebook
 -------------------------

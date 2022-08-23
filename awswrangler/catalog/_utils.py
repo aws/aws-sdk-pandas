@@ -293,9 +293,9 @@ def drop_duplicated_columns(df: pd.DataFrame) -> pd.DataFrame:
     if duplicated.any():
         _logger.warning("Dropping duplicated columns...")
         columns = df.columns.values
-        columns[duplicated] = "AWSDataWranglerDuplicatedMarker"
+        columns[duplicated] = "AWSWranglerDuplicatedMarker"
         df.columns = columns
-        df.drop(columns="AWSDataWranglerDuplicatedMarker", inplace=True)
+        df.drop(columns="AWSWranglerDuplicatedMarker", inplace=True)
     return df
 
 
