@@ -1,4 +1,4 @@
-"""Configuration file for AWS Data Wrangler."""
+"""Configuration file for AWS SDK for pandas."""
 
 import inspect
 import logging
@@ -437,7 +437,7 @@ def _inject_config_doc(doc: Optional[str], available_configs: Tuple[str, ...]) -
     args_block: str = "\n".join(args)
     footer: str = (
         "\n    Check out the `Global Configurations Tutorial "
-        "<https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/"
+        "<https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/"
         "021%20-%20Global%20Configurations.ipynb>`_"
         " for details.\n"
     )

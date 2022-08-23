@@ -30,7 +30,7 @@ def _check_for_pyodbc(func: FuncT) -> FuncT:
         if not _pyodbc_found:
             raise ModuleNotFoundError(
                 "You need to install pyodbc respectively the "
-                "AWS Data Wrangler package with the `sqlserver` extra for using the sqlserver module"
+                "AWS SDK for pandas package with the `sqlserver` extra for using the sqlserver module"
             )
         return func(*args, **kwargs)
 

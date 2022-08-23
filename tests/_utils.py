@@ -358,7 +358,7 @@ def extract_cloudformation_outputs():
     for stack in response.get("Stacks"):
         if (
             stack["StackName"]
-            in ["aws-data-wrangler-base", "aws-data-wrangler-databases", "aws-data-wrangler-opensearch"]
+            in ["aws-sdk-pandas-base", "aws-sdk-pandas-databases", "aws-sdk-pandas-opensearch"]
         ) and (stack["StackStatus"] in CFN_VALID_STATUS):
             for output in stack.get("Outputs"):
                 outputs[output.get("OutputKey")] = output.get("OutputValue")
@@ -410,6 +410,6 @@ def create_workgroup(wkg_name, config):
         client.create_work_group(
             Name=wkg_name,
             Configuration=config,
-            Description=f"AWS Data Wrangler Test - {wkg_name}",
+            Description=f"AWS SDK for pandas Test - {wkg_name}",
         )
     return wkg_name

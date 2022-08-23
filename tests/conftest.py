@@ -66,7 +66,7 @@ def loggroup(cloudformation_outputs):
 @pytest.fixture(scope="session")
 def workgroup0(bucket):
     return create_workgroup(
-        wkg_name="aws_data_wrangler_0",
+        wkg_name="aws_sdk_pandas_0",
         config={
             "ResultConfiguration": {"OutputLocation": f"s3://{bucket}/athena_workgroup0/"},
             "EnforceWorkGroupConfiguration": True,
@@ -80,7 +80,7 @@ def workgroup0(bucket):
 @pytest.fixture(scope="session")
 def workgroup1(bucket):
     return create_workgroup(
-        wkg_name="aws_data_wrangler_1",
+        wkg_name="aws_sdk_pandas_1",
         config={
             "ResultConfiguration": {
                 "OutputLocation": f"s3://{bucket}/athena_workgroup1/",
@@ -97,7 +97,7 @@ def workgroup1(bucket):
 @pytest.fixture(scope="session")
 def workgroup2(bucket, kms_key):
     return create_workgroup(
-        wkg_name="aws_data_wrangler_2",
+        wkg_name="aws_sdk_pandas_2",
         config={
             "ResultConfiguration": {
                 "OutputLocation": f"s3://{bucket}/athena_workgroup2/",
@@ -114,7 +114,7 @@ def workgroup2(bucket, kms_key):
 @pytest.fixture(scope="session")
 def workgroup3(bucket, kms_key):
     return create_workgroup(
-        wkg_name="aws_data_wrangler_3",
+        wkg_name="aws_sdk_pandas_3",
         config={
             "ResultConfiguration": {
                 "OutputLocation": f"s3://{bucket}/athena_workgroup3/",
@@ -167,17 +167,17 @@ def databases_parameters(cloudformation_outputs, db_password):
 def redshift_external_schema(cloudformation_outputs, databases_parameters, glue_database):
     region = cloudformation_outputs.get("Region")
     sql = f"""
-    CREATE EXTERNAL SCHEMA IF NOT EXISTS aws_data_wrangler_external FROM data catalog
+    CREATE EXTERNAL SCHEMA IF NOT EXISTS aws_sdk_pandas_external FROM data catalog
     DATABASE '{glue_database}'
     IAM_ROLE '{databases_parameters["redshift"]["role"]}'
     REGION '{region}';
     """
-    con = wr.redshift.connect(connection="aws-data-wrangler-redshift")
+    con = wr.redshift.connect(connection="aws-sdk-pandas-redshift")
     with con.cursor() as cursor:
         cursor.execute(sql)
         con.commit()
     con.close()
-    return "aws_data_wrangler_external"
+    return "aws_sdk_pandas_external"
 
 
 @pytest.fixture(scope="session")
@@ -187,7 +187,7 @@ def account_id():
 
 @pytest.fixture(scope="session")
 def db_password():
-    return boto3.client("secretsmanager").get_secret_value(SecretId="aws-data-wrangler/db_password")["SecretString"]
+    return boto3.client("secretsmanager").get_secret_value(SecretId="aws-sdk-pandas/db_password")["SecretString"]
 
 
 @pytest.fixture(scope="function")
@@ -239,7 +239,7 @@ def redshift_table():
     name = f"tbl_{get_time_str_with_random_suffix()}"
     print(f"Table name: {name}")
     yield name
-    con = wr.redshift.connect("aws-data-wrangler-redshift")
+    con = wr.redshift.connect("aws-sdk-pandas-redshift")
     with con.cursor() as cursor:
         cursor.execute(f"DROP TABLE IF EXISTS public.{name}")
     con.commit()
@@ -251,7 +251,7 @@ def postgresql_table():
     name = f"tbl_{get_time_str_with_random_suffix()}"
     print(f"Table name: {name}")
     yield name
-    con = wr.postgresql.connect("aws-data-wrangler-postgresql")
+    con = wr.postgresql.connect("aws-sdk-pandas-postgresql")
     with con.cursor() as cursor:
         cursor.execute(f"DROP TABLE IF EXISTS public.{name}")
     con.commit()
@@ -263,7 +263,7 @@ def mysql_table():
     name = f"tbl_{get_time_str_with_random_suffix()}"
     print(f"Table name: {name}")
     yield name
-    con = wr.mysql.connect("aws-data-wrangler-mysql")
+    con = wr.mysql.connect("aws-sdk-pandas-mysql")
     with con.cursor() as cursor:
         cursor.execute(f"DROP TABLE IF EXISTS test.{name}")
     con.commit()
@@ -275,7 +275,7 @@ def sqlserver_table():
     name = f"tbl_{get_time_str_with_random_suffix()}"
     print(f"Table name: {name}")
     yield name
-    con = wr.sqlserver.connect("aws-data-wrangler-sqlserver")
+    con = wr.sqlserver.connect("aws-sdk-pandas-sqlserver")
     with con.cursor() as cursor:
         cursor.execute(f"IF OBJECT_ID(N'dbo.{name}', N'U') IS NOT NULL DROP TABLE dbo.{name}")
     con.commit()
@@ -287,7 +287,7 @@ def oracle_table():
     name = f"tbl_{get_time_str_with_random_suffix()}"
     print(f"Table name: {name}")
     yield name
-    con = wr.oracle.connect("aws-data-wrangler-oracle")
+    con = wr.oracle.connect("aws-sdk-pandas-oracle")
     sql = f"""
 BEGIN
    EXECUTE IMMEDIATE 'DROP TABLE "TEST"."{name}"';

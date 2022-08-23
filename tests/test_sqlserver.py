@@ -39,13 +39,13 @@ def create_sql_server_database(databases_parameters):
 
 @pytest.fixture(scope="function")
 def sqlserver_con():
-    con = wr.sqlserver.connect("aws-data-wrangler-sqlserver")
+    con = wr.sqlserver.connect("aws-sdk-pandas-sqlserver")
     yield con
     con.close()
 
 
 def test_connection():
-    wr.sqlserver.connect("aws-data-wrangler-sqlserver", timeout=10).close()
+    wr.sqlserver.connect("aws-sdk-pandas-sqlserver", timeout=10).close()
 
 
 def test_read_sql_query_simple(databases_parameters, sqlserver_con):
@@ -206,7 +206,7 @@ def test_table_name(sqlserver_con):
 @pytest.mark.parametrize("dbname", [None, "test"])
 def test_connect_secret_manager(dbname):
     try:
-        con = wr.sqlserver.connect(secret_id="aws-data-wrangler/sqlserver", dbname=dbname)
+        con = wr.sqlserver.connect(secret_id="aws-sdk-pandas/sqlserver", dbname=dbname)
         df = wr.sqlserver.read_sql_query("SELECT 1", con=con)
         assert df.shape == (1, 1)
     except boto3.client("secretsmanager").exceptions.ResourceNotFoundException:

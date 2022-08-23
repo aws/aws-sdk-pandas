@@ -129,7 +129,7 @@ def cloudformation_outputs():
 
 @pytest.fixture(scope="session")
 def opensearch_password():
-    return boto3.client("secretsmanager").get_secret_value(SecretId="aws-data-wrangler/opensearch_password")[
+    return boto3.client("secretsmanager").get_secret_value(SecretId="aws-sdk-pandas/opensearch_password")[
         "SecretString"
     ]
 

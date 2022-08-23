@@ -23,8 +23,8 @@ import awswrangler
 
 # -- Project information -----------------------------------------------------
 
-project = "AWS Data Wrangler"
-author = "Igor Tavares"
+project = "AWS SDK for pandas"
+author = "Amazon Web Services"
 
 master_doc = "index"
 
@@ -79,7 +79,7 @@ html_logo = "_static/logo_transparent.png"
 # theme further.
 html_theme_options = {
     # Navigation bar title. (Default: ``project`` value)
-    "navbar_title": "AWS Data Wrangler",
+    "navbar_title": "AWS SDK for pandas",
     # Tab name for entire site. (Default: "Site")
     "navbar_site_name": "Site",
     # A list of tuples containing pages or urls to link to.
@@ -94,9 +94,9 @@ html_theme_options = {
         ("Install", "install"),
         ("Tutorials", "tutorials"),
         ("API Reference", "api"),
-        ("License", "https://github.com/awslabs/aws-data-wrangler/blob/main/LICENSE.txt", True),
-        ("Contributing", "https://github.com/awslabs/aws-data-wrangler/blob/main/CONTRIBUTING.md", True),
-        ("GitHub", "https://github.com/awslabs/aws-data-wrangler", True),
+        ("License", "https://github.com/aws/aws-sdk-pandas/blob/main/LICENSE.txt", True),
+        ("Contributing", "https://github.com/aws/aws-sdk-pandas/blob/main/CONTRIBUTING.md", True),
+        ("GitHub", "https://github.com/aws/aws-sdk-pandas", True),
     ],
     # Render the next and previous page links in navbar. (Default: true)
     "navbar_sidebarrel": False,

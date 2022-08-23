@@ -27,7 +27,7 @@ class OpenSearchStack(Stack):  # type: ignore
         **kwargs: str,
     ) -> None:
         """
-        AWS Data Wrangler Development OpenSearch Infrastructure.
+        AWS SDK for pandas Development OpenSearch Infrastructure.
         Includes OpenSearch, Elasticsearch, ...
         """
         super().__init__(scope, construct_id, **kwargs)
@@ -46,7 +46,7 @@ class OpenSearchStack(Stack):  # type: ignore
         self.password_secret = secrets.Secret(
             self,
             "opensearch-password-secret",
-            secret_name="aws-data-wrangler/opensearch_password",
+            secret_name="aws-sdk-pandas/opensearch_password",
             generate_secret_string=secrets.SecretStringGenerator(exclude_characters="/@\"\' \\"),
         ).secret_value
         # fmt: on

@@ -173,7 +173,7 @@ def test_versioned(timestream_database_and_table):
 def test_real_csv_load_scenario(timestream_database_and_table):
     name = timestream_database_and_table
     df = pd.read_csv(
-        "https://raw.githubusercontent.com/awslabs/amazon-timestream-tools/master/sample_apps/data/sample.csv",
+        "https://raw.githubusercontent.com/aws/amazon-timestream-tools/master/sample_apps/data/sample.csv",
         names=[
             "ignore0",
             "region",

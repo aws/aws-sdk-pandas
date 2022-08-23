@@ -13,7 +13,7 @@ class LakeFormationStack(Stack):  # type: ignore
         **kwargs: str,
     ) -> None:
         """
-        AWS Data Wrangler Development LakeFormation Infrastructure.
+        AWS SDK for pandas Development LakeFormation Infrastructure.
         """
         super().__init__(scope, construct_id, **kwargs)
 
@@ -21,12 +21,12 @@ class LakeFormationStack(Stack):  # type: ignore
 
     def _set_lakeformation_infra(self) -> None:
         bucket = s3.Bucket.from_bucket_name(
-            self, "aws-data-wrangler-bucket", bucket_name=Fn.import_value("aws-data-wrangler-base-BucketName")
+            self, "aws-sdk-pandas-bucket", bucket_name=Fn.import_value("aws-sdk-pandas-base-BucketName")
         )
 
         transaction_role = iam.Role(
             self,
-            "aws-data-wrangler-lf-transaction-role",
+            "aws-sdk-pandas-lf-transaction-role",
             assumed_by=iam.ServicePrincipal("lakeformation.amazonaws.com"),
             inline_policies={
                 "Root": iam.PolicyDocument(
@@ -87,7 +87,7 @@ class LakeFormationStack(Stack):  # type: ignore
 
         lf.CfnResource(
             self,
-            "aws-data-wrangler-bucket-lf-registration",
+            "aws-sdk-pandas-bucket-lf-registration",
             resource_arn=bucket.bucket_arn,
             use_service_linked_role=False,
             role_arn=transaction_role.role_arn,

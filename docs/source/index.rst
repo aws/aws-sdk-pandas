@@ -63,12 +63,12 @@ Read The Docs
    install
    tutorials
    api
-   Community Resources <https://github.com/awslabs/aws-data-wrangler#community-resources>
-   Logging <https://github.com/awslabs/aws-data-wrangler#logging>
-   Who uses AWS Data Wrangler? <https://github.com/awslabs/aws-data-wrangler#who-uses-aws-data-wrangler>
-   License <https://github.com/awslabs/aws-data-wrangler/blob/main/LICENSE.txt>
-   Contributing <https://github.com/awslabs/aws-data-wrangler/blob/main/CONTRIBUTING.md>
-   Legacy Docs (pre-1.0.0) <https://aws-data-wrangler.readthedocs.io/en/legacy/>
+   Community Resources <https://github.com/aws/aws-sdk-pandas#community-resources>
+   Logging <https://github.com/aws/aws-sdk-pandas#logging>
+   Who uses AWS SDK for pandas? <https://github.com/aws/aws-sdk-pandas#who-uses-aws-sdk-pandas>
+   License <https://github.com/aws/aws-sdk-pandas/blob/main/LICENSE.txt>
+   Contributing <https://github.com/aws/aws-sdk-pandas/blob/main/CONTRIBUTING.md>
+   Legacy Docs (pre-1.0.0) <https://aws-sdk-pandas.readthedocs.io/en/legacy/>
 
 .. image:: https://d3tiqpr4kkkomd.cloudfront.net/img/pixel.png?asset=RIXAH6KDSYAI1HHEBLTY
    :align: left

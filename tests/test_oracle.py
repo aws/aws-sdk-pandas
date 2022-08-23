@@ -16,13 +16,13 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 @pytest.fixture(scope="function")
 def oracle_con():
-    con = wr.oracle.connect("aws-data-wrangler-oracle")
+    con = wr.oracle.connect("aws-sdk-pandas-oracle")
     yield con
     con.close()
 
 
 def test_connection():
-    wr.oracle.connect("aws-data-wrangler-oracle", call_timeout=10000).close()
+    wr.oracle.connect("aws-sdk-pandas-oracle", call_timeout=10000).close()
 
 
 def test_read_sql_query_simple(databases_parameters, oracle_con):
@@ -166,7 +166,7 @@ def test_table_name(oracle_con):
 @pytest.mark.parametrize("dbname", [None, "ORCL"])
 def test_connect_secret_manager(dbname):
     try:
-        con = wr.oracle.connect(secret_id="aws-data-wrangler/oracle", dbname=dbname)
+        con = wr.oracle.connect(secret_id="aws-sdk-pandas/oracle", dbname=dbname)
         df = wr.oracle.read_sql_query("SELECT 1 FROM DUAL", con=con)
         assert df.shape == (1, 1)
     except boto3.client("secretsmanager").exceptions.ResourceNotFoundException:
