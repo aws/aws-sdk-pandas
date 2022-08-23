@@ -319,3 +319,22 @@ def test_prefix_list(path, s3_additional_kwargs):
     assert len(wr.s3.list_objects(path + "foo?boo", s3_additional_kwargs=s3_additional_kwargs)) == 4
     assert len(wr.s3.list_objects(path + "foo*boo", s3_additional_kwargs=s3_additional_kwargs)) == 5
     assert len(wr.s3.list_objects(path + "foo[12]boo", s3_additional_kwargs=s3_additional_kwargs)) == 2
+
+
+@pytest.mark.timeout(30)
+@pytest.mark.parametrize("use_threads", [False, True])
+def test_wait_object_exists(bucket: str, path: str, use_threads: bool) -> None:
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5]})
+
+    file_paths = [f"{path}{i}.txt" for i in range(10)]
+    for file_path in file_paths:
+        wr.s3.to_csv(df, file_path, index=False)
+
+    wr.s3.wait_objects_exist(file_paths, use_threads=use_threads)
+
+
+@pytest.mark.timeout(30)
+@pytest.mark.parametrize("use_threads", [False, True])
+def test_wait_object_not_exists(bucket: str, path: str, use_threads: bool) -> None:
+    file_paths = [f"{path}{i}.txt" for i in range(10)]
+    wr.s3.wait_objects_not_exist(file_paths, use_threads=use_threads)
