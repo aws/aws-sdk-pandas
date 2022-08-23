@@ -39,7 +39,7 @@ class DatabasesStack(Stack):  # type: ignore
         databases_context = self.node.try_get_context("databases")
 
         self._set_db_infra()
-        self._set_catalog_encryption()
+        #self._set_catalog_encryption()
         if databases_context["redshift"]:
             self._setup_redshift()
         if databases_context["postgresql"]:
