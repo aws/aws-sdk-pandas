@@ -596,11 +596,11 @@ def read_parquet(
 
     Will anable the function to return a Iterable of DataFrames instead of a regular DataFrame.
 
-    There are two batching strategies on Wrangler:
+    There are two batching strategies on awswrangler:
 
     - If **chunked=True**, a new DataFrame will be returned for each file in your path/dataset.
 
-    - If **chunked=INTEGER**, Wrangler will iterate on the data by number of rows igual the received INTEGER.
+    - If **chunked=INTEGER**, awswrangler will iterate on the data by number of rows igual the received INTEGER.
 
     `P.S.` `chunked=True` if faster and uses less memory while `chunked=INTEGER` is more precise
     in number of rows for each Dataframe.
@@ -649,8 +649,8 @@ def read_parquet(
         and want to disable this check.
     chunked : Union[int, bool]
         If passed will split the data in a Iterable of DataFrames (Memory friendly).
-        If `True` wrangler will iterate on the data by files in the most efficient way without guarantee of chunksize.
-        If an `INTEGER` is passed Wrangler will iterate on the data by number of rows igual the received INTEGER.
+        If `True` awswrangler will iterate on the data by files in the most efficient way without guarantee of chunksize.
+        If an `INTEGER` is passed awswrangler will iterate on the data by number of rows igual the received INTEGER.
     dataset: bool
         If `True` read a parquet dataset instead of simple file(s) loading all the related partitions as columns.
     categories: Optional[List[str]], optional
@@ -823,11 +823,11 @@ def read_parquet_table(
 
     Will enable the function to return an Iterable of DataFrames instead of a regular DataFrame.
 
-    There are two batching strategies on Wrangler:
+    There are two batching strategies on awswrangler:
 
     - If **chunked=True**, a new DataFrame will be returned for each file in your path/dataset.
 
-    - If **chunked=INTEGER**, Wrangler will paginate through files slicing and concatenating
+    - If **chunked=INTEGER**, awswrangler will paginate through files slicing and concatenating
       to return DataFrames with the number of row igual the received INTEGER.
 
     `P.S.` `chunked=True` if faster and uses less memory while `chunked=INTEGER` is more precise

@@ -37,7 +37,6 @@ Powered By [<img src="https://arrow.apache.org/img/arrow.png" width="200">](http
 - [Community Resources](#community-resources)
 - [Logging](#logging)
 - [Who uses AWS SDK for pandas?](#who-uses-aws-sdk-pandas)
-- [What is Amazon Sagemaker Data Wrangler?](#what-is-amazon-sageMaker-data-wrangler)
 
 ## Quick Start
 
@@ -210,7 +209,7 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 ## Who uses AWS SDK for pandas?
 
 Knowing which companies are using this library is important to help prioritize the project internally.
-If you would like us to include your company’s name and/or logo in the README file to indicate that your company is using the AWS SDK for pandas, please raise a "Support Data Wrangler" issue. If you would like us to display your company’s logo, please raise a linked pull request to provide an image file for the logo. Note that by raising a Support Data Wrangler issue (and related pull request), you are granting AWS permission to use your company’s name (and logo) for the limited purpose described here and you are confirming that you have authority to grant such permission.
+If you would like us to include your company’s name and/or logo in the README file to indicate that your company is using the AWS SDK for pandas, please raise a "Support Us" issue. If you would like us to display your company’s logo, please raise a linked pull request to provide an image file for the logo. Note that by raising a Support Us issue (and related pull request), you are granting AWS permission to use your company’s name (and logo) for the limited purpose described here and you are confirming that you have authority to grant such permission.
 
 - [Amazon](https://www.amazon.com/)
 - [AWS](https://aws.amazon.com/)

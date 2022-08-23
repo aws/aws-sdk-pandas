@@ -936,7 +936,7 @@ def submit_ecr_credentials_refresh(
     cluster_id : str
         Cluster ID.
     path : str
-        Amazon S3 path where Wrangler will stage the script ecr_credentials_refresh.py (e.g. s3://bucket/emr/)
+        Amazon S3 path where awswrangler will stage the script ecr_credentials_refresh.py (e.g. s3://bucket/emr/)
     action_on_failure : str
         'TERMINATE_JOB_FLOW', 'TERMINATE_CLUSTER', 'CANCEL_AND_WAIT', 'CONTINUE'
     boto3_session : boto3.Session(), optional

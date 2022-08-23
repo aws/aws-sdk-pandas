@@ -90,7 +90,7 @@ html_theme_options = {
     # Note the "1" or "True" value above as the third argument to indicate
     # an arbitrary url.
     "navbar_links": [
-        ("What is Data Wrangler?", "what"),
+        ("What is AWS SDK for pandas?", "what"),
         ("Install", "install"),
         ("Tutorials", "tutorials"),
         ("API Reference", "api"),

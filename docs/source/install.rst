@@ -95,7 +95,7 @@ Here is an example of how to create and use the AWS SDK for pandas Lambda layer 
       def __init__(self, scope: core.Construct, id_: str):
         super.__init__(scope,id)
 
-        wrangler_layer = sam.CfnApplication(
+        awswrangler_layer = sam.CfnApplication(
           self,
           "wrangler-layer",
           location=sam.CfnApplication.ApplicationLocationProperty(
@@ -104,8 +104,8 @@ Here is an example of how to create and use the AWS SDK for pandas Lambda layer 
           ),
         )
 
-        wrangler_layer_arn = wrangler_layer.get_att("Outputs.WranglerLayer38Arn").to_string()
-        wrangler_layer_version = aws_lambda.LayerVersion.from_layer_version_arn(self, "wrangler-layer-version", wrangler_layer_arn)
+        awswrangler_layer_arn = awswrangler_layer.get_att("Outputs.WranglerLayer38Arn").to_string()
+        awswrangler_layer_version = aws_lambda.LayerVersion.from_layer_version_arn(self, "wrangler-layer-version", awswrangler_layer_arn)
 
         aws_lambda.Function(
           self,
@@ -120,7 +120,7 @@ Here is an example of how to create and use the AWS SDK for pandas Lambda layer 
 AWS Glue Python Shell Jobs
 --------------------------
 
-.. note:: Glue Python Shell runs on Python3.6, for which support was dropped in version 2.15.0 of Wrangler. Please use version 2.14.0 of the library or below.
+.. note:: Glue Python Shell runs on Python3.6, for which support was dropped in version 2.15.0 of awswrangler. Please use version 2.14.0 of the library or below.
 
 1 - Go to `GitHub's release page <https://github.com/aws/aws-sdk-pandas/releases>`_ and download the wheel file
 (.whl) related to the desired version. Alternatively, you can download the wheel from the `public artifacts bucket <https://aws-sdk-pandas.readthedocs.io/en/latest/install.html#public-artifacts>`_.
