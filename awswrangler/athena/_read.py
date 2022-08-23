@@ -866,7 +866,7 @@ def read_sql_query(
     params: Dict[str, any], optional
         Dict of parameters that will be used for constructing the SQL query. Only named parameters are supported.
         The dict needs to contain the information in the form {'name': 'value'} and the SQL query needs to contain
-        `:name;`. Note that for varchar columns and similar, you must surround the value in single quotes.
+        `:name`. Note that for varchar columns and similar, you must surround the value in single quotes.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
@@ -892,7 +892,7 @@ def read_sql_query(
 
     >>> import awswrangler as wr
     >>> df = wr.athena.read_sql_query(
-    ...     sql="SELECT * FROM my_table WHERE name=:name; AND city=:city;",
+    ...     sql="SELECT * FROM my_table WHERE name=:name AND city=:city",
     ...     params={"name": "'filtered_name'", "city": "'filtered_city'"}
     ... )
 
@@ -916,7 +916,7 @@ def read_sql_query(
         params = {}
     params = _format_parameters(params, engine=_EngineType.PRESTO)
     for key, value in params.items():
-        sql = sql.replace(f":{key};", str(value))
+        sql = sql.replace(f":{key}", str(value))
 
     max_remote_cache_entries = min(max_remote_cache_entries, max_local_cache_entries)
 
@@ -1256,7 +1256,7 @@ def unload(
     params: Dict[str, any], optional
         Dict of parameters that will be used for constructing the SQL query. Only named parameters are supported.
         The dict needs to contain the information in the form {'name': 'value'} and the SQL query needs to contain
-        `:name;`. Note that for varchar columns and similar, you must surround the value in single quotes.
+        `:name`. Note that for varchar columns and similar, you must surround the value in single quotes.
 
     Returns
     -------
@@ -1267,7 +1267,7 @@ def unload(
     --------
     >>> import awswrangler as wr
     >>> res = wr.athena.unload(
-    ...     sql="SELECT * FROM my_table WHERE name=:name; AND city=:city;",
+    ...     sql="SELECT * FROM my_table WHERE name=:name AND city=:city",
     ...     params={"name": "'filtered_name'", "city": "'filtered_city'"}
     ... )
 
@@ -1276,8 +1276,9 @@ def unload(
     # Substitute query parameters
     if params is None:
         params = {}
+    params = _format_parameters(params, engine=_EngineType.PRESTO)
     for key, value in params.items():
-        sql = sql.replace(f":{key};", str(value))
+        sql = sql.replace(f":{key}", str(value))
     return _unload(
         sql=sql,
         path=path,

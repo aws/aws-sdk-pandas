@@ -246,7 +246,7 @@ def test_athena(path, glue_database, glue_table, kms_key, workgroup0, workgroup1
         == wr.athena.describe_table(database=glue_database, table=glue_table).to_dict()
     )
     df = wr.athena.read_sql_query(
-        sql=f"SELECT * FROM {glue_table} WHERE iint8 = :iint8_value;",
+        sql=f"SELECT * FROM {glue_table} WHERE iint8 = :iint8_value",
         database=glue_database,
         ctas_approach=False,
         workgroup=workgroup1,
@@ -298,7 +298,7 @@ def test_athena_parameter_formatting(path, glue_database, glue_table, workgroup0
         partition_cols=["par0", "par1"],
     )
     df = wr.athena.read_sql_query(
-        sql=f"SELECT * FROM {glue_table} WHERE {col_name} = :value;",
+        sql=f"SELECT * FROM {glue_table} WHERE {col_name} = :value",
         database=glue_database,
         ctas_approach=False,
         workgroup=workgroup0,
@@ -323,7 +323,7 @@ def test_athena_parameter_formatting_null(path, glue_database, glue_table, workg
         partition_cols=["par0", "par1"],
     )
     df = wr.athena.read_sql_query(
-        sql=f"SELECT * FROM {glue_table} WHERE {col_name} IS :value;",
+        sql=f"SELECT * FROM {glue_table} WHERE {col_name} IS :value",
         database=glue_database,
         ctas_approach=False,
         workgroup=workgroup0,
@@ -1055,7 +1055,7 @@ def test_bucketing_csv_saving(path, glue_database, glue_table, dtype):
         query_params = {"c0": True}
     else:
         raise ValueError(f"Invalid Argument for dtype: {dtype}")
-    query = f"SELECT c0 FROM {glue_table} WHERE c0=:c0;"
+    query = f"SELECT c0 FROM {glue_table} WHERE c0=:c0"
     df = pd.DataFrame({"c0": data})
 
     # Regular

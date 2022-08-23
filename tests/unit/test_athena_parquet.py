@@ -620,7 +620,7 @@ def test_empty_dataframe(path, glue_database, glue_table):
         database=glue_database,
         table=glue_table,
     )
-    sql = f"SELECT * FROM {glue_table} WHERE par0 = :par0;"
+    sql = f"SELECT * FROM {glue_table} WHERE par0 = :par0"
     df_uncached = wr.athena.read_sql_query(sql=sql, database=glue_database, ctas_approach=True, params={"par0": 999})
     df_cached = wr.athena.read_sql_query(sql=sql, database=glue_database, ctas_approach=True, params={"par0": 999})
     assert set(df.columns) == set(df_uncached.columns)

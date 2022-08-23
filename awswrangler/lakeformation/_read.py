@@ -154,7 +154,7 @@ def read_sql_query(
 
     >>> import awswrangler as wr
     >>> df = wr.lakeformation.read_sql_query(
-    ...     sql="SELECT * FROM my_table WHERE name=:name; AND city=:city;",
+    ...     sql="SELECT * FROM my_table WHERE name=:name AND city=:city",
     ...     database="my_db",
     ...     query_as_of_time="1611142914",
     ...     params={"name": "'filtered_name'", "city": "'filtered_city'"}
