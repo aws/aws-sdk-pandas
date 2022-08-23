@@ -120,7 +120,7 @@ class DatabasesStack(Stack):  # type: ignore
         CfnDataCatalogEncryptionSettings(
             self,
             "aws-sdk-pandas-catalog-encryption",
-            catalog_id=f"{Aws.ACCOUNT_ID}-aws-sdk-pandas",
+            catalog_id=f"{Aws.ACCOUNT_ID}",
             data_catalog_encryption_settings=CfnDataCatalogEncryptionSettings.DataCatalogEncryptionSettingsProperty(  # noqa: E501
                 encryption_at_rest=CfnDataCatalogEncryptionSettings.EncryptionAtRestProperty(
                     catalog_encryption_mode="DISABLED",
