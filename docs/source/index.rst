@@ -1,5 +1,7 @@
 An `AWS Professional Service <https://aws.amazon.com/professional-services>`_ open source initiative | aws-proserve-opensource@amazon.com
 
+AWS Data Wrangler is now **AWS SDK for pandas (awswrangler)**.  We’re changing the name we use when we talk about the library, but everything else will stay the same.  You’ll still be able to install using :code:`pip install awswrangler` and you won’t need to change any of your code.  As part of this change, we’ve moved the library from AWS Labs to the main AWS GitHub organisation but, thanks to the GitHub’s redirect feature, you’ll still be able to access the project by its old URLs until you update your bookmarks.  Our documentation has also moved to `aws-sdk-pandas.readthedocs.io <https://aws-sdk-pandas.readthedocs.io>`_, but old bookmarks will redirect to the new site.
+
 Quick Start
 -----------
 
