@@ -1,4 +1,4 @@
-# AWS SDK for pandas
+# AWS SDK for pandas (awswrangler)
 
 *Pandas on AWS*
 
