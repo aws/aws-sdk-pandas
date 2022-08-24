@@ -53,7 +53,7 @@ class OpenSearchStack(Stack):  # type: ignore
         self.password = self.password_secret.to_string()
 
     def _setup_opensearch_1_0(self) -> None:
-        domain_name = "wrangler-os-1-0"
+        domain_name = "sdk-pandas-os-1-0"
         validate_domain_name(domain_name)
         domain_arn = f"arn:aws:es:{self.region}:{self.account}:domain/{domain_name}"
         domain = opensearch.Domain(
@@ -76,7 +76,7 @@ class OpenSearchStack(Stack):  # type: ignore
         CfnOutput(self, f"DomainEndpoint-{domain_name}", value=domain.domain_endpoint)
 
     def _setup_elasticsearch_7_10_fgac(self) -> None:
-        domain_name = "wrangler-es-7-10-fgac"
+        domain_name = "sdk-pandas-es-7-10-fgac"
         validate_domain_name(domain_name)
         domain_arn = f"arn:aws:es:{self.region}:{self.account}:domain/{domain_name}"
         domain = opensearch.Domain(

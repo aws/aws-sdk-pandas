@@ -75,7 +75,7 @@ class DatabasesStack(Stack):  # type: ignore
         ssm.StringParameter(
             self,
             "db-security-group-parameter",
-            parameter_name="/AWSWrangler/EC2/DatabaseSecurityGroupId",
+            parameter_name="/SDKPandas/EC2/DatabaseSecurityGroupId",
             string_value=self.db_security_group.security_group_id,
         )
         self.rds_subnet_group = rds.SubnetGroup(
@@ -120,7 +120,7 @@ class DatabasesStack(Stack):  # type: ignore
         CfnDataCatalogEncryptionSettings(
             self,
             "aws-sdk-pandas-catalog-encryption",
-            catalog_id=Aws.ACCOUNT_ID,
+            catalog_id=f"{Aws.ACCOUNT_ID}",
             data_catalog_encryption_settings=CfnDataCatalogEncryptionSettings.DataCatalogEncryptionSettingsProperty(  # noqa: E501
                 encryption_at_rest=CfnDataCatalogEncryptionSettings.EncryptionAtRestProperty(
                     catalog_encryption_mode="DISABLED",
@@ -318,7 +318,7 @@ class DatabasesStack(Stack):  # type: ignore
             engine=rds.DatabaseClusterEngine.aurora_postgres(
                 version=rds.AuroraPostgresEngineVersion.VER_11_13,
             ),
-            cluster_identifier="postgresql-cluster-wrangler",
+            cluster_identifier="postgresql-cluster-sdk-pandas",
             instances=1,
             credentials=rds.Credentials.from_password(
                 username=self.db_username,
@@ -386,7 +386,7 @@ class DatabasesStack(Stack):  # type: ignore
             engine=rds.DatabaseClusterEngine.aurora_mysql(
                 version=rds.AuroraMysqlEngineVersion.VER_2_10_2,
             ),
-            cluster_identifier="mysql-cluster-wrangler",
+            cluster_identifier="mysql-cluster-sdk-pandas",
             instances=1,
             default_database_name=database,
             credentials=rds.Credentials.from_password(
@@ -470,7 +470,7 @@ class DatabasesStack(Stack):  # type: ignore
             engine=rds.DatabaseClusterEngine.aurora_mysql(
                 version=rds.AuroraMysqlEngineVersion.VER_5_7_12,
             ),
-            cluster_identifier="mysql-serverless-cluster-wrangler",
+            cluster_identifier="mysql-serverless-cluster-sdk-pandas",
             default_database_name=database,
             credentials=rds.Credentials.from_password(
                 username=self.db_username,
@@ -523,7 +523,7 @@ class DatabasesStack(Stack):  # type: ignore
             self,
             "aws-sdk-pandas-sqlserver-instance",
             removal_policy=RemovalPolicy.DESTROY,
-            instance_identifier="sqlserver-instance-wrangler",
+            instance_identifier="sqlserver-instance-sdk-pandas",
             engine=rds.DatabaseInstanceEngine.sql_server_ex(version=rds.SqlServerEngineVersion.VER_15),
             instance_type=ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE3, ec2.InstanceSize.SMALL),
             credentials=rds.Credentials.from_password(
@@ -585,7 +585,7 @@ class DatabasesStack(Stack):  # type: ignore
             self,
             "aws-sdk-pandas-oracle-instance",
             removal_policy=RemovalPolicy.DESTROY,
-            instance_identifier="oracle-instance-wrangler",
+            instance_identifier="oracle-instance-sdk-pandas",
             engine=rds.DatabaseInstanceEngine.oracle_ee(version=rds.OracleEngineVersion.VER_19_0_0_0_2021_04_R1),
             instance_type=ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE3, ec2.InstanceSize.SMALL),
             credentials=rds.Credentials.from_password(

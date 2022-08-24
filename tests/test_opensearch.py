@@ -136,12 +136,12 @@ def opensearch_password():
 
 @pytest.fixture(scope="session")
 def domain_endpoint_opensearch_1_0(cloudformation_outputs):
-    return cloudformation_outputs["DomainEndpointwrangleros10"]
+    return cloudformation_outputs["DomainEndpointsdkpandasos10"]
 
 
 @pytest.fixture(scope="session")
 def domain_endpoint_elasticsearch_7_10_fgac(cloudformation_outputs):
-    return cloudformation_outputs["DomainEndpointwrangleres710fgac"]
+    return cloudformation_outputs["DomainEndpointsdkpandases710fgac"]
 
 
 def test_connection_opensearch_1_0(domain_endpoint_opensearch_1_0):
