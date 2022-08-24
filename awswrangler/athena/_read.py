@@ -586,7 +586,7 @@ def get_query_results(
         Recommended for memory restricted environments.
     chunksize : Union[int, bool], optional
         If passed will split the data in a Iterable of DataFrames (Memory friendly).
-        If `True` awswrangler will iterate on the data by files in the most efficient way without guarantee of chunksize.
+        If `True` awswrangler iterates on the data by files in the most efficient way without guarantee of chunksize.
         If an `INTEGER` is passed awswrangler will iterate on the data by number of rows igual the received INTEGER.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forwarded to botocore requests.
@@ -809,7 +809,7 @@ def read_sql_query(
         Recommended for memory restricted environments.
     chunksize : Union[int, bool], optional
         If passed will split the data in a Iterable of DataFrames (Memory friendly).
-        If `True` awswrangler will iterate on the data by files in the most efficient way without guarantee of chunksize.
+        If `True` awswrangler iterates on the data by files in the most efficient way without guarantee of chunksize.
         If an `INTEGER` is passed awswrangler will iterate on the data by number of rows igual the received INTEGER.
     s3_output : str, optional
         Amazon S3 path.
@@ -1095,7 +1095,7 @@ def read_sql_table(
         Recommended for memory restricted environments.
     chunksize : Union[int, bool], optional
         If passed will split the data in a Iterable of DataFrames (Memory friendly).
-        If `True` awswrangler will iterate on the data by files in the most efficient way without guarantee of chunksize.
+        If `True` awswrangler iterates on the data by files in the most efficient way without guarantee of chunksize.
         If an `INTEGER` is passed awswrangler will iterate on the data by number of rows igual the received INTEGER.
     s3_output : str, optional
         AWS S3 path.

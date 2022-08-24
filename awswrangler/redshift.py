@@ -1162,7 +1162,7 @@ def unload(
         Should keep stage files?
     chunked : Union[int, bool]
         If passed will split the data in a Iterable of DataFrames (Memory friendly).
-        If `True` awswrangler will iterate on the data by files in the most efficient way without guarantee of chunksize.
+        If `True` awswrangler iterates on the data by files in the most efficient way without guarantee of chunksize.
         If an `INTEGER` is passed awswrangler will iterate on the data by number of rows igual the received INTEGER.
     use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.

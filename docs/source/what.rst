@@ -1,5 +1,5 @@
 What is AWS SDK for pandas?
-==========================
+============================
 
 An `AWS Professional Service <https://aws.amazon.com/professional-services>`_ `open source <https://github.com/aws/aws-sdk-pandas>`_ python initiative that extends the power of `Pandas <https://github.com/pandas-dev/pandas>`_ library to AWS connecting **DataFrames** and AWS data related services.
 
