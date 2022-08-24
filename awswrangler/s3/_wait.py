@@ -7,13 +7,11 @@ from typing import List, Optional, Union
 import boto3
 
 from awswrangler import _utils
-from awswrangler._threading import _get_executor
-from awswrangler.distributed import ray_get, ray_remote
+from awswrangler._threading import _ThreadPoolExecutor
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-@ray_remote
 def _wait_object(
     boto3_session: Optional[boto3.Session], path: str, waiter_name: str, delay: int, max_attempts: int
 ) -> None:
@@ -35,18 +33,18 @@ def _wait_objects(
     delay = 5 if delay is None else delay
     max_attempts = 20 if max_attempts is None else max_attempts
     _delay: int = int(delay) if isinstance(delay, float) else delay
+
     if len(paths) < 1:
         return None
-    executor = _get_executor(use_threads=use_threads)
-    ray_get(
-        executor.map(
-            _wait_object,
-            boto3_session,
-            paths,
-            itertools.repeat(waiter_name),
-            itertools.repeat(_delay),
-            itertools.repeat(max_attempts),
-        )
+
+    executor = _ThreadPoolExecutor(use_threads=use_threads)
+    executor.map(
+        _wait_object,
+        boto3_session,
+        paths,
+        itertools.repeat(waiter_name),
+        itertools.repeat(_delay),
+        itertools.repeat(max_attempts),
     )
 
     return None
