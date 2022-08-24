@@ -70,7 +70,6 @@ Read The Docs
    Who uses AWS SDK for pandas? <https://github.com/aws/aws-sdk-pandas#who-uses-aws-sdk-pandas>
    License <https://github.com/aws/aws-sdk-pandas/blob/main/LICENSE.txt>
    Contributing <https://github.com/aws/aws-sdk-pandas/blob/main/CONTRIBUTING.md>
-   Legacy Docs (pre-1.0.0) <https://aws-sdk-pandas.readthedocs.io/en/legacy/>
 
 .. image:: https://d3tiqpr4kkkomd.cloudfront.net/img/pixel.png?asset=RIXAH6KDSYAI1HHEBLTY
    :align: left

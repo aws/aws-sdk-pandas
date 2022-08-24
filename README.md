@@ -168,7 +168,6 @@ FROM "sampleDB"."sampleTable" ORDER BY time DESC LIMIT 3
   - [Global Configurations](https://aws-sdk-pandas.readthedocs.io/en/2.16.1/api.html#global-configurations)
 - [**License**](https://github.com/aws/aws-sdk-pandas/blob/main/LICENSE.txt)
 - [**Contributing**](https://github.com/aws/aws-sdk-pandas/blob/main/CONTRIBUTING.md)
-- [**Legacy Docs** (pre-1.0.0)](https://aws-sdk-pandas.readthedocs.io/en/0.3.3/)
 
 ## Getting Help
 
