@@ -1,5 +1,7 @@
 # AWS SDK for pandas (awswrangler)
 
+AWS Data Wrangler is now **AWS SDK for pandas (awswrangler)**.  We’re changing the name we use when we talk about the library, but everything else will stay the same.  You’ll still be able to install using `pip install awswrangler` and you won’t need to change any of your code.  As part of this change, we’ve moved the library from AWS Labs to the main AWS GitHub organisation but, thanks to the GitHub’s redirect feature, you’ll still be able to access the project by its old URLs until you update your bookmarks.  Our documentation has also moved to [aws-sdk-pandas.readthedocs.io](https://aws-sdk-pandas.readthedocs.io), but old bookmarks will redirect to the new site.
+
 *Pandas on AWS*
 
 Easy integration with Athena, Glue, Redshift, Timestream, OpenSearch, Neptune, QuickSight, Chime, CloudWatchLogs, DynamoDB, EMR, SecretManager, PostgreSQL, MySQL, SQLServer and S3 (Parquet, CSV, JSON and EXCEL).
