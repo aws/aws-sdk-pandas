@@ -280,11 +280,35 @@ def test_athena(path, glue_database, glue_table, kms_key, workgroup0, workgroup1
     )
 
 
+def test_read_sql_query_parameter_formatting_respects_prefixes(path, glue_database, glue_table, workgroup0):
+    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
+    wr.s3.to_parquet(
+        df=get_df(),
+        path=path,
+        index=True,
+        use_threads=True,
+        dataset=True,
+        mode="overwrite",
+        database=glue_database,
+        table=glue_table,
+        partition_cols=["par0", "par1"],
+    )
+    df = wr.athena.read_sql_query(
+        sql=f"SELECT * FROM {glue_table} WHERE string = :string OR string_object = :string_object",
+        database=glue_database,
+        ctas_approach=False,
+        workgroup=workgroup0,
+        keep_files=False,
+        params={"string": "Seattle", "string_object": "boo"},
+    )
+    assert len(df) == 2
+
+
 @pytest.mark.parametrize(
     "col_name,col_value",
     [("string", "Seattle"), ("date", datetime.date(2020, 1, 1)), ("bool", True), ("category", 1.0)],
 )
-def test_athena_parameter_formatting(path, glue_database, glue_table, workgroup0, col_name, col_value):
+def test_read_sql_query_parameter_formatting(path, glue_database, glue_table, workgroup0, col_name, col_value):
     wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
     wr.s3.to_parquet(
         df=get_df(),
@@ -309,7 +333,7 @@ def test_athena_parameter_formatting(path, glue_database, glue_table, workgroup0
 
 
 @pytest.mark.parametrize("col_name", [("string"), ("date"), ("bool"), ("category")])
-def test_athena_parameter_formatting_null(path, glue_database, glue_table, workgroup0, col_name):
+def test_read_sql_query_parameter_formatting_null(path, glue_database, glue_table, workgroup0, col_name):
     wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
     wr.s3.to_parquet(
         df=get_df(),
