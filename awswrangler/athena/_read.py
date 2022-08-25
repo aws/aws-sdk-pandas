@@ -684,11 +684,11 @@ def read_sql_query(
 
     **Related tutorial:**
 
-    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/2.16.1/
+    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/
       tutorials/006%20-%20Amazon%20Athena.html>`_
-    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/2.16.1/
+    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/
       tutorials/019%20-%20Athena%20Cache.html>`_
-    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/2.16.1/
+    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/
       tutorials/021%20-%20Global%20Configurations.html>`_
 
     **There are three approaches available through ctas_approach and unload_approach parameters:**
@@ -752,7 +752,7 @@ def read_sql_query(
     /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a practical example check out the
-    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/2.16.1/
+    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/
     tutorials/024%20-%20Athena%20Query%20Metadata.html>`_!
 
 
@@ -998,11 +998,11 @@ def read_sql_table(
 
     **Related tutorial:**
 
-    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/2.16.1/
+    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/
       tutorials/006%20-%20Amazon%20Athena.html>`_
-    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/2.16.1/
+    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/
       tutorials/019%20-%20Athena%20Cache.html>`_
-    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/2.16.1/
+    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/
       tutorials/021%20-%20Global%20Configurations.html>`_
 
     **There are two approaches to be defined through ctas_approach parameter:**
@@ -1047,7 +1047,7 @@ def read_sql_table(
     /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a practical example check out the
-    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/2.16.1/
+    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/
     tutorials/024%20-%20Athena%20Query%20Metadata.html>`_!
 
 
