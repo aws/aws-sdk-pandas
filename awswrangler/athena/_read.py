@@ -2,6 +2,7 @@
 
 import csv
 import logging
+import re
 import sys
 import uuid
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
@@ -562,6 +563,29 @@ def _unload(
     return query_metadata
 
 
+_PATTERN = re.compile(r":([A-Za-z0-9_]+)(?![A-Za-z0-9_])")
+
+
+def _process_sql_params(sql: str, params: Optional[Dict[str, Any]]) -> str:
+    if params is None:
+        params = {}
+
+    processed_params = _format_parameters(params, engine=_EngineType.PRESTO)
+
+    def replace(match: re.Match) -> str:  # type: ignore
+        key = match.group(1)
+
+        if key not in processed_params:
+            # do not replace anything if the parameter is not provided
+            return str(match.group(0))
+
+        return str(processed_params[key])
+
+    sql = _PATTERN.sub(replace, sql)
+
+    return sql
+
+
 @apply_configs
 def get_query_results(
     query_execution_id: str,
@@ -912,11 +936,8 @@ def read_sql_query(
     chunksize = sys.maxsize if ctas_approach is False and chunksize is True else chunksize
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
-    if params is None:
-        params = {}
-    params = _format_parameters(params, engine=_EngineType.PRESTO)
-    for key, value in params.items():
-        sql = sql.replace(f":{key}", str(value))
+    # Substitute query parameters
+    sql = _process_sql_params(sql, params)
 
     max_remote_cache_entries = min(max_remote_cache_entries, max_local_cache_entries)
 
@@ -1273,12 +1294,10 @@ def unload(
 
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
+
     # Substitute query parameters
-    if params is None:
-        params = {}
-    params = _format_parameters(params, engine=_EngineType.PRESTO)
-    for key, value in params.items():
-        sql = sql.replace(f":{key}", str(value))
+    sql = _process_sql_params(sql, params)
+
     return _unload(
         sql=sql,
         path=path,
