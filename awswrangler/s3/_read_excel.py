@@ -54,7 +54,7 @@ def read_excel(
         Forward to botocore requests, only "SSECustomerAlgorithm" and "SSECustomerKey" arguments will be considered.
     pandas_kwargs:
         KEYWORD arguments forwarded to pandas.read_excel(). You can NOT pass `pandas_kwargs` explicit, just add valid
-        Pandas arguments in the function call and Wrangler will accept it.
+        Pandas arguments in the function call and awswrangler will accept it.
         e.g. wr.s3.read_excel("s3://bucket/key.xlsx", na_rep="", verbose=True)
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_excel.html
 
@@ -74,7 +74,7 @@ def read_excel(
     if "pandas_kwargs" in pandas_kwargs:
         raise exceptions.InvalidArgument(
             "You can NOT pass `pandas_kwargs` explicit, just add valid "
-            "Pandas arguments in the function call and Wrangler will accept it."
+            "Pandas arguments in the function call and awswrangler will accept it."
             "e.g. wr.s3.read_excel('s3://bucket/key.xlsx', na_rep='', verbose=True)"
         )
     session: boto3.Session = _utils.ensure_session(session=boto3_session)

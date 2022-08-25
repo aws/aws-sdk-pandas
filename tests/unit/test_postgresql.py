@@ -17,13 +17,13 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 @pytest.fixture(scope="function")
 def postgresql_con():
-    con = wr.postgresql.connect("aws-data-wrangler-postgresql")
+    con = wr.postgresql.connect("aws-sdk-pandas-postgresql")
     yield con
     con.close()
 
 
 def test_connection():
-    wr.postgresql.connect("aws-data-wrangler-postgresql", timeout=10).close()
+    wr.postgresql.connect("aws-sdk-pandas-postgresql", timeout=10).close()
 
 
 def test_read_sql_query_simple(databases_parameters):
@@ -175,7 +175,7 @@ def test_table_name(postgresql_con):
 
 @pytest.mark.parametrize("dbname", [None, "postgres"])
 def test_connect_secret_manager(dbname):
-    con = wr.postgresql.connect(secret_id="aws-data-wrangler/postgresql", dbname=dbname)
+    con = wr.postgresql.connect(secret_id="aws-sdk-pandas/postgresql", dbname=dbname)
     df = wr.postgresql.read_sql_query("SELECT 1", con=con)
     assert df.shape == (1, 1)
 

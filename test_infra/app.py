@@ -7,21 +7,21 @@ from stacks.opensearch_stack import OpenSearchStack
 
 app = App()
 
-base = BaseStack(app, "aws-data-wrangler-base")
+base = BaseStack(app, "aws-sdk-pandas-base")
 
 DatabasesStack(
     app,
-    "aws-data-wrangler-databases",
+    "aws-sdk-pandas-databases",
     base.get_vpc,
     base.get_bucket,
     base.get_key,
 )
 
-LakeFormationStack(app, "aws-data-wrangler-lakeformation")
+LakeFormationStack(app, "aws-sdk-pandas-lakeformation")
 
 OpenSearchStack(
     app,
-    "aws-data-wrangler-opensearch",
+    "aws-sdk-pandas-opensearch",
     base.get_vpc,
     base.get_bucket,
     base.get_key,

@@ -1,7 +1,7 @@
 Install
 =======
 
-**AWS Data Wrangler** runs on Python ``3.7``, ``3.8``, ``3.9`` and ``3.10``,
+**AWS SDK for pandas** runs on Python ``3.7``, ``3.8``, ``3.9`` and ``3.10``,
 and on several platforms (AWS Lambda, AWS Glue Python Shell, EMR, EC2,
 on-premises, Amazon SageMaker, local, etc).
 
@@ -30,7 +30,7 @@ Managed Layer
 
 .. note:: There is a one week minimum delay between version release and layers being available in the AWS Lambda console.
 
-AWS Data Wrangler is available as an AWS Lambda Managed layer in all AWS commercial regions.
+AWS SDK for pandas is available as an AWS Lambda Managed layer in all AWS commercial regions.
 
 It can be accessed in the AWS Lambda console directly:
 
@@ -49,8 +49,8 @@ Custom Layer
 
 You can also create your own Lambda layer with these instructions:
 
-1 - Go to `GitHub's release section <https://github.com/awslabs/aws-data-wrangler/releases>`_
-and download the zipped layer for to the desired version. Alternatively, you can download the zip from the `public artifacts bucket <https://aws-data-wrangler.readthedocs.io/en/latest/install.html#public-artifacts>`_.
+1 - Go to `GitHub's release section <https://github.com/aws/aws-sdk-pandas/releases>`_
+and download the zipped layer for to the desired version. Alternatively, you can download the zip from the `public artifacts bucket <https://aws-sdk-pandas.readthedocs.io/en/latest/install.html#public-artifacts>`_.
 
 2 - Go to the AWS Lambda console, open the layer section (left side)
 and click **create layer**.
@@ -63,12 +63,12 @@ and press **create**.
 Serverless Application Repository (SAR)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Starting version `2.12.0`, AWS Data Wrangler layers are also available in the `AWS Serverless Application Repository <https://serverlessrepo.aws.amazon.com/applications>`_ (SAR).
+Starting version `2.12.0`, AWS SDK for pandas layers are also available in the `AWS Serverless Application Repository <https://serverlessrepo.aws.amazon.com/applications>`_ (SAR).
 
 The app deploys the Lambda layer version in your own AWS account and region via a CloudFormation stack.
 This option provides the ability to use semantic versions (i.e. library version) instead of Lambda layer versions.
 
-.. list-table:: AWS Data Wrangler Layer Apps
+.. list-table:: AWS SDK for pandas Layer Apps
    :widths: 25 25 50
    :header-rows: 1
 
@@ -85,45 +85,45 @@ This option provides the ability to use semantic versions (i.e. library version)
      - arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-data-wrangler-layer-py3-9
      - Layer for ``Python 3.9.x`` runtimes     
 
-Here is an example of how to create and use the AWS Data Wrangler Lambda layer in your CDK app:
+Here is an example of how to create and use the AWS SDK for pandas Lambda layer in your CDK app:
 
 .. code-block:: python
     
     from aws_cdk import core, aws_sam as sam, aws_lambda
 
-    class DataWranglerApp(core.Construct):
+    class AWSWranglerApp(core.Construct):
       def __init__(self, scope: core.Construct, id_: str):
         super.__init__(scope,id)
 
-        wrangler_layer = sam.CfnApplication(
+        awswrangler_layer = sam.CfnApplication(
           self,
-          "wrangler-layer",
+          "awswrangler-layer",
           location=sam.CfnApplication.ApplicationLocationProperty(
             application_id="arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-data-wrangler-layer-py3-8",
-            semantic_version="2.16.0",  # Get the latest version from https://github.com/awslabs/aws-data-wrangler/releases
+            semantic_version="2.16.0",  # Get the latest version from https://github.com/aws/aws-sdk-pandas/releases
           ),
         )
 
-        wrangler_layer_arn = wrangler_layer.get_att("Outputs.WranglerLayer38Arn").to_string()
-        wrangler_layer_version = aws_lambda.LayerVersion.from_layer_version_arn(self, "wrangler-layer-version", wrangler_layer_arn)
+        awswrangler_layer_arn = awswrangler_layer.get_att("Outputs.WranglerLayer38Arn").to_string()
+        awswrangler_layer_version = aws_lambda.LayerVersion.from_layer_version_arn(self, "awswrangler-layer-version", awswrangler_layer_arn)
 
         aws_lambda.Function(
           self,
-          "wrangler-function",
+          "awswrangler-function",
           runtime=aws_lambda.Runtime.PYTHON_3_8,
-          function_name="sample-wrangler-lambda-function",
-          code=aws_lambda.Code.from_asset("./src/wrangler-lambda"),
+          function_name="sample-awswrangler-lambda-function",
+          code=aws_lambda.Code.from_asset("./src/awswrangler-lambda"),
           handler='lambda_function.lambda_handler',
-          layers=[wrangler_layer_version]
+          layers=[awswrangler_layer_version]
         )
 
 AWS Glue Python Shell Jobs
 --------------------------
 
-.. note:: Glue Python Shell runs on Python3.6, for which support was dropped in version 2.15.0 of Wrangler. Please use version 2.14.0 of the library or below.
+.. note:: Glue Python Shell runs on Python3.6, for which support was dropped in version 2.15.0 of awswrangler. Please use version 2.14.0 of the library or below.
 
-1 - Go to `GitHub's release page <https://github.com/awslabs/aws-data-wrangler/releases>`_ and download the wheel file
-(.whl) related to the desired version. Alternatively, you can download the wheel from the `public artifacts bucket <https://aws-data-wrangler.readthedocs.io/en/latest/install.html#public-artifacts>`_.
+1 - Go to `GitHub's release page <https://github.com/aws/aws-sdk-pandas/releases>`_ and download the wheel file
+(.whl) related to the desired version. Alternatively, you can download the wheel from the `public artifacts bucket <https://aws-sdk-pandas.readthedocs.io/en/latest/install.html#public-artifacts>`_.
 
 2 - Upload the wheel file to the Amazon S3 location of your choice.
 
@@ -135,7 +135,7 @@ the *Python library path* field.
 AWS Glue PySpark Jobs
 ---------------------
 
-.. note:: AWS Data Wrangler has compiled dependencies (C/C++) so support is only available for ``Glue PySpark Jobs >= 2.0``.
+.. note:: AWS SDK for pandas has compiled dependencies (C/C++) so support is only available for ``Glue PySpark Jobs >= 2.0``.
 
 Go to your Glue PySpark job and create a new *Job parameters* key/value:
 
@@ -177,7 +177,7 @@ Amazon SageMaker Notebook Lifecycle
 -----------------------------------
 
 Open the AWS SageMaker console, go to the lifecycle section and
-use the below snippet to configure AWS Data Wrangler for all compatible
+use the below snippet to configure AWS SDK for pandas for all compatible
 SageMaker kernels (`Reference <https://github.com/aws-samples/amazon-sagemaker-notebook-instance-lifecycle-config-samples/blob/master/scripts/install-pip-package-all-environments/on-start.sh>`_).
 
 .. code-block:: sh
@@ -211,7 +211,7 @@ SageMaker kernels (`Reference <https://github.com/aws-samples/amazon-sagemaker-n
 EMR Cluster
 -----------
 
-Despite not being a distributed library, AWS Data Wrangler could be used to complement Big Data pipelines.
+Despite not being a distributed library, AWS SDK for pandas could be used to complement Big Data pipelines.
 
 - Configure Python 3 as the default interpreter for
   PySpark on your cluster configuration [ONLY REQUIRED FOR EMR < 6]
@@ -260,8 +260,8 @@ Despite not being a distributed library, AWS Data Wrangler could be used to comp
 From Source
 -----------
 
-    >>> git clone https://github.com/awslabs/aws-data-wrangler.git
-    >>> cd aws-data-wrangler
+    >>> git clone https://github.com/aws/aws-sdk-pandas.git
+    >>> cd aws-sdk-pandas
     >>> pip install .
 
 

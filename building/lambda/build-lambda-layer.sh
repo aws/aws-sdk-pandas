@@ -4,7 +4,7 @@ set -ex
 FILENAME="awswrangler-layer-${1}.zip"
 NINJA=${2}
 
-pushd /aws-data-wrangler
+pushd /aws-sdk-pandas
 rm -rf python dist/pyarrow_files "dist/${FILENAME}" "${FILENAME}"
 popd
 
@@ -64,22 +64,22 @@ python3 setup.py build_ext \
   --bundle-arrow-cpp \
   bdist_wheel
 
-pip3 install dist/pyarrow-*.whl -t /aws-data-wrangler/dist/pyarrow_files
+pip3 install dist/pyarrow-*.whl -t /aws-sdk-pandas/dist/pyarrow_files
 
 popd
 
-pushd /aws-data-wrangler
+pushd /aws-sdk-pandas
 
 pip3 install . -t ./python
 
 rm -rf python/pyarrow*
 rm -rf python/boto*
 
-rm -f /aws-data-wrangler/dist/pyarrow_files/pyarrow/libarrow.so
-rm -f /aws-data-wrangler/dist/pyarrow_files/pyarrow/libparquet.so
-rm -f /aws-data-wrangler/dist/pyarrow_files/pyarrow/libarrow_python.so
+rm -f /aws-sdk-pandas/dist/pyarrow_files/pyarrow/libarrow.so
+rm -f /aws-sdk-pandas/dist/pyarrow_files/pyarrow/libparquet.so
+rm -f /aws-sdk-pandas/dist/pyarrow_files/pyarrow/libarrow_python.so
 
-cp -r /aws-data-wrangler/dist/pyarrow_files/pyarrow* python/
+cp -r /aws-sdk-pandas/dist/pyarrow_files/pyarrow* python/
 
 # Removing nonessential files
 find python -name '*.so' -type f -exec strip "{}" \;

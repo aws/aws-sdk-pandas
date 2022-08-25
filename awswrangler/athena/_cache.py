@@ -116,7 +116,9 @@ def _prepare_query_string_for_comparison(query_string: str) -> str:
     """To use cached data, we need to compare queries. Returns a query string in canonical form."""
     # for now this is a simple complete strip, but it could grow into much more sophisticated
     # query comparison data structures
-    query_string = "".join(query_string.split()).strip("()").lower()
+    query_string = "".join(query_string.split()).strip().lower()
+    while query_string.startswith("(") and query_string.endswith(")"):
+        query_string = query_string[1:-1]
     query_string = query_string[:-1] if query_string.endswith(";") else query_string
     return query_string
 

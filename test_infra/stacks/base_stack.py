@@ -14,16 +14,16 @@ class BaseStack(Stack):  # type: ignore
 
         self.vpc = ec2.Vpc(
             self,
-            "aws-data-wrangler-vpc",
+            "aws-sdk-pandas-vpc",
             cidr="11.19.224.0/19",
             enable_dns_hostnames=True,
             enable_dns_support=True,
         )
-        Tags.of(self.vpc).add("Name", "aws-data-wrangler")
+        Tags.of(self.vpc).add("Name", "aws-sdk-pandas")
         self.key = kms.Key(
             self,
-            id="aws-data-wrangler-key",
-            description="Aws Data Wrangler Test Key.",
+            id="aws-sdk-pandas-key",
+            description="AWS SDK for pandas Test Key.",
             policy=iam.PolicyDocument(
                 statements=[
                     iam.PolicyStatement(
@@ -38,13 +38,13 @@ class BaseStack(Stack):  # type: ignore
         )
         kms.Alias(
             self,
-            "aws-data-wrangler-key-alias",
-            alias_name="alias/aws-data-wrangler-key",
+            "aws-sdk-pandas-key-alias",
+            alias_name="alias/aws-sdk-pandas-key",
             target_key=self.key,
         )
         self.bucket = s3.Bucket(
             self,
-            id="aws-data-wrangler",
+            id="aws-sdk-pandas",
             block_public_access=s3.BlockPublicAccess(
                 block_public_acls=True,
                 block_public_policy=True,
@@ -63,18 +63,18 @@ class BaseStack(Stack):  # type: ignore
         )
         glue_db = glue.Database(
             self,
-            id="aws_data_wrangler_glue_database",
-            database_name="aws_data_wrangler",
+            id="aws_sdk_pandas_glue_database",
+            database_name="aws_sdk_pandas",
             location_uri=f"s3://{self.bucket.bucket_name}",
         )
         log_group = logs.LogGroup(
             self,
-            id="aws_data_wrangler_log_group",
+            id="aws_sdk_pandas_log_group",
             retention=logs.RetentionDays.ONE_MONTH,
         )
         log_stream = logs.LogStream(
             self,
-            id="aws_data_wrangler_log_stream",
+            id="aws_sdk_pandas_log_stream",
             log_group=log_group,
         )
         CfnOutput(self, "Region", value=self.region)
@@ -82,37 +82,37 @@ class BaseStack(Stack):  # type: ignore
             self,
             "VPC",
             value=self.vpc.vpc_id,
-            export_name="aws-data-wrangler-base-VPC",
+            export_name="aws-sdk-pandas-base-VPC",
         )
         CfnOutput(
             self,
             "PublicSubnet1",
             value=self.vpc.public_subnets[0].subnet_id,
-            export_name="aws-data-wrangler-base-PublicSubnet1",
+            export_name="aws-sdk-pandas-base-PublicSubnet1",
         )
         CfnOutput(
             self,
             "PublicSubnet2",
             value=self.vpc.public_subnets[1].subnet_id,
-            export_name="aws-data-wrangler-base-PublicSubnet2",
+            export_name="aws-sdk-pandas-base-PublicSubnet2",
         )
         CfnOutput(
             self,
             "PrivateSubnet",
             value=self.vpc.private_subnets[0].subnet_id,
-            export_name="aws-data-wrangler-base-PrivateSubnet",
+            export_name="aws-sdk-pandas-base-PrivateSubnet",
         )
         CfnOutput(
             self,
             "KmsKeyArn",
             value=self.key.key_arn,
-            export_name="aws-data-wrangler-base-KmsKeyArn",
+            export_name="aws-sdk-pandas-base-KmsKeyArn",
         )
         CfnOutput(
             self,
             "BucketName",
             value=self.bucket.bucket_name,
-            export_name="aws-data-wrangler-base-BucketName",
+            export_name="aws-sdk-pandas-base-BucketName",
         )
         CfnOutput(self, "GlueDatabaseName", value=glue_db.database_name)
         CfnOutput(self, "LogGroupName", value=log_group.log_group_name)
