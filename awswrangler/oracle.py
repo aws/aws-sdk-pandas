@@ -30,7 +30,7 @@ def _check_for_oracledb(func: FuncT) -> FuncT:
         if not _oracledb_found:
             raise ModuleNotFoundError(
                 "You need to install oracledb respectively the "
-                "AWS Data Wrangler package with the `oracle` extra for using the oracle module"
+                "AWS SDK for pandas package with the `oracle` extra for using the oracle module"
             )
         return func(*args, **kwargs)
 

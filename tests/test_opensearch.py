@@ -129,19 +129,19 @@ def cloudformation_outputs():
 
 @pytest.fixture(scope="session")
 def opensearch_password():
-    return boto3.client("secretsmanager").get_secret_value(SecretId="aws-data-wrangler/opensearch_password")[
+    return boto3.client("secretsmanager").get_secret_value(SecretId="aws-sdk-pandas/opensearch_password")[
         "SecretString"
     ]
 
 
 @pytest.fixture(scope="session")
 def domain_endpoint_opensearch_1_0(cloudformation_outputs):
-    return cloudformation_outputs["DomainEndpointwrangleros10"]
+    return cloudformation_outputs["DomainEndpointsdkpandasos10"]
 
 
 @pytest.fixture(scope="session")
 def domain_endpoint_elasticsearch_7_10_fgac(cloudformation_outputs):
-    return cloudformation_outputs["DomainEndpointwrangleres710fgac"]
+    return cloudformation_outputs["DomainEndpointsdkpandases710fgac"]
 
 
 def test_connection_opensearch_1_0(domain_endpoint_opensearch_1_0):

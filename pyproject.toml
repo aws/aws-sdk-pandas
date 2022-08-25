@@ -2,7 +2,7 @@
 name = "awswrangler"
 version = "2.16.1"
 description = "Pandas on AWS."
-authors = ["Igor Tavares"]
+authors = ["Amazon Web Services"]
 license = "Apache License 2.0"
 
 readme = "README.md"
@@ -11,9 +11,9 @@ include = ["README.md", "LICENSE.txt", "NOTICE.txt", "THIRD_PARTY.txt", "awswran
 
 exclude = ["*.so", "*.pyc", "*~", "#*", ".git*", ".coverage*", "DS_Store", "__pycache__"]
 
-homepage = "https://aws-data-wrangler.readthedocs.io/"
-repository = "https://github.com/awslabs/aws-data-wrangler"
-documentation = "https://aws-data-wrangler.readthedocs.io/"
+homepage = "https://aws-sdk-pandas.readthedocs.io/"
+repository = "https://github.com/aws/aws-sdk-pandas"
+documentation = "https://aws-sdk-pandas.readthedocs.io/"
 
 keywords = ["pandas", "aws"]
 

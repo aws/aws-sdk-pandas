@@ -1,7 +1,7 @@
 """Metadata Module.
 
-Source repository: https://github.com/awslabs/aws-data-wrangler
-Documentation: https://aws-data-wrangler.readthedocs.io/
+Source repository: https://github.com/aws/aws-sdk-pandas
+Documentation: https://aws-sdk-pandas.readthedocs.io/
 
 """
 

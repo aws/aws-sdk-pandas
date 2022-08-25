@@ -16,26 +16,26 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 @pytest.fixture(scope="function")
 def mysql_con():
-    con = wr.mysql.connect("aws-data-wrangler-mysql")
+    con = wr.mysql.connect("aws-sdk-pandas-mysql")
     yield con
     con.close()
 
 
 @pytest.fixture(scope="function")
 def mysql_con_ssl():
-    con = wr.mysql.connect("aws-data-wrangler-mysql-ssl")
+    con = wr.mysql.connect("aws-sdk-pandas-mysql-ssl")
     yield con
     con.close()
 
 
 @pytest.fixture(scope="function")
 def mysql_con_sscursor():
-    con = wr.mysql.connect("aws-data-wrangler-mysql", cursorclass=SSCursor)
+    con = wr.mysql.connect("aws-sdk-pandas-mysql", cursorclass=SSCursor)
     yield con
     con.close()
 
 
-@pytest.mark.parametrize("connection", ["aws-data-wrangler-mysql", "aws-data-wrangler-mysql-ssl"])
+@pytest.mark.parametrize("connection", ["aws-sdk-pandas-mysql", "aws-sdk-pandas-mysql-ssl"])
 def test_connection(connection):
     wr.mysql.connect(connection, connect_timeout=10).close()
 
@@ -54,7 +54,7 @@ def test_read_sql_query_simple(databases_parameters):
 
 
 def test_conn_cursor():
-    con = wr.mysql.connect("aws-data-wrangler-mysql", cursorclass=SSCursor)
+    con = wr.mysql.connect("aws-sdk-pandas-mysql", cursorclass=SSCursor)
 
     assert con.cursorclass == SSCursor
 
@@ -202,7 +202,7 @@ def test_table_name(mysql_con):
 
 @pytest.mark.parametrize("dbname", [None, "test"])
 def test_connect_secret_manager(dbname):
-    con = wr.mysql.connect(secret_id="aws-data-wrangler/mysql", dbname=dbname)
+    con = wr.mysql.connect(secret_id="aws-sdk-pandas/mysql", dbname=dbname)
     df = wr.mysql.read_sql_query("SELECT 1", con=con)
     assert df.shape == (1, 1)
 

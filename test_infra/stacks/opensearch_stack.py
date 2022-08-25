@@ -27,7 +27,7 @@ class OpenSearchStack(Stack):  # type: ignore
         **kwargs: str,
     ) -> None:
         """
-        AWS Data Wrangler Development OpenSearch Infrastructure.
+        AWS SDK for pandas Development OpenSearch Infrastructure.
         Includes OpenSearch, Elasticsearch, ...
         """
         super().__init__(scope, construct_id, **kwargs)
@@ -46,14 +46,14 @@ class OpenSearchStack(Stack):  # type: ignore
         self.password_secret = secrets.Secret(
             self,
             "opensearch-password-secret",
-            secret_name="aws-data-wrangler/opensearch_password",
+            secret_name="aws-sdk-pandas/opensearch_password",
             generate_secret_string=secrets.SecretStringGenerator(exclude_characters="/@\"\' \\"),
         ).secret_value
         # fmt: on
         self.password = self.password_secret.to_string()
 
     def _setup_opensearch_1_0(self) -> None:
-        domain_name = "wrangler-os-1-0"
+        domain_name = "sdk-pandas-os-1-0"
         validate_domain_name(domain_name)
         domain_arn = f"arn:aws:es:{self.region}:{self.account}:domain/{domain_name}"
         domain = opensearch.Domain(
@@ -76,7 +76,7 @@ class OpenSearchStack(Stack):  # type: ignore
         CfnOutput(self, f"DomainEndpoint-{domain_name}", value=domain.domain_endpoint)
 
     def _setup_elasticsearch_7_10_fgac(self) -> None:
-        domain_name = "wrangler-es-7-10-fgac"
+        domain_name = "sdk-pandas-es-7-10-fgac"
         validate_domain_name(domain_name)
         domain_arn = f"arn:aws:es:{self.region}:{self.account}:domain/{domain_name}"
         domain = opensearch.Domain(

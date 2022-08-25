@@ -3,5 +3,5 @@ set -e
 STACK=${1}
 
 pushd ..
-cdk destroy aws-data-wrangler-${STACK}
+cdk destroy aws-sdk-pandas-${STACK}
 popd

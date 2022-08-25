@@ -4,5 +4,5 @@ STACK=${1}
 
 pushd ..
 cdk bootstrap
-cdk deploy aws-data-wrangler-${STACK}
+cdk deploy aws-sdk-pandas-${STACK}
 popd

@@ -1110,11 +1110,11 @@ def unload(
 
     Will enable the function to return an Iterable of DataFrames instead of a regular DataFrame.
 
-    There are two batching strategies on Wrangler:
+    There are two batching strategies on awswrangler:
 
     - If **chunked=True**, a new DataFrame will be returned for each file in your path/dataset.
 
-    - If **chunked=INTEGER**, Wrangler will iterate on the data by number of rows (equal to the received INTEGER).
+    - If **chunked=INTEGER**, awswrangler will iterate on the data by number of rows (equal to the received INTEGER).
 
     `P.S.` `chunked=True` is faster and uses less memory while `chunked=INTEGER` is more precise
     in the number of rows for each Dataframe.
@@ -1162,8 +1162,8 @@ def unload(
         Should keep stage files?
     chunked : Union[int, bool]
         If passed will split the data in a Iterable of DataFrames (Memory friendly).
-        If `True` wrangler will iterate on the data by files in the most efficient way without guarantee of chunksize.
-        If an `INTEGER` is passed Wrangler will iterate on the data by number of rows igual the received INTEGER.
+        If `True` awswrangler iterates on the data by files in the most efficient way without guarantee of chunksize.
+        If an `INTEGER` is passed awswrangler will iterate on the data by number of rows igual the received INTEGER.
     use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -1332,7 +1332,7 @@ def copy_from_files(  # pylint: disable=too-many-locals,too-many-arguments
     varchar_lengths : Dict[str, int], optional
         Dict of VARCHAR length by columns. (e.g. {"col1": 10, "col5": 200}).
     serialize_to_json : bool
-        Should Wrangler add SERIALIZETOJSON parameter into the COPY command?
+        Should awswrangler add SERIALIZETOJSON parameter into the COPY command?
         SERIALIZETOJSON is necessary to load nested data
         https://docs.aws.amazon.com/redshift/latest/dg/ingest-super.html#copy_json
     path_suffix : Union[str, List[str], None]
