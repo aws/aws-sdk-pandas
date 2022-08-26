@@ -1,10 +1,15 @@
 import logging
 
 import boto3
-import pandas as pd
 import pytest
 
 import awswrangler as wr
+from awswrangler._config import config
+
+if config.distributed:
+    import modin.pandas as pd
+else:
+    import pandas as pd
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
