@@ -126,6 +126,7 @@ def _read_text(
     s3_additional_kwargs: Optional[Dict[str, str]],
     chunksize: Optional[int],
     dataset: bool,
+    parallelism: int,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]],
     ignore_index: bool,
     version_id: Optional[Union[str, Dict[str, str]]] = None,
@@ -166,6 +167,7 @@ def _read_text(
 
     if config.distributed:
         ray_dataset = read_datasource(
+            parallelism=parallelism,
             datasource=read_strategy.arrow_datasource,
             paths=paths,
             path_root=path_root,
@@ -208,6 +210,7 @@ def read_csv(
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     chunksize: Optional[int] = None,
     dataset: bool = False,
+    parallelism: int = 200,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
@@ -339,6 +342,7 @@ def read_csv(
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
         ignore_index=ignore_index,
+        parallelism=parallelism,
         **pandas_kwargs,
     )
 
@@ -357,6 +361,7 @@ def read_fwf(
     chunksize: Optional[int] = None,
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
+    parallelism: int = 200,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read fixed-width formatted file(s) from a received S3 prefix or list of S3 objects paths.
@@ -487,6 +492,7 @@ def read_fwf(
         last_modified_end=last_modified_end,
         ignore_index=True,
         sort_index=False,
+        parallelism=parallelism,
         **pandas_kwargs,
     )
 
@@ -505,6 +511,7 @@ def read_json(
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     chunksize: Optional[int] = None,
     dataset: bool = False,
+    parallelism: int = 200,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
@@ -642,5 +649,6 @@ def read_json(
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
         ignore_index=ignore_index,
+        parallelism=parallelism,
         **pandas_kwargs,
     )
