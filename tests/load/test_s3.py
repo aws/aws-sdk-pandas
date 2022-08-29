@@ -59,8 +59,8 @@ def test_s3_delete_objects(path, path2, benchmark_time):
 
 @pytest.mark.parametrize("benchmark_time", [600])
 def test_s3_read_csv_simple(benchmark_time):
-    path = "s3://nyc-tlc/csv_backup/yellow_tripdata_2021-0*.csv"
+    path = "s3://nyc-tlc/csv_backup/yellow_tripdata_2021-*.csv"
     with ExecutionTimer("elapsed time of wr.s3.read_csv() simple") as timer:
-        wr.s3.read_csv(path=path, parallelism=200)
+        wr.s3.read_csv(path=path)
 
     assert timer.elapsed_time < benchmark_time

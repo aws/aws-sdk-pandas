@@ -3,12 +3,10 @@ import datetime
 import itertools
 import logging
 import pprint
-from dataclasses import dataclass
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
 import botocore.exceptions
-import pandas as pd
 import pandas.io.parsers
 from pandas.io.common import infer_compression
 
@@ -24,21 +22,15 @@ from awswrangler.s3._read import (
     _union,
 )
 from awswrangler._threading import _get_executor
+from awswrangler.distributed import ray_get, ray_remote
 
 if config.distributed:
-    from ray.data import read_datasource
-
-    from awswrangler.distributed._utils import _to_modin  # pylint: disable=ungrouped-imports
-    from awswrangler.distributed.datasources import CSVDatasource
+    import modin.pandas as pd
+else:
+    import pandas as pd
 
 
 _logger: logging.Logger = logging.getLogger(__name__)
-
-
-@dataclass
-class ReadStrategy:
-    parser_func: Callable[..., pd.DataFrame]
-    arrow_datasource: Any
 
 
 def _get_read_details(path: str, pandas_kwargs: Dict[str, Any]) -> Tuple[str, Optional[str], Optional[str]]:
@@ -81,6 +73,7 @@ def _read_text_chunked(
                 yield _apply_partitions(df=df, dataset=dataset, path=path, path_root=path_root)
 
 
+@ray_remote
 def _read_text_file(
     boto3_session: Union[boto3.Session, _utils.Boto3PrimitivesType],
     path: str,
@@ -114,7 +107,7 @@ def _read_text_file(
 
 
 def _read_text(
-    read_strategy: ReadStrategy,
+    parser_func: Callable[..., pd.DataFrame],
     path: Union[str, List[str]],
     path_suffix: Union[str, List[str], None],
     path_ignore_suffix: Union[str, List[str], None],
@@ -155,7 +148,7 @@ def _read_text(
     _logger.debug("paths:\n%s", paths)
 
     args: Dict[str, Any] = {
-        "parser_func": read_strategy.parser_func,
+        "parser_func": parser_func,
         "boto3_session": session,
         "dataset": dataset,
         "path_root": path_root,
@@ -165,16 +158,6 @@ def _read_text(
     }
     _logger.debug("args:\n%s", pprint.pformat(args))
 
-    if config.distributed:
-        ray_dataset = read_datasource(
-            parallelism=parallelism,
-            datasource=read_strategy.arrow_datasource,
-            paths=paths,
-            path_root=path_root,
-            pandas_kwargs=pandas_kwargs,
-        )
-        return _to_modin(dataset=ray_dataset, kwargs={})
-
     if chunksize is not None:
         return _read_text_chunked(
             paths=paths, version_ids=version_id if isinstance(version_id, dict) else None, chunksize=chunksize, **args
@@ -183,16 +166,18 @@ def _read_text(
     version_id = version_id if isinstance(version_id, dict) else None
 
     executor = _get_executor(use_threads=use_threads)
-    tables = executor.map(
-        _read_text_file,
-        session,
-        paths,
-        itertools.repeat(version_id),
-        itertools.repeat(read_strategy.parser_func),
-        itertools.repeat(path_root),
-        itertools.repeat(pandas_kwargs),
-        itertools.repeat(s3_additional_kwargs),
-        itertools.repeat(dataset),
+    tables = ray_get(
+        executor.map(
+            _read_text_file,
+            session,
+            paths,
+            itertools.repeat(version_id),
+            itertools.repeat(parser_func),
+            itertools.repeat(path_root),
+            itertools.repeat(pandas_kwargs),
+            itertools.repeat(s3_additional_kwargs),
+            itertools.repeat(dataset),
+        )
     )
     return _union(dfs=tables, ignore_index=ignore_index)
 
@@ -327,7 +312,7 @@ def read_csv(
         )
     ignore_index: bool = "index_col" not in pandas_kwargs
     return _read_text(
-        read_strategy=ReadStrategy(parser_func=pd.read_csv, arrow_datasource=CSVDatasource()),
+        parser_func=pd.read_csv,
         path=path,
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,
@@ -476,7 +461,7 @@ def read_fwf(
             "e.g. wr.s3.read_fwf(path, widths=[1, 3], names=['c0', 'c1'])"
         )
     return _read_text(
-        read_strategy=ReadStrategy(parser_func=pd.read_fwf, arrow_datasource=None),
+        parser_func=pd.read_fwf,
         path=path,
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,
@@ -634,7 +619,7 @@ def read_json(
     pandas_kwargs["orient"] = orient
     ignore_index: bool = orient not in ("split", "index", "columns")
     return _read_text(
-        read_strategy=ReadStrategy(parser_func=pd.read_json, arrow_datasource=None),
+        parser_func=pd.read_json,
         path=path,
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,
