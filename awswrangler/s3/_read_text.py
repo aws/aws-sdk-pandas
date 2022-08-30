@@ -247,10 +247,10 @@ def read_csv(
         This function MUST return a bool, True to read the partition or False to ignore it.
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
-        https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
     pandas_kwargs :
         KEYWORD arguments forwarded to pandas.read_csv(). You can NOT pass `pandas_kwargs` explicit, just add valid
-        Pandas arguments in the function call and Wrangler will accept it.
+        Pandas arguments in the function call and awswrangler will accept it.
         e.g. wr.s3.read_csv('s3://bucket/prefix/', sep='|', na_values=['null', 'none'], skip_blank_lines=True)
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
 
@@ -293,7 +293,7 @@ def read_csv(
     if "pandas_kwargs" in pandas_kwargs:
         raise exceptions.InvalidArgument(
             "You can NOT pass `pandas_kwargs` explicit, just add valid "
-            "Pandas arguments in the function call and Wrangler will accept it."
+            "Pandas arguments in the function call and awswrangler will accept it."
             "e.g. wr.s3.read_csv('s3://bucket/prefix/', sep='|', skip_blank_lines=True)"
         )
     ignore_index: bool = "index_col" not in pandas_kwargs
@@ -395,10 +395,10 @@ def read_fwf(
         This function MUST return a bool, True to read the partition or False to ignore it.
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
-        https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
     pandas_kwargs:
         KEYWORD arguments forwarded to pandas.read_fwf(). You can NOT pass `pandas_kwargs` explicit, just add valid
-        Pandas arguments in the function call and Wrangler will accept it.
+        Pandas arguments in the function call and awswrangler will accept it.
         e.g. wr.s3.read_fwf(path='s3://bucket/prefix/', widths=[1, 3], names=["c0", "c1"])
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_fwf.html
 
@@ -441,7 +441,7 @@ def read_fwf(
     if "pandas_kwargs" in pandas_kwargs:
         raise exceptions.InvalidArgument(
             "You can NOT pass `pandas_kwargs` explicit, just add valid "
-            "Pandas arguments in the function call and Wrangler will accept it."
+            "Pandas arguments in the function call and awswrangler will accept it."
             "e.g. wr.s3.read_fwf(path, widths=[1, 3], names=['c0', 'c1'])"
         )
     return _read_text(
@@ -547,10 +547,10 @@ def read_json(
         This function MUST return a bool, True to read the partition or False to ignore it.
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
-        https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
     pandas_kwargs:
         KEYWORD arguments forwarded to pandas.read_json(). You can NOT pass `pandas_kwargs` explicit, just add valid
-        Pandas arguments in the function call and Wrangler will accept it.
+        Pandas arguments in the function call and awswrangler will accept it.
         e.g. wr.s3.read_json('s3://bucket/prefix/', lines=True, keep_default_dates=True)
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_json.html
 
@@ -593,7 +593,7 @@ def read_json(
     if "pandas_kwargs" in pandas_kwargs:
         raise exceptions.InvalidArgument(
             "You can NOT pass `pandas_kwargs` explicit, just add valid "
-            "Pandas arguments in the function call and Wrangler will accept it."
+            "Pandas arguments in the function call and awswrangler will accept it."
             "e.g. wr.s3.read_json(path, lines=True, keep_default_dates=True)"
         )
     if (dataset is True) and ("lines" not in pandas_kwargs):

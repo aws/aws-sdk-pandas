@@ -360,7 +360,7 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
             prune_diff = new_block_end - self._end
             self._cache = self._fetch_range_proxy(new_block_start, self._start) + self._cache[:prune_diff]
         else:
-            raise RuntimeError("Wrangler's cache calculation error.")
+            raise RuntimeError("AWSWrangler's cache calculation error.")
         self._start = new_block_start
         self._end = new_block_end
 

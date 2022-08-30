@@ -58,7 +58,7 @@ body:
       required: true
   - type: input
     attributes:
-      label: AWS DataWrangler version
+      label: AWS SDK for pandas version
     validations:
       required: true
   - type: textarea

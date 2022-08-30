@@ -10,7 +10,7 @@ information to effectively respond to your bug report or contribution.
 
 We welcome you to use the GitHub issue tracker to report bugs or suggest features.
 
-When filing an issue, please check [existing open](https://github.com/awslabs/aws-data-wrangler/issues), or [recently closed](https://github.com/awslabs/aws-data-wrangler/issues?utf8=%E2%9C%93&q=is%3Aissue%20is%3Aclosed%20), issues to make sure somebody else hasn't already
+When filing an issue, please check [existing open](https://github.com/aws/aws-sdk-pandas/issues), or [recently closed](https://github.com/aws/aws-sdk-pandas/issues?utf8=%E2%9C%93&q=is%3Aissue%20is%3Aclosed%20), issues to make sure somebody else hasn't already
 reported the issue. Please try to include as much information as you can. Details like these are incredibly useful:
 
 * A reproducible test case or series of steps
@@ -19,7 +19,7 @@ reported the issue. Please try to include as much information as you can. Detail
 * Anything unusual about your environment or deployment
 
 Here is a list of tags to label issues and help us triage them:
-* question: A question on the library. Consider starting a [discussion](https://github.com/awslabs/aws-data-wrangler/discussions) instead
+* question: A question on the library. Consider starting a [discussion](https://github.com/aws/aws-sdk-pandas/discussions) instead
 * bug: An error encountered when using the library
 * feature: A completely new idea not currently covered by the library
 * enhancement: A suggestion to enhance an existing feature
@@ -48,7 +48,7 @@ GitHub provides additional document on [forking a repository](https://help.githu
 
 ## Finding contributions to work on
 
-Looking at the existing issues is a great way to find something to contribute on. As our projects, by default, use the default GitHub issue labels (enhancement/bug/duplicate/help wanted/invalid/question/wontfix), looking at any ['help wanted'](https://github.com/awslabs/aws-data-wrangler/labels/help%20wanted) issues is a great place to start.
+Looking at the existing issues is a great way to find something to contribute on. As our projects, by default, use the default GitHub issue labels (enhancement/bug/duplicate/help wanted/invalid/question/wontfix), looking at any ['help wanted'](https://github.com/aws/aws-sdk-pandas/labels/help%20wanted) issues is a great place to start.
 
 ## Code of Conduct
 
@@ -62,7 +62,7 @@ If you discover a potential security issue in this project we ask that you notif
 
 ## Licensing
 
-See the [LICENSE](https://github.com/awslabs/aws-data-wrangler/blob/main/LICENSE) file for our project's licensing. We will ask you to confirm the licensing of your contribution.
+See the [LICENSE](https://github.com/aws/aws-sdk-pandas/blob/main/LICENSE) file for our project's licensing. We will ask you to confirm the licensing of your contribution.
 
 We may ask you to sign a [Contributor License Agreement (CLA)](http://en.wikipedia.org/wiki/Contributor_License_Agreement) for larger changes.
 
@@ -93,7 +93,7 @@ You can choose from three different environments to test your fixes/changes, bas
 
 * Pick up a Linux or MacOS.
 * Install Python 3.7, 3.8 or 3.9 with [poetry](https://github.com/python-poetry/poetry) for package management
-* Fork the AWS Data Wrangler repository and clone that into your development environment
+* Fork the AWS SDK for pandas repository and clone that into your development environment
 * Go to the project's directory create a Python's virtual environment for the project
 
 `python3 -m venv .venv && source .venv/bin/activate`
@@ -124,7 +124,7 @@ or
 
 * Pick up a Linux or MacOS.
 * Install Python 3.7, 3.8 or 3.9 with [poetry](https://github.com/python-poetry/poetry) for package management
-* Fork the AWS Data Wrangler repository and clone that into your development environment
+* Fork the AWS SDK for pandas repository and clone that into your development environment
 * Go to the project's directory create a Python's virtual environment for the project
 
 `python3 -m venv .venv && source .venv/bin/activate`
@@ -185,7 +185,7 @@ or
 
 * Pick up a Linux or MacOS.
 * Install Python 3.7, 3.8 or 3.9 with [poetry](https://github.com/python-poetry/poetry) for package management
-* Fork the AWS Data Wrangler repository and clone that into your development environment
+* Fork the AWS SDK for pandas repository and clone that into your development environment
 * Go to the project's directory create a Python's virtual environment for the project
 
 `python -m venv .venv && source .venv/bin/activate`
@@ -223,7 +223,7 @@ or
 
 ``./deploy-stack.sh opensearch``
 
-* Go to the `EC2 -> SecurityGroups` console, open the `aws-data-wrangler-*` security group and configure to accept your IP from any TCP port.
+* Go to the `EC2 -> SecurityGroups` console, open the `aws-sdk-pandas-*` security group and configure to accept your IP from any TCP port.
   - Alternatively run:
   
   ``./security-group-databases-add-local-ip.sh``
@@ -277,7 +277,7 @@ or
 ## Common Errors
 
 Check the file below to check the common errors and solutions
-[ERRORS](https://github.com/awslabs/aws-data-wrangler/blob/main/CONTRIBUTING_COMMON_ERRORS.md)
+[ERRORS](https://github.com/aws/aws-sdk-pandas/blob/main/CONTRIBUTING_COMMON_ERRORS.md)
 
 ## Bumping version
 When there is a new release you can use `bump2version` for updating the version number in relevant files.

@@ -22,13 +22,13 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 @pytest.fixture(scope="function")
 def redshift_con():
-    con = wr.redshift.connect("aws-data-wrangler-redshift")
+    con = wr.redshift.connect("aws-sdk-pandas-redshift")
     yield con
     con.close()
 
 
 def test_connection():
-    wr.redshift.connect("aws-data-wrangler-redshift", timeout=10, force_lowercase=False).close()
+    wr.redshift.connect("aws-sdk-pandas-redshift", timeout=10, force_lowercase=False).close()
 
 
 def test_read_sql_query_simple(databases_parameters):
@@ -521,7 +521,7 @@ def test_spectrum_decimal_cast(path, path2, glue_table, glue_database, redshift_
     assert df2.c4[0] is None
 
     # Redshift Spectrum
-    con = wr.redshift.connect(connection="aws-data-wrangler-redshift")
+    con = wr.redshift.connect(connection="aws-sdk-pandas-redshift")
     df2 = wr.redshift.read_sql_table(table=glue_table, schema=redshift_external_schema, con=con)
     assert df2.shape == (2, 5)
     df2 = df2.drop(df2[df2.c0 == 2].index)
@@ -532,7 +532,7 @@ def test_spectrum_decimal_cast(path, path2, glue_table, glue_database, redshift_
     con.close()
 
     # Redshift Spectrum Unload
-    con = wr.redshift.connect(connection="aws-data-wrangler-redshift")
+    con = wr.redshift.connect(connection="aws-sdk-pandas-redshift")
     df2 = wr.redshift.unload(
         sql=f"SELECT * FROM {redshift_external_schema}.{glue_table}",
         con=con,
@@ -901,7 +901,7 @@ def test_copy_dirty_path(path, redshift_table, redshift_con, databases_parameter
 
 @pytest.mark.parametrize("dbname", [None, "test"])
 def test_connect_secret_manager(dbname):
-    con = wr.redshift.connect(secret_id="aws-data-wrangler/redshift", dbname=dbname)
+    con = wr.redshift.connect(secret_id="aws-sdk-pandas/redshift", dbname=dbname)
     df = wr.redshift.read_sql_query("SELECT 1", con=con)
     con.close()
     assert df.shape == (1, 1)

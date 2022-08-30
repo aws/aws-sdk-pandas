@@ -78,7 +78,7 @@ def put_csv(
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
     pandas_kwargs :
         KEYWORD arguments forwarded to pandas.read_csv(). You can NOT pass `pandas_kwargs` explicit, just add valid
-        Pandas arguments in the function call and Wrangler will accept it.
+        Pandas arguments in the function call and awswrangler will accept it.
         e.g. wr.dynamodb.put_csv('items.csv', 'my_table', sep='|', na_values=['null', 'none'], skip_blank_lines=True)
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
 

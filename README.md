@@ -1,10 +1,12 @@
-# AWS Data Wrangler
+# AWS SDK for pandas (awswrangler)
+
+AWS Data Wrangler is now **AWS SDK for pandas (awswrangler)**.  We’re changing the name we use when we talk about the library, but everything else will stay the same.  You’ll still be able to install using `pip install awswrangler` and you won’t need to change any of your code.  As part of this change, we’ve moved the library from AWS Labs to the main AWS GitHub organisation but, thanks to the GitHub’s redirect feature, you’ll still be able to access the project by its old URLs until you update your bookmarks.  Our documentation has also moved to [aws-sdk-pandas.readthedocs.io](https://aws-sdk-pandas.readthedocs.io), but old bookmarks will redirect to the new site.
 
 *Pandas on AWS*
 
 Easy integration with Athena, Glue, Redshift, Timestream, OpenSearch, Neptune, QuickSight, Chime, CloudWatchLogs, DynamoDB, EMR, SecretManager, PostgreSQL, MySQL, SQLServer and S3 (Parquet, CSV, JSON and EXCEL).
 
-![AWS Data Wrangler](docs/source/_static/logo2.png?raw=true "AWS Data Wrangler")
+![AWS SDK for pandas](docs/source/_static/logo2.png?raw=true "AWS SDK for pandas")
 ![tracker](https://d3tiqpr4kkkomd.cloudfront.net/img/pixel.png?asset=GVOYN2BOOQ573LTVIHEW)
 
 > An [AWS Professional Service](https://aws.amazon.com/professional-services/) open source initiative | aws-proserve-opensource@amazon.com
@@ -16,15 +18,15 @@ Easy integration with Athena, Glue, Redshift, Timestream, OpenSearch, Neptune, Q
 
 [![Checked with mypy](http://www.mypy-lang.org/static/mypy_badge.svg)](http://mypy-lang.org/)
 [![Coverage](https://img.shields.io/badge/coverage-91%25-brightgreen.svg)](https://pypi.org/project/awswrangler/)
-![Static Checking](https://github.com/awslabs/aws-data-wrangler/workflows/Static%20Checking/badge.svg?branch=main)
-[![Documentation Status](https://readthedocs.org/projects/aws-data-wrangler/badge/?version=latest)](https://aws-data-wrangler.readthedocs.io/?badge=latest)
+![Static Checking](https://github.com/aws/aws-sdk-pandas/workflows/Static%20Checking/badge.svg?branch=main)
+[![Documentation Status](https://readthedocs.org/projects/aws-sdk-pandas/badge/?version=latest)](https://aws-sdk-pandas.readthedocs.io/?badge=latest)
 
 | Source | Downloads | Installation Command |
 |--------|-----------|----------------------|
 | **[PyPi](https://pypi.org/project/awswrangler/)**  | [![PyPI Downloads](https://pepy.tech/badge/awswrangler)](https://pypi.org/project/awswrangler/) | `pip install awswrangler` |
 | **[Conda](https://anaconda.org/conda-forge/awswrangler)** | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/awswrangler.svg)](https://anaconda.org/conda-forge/awswrangler) | `conda install -c conda-forge awswrangler` |
 
-> ⚠️ **For platforms without PyArrow 3 support (e.g. [EMR](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/install.html#emr-cluster), [Glue PySpark Job](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/install.html#aws-glue-pyspark-jobs), MWAA):**<br>
+> ⚠️ **For platforms without PyArrow 3 support (e.g. [EMR](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/install.html#emr-cluster), [Glue PySpark Job](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/install.html#aws-glue-pyspark-jobs), MWAA):**<br>
 ➡️ `pip install pyarrow==2 awswrangler`
 
 Powered By [<img src="https://arrow.apache.org/img/arrow.png" width="200">](https://arrow.apache.org/powered_by/)
@@ -36,14 +38,13 @@ Powered By [<img src="https://arrow.apache.org/img/arrow.png" width="200">](http
 - [Getting Help](#getting-help)
 - [Community Resources](#community-resources)
 - [Logging](#logging)
-- [Who uses AWS Data Wrangler?](#who-uses-aws-data-wrangler)
-- [What is Amazon Sagemaker Data Wrangler?](#what-is-amazon-sageMaker-data-wrangler)
+- [Who uses AWS SDK for pandas?](#who-uses-aws-sdk-pandas)
 
 ## Quick Start
 
 Installation command: `pip install awswrangler`
 
-> ⚠️ **For platforms without PyArrow 3 support (e.g. [EMR](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/install.html#emr-cluster), [Glue PySpark Job](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/install.html#aws-glue-pyspark-jobs), MWAA):**<br>
+> ⚠️ **For platforms without PyArrow 3 support (e.g. [EMR](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/install.html#emr-cluster), [Glue PySpark Job](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/install.html#aws-glue-pyspark-jobs), MWAA):**<br>
 ➡️`pip install pyarrow==2 awswrangler`
 
 ```py3
@@ -95,97 +96,97 @@ FROM "sampleDB"."sampleTable" ORDER BY time DESC LIMIT 3
 
 ```
 
-## [Read The Docs](https://aws-data-wrangler.readthedocs.io/)
+## [Read The Docs](https://aws-sdk-pandas.readthedocs.io/)
 
-- [**What is AWS Data Wrangler?**](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/what.html)
-- [**Install**](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/install.html)
-  - [PyPi (pip)](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/install.html#pypi-pip)
-  - [Conda](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/install.html#conda)
-  - [AWS Lambda Layer](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/install.html#aws-lambda-layer)
-  - [AWS Glue Python Shell Jobs](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/install.html#aws-glue-python-shell-jobs)
-  - [AWS Glue PySpark Jobs](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/install.html#aws-glue-pyspark-jobs)
-  - [Amazon SageMaker Notebook](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/install.html#amazon-sagemaker-notebook)
-  - [Amazon SageMaker Notebook Lifecycle](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/install.html#amazon-sagemaker-notebook-lifecycle)
-  - [EMR](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/install.html#emr)
-  - [From source](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/install.html#from-source)
-- [**Tutorials**](https://github.com/awslabs/aws-data-wrangler/tree/main/tutorials)
-  - [001 - Introduction](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/001%20-%20Introduction.ipynb)
-  - [002 - Sessions](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/002%20-%20Sessions.ipynb)
-  - [003 - Amazon S3](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/003%20-%20Amazon%20S3.ipynb)
-  - [004 - Parquet Datasets](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/004%20-%20Parquet%20Datasets.ipynb)
-  - [005 - Glue Catalog](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/005%20-%20Glue%20Catalog.ipynb)
-  - [006 - Amazon Athena](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/006%20-%20Amazon%20Athena.ipynb)
-  - [007 - Databases (Redshift, MySQL, PostgreSQL, SQL Server and Oracle)](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/007%20-%20Redshift%2C%20MySQL%2C%20PostgreSQL%2C%20SQL%20Server%2C%20Oracle.ipynb)
-  - [008 - Redshift - Copy & Unload.ipynb](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/008%20-%20Redshift%20-%20Copy%20%26%20Unload.ipynb)
-  - [009 - Redshift - Append, Overwrite and Upsert](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/009%20-%20Redshift%20-%20Append%2C%20Overwrite%2C%20Upsert.ipynb)
-  - [010 - Parquet Crawler](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/010%20-%20Parquet%20Crawler.ipynb)
-  - [011 - CSV Datasets](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/011%20-%20CSV%20Datasets.ipynb)
-  - [012 - CSV Crawler](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/012%20-%20CSV%20Crawler.ipynb)
-  - [013 - Merging Datasets on S3](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/013%20-%20Merging%20Datasets%20on%20S3.ipynb)
-  - [014 - Schema Evolution](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/014%20-%20Schema%20Evolution.ipynb)
-  - [015 - EMR](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/015%20-%20EMR.ipynb)
-  - [016 - EMR & Docker](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/016%20-%20EMR%20%26%20Docker.ipynb)
-  - [017 - Partition Projection](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/017%20-%20Partition%20Projection.ipynb)
-  - [018 - QuickSight](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/018%20-%20QuickSight.ipynb)
-  - [019 - Athena Cache](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/019%20-%20Athena%20Cache.ipynb)
-  - [020 - Spark Table Interoperability](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/020%20-%20Spark%20Table%20Interoperability.ipynb)
-  - [021 - Global Configurations](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/021%20-%20Global%20Configurations.ipynb)
-  - [022 - Writing Partitions Concurrently](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/022%20-%20Writing%20Partitions%20Concurrently.ipynb)
-  - [023 - Flexible Partitions Filter](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/023%20-%20Flexible%20Partitions%20Filter.ipynb)
-  - [024 - Athena Query Metadata](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/024%20-%20Athena%20Query%20Metadata.ipynb)
-  - [025 - Redshift - Loading Parquet files with Spectrum](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/025%20-%20Redshift%20-%20Loading%20Parquet%20files%20with%20Spectrum.ipynb)
-  - [026 - Amazon Timestream](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/026%20-%20Amazon%20Timestream.ipynb)
-  - [027 - Amazon Timestream 2](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/027%20-%20Amazon%20Timestream%202.ipynb)
-  - [028 - Amazon DynamoDB](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/028%20-%20DynamoDB.ipynb)
-  - [029 - S3 Select](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/029%20-%20S3%20Select.ipynb)
-  - [030 - Data Api](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/030%20-%20Data%20Api.ipynb)
-  - [031 - OpenSearch](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/031%20-%20OpenSearch.ipynb)
-  - [032 - Lake Formation Governed Tables](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/032%20-%20Lake%20Formation%20Governed%20Tables.ipynb)
-  - [033 - Amazon Neptune](https://github.com/awslabs/aws-data-wrangler/blob/main/tutorials/033%20-%20Amazon%20Neptune.ipynb)
-- [**API Reference**](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/api.html)
-  - [Amazon S3](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/api.html#amazon-s3)
-  - [AWS Glue Catalog](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/api.html#aws-glue-catalog)
-  - [Amazon Athena](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/api.html#amazon-athena)
-  - [AWS Lake Formation](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/api.html#aws-lake-formation)
-  - [Amazon Redshift](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/api.html#amazon-redshift)
-  - [PostgreSQL](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/api.html#postgresql)
-  - [MySQL](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/api.html#mysql)
-  - [SQL Server](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/api.html#sqlserver)
-  - [Data API Redshift](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/api.html#data-api-redshift)
-  - [Data API RDS](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/api.html#data-api-rds)
-  - [OpenSearch](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/api.html#opensearch)
-  - [Amazon Neptune](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/api.html#amazon-neptune)
-  - [DynamoDB](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/api.html#dynamodb)
-  - [Amazon Timestream](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/api.html#amazon-timestream)
-  - [Amazon EMR](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/api.html#amazon-emr)
-  - [Amazon CloudWatch Logs](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/api.html#amazon-cloudwatch-logs)
-  - [Amazon Chime](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/api.html#amazon-chime)
-  - [Amazon QuickSight](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/api.html#amazon-quicksight)
-  - [AWS STS](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/api.html#aws-sts)
-  - [AWS Secrets Manager](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/api.html#aws-secrets-manager)
-  - [Global Configurations](https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/api.html#global-configurations)
-- [**License**](https://github.com/awslabs/aws-data-wrangler/blob/main/LICENSE.txt)
-- [**Contributing**](https://github.com/awslabs/aws-data-wrangler/blob/main/CONTRIBUTING.md)
-- [**Legacy Docs** (pre-1.0.0)](https://aws-data-wrangler.readthedocs.io/en/0.3.3/)
+- [**What is AWS SDK for pandas?**](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/what.html)
+- [**Install**](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/install.html)
+  - [PyPi (pip)](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/install.html#pypi-pip)
+  - [Conda](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/install.html#conda)
+  - [AWS Lambda Layer](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/install.html#aws-lambda-layer)
+  - [AWS Glue Python Shell Jobs](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/install.html#aws-glue-python-shell-jobs)
+  - [AWS Glue PySpark Jobs](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/install.html#aws-glue-pyspark-jobs)
+  - [Amazon SageMaker Notebook](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/install.html#amazon-sagemaker-notebook)
+  - [Amazon SageMaker Notebook Lifecycle](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/install.html#amazon-sagemaker-notebook-lifecycle)
+  - [EMR](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/install.html#emr)
+  - [From source](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/install.html#from-source)
+- [**Tutorials**](https://github.com/aws/aws-sdk-pandas/tree/main/tutorials)
+  - [001 - Introduction](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/001%20-%20Introduction.ipynb)
+  - [002 - Sessions](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/002%20-%20Sessions.ipynb)
+  - [003 - Amazon S3](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/003%20-%20Amazon%20S3.ipynb)
+  - [004 - Parquet Datasets](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/004%20-%20Parquet%20Datasets.ipynb)
+  - [005 - Glue Catalog](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/005%20-%20Glue%20Catalog.ipynb)
+  - [006 - Amazon Athena](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/006%20-%20Amazon%20Athena.ipynb)
+  - [007 - Databases (Redshift, MySQL, PostgreSQL, SQL Server and Oracle)](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/007%20-%20Redshift%2C%20MySQL%2C%20PostgreSQL%2C%20SQL%20Server%2C%20Oracle.ipynb)
+  - [008 - Redshift - Copy & Unload.ipynb](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/008%20-%20Redshift%20-%20Copy%20%26%20Unload.ipynb)
+  - [009 - Redshift - Append, Overwrite and Upsert](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/009%20-%20Redshift%20-%20Append%2C%20Overwrite%2C%20Upsert.ipynb)
+  - [010 - Parquet Crawler](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/010%20-%20Parquet%20Crawler.ipynb)
+  - [011 - CSV Datasets](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/011%20-%20CSV%20Datasets.ipynb)
+  - [012 - CSV Crawler](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/012%20-%20CSV%20Crawler.ipynb)
+  - [013 - Merging Datasets on S3](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/013%20-%20Merging%20Datasets%20on%20S3.ipynb)
+  - [014 - Schema Evolution](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/014%20-%20Schema%20Evolution.ipynb)
+  - [015 - EMR](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/015%20-%20EMR.ipynb)
+  - [016 - EMR & Docker](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/016%20-%20EMR%20%26%20Docker.ipynb)
+  - [017 - Partition Projection](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/017%20-%20Partition%20Projection.ipynb)
+  - [018 - QuickSight](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/018%20-%20QuickSight.ipynb)
+  - [019 - Athena Cache](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/019%20-%20Athena%20Cache.ipynb)
+  - [020 - Spark Table Interoperability](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/020%20-%20Spark%20Table%20Interoperability.ipynb)
+  - [021 - Global Configurations](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/021%20-%20Global%20Configurations.ipynb)
+  - [022 - Writing Partitions Concurrently](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/022%20-%20Writing%20Partitions%20Concurrently.ipynb)
+  - [023 - Flexible Partitions Filter](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/023%20-%20Flexible%20Partitions%20Filter.ipynb)
+  - [024 - Athena Query Metadata](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/024%20-%20Athena%20Query%20Metadata.ipynb)
+  - [025 - Redshift - Loading Parquet files with Spectrum](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/025%20-%20Redshift%20-%20Loading%20Parquet%20files%20with%20Spectrum.ipynb)
+  - [026 - Amazon Timestream](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/026%20-%20Amazon%20Timestream.ipynb)
+  - [027 - Amazon Timestream 2](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/027%20-%20Amazon%20Timestream%202.ipynb)
+  - [028 - Amazon DynamoDB](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/028%20-%20DynamoDB.ipynb)
+  - [029 - S3 Select](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/029%20-%20S3%20Select.ipynb)
+  - [030 - Data Api](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/030%20-%20Data%20Api.ipynb)
+  - [031 - OpenSearch](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/031%20-%20OpenSearch.ipynb)
+  - [032 - Lake Formation Governed Tables](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/032%20-%20Lake%20Formation%20Governed%20Tables.ipynb)
+  - [033 - Amazon Neptune](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/033%20-%20Amazon%20Neptune.ipynb)
+- [**API Reference**](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/api.html)
+  - [Amazon S3](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/api.html#amazon-s3)
+  - [AWS Glue Catalog](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/api.html#aws-glue-catalog)
+  - [Amazon Athena](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/api.html#amazon-athena)
+  - [AWS Lake Formation](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/api.html#aws-lake-formation)
+  - [Amazon Redshift](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/api.html#amazon-redshift)
+  - [PostgreSQL](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/api.html#postgresql)
+  - [MySQL](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/api.html#mysql)
+  - [SQL Server](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/api.html#sqlserver)
+  - [Oracle](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/api.html#oracle)
+  - [Data API Redshift](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/api.html#data-api-redshift)
+  - [Data API RDS](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/api.html#data-api-rds)
+  - [OpenSearch](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/api.html#opensearch)
+  - [Amazon Neptune](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/api.html#amazon-neptune)
+  - [DynamoDB](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/api.html#dynamodb)
+  - [Amazon Timestream](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/api.html#amazon-timestream)
+  - [Amazon EMR](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/api.html#amazon-emr)
+  - [Amazon CloudWatch Logs](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/api.html#amazon-cloudwatch-logs)
+  - [Amazon Chime](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/api.html#amazon-chime)
+  - [Amazon QuickSight](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/api.html#amazon-quicksight)
+  - [AWS STS](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/api.html#aws-sts)
+  - [AWS Secrets Manager](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/api.html#aws-secrets-manager)
+  - [Global Configurations](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/api.html#global-configurations)
+- [**License**](https://github.com/aws/aws-sdk-pandas/blob/main/LICENSE.txt)
+- [**Contributing**](https://github.com/aws/aws-sdk-pandas/blob/main/CONTRIBUTING.md)
 
 ## Getting Help
 
-The best way to interact with our team is through GitHub. You can open an [issue](https://github.com/awslabs/aws-data-wrangler/issues/new/choose) and choose from one of our templates for bug reports, feature requests...
+The best way to interact with our team is through GitHub. You can open an [issue](https://github.com/aws/aws-sdk-pandas/issues/new/choose) and choose from one of our templates for bug reports, feature requests...
 You may also find help on these community resources:
-* The #aws-data-wrangler Slack [channel](https://join.slack.com/t/aws-data-wrangler/shared_invite/zt-sxdx38sl-E0coRfAds8WdpxXD2Nzfrg)
+* The #aws-sdk-pandas Slack [channel](https://join.slack.com/t/aws-sdk-pandas/shared_invite/zt-sxdx38sl-E0coRfAds8WdpxXD2Nzfrg)
 * Ask a question on [Stack Overflow](https://stackoverflow.com/questions/tagged/awswrangler)
   and tag it with `awswrangler`
 
 ## Community Resources
 
-Please [send a Pull Request](https://github.com/awslabs/aws-data-wrangler/edit/main/README.md) with your resource reference and @githubhandle.
+Please [send a Pull Request](https://github.com/aws/aws-sdk-pandas/edit/main/README.md) with your resource reference and @githubhandle.
 
-- [Optimize Python ETL by extending Pandas with AWS Data Wrangler](https://aws.amazon.com/blogs/big-data/optimize-python-etl-by-extending-pandas-with-aws-data-wrangler/) [[@igorborgest](https://github.com/igorborgest)]
+- [Optimize Python ETL by extending Pandas with AWS SDK for pandas](https://aws.amazon.com/blogs/big-data/optimize-python-etl-by-extending-pandas-with-aws-sdk-pandas/) [[@igorborgest](https://github.com/igorborgest)]
 - [Reading Parquet Files With AWS Lambda](https://aprakash.wordpress.com/2020/04/14/reading-parquet-files-with-aws-lambda/) [[@anand086](https://github.com/anand086)]
-- [Transform AWS CloudTrail data using AWS Data Wrangler](https://aprakash.wordpress.com/2020/09/17/transform-aws-cloudtrail-data-using-aws-data-wrangler/) [[@anand086](https://github.com/anand086)]
-- [Rename Glue Tables using AWS Data Wrangler](https://ananddatastories.com/rename-glue-tables-using-aws-data-wrangler/) [[@anand086](https://github.com/anand086)]
-- [Getting started on AWS Data Wrangler and Athena](https://medium.com/@dheerajsharmainampudi/getting-started-on-aws-data-wrangler-and-athena-7b446c834076) [[@dheerajsharma21](https://github.com/dheerajsharma21)]
-- [Simplifying Pandas integration with AWS data related services](https://medium.com/@bv_subhash/aws-data-wrangler-simplifying-pandas-integration-with-aws-data-related-services-2b3325c12188) [[@bvsubhash](https://github.com/bvsubhash)]
+- [Transform AWS CloudTrail data using AWS SDK for pandas](https://aprakash.wordpress.com/2020/09/17/transform-aws-cloudtrail-data-using-aws-sdk-pandas/) [[@anand086](https://github.com/anand086)]
+- [Rename Glue Tables using AWS SDK for pandas](https://ananddatastories.com/rename-glue-tables-using-aws-sdk-pandas/) [[@anand086](https://github.com/anand086)]
+- [Getting started on AWS SDK for pandas and Athena](https://medium.com/@dheerajsharmainampudi/getting-started-on-aws-sdk-pandas-and-athena-7b446c834076) [[@dheerajsharma21](https://github.com/dheerajsharma21)]
+- [Simplifying Pandas integration with AWS data related services](https://medium.com/@bv_subhash/aws-sdk-pandas-simplifying-pandas-integration-with-aws-data-related-services-2b3325c12188) [[@bvsubhash](https://github.com/bvsubhash)]
 - [Build an ETL pipeline using AWS S3, Glue and Athena](https://www.linkedin.com/pulse/build-etl-pipeline-using-aws-s3-glue-athena-data-wrangler-tom-reid/) [[@taupirho](https://github.com/taupirho)]
 
 ## Logging
@@ -206,10 +207,10 @@ import logging
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 ```
 
-## Who uses AWS Data Wrangler?
+## Who uses AWS SDK for pandas?
 
 Knowing which companies are using this library is important to help prioritize the project internally.
-If you would like us to include your company’s name and/or logo in the README file to indicate that your company is using the AWS Data Wrangler, please raise a "Support Data Wrangler" issue. If you would like us to display your company’s logo, please raise a linked pull request to provide an image file for the logo. Note that by raising a Support Data Wrangler issue (and related pull request), you are granting AWS permission to use your company’s name (and logo) for the limited purpose described here and you are confirming that you have authority to grant such permission.
+If you would like us to include your company’s name and/or logo in the README file to indicate that your company is using the AWS SDK for pandas, please raise a "Support Us" issue. If you would like us to display your company’s logo, please raise a linked pull request to provide an image file for the logo. Note that by raising a Support Us issue (and related pull request), you are granting AWS permission to use your company’s name (and logo) for the limited purpose described here and you are confirming that you have authority to grant such permission.
 
 - [Amazon](https://www.amazon.com/)
 - [AWS](https://aws.amazon.com/)
@@ -236,11 +237,3 @@ If you would like us to include your company’s name and/or logo in the README 
 - [Thinkbumblebee](https://www.thinkbumblebee.com/) [[@dheerajsharma21]](https://github.com/dheerajsharma21)
 - [VTEX](https://vtex.com/us-en/) [[@igorborgest]](https://github.com/igorborgest)
 - [Zillow](https://www.zillow.com/) [[@nicholas-miles]](https://github.com/nicholas-miles)
-
-## What is Amazon SageMaker Data Wrangler?
-
-**Amazon SageMaker Data Wrangler** is a new SageMaker Studio feature that has a similar name but has a different purpose than the **AWS Data Wrangler** open source project.
-
-- **AWS Data Wrangler** is open source, runs anywhere, and is focused on code.
-
-- **Amazon SageMaker Data Wrangler** is specific for the SageMaker Studio environment and is focused on a visual interface.

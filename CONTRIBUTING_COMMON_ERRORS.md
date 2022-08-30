@@ -19,7 +19,7 @@ Installing collected packages: awswrangler, python-Levenshtein
   Running setup.py develop for awswrangler
     Running setup.py install for python-Levenshtein ... error
     ERROR: Command errored out with exit status 1:
-     command: /Users/$USER/Projects/aws-data-wrangler/.venv/bin/python3 -u -c 'import sys, setuptools, tokenize; sys.argv[0] = '"'"'/private/var/folders/f5/6dztqmhd6tb0mlxyzg2w32xdrmsqz_/T/pip-install-eobnhvyq/python-levenshtein_3ce6f911c6454215835eb21e204f9564/setup.py'"'"'; __file__='"'"'/private/var/folders/f5/6dztqmhd6tb0mlxyzg2w32xdrmsqz_/T/pip-install-eobnhvyq/python-levenshtein_3ce6f911c6454215835eb21e204f9564/setup.py'"'"';f=getattr(tokenize, '"'"'open'"'"', open)(__file__);code=f.read().replace('"'"'\r\n'"'"', '"'"'\n'"'"');f.close();exec(compile(code, __file__, '"'"'exec'"'"'))' install --record /private/var/folders/f5/6dztqmhd6tb0mlxyzg2w32xdrmsqz_/T/pip-record-mh08s0za/install-record.txt --single-version-externally-managed --compile --install-headers /Users/$USER/Projects/aws-data-wrangler/.venv/include/site/python3.7/python-Levenshtein
+     command: /Users/$USER/Projects/aws-sdk-pandas/.venv/bin/python3 -u -c 'import sys, setuptools, tokenize; sys.argv[0] = '"'"'/private/var/folders/f5/6dztqmhd6tb0mlxyzg2w32xdrmsqz_/T/pip-install-eobnhvyq/python-levenshtein_3ce6f911c6454215835eb21e204f9564/setup.py'"'"'; __file__='"'"'/private/var/folders/f5/6dztqmhd6tb0mlxyzg2w32xdrmsqz_/T/pip-install-eobnhvyq/python-levenshtein_3ce6f911c6454215835eb21e204f9564/setup.py'"'"';f=getattr(tokenize, '"'"'open'"'"', open)(__file__);code=f.read().replace('"'"'\r\n'"'"', '"'"'\n'"'"');f.close();exec(compile(code, __file__, '"'"'exec'"'"'))' install --record /private/var/folders/f5/6dztqmhd6tb0mlxyzg2w32xdrmsqz_/T/pip-record-mh08s0za/install-record.txt --single-version-externally-managed --compile --install-headers /Users/$USER/Projects/aws-sdk-pandas/.venv/include/site/python3.7/python-Levenshtein
          cwd: /private/var/folders/f5/6dztqmhd6tb0mlxyzg2w32xdrmsqz_/T/pip-install-eobnhvyq/python-levenshtein_3ce6f911c6454215835eb21e204f9564/
     Complete output (31 lines):
     running install
@@ -50,12 +50,12 @@ Installing collected packages: awswrangler, python-Levenshtein
     building 'Levenshtein._levenshtein' extension
     creating build/temp.macosx-10.13-x86_64-3.7
     creating build/temp.macosx-10.13-x86_64-3.7/Levenshtein
-    clang -Wno-unused-result -Wsign-compare -Wunreachable-code -fno-common -dynamic -DNDEBUG -g -fwrapv -O3 -Wall -I/usr/local/include -I/usr/local/opt/openssl@1.1/include -I/usr/local/opt/sqlite/include -I/Users/$USER/Projects/aws-data-wrangler/.venv/include -I/usr/local/Cellar/python/3.7.7/Frameworks/Python.framework/Versions/3.7/include/python3.7m -c Levenshtein/_levenshtein.c -o build/temp.macosx-10.13-x86_64-3.7/Levenshtein/_levenshtein.o
+    clang -Wno-unused-result -Wsign-compare -Wunreachable-code -fno-common -dynamic -DNDEBUG -g -fwrapv -O3 -Wall -I/usr/local/include -I/usr/local/opt/openssl@1.1/include -I/usr/local/opt/sqlite/include -I/Users/$USER/Projects/aws-sdk-pandas/.venv/include -I/usr/local/Cellar/python/3.7.7/Frameworks/Python.framework/Versions/3.7/include/python3.7m -c Levenshtein/_levenshtein.c -o build/temp.macosx-10.13-x86_64-3.7/Levenshtein/_levenshtein.o
     xcrun: error: invalid active developer path (/Library/Developer/CommandLineTools), missing xcrun at: /Library/Developer/CommandLineTools/usr/bin/xcrun
     error: command 'clang' failed with exit status 1
     ----------------------------------------
-ERROR: Command errored out with exit status 1: /Users/$USER/Projects/aws-data-wrangler/.venv/bin/python3 -u -c 'import sys, setuptools, tokenize; sys.argv[0] = '"'"'/private/var/folders/f5/6dztqmhd6tb0mlxyzg2w32xdrmsqz_/T/pip-install-eobnhvyq/python-levenshtein_3ce6f911c6454215835eb21e204f9564/setup.py'"'"'; __file__='"'"'/private/var/folders/f5/6dztqmhd6tb0mlxyzg2w32xdrmsqz_/T/pip-install-eobnhvyq/python-levenshtein_3ce6f911c6454215835eb21e204f9564/setup.py'"'"';f=getattr(tokenize, '"'"'open'"'"', open)(__file__);code=f.read().replace('"'"'\r\n'"'"', '"'"'\n'"'"');f.close();exec(compile(code, __file__, '"'"'exec'"'"'))' install --record /private/var/folders/f5/6dztqmhd6tb0mlxyzg2w32xdrmsqz_/T/pip-record-mh08s0za/install-record.txt --single-version-externally-managed --compile --install-headers /Users/$USER/Projects/aws-data-wrangler/.venv/include/site/python3.7/python-Levenshtein Check the logs for full command output.
-(.venv) ~/Projects/aws-data-wrangler> pip list
+ERROR: Command errored out with exit status 1: /Users/$USER/Projects/aws-sdk-pandas/.venv/bin/python3 -u -c 'import sys, setuptools, tokenize; sys.argv[0] = '"'"'/private/var/folders/f5/6dztqmhd6tb0mlxyzg2w32xdrmsqz_/T/pip-install-eobnhvyq/python-levenshtein_3ce6f911c6454215835eb21e204f9564/setup.py'"'"'; __file__='"'"'/private/var/folders/f5/6dztqmhd6tb0mlxyzg2w32xdrmsqz_/T/pip-install-eobnhvyq/python-levenshtein_3ce6f911c6454215835eb21e204f9564/setup.py'"'"';f=getattr(tokenize, '"'"'open'"'"', open)(__file__);code=f.read().replace('"'"'\r\n'"'"', '"'"'\n'"'"');f.close();exec(compile(code, __file__, '"'"'exec'"'"'))' install --record /private/var/folders/f5/6dztqmhd6tb0mlxyzg2w32xdrmsqz_/T/pip-record-mh08s0za/install-record.txt --single-version-externally-managed --compile --install-headers /Users/$USER/Projects/aws-sdk-pandas/.venv/include/site/python3.7/python-Levenshtein Check the logs for full command output.
+(.venv) ~/Projects/aws-sdk-pandas> pip list
 ```
 
 ### Solution
@@ -70,33 +70,33 @@ xcode-select --install
 
 ### Error Message: 
 
-ImportError: dlopen(/Users/$USER/Projects/aws-data-wrangler/.venv/lib/python3.7/site-packages/pyodbc.cpython-37m-darwin.so, 2): Library not loaded: /usr/local/opt/unixodbc/lib/libodbc.2.dylib
+ImportError: dlopen(/Users/$USER/Projects/aws-sdk-pandas/.venv/lib/python3.7/site-packages/pyodbc.cpython-37m-darwin.so, 2): Library not loaded: /usr/local/opt/unixodbc/lib/libodbc.2.dylib
 
 
 ```
-ImportError while loading conftest '/Users/$USER/Projects/aws-data-wrangler/tests/conftest.py'.
+ImportError while loading conftest '/Users/$USER/Projects/aws-sdk-pandas/tests/conftest.py'.
 tests/conftest.py:6: in <module>
     import awswrangler as wr
 awswrangler/__init__.py:10: in <module>
     from awswrangler import (  # noqa
 awswrangler/sqlserver.py:20: in <module>
     import pyodbc  # pylint: disable=import-error
-E   ImportError: dlopen(/Users/$USER/Projects/aws-data-wrangler/.venv/lib/python3.7/site-packages/pyodbc.cpython-37m-darwin.so, 2): Library not loaded: /usr/local/opt/unixodbc/lib/libodbc.2.dylib
-E     Referenced from: /Users/$USER/Projects/aws-data-wrangler/.venv/lib/python3.7/site-packages/pyodbc.cpython-37m-darwin.so
+E   ImportError: dlopen(/Users/$USER/Projects/aws-sdk-pandas/.venv/lib/python3.7/site-packages/pyodbc.cpython-37m-darwin.so, 2): Library not loaded: /usr/local/opt/unixodbc/lib/libodbc.2.dylib
+E     Referenced from: /Users/$USER/Projects/aws-sdk-pandas/.venv/lib/python3.7/site-packages/pyodbc.cpython-37m-darwin.so
 E     Reason: image not found
-(.venv) ~/Projects/aws-data-wrangler> python
+(.venv) ~/Projects/aws-sdk-pandas> python
 Python 3.7.7 (default, Mar 10 2020, 15:43:27)
 [Clang 10.0.0 (clang-1000.11.45.5)] on darwin
 Type "help", "copyright", "credits" or "license" for more information.
 >>> import awswrangler
 Traceback (most recent call last):
   File "<stdin>", line 1, in <module>
-  File "/Users/$USER/Projects/aws-data-wrangler/awswrangler/__init__.py", line 10, in <module>
+  File "/Users/$USER/Projects/aws-sdk-pandas/awswrangler/__init__.py", line 10, in <module>
     from awswrangler import (  # noqa
-  File "/Users/$USER/Projects/aws-data-wrangler/awswrangler/sqlserver.py", line 20, in <module>
+  File "/Users/$USER/Projects/aws-sdk-pandas/awswrangler/sqlserver.py", line 20, in <module>
     import pyodbc  # pylint: disable=import-error
-ImportError: dlopen(/Users/$USER/Projects/aws-data-wrangler/.venv/lib/python3.7/site-packages/pyodbc.cpython-37m-darwin.so, 2): Library not loaded: /usr/local/opt/unixodbc/lib/libodbc.2.dylib
-  Referenced from: /Users/$USER/Projects/aws-data-wrangler/.venv/lib/python3.7/site-packages/pyodbc.cpython-37m-darwin.so
+ImportError: dlopen(/Users/$USER/Projects/aws-sdk-pandas/.venv/lib/python3.7/site-packages/pyodbc.cpython-37m-darwin.so, 2): Library not loaded: /usr/local/opt/unixodbc/lib/libodbc.2.dylib
+  Referenced from: /Users/$USER/Projects/aws-sdk-pandas/.venv/lib/python3.7/site-packages/pyodbc.cpython-37m-darwin.so
   Reason: image not found
 >>>
 KeyboardInterrupt
@@ -116,7 +116,7 @@ brew install unixodbc
 
 ### Error Message
 
-During the deployment of `aws-data-wrangler-databases`, the creation of the resource `CodeBuildTestRoleLFPermissions` fails with
+During the deployment of `aws-sdk-pandas-databases`, the creation of the resource `CodeBuildTestRoleLFPermissions` fails with
 
 ```
 Resource does not exist or requester is not authorized to access requested permissions. (Service: AWSLakeFormation; Status Code: 400; Error Code: AccessDeniedException; Request ID: 14a26718-ee4e-49f2-a7ca-d308e49485f8; Proxy: null)
@@ -128,5 +128,5 @@ The IAM role used to deploy the CloudForation stack does not have permissions to
 
 In order to find the role:
 1. Navigate to the CloudFormation console in your account
-1. Select the `aws-data-wrangler-databases` stack which failed to deploy
+1. Select the `aws-sdk-pandas-databases` stack which failed to deploy
 1. Under the "Stack info" tab, find the value for "IAM role". The name of the role should be in the following format: `arn:aws:iam::{ACCOUNT_ID}:role/cdk-{UUID}-cfn-exec-role-{ACCOUNT_ID}-{REGION}`

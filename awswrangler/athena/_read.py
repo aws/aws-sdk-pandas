@@ -2,6 +2,7 @@
 
 import csv
 import logging
+import re
 import sys
 import uuid
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
@@ -562,6 +563,29 @@ def _unload(
     return query_metadata
 
 
+_PATTERN = re.compile(r":([A-Za-z0-9_]+)(?![A-Za-z0-9_])")
+
+
+def _process_sql_params(sql: str, params: Optional[Dict[str, Any]]) -> str:
+    if params is None:
+        params = {}
+
+    processed_params = _format_parameters(params, engine=_EngineType.PRESTO)
+
+    def replace(match: re.Match) -> str:  # type: ignore
+        key = match.group(1)
+
+        if key not in processed_params:
+            # do not replace anything if the parameter is not provided
+            return str(match.group(0))
+
+        return str(processed_params[key])
+
+    sql = _PATTERN.sub(replace, sql)
+
+    return sql
+
+
 @apply_configs
 def get_query_results(
     query_execution_id: str,
@@ -589,8 +613,8 @@ def get_query_results(
         Recommended for memory restricted environments.
     chunksize : Union[int, bool], optional
         If passed will split the data in a Iterable of DataFrames (Memory friendly).
-        If `True` wrangler will iterate on the data by files in the most efficient way without guarantee of chunksize.
-        If an `INTEGER` is passed Wrangler will iterate on the data by number of rows igual the received INTEGER.
+        If `True` awswrangler iterates on the data by files in the most efficient way without guarantee of chunksize.
+        If an `INTEGER` is passed awswrangler will iterate on the data by number of rows igual the received INTEGER.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
@@ -684,11 +708,11 @@ def read_sql_query(
 
     **Related tutorial:**
 
-    - `Amazon Athena <https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/
+    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/
       tutorials/006%20-%20Amazon%20Athena.html>`_
-    - `Athena Cache <https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/
+    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/
       tutorials/019%20-%20Athena%20Cache.html>`_
-    - `Global Configurations <https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/
+    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/
       tutorials/021%20-%20Global%20Configurations.html>`_
 
     **There are three approaches available through ctas_approach and unload_approach parameters:**
@@ -752,7 +776,7 @@ def read_sql_query(
     /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a practical example check out the
-    `related tutorial <https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/
+    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/
     tutorials/024%20-%20Athena%20Query%20Metadata.html>`_!
 
 
@@ -778,7 +802,7 @@ def read_sql_query(
 
     - If **chunksize=True**, a new DataFrame will be returned for each file in the query result.
 
-    - If **chunksize=INTEGER**, Wrangler will iterate on the data by number of rows igual the received INTEGER.
+    - If **chunksize=INTEGER**, awswrangler will iterate on the data by number of rows igual the received INTEGER.
 
     `P.S.` `chunksize=True` is faster and uses less memory while `chunksize=INTEGER` is more precise
     in number of rows for each Dataframe.
@@ -812,8 +836,8 @@ def read_sql_query(
         Recommended for memory restricted environments.
     chunksize : Union[int, bool], optional
         If passed will split the data in a Iterable of DataFrames (Memory friendly).
-        If `True` wrangler will iterate on the data by files in the most efficient way without guarantee of chunksize.
-        If an `INTEGER` is passed Wrangler will iterate on the data by number of rows igual the received INTEGER.
+        If `True` awswrangler iterates on the data by files in the most efficient way without guarantee of chunksize.
+        If an `INTEGER` is passed awswrangler will iterate on the data by number of rows igual the received INTEGER.
     s3_output : str, optional
         Amazon S3 path.
     workgroup : str, optional
@@ -842,10 +866,10 @@ def read_sql_query(
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     max_cache_seconds : int
-        Wrangler can look up in Athena's history if this query has been run before.
-        If so, and its completion time is less than `max_cache_seconds` before now, wrangler
+        awswrangler can look up in Athena's history if this query has been run before.
+        If so, and its completion time is less than `max_cache_seconds` before now, awswrangler
         skips query execution and just returns the same results as last time.
-        If cached results are valid, wrangler ignores the `ctas_approach`, `s3_output`, `encryption`, `kms_key`,
+        If cached results are valid, awswrangler ignores the `ctas_approach`, `s3_output`, `encryption`, `kms_key`,
         `keep_files` and `ctas_temp_table_name` params.
         If reading cached data fails for any reason, execution falls back to the usual query run path.
     max_cache_query_inspections : int
@@ -902,7 +926,7 @@ def read_sql_query(
             "Queries with ctas_approach=True (default) does not support "
             "data_source values different than None and 'AwsDataCatalog'. "
             "Please check the related tutorial for more details "
-            "(https://github.com/awslabs/aws-data-wrangler/blob/main/"
+            "(https://github.com/aws/aws-sdk-pandas/blob/main/"
             "tutorials/006%20-%20Amazon%20Athena.ipynb)"
         )
     if ctas_approach and unload_approach:
@@ -912,11 +936,8 @@ def read_sql_query(
     chunksize = sys.maxsize if ctas_approach is False and chunksize is True else chunksize
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
-    if params is None:
-        params = {}
-    params = _format_parameters(params, engine=_EngineType.PRESTO)
-    for key, value in params.items():
-        sql = sql.replace(f":{key}", str(value))
+    # Substitute query parameters
+    sql = _process_sql_params(sql, params)
 
     max_remote_cache_entries = min(max_remote_cache_entries, max_local_cache_entries)
 
@@ -998,11 +1019,11 @@ def read_sql_table(
 
     **Related tutorial:**
 
-    - `Amazon Athena <https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/
+    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/
       tutorials/006%20-%20Amazon%20Athena.html>`_
-    - `Athena Cache <https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/
+    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/
       tutorials/019%20-%20Athena%20Cache.html>`_
-    - `Global Configurations <https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/
+    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/
       tutorials/021%20-%20Global%20Configurations.html>`_
 
     **There are two approaches to be defined through ctas_approach parameter:**
@@ -1047,7 +1068,7 @@ def read_sql_table(
     /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a practical example check out the
-    `related tutorial <https://aws-data-wrangler.readthedocs.io/en/3.0.0a2/
+    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/
     tutorials/024%20-%20Athena%20Query%20Metadata.html>`_!
 
 
@@ -1073,7 +1094,7 @@ def read_sql_table(
 
     - If **chunksize=True**, a new DataFrame will be returned for each file in the query result.
 
-    - If **chunksize=INTEGER**, Wrangler will iterate on the data by number of rows igual the received INTEGER.
+    - If **chunksize=INTEGER**, awswrangler will iterate on the data by number of rows igual the received INTEGER.
 
     `P.S.` `chunksize=True` is faster and uses less memory while `chunksize=INTEGER` is more precise
     in number of rows for each Dataframe.
@@ -1100,8 +1121,8 @@ def read_sql_table(
         Recommended for memory restricted environments.
     chunksize : Union[int, bool], optional
         If passed will split the data in a Iterable of DataFrames (Memory friendly).
-        If `True` wrangler will iterate on the data by files in the most efficient way without guarantee of chunksize.
-        If an `INTEGER` is passed Wrangler will iterate on the data by number of rows igual the received INTEGER.
+        If `True` awswrangler iterates on the data by files in the most efficient way without guarantee of chunksize.
+        If an `INTEGER` is passed awswrangler will iterate on the data by number of rows igual the received INTEGER.
     s3_output : str, optional
         AWS S3 path.
     workgroup : str, optional
@@ -1111,7 +1132,7 @@ def read_sql_table(
     kms_key : str, optional
         For SSE-KMS, this is the KMS key ARN or ID.
     keep_files : bool
-        Should Wrangler delete or keep the staging files produced by Athena?
+        Should awswrangler delete or keep the staging files produced by Athena?
     ctas_database_name : str, optional
         The name of the alternative database where the CTAS temporary table is stored.
         If None, the default `database` is used.
@@ -1130,10 +1151,10 @@ def read_sql_table(
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     max_cache_seconds: int
-        Wrangler can look up in Athena's history if this table has been read before.
-        If so, and its completion time is less than `max_cache_seconds` before now, wrangler
+        awswrangler can look up in Athena's history if this table has been read before.
+        If so, and its completion time is less than `max_cache_seconds` before now, awswrangler
         skips query execution and just returns the same results as last time.
-        If cached results are valid, wrangler ignores the `ctas_approach`, `s3_output`, `encryption`, `kms_key`,
+        If cached results are valid, awswrangler ignores the `ctas_approach`, `s3_output`, `encryption`, `kms_key`,
         `keep_files` and `ctas_temp_table_name` params.
         If reading cached data fails for any reason, execution falls back to the usual query run path.
     max_cache_query_inspections : int
@@ -1273,12 +1294,10 @@ def unload(
 
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
+
     # Substitute query parameters
-    if params is None:
-        params = {}
-    params = _format_parameters(params, engine=_EngineType.PRESTO)
-    for key, value in params.items():
-        sql = sql.replace(f":{key}", str(value))
+    sql = _process_sql_params(sql, params)
+
     return _unload(
         sql=sql,
         path=path,

@@ -54,7 +54,7 @@ def to_excel(
         If integer is provided, specified number is used.
     pandas_kwargs:
         KEYWORD arguments forwarded to pandas.DataFrame.to_excel(). You can NOT pass `pandas_kwargs` explicit, just add
-        valid Pandas arguments in the function call and Wrangler will accept it.
+        valid Pandas arguments in the function call and awswrangler will accept it.
         e.g. wr.s3.to_excel(df, path, na_rep="", index=False)
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_excel.html
 
@@ -75,7 +75,7 @@ def to_excel(
     if "pandas_kwargs" in pandas_kwargs:
         raise exceptions.InvalidArgument(
             "You can NOT pass `pandas_kwargs` explicit, just add valid "
-            "Pandas arguments in the function call and Wrangler will accept it."
+            "Pandas arguments in the function call and awswrangler will accept it."
             "e.g. wr.s3.to_excel(df, path, na_rep="
             ", index=False)"
         )

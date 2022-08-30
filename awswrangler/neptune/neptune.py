@@ -27,7 +27,7 @@ def _check_for_sparqlwrapper(func: FuncT) -> FuncT:
         if not _SPARQLWrapper_found:
             raise ModuleNotFoundError(
                 "You need to install SPARQLWrapper respectively the "
-                "AWS Data Wrangler package with the `sparql` extra for being able to use SPARQL "
+                "AWS SDK for pandas package with the `sparql` extra for being able to use SPARQL "
             )
         return func(*args, **kwargs)
 

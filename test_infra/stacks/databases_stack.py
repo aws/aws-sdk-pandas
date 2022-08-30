@@ -27,7 +27,7 @@ class DatabasesStack(Stack):  # type: ignore
         **kwargs: str,
     ) -> None:
         """
-        AWS Data Wrangler Development Databases Infrastructure.
+        AWS SDK for pandas Development Databases Infrastructure.
         Includes Redshift, Aurora PostgreSQL, Aurora MySQL, Microsoft SQL Server, Oracle Database.
         """
         super().__init__(scope, construct_id, **kwargs)
@@ -60,34 +60,34 @@ class DatabasesStack(Stack):  # type: ignore
         self.db_password_secret = secrets.Secret(
             self,
             "db-password-secret",
-            secret_name="aws-data-wrangler/db_password",
+            secret_name="aws-sdk-pandas/db_password",
             generate_secret_string=secrets.SecretStringGenerator(exclude_characters="/@\"\' \\", password_length=30),
         ).secret_value
         # fmt: on
         self.db_password = self.db_password_secret.to_string()
         self.db_security_group = ec2.SecurityGroup(
             self,
-            "aws-data-wrangler-database-sg",
+            "aws-sdk-pandas-database-sg",
             vpc=self.vpc,
-            description="AWS Data Wrangler Test Athena - Database security group",
+            description="AWS SDK for pandas Test Athena - Database security group",
         )
         self.db_security_group.add_ingress_rule(self.db_security_group, ec2.Port.all_traffic())
         ssm.StringParameter(
             self,
             "db-security-group-parameter",
-            parameter_name="/Wrangler/EC2/DatabaseSecurityGroupId",
+            parameter_name="/SDKPandas/EC2/DatabaseSecurityGroupId",
             string_value=self.db_security_group.security_group_id,
         )
         self.rds_subnet_group = rds.SubnetGroup(
             self,
-            "aws-data-wrangler-rds-subnet-group",
+            "aws-sdk-pandas-rds-subnet-group",
             description="RDS Database Subnet Group",
             vpc=self.vpc,
             vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
         )
         self.rds_role = iam.Role(
             self,
-            "aws-data-wrangler-rds-role",
+            "aws-sdk-pandas-rds-role",
             assumed_by=iam.ServicePrincipal("rds.amazonaws.com"),
             inline_policies={
                 "S3": iam.PolicyDocument(
@@ -119,8 +119,8 @@ class DatabasesStack(Stack):  # type: ignore
     def _set_catalog_encryption(self) -> None:
         CfnDataCatalogEncryptionSettings(
             self,
-            "aws-data-wrangler-catalog-encryption",
-            catalog_id=Aws.ACCOUNT_ID,
+            "aws-sdk-pandas-catalog-encryption",
+            catalog_id=f"{Aws.ACCOUNT_ID}",
             data_catalog_encryption_settings=CfnDataCatalogEncryptionSettings.DataCatalogEncryptionSettingsProperty(  # noqa: E501
                 encryption_at_rest=CfnDataCatalogEncryptionSettings.EncryptionAtRestProperty(
                     catalog_encryption_mode="DISABLED",
@@ -138,7 +138,7 @@ class DatabasesStack(Stack):  # type: ignore
         schema = "public"
         redshift_role = iam.Role(
             self,
-            "aws-data-wrangler-redshift-role",
+            "aws-sdk-pandas-redshift-role",
             assumed_by=iam.ServicePrincipal("redshift.amazonaws.com"),
             inline_policies={
                 "KMS": iam.PolicyDocument(
@@ -223,7 +223,7 @@ class DatabasesStack(Stack):  # type: ignore
             ),
             resource=lf.CfnPermissions.ResourceProperty(
                 table_resource=lf.CfnPermissions.TableResourceProperty(
-                    database_name="aws_data_wrangler",
+                    database_name="aws_sdk_pandas",
                     table_wildcard={},  # type: ignore
                 )
             ),
@@ -231,14 +231,14 @@ class DatabasesStack(Stack):  # type: ignore
         )
         redshift.ClusterSubnetGroup(
             self,
-            "aws-data-wrangler-redshift-subnet-group",
-            description="AWS Data Wrangler Test Athena - Redshift Subnet Group",
+            "aws-sdk-pandas-redshift-subnet-group",
+            description="AWS SDK for pandas Test Athena - Redshift Subnet Group",
             vpc=self.vpc,
             vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
         )
         redshift_cluster = redshift.Cluster(
             self,
-            "aws-data-wrangler-redshift-cluster",
+            "aws-sdk-pandas-redshift-cluster",
             default_database_name=database,
             master_user=redshift.Login(
                 master_username=self.db_username,
@@ -254,10 +254,10 @@ class DatabasesStack(Stack):  # type: ignore
         )
         glue.Connection(
             self,
-            "aws-data-wrangler-redshift-glue-connection",
+            "aws-sdk-pandas-redshift-glue-connection",
             description="Connect to Redshift.",
             type=glue.ConnectionType.JDBC,
-            connection_name="aws-data-wrangler-redshift",
+            connection_name="aws-sdk-pandas-redshift",
             properties={
                 "JDBC_CONNECTION_URL": f"jdbc:redshift://{redshift_cluster.cluster_endpoint.hostname}:{port}/{database}",  # noqa: E501
                 "USERNAME": self.db_username,
@@ -268,8 +268,8 @@ class DatabasesStack(Stack):  # type: ignore
         )
         secret = secrets.Secret(
             self,
-            "aws-data-wrangler-redshift-secret",
-            secret_name="aws-data-wrangler/redshift",
+            "aws-sdk-pandas-redshift-secret",
+            secret_name="aws-sdk-pandas/redshift",
             description="Redshift credentials",
             generate_secret_string=secrets.SecretStringGenerator(
                 generate_string_key="dummy",
@@ -303,7 +303,7 @@ class DatabasesStack(Stack):  # type: ignore
         schema = "public"
         pg = rds.ParameterGroup(
             self,
-            "aws-data-wrangler-postgresql-params",
+            "aws-sdk-pandas-postgresql-params",
             engine=rds.DatabaseClusterEngine.aurora_postgres(
                 version=rds.AuroraPostgresEngineVersion.VER_11_13,
             ),
@@ -313,12 +313,12 @@ class DatabasesStack(Stack):  # type: ignore
         )
         aurora_pg = rds.DatabaseCluster(
             self,
-            "aws-data-wrangler-aurora-cluster-postgresql",
+            "aws-sdk-pandas-aurora-cluster-postgresql",
             removal_policy=RemovalPolicy.DESTROY,
             engine=rds.DatabaseClusterEngine.aurora_postgres(
                 version=rds.AuroraPostgresEngineVersion.VER_11_13,
             ),
-            cluster_identifier="postgresql-cluster-wrangler",
+            cluster_identifier="postgresql-cluster-sdk-pandas",
             instances=1,
             credentials=rds.Credentials.from_password(
                 username=self.db_username,
@@ -338,10 +338,10 @@ class DatabasesStack(Stack):  # type: ignore
         )
         glue.Connection(
             self,
-            "aws-data-wrangler-postgresql-glue-connection",
+            "aws-sdk-pandas-postgresql-glue-connection",
             description="Connect to Aurora (PostgreSQL).",
             type=glue.ConnectionType.JDBC,
-            connection_name="aws-data-wrangler-postgresql",
+            connection_name="aws-sdk-pandas-postgresql",
             properties={
                 "JDBC_CONNECTION_URL": f"jdbc:postgresql://{aurora_pg.cluster_endpoint.hostname}:{port}/{database}",
                 "USERNAME": self.db_username,
@@ -352,8 +352,8 @@ class DatabasesStack(Stack):  # type: ignore
         )
         secrets.Secret(
             self,
-            "aws-data-wrangler-postgresql-secret",
-            secret_name="aws-data-wrangler/postgresql",
+            "aws-sdk-pandas-postgresql-secret",
+            secret_name="aws-sdk-pandas/postgresql",
             description="Postgresql credentials",
             generate_secret_string=secrets.SecretStringGenerator(
                 generate_string_key="dummy",
@@ -381,12 +381,12 @@ class DatabasesStack(Stack):  # type: ignore
         schema = "test"
         aurora_mysql = rds.DatabaseCluster(
             self,
-            "aws-data-wrangler-aurora-cluster-mysql",
+            "aws-sdk-pandas-aurora-cluster-mysql",
             removal_policy=RemovalPolicy.DESTROY,
             engine=rds.DatabaseClusterEngine.aurora_mysql(
                 version=rds.AuroraMysqlEngineVersion.VER_2_10_2,
             ),
-            cluster_identifier="mysql-cluster-wrangler",
+            cluster_identifier="mysql-cluster-sdk-pandas",
             instances=1,
             default_database_name=database,
             credentials=rds.Credentials.from_password(
@@ -406,10 +406,10 @@ class DatabasesStack(Stack):  # type: ignore
         )
         glue.Connection(
             self,
-            "aws-data-wrangler-mysql-glue-connection",
+            "aws-sdk-pandas-mysql-glue-connection",
             description="Connect to Aurora (MySQL).",
             type=glue.ConnectionType.JDBC,
-            connection_name="aws-data-wrangler-mysql",
+            connection_name="aws-sdk-pandas-mysql",
             properties={
                 "JDBC_CONNECTION_URL": f"jdbc:mysql://{aurora_mysql.cluster_endpoint.hostname}:{port}/{database}",
                 "USERNAME": self.db_username,
@@ -420,10 +420,10 @@ class DatabasesStack(Stack):  # type: ignore
         )
         glue.Connection(
             self,
-            "aws-data-wrangler-mysql-glue-connection-ssl",
+            "aws-sdk-pandas-mysql-glue-connection-ssl",
             description="Connect to Aurora (MySQL) with SSL.",
             type=glue.ConnectionType.JDBC,
-            connection_name="aws-data-wrangler-mysql-ssl",
+            connection_name="aws-sdk-pandas-mysql-ssl",
             properties={
                 "JDBC_CONNECTION_URL": f"jdbc:mysql://{aurora_mysql.cluster_endpoint.hostname}:{port}/{database}",
                 "USERNAME": self.db_username,
@@ -436,8 +436,8 @@ class DatabasesStack(Stack):  # type: ignore
         )
         secrets.Secret(
             self,
-            "aws-data-wrangler-mysql-secret",
-            secret_name="aws-data-wrangler/mysql",
+            "aws-sdk-pandas-mysql-secret",
+            secret_name="aws-sdk-pandas/mysql",
             description="MySQL credentials",
             generate_secret_string=secrets.SecretStringGenerator(
                 generate_string_key="dummy",
@@ -465,12 +465,12 @@ class DatabasesStack(Stack):  # type: ignore
         schema = "test"
         aurora_mysql = rds.ServerlessCluster(
             self,
-            "aws-data-wrangler-aurora-cluster-mysql-serverless",
+            "aws-sdk-pandas-aurora-cluster-mysql-serverless",
             removal_policy=RemovalPolicy.DESTROY,
             engine=rds.DatabaseClusterEngine.aurora_mysql(
                 version=rds.AuroraMysqlEngineVersion.VER_5_7_12,
             ),
-            cluster_identifier="mysql-serverless-cluster-wrangler",
+            cluster_identifier="mysql-serverless-cluster-sdk-pandas",
             default_database_name=database,
             credentials=rds.Credentials.from_password(
                 username=self.db_username,
@@ -490,8 +490,8 @@ class DatabasesStack(Stack):  # type: ignore
         )
         secret = secrets.Secret(
             self,
-            "aws-data-wrangler-mysql-serverless-secret",
-            secret_name="aws-data-wrangler/mysql-serverless",
+            "aws-sdk-pandas-mysql-serverless-secret",
+            secret_name="aws-sdk-pandas/mysql-serverless",
             description="MySQL serverless credentials",
             generate_secret_string=secrets.SecretStringGenerator(
                 generate_string_key="dummy",
@@ -521,9 +521,9 @@ class DatabasesStack(Stack):  # type: ignore
         schema = "dbo"
         sqlserver = rds.DatabaseInstance(
             self,
-            "aws-data-wrangler-sqlserver-instance",
+            "aws-sdk-pandas-sqlserver-instance",
             removal_policy=RemovalPolicy.DESTROY,
-            instance_identifier="sqlserver-instance-wrangler",
+            instance_identifier="sqlserver-instance-sdk-pandas",
             engine=rds.DatabaseInstanceEngine.sql_server_ex(version=rds.SqlServerEngineVersion.VER_15),
             instance_type=ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE3, ec2.InstanceSize.SMALL),
             credentials=rds.Credentials.from_password(
@@ -540,10 +540,10 @@ class DatabasesStack(Stack):  # type: ignore
         )
         glue.Connection(
             self,
-            "aws-data-wrangler-sqlserver-glue-connection",
+            "aws-sdk-pandas-sqlserver-glue-connection",
             description="Connect to SQL Server.",
             type=glue.ConnectionType.JDBC,
-            connection_name="aws-data-wrangler-sqlserver",
+            connection_name="aws-sdk-pandas-sqlserver",
             properties={
                 "JDBC_CONNECTION_URL": f"jdbc:sqlserver://{sqlserver.instance_endpoint.hostname}:{port};databaseName={database}",  # noqa: E501
                 "USERNAME": self.db_username,
@@ -554,8 +554,8 @@ class DatabasesStack(Stack):  # type: ignore
         )
         secrets.Secret(
             self,
-            "aws-data-wrangler-sqlserver-secret",
-            secret_name="aws-data-wrangler/sqlserver",
+            "aws-sdk-pandas-sqlserver-secret",
+            secret_name="aws-sdk-pandas/sqlserver",
             description="SQL Server credentials",
             generate_secret_string=secrets.SecretStringGenerator(
                 generate_string_key="dummy",
@@ -583,9 +583,9 @@ class DatabasesStack(Stack):  # type: ignore
         schema = "TEST"
         oracle = rds.DatabaseInstance(
             self,
-            "aws-data-wrangler-oracle-instance",
+            "aws-sdk-pandas-oracle-instance",
             removal_policy=RemovalPolicy.DESTROY,
-            instance_identifier="oracle-instance-wrangler",
+            instance_identifier="oracle-instance-sdk-pandas",
             engine=rds.DatabaseInstanceEngine.oracle_ee(version=rds.OracleEngineVersion.VER_19_0_0_0_2021_04_R1),
             instance_type=ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE3, ec2.InstanceSize.SMALL),
             credentials=rds.Credentials.from_password(
@@ -602,10 +602,10 @@ class DatabasesStack(Stack):  # type: ignore
         )
         glue.Connection(
             self,
-            "aws-data-wrangler-oracle-glue-connection",
+            "aws-sdk-pandas-oracle-glue-connection",
             description="Connect to Oracle.",
             type=glue.ConnectionType.JDBC,
-            connection_name="aws-data-wrangler-oracle",
+            connection_name="aws-sdk-pandas-oracle",
             properties={
                 "JDBC_CONNECTION_URL": f"jdbc:oracle:thin://@{oracle.instance_endpoint.hostname}:{port}/{database}",  # noqa: E501
                 "USERNAME": self.db_username,
@@ -616,8 +616,8 @@ class DatabasesStack(Stack):  # type: ignore
         )
         secrets.Secret(
             self,
-            "aws-data-wrangler-oracle-secret",
-            secret_name="aws-data-wrangler/oracle",
+            "aws-sdk-pandas-oracle-secret",
+            secret_name="aws-sdk-pandas/oracle",
             description="Oracle credentials",
             generate_secret_string=secrets.SecretStringGenerator(
                 generate_string_key="dummy",
@@ -642,7 +642,7 @@ class DatabasesStack(Stack):  # type: ignore
     def _setup_neptune(self, iam_enabled: bool = False, port: int = 8182) -> None:
         cluster = neptune.DatabaseCluster(
             self,
-            "DataWrangler",
+            "aws-sdk-pandas-neptune-cluster",
             vpc=self.vpc,
             instance_type=neptune.InstanceType.R5_LARGE,
             iam_authentication=iam_enabled,

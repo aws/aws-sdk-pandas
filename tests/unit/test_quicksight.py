@@ -19,7 +19,7 @@ def test_quicksight(path, glue_database, glue_table):
     wr.quicksight.delete_all_templates()
 
     wr.quicksight.create_athena_data_source(
-        name="test", allowed_to_manage=[wr.sts.get_current_identity_name()], tags={"Env": "aws-data-wrangler"}
+        name="test", allowed_to_manage=[wr.sts.get_current_identity_name()], tags={"Env": "aws-sdk-pandas"}
     )
     assert wr.quicksight.describe_data_source("test")["Name"] == "test"
     assert (

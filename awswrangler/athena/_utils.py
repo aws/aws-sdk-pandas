@@ -425,10 +425,10 @@ def start_query_execution(
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     max_cache_seconds: int
-        Wrangler can look up in Athena's history if this query has been run before.
-        If so, and its completion time is less than `max_cache_seconds` before now, wrangler
+        awswrangler can look up in Athena's history if this query has been run before.
+        If so, and its completion time is less than `max_cache_seconds` before now, awswrangler
         skips query execution and just returns the same results as last time.
-        If cached results are valid, wrangler ignores the `s3_output`, `encryption` and `kms_key` params.
+        If cached results are valid, awswrangler ignores the `s3_output`, `encryption` and `kms_key` params.
         If reading cached data fails for any reason, execution falls back to the usual query run path.
     max_cache_query_inspections : int
         Max number of queries that will be inspected from the history to try to find some result to reuse.

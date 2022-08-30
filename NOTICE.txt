@@ -1,2 +1,2 @@
-AWS Data Wrangler
+AWS SDK for pandas
 Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved. 

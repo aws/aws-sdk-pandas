@@ -494,7 +494,7 @@ def pyarrow_types_from_pandas(  # pylint: disable=too-many-branches
                     f"to have mixed data types ({msg}). "
                     "Please, cast this columns with a more deterministic data type "
                     f"(e.g. df['{col}'] = df['{col}'].astype('string')) or "
-                    "pass the column schema as argument for AWS Data Wrangler "
+                    "pass the column schema as argument"
                     f"(e.g. dtype={{'{col}': 'string'}}"
                 ) from ex
             raise
@@ -602,7 +602,7 @@ def athena_types_from_pandas(
                     f"and has a too generic data type ({df[k].dtype}). "
                     "Please, cast this columns with a more deterministic data type "
                     f"(e.g. df['{k}'] = df['{k}'].astype('string')) or "
-                    "pass the column schema as argument for AWS Data Wrangler "
+                    "pass the column schema as argument"
                     f"(e.g. dtype={{'{k}': 'string'}}"
                 ) from ex
             except exceptions.UnsupportedType as ex:
