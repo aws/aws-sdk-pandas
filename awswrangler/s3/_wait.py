@@ -123,6 +123,7 @@ def wait_objects_exist(
         delay=delay,
         max_attempts=max_attempts,
         use_threads=use_threads,
+        parallelism=parallelism,
         boto3_session=boto3_session,
     )
 
@@ -181,5 +182,6 @@ def wait_objects_not_exist(
         delay=delay,
         max_attempts=max_attempts,
         use_threads=use_threads,
+        parallelism=parallelism,
         boto3_session=boto3_session,
     )
