@@ -8,8 +8,8 @@ import boto3
 
 from awswrangler import _utils
 from awswrangler._config import config
-from awswrangler.distributed import ray_get, ray_remote
 from awswrangler._threading import _get_executor
+from awswrangler.distributed import ray_get, ray_remote
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
