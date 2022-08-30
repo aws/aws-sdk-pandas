@@ -24,6 +24,7 @@ def _wait_object(
     waiter.wait(Bucket=bucket, Key=key, WaiterConfig={"Delay": delay, "MaxAttempts": max_attempts})
 
 
+@ray_remote
 def _wait_object_batch(
     boto3_session: Optional[boto3.Session], paths: List[str], waiter_name: str, delay: int, max_attempts: int
 ) -> None:
@@ -54,13 +55,15 @@ def _wait_objects(
         path_batches = [[path] for path in paths]
 
     executor = _get_executor(use_threads=use_threads)
-    executor.map(
-        _wait_object_batch,
-        boto3_session,
-        path_batches,
-        itertools.repeat(waiter_name),
-        itertools.repeat(_delay),
-        itertools.repeat(max_attempts),
+    ray_get(
+        executor.map(
+            _wait_object_batch,
+            boto3_session,
+            path_batches,
+            itertools.repeat(waiter_name),
+            itertools.repeat(_delay),
+            itertools.repeat(max_attempts),
+        )
     )
 
     return None
