@@ -7,7 +7,9 @@ from typing import List, Optional, Union
 import boto3
 
 from awswrangler import _utils
-from awswrangler._threading import _ThreadPoolExecutor
+from awswrangler._config import config
+from awswrangler.distributed import ray_get, ray_remote
+from awswrangler._threading import _get_executor
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -22,26 +24,40 @@ def _wait_object(
     waiter.wait(Bucket=bucket, Key=key, WaiterConfig={"Delay": delay, "MaxAttempts": max_attempts})
 
 
+def _wait_object_batch(
+    boto3_session: Optional[boto3.Session], paths: List[str], waiter_name: str, delay: int, max_attempts: int
+) -> None:
+    for path in paths:
+        _wait_object(boto3_session, path, waiter_name, delay, max_attempts)
+
+
 def _wait_objects(
     waiter_name: str,
     paths: List[str],
     delay: Optional[float] = None,
     max_attempts: Optional[int] = None,
     use_threads: Union[bool, int] = True,
+    parallelism: Optional[int] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
     delay = 5 if delay is None else delay
     max_attempts = 20 if max_attempts is None else max_attempts
+    parallelism = 100 if parallelism is None else parallelism
     _delay: int = int(delay) if isinstance(delay, float) else delay
 
     if len(paths) < 1:
         return None
 
-    executor = _ThreadPoolExecutor(use_threads=use_threads)
+    if config.distributed and len(paths) > parallelism:
+        path_batches = _utils.chunkify(paths, parallelism)
+    else:
+        path_batches = [[path] for path in paths]
+
+    executor = _get_executor(use_threads=use_threads)
     executor.map(
-        _wait_object,
+        _wait_object_batch,
         boto3_session,
-        paths,
+        path_batches,
         itertools.repeat(waiter_name),
         itertools.repeat(_delay),
         itertools.repeat(max_attempts),
@@ -56,6 +72,7 @@ def wait_objects_exist(
     max_attempts: Optional[int] = None,
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
+    parallelism: Optional[int] = None,
 ) -> None:
     """Wait Amazon S3 objects exist.
 
@@ -80,6 +97,9 @@ def wait_objects_exist(
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
+    parallelism: int, optional
+        The requested parallelism of the wait. Only used when `distributed` add-on is installed.
+        Parallelism may be limited by the number of files of the dataset. 100 by default.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -110,6 +130,7 @@ def wait_objects_not_exist(
     max_attempts: Optional[int] = None,
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
+    parallelism: Optional[int] = None,
 ) -> None:
     """Wait Amazon S3 objects not exist.
 
@@ -134,6 +155,9 @@ def wait_objects_not_exist(
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
+    parallelism: int, optional
+        The requested parallelism of the wait. Only used when `distributed` add-on is installed.
+        Parallelism may be limited by the number of files of the dataset. 100 by default.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
