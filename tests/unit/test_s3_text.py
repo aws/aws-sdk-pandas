@@ -13,6 +13,8 @@ else:
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
+pytestmark = pytest.mark.distributed
+
 
 @pytest.mark.parametrize(
     "encoding,strings,wrong_encoding,exception",
