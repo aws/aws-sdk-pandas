@@ -81,11 +81,13 @@ class BaseStack(Stack):  # type: ignore
 
         self.trail = cloudtrail.Trail(
             self,
-            id='Bucket Trail',
+            id="Bucket Trail",
         )
-        self.trail.add_s3_event_selector([
-            cloudtrail.S3EventSelector(bucket=self.bucket),
-        ])
+        self.trail.add_s3_event_selector(
+            [
+                cloudtrail.S3EventSelector(bucket=self.bucket),
+            ]
+        )
 
         CfnOutput(self, "Region", value=self.region)
         CfnOutput(

@@ -7,11 +7,14 @@ from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
 import botocore.exceptions
+import pandas as pd
 import pandas.io.parsers
 from pandas.io.common import infer_compression
 
 from awswrangler import _utils, exceptions
 from awswrangler._config import config
+from awswrangler._threading import _get_executor
+from awswrangler.distributed import ray_remote
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import (
@@ -21,14 +24,11 @@ from awswrangler.s3._read import (
     _get_path_root,
     _union,
 )
-from awswrangler._threading import _get_executor
-from awswrangler.distributed import ray_get, ray_remote
 
 if config.distributed:
-    import modin.pandas as pd
-else:
-    import pandas as pd
+    from ray.data import from_pandas_refs
 
+    from awswrangler.distributed._utils import _to_modin  # pylint: disable=ungrouped-imports
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -119,7 +119,6 @@ def _read_text(
     s3_additional_kwargs: Optional[Dict[str, str]],
     chunksize: Optional[int],
     dataset: bool,
-    parallelism: int,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]],
     ignore_index: bool,
     version_id: Optional[Union[str, Dict[str, str]]] = None,
@@ -166,19 +165,22 @@ def _read_text(
     version_id = version_id if isinstance(version_id, dict) else None
 
     executor = _get_executor(use_threads=use_threads)
-    tables = ray_get(
-        executor.map(
-            _read_text_file,
-            session,
-            paths,
-            itertools.repeat(version_id),
-            itertools.repeat(parser_func),
-            itertools.repeat(path_root),
-            itertools.repeat(pandas_kwargs),
-            itertools.repeat(s3_additional_kwargs),
-            itertools.repeat(dataset),
-        )
+    tables = executor.map(
+        _read_text_file,
+        session,
+        paths,
+        itertools.repeat(version_id),
+        itertools.repeat(parser_func),
+        itertools.repeat(path_root),
+        itertools.repeat(pandas_kwargs),
+        itertools.repeat(s3_additional_kwargs),
+        itertools.repeat(dataset),
     )
+
+    if config.distributed:
+        ray_dataset = from_pandas_refs(tables)
+        return _to_modin(ray_dataset, ignore_index=ignore_index)
+
     return _union(dfs=tables, ignore_index=ignore_index)
 
 
@@ -195,7 +197,6 @@ def read_csv(
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     chunksize: Optional[int] = None,
     dataset: bool = False,
-    parallelism: int = 200,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
@@ -327,7 +328,6 @@ def read_csv(
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
         ignore_index=ignore_index,
-        parallelism=parallelism,
         **pandas_kwargs,
     )
 
@@ -346,7 +346,6 @@ def read_fwf(
     chunksize: Optional[int] = None,
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
-    parallelism: int = 200,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read fixed-width formatted file(s) from a received S3 prefix or list of S3 objects paths.
@@ -477,7 +476,6 @@ def read_fwf(
         last_modified_end=last_modified_end,
         ignore_index=True,
         sort_index=False,
-        parallelism=parallelism,
         **pandas_kwargs,
     )
 
@@ -496,7 +494,6 @@ def read_json(
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     chunksize: Optional[int] = None,
     dataset: bool = False,
-    parallelism: int = 200,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
@@ -634,6 +631,5 @@ def read_json(
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
         ignore_index=ignore_index,
-        parallelism=parallelism,
         **pandas_kwargs,
     )

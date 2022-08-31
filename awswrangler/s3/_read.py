@@ -6,21 +6,15 @@ from functools import partial
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union, cast
 
 import numpy as np
+import pandas as pd
 from pandas.api.types import union_categoricals
 
 from awswrangler import exceptions
 from awswrangler._arrow import _extract_partitions_from_path
-from awswrangler._config import config  # noqa
 from awswrangler._utils import boto3_to_primitives, ensure_cpu_count
 from awswrangler.s3._list import _prefix_cleanup
 
 _logger: logging.Logger = logging.getLogger(__name__)
-
-
-if config.distributed:
-    import modin.pandas as pd
-else:
-    import pandas as pd
 
 
 def _get_path_root(path: Union[str, List[str]], dataset: bool) -> Optional[str]:
