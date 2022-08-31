@@ -14,7 +14,6 @@ else:
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
-@pytest.mark.skip
 @pytest.mark.parametrize(
     "encoding,strings,wrong_encoding,exception",
     [
