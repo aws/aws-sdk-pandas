@@ -319,7 +319,8 @@ def test_read_csv_with_chucksize_and_pandas_arguments(moto_s3):
 
 
 @mock.patch("pandas.read_csv")
-def test_read_csv_pass_pandas_arguments_and_encoding_succeed(mock_read_csv, moto_s3):
+@mock.patch("pandas.concat")
+def test_read_csv_pass_pandas_arguments_and_encoding_succeed(mock_concat, mock_read_csv, moto_s3):
     bucket = "bucket"
     key = "foo/foo.csv"
     path = "s3://{}/{}".format(bucket, key)
