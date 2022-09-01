@@ -332,7 +332,7 @@ def _read_parquet(
             coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
             path_root=path_root,
         )
-        return _to_modin(dataset=dataset, kwargs=arrow_kwargs)
+        return _to_modin(dataset=dataset, to_pandas_kwargs=arrow_kwargs)
 
     if chunked:
         return _read_parquet_chunked(

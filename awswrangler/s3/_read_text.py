@@ -1,5 +1,6 @@
 """Amazon S3 Read Module (PRIVATE)."""
 import datetime
+import itertools
 import logging
 import pprint
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
@@ -11,6 +12,9 @@ import pandas.io.parsers
 from pandas.io.common import infer_compression
 
 from awswrangler import _utils, exceptions
+from awswrangler._config import config
+from awswrangler._threading import _get_executor
+from awswrangler.distributed import ray_remote
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import (
@@ -18,9 +22,13 @@ from awswrangler.s3._read import (
     _apply_partitions,
     _get_path_ignore_suffix,
     _get_path_root,
-    _read_dfs_from_multiple_paths,
     _union,
 )
+
+if config.distributed:
+    from ray.data import from_pandas_refs
+
+    from awswrangler.distributed._utils import _to_modin  # pylint: disable=ungrouped-imports
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -65,16 +73,16 @@ def _read_text_chunked(
                 yield _apply_partitions(df=df, dataset=dataset, path=path, path_root=path_root)
 
 
+@ray_remote
 def _read_text_file(
+    boto3_session: Union[boto3.Session, _utils.Boto3PrimitivesType],
     path: str,
     version_id: Optional[str],
     parser_func: Callable[..., pd.DataFrame],
     path_root: Optional[str],
-    boto3_session: Union[boto3.Session, _utils.Boto3PrimitivesType],
     pandas_kwargs: Dict[str, Any],
     s3_additional_kwargs: Optional[Dict[str, str]],
     dataset: bool,
-    use_threads: Union[bool, int],
 ) -> pd.DataFrame:
     boto3_session = _utils.ensure_session(boto3_session)
     mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
@@ -83,7 +91,7 @@ def _read_text_file(
             path=path,
             version_id=version_id,
             mode=mode,
-            use_threads=use_threads,
+            use_threads=False,
             s3_block_size=-1,  # One shot download
             encoding=encoding,
             s3_additional_kwargs=s3_additional_kwargs,
@@ -119,6 +127,7 @@ def _read_text(
     if "iterator" in pandas_kwargs:
         raise exceptions.InvalidArgument("Please, use the chunksize argument instead of iterator.")
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
+
     paths: List[str] = _path2list(
         path=path,
         boto3_session=session,
@@ -129,6 +138,7 @@ def _read_text(
         last_modified_end=last_modified_end,
         s3_additional_kwargs=s3_additional_kwargs,
     )
+
     path_root: Optional[str] = _get_path_root(path=path, dataset=dataset)
     if path_root is not None:
         paths = _apply_partition_filter(path_root=path_root, paths=paths, filter_func=partition_filter)
@@ -146,27 +156,32 @@ def _read_text(
         "use_threads": use_threads,
     }
     _logger.debug("args:\n%s", pprint.pformat(args))
-    ret: Union[pd.DataFrame, Iterator[pd.DataFrame]]
+
     if chunksize is not None:
-        ret = _read_text_chunked(
+        return _read_text_chunked(
             paths=paths, version_ids=version_id if isinstance(version_id, dict) else None, chunksize=chunksize, **args
         )
-    elif len(paths) == 1:
-        ret = _read_text_file(
-            path=paths[0], version_id=version_id[paths[0]] if isinstance(version_id, dict) else version_id, **args
-        )
-    else:
-        ret = _union(
-            dfs=_read_dfs_from_multiple_paths(
-                read_func=_read_text_file,
-                paths=paths,
-                version_ids=version_id if isinstance(version_id, dict) else None,
-                use_threads=use_threads,
-                kwargs=args,
-            ),
-            ignore_index=ignore_index,
-        )
-    return ret
+
+    version_id = version_id if isinstance(version_id, dict) else None
+
+    executor = _get_executor(use_threads=use_threads)
+    tables = executor.map(
+        _read_text_file,
+        session,
+        paths,
+        itertools.repeat(version_id),
+        itertools.repeat(parser_func),
+        itertools.repeat(path_root),
+        itertools.repeat(pandas_kwargs),
+        itertools.repeat(s3_additional_kwargs),
+        itertools.repeat(dataset),
+    )
+
+    if config.distributed:
+        ray_dataset = from_pandas_refs(tables)
+        return _to_modin(ray_dataset, ignore_index=ignore_index)
+
+    return _union(dfs=tables, ignore_index=ignore_index)
 
 
 def read_csv(

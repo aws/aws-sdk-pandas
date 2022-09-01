@@ -17,6 +17,8 @@ EXT = {"gzip": ".gz", "bz2": ".bz2", "xz": ".xz", "zip": ".zip"}
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
+pytestmark = pytest.mark.distributed
+
 
 @pytest.mark.parametrize("compression", ["gzip", "bz2", "xz"])
 def test_csv_read(bucket, path, compression):
