@@ -8,7 +8,7 @@ import pandas
 
 import awswrangler as wr
 from awswrangler import _data_types
-from awswrangler.exceptions import FailedQualityCheck
+from awswrangler.exceptions import FailedQualityCheck, NoFilesFound
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -71,6 +71,18 @@ def _is_data_quality_sufficient(
     return True
 
 
+def _generate_empty_frame_for_table(
+    database: str,
+    table: str,
+    boto3_session: Optional[boto3.Session] = None,
+) -> pandas.DataFrame:
+    df_types = wr.catalog.table(database=database, table=table, boto3_session=boto3_session)
+    type_dict = {row["Column Name"]: row["Type"] for _, row in df_types.iterrows()}
+
+    existing_df = pandas.DataFrame([], columns=type_dict.keys())
+    return _data_types.cast_pandas_with_athena_types(existing_df, type_dict)
+
+
 def merge_upsert_table(
     delta_df: pandas.DataFrame,
     database: str,
@@ -109,10 +121,18 @@ def merge_upsert_table(
     """
     # Check if table exists first
     if wr.catalog.does_table_exist(database=database, table=table, boto3_session=boto3_session):
-        # Read the existing table into a pandas dataframe
-        existing_df = wr.s3.read_parquet_table(database=database, table=table, boto3_session=boto3_session)
+
+        try:
+            # Read the existing table into a pandas dataframe
+            existing_df = wr.s3.read_parquet_table(database=database, table=table, boto3_session=boto3_session)
+
+        except NoFilesFound:
+            # Generate empty frame
+            existing_df = _generate_empty_frame_for_table(database=database, table=table, boto3_session=boto3_session)
+
         # Check if data quality inside dataframes to be merged are sufficient
         if _is_data_quality_sufficient(existing_df=existing_df, delta_df=delta_df, primary_key=primary_key):
+
             # If data quality is sufficient then merge upsert the table
             _update_existing_table(
                 existing_df=existing_df,
@@ -121,7 +141,7 @@ def merge_upsert_table(
                 database=database,
                 table=table,
                 boto3_session=boto3_session,
-            )
+        )
     else:
         exception_message = f"database= {database} and table= {table}  does not exist"
         _logger.exception(exception_message)
