@@ -1,4 +1,5 @@
 from aws_cdk import CfnOutput, Duration, Stack, Tags
+from aws_cdk import aws_cloudtrail as cloudtrail
 from aws_cdk import aws_ec2 as ec2
 from aws_cdk import aws_glue_alpha as glue
 from aws_cdk import aws_iam as iam
@@ -77,6 +78,17 @@ class BaseStack(Stack):  # type: ignore
             id="aws_sdk_pandas_log_stream",
             log_group=log_group,
         )
+
+        self.trail = cloudtrail.Trail(
+            self,
+            id="Bucket Trail",
+        )
+        self.trail.add_s3_event_selector(
+            [
+                cloudtrail.S3EventSelector(bucket=self.bucket),
+            ]
+        )
+
         CfnOutput(self, "Region", value=self.region)
         CfnOutput(
             self,

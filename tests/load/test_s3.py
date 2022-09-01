@@ -55,3 +55,21 @@ def test_s3_delete_objects(path, path2, benchmark_time):
     assert timer.elapsed_time < benchmark_time
     assert len(wr.s3.list_objects(f"{path}delete-test*")) == 0
     assert len(wr.s3.list_objects(f"{path2}delete-test*")) == 0
+
+
+@pytest.mark.parametrize("benchmark_time", [240])
+def test_s3_read_csv_simple(benchmark_time):
+    path = "s3://nyc-tlc/csv_backup/yellow_tripdata_2021-0*.csv"
+    with ExecutionTimer("elapsed time of wr.s3.read_csv() simple") as timer:
+        wr.s3.read_csv(path=path)
+
+    assert timer.elapsed_time < benchmark_time
+
+
+@pytest.mark.parametrize("benchmark_time", [30])
+def test_s3_read_json_simple(benchmark_time):
+    path = "s3://covid19-lake/covid_knowledge_graph/json/edges/paper_to_concept/*.json"
+    with ExecutionTimer("elapsed time of wr.s3.read_json() simple") as timer:
+        wr.s3.read_json(path=path, lines=True, orient="records")
+
+    assert timer.elapsed_time < benchmark_time
