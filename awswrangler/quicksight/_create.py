@@ -209,7 +209,7 @@ def create_athena_dataset(
     logical_table_alias: str = "LogicalTable",
     rename_columns: Optional[Dict[str, str]] = None,
     cast_columns_types: Optional[Dict[str, str]] = None,
-    tag_columns: Optional[Dict[str, str]] = None,
+    tag_columns: Optional[Dict[str, List[Dict[str, Any]]]] = None,
     tags: Optional[Dict[str, str]] = None,
     account_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
