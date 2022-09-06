@@ -76,11 +76,9 @@ def _generate_empty_frame_for_table(
     table: str,
     boto3_session: Optional[boto3.Session] = None,
 ) -> pandas.DataFrame:
-    df_types = wr.catalog.table(database=database, table=table, boto3_session=boto3_session)
-    type_dict = {row["Column Name"]: row["Type"] for _, row in df_types.iterrows()}
-
-    existing_df = pandas.DataFrame([], columns=type_dict.keys())
-    return _data_types.cast_pandas_with_athena_types(existing_df, type_dict)
+    type_dict = wr.catalog.get_table_types(database=database, table=table, boto3_session=boto3_session)
+    empty_frame = pandas.DataFrame(columns=type_dict.keys())
+    return _data_types.cast_pandas_with_athena_types(empty_frame, type_dict)
 
 
 def merge_upsert_table(
