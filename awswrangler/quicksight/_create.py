@@ -100,7 +100,7 @@ def _generate_permissions(
 def _generate_transformations(
     rename_columns: Optional[Dict[str, str]],
     cast_columns_types: Optional[Dict[str, str]],
-    tag_columns: Optional[Dict[str, str]],
+    tag_columns: Optional[Dict[str, List[Dict[str, Any]]]],
 ) -> List[Dict[str, Dict[str, Any]]]:
     trans: List[Dict[str, Dict[str, Any]]] = []
     if rename_columns is not None:
@@ -110,8 +110,8 @@ def _generate_transformations(
         for k, v in cast_columns_types.items():
             trans.append({"CastColumnTypeOperation": {"ColumnName": k, "NewColumnType": v.upper()}})
     if tag_columns is not None:
-        for k, v in tag_columns.items():
-            trans.append({"TagColumnOperation": {"ColumnName": k, "Tags": v}})
+        for k, tags in tag_columns.items():
+            trans.append({"TagColumnOperation": {"ColumnName": k, "Tags": tags}})
     return trans
 
 
@@ -209,7 +209,7 @@ def create_athena_dataset(
     logical_table_alias: str = "LogicalTable",
     rename_columns: Optional[Dict[str, str]] = None,
     cast_columns_types: Optional[Dict[str, str]] = None,
-    tag_columns: Optional[Dict[str, str]] = None,
+    tag_columns: Optional[Dict[str, List[Dict[str, Any]]]] = None,
     tags: Optional[Dict[str, str]] = None,
     account_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
@@ -265,7 +265,7 @@ def create_athena_dataset(
     cast_columns_types : Dict[str, str], optional
         Dictionary to map column casts. e.g. {"col_name": "STRING", "col_name2": "DECIMAL"}
         Valid types: 'STRING'|'INTEGER'|'DECIMAL'|'DATETIME'
-    tag_columns : Dict[str, str], optional
+    tag_columns : Dict[str, List[Dict[str, Any]]], optional
         Dictionary to map column tags.
         e.g. {"col_name": [{ "ColumnGeographicRole": "CITY" }],
               "col_name2": [{ "ColumnDescription": { "Text": "description" }}]}
