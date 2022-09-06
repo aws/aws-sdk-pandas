@@ -112,3 +112,22 @@ def test_upsert_for_empty_table(glue_database, glue_table, path):
 
     merged_df = wr.s3.read_parquet_table(database=glue_database, table=glue_table)
     assert merged_df.shape == delta_df.shape
+
+
+def test_upsert_for_empty_table_with_incompatible_schemas(glue_database, glue_table, path):
+    wr.catalog.create_parquet_table(
+        database=glue_database,
+        table=glue_table,
+        path=path,
+        columns_types={
+            "id": "bigint",
+            "name": "string",
+        },
+    )
+
+    # id is passed as a string, when it should be a bigint
+    delta_df = pd.DataFrame({"id": ["1", "2"], "name": ["foo", "bar"]})
+    primary_key = ["id"]
+
+    with pytest.raises(FailedQualityCheck):
+        merge_upsert_table(delta_df=delta_df, database=glue_database, table=glue_table, primary_key=primary_key)
