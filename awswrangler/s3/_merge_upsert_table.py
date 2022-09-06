@@ -127,7 +127,7 @@ def merge_upsert_table(
             existing_df = wr.s3.read_parquet_table(database=database, table=table, boto3_session=boto3_session)
 
         except NoFilesFound:
-            # Generate empty frame
+            # Generate empty frame with the schema specified in the Glue catalog
             existing_df = _generate_empty_frame_for_table(database=database, table=table, boto3_session=boto3_session)
 
         # Check if data quality inside dataframes to be merged are sufficient
@@ -141,7 +141,7 @@ def merge_upsert_table(
                 database=database,
                 table=table,
                 boto3_session=boto3_session,
-        )
+            )
     else:
         exception_message = f"database= {database} and table= {table}  does not exist"
         _logger.exception(exception_message)
