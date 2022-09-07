@@ -73,3 +73,32 @@ def test_s3_read_json_simple(benchmark_time):
         wr.s3.read_json(path=path, lines=True, orient="records")
 
     assert timer.elapsed_time < benchmark_time
+
+
+@pytest.mark.timeout(300)
+@pytest.mark.parametrize("benchmark_time", [30])
+def test_wait_object_exists(path: str, benchmark_time: int) -> None:
+    df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5]})
+
+    num_objects = 200
+    file_paths = [f"{path}{i}.txt" for i in range(num_objects)]
+
+    for file_path in file_paths:
+        wr.s3.to_csv(df, file_path, index=False)
+
+    with ExecutionTimer("elapsed time of wr.s3.wait_objects_exist()") as timer:
+        wr.s3.wait_objects_exist(file_paths, parallelism=16)
+
+    assert timer.elapsed_time < benchmark_time
+
+
+@pytest.mark.timeout(60)
+@pytest.mark.parametrize("benchmark_time", [30])
+def test_wait_object_not_exists(path: str, benchmark_time: int) -> None:
+    num_objects = 200
+    file_paths = [f"{path}{i}.txt" for i in range(num_objects)]
+
+    with ExecutionTimer("elapsed time of wr.s3.wait_objects_not_exist()") as timer:
+        wr.s3.wait_objects_not_exist(file_paths, parallelism=16)
+
+    assert timer.elapsed_time < benchmark_time
