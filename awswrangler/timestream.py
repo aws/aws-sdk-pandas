@@ -16,15 +16,19 @@ from awswrangler.distributed import ray_get, ray_remote
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
+def _extract_parameter(parameter: Any) -> Any:
+    if pd.isna(parameter):
+        parameter = None
+    elif hasattr(parameter, "to_pydatetime"):
+        parameter = parameter.to_pydatetime()
+    return parameter
+
+
 def _df2list(df: pd.DataFrame) -> List[List[Any]]:
     """Extract Parameters."""
+    df.applymap(_extract_parameter)
     parameters: List[List[Any]] = df.values.tolist()
-    for i, row in enumerate(parameters):
-        for j, value in enumerate(row):
-            if pd.isna(value):
-                parameters[i][j] = None
-            elif hasattr(value, "to_pydatetime"):
-                parameters[i][j] = value.to_pydatetime()
+
     return parameters
 
 
