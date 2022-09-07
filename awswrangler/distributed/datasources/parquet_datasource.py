@@ -33,6 +33,7 @@ class ParquetDatasource:
     """Parquet datasource, for reading and writing Parquet files."""
 
     # Original: https://github.com/ray-project/ray/blob/releases/1.13.0/python/ray/data/datasource/parquet_datasource.py
+    # pylint: disable=R0201
     def prepare_read(
         self,
         parallelism: int,
