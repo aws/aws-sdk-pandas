@@ -6,7 +6,6 @@ from stacks.lakeformation_stack import LakeFormationStack
 from stacks.opensearch_stack import OpenSearchStack
 from stacks.ray_stack import RayStack
 
-
 app = App()
 
 base = BaseStack(app, "aws-sdk-pandas-base")
