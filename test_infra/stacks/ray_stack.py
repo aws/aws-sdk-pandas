@@ -45,9 +45,7 @@ class RayStack(Stack):  # type: ignore
             policy_name="AdditionalLoadTestPermissions",
             roles=[ray_exec_role],
             statements=[
-                iam.PolicyStatement(
-                    effect=iam.Effect.ALLOW, actions=["timestream:WriteRecords"], resources=["*"]
-                ),
+                iam.PolicyStatement(effect=iam.Effect.ALLOW, actions=["timestream:WriteRecords"], resources=["*"]),
             ],
         )
 
