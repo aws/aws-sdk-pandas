@@ -360,6 +360,8 @@ def athena2pandas(dtype: str) -> str:  # pylint: disable=too-many-branches,too-m
         return "decimal"
     if dtype in ("binary", "varbinary"):
         return "bytes"
+    if dtype in ("array", "row", "map"):
+        return "object"
     raise exceptions.UnsupportedType(f"Unsupported Athena type: {dtype}")
 
 
