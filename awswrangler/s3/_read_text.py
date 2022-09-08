@@ -174,9 +174,7 @@ def _read_text(
     version_id_dict = {path: _get_version_id_for(version_id, path) for path in paths}
 
     if chunksize is not None:
-        return _read_text_chunked(
-            paths=paths, version_ids=version_id_dict, chunksize=chunksize, **args
-        )
+        return _read_text_chunked(paths=paths, version_ids=version_id_dict, chunksize=chunksize, **args)
 
     executor = _get_executor(use_threads=use_threads)
     tables = executor.map(
