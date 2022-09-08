@@ -16,7 +16,9 @@ class RedshiftDataApi(connector.DataApiConnector):
     Parameters
     ----------
     cluster_id: str
-        Id for the target Redshift cluster.
+        Id for the target Redshift cluster - only required if `workgroup_name` not provided.
+    workgroup_name: str
+        Name for the target serverless Redshift workgroup - only required if `cluster_id` not provided.
     database: str
         Target database name.
     secret_arn: str
@@ -35,8 +37,9 @@ class RedshiftDataApi(connector.DataApiConnector):
 
     def __init__(
         self,
-        cluster_id: str,
-        database: str,
+        cluster_id: str = "",
+        workgroup_name: str = "",
+        database: str = "",
         secret_arn: str = "",
         db_user: str = "",
         sleep: float = 0.25,
@@ -45,6 +48,7 @@ class RedshiftDataApi(connector.DataApiConnector):
         boto3_session: Optional[boto3.Session] = None,
     ) -> None:
         self.cluster_id = cluster_id
+        self.workgroup_name = workgroup_name
         self.database = database
         self.secret_arn = secret_arn
         self.db_user = db_user
@@ -53,22 +57,36 @@ class RedshiftDataApi(connector.DataApiConnector):
         logger: logging.Logger = logging.getLogger(__name__)
         super().__init__(self.client, logger)
 
+    def _validate_redshift_target(self) -> None:
+        if self.database == "":
+            raise ValueError("`database` must be set for connection")
+        if self.cluster_id == "" and self.workgroup_name == "":
+            raise ValueError("Either `cluster_id` or `workgroup_name`(Redshift Serverless) must be set for connection")
+
     def _validate_auth_method(self) -> None:
-        if self.secret_arn == "" and self.db_user == "":
+        if self.workgroup_name == "" and self.secret_arn == "" and self.db_user == "":
             raise ValueError("Either `secret_arn` or `db_user` must be set for authentication")
 
     def _execute_statement(self, sql: str, database: Optional[str] = None) -> str:
+        self._validate_redshift_target()
         self._validate_auth_method()
-        credentials = {"SecretArn": self.secret_arn}
-        if self.db_user:
+        credentials = {}
+        if self.secret_arn:
+            credentials = {"SecretArn": self.secret_arn}
+        elif self.db_user:
             credentials = {"DbUser": self.db_user}
 
         if database is None:
             database = self.database
 
+        if self.cluster_id:
+            redshift_target = {"ClusterIdentifier": self.cluster_id}
+        elif self.workgroup_name:
+            redshift_target = {"WorkgroupName": self.workgroup_name}
+
         self.logger.debug("Executing %s", sql)
         response: Dict[str, Any] = self.client.execute_statement(
-            ClusterIdentifier=self.cluster_id,
+            **redshift_target,
             Database=database,
             Sql=sql,
             **credentials,
@@ -167,8 +185,9 @@ class RedshiftDataApiTimeoutException(Exception):
 
 
 def connect(
-    cluster_id: str,
-    database: str,
+    cluster_id: str = "",
+    workgroup_name: str = "",
+    database: str = "",
     secret_arn: str = "",
     db_user: str = "",
     boto3_session: Optional[boto3.Session] = None,
@@ -179,7 +198,9 @@ def connect(
     Parameters
     ----------
     cluster_id: str
-        Id for the target Redshift cluster.
+        Id for the target Redshift cluster - only required if `workgroup_name` not provided.
+    workgroup_name: str
+        Name for the target serverless Redshift workgroup - only required if `cluster_id` not provided.
     database: str
         Target database name.
     secret_arn: str
@@ -196,7 +217,13 @@ def connect(
     A RedshiftDataApi connection instance that can be used with `wr.redshift.data_api.read_sql_query`.
     """
     return RedshiftDataApi(
-        cluster_id, database, secret_arn=secret_arn, db_user=db_user, boto3_session=boto3_session, **kwargs
+        cluster_id=cluster_id,
+        workgroup_name=workgroup_name,
+        database=database,
+        secret_arn=secret_arn,
+        db_user=db_user,
+        boto3_session=boto3_session,
+        **kwargs,
     )
 
 
