@@ -9,6 +9,7 @@ from aws_cdk import aws_lakeformation as lf
 from aws_cdk import aws_neptune_alpha as neptune
 from aws_cdk import aws_rds as rds
 from aws_cdk import aws_redshift_alpha as redshift
+from aws_cdk import aws_redshiftserverless as redshiftserverless
 from aws_cdk import aws_s3 as s3
 from aws_cdk import aws_secretsmanager as secrets
 from aws_cdk import aws_ssm as ssm
@@ -42,6 +43,7 @@ class DatabasesStack(Stack):  # type: ignore
         self._set_catalog_encryption()
         if databases_context["redshift"]:
             self._setup_redshift()
+            self._setup_redshift_serverless()
         if databases_context["postgresql"]:
             self._setup_postgresql()
         if databases_context["mysql"]:
@@ -297,6 +299,46 @@ class DatabasesStack(Stack):  # type: ignore
         CfnOutput(self, "RedshiftSchema", value=schema)
         CfnOutput(self, "RedshiftRole", value=redshift_role.role_arn)
 
+    def _setup_redshift_serverless(self) -> None:
+        database = "test"
+        redshift_cfn_namespace = redshiftserverless.CfnNamespace(
+            self,
+            "aws-sdk-pandas-redshift-serverless-namespace",
+            namespace_name="aws-sdk-pandas-redshift-serverless-namespace",
+            admin_username=self.db_username,
+            admin_user_password=self.db_password,
+            db_name=database,
+        )
+        redshift_cfn_workgroup = redshiftserverless.CfnWorkgroup(
+            self,
+            "aws-sdk-pandas-redshift-serverless-workgroup",
+            workgroup_name="aws-sdk-pandas-redshift-serverless-workgroup",
+            namespace_name=redshift_cfn_namespace.namespace_name,
+            publicly_accessible=True,
+            security_group_ids=[self.db_security_group.security_group_id],
+            subnet_ids=[subnet.subnet_id for subnet in self.vpc.public_subnets],
+        )
+        redshift_cfn_workgroup.node.add_dependency(redshift_cfn_namespace)
+        secret = secrets.Secret(
+            self,
+            "aws-sdk-pandas-redshift-serverless-secret",
+            secret_name="aws-sdk-pandas/redshift-serverless",
+            description="Redshift Serverless credentials",
+            generate_secret_string=secrets.SecretStringGenerator(
+                generate_string_key="dummy",
+                secret_string_template=json.dumps(
+                    {
+                        "username": self.db_username,
+                        "password": self.db_password,
+                        "engine": "redshift-serverless",
+                    }
+                ),
+            ),
+        )
+        CfnOutput(self, "RedshiftServerlessSecretArn", value=secret.secret_arn)
+        CfnOutput(self, "RedshiftServerlessWorkgroup", value=redshift_cfn_workgroup.workgroup_name)
+        CfnOutput(self, "RedshiftServerlessDatabase", value=database)
+
     def _setup_postgresql(self) -> None:
         port = 3306
         database = "postgres"
@@ -483,7 +525,7 @@ class DatabasesStack(Stack):  # type: ignore
             ),
             backup_retention=Duration.days(1),
             vpc=self.vpc,
-            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_NAT),
+            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS),
             subnet_group=self.rds_subnet_group,
             security_groups=[self.db_security_group],
             enable_data_api=True,
