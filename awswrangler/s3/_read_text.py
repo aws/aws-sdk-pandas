@@ -3,7 +3,7 @@ import datetime
 import itertools
 import logging
 import pprint
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional, Union
 
 import boto3
 import pandas as pd
@@ -12,19 +12,14 @@ from awswrangler import _utils, exceptions
 from awswrangler._config import config
 from awswrangler._threading import _get_executor
 from awswrangler.s3._list import _path2list
-from awswrangler.s3._read import (
-    _apply_partition_filter,
-    _get_path_ignore_suffix,
-    _get_path_root,
-    _union,
-)
+from awswrangler.s3._read import _apply_partition_filter, _get_path_ignore_suffix, _get_path_root, _union
 from awswrangler.s3._read_text_core import _read_text_chunked, _read_text_file
 
 if config.distributed:
     from ray.data import read_datasource
 
-    from awswrangler.distributed.datasources import PandasTextDatasource
     from awswrangler.distributed._utils import _to_modin  # pylint: disable=ungrouped-imports
+    from awswrangler.distributed.datasources import PandasTextDatasource
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
