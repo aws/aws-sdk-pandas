@@ -15,8 +15,10 @@ class RedshiftDataApi(connector.DataApiConnector):
 
     Parameters
     ----------
-    cluster_id: str
+    cluster_id: str, optional
         Id for the target Redshift cluster.
+    workgroup_name: str, optional
+        Name for the target serverless Redshift workgroup.
     database: str
         Target database name.
     secret_arn: str
@@ -35,8 +37,9 @@ class RedshiftDataApi(connector.DataApiConnector):
 
     def __init__(
         self,
-        cluster_id: str,
         database: str,
+        cluster_id: str = "",
+        workgroup_name: str = "",
         secret_arn: str = "",
         db_user: str = "",
         sleep: float = 0.25,
@@ -45,6 +48,7 @@ class RedshiftDataApi(connector.DataApiConnector):
         boto3_session: Optional[boto3.Session] = None,
     ) -> None:
         self.cluster_id = cluster_id
+        self.workgroup_name = workgroup_name
         self.database = database
         self.secret_arn = secret_arn
         self.db_user = db_user
@@ -54,21 +58,28 @@ class RedshiftDataApi(connector.DataApiConnector):
         super().__init__(self.client, logger)
 
     def _validate_auth_method(self) -> None:
-        if self.secret_arn == "" and self.db_user == "":
+        if self.workgroup_name == "" and self.secret_arn == "" and self.db_user == "":
             raise ValueError("Either `secret_arn` or `db_user` must be set for authentication")
 
     def _execute_statement(self, sql: str, database: Optional[str] = None) -> str:
         self._validate_auth_method()
-        credentials = {"SecretArn": self.secret_arn}
-        if self.db_user:
+        credentials = {}
+        if self.secret_arn:
+            credentials = {"SecretArn": self.secret_arn}
+        elif self.db_user:
             credentials = {"DbUser": self.db_user}
 
         if database is None:
             database = self.database
 
+        if self.cluster_id:
+            redshift_target = {"ClusterIdentifier": self.cluster_id}
+        else:
+            redshift_target = {"WorkgroupName": self.workgroup_name}
+
         self.logger.debug("Executing %s", sql)
         response: Dict[str, Any] = self.client.execute_statement(
-            ClusterIdentifier=self.cluster_id,
+            **redshift_target,
             Database=database,
             Sql=sql,
             **credentials,
@@ -196,7 +207,46 @@ def connect(
     A RedshiftDataApi connection instance that can be used with `wr.redshift.data_api.read_sql_query`.
     """
     return RedshiftDataApi(
-        cluster_id, database, secret_arn=secret_arn, db_user=db_user, boto3_session=boto3_session, **kwargs
+        database, cluster_id=cluster_id, secret_arn=secret_arn, db_user=db_user, boto3_session=boto3_session, **kwargs
+    )
+
+
+def connect_serverless(
+    workgroup_name: str,
+    database: str,
+    secret_arn: str = "",
+    db_user: str = "",
+    boto3_session: Optional[boto3.Session] = None,
+    **kwargs: Any,
+) -> RedshiftDataApi:
+    """Create a Redshift Data API connection.
+
+    Parameters
+    ----------
+    workgroup_name: str
+        Name for the target serverless Redshift workgroup.
+    database: str
+        Target database name.
+    secret_arn: str
+        The ARN for the secret to be used for authentication - only required if `db_user` not provided.
+    db_user: str
+        The database user to generate temporary credentials for - only required if `secret_arn` not provided.
+    boto3_session : boto3.Session(), optional
+        The boto3 session. If `None`, the default boto3 session is used.
+    **kwargs
+        Any additional kwargs are passed to the underlying RedshiftDataApi class.
+
+    Returns
+    -------
+    A RedshiftDataApi connection instance that can be used with `wr.redshift.data_api.read_sql_query`.
+    """
+    return RedshiftDataApi(
+        database,
+        workgroup_name=workgroup_name,
+        secret_arn=secret_arn,
+        db_user=db_user,
+        boto3_session=boto3_session,
+        **kwargs,
     )
 
 

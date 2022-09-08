@@ -29,6 +29,17 @@ def mysql_serverless_connector(databases_parameters):
     return create_rds_connector("mysql_serverless", databases_parameters)
 
 
+@pytest.fixture
+def redshift_serverless_connector(databases_parameters):
+    workgroup_name = databases_parameters["redshift_serverless"]["workgroup"]
+    database = databases_parameters["redshift_serverless"]["database"]
+    secret_arn = databases_parameters["redshift_serverless"]["secret_arn"]
+    conn = wr.data_api.redshift.connect_serverless(
+        database, workgroup_name=workgroup_name, secret_arn=secret_arn, boto3_session=None
+    )
+    return conn
+
+
 @pytest.fixture(scope="function")
 def mysql_serverless_table(mysql_serverless_connector):
     name = f"tbl_{get_time_str_with_random_suffix()}"
