@@ -6,104 +6,27 @@ import pprint
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
-import botocore.exceptions
 import pandas as pd
-import pandas.io.parsers
-from pandas.io.common import infer_compression
 
 from awswrangler import _utils, exceptions
 from awswrangler._config import config
 from awswrangler._threading import _get_executor
-from awswrangler.distributed import ray_remote
-from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import (
     _apply_partition_filter,
-    _apply_partitions,
     _get_path_ignore_suffix,
     _get_path_root,
     _union,
 )
+from awswrangler.s3._read_text_core import _read_text_chunked, _read_text_file
 
 if config.distributed:
-    from ray.data import from_pandas_refs
+    from ray.data import read_datasource
 
+    from awswrangler.distributed.datasources import PandasDatasource
     from awswrangler.distributed._utils import _to_modin  # pylint: disable=ungrouped-imports
 
 _logger: logging.Logger = logging.getLogger(__name__)
-
-
-def _get_read_details(path: str, pandas_kwargs: Dict[str, Any]) -> Tuple[str, Optional[str], Optional[str]]:
-    if pandas_kwargs.get("compression", "infer") == "infer":
-        pandas_kwargs["compression"] = infer_compression(path, compression="infer")
-    mode: str = "r" if pandas_kwargs.get("compression") is None else "rb"
-    encoding: Optional[str] = pandas_kwargs.get("encoding", "utf-8")
-    newline: Optional[str] = pandas_kwargs.get("lineterminator", None)
-    return mode, encoding, newline
-
-
-def _read_text_chunked(
-    paths: List[str],
-    chunksize: int,
-    parser_func: Callable[..., pd.DataFrame],
-    path_root: Optional[str],
-    boto3_session: boto3.Session,
-    pandas_kwargs: Dict[str, Any],
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    dataset: bool,
-    use_threads: Union[bool, int],
-    version_ids: Optional[Dict[str, str]] = None,
-) -> Iterator[pd.DataFrame]:
-    for path in paths:
-        _logger.debug("path: %s", path)
-        mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
-        with open_s3_object(
-            path=path,
-            version_id=version_ids.get(path) if version_ids else None,
-            mode=mode,
-            s3_block_size=10_485_760,  # 10 MB (10 * 2**20)
-            encoding=encoding,
-            use_threads=use_threads,
-            s3_additional_kwargs=s3_additional_kwargs,
-            newline=newline,
-            boto3_session=boto3_session,
-        ) as f:
-            reader: pandas.io.parsers.TextFileReader = parser_func(f, chunksize=chunksize, **pandas_kwargs)
-            for df in reader:
-                yield _apply_partitions(df=df, dataset=dataset, path=path, path_root=path_root)
-
-
-@ray_remote
-def _read_text_file(
-    boto3_session: Union[boto3.Session, _utils.Boto3PrimitivesType],
-    path: str,
-    version_id: Optional[str],
-    parser_func: Callable[..., pd.DataFrame],
-    path_root: Optional[str],
-    pandas_kwargs: Dict[str, Any],
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    dataset: bool,
-) -> pd.DataFrame:
-    boto3_session = _utils.ensure_session(boto3_session)
-    mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
-    try:
-        with open_s3_object(
-            path=path,
-            version_id=version_id,
-            mode=mode,
-            use_threads=False,
-            s3_block_size=-1,  # One shot download
-            encoding=encoding,
-            s3_additional_kwargs=s3_additional_kwargs,
-            newline=newline,
-            boto3_session=boto3_session,
-        ) as f:
-            df: pd.DataFrame = parser_func(f, **pandas_kwargs)
-    except botocore.exceptions.ClientError as e:
-        if e.response["Error"]["Code"] == "404":
-            raise exceptions.NoFilesFound(f"No files Found on: {path}.")
-        raise e
-    return _apply_partitions(df=df, dataset=dataset, path=path, path_root=path_root)
 
 
 def _read_text(
@@ -164,6 +87,19 @@ def _read_text(
 
     version_id = version_id if isinstance(version_id, dict) else None
 
+    if config.distributed:
+        ray_dataset = read_datasource(
+            datasource=PandasDatasource(parser_func),
+            paths=paths,
+            path_root=path_root,
+            dataset=dataset,
+            version_id=version_id,
+            boto3_session=boto3_session,
+            s3_additional_kwargs=s3_additional_kwargs,
+            pandas_kwargs=pandas_kwargs,
+        )
+        return _to_modin(dataset=ray_dataset, ignore_index=ignore_index)
+
     executor = _get_executor(use_threads=use_threads)
     tables = executor.map(
         _read_text_file,
@@ -176,10 +112,6 @@ def _read_text(
         itertools.repeat(s3_additional_kwargs),
         itertools.repeat(dataset),
     )
-
-    if config.distributed:
-        ray_dataset = from_pandas_refs(tables)
-        return _to_modin(ray_dataset, ignore_index=ignore_index)
 
     return _union(dfs=tables, ignore_index=ignore_index)
 
