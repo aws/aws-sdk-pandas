@@ -1,11 +1,11 @@
 """Distributed PandasTextDatasource Module."""
 from typing import Any, Callable, Dict, Optional
 
-import boto3
 import pandas as pd
 import pyarrow
 from ray.data.datasource.file_based_datasource import FileBasedDatasource
 
+from awswrangler import _utils
 from awswrangler.s3._read_text_core import _read_text_file
 
 
@@ -22,7 +22,7 @@ class PandasTextDatasource(FileBasedDatasource):
         path_root: str,
         dataset: bool,
         version_id: Optional[str],
-        boto3_session: Optional[boto3.Session],
+        boto3_session: Optional[_utils.Boto3PrimitivesType],
         s3_additional_kwargs: Optional[Dict[str, str]],
         pandas_kwargs: Dict[str, Any],
     ) -> pd.DataFrame:
