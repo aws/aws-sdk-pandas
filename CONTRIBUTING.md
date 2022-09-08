@@ -94,13 +94,6 @@ You can choose from three different environments to test your fixes/changes, bas
 * Pick up a Linux or MacOS.
 * Install Python 3.7, 3.8 or 3.9 with [poetry](https://github.com/python-poetry/poetry) for package management
 * Fork the AWS SDK for pandas repository and clone that into your development environment
-* Go to the project's directory create a Python's virtual environment for the project
-
-`python3 -m venv .venv && source .venv/bin/activate`
-
-or
-
-`python -m venv .venv && source .venv/bin/activate`
 
 * Install dependencies:
 
@@ -125,13 +118,6 @@ or
 * Pick up a Linux or MacOS.
 * Install Python 3.7, 3.8 or 3.9 with [poetry](https://github.com/python-poetry/poetry) for package management
 * Fork the AWS SDK for pandas repository and clone that into your development environment
-* Go to the project's directory create a Python's virtual environment for the project
-
-`python3 -m venv .venv && source .venv/bin/activate`
-
-or
-
-`python -m venv .venv && source .venv/bin/activate`
 
 * Install dependencies:
 
@@ -186,9 +172,6 @@ or
 * Pick up a Linux or MacOS.
 * Install Python 3.7, 3.8 or 3.9 with [poetry](https://github.com/python-poetry/poetry) for package management
 * Fork the AWS SDK for pandas repository and clone that into your development environment
-* Go to the project's directory create a Python's virtual environment for the project
-
-`python -m venv .venv && source .venv/bin/activate`
 
 * Then run the command bellow to install all dependencies:
 
@@ -268,9 +251,6 @@ or
 * Pick up a Linux or MacOS.
 * Install Python 3.7, 3.8 or 3.9 with [poetry](https://github.com/python-poetry/poetry) for package management
 * Fork the AWS SDK for pandas repository and clone that into your development environment
-* Go to the project's directory create a Python's virtual environment for the project
-
-`python -m venv .venv && source .venv/bin/activate`
 
 * Then run the command bellow to install all dependencies:
 
@@ -345,9 +325,7 @@ available_node_types:
             DeviceIndex: 0
 
 setup_commands:
-- pip install awswrangler==3.0.0a2
-- pip install 'ray[default,data]==1.13.0'
-- pip install modin==0.14.0
+- pip install 'awswrangler==3.0.0a2[distributed]'
 - pip install pytest
 
 ```
@@ -372,7 +350,7 @@ result = pytest.main(args.split(" "))
 
 print(f"result: {result}")
 ''' > handler.py
-ray submit cluster-config.yaml handler.py
+ray submit ray-cluster-config.yaml handler.py
 ```
 
 * Teardown Cluster 

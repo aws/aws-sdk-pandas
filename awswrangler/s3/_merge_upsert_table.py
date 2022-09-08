@@ -8,7 +8,7 @@ import pandas
 
 import awswrangler as wr
 from awswrangler import _data_types
-from awswrangler.exceptions import FailedQualityCheck
+from awswrangler.exceptions import FailedQualityCheck, NoFilesFound
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -71,6 +71,16 @@ def _is_data_quality_sufficient(
     return True
 
 
+def _generate_empty_frame_for_table(
+    database: str,
+    table: str,
+    boto3_session: Optional[boto3.Session] = None,
+) -> pandas.DataFrame:
+    type_dict = wr.catalog.get_table_types(database=database, table=table, boto3_session=boto3_session)
+    empty_frame = pandas.DataFrame(columns=type_dict.keys())
+    return _data_types.cast_pandas_with_athena_types(empty_frame, type_dict)
+
+
 def merge_upsert_table(
     delta_df: pandas.DataFrame,
     database: str,
@@ -109,10 +119,18 @@ def merge_upsert_table(
     """
     # Check if table exists first
     if wr.catalog.does_table_exist(database=database, table=table, boto3_session=boto3_session):
-        # Read the existing table into a pandas dataframe
-        existing_df = wr.s3.read_parquet_table(database=database, table=table, boto3_session=boto3_session)
+
+        try:
+            # Read the existing table into a pandas dataframe
+            existing_df = wr.s3.read_parquet_table(database=database, table=table, boto3_session=boto3_session)
+
+        except NoFilesFound:
+            # Generate empty frame with the schema specified in the Glue catalog
+            existing_df = _generate_empty_frame_for_table(database=database, table=table, boto3_session=boto3_session)
+
         # Check if data quality inside dataframes to be merged are sufficient
         if _is_data_quality_sufficient(existing_df=existing_df, delta_df=delta_df, primary_key=primary_key):
+
             # If data quality is sufficient then merge upsert the table
             _update_existing_table(
                 existing_df=existing_df,
