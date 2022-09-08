@@ -39,6 +39,7 @@ def _read_text(
     dataset: bool,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]],
     ignore_index: bool,
+    parallelism: int,
     version_id: Optional[Union[str, Dict[str, str]]] = None,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
@@ -76,15 +77,20 @@ def _read_text(
     _logger.debug("args:\n%s", pprint.pformat(args))
 
     if chunksize is not None:
-        return _read_text_chunked(
-            paths=paths, version_ids=version_id if isinstance(version_id, dict) else None, chunksize=chunksize, **args
-        )
+        for path in paths:
+            yield from _read_text_chunked(
+                path=path,
+                version_id=version_id.get(path) if isinstance(version_id, dict) else None,
+                chunksize=chunksize,
+                **args,
+            )
 
     version_id = version_id if isinstance(version_id, dict) else None
 
     if config.distributed:
         ray_dataset = read_datasource(
             datasource=PandasTextDatasource(parser_func),
+            parallelism=parallelism,
             paths=paths,
             path_root=path_root,
             dataset=dataset,
@@ -125,6 +131,7 @@ def read_csv(
     chunksize: Optional[int] = None,
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
+    parallelism: int = 200,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read CSV file(s) from a received S3 prefix or list of S3 objects paths.
@@ -190,6 +197,9 @@ def read_csv(
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
         https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+    parallelism : int, optional
+        The requested parallelism of the read. Only used when `distributed` add-on is installed.
+        Parallelism may be limited by the number of files of the dataset. 200 by default.
     pandas_kwargs :
         KEYWORD arguments forwarded to pandas.read_csv(). You can NOT pass `pandas_kwargs` explicit, just add valid
         Pandas arguments in the function call and awswrangler will accept it.
@@ -255,6 +265,7 @@ def read_csv(
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
         ignore_index=ignore_index,
+        parallelism=parallelism,
         **pandas_kwargs,
     )
 
@@ -273,6 +284,7 @@ def read_fwf(
     chunksize: Optional[int] = None,
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
+    parallelism: int = 200,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read fixed-width formatted file(s) from a received S3 prefix or list of S3 objects paths.
@@ -338,6 +350,9 @@ def read_fwf(
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
         https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+    parallelism : int, optional
+        The requested parallelism of the read. Only used when `distributed` add-on is installed.
+        Parallelism may be limited by the number of files of the dataset. 200 by default.
     pandas_kwargs:
         KEYWORD arguments forwarded to pandas.read_fwf(). You can NOT pass `pandas_kwargs` explicit, just add valid
         Pandas arguments in the function call and awswrangler will accept it.
@@ -403,6 +418,7 @@ def read_fwf(
         last_modified_end=last_modified_end,
         ignore_index=True,
         sort_index=False,
+        parallelism=parallelism,
         **pandas_kwargs,
     )
 
@@ -422,6 +438,7 @@ def read_json(
     chunksize: Optional[int] = None,
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
+    parallelism: int = 200,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read JSON file(s) from a received S3 prefix or list of S3 objects paths.
@@ -490,6 +507,9 @@ def read_json(
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
         https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+    parallelism : int, optional
+        The requested parallelism of the read. Only used when `distributed` add-on is installed.
+        Parallelism may be limited by the number of files of the dataset. 200 by default.
     pandas_kwargs:
         KEYWORD arguments forwarded to pandas.read_json(). You can NOT pass `pandas_kwargs` explicit, just add valid
         Pandas arguments in the function call and awswrangler will accept it.
@@ -558,5 +578,6 @@ def read_json(
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
         ignore_index=ignore_index,
+        parallelism=parallelism,
         **pandas_kwargs,
     )
