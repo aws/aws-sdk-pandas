@@ -23,7 +23,7 @@ from awswrangler.s3._read_text_core import _read_text_chunked, _read_text_file
 if config.distributed:
     from ray.data import read_datasource
 
-    from awswrangler.distributed.datasources import PandasDatasource
+    from awswrangler.distributed.datasources import PandasTextDatasource
     from awswrangler.distributed._utils import _to_modin  # pylint: disable=ungrouped-imports
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -89,7 +89,7 @@ def _read_text(
 
     if config.distributed:
         ray_dataset = read_datasource(
-            datasource=PandasDatasource(parser_func),
+            datasource=PandasTextDatasource(parser_func),
             paths=paths,
             path_root=path_root,
             dataset=dataset,

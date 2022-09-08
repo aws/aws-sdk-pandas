@@ -24,7 +24,7 @@ def _get_read_details(path: str, pandas_kwargs: Dict[str, Any]) -> Tuple[str, Op
     return mode, encoding, newline
 
 
-class PandasDatasource(FileBasedDatasource):
+class PandasTextDatasource(FileBasedDatasource):
     def __init__(self, read_text_func: Callable[..., pd.DataFrame]) -> None:
         super().__init__()
         self.read_text_func = read_text_func
