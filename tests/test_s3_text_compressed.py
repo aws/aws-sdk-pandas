@@ -89,12 +89,35 @@ def test_json(path, compression):
 @pytest.mark.parametrize("chunksize", [None, 1])
 @pytest.mark.parametrize("compression", ["gzip", "bz2", "xz", "zip", None])
 def test_partitioned_json(path, compression, chunksize):
-    df = pd.DataFrame({"c0": [0, 1, 2, 3], "c1": ["foo", "boo", "bar", "baz"], "year": [2020, 2020, 2021, 2021], "month": [1, 2, 1, 2]})
+    df = pd.DataFrame(
+        {
+            "c0": [0, 1, 2, 3],
+            "c1": ["foo", "boo", "bar", "baz"],
+            "year": [2020, 2020, 2021, 2021],
+            "month": [1, 2, 1, 2],
+        }
+    )
     if version_info < (3, 7) and compression:
         with pytest.raises(wr.exceptions.InvalidArgument):
-            wr.s3.to_json(df, path, orient="records", lines=True, compression=compression, dataset=True, partition_cols=["year", "month"])
+            wr.s3.to_json(
+                df,
+                path,
+                orient="records",
+                lines=True,
+                compression=compression,
+                dataset=True,
+                partition_cols=["year", "month"],
+            )
     else:
-        wr.s3.to_json(df, path, orient="records", lines=True, compression=compression, dataset=True, partition_cols=["year", "month"])
+        wr.s3.to_json(
+            df,
+            path,
+            orient="records",
+            lines=True,
+            compression=compression,
+            dataset=True,
+            partition_cols=["year", "month"],
+        )
         df2 = wr.s3.read_json(path, dataset=True, chunksize=chunksize)
         if chunksize is None:
             assert df2.shape == (4, 4)
