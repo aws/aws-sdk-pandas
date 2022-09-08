@@ -325,7 +325,7 @@ available_node_types:
             DeviceIndex: 0
 
 setup_commands:
-- pip install 'awswrangler==3.0.0a2[distributed]'
+- pip install "awswrangler[distributed]==3.0.0a2"
 - pip install pytest
 
 ```
