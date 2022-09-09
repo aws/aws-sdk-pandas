@@ -13,7 +13,6 @@ class _RayPoolExecutor:
     def __init__(self) -> None:
         pass
 
-    # pylint: disable=R0201
     def map(self, func: Callable[..., Any], _: boto3.Session, *args: Any) -> List[Any]:
         """Map func and return ray futures."""
         _logger.debug("Ray map: %s", func)
