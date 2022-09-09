@@ -345,7 +345,9 @@ import pytest
 
 args = "-v load/"
 
-os.environ["AWS_DEFAULT_REGION"] = "us-east-1" # Replace with your region
+if not os.getenv("AWS_DEFAULT_REGION"):
+    os.environ["AWS_DEFAULT_REGION"] = "us-east-1" # Set your region as necessary
+
 result = pytest.main(args.split(" "))
 
 print(f"result: {result}")
