@@ -94,13 +94,6 @@ You can choose from three different environments to test your fixes/changes, bas
 * Pick up a Linux or MacOS.
 * Install Python 3.7, 3.8 or 3.9 with [poetry](https://github.com/python-poetry/poetry) for package management
 * Fork the AWS SDK for pandas repository and clone that into your development environment
-* Go to the project's directory create a Python's virtual environment for the project
-
-`python3 -m venv .venv && source .venv/bin/activate`
-
-or
-
-`python -m venv .venv && source .venv/bin/activate`
 
 * Install dependencies:
 
@@ -125,13 +118,6 @@ or
 * Pick up a Linux or MacOS.
 * Install Python 3.7, 3.8 or 3.9 with [poetry](https://github.com/python-poetry/poetry) for package management
 * Fork the AWS SDK for pandas repository and clone that into your development environment
-* Go to the project's directory create a Python's virtual environment for the project
-
-`python3 -m venv .venv && source .venv/bin/activate`
-
-or
-
-`python -m venv .venv && source .venv/bin/activate`
 
 * Install dependencies:
 
@@ -186,9 +172,6 @@ or
 * Pick up a Linux or MacOS.
 * Install Python 3.7, 3.8 or 3.9 with [poetry](https://github.com/python-poetry/poetry) for package management
 * Fork the AWS SDK for pandas repository and clone that into your development environment
-* Go to the project's directory create a Python's virtual environment for the project
-
-`python -m venv .venv && source .venv/bin/activate`
 
 * Then run the command bellow to install all dependencies:
 
@@ -261,6 +244,122 @@ or
 ``./test_infra/scripts/delete-stack.sh base``
 
 ``./test_infra/scripts/delete-stack.sh databases``
+
+## Ray Load Tests Environment 
+**DISCLAIMER**: Make sure you know what you are doing. These steps will charge some services on your AWS account and require a minimum security skill to keep your environment safe.
+
+* Pick up a Linux or MacOS.
+* Install Python 3.7, 3.8 or 3.9 with [poetry](https://github.com/python-poetry/poetry) for package management
+* Fork the AWS SDK for pandas repository and clone that into your development environment
+
+* Then run the command bellow to install all dependencies:
+
+``poetry install``
+
+* Go to the ``test_infra`` directory
+
+``cd test_infra``
+
+* Install CDK dependencies:
+
+``poetry install``
+
+* [OPTIONAL] Set AWS_DEFAULT_REGION to define the region the Ray Test environment will deploy into. You may want to choose a region which you don't currently use:
+
+``export AWS_DEFAULT_REGION=ap-northeast-1``
+
+* Go to the ``scripts`` directory
+
+``cd scripts``
+
+* Deploy the `ray` CDK stack.
+
+``./deploy-stack.sh ray``
+
+* Configure Ray Cluster 
+
+``vi ray-cluster-config.yaml`` 
+
+```
+# Update the following file to match your enviroment
+# The following is an example
+cluster_name: ray-cluster
+
+initial_workers: 2
+min_workers: 2
+max_workers: 2
+
+provider:
+    type: aws
+    region: us-east-1 # change region as required
+    availability_zone: us-east-1a,us-east-1b,us-east-1c # change azs as required
+    security_group:
+        GroupName: ray_client_security_group
+    cache_stopped_nodes: False
+
+available_node_types:
+  ray.head.default:
+    node_config:
+      InstanceType: r5n.2xlarge # change instance type as required
+      IamInstanceProfile:
+        Arn: arn:aws:iam::{UPDATE YOUR ACCOUNT ID HERE}:instance-profile/ray-cluster-instance-profile
+      ImageId: ami-0ea510fcb67686b48 # latest ray images -> https://github.com/amzn/amazon-ray#amazon-ray-images 
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: True
+          SubnetId: {replace with subnet within above AZs}
+          Groups: [{ID of group `ray_client_security_group` created by the step above}]
+          DeviceIndex: 0
+
+  ray.worker.default:
+      min_workers: 2
+      max_workers: 2
+      node_config:
+        InstanceType: r5n.2xlarge
+        IamInstanceProfile:
+          Arn: arn:aws:iam::{UPDATE YOUR ACCOUNT ID HERE}:instance-profile/ray-cluster-instance-profile
+        ImageId: ami-0ea510fcb67686b48 # latest ray images -> https://github.com/amzn/amazon-ray#amazon-ray-images 
+        NetworkInterfaces:
+          - AssociatePublicIpAddress: True
+            SubnetId: {replace with subnet within above AZs}
+            Groups: [{ID of group `ray_client_security_group` created by the step above}]
+            DeviceIndex: 0
+
+setup_commands:
+- pip install "awswrangler[distributed]==3.0.0a2"
+- pip install pytest
+
+```
+
+* Create Ray Cluster 
+``ray up -y ray-cluster-config.yaml``
+
+* Push Load Tests to Ray Cluster
+``ray rsync-up ray-cluster-config.yaml tests/load /home/ubuntu/``
+
+* Submit Pytest Run to Ray Cluster
+```
+echo '''
+import os
+
+import pytest
+
+args = "-v load/"
+
+if not os.getenv("AWS_DEFAULT_REGION"):
+    os.environ["AWS_DEFAULT_REGION"] = "us-east-1" # Set your region as necessary
+
+result = pytest.main(args.split(" "))
+
+print(f"result: {result}")
+''' > handler.py
+ray submit ray-cluster-config.yaml handler.py
+```
+
+* Teardown Cluster 
+``ray down -y ray-cluster-config.yaml``
+
+[More on launching Ray Clusters on AWS](https://docs.ray.io/en/master/cluster/vms/user-guides/launching-clusters/aws.html#)
+
 
 ## Recommended Visual Studio Code Recommended setting
 
