@@ -1,12 +1,18 @@
 import logging
 
+import boto3
+import pytest
+
 import awswrangler as wr
 
 from ._utils import get_df_quicksight
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
+client = boto3.client("quicksight")
 
+
+@pytest.mark.xfail(raises=client.exceptions.ConflictException)
 def test_quicksight(path, glue_database, glue_table):
     df = get_df_quicksight()
     wr.s3.to_parquet(
