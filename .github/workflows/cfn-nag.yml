@@ -16,6 +16,10 @@ on:
 permissions:
   contents: read
 
+env:
+  CDK_DEFAULT_ACCOUNT: 111111111111
+  CDK_DEFAULT_REGION: us-east-1
+
 jobs:
   build:
     runs-on: ubuntu-latest
