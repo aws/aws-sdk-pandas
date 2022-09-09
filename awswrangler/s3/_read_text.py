@@ -33,6 +33,13 @@ if config.distributed:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
+def _get_version_id_for(version_id: Optional[Union[str, Dict[str, str]]], path: str) -> Optional[str]:
+    if isinstance(version_id, dict):
+        return version_id.get(path, None)
+
+    return version_id
+
+
 def _get_read_details(path: str, pandas_kwargs: Dict[str, Any]) -> Tuple[str, Optional[str], Optional[str]]:
     if pandas_kwargs.get("compression", "infer") == "infer":
         pandas_kwargs["compression"] = infer_compression(path, compression="infer")
@@ -52,7 +59,7 @@ def _read_text_chunked(
     s3_additional_kwargs: Optional[Dict[str, str]],
     dataset: bool,
     use_threads: Union[bool, int],
-    version_ids: Optional[Dict[str, str]] = None,
+    version_ids: Optional[Dict[str, Optional[str]]] = None,
 ) -> Iterator[pd.DataFrame]:
     for path in paths:
         _logger.debug("path: %s", path)
@@ -157,19 +164,21 @@ def _read_text(
     }
     _logger.debug("args:\n%s", pprint.pformat(args))
 
-    if chunksize is not None:
-        return _read_text_chunked(
-            paths=paths, version_ids=version_id if isinstance(version_id, dict) else None, chunksize=chunksize, **args
+    if len(paths) > 1 and version_id is not None and not isinstance(version_id, dict):
+        raise exceptions.InvalidArgumentCombination(
+            "If multiple paths are provided along with a file version ID, the version ID parameter must be a dict."
         )
+    version_id_dict = {path: _get_version_id_for(version_id, path) for path in paths}
 
-    version_id = version_id if isinstance(version_id, dict) else None
+    if chunksize is not None:
+        return _read_text_chunked(paths=paths, version_ids=version_id_dict, chunksize=chunksize, **args)
 
     executor = _get_executor(use_threads=use_threads)
     tables = executor.map(
         _read_text_file,
         session,
         paths,
-        itertools.repeat(version_id),
+        [version_id_dict[path] for path in paths],
         itertools.repeat(parser_func),
         itertools.repeat(path_root),
         itertools.repeat(pandas_kwargs),

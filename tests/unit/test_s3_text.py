@@ -325,9 +325,14 @@ def test_read_json_versioned(path) -> None:
         pd.DataFrame({"id": [4, 5, 6], "value": ["foo", "boo", "bar"]}),
         pd.DataFrame({"id": [1, 2, 3], "value": ["a", "b", "c"]}),
     ]
+    version_ids = []
+
     for df in dfs:
         wr.s3.to_json(df=df, path=path_file)
         version_id = wr.s3.describe_objects(path=path_file)[path_file]["VersionId"]
+        version_ids.append(version_id)
+
+    for df, version_id in zip(dfs, version_ids):
         df_temp = wr.s3.read_json(path_file, version_id=version_id)
         assert df_temp.equals(df)
         assert version_id == wr.s3.describe_objects(path=path_file, version_id=version_id)[path_file]["VersionId"]
@@ -339,9 +344,14 @@ def test_read_csv_versioned(path) -> None:
         pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5]}),
         pd.DataFrame({"c0": [3, 4, 5], "c1": [6, 7, 8]}),
     ]
+    version_ids = []
+
     for df in dfs:
         wr.s3.to_csv(df=df, path=path_file, index=False)
         version_id = wr.s3.describe_objects(path=path_file)[path_file]["VersionId"]
+        version_ids.append(version_id)
+
+    for df, version_id in zip(dfs, version_ids):
         df_temp = wr.s3.read_csv(path_file, version_id=version_id)
         assert df_temp.equals(df)
         assert version_id == wr.s3.describe_objects(path=path_file, version_id=version_id)[path_file]["VersionId"]
