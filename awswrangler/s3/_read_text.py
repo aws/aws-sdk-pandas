@@ -24,6 +24,13 @@ if config.distributed:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
+def _get_version_id_for(version_id: Optional[Union[str, Dict[str, str]]], path: str) -> Optional[str]:
+    if isinstance(version_id, dict):
+        return version_id.get(path, None)
+
+    return version_id
+
+
 def _read_text(
     parser_func: Callable[..., pd.DataFrame],
     path: Union[str, List[str]],
@@ -76,11 +83,17 @@ def _read_text(
     }
     _logger.debug("args:\n%s", pprint.pformat(args))
 
+    if len(paths) > 1 and version_id is not None and not isinstance(version_id, dict):
+        raise exceptions.InvalidArgumentCombination(
+            "If multiple paths are provided along with a file version ID, the version ID parameter must be a dict."
+        )
+    version_id_dict = {path: _get_version_id_for(version_id, path) for path in paths}
+
     if chunksize is not None:
         for path in paths:
             yield from _read_text_chunked(
                 path=path,
-                version_id=version_id.get(path) if isinstance(version_id, dict) else None,
+                version_id=version_id_dict[path],
                 chunksize=chunksize,
                 **args,
             )
@@ -106,7 +119,7 @@ def _read_text(
         _read_text_file,
         session,
         paths,
-        itertools.repeat(version_id),
+        [version_id_dict[path] for path in paths],
         itertools.repeat(parser_func),
         itertools.repeat(path_root),
         itertools.repeat(pandas_kwargs),
