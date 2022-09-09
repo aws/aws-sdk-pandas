@@ -43,8 +43,9 @@ class PandasTextDatasource(FileBasedDatasource):
                 pandas_kwargs=pandas_kwargs,
             )
         else:
+            s3_path = f"s3://{path}"
             yield from _read_text_chunked(
-                path=f"s3://{path}",
+                paths=[s3_path],
                 chunksize=self.max_rows_per_block,
                 parser_func=self.read_text_func,
                 path_root=path_root,
@@ -53,7 +54,7 @@ class PandasTextDatasource(FileBasedDatasource):
                 pandas_kwargs=pandas_kwargs,
                 s3_additional_kwargs=s3_additional_kwargs,
                 use_threads=False,
-                version_id=version_id,
+                version_ids={s3_path: version_id},
             )
 
     def _read_file(

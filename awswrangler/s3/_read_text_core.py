@@ -1,6 +1,6 @@
 """Amazon S3 Read Core Module (PRIVATE)."""
 import logging
-from typing import Any, Callable, Dict, Iterator, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
 import botocore.exceptions
@@ -25,7 +25,7 @@ def _get_read_details(path: str, pandas_kwargs: Dict[str, Any]) -> Tuple[str, Op
 
 
 def _read_text_chunked(
-    path: str,
+    paths: List[str],
     chunksize: int,
     parser_func: Callable[..., pd.DataFrame],
     path_root: Optional[str],
@@ -34,24 +34,25 @@ def _read_text_chunked(
     s3_additional_kwargs: Optional[Dict[str, str]],
     dataset: bool,
     use_threads: Union[bool, int],
-    version_id: Optional[str] = None,
+    version_ids: Optional[Dict[str, Optional[str]]] = None,
 ) -> Iterator[pd.DataFrame]:
-    _logger.debug("path: %s", path)
-    mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
-    with open_s3_object(
-        path=path,
-        version_id=version_id,
-        mode=mode,
-        s3_block_size=10_485_760,  # 10 MB (10 * 2**20)
-        encoding=encoding,
-        use_threads=use_threads,
-        s3_additional_kwargs=s3_additional_kwargs,
-        newline=newline,
-        boto3_session=boto3_session,
-    ) as f:
-        reader: pandas.io.parsers.TextFileReader = parser_func(f, chunksize=chunksize, **pandas_kwargs)
-        for df in reader:
-            yield _apply_partitions(df=df, dataset=dataset, path=path, path_root=path_root)
+    for path in paths:
+        _logger.debug("path: %s", path)
+        mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
+        with open_s3_object(
+            path=path,
+            version_id=version_ids.get(path) if version_ids else None,
+            mode=mode,
+            s3_block_size=10_485_760,  # 10 MB (10 * 2**20)
+            encoding=encoding,
+            use_threads=use_threads,
+            s3_additional_kwargs=s3_additional_kwargs,
+            newline=newline,
+            boto3_session=boto3_session,
+        ) as f:
+            reader: pandas.io.parsers.TextFileReader = parser_func(f, chunksize=chunksize, **pandas_kwargs)
+            for df in reader:
+                yield _apply_partitions(df=df, dataset=dataset, path=path, path_root=path_root)
 
 
 def _read_text_file(

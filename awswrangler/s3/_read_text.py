@@ -48,6 +48,7 @@ def _read_text(
     ignore_index: bool,
     parallelism: int,
     version_id: Optional[Union[str, Dict[str, str]]] = None,
+    ray_max_block_size: Optional[int] = None,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     if "iterator" in pandas_kwargs:
@@ -90,19 +91,18 @@ def _read_text(
     version_id_dict = {path: _get_version_id_for(version_id, path) for path in paths}
 
     if chunksize is not None:
-        for path in paths:
-            yield from _read_text_chunked(
-                path=path,
-                version_id=version_id_dict[path],
-                chunksize=chunksize,
-                **args,
-            )
+        return _read_text_chunked(
+            paths=paths,
+            version_ids=version_id_dict,
+            chunksize=chunksize,
+            **args,
+        )
 
     version_id = version_id if isinstance(version_id, dict) else None
 
     if config.distributed:
         ray_dataset = read_datasource(
-            datasource=PandasTextDatasource(parser_func),
+            datasource=PandasTextDatasource(parser_func, ray_max_block_size),
             parallelism=parallelism,
             paths=paths,
             path_root=path_root,
@@ -145,6 +145,7 @@ def read_csv(
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
     parallelism: int = 200,
+    ray_max_block_size: Optional[int] = None,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read CSV file(s) from a received S3 prefix or list of S3 objects paths.
@@ -279,6 +280,7 @@ def read_csv(
         last_modified_end=last_modified_end,
         ignore_index=ignore_index,
         parallelism=parallelism,
+        ray_max_block_size=ray_max_block_size,
         **pandas_kwargs,
     )
 
