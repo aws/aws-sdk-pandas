@@ -44,9 +44,9 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install Requirements
         run: |
-          cd test_infra && rm -rf poetry.lock
+          cd test_infra
           python -m pip install --upgrade pip
-          python -m pip install poetry
+          python -m pip install poetry==1.1.15 # 1.2.0 breaking resolution of packages
           poetry config virtualenvs.create false --local
           poetry install -vvv
       - name: CDK Synth
