@@ -34,9 +34,6 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _get_version_id_for(version_id: Optional[Union[str, Dict[str, str]]], path: str) -> Optional[str]:
-    if version_id is None:
-        return None
-
     if isinstance(version_id, dict):
         return version_id.get(path, None)
 
