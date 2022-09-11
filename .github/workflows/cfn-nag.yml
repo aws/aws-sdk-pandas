@@ -24,13 +24,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Use Node.js
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v3
         with:
-          node-version: '14.x'
+          node-version: 16
       - name: Cache Node.js modules
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/.npm
           key: ${{ runner.OS }}-node-${{ hashFiles('**/package-lock.json') }}
@@ -41,14 +41,26 @@ jobs:
         run: |
           npm install -g aws-cdk
           cdk --version
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install Requirements
         run: |
           cd test_infra
+          cat <<EOT >> cdk.context.json
+          {
+            "availability-zones:account=111111111111:region=us-east-1": [
+              "us-east-1a",
+              "us-east-1b",
+              "us-east-1c",
+              "us-east-1d",
+              "us-east-1e",
+              "us-east-1f"
+            ]
+          }
+          EOT
           python -m pip install --upgrade pip
           python -m pip install poetry==1.1.15 # 1.2.0 breaking resolution of packages
           poetry config virtualenvs.create false --local
