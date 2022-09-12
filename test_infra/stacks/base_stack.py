@@ -98,6 +98,12 @@ class BaseStack(Stack):  # type: ignore
         )
         CfnOutput(
             self,
+            "PublicSubnet3",
+            value=self.vpc.public_subnets[2].subnet_id,
+            export_name="aws-sdk-pandas-base-PublicSubnet3",
+        )
+        CfnOutput(
+            self,
             "PrivateSubnet",
             value=self.vpc.private_subnets[0].subnet_id,
             export_name="aws-sdk-pandas-base-PrivateSubnet",
