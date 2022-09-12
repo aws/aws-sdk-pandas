@@ -9,6 +9,7 @@ import pyarrow as pa
 # fs required to implicitly trigger S3 subsystem initialization
 import pyarrow.fs  # noqa: F401 pylint: disable=unused-import
 import pyarrow.parquet as pq
+from ray import cloudpickle  # pylint: disable=wrong-import-order,ungrouped-imports
 from ray.data.block import Block, BlockAccessor, BlockMetadata
 from ray.data.context import DatasetContext
 from ray.data.datasource import BlockWritePathProvider, DefaultBlockWritePathProvider
@@ -28,7 +29,6 @@ from ray.data.impl.remote_fn import cached_remote_fn
 from ray.types import ObjectRef
 
 from awswrangler._arrow import _add_table_partitions
-from ray import cloudpickle  # pylint: disable=wrong-import-order,ungrouped-imports
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -146,7 +146,6 @@ class ParquetDatasource:
             _deregister_parquet_file_fragment_serialization()  # type: ignore
 
         return read_tasks
-
 
     # Original implementation:
     # https://github.com/ray-project/ray/blob/releases/1.13.0/python/ray/data/datasource/file_based_datasource.py
