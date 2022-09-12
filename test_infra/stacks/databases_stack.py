@@ -304,7 +304,7 @@ class DatabasesStack(Stack):  # type: ignore
         redshift_cfn_namespace = redshiftserverless.CfnNamespace(
             self,
             "aws-sdk-pandas-redshift-serverless-namespace",
-            namespace_name="aws-sdk-pandas-redshift-serverless-namespace",
+            namespace_name="aws-sdk-pandas",
             admin_username=self.db_username,
             admin_user_password=self.db_password,
             db_name=database,
@@ -312,7 +312,7 @@ class DatabasesStack(Stack):  # type: ignore
         redshift_cfn_workgroup = redshiftserverless.CfnWorkgroup(
             self,
             "aws-sdk-pandas-redshift-serverless-workgroup",
-            workgroup_name="aws-sdk-pandas-redshift-serverless-workgroup",
+            workgroup_name="aws-sdk-pandas",
             namespace_name=redshift_cfn_namespace.namespace_name,
             publicly_accessible=True,
             security_group_ids=[self.db_security_group.security_group_id],
