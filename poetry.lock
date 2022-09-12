@@ -26,7 +26,7 @@ typing-extensions = {version = ">=3.7.4", markers = "python_version < \"3.8\""}
 yarl = ">=1.0,<2.0"
 
 [package.extras]
-speedups = ["aiodns", "brotli", "cchardet"]
+speedups = ["Brotli", "aiodns", "cchardet"]
 
 [[package]]
 name = "aiosignal"
@@ -123,6 +123,7 @@ python-versions = ">=3.6.2"
 
 [package.dependencies]
 lazy-object-proxy = ">=1.4.0"
+setuptools = ">=20.0"
 typed-ast = {version = ">=1.4.0,<2.0", markers = "implementation_name == \"cpython\" and python_version < \"3.8\""}
 typing-extensions = {version = ">=3.10", markers = "python_version < \"3.10\""}
 wrapt = ">=1.11,<2"
@@ -246,7 +247,6 @@ six = ">=1.9.0"
 webencodings = "*"
 
 [package.extras]
-css = ["tinycss2 (>=1.1.0)"]
 dev = ["black (==22.3.0)", "flake8 (==4.0.1)", "hashin (==0.17.0)", "mypy (==0.942)", "pip-tools (==6.5.1)", "pytest (==7.1.1)", "sphinx (==4.3.2)", "tox (==3.24.5)", "twine (==4.0.0)", "wheel (==0.37.1)"]
 
 [[package]]
@@ -365,7 +365,7 @@ python-versions = ">=3.6"
 cffi = ">=1.12"
 
 [package.extras]
-docs = ["sphinx (>=1.6.5,!=1.8.0,!=3.1.0,!=3.1.1)", "sphinx-rtd-theme"]
+docs = ["sphinx (>=1.6.5,!=1.8.0,!=3.1.0,!=3.1.1)", "sphinx_rtd_theme"]
 docstest = ["pyenchant (>=1.6.11)", "sphinxcontrib-spelling (>=4.0.1)", "twine (>=1.12.0)"]
 pep8test = ["black", "flake8", "flake8-import-order", "pep8-naming"]
 sdist = ["setuptools_rust (>=0.11.4)"]
@@ -651,6 +651,7 @@ pexpect = {version = ">4.3", markers = "sys_platform != \"win32\""}
 pickleshare = "*"
 prompt-toolkit = ">=2.0.0,<3.0.0 || >3.0.0,<3.0.1 || >3.0.1,<3.1.0"
 pygments = "*"
+setuptools = ">=18.5"
 traitlets = ">=4.2"
 
 [package.extras]
@@ -861,7 +862,7 @@ packaging = "*"
 tornado = ">=6.1.0"
 
 [package.extras]
-test = ["check-manifest", "coverage", "jupyterlab-server", "pre-commit", "pytest (>=6.0)", "pytest-check-links (>=0.5)", "pytest-console-scripts", "pytest-cov", "requests", "requests-cache", "virtualenv"]
+test = ["check-manifest", "coverage", "jupyterlab-server[test]", "pre-commit", "pytest (>=6.0)", "pytest-check-links (>=0.5)", "pytest-console-scripts", "pytest-cov", "requests", "requests-cache", "virtualenv"]
 ui-tests = ["build"]
 
 [[package]]
@@ -892,7 +893,7 @@ requests = "*"
 
 [package.extras]
 openapi = ["openapi-core (>=0.14.2)", "ruamel-yaml"]
-test = ["codecov", "ipykernel", "jupyter-server", "openapi-core (>=0.14.2)", "openapi-spec-validator (<0.5)", "pytest (>=5.3.2)", "pytest-console-scripts", "pytest-cov", "ruamel-yaml", "strict-rfc3339"]
+test = ["codecov", "ipykernel", "jupyter-server[test]", "openapi-core (>=0.14.2)", "openapi-spec-validator (<0.5)", "pytest (>=5.3.2)", "pytest-console-scripts", "pytest-cov", "ruamel-yaml", "strict-rfc3339"]
 
 [[package]]
 name = "lazy-object-proxy"
@@ -913,7 +914,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, != 3.4.*"
 [package.extras]
 cssselect = ["cssselect (>=0.7)"]
 html5 = ["html5lib"]
-htmlsoup = ["beautifulsoup4"]
+htmlsoup = ["BeautifulSoup4"]
 source = ["Cython (>=0.29.7)"]
 
 [[package]]
@@ -1235,7 +1236,7 @@ requests = ["requests (>=2.4.0,<3.0.0)"]
 
 [[package]]
 name = "oracledb"
-version = "1.0.0"
+version = "1.0.3"
 description = "Python interface to Oracle Database"
 category = "main"
 optional = true
@@ -1629,6 +1630,7 @@ python-versions = ">= 3.6"
 
 [package.dependencies]
 pytest = ">=5.3"
+setuptools = ">=40.0"
 
 [[package]]
 name = "pytest-timeout"
@@ -1677,6 +1679,9 @@ description = "Python extension for computing string edit distances and similari
 category = "dev"
 optional = false
 python-versions = "*"
+
+[package.dependencies]
+setuptools = "*"
 
 [[package]]
 name = "python-utils"
@@ -1739,6 +1744,7 @@ python-versions = ">=3.7"
 importlib-metadata = {version = "*", markers = "python_version < \"3.8.0\""}
 isodate = "*"
 pyparsing = "*"
+setuptools = "*"
 
 [package.extras]
 docs = ["sphinx (<5)", "sphinxcontrib-apidoc"]
@@ -1872,9 +1878,22 @@ optional = false
 python-versions = "*"
 
 [package.extras]
-nativelib = ["pyobjc-framework-cocoa", "pywin32"]
-objc = ["pyobjc-framework-cocoa"]
+nativelib = ["pyobjc-framework-Cocoa", "pywin32"]
+objc = ["pyobjc-framework-Cocoa"]
 win32 = ["pywin32"]
+
+[[package]]
+name = "setuptools"
+version = "65.3.0"
+description = "Easily download, build, install, upgrade, and uninstall Python packages"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+
+[package.extras]
+docs = ["furo", "jaraco.packaging (>=9)", "jaraco.tidelift (>=1.4)", "pygments-github-lexers (==0.0.5)", "rst.linker (>=1.9)", "sphinx", "sphinx-favicon", "sphinx-hoverxref (<2)", "sphinx-inline-tabs", "sphinx-notfound-page (==0.8.3)", "sphinx-reredirects", "sphinxcontrib-towncrier"]
+testing = ["build[virtualenv]", "filelock (>=3.4.0)", "flake8 (<5)", "flake8-2020", "ini2toml[lite] (>=0.9)", "jaraco.envs (>=2.2)", "jaraco.path (>=3.2.0)", "mock", "pip (>=19.1)", "pip-run (>=8.8)", "pytest (>=6)", "pytest-black (>=0.3.7)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=1.3)", "pytest-flake8", "pytest-mypy (>=0.9.1)", "pytest-perf", "pytest-xdist", "tomli-w (>=1.0.0)", "virtualenv (>=13.0.0)", "wheel"]
+testing-integration = ["build[virtualenv]", "filelock (>=3.4.0)", "jaraco.envs (>=2.2)", "jaraco.path (>=3.2.0)", "pytest", "pytest-enabler", "pytest-xdist", "tomli", "virtualenv (>=13.0.0)", "wheel"]
 
 [[package]]
 name = "six"
@@ -1940,6 +1959,7 @@ Jinja2 = ">=2.3"
 packaging = "*"
 Pygments = ">=2.0"
 requests = ">=2.5.0"
+setuptools = "*"
 snowballstemmer = ">=1.1"
 sphinxcontrib-applehelp = "*"
 sphinxcontrib-devhelp = "*"
@@ -2072,8 +2092,8 @@ python-versions = ">=3.6"
 webencodings = ">=0.4"
 
 [package.extras]
-doc = ["sphinx", "sphinx-rtd-theme"]
-test = ["coverage", "pytest", "pytest-cov", "pytest-flake8", "pytest-isort"]
+doc = ["sphinx", "sphinx_rtd_theme"]
+test = ["coverage[toml]", "pytest", "pytest-cov", "pytest-flake8", "pytest-isort"]
 
 [[package]]
 name = "toml"
@@ -2220,6 +2240,17 @@ python-versions = ">=3.7"
 
 [package.extras]
 watchdog = ["watchdog"]
+
+[[package]]
+name = "wheel"
+version = "0.37.1"
+description = "A built-package format for Python"
+category = "dev"
+optional = false
+python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,>=2.7"
+
+[package.extras]
+test = ["pytest (>=3.0.0)", "pytest-cov"]
 
 [[package]]
 name = "wrapt"
@@ -3175,23 +3206,29 @@ opensearch-py = [
     {file = "opensearch_py-1.1.0-py2.py3-none-any.whl", hash = "sha256:cb573546fb373dac8091be9b8eac2ba8da277713eea4b50b4a49ccd30dec25f1"},
 ]
 oracledb = [
-    {file = "oracledb-1.0.0-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:16f30e01d4ab843c7195a4fde7925959a92eac8bc1626ec7e6703f3be94d80a8"},
-    {file = "oracledb-1.0.0-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:f9f2448d2228779ac4c4759af0ed55923d1a4ab3b134494f5001814502f48837"},
-    {file = "oracledb-1.0.0-cp310-cp310-win32.whl", hash = "sha256:b42bd5149f46373899b88b938a460c4ea046a8b1e1a53d116fe08e1063f4d324"},
-    {file = "oracledb-1.0.0-cp310-cp310-win_amd64.whl", hash = "sha256:cb2bd94dadeb67b8c249fabbe773573a4dd906401ee1fab1d3ba154d4ba09598"},
-    {file = "oracledb-1.0.0-cp36-cp36m-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:8232ad6839fb9b36b14ed5966ce648f7b0ee9b2439a7ab526827962568ddcea5"},
-    {file = "oracledb-1.0.0-cp37-cp37m-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:ba53493abf51f0232514530feb3a6b556826666dc1d85b481dcc80bef7c59283"},
-    {file = "oracledb-1.0.0-cp37-cp37m-win32.whl", hash = "sha256:0cb2f0ab30435439bedb4797d0f6ef366eb2a9d8c87a06b15d1adcde0c2a5303"},
-    {file = "oracledb-1.0.0-cp37-cp37m-win_amd64.whl", hash = "sha256:c288ee2e56cdbf148e7149d151b01bee142c5b2c98328c79df631126c022afaa"},
-    {file = "oracledb-1.0.0-cp38-cp38-macosx_11_0_universal2.whl", hash = "sha256:79aa57248a5477dd420d902ac857041c8ed3e6956c4cd7e55f8baebc56e5e145"},
-    {file = "oracledb-1.0.0-cp38-cp38-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:f2c37a42bec10ddc54d9b23ef13354ad53212230d12ae2b914e3ccc237634c2f"},
-    {file = "oracledb-1.0.0-cp38-cp38-win32.whl", hash = "sha256:4d24eb9930a85d8e9c4a5c572e9403ece7b7bb8b65c9468f73d675a123b60dd3"},
-    {file = "oracledb-1.0.0-cp38-cp38-win_amd64.whl", hash = "sha256:45ae8efcd232655595659339de0ae5280c7558cef47f74c11613f3b540be8e37"},
-    {file = "oracledb-1.0.0-cp39-cp39-macosx_10_9_universal2.whl", hash = "sha256:cae6bee8a748bbc404d074aac984430ac5ca131f8c3fcd8fa07cefad81f54fdb"},
-    {file = "oracledb-1.0.0-cp39-cp39-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:4ca14326ea29227260d561e9ba5864c8dcdc5e89f83330f03e8720038cb7c138"},
-    {file = "oracledb-1.0.0-cp39-cp39-win32.whl", hash = "sha256:aee133ba5d48f72ed5b68db99811c8b7575c76bddf5192cc39d3e251e212f452"},
-    {file = "oracledb-1.0.0-cp39-cp39-win_amd64.whl", hash = "sha256:0d706a5de1da4ac9006f0e96efb720c75474bec89251c845386a98e0173a73a1"},
-    {file = "oracledb-1.0.0.tar.gz", hash = "sha256:4a04de68b64789b0a5d80bcd4789c82c4f9a16435dec1b95fff1eee7ad3df6fa"},
+    {file = "oracledb-1.0.3-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:4e3267d746a46ea8cce5ff17ec83e19788641071e9a32bdf4b6e4c497b51dff5"},
+    {file = "oracledb-1.0.3-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:9b31a81b57bf046c1cfb5ac5cb841d3cec0cc2f883bfbe31e16c5c8b4694beaa"},
+    {file = "oracledb-1.0.3-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0a21c4d2fb04596fc7d5030bab293a82ceea666664cce0003a46321f295ea263"},
+    {file = "oracledb-1.0.3-cp310-cp310-win32.whl", hash = "sha256:11dfb8ee6983754c85a77c88e16d10c9eee17fa89857555c6a3a45f32efec6c9"},
+    {file = "oracledb-1.0.3-cp310-cp310-win_amd64.whl", hash = "sha256:851270593125325f93a31c98df7f49cee3157282fe349223ae2095f54ce9513c"},
+    {file = "oracledb-1.0.3-cp36-cp36m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:8414cd36e18d808577710907c9c58ba738c2f979441a60be032daa29958383c0"},
+    {file = "oracledb-1.0.3-cp36-cp36m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ae5b30c86181112ec6e515d2ee50489c9119eb6ffacaa29f484b397ec8ae3bf1"},
+    {file = "oracledb-1.0.3-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:3a03f9a0d1ad1c9277470108b1a87cc5ab3c0b18210f810fd412a3819d9474f3"},
+    {file = "oracledb-1.0.3-cp37-cp37m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:074042b489a9e28921dd536785a4e2b0581d70959c49ddb29810e6a5fdba57a7"},
+    {file = "oracledb-1.0.3-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7de09aab11eb9110bb2c9214162ec16058d095ba780deab192eaa5d8e5531ef1"},
+    {file = "oracledb-1.0.3-cp37-cp37m-win32.whl", hash = "sha256:af7298384213142a5e80011fea9e86d21f778621c10ed1968052c34adb046c15"},
+    {file = "oracledb-1.0.3-cp37-cp37m-win_amd64.whl", hash = "sha256:f53d623f72eb4c503fe8edefde6aeed213484cfc857e99d98042b428a3626e83"},
+    {file = "oracledb-1.0.3-cp38-cp38-macosx_11_0_universal2.whl", hash = "sha256:23f7e44e84dfe90b3bff88fe837608cb741dc1b1a34bf406e637834c93e19c32"},
+    {file = "oracledb-1.0.3-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:8429d9da6119548a2598110df565d48db8697272ae0bb49d46ea78a182cab277"},
+    {file = "oracledb-1.0.3-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3775091a69a0607437aaab5221f7508230b2051ffcb8aa816f9f38e1648e2a86"},
+    {file = "oracledb-1.0.3-cp38-cp38-win32.whl", hash = "sha256:fcf7c80d01315ec6cc3cdd9f1c3c22790e176d42f3394ef29d3053313b89ac8a"},
+    {file = "oracledb-1.0.3-cp38-cp38-win_amd64.whl", hash = "sha256:4f2431115fb09903f9fe4e8042c8a28c142bab1a9607d1886151e692326cd4e9"},
+    {file = "oracledb-1.0.3-cp39-cp39-macosx_10_9_universal2.whl", hash = "sha256:207e5b402bcbd6bbfddde99c35eb0aa9474f3cc98731a6609ebdb92e71713ca7"},
+    {file = "oracledb-1.0.3-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:f59a9c7b940067d9f34e54c8fa6a72d4641bd043e6d40d6a209ea62c12eab9f2"},
+    {file = "oracledb-1.0.3-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:392c3ce3f77fa8ec9b8c812925d28d8bf2f6aa3dd968904245e1f4a9cd5a54d5"},
+    {file = "oracledb-1.0.3-cp39-cp39-win32.whl", hash = "sha256:fec9ef59319bfc359e30cc6620d97364346140ce734700042e0486da9e8dd0c7"},
+    {file = "oracledb-1.0.3-cp39-cp39-win_amd64.whl", hash = "sha256:bd90b7cc4f2d1430b4cdc6e290199a0b720b8185d85d97d4a820e6296d014735"},
+    {file = "oracledb-1.0.3.tar.gz", hash = "sha256:55bba52d03db740a7f3068167be0a5c027f1931be3ce7cd85d19dda5dfd80e82"},
 ]
 packaging = [
     {file = "packaging-21.3-py3-none-any.whl", hash = "sha256:ef103e05f519cdc783ae24ea4e2e0f508a9c99b2d4969652eed6a2e1ea5bd522"},
@@ -3584,6 +3621,10 @@ send2trash = [
     {file = "Send2Trash-1.8.0-py3-none-any.whl", hash = "sha256:f20eaadfdb517eaca5ce077640cb261c7d2698385a6a0f072a4a5447fd49fa08"},
     {file = "Send2Trash-1.8.0.tar.gz", hash = "sha256:d2c24762fd3759860a0aff155e45871447ea58d2be6bdd39b5c8f966a0c99c2d"},
 ]
+setuptools = [
+    {file = "setuptools-65.3.0-py3-none-any.whl", hash = "sha256:2e24e0bec025f035a2e72cdd1961119f557d78ad331bb00ff82efb2ab8da8e82"},
+    {file = "setuptools-65.3.0.tar.gz", hash = "sha256:7732871f4f7fa58fb6bdcaeadb0161b2bd046c85905dbaa066bdcbcc81953b57"},
+]
 six = [
     {file = "six-1.16.0-py2.py3-none-any.whl", hash = "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"},
     {file = "six-1.16.0.tar.gz", hash = "sha256:1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926"},
@@ -3763,6 +3804,10 @@ websocket-client = [
 werkzeug = [
     {file = "Werkzeug-2.1.2-py3-none-any.whl", hash = "sha256:72a4b735692dd3135217911cbeaa1be5fa3f62bffb8745c5215420a03dc55255"},
     {file = "Werkzeug-2.1.2.tar.gz", hash = "sha256:1ce08e8093ed67d638d63879fd1ba3735817f7a80de3674d293f5984f25fb6e6"},
+]
+wheel = [
+    {file = "wheel-0.37.1-py2.py3-none-any.whl", hash = "sha256:4bdcd7d840138086126cd09254dc6195fb4fc6f01c050a1d7236f2630db1d22a"},
+    {file = "wheel-0.37.1.tar.gz", hash = "sha256:e9a504e793efbca1b8e0e9cb979a249cf4a0a7b5b8c9e8b65a5e39d49529c1c4"},
 ]
 wrapt = [
     {file = "wrapt-1.14.1-cp27-cp27m-macosx_10_9_x86_64.whl", hash = "sha256:1b376b3f4896e7930f1f772ac4b064ac12598d1c38d04907e696cc4d794b43d3"},
