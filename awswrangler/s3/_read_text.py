@@ -48,7 +48,7 @@ def _read_text(
     ignore_index: bool,
     parallelism: int,
     version_id: Optional[Union[str, Dict[str, str]]] = None,
-    ray_max_block_size: Optional[int] = None,
+    ray_max_rows_per_block: Optional[int] = None,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     if "iterator" in pandas_kwargs:
@@ -102,7 +102,7 @@ def _read_text(
 
     if config.distributed:
         ray_dataset = read_datasource(
-            datasource=PandasTextDatasource(parser_func, ray_max_block_size),
+            datasource=PandasTextDatasource(parser_func, ray_max_rows_per_block),
             parallelism=parallelism,
             paths=paths,
             path_root=path_root,
@@ -145,7 +145,7 @@ def read_csv(
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
     parallelism: int = 200,
-    ray_max_block_size: Optional[int] = None,
+    ray_max_rows_per_block: Optional[int] = None,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read CSV file(s) from a received S3 prefix or list of S3 objects paths.
@@ -280,7 +280,7 @@ def read_csv(
         last_modified_end=last_modified_end,
         ignore_index=ignore_index,
         parallelism=parallelism,
-        ray_max_block_size=ray_max_block_size,
+        ray_max_rows_per_block=ray_max_rows_per_block,
         **pandas_kwargs,
     )
 
@@ -300,6 +300,7 @@ def read_fwf(
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
     parallelism: int = 200,
+    ray_max_rows_per_block: Optional[int] = None,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read fixed-width formatted file(s) from a received S3 prefix or list of S3 objects paths.
@@ -434,6 +435,7 @@ def read_fwf(
         ignore_index=True,
         sort_index=False,
         parallelism=parallelism,
+        ray_max_rows_per_block=ray_max_rows_per_block,
         **pandas_kwargs,
     )
 
@@ -454,6 +456,7 @@ def read_json(
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
     parallelism: int = 200,
+    ray_max_rows_per_block: Optional[int] = None,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read JSON file(s) from a received S3 prefix or list of S3 objects paths.
@@ -594,5 +597,6 @@ def read_json(
         last_modified_end=last_modified_end,
         ignore_index=ignore_index,
         parallelism=parallelism,
+        ray_max_rows_per_block=ray_max_rows_per_block,
         **pandas_kwargs,
     )
