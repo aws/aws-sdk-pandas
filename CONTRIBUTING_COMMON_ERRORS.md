@@ -111,22 +111,3 @@ brew install unixodbc
 ```
 
 -----
-
-## CloudFormation Deployment
-
-### Error Message
-
-During the deployment of `aws-sdk-pandas-databases`, the creation of the resource `CodeBuildTestRoleLFPermissions` fails with
-
-```
-Resource does not exist or requester is not authorized to access requested permissions. (Service: AWSLakeFormation; Status Code: 400; Error Code: AccessDeniedException; Request ID: 14a26718-ee4e-49f2-a7ca-d308e49485f8; Proxy: null)
-```
-
-### Solution
-
-The IAM role used to deploy the CloudForation stack does not have permissions to assign permissions in AWS Lake Formation. The quickest solution is to find the IAM role and set it as an admin in Lake Formation.
-
-In order to find the role:
-1. Navigate to the CloudFormation console in your account
-1. Select the `aws-sdk-pandas-databases` stack which failed to deploy
-1. Under the "Stack info" tab, find the value for "IAM role". The name of the role should be in the following format: `arn:aws:iam::{ACCOUNT_ID}:role/cdk-{UUID}-cfn-exec-role-{ACCOUNT_ID}-{REGION}`
