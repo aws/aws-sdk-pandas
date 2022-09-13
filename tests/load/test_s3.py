@@ -66,7 +66,7 @@ def test_s3_read_csv_simple(benchmark_time):
     assert timer.elapsed_time < benchmark_time
 
 
-@pytest.mark.parametrize("benchmark_time", [45])
+@pytest.mark.parametrize("benchmark_time", [30])
 def test_s3_read_json_simple(benchmark_time):
     path = "s3://covid19-lake/covid_knowledge_graph/json/edges/paper_to_concept/*.json"
     with ExecutionTimer("elapsed time of wr.s3.read_json() simple") as timer:
