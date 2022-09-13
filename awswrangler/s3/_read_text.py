@@ -33,13 +33,13 @@ class _ReadingStrategy(abc.ABC):
     Ray datasource if needed.
     """
 
-    @abc.abstractmethod
     @property
+    @abc.abstractmethod
     def pandas_read_function(self) -> Callable[..., pd.DataFrame]:
         """Return the parser function from Pandas, such as e.g. pd.read_csv."""
 
-    @abc.abstractmethod
     @property
+    @abc.abstractmethod
     def ray_datasource(self) -> Any:
         """Return the Ray custom data source for this file format."""
 
