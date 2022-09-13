@@ -35,7 +35,7 @@ def _read_text_chunked(
     dataset: bool,
     use_threads: Union[bool, int],
     version_id: Optional[str] = None,
-):
+) -> Iterator[pd.DataFrame]:
     mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
     with open_s3_object(
         path=path,

@@ -25,40 +25,49 @@ if config.distributed:
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-class ReadingStrategy(abc.ABC):
-    @abc.abstractproperty
-    def pandas_read_function(self) -> Callable[..., pd.DataFrame]:
-        pass
+class _ReadingStrategy(abc.ABC):
+    """
+    Reading strategy for a file format.
 
-    @abc.abstractproperty
-    def ray_datasource(self) -> Any:
-        pass
+    Contains the parsing function needed for loading the file, as well as the
+    Ray datasource if needed.
+    """
 
-
-class CSVReadingStrategy(ReadingStrategy):
+    @abc.abstractmethod
     @property
     def pandas_read_function(self) -> Callable[..., pd.DataFrame]:
-        return pd.read_csv
+        """Return the parser function from Pandas, such as e.g. pd.read_csv."""
 
-    @property
-    def ray_datasource(self) -> Any:
-        return PandasTextDatasource(pd.read_csv)
-
-
-class FWFReadingStrategy(ReadingStrategy):
-    @property
-    def pandas_read_function(self) -> Callable[..., pd.DataFrame]:
-        return pd.read_fwf
-
+    @abc.abstractmethod
     @property
     def ray_datasource(self) -> Any:
-        return PandasTextDatasource(pd.read_fwf)
+        """Return the Ray custom data source for this file format."""
 
 
-class JSONReadingStrategy(ReadingStrategy):
+class _CSVReadingStrategy(_ReadingStrategy):
     @property
     def pandas_read_function(self) -> Callable[..., pd.DataFrame]:
-        return pd.read_json
+        return pd.read_csv  # type: ignore
+
+    @property
+    def ray_datasource(self) -> Any:
+        return PandasTextDatasource(pd.read_csv, "csv")
+
+
+class _FWFReadingStrategy(_ReadingStrategy):
+    @property
+    def pandas_read_function(self) -> Callable[..., pd.DataFrame]:
+        return pd.read_fwf  # type: ignore
+
+    @property
+    def ray_datasource(self) -> Any:
+        return PandasTextDatasource(pd.read_fwf, "fwf")
+
+
+class _JSONReadingStrategy(_ReadingStrategy):
+    @property
+    def pandas_read_function(self) -> Callable[..., pd.DataFrame]:
+        return pd.read_json  # type: ignore
 
     @property
     def ray_datasource(self) -> Any:
@@ -73,7 +82,7 @@ def _get_version_id_for(version_id: Optional[Union[str, Dict[str, str]]], path: 
 
 
 def _read_text(
-    reading_strategy: ReadingStrategy,
+    reading_strategy: _ReadingStrategy,
     path: Union[str, List[str]],
     path_suffix: Union[str, List[str], None],
     path_ignore_suffix: Union[str, List[str], None],
@@ -301,7 +310,7 @@ def read_csv(
         )
     ignore_index: bool = "index_col" not in pandas_kwargs
     return _read_text(
-        reading_strategy=CSVReadingStrategy(),
+        reading_strategy=_CSVReadingStrategy(),
         path=path,
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,
@@ -453,7 +462,7 @@ def read_fwf(
             "e.g. wr.s3.read_fwf(path, widths=[1, 3], names=['c0', 'c1'])"
         )
     return _read_text(
-        reading_strategy=FWFReadingStrategy(),
+        reading_strategy=_FWFReadingStrategy(),
         path=path,
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,
@@ -614,7 +623,7 @@ def read_json(
     pandas_kwargs["orient"] = orient
     ignore_index: bool = orient not in ("split", "index", "columns")
     return _read_text(
-        reading_strategy=JSONReadingStrategy(),
+        reading_strategy=_JSONReadingStrategy(),
         path=path,
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,

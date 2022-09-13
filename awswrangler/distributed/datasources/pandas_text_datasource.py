@@ -4,10 +4,10 @@ from typing import Any, Callable, Dict, Iterator, Optional
 import pandas as pd
 import pyarrow
 from ray.data.datasource.file_based_datasource import FileBasedDatasource
+from ray.data.impl.pandas_block import PandasBlockAccessor
 
 from awswrangler import _utils
 from awswrangler.s3._read_text_core import _read_text_chunked, _read_text_file
-
 
 # The number of rows to read per batch. This is sized to generate 10MiB batches
 # for rows about 1KiB in size.
@@ -16,14 +16,20 @@ READER_ROW_BATCH_SIZE = 10_0000
 
 class PandasTextDatasource(FileBasedDatasource):
     """Pandas text datasource, for reading and writing text files using Pandas."""
+
     def __init__(
         self,
         read_text_func: Callable[..., pd.DataFrame],
+        file_format: str,
     ) -> None:
         super().__init__()
         self.read_text_func = read_text_func
+        self.file_format = file_format
 
-    def _read_stream(
+    def _file_format(self) -> str:
+        return self.file_format
+
+    def _read_stream(  # type: ignore  # pylint: disable=arguments-differ
         self,
         f: pyarrow.NativeFile,
         path: str,
@@ -33,6 +39,7 @@ class PandasTextDatasource(FileBasedDatasource):
         boto3_session: Optional[_utils.Boto3PrimitivesType],
         s3_additional_kwargs: Optional[Dict[str, str]],
         pandas_kwargs: Dict[str, Any],
+        **reader_args: Any,
     ) -> Iterator[pd.DataFrame]:
         s3_path = f"s3://{path}"
         yield from _read_text_chunked(
@@ -48,13 +55,26 @@ class PandasTextDatasource(FileBasedDatasource):
             version_id=version_id_dict.get(s3_path),
         )
 
+    def _read_file(self, f: pyarrow.NativeFile, path: str, **reader_args: Any) -> pd.DataFrame:
+        raise NotImplementedError()
 
-class PandasJSONDatasource(PandasTextDatasource):
+    def _write_block(  # type: ignore  # pylint: disable=signature-differs
+        self,
+        f: pyarrow.NativeFile,
+        block: PandasBlockAccessor,
+        writer_args_fn: Callable[[], Dict[str, Any]],
+        **writer_args: Any,
+    ) -> None:
+        raise NotImplementedError()
+
+
+class PandasJSONDatasource(PandasTextDatasource):  # pylint: disable=abstract-method
     """Pandas JSON datasource, for reading and writing JSON files using Pandas."""
-    def __init__(self) -> None:
-        super().__init__(pd.read_json)
 
-    def _read_stream(
+    def __init__(self) -> None:
+        super().__init__(pd.read_json, "json")
+
+    def _read_stream(  # type: ignore
         self,
         f: pyarrow.NativeFile,
         path: str,
@@ -64,7 +84,8 @@ class PandasJSONDatasource(PandasTextDatasource):
         boto3_session: Optional[_utils.Boto3PrimitivesType],
         s3_additional_kwargs: Optional[Dict[str, str]],
         pandas_kwargs: Dict[str, Any],
-    ) -> Iterator[pd.DataFrame]:
+        **reader_args: Any,
+    ) -> Iterator[pd.DataFrame]:  # type: ignore
         pandas_lines = pandas_kwargs.get("lines", False)
         if pandas_lines:
             yield from super()._read_stream(
