@@ -54,16 +54,22 @@ def test_s3_read_parquet_partition_filter(benchmark_time):
 
 
 @pytest.mark.parametrize("benchmark_time", [10])
-def test_s3_write_parquet_simple(df_s, path, benchmark_time):
-    with ExecutionTimer("elapsed time of wr.s3.to_parquet() simple") as timer:
-        wr.s3.to_parquet(df_s, path=path)
+@pytest.mark.parametrize("path_suffix", [None, "df.parquet"])
+def test_s3_write_parquet_simple(df_s, path, path_suffix, benchmark_time):
+    # Write into either a key or a prefix
+    path = f"{path}{path_suffix}" if path_suffix else path
 
+    with ExecutionTimer("elapsed time of wr.s3.to_parquet() simple") as timer:
+        result = wr.s3.to_parquet(df_s, path=path)
+
+    assert len(result["paths"]) == 1
+    assert result["paths"][0].endswith(".parquet")
     assert timer.elapsed_time < benchmark_time
 
 
 @pytest.mark.parametrize("benchmark_time", [200])
 @pytest.mark.parametrize("partition_cols", [None, ["payment_type"], ["payment_type", "passenger_count"]])
-@pytest.mark.parametrize("bucketing_info", [None, (["vendor_id"], 2), (["vendor_id", "rate_code_id"], 3)])
+@pytest.mark.parametrize("bucketing_info", [None, (["vendor_id"], 2), (["vendor_id", "rate_code_id"], 2)])
 def test_s3_write_parquet_dataset(df_s, path, partition_cols, bucketing_info, benchmark_time):
     with ExecutionTimer("elapsed time of wr.s3.to_parquet() with partitioning and/or bucketing") as timer:
         wr.s3.to_parquet(df_s, path=path, dataset=True, partition_cols=partition_cols, bucketing_info=bucketing_info)

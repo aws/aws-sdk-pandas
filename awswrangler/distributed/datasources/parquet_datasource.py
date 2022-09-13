@@ -37,6 +37,25 @@ _logger: logging.Logger = logging.getLogger(__name__)
 PARQUET_READER_ROW_BATCH_SIZE = 100000
 
 
+class UserProvidedKeyBlockWritePathProvider(BlockWritePathProvider):
+    """Block write path provider.
+
+    Used when writing single-block datasets into a user-provided S3 key.
+    """
+
+    def _get_write_path_for_block(
+        self,
+        base_path: str,
+        *,
+        filesystem: Optional["pyarrow.fs.FileSystem"] = None,
+        dataset_uuid: Optional[str] = None,
+        block: Optional[ObjectRef[Block[Any]]] = None,
+        block_index: Optional[int] = None,
+        file_format: Optional[str] = None,
+    ) -> str:
+        return base_path
+
+
 class ParquetDatasource:
     """Parquet datasource, for reading and writing Parquet files."""
 

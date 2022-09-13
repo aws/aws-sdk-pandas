@@ -24,8 +24,12 @@ if config.distributed:
     import modin.pandas as pd
     from modin.pandas import DataFrame as ModinDataFrame
     from ray.data import from_modin, from_pandas
+    from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
 
-    from awswrangler.distributed.datasources import ParquetDatasource
+    from awswrangler.distributed.datasources import (  # pylint: disable=ungrouped-imports
+        ParquetDatasource,
+        UserProvidedKeyBlockWritePathProvider,
+    )
 else:
     import pandas as pd
 
@@ -177,18 +181,26 @@ def _to_parquet_distributed(  # pylint: disable=unused-argument
     bucketing: bool = False,
 ) -> List[str]:
     if bucketing:
-        # Add bucket id
+        # Add bucket id to the prefix
         filename_prefix = f"{filename_prefix}_bucket-{df.name:05d}"
     # Create Ray Dataset
     ds = from_modin(df) if isinstance(df, ModinDataFrame) else from_pandas(df)
+    # Repartition into a single block if or writing into a single key or if bucketing is enabled
+    if ds.count() > 0 and (path or bucketing):
+        ds = ds.repartition(1)
     # Repartition by max_rows_by_file
-    if max_rows_by_file and (max_rows_by_file > 0):
+    elif max_rows_by_file and (max_rows_by_file > 0):
         ds = ds.repartition(math.ceil(ds.count() / max_rows_by_file))
     datasource = ParquetDatasource()
     ds.write_datasource(
         datasource,  # type: ignore
-        path=path_root or path,
+        path=path or path_root,
         dataset_uuid=filename_prefix,
+        # If user has provided a single key, use that instead of generating a path per block
+        # The dataset will be repartitioned into a single block
+        block_path_provider=UserProvidedKeyBlockWritePathProvider()
+        if path and not path.endswith("/")
+        else DefaultBlockWritePathProvider(),
     )
     return datasource.get_write_paths()
 
