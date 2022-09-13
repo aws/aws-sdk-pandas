@@ -1,4 +1,5 @@
 """Amazon S3 Read Module (PRIVATE)."""
+import abc
 import datetime
 import itertools
 import logging
@@ -13,15 +14,55 @@ from awswrangler._config import config
 from awswrangler._threading import _get_executor
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import _apply_partition_filter, _get_path_ignore_suffix, _get_path_root, _union
-from awswrangler.s3._read_text_core import _read_text_chunked, _read_text_file
+from awswrangler.s3._read_text_core import _read_text_file, _read_text_files_chunked
 
 if config.distributed:
     from ray.data import read_datasource
 
     from awswrangler.distributed._utils import _to_modin  # pylint: disable=ungrouped-imports
-    from awswrangler.distributed.datasources import PandasTextDatasource
+    from awswrangler.distributed.datasources import PandasJSONDatasource, PandasTextDatasource
 
 _logger: logging.Logger = logging.getLogger(__name__)
+
+
+class ReadingStrategy(abc.ABC):
+    @abc.abstractproperty
+    def pandas_read_function(self) -> Callable[..., pd.DataFrame]:
+        pass
+
+    @abc.abstractproperty
+    def ray_datasource(self) -> Any:
+        pass
+
+
+class CSVReadingStrategy(ReadingStrategy):
+    @property
+    def pandas_read_function(self) -> Callable[..., pd.DataFrame]:
+        return pd.read_csv
+
+    @property
+    def ray_datasource(self) -> Any:
+        return PandasTextDatasource(pd.read_csv)
+
+
+class FWFReadingStrategy(ReadingStrategy):
+    @property
+    def pandas_read_function(self) -> Callable[..., pd.DataFrame]:
+        return pd.read_fwf
+
+    @property
+    def ray_datasource(self) -> Any:
+        return PandasTextDatasource(pd.read_fwf)
+
+
+class JSONReadingStrategy(ReadingStrategy):
+    @property
+    def pandas_read_function(self) -> Callable[..., pd.DataFrame]:
+        return pd.read_json
+
+    @property
+    def ray_datasource(self) -> Any:
+        return PandasJSONDatasource()
 
 
 def _get_version_id_for(version_id: Optional[Union[str, Dict[str, str]]], path: str) -> Optional[str]:
@@ -32,7 +73,7 @@ def _get_version_id_for(version_id: Optional[Union[str, Dict[str, str]]], path: 
 
 
 def _read_text(
-    parser_func: Callable[..., pd.DataFrame],
+    reading_strategy: ReadingStrategy,
     path: Union[str, List[str]],
     path_suffix: Union[str, List[str], None],
     path_ignore_suffix: Union[str, List[str], None],
@@ -48,7 +89,6 @@ def _read_text(
     ignore_index: bool,
     parallelism: int,
     version_id: Optional[Union[str, Dict[str, str]]] = None,
-    ray_max_rows_per_block: Optional[int] = None,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     if "iterator" in pandas_kwargs:
@@ -74,7 +114,7 @@ def _read_text(
     _logger.debug("paths:\n%s", paths)
 
     args: Dict[str, Any] = {
-        "parser_func": parser_func,
+        "parser_func": reading_strategy.pandas_read_function,
         "boto3_session": session,
         "dataset": dataset,
         "path_root": path_root,
@@ -91,23 +131,21 @@ def _read_text(
     version_id_dict = {path: _get_version_id_for(version_id, path) for path in paths}
 
     if chunksize is not None:
-        return _read_text_chunked(
+        return _read_text_files_chunked(
             paths=paths,
             version_ids=version_id_dict,
             chunksize=chunksize,
             **args,
         )
 
-    version_id = version_id if isinstance(version_id, dict) else None
-
     if config.distributed:
         ray_dataset = read_datasource(
-            datasource=PandasTextDatasource(parser_func, ray_max_rows_per_block),
+            datasource=reading_strategy.ray_datasource,
             parallelism=parallelism,
             paths=paths,
             path_root=path_root,
             dataset=dataset,
-            version_id=version_id,
+            version_id_dict=version_id_dict,
             boto3_session=_utils.boto3_to_primitives(boto3_session),
             s3_additional_kwargs=s3_additional_kwargs,
             pandas_kwargs=pandas_kwargs,
@@ -120,7 +158,7 @@ def _read_text(
         session,
         paths,
         [version_id_dict[path] for path in paths],
-        itertools.repeat(parser_func),
+        itertools.repeat(reading_strategy.pandas_read_function),
         itertools.repeat(path_root),
         itertools.repeat(pandas_kwargs),
         itertools.repeat(s3_additional_kwargs),
@@ -145,7 +183,6 @@ def read_csv(
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
     parallelism: int = 200,
-    ray_max_rows_per_block: Optional[int] = None,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read CSV file(s) from a received S3 prefix or list of S3 objects paths.
@@ -264,7 +301,7 @@ def read_csv(
         )
     ignore_index: bool = "index_col" not in pandas_kwargs
     return _read_text(
-        parser_func=pd.read_csv,
+        reading_strategy=CSVReadingStrategy(),
         path=path,
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,
@@ -280,7 +317,6 @@ def read_csv(
         last_modified_end=last_modified_end,
         ignore_index=ignore_index,
         parallelism=parallelism,
-        ray_max_rows_per_block=ray_max_rows_per_block,
         **pandas_kwargs,
     )
 
@@ -300,7 +336,6 @@ def read_fwf(
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
     parallelism: int = 200,
-    ray_max_rows_per_block: Optional[int] = None,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read fixed-width formatted file(s) from a received S3 prefix or list of S3 objects paths.
@@ -418,7 +453,7 @@ def read_fwf(
             "e.g. wr.s3.read_fwf(path, widths=[1, 3], names=['c0', 'c1'])"
         )
     return _read_text(
-        parser_func=pd.read_fwf,
+        reading_strategy=FWFReadingStrategy(),
         path=path,
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,
@@ -435,7 +470,6 @@ def read_fwf(
         ignore_index=True,
         sort_index=False,
         parallelism=parallelism,
-        ray_max_rows_per_block=ray_max_rows_per_block,
         **pandas_kwargs,
     )
 
@@ -456,7 +490,6 @@ def read_json(
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
     parallelism: int = 200,
-    ray_max_rows_per_block: Optional[int] = None,
     **pandas_kwargs: Any,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read JSON file(s) from a received S3 prefix or list of S3 objects paths.
@@ -581,7 +614,7 @@ def read_json(
     pandas_kwargs["orient"] = orient
     ignore_index: bool = orient not in ("split", "index", "columns")
     return _read_text(
-        parser_func=pd.read_json,
+        reading_strategy=JSONReadingStrategy(),
         path=path,
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,
@@ -597,6 +630,5 @@ def read_json(
         last_modified_end=last_modified_end,
         ignore_index=ignore_index,
         parallelism=parallelism,
-        ray_max_rows_per_block=ray_max_rows_per_block,
         **pandas_kwargs,
     )
