@@ -19,7 +19,7 @@ def df_xl():
 
 
 @pytest.mark.repeat(1)
-@pytest.mark.parametrize("benchmark_time", [150])
+@pytest.mark.parametrize("benchmark_time", [180])
 def test_s3_select(benchmark_time):
     path = "s3://ursa-labs-taxi-data/2018/1*.parquet"
     with ExecutionTimer("elapsed time of wr.s3.select_query()") as timer:
