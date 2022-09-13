@@ -60,7 +60,7 @@ def moto_glue():
 
 @pytest.fixture(scope="function")
 def moto_dynamodb():
-    with moto.mock_dynamodb2():
+    with moto.mock_dynamodb():
         dynamodb = boto3.resource("dynamodb")
         dynamodb.create_table(
             TableName="table",
