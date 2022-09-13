@@ -5,7 +5,6 @@ from aws_cdk import aws_ec2 as ec2
 from aws_cdk import aws_glue_alpha as glue
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_kms as kms
-from aws_cdk import aws_lakeformation as lf
 from aws_cdk import aws_neptune_alpha as neptune
 from aws_cdk import aws_rds as rds
 from aws_cdk import aws_redshift_alpha as redshift
@@ -217,19 +216,11 @@ class DatabasesStack(Stack):  # type: ignore
                 ),
             },
         )
-        lf.CfnPermissions(
+        ssm.StringParameter(
             self,
-            "CodeBuildTestRoleLFPermissions",
-            data_lake_principal=lf.CfnPermissions.DataLakePrincipalProperty(
-                data_lake_principal_identifier=redshift_role.role_arn
-            ),
-            resource=lf.CfnPermissions.ResourceProperty(
-                table_resource=lf.CfnPermissions.TableResourceProperty(
-                    database_name="aws_sdk_pandas",
-                    table_wildcard={},  # type: ignore
-                )
-            ),
-            permissions=["SELECT", "ALTER", "DESCRIBE", "DROP", "DELETE", "INSERT"],
+            "redshift-role-arn-parameter",
+            parameter_name="/SDKPandas/IAM/RedshiftRoleArn",
+            string_value=redshift_role.role_arn,
         )
         redshift.ClusterSubnetGroup(
             self,
