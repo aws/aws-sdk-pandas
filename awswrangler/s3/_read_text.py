@@ -20,7 +20,7 @@ if config.distributed:
     from ray.data import read_datasource
 
     from awswrangler.distributed._utils import _to_modin  # pylint: disable=ungrouped-imports
-    from awswrangler.distributed.datasources import PandasJSONDatasource, PandasTextDatasource
+    from awswrangler.distributed.datasources import PandasCSVDataSource, PandasFWFDataSource, PandasJSONDatasource
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ class _CSVReadingStrategy(_ReadingStrategy):
 
     @property
     def ray_datasource(self) -> Any:
-        return PandasTextDatasource(pd.read_csv, "csv")
+        return PandasCSVDataSource()
 
 
 class _FWFReadingStrategy(_ReadingStrategy):
@@ -61,7 +61,7 @@ class _FWFReadingStrategy(_ReadingStrategy):
 
     @property
     def ray_datasource(self) -> Any:
-        return PandasTextDatasource(pd.read_fwf, "fwf")
+        return PandasFWFDataSource()
 
 
 class _JSONReadingStrategy(_ReadingStrategy):

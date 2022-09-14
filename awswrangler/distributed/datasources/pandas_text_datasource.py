@@ -19,12 +19,12 @@ class PandasTextDatasource(FileBasedDatasource):
 
     def __init__(
         self,
-        read_text_func: Callable[..., pd.DataFrame],
         file_format: str,
+        read_text_func: Callable[..., pd.DataFrame],
     ) -> None:
         super().__init__()
-        self.read_text_func = read_text_func
         self.file_format = file_format
+        self.read_text_func = read_text_func
 
     def _file_format(self) -> str:
         return self.file_format
@@ -68,11 +68,25 @@ class PandasTextDatasource(FileBasedDatasource):
         raise NotImplementedError()
 
 
+class PandasCSVDataSource(PandasTextDatasource):  # pylint: disable=abstract-method
+    """Pandas CSV datasource, for reading and writing CSV files using Pandas."""
+
+    def __init__(self) -> None:
+        super().__init__("csv", pd.read_csv)
+
+
+class PandasFWFDataSource(PandasTextDatasource):  # pylint: disable=abstract-method
+    """Pandas FWF datasource, for reading and writing FWF files using Pandas."""
+
+    def __init__(self) -> None:
+        super().__init__("fwf", pd.read_fwf)
+
+
 class PandasJSONDatasource(PandasTextDatasource):  # pylint: disable=abstract-method
     """Pandas JSON datasource, for reading and writing JSON files using Pandas."""
 
     def __init__(self) -> None:
-        super().__init__(pd.read_json, "json")
+        super().__init__("json", pd.read_json)
 
     def _read_stream(  # type: ignore
         self,
