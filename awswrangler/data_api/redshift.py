@@ -17,10 +17,10 @@ class RedshiftDataApi(connector.DataApiConnector):
     ----------
     cluster_id: str
         Id for the target Redshift cluster - only required if `workgroup_name` not provided.
-    workgroup_name: str
-        Name for the target serverless Redshift workgroup - only required if `cluster_id` not provided.
     database: str
         Target database name.
+    workgroup_name: str
+        Name for the target serverless Redshift workgroup - only required if `cluster_id` not provided.
     secret_arn: str
         The ARN for the secret to be used for authentication - only required if `db_user` not provided.
     db_user: str
@@ -38,8 +38,8 @@ class RedshiftDataApi(connector.DataApiConnector):
     def __init__(
         self,
         cluster_id: str = "",
-        workgroup_name: str = "",
         database: str = "",
+        workgroup_name: str = "",
         secret_arn: str = "",
         db_user: str = "",
         sleep: float = 0.25,
@@ -48,8 +48,8 @@ class RedshiftDataApi(connector.DataApiConnector):
         boto3_session: Optional[boto3.Session] = None,
     ) -> None:
         self.cluster_id = cluster_id
-        self.workgroup_name = workgroup_name
         self.database = database
+        self.workgroup_name = workgroup_name
         self.secret_arn = secret_arn
         self.db_user = db_user
         self.client: boto3.client = _utils.client(service_name="redshift-data", session=boto3_session)
@@ -186,8 +186,8 @@ class RedshiftDataApiTimeoutException(Exception):
 
 def connect(
     cluster_id: str = "",
-    workgroup_name: str = "",
     database: str = "",
+    workgroup_name: str = "",
     secret_arn: str = "",
     db_user: str = "",
     boto3_session: Optional[boto3.Session] = None,
@@ -199,10 +199,10 @@ def connect(
     ----------
     cluster_id: str
         Id for the target Redshift cluster - only required if `workgroup_name` not provided.
-    workgroup_name: str
-        Name for the target serverless Redshift workgroup - only required if `cluster_id` not provided.
     database: str
         Target database name.
+    workgroup_name: str
+        Name for the target serverless Redshift workgroup - only required if `cluster_id` not provided.
     secret_arn: str
         The ARN for the secret to be used for authentication - only required if `db_user` not provided.
     db_user: str
@@ -218,8 +218,8 @@ def connect(
     """
     return RedshiftDataApi(
         cluster_id=cluster_id,
-        workgroup_name=workgroup_name,
         database=database,
+        workgroup_name=workgroup_name,
         secret_arn=secret_arn,
         db_user=db_user,
         boto3_session=boto3_session,
