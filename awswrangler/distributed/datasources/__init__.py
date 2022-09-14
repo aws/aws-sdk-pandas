@@ -1,10 +1,14 @@
 """Distributed Datasources Module."""
 
 from awswrangler.distributed.datasources.pandas_text_datasource import PandasJSONDatasource, PandasTextDatasource
-from awswrangler.distributed.datasources.parquet_datasource import ParquetDatasource
+from awswrangler.distributed.datasources.parquet_datasource import (
+    ParquetDatasource,
+    UserProvidedKeyBlockWritePathProvider,
+)
 
 __all__ = [
     "PandasJSONDatasource",
     "PandasTextDatasource",
     "ParquetDatasource",
+    "UserProvidedKeyBlockWritePathProvider",
 ]

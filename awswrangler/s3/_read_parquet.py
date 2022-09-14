@@ -7,7 +7,6 @@ import logging
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, Union
 
 import boto3
-import pandas as pd
 import pyarrow as pa
 import pyarrow.dataset
 import pyarrow.parquet
@@ -30,10 +29,13 @@ from awswrangler.s3._read import (
 )
 
 if config.distributed:
+    import modin.pandas as pd
     from ray.data import read_datasource
 
     from awswrangler.distributed._utils import _to_modin  # pylint: disable=ungrouped-imports
     from awswrangler.distributed.datasources import ParquetDatasource
+else:
+    import pandas as pd
 
 BATCH_READ_BLOCK_SIZE = 65_536
 CHUNKED_READ_S3_BLOCK_SIZE = 10_485_760  # 10 MB (20 * 2**20)
@@ -323,7 +325,7 @@ def _read_parquet(
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     if config.distributed:
         dataset = read_datasource(
-            datasource=ParquetDatasource(),
+            datasource=ParquetDatasource(),  # type: ignore
             parallelism=parallelism,
             use_threads=use_threads,
             paths=paths,

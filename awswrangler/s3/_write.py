@@ -55,13 +55,14 @@ def _validate_args(
     description: Optional[str],
     parameters: Optional[Dict[str, str]],
     columns_comments: Optional[Dict[str, str]],
+    distributed: Optional[bool] = False,
 ) -> None:
     if df.empty is True:
         raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
     if dataset is False:
         if path is None:
             raise exceptions.InvalidArgumentValue("If dataset is False, the `path` argument must be passed.")
-        if path.endswith("/"):
+        if not distributed and path.endswith("/"):
             raise exceptions.InvalidArgumentValue(
                 "If <dataset=False>, the argument <path> should be a key, not a prefix."
             )

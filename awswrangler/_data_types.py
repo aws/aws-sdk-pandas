@@ -454,7 +454,7 @@ def pyarrow2pandas_extension(  # pylint: disable=too-many-branches,too-many-retu
     return None
 
 
-def pyarrow_types_from_pandas(  # pylint: disable=too-many-branches
+def pyarrow_types_from_pandas(  # pylint: disable=too-many-branches,too-many-statements
     df: pd.DataFrame, index: bool, ignore_cols: Optional[List[str]] = None, index_left: bool = False
 ) -> Dict[str, pa.DataType]:
     """Extract the related Pyarrow data types from any Pandas DataFrame."""
@@ -474,8 +474,14 @@ def pyarrow_types_from_pandas(  # pylint: disable=too-many-branches
             cols_dtypes[name] = pa.int32()
         elif dtype == "Int64":
             cols_dtypes[name] = pa.int64()
+        elif dtype == "float32":
+            cols_dtypes[name] = pa.float32()
+        elif dtype == "float64":
+            cols_dtypes[name] = pa.float64()
         elif dtype == "string":
             cols_dtypes[name] = pa.string()
+        elif dtype == "boolean":
+            cols_dtypes[name] = pa.bool_()
         else:
             cols.append(name)
 
