@@ -149,7 +149,7 @@ def _records2df(
                     if dtype[col_name] == pa.string() or isinstance(dtype[col_name], pa.Decimal128Type):
                         col_values = oracle.handle_oracle_objects(col_values, col_name, dtype)
                 array = pa.array(obj=col_values, type=dtype[col_name], safe=safe)  # Creating Arrow array with dtype
-            except pa.ArrowInvalid:
+            except (pa.ArrowInvalid, pa.ArrowTypeError):
                 array = pa.array(obj=col_values, safe=safe)  # Creating Arrow array
                 array = array.cast(target_type=dtype[col_name], safe=safe)  # Casting
         arrays.append(array)
