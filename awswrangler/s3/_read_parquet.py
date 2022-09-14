@@ -323,19 +323,6 @@ def _read_parquet(
     s3_additional_kwargs: Optional[Dict[str, Any]],
     arrow_kwargs: Dict[str, Any],
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    if config.distributed:
-        dataset = read_datasource(
-            datasource=ParquetDatasource(),  # type: ignore
-            parallelism=parallelism,
-            use_threads=use_threads,
-            paths=paths,
-            schema=schema,
-            columns=columns,
-            coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
-            path_root=path_root,
-        )
-        return _to_modin(dataset=dataset, to_pandas_kwargs=arrow_kwargs)
-
     if chunked:
         return _read_parquet_chunked(
             boto3_session=boto3_session,
@@ -349,6 +336,19 @@ def _read_parquet(
             arrow_kwargs=arrow_kwargs,
             version_ids=version_ids,
         )
+
+    if config.distributed:
+        dataset = read_datasource(
+            datasource=ParquetDatasource(),  # type: ignore
+            parallelism=parallelism,
+            use_threads=use_threads,
+            paths=paths,
+            schema=schema,
+            columns=columns,
+            coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
+            path_root=path_root,
+        )
+        return _to_modin(dataset=dataset, to_pandas_kwargs=arrow_kwargs)
 
     executor = _get_executor(use_threads=use_threads)
     tables = executor.map(
