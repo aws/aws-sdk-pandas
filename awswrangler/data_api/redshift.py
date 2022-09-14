@@ -13,6 +13,11 @@ from awswrangler.data_api import connector
 class RedshiftDataApi(connector.DataApiConnector):
     """Provides access to a Redshift cluster via the Data API.
 
+    Note
+    ----
+    When connecting to a standard Redshift cluster, `cluster_id` is used.
+    When connecting to Redshift Serverless, `workgroup_name` is used. These two arguments are mutually exclusive.
+
     Parameters
     ----------
     cluster_id: str
@@ -194,6 +199,11 @@ def connect(
     **kwargs: Any,
 ) -> RedshiftDataApi:
     """Create a Redshift Data API connection.
+
+    Note
+    ----
+    When connecting to a standard Redshift cluster, `cluster_id` is used.
+    When connecting to Redshift Serverless, `workgroup_name` is used. These two arguments are mutually exclusive.
 
     Parameters
     ----------
