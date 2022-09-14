@@ -18,10 +18,17 @@ from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._read_parquet import _read_parquet_metadata
 from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_concurrent import _WriteProxy
-from awswrangler.s3._write_dataset import _to_dataset
+from awswrangler.s3._write_dataset import (
+    _to_buckets,
+    _to_buckets_distributed,
+    _to_dataset,
+    _to_partitions,
+    _to_partitions_distributed,
+)
 
 if config.distributed:
     import modin.pandas as pd
+    from modin.distributed.dataframe.pandas import from_partitions, unwrap_partitions
     from modin.pandas import DataFrame as ModinDataFrame
     from ray.data import from_modin, from_pandas
     from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
@@ -648,8 +655,16 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     _logger.debug("schema: \n%s", schema)
 
     _to_parquet_fn: Callable[..., List[str]] = _to_parquet
+    _to_partitions_fn: Callable[..., Tuple[List[str], Dict[str, List[str]]]] = _to_partitions
+    _to_buckets_fn: Callable[..., List[str]] = _to_buckets
     if config.distributed and isinstance(df, ModinDataFrame):
+        # Ensure Modin dataframe is partitioned along row axis
+        # It avoids a situation where columns are split along multiple blocks
+        df = from_partitions(unwrap_partitions(df, axis=0), axis=0)
+
         _to_parquet_fn = _to_parquet_distributed
+        _to_partitions_fn = _to_partitions_distributed
+        _to_buckets_fn = _to_buckets_distributed
 
     if dataset is False:
         paths = _to_parquet_fn(
@@ -739,6 +754,8 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
             s3_additional_kwargs=s3_additional_kwargs,
             schema=schema,
             max_rows_by_file=max_rows_by_file,
+            _to_partitions_fn=_to_partitions_fn,
+            _to_buckets_fn=_to_buckets_fn,
         )
         if (database is not None) and (table is not None):
             try:

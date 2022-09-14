@@ -13,17 +13,10 @@ from awswrangler.s3._write_concurrent import _WriteProxy
 
 if config.distributed:
     import modin.pandas as pd
-    from modin.distributed.dataframe.pandas import from_partitions, unwrap_partitions
-    from modin.pandas import DataFrame as ModinDataFrame
 else:
     import pandas as pd
 
 _logger: logging.Logger = logging.getLogger(__name__)
-
-
-def _get_subgroup_prefix(keys: Tuple[str, None], partition_cols: List[str], path_root: str) -> str:
-    subdir = "/".join([f"{name}={val}" for name, val in zip(partition_cols, keys)])
-    return f"{path_root}{subdir}/"
 
 
 def _get_bucketing_series(df: pd.DataFrame, bucketing_info: Tuple[List[str], int]) -> pd.Series:
@@ -73,6 +66,11 @@ def _get_value_hash(value: Union[str, int, bool]) -> int:
     raise exceptions.InvalidDataFrame(
         "Column specified for bucketing contains invalid data type. Only string, int and bool are supported."
     )
+
+
+def _get_subgroup_prefix(keys: Tuple[str, None], partition_cols: List[str], path_root: str) -> str:
+    subdir = "/".join([f"{name}={val}" for name, val in zip(partition_cols, keys)])
+    return f"{path_root}{subdir}/"
 
 
 def _delete_objects(
@@ -369,6 +367,8 @@ def _to_dataset(
     transaction_id: Optional[str],
     bucketing_info: Optional[Tuple[List[str], int]],
     boto3_session: boto3.Session,
+    _to_partitions_fn: Callable[..., Tuple[List[str], Dict[str, List[str]]]] = _to_partitions,
+    _to_buckets_fn: Callable[..., List[str]] = _to_buckets,
     **func_kwargs: Any,
 ) -> Tuple[List[str], Dict[str, List[str]]]:
     path_root = path_root if path_root.endswith("/") else f"{path_root}/"
@@ -397,16 +397,6 @@ def _to_dataset(
                 )
         else:
             delete_objects(path=path_root, use_threads=use_threads, boto3_session=boto3_session)
-
-    _to_partitions_fn: Callable[..., Tuple[List[str], Dict[str, List[str]]]] = _to_partitions
-    _to_buckets_fn: Callable[..., List[str]] = _to_buckets
-    if config.distributed and isinstance(df, ModinDataFrame):
-        # Ensure Modin dataframe is partitioned along row axis
-        # It avoids a situation where columns are split along multiple blocks
-        df = from_partitions(unwrap_partitions(df, axis=0), axis=0)
-
-        _to_partitions_fn = _to_partitions_distributed
-        _to_buckets_fn = _to_buckets_distributed
 
     # Writing
     partitions_values: Dict[str, List[str]] = {}
