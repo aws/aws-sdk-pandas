@@ -90,12 +90,12 @@ html_theme_options = {
     # Note the "1" or "True" value above as the third argument to indicate
     # an arbitrary url.
     "navbar_links": [
-        ("What is AWS SDK for pandas?", "what"),
+        ("About", "about"),
         ("Install", "install"),
         ("Tutorials", "tutorials"),
         ("API Reference", "api"),
         ("License", "https://github.com/aws/aws-sdk-pandas/blob/main/LICENSE.txt", True),
-        ("Contributing", "https://github.com/aws/aws-sdk-pandas/blob/main/CONTRIBUTING.md", True),
+        ("Contribute", "https://github.com/aws/aws-sdk-pandas/blob/main/CONTRIBUTING.md", True),
         ("GitHub", "https://github.com/aws/aws-sdk-pandas", True),
     ],
     # Render the next and previous page links in navbar. (Default: true)
