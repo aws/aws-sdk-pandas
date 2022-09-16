@@ -61,7 +61,7 @@ Read The Docs
 .. toctree::
    :maxdepth: 2
 
-   what
+   about
    install
    tutorials
    api
