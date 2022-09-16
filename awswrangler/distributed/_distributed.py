@@ -5,6 +5,7 @@ import multiprocessing
 import os
 import sys
 import warnings
+from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable, List, Optional
 
 from awswrangler._config import apply_configs, config
@@ -51,6 +52,7 @@ def ray_remote(function: Callable[..., Any]) -> Callable[..., Any]:
     """
     if config.distributed:
 
+        @wraps(function)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             return ray.remote(function).remote(*args, **kwargs)
 
@@ -60,8 +62,10 @@ def ray_remote(function: Callable[..., Any]) -> Callable[..., Any]:
 
 def modin_repartition(function: Callable[..., Any]) -> Callable[..., Any]:
     """
-    Decorate callable to repartition Modin data frame along row (axis=0) axis
-    to avoid a situation where columns are split along multiple blocks.
+    Decorate callable to repartition Modin data frame.
+
+    By default, repartition along row (axis=0) axis.
+    This avoids a situation where columns are split along multiple blocks.
 
     Parameters
     ----------
@@ -73,6 +77,7 @@ def modin_repartition(function: Callable[..., Any]) -> Callable[..., Any]:
     Callable[..., Any]
     """
 
+    @wraps(function)
     def wrapper(df, *args: Any, axis=0, row_lengths=None, **kwargs: Any) -> Any:
         if all([config.distributed, isinstance(df, ModinDataFrame), axis is not None]):
             # Repartition Modin data frame along row (axis=0) axis

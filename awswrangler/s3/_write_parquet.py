@@ -23,11 +23,12 @@ from awswrangler.s3._write_dataset import _to_dataset
 
 if config.distributed:
     import modin.pandas as pd
+    from modin.distributed.dataframe.pandas import from_partitions, unwrap_partitions
     from modin.pandas import DataFrame as ModinDataFrame
     from ray.data import from_modin, from_pandas
     from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
 
-    from awswrangler.distributed import modin_repartition
+    from awswrangler.distributed import modin_repartition  # pylint: disable=ungrouped-imports
     from awswrangler.distributed.datasources import (  # pylint: disable=ungrouped-imports
         ParquetDatasource,
         UserProvidedKeyBlockWritePathProvider,
@@ -181,7 +182,7 @@ def _to_parquet(
     path_root: Optional[str] = None,
     filename_prefix: Optional[str] = uuid.uuid4().hex,
     max_rows_by_file: Optional[int] = 0,
-    bucketing: bool = False,
+    # bucketing: bool = False,
 ) -> List[str]:
     file_path = _get_file_path(
         path_root=path_root, path=path, filename_prefix=filename_prefix, compression_ext=compression_ext
@@ -223,9 +224,9 @@ def _to_parquet(
     return paths
 
 
-@_to_parquet.register(ModinDataFrame)
+@_to_parquet.register
 def _to_parquet_distributed(  # pylint: disable=unused-argument
-    df: pd.DataFrame,
+    df: ModinDataFrame,
     schema: pa.Schema,
     index: bool,
     compression: Optional[str],
@@ -652,6 +653,11 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
         df=df, index=index, ignore_cols=partition_cols, dtype=dtype
     )
     _logger.debug("schema: \n%s", schema)
+
+    if all([config.distributed, isinstance(df, ModinDataFrame)]):
+        # Repartition Modin data frame along row (axis=0) axis
+        # to avoid a situation where columns are split along multiple blocks
+        df = from_partitions(unwrap_partitions(df, axis=0), axis=0)
 
     if dataset is False:
         paths = _to_parquet(

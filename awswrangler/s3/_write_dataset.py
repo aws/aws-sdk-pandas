@@ -222,7 +222,7 @@ def _to_partitions(
         )
         if bucketing_info:
             _to_buckets(
-                df=subgroup,
+                subgroup,
                 func=func,
                 path_root=prefix,
                 bucketing_info=bucketing_info,
@@ -247,9 +247,9 @@ def _to_partitions(
     return paths, partitions_values
 
 
-@_to_partitions.register(ModinDataFrame)
+@_to_partitions.register
 def _to_partitions_distributed(  # pylint: disable=unused-argument
-    df: pd.DataFrame,
+    df: ModinDataFrame,
     func: Callable[..., List[str]],
     concurrent_partitioning: bool,
     path_root: str,
@@ -285,7 +285,7 @@ def _to_partitions_distributed(  # pylint: disable=unused-argument
         boto3_session=None,
         **func_kwargs,
     )
-    paths: List[str] = [path for metadata in df_write_metadata.values for _, _, path in metadata]
+    paths: List[str] = [path for metadata in df_write_metadata.values for _, _, paths in metadata for path in paths]
     partitions_values: Dict[str, List[str]] = {
         prefix: list(str(p) for p in partitions) if isinstance(partitions, tuple) else [str(partitions)]
         for metadata in df_write_metadata.values
@@ -324,9 +324,9 @@ def _to_buckets(
     return paths
 
 
-@_to_buckets.register(ModinDataFrame)
+@_to_buckets.register
 def _to_buckets_distributed(  # pylint: disable=unused-argument
-    df: pd.DataFrame,
+    df: ModinDataFrame,
     func: Callable[..., List[str]],
     path_root: str,
     bucketing_info: Tuple[List[str], int],
@@ -339,7 +339,7 @@ def _to_buckets_distributed(  # pylint: disable=unused-argument
     df_groups = df.groupby(by=_get_bucketing_series(df=df, bucketing_info=bucketing_info))
     paths: List[str] = []
     df_paths = df_groups.apply(
-        func,
+        func.dispatch(ModinDataFrame),  # type: ignore
         path_root=path_root,
         filename_prefix=filename_prefix,
         boto3_session=None,
