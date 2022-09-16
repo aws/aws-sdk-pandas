@@ -14,6 +14,7 @@ import pyarrow.parquet
 
 from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation
 from awswrangler._config import apply_configs, config
+from awswrangler.distributed import modin_repartition
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._read_parquet import _read_parquet_metadata
@@ -27,7 +28,6 @@ if config.distributed:
     from ray.data import from_modin, from_pandas
     from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
 
-    from awswrangler.distributed import modin_repartition  # pylint: disable=ungrouped-imports
     from awswrangler.distributed.datasources import (  # pylint: disable=ungrouped-imports
         ParquetDatasource,
         UserProvidedKeyBlockWritePathProvider,
