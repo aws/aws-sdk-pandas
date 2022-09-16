@@ -1,5 +1,6 @@
 """Distributed Module (PRIVATE)."""
 
+import logging
 import multiprocessing
 import os
 import sys
@@ -11,6 +12,10 @@ from awswrangler._config import apply_configs, config
 if config.distributed or TYPE_CHECKING:
     import psutil
     import ray  # pylint: disable=import-error
+    from modin.distributed.dataframe.pandas import from_partitions, unwrap_partitions
+    from modin.pandas import DataFrame as ModinDataFrame
+
+_logger: logging.Logger = logging.getLogger(__name__)
 
 
 def ray_get(futures: List[Any]) -> List[Any]:
@@ -51,6 +56,31 @@ def ray_remote(function: Callable[..., Any]) -> Callable[..., Any]:
 
         return wrapper
     return function
+
+
+def modin_repartition(function: Callable[..., Any]) -> Callable[..., Any]:
+    """
+    Decorate callable to repartition Modin data frame along row (axis=0) axis
+    to avoid a situation where columns are split along multiple blocks.
+
+    Parameters
+    ----------
+    function : Callable[..., Any]
+        Callable as input to ray.remote
+
+    Returns
+    -------
+    Callable[..., Any]
+    """
+
+    def wrapper(df, *args: Any, axis=0, row_lengths=None, **kwargs: Any) -> Any:
+        if all([config.distributed, isinstance(df, ModinDataFrame), axis is not None]):
+            # Repartition Modin data frame along row (axis=0) axis
+            # to avoid a situation where columns are split along multiple blocks
+            df = from_partitions(unwrap_partitions(df, axis=axis), axis=axis, row_lengths=row_lengths)
+        return function(df, *args, **kwargs)
+
+    return wrapper
 
 
 @apply_configs

@@ -1,6 +1,7 @@
 """Amazon S3 Write Dataset (PRIVATE)."""
 
 import logging
+from functools import singledispatch
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import boto3
@@ -13,6 +14,7 @@ from awswrangler.s3._write_concurrent import _WriteProxy
 
 if config.distributed:
     import modin.pandas as pd
+    from modin.pandas import DataFrame as ModinDataFrame
 else:
     import pandas as pd
 
@@ -166,7 +168,7 @@ def _write_partitions_distributed(
         )
     else:
         paths = write_func(  # type: ignore
-            df=df_group.drop(partition_cols, axis="columns"),
+            df_group.drop(partition_cols, axis="columns"),
             path_root=prefix,
             filename_prefix=filename_prefix,
             boto3_session=boto3_session,
@@ -176,10 +178,11 @@ def _write_partitions_distributed(
     return prefix, df_group.name, paths
 
 
+@singledispatch
 def _to_partitions(
+    df: pd.DataFrame,
     func: Callable[..., List[str]],
     concurrent_partitioning: bool,
-    df: pd.DataFrame,
     path_root: str,
     use_threads: Union[bool, int],
     mode: str,
@@ -219,8 +222,8 @@ def _to_partitions(
         )
         if bucketing_info:
             _to_buckets(
-                func=func,
                 df=subgroup,
+                func=func,
                 path_root=prefix,
                 bucketing_info=bucketing_info,
                 boto3_session=boto3_session,
@@ -231,8 +234,8 @@ def _to_partitions(
             )
         else:
             proxy.write(
-                func=func,
                 df=subgroup,
+                func=func,
                 path_root=prefix,
                 filename_prefix=filename_prefix,
                 boto3_session=boto3_session,
@@ -244,10 +247,11 @@ def _to_partitions(
     return paths, partitions_values
 
 
+@_to_partitions.register(ModinDataFrame)
 def _to_partitions_distributed(  # pylint: disable=unused-argument
+    df: pd.DataFrame,
     func: Callable[..., List[str]],
     concurrent_partitioning: bool,
-    df: pd.DataFrame,
     path_root: str,
     use_threads: Union[bool, int],
     mode: str,
@@ -290,9 +294,10 @@ def _to_partitions_distributed(  # pylint: disable=unused-argument
     return paths, partitions_values
 
 
+@singledispatch
 def _to_buckets(
-    func: Callable[..., List[str]],
     df: pd.DataFrame,
+    func: Callable[..., List[str]],
     path_root: str,
     bucketing_info: Tuple[List[str], int],
     filename_prefix: str,
@@ -319,9 +324,10 @@ def _to_buckets(
     return paths
 
 
+@_to_buckets.register(ModinDataFrame)
 def _to_buckets_distributed(  # pylint: disable=unused-argument
-    func: Callable[..., List[str]],
     df: pd.DataFrame,
+    func: Callable[..., List[str]],
     path_root: str,
     bucketing_info: Tuple[List[str], int],
     filename_prefix: str,
@@ -367,8 +373,6 @@ def _to_dataset(
     transaction_id: Optional[str],
     bucketing_info: Optional[Tuple[List[str], int]],
     boto3_session: boto3.Session,
-    _to_partitions_fn: Callable[..., Tuple[List[str], Dict[str, List[str]]]] = _to_partitions,
-    _to_buckets_fn: Callable[..., List[str]] = _to_buckets,
     **func_kwargs: Any,
 ) -> Tuple[List[str], Dict[str, List[str]]]:
     path_root = path_root if path_root.endswith("/") else f"{path_root}/"
@@ -402,10 +406,10 @@ def _to_dataset(
     partitions_values: Dict[str, List[str]] = {}
     paths: List[str]
     if partition_cols:
-        paths, partitions_values = _to_partitions_fn(
+        paths, partitions_values = _to_partitions(
+            df,
             func=func,
             concurrent_partitioning=concurrent_partitioning,
-            df=df,
             path_root=path_root,
             use_threads=use_threads,
             mode=mode,
@@ -423,9 +427,9 @@ def _to_dataset(
             **func_kwargs,
         )
     elif bucketing_info:
-        paths = _to_buckets_fn(
+        paths = _to_buckets(
+            df,
             func=func,
-            df=df,
             path_root=path_root,
             use_threads=use_threads,
             bucketing_info=bucketing_info,
@@ -436,7 +440,7 @@ def _to_dataset(
         )
     else:
         paths = func(
-            df=df,
+            df,
             path_root=path_root,
             filename_prefix=filename_prefix,
             use_threads=use_threads,
