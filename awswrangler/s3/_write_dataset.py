@@ -323,7 +323,6 @@ def _to_buckets(
     return paths
 
 
-@_to_buckets.register
 def _to_buckets_distributed(  # pylint: disable=unused-argument
     df: pd.DataFrame,
     func: Callable[..., List[str]],
