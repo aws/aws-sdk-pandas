@@ -234,11 +234,11 @@ def _to_partitions(
             )
         else:
             proxy.write(
-                df=subgroup,
-                func=func,
+                func,
+                boto3_session,
+                subgroup,
                 path_root=prefix,
                 filename_prefix=filename_prefix,
-                boto3_session=boto3_session,
                 use_threads=use_threads,
                 **func_kwargs,
             )
@@ -309,11 +309,11 @@ def _to_buckets(
     df_groups = df.groupby(by=_get_bucketing_series(df=df, bucketing_info=bucketing_info))
     for bucket_number, subgroup in df_groups:
         _proxy.write(
-            func=func,
-            df=subgroup,
+            func,
+            boto3_session,
+            subgroup,
             path_root=path_root,
             filename_prefix=f"{filename_prefix}_bucket-{bucket_number:05d}",
-            boto3_session=boto3_session,
             use_threads=use_threads,
             **func_kwargs,
         )

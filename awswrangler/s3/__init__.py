@@ -50,8 +50,13 @@ __all__ = [
 if config.distributed:
     from modin.pandas import DataFrame as ModinDataFrame
 
-    from awswrangler.s3._write_parquet import _to_parquet, _to_parquet_distributed
-    from awswrangler.s3._write_dataset import _to_buckets, _to_buckets_distributed, _to_partitions, _to_partitions_distributed
+    from awswrangler.s3._write_dataset import (  # pylint: disable=ungrouped-imports
+        _to_buckets,
+        _to_buckets_distributed,
+        _to_partitions,
+        _to_partitions_distributed,
+    )
+    from awswrangler.s3._write_parquet import _to_parquet, _to_parquet_distributed  # pylint: disable=ungrouped-imports
 
     _to_parquet.register(ModinDataFrame, _to_parquet_distributed)
     _to_buckets.register(ModinDataFrame, _to_buckets_distributed)
