@@ -247,9 +247,8 @@ def _to_partitions(
     return paths, partitions_values
 
 
-@_to_partitions.register
 def _to_partitions_distributed(  # pylint: disable=unused-argument
-    df: ModinDataFrame,
+    df: pd.DataFrame,
     func: Callable[..., List[str]],
     concurrent_partitioning: bool,
     path_root: str,
@@ -326,7 +325,7 @@ def _to_buckets(
 
 @_to_buckets.register
 def _to_buckets_distributed(  # pylint: disable=unused-argument
-    df: ModinDataFrame,
+    df: pd.DataFrame,
     func: Callable[..., List[str]],
     path_root: str,
     bucketing_info: Tuple[List[str], int],

@@ -23,7 +23,6 @@ from awswrangler.s3._write_dataset import _to_dataset
 
 if config.distributed:
     import modin.pandas as pd
-    from modin.distributed.dataframe.pandas import from_partitions, unwrap_partitions
     from modin.pandas import DataFrame as ModinDataFrame
     from ray.data import from_modin, from_pandas
     from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
@@ -224,9 +223,8 @@ def _to_parquet(
     return paths
 
 
-@_to_parquet.register
 def _to_parquet_distributed(  # pylint: disable=unused-argument
-    df: ModinDataFrame,
+    df: pd.DataFrame,
     schema: pa.Schema,
     index: bool,
     compression: Optional[str],
@@ -653,11 +651,6 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
         df=df, index=index, ignore_cols=partition_cols, dtype=dtype
     )
     _logger.debug("schema: \n%s", schema)
-
-    if all([config.distributed, isinstance(df, ModinDataFrame)]):
-        # Repartition Modin data frame along row (axis=0) axis
-        # to avoid a situation where columns are split along multiple blocks
-        df = from_partitions(unwrap_partitions(df, axis=0), axis=0)
 
     if dataset is False:
         paths = _to_parquet(
