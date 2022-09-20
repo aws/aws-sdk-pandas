@@ -14,15 +14,17 @@ if config.distributed or TYPE_CHECKING:
 
 
 class RayLogger:
+    """Create discrete Logger instance for Ray Tasks"""
     def __init__(
         self,
         log_level: int = logging.INFO,
-        format: str = "%(asctime)s::%(levelname)-2s::%(name)s::%(message)s",
+        format: str = "%(asctime)s::%(levelname)-2s::%(name)s::%(message)s", # pylint: disable=redefined-builtin
         datefmt: str = "%Y-%m-%d %H:%M:%S",
     ):
         logging.basicConfig(level=log_level, format=format, datefmt=datefmt)
 
     def get_logger(self, name: Union[str, Any] = None) -> logging.Logger:
+        """Return logger object"""
         return logging.getLogger(name)
 
 
