@@ -98,7 +98,7 @@ FROM "sampleDB"."sampleTable" ORDER BY time DESC LIMIT 3
 
 ## [Read The Docs](https://aws-sdk-pandas.readthedocs.io/)
 
-- [**What is AWS SDK for pandas?**](https://aws-sdk-pandas.readthedocs.io/en/2.16.1/what.html)
+- [**What is AWS SDK for pandas?**](https://aws-sdk-pandas.readthedocs.io/en/2.16.1/about.html)
 - [**Install**](https://aws-sdk-pandas.readthedocs.io/en/2.16.1/install.html)
   - [PyPi (pip)](https://aws-sdk-pandas.readthedocs.io/en/2.16.1/install.html#pypi-pip)
   - [Conda](https://aws-sdk-pandas.readthedocs.io/en/2.16.1/install.html#conda)
