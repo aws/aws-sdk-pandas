@@ -15,6 +15,7 @@ if config.distributed or TYPE_CHECKING:
 
 class RayLogger:
     """Create discrete Logger instance for Ray Tasks"""
+
     def __init__(
         self,
         log_level: int = logging.INFO,
