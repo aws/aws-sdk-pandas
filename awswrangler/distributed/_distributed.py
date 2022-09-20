@@ -14,7 +14,7 @@ if config.distributed or TYPE_CHECKING:
 
 
 class RayLogger:
-    """Create discrete Logger instance for Ray Tasks"""
+    """Create discrete Logger instance for Ray Tasks."""
 
     def __init__(
         self,
@@ -25,7 +25,7 @@ class RayLogger:
         logging.basicConfig(level=log_level, format=format, datefmt=datefmt)
 
     def get_logger(self, name: Union[str, Any] = None) -> logging.Logger:
-        """Return logger object"""
+        """Return logger object."""
         return logging.getLogger(name)
 
 
@@ -50,6 +50,7 @@ def ray_get(futures: List[Any]) -> List[Any]:
 def ray_remote(function: Callable[..., Any]) -> Callable[..., Any]:
     """
     Decorate callable to wrap within ray.remote.
+
     Parameters
     ----------
     function : Callable[..., Any]
