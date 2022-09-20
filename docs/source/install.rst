@@ -120,7 +120,7 @@ Here is an example of how to create and use the AWS SDK for pandas Lambda layer 
 AWS Glue Python Shell Jobs
 --------------------------
 
-.. note:: Glue Python Shell runs on Python3.6, for which support was dropped in version 2.15.0 of awswrangler. Please use version 2.14.0 of the library or below.
+.. note:: Glue Python Shell Python3.9 has version 2.15.1 of awswrangler `baked in <https://aws.amazon.com/blogs/big-data/aws-glue-python-shell-now-supports-python-3-9-with-a-flexible-pre-loaded-environment-and-support-to-install-additional-libraries/>`_. If you need a different version, follow instructions below:
 
 1 - Go to `GitHub's release page <https://github.com/aws/aws-sdk-pandas/releases>`_ and download the wheel file
 (.whl) related to the desired version. Alternatively, you can download the wheel from the `public artifacts bucket <https://aws-sdk-pandas.readthedocs.io/en/latest/install.html#public-artifacts>`_.
