@@ -14,7 +14,7 @@ from pandas.io.common import infer_compression
 from awswrangler import _utils, exceptions
 from awswrangler._config import config
 from awswrangler._threading import _get_executor
-from awswrangler.distributed import ray_remote
+from awswrangler.distributed import RayLogger, ray_remote
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import (
@@ -91,6 +91,8 @@ def _read_text_file(
     s3_additional_kwargs: Optional[Dict[str, str]],
     dataset: bool,
 ) -> pd.DataFrame:
+    if config.distributed:
+        RayLogger().get_logger(name=_read_text_file.__name__)
     boto3_session = _utils.ensure_session(boto3_session)
     mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
     try:

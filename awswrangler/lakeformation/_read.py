@@ -8,10 +8,10 @@ import pandas as pd
 from pyarrow import NativeFile, RecordBatchStreamReader, Table
 
 from awswrangler import _data_types, _utils, catalog
-from awswrangler._config import apply_configs
+from awswrangler._config import apply_configs, config
 from awswrangler._threading import _get_executor
 from awswrangler.catalog._utils import _catalog_id, _transaction_id
-from awswrangler.distributed import ray_remote
+from awswrangler.distributed import RayLogger, ray_remote
 from awswrangler.lakeformation._utils import commit_transaction, start_transaction, wait_query
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -23,6 +23,8 @@ def _get_work_unit_results(
     query_id: str,
     token_work_unit: Tuple[str, int],
 ) -> Table:
+    if config.distributed:
+        RayLogger().get_logger(name=_get_work_unit_results.__name__)
     _logger.debug("Query id: %s Token work unit: %s", query_id, token_work_unit)
     client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
 

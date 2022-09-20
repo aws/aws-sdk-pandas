@@ -1,16 +1,29 @@
 """Distributed Module (PRIVATE)."""
-
+import logging
 import multiprocessing
 import os
 import sys
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union
 
 from awswrangler._config import apply_configs, config
 
 if config.distributed or TYPE_CHECKING:
     import psutil
     import ray  # pylint: disable=import-error
+
+
+class RayLogger:
+    def __init__(
+        self,
+        log_level: int = logging.INFO,
+        format: str = "%(asctime)s::%(levelname)-2s::%(name)s::%(message)s",
+        datefmt: str = "%Y-%m-%d %H:%M:%S",
+    ):
+        logging.basicConfig(level=log_level, format=format, datefmt=datefmt)
+
+    def get_logger(self, name: Union[str, Any] = None) -> logging.Logger:
+        return logging.getLogger(name)
 
 
 def ray_get(futures: List[Any]) -> List[Any]:
@@ -34,12 +47,10 @@ def ray_get(futures: List[Any]) -> List[Any]:
 def ray_remote(function: Callable[..., Any]) -> Callable[..., Any]:
     """
     Decorate callable to wrap within ray.remote.
-
     Parameters
     ----------
     function : Callable[..., Any]
         Callable as input to ray.remote
-
     Returns
     -------
     Callable[..., Any]
@@ -59,6 +70,7 @@ def initialize_ray(
     redis_password: Optional[str] = None,
     ignore_reinit_error: Optional[bool] = True,
     include_dashboard: Optional[bool] = False,
+    log_to_driver: Optional[bool] = True,
     object_store_memory: Optional[int] = None,
     cpu_count: Optional[int] = None,
     gpu_count: Optional[int] = 0,
@@ -76,6 +88,8 @@ def initialize_ray(
         If true, Ray suppress errors from calling ray.init() twice, by default True
     include_dashboard : Optional[bool]
         Boolean flag indicating whether or not to start the Ray dashboard, by default False
+    log_to_driver : Optional[bool]
+        Boolean flag to enable routing of all worker logs to the driver, by default True
     object_store_memory : Optional[int]
         The amount of memory (in bytes) to start the object store with, by default None
     cpu_count : Optional[int]
@@ -89,6 +103,7 @@ def initialize_ray(
                 address=address,
                 include_dashboard=include_dashboard,
                 ignore_reinit_error=ignore_reinit_error,
+                log_to_driver=log_to_driver,
             )
         else:
             if not object_store_memory:
@@ -116,6 +131,7 @@ def initialize_ray(
                 "num_gpus": gpu_count,
                 "include_dashboard": include_dashboard,
                 "ignore_reinit_error": ignore_reinit_error,
+                "log_to_driver": log_to_driver,
                 "object_store_memory": object_store_memory,
                 "_redis_password": redis_password,
                 "_memory": object_store_memory,
