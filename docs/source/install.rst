@@ -144,7 +144,7 @@ Go to your Glue PySpark job and create a new *Job parameters* key/value:
 
 To install a specific version, set the value for the above Job parameter as follows:
 
-* Value: ``cython==0.29.21,pg8000==1.21.0,pyarrow==2,pandas==1.3.0,awswrangler==2.16.1``
+* Value: ``cython==0.29.21,pg8000==1.21.0,pyarrow==2,pandas==1.3.0,awswrangler==2.17.0``
 
 .. note:: Pyarrow 3 is not currently supported in Glue PySpark Jobs, which is why an installation of pyarrow 2 is required.
 
@@ -163,7 +163,7 @@ Lambda zipped layers and Python wheels are stored in a publicly accessible S3 bu
 
   * Python wheel: ``awswrangler-<version>-py3-none-any.whl``
 
-For example: ``s3://aws-data-wrangler-public-artifacts/releases/2.16.1/awswrangler-layer-2.16.1-py3.8.zip``
+For example: ``s3://aws-data-wrangler-public-artifacts/releases/2.17.0/awswrangler-layer-2.17.0-py3.8.zip``
 
 Amazon SageMaker Notebook
 -------------------------
@@ -253,7 +253,7 @@ Despite not being a distributed library, AWS SDK for pandas could be used to com
         sudo pip install pyarrow==2 awswrangler
 
 .. note:: Make sure to freeze the library version in the bootstrap for production
-          environments (e.g. awswrangler==2.16.1)
+          environments (e.g. awswrangler==2.17.0)
 
 .. note:: Pyarrow 3 is not currently supported in the default EMR image, which is why an installation of pyarrow 2 is required.
 
