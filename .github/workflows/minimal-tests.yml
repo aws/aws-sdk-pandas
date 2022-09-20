@@ -33,7 +33,6 @@ jobs:
           python -m pip install poetry==1.1.15
           poetry config virtualenvs.create false --local
           poetry install --extras "sqlserver" -vvv
-          pytest --version
       - name: Test Metadata
         run: pytest tests/test_metadata.py
       - name: Test Session
