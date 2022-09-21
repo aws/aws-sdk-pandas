@@ -956,7 +956,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
             **pandas_kwargs,
         )
 
-    compression: Optional[str] = pandas_kwargs.get("compression", None)
+    compression: Optional[str] = pandas_kwargs.pop("compression", None)
     df = df[columns] if columns else df
 
     columns_types: Dict[str, str] = {}
@@ -995,7 +995,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
                 projection_storage_location_template=None,
                 catalog_table_input=catalog_table_input,
                 catalog_id=catalog_id,
-                compression=pandas_kwargs.get("compression"),
+                compression=compression,
                 serde_library=None,
                 serde_parameters=None,
             )
@@ -1062,7 +1062,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
                 projection_storage_location_template=None,
                 catalog_table_input=catalog_table_input,
                 catalog_id=catalog_id,
-                compression=pandas_kwargs.get("compression"),
+                compression=compression,
                 serde_library=serde_library,
                 serde_parameters=serde_parameters,
             )
@@ -1078,7 +1078,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
                     serde_parameters=serde_parameters,
                     catalog_id=catalog_id,
                     columns_types=columns_types,
-                    compression=pandas_kwargs.get("compression"),
+                    compression=compression,
                 )
                 if commit_trans:
                     lakeformation.commit_transaction(

@@ -374,8 +374,11 @@ def test_athena_query_failed(glue_database):
 
 
 def test_athena_read_list(glue_database):
-    with pytest.raises(wr.exceptions.UnsupportedType):
-        wr.athena.read_sql_query(sql="SELECT ARRAY[1, 2, 3]", database=glue_database, ctas_approach=False)
+    df = wr.athena.read_sql_query(sql="SELECT ARRAY[1, 2, 3] AS col0", database=glue_database, ctas_approach=False)
+    assert len(df) == 1
+    assert len(df.index) == 1
+    assert len(df.columns) == 1
+    assert df["col0"].iloc[0] == "[1, 2, 3]"
 
 
 def test_sanitize_dataframe_column_names():
@@ -430,8 +433,11 @@ def test_athena_ctas_empty(glue_database):
 def test_athena_struct_simple(path, glue_database):
     sql = "SELECT CAST(ROW(1, 'foo') AS ROW(id BIGINT, value VARCHAR)) AS col0"
     # Regular approach
-    with pytest.raises(wr.exceptions.UnsupportedType):
-        wr.athena.read_sql_query(sql=sql, database=glue_database, ctas_approach=False)
+    df = wr.athena.read_sql_query(sql=sql, database=glue_database, ctas_approach=False)
+    assert len(df) == 1
+    assert len(df.index) == 1
+    assert len(df.columns) == 1
+    assert df["col0"].iloc[0] == "{id=1, value=foo}"
     # CTAS and UNLOAD
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
         wr.athena.read_sql_query(sql=sql, database=glue_database, ctas_approach=True, unload_approach=True)
