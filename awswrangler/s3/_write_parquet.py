@@ -4,7 +4,8 @@ import logging
 import math
 import uuid
 from contextlib import contextmanager
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
+from functools import singledispatch
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
 import pyarrow as pa
@@ -13,6 +14,7 @@ import pyarrow.parquet
 
 from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation
 from awswrangler._config import apply_configs, config
+from awswrangler.distributed import modin_repartition
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._read_parquet import _read_parquet_metadata
@@ -162,6 +164,65 @@ def _to_parquet_chunked(
     return proxy.close()  # blocking
 
 
+@singledispatch
+def _to_parquet(
+    df: pd.DataFrame,
+    schema: pa.Schema,
+    index: bool,
+    compression: Optional[str],
+    compression_ext: str,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]],
+    cpus: int,
+    dtype: Dict[str, str],
+    boto3_session: Optional[boto3.Session],
+    s3_additional_kwargs: Optional[Dict[str, str]],
+    use_threads: Union[bool, int],
+    path: Optional[str] = None,
+    path_root: Optional[str] = None,
+    filename_prefix: Optional[str] = uuid.uuid4().hex,
+    max_rows_by_file: Optional[int] = 0,
+    # bucketing: bool = False,
+) -> List[str]:
+    file_path = _get_file_path(
+        path_root=path_root, path=path, filename_prefix=filename_prefix, compression_ext=compression_ext
+    )
+    _logger.debug("file_path: %s", file_path)
+    table: pa.Table = pyarrow.Table.from_pandas(df=df, schema=schema, nthreads=cpus, preserve_index=index, safe=True)
+    for col_name, col_type in dtype.items():
+        if col_name in table.column_names:
+            col_index = table.column_names.index(col_name)
+            pyarrow_dtype = _data_types.athena2pyarrow(col_type)
+            field = pa.field(name=col_name, type=pyarrow_dtype)
+            table = table.set_column(col_index, field, table.column(col_name).cast(pyarrow_dtype))
+            _logger.debug("Casting column %s (%s) to %s (%s)", col_name, col_index, col_type, pyarrow_dtype)
+
+    if max_rows_by_file is not None and max_rows_by_file > 0:
+        paths: List[str] = _to_parquet_chunked(
+            file_path=file_path,
+            boto3_session=boto3_session,
+            s3_additional_kwargs=s3_additional_kwargs,
+            compression=compression,
+            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+            table=table,
+            max_rows_by_file=max_rows_by_file,
+            num_of_rows=df.shape[0],
+            cpus=cpus,
+        )
+    else:
+        with _new_writer(
+            file_path=file_path,
+            compression=compression,
+            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+            schema=table.schema,
+            boto3_session=boto3_session,
+            s3_additional_kwargs=s3_additional_kwargs,
+            use_threads=use_threads,
+        ) as writer:
+            writer.write_table(table)
+        paths = [file_path]
+    return paths
+
+
 def _to_parquet_distributed(  # pylint: disable=unused-argument
     df: pd.DataFrame,
     schema: pa.Schema,
@@ -205,64 +266,8 @@ def _to_parquet_distributed(  # pylint: disable=unused-argument
     return datasource.get_write_paths()
 
 
-def _to_parquet(
-    df: pd.DataFrame,
-    schema: pa.Schema,
-    index: bool,
-    compression: Optional[str],
-    compression_ext: str,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]],
-    cpus: int,
-    dtype: Dict[str, str],
-    boto3_session: Optional[boto3.Session],
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    use_threads: Union[bool, int],
-    path: Optional[str] = None,
-    path_root: Optional[str] = None,
-    filename_prefix: Optional[str] = uuid.uuid4().hex,
-    max_rows_by_file: Optional[int] = 0,
-) -> List[str]:
-    file_path = _get_file_path(
-        path_root=path_root, path=path, filename_prefix=filename_prefix, compression_ext=compression_ext
-    )
-    _logger.debug("file_path: %s", file_path)
-    table: pa.Table = pyarrow.Table.from_pandas(df=df, schema=schema, nthreads=cpus, preserve_index=index, safe=True)
-    for col_name, col_type in dtype.items():
-        if col_name in table.column_names:
-            col_index = table.column_names.index(col_name)
-            pyarrow_dtype = _data_types.athena2pyarrow(col_type)
-            field = pa.field(name=col_name, type=pyarrow_dtype)
-            table = table.set_column(col_index, field, table.column(col_name).cast(pyarrow_dtype))
-            _logger.debug("Casting column %s (%s) to %s (%s)", col_name, col_index, col_type, pyarrow_dtype)
-
-    if max_rows_by_file is not None and max_rows_by_file > 0:
-        paths: List[str] = _to_parquet_chunked(
-            file_path=file_path,
-            boto3_session=boto3_session,
-            s3_additional_kwargs=s3_additional_kwargs,
-            compression=compression,
-            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
-            table=table,
-            max_rows_by_file=max_rows_by_file,
-            num_of_rows=df.shape[0],
-            cpus=cpus,
-        )
-    else:
-        with _new_writer(
-            file_path=file_path,
-            compression=compression,
-            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
-            schema=table.schema,
-            boto3_session=boto3_session,
-            s3_additional_kwargs=s3_additional_kwargs,
-            use_threads=use_threads,
-        ) as writer:
-            writer.write_table(table)
-        paths = [file_path]
-    return paths
-
-
 @apply_configs
+@modin_repartition
 def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
     df: pd.DataFrame,
     path: Optional[str] = None,
@@ -647,13 +652,9 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     )
     _logger.debug("schema: \n%s", schema)
 
-    _to_parquet_fn: Callable[..., List[str]] = _to_parquet
-    if config.distributed and isinstance(df, ModinDataFrame):
-        _to_parquet_fn = _to_parquet_distributed
-
     if dataset is False:
-        paths = _to_parquet_fn(
-            df=df,
+        paths = _to_parquet(
+            df,
             path=path,
             filename_prefix=filename_prefix,
             schema=schema,
@@ -714,7 +715,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
                 )
 
         paths, partitions_values = _to_dataset(
-            func=_to_parquet_fn,
+            func=_to_parquet,
             concurrent_partitioning=concurrent_partitioning,
             df=df,
             path_root=path,  # type: ignore

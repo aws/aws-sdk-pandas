@@ -25,27 +25,33 @@ class _WriteProxy:
 
     @staticmethod
     def _caller(
-        func: Callable[..., pd.DataFrame], boto3_primitives: _utils.Boto3PrimitivesType, func_kwargs: Dict[str, Any]
+        func: Callable[..., pd.DataFrame],
+        boto3_primitives: _utils.Boto3PrimitivesType,
+        *args: Any,
+        func_kwargs: Dict[str, Any],
     ) -> pd.DataFrame:
         boto3_session: boto3.Session = _utils.boto3_from_primitives(primitives=boto3_primitives)
         func_kwargs["boto3_session"] = boto3_session
         _logger.debug("Calling: %s", func)
-        return func(**func_kwargs)
+        return func(*args, **func_kwargs)
 
-    def write(self, func: Callable[..., List[str]], boto3_session: boto3.Session, **func_kwargs: Any) -> None:
+    def write(
+        self, func: Callable[..., List[str]], boto3_session: boto3.Session, *args: Any, **func_kwargs: Any
+    ) -> None:
         """Write File."""
         if self._exec is not None:
             _utils.block_waiting_available_thread(seq=self._futures, max_workers=self._cpus)
             _logger.debug("Submitting: %s", func)
             future = self._exec.submit(
                 _WriteProxy._caller,
-                func=func,
-                boto3_primitives=_utils.boto3_to_primitives(boto3_session=boto3_session),
+                func,
+                _utils.boto3_to_primitives(boto3_session=boto3_session),
+                *args,
                 func_kwargs=func_kwargs,
             )
             self._futures.append(future)
         else:
-            self._results += func(boto3_session=boto3_session, **func_kwargs)
+            self._results += func(*args, boto3_session=boto3_session, **func_kwargs)
 
     def close(self) -> List[str]:
         """Close the proxy."""

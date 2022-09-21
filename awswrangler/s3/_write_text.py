@@ -11,13 +11,23 @@ import pandas as pd
 from pandas.io.common import infer_compression
 
 from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation
-from awswrangler._config import apply_configs
+from awswrangler._config import apply_configs, config
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_dataset import _to_dataset
 
+if config.distributed:
+    from modin.pandas import DataFrame as ModinDataFrame
+
+
 _logger: logging.Logger = logging.getLogger(__name__)
+
+
+def _to_pandas(df: pd.DataFrame) -> pd.DataFrame:
+    if config.distributed and isinstance(df, ModinDataFrame):
+        return df._to_pandas()  # pylint: disable=protected-access
+    return df
 
 
 def _get_write_details(path: str, pandas_kwargs: Dict[str, Any]) -> Tuple[str, Optional[str], Optional[str]]:
@@ -30,8 +40,8 @@ def _get_write_details(path: str, pandas_kwargs: Dict[str, Any]) -> Tuple[str, O
 
 
 def _to_text(
-    file_format: str,
     df: pd.DataFrame,
+    file_format: str,
     use_threads: Union[bool, int],
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
@@ -427,6 +437,9 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         parameters=parameters,
         columns_comments=columns_comments,
     )
+    # Temporary fix to convert Modin data frames to Pandas Data frames
+    # until distributed _to_text implementation is available
+    df = _to_pandas(df)
 
     # Initializing defaults
     partition_cols = partition_cols if partition_cols else []
@@ -483,8 +496,8 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         pandas_kwargs["index"] = index
         pandas_kwargs["columns"] = columns
         _to_text(
+            df,
             file_format="csv",
-            df=df,
             use_threads=use_threads,
             path=path,
             boto3_session=session,
@@ -866,7 +879,6 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
             f"JSON compression on S3 is not supported for Pandas version {pd.__version__}. "
             "The minimum acceptable version to achive it is Pandas 1.2.0 that requires Python >=3.7.1."
         )
-
     _validate_args(
         df=df,
         table=table,
@@ -880,6 +892,9 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         parameters=parameters,
         columns_comments=columns_comments,
     )
+    # Temporary fix to convert Modin data frames to Pandas Data frames
+    # until distributed _to_text implementation is available
+    df = _to_pandas(df)
 
     # Initializing defaults
     partition_cols = partition_cols if partition_cols else []
@@ -932,8 +947,8 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
 
     if dataset is False:
         return _to_text(
+            df,
             file_format="json",
-            df=df,
             path=path,
             use_threads=use_threads,
             boto3_session=session,
