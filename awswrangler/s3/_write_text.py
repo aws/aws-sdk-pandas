@@ -90,8 +90,8 @@ def _to_text(
 
 
 def _to_text_distributed(
-    file_format: str,
     df: pd.DataFrame,
+    file_format: str,
     use_threads: Union[bool, int],
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
@@ -567,6 +567,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         pandas_kwargs["index"] = index
         pandas_kwargs["columns"] = columns
         _to_text_fn(
+            df=df,
             file_format="csv",
             use_threads=use_threads,
             path=path,
