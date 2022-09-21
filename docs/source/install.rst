@@ -38,9 +38,9 @@ It can be accessed in the AWS Lambda console directly:
   :width: 400
   :alt: AWS Managed Lambda Layer
 
-Or via its ARN: ``arn:aws:lambda:<region>:336392948345:layer:AWSDataWrangler-Python<python-version>:<layer-version>``.
+Or via its ARN: ``arn:aws:lambda:<region>:336392948345:layer:AWSSDKPandas-Python<python-version>:<layer-version>``.
 
-For example: ``arn:aws:lambda:us-east-1:336392948345:layer:AWSDataWrangler-Python37:1``.
+For example: ``arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python37:1``.
 
 The full list of ARNs is available `here <layers.rst>`__.
 
@@ -75,14 +75,14 @@ This option provides the ability to use semantic versions (i.e. library version)
    * - App
      - ARN
      - Description
-   * - aws-data-wrangler-layer-py3-7
-     - arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-data-wrangler-layer-py3-7
+   * - aws-sdk-pandas-layer-py3-7
+     - arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-sdk-pandas-layer-py3-7
      - Layer for ``Python 3.7.x`` runtimes
-   * - aws-data-wrangler-layer-py3-8
-     - arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-data-wrangler-layer-py3-8
+   * - aws-sdk-pandas-layer-py3-8
+     - arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-sdk-pandas-layer-py3-8
      - Layer for ``Python 3.8.x`` runtimes
-   * - aws-data-wrangler-layer-py3-9
-     - arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-data-wrangler-layer-py3-9
+   * - aws-sdk-pandas-layer-py3-9
+     - arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-sdk-pandas-layer-py3-9
      - Layer for ``Python 3.9.x`` runtimes     
 
 Here is an example of how to create and use the AWS SDK for pandas Lambda layer in your CDK app:
@@ -91,30 +91,30 @@ Here is an example of how to create and use the AWS SDK for pandas Lambda layer 
     
     from aws_cdk import core, aws_sam as sam, aws_lambda
 
-    class AWSWranglerApp(core.Construct):
+    class AWSSDKPandasApp(core.Construct):
       def __init__(self, scope: core.Construct, id_: str):
         super.__init__(scope,id)
 
-        awswrangler_layer = sam.CfnApplication(
+        aws_sdk_pandas_layer = sam.CfnApplication(
           self,
-          "awswrangler-layer",
+          "awssdkpandas-layer",
           location=sam.CfnApplication.ApplicationLocationProperty(
-            application_id="arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-data-wrangler-layer-py3-8",
+            application_id="arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-sdk-pandas-layer-py3-8",
             semantic_version="2.16.0",  # Get the latest version from https://github.com/aws/aws-sdk-pandas/releases
           ),
         )
 
-        awswrangler_layer_arn = awswrangler_layer.get_att("Outputs.WranglerLayer38Arn").to_string()
-        awswrangler_layer_version = aws_lambda.LayerVersion.from_layer_version_arn(self, "awswrangler-layer-version", awswrangler_layer_arn)
+        aws_sdk_pandas_layer_arn = aws_sdk_pandas_layer.get_att("Outputs.WranglerLayer38Arn").to_string()
+        aws_sdk_pandas_layer_version = aws_lambda.LayerVersion.from_layer_version_arn(self, "awssdkpandas-layer-version", aws_sdk_pandas_layer_arn)
 
         aws_lambda.Function(
           self,
-          "awswrangler-function",
+          "awssdkpandas-function",
           runtime=aws_lambda.Runtime.PYTHON_3_8,
-          function_name="sample-awswrangler-lambda-function",
-          code=aws_lambda.Code.from_asset("./src/awswrangler-lambda"),
+          function_name="sample-awssdk-pandas-lambda-function",
+          code=aws_lambda.Code.from_asset("./src/awssdk-pandas-lambda"),
           handler='lambda_function.lambda_handler',
-          layers=[awswrangler_layer_version]
+          layers=[aws_sdk_pandas_layer_version]
         )
 
 AWS Glue Python Shell Jobs
