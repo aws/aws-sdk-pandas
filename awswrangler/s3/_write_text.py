@@ -570,7 +570,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             }
 
             if (catalog_table_input is None) and (table_type == "GOVERNED"):
-                catalog._create_csv_table(**create_table_args)
+                catalog._create_csv_table(**create_table_args)  # pylint: disable=protected-access
                 catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
                     database=database,
                     table=table,
@@ -578,6 +578,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                     transaction_id=transaction_id,
                     catalog_id=catalog_id,
                 )
+                create_table_args["catalog_table_input"] = catalog_table_input
 
         paths, partitions_values = _to_dataset(
             func=_to_text,
@@ -614,7 +615,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                     serde_info = catalog_table_input["StorageDescriptor"]["SerdeInfo"]
                 create_table_args["serde_library"] = serde_info.get("SerializationLibrary", None)
                 create_table_args["serde_parameters"] = serde_info.get("Parameters", None)
-                catalog._create_csv_table(**create_table_args)
+                catalog._create_csv_table(**create_table_args)  # pylint: disable=protected-access
                 if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
                     _logger.debug("partitions_values:\n%s", partitions_values)
                     catalog.add_csv_partitions(
@@ -972,7 +973,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         }
 
         if (catalog_table_input is None) and (table_type == "GOVERNED"):
-            catalog._create_json_table(**create_table_args)
+            catalog._create_json_table(**create_table_args)  # pylint: disable=protected-access
             catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
                 database=database,
                 table=table,
@@ -980,6 +981,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
                 transaction_id=transaction_id,
                 catalog_id=catalog_id,
             )
+            create_table_args["catalog_table_input"] = catalog_table_input
 
     paths, partitions_values = _to_dataset(
         func=_to_text,
@@ -1011,7 +1013,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
                 serde_info = catalog_table_input["StorageDescriptor"]["SerdeInfo"]
             create_table_args["serde_library"] = serde_info.get("SerializationLibrary", None)
             create_table_args["serde_parameters"] = serde_info.get("Parameters", None)
-            catalog._create_json_table(**create_table_args)
+            catalog._create_json_table(**create_table_args)  # pylint: disable=protected-access
             if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
                 _logger.debug("partitions_values:\n%s", partitions_values)
                 catalog.add_json_partitions(

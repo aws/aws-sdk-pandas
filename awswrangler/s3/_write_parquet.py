@@ -706,8 +706,8 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
             }
 
             if (catalog_table_input is None) and (table_type == "GOVERNED"):
-                catalog._create_parquet_table(**create_table_args)
-                catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
+                catalog._create_parquet_table(**create_table_args)  # pylint: disable=protected-access
+                create_table_args["catalog_table_input"] = catalog._get_table_input(  # pylint: disable=protected-access
                     database=database,
                     table=table,
                     boto3_session=session,
@@ -744,7 +744,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
         )
         if (database is not None) and (table is not None):
             try:
-                catalog._create_parquet_table(**create_table_args)
+                catalog._create_parquet_table(**create_table_args)  # pylint: disable=protected-access
                 if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
                     _logger.debug("partitions_values:\n%s", partitions_values)
                     catalog.add_parquet_partitions(
