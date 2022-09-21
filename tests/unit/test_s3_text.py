@@ -183,6 +183,17 @@ def test_json(path):
     assert df1.equals(wr.s3.read_json(path=[path0, path1], use_threads=True))
 
 
+def test_json_lines(path):
+    df0 = pd.DataFrame({"id": [1, 2, 3]})
+    path0 = f"{path}test_json0.json"
+    path1 = f"{path}test_json1.json"
+    wr.s3.to_json(df=df0, path=path0, orient="records", lines=True)
+    wr.s3.to_json(df=df0, path=path1, orient="records", lines=True)
+    assert df0.equals(wr.s3.read_json(path=path0, use_threads=False, orient="records", lines=True))
+    df1 = pd.concat(objs=[df0, df0], sort=False, ignore_index=True)
+    assert df1.equals(wr.s3.read_json(path=[path0, path1], use_threads=True, orient="records", lines=True))
+
+
 def test_to_json_partitioned(path, glue_database, glue_table):
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5], "c2": [6, 7, 8]})
     partitions = wr.s3.to_json(df, path, dataset=True, database=glue_database, table=glue_table, partition_cols=["c0"])
