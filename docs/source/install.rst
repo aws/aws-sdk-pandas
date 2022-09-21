@@ -58,7 +58,7 @@ and press **create**.
 Serverless Application Repository (SAR)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Starting version `2.12.0`, AWS SDK for pandas layers are also available in the `AWS Serverless Application Repository <https://serverlessrepo.aws.amazon.com/applications>`_ (SAR).
+AWS SDK for pandas layers are also available in the `AWS Serverless Application Repository <https://serverlessrepo.aws.amazon.com/applications>`_ (SAR).
 
 The app deploys the Lambda layer version in your own AWS account and region via a CloudFormation stack.
 This option provides the ability to use semantic versions (i.e. library version) instead of Lambda layer versions.
@@ -95,7 +95,7 @@ Here is an example of how to create and use the AWS SDK for pandas Lambda layer 
           "awssdkpandas-layer",
           location=sam.CfnApplication.ApplicationLocationProperty(
             application_id="arn:aws:serverlessrepo:us-east-1:336392948345:applications/aws-sdk-pandas-layer-py3-8",
-            semantic_version="2.16.0",  # Get the latest version from https://github.com/aws/aws-sdk-pandas/releases
+            semantic_version="2.17.0",  # Get the latest version from https://github.com/aws/aws-sdk-pandas/releases
           ),
         )
 
