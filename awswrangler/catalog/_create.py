@@ -822,7 +822,7 @@ def create_parquet_table(
 
 
 @apply_configs
-def create_csv_table(  # pylint: disable=too-many-arguments
+def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     database: str,
     table: str,
     path: str,

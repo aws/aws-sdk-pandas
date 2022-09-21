@@ -731,7 +731,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
 
 
 @apply_configs
-def store_parquet_metadata(  # pylint: disable=too-many-arguments
+def store_parquet_metadata(  # pylint: disable=too-many-arguments,too-many-locals
     path: str,
     database: str,
     table: str,
