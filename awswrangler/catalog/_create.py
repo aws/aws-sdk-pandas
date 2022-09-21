@@ -44,6 +44,7 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-
     projection_values: Optional[Dict[str, str]],
     projection_intervals: Optional[Dict[str, str]],
     projection_digits: Optional[Dict[str, str]],
+    projection_formats: Optional[Dict[str, str]],
     projection_storage_location_template: Optional[str],
     catalog_id: Optional[str],
 ) -> None:
@@ -67,11 +68,13 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-
         projection_values = projection_values if projection_values else {}
         projection_intervals = projection_intervals if projection_intervals else {}
         projection_digits = projection_digits if projection_digits else {}
+        projection_formats = projection_formats if projection_formats else {}
         projection_types = {sanitize_column_name(k): v for k, v in projection_types.items()}
         projection_ranges = {sanitize_column_name(k): v for k, v in projection_ranges.items()}
         projection_values = {sanitize_column_name(k): v for k, v in projection_values.items()}
         projection_intervals = {sanitize_column_name(k): v for k, v in projection_intervals.items()}
         projection_digits = {sanitize_column_name(k): v for k, v in projection_digits.items()}
+        projection_formats = {sanitize_column_name(k): v for k, v in projection_formats.items()}
         for k, v in projection_types.items():
             dtype: Optional[str] = partitions_types.get(k)
             if dtype is None and projection_storage_location_template is None:
@@ -97,6 +100,10 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-
         for k, v in projection_digits.items():
             mode = _update_if_necessary(
                 dic=table_input["Parameters"], key=f"projection.{k}.digits", value=str(v), mode=mode
+            )
+        for k, v in projection_formats.items():
+            mode = _update_if_necessary(
+                dic=table_input["Parameters"], key=f"projection.{k}.format", value=str(v), mode=mode
             )
         mode = _update_if_necessary(
             table_input["Parameters"],
@@ -266,6 +273,7 @@ def _create_parquet_table(
     projection_values: Optional[Dict[str, str]],
     projection_intervals: Optional[Dict[str, str]],
     projection_digits: Optional[Dict[str, str]],
+    projection_formats: Optional[Dict[str, str]],
     projection_storage_location_template: Optional[str],
     boto3_session: Optional[boto3.Session],
     catalog_table_input: Optional[Dict[str, Any]],
@@ -318,6 +326,7 @@ def _create_parquet_table(
         projection_values=projection_values,
         projection_intervals=projection_intervals,
         projection_digits=projection_digits,
+        projection_formats=projection_formats,
         projection_storage_location_template=projection_storage_location_template,
         catalog_id=catalog_id,
     )
@@ -350,6 +359,7 @@ def _create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     projection_values: Optional[Dict[str, str]],
     projection_intervals: Optional[Dict[str, str]],
     projection_digits: Optional[Dict[str, str]],
+    projection_formats: Optional[Dict[str, str]],
     projection_storage_location_template: Optional[str],
     catalog_table_input: Optional[Dict[str, Any]],
     catalog_id: Optional[str],
@@ -398,6 +408,7 @@ def _create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
         projection_values=projection_values,
         projection_intervals=projection_intervals,
         projection_digits=projection_digits,
+        projection_formats=projection_formats,
         projection_storage_location_template=projection_storage_location_template,
         catalog_id=catalog_id,
     )
@@ -428,6 +439,7 @@ def _create_json_table(  # pylint: disable=too-many-arguments
     projection_values: Optional[Dict[str, str]],
     projection_intervals: Optional[Dict[str, str]],
     projection_digits: Optional[Dict[str, str]],
+    projection_formats: Optional[Dict[str, str]],
     projection_storage_location_template: Optional[str],
     catalog_table_input: Optional[Dict[str, Any]],
     catalog_id: Optional[str],
@@ -474,6 +486,7 @@ def _create_json_table(  # pylint: disable=too-many-arguments
         projection_values=projection_values,
         projection_intervals=projection_intervals,
         projection_digits=projection_digits,
+        projection_formats=projection_formats,
         projection_storage_location_template=projection_storage_location_template,
         catalog_id=catalog_id,
     )
@@ -676,6 +689,7 @@ def create_parquet_table(
     projection_values: Optional[Dict[str, str]] = None,
     projection_intervals: Optional[Dict[str, str]] = None,
     projection_digits: Optional[Dict[str, str]] = None,
+    projection_formats: Optional[Dict[str, str]] = None,
     projection_storage_location_template: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
@@ -741,6 +755,10 @@ def create_parquet_table(
         Dictionary of partitions names and Athena projections digits.
         https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
         (e.g. {'col_name': '1', 'col2_name': '2'})
+    projection_formats: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections formats.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_date': 'yyyy-MM-dd', 'col2_timestamp': 'yyyy-MM-dd HH:mm:ss'})
     projection_storage_location_template: Optional[str]
         Value which is allows Athena to properly map partition values if the S3 file locations do not follow
         a typical `.../column=value/...` pattern.
@@ -796,6 +814,7 @@ def create_parquet_table(
         projection_values=projection_values,
         projection_intervals=projection_intervals,
         projection_digits=projection_digits,
+        projection_formats=projection_formats,
         projection_storage_location_template=projection_storage_location_template,
         boto3_session=boto3_session,
         catalog_table_input=catalog_table_input,
@@ -830,6 +849,7 @@ def create_csv_table(  # pylint: disable=too-many-arguments
     projection_values: Optional[Dict[str, str]] = None,
     projection_intervals: Optional[Dict[str, str]] = None,
     projection_digits: Optional[Dict[str, str]] = None,
+    projection_formats: Optional[Dict[str, str]] = None,
     projection_storage_location_template: Optional[str] = None,
     catalog_id: Optional[str] = None,
 ) -> None:
@@ -908,6 +928,10 @@ def create_csv_table(  # pylint: disable=too-many-arguments
         Dictionary of partitions names and Athena projections digits.
         https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
         (e.g. {'col_name': '1', 'col2_name': '2'})
+    projection_formats: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections formats.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_date': 'yyyy-MM-dd', 'col2_timestamp': 'yyyy-MM-dd HH:mm:ss'})
     projection_storage_location_template: Optional[str]
         Value which is allows Athena to properly map partition values if the S3 file locations do not follow
         a typical `.../column=value/...` pattern.
@@ -967,6 +991,7 @@ def create_csv_table(  # pylint: disable=too-many-arguments
         projection_values=projection_values,
         projection_intervals=projection_intervals,
         projection_digits=projection_digits,
+        projection_formats=projection_formats,
         projection_storage_location_template=projection_storage_location_template,
         boto3_session=boto3_session,
         catalog_table_input=catalog_table_input,
@@ -1003,6 +1028,7 @@ def create_json_table(  # pylint: disable=too-many-arguments
     projection_values: Optional[Dict[str, str]] = None,
     projection_intervals: Optional[Dict[str, str]] = None,
     projection_digits: Optional[Dict[str, str]] = None,
+    projection_formats: Optional[Dict[str, str]] = None,
     projection_storage_location_template: Optional[str] = None,
     catalog_id: Optional[str] = None,
 ) -> None:
@@ -1077,6 +1103,10 @@ def create_json_table(  # pylint: disable=too-many-arguments
         Dictionary of partitions names and Athena projections digits.
         https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
         (e.g. {'col_name': '1', 'col2_name': '2'})
+    projection_formats: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections formats.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_date': 'yyyy-MM-dd', 'col2_timestamp': 'yyyy-MM-dd HH:mm:ss'})
     projection_storage_location_template: Optional[str]
         Value which is allows Athena to properly map partition values if the S3 file locations do not follow
         a typical `.../column=value/...` pattern.
@@ -1135,6 +1165,7 @@ def create_json_table(  # pylint: disable=too-many-arguments
         projection_values=projection_values,
         projection_intervals=projection_intervals,
         projection_digits=projection_digits,
+        projection_formats=projection_formats,
         projection_storage_location_template=projection_storage_location_template,
         boto3_session=boto3_session,
         catalog_table_input=catalog_table_input,
