@@ -4,7 +4,7 @@ import csv
 import logging
 import uuid
 from distutils.version import LooseVersion
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import boto3
 import pandas as pd
@@ -18,8 +18,18 @@ from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _
 from awswrangler.s3._write_dataset import _to_dataset
 
 if config.distributed:
+    import modin.pandas as pd
     from modin.pandas import DataFrame as ModinDataFrame
+    from ray.data import from_modin, from_pandas
+    from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
 
+    from awswrangler.distributed.datasources import (  # pylint: disable=ungrouped-imports
+        PandasCSVDataSource,
+        PandasJSONDatasource,
+        PandasTextDatasource,
+    )
+else:
+    import pandas as pd
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -77,6 +87,63 @@ def _to_text(
         elif file_format == "json":
             df.to_json(f, **pandas_kwargs)
     return [file_path]
+
+
+def _to_text_distributed(
+    file_format: str,
+    df: pd.DataFrame,
+    use_threads: Union[bool, int],
+    boto3_session: Optional[boto3.Session],
+    s3_additional_kwargs: Optional[Dict[str, str]],
+    path: Optional[str] = None,
+    path_root: Optional[str] = None,
+    filename_prefix: Optional[str] = uuid.uuid4().hex,
+    **pandas_kwargs: Any,
+) -> List[str]:
+    if df.empty is True:
+        raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
+    if path is None and path_root is not None:
+        file_path: str = (
+            f"{path_root}{filename_prefix}.{file_format}{_COMPRESSION_2_EXT.get(pandas_kwargs.get('compression'))}"
+        )
+    elif path is not None and path_root is None:
+        file_path = path
+    else:
+        raise RuntimeError("path and path_root received at the same time.")
+
+    # Create Ray Dataset
+    ray_dataset = from_modin(df) if isinstance(df, ModinDataFrame) else from_pandas(df)
+
+    # Repartition into a single block if or writing into a single key or if bucketing is enabled
+    if ray_dataset.count() > 0 and path:
+        ray_dataset = ray_dataset.repartition(1)
+        _logger.warn(
+            f"Repartitioning frame to single partition as a strict path was defined: {path}."
+            "This operation is inefficient for large datasets."
+        )
+
+    if file_format == "csv":
+        datasource: PandasTextDatasource = PandasCSVDataSource()
+    elif file_format == "json":
+        datasource: PandasTextDatasource = PandasJSONDatasource()
+    else:
+        raise RuntimeError(f"Unknown file format: {file_format}")
+
+    mode, encoding, newline = _get_write_details(path=file_path, pandas_kwargs=pandas_kwargs)
+    ray_dataset.write_datasource(
+        datasource=datasource,
+        path=file_path,
+        dataset_uuid=path_root or "",
+        file_path=file_path,
+        boto3_session=_utils.boto3_to_primitives(boto3_session),
+        s3_additional_kwargs=s3_additional_kwargs,
+        mode=mode,
+        encoding=encoding,
+        newline=newline,
+        pandas_kwargs=pandas_kwargs,
+    )
+
+    return datasource.get_write_paths()
 
 
 @apply_configs
@@ -490,13 +557,16 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
 
     df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
 
+    _to_text_fn: Callable[..., List[str]] = _to_text
+    if config.distributed and isinstance(df, ModinDataFrame):
+        _to_text_fn = _to_text_distributed
+
     paths: List[str] = []
     if dataset is False:
         pandas_kwargs["sep"] = sep
         pandas_kwargs["index"] = index
         pandas_kwargs["columns"] = columns
-        _to_text(
-            df,
+        _to_text_fn(
             file_format="csv",
             use_threads=use_threads,
             path=path,
@@ -581,7 +651,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                 create_table_args["catalog_table_input"] = catalog_table_input
 
         paths, partitions_values = _to_dataset(
-            func=_to_text,
+            func=_to_text_fn,
             concurrent_partitioning=concurrent_partitioning,
             df=df,
             path_root=path,  # type: ignore
