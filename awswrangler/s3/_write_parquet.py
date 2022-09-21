@@ -181,7 +181,6 @@ def _to_parquet(
     path_root: Optional[str] = None,
     filename_prefix: Optional[str] = uuid.uuid4().hex,
     max_rows_by_file: Optional[int] = 0,
-    # bucketing: bool = False,
 ) -> List[str]:
     file_path = _get_file_path(
         path_root=path_root, path=path, filename_prefix=filename_prefix, compression_ext=compression_ext
@@ -679,34 +678,36 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
             if schema_evolution is False:
                 _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
 
+            create_table_args: Dict[str, Any] = {
+                "database": database,
+                "table": table,
+                "path": path,
+                "columns_types": columns_types,
+                "table_type": table_type,
+                "partitions_types": partitions_types,
+                "bucketing_info": bucketing_info,
+                "compression": compression,
+                "description": description,
+                "parameters": parameters,
+                "columns_comments": columns_comments,
+                "boto3_session": session,
+                "mode": mode,
+                "transaction_id": transaction_id,
+                "catalog_versioning": catalog_versioning,
+                "projection_enabled": projection_enabled,
+                "projection_types": projection_types,
+                "projection_ranges": projection_ranges,
+                "projection_values": projection_values,
+                "projection_intervals": projection_intervals,
+                "projection_digits": projection_digits,
+                "projection_storage_location_template": None,
+                "catalog_id": catalog_id,
+                "catalog_table_input": catalog_table_input,
+            }
+
             if (catalog_table_input is None) and (table_type == "GOVERNED"):
-                catalog._create_parquet_table(  # pylint: disable=protected-access
-                    database=database,
-                    table=table,
-                    path=path,  # type: ignore
-                    columns_types=columns_types,
-                    table_type=table_type,
-                    partitions_types=partitions_types,
-                    bucketing_info=bucketing_info,
-                    compression=compression,
-                    description=description,
-                    parameters=parameters,
-                    columns_comments=columns_comments,
-                    boto3_session=session,
-                    mode=mode,
-                    transaction_id=transaction_id,
-                    catalog_versioning=catalog_versioning,
-                    projection_enabled=projection_enabled,
-                    projection_types=projection_types,
-                    projection_ranges=projection_ranges,
-                    projection_values=projection_values,
-                    projection_intervals=projection_intervals,
-                    projection_digits=projection_digits,
-                    projection_storage_location_template=None,
-                    catalog_id=catalog_id,
-                    catalog_table_input=catalog_table_input,
-                )
-                catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
+                catalog._create_parquet_table(**create_table_args)  # pylint: disable=protected-access
+                create_table_args["catalog_table_input"] = catalog._get_table_input(  # pylint: disable=protected-access
                     database=database,
                     table=table,
                     boto3_session=session,
@@ -743,32 +744,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
         )
         if (database is not None) and (table is not None):
             try:
-                catalog._create_parquet_table(  # pylint: disable=protected-access
-                    database=database,
-                    table=table,
-                    path=path,  # type: ignore
-                    columns_types=columns_types,
-                    table_type=table_type,
-                    partitions_types=partitions_types,
-                    bucketing_info=bucketing_info,
-                    compression=compression,
-                    description=description,
-                    parameters=parameters,
-                    columns_comments=columns_comments,
-                    boto3_session=session,
-                    mode=mode,
-                    transaction_id=transaction_id,
-                    catalog_versioning=catalog_versioning,
-                    projection_enabled=projection_enabled,
-                    projection_types=projection_types,
-                    projection_ranges=projection_ranges,
-                    projection_values=projection_values,
-                    projection_intervals=projection_intervals,
-                    projection_digits=projection_digits,
-                    projection_storage_location_template=None,
-                    catalog_id=catalog_id,
-                    catalog_table_input=catalog_table_input,
-                )
+                catalog._create_parquet_table(**create_table_args)  # pylint: disable=protected-access
                 if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
                     _logger.debug("partitions_values:\n%s", partitions_values)
                     catalog.add_parquet_partitions(

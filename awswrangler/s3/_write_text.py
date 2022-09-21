@@ -537,38 +537,40 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             if schema_evolution is False:
                 _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
 
+            create_table_args: Dict[str, Any] = {
+                "database": database,
+                "table": table,
+                "path": path,
+                "columns_types": columns_types,
+                "table_type": table_type,
+                "partitions_types": partitions_types,
+                "bucketing_info": bucketing_info,
+                "description": description,
+                "parameters": parameters,
+                "columns_comments": columns_comments,
+                "boto3_session": session,
+                "mode": mode,
+                "transaction_id": transaction_id,
+                "schema_evolution": schema_evolution,
+                "catalog_versioning": catalog_versioning,
+                "sep": sep,
+                "projection_enabled": projection_enabled,
+                "projection_types": projection_types,
+                "projection_ranges": projection_ranges,
+                "projection_values": projection_values,
+                "projection_intervals": projection_intervals,
+                "projection_digits": projection_digits,
+                "projection_storage_location_template": None,
+                "catalog_table_input": catalog_table_input,
+                "catalog_id": catalog_id,
+                "compression": pandas_kwargs.get("compression"),
+                "skip_header_line_count": True if header else None,
+                "serde_library": None,
+                "serde_parameters": None,
+            }
+
             if (catalog_table_input is None) and (table_type == "GOVERNED"):
-                catalog._create_csv_table(  # pylint: disable=protected-access
-                    database=database,
-                    table=table,
-                    path=path,
-                    columns_types=columns_types,
-                    table_type=table_type,
-                    partitions_types=partitions_types,
-                    bucketing_info=bucketing_info,
-                    description=description,
-                    parameters=parameters,
-                    columns_comments=columns_comments,
-                    boto3_session=session,
-                    mode=mode,
-                    transaction_id=transaction_id,
-                    schema_evolution=schema_evolution,
-                    catalog_versioning=catalog_versioning,
-                    sep=sep,
-                    projection_enabled=projection_enabled,
-                    projection_types=projection_types,
-                    projection_ranges=projection_ranges,
-                    projection_values=projection_values,
-                    projection_intervals=projection_intervals,
-                    projection_digits=projection_digits,
-                    projection_storage_location_template=None,
-                    catalog_table_input=catalog_table_input,
-                    catalog_id=catalog_id,
-                    compression=pandas_kwargs.get("compression"),
-                    skip_header_line_count=None,
-                    serde_library=None,
-                    serde_parameters=None,
-                )
+                catalog._create_csv_table(**create_table_args)  # pylint: disable=protected-access
                 catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
                     database=database,
                     table=table,
@@ -576,6 +578,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                     transaction_id=transaction_id,
                     catalog_id=catalog_id,
                 )
+                create_table_args["catalog_table_input"] = catalog_table_input
 
         paths, partitions_values = _to_dataset(
             func=_to_text,
@@ -610,39 +613,9 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                 serde_info: Dict[str, Any] = {}
                 if catalog_table_input:
                     serde_info = catalog_table_input["StorageDescriptor"]["SerdeInfo"]
-                serde_library: Optional[str] = serde_info.get("SerializationLibrary", None)
-                serde_parameters: Optional[Dict[str, str]] = serde_info.get("Parameters", None)
-                catalog._create_csv_table(  # pylint: disable=protected-access
-                    database=database,
-                    table=table,
-                    path=path,
-                    columns_types=columns_types,
-                    table_type=table_type,
-                    partitions_types=partitions_types,
-                    bucketing_info=bucketing_info,
-                    description=description,
-                    parameters=parameters,
-                    columns_comments=columns_comments,
-                    boto3_session=session,
-                    mode=mode,
-                    transaction_id=transaction_id,
-                    catalog_versioning=catalog_versioning,
-                    schema_evolution=schema_evolution,
-                    sep=sep,
-                    projection_enabled=projection_enabled,
-                    projection_types=projection_types,
-                    projection_ranges=projection_ranges,
-                    projection_values=projection_values,
-                    projection_intervals=projection_intervals,
-                    projection_digits=projection_digits,
-                    projection_storage_location_template=None,
-                    catalog_table_input=catalog_table_input,
-                    catalog_id=catalog_id,
-                    compression=pandas_kwargs.get("compression"),
-                    skip_header_line_count=True if header else None,
-                    serde_library=serde_library,
-                    serde_parameters=serde_parameters,
-                )
+                create_table_args["serde_library"] = serde_info.get("SerializationLibrary", None)
+                create_table_args["serde_parameters"] = serde_info.get("Parameters", None)
+                catalog._create_csv_table(**create_table_args)  # pylint: disable=protected-access
                 if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
                     _logger.debug("partitions_values:\n%s", partitions_values)
                     catalog.add_csv_partitions(
@@ -652,8 +625,8 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                         bucketing_info=bucketing_info,
                         boto3_session=session,
                         sep=sep,
-                        serde_library=serde_library,
-                        serde_parameters=serde_parameters,
+                        serde_library=create_table_args["serde_library"],
+                        serde_parameters=create_table_args["serde_parameters"],
                         catalog_id=catalog_id,
                         columns_types=columns_types,
                         compression=pandas_kwargs.get("compression"),
@@ -969,36 +942,38 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         if schema_evolution is False:
             _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
 
+        create_table_args: Dict[str, Any] = {
+            "database": database,
+            "table": table,
+            "path": path,
+            "columns_types": columns_types,
+            "table_type": table_type,
+            "partitions_types": partitions_types,
+            "bucketing_info": bucketing_info,
+            "description": description,
+            "parameters": parameters,
+            "columns_comments": columns_comments,
+            "boto3_session": session,
+            "mode": mode,
+            "transaction_id": transaction_id,
+            "catalog_versioning": catalog_versioning,
+            "schema_evolution": schema_evolution,
+            "projection_enabled": projection_enabled,
+            "projection_types": projection_types,
+            "projection_ranges": projection_ranges,
+            "projection_values": projection_values,
+            "projection_intervals": projection_intervals,
+            "projection_digits": projection_digits,
+            "projection_storage_location_template": None,
+            "catalog_table_input": catalog_table_input,
+            "catalog_id": catalog_id,
+            "compression": compression,
+            "serde_library": None,
+            "serde_parameters": None,
+        }
+
         if (catalog_table_input is None) and (table_type == "GOVERNED"):
-            catalog._create_json_table(  # pylint: disable=protected-access
-                database=database,
-                table=table,
-                path=path,  # type: ignore
-                columns_types=columns_types,
-                table_type=table_type,
-                partitions_types=partitions_types,
-                bucketing_info=bucketing_info,
-                description=description,
-                parameters=parameters,
-                columns_comments=columns_comments,
-                boto3_session=session,
-                mode=mode,
-                transaction_id=transaction_id,
-                catalog_versioning=catalog_versioning,
-                schema_evolution=schema_evolution,
-                projection_enabled=projection_enabled,
-                projection_types=projection_types,
-                projection_ranges=projection_ranges,
-                projection_values=projection_values,
-                projection_intervals=projection_intervals,
-                projection_digits=projection_digits,
-                projection_storage_location_template=None,
-                catalog_table_input=catalog_table_input,
-                catalog_id=catalog_id,
-                compression=compression,
-                serde_library=None,
-                serde_parameters=None,
-            )
+            catalog._create_json_table(**create_table_args)  # pylint: disable=protected-access
             catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
                 database=database,
                 table=table,
@@ -1006,6 +981,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
                 transaction_id=transaction_id,
                 catalog_id=catalog_id,
             )
+            create_table_args["catalog_table_input"] = catalog_table_input
 
     paths, partitions_values = _to_dataset(
         func=_to_text,
@@ -1035,37 +1011,9 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
             serde_info: Dict[str, Any] = {}
             if catalog_table_input:
                 serde_info = catalog_table_input["StorageDescriptor"]["SerdeInfo"]
-            serde_library: Optional[str] = serde_info.get("SerializationLibrary", None)
-            serde_parameters: Optional[Dict[str, str]] = serde_info.get("Parameters", None)
-            catalog._create_json_table(  # pylint: disable=protected-access
-                database=database,
-                table=table,
-                path=path,  # type: ignore
-                columns_types=columns_types,
-                table_type=table_type,
-                partitions_types=partitions_types,
-                bucketing_info=bucketing_info,
-                description=description,
-                parameters=parameters,
-                columns_comments=columns_comments,
-                boto3_session=session,
-                mode=mode,
-                transaction_id=transaction_id,
-                catalog_versioning=catalog_versioning,
-                schema_evolution=schema_evolution,
-                projection_enabled=projection_enabled,
-                projection_types=projection_types,
-                projection_ranges=projection_ranges,
-                projection_values=projection_values,
-                projection_intervals=projection_intervals,
-                projection_digits=projection_digits,
-                projection_storage_location_template=None,
-                catalog_table_input=catalog_table_input,
-                catalog_id=catalog_id,
-                compression=compression,
-                serde_library=serde_library,
-                serde_parameters=serde_parameters,
-            )
+            create_table_args["serde_library"] = serde_info.get("SerializationLibrary", None)
+            create_table_args["serde_parameters"] = serde_info.get("Parameters", None)
+            catalog._create_json_table(**create_table_args)  # pylint: disable=protected-access
             if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
                 _logger.debug("partitions_values:\n%s", partitions_values)
                 catalog.add_json_partitions(
@@ -1074,8 +1022,8 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
                     partitions_values=partitions_values,
                     bucketing_info=bucketing_info,
                     boto3_session=session,
-                    serde_library=serde_library,
-                    serde_parameters=serde_parameters,
+                    serde_library=create_table_args["serde_library"],
+                    serde_parameters=create_table_args["serde_parameters"],
                     catalog_id=catalog_id,
                     columns_types=columns_types,
                     compression=compression,
