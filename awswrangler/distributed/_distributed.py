@@ -1,6 +1,5 @@
 """Distributed Module (PRIVATE)."""
 import logging
-import multiprocessing
 import os
 import sys
 import warnings
@@ -111,7 +110,7 @@ def initialize_ray(
     log_to_driver: Optional[bool] = True,
     object_store_memory: Optional[int] = None,
     cpu_count: Optional[int] = None,
-    gpu_count: Optional[int] = 0,
+    gpu_count: Optional[int] = None,
 ) -> None:
     """
     Connect to an existing Ray cluster or start one and connect to it.
@@ -136,6 +135,12 @@ def initialize_ray(
         Number of GPUs to assign to each raylet, by default 0
     """
     if not ray.is_initialized():
+        # Detect an existing cluster
+        ray_address = os.environ.get("RAY_ADDRESS")
+        if not address and ray_address:
+            _logger.info("Using address %s set in the environment variable RAY_ADDRESS", ray_address)
+            address = ray_address
+
         if address:
             ray.init(
                 address=address,
@@ -165,7 +170,8 @@ def initialize_ray(
             ]
 
             ray_init_kwargs = {
-                "num_cpus": cpu_count or multiprocessing.cpu_count(),
+                "address": "local",
+                "num_cpus": cpu_count,
                 "num_gpus": gpu_count,
                 "include_dashboard": include_dashboard,
                 "ignore_reinit_error": ignore_reinit_error,
@@ -177,6 +183,7 @@ def initialize_ray(
                     "env_vars": {var: os.environ.get(var) for var in ray_runtime_env_vars if os.environ.get(var)}
                 },
             }
+            _logger.info("Starting a local Ray cluster")
             ray.init(**ray_init_kwargs)
 
 

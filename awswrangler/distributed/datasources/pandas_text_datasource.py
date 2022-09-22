@@ -3,8 +3,8 @@ from typing import Any, Callable, Dict, Iterator, Optional
 
 import pandas as pd
 import pyarrow
+from ray.data._internal.pandas_block import PandasBlockAccessor
 from ray.data.datasource.file_based_datasource import FileBasedDatasource
-from ray.data.impl.pandas_block import PandasBlockAccessor
 
 from awswrangler import _utils
 from awswrangler.s3._read_text_core import _read_text_chunked, _read_text_file

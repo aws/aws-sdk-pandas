@@ -339,6 +339,9 @@ def _read_parquet(
         )
 
     if config.distributed:
+        dataset_kwargs = {}
+        if coerce_int96_timestamp_unit:
+            dataset_kwargs["coerce_int96_timestamp_unit"] = coerce_int96_timestamp_unit
         dataset = read_datasource(
             datasource=ParquetDatasource(),  # type: ignore
             parallelism=parallelism,
@@ -346,8 +349,7 @@ def _read_parquet(
             paths=paths,
             schema=schema,
             columns=columns,
-            coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
-            path_root=path_root,
+            dataset_kwargs=dataset_kwargs,
         )
         return _to_modin(dataset=dataset, to_pandas_kwargs=arrow_kwargs)
 
@@ -382,7 +384,7 @@ def read_parquet(
     version_id: Optional[Union[str, Dict[str, str]]] = None,
     chunked: Union[bool, int] = False,
     use_threads: Union[bool, int] = True,
-    parallelism: int = 200,
+    parallelism: int = -1,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
