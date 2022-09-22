@@ -13,9 +13,9 @@ Requirement already satisfied: pbr!=2.1.0,>=2.0.0 in ./.venv/lib/python3.7/site-
 Using legacy 'setup.py install' for python-Levenshtein, since package 'wheel' is not installed.
 Installing collected packages: awswrangler, python-Levenshtein
   Attempting uninstall: awswrangler
-    Found existing installation: awswrangler 3.0.0a2
-    Uninstalling awswrangler-3.0.0a2:
-      Successfully uninstalled awswrangler-3.0.0a2
+    Found existing installation: awswrangler 3.0.0b1
+    Uninstalling awswrangler-3.0.0b1:
+      Successfully uninstalled awswrangler-3.0.0b1
   Running setup.py develop for awswrangler
     Running setup.py install for python-Levenshtein ... error
     ERROR: Command errored out with exit status 1:
