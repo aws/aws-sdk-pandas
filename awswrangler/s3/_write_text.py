@@ -4,6 +4,7 @@ import csv
 import logging
 import uuid
 from distutils.version import LooseVersion
+from functools import singledispatch
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import boto3
@@ -49,6 +50,7 @@ def _get_write_details(path: str, pandas_kwargs: Dict[str, Any]) -> Tuple[str, O
     return mode, encoding, newline
 
 
+@singledispatch
 def _to_text(
     df: pd.DataFrame,
     file_format: str,
@@ -557,17 +559,13 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
 
     df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
 
-    _to_text_fn: Callable[..., List[str]] = _to_text
-    if config.distributed and isinstance(df, ModinDataFrame):
-        _to_text_fn = _to_text_distributed
-
     paths: List[str] = []
     if dataset is False:
         pandas_kwargs["sep"] = sep
         pandas_kwargs["index"] = index
         pandas_kwargs["columns"] = columns
-        _to_text_fn(
-            df=df,
+        _to_text(
+            df,
             file_format="csv",
             use_threads=use_threads,
             path=path,
@@ -652,7 +650,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                 create_table_args["catalog_table_input"] = catalog_table_input
 
         paths, partitions_values = _to_dataset(
-            func=_to_text_fn,
+            func=_to_text,
             concurrent_partitioning=concurrent_partitioning,
             df=df,
             path_root=path,  # type: ignore
