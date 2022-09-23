@@ -13,9 +13,9 @@ Requirement already satisfied: pbr!=2.1.0,>=2.0.0 in ./.venv/lib/python3.7/site-
 Using legacy 'setup.py install' for python-Levenshtein, since package 'wheel' is not installed.
 Installing collected packages: awswrangler, python-Levenshtein
   Attempting uninstall: awswrangler
-    Found existing installation: awswrangler 3.0.0a2
-    Uninstalling awswrangler-3.0.0a2:
-      Successfully uninstalled awswrangler-3.0.0a2
+    Found existing installation: awswrangler 3.0.0b1
+    Uninstalling awswrangler-3.0.0b1:
+      Successfully uninstalled awswrangler-3.0.0b1
   Running setup.py develop for awswrangler
     Running setup.py install for python-Levenshtein ... error
     ERROR: Command errored out with exit status 1:
@@ -111,22 +111,3 @@ brew install unixodbc
 ```
 
 -----
-
-## CloudFormation Deployment
-
-### Error Message
-
-During the deployment of `aws-sdk-pandas-databases`, the creation of the resource `CodeBuildTestRoleLFPermissions` fails with
-
-```
-Resource does not exist or requester is not authorized to access requested permissions. (Service: AWSLakeFormation; Status Code: 400; Error Code: AccessDeniedException; Request ID: 14a26718-ee4e-49f2-a7ca-d308e49485f8; Proxy: null)
-```
-
-### Solution
-
-The IAM role used to deploy the CloudForation stack does not have permissions to assign permissions in AWS Lake Formation. The quickest solution is to find the IAM role and set it as an admin in Lake Formation.
-
-In order to find the role:
-1. Navigate to the CloudFormation console in your account
-1. Select the `aws-sdk-pandas-databases` stack which failed to deploy
-1. Under the "Stack info" tab, find the value for "IAM role". The name of the role should be in the following format: `arn:aws:iam::{ACCOUNT_ID}:role/cdk-{UUID}-cfn-exec-role-{ACCOUNT_ID}-{REGION}`

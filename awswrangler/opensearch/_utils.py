@@ -33,6 +33,10 @@ def _strip_endpoint(endpoint: str) -> str:
     return uri_schema.sub("", endpoint).strip().strip("/")
 
 
+def _is_https(port: int) -> bool:
+    return port == 443
+
+
 def connect(
     host: str,
     port: Optional[int] = 443,
@@ -95,8 +99,8 @@ def connect(
             host=_strip_endpoint(host),
             port=port,
             http_auth=http_auth,
-            use_ssl=True,
-            verify_certs=True,
+            use_ssl=_is_https(port),
+            verify_certs=_is_https(port),
             connection_class=RequestsHttpConnection,
             timeout=30,
             max_retries=10,

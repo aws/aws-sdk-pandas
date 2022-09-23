@@ -1,6 +1,7 @@
 """Amazon S3 Write Dataset (PRIVATE)."""
 
 import logging
+from functools import singledispatch
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import boto3
@@ -13,17 +14,11 @@ from awswrangler.s3._write_concurrent import _WriteProxy
 
 if config.distributed:
     import modin.pandas as pd
-    from modin.distributed.dataframe.pandas import from_partitions, unwrap_partitions
     from modin.pandas import DataFrame as ModinDataFrame
 else:
     import pandas as pd
 
 _logger: logging.Logger = logging.getLogger(__name__)
-
-
-def _get_subgroup_prefix(keys: Tuple[str, None], partition_cols: List[str], path_root: str) -> str:
-    subdir = "/".join([f"{name}={val}" for name, val in zip(partition_cols, keys)])
-    return f"{path_root}{subdir}/"
 
 
 def _get_bucketing_series(df: pd.DataFrame, bucketing_info: Tuple[List[str], int]) -> pd.Series:
@@ -73,6 +68,11 @@ def _get_value_hash(value: Union[str, int, bool]) -> int:
     raise exceptions.InvalidDataFrame(
         "Column specified for bucketing contains invalid data type. Only string, int and bool are supported."
     )
+
+
+def _get_subgroup_prefix(keys: Tuple[str, None], partition_cols: List[str], path_root: str) -> str:
+    subdir = "/".join([f"{name}={val}" for name, val in zip(partition_cols, keys)])
+    return f"{path_root}{subdir}/"
 
 
 def _delete_objects(
@@ -168,7 +168,7 @@ def _write_partitions_distributed(
         )
     else:
         paths = write_func(  # type: ignore
-            df=df_group.drop(partition_cols, axis="columns"),
+            df_group.drop(partition_cols, axis="columns"),
             path_root=prefix,
             filename_prefix=filename_prefix,
             boto3_session=boto3_session,
@@ -178,10 +178,11 @@ def _write_partitions_distributed(
     return prefix, df_group.name, paths
 
 
+@singledispatch
 def _to_partitions(
+    df: pd.DataFrame,
     func: Callable[..., List[str]],
     concurrent_partitioning: bool,
-    df: pd.DataFrame,
     path_root: str,
     use_threads: Union[bool, int],
     mode: str,
@@ -221,8 +222,8 @@ def _to_partitions(
         )
         if bucketing_info:
             _to_buckets(
+                subgroup,
                 func=func,
-                df=subgroup,
                 path_root=prefix,
                 bucketing_info=bucketing_info,
                 boto3_session=boto3_session,
@@ -233,11 +234,11 @@ def _to_partitions(
             )
         else:
             proxy.write(
-                func=func,
-                df=subgroup,
+                func,
+                boto3_session,
+                subgroup,
                 path_root=prefix,
                 filename_prefix=filename_prefix,
-                boto3_session=boto3_session,
                 use_threads=use_threads,
                 **func_kwargs,
             )
@@ -247,9 +248,9 @@ def _to_partitions(
 
 
 def _to_partitions_distributed(  # pylint: disable=unused-argument
+    df: pd.DataFrame,
     func: Callable[..., List[str]],
     concurrent_partitioning: bool,
-    df: pd.DataFrame,
     path_root: str,
     use_threads: Union[bool, int],
     mode: str,
@@ -283,7 +284,7 @@ def _to_partitions_distributed(  # pylint: disable=unused-argument
         boto3_session=None,
         **func_kwargs,
     )
-    paths: List[str] = [path for metadata in df_write_metadata.values for _, _, path in metadata]
+    paths: List[str] = [path for metadata in df_write_metadata.values for _, _, paths in metadata for path in paths]
     partitions_values: Dict[str, List[str]] = {
         prefix: list(str(p) for p in partitions) if isinstance(partitions, tuple) else [str(partitions)]
         for metadata in df_write_metadata.values
@@ -292,9 +293,10 @@ def _to_partitions_distributed(  # pylint: disable=unused-argument
     return paths, partitions_values
 
 
+@singledispatch
 def _to_buckets(
-    func: Callable[..., List[str]],
     df: pd.DataFrame,
+    func: Callable[..., List[str]],
     path_root: str,
     bucketing_info: Tuple[List[str], int],
     filename_prefix: str,
@@ -307,11 +309,11 @@ def _to_buckets(
     df_groups = df.groupby(by=_get_bucketing_series(df=df, bucketing_info=bucketing_info))
     for bucket_number, subgroup in df_groups:
         _proxy.write(
-            func=func,
-            df=subgroup,
+            func,
+            boto3_session,
+            subgroup,
             path_root=path_root,
             filename_prefix=f"{filename_prefix}_bucket-{bucket_number:05d}",
-            boto3_session=boto3_session,
             use_threads=use_threads,
             **func_kwargs,
         )
@@ -322,8 +324,8 @@ def _to_buckets(
 
 
 def _to_buckets_distributed(  # pylint: disable=unused-argument
-    func: Callable[..., List[str]],
     df: pd.DataFrame,
+    func: Callable[..., List[str]],
     path_root: str,
     bucketing_info: Tuple[List[str], int],
     filename_prefix: str,
@@ -335,7 +337,7 @@ def _to_buckets_distributed(  # pylint: disable=unused-argument
     df_groups = df.groupby(by=_get_bucketing_series(df=df, bucketing_info=bucketing_info))
     paths: List[str] = []
     df_paths = df_groups.apply(
-        func,
+        func.dispatch(ModinDataFrame),  # type: ignore
         path_root=path_root,
         filename_prefix=filename_prefix,
         boto3_session=None,
@@ -398,24 +400,14 @@ def _to_dataset(
         else:
             delete_objects(path=path_root, use_threads=use_threads, boto3_session=boto3_session)
 
-    _to_partitions_fn: Callable[..., Tuple[List[str], Dict[str, List[str]]]] = _to_partitions
-    _to_buckets_fn: Callable[..., List[str]] = _to_buckets
-    if config.distributed and isinstance(df, ModinDataFrame):
-        # Ensure Modin dataframe is partitioned along row axis
-        # It avoids a situation where columns are split along multiple blocks
-        df = from_partitions(unwrap_partitions(df, axis=0), axis=0)
-
-        _to_partitions_fn = _to_partitions_distributed
-        _to_buckets_fn = _to_buckets_distributed
-
     # Writing
     partitions_values: Dict[str, List[str]] = {}
     paths: List[str]
     if partition_cols:
-        paths, partitions_values = _to_partitions_fn(
+        paths, partitions_values = _to_partitions(
+            df,
             func=func,
             concurrent_partitioning=concurrent_partitioning,
-            df=df,
             path_root=path_root,
             use_threads=use_threads,
             mode=mode,
@@ -433,9 +425,9 @@ def _to_dataset(
             **func_kwargs,
         )
     elif bucketing_info:
-        paths = _to_buckets_fn(
+        paths = _to_buckets(
+            df,
             func=func,
-            df=df,
             path_root=path_root,
             use_threads=use_threads,
             bucketing_info=bucketing_info,
@@ -446,7 +438,7 @@ def _to_dataset(
         )
     else:
         paths = func(
-            df=df,
+            df,
             path_root=path_root,
             filename_prefix=filename_prefix,
             use_threads=use_threads,

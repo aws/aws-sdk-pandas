@@ -12,21 +12,42 @@ def redshift_connector(databases_parameters):
     cluster_id = databases_parameters["redshift"]["identifier"]
     database = databases_parameters["redshift"]["database"]
     secret_arn = databases_parameters["redshift"]["secret_arn"]
-    conn = wr.data_api.redshift.connect(cluster_id, database, secret_arn=secret_arn, boto3_session=None)
-    return conn
+    con = wr.data_api.redshift.connect(
+        cluster_id=cluster_id, database=database, secret_arn=secret_arn, boto3_session=None
+    )
+    return con
 
 
 def create_rds_connector(rds_type, parameters):
     cluster_id = parameters[rds_type]["arn"]
     database = parameters[rds_type]["database"]
     secret_arn = parameters[rds_type]["secret_arn"]
-    conn = wr.data_api.rds.connect(cluster_id, database, secret_arn=secret_arn, boto3_session=boto3.DEFAULT_SESSION)
-    return conn
+    con = wr.data_api.rds.connect(cluster_id, database, secret_arn=secret_arn, boto3_session=boto3.DEFAULT_SESSION)
+    return con
 
 
 @pytest.fixture
 def mysql_serverless_connector(databases_parameters):
     return create_rds_connector("mysql_serverless", databases_parameters)
+
+
+def test_connect_redshift_serverless_iam_role(databases_parameters):
+    workgroup_name = databases_parameters["redshift_serverless"]["workgroup"]
+    database = databases_parameters["redshift_serverless"]["database"]
+    con = wr.data_api.redshift.connect(workgroup_name=workgroup_name, database=database, boto3_session=None)
+    df = wr.data_api.redshift.read_sql_query("SELECT 1", con=con)
+    assert df.shape == (1, 1)
+
+
+def test_connect_redshift_serverless_secrets_manager(databases_parameters):
+    workgroup_name = databases_parameters["redshift_serverless"]["workgroup"]
+    database = databases_parameters["redshift_serverless"]["database"]
+    secret_arn = databases_parameters["redshift_serverless"]["secret_arn"]
+    con = wr.data_api.redshift.connect(
+        workgroup_name=workgroup_name, database=database, secret_arn=secret_arn, boto3_session=None
+    )
+    df = wr.data_api.redshift.read_sql_query("SELECT 1", con=con)
+    assert df.shape == (1, 1)
 
 
 @pytest.fixture(scope="function")
