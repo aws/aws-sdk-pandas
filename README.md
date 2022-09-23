@@ -143,7 +143,8 @@ FROM "sampleDB"."sampleTable" ORDER BY time DESC LIMIT 3
   - [031 - OpenSearch](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/031%20-%20OpenSearch.ipynb)
   - [032 - Lake Formation Governed Tables](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/032%20-%20Lake%20Formation%20Governed%20Tables.ipynb)
   - [033 - Amazon Neptune](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/033%20-%20Amazon%20Neptune.ipynb)
-  - [034 - Distributed Calls on Remote Cluster](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/034%20-%20Distributed%20Calls%20on%20Remote%20Cluster.ipynb)
+  - [034 - Distributing Calls on Ray Remote Cluster](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/034%20-%20Distributing%20Calls%20on%20Ray%20Remote%20Cluster.ipynb)
+
 - [**API Reference**](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/api.html)
   - [Amazon S3](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/api.html#amazon-s3)
   - [AWS Glue Catalog](https://aws-sdk-pandas.readthedocs.io/en/3.0.0a2/api.html#aws-glue-catalog)
