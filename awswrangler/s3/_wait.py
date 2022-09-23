@@ -28,8 +28,7 @@ def _wait_object(
 def _wait_object_batch(
     boto3_session: Optional[boto3.Session], paths: List[str], waiter_name: str, delay: int, max_attempts: int
 ) -> None:
-    if config.distributed:
-        RayLogger().get_logger(name=_wait_object_batch.__name__)
+    RayLogger().get_logger(name=_wait_object_batch.__name__)
     for path in paths:
         _wait_object(boto3_session, path, waiter_name, delay, max_attempts)
 

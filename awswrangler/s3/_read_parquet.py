@@ -76,8 +76,7 @@ def _read_parquet_metadata_file(
     version_id: Optional[str] = None,
     coerce_int96_timestamp_unit: Optional[str] = None,
 ) -> pa.schema:
-    if config.distributed:
-        RayLogger().get_logger(name=_read_parquet_metadata_file.__name__)
+    RayLogger().get_logger(name=_read_parquet_metadata_file.__name__)
     with open_s3_object(
         path=path,
         mode="rb",

@@ -23,8 +23,7 @@ def _get_work_unit_results(
     query_id: str,
     token_work_unit: Tuple[str, int],
 ) -> Table:
-    if config.distributed:
-        RayLogger().get_logger(name=_get_work_unit_results.__name__)
+    RayLogger().get_logger(name=_get_work_unit_results.__name__)
     _logger.debug("Query id: %s Token work unit: %s", query_id, token_work_unit)
     client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
 

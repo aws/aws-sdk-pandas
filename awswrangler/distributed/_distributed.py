@@ -29,9 +29,9 @@ class RayLogger:
     ):
         logging.basicConfig(level=log_level, format=format, datefmt=datefmt)
 
-    def get_logger(self, name: Union[str, Any] = None) -> logging.Logger:
+    def get_logger(self, name: Union[str, Any] = None) -> Union[logging.Logger, Any]:
         """Return logger object."""
-        return logging.getLogger(name)
+        return logging.getLogger(name) if config.distributed else None
 
 
 def ray_get(futures: List[Any]) -> List[Any]:

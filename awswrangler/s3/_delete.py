@@ -34,8 +34,7 @@ def _delete_objects(
     paths: List[str],
     s3_additional_kwargs: Optional[Dict[str, Any]],
 ) -> None:
-    if config.distributed:
-        RayLogger().get_logger(name=_delete_objects.__name__)
+    RayLogger().get_logger(name=_delete_objects.__name__)
     client_s3: boto3.client = _utils.client(
         service_name="s3",
         session=boto3_session,

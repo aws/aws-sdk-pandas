@@ -43,8 +43,7 @@ def _select_object_content(
     args: Dict[str, Any],
     scan_range: Optional[Tuple[int, int]] = None,
 ) -> Union[pa.Table, "ray.ObjectRef[pa.Table]"]:
-    if config.distributed:
-        RayLogger().get_logger(name=_select_object_content.__name__)
+    RayLogger().get_logger(name=_select_object_content.__name__)
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
 
     if scan_range:
@@ -86,8 +85,7 @@ def _select_query(
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> List[Union[pa.Table, "ray.ObjectRef[pa.Table]"]]:
-    if config.distributed:
-        RayLogger().get_logger(name=_select_query.__name__)
+    RayLogger().get_logger(name=_select_query.__name__)
     bucket, key = _utils.parse_path(path)
 
     args: Dict[str, Any] = {
