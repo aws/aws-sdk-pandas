@@ -12,11 +12,6 @@ import pandas as pd
 from awswrangler import _utils, exceptions
 from awswrangler._config import config
 from awswrangler._threading import _get_executor
-<<<<<<< HEAD
-from awswrangler.distributed import RayLogger, ray_remote
-from awswrangler.s3._fs import open_s3_object
-=======
->>>>>>> a07c073a82c0a486c72a725b39f98652fd86728b
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import _apply_partition_filter, _get_path_ignore_suffix, _get_path_root, _union
 from awswrangler.s3._read_text_core import _read_text_file, _read_text_files_chunked

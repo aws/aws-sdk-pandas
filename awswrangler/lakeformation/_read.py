@@ -8,7 +8,7 @@ import pandas as pd
 from pyarrow import NativeFile, RecordBatchStreamReader, Table
 
 from awswrangler import _data_types, _utils, catalog
-from awswrangler._config import apply_configs, config
+from awswrangler._config import apply_configs
 from awswrangler._threading import _get_executor
 from awswrangler.catalog._utils import _catalog_id, _transaction_id
 from awswrangler.distributed import RayLogger, ray_remote
