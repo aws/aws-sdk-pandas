@@ -1,11 +1,19 @@
 """Distributed PandasTextDatasource Module."""
+import io
 import logging
 from typing import Any, Callable, Dict, Iterator, List, Optional
 
 import pandas as pd
 import pyarrow
-from ray.data.datasource.file_based_datasource import FileBasedDatasource
+from ray.data.block import BlockMetadata
+from ray.data.datasource.datasource import WriteResult
+from ray.data.datasource.file_based_datasource import (
+    BlockWritePathProvider,
+    DefaultBlockWritePathProvider,
+    FileBasedDatasource,
+)
 from ray.data.impl.pandas_block import PandasBlockAccessor
+from ray.data.impl.remote_fn import cached_remote_fn
 from ray.types import ObjectRef
 
 from awswrangler import _utils
@@ -68,17 +76,81 @@ class PandasTextDatasource(FileBasedDatasource):
     def _read_file(self, f: pyarrow.NativeFile, path: str, **reader_args: Any) -> pd.DataFrame:
         raise NotImplementedError()
 
+    def do_write(  # type: ignore  # pylint: disable=arguments-differ
+        self,
+        blocks: List[ObjectRef[pd.DataFrame]],
+        metadata: List[BlockMetadata],
+        path: str,
+        dataset_uuid: str,
+        filesystem: Optional[pyarrow.fs.FileSystem] = None,
+        try_create_dir: bool = True,
+        open_stream_args: Optional[Dict[str, Any]] = None,
+        block_path_provider: BlockWritePathProvider = DefaultBlockWritePathProvider(),
+        write_args_fn: Callable[[], Dict[str, Any]] = lambda: {},
+        _block_udf: Optional[Callable[[pd.DataFrame], pd.DataFrame]] = None,
+        ray_remote_args: Optional[Dict[str, Any]] = None,
+        boto3_session: Optional[_utils.Boto3PrimitivesType] = None,
+        s3_additional_kwargs: Optional[Dict[str, str]] = None,
+        **write_args,
+    ) -> List[ObjectRef[WriteResult]]:
+        """Create and return write tasks for a file-based datasource."""
+        boto3_session = write_args.get("boto3_session")
+        s3_additional_kwargs = write_args.get("s3_additional_kwargs")
+
+        _write_block_to_file = self._write_block
+
+        if open_stream_args is None:
+            open_stream_args = {}
+
+        if ray_remote_args is None:
+            ray_remote_args = {}
+
+        def write_block(write_path: str, block: pd.DataFrame) -> None:
+            _logger.debug("Writing %s file.", write_path)
+            if _block_udf is not None:
+                block = _block_udf(block)
+
+            with open_s3_object(
+                path=write_path,
+                mode=write_args.get("mode"),
+                use_threads=False,
+                s3_additional_kwargs=s3_additional_kwargs,
+                boto3_session=boto3_session,
+                encoding=write_args.get("encoding"),
+                newline=write_args.get("newline"),
+            ) as f:
+                _write_block_to_file(
+                    f,
+                    PandasBlockAccessor(block),
+                    writer_args_fn=write_args_fn,
+                    **write_args,
+                )
+
+        write_block_fn = cached_remote_fn(write_block).options(**ray_remote_args)
+
+        file_format = self._file_format()
+        write_tasks = []
+        if not block_path_provider:
+            block_path_provider = DefaultBlockWritePathProvider()
+        for block_idx, block in enumerate(blocks):
+            write_path = block_path_provider(
+                path,
+                filesystem=filesystem,
+                dataset_uuid=dataset_uuid,
+                block=block,
+                block_index=block_idx,
+                file_format=file_format,
+            )
+            write_task = write_block_fn.remote(write_path, block)
+            write_tasks.append(write_task)
+
+        return write_tasks
+
     def _write_block(  # type: ignore  # pylint: disable=arguments-differ
         self,
-        f: pyarrow.NativeFile,
+        f: io.TextIOWrapper,
         block: PandasBlockAccessor,
         writer_args_fn: Callable[[], Dict[str, Any]],
-        file_path: str,
-        boto3_session: Optional[_utils.Boto3PrimitivesType],
-        s3_additional_kwargs: Optional[Dict[str, str]],
-        mode: str,
-        encoding: str,
-        newline: str,
         pandas_kwargs: Dict[str, Any],
         **writer_args: Any,
     ) -> None:
@@ -87,17 +159,8 @@ class PandasTextDatasource(FileBasedDatasource):
 
         frame = block.to_pandas()
 
-        with open_s3_object(
-            path=file_path,
-            mode=mode,
-            use_threads=False,
-            s3_additional_kwargs=s3_additional_kwargs,
-            boto3_session=boto3_session,
-            encoding=encoding,
-            newline=newline,
-        ) as file:
-            _logger.debug("pandas_kwargs: %s", pandas_kwargs)
-            self.write_text_func(frame, file, **pandas_kwargs)
+        _logger.debug("pandas_kwargs: %s", pandas_kwargs)
+        self.write_text_func(frame, f, **pandas_kwargs)
 
     def on_write_complete(self, write_results: List[Any], **_: Any) -> None:
         """Execute callback on write complete."""

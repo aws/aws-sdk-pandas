@@ -22,22 +22,18 @@ if config.distributed:
     import modin.pandas as pd
     from modin.pandas import DataFrame as ModinDataFrame
     from ray.data import from_modin, from_pandas
+    from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
 
     from awswrangler.distributed.datasources import (  # pylint: disable=ungrouped-imports
         PandasCSVDataSource,
         PandasJSONDatasource,
         PandasTextDatasource,
+        UserProvidedKeyBlockWritePathProvider,
     )
 else:
     import pandas as pd
 
 _logger: logging.Logger = logging.getLogger(__name__)
-
-
-def _to_pandas(df: pd.DataFrame) -> pd.DataFrame:
-    if config.distributed and isinstance(df, ModinDataFrame):
-        return df._to_pandas()  # pylint: disable=protected-access
-    return df
 
 
 def _get_write_details(path: str, pandas_kwargs: Dict[str, Any]) -> Tuple[str, Optional[str], Optional[str]]:
@@ -104,9 +100,7 @@ def _to_text_distributed(  # pylint: disable=unused-argument
     if df.empty is True:
         raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
     if path is None and path_root is not None:
-        file_path: str = (
-            f"{path_root}{filename_prefix}.{file_format}{_COMPRESSION_2_EXT.get(pandas_kwargs.get('compression'))}"
-        )
+        file_path = path_root
     elif path is not None and path_root is None:
         file_path = path
     else:
@@ -139,8 +133,13 @@ def _to_text_distributed(  # pylint: disable=unused-argument
     ray_dataset.write_datasource(
         datasource=datasource,
         path=file_path,
-        dataset_uuid=path_root or "",
+        block_path_provider=(
+            UserProvidedKeyBlockWritePathProvider()
+            if path and not path.endswith("/")
+            else DefaultBlockWritePathProvider()
+        ),
         file_path=file_path,
+        dataset_uuid=filename_prefix,
         boto3_session=_utils.boto3_to_primitives(boto3_session),
         s3_additional_kwargs=s3_additional_kwargs,
         mode=mode,
@@ -509,10 +508,8 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         description=description,
         parameters=parameters,
         columns_comments=columns_comments,
+        distributed=config.distributed,
     )
-    # Temporary fix to convert Modin data frames to Pandas Data frames
-    # until distributed _to_text implementation is available
-    df = _to_pandas(df)
 
     # Initializing defaults
     partition_cols = partition_cols if partition_cols else []
@@ -938,9 +935,6 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         parameters=parameters,
         columns_comments=columns_comments,
     )
-    # Temporary fix to convert Modin data frames to Pandas Data frames
-    # until distributed _to_text implementation is available
-    df = _to_pandas(df)
 
     # Initializing defaults
     partition_cols = partition_cols if partition_cols else []
