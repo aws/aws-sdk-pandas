@@ -68,7 +68,7 @@ class PandasTextDatasource(FileBasedDatasource):
     def _read_file(self, f: pyarrow.NativeFile, path: str, **reader_args: Any) -> pd.DataFrame:
         raise NotImplementedError()
 
-    def _write_block(  # type: ignore  # pylint: disable=signature-differs
+    def _write_block(  # type: ignore  # pylint: disable=arguments-differ
         self,
         f: pyarrow.NativeFile,
         block: PandasBlockAccessor,
@@ -95,9 +95,9 @@ class PandasTextDatasource(FileBasedDatasource):
             boto3_session=boto3_session,
             encoding=encoding,
             newline=newline,
-        ) as f:
+        ) as file:
             _logger.debug("pandas_kwargs: %s", pandas_kwargs)
-            self.write_text_func(frame, f, **pandas_kwargs)
+            self.write_text_func(frame, file, **pandas_kwargs)
 
     def on_write_complete(self, write_results: List[Any], **_: Any) -> None:
         """Execute callback on write complete."""

@@ -5,10 +5,9 @@ import logging
 import uuid
 from distutils.version import LooseVersion
 from functools import singledispatch
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import boto3
-import pandas as pd
 from pandas.io.common import infer_compression
 
 from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation
@@ -22,7 +21,6 @@ if config.distributed:
     import modin.pandas as pd
     from modin.pandas import DataFrame as ModinDataFrame
     from ray.data import from_modin, from_pandas
-    from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
 
     from awswrangler.distributed.datasources import (  # pylint: disable=ungrouped-imports
         PandasCSVDataSource,
@@ -91,7 +89,7 @@ def _to_text(
     return [file_path]
 
 
-def _to_text_distributed(
+def _to_text_distributed(  # pylint: disable=unused-argument
     df: pd.DataFrame,
     file_format: str,
     use_threads: Union[bool, int],
@@ -119,17 +117,22 @@ def _to_text_distributed(
     # Repartition into a single block if or writing into a single key or if bucketing is enabled
     if ray_dataset.count() > 0 and path:
         ray_dataset = ray_dataset.repartition(1)
-        _logger.warn(
-            f"Repartitioning frame to single partition as a strict path was defined: {path}."
-            "This operation is inefficient for large datasets."
+        _logger.warning(
+            "Repartitioning frame to single partition as a strict path was defined: %s. "
+            "This operation is inefficient for large datasets.",
+            path,
         )
 
-    if file_format == "csv":
-        datasource: PandasTextDatasource = PandasCSVDataSource()
-    elif file_format == "json":
-        datasource: PandasTextDatasource = PandasJSONDatasource()
-    else:
+    def _datasource_for_format(file_format: str) -> PandasTextDatasource:
+        if file_format == "csv":
+            return PandasCSVDataSource()
+
+        if file_format == "json":
+            return PandasJSONDatasource()
+
         raise RuntimeError(f"Unknown file format: {file_format}")
+
+    datasource = _datasource_for_format(file_format)
 
     mode, encoding, newline = _get_write_details(path=file_path, pandas_kwargs=pandas_kwargs)
     ray_dataset.write_datasource(
