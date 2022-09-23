@@ -60,7 +60,7 @@ def moto_glue():
 
 @pytest.fixture(scope="function")
 def moto_dynamodb():
-    with moto.mock_dynamodb2():
+    with moto.mock_dynamodb():
         dynamodb = boto3.resource("dynamodb")
         dynamodb.create_table(
             TableName="table",
@@ -574,13 +574,13 @@ def mock_data_api_connector(connector, has_result_set=True):
 
 def test_data_api_redshift_create_connection():
     cluster_id = "cluster123"
-    conn = wr.data_api.redshift.connect(cluster_id, "db1", db_user="admin")
-    assert conn.cluster_id == cluster_id
+    con = wr.data_api.redshift.connect(cluster_id=cluster_id, database="db1", db_user="admin")
+    assert con.cluster_id == cluster_id
 
 
 def test_data_api_redshift_read_sql_results():
     cluster_id = "cluster123"
-    con = wr.data_api.redshift.connect(cluster_id, "db1", db_user="admin")
+    con = wr.data_api.redshift.connect(cluster_id=cluster_id, database="db1", db_user="admin")
     expected_dataframe = mock_data_api_connector(con)
     dataframe = wr.data_api.redshift.read_sql_query("SELECT * FROM test", con=con)
     pd.testing.assert_frame_equal(dataframe, expected_dataframe)
@@ -588,7 +588,7 @@ def test_data_api_redshift_read_sql_results():
 
 def test_data_api_redshift_read_sql_no_results():
     cluster_id = "cluster123"
-    con = wr.data_api.redshift.connect(cluster_id, "db1", db_user="admin")
+    con = wr.data_api.redshift.connect(cluster_id=cluster_id, database="db1", db_user="admin")
     mock_data_api_connector(con, has_result_set=False)
     dataframe = wr.data_api.redshift.read_sql_query("DROP TABLE test", con=con)
     assert dataframe.empty is True

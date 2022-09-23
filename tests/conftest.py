@@ -130,7 +130,9 @@ def workgroup3(bucket, kms_key):
 
 @pytest.fixture(scope="session")
 def databases_parameters(cloudformation_outputs, db_password):
-    parameters = dict(postgresql={}, mysql={}, redshift={}, sqlserver={}, mysql_serverless={}, oracle={})
+    parameters = dict(
+        postgresql={}, mysql={}, redshift={}, sqlserver={}, mysql_serverless={}, oracle={}, redshift_serverless={}
+    )
     parameters["postgresql"]["host"] = cloudformation_outputs.get("PostgresqlAddress")
     parameters["postgresql"]["port"] = 3306
     parameters["postgresql"]["schema"] = "public"
@@ -160,6 +162,9 @@ def databases_parameters(cloudformation_outputs, db_password):
     parameters["oracle"]["port"] = 1521
     parameters["oracle"]["schema"] = "TEST"
     parameters["oracle"]["database"] = "ORCL"
+    parameters["redshift_serverless"]["secret_arn"] = cloudformation_outputs.get("RedshiftServerlessSecretArn")
+    parameters["redshift_serverless"]["workgroup"] = cloudformation_outputs.get("RedshiftServerlessWorkgroup")
+    parameters["redshift_serverless"]["database"] = "test"
     return parameters
 
 
