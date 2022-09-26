@@ -439,9 +439,7 @@ def _resolve_query_without_cache(
                 pyarrow_additional_kwargs=pyarrow_additional_kwargs,
             )
         finally:
-            catalog.delete_table_if_exists(
-                database=ctas_database or database, table=name, boto3_session=boto3_session
-            )
+            catalog.delete_table_if_exists(database=ctas_database or database, table=name, boto3_session=boto3_session)
     elif unload_approach is True:
         if unload_parameters is None:
             unload_parameters = {}
