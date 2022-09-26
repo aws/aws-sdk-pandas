@@ -17,7 +17,7 @@ from awswrangler._config import apply_configs, config
 from awswrangler._threading import _get_executor
 from awswrangler.catalog._get import _get_partitions
 from awswrangler.catalog._utils import _catalog_id
-from awswrangler.distributed import ray_get, ray_remote
+from awswrangler.distributed import RayLogger, ray_get, ray_remote
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import (
@@ -76,6 +76,7 @@ def _read_parquet_metadata_file(
     version_id: Optional[str] = None,
     coerce_int96_timestamp_unit: Optional[str] = None,
 ) -> pa.schema:
+    RayLogger().get_logger(name=_read_parquet_metadata_file.__name__)
     with open_s3_object(
         path=path,
         mode="rb",
