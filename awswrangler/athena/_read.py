@@ -995,6 +995,8 @@ def read_sql_table(
     table: str,
     database: str,
     ctas_approach: bool = True,
+    unload_approach: bool = False,
+    unload_parameters: Optional[Dict[str, Any]] = None,
     categories: Optional[List[str]] = None,
     chunksize: Optional[Union[int, bool]] = None,
     s3_output: Optional[str] = None,
@@ -1116,6 +1118,11 @@ def read_sql_table(
     ctas_approach: bool
         Wraps the query using a CTAS, and read the resulted parquet data on S3.
         If false, read the regular CSV on S3.
+    unload_approach: bool
+        Wraps the query using UNLOAD, and read the results from S3.
+        Only PARQUET format is supported.
+    unload_parameters : Optional[Dict[str, Any]]
+        Params of the UNLOAD such as format, compression, field_delimiter, and partitioned_by.
     categories: List[str], optional
         List of columns names that should be returned as pandas.Categorical.
         Recommended for memory restricted environments.
@@ -1203,6 +1210,8 @@ def read_sql_table(
         database=database,
         data_source=data_source,
         ctas_approach=ctas_approach,
+        unload_approach=unload_approach,
+        unload_parameters=unload_parameters,
         categories=categories,
         chunksize=chunksize,
         s3_output=s3_output,
