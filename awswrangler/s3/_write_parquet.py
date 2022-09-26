@@ -711,7 +711,8 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
                 "projection_values": projection_values,
                 "projection_intervals": projection_intervals,
                 "projection_digits": projection_digits,
-                "projection_storage_location_template": None,
+                "projection_formats": projection_formats,
+                "projection_storage_location_template": projection_storage_location_template,
                 "catalog_id": catalog_id,
                 "catalog_table_input": catalog_table_input,
             }
