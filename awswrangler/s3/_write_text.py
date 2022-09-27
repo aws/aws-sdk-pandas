@@ -11,13 +11,23 @@ import pandas as pd
 from pandas.io.common import infer_compression
 
 from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation
-from awswrangler._config import apply_configs
+from awswrangler._config import apply_configs, config
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_dataset import _to_dataset
 
+if config.distributed:
+    from modin.pandas import DataFrame as ModinDataFrame
+
+
 _logger: logging.Logger = logging.getLogger(__name__)
+
+
+def _to_pandas(df: pd.DataFrame) -> pd.DataFrame:
+    if config.distributed and isinstance(df, ModinDataFrame):
+        return df._to_pandas()  # pylint: disable=protected-access
+    return df
 
 
 def _get_write_details(path: str, pandas_kwargs: Dict[str, Any]) -> Tuple[str, Optional[str], Optional[str]]:
@@ -30,8 +40,8 @@ def _get_write_details(path: str, pandas_kwargs: Dict[str, Any]) -> Tuple[str, O
 
 
 def _to_text(
-    file_format: str,
     df: pd.DataFrame,
+    file_format: str,
     use_threads: Union[bool, int],
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
@@ -175,18 +185,18 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     concurrent_partitioning: bool
         If True will increase the parallelism level during the partitions writing. It will decrease the
         writing time and increase the memory usage.
-        https://aws-sdk-pandas.readthedocs.io/en/2.17.0/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.0.0b1/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
     mode : str, optional
         ``append`` (Default), ``overwrite``, ``overwrite_partitions``. Only takes effect if dataset=True.
         For details check the related tutorial:
-        https://aws-sdk-pandas.readthedocs.io/en/2.17.0/stubs/awswrangler.s3.to_parquet.html#awswrangler.s3.to_parquet
+        https://aws-sdk-pandas.readthedocs.io/en/3.0.0b1/stubs/awswrangler.s3.to_parquet.html#awswrangler.s3.to_parquet
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     schema_evolution : bool
         If True allows schema evolution (new or missing columns), otherwise a exception will be raised.
         (Only considered if dataset=True and mode in ("append", "overwrite_partitions")). False by default.
         Related tutorial:
-        https://aws-sdk-pandas.readthedocs.io/en/2.17.0/tutorials/014%20-%20Schema%20Evolution.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.0.0b1/tutorials/014%20-%20Schema%20Evolution.html
     database : str, optional
         Glue/Athena catalog: Database name.
     table : str, optional
@@ -438,6 +448,9 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         parameters=parameters,
         columns_comments=columns_comments,
     )
+    # Temporary fix to convert Modin data frames to Pandas Data frames
+    # until distributed _to_text implementation is available
+    df = _to_pandas(df)
 
     # Initializing defaults
     partition_cols = partition_cols if partition_cols else []
@@ -494,8 +507,8 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         pandas_kwargs["index"] = index
         pandas_kwargs["columns"] = columns
         _to_text(
+            df,
             file_format="csv",
-            df=df,
             use_threads=use_threads,
             path=path,
             boto3_session=session,
@@ -535,39 +548,41 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             if schema_evolution is False:
                 _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
 
+            create_table_args: Dict[str, Any] = {
+                "database": database,
+                "table": table,
+                "path": path,
+                "columns_types": columns_types,
+                "table_type": table_type,
+                "partitions_types": partitions_types,
+                "bucketing_info": bucketing_info,
+                "description": description,
+                "parameters": parameters,
+                "columns_comments": columns_comments,
+                "boto3_session": session,
+                "mode": mode,
+                "transaction_id": transaction_id,
+                "schema_evolution": schema_evolution,
+                "catalog_versioning": catalog_versioning,
+                "sep": sep,
+                "projection_enabled": projection_enabled,
+                "projection_types": projection_types,
+                "projection_ranges": projection_ranges,
+                "projection_values": projection_values,
+                "projection_intervals": projection_intervals,
+                "projection_digits": projection_digits,
+                "projection_formats": projection_formats,
+                "projection_storage_location_template": projection_storage_location_template,
+                "catalog_table_input": catalog_table_input,
+                "catalog_id": catalog_id,
+                "compression": pandas_kwargs.get("compression"),
+                "skip_header_line_count": True if header else None,
+                "serde_library": None,
+                "serde_parameters": None,
+            }
+
             if (catalog_table_input is None) and (table_type == "GOVERNED"):
-                catalog._create_csv_table(  # pylint: disable=protected-access
-                    database=database,
-                    table=table,
-                    path=path,
-                    columns_types=columns_types,
-                    table_type=table_type,
-                    partitions_types=partitions_types,
-                    bucketing_info=bucketing_info,
-                    description=description,
-                    parameters=parameters,
-                    columns_comments=columns_comments,
-                    boto3_session=session,
-                    mode=mode,
-                    transaction_id=transaction_id,
-                    schema_evolution=schema_evolution,
-                    catalog_versioning=catalog_versioning,
-                    sep=sep,
-                    projection_enabled=projection_enabled,
-                    projection_types=projection_types,
-                    projection_ranges=projection_ranges,
-                    projection_values=projection_values,
-                    projection_intervals=projection_intervals,
-                    projection_digits=projection_digits,
-                    projection_formats=projection_formats,
-                    projection_storage_location_template=projection_storage_location_template,
-                    catalog_table_input=catalog_table_input,
-                    catalog_id=catalog_id,
-                    compression=pandas_kwargs.get("compression"),
-                    skip_header_line_count=None,
-                    serde_library=None,
-                    serde_parameters=None,
-                )
+                catalog._create_csv_table(**create_table_args)  # pylint: disable=protected-access
                 catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
                     database=database,
                     table=table,
@@ -575,6 +590,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                     transaction_id=transaction_id,
                     catalog_id=catalog_id,
                 )
+                create_table_args["catalog_table_input"] = catalog_table_input
 
         paths, partitions_values = _to_dataset(
             func=_to_text,
@@ -609,40 +625,9 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                 serde_info: Dict[str, Any] = {}
                 if catalog_table_input:
                     serde_info = catalog_table_input["StorageDescriptor"]["SerdeInfo"]
-                serde_library: Optional[str] = serde_info.get("SerializationLibrary", None)
-                serde_parameters: Optional[Dict[str, str]] = serde_info.get("Parameters", None)
-                catalog._create_csv_table(  # pylint: disable=protected-access
-                    database=database,
-                    table=table,
-                    path=path,
-                    columns_types=columns_types,
-                    table_type=table_type,
-                    partitions_types=partitions_types,
-                    bucketing_info=bucketing_info,
-                    description=description,
-                    parameters=parameters,
-                    columns_comments=columns_comments,
-                    boto3_session=session,
-                    mode=mode,
-                    transaction_id=transaction_id,
-                    catalog_versioning=catalog_versioning,
-                    schema_evolution=schema_evolution,
-                    sep=sep,
-                    projection_enabled=projection_enabled,
-                    projection_types=projection_types,
-                    projection_ranges=projection_ranges,
-                    projection_values=projection_values,
-                    projection_intervals=projection_intervals,
-                    projection_digits=projection_digits,
-                    projection_formats=projection_formats,
-                    projection_storage_location_template=projection_storage_location_template,
-                    catalog_table_input=catalog_table_input,
-                    catalog_id=catalog_id,
-                    compression=pandas_kwargs.get("compression"),
-                    skip_header_line_count=True if header else None,
-                    serde_library=serde_library,
-                    serde_parameters=serde_parameters,
-                )
+                create_table_args["serde_library"] = serde_info.get("SerializationLibrary", None)
+                create_table_args["serde_parameters"] = serde_info.get("Parameters", None)
+                catalog._create_csv_table(**create_table_args)  # pylint: disable=protected-access
                 if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
                     _logger.debug("partitions_values:\n%s", partitions_values)
                     catalog.add_csv_partitions(
@@ -652,8 +637,8 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                         bucketing_info=bucketing_info,
                         boto3_session=session,
                         sep=sep,
-                        serde_library=serde_library,
-                        serde_parameters=serde_parameters,
+                        serde_library=create_table_args["serde_library"],
+                        serde_parameters=create_table_args["serde_parameters"],
                         catalog_id=catalog_id,
                         columns_types=columns_types,
                         compression=pandas_kwargs.get("compression"),
@@ -761,18 +746,18 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
     concurrent_partitioning: bool
         If True will increase the parallelism level during the partitions writing. It will decrease the
         writing time and increase the memory usage.
-        https://aws-sdk-pandas.readthedocs.io/en/2.17.0/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.0.0b1/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
     mode : str, optional
         ``append`` (Default), ``overwrite``, ``overwrite_partitions``. Only takes effect if dataset=True.
         For details check the related tutorial:
-        https://aws-sdk-pandas.readthedocs.io/en/2.17.0/stubs/awswrangler.s3.to_parquet.html#awswrangler.s3.to_parquet
+        https://aws-sdk-pandas.readthedocs.io/en/3.0.0b1/stubs/awswrangler.s3.to_parquet.html#awswrangler.s3.to_parquet
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     schema_evolution : bool
         If True allows schema evolution (new or missing columns), otherwise a exception will be raised.
         (Only considered if dataset=True and mode in ("append", "overwrite_partitions"))
         Related tutorial:
-        https://aws-sdk-pandas.readthedocs.io/en/2.17.0/tutorials/014%20-%20Schema%20Evolution.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.0.0b1/tutorials/014%20-%20Schema%20Evolution.html
     database : str, optional
         Glue/Athena catalog: Database name.
     table : str, optional
@@ -890,7 +875,6 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
             f"JSON compression on S3 is not supported for Pandas version {pd.__version__}. "
             "The minimum acceptable version to achive it is Pandas 1.2.0 that requires Python >=3.7.1."
         )
-
     _validate_args(
         df=df,
         table=table,
@@ -904,6 +888,9 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         parameters=parameters,
         columns_comments=columns_comments,
     )
+    # Temporary fix to convert Modin data frames to Pandas Data frames
+    # until distributed _to_text implementation is available
+    df = _to_pandas(df)
 
     # Initializing defaults
     partition_cols = partition_cols if partition_cols else []
@@ -956,8 +943,8 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
 
     if dataset is False:
         return _to_text(
+            df,
             file_format="json",
-            df=df,
             path=path,
             use_threads=use_threads,
             boto3_session=session,
@@ -978,37 +965,39 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         if schema_evolution is False:
             _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
 
+        create_table_args: Dict[str, Any] = {
+            "database": database,
+            "table": table,
+            "path": path,
+            "columns_types": columns_types,
+            "table_type": table_type,
+            "partitions_types": partitions_types,
+            "bucketing_info": bucketing_info,
+            "description": description,
+            "parameters": parameters,
+            "columns_comments": columns_comments,
+            "boto3_session": session,
+            "mode": mode,
+            "transaction_id": transaction_id,
+            "catalog_versioning": catalog_versioning,
+            "schema_evolution": schema_evolution,
+            "projection_enabled": projection_enabled,
+            "projection_types": projection_types,
+            "projection_ranges": projection_ranges,
+            "projection_values": projection_values,
+            "projection_intervals": projection_intervals,
+            "projection_digits": projection_digits,
+            "projection_formats": projection_formats,
+            "projection_storage_location_template": projection_storage_location_template,
+            "catalog_table_input": catalog_table_input,
+            "catalog_id": catalog_id,
+            "compression": compression,
+            "serde_library": None,
+            "serde_parameters": None,
+        }
+
         if (catalog_table_input is None) and (table_type == "GOVERNED"):
-            catalog._create_json_table(  # pylint: disable=protected-access
-                database=database,
-                table=table,
-                path=path,  # type: ignore
-                columns_types=columns_types,
-                table_type=table_type,
-                partitions_types=partitions_types,
-                bucketing_info=bucketing_info,
-                description=description,
-                parameters=parameters,
-                columns_comments=columns_comments,
-                boto3_session=session,
-                mode=mode,
-                transaction_id=transaction_id,
-                catalog_versioning=catalog_versioning,
-                schema_evolution=schema_evolution,
-                projection_enabled=projection_enabled,
-                projection_types=projection_types,
-                projection_ranges=projection_ranges,
-                projection_values=projection_values,
-                projection_intervals=projection_intervals,
-                projection_digits=projection_digits,
-                projection_formats=projection_formats,
-                projection_storage_location_template=projection_storage_location_template,
-                catalog_table_input=catalog_table_input,
-                catalog_id=catalog_id,
-                compression=compression,
-                serde_library=None,
-                serde_parameters=None,
-            )
+            catalog._create_json_table(**create_table_args)  # pylint: disable=protected-access
             catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
                 database=database,
                 table=table,
@@ -1016,6 +1005,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
                 transaction_id=transaction_id,
                 catalog_id=catalog_id,
             )
+            create_table_args["catalog_table_input"] = catalog_table_input
 
     paths, partitions_values = _to_dataset(
         func=_to_text,
@@ -1045,38 +1035,9 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
             serde_info: Dict[str, Any] = {}
             if catalog_table_input:
                 serde_info = catalog_table_input["StorageDescriptor"]["SerdeInfo"]
-            serde_library: Optional[str] = serde_info.get("SerializationLibrary", None)
-            serde_parameters: Optional[Dict[str, str]] = serde_info.get("Parameters", None)
-            catalog._create_json_table(  # pylint: disable=protected-access
-                database=database,
-                table=table,
-                path=path,  # type: ignore
-                columns_types=columns_types,
-                table_type=table_type,
-                partitions_types=partitions_types,
-                bucketing_info=bucketing_info,
-                description=description,
-                parameters=parameters,
-                columns_comments=columns_comments,
-                boto3_session=session,
-                mode=mode,
-                transaction_id=transaction_id,
-                catalog_versioning=catalog_versioning,
-                schema_evolution=schema_evolution,
-                projection_enabled=projection_enabled,
-                projection_types=projection_types,
-                projection_ranges=projection_ranges,
-                projection_values=projection_values,
-                projection_intervals=projection_intervals,
-                projection_digits=projection_digits,
-                projection_formats=projection_formats,
-                projection_storage_location_template=projection_storage_location_template,
-                catalog_table_input=catalog_table_input,
-                catalog_id=catalog_id,
-                compression=compression,
-                serde_library=serde_library,
-                serde_parameters=serde_parameters,
-            )
+            create_table_args["serde_library"] = serde_info.get("SerializationLibrary", None)
+            create_table_args["serde_parameters"] = serde_info.get("Parameters", None)
+            catalog._create_json_table(**create_table_args)  # pylint: disable=protected-access
             if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
                 _logger.debug("partitions_values:\n%s", partitions_values)
                 catalog.add_json_partitions(
@@ -1085,8 +1046,8 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
                     partitions_values=partitions_values,
                     bucketing_info=bucketing_info,
                     boto3_session=session,
-                    serde_library=serde_library,
-                    serde_parameters=serde_parameters,
+                    serde_library=create_table_args["serde_library"],
+                    serde_parameters=create_table_args["serde_parameters"],
                     catalog_id=catalog_id,
                     columns_types=columns_types,
                     compression=compression,

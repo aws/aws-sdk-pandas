@@ -456,7 +456,7 @@ def pyarrow2pandas_extension(  # pylint: disable=too-many-branches,too-many-retu
     return None
 
 
-def pyarrow_types_from_pandas(  # pylint: disable=too-many-branches
+def pyarrow_types_from_pandas(  # pylint: disable=too-many-branches,too-many-statements
     df: pd.DataFrame, index: bool, ignore_cols: Optional[List[str]] = None, index_left: bool = False
 ) -> Dict[str, pa.DataType]:
     """Extract the related Pyarrow data types from any Pandas DataFrame."""
@@ -476,8 +476,14 @@ def pyarrow_types_from_pandas(  # pylint: disable=too-many-branches
             cols_dtypes[name] = pa.int32()
         elif dtype == "Int64":
             cols_dtypes[name] = pa.int64()
+        elif dtype == "float32":
+            cols_dtypes[name] = pa.float32()
+        elif dtype == "float64":
+            cols_dtypes[name] = pa.float64()
         elif dtype == "string":
             cols_dtypes[name] = pa.string()
+        elif dtype == "boolean":
+            cols_dtypes[name] = pa.bool_()
         else:
             cols.append(name)
 
@@ -532,6 +538,20 @@ def pyarrow_types_from_pandas(  # pylint: disable=too-many-branches
     columns_types = {n: cols_dtypes[n] for n in sorted_cols}
     _logger.debug("columns_types: %s", columns_types)
     return columns_types
+
+
+def pyarrow2pandas_defaults(use_threads: Union[bool, int], kwargs: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Return Pyarrow to Pandas default dictionary arguments."""
+    default_kwargs = {
+        "use_threads": use_threads,
+        "split_blocks": True,
+        "self_destruct": True,
+        "ignore_metadata": True,
+        "types_mapper": pyarrow2pandas_extension,
+    }
+    if kwargs:
+        default_kwargs.update(kwargs)
+    return default_kwargs
 
 
 def process_not_inferred_dtype(ex: pa.ArrowInvalid) -> pa.DataType:

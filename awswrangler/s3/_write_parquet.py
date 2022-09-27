@@ -4,16 +4,17 @@ import logging
 import math
 import uuid
 from contextlib import contextmanager
+from functools import singledispatch
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
-import pandas as pd
 import pyarrow as pa
 import pyarrow.lib
 import pyarrow.parquet
 
 from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation
-from awswrangler._config import apply_configs
+from awswrangler._config import apply_configs, config
+from awswrangler.distributed import modin_repartition
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._read_parquet import _read_parquet_metadata
@@ -21,10 +22,42 @@ from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _
 from awswrangler.s3._write_concurrent import _WriteProxy
 from awswrangler.s3._write_dataset import _to_dataset
 
+if config.distributed:
+    import modin.pandas as pd
+    from modin.pandas import DataFrame as ModinDataFrame
+    from ray.data import from_modin, from_pandas
+    from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
+
+    from awswrangler.distributed.datasources import (  # pylint: disable=ungrouped-imports
+        ParquetDatasource,
+        UserProvidedKeyBlockWritePathProvider,
+    )
+else:
+    import pandas as pd
+
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _get_file_path(file_counter: int, file_path: str) -> str:
+def _get_file_path(
+    path_root: Optional[str] = None,
+    path: Optional[str] = None,
+    filename_prefix: Optional[str] = None,
+    compression_ext: str = "",
+    bucket_id: Optional[int] = None,
+    extension: str = ".parquet",
+) -> str:
+    if bucket_id is not None:
+        filename_prefix = f"{filename_prefix}_bucket-{bucket_id:05d}"
+    if path is None and path_root is not None:
+        file_path: str = f"{path_root}{filename_prefix}{compression_ext}{extension}"
+    elif path is not None and path_root is None:
+        file_path = path
+    else:
+        raise RuntimeError("path and path_root received at the same time.")
+    return file_path
+
+
+def _get_chunk_file_path(file_counter: int, file_path: str) -> str:
     slash_index: int = file_path.rfind("/")
     dot_index: int = file_path.find(".", slash_index)
     file_index: str = "_" + str(file_counter)
@@ -115,7 +148,7 @@ def _to_parquet_chunked(
     proxy: _WriteProxy = _WriteProxy(use_threads=use_threads)
     for chunk in range(chunks):
         offset: int = chunk * max_rows_by_file
-        write_path: str = _get_file_path(chunk, file_path)
+        write_path: str = _get_chunk_file_path(chunk, file_path)
         proxy.write(
             func=_write_chunk,
             file_path=write_path,
@@ -131,6 +164,7 @@ def _to_parquet_chunked(
     return proxy.close()  # blocking
 
 
+@singledispatch
 def _to_parquet(
     df: pd.DataFrame,
     schema: pa.Schema,
@@ -148,12 +182,9 @@ def _to_parquet(
     filename_prefix: Optional[str] = uuid.uuid4().hex,
     max_rows_by_file: Optional[int] = 0,
 ) -> List[str]:
-    if path is None and path_root is not None:
-        file_path: str = f"{path_root}{filename_prefix}{compression_ext}.parquet"
-    elif path is not None and path_root is None:
-        file_path = path
-    else:
-        raise RuntimeError("path and path_root received at the same time.")
+    file_path = _get_file_path(
+        path_root=path_root, path=path, filename_prefix=filename_prefix, compression_ext=compression_ext
+    )
     _logger.debug("file_path: %s", file_path)
     table: pa.Table = pyarrow.Table.from_pandas(df=df, schema=schema, nthreads=cpus, preserve_index=index, safe=True)
     for col_name, col_type in dtype.items():
@@ -163,6 +194,7 @@ def _to_parquet(
             field = pa.field(name=col_name, type=pyarrow_dtype)
             table = table.set_column(col_index, field, table.column(col_name).cast(pyarrow_dtype))
             _logger.debug("Casting column %s (%s) to %s (%s)", col_name, col_index, col_type, pyarrow_dtype)
+
     if max_rows_by_file is not None and max_rows_by_file > 0:
         paths: List[str] = _to_parquet_chunked(
             file_path=file_path,
@@ -190,7 +222,51 @@ def _to_parquet(
     return paths
 
 
+def _to_parquet_distributed(  # pylint: disable=unused-argument
+    df: pd.DataFrame,
+    schema: pa.Schema,
+    index: bool,
+    compression: Optional[str],
+    compression_ext: str,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]],
+    cpus: int,
+    dtype: Dict[str, str],
+    boto3_session: Optional[boto3.Session],
+    s3_additional_kwargs: Optional[Dict[str, str]],
+    use_threads: Union[bool, int],
+    path: Optional[str] = None,
+    path_root: Optional[str] = None,
+    filename_prefix: Optional[str] = "",
+    max_rows_by_file: Optional[int] = 0,
+    bucketing: bool = False,
+) -> List[str]:
+    if bucketing:
+        # Add bucket id to the prefix
+        path = f"{path_root}{filename_prefix}_bucket-{df.name:05d}.parquet"
+    # Create Ray Dataset
+    ds = from_modin(df) if isinstance(df, ModinDataFrame) else from_pandas(df)
+    # Repartition into a single block if or writing into a single key or if bucketing is enabled
+    if ds.count() > 0 and (path or bucketing):
+        ds = ds.repartition(1)
+    # Repartition by max_rows_by_file
+    elif max_rows_by_file and (max_rows_by_file > 0):
+        ds = ds.repartition(math.ceil(ds.count() / max_rows_by_file))
+    datasource = ParquetDatasource()
+    ds.write_datasource(
+        datasource,  # type: ignore
+        path=path or path_root,
+        dataset_uuid=filename_prefix,
+        # If user has provided a single key, use that instead of generating a path per block
+        # The dataset will be repartitioned into a single block
+        block_path_provider=UserProvidedKeyBlockWritePathProvider()
+        if path and not path.endswith("/")
+        else DefaultBlockWritePathProvider(),
+    )
+    return datasource.get_write_paths()
+
+
 @apply_configs
+@modin_repartition
 def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
     df: pd.DataFrame,
     path: Optional[str] = None,
@@ -299,18 +375,18 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     concurrent_partitioning: bool
         If True will increase the parallelism level during the partitions writing. It will decrease the
         writing time and increase the memory usage.
-        https://aws-sdk-pandas.readthedocs.io/en/2.17.0/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.0.0b1/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
     mode: str, optional
         ``append`` (Default), ``overwrite``, ``overwrite_partitions``. Only takes effect if dataset=True.
         For details check the related tutorial:
-        https://aws-sdk-pandas.readthedocs.io/en/2.17.0/tutorials/004%20-%20Parquet%20Datasets.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.0.0b1/tutorials/004%20-%20Parquet%20Datasets.html
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     schema_evolution : bool
         If True allows schema evolution (new or missing columns), otherwise a exception will be raised. True by default.
         (Only considered if dataset=True and mode in ("append", "overwrite_partitions"))
         Related tutorial:
-        https://aws-sdk-pandas.readthedocs.io/en/2.17.0/tutorials/014%20-%20Schema%20Evolution.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.0.0b1/tutorials/014%20-%20Schema%20Evolution.html
     database : str, optional
         Glue/Athena catalog: Database name.
     table : str, optional
@@ -529,6 +605,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
         description=description,
         parameters=parameters,
         columns_comments=columns_comments,
+        distributed=config.distributed,
     )
 
     # Evaluating compression
@@ -578,6 +655,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
             _logger.debug("`transaction_id` not specified for GOVERNED table, starting transaction")
             transaction_id = lakeformation.start_transaction(read_only=False, boto3_session=boto3_session)
             commit_trans = True
+
     df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
     schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(
         df=df, index=index, ignore_cols=partition_cols, dtype=dtype
@@ -586,8 +664,9 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
 
     if dataset is False:
         paths = _to_parquet(
-            df=df,
+            df,
             path=path,
+            filename_prefix=filename_prefix,
             schema=schema,
             index=index,
             cpus=cpus,
@@ -610,35 +689,37 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
             if schema_evolution is False:
                 _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
 
+            create_table_args: Dict[str, Any] = {
+                "database": database,
+                "table": table,
+                "path": path,
+                "columns_types": columns_types,
+                "table_type": table_type,
+                "partitions_types": partitions_types,
+                "bucketing_info": bucketing_info,
+                "compression": compression,
+                "description": description,
+                "parameters": parameters,
+                "columns_comments": columns_comments,
+                "boto3_session": session,
+                "mode": mode,
+                "transaction_id": transaction_id,
+                "catalog_versioning": catalog_versioning,
+                "projection_enabled": projection_enabled,
+                "projection_types": projection_types,
+                "projection_ranges": projection_ranges,
+                "projection_values": projection_values,
+                "projection_intervals": projection_intervals,
+                "projection_digits": projection_digits,
+                "projection_formats": projection_formats,
+                "projection_storage_location_template": projection_storage_location_template,
+                "catalog_id": catalog_id,
+                "catalog_table_input": catalog_table_input,
+            }
+
             if (catalog_table_input is None) and (table_type == "GOVERNED"):
-                catalog._create_parquet_table(  # pylint: disable=protected-access
-                    database=database,
-                    table=table,
-                    path=path,  # type: ignore
-                    columns_types=columns_types,
-                    table_type=table_type,
-                    partitions_types=partitions_types,
-                    bucketing_info=bucketing_info,
-                    compression=compression,
-                    description=description,
-                    parameters=parameters,
-                    columns_comments=columns_comments,
-                    boto3_session=session,
-                    mode=mode,
-                    transaction_id=transaction_id,
-                    catalog_versioning=catalog_versioning,
-                    projection_enabled=projection_enabled,
-                    projection_types=projection_types,
-                    projection_ranges=projection_ranges,
-                    projection_values=projection_values,
-                    projection_intervals=projection_intervals,
-                    projection_digits=projection_digits,
-                    projection_formats=projection_formats,
-                    projection_storage_location_template=projection_storage_location_template,
-                    catalog_id=catalog_id,
-                    catalog_table_input=catalog_table_input,
-                )
-                catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
+                catalog._create_parquet_table(**create_table_args)  # pylint: disable=protected-access
+                create_table_args["catalog_table_input"] = catalog._get_table_input(  # pylint: disable=protected-access
                     database=database,
                     table=table,
                     boto3_session=session,
@@ -675,33 +756,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
         )
         if (database is not None) and (table is not None):
             try:
-                catalog._create_parquet_table(  # pylint: disable=protected-access
-                    database=database,
-                    table=table,
-                    path=path,  # type: ignore
-                    columns_types=columns_types,
-                    table_type=table_type,
-                    partitions_types=partitions_types,
-                    bucketing_info=bucketing_info,
-                    compression=compression,
-                    description=description,
-                    parameters=parameters,
-                    columns_comments=columns_comments,
-                    boto3_session=session,
-                    mode=mode,
-                    transaction_id=transaction_id,
-                    catalog_versioning=catalog_versioning,
-                    projection_enabled=projection_enabled,
-                    projection_types=projection_types,
-                    projection_ranges=projection_ranges,
-                    projection_values=projection_values,
-                    projection_intervals=projection_intervals,
-                    projection_digits=projection_digits,
-                    projection_formats=projection_formats,
-                    projection_storage_location_template=projection_storage_location_template,
-                    catalog_id=catalog_id,
-                    catalog_table_input=catalog_table_input,
-                )
+                catalog._create_parquet_table(**create_table_args)  # pylint: disable=protected-access
                 if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
                     _logger.debug("partitions_values:\n%s", partitions_values)
                     catalog.add_parquet_partitions(

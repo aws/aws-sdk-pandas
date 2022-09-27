@@ -5,9 +5,11 @@ on:
   push:
     branches:
       - main
+      - release-3.0.0
   pull_request:
     branches:
       - main
+      - release-3.0.0
 
 permissions:
   contents: read
@@ -18,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.7]
+        python-version: [3.8]
 
     steps:
       - uses: actions/checkout@v3
@@ -31,13 +33,13 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install poetry==1.1.15 # 1.2.0 breaking resolution of packages
           poetry config virtualenvs.create false --local
-          poetry install --extras "sqlserver" -vvv
+          poetry install --extras "sqlserver sparql distributed" -vvv
       - name: mypy check
         run: mypy --install-types --non-interactive awswrangler
       - name: Flake8 Lint
         run: flake8 .
       - name: Pylint Lint
-        run: pylint -j 0 awswrangler
+        run: pylint -j 2 awswrangler
       - name: Black style
         run: black --check .
       - name: Imports order check (isort)

@@ -16,6 +16,7 @@ import pandas as pd
 
 from awswrangler import _data_types, _utils, catalog, exceptions, s3, sts
 from awswrangler._config import apply_configs
+from awswrangler.athena._formatter import _EngineType, _format_parameters
 from awswrangler.catalog._utils import _catalog_id, _transaction_id
 
 from ._cache import _cache_manager, _CacheInfo, _check_for_cached_results, _LocalMetadataCacheManager
@@ -410,7 +411,7 @@ def start_query_execution(
     params: Dict[str, any], optional
         Dict of parameters that will be used for constructing the SQL query. Only named parameters are supported.
         The dict needs to contain the information in the form {'name': 'value'} and the SQL query needs to contain
-        `:name;`. Note that for varchar columns and similar, you must surround the value in single quotes.
+        `:name`. Note that for varchar columns and similar, you must surround the value in single quotes.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     max_cache_seconds: int
@@ -457,8 +458,9 @@ def start_query_execution(
     """
     if params is None:
         params = {}
+    params = _format_parameters(params, engine=_EngineType.PRESTO)
     for key, value in params.items():
-        sql = sql.replace(f":{key};", str(value))
+        sql = sql.replace(f":{key}", str(value))
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
     max_remote_cache_entries = min(max_remote_cache_entries, max_local_cache_entries)

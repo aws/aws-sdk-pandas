@@ -1,33 +1,36 @@
 """Amazon S3 Wait Module (PRIVATE)."""
 
-import concurrent.futures
 import itertools
 import logging
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Union
 
 import boto3
 
 from awswrangler import _utils
+from awswrangler._config import config
+from awswrangler._threading import _get_executor
+from awswrangler.distributed import RayLogger, ray_get, ray_remote
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _wait_object(
-    path: Tuple[str, str], waiter_name: str, delay: int, max_attempts: int, boto3_session: boto3.Session
+    boto3_session: Optional[boto3.Session], path: str, waiter_name: str, delay: int, max_attempts: int
 ) -> None:
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     waiter = client_s3.get_waiter(waiter_name)
-    bucket, key = path
+
+    bucket, key = _utils.parse_path(path=path)
     waiter.wait(Bucket=bucket, Key=key, WaiterConfig={"Delay": delay, "MaxAttempts": max_attempts})
 
 
-def _wait_object_concurrent(
-    path: Tuple[str, str], waiter_name: str, delay: int, max_attempts: int, boto3_primitives: _utils.Boto3PrimitivesType
+@ray_remote
+def _wait_object_batch(
+    boto3_session: Optional[boto3.Session], paths: List[str], waiter_name: str, delay: int, max_attempts: int
 ) -> None:
-    boto3_session = _utils.boto3_from_primitives(primitives=boto3_primitives)
-    _wait_object(
-        path=path, waiter_name=waiter_name, delay=delay, max_attempts=max_attempts, boto3_session=boto3_session
-    )
+    RayLogger().get_logger(name=_wait_object_batch.__name__)
+    for path in paths:
+        _wait_object(boto3_session, path, waiter_name, delay, max_attempts)
 
 
 def _wait_objects(
@@ -36,40 +39,34 @@ def _wait_objects(
     delay: Optional[float] = None,
     max_attempts: Optional[int] = None,
     use_threads: Union[bool, int] = True,
+    parallelism: Optional[int] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
     delay = 5 if delay is None else delay
     max_attempts = 20 if max_attempts is None else max_attempts
+    parallelism = 100 if parallelism is None else parallelism
     _delay: int = int(delay) if isinstance(delay, float) else delay
+
     if len(paths) < 1:
         return None
-    _paths: List[Tuple[str, str]] = [_utils.parse_path(path=p) for p in paths]
-    if len(_paths) == 1:
-        _wait_object(
-            path=_paths[0],
-            waiter_name=waiter_name,
-            delay=_delay,
-            max_attempts=max_attempts,
-            boto3_session=boto3_session,
-        )
-    elif use_threads is False:
-        for path in _paths:
-            _wait_object(
-                path=path, waiter_name=waiter_name, delay=_delay, max_attempts=max_attempts, boto3_session=boto3_session
-            )
+
+    if config.distributed and len(paths) > parallelism:
+        path_batches = _utils.chunkify(paths, parallelism)
     else:
-        cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
-        with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
-            list(
-                executor.map(
-                    _wait_object_concurrent,
-                    _paths,
-                    itertools.repeat(waiter_name),
-                    itertools.repeat(_delay),
-                    itertools.repeat(max_attempts),
-                    itertools.repeat(_utils.boto3_to_primitives(boto3_session=boto3_session)),
-                )
-            )
+        path_batches = [[path] for path in paths]
+
+    executor = _get_executor(use_threads=use_threads)
+    ray_get(
+        executor.map(
+            _wait_object_batch,
+            boto3_session,
+            path_batches,
+            itertools.repeat(waiter_name),
+            itertools.repeat(_delay),
+            itertools.repeat(max_attempts),
+        )
+    )
+
     return None
 
 
@@ -79,6 +76,7 @@ def wait_objects_exist(
     max_attempts: Optional[int] = None,
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
+    parallelism: Optional[int] = None,
 ) -> None:
     """Wait Amazon S3 objects exist.
 
@@ -103,6 +101,9 @@ def wait_objects_exist(
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
+    parallelism: int, optional
+        The requested parallelism of the wait. Only used when `distributed` add-on is installed.
+        Parallelism may be limited by the number of files of the dataset. 100 by default.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -123,6 +124,7 @@ def wait_objects_exist(
         delay=delay,
         max_attempts=max_attempts,
         use_threads=use_threads,
+        parallelism=parallelism,
         boto3_session=boto3_session,
     )
 
@@ -133,6 +135,7 @@ def wait_objects_not_exist(
     max_attempts: Optional[int] = None,
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
+    parallelism: Optional[int] = None,
 ) -> None:
     """Wait Amazon S3 objects not exist.
 
@@ -157,6 +160,9 @@ def wait_objects_not_exist(
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
         If integer is provided, specified number is used.
+    parallelism: int, optional
+        The requested parallelism of the wait. Only used when `distributed` add-on is installed.
+        Parallelism may be limited by the number of files of the dataset. 100 by default.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -177,5 +183,6 @@ def wait_objects_not_exist(
         delay=delay,
         max_attempts=max_attempts,
         use_threads=use_threads,
+        parallelism=parallelism,
         boto3_session=boto3_session,
     )

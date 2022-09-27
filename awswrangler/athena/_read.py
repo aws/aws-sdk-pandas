@@ -2,6 +2,7 @@
 
 import csv
 import logging
+import re
 import sys
 import uuid
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
@@ -13,6 +14,7 @@ import pandas as pd
 from awswrangler import _utils, catalog, exceptions, s3
 from awswrangler._config import apply_configs
 from awswrangler._data_types import cast_pandas_with_athena_types
+from awswrangler.athena._formatter import _EngineType, _format_parameters
 from awswrangler.athena._utils import (
     _apply_query_metadata,
     _empty_dataframe_response,
@@ -109,13 +111,15 @@ def _fetch_parquet_result(
         df = cast_pandas_with_athena_types(df=df, dtype=dtype_dict)
         df = _apply_query_metadata(df=df, query_metadata=query_metadata)
         return df
+    if not pyarrow_additional_kwargs:
+        pyarrow_additional_kwargs = {}
+        if categories:
+            pyarrow_additional_kwargs["categories"] = categories
     ret = s3.read_parquet(
         path=paths,
         use_threads=use_threads,
         boto3_session=boto3_session,
         chunked=chunked,
-        categories=categories,
-        ignore_index=True,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,
     )
     if chunked is False:
@@ -557,6 +561,29 @@ def _unload(
     return query_metadata
 
 
+_PATTERN = re.compile(r":([A-Za-z0-9_]+)(?![A-Za-z0-9_])")
+
+
+def _process_sql_params(sql: str, params: Optional[Dict[str, Any]]) -> str:
+    if params is None:
+        params = {}
+
+    processed_params = _format_parameters(params, engine=_EngineType.PRESTO)
+
+    def replace(match: re.Match) -> str:  # type: ignore
+        key = match.group(1)
+
+        if key not in processed_params:
+            # do not replace anything if the parameter is not provided
+            return str(match.group(0))
+
+        return str(processed_params[key])
+
+    sql = _PATTERN.sub(replace, sql)
+
+    return sql
+
+
 @apply_configs
 def get_query_results(
     query_execution_id: str,
@@ -679,11 +706,11 @@ def read_sql_query(
 
     **Related tutorial:**
 
-    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/2.17.0/
+    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/3.0.0b1/
       tutorials/006%20-%20Amazon%20Athena.html>`_
-    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/2.17.0/
+    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/3.0.0b1/
       tutorials/019%20-%20Athena%20Cache.html>`_
-    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/2.17.0/
+    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/3.0.0b1/
       tutorials/021%20-%20Global%20Configurations.html>`_
 
     **There are three approaches available through ctas_approach and unload_approach parameters:**
@@ -747,7 +774,7 @@ def read_sql_query(
     /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a practical example check out the
-    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/2.17.0/
+    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/3.0.0b1/
     tutorials/024%20-%20Athena%20Query%20Metadata.html>`_!
 
 
@@ -861,7 +888,7 @@ def read_sql_query(
     params: Dict[str, any], optional
         Dict of parameters that will be used for constructing the SQL query. Only named parameters are supported.
         The dict needs to contain the information in the form {'name': 'value'} and the SQL query needs to contain
-        `:name;`. Note that for varchar columns and similar, you must surround the value in single quotes.
+        `:name`. Note that for varchar columns and similar, you must surround the value in single quotes.
     s3_additional_kwargs : Optional[Dict[str, Any]]
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
@@ -887,7 +914,7 @@ def read_sql_query(
 
     >>> import awswrangler as wr
     >>> df = wr.athena.read_sql_query(
-    ...     sql="SELECT * FROM my_table WHERE name=:name; AND city=:city;",
+    ...     sql="SELECT * FROM my_table WHERE name=:name AND city=:city",
     ...     params={"name": "'filtered_name'", "city": "'filtered_city'"}
     ... )
 
@@ -906,10 +933,9 @@ def read_sql_query(
         raise exceptions.InvalidArgumentCombination("Only PARQUET file format is supported if unload_approach=True")
     chunksize = sys.maxsize if ctas_approach is False and chunksize is True else chunksize
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    if params is None:
-        params = {}
-    for key, value in params.items():
-        sql = sql.replace(f":{key};", str(value))
+
+    # Substitute query parameters
+    sql = _process_sql_params(sql, params)
 
     max_remote_cache_entries = min(max_remote_cache_entries, max_local_cache_entries)
 
@@ -993,11 +1019,11 @@ def read_sql_table(
 
     **Related tutorial:**
 
-    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/2.17.0/
+    - `Amazon Athena <https://aws-sdk-pandas.readthedocs.io/en/3.0.0b1/
       tutorials/006%20-%20Amazon%20Athena.html>`_
-    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/2.17.0/
+    - `Athena Cache <https://aws-sdk-pandas.readthedocs.io/en/3.0.0b1/
       tutorials/019%20-%20Athena%20Cache.html>`_
-    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/2.17.0/
+    - `Global Configurations <https://aws-sdk-pandas.readthedocs.io/en/3.0.0b1/
       tutorials/021%20-%20Global%20Configurations.html>`_
 
     **There are two approaches to be defined through ctas_approach parameter:**
@@ -1042,7 +1068,7 @@ def read_sql_table(
     /athena.html#Athena.Client.get_query_execution>`_ .
 
     For a practical example check out the
-    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/2.17.0/
+    `related tutorial <https://aws-sdk-pandas.readthedocs.io/en/3.0.0b1/
     tutorials/024%20-%20Athena%20Query%20Metadata.html>`_!
 
 
@@ -1258,7 +1284,7 @@ def unload(
     params: Dict[str, any], optional
         Dict of parameters that will be used for constructing the SQL query. Only named parameters are supported.
         The dict needs to contain the information in the form {'name': 'value'} and the SQL query needs to contain
-        `:name;`. Note that for varchar columns and similar, you must surround the value in single quotes.
+        `:name`. Note that for varchar columns and similar, you must surround the value in single quotes.
 
     Returns
     -------
@@ -1269,17 +1295,16 @@ def unload(
     --------
     >>> import awswrangler as wr
     >>> res = wr.athena.unload(
-    ...     sql="SELECT * FROM my_table WHERE name=:name; AND city=:city;",
+    ...     sql="SELECT * FROM my_table WHERE name=:name AND city=:city",
     ...     params={"name": "'filtered_name'", "city": "'filtered_city'"}
     ... )
 
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
+
     # Substitute query parameters
-    if params is None:
-        params = {}
-    for key, value in params.items():
-        sql = sql.replace(f":{key};", str(value))
+    sql = _process_sql_params(sql, params)
+
     return _unload(
         sql=sql,
         path=path,
