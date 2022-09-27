@@ -132,7 +132,7 @@ def initialize_ray(
     cpu_count : Optional[int]
         Number of CPUs to assign to each raylet, by default None
     gpu_count : Optional[int]
-        Number of GPUs to assign to each raylet, by default 0
+        Number of GPUs to assign to each raylet, by default None
     """
     if not ray.is_initialized():
         # Detect an existing cluster
