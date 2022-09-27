@@ -90,6 +90,8 @@ def _delete_objects(
     boto3_session: Optional[boto3.Session] = None,
     **func_kwargs: Any,
 ) -> str:
+    # Keys are either a primitive type or a tuple if partitioning by multiple cols
+    keys = (keys,) if not isinstance(keys, tuple) else keys
     prefix = _get_subgroup_prefix(keys, partition_cols, path_root)
     if mode == "overwrite_partitions":
         if (table_type == "GOVERNED") and (table is not None) and (database is not None):
