@@ -30,6 +30,8 @@ from awswrangler._arrow import _add_table_partitions
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
+# Original implementation:
+# https://github.com/ray-project/ray/blob/releases/2.0.0/python/ray/data/datasource/parquet_datasource.py
 def _read_pieces(
     block_udf: Optional[Callable[[Block[Any]], Block[Any]]],
     reader_args: Any,
