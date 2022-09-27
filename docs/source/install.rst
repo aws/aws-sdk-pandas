@@ -32,8 +32,13 @@ Managed Layer
 
 AWS SDK for pandas is available as an AWS Lambda Managed layer in all AWS commercial regions.
 
-It can be accessed in the AWS Lambda console directly,
-or via its ARN: ``arn:aws:lambda:<region>:336392948345:layer:AWSSDKPandas-Python<python-version>:<layer-version>``.
+It can be accessed in the AWS Lambda console directly:
+
+.. image:: _static/aws_lambda_managed_layer.png
+  :width: 400
+  :alt: AWS Managed Lambda Layer
+
+Or via its ARN: ``arn:aws:lambda:<region>:336392948345:layer:AWSSDKPandas-Python<python-version>:<layer-version>``.
 
 For example: ``arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python37:1``.
 

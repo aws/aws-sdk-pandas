@@ -404,7 +404,7 @@ def _resolve_query_without_cache(
     encryption: Optional[str],
     kms_key: Optional[str],
     keep_files: bool,
-    ctas_database_name: Optional[str],
+    ctas_database: Optional[str],
     ctas_temp_table_name: Optional[str],
     ctas_bucketing_info: Optional[Tuple[List[str], int]],
     use_threads: Union[bool, int],
@@ -434,7 +434,7 @@ def _resolve_query_without_cache(
                 encryption=encryption,
                 workgroup=workgroup,
                 kms_key=kms_key,
-                alt_database=ctas_database_name,
+                alt_database=ctas_database,
                 name=name,
                 ctas_bucketing_info=ctas_bucketing_info,
                 use_threads=use_threads,
@@ -443,9 +443,7 @@ def _resolve_query_without_cache(
                 pyarrow_additional_kwargs=pyarrow_additional_kwargs,
             )
         finally:
-            catalog.delete_table_if_exists(
-                database=ctas_database_name or database, table=name, boto3_session=boto3_session
-            )
+            catalog.delete_table_if_exists(database=ctas_database or database, table=name, boto3_session=boto3_session)
     elif unload_approach is True:
         if unload_parameters is None:
             unload_parameters = {}
@@ -690,7 +688,7 @@ def read_sql_query(
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
     keep_files: bool = True,
-    ctas_database_name: Optional[str] = None,
+    ctas_database: Optional[str] = None,
     ctas_temp_table_name: Optional[str] = None,
     ctas_bucketing_info: Optional[Tuple[List[str], int]] = None,
     use_threads: Union[bool, int] = True,
@@ -848,7 +846,7 @@ def read_sql_query(
         For SSE-KMS, this is the KMS key ARN or ID.
     keep_files : bool
         Whether staging files produced by Athena are retained. 'True' by default.
-    ctas_database_name : str, optional
+    ctas_database : str, optional
         The name of the alternative database where the CTAS temporary table is stored.
         If None, the default `database` is used.
     ctas_temp_table_name : str, optional
@@ -980,7 +978,7 @@ def read_sql_query(
         encryption=encryption,
         kms_key=kms_key,
         keep_files=keep_files,
-        ctas_database_name=ctas_database_name,
+        ctas_database=ctas_database,
         ctas_temp_table_name=ctas_temp_table_name,
         ctas_bucketing_info=ctas_bucketing_info,
         use_threads=use_threads,
@@ -1004,7 +1002,7 @@ def read_sql_table(
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
     keep_files: bool = True,
-    ctas_database_name: Optional[str] = None,
+    ctas_database: Optional[str] = None,
     ctas_temp_table_name: Optional[str] = None,
     ctas_bucketing_info: Optional[Tuple[List[str], int]] = None,
     use_threads: Union[bool, int] = True,
@@ -1140,7 +1138,7 @@ def read_sql_table(
         For SSE-KMS, this is the KMS key ARN or ID.
     keep_files : bool
         Should awswrangler delete or keep the staging files produced by Athena?
-    ctas_database_name : str, optional
+    ctas_database : str, optional
         The name of the alternative database where the CTAS temporary table is stored.
         If None, the default `database` is used.
     ctas_temp_table_name : str, optional
@@ -1219,7 +1217,7 @@ def read_sql_table(
         encryption=encryption,
         kms_key=kms_key,
         keep_files=keep_files,
-        ctas_database_name=ctas_database_name,
+        ctas_database=ctas_database,
         ctas_temp_table_name=ctas_temp_table_name,
         ctas_bucketing_info=ctas_bucketing_info,
         use_threads=use_threads,
