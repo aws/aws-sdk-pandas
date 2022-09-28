@@ -798,10 +798,10 @@ def test_read_sql_query_unload(path, glue_table, glue_database, file_format):
         table=glue_table,
         database=glue_database,
     )
-    df_out = wr.athena.read_sql_query(
-        sql=f"SELECT * FROM {glue_database}.{glue_table}",
-        s3_output=f"{path}unload/",
+    df_out = wr.athena.read_sql_table(
+        table=glue_table,
         database=glue_database,
+        s3_output=f"{path}unload/",
         ctas_approach=False,
         unload_approach=True,
         unload_parameters={"file_format": file_format},

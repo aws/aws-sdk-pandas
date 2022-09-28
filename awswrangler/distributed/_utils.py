@@ -6,8 +6,8 @@ import modin.pandas as modin_pd
 import pandas as pd
 import ray
 from modin.distributed.dataframe.pandas.partitions import from_partitions
-from ray.data.impl.arrow_block import ArrowBlockAccessor, ArrowRow
-from ray.data.impl.remote_fn import cached_remote_fn
+from ray.data._internal.arrow_block import ArrowBlockAccessor, ArrowRow
+from ray.data._internal.remote_fn import cached_remote_fn
 
 from awswrangler._arrow import _table_to_df
 

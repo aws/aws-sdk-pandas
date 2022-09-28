@@ -5,6 +5,8 @@ from typing import Any, Callable, Dict, Iterator, List, Optional
 
 import pandas as pd
 import pyarrow
+from ray.data._internal.pandas_block import PandasBlockAccessor
+from ray.data._internal.remote_fn import cached_remote_fn
 from ray.data.block import BlockMetadata
 from ray.data.datasource.datasource import WriteResult
 from ray.data.datasource.file_based_datasource import (
@@ -12,8 +14,6 @@ from ray.data.datasource.file_based_datasource import (
     DefaultBlockWritePathProvider,
     FileBasedDatasource,
 )
-from ray.data.impl.pandas_block import PandasBlockAccessor
-from ray.data.impl.remote_fn import cached_remote_fn
 from ray.types import ObjectRef
 
 from awswrangler import _utils

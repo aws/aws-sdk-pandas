@@ -285,7 +285,6 @@ You can choose from three different environments to test your fixes/changes, bas
 # The following is an example
 cluster_name: ray-cluster
 
-initial_workers: 2
 min_workers: 2
 max_workers: 2
 
@@ -303,12 +302,8 @@ available_node_types:
       InstanceType: r5n.2xlarge # change instance type as required
       IamInstanceProfile:
         Arn: arn:aws:iam::{UPDATE YOUR ACCOUNT ID HERE}:instance-profile/ray-cluster-instance-profile
-      ImageId: ami-0ea510fcb67686b48 # latest ray images -> https://github.com/amzn/amazon-ray#amazon-ray-images 
-      NetworkInterfaces:
-        - AssociatePublicIpAddress: True
-          SubnetId: {replace with subnet within above AZs}
-          Groups: [{ID of group `ray_client_security_group` created by the step above}]
-          DeviceIndex: 0
+      ImageId: ami-0ea510fcb67686b48 # latest ray images -> https://github.com/amzn/amazon-ray#amazon-ray-images
+      SubnetId: {replace with subnet within above AZs}
 
   ray.worker.default:
       min_workers: 2
@@ -317,15 +312,11 @@ available_node_types:
         InstanceType: r5n.2xlarge
         IamInstanceProfile:
           Arn: arn:aws:iam::{UPDATE YOUR ACCOUNT ID HERE}:instance-profile/ray-cluster-instance-profile
-        ImageId: ami-0ea510fcb67686b48 # latest ray images -> https://github.com/amzn/amazon-ray#amazon-ray-images 
-        NetworkInterfaces:
-          - AssociatePublicIpAddress: True
-            SubnetId: {replace with subnet within above AZs}
-            Groups: [{ID of group `ray_client_security_group` created by the step above}]
-            DeviceIndex: 0
+        ImageId: ami-0ea510fcb67686b48 # latest ray images -> https://github.com/amzn/amazon-ray#amazon-ray-images
+        SubnetId: {replace with subnet within above AZs}
 
 setup_commands:
-- pip install "awswrangler[distributed]==3.0.0a2"
+- pip install "awswrangler[distributed]==3.0.0b1"
 - pip install pytest
 
 ```

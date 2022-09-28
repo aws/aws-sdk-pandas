@@ -9,7 +9,7 @@ import boto3
 
 from awswrangler import _utils, exceptions
 from awswrangler._threading import _get_executor
-from awswrangler.distributed import ray_get, ray_remote
+from awswrangler.distributed import RayLogger, ray_get, ray_remote
 from awswrangler.s3._fs import get_botocore_valid_kwargs
 from awswrangler.s3._list import _path2list
 
@@ -33,6 +33,7 @@ def _delete_objects(
     paths: List[str],
     s3_additional_kwargs: Optional[Dict[str, Any]],
 ) -> None:
+    RayLogger().get_logger(name=_delete_objects.__name__)
     client_s3: boto3.client = _utils.client(
         service_name="s3",
         session=boto3_session,
