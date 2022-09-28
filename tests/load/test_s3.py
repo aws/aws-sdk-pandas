@@ -9,13 +9,13 @@ from .._utils import ExecutionTimer
 @pytest.fixture(scope="function")
 def df_s():
     # Data frame with 100000 rows
-    return wr.s3.read_parquet(path="s3://ursa-labs-taxi-data/2010/02/data.parquet", parallelism=1000)
+    return wr.s3.read_parquet(path="s3://ursa-labs-taxi-data/2010/02/data.parquet")
 
 
 @pytest.fixture(scope="function")
 def df_xl():
     # Data frame with 8759874 rows
-    return wr.s3.read_parquet(path="s3://ursa-labs-taxi-data/2018/01/data.parquet", parallelism=1000)
+    return wr.s3.read_parquet(path="s3://ursa-labs-taxi-data/2018/01/data.parquet")
 
 
 @pytest.mark.repeat(1)
@@ -38,7 +38,7 @@ def test_s3_select(benchmark_time):
 def test_s3_read_parquet_simple(benchmark_time):
     path = "s3://ursa-labs-taxi-data/2018/"
     with ExecutionTimer("elapsed time of wr.s3.read_parquet() simple") as timer:
-        wr.s3.read_parquet(path=path, parallelism=1000)
+        wr.s3.read_parquet(path=path)
 
     assert timer.elapsed_time < benchmark_time
 
@@ -48,7 +48,7 @@ def test_s3_read_parquet_partition_filter(benchmark_time):
     path = "s3://amazon-reviews-pds/parquet/"
     with ExecutionTimer("elapsed time of wr.s3.read_parquet() partition filter") as timer:
         filter = lambda x: True if x["product_category"].startswith("Wireless") else False  # noqa: E731
-        wr.s3.read_parquet(path=path, parallelism=1000, dataset=True, partition_filter=filter)
+        wr.s3.read_parquet(path=path, dataset=True, partition_filter=filter)
 
     assert timer.elapsed_time < benchmark_time
 
