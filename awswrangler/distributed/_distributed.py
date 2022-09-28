@@ -1,15 +1,12 @@
 """Distributed Module (PRIVATE)."""
 import logging
 import os
-import sys
-import warnings
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union
 
 from awswrangler._config import apply_configs, config
 
 if config.distributed or TYPE_CHECKING:
-    import psutil
     import ray  # pylint: disable=import-error
     from modin.distributed.dataframe.pandas import from_partitions, unwrap_partitions
     from modin.pandas import DataFrame as ModinDataFrame
