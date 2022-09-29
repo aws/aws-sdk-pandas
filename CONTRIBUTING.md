@@ -316,7 +316,7 @@ available_node_types:
         SubnetId: {replace with subnet within above AZs}
 
 setup_commands:
-- pip install "awswrangler[distributed]==3.0.0b1"
+- pip install "awswrangler[distributed]==3.0.0b2"
 - pip install pytest
 
 ```
