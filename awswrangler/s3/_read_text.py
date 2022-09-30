@@ -16,11 +16,11 @@ from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import _apply_partition_filter, _get_path_ignore_suffix, _get_path_root, _union
 from awswrangler.s3._read_text_core import _read_text_file, _read_text_files_chunked
 
-if config.distributed:
+if config.memory_format == "modin":
     from ray.data import read_datasource
 
-    from awswrangler.distributed._utils import _to_modin  # pylint: disable=ungrouped-imports
-    from awswrangler.distributed.datasources import PandasCSVDataSource, PandasFWFDataSource, PandasJSONDatasource
+    from awswrangler.distributed.ray._utils import _to_modin  # pylint: disable=ungrouped-imports
+    from awswrangler.distributed.ray.datasources import PandasCSVDataSource, PandasFWFDataSource, PandasJSONDatasource
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -147,7 +147,7 @@ def _read_text(
             **args,
         )
 
-    if config.distributed:
+    if config.memory_format == "modin":
         ray_dataset = read_datasource(
             datasource=reading_strategy.ray_datasource,
             parallelism=parallelism,

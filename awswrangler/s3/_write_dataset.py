@@ -12,7 +12,7 @@ from awswrangler._config import config
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._write_concurrent import _WriteProxy
 
-if config.distributed:
+if config.memory_format == "modin":
     import modin.pandas as pd
     from modin.pandas import DataFrame as ModinDataFrame
 else:

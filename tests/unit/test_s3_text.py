@@ -6,7 +6,7 @@ import pytest
 import awswrangler as wr
 from awswrangler._config import config
 
-if config.distributed:
+if config.memory_format == "modin":
     import modin.pandas as pd
 else:
     import pandas as pd

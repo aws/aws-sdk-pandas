@@ -13,7 +13,7 @@ import pyarrow as pa
 
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._threading import _get_executor
-from awswrangler.distributed import RayLogger, ray_get, ray_remote
+from awswrangler.distributed.ray import RayLogger, ray_get, ray_remote
 from awswrangler.s3._describe import size_objects
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import _get_path_ignore_suffix

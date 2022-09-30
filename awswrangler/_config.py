@@ -21,6 +21,8 @@ class _ConfigArg(NamedTuple):
     dtype: Type[Union[str, bool, int, botocore.config.Config]]
     nullable: bool
     enforced: bool = False
+    loaded: bool = False
+    default: Optional[str] = None
 
 
 # Please, also add any new argument as a property in the _Config class
@@ -37,22 +39,27 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "workgroup": _ConfigArg(dtype=str, nullable=False, enforced=True),
     "chunksize": _ConfigArg(dtype=int, nullable=False, enforced=True),
     # Endpoints URLs
-    "s3_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "athena_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "sts_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "glue_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "redshift_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "kms_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "emr_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "lakeformation_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "dynamodb_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "secretsmanager_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "timestream_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
+    "s3_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "athena_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "sts_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "glue_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "redshift_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "kms_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "emr_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "lakeformation_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "dynamodb_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "secretsmanager_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "timestream_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
     # Botocore config
     "botocore_config": _ConfigArg(dtype=botocore.config.Config, nullable=True),
-    "verify": _ConfigArg(dtype=str, nullable=True),
+    "verify": _ConfigArg(dtype=str, nullable=True, loaded=True),
     # Distributed
-    "distributed": _ConfigArg(dtype=bool, nullable=True),
+    "execution_engine": _ConfigArg(
+        dtype=str, nullable=True, loaded=True, default="ray" if importlib.util.find_spec("ray") else "python"
+    ),
+    "memory_format": _ConfigArg(
+        dtype=str, nullable=True, loaded=True, default="modin" if importlib.util.find_spec("modin") else "pandas"
+    ),
     "address": _ConfigArg(dtype=str, nullable=True),
     "redis_password": _ConfigArg(dtype=str, nullable=True),
     "ignore_reinit_error": _ConfigArg(dtype=bool, nullable=True),
@@ -70,20 +77,6 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     def __init__(self) -> None:
         self._loaded_values: Dict[str, _ConfigValueType] = {}
         name: str
-        self.s3_endpoint_url = None
-        self.athena_endpoint_url = None
-        self.sts_endpoint_url = None
-        self.glue_endpoint_url = None
-        self.redshift_endpoint_url = None
-        self.kms_endpoint_url = None
-        self.emr_endpoint_url = None
-        self.lakeformation_endpoint_url = None
-        self.dynamodb_endpoint_url = None
-        self.secretsmanager_endpoint_url = None
-        self.timestream_endpoint_url = None
-        self.botocore_config = None
-        self.verify = None
-        self.distributed = all(importlib.util.find_spec(pkg) for pkg in ("modin", "ray"))
         for name in _CONFIG_ARGS:
             self._load_config(name=name)
 
@@ -146,11 +139,15 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         return pd.DataFrame(args)
 
     def _load_config(self, name: str) -> bool:
+        loaded_config: bool = False
+        if _CONFIG_ARGS[name].loaded:
+            self._set_config_value(key=name, value=_CONFIG_ARGS[name].default)
+            loaded_config = True
         env_var: Optional[str] = os.getenv(f"WR_{name.upper()}")
         if env_var is not None:
             self._set_config_value(key=name, value=env_var)
-            return True
-        return False
+            loaded_config = True
+        return loaded_config
 
     def _set_config_value(self, key: str, value: Any) -> None:
         if key not in _CONFIG_ARGS:
@@ -169,8 +166,8 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
 
     def _reset_item(self, item: str) -> None:
         if item in self._loaded_values:
-            if item.endswith("_endpoint_url") or item in ["verify", "distributed"]:
-                self._loaded_values[item] = None
+            if _CONFIG_ARGS[item].loaded:
+                self._loaded_values[item] = _CONFIG_ARGS[item].default
             else:
                 del self._loaded_values[item]
         self._load_config(name=item)
@@ -429,13 +426,22 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         self._set_config_value(key="verify", value=value)
 
     @property
-    def distributed(self) -> Optional[bool]:
-        """Property distributed."""
-        return cast(Optional[bool], self["distributed"])
+    def execution_engine(self) -> Optional[str]:
+        """Property execution_engine."""
+        return cast(Optional[str], self["execution_engine"])
 
-    @distributed.setter
-    def distributed(self, value: Optional[bool]) -> None:
-        self._set_config_value(key="distributed", value=value)
+    @execution_engine.setter
+    def execution_engine(self, value: Optional[str]) -> None:
+        self._set_config_value(key="execution_engine", value=value)
+
+    @property
+    def memory_format(self) -> Optional[str]:
+        """Property memory_format."""
+        return cast(Optional[str], self["memory_format"])
+
+    @memory_format.setter
+    def memory_format(self, value: Optional[str]) -> None:
+        self._set_config_value(key="memory_format", value=value)
 
     @property
     def ignore_reinit_error(self) -> Optional[bool]:

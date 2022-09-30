@@ -32,9 +32,9 @@ from awswrangler import (  # noqa
 )
 from awswrangler.__metadata__ import __description__, __license__, __title__, __version__  # noqa
 from awswrangler._config import config  # noqa
-from awswrangler.distributed import initialize_ray
+from awswrangler.distributed.ray import initialize_ray
 
-if config.distributed:
+if config.execution_engine == "ray":
     initialize_ray()
 
 

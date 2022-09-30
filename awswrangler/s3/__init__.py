@@ -47,7 +47,7 @@ __all__ = [
     "upload",
 ]
 
-if config.distributed:
+if config.memory_format == "modin":
     from modin.pandas import DataFrame as ModinDataFrame
 
     from awswrangler.s3._write_dataset import (  # pylint: disable=ungrouped-imports

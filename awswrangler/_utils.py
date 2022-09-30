@@ -21,10 +21,11 @@ from awswrangler.__metadata__ import __version__
 from awswrangler._arrow import _table_to_df
 from awswrangler._config import apply_configs, config
 
-if TYPE_CHECKING or config.distributed:
+if TYPE_CHECKING or config.execution_engine == "ray":
     import ray  # pylint: disable=unused-import
 
-    from awswrangler.distributed._utils import _arrow_refs_to_df  # pylint: disable=ungrouped-imports
+    if config.memory_format == "modin":
+        from awswrangler.distributed.ray._utils import _arrow_refs_to_df  # pylint: disable=ungrouped-imports
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
