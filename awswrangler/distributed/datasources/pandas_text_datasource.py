@@ -94,9 +94,6 @@ class PandasTextDatasource(FileBasedDatasource):
         **write_args,
     ) -> List[ObjectRef[WriteResult]]:
         """Create and return write tasks for a file-based datasource."""
-        boto3_session = write_args.get("boto3_session")
-        s3_additional_kwargs = write_args.get("s3_additional_kwargs")
-
         _write_block_to_file = self._write_block
 
         if open_stream_args is None:
