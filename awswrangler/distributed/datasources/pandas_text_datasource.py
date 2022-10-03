@@ -105,7 +105,7 @@ class PandasTextDatasource(FileBasedDatasource):
         if ray_remote_args is None:
             ray_remote_args = {}
 
-        def write_block(write_path: str, block: pd.DataFrame) -> None:
+        def write_block(write_path: str, block: pd.DataFrame) -> str:
             _logger.debug("Writing %s file.", write_path)
             if _block_udf is not None:
                 block = _block_udf(block)
@@ -125,6 +125,7 @@ class PandasTextDatasource(FileBasedDatasource):
                     writer_args_fn=write_args_fn,
                     **write_args,
                 )
+                return write_path
 
         write_block_fn = cached_remote_fn(write_block).options(**ray_remote_args)
 

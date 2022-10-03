@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import boto3
 import numpy as np
 
-from awswrangler import exceptions, lakeformation
+from awswrangler import exceptions, lakeformation, _utils
 from awswrangler._config import config
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._write_concurrent import _WriteProxy
@@ -338,18 +338,23 @@ def _to_buckets_distributed(  # pylint: disable=unused-argument
 ) -> List[str]:
     df_groups = df.groupby(by=_get_bucketing_series(df=df, bucketing_info=bucketing_info))
     paths: List[str] = []
+
     df_paths = df_groups.apply(
         func.dispatch(ModinDataFrame),  # type: ignore
         path_root=path_root,
         filename_prefix=filename_prefix,
-        boto3_session=None,
+        boto3_session=_utils.boto3_to_primitives(boto3_session=boto3_session),
         use_threads=False,
         bucketing=True,
         **func_kwargs,
     )
     for df_path in df_paths.values:
         try:
-            paths.extend(df_path)
+            try:
+                row_paths = [p for arr in df_path for p in arr]
+                paths.extend(row_paths)
+            except TypeError:
+                paths.extend(df_path)
         except TypeError:
             paths.append(df_path)
     return paths

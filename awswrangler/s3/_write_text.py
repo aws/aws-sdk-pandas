@@ -55,6 +55,7 @@ def _to_text(
     path: Optional[str] = None,
     path_root: Optional[str] = None,
     filename_prefix: Optional[str] = uuid.uuid4().hex,
+    bucketing: bool = False,
     **pandas_kwargs: Any,
 ) -> List[str]:
     if df.empty is True:
@@ -95,11 +96,22 @@ def _to_text_distributed(  # pylint: disable=unused-argument
     path: Optional[str] = None,
     path_root: Optional[str] = None,
     filename_prefix: Optional[str] = uuid.uuid4().hex,
+    bucketing: bool = False,
     **pandas_kwargs: Any,
 ) -> List[str]:
     if df.empty is True:
         raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
-    if path is None and path_root is not None:
+
+    file_format = f"{file_format}{_COMPRESSION_2_EXT.get(pandas_kwargs.get('compression'))}"
+
+    if bucketing:
+        # Add bucket id to the prefix
+        prefix = f"{filename_prefix}_bucket-{df.name:05d}"
+
+        file_path = f"{path_root}{prefix}.{file_format}"
+        path = file_path
+
+    elif path is None and path_root is not None:
         file_path = path_root
     elif path is not None and path_root is None:
         file_path = path
