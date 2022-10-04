@@ -122,7 +122,7 @@ def test_s3_write_csv(path: str, benchmark_time: int):
     frame["bar"] = frame.value % 2
 
     with ExecutionTimer("elapsed time of wr.s3.to_csv()") as timer:
-        wr.s3.to_csv(frame, path)
+        wr.s3.to_csv(frame, path, dataset=True)
 
     objects = wr.s3.list_objects(path)
     assert len(objects) > 1
