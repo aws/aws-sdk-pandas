@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import boto3
 import numpy as np
 
-from awswrangler import exceptions, lakeformation, _utils
+from awswrangler import _utils, exceptions, lakeformation
 from awswrangler._config import config
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._write_concurrent import _WriteProxy

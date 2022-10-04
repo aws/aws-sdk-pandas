@@ -46,7 +46,7 @@ def _get_write_details(path: str, pandas_kwargs: Dict[str, Any]) -> Tuple[str, O
 
 
 @singledispatch
-def _to_text(
+def _to_text(  # pylint: disable=unused-argument
     df: pd.DataFrame,
     file_format: str,
     use_threads: Union[bool, int],
