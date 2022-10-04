@@ -129,6 +129,23 @@ def test_s3_write_csv(path: str, benchmark_time: int):
     assert timer.elapsed_time < benchmark_time
 
 
+@pytest.mark.parametrize("benchmark_time", [15])
+def test_s3_write_json(path: str, benchmark_time: int):
+    pandas_refs = ray.data.range_table(100_000).to_pandas_refs()
+    dataset = ray.data.from_pandas_refs(pandas_refs)
+
+    frame = dataset.to_modin()
+    frame["foo"] = frame.value * 2
+    frame["bar"] = frame.value % 2
+
+    with ExecutionTimer("elapsed time of wr.s3.to_json()") as timer:
+        wr.s3.to_json(frame, path, dataset=True, lines=True, orient="records")
+
+    objects = wr.s3.list_objects(path)
+    assert len(objects) > 1
+    assert timer.elapsed_time < benchmark_time
+
+
 @pytest.mark.timeout(300)
 @pytest.mark.parametrize("benchmark_time", [30])
 def test_wait_object_exists(path: str, benchmark_time: int) -> None:

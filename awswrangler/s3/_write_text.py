@@ -102,13 +102,12 @@ def _to_text_distributed(  # pylint: disable=unused-argument
     if df.empty is True:
         raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
 
-    file_format = f"{file_format}{_COMPRESSION_2_EXT.get(pandas_kwargs.get('compression'))}"
-
     if bucketing:
         # Add bucket id to the prefix
         prefix = f"{filename_prefix}_bucket-{df.name:05d}"
+        extension = f"{file_format}{_COMPRESSION_2_EXT.get(pandas_kwargs.get('compression'))}"
 
-        file_path = f"{path_root}{prefix}.{file_format}"
+        file_path = f"{path_root}{prefix}.{extension}"
         path = file_path
 
     elif path is None and path_root is not None:
