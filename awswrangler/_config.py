@@ -60,7 +60,6 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "memory_format": _ConfigArg(
         dtype=str, nullable=True, loaded=True, default="modin" if importlib.util.find_spec("modin") else "pandas"
     ),
-    "address": _ConfigArg(dtype=str, nullable=True),
     "redis_password": _ConfigArg(dtype=str, nullable=True),
     "ignore_reinit_error": _ConfigArg(dtype=bool, nullable=True),
     "include_dashboard": _ConfigArg(dtype=bool, nullable=True),
@@ -460,15 +459,6 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     @include_dashboard.setter
     def include_dashboard(self, value: Optional[bool]) -> None:
         self._set_config_value(key="include_dashboard", value=value)
-
-    @property
-    def address(self) -> Optional[str]:
-        """Property address."""
-        return cast(Optional[str], self["address"])
-
-    @address.setter
-    def address(self, value: Optional[str]) -> None:
-        self._set_config_value(key="address", value=value)
 
     @property
     def redis_password(self) -> Optional[str]:

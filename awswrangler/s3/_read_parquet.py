@@ -28,12 +28,15 @@ from awswrangler.s3._read import (
     _get_path_root,
 )
 
-if config.memory_format == "modin":
-    import modin.pandas as pd
+if config.execution_engine == "ray":
     from ray.data import read_datasource
 
-    from awswrangler.distributed.ray._utils import _to_modin  # pylint: disable=ungrouped-imports
-    from awswrangler.distributed.ray.datasources import ParquetDatasource
+    from awswrangler.distributed.ray.datasources import ParquetDatasource  # pylint: disable=ungrouped-imports
+
+    if config.memory_format == "modin":
+        import modin.pandas as pd
+
+        from awswrangler.distributed.ray._utils import _to_modin  # pylint: disable=ungrouped-imports
 else:
     import pandas as pd
 
@@ -338,7 +341,7 @@ def _read_parquet(
             version_ids=version_ids,
         )
 
-    if config.memory_format == "modin":
+    if config.execution_engine == "ray" and config.memory_format == "modin":
         dataset_kwargs = {}
         if coerce_int96_timestamp_unit:
             dataset_kwargs["coerce_int96_timestamp_unit"] = coerce_int96_timestamp_unit

@@ -91,7 +91,7 @@ def modin_repartition(function: Callable[..., Any]) -> Callable[..., Any]:
 
     @wraps(function)
     def wrapper(df, *args: Any, axis=0, row_lengths=None, **kwargs: Any) -> Any:
-        if config.memory_format == "modin" and isinstance(df, ModinDataFrame) and axis is not None:
+        if isinstance(df, ModinDataFrame) and axis is not None:
             # Repartition Modin data frame along row (axis=0) axis
             # to avoid a situation where columns are split along multiple blocks
             df = from_partitions(unwrap_partitions(df, axis=axis), axis=axis, row_lengths=row_lengths)

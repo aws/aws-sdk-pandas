@@ -25,7 +25,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _to_pandas(df: pd.DataFrame) -> pd.DataFrame:
-    if config.memory_format == "modin" and isinstance(df, ModinDataFrame):
+    if isinstance(df, ModinDataFrame):
         return df._to_pandas()  # pylint: disable=protected-access
     return df
 
