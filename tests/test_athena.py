@@ -1,12 +1,10 @@
 import datetime
 import logging
 import string
-
 import boto3
 import numpy as np
 import pandas as pd
 import pytest
-
 import awswrangler as wr
 
 from ._utils import (
@@ -20,7 +18,7 @@ from ._utils import (
     get_df_txt,
     get_time_str_with_random_suffix,
 )
-
+print("[!] Hello")
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
