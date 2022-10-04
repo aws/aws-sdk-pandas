@@ -169,7 +169,7 @@ class ParquetDatasource:
                     **write_args,
                 )
             # This is a change from original FileBasedDatasource.do_write that does not return paths
-            return write_path
+            return f"s3://{write_path}"
 
         write_block = cached_remote_fn(write_block).options(**ray_remote_args)
 

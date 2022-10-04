@@ -13,6 +13,7 @@ from pandas.io.common import infer_compression
 
 from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation
 from awswrangler._config import apply_configs, config
+from awswrangler.distributed import modin_repartition
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
@@ -163,6 +164,7 @@ def _to_text_distributed(  # pylint: disable=unused-argument
 
 
 @apply_configs
+@modin_repartition
 def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-statements,too-many-branches
     df: pd.DataFrame,
     path: Optional[str] = None,
@@ -740,6 +742,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     return {"paths": paths, "partitions_values": partitions_values}
 
 
+@modin_repartition
 def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-statements,too-many-branches
     df: pd.DataFrame,
     path: Optional[str] = None,
