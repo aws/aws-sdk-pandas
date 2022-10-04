@@ -349,6 +349,7 @@ def _to_buckets_distributed(  # pylint: disable=unused-argument
         **func_kwargs,
     )
     for df_path in df_paths.values:
+        # The value in df_path can be a string, a list of string, or a list of lists of strings
         try:
             try:
                 row_paths = [p for arr in df_path for p in arr]
