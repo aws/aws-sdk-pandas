@@ -6,12 +6,17 @@ from io import BytesIO, TextIOWrapper
 from sys import version_info
 
 import boto3
-import pandas as pd
 import pytest
 
 import awswrangler as wr
 
 from .._utils import get_df_csv
+
+if wr.config.distributed:
+    import modin.pandas as pd
+else:
+    import pandas as pd
+
 
 EXT = {"gzip": ".gz", "bz2": ".bz2", "xz": ".xz", "zip": ".zip"}
 
@@ -62,6 +67,10 @@ def test_csv_read(bucket, path, compression):
 
 @pytest.mark.parametrize("compression", ["gzip", "bz2", "xz", "zip", None])
 def test_csv_write(path, compression):
+    # Ensure we use the pd.read_csv native to Pandas, not Modin.
+    # Modin's read_csv has an issue in this scenario, making the test fail.
+    import pandas as pd
+
     path_file = f"{path}test.csv{EXT.get(compression, '')}"
     df = get_df_csv()
     if version_info < (3, 7) and compression:
@@ -72,6 +81,18 @@ def test_csv_write(path, compression):
         df2 = pd.read_csv(path_file, names=df.columns)
         df3 = wr.s3.read_csv([path_file], names=df.columns)
         assert df.shape == df2.shape == df3.shape
+
+
+@pytest.mark.parametrize("compression", ["gzip", "bz2", "xz", "zip", None])
+def test_csv_write_dataset_filename_extension(path, compression):
+    df = get_df_csv()
+    if version_info < (3, 7) and compression:
+        with pytest.raises(wr.exceptions.InvalidArgument):
+            wr.s3.to_csv(df, path, compression=compression, index=False, dataset=True)
+    else:
+        result = wr.s3.to_csv(df, path, compression=compression, index=False, dataset=True)
+        for p in result["paths"]:
+            assert p.endswith(f".csv{EXT.get(compression, '')}")
 
 
 @pytest.mark.parametrize("compression", ["gzip", "bz2", "xz", "zip", None])

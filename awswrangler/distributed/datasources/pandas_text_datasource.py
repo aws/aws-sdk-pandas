@@ -19,6 +19,7 @@ from ray.types import ObjectRef
 from awswrangler import _utils
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._read_text_core import _read_text_chunked, _read_text_file
+from awswrangler.s3._write import _COMPRESSION_2_EXT
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -130,6 +131,8 @@ class PandasTextDatasource(FileBasedDatasource):
         write_tasks = []
         if not block_path_provider:
             block_path_provider = DefaultBlockWritePathProvider()
+
+        pandas_kwargs = write_args.get("pandas_kwargs", {})
         for block_idx, block in enumerate(blocks):
             write_path = block_path_provider(
                 path,
@@ -137,7 +140,7 @@ class PandasTextDatasource(FileBasedDatasource):
                 dataset_uuid=dataset_uuid,
                 block=block,
                 block_index=block_idx,
-                file_format=file_format,
+                file_format=f"{file_format}{_COMPRESSION_2_EXT.get(pandas_kwargs.get('compression'))}",
             )
             write_task = write_block_fn.remote(write_path, block)
             write_tasks.append(write_task)
