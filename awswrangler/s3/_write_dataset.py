@@ -276,14 +276,16 @@ def _to_partitions_distributed(  # pylint: disable=unused-argument
     partitions_values: Dict[str, List[str]]
 
     if not bucketing_info:
-        # If only partitioning (without bucketing), avoid expensive groupby
+        # If only partitioning (without bucketing), avoid expensive modin groupby
         # by partitioning and writing each block as an ordinary Pandas DataFrame
         _to_partitions_func = _to_partitions.dispatch(PandasDataFrame)
 
         @ray_remote
         def write_partitions(df: pd.DataFrame) -> Tuple[List[str], Dict[str, List[str]]]:
             paths, partitions_values = _to_partitions_func(
-                df,
+                # Passing a copy of the data frame because data in ray object store is immutable
+                # and that leads to "ValueError: buffer source array is read-only" during df.groupby()
+                df.copy(),
                 func=func,
                 concurrent_partitioning=concurrent_partitioning,
                 path_root=path_root,
