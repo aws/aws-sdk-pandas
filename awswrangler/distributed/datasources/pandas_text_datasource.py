@@ -129,8 +129,6 @@ class PandasTextDatasource(FileBasedDatasource):
 
         file_format = self._file_format()
         write_tasks = []
-        if not block_path_provider:
-            block_path_provider = DefaultBlockWritePathProvider()
 
         pandas_kwargs = write_args.get("pandas_kwargs", {})
         for block_idx, block in enumerate(blocks):
