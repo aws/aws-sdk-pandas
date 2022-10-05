@@ -1,4 +1,4 @@
-"""Distributed PandasTextDatasource Module."""
+"""Ray PandasTextDatasource Module."""
 from typing import Any, Callable, Dict, Iterator, Optional
 
 import pandas as pd

@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 
 from awswrangler import _data_types, _utils, catalog, exceptions
+from awswrangler._config import ExecutionEngine
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -55,14 +56,14 @@ def _validate_args(
     description: Optional[str],
     parameters: Optional[Dict[str, str]],
     columns_comments: Optional[Dict[str, str]],
-    distributed: Optional[bool] = False,
+    execution_engine: str,
 ) -> None:
     if df.empty is True:
         raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
     if dataset is False:
         if path is None:
             raise exceptions.InvalidArgumentValue("If dataset is False, the `path` argument must be passed.")
-        if not distributed and path.endswith("/"):
+        if execution_engine == ExecutionEngine.PYTHON.value and path.endswith("/"):
             raise exceptions.InvalidArgumentValue(
                 "If <dataset=False>, the argument <path> should be a key, not a prefix."
             )

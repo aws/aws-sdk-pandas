@@ -1,12 +1,12 @@
-"""Distributed Datasources Module."""
+"""Ray Datasources Module."""
 
-from awswrangler.distributed.datasources.pandas_text_datasource import (
+from awswrangler.distributed.ray.datasources.pandas_text_datasource import (
     PandasCSVDataSource,
     PandasFWFDataSource,
     PandasJSONDatasource,
     PandasTextDatasource,
 )
-from awswrangler.distributed.datasources.parquet_datasource import (
+from awswrangler.distributed.ray.datasources.parquet_datasource import (
     ParquetDatasource,
     UserProvidedKeyBlockWritePathProvider,
 )

@@ -1,4 +1,4 @@
-"""Utilities Module for Distributed methods."""
+"""Utilities Module for Ray methods."""
 
 from typing import Any, Callable, Dict, List, Optional, Union
 

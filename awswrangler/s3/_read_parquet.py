@@ -13,7 +13,7 @@ import pyarrow.parquet
 
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._arrow import _add_table_partitions, _table_to_df
-from awswrangler._config import apply_configs, config
+from awswrangler._config import ExecutionEngine, MemoryFormat, apply_configs, config
 from awswrangler._threading import _get_executor
 from awswrangler.catalog._get import _get_partitions
 from awswrangler.catalog._utils import _catalog_id
@@ -28,12 +28,15 @@ from awswrangler.s3._read import (
     _get_path_root,
 )
 
-if config.distributed:
-    import modin.pandas as pd
+if config.execution_engine == ExecutionEngine.RAY.value:
     from ray.data import read_datasource
 
-    from awswrangler.distributed._utils import _to_modin  # pylint: disable=ungrouped-imports
-    from awswrangler.distributed.datasources import ParquetDatasource
+    from awswrangler.distributed.ray.datasources import ParquetDatasource  # pylint: disable=ungrouped-imports
+
+    if config.memory_format == MemoryFormat.MODIN.value:
+        import modin.pandas as pd
+
+        from awswrangler.distributed.ray._utils import _to_modin  # pylint: disable=ungrouped-imports
 else:
     import pandas as pd
 
@@ -338,7 +341,7 @@ def _read_parquet(
             version_ids=version_ids,
         )
 
-    if config.distributed:
+    if config.execution_engine == ExecutionEngine.RAY.value and config.memory_format == MemoryFormat.MODIN.value:
         dataset_kwargs = {}
         if coerce_int96_timestamp_unit:
             dataset_kwargs["coerce_int96_timestamp_unit"] = coerce_int96_timestamp_unit

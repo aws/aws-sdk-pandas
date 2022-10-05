@@ -11,13 +11,13 @@ import pandas as pd
 from pandas.io.common import infer_compression
 
 from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation
-from awswrangler._config import apply_configs, config
+from awswrangler._config import MemoryFormat, apply_configs, config
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_dataset import _to_dataset
 
-if config.distributed:
+if config.memory_format == MemoryFormat.MODIN.value:
     from modin.pandas import DataFrame as ModinDataFrame
 
 
@@ -25,7 +25,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _to_pandas(df: pd.DataFrame) -> pd.DataFrame:
-    if config.distributed and isinstance(df, ModinDataFrame):
+    if config.memory_format == MemoryFormat.MODIN.value and isinstance(df, ModinDataFrame):
         return df._to_pandas()  # pylint: disable=protected-access
     return df
 
@@ -447,6 +447,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         description=description,
         parameters=parameters,
         columns_comments=columns_comments,
+        execution_engine=config.execution_engine,
     )
     # Temporary fix to convert Modin data frames to Pandas Data frames
     # until distributed _to_text implementation is available
@@ -887,6 +888,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         description=description,
         parameters=parameters,
         columns_comments=columns_comments,
+        execution_engine=config.execution_engine,
     )
     # Temporary fix to convert Modin data frames to Pandas Data frames
     # until distributed _to_text implementation is available
