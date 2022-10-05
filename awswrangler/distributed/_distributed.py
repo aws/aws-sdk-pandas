@@ -6,10 +6,10 @@ from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union
 
 from awswrangler._config import ExecutionEngine, MemoryFormat, apply_configs, config
 
-if config.execution_engine == ExecutionEngine.RAY or TYPE_CHECKING:
+if config.execution_engine == ExecutionEngine.RAY.value or TYPE_CHECKING:
     import ray  # pylint: disable=import-error
 
-    if config.memory_format == MemoryFormat.MODIN:
+    if config.memory_format == MemoryFormat.MODIN.value:
         from modin.distributed.dataframe.pandas import from_partitions, unwrap_partitions
         from modin.pandas import DataFrame as ModinDataFrame
 
@@ -29,7 +29,7 @@ class RayLogger:
 
     def get_logger(self, name: Union[str, Any] = None) -> Union[logging.Logger, Any]:
         """Return logger object."""
-        return logging.getLogger(name) if config.execution_engine == ExecutionEngine.RAY else None
+        return logging.getLogger(name) if config.execution_engine == ExecutionEngine.RAY.value else None
 
 
 def ray_get(futures: List[Any]) -> List[Any]:
@@ -45,7 +45,7 @@ def ray_get(futures: List[Any]) -> List[Any]:
     -------
     List[Any]
     """
-    if config.execution_engine == ExecutionEngine.RAY:
+    if config.execution_engine == ExecutionEngine.RAY.value:
         return ray.get(futures)
     return futures
 
@@ -62,7 +62,7 @@ def ray_remote(function: Callable[..., Any]) -> Callable[..., Any]:
     -------
     Callable[..., Any]
     """
-    if config.execution_engine == ExecutionEngine.RAY:
+    if config.execution_engine == ExecutionEngine.RAY.value:
 
         @wraps(function)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -91,7 +91,7 @@ def modin_repartition(function: Callable[..., Any]) -> Callable[..., Any]:
 
     @wraps(function)
     def wrapper(df, *args: Any, axis=0, row_lengths=None, **kwargs: Any) -> Any:
-        if config.memory_format == MemoryFormat.MODIN and isinstance(df, ModinDataFrame) and axis is not None:
+        if config.memory_format == MemoryFormat.MODIN.value and isinstance(df, ModinDataFrame) and axis is not None:
             # Repartition Modin data frame along row (axis=0) axis
             # to avoid a situation where columns are split along multiple blocks
             df = from_partitions(unwrap_partitions(df, axis=axis), axis=axis, row_lengths=row_lengths)

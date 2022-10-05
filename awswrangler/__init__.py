@@ -34,7 +34,7 @@ from awswrangler.__metadata__ import __description__, __license__, __title__, __
 from awswrangler._config import ExecutionEngine, config  # noqa
 from awswrangler.distributed import initialize_ray
 
-if config.execution_engine == ExecutionEngine.RAY:
+if config.execution_engine == ExecutionEngine.RAY.value:
     initialize_ray()
 
 

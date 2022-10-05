@@ -17,7 +17,7 @@ from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_dataset import _to_dataset
 
-if config.memory_format == MemoryFormat.MODIN:
+if config.memory_format == MemoryFormat.MODIN.value:
     from modin.pandas import DataFrame as ModinDataFrame
 
 
@@ -25,7 +25,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _to_pandas(df: pd.DataFrame) -> pd.DataFrame:
-    if config.memory_format == MemoryFormat.MODIN and isinstance(df, ModinDataFrame):
+    if config.memory_format == MemoryFormat.MODIN.value and isinstance(df, ModinDataFrame):
         return df._to_pandas()  # pylint: disable=protected-access
     return df
 

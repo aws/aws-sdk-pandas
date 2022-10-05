@@ -6,7 +6,7 @@ import pytest
 import awswrangler as wr
 from awswrangler._config import MemoryFormat, config
 
-if config.memory_format == MemoryFormat.MODIN:
+if config.memory_format == MemoryFormat.MODIN.value:
     import modin.pandas as pd
 else:
     import pandas as pd

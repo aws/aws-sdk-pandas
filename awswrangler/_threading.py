@@ -10,7 +10,7 @@ import boto3
 from awswrangler import _utils
 from awswrangler._config import ExecutionEngine, config
 
-if config.execution_engine == ExecutionEngine.RAY or TYPE_CHECKING:
+if config.execution_engine == ExecutionEngine.RAY.value or TYPE_CHECKING:
     from awswrangler.distributed.ray._pool import _RayPoolExecutor
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -19,7 +19,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def _get_executor(use_threads: Union[bool, int]) -> Union["_ThreadPoolExecutor", "_RayPoolExecutor"]:
     return (
         _RayPoolExecutor()
-        if config.execution_engine == ExecutionEngine.RAY
+        if config.execution_engine == ExecutionEngine.RAY.value
         else _ThreadPoolExecutor(use_threads)  # type: ignore
     )
 

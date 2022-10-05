@@ -21,10 +21,10 @@ from awswrangler.__metadata__ import __version__
 from awswrangler._arrow import _table_to_df
 from awswrangler._config import ExecutionEngine, MemoryFormat, apply_configs, config
 
-if config.execution_engine == ExecutionEngine.RAY or TYPE_CHECKING:
+if config.execution_engine == ExecutionEngine.RAY.value or TYPE_CHECKING:
     import ray  # pylint: disable=unused-import
 
-    if config.memory_format == MemoryFormat.MODIN:
+    if config.memory_format == MemoryFormat.MODIN.value:
         from awswrangler.distributed.ray._utils import _arrow_refs_to_df  # pylint: disable=ungrouped-imports
 
 _logger: logging.Logger = logging.getLogger(__name__)

@@ -22,7 +22,7 @@ from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _
 from awswrangler.s3._write_concurrent import _WriteProxy
 from awswrangler.s3._write_dataset import _to_dataset
 
-if config.execution_engine == ExecutionEngine.RAY:
+if config.execution_engine == ExecutionEngine.RAY.value:
     from ray.data import from_modin, from_pandas
     from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
 
@@ -31,7 +31,7 @@ if config.execution_engine == ExecutionEngine.RAY:
         UserProvidedKeyBlockWritePathProvider,
     )
 
-    if config.memory_format == MemoryFormat.MODIN:
+    if config.memory_format == MemoryFormat.MODIN.value:
         import modin.pandas as pd
         from modin.pandas import DataFrame as ModinDataFrame
 else:

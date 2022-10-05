@@ -50,7 +50,7 @@ def _wait_objects(
     if len(paths) < 1:
         return None
 
-    if config.execution_engine == ExecutionEngine.RAY and len(paths) > parallelism:
+    if config.execution_engine == ExecutionEngine.RAY.value and len(paths) > parallelism:
         path_batches = _utils.chunkify(paths, parallelism)
     else:
         path_batches = [[path] for path in paths]

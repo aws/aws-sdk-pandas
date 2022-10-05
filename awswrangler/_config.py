@@ -440,21 +440,21 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         self._set_config_value(key="verify", value=value)
 
     @property
-    def execution_engine(self) -> Enum:
+    def execution_engine(self) -> str:
         """Property execution_engine."""
-        return cast(str, self["execution_engine"])  # type: ignore
+        return cast(str, self["execution_engine"])
 
     @execution_engine.setter
     def execution_engine(self, value: str) -> None:
         self._set_config_value(key="execution_engine", value=value)
 
     @property
-    def memory_format(self) -> Enum:
+    def memory_format(self) -> str:
         """Property memory_format."""
-        return cast(str, self["memory_format"])  # type: ignore
+        return cast(str, self["memory_format"])
 
     @memory_format.setter
-    def memory_format(self, value: Optional[str]) -> None:
+    def memory_format(self, value: str) -> None:
         self._set_config_value(key="memory_format", value=value)
 
     @property
