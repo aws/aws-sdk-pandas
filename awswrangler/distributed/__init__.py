@@ -9,9 +9,9 @@ from awswrangler.distributed._distributed import (  # noqa
 )
 
 __all__ = [
-    "initialize_ray",
-    "ray_get",
     "RayLogger",
-    "ray_remote",
+    "initialize_ray",
     "modin_repartition",
+    "ray_get",
+    "ray_remote",
 ]

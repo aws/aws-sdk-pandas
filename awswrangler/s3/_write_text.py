@@ -7,30 +7,28 @@ from functools import singledispatch
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import boto3
+import pandas as pd
 from pandas.io.common import infer_compression
 
 from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation
-from awswrangler._config import apply_configs, config
+from awswrangler._config import ExecutionEngine, MemoryFormat, apply_configs, config
 from awswrangler.distributed import modin_repartition
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_dataset import _to_dataset
 
-if config.distributed:
-    import modin.pandas as pd
+if config.memory_format == MemoryFormat.MODIN.value and config.execution_engine == ExecutionEngine.RAY.value:
     from modin.pandas import DataFrame as ModinDataFrame
     from ray.data import from_modin, from_pandas
     from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
 
-    from awswrangler.distributed.datasources import (  # pylint: disable=ungrouped-imports
+    from awswrangler.distributed.ray.datasources import (  # pylint: disable=ungrouped-imports
         PandasCSVDataSource,
         PandasJSONDatasource,
         PandasTextDatasource,
         UserProvidedKeyBlockWritePathProvider,
     )
-else:
-    import pandas as pd
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -525,7 +523,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         description=description,
         parameters=parameters,
         columns_comments=columns_comments,
-        distributed=config.distributed,
+        execution_engine=config.execution_engine,
     )
 
     # Initializing defaults
@@ -959,6 +957,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         description=description,
         parameters=parameters,
         columns_comments=columns_comments,
+        execution_engine=config.execution_engine,
     )
 
     # Initializing defaults

@@ -1,6 +1,6 @@
 """Amazon S3 Read Module."""
 
-from awswrangler._config import config
+from awswrangler._config import MemoryFormat, config
 from awswrangler.s3._copy import copy_objects, merge_datasets  # noqa
 from awswrangler.s3._delete import delete_objects  # noqa
 from awswrangler.s3._describe import describe_objects, get_bucket_region, size_objects  # noqa
@@ -47,7 +47,7 @@ __all__ = [
     "upload",
 ]
 
-if config.distributed:
+if config.memory_format == MemoryFormat.MODIN.value:
     from modin.pandas import DataFrame as ModinDataFrame
 
     from awswrangler.s3._write_dataset import (  # pylint: disable=ungrouped-imports

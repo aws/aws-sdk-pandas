@@ -19,12 +19,13 @@ import pyarrow as pa
 from awswrangler import _config, exceptions
 from awswrangler.__metadata__ import __version__
 from awswrangler._arrow import _table_to_df
-from awswrangler._config import apply_configs, config
+from awswrangler._config import ExecutionEngine, MemoryFormat, apply_configs, config
 
-if TYPE_CHECKING or config.distributed:
+if config.execution_engine == ExecutionEngine.RAY.value or TYPE_CHECKING:
     import ray  # pylint: disable=unused-import
 
-    from awswrangler.distributed._utils import _arrow_refs_to_df  # pylint: disable=ungrouped-imports
+    if config.memory_format == MemoryFormat.MODIN.value:
+        from awswrangler.distributed.ray._utils import _arrow_refs_to_df  # pylint: disable=ungrouped-imports
 
 _logger: logging.Logger = logging.getLogger(__name__)
 

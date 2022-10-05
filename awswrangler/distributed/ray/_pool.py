@@ -1,4 +1,4 @@
-"""Threading Module (PRIVATE)."""
+"""Ray Threading Module (PRIVATE)."""
 
 import itertools
 import logging

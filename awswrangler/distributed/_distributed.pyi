@@ -1,13 +1,7 @@
-"""Distributed Module (PRIVATE)."""
+"""Ray Module."""
 
 import logging
-import multiprocessing
-import os
-import sys
-import warnings
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union
-
-from awswrangler._config import apply_configs, config
+from typing import Any, Callable, List, Optional, Union
 
 class RayLogger:
     def __init__(

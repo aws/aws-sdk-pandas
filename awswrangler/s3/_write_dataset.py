@@ -9,15 +9,17 @@ import numpy as np
 from pandas import DataFrame as PandasDataFrame
 
 from awswrangler import exceptions, lakeformation
-from awswrangler._config import config
+from awswrangler._config import ExecutionEngine, MemoryFormat, config
 from awswrangler.distributed import ray_get, ray_remote
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._write_concurrent import _WriteProxy
 
-if config.distributed:
-    import modin.pandas as pd
+if config.execution_engine == ExecutionEngine.RAY.value:
     import ray
-    from modin.pandas import DataFrame as ModinDataFrame
+
+    if config.memory_format == MemoryFormat.MODIN.value:
+        import modin.pandas as pd
+        from modin.pandas import DataFrame as ModinDataFrame
 else:
     import pandas as pd
 

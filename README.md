@@ -221,6 +221,7 @@ If you would like us to include your company’s name and/or logo in the README 
 - [DNX](https://www.dnx.solutions/) [[@DNXLabs](https://github.com/DNXLabs)]
 - [Fortescue Future Industries](https://ffi.com.au/) [[@spencervoorend](https://github.com/spencervoorend)]
 - [Funcional Health Tech](https://www.funcionalcorp.com.br/) [[@webysther](https://github.com/webysther)]
+- [Funding Circle](https://www.fundingcircle.com/) [[@pfig](https://github.com/pfig)]
 - [Infomach](https://www.infomach.com.br/)
 - [Informa Markets](https://www.informamarkets.com/en/home.html) [[@mateusmorato]](http://github.com/mateusmorato)
 - [LINE TV](https://www.linetv.tw/) [[@bryanyang0528](https://github.com/bryanyang0528)]

@@ -1,4 +1,4 @@
-"""Distributed ParquetDatasource Module."""
+"""Ray ParquetDatasource Module."""
 
 import logging
 from typing import Any, Callable, Dict, Iterator, List, Optional, Union

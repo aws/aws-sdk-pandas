@@ -13,7 +13,7 @@ import pyarrow.lib
 import pyarrow.parquet
 
 from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation
-from awswrangler._config import apply_configs, config
+from awswrangler._config import ExecutionEngine, MemoryFormat, apply_configs, config
 from awswrangler.distributed import modin_repartition
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
@@ -22,16 +22,18 @@ from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _
 from awswrangler.s3._write_concurrent import _WriteProxy
 from awswrangler.s3._write_dataset import _to_dataset
 
-if config.distributed:
-    import modin.pandas as pd
-    from modin.pandas import DataFrame as ModinDataFrame
+if config.execution_engine == ExecutionEngine.RAY.value:
     from ray.data import from_modin, from_pandas
     from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
 
-    from awswrangler.distributed.datasources import (  # pylint: disable=ungrouped-imports
+    from awswrangler.distributed.ray.datasources import (  # pylint: disable=ungrouped-imports
         ParquetDatasource,
         UserProvidedKeyBlockWritePathProvider,
     )
+
+    if config.memory_format == MemoryFormat.MODIN.value:
+        import modin.pandas as pd
+        from modin.pandas import DataFrame as ModinDataFrame
 else:
     import pandas as pd
 
@@ -605,7 +607,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
         description=description,
         parameters=parameters,
         columns_comments=columns_comments,
-        distributed=config.distributed,
+        execution_engine=config.execution_engine,
     )
 
     # Evaluating compression

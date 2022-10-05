@@ -53,7 +53,8 @@ oracledb = { version = "~1.0.0", optional = true }
 sqlserver = ["pyodbc"]
 oracle = ["oracledb"]
 sparql = ["SPARQLWrapper"]
-distributed = ["modin", "ray", "psutil", "tqdm"]
+modin = ["modin"]
+ray = ["ray", "psutil", "tqdm"]
 
 [tool.poetry.dev-dependencies]
 wheel = "^0.37.1"

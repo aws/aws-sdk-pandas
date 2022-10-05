@@ -9,9 +9,10 @@ import boto3
 import botocore.exceptions
 
 import awswrangler as wr
+from awswrangler._config import ExecutionEngine, MemoryFormat
 from awswrangler._utils import try_it
 
-if wr.config.distributed:
+if wr.config.memory_format == MemoryFormat.MODIN.value and wr.config.memory_format == ExecutionEngine.RAY.value:
     import modin.pandas as pd
 else:
     import pandas as pd

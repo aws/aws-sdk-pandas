@@ -1,4 +1,4 @@
-"""Distributed PandasTextDatasource Module."""
+"""Ray PandasTextDatasource Module."""
 import io
 import logging
 from typing import Any, Callable, Dict, Iterator, List, Optional
