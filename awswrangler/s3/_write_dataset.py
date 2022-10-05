@@ -1,7 +1,6 @@
 """Amazon S3 Write Dataset (PRIVATE)."""
 
 import logging
-import uuid
 from functools import singledispatch
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
@@ -9,7 +8,7 @@ import boto3
 import numpy as np
 from pandas import DataFrame as PandasDataFrame
 
-from awswrangler import _utils, exceptions, lakeformation
+from awswrangler import exceptions, lakeformation
 from awswrangler._config import config
 from awswrangler.distributed import ray_get, ray_remote
 from awswrangler.s3._delete import delete_objects

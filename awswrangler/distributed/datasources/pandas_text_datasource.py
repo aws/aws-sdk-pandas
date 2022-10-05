@@ -16,7 +16,6 @@ from ray.data.datasource.file_based_datasource import (
 )
 from ray.types import ObjectRef
 
-from awswrangler import _utils
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._read_text_core import _read_text_chunked, _read_text_file
 from awswrangler.s3._write import _COMPRESSION_2_EXT
