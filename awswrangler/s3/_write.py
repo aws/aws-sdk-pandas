@@ -62,7 +62,7 @@ def _validate_args(
     if dataset is False:
         if path is None:
             raise exceptions.InvalidArgumentValue("If dataset is False, the `path` argument must be passed.")
-        if execution_engine != "python" and path.endswith("/"):
+        if execution_engine == "python" and path.endswith("/"):
             raise exceptions.InvalidArgumentValue(
                 "If <dataset=False>, the argument <path> should be a key, not a prefix."
             )
