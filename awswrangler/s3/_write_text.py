@@ -150,7 +150,7 @@ def _to_text_distributed(  # pylint: disable=unused-argument
         ),
         file_path=file_path,
         dataset_uuid=filename_prefix,
-        boto3_session=_utils.boto3_to_primitives(boto3_session),
+        boto3_session=None,
         s3_additional_kwargs=s3_additional_kwargs,
         mode=mode,
         encoding=encoding,

@@ -388,7 +388,7 @@ def _to_buckets_distributed(  # pylint: disable=unused-argument
         func.dispatch(ModinDataFrame),  # type: ignore
         path_root=path_root,
         filename_prefix=filename_prefix,
-        boto3_session=_utils.boto3_to_primitives(boto3_session=boto3_session),
+        boto3_session=None,
         use_threads=False,
         bucketing=True,
         **func_kwargs,
