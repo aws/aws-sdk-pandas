@@ -369,7 +369,7 @@ def _to_buckets(
     return paths
 
 
-def _retrieve_paths(values: Union[str, List[Any], np.ndarray[Any, Any]]) -> Iterator[str]:
+def _retrieve_paths(values: Union[str, List[Any]]) -> Iterator[str]:
     if isinstance(values, (list, np.ndarray)):
         for v in values:
             yield from _retrieve_paths(v)
