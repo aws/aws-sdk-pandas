@@ -1,19 +1,23 @@
 """Amazon S3 Write Dataset (PRIVATE)."""
 
 import logging
+import uuid
 from functools import singledispatch
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import boto3
 import numpy as np
+from pandas import DataFrame as PandasDataFrame
 
 from awswrangler import exceptions, lakeformation
 from awswrangler._config import config
+from awswrangler.distributed import ray_get, ray_remote
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._write_concurrent import _WriteProxy
 
 if config.distributed:
     import modin.pandas as pd
+    import ray
     from modin.pandas import DataFrame as ModinDataFrame
 else:
     import pandas as pd
@@ -268,6 +272,47 @@ def _to_partitions_distributed(  # pylint: disable=unused-argument
     boto3_session: boto3.Session,
     **func_kwargs: Any,
 ) -> Tuple[List[str], Dict[str, List[str]]]:
+    paths: List[str]
+    partitions_values: Dict[str, List[str]]
+
+    if not bucketing_info:
+        # If only partitioning (without bucketing), avoid expensive modin groupby
+        # by partitioning and writing each block as an ordinary Pandas DataFrame
+        _to_partitions_func = _to_partitions.dispatch(PandasDataFrame)
+
+        @ray_remote
+        def write_partitions(df: pd.DataFrame) -> Tuple[List[str], Dict[str, List[str]]]:
+            paths, partitions_values = _to_partitions_func(
+                # Passing a copy of the data frame because data in ray object store is immutable
+                # and that leads to "ValueError: buffer source array is read-only" during df.groupby()
+                df.copy(),
+                func=func,
+                concurrent_partitioning=concurrent_partitioning,
+                path_root=path_root,
+                use_threads=use_threads,
+                mode=mode,
+                catalog_id=catalog_id,
+                database=database,
+                table=table,
+                table_type=table_type,
+                transaction_id=transaction_id,
+                bucketing_info=None,
+                filename_prefix=uuid.uuid4().hex,
+                partition_cols=partition_cols,
+                partitions_types=partitions_types,
+                boto3_session=None,
+                **func_kwargs,
+            )
+            return paths, partitions_values
+
+        block_object_refs = ray.data.from_modin(df).get_internal_block_refs()
+        result = ray_get([write_partitions(object_ref) for object_ref in block_object_refs])
+        paths = [path for row in result for path in row[0]]
+        partitions_values = {
+            partition_key: partition_value for row in result for partition_key, partition_value in row[1].items()
+        }
+        return paths, partitions_values
+
     df_write_metadata = df.groupby(by=partition_cols, observed=True, sort=False).apply(
         _write_partitions_distributed,
         write_func=func,
@@ -286,8 +331,8 @@ def _to_partitions_distributed(  # pylint: disable=unused-argument
         boto3_session=None,
         **func_kwargs,
     )
-    paths: List[str] = [path for metadata in df_write_metadata.values for _, _, paths in metadata for path in paths]
-    partitions_values: Dict[str, List[str]] = {
+    paths = [path for metadata in df_write_metadata.values for _, _, paths in metadata for path in paths]
+    partitions_values = {
         prefix: list(str(p) for p in partitions) if isinstance(partitions, tuple) else [str(partitions)]
         for metadata in df_write_metadata.values
         for prefix, partitions, _ in metadata
