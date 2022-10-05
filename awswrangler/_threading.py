@@ -8,16 +8,20 @@ from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union
 import boto3
 
 from awswrangler import _utils
-from awswrangler._config import config
+from awswrangler._config import ExecutionEngine, config
 
-if TYPE_CHECKING or config.execution_engine == "ray":
+if config.execution_engine == ExecutionEngine.RAY or TYPE_CHECKING:
     from awswrangler.distributed.ray._pool import _RayPoolExecutor
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _get_executor(use_threads: Union[bool, int]) -> Union["_ThreadPoolExecutor", "_RayPoolExecutor"]:
-    return _RayPoolExecutor() if config.execution_engine == "ray" else _ThreadPoolExecutor(use_threads)  # type: ignore
+    return (
+        _RayPoolExecutor()
+        if config.execution_engine == ExecutionEngine.RAY
+        else _ThreadPoolExecutor(use_threads)  # type: ignore
+    )
 
 
 class _ThreadPoolExecutor:

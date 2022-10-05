@@ -8,11 +8,11 @@ import boto3
 import numpy as np
 
 from awswrangler import exceptions, lakeformation
-from awswrangler._config import config
+from awswrangler._config import MemoryFormat, config
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._write_concurrent import _WriteProxy
 
-if config.memory_format == "modin":
+if config.memory_format == MemoryFormat.MODIN:
     import modin.pandas as pd
     from modin.pandas import DataFrame as ModinDataFrame
 else:

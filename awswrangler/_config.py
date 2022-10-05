@@ -4,6 +4,7 @@ import importlib.util
 import inspect
 import logging
 import os
+from enum import Enum
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple, Type, Union, cast
 
 import botocore.config
@@ -15,6 +16,20 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 _ConfigValueType = Union[str, bool, int, botocore.config.Config, None]
+
+
+class ExecutionEngine(Enum):
+    """Execution engine enum."""
+
+    RAY = "ray"
+    PYTHON = "python"
+
+
+class MemoryFormat(Enum):
+    """Memory format enum."""
+
+    MODIN = "modin"
+    PANDAS = "pandas"
 
 
 class _ConfigArg(NamedTuple):
@@ -55,10 +70,10 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "verify": _ConfigArg(dtype=str, nullable=True, loaded=True),
     # Distributed
     "execution_engine": _ConfigArg(
-        dtype=str, nullable=True, loaded=True, default="ray" if importlib.util.find_spec("ray") else "python"
+        dtype=str, nullable=False, loaded=True, default="ray" if importlib.util.find_spec("ray") else "python"
     ),
     "memory_format": _ConfigArg(
-        dtype=str, nullable=True, loaded=True, default="modin" if importlib.util.find_spec("modin") else "pandas"
+        dtype=str, nullable=False, loaded=True, default="modin" if importlib.util.find_spec("modin") else "pandas"
     ),
     "redis_password": _ConfigArg(dtype=str, nullable=True),
     "ignore_reinit_error": _ConfigArg(dtype=bool, nullable=True),
@@ -425,18 +440,18 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         self._set_config_value(key="verify", value=value)
 
     @property
-    def execution_engine(self) -> Optional[str]:
+    def execution_engine(self) -> Enum:
         """Property execution_engine."""
-        return cast(Optional[str], self["execution_engine"])
+        return cast(str, self["execution_engine"])  # type: ignore
 
     @execution_engine.setter
-    def execution_engine(self, value: Optional[str]) -> None:
+    def execution_engine(self, value: str) -> None:
         self._set_config_value(key="execution_engine", value=value)
 
     @property
-    def memory_format(self) -> Optional[str]:
+    def memory_format(self) -> Enum:
         """Property memory_format."""
-        return cast(Optional[str], self["memory_format"])
+        return cast(str, self["memory_format"])  # type: ignore
 
     @memory_format.setter
     def memory_format(self, value: Optional[str]) -> None:

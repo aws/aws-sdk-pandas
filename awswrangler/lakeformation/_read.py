@@ -11,7 +11,7 @@ from awswrangler import _data_types, _utils, catalog
 from awswrangler._config import apply_configs
 from awswrangler._threading import _get_executor
 from awswrangler.catalog._utils import _catalog_id, _transaction_id
-from awswrangler.distributed.ray import RayLogger, ray_remote
+from awswrangler.distributed import RayLogger, ray_remote
 from awswrangler.lakeformation._utils import commit_transaction, start_transaction, wait_query
 
 _logger: logging.Logger = logging.getLogger(__name__)

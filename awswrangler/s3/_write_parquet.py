@@ -13,8 +13,8 @@ import pyarrow.lib
 import pyarrow.parquet
 
 from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation
-from awswrangler._config import apply_configs, config
-from awswrangler.distributed.ray import modin_repartition
+from awswrangler._config import ExecutionEngine, MemoryFormat, apply_configs, config
+from awswrangler.distributed import modin_repartition
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._read_parquet import _read_parquet_metadata
@@ -22,7 +22,7 @@ from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _
 from awswrangler.s3._write_concurrent import _WriteProxy
 from awswrangler.s3._write_dataset import _to_dataset
 
-if config.execution_engine == "ray":
+if config.execution_engine == ExecutionEngine.RAY:
     from ray.data import from_modin, from_pandas
     from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
 
@@ -31,7 +31,7 @@ if config.execution_engine == "ray":
         UserProvidedKeyBlockWritePathProvider,
     )
 
-    if config.memory_format == "modin":
+    if config.memory_format == MemoryFormat.MODIN:
         import modin.pandas as pd
         from modin.pandas import DataFrame as ModinDataFrame
 else:

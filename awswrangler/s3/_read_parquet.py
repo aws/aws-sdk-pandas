@@ -13,11 +13,11 @@ import pyarrow.parquet
 
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._arrow import _add_table_partitions, _table_to_df
-from awswrangler._config import apply_configs, config
+from awswrangler._config import ExecutionEngine, MemoryFormat, apply_configs, config
 from awswrangler._threading import _get_executor
 from awswrangler.catalog._get import _get_partitions
 from awswrangler.catalog._utils import _catalog_id
-from awswrangler.distributed.ray import RayLogger, ray_get, ray_remote
+from awswrangler.distributed import RayLogger, ray_get, ray_remote
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import (
@@ -28,12 +28,12 @@ from awswrangler.s3._read import (
     _get_path_root,
 )
 
-if config.execution_engine == "ray":
+if config.execution_engine == ExecutionEngine.RAY:
     from ray.data import read_datasource
 
     from awswrangler.distributed.ray.datasources import ParquetDatasource  # pylint: disable=ungrouped-imports
 
-    if config.memory_format == "modin":
+    if config.memory_format == MemoryFormat.MODIN:
         import modin.pandas as pd
 
         from awswrangler.distributed.ray._utils import _to_modin  # pylint: disable=ungrouped-imports
@@ -341,7 +341,7 @@ def _read_parquet(
             version_ids=version_ids,
         )
 
-    if config.execution_engine == "ray" and config.memory_format == "modin":
+    if config.execution_engine == ExecutionEngine.RAY and config.memory_format == MemoryFormat.MODIN:
         dataset_kwargs = {}
         if coerce_int96_timestamp_unit:
             dataset_kwargs["coerce_int96_timestamp_unit"] = coerce_int96_timestamp_unit
