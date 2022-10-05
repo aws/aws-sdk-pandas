@@ -2,7 +2,7 @@
 
 import logging
 from functools import singledispatch
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
 import numpy as np
@@ -369,6 +369,15 @@ def _to_buckets(
     return paths
 
 
+def _retrieve_paths(values: Union[str, List[Any], np.ndarray[Any, Any]]) -> Iterator[str]:
+    if isinstance(values, (list, np.ndarray)):
+        for v in values:
+            yield from _retrieve_paths(v)
+        return
+
+    yield values
+
+
 def _to_buckets_distributed(  # pylint: disable=unused-argument
     df: pd.DataFrame,
     func: Callable[..., List[str]],
@@ -394,14 +403,9 @@ def _to_buckets_distributed(  # pylint: disable=unused-argument
     )
     for df_path in df_paths.values:
         # The value in df_path can be a string, a list of string, or a list of lists of strings
-        try:
-            try:
-                row_paths = [p for arr in df_path for p in arr]
-                paths.extend(row_paths)
-            except TypeError:
-                paths.extend(df_path)
-        except TypeError:
-            paths.append(df_path)
+        row_paths = list(_retrieve_paths(df_path))
+        paths.extend(row_paths)
+
     return paths
 
 
