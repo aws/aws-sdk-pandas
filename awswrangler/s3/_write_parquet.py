@@ -249,6 +249,11 @@ def _to_parquet_distributed(  # pylint: disable=unused-argument
     ds = from_modin(df) if isinstance(df, ModinDataFrame) else from_pandas(df)
     # Repartition into a single block if or writing into a single key or if bucketing is enabled
     if ds.count() > 0 and (path or bucketing):
+        _logger.warning(
+            "Repartitioning frame to single partition as a strict path was defined: %s. "
+            "This operation is inefficient for large datasets.",
+            path,
+        )
         ds = ds.repartition(1)
     # Repartition by max_rows_by_file
     elif max_rows_by_file and (max_rows_by_file > 0):
