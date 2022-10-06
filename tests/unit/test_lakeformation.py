@@ -2,12 +2,18 @@ import calendar
 import logging
 import time
 
-import pandas as pd
 import pytest
 
 import awswrangler as wr
+from awswrangler._config import ExecutionEngine, MemoryFormat
 
 from .._utils import ensure_data_types, ensure_data_types_csv, get_df, get_df_csv
+
+if wr.config.memory_format == MemoryFormat.MODIN.value and wr.config.execution_engine == ExecutionEngine.RAY.value:
+    import modin.pandas as pd
+else:
+    import pandas as pd
+
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 

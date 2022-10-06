@@ -161,7 +161,6 @@ def _read_text(
             path_root=path_root,
             dataset=dataset,
             version_id_dict=version_id_dict,
-            boto3_session=_utils.boto3_to_primitives(boto3_session),
             s3_additional_kwargs=s3_additional_kwargs,
             pandas_kwargs=pandas_kwargs,
         )

@@ -1,9 +1,8 @@
 """Amazon S3 Write Dataset (PRIVATE)."""
 
 import logging
-import uuid
 from functools import singledispatch
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
 import numpy as np
@@ -299,7 +298,7 @@ def _to_partitions_distributed(  # pylint: disable=unused-argument
                 table_type=table_type,
                 transaction_id=transaction_id,
                 bucketing_info=None,
-                filename_prefix=uuid.uuid4().hex,
+                filename_prefix=filename_prefix,
                 partition_cols=partition_cols,
                 partitions_types=partitions_types,
                 boto3_session=None,
@@ -372,6 +371,15 @@ def _to_buckets(
     return paths
 
 
+def _retrieve_paths(values: Union[str, List[Any]]) -> Iterator[str]:
+    if isinstance(values, (list, np.ndarray)):
+        for v in values:
+            yield from _retrieve_paths(v)
+        return
+
+    yield values
+
+
 def _to_buckets_distributed(  # pylint: disable=unused-argument
     df: pd.DataFrame,
     func: Callable[..., List[str]],
@@ -385,6 +393,7 @@ def _to_buckets_distributed(  # pylint: disable=unused-argument
 ) -> List[str]:
     df_groups = df.groupby(by=_get_bucketing_series(df=df, bucketing_info=bucketing_info))
     paths: List[str] = []
+
     df_paths = df_groups.apply(
         func.dispatch(ModinDataFrame),  # type: ignore
         path_root=path_root,
@@ -395,10 +404,10 @@ def _to_buckets_distributed(  # pylint: disable=unused-argument
         **func_kwargs,
     )
     for df_path in df_paths.values:
-        try:
-            paths.extend(df_path)
-        except TypeError:
-            paths.append(df_path)
+        # The value in df_path can be a string, a list of string, or a list of lists of strings
+        row_paths = list(_retrieve_paths(df_path))
+        paths.extend(row_paths)
+
     return paths
 
 

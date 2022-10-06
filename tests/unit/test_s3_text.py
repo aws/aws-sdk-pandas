@@ -4,9 +4,9 @@ import boto3
 import pytest
 
 import awswrangler as wr
-from awswrangler._config import MemoryFormat, config
+from awswrangler._config import ExecutionEngine, MemoryFormat
 
-if config.memory_format == MemoryFormat.MODIN.value:
+if wr.config.memory_format == MemoryFormat.MODIN.value and wr.config.execution_engine == ExecutionEngine.RAY.value:
     import modin.pandas as pd
 else:
     import pandas as pd

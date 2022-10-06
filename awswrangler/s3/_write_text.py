@@ -3,7 +3,7 @@
 import csv
 import logging
 import uuid
-from distutils.version import LooseVersion
+from functools import singledispatch
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import boto3
@@ -11,23 +11,28 @@ import pandas as pd
 from pandas.io.common import infer_compression
 
 from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation
-from awswrangler._config import MemoryFormat, apply_configs, config
+from awswrangler._config import ExecutionEngine, MemoryFormat, apply_configs, config
+from awswrangler.distributed import modin_repartition
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_dataset import _to_dataset
 
-if config.memory_format == MemoryFormat.MODIN.value:
-    from modin.pandas import DataFrame as ModinDataFrame
+if config.execution_engine == ExecutionEngine.RAY.value:
+    from ray.data import from_modin, from_pandas
+    from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
 
+    from awswrangler.distributed.ray.datasources import (  # pylint: disable=ungrouped-imports
+        PandasCSVDataSource,
+        PandasJSONDatasource,
+        PandasTextDatasource,
+        UserProvidedKeyBlockWritePathProvider,
+    )
+
+    if config.memory_format == MemoryFormat.MODIN.value:
+        from modin.pandas import DataFrame as ModinDataFrame
 
 _logger: logging.Logger = logging.getLogger(__name__)
-
-
-def _to_pandas(df: pd.DataFrame) -> pd.DataFrame:
-    if config.memory_format == MemoryFormat.MODIN.value and isinstance(df, ModinDataFrame):
-        return df._to_pandas()  # pylint: disable=protected-access
-    return df
 
 
 def _get_write_details(path: str, pandas_kwargs: Dict[str, Any]) -> Tuple[str, Optional[str], Optional[str]]:
@@ -39,7 +44,8 @@ def _get_write_details(path: str, pandas_kwargs: Dict[str, Any]) -> Tuple[str, O
     return mode, encoding, newline
 
 
-def _to_text(
+@singledispatch
+def _to_text(  # pylint: disable=unused-argument
     df: pd.DataFrame,
     file_format: str,
     use_threads: Union[bool, int],
@@ -48,6 +54,7 @@ def _to_text(
     path: Optional[str] = None,
     path_root: Optional[str] = None,
     filename_prefix: Optional[str] = uuid.uuid4().hex,
+    bucketing: bool = False,
     **pandas_kwargs: Any,
 ) -> List[str]:
     if df.empty is True:
@@ -79,7 +86,83 @@ def _to_text(
     return [file_path]
 
 
+def _to_text_distributed(  # pylint: disable=unused-argument
+    df: pd.DataFrame,
+    file_format: str,
+    use_threads: Union[bool, int],
+    boto3_session: Optional[boto3.Session],
+    s3_additional_kwargs: Optional[Dict[str, str]],
+    path: Optional[str] = None,
+    path_root: Optional[str] = None,
+    filename_prefix: Optional[str] = uuid.uuid4().hex,
+    bucketing: bool = False,
+    **pandas_kwargs: Any,
+) -> List[str]:
+    if df.empty is True:
+        raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
+
+    if bucketing:
+        # Add bucket id to the prefix
+        prefix = f"{filename_prefix}_bucket-{df.name:05d}"
+        extension = f"{file_format}{_COMPRESSION_2_EXT.get(pandas_kwargs.get('compression'))}"
+
+        file_path = f"{path_root}{prefix}.{extension}"
+        path = file_path
+
+    elif path is None and path_root is not None:
+        file_path = path_root
+    elif path is not None and path_root is None:
+        file_path = path
+    else:
+        raise RuntimeError("path and path_root received at the same time.")
+
+    # Create Ray Dataset
+    ray_dataset = from_modin(df) if isinstance(df, ModinDataFrame) else from_pandas(df)
+
+    # Repartition into a single block if or writing into a single key or if bucketing is enabled
+    if ray_dataset.count() > 0 and path:
+        ray_dataset = ray_dataset.repartition(1)
+        _logger.warning(
+            "Repartitioning frame to single partition as a strict path was defined: %s. "
+            "This operation is inefficient for large datasets.",
+            path,
+        )
+
+    def _datasource_for_format(file_format: str) -> PandasTextDatasource:
+        if file_format == "csv":
+            return PandasCSVDataSource()
+
+        if file_format == "json":
+            return PandasJSONDatasource()
+
+        raise RuntimeError(f"Unknown file format: {file_format}")
+
+    datasource = _datasource_for_format(file_format)
+
+    mode, encoding, newline = _get_write_details(path=file_path, pandas_kwargs=pandas_kwargs)
+    ray_dataset.write_datasource(
+        datasource=datasource,
+        path=file_path,
+        block_path_provider=(
+            UserProvidedKeyBlockWritePathProvider()
+            if path and not path.endswith("/")
+            else DefaultBlockWritePathProvider()
+        ),
+        file_path=file_path,
+        dataset_uuid=filename_prefix,
+        boto3_session=None,
+        s3_additional_kwargs=s3_additional_kwargs,
+        mode=mode,
+        encoding=encoding,
+        newline=newline,
+        pandas_kwargs=pandas_kwargs,
+    )
+
+    return datasource.get_write_paths()
+
+
 @apply_configs
+@modin_repartition
 def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-statements,too-many-branches
     df: pd.DataFrame,
     path: Optional[str] = None,
@@ -430,11 +513,6 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             "Pandas arguments in the function call and awswrangler will accept it."
             "e.g. wr.s3.to_csv(df, path, sep='|', na_rep='NULL', decimal=',', compression='gzip')"
         )
-    if pandas_kwargs.get("compression") and str(pd.__version__) < LooseVersion("1.2.0"):
-        raise exceptions.InvalidArgument(
-            f"CSV compression on S3 is not supported for Pandas version {pd.__version__}. "
-            "The minimum acceptable version to achive it is Pandas 1.2.0 that requires Python >=3.7.1."
-        )
     _validate_args(
         df=df,
         table=table,
@@ -449,9 +527,6 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         columns_comments=columns_comments,
         execution_engine=config.execution_engine,
     )
-    # Temporary fix to convert Modin data frames to Pandas Data frames
-    # until distributed _to_text implementation is available
-    df = _to_pandas(df)
 
     # Initializing defaults
     partition_cols = partition_cols if partition_cols else []
@@ -660,6 +735,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     return {"paths": paths, "partitions_values": partitions_values}
 
 
+@modin_repartition
 def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-statements,too-many-branches
     df: pd.DataFrame,
     path: Optional[str] = None,
@@ -871,11 +947,6 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
             "Pandas arguments in the function call and awswrangler will accept it."
             "e.g. wr.s3.to_json(df, path, lines=True, date_format='iso')"
         )
-    if pandas_kwargs.get("compression") and str(pd.__version__) < LooseVersion("1.2.0"):
-        raise exceptions.InvalidArgument(
-            f"JSON compression on S3 is not supported for Pandas version {pd.__version__}. "
-            "The minimum acceptable version to achive it is Pandas 1.2.0 that requires Python >=3.7.1."
-        )
     _validate_args(
         df=df,
         table=table,
@@ -890,9 +961,6 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         columns_comments=columns_comments,
         execution_engine=config.execution_engine,
     )
-    # Temporary fix to convert Modin data frames to Pandas Data frames
-    # until distributed _to_text implementation is available
-    df = _to_pandas(df)
 
     # Initializing defaults
     partition_cols = partition_cols if partition_cols else []

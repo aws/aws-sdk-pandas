@@ -1,5 +1,6 @@
 import pandas as pd
 import pytest
+import ray
 
 import awswrangler as wr
 
@@ -16,6 +17,18 @@ def df_s():
 def df_xl():
     # Data frame with 8759874 rows
     return wr.s3.read_parquet(path="s3://ursa-labs-taxi-data/2018/01/data.parquet")
+
+
+@pytest.fixture(scope="function")
+def big_modin_df():
+    pandas_refs = ray.data.range_table(100_000).to_pandas_refs()
+    dataset = ray.data.from_pandas_refs(pandas_refs)
+
+    frame = dataset.to_modin()
+    frame["foo"] = frame.value * 2
+    frame["bar"] = frame.value % 2
+
+    return frame
 
 
 @pytest.mark.repeat(1)
@@ -108,6 +121,26 @@ def test_s3_read_json_simple(benchmark_time):
     with ExecutionTimer("elapsed time of wr.s3.read_json() simple") as timer:
         wr.s3.read_json(path=path, lines=True, orient="records")
 
+    assert timer.elapsed_time < benchmark_time
+
+
+@pytest.mark.parametrize("benchmark_time", [15])
+def test_s3_write_csv(path: str, big_modin_df: pd.DataFrame, benchmark_time: int):
+    with ExecutionTimer("elapsed time of wr.s3.to_csv()") as timer:
+        wr.s3.to_csv(big_modin_df, path, dataset=True)
+
+    objects = wr.s3.list_objects(path)
+    assert len(objects) > 1
+    assert timer.elapsed_time < benchmark_time
+
+
+@pytest.mark.parametrize("benchmark_time", [15])
+def test_s3_write_json(path: str, big_modin_df: pd.DataFrame, benchmark_time: int):
+    with ExecutionTimer("elapsed time of wr.s3.to_json()") as timer:
+        wr.s3.to_json(big_modin_df, path, dataset=True, lines=True, orient="records")
+
+    objects = wr.s3.list_objects(path)
+    assert len(objects) > 1
     assert timer.elapsed_time < benchmark_time
 
 

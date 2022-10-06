@@ -7,10 +7,16 @@ from typing import Any, Dict, Iterator
 
 import boto3
 import botocore.exceptions
-import pandas as pd
 
 import awswrangler as wr
+from awswrangler._config import ExecutionEngine, MemoryFormat
 from awswrangler._utils import try_it
+
+if wr.config.memory_format == MemoryFormat.MODIN.value and wr.config.execution_engine == ExecutionEngine.RAY.value:
+    import modin.pandas as pd
+else:
+    import pandas as pd
+
 
 ts = lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S.%f")  # noqa
 dt = lambda x: datetime.strptime(x, "%Y-%m-%d").date()  # noqa

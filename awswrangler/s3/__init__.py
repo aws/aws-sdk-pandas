@@ -57,7 +57,9 @@ if config.memory_format == MemoryFormat.MODIN.value:
         _to_partitions_distributed,
     )
     from awswrangler.s3._write_parquet import _to_parquet, _to_parquet_distributed  # pylint: disable=ungrouped-imports
+    from awswrangler.s3._write_text import _to_text, _to_text_distributed
 
     _to_parquet.register(ModinDataFrame, _to_parquet_distributed)
+    _to_text.register(ModinDataFrame, _to_text_distributed)
     _to_buckets.register(ModinDataFrame, _to_buckets_distributed)
     _to_partitions.register(ModinDataFrame, _to_partitions_distributed)
