@@ -18,8 +18,7 @@ from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_dataset import _to_dataset
 
-if config.memory_format == MemoryFormat.MODIN.value and config.execution_engine == ExecutionEngine.RAY.value:
-    from modin.pandas import DataFrame as ModinDataFrame
+if config.execution_engine == ExecutionEngine.RAY.value:
     from ray.data import from_modin, from_pandas
     from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
 
@@ -29,6 +28,9 @@ if config.memory_format == MemoryFormat.MODIN.value and config.execution_engine 
         PandasTextDatasource,
         UserProvidedKeyBlockWritePathProvider,
     )
+
+    if config.memory_format == MemoryFormat.MODIN.value:
+        from modin.pandas import DataFrame as ModinDataFrame
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
