@@ -14,11 +14,11 @@ if TYPE_CHECKING:
 
 def _resolve_format(read_format: str) -> Any:
     if read_format == "csv":
-        return PandasCSVDataSource
+        return PandasCSVDataSource()
     if read_format == "fwf":
-        return PandasFWFDataSource
+        return PandasFWFDataSource()
     if read_format == "json":
-        return PandasJSONDatasource
+        return PandasJSONDatasource()
     raise exceptions.UnsupportedType("Unsupported read format")
 
 
