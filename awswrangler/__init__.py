@@ -31,12 +31,10 @@ from awswrangler import (  # noqa
     timestream,
 )
 from awswrangler.__metadata__ import __description__, __license__, __title__, __version__  # noqa
-from awswrangler._config import ExecutionEngine, config  # noqa
-from awswrangler.distributed import initialize_ray
+from awswrangler._config import config  # noqa
+from awswrangler._distributed import engine, memory_format  # noqa
 
-if config.execution_engine == ExecutionEngine.RAY.value:
-    initialize_ray()
-
+engine.initialize()
 
 __all__ = [
     "athena",
@@ -60,6 +58,8 @@ __all__ = [
     "secretsmanager",
     "sqlserver",
     "config",
+    "engine",
+    "memory_format",
     "timestream",
     "__description__",
     "__license__",
