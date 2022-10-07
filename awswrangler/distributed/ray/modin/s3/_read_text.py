@@ -29,7 +29,6 @@ def _read_text_distributed(  # pylint: disable=unused-argument
     use_threads: Union[bool, int],
     boto3_session: Optional["boto3.Session"],
     s3_additional_kwargs: Optional[Dict[str, str]],
-    chunksize: Optional[int],
     dataset: bool,
     ignore_index: bool,
     parallelism: int,

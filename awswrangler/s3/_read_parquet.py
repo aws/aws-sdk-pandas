@@ -310,7 +310,6 @@ def _read_parquet(  # pylint: disable=W0613
     schema: pa.schema,
     columns: Optional[List[str]],
     coerce_int96_timestamp_unit: Optional[str],
-    chunked: Union[int, bool],
     boto3_session: Optional[boto3.Session],
     use_threads: Union[bool, int],
     parallelism: int,
@@ -318,20 +317,6 @@ def _read_parquet(  # pylint: disable=W0613
     s3_additional_kwargs: Optional[Dict[str, Any]],
     arrow_kwargs: Dict[str, Any],
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    if chunked:
-        return _read_parquet_chunked(
-            boto3_session=boto3_session,
-            paths=paths,
-            path_root=path_root,
-            columns=columns,
-            coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
-            chunked=chunked,
-            use_threads=use_threads,
-            s3_additional_kwargs=s3_additional_kwargs,
-            arrow_kwargs=arrow_kwargs,
-            version_ids=version_ids,
-        )
-
     executor = _get_executor(use_threads=use_threads)
     tables = executor.map(
         _read_parquet_file,
@@ -548,13 +533,26 @@ def read_parquet(
 
     arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=pyarrow_additional_kwargs)
 
+    if chunked:
+        return _read_parquet_chunked(
+            boto3_session=boto3_session,
+            paths=paths,
+            path_root=path_root,
+            columns=columns,
+            coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
+            chunked=chunked,
+            use_threads=use_threads,
+            s3_additional_kwargs=s3_additional_kwargs,
+            arrow_kwargs=arrow_kwargs,
+            version_ids=version_ids,
+        )
+
     return _read_parquet(
         paths,
         path_root=path_root,
         schema=schema,
         columns=columns,
         coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
-        chunked=chunked,
         use_threads=use_threads,
         parallelism=parallelism,
         boto3_session=boto3_session,

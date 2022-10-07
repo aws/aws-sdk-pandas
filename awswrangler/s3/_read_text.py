@@ -43,7 +43,6 @@ def _read_text(  # pylint: disable=W0613
     use_threads: Union[bool, int],
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
-    chunksize: Optional[int],
     dataset: bool,
     ignore_index: bool,
     parallelism: int,
@@ -51,25 +50,6 @@ def _read_text(  # pylint: disable=W0613
     pandas_kwargs: Dict[str, Any],
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     parser_func = _resolve_format(read_format)
-    args: Dict[str, Any] = {
-        "parser_func": parser_func,
-        "boto3_session": boto3_session,
-        "dataset": dataset,
-        "path_root": path_root,
-        "pandas_kwargs": pandas_kwargs,
-        "s3_additional_kwargs": s3_additional_kwargs,
-        "use_threads": use_threads,
-    }
-    _logger.debug("args:\n%s", pprint.pformat(args))
-
-    if chunksize is not None:
-        return _read_text_files_chunked(
-            paths=paths,
-            version_ids=version_id_dict,
-            chunksize=chunksize,
-            **args,
-        )
-
     executor = _get_executor(use_threads=use_threads)
     tables = executor.map(
         _read_text_file,
@@ -131,6 +111,26 @@ def _read_text_format(
             "If multiple paths are provided along with a file version ID, the version ID parameter must be a dict."
         )
     version_id_dict = {path: _get_version_id_for(version_id, path) for path in paths}
+
+    args: Dict[str, Any] = {
+        "parser_func": _resolve_format(read_format),
+        "boto3_session": boto3_session,
+        "dataset": dataset,
+        "path_root": path_root,
+        "pandas_kwargs": pandas_kwargs,
+        "s3_additional_kwargs": s3_additional_kwargs,
+        "use_threads": use_threads,
+    }
+    _logger.debug("args:\n%s", pprint.pformat(args))
+
+    if chunksize is not None:
+        return _read_text_files_chunked(
+            paths=paths,
+            version_ids=version_id_dict,
+            chunksize=chunksize,
+            **args,
+        )
+
     return _read_text(
         read_format,
         paths=paths,
@@ -138,7 +138,6 @@ def _read_text_format(
         use_threads=use_threads,
         boto3_session=session,
         s3_additional_kwargs=s3_additional_kwargs,
-        chunksize=chunksize,
         dataset=dataset,
         ignore_index=ignore_index,
         parallelism=parallelism,

@@ -110,6 +110,7 @@ def initialize_ray(
             address = ray_address
 
         if address:
+            _logger.info("Connecting to a Ray cluster at: %s", address)
             ray.init(
                 address=address,
                 include_dashboard=include_dashboard,

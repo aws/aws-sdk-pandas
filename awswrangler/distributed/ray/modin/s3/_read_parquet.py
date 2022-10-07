@@ -18,7 +18,6 @@ def _read_parquet_distributed(  # pylint: disable=unused-argument
     schema: "pa.schema",
     columns: Optional[List[str]],
     coerce_int96_timestamp_unit: Optional[str],
-    chunked: Union[int, bool],
     boto3_session: Optional["boto3.Session"],
     use_threads: Union[bool, int],
     parallelism: int,
