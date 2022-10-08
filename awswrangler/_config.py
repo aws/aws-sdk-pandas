@@ -53,6 +53,12 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "botocore_config": _ConfigArg(dtype=botocore.config.Config, nullable=True),
     "verify": _ConfigArg(dtype=str, nullable=True, loaded=True),
     # Distributed
+    "execution_engine": _ConfigArg(
+        dtype=str, nullable=False, loaded=True, default="ray" if importlib.util.find_spec("ray") else "python"
+    ),
+    "memory_format": _ConfigArg(
+        dtype=str, nullable=False, loaded=True, default="modin" if importlib.util.find_spec("modin") else "pandas"
+    ),
     "address": _ConfigArg(dtype=str, nullable=True),
     "redis_password": _ConfigArg(dtype=str, nullable=True),
     "ignore_reinit_error": _ConfigArg(dtype=bool, nullable=True),
@@ -417,6 +423,15 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     @verify.setter
     def verify(self, value: Optional[str]) -> None:
         self._set_config_value(key="verify", value=value)
+
+    @property
+    def address(self) -> Optional[str]:
+        """Property address."""
+        return cast(Optional[str], self["address"])
+
+    @address.setter
+    def address(self, value: Optional[str]) -> None:
+        self._set_config_value(key="address", value=value)
 
     @property
     def address(self) -> Optional[str]:
