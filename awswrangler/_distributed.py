@@ -65,7 +65,7 @@ class Engine:
         engine_name = cls.get_installed() if not name else name
 
         if engine_name == EngineEnum.RAY.value:
-            from awswrangler.distributed.ray._registry import register_ray
+            from awswrangler.distributed.ray._register import register_ray
 
             register_ray()
 

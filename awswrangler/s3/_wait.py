@@ -2,12 +2,12 @@
 
 import itertools
 import logging
-from functools import singledispatch
 from typing import List, Optional, Union
 
 import boto3
 
 from awswrangler import _utils
+from awswrangler._dispatch import dispatch_on_engine
 from awswrangler._threading import _get_executor
 from awswrangler.distributed.ray import RayLogger, ray_get, ray_remote
 
@@ -33,7 +33,7 @@ def _wait_object_batch(
         _wait_object(boto3_session, path, waiter_name, delay, max_attempts)
 
 
-@singledispatch
+@dispatch_on_engine
 def _batch_paths(paths: List[str], parallelism: Optional[int]) -> List[List[str]]:  # pylint: disable=W0613
     return [[path] for path in paths]
 

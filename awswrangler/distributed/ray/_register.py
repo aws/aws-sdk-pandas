@@ -1,6 +1,6 @@
 """Ray and Modin registered methods (PRIVATE)."""
 # pylint: disable=import-outside-toplevel
-from awswrangler._distributed import MemoryFormatEnum, memory_format
+from awswrangler._distributed import EngineEnum, MemoryFormatEnum, memory_format
 from awswrangler._utils import table_refs_to_df
 from awswrangler.distributed.ray._utils import _batch_paths_distributed
 from awswrangler.s3._read_parquet import _read_parquet
@@ -13,7 +13,9 @@ from awswrangler.s3._write_text import _to_text
 
 def register_ray() -> None:
     """Register dispatched Ray and Modin (on Ray) methods."""
-    _batch_paths.register(list, _batch_paths_distributed)
+    execution_engine = EngineEnum.RAY.value
+
+    _batch_paths.register(execution_engine, _batch_paths_distributed)  # type: ignore
 
     if memory_format.get() == MemoryFormatEnum.MODIN.value:
         from modin.pandas import DataFrame as ModinDataFrame
@@ -29,8 +31,8 @@ def register_ray() -> None:
         from awswrangler.distributed.ray.modin.s3._write_text import _to_text_distributed
 
         # S3 Read
-        _read_parquet.register(list, _read_parquet_distributed)
-        _read_text.register(str, _read_text_distributed)
+        _read_parquet.register(execution_engine, _read_parquet_distributed)  # type: ignore
+        _read_text.register(execution_engine, _read_text_distributed)  # type: ignore
 
         # S3 Write
         _to_buckets.register(ModinDataFrame, _to_buckets_distributed)
@@ -39,4 +41,4 @@ def register_ray() -> None:
         _to_text.register(ModinDataFrame, _to_text_distributed)
 
         # Utils
-        table_refs_to_df.register(list, _arrow_refs_to_df)
+        table_refs_to_df.register(execution_engine, _arrow_refs_to_df)  # type: ignore
