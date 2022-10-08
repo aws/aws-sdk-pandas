@@ -7,9 +7,9 @@ from typing import List, Optional, Union
 import boto3
 
 from awswrangler import _utils
-from awswrangler._config import ExecutionEngine, config
+from awswrangler._dispatch import dispatch_on_engine
 from awswrangler._threading import _get_executor
-from awswrangler.distributed import RayLogger, ray_get, ray_remote
+from awswrangler.distributed.ray import RayLogger, ray_get, ray_remote
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -33,14 +33,19 @@ def _wait_object_batch(
         _wait_object(boto3_session, path, waiter_name, delay, max_attempts)
 
 
+@dispatch_on_engine
+def _batch_paths(paths: List[str], parallelism: Optional[int]) -> List[List[str]]:  # pylint: disable=W0613
+    return [[path] for path in paths]
+
+
 def _wait_objects(
     waiter_name: str,
     paths: List[str],
-    delay: Optional[float] = None,
-    max_attempts: Optional[int] = None,
-    use_threads: Union[bool, int] = True,
-    parallelism: Optional[int] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    delay: Optional[float],
+    max_attempts: Optional[int],
+    use_threads: Union[bool, int],
+    parallelism: Optional[int],
+    boto3_session: Optional[boto3.Session],
 ) -> None:
     delay = 5 if delay is None else delay
     max_attempts = 20 if max_attempts is None else max_attempts
@@ -50,10 +55,7 @@ def _wait_objects(
     if len(paths) < 1:
         return None
 
-    if config.execution_engine == ExecutionEngine.RAY.value and len(paths) > parallelism:
-        path_batches = _utils.chunkify(paths, parallelism)
-    else:
-        path_batches = [[path] for path in paths]
+    path_batches = _batch_paths(paths, parallelism)
 
     executor = _get_executor(use_threads=use_threads)
     ray_get(
@@ -76,7 +78,7 @@ def wait_objects_exist(
     max_attempts: Optional[int] = None,
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
-    parallelism: Optional[int] = None,
+    parallelism: Optional[int] = 100,
 ) -> None:
     """Wait Amazon S3 objects exist.
 
@@ -135,7 +137,7 @@ def wait_objects_not_exist(
     max_attempts: Optional[int] = None,
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
-    parallelism: Optional[int] = None,
+    parallelism: Optional[int] = 100,
 ) -> None:
     """Wait Amazon S3 objects not exist.
 

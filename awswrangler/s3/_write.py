@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 
 from awswrangler import _data_types, _utils, catalog, exceptions
-from awswrangler._config import ExecutionEngine
+from awswrangler._distributed import EngineEnum
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ def _validate_args(
     if dataset is False:
         if path is None:
             raise exceptions.InvalidArgumentValue("If dataset is False, the `path` argument must be passed.")
-        if execution_engine == ExecutionEngine.PYTHON.value and path.endswith("/"):
+        if execution_engine == EngineEnum.PYTHON.value and path.endswith("/"):
             raise exceptions.InvalidArgumentValue(
                 "If <dataset=False>, the argument <path> should be a key, not a prefix."
             )

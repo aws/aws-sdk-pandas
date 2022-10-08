@@ -8,7 +8,7 @@ import os
 import random
 import time
 from concurrent.futures import FIRST_COMPLETED, Future, wait
-from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, List, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Callable, Dict, Generator, List, Optional, Sequence, Tuple, Union, cast
 
 import boto3
 import botocore.config
@@ -19,13 +19,8 @@ import pyarrow as pa
 from awswrangler import _config, exceptions
 from awswrangler.__metadata__ import __version__
 from awswrangler._arrow import _table_to_df
-from awswrangler._config import ExecutionEngine, MemoryFormat, apply_configs, config
-
-if config.execution_engine == ExecutionEngine.RAY.value or TYPE_CHECKING:
-    import ray  # pylint: disable=unused-import
-
-    if config.memory_format == MemoryFormat.MODIN.value:
-        from awswrangler.distributed.ray._utils import _arrow_refs_to_df  # pylint: disable=ungrouped-imports
+from awswrangler._config import apply_configs
+from awswrangler._dispatch import dispatch_on_engine
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -413,13 +408,10 @@ def check_schema_changes(columns_types: Dict[str, str], table_input: Optional[Di
                 )
 
 
-def table_refs_to_df(
-    tables: Union[List[pa.Table], List["ray.ObjectRef"]], kwargs: Dict[str, Any]  # type: ignore
-) -> pd.DataFrame:
+@dispatch_on_engine
+def table_refs_to_df(tables: List[pa.Table], kwargs: Dict[str, Any]) -> pd.DataFrame:  # type: ignore
     """Build Pandas dataframe from list of PyArrow tables."""
-    if isinstance(tables[0], pa.Table):
-        return _table_to_df(pa.concat_tables(tables, promote=True), kwargs=kwargs)
-    return _arrow_refs_to_df(arrow_refs=tables, kwargs=kwargs)  # type: ignore
+    return _table_to_df(pa.concat_tables(tables, promote=True), kwargs=kwargs)
 
 
 def list_to_arrow_table(

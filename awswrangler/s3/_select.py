@@ -13,7 +13,7 @@ import pyarrow as pa
 
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._threading import _get_executor
-from awswrangler.distributed import RayLogger, ray_get, ray_remote
+from awswrangler.distributed.ray import RayLogger, ray_get, ray_remote
 from awswrangler.s3._describe import size_objects
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import _get_path_ignore_suffix
@@ -276,4 +276,4 @@ def select_query(
     arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=pyarrow_additional_kwargs)
     executor = _get_executor(use_threads=use_threads)
     tables = _flatten_list(ray_get([_select_query(path=path, executor=executor, **select_kwargs) for path in paths]))
-    return _utils.table_refs_to_df(tables=tables, kwargs=arrow_kwargs)
+    return _utils.table_refs_to_df(tables, kwargs=arrow_kwargs)
