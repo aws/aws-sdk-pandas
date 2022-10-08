@@ -452,6 +452,15 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         self._set_config_value(key="address", value=value)
 
     @property
+    def address(self) -> Optional[str]:
+        """Property address."""
+        return cast(Optional[str], self["address"])
+
+    @address.setter
+    def address(self, value: Optional[str]) -> None:
+        self._set_config_value(key="address", value=value)
+
+    @property
     def ignore_reinit_error(self) -> Optional[bool]:
         """Property ignore_reinit_error."""
         return cast(Optional[bool], self["ignore_reinit_error"])
