@@ -1199,7 +1199,8 @@ def list_query_executions(workgroup: Optional[str] = None, boto3_session: Option
 def get_query_executions(
     query_execution_ids: List[str], boto3_session: Optional[boto3.Session] = None
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    """From specified query execution IDs, return DataFrames of query execution details.
+    """From specified query execution IDs, return a DataFrame of query execution details and
+    a DataFrame of query id that unable to be processed.
 
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/athena.html#Athena.Client.batch_get_query_execution
 
@@ -1216,7 +1217,7 @@ def get_query_executions(
         DataFrame contain information about a query execution.
 
     DataFrame
-        DataFrame contain information about the query executions that failed to run.
+        DataFrame contain information about the query executions id that failed to process.
 
     Examples
     --------
