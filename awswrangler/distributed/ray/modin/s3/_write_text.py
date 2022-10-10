@@ -1,7 +1,8 @@
 """Modin on Ray S3 write text module (PRIVATE)."""
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
+import boto3
 import modin.pandas as pd
 from modin.pandas import DataFrame as ModinDataFrame
 from ray.data import from_modin, from_pandas
@@ -16,9 +17,6 @@ from awswrangler.distributed.ray.datasources import (  # pylint: disable=ungroup
 )
 from awswrangler.s3._write import _COMPRESSION_2_EXT
 from awswrangler.s3._write_text import _get_write_details
-
-if TYPE_CHECKING:
-    import boto3
 
 _logger: logging.Logger = logging.getLogger(__name__)
 

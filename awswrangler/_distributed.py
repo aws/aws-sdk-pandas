@@ -85,7 +85,7 @@ class Engine:
             return cls.dispatch_func(func)(*args, **kw)
 
         # Save the original function
-        wrapper._source_func = func  # type: ignore
+        wrapper._source_func = func  # type: ignore  # pylint: pylint: disable=protected-access
         return wrapper
 
     @classmethod

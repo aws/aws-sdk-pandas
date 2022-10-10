@@ -3,16 +3,15 @@
 from awswrangler._distributed import MemoryFormatEnum, engine, memory_format
 from awswrangler._utils import table_refs_to_df
 from awswrangler.distributed.ray._core import ray_remote
-from awswrangler.distributed.ray._utils import _batch_paths_distributed
 from awswrangler.lakeformation._read import _get_work_unit_results
 from awswrangler.s3._delete import _delete_objects
 from awswrangler.s3._read_parquet import _read_parquet, _read_parquet_metadata_file
 from awswrangler.s3._read_text import _read_text
 from awswrangler.s3._select import _select_object_content, _select_query
-from awswrangler.s3._wait import _batch_paths, _wait_object_batch
+from awswrangler.s3._wait import _wait_object_batch
 from awswrangler.s3._write_dataset import _to_buckets, _to_partitions
-from awswrangler.s3._write_parquet import _to_parquet
-from awswrangler.s3._write_text import _to_text
+from awswrangler.s3._write_parquet import _to_parquet, to_parquet
+from awswrangler.s3._write_text import _to_text, to_csv, to_json
 
 
 def register_ray() -> None:
@@ -26,9 +25,9 @@ def register_ray() -> None:
     engine.register_func(_select_query, ray_remote(_select_query))
     engine.register_func(_select_object_content, ray_remote(_select_object_content))
     engine.register_func(_wait_object_batch, ray_remote(_wait_object_batch))
-    engine.register_func(_batch_paths, _batch_paths_distributed)
 
     if memory_format.get() == MemoryFormatEnum.MODIN.value:
+        from awswrangler.distributed.ray.modin._core import modin_repartition
         from awswrangler.distributed.ray.modin._utils import _arrow_refs_to_df
         from awswrangler.distributed.ray.modin.s3._read_parquet import _read_parquet_distributed
         from awswrangler.distributed.ray.modin.s3._read_text import _read_text_distributed
@@ -46,6 +45,9 @@ def register_ray() -> None:
         engine.register_func(_to_parquet, _to_parquet_distributed)
         engine.register_func(_to_partitions, _to_partitions_distributed)
         engine.register_func(_to_text, _to_text_distributed)
+        engine.register_func(to_csv, modin_repartition(to_csv))
+        engine.register_func(to_json, modin_repartition(to_json))
+        engine.register_func(to_parquet, modin_repartition(to_parquet))
 
         # Utils
         engine.register_func(table_refs_to_df, _arrow_refs_to_df)

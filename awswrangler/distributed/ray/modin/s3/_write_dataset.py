@@ -1,6 +1,7 @@
 """Modin on Ray S3 write dataset module (PRIVATE)."""
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
+import boto3
 import modin.pandas as pd
 import ray
 
@@ -8,9 +9,6 @@ from awswrangler._distributed import engine
 from awswrangler.distributed.ray import ray_get, ray_remote
 from awswrangler.s3._write_concurrent import _WriteProxy
 from awswrangler.s3._write_dataset import _delete_objects, _get_bucketing_series, _retrieve_paths, _to_partitions
-
-if TYPE_CHECKING:
-    import boto3
 
 
 def _to_buckets_distributed(  # pylint: disable=unused-argument
@@ -125,8 +123,8 @@ def _to_partitions_distributed(  # pylint: disable=unused-argument
     if not bucketing_info:
         # If only partitioning (without bucketing), avoid expensive modin groupby
         # by partitioning and writing each block as an ordinary Pandas DataFrame
-        _to_partitions_func = _to_partitions._source_func  # type: ignore
-        func = func._source_func  # type: ignore
+        _to_partitions_func = getattr(_to_partitions, "_source_func", _to_partitions)
+        func = getattr(func, "_source_func", func)
 
         @ray_remote
         def write_partitions(df: pd.DataFrame) -> Tuple[List[str], Dict[str, List[str]]]:

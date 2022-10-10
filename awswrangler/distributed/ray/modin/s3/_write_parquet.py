@@ -1,18 +1,16 @@
 """Modin on Ray S3 write parquet module (PRIVATE)."""
 import logging
 import math
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
+import boto3
 import modin.pandas as pd
+import pyarrow as pa
 from modin.pandas import DataFrame as ModinDataFrame
 from ray.data import from_modin, from_pandas
 from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
 
 from awswrangler.distributed.ray.datasources import ParquetDatasource, UserProvidedKeyBlockWritePathProvider
-
-if TYPE_CHECKING:
-    import boto3
-    import pyarrow as pa
 
 _logger: logging.Logger = logging.getLogger(__name__)
 

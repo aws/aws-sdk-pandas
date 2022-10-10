@@ -4,8 +4,8 @@ from functools import wraps
 from typing import Any, Callable, Optional
 
 import pandas as pd
-
-from awswrangler._distributed import MemoryFormatEnum, memory_format
+from modin.distributed.dataframe.pandas import from_partitions, unwrap_partitions
+from modin.pandas import DataFrame as ModinDataFrame
 
 
 def modin_repartition(function: Callable[..., Any]) -> Callable[..., Any]:
@@ -24,6 +24,7 @@ def modin_repartition(function: Callable[..., Any]) -> Callable[..., Any]:
     -------
     Callable[..., Any]
     """
+    function = getattr(function, "_source_func", function)
 
     @wraps(function)
     def wrapper(
@@ -35,13 +36,8 @@ def modin_repartition(function: Callable[..., Any]) -> Callable[..., Any]:
     ) -> Any:
         # Repartition Modin data frame along row (axis=0) axis
         # to avoid a situation where columns are split along multiple blocks
-
-        if memory_format.get() == MemoryFormatEnum.MODIN.value:
-            from modin.distributed.dataframe.pandas import from_partitions, unwrap_partitions
-            from modin.pandas import DataFrame as ModinDataFrame
-
-            if isinstance(df, ModinDataFrame) and axis is not None:
-                df = from_partitions(unwrap_partitions(df, axis=axis), axis=axis, row_lengths=row_lengths)
+        if isinstance(df, ModinDataFrame) and axis is not None:
+            df = from_partitions(unwrap_partitions(df, axis=axis), axis=axis, row_lengths=row_lengths)
         return function(df, *args, **kwargs)
 
     return wrapper

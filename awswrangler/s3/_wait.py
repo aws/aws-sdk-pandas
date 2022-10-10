@@ -33,11 +33,6 @@ def _wait_object_batch(
         _wait_object(boto3_session, path, waiter_name, delay, max_attempts)
 
 
-@engine.dispatch_on_engine
-def _batch_paths(paths: List[str], parallelism: Optional[int]) -> List[List[str]]:  # pylint: disable=W0613
-    return [[path] for path in paths]
-
-
 def _wait_objects(
     waiter_name: str,
     paths: List[str],
@@ -50,12 +45,15 @@ def _wait_objects(
     delay = 5 if delay is None else delay
     max_attempts = 20 if max_attempts is None else max_attempts
     parallelism = 100 if parallelism is None else parallelism
-    _delay: int = int(delay) if isinstance(delay, float) else delay
 
     if len(paths) < 1:
         return None
 
-    path_batches = _batch_paths(paths, parallelism)
+    path_batches = (
+        _utils.chunkify(paths, num_chunks=parallelism)
+        if len(paths) > parallelism
+        else _utils.chunkify(paths, max_length=1)
+    )
 
     executor = _get_executor(use_threads=use_threads)
     ray_get(
@@ -64,7 +62,7 @@ def _wait_objects(
             boto3_session,
             path_batches,
             itertools.repeat(waiter_name),
-            itertools.repeat(_delay),
+            itertools.repeat(int(delay)),
             itertools.repeat(max_attempts),
         )
     )
@@ -78,7 +76,7 @@ def wait_objects_exist(
     max_attempts: Optional[int] = None,
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
-    parallelism: Optional[int] = 100,
+    parallelism: Optional[int] = None,
 ) -> None:
     """Wait Amazon S3 objects exist.
 
@@ -137,7 +135,7 @@ def wait_objects_not_exist(
     max_attempts: Optional[int] = None,
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
-    parallelism: Optional[int] = 100,
+    parallelism: Optional[int] = None,
 ) -> None:
     """Wait Amazon S3 objects not exist.
 

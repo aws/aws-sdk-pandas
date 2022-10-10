@@ -15,7 +15,6 @@ import pyarrow.parquet
 from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
-from awswrangler.distributed.ray.modin import modin_repartition
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._read_parquet import _read_parquet_metadata
@@ -210,8 +209,8 @@ def _to_parquet(
     return paths
 
 
+@engine.dispatch_on_engine
 @apply_configs
-@modin_repartition
 def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
     df: pd.DataFrame,
     path: Optional[str] = None,
