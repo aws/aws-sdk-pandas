@@ -8,7 +8,7 @@ from awswrangler.lakeformation._read import _get_work_unit_results
 from awswrangler.s3._delete import _delete_objects
 from awswrangler.s3._read_parquet import _read_parquet, _read_parquet_metadata_file
 from awswrangler.s3._read_text import _read_text
-from awswrangler.s3._select import _select_object_content
+from awswrangler.s3._select import _select_object_content, _select_query
 from awswrangler.s3._wait import _batch_paths, _wait_object_batch
 from awswrangler.s3._write_dataset import _to_buckets, _to_partitions
 from awswrangler.s3._write_parquet import _to_parquet
@@ -23,6 +23,7 @@ def register_ray() -> None:
     # S3
     engine.register_func(_delete_objects, ray_remote(_delete_objects))
     engine.register_func(_read_parquet_metadata_file, ray_remote(_read_parquet_metadata_file))
+    engine.register_func(_select_query, ray_remote(_select_query))
     engine.register_func(_select_object_content, ray_remote(_select_object_content))
     engine.register_func(_wait_object_batch, ray_remote(_wait_object_batch))
     engine.register_func(_batch_paths, _batch_paths_distributed)

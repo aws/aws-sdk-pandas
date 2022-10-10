@@ -79,9 +79,11 @@ class Engine:
     @classmethod
     def dispatch_on_engine(cls, func: Callable[..., Any]) -> Callable[..., Any]:
         """Dispatch on engine function decorator."""
+
         @wraps(func)
         def wrapper(*args: Any, **kw: Dict[str, Any]) -> Any:
             return cls.dispatch_func(func)(*args, **kw)
+
         # Save the original function
         wrapper._source_func = func  # type: ignore
         return wrapper

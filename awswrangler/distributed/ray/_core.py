@@ -60,11 +60,12 @@ def ray_remote(function: Callable[..., Any]) -> Callable[..., Any]:
     Callable[..., Any]
     """
     # Access the source function if it exists
-    function = getattr(function, '_source_func', function)
+    function = getattr(function, "_source_func", function)
 
     @wraps(function)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         return ray.remote(function).remote(*args, **kwargs)  # type: ignore
+
     return wrapper
 
 

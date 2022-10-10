@@ -3,9 +3,8 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Un
 
 import modin.pandas as pd
 import ray
-from modin.pandas import DataFrame as ModinDataFrame
-from pandas import DataFrame as PandasDataFrame
 
+from awswrangler._distributed import engine
 from awswrangler.distributed.ray import ray_get, ray_remote
 from awswrangler.s3._write_concurrent import _WriteProxy
 from awswrangler.s3._write_dataset import _delete_objects, _get_bucketing_series, _retrieve_paths, _to_partitions
@@ -29,7 +28,7 @@ def _to_buckets_distributed(  # pylint: disable=unused-argument
     paths: List[str] = []
 
     df_paths = df_groups.apply(
-        func.dispatch(ModinDataFrame),  # type: ignore
+        engine.dispatch_func(func),  # type: ignore
         path_root=path_root,
         filename_prefix=filename_prefix,
         boto3_session=None,
@@ -126,7 +125,8 @@ def _to_partitions_distributed(  # pylint: disable=unused-argument
     if not bucketing_info:
         # If only partitioning (without bucketing), avoid expensive modin groupby
         # by partitioning and writing each block as an ordinary Pandas DataFrame
-        _to_partitions_func = _to_partitions.dispatch(PandasDataFrame)
+        _to_partitions_func = _to_partitions._source_func  # type: ignore
+        func = func._source_func  # type: ignore
 
         @ray_remote
         def write_partitions(df: pd.DataFrame) -> Tuple[List[str], Dict[str, List[str]]]:

@@ -19,7 +19,7 @@ from awswrangler._distributed import engine
 from awswrangler._threading import _get_executor
 from awswrangler.catalog._get import _get_partitions
 from awswrangler.catalog._utils import _catalog_id
-from awswrangler.distributed.ray import RayLogger, ray_get, ray_remote
+from awswrangler.distributed.ray import RayLogger, ray_get
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import (
@@ -60,7 +60,7 @@ def _pyarrow_parquet_file_wrapper(
         raise
 
 
-@ray_remote
+@engine.dispatch_on_engine
 def _read_parquet_metadata_file(
     boto3_session: boto3.Session,
     path: str,
