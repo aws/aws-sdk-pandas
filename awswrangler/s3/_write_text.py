@@ -3,7 +3,6 @@
 import csv
 import logging
 import uuid
-from functools import singledispatch
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import boto3
@@ -31,7 +30,7 @@ def _get_write_details(path: str, pandas_kwargs: Dict[str, Any]) -> Tuple[str, O
     return mode, encoding, newline
 
 
-@singledispatch
+@engine.dispatch_on_engine
 def _to_text(  # pylint: disable=unused-argument
     df: pd.DataFrame,
     file_format: str,
@@ -924,7 +923,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
     df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
 
     if dataset is False:
-        return _to_text(
+        return _to_text(  # type: ignore
             df,
             file_format="json",
             path=path,

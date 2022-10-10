@@ -4,7 +4,6 @@ import logging
 import math
 import uuid
 from contextlib import contextmanager
-from functools import singledispatch
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
@@ -153,7 +152,7 @@ def _to_parquet_chunked(
     return proxy.close()  # blocking
 
 
-@singledispatch
+@engine.dispatch_on_engine
 def _to_parquet(
     df: pd.DataFrame,
     schema: pa.Schema,

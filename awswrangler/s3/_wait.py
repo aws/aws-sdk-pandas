@@ -7,9 +7,9 @@ from typing import List, Optional, Union
 import boto3
 
 from awswrangler import _utils
-from awswrangler._dispatch import dispatch_on_engine
+from awswrangler._distributed import engine
 from awswrangler._threading import _get_executor
-from awswrangler.distributed.ray import RayLogger, ray_get, ray_remote
+from awswrangler.distributed.ray import RayLogger, ray_get
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ def _wait_object(
     waiter.wait(Bucket=bucket, Key=key, WaiterConfig={"Delay": delay, "MaxAttempts": max_attempts})
 
 
-@ray_remote
+@engine.dispatch_on_engine
 def _wait_object_batch(
     boto3_session: Optional[boto3.Session], paths: List[str], waiter_name: str, delay: int, max_attempts: int
 ) -> None:
@@ -33,7 +33,7 @@ def _wait_object_batch(
         _wait_object(boto3_session, path, waiter_name, delay, max_attempts)
 
 
-@dispatch_on_engine
+@engine.dispatch_on_engine
 def _batch_paths(paths: List[str], parallelism: Optional[int]) -> List[List[str]]:  # pylint: disable=W0613
     return [[path] for path in paths]
 

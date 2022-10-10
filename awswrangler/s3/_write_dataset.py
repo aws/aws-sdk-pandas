@@ -1,7 +1,6 @@
 """Amazon S3 Write Dataset (PRIVATE)."""
 
 import logging
-from functools import singledispatch
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
@@ -9,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 from awswrangler import exceptions, lakeformation
+from awswrangler._distributed import engine
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._write_concurrent import _WriteProxy
 
@@ -118,7 +118,7 @@ def _delete_objects(
     return prefix
 
 
-@singledispatch
+@engine.dispatch_on_engine
 def _to_partitions(
     df: pd.DataFrame,
     func: Callable[..., List[str]],
@@ -187,7 +187,7 @@ def _to_partitions(
     return paths, partitions_values
 
 
-@singledispatch
+@engine.dispatch_on_engine
 def _to_buckets(
     df: pd.DataFrame,
     func: Callable[..., List[str]],

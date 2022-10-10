@@ -20,7 +20,7 @@ from awswrangler import _config, exceptions
 from awswrangler.__metadata__ import __version__
 from awswrangler._arrow import _table_to_df
 from awswrangler._config import apply_configs
-from awswrangler._dispatch import dispatch_on_engine
+from awswrangler._distributed import engine
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -408,7 +408,7 @@ def check_schema_changes(columns_types: Dict[str, str], table_input: Optional[Di
                 )
 
 
-@dispatch_on_engine
+@engine.dispatch_on_engine
 def table_refs_to_df(tables: List[pa.Table], kwargs: Dict[str, Any]) -> pd.DataFrame:  # type: ignore
     """Build Pandas dataframe from list of PyArrow tables."""
     return _table_to_df(pa.concat_tables(tables, promote=True), kwargs=kwargs)

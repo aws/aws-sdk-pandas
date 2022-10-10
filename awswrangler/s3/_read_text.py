@@ -9,7 +9,7 @@ import boto3
 import pandas as pd
 
 from awswrangler import _utils, exceptions
-from awswrangler._dispatch import dispatch_on_engine
+from awswrangler._distributed import engine
 from awswrangler._threading import _get_executor
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import _apply_partition_filter, _get_path_ignore_suffix, _get_path_root, _union
@@ -35,7 +35,7 @@ def _get_version_id_for(version_id: Optional[Union[str, Dict[str, str]]], path: 
     return version_id
 
 
-@dispatch_on_engine
+@engine.dispatch_on_engine
 def _read_text(  # pylint: disable=W0613
     read_format: str,
     paths: List[str],

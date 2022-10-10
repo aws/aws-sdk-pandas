@@ -15,7 +15,7 @@ import pyarrow.parquet
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._arrow import _add_table_partitions, _table_to_df
 from awswrangler._config import apply_configs
-from awswrangler._dispatch import dispatch_on_engine
+from awswrangler._distributed import engine
 from awswrangler._threading import _get_executor
 from awswrangler.catalog._get import _get_partitions
 from awswrangler.catalog._utils import _catalog_id
@@ -303,7 +303,7 @@ def _read_parquet_chunked(
         yield next_slice
 
 
-@dispatch_on_engine
+@engine.dispatch_on_engine
 def _read_parquet(  # pylint: disable=W0613
     paths: List[str],
     path_root: Optional[str],

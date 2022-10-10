@@ -8,8 +8,9 @@ from typing import Any, Dict, List, Optional, Union
 import boto3
 
 from awswrangler import _utils, exceptions
+from awswrangler._distributed import engine
 from awswrangler._threading import _get_executor
-from awswrangler.distributed.ray import RayLogger, ray_get, ray_remote
+from awswrangler.distributed.ray import RayLogger, ray_get
 from awswrangler.s3._fs import get_botocore_valid_kwargs
 from awswrangler.s3._list import _path2list
 
@@ -27,7 +28,7 @@ def _split_paths_by_bucket(paths: List[str]) -> Dict[str, List[str]]:
     return buckets
 
 
-@ray_remote
+@engine.dispatch_on_engine
 def _delete_objects(
     boto3_session: Optional[boto3.Session],
     paths: List[str],
