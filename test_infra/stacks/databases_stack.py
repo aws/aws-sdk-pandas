@@ -232,6 +232,7 @@ class DatabasesStack(Stack):  # type: ignore
         redshift_cluster = redshift.Cluster(
             self,
             "aws-sdk-pandas-redshift-cluster",
+            removal_policy=RemovalPolicy.DESTROY,
             default_database_name=database,
             master_user=redshift.Login(
                 master_username=self.db_username,
@@ -676,6 +677,7 @@ class DatabasesStack(Stack):  # type: ignore
         cluster = neptune.DatabaseCluster(
             self,
             "aws-sdk-pandas-neptune-cluster",
+            removal_policy=RemovalPolicy.DESTROY,
             vpc=self.vpc,
             instance_type=neptune.InstanceType.R5_LARGE,
             iam_authentication=iam_enabled,
