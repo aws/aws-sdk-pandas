@@ -1220,3 +1220,16 @@ def test_athena_generate_create_query(path, glue_database, glue_table):
     )
     wr.athena.start_query_execution(sql=query, database=glue_database, wait=True)
     assert query == wr.athena.generate_create_query(database=glue_database, table=glue_table)
+
+
+def test_get_query_execution(workgroup0, workgroup1):
+    query_execution_ids = wr.athena.list_query_executions(workgroup=workgroup0) + wr.athena.list_query_executions(
+        workgroup=workgroup1
+    )
+    assert query_execution_ids
+    query_execution_detail = wr.athena.get_query_execution(query_execution_id=query_execution_ids[0])
+    query_executions_df, unprocessed_query_execution_df = wr.athena.get_query_executions(query_execution_ids)
+    assert isinstance(query_executions_df, pd.DataFrame)
+    assert isinstance(unprocessed_query_execution_df, pd.DataFrame)
+    assert isinstance(query_execution_detail, dict)
+    assert set(query_execution_ids).intersection(set(query_executions_df["QueryExecutionId"].values.tolist()))
