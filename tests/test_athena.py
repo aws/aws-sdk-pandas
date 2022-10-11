@@ -1228,8 +1228,14 @@ def test_get_query_execution(workgroup0, workgroup1):
     )
     assert query_execution_ids
     query_execution_detail = wr.athena.get_query_execution(query_execution_id=query_execution_ids[0])
-    query_executions_df, unprocessed_query_execution_df = wr.athena.get_query_executions(query_execution_ids)
+    query_executions_df = wr.athena.get_query_executions(query_execution_ids)
     assert isinstance(query_executions_df, pd.DataFrame)
-    assert isinstance(unprocessed_query_execution_df, pd.DataFrame)
     assert isinstance(query_execution_detail, dict)
     assert set(query_execution_ids).intersection(set(query_executions_df["QueryExecutionId"].values.tolist()))
+    query_execution_ids1 = query_execution_ids + ["aaa", "bbb"]
+    query_executions_df, unprocessed_query_executions_df = wr.athena.get_query_executions(
+        query_execution_ids1, return_unprocessed=True
+    )
+    assert isinstance(unprocessed_query_executions_df, pd.DataFrame)
+    assert set(query_execution_ids).intersection(set(query_execution_ids1["QueryExecutionId"].values.tolist()))
+    assert set(["aaa", "bbb"]).intersection(set(query_execution_ids1["QueryExecutionId"].values.tolist()))

@@ -1197,10 +1197,9 @@ def list_query_executions(workgroup: Optional[str] = None, boto3_session: Option
 
 
 def get_query_executions(
-    query_execution_ids: List[str], boto3_session: Optional[boto3.Session] = None
-) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    """From specified query execution IDs, return a DataFrame of query execution details and
-    a DataFrame of query id that unable to be processed.
+    query_execution_ids: List[str], return_unprocessed: bool = False, boto3_session: Optional[boto3.Session] = None
+) -> Union[Tuple[pd.DataFrame, pd.DataFrame], pd.DataFrame]:
+    """From specified query execution IDs, return a DataFrame of query execution details.
 
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/athena.html#Athena.Client.batch_get_query_execution
 
@@ -1208,16 +1207,20 @@ def get_query_executions(
     ----------
     query_execution_ids : List[str]
         Athena query execution IDs.
+    return_unprocessed: bool.
+        True to also return query executions id that are unable to be processed.
+        False to only return DataFrame of query execution details.
+        Default is False
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
     Returns
     -------
     DataFrame
-        DataFrame contain information about a query execution.
+        DataFrame contain information about query execution details.
 
     DataFrame
-        DataFrame contain information about the query executions id that failed to process.
+        DataFrame contain information unprocessed query execution ids.
 
     Examples
     --------
@@ -1234,5 +1237,11 @@ def get_query_executions(
         response = client_athena.batch_get_query_execution(QueryExecutionIds=query_execution_ids[i : i + chunked_size])
         query_executions += response["QueryExecutions"]
         unprocessed_query_execution += response["UnprocessedQueryExecutionIds"]
-
-    return pd.json_normalize(query_executions), pd.json_normalize(unprocessed_query_execution)
+    if unprocessed_query_execution and not return_unprocessed:
+        _logger.warning(
+            "Some of query execution ids are unable to be processed."
+            "Set return_unprocessed to True to get unprocessed query execution ids"
+        )
+    if return_unprocessed:
+        return pd.json_normalize(query_executions), pd.json_normalize(unprocessed_query_execution)
+    return pd.json_normalize(query_executions)
