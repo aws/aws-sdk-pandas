@@ -7,17 +7,19 @@ import logging
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, Union
 
 import boto3
+import pandas as pd
 import pyarrow as pa
 import pyarrow.dataset
 import pyarrow.parquet
 
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._arrow import _add_table_partitions, _table_to_df
-from awswrangler._config import ExecutionEngine, MemoryFormat, apply_configs, config
+from awswrangler._config import apply_configs
+from awswrangler._distributed import engine
 from awswrangler._threading import _get_executor
 from awswrangler.catalog._get import _get_partitions
 from awswrangler.catalog._utils import _catalog_id
-from awswrangler.distributed import RayLogger, ray_get, ray_remote
+from awswrangler.distributed.ray import RayLogger, ray_get
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import (
@@ -27,18 +29,6 @@ from awswrangler.s3._read import (
     _get_path_ignore_suffix,
     _get_path_root,
 )
-
-if config.execution_engine == ExecutionEngine.RAY.value:
-    from ray.data import read_datasource
-
-    from awswrangler.distributed.ray.datasources import ParquetDatasource  # pylint: disable=ungrouped-imports
-
-    if config.memory_format == MemoryFormat.MODIN.value:
-        import modin.pandas as pd
-
-        from awswrangler.distributed.ray._utils import _to_modin  # pylint: disable=ungrouped-imports
-else:
-    import pandas as pd
 
 BATCH_READ_BLOCK_SIZE = 65_536
 CHUNKED_READ_S3_BLOCK_SIZE = 10_485_760  # 10 MB (20 * 2**20)
@@ -70,7 +60,7 @@ def _pyarrow_parquet_file_wrapper(
         raise
 
 
-@ray_remote
+@engine.dispatch_on_engine
 def _read_parquet_metadata_file(
     boto3_session: boto3.Session,
     path: str,
@@ -313,13 +303,13 @@ def _read_parquet_chunked(
         yield next_slice
 
 
-def _read_parquet(
+@engine.dispatch_on_engine
+def _read_parquet(  # pylint: disable=W0613
     paths: List[str],
     path_root: Optional[str],
     schema: pa.schema,
     columns: Optional[List[str]],
     coerce_int96_timestamp_unit: Optional[str],
-    chunked: Union[int, bool],
     boto3_session: Optional[boto3.Session],
     use_threads: Union[bool, int],
     parallelism: int,
@@ -327,36 +317,6 @@ def _read_parquet(
     s3_additional_kwargs: Optional[Dict[str, Any]],
     arrow_kwargs: Dict[str, Any],
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    if chunked:
-        return _read_parquet_chunked(
-            boto3_session=boto3_session,
-            paths=paths,
-            path_root=path_root,
-            columns=columns,
-            coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
-            chunked=chunked,
-            use_threads=use_threads,
-            s3_additional_kwargs=s3_additional_kwargs,
-            arrow_kwargs=arrow_kwargs,
-            version_ids=version_ids,
-        )
-
-    if config.execution_engine == ExecutionEngine.RAY.value and config.memory_format == MemoryFormat.MODIN.value:
-        dataset_kwargs = {}
-        if coerce_int96_timestamp_unit:
-            dataset_kwargs["coerce_int96_timestamp_unit"] = coerce_int96_timestamp_unit
-        dataset = read_datasource(
-            datasource=ParquetDatasource(),  # type: ignore
-            parallelism=parallelism,
-            use_threads=use_threads,
-            paths=paths,
-            schema=schema,
-            columns=columns,
-            dataset_kwargs=dataset_kwargs,
-            path_root=path_root,
-        )
-        return _to_modin(dataset=dataset, to_pandas_kwargs=arrow_kwargs)
-
     executor = _get_executor(use_threads=use_threads)
     tables = executor.map(
         _read_parquet_file,
@@ -369,7 +329,7 @@ def _read_parquet(
         itertools.repeat(use_threads),
         [version_ids.get(p) if isinstance(version_ids, dict) else None for p in paths],
     )
-    return _utils.table_refs_to_df(tables=tables, kwargs=arrow_kwargs)
+    return _utils.table_refs_to_df(tables, kwargs=arrow_kwargs)
 
 
 def read_parquet(
@@ -573,13 +533,26 @@ def read_parquet(
 
     arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=pyarrow_additional_kwargs)
 
+    if chunked:
+        return _read_parquet_chunked(
+            boto3_session=boto3_session,
+            paths=paths,
+            path_root=path_root,
+            columns=columns,
+            coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
+            chunked=chunked,
+            use_threads=use_threads,
+            s3_additional_kwargs=s3_additional_kwargs,
+            arrow_kwargs=arrow_kwargs,
+            version_ids=version_ids,
+        )
+
     return _read_parquet(
-        paths=paths,
+        paths,
         path_root=path_root,
         schema=schema,
         columns=columns,
         coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
-        chunked=chunked,
         use_threads=use_threads,
         parallelism=parallelism,
         boto3_session=boto3_session,

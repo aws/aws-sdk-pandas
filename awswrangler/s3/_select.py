@@ -12,8 +12,9 @@ import pandas as pd
 import pyarrow as pa
 
 from awswrangler import _data_types, _utils, exceptions
+from awswrangler._distributed import engine
 from awswrangler._threading import _get_executor
-from awswrangler.distributed import RayLogger, ray_get, ray_remote
+from awswrangler.distributed.ray import RayLogger, ray_get
 from awswrangler.s3._describe import size_objects
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import _get_path_ignore_suffix
@@ -36,7 +37,7 @@ def _gen_scan_range(obj_size: int, scan_range_chunk_size: Optional[int] = None) 
         yield (i, i + min(chunk_size, obj_size - i))
 
 
-@ray_remote
+@engine.dispatch_on_engine
 def _select_object_content(
     boto3_session: Optional[boto3.Session],
     args: Dict[str, Any],
@@ -72,7 +73,7 @@ def _select_object_content(
     return _utils.list_to_arrow_table(mapping=payload_records)
 
 
-@ray_remote
+@engine.dispatch_on_engine
 def _select_query(
     path: str,
     executor: Any,
@@ -276,4 +277,4 @@ def select_query(
     arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=pyarrow_additional_kwargs)
     executor = _get_executor(use_threads=use_threads)
     tables = _flatten_list(ray_get([_select_query(path=path, executor=executor, **select_kwargs) for path in paths]))
-    return _utils.table_refs_to_df(tables=tables, kwargs=arrow_kwargs)
+    return _utils.table_refs_to_df(tables, kwargs=arrow_kwargs)

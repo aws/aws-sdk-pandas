@@ -1,5 +1,4 @@
 """Amazon S3 Read Module (PRIVATE)."""
-import abc
 import datetime
 import itertools
 import logging
@@ -10,74 +9,23 @@ import boto3
 import pandas as pd
 
 from awswrangler import _utils, exceptions
-from awswrangler._config import ExecutionEngine, MemoryFormat, config
+from awswrangler._distributed import engine
 from awswrangler._threading import _get_executor
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import _apply_partition_filter, _get_path_ignore_suffix, _get_path_root, _union
 from awswrangler.s3._read_text_core import _read_text_file, _read_text_files_chunked
 
-if config.execution_engine == ExecutionEngine.RAY.value:
-    from ray.data import read_datasource
-
-    from awswrangler.distributed.ray.datasources import (  # pylint: disable=ungrouped-imports
-        PandasCSVDataSource,
-        PandasFWFDataSource,
-        PandasJSONDatasource,
-    )
-
-    if config.memory_format == MemoryFormat.MODIN.value:
-        from awswrangler.distributed.ray._utils import _to_modin  # pylint: disable=ungrouped-imports
-
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-class _ReadingStrategy(abc.ABC):
-    """
-    Reading strategy for a file format.
-
-    Contains the parsing function needed for loading the file, as well as the
-    Ray datasource if needed.
-    """
-
-    @property
-    @abc.abstractmethod
-    def pandas_read_function(self) -> Callable[..., pd.DataFrame]:
-        """Return the parser function from Pandas, such as e.g. pd.read_csv."""
-
-    @property
-    @abc.abstractmethod
-    def ray_datasource(self) -> Any:
-        """Return the Ray custom data source for this file format."""
-
-
-class _CSVReadingStrategy(_ReadingStrategy):
-    @property
-    def pandas_read_function(self) -> Callable[..., pd.DataFrame]:
-        return pd.read_csv  # type: ignore
-
-    @property
-    def ray_datasource(self) -> Any:
-        return PandasCSVDataSource()
-
-
-class _FWFReadingStrategy(_ReadingStrategy):
-    @property
-    def pandas_read_function(self) -> Callable[..., pd.DataFrame]:
-        return pd.read_fwf  # type: ignore
-
-    @property
-    def ray_datasource(self) -> Any:
-        return PandasFWFDataSource()
-
-
-class _JSONReadingStrategy(_ReadingStrategy):
-    @property
-    def pandas_read_function(self) -> Callable[..., pd.DataFrame]:
-        return pd.read_json  # type: ignore
-
-    @property
-    def ray_datasource(self) -> Any:
-        return PandasJSONDatasource()
+def _resolve_format(read_format: str) -> Any:
+    if read_format == "csv":
+        return pd.read_csv
+    if read_format == "fwf":
+        return pd.read_fwf
+    if read_format == "json":
+        return pd.read_json
+    raise exceptions.UnsupportedType("Unsupported read format")
 
 
 def _get_version_id_for(version_id: Optional[Union[str, Dict[str, str]]], path: str) -> Optional[str]:
@@ -87,8 +35,38 @@ def _get_version_id_for(version_id: Optional[Union[str, Dict[str, str]]], path: 
     return version_id
 
 
-def _read_text(
-    reading_strategy: _ReadingStrategy,
+@engine.dispatch_on_engine
+def _read_text(  # pylint: disable=W0613
+    read_format: str,
+    paths: List[str],
+    path_root: Optional[str],
+    use_threads: Union[bool, int],
+    boto3_session: Optional[boto3.Session],
+    s3_additional_kwargs: Optional[Dict[str, str]],
+    dataset: bool,
+    ignore_index: bool,
+    parallelism: int,
+    version_id_dict: Dict[str, Optional[str]],
+    pandas_kwargs: Dict[str, Any],
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    parser_func = _resolve_format(read_format)
+    executor = _get_executor(use_threads=use_threads)
+    tables = executor.map(
+        _read_text_file,
+        boto3_session,
+        paths,
+        [version_id_dict[path] for path in paths],
+        itertools.repeat(parser_func),
+        itertools.repeat(path_root),
+        itertools.repeat(pandas_kwargs),
+        itertools.repeat(s3_additional_kwargs),
+        itertools.repeat(dataset),
+    )
+    return _union(dfs=tables, ignore_index=ignore_index)
+
+
+def _read_text_format(
+    read_format: str,
     path: Union[str, List[str]],
     path_suffix: Union[str, List[str], None],
     path_ignore_suffix: Union[str, List[str], None],
@@ -128,9 +106,15 @@ def _read_text(
         raise exceptions.NoFilesFound(f"No files Found on: {path}.")
     _logger.debug("paths:\n%s", paths)
 
+    if len(paths) > 1 and version_id is not None and not isinstance(version_id, dict):
+        raise exceptions.InvalidArgumentCombination(
+            "If multiple paths are provided along with a file version ID, the version ID parameter must be a dict."
+        )
+    version_id_dict = {path: _get_version_id_for(version_id, path) for path in paths}
+
     args: Dict[str, Any] = {
-        "parser_func": reading_strategy.pandas_read_function,
-        "boto3_session": session,
+        "parser_func": _resolve_format(read_format),
+        "boto3_session": boto3_session,
         "dataset": dataset,
         "path_root": path_root,
         "pandas_kwargs": pandas_kwargs,
@@ -138,12 +122,6 @@ def _read_text(
         "use_threads": use_threads,
     }
     _logger.debug("args:\n%s", pprint.pformat(args))
-
-    if len(paths) > 1 and version_id is not None and not isinstance(version_id, dict):
-        raise exceptions.InvalidArgumentCombination(
-            "If multiple paths are provided along with a file version ID, the version ID parameter must be a dict."
-        )
-    version_id_dict = {path: _get_version_id_for(version_id, path) for path in paths}
 
     if chunksize is not None:
         return _read_text_files_chunked(
@@ -153,33 +131,19 @@ def _read_text(
             **args,
         )
 
-    if config.execution_engine == ExecutionEngine.RAY.value and config.memory_format == MemoryFormat.MODIN.value:
-        ray_dataset = read_datasource(
-            datasource=reading_strategy.ray_datasource,
-            parallelism=parallelism,
-            paths=paths,
-            path_root=path_root,
-            dataset=dataset,
-            version_id_dict=version_id_dict,
-            s3_additional_kwargs=s3_additional_kwargs,
-            pandas_kwargs=pandas_kwargs,
-        )
-        return _to_modin(dataset=ray_dataset, ignore_index=ignore_index)
-
-    executor = _get_executor(use_threads=use_threads)
-    tables = executor.map(
-        _read_text_file,
-        session,
-        paths,
-        [version_id_dict[path] for path in paths],
-        itertools.repeat(reading_strategy.pandas_read_function),
-        itertools.repeat(path_root),
-        itertools.repeat(pandas_kwargs),
-        itertools.repeat(s3_additional_kwargs),
-        itertools.repeat(dataset),
+    return _read_text(
+        read_format,
+        paths=paths,
+        path_root=path_root,
+        use_threads=use_threads,
+        boto3_session=session,
+        s3_additional_kwargs=s3_additional_kwargs,
+        dataset=dataset,
+        ignore_index=ignore_index,
+        parallelism=parallelism,
+        version_id_dict=version_id_dict,
+        pandas_kwargs=pandas_kwargs,
     )
-
-    return _union(dfs=tables, ignore_index=ignore_index)
 
 
 def read_csv(
@@ -314,8 +278,8 @@ def read_csv(
             "e.g. wr.s3.read_csv('s3://bucket/prefix/', sep='|', skip_blank_lines=True)"
         )
     ignore_index: bool = "index_col" not in pandas_kwargs
-    return _read_text(
-        reading_strategy=_CSVReadingStrategy(),
+    return _read_text_format(
+        read_format="csv",
         path=path,
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,
@@ -466,8 +430,8 @@ def read_fwf(
             "Pandas arguments in the function call and awswrangler will accept it."
             "e.g. wr.s3.read_fwf(path, widths=[1, 3], names=['c0', 'c1'])"
         )
-    return _read_text(
-        reading_strategy=_FWFReadingStrategy(),
+    return _read_text_format(
+        read_format="fwf",
         path=path,
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,
@@ -627,8 +591,8 @@ def read_json(
         pandas_kwargs["lines"] = True
     pandas_kwargs["orient"] = orient
     ignore_index: bool = orient not in ("split", "index", "columns")
-    return _read_text(
-        reading_strategy=_JSONReadingStrategy(),
+    return _read_text_format(
+        read_format="json",
         path=path,
         path_suffix=path_suffix,
         path_ignore_suffix=path_ignore_suffix,

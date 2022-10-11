@@ -3,25 +3,14 @@
 import concurrent.futures
 import itertools
 import logging
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union
+from typing import Any, Callable, List, Optional, Union
 
 import boto3
 
 from awswrangler import _utils
-from awswrangler._config import ExecutionEngine, config
-
-if config.execution_engine == ExecutionEngine.RAY.value or TYPE_CHECKING:
-    from awswrangler.distributed.ray._pool import _RayPoolExecutor
+from awswrangler._distributed import EngineEnum, engine
 
 _logger: logging.Logger = logging.getLogger(__name__)
-
-
-def _get_executor(use_threads: Union[bool, int]) -> Union["_ThreadPoolExecutor", "_RayPoolExecutor"]:
-    return (
-        _RayPoolExecutor()
-        if config.execution_engine == ExecutionEngine.RAY.value
-        else _ThreadPoolExecutor(use_threads)  # type: ignore
-    )
 
 
 class _ThreadPoolExecutor:
@@ -42,3 +31,11 @@ class _ThreadPoolExecutor:
             return list(self._exec.map(func, *args))
         # Single-threaded
         return list(map(func, *(itertools.repeat(boto3_session), *iterables)))  # type: ignore
+
+
+def _get_executor(use_threads: Union[bool, int]) -> _ThreadPoolExecutor:
+    if engine.get() == EngineEnum.RAY:
+        from awswrangler.distributed.ray._pool import _RayPoolExecutor  # pylint: disable=import-outside-toplevel
+
+        return _RayPoolExecutor()  # type: ignore
+    return _ThreadPoolExecutor(use_threads)

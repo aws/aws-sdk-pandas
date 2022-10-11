@@ -4,38 +4,23 @@ import logging
 import math
 import uuid
 from contextlib import contextmanager
-from functools import singledispatch
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
+import pandas as pd
 import pyarrow as pa
 import pyarrow.lib
 import pyarrow.parquet
 
 from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation
-from awswrangler._config import ExecutionEngine, MemoryFormat, apply_configs, config
-from awswrangler.distributed import modin_repartition
+from awswrangler._config import apply_configs
+from awswrangler._distributed import engine
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._read_parquet import _read_parquet_metadata
 from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_concurrent import _WriteProxy
 from awswrangler.s3._write_dataset import _to_dataset
-
-if config.execution_engine == ExecutionEngine.RAY.value:
-    from ray.data import from_modin, from_pandas
-    from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
-
-    from awswrangler.distributed.ray.datasources import (  # pylint: disable=ungrouped-imports
-        ParquetDatasource,
-        UserProvidedKeyBlockWritePathProvider,
-    )
-
-    if config.memory_format == MemoryFormat.MODIN.value:
-        import modin.pandas as pd
-        from modin.pandas import DataFrame as ModinDataFrame
-else:
-    import pandas as pd
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -166,7 +151,7 @@ def _to_parquet_chunked(
     return proxy.close()  # blocking
 
 
-@singledispatch
+@engine.dispatch_on_engine
 def _to_parquet(
     df: pd.DataFrame,
     schema: pa.Schema,
@@ -181,7 +166,7 @@ def _to_parquet(
     use_threads: Union[bool, int],
     path: Optional[str] = None,
     path_root: Optional[str] = None,
-    filename_prefix: Optional[str] = uuid.uuid4().hex,
+    filename_prefix: Optional[str] = None,
     max_rows_by_file: Optional[int] = 0,
 ) -> List[str]:
     file_path = _get_file_path(
@@ -224,56 +209,8 @@ def _to_parquet(
     return paths
 
 
-def _to_parquet_distributed(  # pylint: disable=unused-argument
-    df: pd.DataFrame,
-    schema: pa.Schema,
-    index: bool,
-    compression: Optional[str],
-    compression_ext: str,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]],
-    cpus: int,
-    dtype: Dict[str, str],
-    boto3_session: Optional[boto3.Session],
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    use_threads: Union[bool, int],
-    path: Optional[str] = None,
-    path_root: Optional[str] = None,
-    filename_prefix: Optional[str] = "",
-    max_rows_by_file: Optional[int] = 0,
-    bucketing: bool = False,
-) -> List[str]:
-    if bucketing:
-        # Add bucket id to the prefix
-        path = f"{path_root}{filename_prefix}_bucket-{df.name:05d}.parquet"
-    # Create Ray Dataset
-    ds = from_modin(df) if isinstance(df, ModinDataFrame) else from_pandas(df)
-    # Repartition into a single block if or writing into a single key or if bucketing is enabled
-    if ds.count() > 0 and (path or bucketing):
-        _logger.warning(
-            "Repartitioning frame to single partition as a strict path was defined: %s. "
-            "This operation is inefficient for large datasets.",
-            path,
-        )
-        ds = ds.repartition(1)
-    # Repartition by max_rows_by_file
-    elif max_rows_by_file and (max_rows_by_file > 0):
-        ds = ds.repartition(math.ceil(ds.count() / max_rows_by_file))
-    datasource = ParquetDatasource()
-    ds.write_datasource(
-        datasource,  # type: ignore
-        path=path or path_root,
-        dataset_uuid=filename_prefix,
-        # If user has provided a single key, use that instead of generating a path per block
-        # The dataset will be repartitioned into a single block
-        block_path_provider=UserProvidedKeyBlockWritePathProvider()
-        if path and not path.endswith("/")
-        else DefaultBlockWritePathProvider(),
-    )
-    return datasource.get_write_paths()
-
-
+@engine.dispatch_on_engine
 @apply_configs
-@modin_repartition
 def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
     df: pd.DataFrame,
     path: Optional[str] = None,
@@ -612,7 +549,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
         description=description,
         parameters=parameters,
         columns_comments=columns_comments,
-        execution_engine=config.execution_engine,
+        execution_engine=engine.get(),
     )
 
     # Evaluating compression

@@ -4,14 +4,11 @@ import os
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union
 
-from awswrangler._config import ExecutionEngine, MemoryFormat, apply_configs, config
+from awswrangler._config import apply_configs
+from awswrangler._distributed import EngineEnum, engine
 
-if config.execution_engine == ExecutionEngine.RAY.value or TYPE_CHECKING:
-    import ray  # pylint: disable=import-error
-
-    if config.memory_format == MemoryFormat.MODIN.value:
-        from modin.distributed.dataframe.pandas import from_partitions, unwrap_partitions
-        from modin.pandas import DataFrame as ModinDataFrame
+if engine.get() == EngineEnum.RAY or TYPE_CHECKING:
+    import ray
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -29,7 +26,7 @@ class RayLogger:
 
     def get_logger(self, name: Union[str, Any] = None) -> Union[logging.Logger, Any]:
         """Return logger object."""
-        return logging.getLogger(name) if config.execution_engine == ExecutionEngine.RAY.value else None
+        return logging.getLogger(name) if engine.get() == EngineEnum.RAY else None
 
 
 def ray_get(futures: List[Any]) -> List[Any]:
@@ -45,7 +42,7 @@ def ray_get(futures: List[Any]) -> List[Any]:
     -------
     List[Any]
     """
-    if config.execution_engine == ExecutionEngine.RAY.value:
+    if engine.get() == EngineEnum.RAY:
         return ray.get(futures)
     return futures
 
@@ -62,40 +59,12 @@ def ray_remote(function: Callable[..., Any]) -> Callable[..., Any]:
     -------
     Callable[..., Any]
     """
-    if config.execution_engine == ExecutionEngine.RAY.value:
-
-        @wraps(function)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            return ray.remote(function).remote(*args, **kwargs)
-
-        return wrapper
-    return function
-
-
-def modin_repartition(function: Callable[..., Any]) -> Callable[..., Any]:
-    """
-    Decorate callable to repartition Modin data frame.
-
-    By default, repartition along row (axis=0) axis.
-    This avoids a situation where columns are split along multiple blocks.
-
-    Parameters
-    ----------
-    function : Callable[..., Any]
-        Callable as input to ray.remote
-
-    Returns
-    -------
-    Callable[..., Any]
-    """
+    # Access the source function if it exists
+    function = getattr(function, "_source_func", function)
 
     @wraps(function)
-    def wrapper(df, *args: Any, axis=0, row_lengths=None, **kwargs: Any) -> Any:
-        if config.memory_format == MemoryFormat.MODIN.value and isinstance(df, ModinDataFrame) and axis is not None:
-            # Repartition Modin data frame along row (axis=0) axis
-            # to avoid a situation where columns are split along multiple blocks
-            df = from_partitions(unwrap_partitions(df, axis=axis), axis=axis, row_lengths=row_lengths)
-        return function(df, *args, **kwargs)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        return ray.remote(function).remote(*args, **kwargs)  # type: ignore
 
     return wrapper
 

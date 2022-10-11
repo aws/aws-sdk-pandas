@@ -1,11 +1,10 @@
-"""Utilities Module for Ray methods."""
-
+"""Modin on Ray utilities (PRIVATE)."""
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import modin.pandas as modin_pd
 import pandas as pd
 import ray
-from modin.distributed.dataframe.pandas.partitions import from_partitions
+from modin.distributed.dataframe.pandas import from_partitions
 from ray.data._internal.arrow_block import ArrowBlockAccessor, ArrowRow
 from ray.data._internal.remote_fn import cached_remote_fn
 

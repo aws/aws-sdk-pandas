@@ -3,9 +3,9 @@ import logging
 import pytest
 
 import awswrangler as wr
-from awswrangler._config import MemoryFormat
+from awswrangler._distributed import EngineEnum, MemoryFormatEnum
 
-if wr.config.memory_format == MemoryFormat.MODIN.value:
+if wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN:
     import modin.pandas as pd
 else:
     import pandas as pd

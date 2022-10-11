@@ -7,9 +7,9 @@ from typing import List, Optional, Union
 import boto3
 
 from awswrangler import _utils
-from awswrangler._config import ExecutionEngine, config
+from awswrangler._distributed import engine
 from awswrangler._threading import _get_executor
-from awswrangler.distributed import RayLogger, ray_get, ray_remote
+from awswrangler.distributed.ray import RayLogger, ray_get
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ def _wait_object(
     waiter.wait(Bucket=bucket, Key=key, WaiterConfig={"Delay": delay, "MaxAttempts": max_attempts})
 
 
-@ray_remote
+@engine.dispatch_on_engine
 def _wait_object_batch(
     boto3_session: Optional[boto3.Session], paths: List[str], waiter_name: str, delay: int, max_attempts: int
 ) -> None:
@@ -36,24 +36,24 @@ def _wait_object_batch(
 def _wait_objects(
     waiter_name: str,
     paths: List[str],
-    delay: Optional[float] = None,
-    max_attempts: Optional[int] = None,
-    use_threads: Union[bool, int] = True,
-    parallelism: Optional[int] = None,
-    boto3_session: Optional[boto3.Session] = None,
+    delay: Optional[float],
+    max_attempts: Optional[int],
+    use_threads: Union[bool, int],
+    parallelism: Optional[int],
+    boto3_session: Optional[boto3.Session],
 ) -> None:
     delay = 5 if delay is None else delay
     max_attempts = 20 if max_attempts is None else max_attempts
     parallelism = 100 if parallelism is None else parallelism
-    _delay: int = int(delay) if isinstance(delay, float) else delay
 
     if len(paths) < 1:
         return None
 
-    if config.execution_engine == ExecutionEngine.RAY.value and len(paths) > parallelism:
-        path_batches = _utils.chunkify(paths, parallelism)
-    else:
-        path_batches = [[path] for path in paths]
+    path_batches = (
+        _utils.chunkify(paths, num_chunks=parallelism)
+        if len(paths) > parallelism
+        else _utils.chunkify(paths, max_length=1)
+    )
 
     executor = _get_executor(use_threads=use_threads)
     ray_get(
@@ -62,7 +62,7 @@ def _wait_objects(
             boto3_session,
             path_batches,
             itertools.repeat(waiter_name),
-            itertools.repeat(_delay),
+            itertools.repeat(int(delay)),
             itertools.repeat(max_attempts),
         )
     )

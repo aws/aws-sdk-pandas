@@ -9,15 +9,16 @@ from pyarrow import NativeFile, RecordBatchStreamReader, Table
 
 from awswrangler import _data_types, _utils, catalog
 from awswrangler._config import apply_configs
+from awswrangler._distributed import engine
 from awswrangler._threading import _get_executor
 from awswrangler.catalog._utils import _catalog_id, _transaction_id
-from awswrangler.distributed import RayLogger, ray_remote
+from awswrangler.distributed.ray import RayLogger
 from awswrangler.lakeformation._utils import commit_transaction, start_transaction, wait_query
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-@ray_remote
+@engine.dispatch_on_engine
 def _get_work_unit_results(
     boto3_session: Optional[boto3.Session],
     query_id: str,
@@ -71,7 +72,7 @@ def _resolve_sql_query(
         itertools.repeat(query_id),
         token_work_units,
     )
-    return _utils.table_refs_to_df(tables=tables, kwargs=arrow_kwargs)
+    return _utils.table_refs_to_df(tables, kwargs=arrow_kwargs)
 
 
 @apply_configs
