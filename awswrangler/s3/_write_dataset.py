@@ -14,6 +14,59 @@ from awswrangler.s3._write_concurrent import _WriteProxy
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
+def _get_bucketing_series(df: pd.DataFrame, bucketing_info: Tuple[List[str], int]) -> pd.Series:
+    bucket_number_series = (
+        df[bucketing_info[0]]
+        # Prevent "upcasting" mixed types by casting to object
+        .astype("O").apply(
+            lambda row: _get_bucket_number(bucketing_info[1], [row[col_name] for col_name in bucketing_info[0]]),
+            axis="columns",
+        )
+    )
+    return bucket_number_series.astype(pd.CategoricalDtype(range(bucketing_info[1])))
+
+
+def _simulate_overflow(value: int, bits: int = 31, signed: bool = False) -> int:
+    base = 1 << bits
+    value %= base
+    return value - base if signed and value.bit_length() == bits else value
+
+
+def _get_bucket_number(number_of_buckets: int, values: List[Union[str, int, bool]]) -> int:
+    hash_code = 0
+    for value in values:
+        hash_code = 31 * hash_code + _get_value_hash(value)
+        hash_code = _simulate_overflow(hash_code)
+
+    return hash_code % number_of_buckets
+
+
+def _get_value_hash(value: Union[str, int, bool]) -> int:
+    if isinstance(value, (int, np.int_)):
+        value = int(value)
+        bigint_min, bigint_max = -(2**63), 2**63 - 1
+        int_min, int_max = -(2**31), 2**31 - 1
+        if not bigint_min <= value <= bigint_max:
+            raise ValueError(f"{value} exceeds the range that Athena cannot handle as bigint.")
+        if not int_min <= value <= int_max:
+            value = (value >> 32) ^ value
+        if value < 0:
+            return -value - 1
+        return int(value)
+    if isinstance(value, (str, np.str_)):
+        value_hash = 0
+        for byte in value.encode():
+            value_hash = value_hash * 31 + byte
+            value_hash = _simulate_overflow(value_hash)
+        return value_hash
+    if isinstance(value, (bool, np.bool_)):
+        return int(value)
+
+    raise exceptions.InvalidDataFrame(
+        "Column specified for bucketing contains invalid data type. Only string, int and bool are supported."
+    )
+
+
 def _to_partitions(
     func: Callable[..., List[str]],
     concurrent_partitioning: bool,
@@ -110,12 +163,7 @@ def _to_buckets(
     **func_kwargs: Any,
 ) -> List[str]:
     _proxy: _WriteProxy = proxy if proxy else _WriteProxy(use_threads=False)
-    bucket_number_series = df.astype("O").apply(
-        lambda row: _get_bucket_number(bucketing_info[1], [row[col_name] for col_name in bucketing_info[0]]),
-        axis="columns",
-    )
-    bucket_number_series = bucket_number_series.astype(pd.CategoricalDtype(range(bucketing_info[1])))
-    for bucket_number, subgroup in df.groupby(by=bucket_number_series, observed=False):
+    for bucket_number, subgroup in df.groupby(by=_get_bucketing_series(df=df, bucketing_info=bucketing_info)):
         _proxy.write(
             func=func,
             df=subgroup,
@@ -130,47 +178,6 @@ def _to_buckets(
 
     paths: List[str] = _proxy.close()  # blocking
     return paths
-
-
-def _simulate_overflow(value: int, bits: int = 31, signed: bool = False) -> int:
-    base = 1 << bits
-    value %= base
-    return value - base if signed and value.bit_length() == bits else value
-
-
-def _get_bucket_number(number_of_buckets: int, values: List[Union[str, int, bool]]) -> int:
-    hash_code = 0
-    for value in values:
-        hash_code = 31 * hash_code + _get_value_hash(value)
-        hash_code = _simulate_overflow(hash_code)
-
-    return hash_code % number_of_buckets
-
-
-def _get_value_hash(value: Union[str, int, bool]) -> int:
-    if isinstance(value, (int, np.int_)):
-        value = int(value)
-        bigint_min, bigint_max = -(2**63), 2**63 - 1
-        int_min, int_max = -(2**31), 2**31 - 1
-        if not bigint_min <= value <= bigint_max:
-            raise ValueError(f"{value} exceeds the range that Athena cannot handle as bigint.")
-        if not int_min <= value <= int_max:
-            value = (value >> 32) ^ value
-        if value < 0:
-            return -value - 1
-        return int(value)
-    if isinstance(value, (str, np.str_)):
-        value_hash = 0
-        for byte in value.encode():
-            value_hash = value_hash * 31 + byte
-            value_hash = _simulate_overflow(value_hash)
-        return value_hash
-    if isinstance(value, (bool, np.bool_)):
-        return int(value)
-
-    raise exceptions.InvalidDataFrame(
-        "Column specified for bucketing contains invalid data type. Only string, int and bool are supported."
-    )
 
 
 def _to_dataset(
