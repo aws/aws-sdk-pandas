@@ -277,7 +277,7 @@ def ensure_data_types(df, has_list=False):
         assert str(df["__index_level_0__"].dtype) == "Int64"
     assert str(df["par0"].dtype) in ("Int64", "category")
     assert str(df["par1"].dtype) in ("string", "category")
-    row = df[df["iint16"] == 1]
+    row = df.query("iint16 == 1")
     if not row.empty:
         row = row.iloc[0]
         assert str(type(row["decimal"]).__name__) == "Decimal"
