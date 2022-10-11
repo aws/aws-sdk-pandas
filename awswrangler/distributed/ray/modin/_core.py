@@ -24,6 +24,7 @@ def modin_repartition(function: Callable[..., Any]) -> Callable[..., Any]:
     -------
     Callable[..., Any]
     """
+    # Access the source function if it exists
     function = getattr(function, "_source_func", function)
 
     @wraps(function)

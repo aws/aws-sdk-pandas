@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union
 from awswrangler._config import apply_configs
 from awswrangler._distributed import EngineEnum, engine
 
-if engine.get() == EngineEnum.RAY.value or TYPE_CHECKING:
+if engine.get() == EngineEnum.RAY or TYPE_CHECKING:
     import ray
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ class RayLogger:
 
     def get_logger(self, name: Union[str, Any] = None) -> Union[logging.Logger, Any]:
         """Return logger object."""
-        return logging.getLogger(name) if engine.get() == EngineEnum.RAY.value else None
+        return logging.getLogger(name) if engine.get() == EngineEnum.RAY else None
 
 
 def ray_get(futures: List[Any]) -> List[Any]:
@@ -42,7 +42,7 @@ def ray_get(futures: List[Any]) -> List[Any]:
     -------
     List[Any]
     """
-    if engine.get() == EngineEnum.RAY.value:
+    if engine.get() == EngineEnum.RAY:
         return ray.get(futures)
     return futures
 

@@ -434,7 +434,7 @@ def detect_oracle_decimal_datatype(cursor: Any) -> Dict[str, pa.DataType]:
     if isinstance(cursor, oracledb.Cursor):
         # Oracle stores DECIMAL as the NUMBER type
         for row in cursor.description:
-            if row[1] == oracledb.DB_TYPE_NUMBER and row[5] > 0:
+            if row[1] == oracledb.DB_TYPE_NUMBER and row[5] > 0:  # pylint: disable=no-member
                 dtype[row[0]] = pa.decimal128(row[4], row[5])
 
     _logger.debug("decimal dtypes: %s", dtype)

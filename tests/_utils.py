@@ -12,7 +12,7 @@ import awswrangler as wr
 from awswrangler._distributed import EngineEnum, MemoryFormatEnum
 from awswrangler._utils import try_it
 
-if wr.engine.get() == EngineEnum.RAY.value and wr.memory_format.get() == MemoryFormatEnum.MODIN.value:
+if wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN:
     import modin.pandas as pd
 else:
     import pandas as pd

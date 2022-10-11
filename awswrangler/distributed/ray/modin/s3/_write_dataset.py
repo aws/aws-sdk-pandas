@@ -4,6 +4,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import boto3
 import modin.pandas as pd
 import ray
+from pandas import DataFrame as PandasDataFrame
 
 from awswrangler._distributed import engine
 from awswrangler.distributed.ray import ray_get, ray_remote
@@ -123,8 +124,8 @@ def _to_partitions_distributed(  # pylint: disable=unused-argument
     if not bucketing_info:
         # If only partitioning (without bucketing), avoid expensive modin groupby
         # by partitioning and writing each block as an ordinary Pandas DataFrame
-        _to_partitions_func = getattr(_to_partitions, "_source_func", _to_partitions)
-        func = getattr(func, "_source_func", func)
+        _to_partitions_func = engine.dispatch_func(_to_partitions, PandasDataFrame)
+        func = engine.dispatch_func(func, PandasDataFrame)
 
         @ray_remote
         def write_partitions(df: pd.DataFrame) -> Tuple[List[str], Dict[str, List[str]]]:

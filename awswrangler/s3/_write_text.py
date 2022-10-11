@@ -38,7 +38,7 @@ def _to_text(  # pylint: disable=unused-argument
     s3_additional_kwargs: Optional[Dict[str, str]],
     path: Optional[str] = None,
     path_root: Optional[str] = None,
-    filename_prefix: Optional[str] = uuid.uuid4().hex,
+    filename_prefix: Optional[str] = None,
     bucketing: bool = False,
     **pandas_kwargs: Any,
 ) -> List[str]:

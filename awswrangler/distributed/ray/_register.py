@@ -26,7 +26,7 @@ def register_ray() -> None:
     engine.register_func(_select_object_content, ray_remote(_select_object_content))
     engine.register_func(_wait_object_batch, ray_remote(_wait_object_batch))
 
-    if memory_format.get() == MemoryFormatEnum.MODIN.value:
+    if memory_format.get() == MemoryFormatEnum.MODIN:
         from awswrangler.distributed.ray.modin._core import modin_repartition
         from awswrangler.distributed.ray.modin._utils import _arrow_refs_to_df
         from awswrangler.distributed.ray.modin.s3._read_parquet import _read_parquet_distributed

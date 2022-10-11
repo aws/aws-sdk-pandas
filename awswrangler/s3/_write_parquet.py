@@ -166,7 +166,7 @@ def _to_parquet(
     use_threads: Union[bool, int],
     path: Optional[str] = None,
     path_root: Optional[str] = None,
-    filename_prefix: Optional[str] = uuid.uuid4().hex,
+    filename_prefix: Optional[str] = None,
     max_rows_by_file: Optional[int] = 0,
 ) -> List[str]:
     file_path = _get_file_path(

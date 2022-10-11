@@ -9,7 +9,7 @@ from awswrangler._distributed import EngineEnum, MemoryFormatEnum
 
 from .._utils import ensure_data_types, ensure_data_types_csv, get_df, get_df_csv
 
-if wr.engine.get() == EngineEnum.RAY.value and wr.memory_format.get() == MemoryFormatEnum.MODIN.value:
+if wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN:
     import modin.pandas as pd
 else:
     import pandas as pd
