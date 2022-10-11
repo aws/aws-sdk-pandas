@@ -1238,4 +1238,4 @@ def test_get_query_execution(workgroup0, workgroup1):
     )
     assert isinstance(unprocessed_query_executions_df, pd.DataFrame)
     assert set(query_execution_ids).intersection(set(query_executions_df["QueryExecutionId"].values.tolist()))
-    assert set(["aaa", "bbb"]).intersection(set(query_executions_df["QueryExecutionId"].values.tolist()))
+    assert set(["aaa", "bbb"]).intersection(set(unprocessed_query_executions_df["QueryExecutionId"].values.tolist()))
