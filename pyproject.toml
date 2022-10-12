@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "awswrangler"
-version = "3.0.0b2"
+version = "3.0.0b3"
 description = "Pandas on AWS."
 authors = ["Amazon Web Services"]
 license = "Apache License 2.0"
@@ -82,7 +82,6 @@ jupyterlab = "^3.1.4"
 s3fs = "0.4.2"
 python-Levenshtein = "^0.12.2"
 bump2version = "^1.0.1"
-setuptools = "*"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
