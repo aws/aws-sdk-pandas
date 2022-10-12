@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "awswrangler"
-version = "3.0.0b2"
+version = "3.0.0b3"
 description = "Pandas on AWS."
 authors = ["Amazon Web Services"]
 license = "Apache License 2.0"
@@ -56,7 +56,7 @@ sparql = ["SPARQLWrapper"]
 modin = ["modin"]
 ray = ["ray", "psutil", "tqdm"]
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 wheel = "^0.37.1"
 isort = "^5.9.2"
 black = "^22.1.0"
