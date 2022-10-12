@@ -56,7 +56,7 @@ sparql = ["SPARQLWrapper"]
 modin = ["modin"]
 ray = ["ray", "psutil", "tqdm"]
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 wheel = "^0.37.1"
 isort = "^5.9.2"
 black = "^22.1.0"
