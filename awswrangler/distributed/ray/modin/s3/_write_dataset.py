@@ -1,15 +1,25 @@
 """Modin on Ray S3 write dataset module (PRIVATE)."""
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
 import modin.pandas as pd
+import numpy as np
 import ray
 from pandas import DataFrame as PandasDataFrame
 
 from awswrangler._distributed import engine
 from awswrangler.distributed.ray import ray_get, ray_remote
 from awswrangler.s3._write_concurrent import _WriteProxy
-from awswrangler.s3._write_dataset import _delete_objects, _get_bucketing_series, _retrieve_paths, _to_partitions
+from awswrangler.s3._write_dataset import _delete_objects, _get_bucketing_series, _to_partitions
+
+
+def _retrieve_paths(values: Union[str, List[Any]]) -> Iterator[str]:
+    if isinstance(values, (list, np.ndarray)):
+        for v in values:
+            yield from _retrieve_paths(v)
+        return
+
+    yield values
 
 
 def _to_buckets_distributed(  # pylint: disable=unused-argument

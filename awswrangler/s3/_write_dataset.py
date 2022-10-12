@@ -1,7 +1,7 @@
 """Amazon S3 Write Dataset (PRIVATE)."""
 
 import logging
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import boto3
 import numpy as np
@@ -218,15 +218,6 @@ def _to_buckets(
         return []
     paths: List[str] = _proxy.close()  # blocking
     return paths
-
-
-def _retrieve_paths(values: Union[str, List[Any]]) -> Iterator[str]:
-    if isinstance(values, (list, np.ndarray)):
-        for v in values:
-            yield from _retrieve_paths(v)
-        return
-
-    yield values
 
 
 def _to_dataset(
