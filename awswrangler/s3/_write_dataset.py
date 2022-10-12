@@ -16,9 +16,13 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _get_bucketing_series(df: pd.DataFrame, bucketing_info: Tuple[List[str], int]) -> pd.Series:
-    bucket_number_series = df.astype("O").apply(
-        lambda row: _get_bucket_number(bucketing_info[1], [row[col_name] for col_name in bucketing_info[0]]),
-        axis="columns",
+    bucket_number_series = (
+        df[bucketing_info[0]]
+        # Prevent "upcasting" mixed types by casting to object
+        .astype("O").apply(
+            lambda row: _get_bucket_number(bucketing_info[1], [row[col_name] for col_name in bucketing_info[0]]),
+            axis="columns",
+        )
     )
     return bucket_number_series.astype(pd.CategoricalDtype(range(bucketing_info[1])))
 
@@ -200,8 +204,7 @@ def _to_buckets(
     **func_kwargs: Any,
 ) -> List[str]:
     _proxy: _WriteProxy = proxy if proxy else _WriteProxy(use_threads=False)
-    df_groups = df.groupby(by=_get_bucketing_series(df=df, bucketing_info=bucketing_info))
-    for bucket_number, subgroup in df_groups:
+    for bucket_number, subgroup in df.groupby(by=_get_bucketing_series(df=df, bucketing_info=bucketing_info)):
         _proxy.write(
             func,
             boto3_session,
