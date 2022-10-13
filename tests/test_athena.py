@@ -595,6 +595,22 @@ def test_read_sql_query_wo_results(path, glue_database, glue_table):
     ensure_athena_query_metadata(df=df, ctas_approach=False, encrypted=False)
 
 
+def test_read_sql_query_wo_results_chunked(path, glue_database, glue_table):
+    wr.catalog.create_parquet_table(database=glue_database, table=glue_table, path=path, columns_types={"c0": "int"})
+    sql = f"SELECT * FROM {glue_database}.{glue_table}"
+
+    for df in wr.athena.read_sql_query(sql, database=glue_database, ctas_approach=False, chunksize=100):
+        assert df.empty
+
+
+def test_read_sql_query_wo_results_chunked_ctas(path, glue_database, glue_table):
+    wr.catalog.create_parquet_table(database=glue_database, table=glue_table, path=path, columns_types={"c0": "int"})
+    sql = f"SELECT * FROM {glue_database}.{glue_table}"
+
+    for df in wr.athena.read_sql_query(sql, database=glue_database, ctas_approach=True, chunksize=100):
+        assert df.empty
+
+
 @pytest.mark.xfail()
 def test_read_sql_query_wo_results_ctas(path, glue_database, glue_table):
     wr.catalog.create_parquet_table(database=glue_database, table=glue_table, path=path, columns_types={"c0": "int"})
