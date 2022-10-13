@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from awswrangler.athena._formatter import _EngineType, _format_parameters
+from awswrangler._sql_formatter import _EngineType, _format_parameters
 
 
 @pytest.mark.parametrize("engine", [_EngineType.HIVE, _EngineType.PRESTO])

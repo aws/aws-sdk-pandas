@@ -10,6 +10,7 @@ from pyarrow import NativeFile, RecordBatchStreamReader, Table
 from awswrangler import _data_types, _utils, catalog
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
+from awswrangler._sql_formatter import _process_sql_params
 from awswrangler._threading import _get_executor
 from awswrangler.catalog._utils import _catalog_id, _transaction_id
 from awswrangler.distributed.ray import RayLogger
@@ -159,17 +160,15 @@ def read_sql_query(
     ...     sql="SELECT * FROM my_table WHERE name=:name AND city=:city",
     ...     database="my_db",
     ...     query_as_of_time="1611142914",
-    ...     params={"name": "'filtered_name'", "city": "'filtered_city'"}
+    ...     params={"name": "filtered_name", "city": "filtered_city"}
     ... )
 
     """
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
     commit_trans: bool = False
-    if params is None:
-        params = {}
-    for key, value in params.items():
-        sql = sql.replace(f":{key};", str(value))
+
+    sql = _process_sql_params(sql, params)
 
     if not any([transaction_id, query_as_of_time]):
         _logger.debug("Neither `transaction_id` nor `query_as_of_time` were specified, starting transaction")

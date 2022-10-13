@@ -50,9 +50,9 @@ def test_lakeformation(path, path2, glue_database, glue_table, glue_table2, use_
 
     # Filter query
     df2 = wr.lakeformation.read_sql_query(
-        sql=f"SELECT * FROM {glue_table} WHERE iint16 = :iint16;",
+        sql=f"SELECT * FROM {glue_table} WHERE string = :string;",
         database=glue_database,
-        params={"iint16": 1},
+        params={"string": "Washington"},
     )
     assert len(df2.index) == 1
 
