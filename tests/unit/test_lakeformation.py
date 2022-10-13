@@ -50,7 +50,7 @@ def test_lakeformation(path, path2, glue_database, glue_table, glue_table2, use_
 
     # Filter query
     df2 = wr.lakeformation.read_sql_query(
-        sql=f"SELECT * FROM {glue_table} WHERE \"string\" = :city_name",
+        sql=f'SELECT * FROM {glue_table} WHERE "string" = :city_name',
         database=glue_database,
         params={"city_name": "Washington"},
     )
