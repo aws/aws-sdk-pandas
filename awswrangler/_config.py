@@ -21,7 +21,7 @@ class _ConfigArg(NamedTuple):
     nullable: bool
     enforced: bool = False
     loaded: bool = False
-    default: Optional[str] = None
+    default: Optional[_ConfigValueType] = None
 
 
 # Please, also add any new argument as a property in the _Config class
@@ -57,7 +57,7 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "redis_password": _ConfigArg(dtype=str, nullable=True),
     "ignore_reinit_error": _ConfigArg(dtype=bool, nullable=True),
     "include_dashboard": _ConfigArg(dtype=bool, nullable=True),
-    "log_to_driver": _ConfigArg(dtype=bool, nullable=True),
+    "log_to_driver": _ConfigArg(dtype=bool, nullable=True, loaded=True, default=False),
     "object_store_memory": _ConfigArg(dtype=int, nullable=True),
     "cpu_count": _ConfigArg(dtype=int, nullable=True),
     "gpu_count": _ConfigArg(dtype=int, nullable=True),
@@ -453,6 +453,15 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     @redis_password.setter
     def redis_password(self, value: Optional[str]) -> None:
         self._set_config_value(key="redis_password", value=value)
+
+    @property
+    def log_to_driver(self) -> Optional[bool]:
+        """Property log_to_driver."""
+        return cast(Optional[bool], self["log_to_driver"])
+
+    @log_to_driver.setter
+    def log_to_driver(self, value: Optional[bool]) -> None:
+        self._set_config_value(key="log_to_driver", value=value)
 
     @property
     def object_store_memory(self) -> int:
