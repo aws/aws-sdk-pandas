@@ -307,7 +307,6 @@ def _read_parquet_chunked(
 def _read_parquet(  # pylint: disable=W0613
     paths: List[str],
     path_root: Optional[str],
-    schema: pa.schema,
     columns: Optional[List[str]],
     coerce_int96_timestamp_unit: Optional[str],
     boto3_session: Optional[boto3.Session],
@@ -550,7 +549,6 @@ def read_parquet(
     return _read_parquet(
         paths,
         path_root=path_root,
-        schema=schema,
         columns=columns,
         coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
         use_threads=use_threads,

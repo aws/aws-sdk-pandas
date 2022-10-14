@@ -39,7 +39,7 @@ def _read_text_distributed(  # pylint: disable=unused-argument
         paths=paths,
         path_root=path_root,
         dataset=dataset,
-        version_id_dict=version_id_dict,
+        version_ids=version_id_dict,
         s3_additional_kwargs=s3_additional_kwargs,
         pandas_kwargs=pandas_kwargs,
     )
