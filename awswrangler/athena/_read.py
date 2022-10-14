@@ -12,6 +12,7 @@ import pandas as pd
 
 from awswrangler import _utils, catalog, exceptions, s3
 from awswrangler._config import apply_configs
+from awswrangler._data_types import cast_pandas_with_athena_types
 from awswrangler.athena._utils import (
     _apply_query_metadata,
     _empty_dataframe_response,
@@ -103,10 +104,16 @@ def _fetch_parquet_result(
         if not temp_table_fqn:
             raise exceptions.EmptyDataFrame("Query would return untyped, empty dataframe.")
 
-        return _empty_dataframe_response(
-            chunked=bool(chunked),
-            query_metadata=query_metadata,
-        )
+        database, temp_table_name = map(lambda x: x.replace('"', ""), temp_table_fqn.split("."))
+        dtype_dict = catalog.get_table_types(database=database, table=temp_table_name, boto3_session=boto3_session)
+        df = pd.DataFrame(columns=list(dtype_dict.keys()))
+        df = cast_pandas_with_athena_types(df=df, dtype=dtype_dict)
+        df = _apply_query_metadata(df=df, query_metadata=query_metadata)
+
+        if chunked:
+            return (df,)
+
+        return df
 
     ret = s3.read_parquet(
         path=paths,

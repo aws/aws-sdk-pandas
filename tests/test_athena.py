@@ -599,16 +599,24 @@ def test_read_sql_query_wo_results_chunked(path, glue_database, glue_table):
     wr.catalog.create_parquet_table(database=glue_database, table=glue_table, path=path, columns_types={"c0": "int"})
     sql = f"SELECT * FROM {glue_database}.{glue_table}"
 
+    counter = 0
     for df in wr.athena.read_sql_query(sql, database=glue_database, ctas_approach=False, chunksize=100):
         assert df.empty
+        counter += 1
+
+    assert counter == 1
 
 
 def test_read_sql_query_wo_results_chunked_ctas(path, glue_database, glue_table):
     wr.catalog.create_parquet_table(database=glue_database, table=glue_table, path=path, columns_types={"c0": "int"})
     sql = f"SELECT * FROM {glue_database}.{glue_table}"
 
+    counter = 0
     for df in wr.athena.read_sql_query(sql, database=glue_database, ctas_approach=True, chunksize=100):
         assert df.empty
+        counter += 1
+
+    assert counter == 1
 
 
 @pytest.mark.xfail()
