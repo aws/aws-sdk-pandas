@@ -39,11 +39,11 @@ def ray_logger(function: Callable[..., Any]) -> Callable[..., Any]:
     ----------
     function : Callable[..., Any]
         Callable as input to decorator.
+
     Returns
     -------
     Callable[..., Any]
     """
-
     @wraps(function)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         RayLogger().get_logger(name=function.__name__)
@@ -59,7 +59,8 @@ def ray_remote(function: Callable[..., Any]) -> Callable[..., Any]:
     Parameters
     ----------
     function : Callable[..., Any]
-        Callable as input to ray.remote
+        Callable as input to ray.remote.
+
     Returns
     -------
     Callable[..., Any]
