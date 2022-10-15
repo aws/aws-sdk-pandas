@@ -98,7 +98,7 @@ def initialize_ray(
     redis_password: Optional[str] = None,
     ignore_reinit_error: Optional[bool] = True,
     include_dashboard: Optional[bool] = False,
-    log_to_driver: Optional[bool] = True,
+    log_to_driver: Optional[bool] = False,
     object_store_memory: Optional[int] = None,
     cpu_count: Optional[int] = None,
     gpu_count: Optional[int] = None,
