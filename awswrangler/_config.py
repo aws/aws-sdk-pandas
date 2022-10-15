@@ -57,7 +57,7 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "redis_password": _ConfigArg(dtype=str, nullable=True),
     "ignore_reinit_error": _ConfigArg(dtype=bool, nullable=True),
     "include_dashboard": _ConfigArg(dtype=bool, nullable=True),
-    "log_to_driver": _ConfigArg(dtype=bool, nullable=True, loaded=True, default=False),
+    "log_to_driver": _ConfigArg(dtype=bool, nullable=True),
     "object_store_memory": _ConfigArg(dtype=int, nullable=True),
     "cpu_count": _ConfigArg(dtype=int, nullable=True),
     "gpu_count": _ConfigArg(dtype=int, nullable=True),

@@ -4,7 +4,7 @@ import os
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union
 
-from awswrangler._config import apply_configs, config
+from awswrangler._config import apply_configs
 from awswrangler._distributed import EngineEnum, engine
 
 if engine.get() == EngineEnum.RAY or TYPE_CHECKING:
@@ -18,7 +18,7 @@ class RayLogger:
 
     def __init__(
         self,
-        log_level: int = logging.INFO,
+        log_level: int = logging.DEBUG,
         format: str = "%(asctime)s::%(levelname)-2s::%(name)s::%(message)s",  # pylint: disable=redefined-builtin
         datefmt: str = "%Y-%m-%d %H:%M:%S",
     ):
@@ -26,9 +26,7 @@ class RayLogger:
 
     def get_logger(self, name: Union[str, Any] = None) -> Optional[logging.Logger]:
         """Return logger object."""
-        if config.log_to_driver:
-            return logging.getLogger(name)
-        return None
+        return logging.getLogger(name)
 
 
 def ray_logger(function: Callable[..., Any]) -> Callable[..., Any]:
@@ -100,7 +98,7 @@ def initialize_ray(
     redis_password: Optional[str] = None,
     ignore_reinit_error: Optional[bool] = True,
     include_dashboard: Optional[bool] = False,
-    log_to_driver: Optional[bool] = False,
+    log_to_driver: Optional[bool] = True,
     object_store_memory: Optional[int] = None,
     cpu_count: Optional[int] = None,
     gpu_count: Optional[int] = None,
