@@ -6,7 +6,7 @@ import pandas as pd
 import pyarrow
 from ray.data._internal.pandas_block import PandasBlockAccessor
 from ray.data._internal.remote_fn import cached_remote_fn
-from ray.data.block import Block, BlockMetadata
+from ray.data.block import Block, BlockAccessor, BlockMetadata
 from ray.data.datasource.datasource import WriteResult
 from ray.data.datasource.file_based_datasource import (
     BlockWritePathProvider,
@@ -39,7 +39,7 @@ class UserProvidedKeyBlockWritePathProvider(BlockWritePathProvider):
         return base_path
 
 
-class PandasFileBasedDatasource(FileBasedDatasource):
+class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstract-method
     """Pandas file based datasource, for reading and writing Pandas blocks."""
 
     _FILE_EXTENSION: Optional[str] = None
@@ -48,6 +48,9 @@ class PandasFileBasedDatasource(FileBasedDatasource):
         super().__init__()
 
         self._write_paths: List[str] = []
+
+    def _read_file(self, f: pyarrow.NativeFile, path: str, **reader_args: Any) -> pd.DataFrame:
+        raise NotImplementedError()
 
     def do_write(  # type: ignore  # pylint: disable=arguments-differ
         self,
@@ -59,6 +62,7 @@ class PandasFileBasedDatasource(FileBasedDatasource):
         try_create_dir: bool = True,
         open_stream_args: Optional[Dict[str, Any]] = None,
         block_path_provider: BlockWritePathProvider = DefaultBlockWritePathProvider(),
+        write_args_fn: Callable[[], Dict[str, Any]] = lambda: {},
         _block_udf: Optional[Callable[[pd.DataFrame], pd.DataFrame]] = None,
         ray_remote_args: Optional[Dict[str, Any]] = None,
         s3_additional_kwargs: Optional[Dict[str, str]] = None,
@@ -120,6 +124,15 @@ class PandasFileBasedDatasource(FileBasedDatasource):
             write_tasks.append(write_task)
 
         return write_tasks
+
+    def _write_block(
+        self,
+        f: "pyarrow.NativeFile",
+        block: BlockAccessor[Any],
+        writer_args_fn: Callable[[], Dict[str, Any]] = lambda: {},
+        **writer_args: Any,
+    ) -> None:
+        raise NotImplementedError("Subclasses of FileBasedDatasource must implement _write_files().")
 
     def on_write_complete(self, write_results: List[Any], **_: Any) -> None:
         """Execute callback on write complete."""

@@ -17,7 +17,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 READER_ROW_BATCH_SIZE = 10_0000
 
 
-class PandasTextDatasource(PandasFileBasedDatasource):
+class PandasTextDatasource(PandasFileBasedDatasource):  # pylint: disable=abstract-method
     """Pandas text datasource, for reading and writing text files using Pandas."""
 
     def __init__(
@@ -65,7 +65,10 @@ class PandasTextDatasource(PandasFileBasedDatasource):
             version_id=version_ids.get(s3_path),
         )
 
-    def _write_block(  # type: ignore  # pylint: disable=arguments-differ
+    def _read_file(self, f: pyarrow.NativeFile, path: str, **reader_args: Any) -> pd.DataFrame:
+        raise NotImplementedError()
+
+    def _write_block(  # type: ignore  # pylint: disable=arguments-differ, arguments-renamed
         self,
         f: io.TextIOWrapper,
         block: PandasBlockAccessor,
@@ -80,7 +83,7 @@ class PandasTextDatasource(PandasFileBasedDatasource):
         write_text_func(block.to_pandas(), f, **pandas_kwargs)  # type: ignore
 
 
-class PandasCSVDataSource(PandasTextDatasource):
+class PandasCSVDataSource(PandasTextDatasource):  # pylint: disable=abstract-method
     """Pandas CSV datasource, for reading and writing CSV files using Pandas."""
 
     _FILE_EXTENSION = "csv"
@@ -89,7 +92,7 @@ class PandasCSVDataSource(PandasTextDatasource):
         super().__init__(pd.read_csv, pd.DataFrame.to_csv)
 
 
-class PandasFWFDataSource(PandasTextDatasource):
+class PandasFWFDataSource(PandasTextDatasource):  # pylint: disable=abstract-method
     """Pandas FWF datasource, for reading and writing FWF files using Pandas."""
 
     _FILE_EXTENSION = "fwf"
@@ -98,7 +101,7 @@ class PandasFWFDataSource(PandasTextDatasource):
         super().__init__(pd.read_fwf, None)
 
 
-class PandasJSONDatasource(PandasTextDatasource):
+class PandasJSONDatasource(PandasTextDatasource):  # pylint: disable=abstract-method
     """Pandas JSON datasource, for reading and writing JSON files using Pandas."""
 
     _FILE_EXTENSION = "json"

@@ -21,7 +21,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 READER_ROW_BATCH_SIZE = 100000
 
 
-class PandasParquetDatasource(PandasFileBasedDatasource):
+class PandasParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abstract-method
     """Parquet datasource, for reading and writing Parquet files."""
 
     _FILE_EXTENSION = "parquet"
@@ -33,7 +33,6 @@ class PandasParquetDatasource(PandasFileBasedDatasource):
         path_root: str,
         columns: Optional[List[str]],
         coerce_int96_timestamp_unit: Optional[str],
-        use_threads: Union[bool, int],
         s3_additional_kwargs: Optional[Dict[str, str]],
         arrow_kwargs: Dict[str, Any],
         version_ids: Optional[Dict[str, str]],
@@ -63,7 +62,6 @@ class PandasParquetDatasource(PandasFileBasedDatasource):
         schema: pa.Schema,
         index: bool,
         compression: Optional[str],
-        pandas_kwargs: Optional[Dict[str, Any]] = None,
         pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
         **writer_args: Any,
     ) -> None:
