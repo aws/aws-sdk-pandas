@@ -13,6 +13,7 @@ import pyarrow as pa
 import pyarrow.parquet
 
 from awswrangler import _utils, exceptions
+from awswrangler._distributed import engine
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -456,6 +457,7 @@ def pyarrow2pandas_extension(  # pylint: disable=too-many-branches,too-many-retu
     return None
 
 
+@engine.dispatch_on_engine
 def pyarrow_types_from_pandas(  # pylint: disable=too-many-branches,too-many-statements
     df: pd.DataFrame, index: bool, ignore_cols: Optional[List[str]] = None, index_left: bool = False
 ) -> Dict[str, pa.DataType]:
