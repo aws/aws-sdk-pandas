@@ -16,15 +16,15 @@ from awswrangler.s3._write_text import _to_text, to_csv, to_json
 
 def register_ray() -> None:
     """Register dispatched Ray and Modin (on Ray) methods."""
-    # LakeFormation
-    engine.register_func(_get_work_unit_results, ray_remote(_get_work_unit_results))
-
-    # S3
-    engine.register_func(_delete_objects, ray_remote(_delete_objects))
-    engine.register_func(_read_parquet_metadata_file, ray_remote(_read_parquet_metadata_file))
-    engine.register_func(_select_query, ray_remote(_select_query))
-    engine.register_func(_select_object_content, ray_remote(_select_object_content))
-    engine.register_func(_wait_object_batch, ray_remote(_wait_object_batch))
+    for func in [
+        _get_work_unit_results,
+        _delete_objects,
+        _read_parquet_metadata_file,
+        _select_query,
+        _select_object_content,
+        _wait_object_batch,
+    ]:
+        engine.register_func(func, ray_remote(func))
 
     if memory_format.get() == MemoryFormatEnum.MODIN:
         from awswrangler.distributed.ray.modin._core import modin_repartition
@@ -38,16 +38,16 @@ def register_ray() -> None:
         from awswrangler.distributed.ray.modin.s3._write_parquet import _to_parquet_distributed
         from awswrangler.distributed.ray.modin.s3._write_text import _to_text_distributed
 
-        # S3
-        engine.register_func(_read_parquet, _read_parquet_distributed)
-        engine.register_func(_read_text, _read_text_distributed)
-        engine.register_func(_to_buckets, _to_buckets_distributed)
-        engine.register_func(_to_parquet, _to_parquet_distributed)
-        engine.register_func(_to_partitions, _to_partitions_distributed)
-        engine.register_func(_to_text, _to_text_distributed)
-        engine.register_func(to_csv, modin_repartition(to_csv))
-        engine.register_func(to_json, modin_repartition(to_json))
-        engine.register_func(to_parquet, modin_repartition(to_parquet))
-
-        # Utils
-        engine.register_func(table_refs_to_df, _arrow_refs_to_df)
+        for o_f, d_f in {
+            _read_parquet: _read_parquet_distributed,
+            _read_text: _read_text_distributed,
+            _to_buckets: _to_buckets_distributed,
+            _to_parquet: _to_parquet_distributed,
+            _to_partitions: _to_partitions_distributed,
+            _to_text: _to_text_distributed,
+            to_csv: modin_repartition(to_csv),
+            to_json: modin_repartition(to_json),
+            to_parquet: modin_repartition(to_parquet),
+            table_refs_to_df: _arrow_refs_to_df,
+        }.items():
+            engine.register_func(o_f, d_f)  # type: ignore

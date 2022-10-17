@@ -14,7 +14,7 @@ import pyarrow as pa
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._distributed import engine
 from awswrangler._threading import _get_executor
-from awswrangler.distributed.ray import RayLogger, ray_get
+from awswrangler.distributed.ray import ray_get
 from awswrangler.s3._describe import size_objects
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import _get_path_ignore_suffix
@@ -43,7 +43,6 @@ def _select_object_content(
     args: Dict[str, Any],
     scan_range: Optional[Tuple[int, int]] = None,
 ) -> Union[pa.Table, "ray.ObjectRef[pa.Table]"]:
-    RayLogger().get_logger(name=_select_object_content.__name__)
     client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
 
     if scan_range:
@@ -85,7 +84,6 @@ def _select_query(
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> List[Union[pa.Table, "ray.ObjectRef[pa.Table]"]]:
-    RayLogger().get_logger(name=_select_query.__name__)
     bucket, key = _utils.parse_path(path)
 
     args: Dict[str, Any] = {

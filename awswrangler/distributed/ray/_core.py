@@ -18,15 +18,60 @@ class RayLogger:
 
     def __init__(
         self,
-        log_level: int = logging.INFO,
+        log_level: int = logging.DEBUG,
         format: str = "%(asctime)s::%(levelname)-2s::%(name)s::%(message)s",  # pylint: disable=redefined-builtin
         datefmt: str = "%Y-%m-%d %H:%M:%S",
     ):
         logging.basicConfig(level=log_level, format=format, datefmt=datefmt)
 
-    def get_logger(self, name: Union[str, Any] = None) -> Union[logging.Logger, Any]:
+    def get_logger(self, name: Union[str, Any] = None) -> Optional[logging.Logger]:
         """Return logger object."""
-        return logging.getLogger(name) if engine.get() == EngineEnum.RAY else None
+        return logging.getLogger(name)
+
+
+def ray_logger(function: Callable[..., Any]) -> Callable[..., Any]:
+    """
+    Decorate callable to add RayLogger.
+
+    Parameters
+    ----------
+    function : Callable[..., Any]
+        Callable as input to decorator.
+
+    Returns
+    -------
+    Callable[..., Any]
+    """
+
+    @wraps(function)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        RayLogger().get_logger(name=function.__name__)
+        return function(*args, **kwargs)
+
+    return wrapper
+
+
+def ray_remote(function: Callable[..., Any]) -> Callable[..., Any]:
+    """
+    Decorate callable to wrap within ray.remote.
+
+    Parameters
+    ----------
+    function : Callable[..., Any]
+        Callable as input to ray.remote.
+
+    Returns
+    -------
+    Callable[..., Any]
+    """
+    # Access the source function if it exists
+    function = getattr(function, "_source_func", function)
+
+    @wraps(function)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        return ray.remote(ray_logger(function)).remote(*args, **kwargs)  # type: ignore
+
+    return wrapper
 
 
 def ray_get(futures: List[Any]) -> List[Any]:
@@ -47,35 +92,13 @@ def ray_get(futures: List[Any]) -> List[Any]:
     return futures
 
 
-def ray_remote(function: Callable[..., Any]) -> Callable[..., Any]:
-    """
-    Decorate callable to wrap within ray.remote.
-
-    Parameters
-    ----------
-    function : Callable[..., Any]
-        Callable as input to ray.remote
-    Returns
-    -------
-    Callable[..., Any]
-    """
-    # Access the source function if it exists
-    function = getattr(function, "_source_func", function)
-
-    @wraps(function)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        return ray.remote(function).remote(*args, **kwargs)  # type: ignore
-
-    return wrapper
-
-
 @apply_configs
 def initialize_ray(
     address: Optional[str] = None,
     redis_password: Optional[str] = None,
-    ignore_reinit_error: Optional[bool] = True,
+    ignore_reinit_error: bool = True,
     include_dashboard: Optional[bool] = False,
-    log_to_driver: Optional[bool] = True,
+    log_to_driver: bool = False,
     object_store_memory: Optional[int] = None,
     cpu_count: Optional[int] = None,
     gpu_count: Optional[int] = None,
@@ -89,12 +112,12 @@ def initialize_ray(
         Address of the Ray cluster to connect to, by default None
     redis_password : Optional[str]
         Password to the Redis cluster, by default None
-    ignore_reinit_error : Optional[bool]
+    ignore_reinit_error : bool
         If true, Ray suppress errors from calling ray.init() twice, by default True
     include_dashboard : Optional[bool]
         Boolean flag indicating whether or not to start the Ray dashboard, by default False
-    log_to_driver : Optional[bool]
-        Boolean flag to enable routing of all worker logs to the driver, by default True
+    log_to_driver : bool
+        Boolean flag to enable routing of all worker logs to the driver, by default False
     object_store_memory : Optional[int]
         The amount of memory (in bytes) to start the object store with, by default None
     cpu_count : Optional[int]
