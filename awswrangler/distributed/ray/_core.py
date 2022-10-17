@@ -96,9 +96,9 @@ def ray_get(futures: List[Any]) -> List[Any]:
 def initialize_ray(
     address: Optional[str] = None,
     redis_password: Optional[str] = None,
-    ignore_reinit_error: Optional[bool] = True,
+    ignore_reinit_error: bool = True,
     include_dashboard: Optional[bool] = False,
-    log_to_driver: Optional[bool] = False,
+    log_to_driver: bool = False,
     object_store_memory: Optional[int] = None,
     cpu_count: Optional[int] = None,
     gpu_count: Optional[int] = None,
@@ -112,11 +112,11 @@ def initialize_ray(
         Address of the Ray cluster to connect to, by default None
     redis_password : Optional[str]
         Password to the Redis cluster, by default None
-    ignore_reinit_error : Optional[bool]
+    ignore_reinit_error : bool
         If true, Ray suppress errors from calling ray.init() twice, by default True
     include_dashboard : Optional[bool]
         Boolean flag indicating whether or not to start the Ray dashboard, by default False
-    log_to_driver : Optional[bool]
+    log_to_driver : bool
         Boolean flag to enable routing of all worker logs to the driver, by default False
     object_store_memory : Optional[int]
         The amount of memory (in bytes) to start the object store with, by default None
