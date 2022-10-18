@@ -88,26 +88,23 @@ ray.data.datasource.parquet_datasource._read_pieces = _read_pieces  # pylint: di
 class ParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abstract-method
     """Parquet datasource, for reading and writing Parquet files."""
 
+    _FILE_EXTENSION = "parquet"
+
     def create_reader(self, **kwargs: Dict[str, Any]) -> Reader[Any]:
         """Return a Reader for the given read arguments."""
         return _ParquetDatasourceReader(**kwargs)  # type: ignore
 
-    def _write_block(
+    def _write_block(  # type: ignore  # pylint: disable=arguments-differ, arguments-renamed, unused-argument
         self,
         f: "pyarrow.NativeFile",
         block: BlockAccessor[Any],
-        writer_args_fn: Callable[[], Dict[str, Any]] = lambda: {},
+        pandas_kwargs: Optional[Dict[str, Any]],
         **writer_args: Any,
     ) -> None:
         """Write a block to S3."""
         import pyarrow.parquet as pq  # pylint: disable=import-outside-toplevel,redefined-outer-name,reimported
 
-        writer_args = _resolve_kwargs(writer_args_fn, **writer_args)
-        pq.write_table(block.to_arrow(), f, **writer_args)
-
-    def _file_format(self) -> str:
-        """Return file format."""
-        return "parquet"
+        pq.write_table(block.to_arrow(), f)
 
 
 def _resolve_kwargs(kwargs_fn: Callable[[], Dict[str, Any]], **kwargs: Any) -> Dict[str, Any]:

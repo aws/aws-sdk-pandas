@@ -133,7 +133,7 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
         writer_args_fn: Callable[[], Dict[str, Any]] = lambda: {},
         **writer_args: Any,
     ) -> None:
-        raise NotImplementedError("Subclasses of FileBasedDatasource must implement _write_files().")
+        raise NotImplementedError("Subclasses of PandasFileBasedDatasource must implement _write_block().")
 
     def on_write_complete(self, write_results: List[Any], **_: Any) -> None:
         """Execute callback on write complete."""
