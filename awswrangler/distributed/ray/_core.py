@@ -74,7 +74,7 @@ def ray_remote(function: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
-def ray_get(futures: List[Any]) -> List[Any]:
+def ray_get(futures: Union["ray.ObjectRef[Any]", List["ray.ObjectRef[Any]"]]) -> Any:
     """
     Run ray.get on futures if distributed.
 
