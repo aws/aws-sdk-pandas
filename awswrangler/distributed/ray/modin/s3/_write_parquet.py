@@ -10,7 +10,7 @@ from modin.pandas import DataFrame as ModinDataFrame
 from ray.data import from_modin, from_pandas
 from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
 
-from awswrangler.distributed.ray.datasources import PandasParquetDatasource, UserProvidedKeyBlockWritePathProvider
+from awswrangler.distributed.ray.datasources import ParquetDatasource, UserProvidedKeyBlockWritePathProvider
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ def _to_parquet_distributed(  # pylint: disable=unused-argument
 ) -> List[str]:
     if bucketing:
         # Add bucket id to the prefix
-        path = f"{path_root}{filename_prefix}_bucket-{df.name:05d}{compression_ext}.parquet"
+        path = f"{path_root}{filename_prefix}_bucket-{df.name:05d}.parquet"
     # Create Ray Dataset
     ds = from_modin(df) if isinstance(df, ModinDataFrame) else from_pandas(df)
     # Repartition into a single block if or writing into a single key or if bucketing is enabled
@@ -49,24 +49,15 @@ def _to_parquet_distributed(  # pylint: disable=unused-argument
     # Repartition by max_rows_by_file
     elif max_rows_by_file and (max_rows_by_file > 0):
         ds = ds.repartition(math.ceil(ds.count() / max_rows_by_file))
-    datasource = PandasParquetDatasource()
+    datasource = ParquetDatasource()
     ds.write_datasource(
-        datasource=datasource,
+        datasource,  # type: ignore
         path=path or path_root,
-        path_root=path_root,
-        # If user provided a key, the dataset will be repartitioned into a single block and written
-        # into that specific key instead of generating a key pre block under a prefix
-        block_path_provider=(
-            UserProvidedKeyBlockWritePathProvider()
-            if path and not path.endswith("/")
-            else DefaultBlockWritePathProvider()
-        ),
         dataset_uuid=filename_prefix,
-        boto3_session=None,
-        s3_additional_kwargs=s3_additional_kwargs,
-        pandas_kwargs={},
-        schema=schema,
-        index=index,
-        pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+        # If user has provided a single key, use that instead of generating a path per block
+        # The dataset will be repartitioned into a single block
+        block_path_provider=UserProvidedKeyBlockWritePathProvider()
+        if path and not path.endswith("/")
+        else DefaultBlockWritePathProvider(),
     )
     return datasource.get_write_paths()

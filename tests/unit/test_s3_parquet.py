@@ -5,22 +5,15 @@ from datetime import datetime, timedelta, timezone
 
 import boto3
 import numpy as np
+import pandas as pd
 import pyarrow as pa
 import pytest
 
 import awswrangler as wr
-from awswrangler._distributed import EngineEnum, MemoryFormatEnum
-
-if wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN:
-    import modin.pandas as pd
-else:
-    import pandas as pd
 
 from .._utils import ensure_data_types, get_df_list
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
-
-pytestmark = pytest.mark.distributed
 
 
 @pytest.mark.parametrize("partition_cols", [None, ["c2"], ["c1", "c2"]])

@@ -3,15 +3,17 @@ from typing import Any, Dict, Iterator, List, Optional, Union
 
 import boto3
 import modin.pandas as pd
+import pyarrow as pa
 from ray.data import read_datasource
 
-from awswrangler.distributed.ray.datasources import PandasParquetDatasource
+from awswrangler.distributed.ray.datasources import ParquetDatasource
 from awswrangler.distributed.ray.modin._utils import _to_modin
 
 
 def _read_parquet_distributed(  # pylint: disable=unused-argument
     paths: List[str],
     path_root: Optional[str],
+    schema: "pa.schema",
     columns: Optional[List[str]],
     coerce_int96_timestamp_unit: Optional[str],
     use_threads: Union[bool, int],
@@ -21,16 +23,17 @@ def _read_parquet_distributed(  # pylint: disable=unused-argument
     version_ids: Optional[Dict[str, str]],
     s3_additional_kwargs: Optional[Dict[str, Any]],
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    dataset_kwargs = {}
+    if coerce_int96_timestamp_unit:
+        dataset_kwargs["coerce_int96_timestamp_unit"] = coerce_int96_timestamp_unit
     dataset = read_datasource(
-        datasource=PandasParquetDatasource(),  # type: ignore
+        datasource=ParquetDatasource(),  # type: ignore
         parallelism=parallelism,
-        paths=paths,
-        path_root=path_root,
-        columns=columns,
-        coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
         use_threads=use_threads,
-        s3_additional_kwargs=s3_additional_kwargs,
-        arrow_kwargs=arrow_kwargs,
-        version_ids=version_ids,
+        paths=paths,
+        schema=schema,
+        columns=columns,
+        dataset_kwargs=dataset_kwargs,
+        path_root=path_root,
     )
     return _to_modin(dataset=dataset, to_pandas_kwargs=arrow_kwargs)

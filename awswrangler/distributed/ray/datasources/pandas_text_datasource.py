@@ -34,7 +34,7 @@ class PandasTextDatasource(PandasFileBasedDatasource):  # pylint: disable=abstra
 
     def _read_stream(  # type: ignore  # pylint: disable=arguments-differ
         self,
-        f: pyarrow.NativeFile,  # TODO: refactor reader to use wr.open_s3_object
+        f: pyarrow.NativeFile,  # Refactor reader to use wr.open_s3_object
         path: str,
         path_root: str,
         dataset: bool,

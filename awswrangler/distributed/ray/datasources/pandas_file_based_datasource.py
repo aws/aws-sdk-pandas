@@ -23,6 +23,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 class UserProvidedKeyBlockWritePathProvider(BlockWritePathProvider):
     """Block write path provider.
+
     Used when writing single-block datasets into a user-provided S3 key.
     """
 
