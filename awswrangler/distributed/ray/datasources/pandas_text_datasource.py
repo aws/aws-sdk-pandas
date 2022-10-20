@@ -191,7 +191,7 @@ class PandasCSVDataSource(PandasTextDatasource):  # pylint: disable=abstract-met
         s3_additional_kwargs: Optional[Dict[str, str]],
         pandas_kwargs: Dict[str, Any],
         **reader_args: Any,
-    ) -> Iterator[pyarrow.Table]:
+    ) -> Iterator[pd.DataFrame]:
         from pyarrow import csv
 
         if {key: value for key, value in version_id_dict.items() if value is not None}:
@@ -225,7 +225,7 @@ class PandasCSVDataSource(PandasTextDatasource):  # pylint: disable=abstract-met
                         path_root=path_root,
                     )
 
-                yield table
+                yield table.to_pandas()
 
             except StopIteration:
                 return
@@ -242,7 +242,6 @@ class PandasCSVDataSource(PandasTextDatasource):  # pylint: disable=abstract-met
         **reader_args: Any,
     ) -> Iterator[pd.DataFrame]:  # type: ignore
         try:
-            print("Reading using PyArrow")
             yield from self._read_stream_arrow(
                 f,
                 path,
