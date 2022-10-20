@@ -252,7 +252,7 @@ class PandasCSVDataSource(PandasTextDatasource):  # pylint: disable=abstract-met
                 pandas_kwargs,
             )
         except NotImplementedError:
-            print("Defaulting to slower Pandas I/O operation")
+            _logger.warning(f"Defaulting to slower Pandas I/O operation for s3://{path}")
             yield from super()._read_stream(
                 f,
                 path,
