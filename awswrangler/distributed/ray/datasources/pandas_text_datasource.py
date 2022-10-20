@@ -16,6 +16,7 @@ from ray.data.datasource.file_based_datasource import (
 )
 from ray.types import ObjectRef
 
+from awswrangler._arrow import _add_table_partitions
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._read_text_core import _read_text_chunked, _read_text_file
 from awswrangler.s3._write import _COMPRESSION_2_EXT
@@ -179,6 +180,89 @@ class PandasCSVDataSource(PandasTextDatasource):  # pylint: disable=abstract-met
 
     def __init__(self) -> None:
         super().__init__("csv", pd.read_csv, pd.DataFrame.to_csv)
+
+    def _read_stream_arrow(  # type: ignore
+        self,
+        f: pyarrow.NativeFile,
+        path: str,
+        path_root: str,
+        dataset: bool,
+        version_id_dict: Dict[str, Optional[str]],
+        s3_additional_kwargs: Optional[Dict[str, str]],
+        pandas_kwargs: Dict[str, Any],
+        **reader_args: Any,
+    ) -> Iterator[pyarrow.Table]:
+        from pyarrow import csv
+
+        if {key: value for key, value in version_id_dict.items() if value is not None}:
+            raise NotImplementedError()
+
+        if s3_additional_kwargs:
+            raise NotImplementedError()
+
+        if pandas_kwargs:
+            raise NotImplementedError()
+
+        read_options = reader_args.get(
+            "read_options", csv.ReadOptions(use_threads=False)
+        )
+        reader = csv.open_csv(f, read_options=read_options)
+
+        schema = None
+        path_root = reader_args.get("path_root", None)
+
+        while True:
+            try:
+                batch = reader.read_next_batch()
+                table = pyarrow.Table.from_batches([batch], schema=schema)
+                if schema is None:
+                    schema = table.schema
+
+                if dataset:
+                    table = _add_table_partitions(
+                        table=table,
+                        path=f"s3://{path}",
+                        path_root=path_root,
+                    )
+
+                yield table
+
+            except StopIteration:
+                return
+
+    def _read_stream(  # type: ignore
+        self,
+        f: pyarrow.NativeFile,
+        path: str,
+        path_root: str,
+        dataset: bool,
+        version_id_dict: Dict[str, Optional[str]],
+        s3_additional_kwargs: Optional[Dict[str, str]],
+        pandas_kwargs: Dict[str, Any],
+        **reader_args: Any,
+    ) -> Iterator[pd.DataFrame]:  # type: ignore
+        try:
+            print("Reading using PyArrow")
+            yield from self._read_stream_arrow(
+                f,
+                path,
+                path_root,
+                dataset,
+                version_id_dict,
+                s3_additional_kwargs,
+                pandas_kwargs,
+            )
+        except NotImplementedError:
+            print("Defaulting to slower Pandas I/O operation")
+            yield from super()._read_stream(
+                f,
+                path,
+                path_root,
+                dataset,
+                version_id_dict,
+                s3_additional_kwargs,
+                pandas_kwargs,
+            )
 
 
 class PandasFWFDataSource(PandasTextDatasource):  # pylint: disable=abstract-method
