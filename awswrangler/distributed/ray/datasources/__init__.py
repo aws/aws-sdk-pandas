@@ -1,6 +1,6 @@
 """Ray Datasources Module."""
 
-from awswrangler.distributed.ray.datasources.csv_datasource import CSVDatasource
+from awswrangler.distributed.ray.datasources.arrow_csv_datasource import ArrowCSVDatasource
 from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import UserProvidedKeyBlockWritePathProvider
 from awswrangler.distributed.ray.datasources.pandas_text_datasource import (
     PandasCSVDataSource,
@@ -11,7 +11,7 @@ from awswrangler.distributed.ray.datasources.pandas_text_datasource import (
 from awswrangler.distributed.ray.datasources.parquet_datasource import ParquetDatasource
 
 __all__ = [
-    "CSVDatasource",
+    "ArrowCSVDatasource",
     "PandasCSVDataSource",
     "PandasFWFDataSource",
     "PandasJSONDatasource",
