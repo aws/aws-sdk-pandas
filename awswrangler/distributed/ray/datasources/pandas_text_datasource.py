@@ -183,6 +183,8 @@ class PandasCSVDataSource(PandasTextDatasource):  # pylint: disable=abstract-met
 
         self._supported_params_with_defaults = {
             "delimiter": ",",
+            "quotechar": "\"",
+            "doublequote": True,
         }
 
     def _read_stream_arrow(  # type: ignore
@@ -213,6 +215,8 @@ class PandasCSVDataSource(PandasTextDatasource):  # pylint: disable=abstract-met
         )
         parse_options = csv.ParseOptions(
             delimiter=pandas_kwargs.get("delimiter", self._supported_params_with_defaults["delimiter"]),
+            quote_char=pandas_kwargs.get("quotechar", self._supported_params_with_defaults["quotechar"]),
+            double_quote=pandas_kwargs.get("doublequote", self._supported_params_with_defaults["doublequote"]),
         )
         convert_options = csv.ConvertOptions()
 
