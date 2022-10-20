@@ -181,6 +181,10 @@ class PandasCSVDataSource(PandasTextDatasource):  # pylint: disable=abstract-met
     def __init__(self) -> None:
         super().__init__("csv", pd.read_csv, pd.DataFrame.to_csv)
 
+        self._supported_params_with_defaults = {
+            "delimiter": ",",
+        }
+
     def _read_stream_arrow(  # type: ignore
         self,
         f: pyarrow.NativeFile,
@@ -200,13 +204,24 @@ class PandasCSVDataSource(PandasTextDatasource):  # pylint: disable=abstract-met
         if s3_additional_kwargs:
             raise NotImplementedError()
 
-        if pandas_kwargs:
-            raise NotImplementedError()
+        for pandas_arg_key, pandas_arg_value in pandas_kwargs.items():
+            if pandas_arg_key not in self._supported_params_with_defaults:
+                raise NotImplementedError()
 
-        read_options = reader_args.get(
-            "read_options", csv.ReadOptions(use_threads=False)
+        read_options = csv.ReadOptions(
+            use_threads=False,
         )
-        reader = csv.open_csv(f, read_options=read_options)
+        parse_options = csv.ParseOptions(
+            delimiter=pandas_kwargs.get("delimiter", self._supported_params_with_defaults["delimiter"]),
+        )
+        convert_options = csv.ConvertOptions()
+
+        reader = csv.open_csv(
+            f,
+            read_options=read_options,
+            parse_options=parse_options,
+            convert_options=convert_options,
+        )
 
         schema = None
         path_root = reader_args.get("path_root", None)
