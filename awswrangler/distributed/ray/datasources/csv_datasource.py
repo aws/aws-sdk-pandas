@@ -114,6 +114,7 @@ class CSVDatasource(PandasCSVDataSource):
                 pandas_kwargs,
                 **reader_args,
             )
+            return
 
         yield from self._read_stream_pyarrow(
             f,
