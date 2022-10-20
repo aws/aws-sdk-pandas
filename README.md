@@ -124,10 +124,9 @@ As a result existing scripts can run on larger datasets with no code rewrite. Su
 |    | `delete`                                               | ✅ |
 |    | `copy`                                               | ✅ |
 |    | `wait`                                               | ✅ |
-|  `Redshift`    | `read_sql_query`                                               | ✅ |
-|    | `to_sql`                                               | ✅ |
-|  `Athena`    | `read_sql_query`                                               | ✅ |
+|  `Redshift`    | `copy`                                               | ✅ |
 |    | `unload`                                               | ✅ |
+|  `Athena`    | `read_sql_query`                                               | ✅ |
 |  `LakeFormation`    | `read_sql_query`                                               | ✅ |
 </p>
 
