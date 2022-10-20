@@ -46,10 +46,10 @@ def _parse_csv_configuration(
 
 
 def _parse_configuration(
-    file_format: str,
-    version_ids: Dict[str, Optional[str]],
-    s3_additional_kwargs: Optional[Dict[str, str]],
-    pandas_kwargs: Dict[str, Any],
+        file_format: str,
+        version_ids: Dict[str, Optional[str]],
+        s3_additional_kwargs: Optional[Dict[str, str]],
+        pandas_kwargs: Dict[str, Any],
 ) -> Tuple[csv.ReadOptions, csv.ParseOptions, csv.ConvertOptions]:
     if {key: value for key, value in version_ids.items() if value is not None}:
         raise exceptions.InvalidArgument("Specific version ID found for object")
@@ -95,7 +95,7 @@ def _read_text_distributed(  # pylint: disable=unused-argument
         )
         can_use_arrow = True
     except exceptions.InvalidArgument as e:
-        _logger.warning(f"PyArrow method unavailable, defaulting to Pandas I/O functions: {e}")
+        _logger.warning("PyArrow method unavailable, defaulting to Pandas I/O functions: %s", e)
         read_options, parse_options, convert_options = None, None, None
         can_use_arrow = False
 

@@ -1,3 +1,5 @@
+"""Ray ArrowCSVDatasource Module."""
+
 from typing import Any, Iterator
 
 import pandas as pd
@@ -9,7 +11,12 @@ from awswrangler._arrow import _add_table_partitions
 
 
 class ArrowCSVDatasource(FileBasedDatasource):
+    """CSV datasource, for reading and writing CSV files using PyArrow."""
+
     _FILE_EXTENSION = "csv"
+
+    def _read_file(self, f: pa.NativeFile, path: str, **reader_args: Any) -> pd.DataFrame:
+        raise NotImplementedError()
 
     def _read_stream(  # type: ignore  # pylint: disable=arguments-differ
         self,
