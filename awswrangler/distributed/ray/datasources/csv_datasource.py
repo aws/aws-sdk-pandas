@@ -26,11 +26,11 @@ class CSVDatasource(PandasCSVDataSource):
 
     def _parse_configuration(
         self,
-        version_id_dict: Dict[str, Optional[str]],
+        version_ids: Dict[str, Optional[str]],
         s3_additional_kwargs: Optional[Dict[str, str]],
         pandas_kwargs: Dict[str, Any],
     ) -> Tuple[csv.ReadOptions, csv.ParseOptions, csv.ConvertOptions]:
-        if {key: value for key, value in version_id_dict.items() if value is not None}:
+        if {key: value for key, value in version_ids.items() if value is not None}:
             raise UnsupportedArrowArgument()
 
         if s3_additional_kwargs:
@@ -96,14 +96,14 @@ class CSVDatasource(PandasCSVDataSource):
         path: str,
         path_root: str,
         dataset: bool,
-        version_id_dict: Dict[str, Optional[str]],
+        version_ids: Dict[str, Optional[str]],
         s3_additional_kwargs: Optional[Dict[str, str]],
         pandas_kwargs: Dict[str, Any],
         **reader_args: Any,
     ) -> Iterator[pd.DataFrame]:
         try:
             read_options, parse_options, convert_options = self._parse_configuration(
-                version_id_dict,
+                version_ids,
                 s3_additional_kwargs,
                 pandas_kwargs,
             )
@@ -124,7 +124,7 @@ class CSVDatasource(PandasCSVDataSource):
                 path,
                 path_root,
                 dataset,
-                version_id_dict,
+                version_ids,
                 s3_additional_kwargs,
                 pandas_kwargs,
                 **reader_args,
