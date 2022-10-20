@@ -34,6 +34,7 @@ Powered By [<img src="https://arrow.apache.org/img/arrow.png" width="200">](http
 ## Table of contents
 
 - [Quick Start](#quick-start)
+- [At Scale](#at-scale)
 - [Read The Docs](#read-the-docs)
 - [Getting Help](#getting-help)
 - [Community Resources](#community-resources)
@@ -95,6 +96,42 @@ FROM "sampleDB"."sampleTable" ORDER BY time DESC LIMIT 3
 """)
 
 ```
+
+## At scale
+AWS SDK for pandas can also run your workflows at scale by leveraging [modin](https://modin.readthedocs.io/en/stable/) and [ray](https://www.ray.io/). Both projects aim to speed up data workloads (pandas workloads in particular in the case of modin) by distributing processing over a cluster of workers.
+
+### Installation
+```
+pip install "awswrangler[modin,ray]==3.0.0b3"
+```
+
+As a result existing scripts can run on larger datasets with no code rewrite. Supported APIs are parallelized across cores on a single machine or across multiple nodes on a cluster in the cloud.
+
+### Supported APIs
+
+<p align="center">
+
+| Service     | API                                                           | Implementation |
+|-------------------|:------------------------------------------------------------------------------------:|:---------------:|
+|  `S3`    | `read_parquet`                                               | 🅿️ |
+|    | `read_csv`                                               | ✅ |
+|    | `read_json`                                               | ✅ |
+|    | `read_fwf`                                               | ✅ |
+|    | `to_parquet`                                               | 🅿️ |
+|    | `to_csv`                                               | ✅ |
+|    | `to_json`                                               | ✅ |
+|    | `select_query`                                               | ✅ |
+|    | `delete`                                               | ✅ |
+|    | `copy`                                               | ✅ |
+|    | `wait`                                               | ✅ |
+|  `Redshift`    | `read_sql_query`                                               | ✅ |
+|    | `to_sql`                                               | ✅ |
+|  `Athena`    | `read_sql_query`                                               | ✅ |
+|    | `unload`                                               | ✅ |
+|  `LakeFormation`    | `read_sql_query`                                               | ✅ |
+</p>
+
+🅿️: stands for partial (i.e. some input arguments might not be supported)
 
 ## [Read The Docs](https://aws-sdk-pandas.readthedocs.io/)
 
