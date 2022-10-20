@@ -7,7 +7,6 @@ import pandas as pd
 import pyarrow
 from ray.data._internal.pandas_block import PandasBlockAccessor
 
-from awswrangler._arrow import _add_table_partitions
 from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import PandasFileBasedDatasource
 from awswrangler.s3._read_text_core import _read_text_chunked, _read_text_file
 
