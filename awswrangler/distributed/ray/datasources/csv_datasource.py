@@ -1,17 +1,17 @@
 import logging
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
+
 import pandas as pd
 import pyarrow as pa
+from pyarrow import csv
+from ray.data.datasource.file_based_datasource import FileBasedDatasource
 
 from awswrangler._arrow import _add_table_partitions
 from awswrangler.distributed.ray.datasources.pandas_text_datasource import PandasCSVDataSource
-from pyarrow import csv
-from ray.data.datasource.file_based_datasource import FileBasedDatasource
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
-
 
 SUPPORTED_PARAMS_WITH_DEFAULTS = {
     "delimiter": ",",
-    "quotechar": "\"",
+    "quotechar": '"',
     "doublequote": True,
 }
 
