@@ -16,6 +16,10 @@ SUPPORTED_PARAMS_WITH_DEFAULTS = {
 }
 
 
+class UnsupportedArrowArgument(Exception):
+    """UnsupportedArrowArgument exception."""
+
+
 class CSVDatasource(PandasCSVDataSource):
     def __init__(self) -> None:
         super().__init__()
@@ -27,14 +31,14 @@ class CSVDatasource(PandasCSVDataSource):
         pandas_kwargs: Dict[str, Any],
     ) -> Tuple[csv.ReadOptions, csv.ParseOptions, csv.ConvertOptions]:
         if {key: value for key, value in version_id_dict.items() if value is not None}:
-            raise NotImplementedError()
+            raise UnsupportedArrowArgument()
 
         if s3_additional_kwargs:
-            raise NotImplementedError()
+            raise UnsupportedArrowArgument()
 
         for pandas_arg_key in pandas_kwargs:
             if pandas_arg_key not in SUPPORTED_PARAMS_WITH_DEFAULTS:
-                raise NotImplementedError()
+                raise UnsupportedArrowArgument()
 
         read_options = csv.ReadOptions(
             use_threads=False,
@@ -103,7 +107,18 @@ class CSVDatasource(PandasCSVDataSource):
                 s3_additional_kwargs,
                 pandas_kwargs,
             )
-        except NotImplementedError:
+
+            yield from self._read_stream_pyarrow(
+                f,
+                path,
+                path_root,
+                dataset,
+                read_options,
+                parse_options,
+                convert_options,
+            )
+
+        except UnsupportedArrowArgument:
             yield from super()._read_stream(
                 f,
                 path,
@@ -114,14 +129,3 @@ class CSVDatasource(PandasCSVDataSource):
                 pandas_kwargs,
                 **reader_args,
             )
-            return
-
-        yield from self._read_stream_pyarrow(
-            f,
-            path,
-            path_root,
-            dataset,
-            read_options,
-            parse_options,
-            convert_options,
-        )
