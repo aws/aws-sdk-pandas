@@ -6,13 +6,13 @@ import modin.pandas as pd
 from ray.data import read_datasource
 
 from awswrangler import exceptions
-from awswrangler.distributed.ray.datasources import PandasCSVDataSource, PandasFWFDataSource, PandasJSONDatasource
+from awswrangler.distributed.ray.datasources import CSVDatasource, PandasFWFDataSource, PandasJSONDatasource
 from awswrangler.distributed.ray.modin._utils import _to_modin
 
 
 def _resolve_format(read_format: str) -> Any:
     if read_format == "csv":
-        return PandasCSVDataSource()
+        return CSVDatasource()
     if read_format == "fwf":
         return PandasFWFDataSource()
     if read_format == "json":
