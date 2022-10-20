@@ -1,8 +1,8 @@
 """Modin on Ray S3 read text module (PRIVATE)."""
-from typing import Any, Dict, List, Optional, Union, Tuple
+import logging
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import boto3
-import logging
 import modin.pandas as pd
 from pyarrow import csv
 from ray.data import read_datasource
@@ -30,7 +30,7 @@ def _parse_csv_configuration(
 ) -> Tuple[csv.ReadOptions, csv.ParseOptions, csv.ConvertOptions]:
     for pandas_arg_key in pandas_kwargs:
         if pandas_arg_key not in _CSV_SUPPORTED_PARAMS_WITH_DEFAULTS:
-            raise exceptions.InvalidArgument(f"Unsupported parameter for PyArrow engine: {pandas_arg_key}")
+            raise exceptions.InvalidArgument(f"Unsupported Pandas parameter for PyArrow loaded: {pandas_arg_key}")
 
     read_options = csv.ReadOptions(
         use_threads=False,
@@ -46,10 +46,10 @@ def _parse_csv_configuration(
 
 
 def _parse_configuration(
-        file_format: str,
-        version_ids: Dict[str, Optional[str]],
-        s3_additional_kwargs: Optional[Dict[str, str]],
-        pandas_kwargs: Dict[str, Any],
+    file_format: str,
+    version_ids: Dict[str, Optional[str]],
+    s3_additional_kwargs: Optional[Dict[str, str]],
+    pandas_kwargs: Dict[str, Any],
 ) -> Tuple[csv.ReadOptions, csv.ParseOptions, csv.ConvertOptions]:
     if {key: value for key, value in version_ids.items() if value is not None}:
         raise exceptions.InvalidArgument("Specific version ID found for object")

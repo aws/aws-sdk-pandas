@@ -1,5 +1,4 @@
-import logging
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
+from typing import Any, Iterator
 
 import pandas as pd
 import pyarrow as pa
@@ -12,7 +11,7 @@ from awswrangler._arrow import _add_table_partitions
 class ArrowCSVDatasource(FileBasedDatasource):
     _FILE_EXTENSION = "csv"
 
-    def _read_stream(
+    def _read_stream(  # type: ignore  # pylint: disable=arguments-differ
         self,
         f: pa.NativeFile,
         path: str,
@@ -21,7 +20,10 @@ class ArrowCSVDatasource(FileBasedDatasource):
         **reader_args: Any,
     ) -> Iterator[pd.DataFrame]:
         read_options = reader_args.get("read_options", csv.ReadOptions(use_threads=False))
-        parse_options = reader_args.get("parse_options", csv.ParseOptions(),)
+        parse_options = reader_args.get(
+            "parse_options",
+            csv.ParseOptions(),
+        )
         convert_options = reader_args.get("convert_options", csv.ConvertOptions())
 
         reader = csv.open_csv(
