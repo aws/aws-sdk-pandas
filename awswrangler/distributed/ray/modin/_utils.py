@@ -51,6 +51,7 @@ def _arrow_refs_to_df(arrow_refs: List[Callable[..., Any]], kwargs: Optional[Dic
 class ParamConfig:
     """
     Configuration for a Pandas argument that is supported in PyArrow.
+
     Contains a default value and, optionally, a list of supports values.
     """
 
