@@ -46,10 +46,10 @@ def _parse_csv_configuration(
 
 
 def _parse_configuration(
-        file_format: str,
-        version_ids: Dict[str, Optional[str]],
-        s3_additional_kwargs: Optional[Dict[str, str]],
-        pandas_kwargs: Dict[str, Any],
+    file_format: str,
+    version_ids: Dict[str, Optional[str]],
+    s3_additional_kwargs: Optional[Dict[str, str]],
+    pandas_kwargs: Dict[str, Any],
 ) -> Tuple[csv.ReadOptions, csv.ParseOptions, csv.ConvertOptions]:
     if {key: value for key, value in version_ids.items() if value is not None}:
         raise exceptions.InvalidArgument("Specific version ID found for object")

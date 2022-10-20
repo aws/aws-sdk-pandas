@@ -5,20 +5,64 @@ from typing import Any, Dict, List, Optional, Union
 import boto3
 import modin.pandas as pd
 from modin.pandas import DataFrame as ModinDataFrame
+from pyarrow import csv
 from ray.data import from_modin, from_pandas
 from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
 
 from awswrangler import exceptions
 from awswrangler.distributed.ray.datasources import (  # pylint: disable=ungrouped-imports
+    ArrowCSVDatasource,
     PandasCSVDataSource,
     PandasJSONDatasource,
-    PandasTextDatasource,
     UserProvidedKeyBlockWritePathProvider,
 )
+from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import PandasFileBasedDatasource
 from awswrangler.s3._write import _COMPRESSION_2_EXT
 from awswrangler.s3._write_text import _get_write_details
 
 _logger: logging.Logger = logging.getLogger(__name__)
+
+_CSV_SUPPORTED_PARAMS_WITH_DEFAULTS = {
+    "delimiter": ",",
+    "header": True,
+}
+
+
+def _parse_csv_configuration(
+    pandas_kwargs: Dict[str, Any],
+) -> csv.WriteOptions:
+    for pandas_arg_key in pandas_kwargs:
+        if pandas_arg_key not in _CSV_SUPPORTED_PARAMS_WITH_DEFAULTS:
+            raise exceptions.InvalidArgument(f"Unsupported Pandas parameter for PyArrow loaded: {pandas_arg_key}")
+
+    write_options = csv.ParseOptions(
+        delimiter=pandas_kwargs.get("delimiter", _CSV_SUPPORTED_PARAMS_WITH_DEFAULTS["delimiter"]),
+        include_header=pandas_kwargs.get("header", _CSV_SUPPORTED_PARAMS_WITH_DEFAULTS["header"]),
+    )
+
+    return write_options
+
+
+def _parse_configuration(
+    file_format: str,
+    s3_additional_kwargs: Optional[Dict[str, str]],
+    pandas_kwargs: Dict[str, Any],
+) -> csv.WriteOptions:
+    if s3_additional_kwargs:
+        raise exceptions.InvalidArgument(f"Additional S3 args specified: {s3_additional_kwargs}")
+
+    if file_format == "csv":
+        return _parse_csv_configuration(pandas_kwargs)
+
+    raise exceptions.InvalidArgument()
+
+
+def _datasource_for_format(read_format: str, can_use_arrow: bool) -> PandasFileBasedDatasource:
+    if read_format == "csv":
+        return ArrowCSVDatasource() if can_use_arrow else PandasCSVDataSource()
+    if read_format == "json":
+        return PandasJSONDatasource()
+    raise exceptions.UnsupportedType("Unsupported read format")
 
 
 def _to_text_distributed(  # pylint: disable=unused-argument
@@ -63,16 +107,20 @@ def _to_text_distributed(  # pylint: disable=unused-argument
             path,
         )
 
-    def _datasource_for_format(file_format: str) -> PandasTextDatasource:
-        if file_format == "csv":
-            return PandasCSVDataSource()
+    # Figure out which data source to use, and convert PyArrow parameters if needed
+    try:
+        write_options = _parse_configuration(
+            file_format,
+            s3_additional_kwargs,
+            pandas_kwargs,
+        )
+        can_use_arrow = True
+    except exceptions.InvalidArgument as e:
+        _logger.warning("PyArrow method unavailable, defaulting to Pandas I/O functions: %s", e)
+        write_options = None
+        can_use_arrow = False
 
-        if file_format == "json":
-            return PandasJSONDatasource()
-
-        raise RuntimeError(f"Unknown file format: {file_format}")
-
-    datasource = _datasource_for_format(file_format)
+    datasource = _datasource_for_format(file_format, can_use_arrow)
 
     mode, encoding, newline = _get_write_details(path=file_path, pandas_kwargs=pandas_kwargs)
     ds.write_datasource(
@@ -91,6 +139,7 @@ def _to_text_distributed(  # pylint: disable=unused-argument
         encoding=encoding,
         newline=newline,
         pandas_kwargs=pandas_kwargs,
+        write_options=write_options,
     )
 
     return datasource.get_write_paths()
