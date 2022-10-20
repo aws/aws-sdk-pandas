@@ -14,7 +14,7 @@ from awswrangler.distributed.ray.datasources import (
     PandasFWFDataSource,
     PandasJSONDatasource,
 )
-from awswrangler.distributed.ray.modin._utils import ParamConfig, _to_modin, check_parameters
+from awswrangler.distributed.ray.modin._utils import ParamConfig, _check_parameters, _to_modin
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ _CSV_SUPPORTED_PARAMS = {
 def _parse_csv_configuration(
     pandas_kwargs: Dict[str, Any],
 ) -> Tuple[csv.ReadOptions, csv.ParseOptions, csv.ConvertOptions]:
-    check_parameters(pandas_kwargs, _CSV_SUPPORTED_PARAMS)
+    _check_parameters(pandas_kwargs, _CSV_SUPPORTED_PARAMS)
 
     read_options = csv.ReadOptions(
         use_threads=False,

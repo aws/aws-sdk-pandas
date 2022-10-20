@@ -1,7 +1,6 @@
 """Modin on Ray S3 write text module (PRIVATE)."""
 import logging
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Optional, Union
 
 import boto3
 import modin.pandas as pd
@@ -17,7 +16,7 @@ from awswrangler.distributed.ray.datasources import (  # pylint: disable=ungroup
     UserProvidedKeyBlockWritePathProvider,
 )
 from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import PandasFileBasedDatasource
-from awswrangler.distributed.ray.modin._utils import ParamConfig, check_parameters
+from awswrangler.distributed.ray.modin._utils import ParamConfig, _check_parameters
 from awswrangler.s3._write import _COMPRESSION_2_EXT
 from awswrangler.s3._write_text import _get_write_details
 
@@ -38,7 +37,7 @@ _CSV_SUPPORTED_PARAMS: Dict[str, ParamConfig] = {
 def _parse_csv_configuration(
     pandas_kwargs: Dict[str, Any],
 ) -> Dict[str, Any]:
-    check_parameters(pandas_kwargs, _CSV_SUPPORTED_PARAMS)
+    _check_parameters(pandas_kwargs, _CSV_SUPPORTED_PARAMS)
 
     # csv.WriteOptions cannot be pickled for some reason so we're building a Python dict
     return {

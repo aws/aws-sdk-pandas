@@ -49,11 +49,16 @@ def _arrow_refs_to_df(arrow_refs: List[Callable[..., Any]], kwargs: Optional[Dic
 
 @dataclass
 class ParamConfig:
+    """
+    Configuration for a Pandas argument that is supported in PyArrow.
+    Contains a default value and, optionally, a list of supports values.
+    """
+
     default: Any
     supported_values: Optional[Set[Any]] = None
 
 
-def check_parameters(pandas_kwargs: Dict[str, Any], supported_params: Dict[str, ParamConfig]) -> None:
+def _check_parameters(pandas_kwargs: Dict[str, Any], supported_params: Dict[str, ParamConfig]) -> None:
     for pandas_arg_key, pandas_args_value in pandas_kwargs.items():
         if pandas_arg_key not in supported_params:
             raise exceptions.InvalidArgument(f"Unsupported Pandas parameter for PyArrow loader: {pandas_arg_key}")
