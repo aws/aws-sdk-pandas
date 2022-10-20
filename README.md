@@ -181,7 +181,7 @@ As a result existing scripts can run on larger datasets with no code rewrite. Su
   - [032 - Lake Formation Governed Tables](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/032%20-%20Lake%20Formation%20Governed%20Tables.ipynb)
   - [033 - Amazon Neptune](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/033%20-%20Amazon%20Neptune.ipynb)
   - [034 - Distributing Calls Using Ray](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/034%20-%20Distributing%20Calls%20using%20Ray.ipynb)
-  - [35 - Distributing Calls on Ray Remote Cluster](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/035%20-%20Distributing%20Calls%20on%20Ray%20Remote%20Cluster.ipynb)
+  - [035 - Distributing Calls on Ray Remote Cluster](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/035%20-%20Distributing%20Calls%20on%20Ray%20Remote%20Cluster.ipynb)
 - [**API Reference**](https://aws-sdk-pandas.readthedocs.io/en/3.0.0b3/api.html)
   - [Amazon S3](https://aws-sdk-pandas.readthedocs.io/en/3.0.0b3/api.html#amazon-s3)
   - [AWS Glue Catalog](https://aws-sdk-pandas.readthedocs.io/en/3.0.0b3/api.html#aws-glue-catalog)
