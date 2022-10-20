@@ -1,11 +1,11 @@
 """Modin on Ray S3 write text module (PRIVATE)."""
+from dataclasses import dataclass
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Set, Union
 
 import boto3
 import modin.pandas as pd
 from modin.pandas import DataFrame as ModinDataFrame
-from pyarrow import csv
 from ray.data import from_modin, from_pandas
 from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
 
@@ -22,32 +22,50 @@ from awswrangler.s3._write_text import _get_write_details
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
-_CSV_SUPPORTED_PARAMS_WITH_DEFAULTS = {
-    "delimiter": ",",
-    "header": True,
+@dataclass
+class ParamConfig:
+    default: Any
+    supported_values: Optional[Set[Any]] = None
+
+
+_CSV_SUPPORTED_PARAMS: Dict[str, ParamConfig] = {
+    "header": ParamConfig(default=True),
+    "sep": ParamConfig(default=",", supported_values={","}),
+    "index": ParamConfig(default=True, supported_values={True}),
+    "compression": ParamConfig(default=None, supported_values={None}),
+    "quoting": ParamConfig(default=None, supported_values={None}),
+    "escapechar": ParamConfig(default=None, supported_values={None}),
+    "date_format": ParamConfig(default=None, supported_values={None}),
 }
 
 
 def _parse_csv_configuration(
     pandas_kwargs: Dict[str, Any],
-) -> csv.WriteOptions:
-    for pandas_arg_key in pandas_kwargs:
-        if pandas_arg_key not in _CSV_SUPPORTED_PARAMS_WITH_DEFAULTS:
-            raise exceptions.InvalidArgument(f"Unsupported Pandas parameter for PyArrow loaded: {pandas_arg_key}")
+) -> Dict[str, Any]:
+    for pandas_arg_key, pandas_args_value in pandas_kwargs.items():
+        if pandas_arg_key not in _CSV_SUPPORTED_PARAMS:
+            raise exceptions.InvalidArgument(f"Unsupported Pandas parameter for PyArrow loader: {pandas_arg_key}")
 
-    write_options = csv.ParseOptions(
-        delimiter=pandas_kwargs.get("delimiter", _CSV_SUPPORTED_PARAMS_WITH_DEFAULTS["delimiter"]),
-        include_header=pandas_kwargs.get("header", _CSV_SUPPORTED_PARAMS_WITH_DEFAULTS["header"]),
-    )
+        param_config = _CSV_SUPPORTED_PARAMS[pandas_arg_key]
+        if param_config.supported_values is None:
+            continue
 
-    return write_options
+        if pandas_args_value not in param_config.supported_values:
+            raise exceptions.InvalidArgument(
+                f"Unsupported Pandas parameter value for PyArrow loader: {pandas_arg_key}={pandas_args_value}",
+            )
+
+    # csv.WriteOptions cannot be pickled for some reason so we're building a Python dict
+    return {
+        "include_header": pandas_kwargs.get("header", _CSV_SUPPORTED_PARAMS["header"].default),
+    }
 
 
 def _parse_configuration(
     file_format: str,
     s3_additional_kwargs: Optional[Dict[str, str]],
     pandas_kwargs: Dict[str, Any],
-) -> csv.WriteOptions:
+) -> Dict[str, Any]:
     if s3_additional_kwargs:
         raise exceptions.InvalidArgument(f"Additional S3 args specified: {s3_additional_kwargs}")
 

@@ -19,6 +19,7 @@ from awswrangler.distributed.ray.modin._utils import _to_modin
 _logger: logging.Logger = logging.getLogger(__name__)
 
 _CSV_SUPPORTED_PARAMS_WITH_DEFAULTS = {
+    "sep": ",",
     "delimiter": ",",
     "quotechar": '"',
     "doublequote": True,
@@ -36,7 +37,7 @@ def _parse_csv_configuration(
         use_threads=False,
     )
     parse_options = csv.ParseOptions(
-        delimiter=pandas_kwargs.get("delimiter", _CSV_SUPPORTED_PARAMS_WITH_DEFAULTS["delimiter"]),
+        delimiter=pandas_kwargs.get("sep", _CSV_SUPPORTED_PARAMS_WITH_DEFAULTS["sep"]),
         quote_char=pandas_kwargs.get("quotechar", _CSV_SUPPORTED_PARAMS_WITH_DEFAULTS["quotechar"]),
         double_quote=pandas_kwargs.get("doublequote", _CSV_SUPPORTED_PARAMS_WITH_DEFAULTS["doublequote"]),
     )
