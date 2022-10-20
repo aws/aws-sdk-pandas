@@ -1,6 +1,6 @@
 """Modin on Ray S3 write text module (PRIVATE)."""
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Set, Union
 
 import boto3
@@ -17,15 +17,11 @@ from awswrangler.distributed.ray.datasources import (  # pylint: disable=ungroup
     UserProvidedKeyBlockWritePathProvider,
 )
 from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import PandasFileBasedDatasource
+from awswrangler.distributed.ray.modin._utils import ParamConfig, check_parameters
 from awswrangler.s3._write import _COMPRESSION_2_EXT
 from awswrangler.s3._write_text import _get_write_details
 
 _logger: logging.Logger = logging.getLogger(__name__)
-
-@dataclass
-class ParamConfig:
-    default: Any
-    supported_values: Optional[Set[Any]] = None
 
 
 _CSV_SUPPORTED_PARAMS: Dict[str, ParamConfig] = {
@@ -42,18 +38,7 @@ _CSV_SUPPORTED_PARAMS: Dict[str, ParamConfig] = {
 def _parse_csv_configuration(
     pandas_kwargs: Dict[str, Any],
 ) -> Dict[str, Any]:
-    for pandas_arg_key, pandas_args_value in pandas_kwargs.items():
-        if pandas_arg_key not in _CSV_SUPPORTED_PARAMS:
-            raise exceptions.InvalidArgument(f"Unsupported Pandas parameter for PyArrow loader: {pandas_arg_key}")
-
-        param_config = _CSV_SUPPORTED_PARAMS[pandas_arg_key]
-        if param_config.supported_values is None:
-            continue
-
-        if pandas_args_value not in param_config.supported_values:
-            raise exceptions.InvalidArgument(
-                f"Unsupported Pandas parameter value for PyArrow loader: {pandas_arg_key}={pandas_args_value}",
-            )
+    check_parameters(pandas_kwargs, _CSV_SUPPORTED_PARAMS)
 
     # csv.WriteOptions cannot be pickled for some reason so we're building a Python dict
     return {
@@ -153,7 +138,7 @@ def _to_text_distributed(  # pylint: disable=unused-argument
         dataset_uuid=filename_prefix,
         boto3_session=None,
         s3_additional_kwargs=s3_additional_kwargs,
-        mode=mode,
+        mode="wb" if can_use_arrow else mode,
         encoding=encoding,
         newline=newline,
         pandas_kwargs=pandas_kwargs,

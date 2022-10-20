@@ -14,32 +14,30 @@ from awswrangler.distributed.ray.datasources import (
     PandasFWFDataSource,
     PandasJSONDatasource,
 )
-from awswrangler.distributed.ray.modin._utils import _to_modin
+from awswrangler.distributed.ray.modin._utils import ParamConfig, _to_modin, check_parameters
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
-_CSV_SUPPORTED_PARAMS_WITH_DEFAULTS = {
-    "sep": ",",
-    "delimiter": ",",
-    "quotechar": '"',
-    "doublequote": True,
+_CSV_SUPPORTED_PARAMS = {
+    "sep": ParamConfig(default=","),
+    "delimiter": ParamConfig(default=","),
+    "quotechar": ParamConfig(default='"'),
+    "doublequote": ParamConfig(default=True),
 }
 
 
 def _parse_csv_configuration(
     pandas_kwargs: Dict[str, Any],
 ) -> Tuple[csv.ReadOptions, csv.ParseOptions, csv.ConvertOptions]:
-    for pandas_arg_key in pandas_kwargs:
-        if pandas_arg_key not in _CSV_SUPPORTED_PARAMS_WITH_DEFAULTS:
-            raise exceptions.InvalidArgument(f"Unsupported Pandas parameter for PyArrow loaded: {pandas_arg_key}")
+    check_parameters(pandas_kwargs, _CSV_SUPPORTED_PARAMS)
 
     read_options = csv.ReadOptions(
         use_threads=False,
     )
     parse_options = csv.ParseOptions(
-        delimiter=pandas_kwargs.get("sep", _CSV_SUPPORTED_PARAMS_WITH_DEFAULTS["sep"]),
-        quote_char=pandas_kwargs.get("quotechar", _CSV_SUPPORTED_PARAMS_WITH_DEFAULTS["quotechar"]),
-        double_quote=pandas_kwargs.get("doublequote", _CSV_SUPPORTED_PARAMS_WITH_DEFAULTS["doublequote"]),
+        delimiter=pandas_kwargs.get("sep", _CSV_SUPPORTED_PARAMS["sep"].default),
+        quote_char=pandas_kwargs.get("quotechar", _CSV_SUPPORTED_PARAMS["quotechar"].default),
+        double_quote=pandas_kwargs.get("doublequote", _CSV_SUPPORTED_PARAMS["doublequote"].default),
     )
     convert_options = csv.ConvertOptions()
 
