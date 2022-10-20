@@ -17,7 +17,7 @@ from ray.data.datasource.parquet_datasource import (
     _SerializedPiece,
 )
 
-from awswrangler._arrow import _add_table_partitions
+from awswrangler._arrow import _add_table_partitions, _df_to_table
 from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import PandasFileBasedDatasource
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -102,9 +102,13 @@ class ParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abstract-
         **writer_args: Any,
     ) -> None:
         """Write a block to S3."""
-        import pyarrow.parquet as pq  # pylint: disable=import-outside-toplevel,redefined-outer-name,reimported
+        import pyarrow as pa  # pylint: disable=import-outside-toplevel,redefined-outer-name,reimported
 
-        pq.write_table(block.to_arrow(), f)
+        schema: pa.Schema = writer_args.get("schema", None)
+        dtype: Optional[Dict[str, str]] = writer_args.get("dtype", None)
+        index: bool = writer_args.get("index", False)
+
+        pa.parquet.write_table(_df_to_table(block.to_pandas(), schema=schema, index=index, dtype=dtype), f)
 
 
 def _resolve_kwargs(kwargs_fn: Callable[[], Dict[str, Any]], **kwargs: Any) -> Dict[str, Any]:

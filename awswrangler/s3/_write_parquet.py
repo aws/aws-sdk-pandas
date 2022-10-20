@@ -13,6 +13,7 @@ import pyarrow.lib
 import pyarrow.parquet
 
 from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation
+from awswrangler._arrow import _df_to_table
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
 from awswrangler.s3._delete import delete_objects
@@ -173,15 +174,7 @@ def _to_parquet(
         path_root=path_root, path=path, filename_prefix=filename_prefix, compression_ext=compression_ext
     )
     _logger.debug("file_path: %s", file_path)
-    table: pa.Table = pyarrow.Table.from_pandas(df=df, schema=schema, nthreads=cpus, preserve_index=index, safe=True)
-    for col_name, col_type in dtype.items():
-        if col_name in table.column_names:
-            col_index = table.column_names.index(col_name)
-            pyarrow_dtype = _data_types.athena2pyarrow(col_type)
-            field = pa.field(name=col_name, type=pyarrow_dtype)
-            table = table.set_column(col_index, field, table.column(col_name).cast(pyarrow_dtype))
-            _logger.debug("Casting column %s (%s) to %s (%s)", col_name, col_index, col_type, pyarrow_dtype)
-
+    table: pa.Table = _df_to_table(df, schema, index, dtype)
     if max_rows_by_file is not None and max_rows_by_file > 0:
         paths: List[str] = _to_parquet_chunked(
             file_path=file_path,

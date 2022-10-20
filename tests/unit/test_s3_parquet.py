@@ -374,11 +374,13 @@ def test_range_index_recovery_simple(path, use_threads):
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 @pytest.mark.parametrize("name", [None, "foo"])
 def test_range_index_recovery_pandas(path, use_threads, name):
+    # import pandas as pd
     df = pd.DataFrame({"c0": np.arange(10, 15, 1)}, dtype="Int64", index=pd.RangeIndex(start=5, stop=30, step=5))
     df.index.name = name
     path_file = f"{path}0.parquet"
     df.to_parquet(path_file)
-    df2 = wr.s3.read_parquet([path_file], use_threads=use_threads, pyarrow_additional_kwargs={"ignore_metadata": False})
+    df2 = wr.s3.read_parquet(path, use_threads=use_threads, pyarrow_additional_kwargs={"ignore_metadata": False})
+    # df2 = _to_pandas(df2)
     assert df.reset_index(level=0).equals(df2.reset_index(level=0))
 
 

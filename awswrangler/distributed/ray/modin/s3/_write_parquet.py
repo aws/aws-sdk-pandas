@@ -59,5 +59,7 @@ def _to_parquet_distributed(  # pylint: disable=unused-argument
         block_path_provider=UserProvidedKeyBlockWritePathProvider()
         if path and not path.endswith("/")
         else DefaultBlockWritePathProvider(),
+        index=index,
+        dtype=dtype,
     )
     return datasource.get_write_paths()

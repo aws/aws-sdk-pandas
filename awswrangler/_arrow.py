@@ -8,6 +8,8 @@ from typing import Any, Dict, Optional, Tuple, cast
 import pandas as pd
 import pyarrow as pa
 
+from awswrangler._data_types import athena2pyarrow
+
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
@@ -80,3 +82,22 @@ def _table_to_df(
         _logger.debug("metadata: %s", metadata)
         df = _apply_timezone(df=df, metadata=metadata)
     return df
+
+
+def _df_to_table(
+    df: pd.DataFrame,
+    schema: Optional[pa.Schema] = None,
+    index: Optional[bool] = None,
+    dtype: Optional[Dict[str, str]] = None,
+    cpus: Optional[int] = None,
+) -> pa.Table:
+    table: pa.Table = pa.Table.from_pandas(df=df, schema=schema, nthreads=cpus, preserve_index=index, safe=True)
+    if dtype:
+        for col_name, col_type in dtype.items():
+            if col_name in table.column_names:
+                col_index = table.column_names.index(col_name)
+                pyarrow_dtype = athena2pyarrow(col_type)
+                field = pa.field(name=col_name, type=pyarrow_dtype)
+                table = table.set_column(col_index, field, table.column(col_name).cast(pyarrow_dtype))
+                _logger.debug("Casting column %s (%s) to %s (%s)", col_name, col_index, col_type, pyarrow_dtype)
+    return table
