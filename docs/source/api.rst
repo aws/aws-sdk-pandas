@@ -119,9 +119,11 @@ Amazon Athena
     generate_create_query
     get_query_columns_types
     get_query_execution
+    get_query_executions
     get_query_results
     get_named_query_statement
     get_work_group
+    list_query_executions
     read_sql_query
     read_sql_table
     repair_table
