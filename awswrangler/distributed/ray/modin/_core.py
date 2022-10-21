@@ -1,11 +1,40 @@
 """Modin on Ray Core module (PRIVATE)."""
 # pylint: disable=import-outside-toplevel
+import logging
 from functools import wraps
-from typing import Any, Callable, Optional
+from typing import Any, Callable, List, Optional
 
 import pandas as pd
+import ray
 from modin.distributed.dataframe.pandas import from_partitions, unwrap_partitions
 from modin.pandas import DataFrame as ModinDataFrame
+
+_logger: logging.Logger = logging.getLogger(__name__)
+
+
+def _validate_partition_cols(df: pd.DataFrame) -> bool:
+    """
+    Validate if partitions of the data frame are partitioned along row axis.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Modin data frame
+
+    Returns
+    -------
+    bool
+    """
+
+    @ray.remote
+    def _validate_partition(df: pd.DataFrame, n_columns: int) -> bool:
+        return len(df.columns) == n_columns
+
+    # Unwrap partitions as they are currently stored (axis=None)
+    partitions: List[List[ray.types.ObjectRef[pd.DataFrame]]] = unwrap_partitions(df, axis=None)
+    return all(
+        ray.get([_validate_partition.remote(partition, len(df.columns)) for row in partitions for partition in row])
+    )
 
 
 def modin_repartition(function: Callable[..., Any]) -> Callable[..., Any]:
@@ -31,14 +60,23 @@ def modin_repartition(function: Callable[..., Any]) -> Callable[..., Any]:
     def wrapper(
         df: pd.DataFrame,
         *args: Any,
-        axis: int = 0,
+        axis: Optional[int] = None,
         row_lengths: Optional[int] = None,
+        validate_partitions: bool = True,
         **kwargs: Any,
     ) -> Any:
-        # Repartition Modin data frame along row (axis=0) axis
+        # Validate partitions and repartition Modin data frame along row (axis=0) axis
         # to avoid a situation where columns are split along multiple blocks
-        if isinstance(df, ModinDataFrame) and axis is not None:
-            df = from_partitions(unwrap_partitions(df, axis=axis), axis=axis, row_lengths=row_lengths)
+        if isinstance(df, ModinDataFrame):
+            if validate_partitions and not _validate_partition_cols(df):
+                _logger.warning(
+                    "Partitions of this data frame are detected to be split along column axis. "
+                    "The dataframe will be automatically repartitioned along row axis to ensure "
+                    "each partition can be processed independently."
+                )
+                df = from_partitions(unwrap_partitions(df, axis=0), axis=axis, row_lengths=row_lengths)
+            elif axis is not None:
+                df = from_partitions(unwrap_partitions(df, axis=axis), axis=axis, row_lengths=row_lengths)
         return function(df, *args, **kwargs)
 
     return wrapper
