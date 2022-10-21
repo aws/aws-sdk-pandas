@@ -416,7 +416,7 @@ def table_refs_to_df(tables: List[pa.Table], kwargs: Dict[str, Any]) -> pd.DataF
 
 @engine.dispatch_on_engine
 def is_pandas_frame(obj: Any) -> bool:
-    """Checks if the passed objected is a Pandas DataFrame"""
+    """Check if the passed objected is a Pandas DataFrame."""
     return isinstance(obj, pd.DataFrame)
 
 
