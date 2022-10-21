@@ -118,7 +118,11 @@ def _to_text_distributed(  # pylint: disable=unused-argument
         )
         can_use_arrow = True
     except exceptions.InvalidArgument as e:
-        _logger.warning("PyArrow method unavailable, defaulting to Pandas I/O functions: %s", e)
+        _logger.warning(
+            "PyArrow method unavailable, defaulting to Pandas I/O functions: %s. "
+            "This will result in slower performance of the write operations.",
+            e,
+        )
         write_options = None
         can_use_arrow = False
 

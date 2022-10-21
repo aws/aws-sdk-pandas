@@ -94,7 +94,11 @@ def _read_text_distributed(  # pylint: disable=unused-argument
         )
         can_use_arrow = True
     except exceptions.InvalidArgument as e:
-        _logger.warning("PyArrow method unavailable, defaulting to Pandas I/O functions: %s", e)
+        _logger.warning(
+            "PyArrow method unavailable, defaulting to Pandas I/O functions: %s. "
+            "This will result in slower performance of the read operations",
+            e,
+        )
         read_options, parse_options, convert_options = None, None, None
         can_use_arrow = False
 

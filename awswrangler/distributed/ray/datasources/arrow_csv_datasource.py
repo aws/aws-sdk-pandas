@@ -1,7 +1,6 @@
 """Ray ArrowCSVDatasource Module."""
 from typing import Any, Iterator
 
-import pandas as pd
 import pyarrow as pa
 from pyarrow import csv
 from ray.data.block import BlockAccessor
@@ -22,7 +21,7 @@ class ArrowCSVDatasource(PandasFileBasedDatasource):  # pylint: disable=abstract
         path_root: str,
         dataset: bool,
         **reader_args: Any,
-    ) -> Iterator[pd.DataFrame]:
+    ) -> Iterator[pa.Table]:
         read_options = reader_args.get("read_options", csv.ReadOptions(use_threads=False))
         parse_options = reader_args.get(
             "parse_options",
@@ -52,7 +51,7 @@ class ArrowCSVDatasource(PandasFileBasedDatasource):  # pylint: disable=abstract
                         path_root=path_root,
                     )
 
-                yield table.to_pandas()
+                yield table
 
             except StopIteration:
                 return
