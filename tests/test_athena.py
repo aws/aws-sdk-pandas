@@ -1181,8 +1181,8 @@ def test_athena_generate_create_query(path, glue_database, glue_table):
             "LOCATION",
             f"  '{path}'",
             "TBLPROPERTIES (",
-            "  'classification'='parquet', ",
             "  'compressionType'='none', ",
+            "  'classification'='parquet', ",
             "  'projection.enabled'='false', ",
             "  'typeOfData'='file')",
         ]
@@ -1212,8 +1212,8 @@ def test_athena_generate_create_query(path, glue_database, glue_table):
             "LOCATION",
             f"  '{path}'",
             "TBLPROPERTIES (",
-            "  'classification'='parquet', ",
             "  'compressionType'='none', ",
+            "  'classification'='parquet', ",
             "  'projection.enabled'='false', ",
             "  'typeOfData'='file')",
         ]
