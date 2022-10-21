@@ -729,7 +729,7 @@ def read_parquet_table(
     partial_cast_function = functools.partial(
         _data_types.cast_pandas_with_athena_types, dtype=_extract_partitions_dtypes_from_table_details(response=res)
     )
-    if isinstance(df, pd.DataFrame):
+    if _utils.is_pandas_frame(df):
         return partial_cast_function(df)
     # df is a generator, so map is needed for casting dtypes
     return map(partial_cast_function, df)
