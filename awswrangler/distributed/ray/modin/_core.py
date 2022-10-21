@@ -31,9 +31,16 @@ def _validate_partition_cols(df: pd.DataFrame) -> bool:
         return len(df.columns) == n_columns
 
     # Unwrap partitions as they are currently stored (axis=None)
+    # Partitions are a 2D array because the data frame is split along both row and column axis
     partitions: List[List[ray.types.ObjectRef[pd.DataFrame]]] = unwrap_partitions(df, axis=None)
     return all(
-        ray.get([_validate_partition.remote(partition, len(df.columns)) for row in partitions for partition in row])
+        ray.get(
+            [
+                _validate_partition.remote(partition, len(df.columns))
+                for partitions_row in partitions
+                for partition in partitions_row
+            ]
+        )
     )
 
 
@@ -74,8 +81,8 @@ def modin_repartition(function: Callable[..., Any]) -> Callable[..., Any]:
                     "The dataframe will be automatically repartitioned along row axis to ensure "
                     "each partition can be processed independently."
                 )
-                df = from_partitions(unwrap_partitions(df, axis=0), axis=axis, row_lengths=row_lengths)
-            elif axis is not None:
+                axis = 0
+            if axis is not None:
                 df = from_partitions(unwrap_partitions(df, axis=axis), axis=axis, row_lengths=row_lengths)
         return function(df, *args, **kwargs)
 
