@@ -35,7 +35,7 @@ def _to_parquet_distributed(  # pylint: disable=unused-argument
 ) -> List[str]:
     if bucketing:
         # Add bucket id to the prefix
-        path = f"{path_root}{filename_prefix}_bucket-{df.name:05d}.parquet"
+        path = f"{path_root}{filename_prefix}_bucket-{df.name:05d}{compression_ext}.parquet"
     # Create Ray Dataset
     ds = from_modin(df) if isinstance(df, ModinDataFrame) else from_pandas(df)
     # Repartition into a single block if or writing into a single key or if bucketing is enabled
@@ -61,5 +61,6 @@ def _to_parquet_distributed(  # pylint: disable=unused-argument
         else DefaultBlockWritePathProvider(),
         index=index,
         dtype=dtype,
+        compression=compression,
     )
     return datasource.get_write_paths()
