@@ -1,3 +1,6 @@
+import math
+
+import modin.config as cfg
 import modin.pandas as pd
 import numpy as np
 import pytest
@@ -207,6 +210,9 @@ def test_wide_df(size, path) -> None:
     df["date"] = np.random.choice(["2020-01-01", "2020-01-02", None], num_cols)
     df["par0"] = np.random.choice(["A", "B"], num_cols)
 
+    partitions_shape = np.array(unwrap_partitions(df)).shape
+    assert partitions_shape[1] == min(math.ceil(len(df.columns) / cfg.MinPartitionSize.get()), cfg.NPartitions.get())
+
     dtype = {
         "int": "tinyint",
         "decimal": "double",
@@ -214,5 +220,4 @@ def test_wide_df(size, path) -> None:
     }
 
     result = wr.s3.to_csv(df=df, path=path, dataset=True, dtype=dtype, partition_cols=["par0"])
-    partitions_shape = np.array(unwrap_partitions(df)).shape
     assert len(result["paths"]) == partitions_shape[0] * len(df["par0"].unique())

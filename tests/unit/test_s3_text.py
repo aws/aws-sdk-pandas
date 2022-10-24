@@ -163,11 +163,10 @@ def test_csv_dataset_header_modes(path, mode, glue_database, glue_table):
             index=False,
             header=True,
         )
-    dfs_conc = pd.concat(dfs)
     df_res = wr.s3.read_csv(path=path0)
 
     if mode == "append":
-        assert len(df_res) == len(dfs_conc)
+        assert len(df_res) == sum([len(df) for df in dfs])
     else:
         assert df_res.equals(dfs[-1])
 

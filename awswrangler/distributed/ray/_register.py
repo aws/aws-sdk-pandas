@@ -3,7 +3,7 @@
 from awswrangler._data_types import pyarrow_types_from_pandas
 from awswrangler._distributed import MemoryFormatEnum, engine, memory_format
 from awswrangler._utils import table_refs_to_df
-from awswrangler.distributed.ray._core import ray_remote
+from awswrangler.distributed.ray import ray_remote
 from awswrangler.lakeformation._read import _get_work_unit_results
 from awswrangler.s3._delete import _delete_objects
 from awswrangler.s3._read_parquet import _read_parquet, _read_parquet_metadata_file
