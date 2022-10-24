@@ -679,6 +679,19 @@ def test_read_sql_query_wo_results(path, glue_database, glue_table):
     ensure_athena_query_metadata(df=df, ctas_approach=False, encrypted=False)
 
 
+@pytest.mark.parametrize("ctas_approach", [False, True])
+def test_read_sql_query_wo_results_chunked(path, glue_database, glue_table, ctas_approach):
+    wr.catalog.create_parquet_table(database=glue_database, table=glue_table, path=path, columns_types={"c0": "int"})
+    sql = f"SELECT * FROM {glue_database}.{glue_table}"
+
+    counter = 0
+    for df in wr.athena.read_sql_query(sql, database=glue_database, ctas_approach=ctas_approach, chunksize=100):
+        assert df.empty
+        counter += 1
+
+    assert counter == 1
+
+
 @pytest.mark.xfail()
 def test_read_sql_query_wo_results_ctas(path, glue_database, glue_table):
     wr.catalog.create_parquet_table(database=glue_database, table=glue_table, path=path, columns_types={"c0": "int"})
@@ -1252,8 +1265,8 @@ def test_athena_generate_create_query(path, glue_database, glue_table):
             "LOCATION",
             f"  '{path}'",
             "TBLPROPERTIES (",
-            "  'classification'='parquet', ",
             "  'compressionType'='none', ",
+            "  'classification'='parquet', ",
             "  'projection.enabled'='false', ",
             "  'typeOfData'='file')",
         ]
@@ -1283,8 +1296,8 @@ def test_athena_generate_create_query(path, glue_database, glue_table):
             "LOCATION",
             f"  '{path}'",
             "TBLPROPERTIES (",
-            "  'classification'='parquet', ",
             "  'compressionType'='none', ",
+            "  'classification'='parquet', ",
             "  'projection.enabled'='false', ",
             "  'typeOfData'='file')",
         ]
@@ -1304,3 +1317,22 @@ def test_athena_generate_create_query(path, glue_database, glue_table):
     )
     wr.athena.start_query_execution(sql=query, database=glue_database, wait=True)
     assert query == wr.athena.generate_create_query(database=glue_database, table=glue_table)
+
+
+def test_get_query_execution(workgroup0, workgroup1):
+    query_execution_ids = wr.athena.list_query_executions(workgroup=workgroup0) + wr.athena.list_query_executions(
+        workgroup=workgroup1
+    )
+    assert query_execution_ids
+    query_execution_detail = wr.athena.get_query_execution(query_execution_id=query_execution_ids[0])
+    query_executions_df = wr.athena.get_query_executions(query_execution_ids)
+    assert isinstance(query_executions_df, pd.DataFrame)
+    assert isinstance(query_execution_detail, dict)
+    assert set(query_execution_ids).intersection(set(query_executions_df["QueryExecutionId"].values.tolist()))
+    query_execution_ids1 = query_execution_ids + ["aaa", "bbb"]
+    query_executions_df, unprocessed_query_executions_df = wr.athena.get_query_executions(
+        query_execution_ids1, return_unprocessed=True
+    )
+    assert isinstance(unprocessed_query_executions_df, pd.DataFrame)
+    assert set(query_execution_ids).intersection(set(query_executions_df["QueryExecutionId"].values.tolist()))
+    assert {"aaa", "bbb"}.intersection(set(unprocessed_query_executions_df["QueryExecutionId"].values.tolist()))

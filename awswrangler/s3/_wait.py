@@ -9,7 +9,7 @@ import boto3
 from awswrangler import _utils
 from awswrangler._distributed import engine
 from awswrangler._threading import _get_executor
-from awswrangler.distributed.ray import RayLogger, ray_get
+from awswrangler.distributed.ray import ray_get
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -28,7 +28,6 @@ def _wait_object(
 def _wait_object_batch(
     boto3_session: Optional[boto3.Session], paths: List[str], waiter_name: str, delay: int, max_attempts: int
 ) -> None:
-    RayLogger().get_logger(name=_wait_object_batch.__name__)
     for path in paths:
         _wait_object(boto3_session, path, waiter_name, delay, max_attempts)
 

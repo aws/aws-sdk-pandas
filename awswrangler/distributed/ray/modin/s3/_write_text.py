@@ -10,15 +10,61 @@ from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvi
 
 from awswrangler import exceptions
 from awswrangler.distributed.ray.datasources import (  # pylint: disable=ungrouped-imports
+    ArrowCSVDatasource,
     PandasCSVDataSource,
     PandasJSONDatasource,
-    PandasTextDatasource,
     UserProvidedKeyBlockWritePathProvider,
 )
+from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import PandasFileBasedDatasource
+from awswrangler.distributed.ray.modin._utils import ParamConfig, _check_parameters
 from awswrangler.s3._write import _COMPRESSION_2_EXT
 from awswrangler.s3._write_text import _get_write_details
 
 _logger: logging.Logger = logging.getLogger(__name__)
+
+
+_CSV_SUPPORTED_PARAMS: Dict[str, ParamConfig] = {
+    "header": ParamConfig(default=True),
+    "sep": ParamConfig(default=",", supported_values={","}),
+    "index": ParamConfig(default=True, supported_values={True}),
+    "compression": ParamConfig(default=None, supported_values={None}),
+    "quoting": ParamConfig(default=None, supported_values={None}),
+    "escapechar": ParamConfig(default=None, supported_values={None}),
+    "date_format": ParamConfig(default=None, supported_values={None}),
+}
+
+
+def _parse_csv_configuration(
+    pandas_kwargs: Dict[str, Any],
+) -> Dict[str, Any]:
+    _check_parameters(pandas_kwargs, _CSV_SUPPORTED_PARAMS)
+
+    # csv.WriteOptions cannot be pickled for some reason so we're building a Python dict
+    return {
+        "include_header": pandas_kwargs.get("header", _CSV_SUPPORTED_PARAMS["header"].default),
+    }
+
+
+def _parse_configuration(
+    file_format: str,
+    s3_additional_kwargs: Optional[Dict[str, str]],
+    pandas_kwargs: Dict[str, Any],
+) -> Dict[str, Any]:
+    if s3_additional_kwargs:
+        raise exceptions.InvalidArgument(f"Additional S3 args specified: {s3_additional_kwargs}")
+
+    if file_format == "csv":
+        return _parse_csv_configuration(pandas_kwargs)
+
+    raise exceptions.InvalidArgument()
+
+
+def _datasource_for_format(read_format: str, can_use_arrow: bool) -> PandasFileBasedDatasource:
+    if read_format == "csv":
+        return ArrowCSVDatasource() if can_use_arrow else PandasCSVDataSource()
+    if read_format == "json":
+        return PandasJSONDatasource()
+    raise exceptions.UnsupportedType("Unsupported read format")
 
 
 def _to_text_distributed(  # pylint: disable=unused-argument
@@ -63,16 +109,24 @@ def _to_text_distributed(  # pylint: disable=unused-argument
             path,
         )
 
-    def _datasource_for_format(file_format: str) -> PandasTextDatasource:
-        if file_format == "csv":
-            return PandasCSVDataSource()
+    # Figure out which data source to use, and convert PyArrow parameters if needed
+    try:
+        write_options = _parse_configuration(
+            file_format,
+            s3_additional_kwargs,
+            pandas_kwargs,
+        )
+        can_use_arrow = True
+    except exceptions.InvalidArgument as e:
+        _logger.warning(
+            "PyArrow method unavailable, defaulting to Pandas I/O functions: %s. "
+            "This will result in slower performance of the write operations.",
+            e,
+        )
+        write_options = None
+        can_use_arrow = False
 
-        if file_format == "json":
-            return PandasJSONDatasource()
-
-        raise RuntimeError(f"Unknown file format: {file_format}")
-
-    datasource = _datasource_for_format(file_format)
+    datasource = _datasource_for_format(file_format, can_use_arrow)
 
     mode, encoding, newline = _get_write_details(path=file_path, pandas_kwargs=pandas_kwargs)
     ds.write_datasource(
@@ -87,10 +141,11 @@ def _to_text_distributed(  # pylint: disable=unused-argument
         dataset_uuid=filename_prefix,
         boto3_session=None,
         s3_additional_kwargs=s3_additional_kwargs,
-        mode=mode,
+        mode="wb" if can_use_arrow else mode,
         encoding=encoding,
         newline=newline,
         pandas_kwargs=pandas_kwargs,
+        write_options=write_options,
     )
 
     return datasource.get_write_paths()

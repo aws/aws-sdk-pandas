@@ -138,7 +138,7 @@ def _to_partitions_distributed(  # pylint: disable=unused-argument
         func = engine.dispatch_func(func, PandasDataFrame)
 
         @ray_remote
-        def write_partitions(df: pd.DataFrame) -> Tuple[List[str], Dict[str, List[str]]]:
+        def write_partitions(df: pd.DataFrame, block_index: int) -> Tuple[List[str], Dict[str, List[str]]]:
             paths, partitions_values = _to_partitions_func(
                 # Passing a copy of the data frame because data in ray object store is immutable
                 # and that leads to "ValueError: buffer source array is read-only" during df.groupby()
@@ -154,7 +154,7 @@ def _to_partitions_distributed(  # pylint: disable=unused-argument
                 table_type=table_type,
                 transaction_id=transaction_id,
                 bucketing_info=None,
-                filename_prefix=filename_prefix,
+                filename_prefix=f"{filename_prefix}_{block_index:05d}",
                 partition_cols=partition_cols,
                 partitions_types=partitions_types,
                 boto3_session=None,
@@ -163,7 +163,9 @@ def _to_partitions_distributed(  # pylint: disable=unused-argument
             return paths, partitions_values
 
         block_object_refs = ray.data.from_modin(df).get_internal_block_refs()
-        result = ray_get([write_partitions(object_ref) for object_ref in block_object_refs])
+        result = ray_get(
+            [write_partitions(object_ref, block_index) for block_index, object_ref in enumerate(block_object_refs)]
+        )
         paths = [path for row in result for path in row[0]]
         partitions_values = {
             partition_key: partition_value for row in result for partition_key, partition_value in row[1].items()

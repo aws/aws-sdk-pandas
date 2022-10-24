@@ -19,7 +19,7 @@ from awswrangler._distributed import engine
 from awswrangler._threading import _get_executor
 from awswrangler.catalog._get import _get_partitions
 from awswrangler.catalog._utils import _catalog_id
-from awswrangler.distributed.ray import RayLogger, ray_get
+from awswrangler.distributed.ray import ray_get
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import (
@@ -69,7 +69,6 @@ def _read_parquet_metadata_file(
     version_id: Optional[str] = None,
     coerce_int96_timestamp_unit: Optional[str] = None,
 ) -> pa.schema:
-    RayLogger().get_logger(name=_read_parquet_metadata_file.__name__)
     with open_s3_object(
         path=path,
         mode="rb",
@@ -730,7 +729,7 @@ def read_parquet_table(
     partial_cast_function = functools.partial(
         _data_types.cast_pandas_with_athena_types, dtype=_extract_partitions_dtypes_from_table_details(response=res)
     )
-    if isinstance(df, pd.DataFrame):
+    if _utils.is_pandas_frame(df):
         return partial_cast_function(df)
     # df is a generator, so map is needed for casting dtypes
     return map(partial_cast_function, df)

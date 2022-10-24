@@ -34,6 +34,7 @@ Powered By [<img src="https://arrow.apache.org/img/arrow.png" width="200">](http
 ## Table of contents
 
 - [Quick Start](#quick-start)
+- [At Scale](#at-scale)
 - [Read The Docs](#read-the-docs)
 - [Getting Help](#getting-help)
 - [Community Resources](#community-resources)
@@ -96,6 +97,41 @@ FROM "sampleDB"."sampleTable" ORDER BY time DESC LIMIT 3
 
 ```
 
+## At scale
+AWS SDK for pandas can also run your workflows at scale by leveraging [modin](https://modin.readthedocs.io/en/stable/) and [ray](https://www.ray.io/). Both projects aim to speed up data workloads (pandas workloads in particular in the case of modin) by distributing processing over a cluster of workers.
+
+### Installation
+```
+pip install "awswrangler[modin,ray]==3.0.0b3"
+```
+
+As a result existing scripts can run on significantly larger datasets with no code rewrite. Supported APIs are parallelized across cores on a single machine or across multiple nodes on a cluster in the cloud.
+
+### Supported APIs
+
+<p align="center">
+
+| Service     | API                                                           | Implementation |
+|-------------------|:------------------------------------------------------------------------------------:|:---------------:|
+|  `S3`    | `read_parquet`                                               | 🅿️ |
+|    | `read_csv`                                               | ✅ |
+|    | `read_json`                                               | ✅ |
+|    | `read_fwf`                                               | ✅ |
+|    | `to_parquet`                                               | 🅿️ |
+|    | `to_csv`                                               | ✅ |
+|    | `to_json`                                               | ✅ |
+|    | `select_query`                                               | ✅ |
+|    | `delete`                                               | ✅ |
+|    | `copy`                                               | ✅ |
+|    | `wait`                                               | ✅ |
+|  `Redshift`    | `copy`                                               | ✅ |
+|    | `unload`                                               | ✅ |
+|  `Athena`    | `read_sql_query`                                               | ✅ |
+|  `LakeFormation`    | `read_sql_query`                                               | ✅ |
+</p>
+
+🅿️: stands for partial (i.e. some input arguments might not be supported)
+
 ## [Read The Docs](https://aws-sdk-pandas.readthedocs.io/)
 
 - [**What is AWS SDK for pandas?**](https://aws-sdk-pandas.readthedocs.io/en/3.0.0b3/what.html)
@@ -144,7 +180,7 @@ FROM "sampleDB"."sampleTable" ORDER BY time DESC LIMIT 3
   - [032 - Lake Formation Governed Tables](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/032%20-%20Lake%20Formation%20Governed%20Tables.ipynb)
   - [033 - Amazon Neptune](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/033%20-%20Amazon%20Neptune.ipynb)
   - [034 - Distributing Calls Using Ray](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/034%20-%20Distributing%20Calls%20using%20Ray.ipynb)
-  - [35 - Distributing Calls on Ray Remote Cluster](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/035%20-%20Distributing%20Calls%20on%20Ray%20Remote%20Cluster.ipynb)
+  - [035 - Distributing Calls on Ray Remote Cluster](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/035%20-%20Distributing%20Calls%20on%20Ray%20Remote%20Cluster.ipynb)
 - [**API Reference**](https://aws-sdk-pandas.readthedocs.io/en/3.0.0b3/api.html)
   - [Amazon S3](https://aws-sdk-pandas.readthedocs.io/en/3.0.0b3/api.html#amazon-s3)
   - [AWS Glue Catalog](https://aws-sdk-pandas.readthedocs.io/en/3.0.0b3/api.html#aws-glue-catalog)

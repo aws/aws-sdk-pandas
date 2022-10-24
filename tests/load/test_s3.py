@@ -1,4 +1,4 @@
-import pandas as pd
+import modin.pandas as pd
 import pytest
 import ray
 
@@ -29,6 +29,13 @@ def big_modin_df():
     frame["bar"] = frame.value % 2
 
     return frame
+
+
+def _modin_repartition(df: pd.DataFrame, num_blocks: int) -> pd.DataFrame:
+    """Repartition modin dataframe into n blocks"""
+    dataset = ray.data.from_modin(df)
+    dataset = dataset.repartition(num_blocks)
+    return dataset.to_modin()
 
 
 @pytest.mark.repeat(1)
@@ -90,6 +97,20 @@ def test_s3_write_parquet_dataset(df_s, path, partition_cols, bucketing_info, be
     assert timer.elapsed_time < benchmark_time
 
 
+@pytest.mark.parametrize("benchmark_time", [200])
+@pytest.mark.parametrize("partition_cols", [None, ["payment_type"]])
+@pytest.mark.parametrize("num_blocks", [None, 1, 5])
+def test_s3_write_parquet_blocks(df_s, path, partition_cols, num_blocks, benchmark_time):
+    dataset = True if partition_cols else False
+    if num_blocks:
+        df_s = _modin_repartition(df_s, num_blocks)
+    with ExecutionTimer(f"elapsed time of wr.s3.to_parquet() with repartitioning into {num_blocks} blocks") as timer:
+        wr.s3.to_parquet(df_s, path=path, dataset=dataset, partition_cols=partition_cols)
+    df = wr.s3.read_parquet(path=path, dataset=dataset)
+    assert df.shape == df_s.shape
+    assert timer.elapsed_time < benchmark_time
+
+
 @pytest.mark.parametrize("benchmark_time", [5])
 def test_s3_delete_objects(path, path2, benchmark_time):
     df = pd.DataFrame({"id": [1, 2, 3]})
@@ -106,7 +127,7 @@ def test_s3_delete_objects(path, path2, benchmark_time):
     assert len(wr.s3.list_objects(f"{path2}delete-test*")) == 0
 
 
-@pytest.mark.parametrize("benchmark_time", [240])
+@pytest.mark.parametrize("benchmark_time", [30])
 def test_s3_read_csv_simple(benchmark_time):
     path = "s3://nyc-tlc/csv_backup/yellow_tripdata_2021-0*.csv"
     with ExecutionTimer("elapsed time of wr.s3.read_csv() simple") as timer:

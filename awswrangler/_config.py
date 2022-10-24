@@ -21,7 +21,7 @@ class _ConfigArg(NamedTuple):
     nullable: bool
     enforced: bool = False
     loaded: bool = False
-    default: Optional[str] = None
+    default: Optional[_ConfigValueType] = None
 
 
 # Please, also add any new argument as a property in the _Config class
@@ -453,6 +453,15 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     @redis_password.setter
     def redis_password(self, value: Optional[str]) -> None:
         self._set_config_value(key="redis_password", value=value)
+
+    @property
+    def log_to_driver(self) -> Optional[bool]:
+        """Property log_to_driver."""
+        return cast(Optional[bool], self["log_to_driver"])
+
+    @log_to_driver.setter
+    def log_to_driver(self, value: Optional[bool]) -> None:
+        self._set_config_value(key="log_to_driver", value=value)
 
     @property
     def object_store_memory(self) -> int:
