@@ -9,6 +9,7 @@ from typing import Any, Dict, Generic, Optional, Sequence, Type, TypeVar
 class _EngineType(Enum):
     PRESTO = "presto"
     HIVE = "hive"
+    PARTIQL = "partiql"
 
     def __str__(self) -> str:
         return self.value
@@ -30,6 +31,9 @@ class _AbstractType(Generic[_PythonType]):
 
 class _NullType(_AbstractType[_NoneType]):
     def __str__(self) -> str:
+        if self.engine == _EngineType.PARTIQL:
+            return "null"
+
         return "NULL"
 
 
@@ -37,7 +41,7 @@ class _StringType(_AbstractType[str]):
     supported_formats = {"s", "i"}
 
     def __str__(self) -> str:
-        if self.engine == _EngineType.PRESTO:
+        if self.engine in [_EngineType.PRESTO, _EngineType.PARTIQL]:
             return f"""'{self.data.replace("'", "''")}'"""
 
         if self.engine == _EngineType.HIVE:
@@ -54,6 +58,9 @@ class _StringType(_AbstractType[str]):
 
 class _BooleanType(_AbstractType[bool]):
     def __str__(self) -> str:
+        if self.engine == _EngineType.PARTIQL:
+            return "1" if self.data else "0"
+
         return str(self.data).upper()
 
 
@@ -69,6 +76,9 @@ class _FloatType(_AbstractType[float]):
 
 class _DecimalType(_AbstractType[decimal.Decimal]):
     def __str__(self) -> str:
+        if self.engine == _EngineType.PARTIQL:
+            return f"'{self.data}'"
+
         return f"DECIMAL '{self.data:f}'"
 
 
@@ -76,21 +86,34 @@ class _TimestampType(_AbstractType[datetime.datetime]):
     def __str__(self) -> str:
         if self.data.tzinfo is not None:
             raise TypeError(f"Supports only timezone aware datatype, got {self.data}.")
+
+        if self.engine == _EngineType.PARTIQL:
+            return f"'{self.data.isoformat()}'"
+
         return f"TIMESTAMP '{self.data.isoformat(sep=' ', timespec='milliseconds')}'"
 
 
 class _DateType(_AbstractType[datetime.date]):
     def __str__(self) -> str:
+        if self.engine == _EngineType.PARTIQL:
+            return f"'{self.data.isoformat()}'"
+
         return f"DATE '{self.data.isoformat()}'"
 
 
 class _ArrayType(_AbstractType[Sequence[_PythonType]]):
     def __str__(self) -> str:
+        if self.engine == _EngineType.PARTIQL:
+            super().__str__()
+
         return f"ARRAY [{', '.join(map(str, self.data))}]"
 
 
 class _MapType(_AbstractType[Dict[_PythonType, _PythonTypeMapValue]]):
     def __str__(self) -> str:
+        if self.engine == _EngineType.PARTIQL:
+            super().__str__()
+
         if not self.data:
             return "MAP()"
 

@@ -105,7 +105,7 @@ def get_df_list(governed=False):
     df["category"] = df["category"].astype("category")
 
     if governed:
-        df = (df.drop(["iint8", "binary"], axis=1),)  # tinyint & binary currently not supported
+        df = df.drop(["iint8", "binary"], axis=1)  # tinyint & binary currently not supported
     return df
 
 

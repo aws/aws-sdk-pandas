@@ -10,7 +10,7 @@ from pyarrow import NativeFile, RecordBatchStreamReader, Table
 from awswrangler import _data_types, _utils, catalog
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
-from awswrangler._sql_formatter import _process_sql_params
+from awswrangler._sql_formatter import _EngineType, _process_sql_params
 from awswrangler._threading import _get_executor
 from awswrangler.catalog._utils import _catalog_id, _transaction_id
 from awswrangler.distributed.ray import RayLogger
@@ -168,7 +168,7 @@ def read_sql_query(
     client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
     commit_trans: bool = False
 
-    sql = _process_sql_params(sql, params)
+    sql = _process_sql_params(sql, params, engine=_EngineType.PARTIQL)
 
     if not any([transaction_id, query_as_of_time]):
         _logger.debug("Neither `transaction_id` nor `query_as_of_time` were specified, starting transaction")
