@@ -47,6 +47,10 @@ def _arrow_refs_to_df(arrow_refs: List[Callable[..., Any]], kwargs: Optional[Dic
     return _to_modin(dataset=ray.data.from_arrow_refs(arrow_refs), to_pandas_kwargs=kwargs)
 
 
+def _is_pandas_or_modin_frame(obj: Any) -> bool:
+    return isinstance(obj, (pd.DataFrame, modin_pd.DataFrame))
+
+
 @dataclass
 class ParamConfig:
     """
