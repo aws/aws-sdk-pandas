@@ -22,6 +22,18 @@ Conda
 
     >>> conda install -c conda-forge awswrangler
 
+At scale
+---------
+
+AWS SDK for pandas can also run your workflows at scale by leveraging `modin <https://modin.readthedocs.io/en/stable/>`_ and `ray <https://www.ray.io/>`_.
+
+    >>> pip install "awswrangler[modin,ray]==3.0.0b3"
+
+As a result existing scripts can run on significantly larger datasets with no code rewrite.
+
+.. note:: AWS SDK for pandas at scale is still in pre-release, meaning frequent breaking changes are possible.
+
+
 AWS Lambda Layer
 ----------------
 

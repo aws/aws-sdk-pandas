@@ -105,7 +105,7 @@ AWS SDK for pandas can also run your workflows at scale by leveraging [modin](ht
 pip install "awswrangler[modin,ray]==3.0.0b3"
 ```
 
-As a result existing scripts can run on larger datasets with no code rewrite. Supported APIs are parallelized across cores on a single machine or across multiple nodes on a cluster in the cloud.
+As a result existing scripts can run on significantly larger datasets with no code rewrite. Supported APIs are parallelized across cores on a single machine or across multiple nodes on a cluster in the cloud.
 
 ### Supported APIs
 
