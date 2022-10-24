@@ -51,6 +51,10 @@ class OpenSearchStack(Stack):  # type: ignore
         ).secret_value
         # fmt: on
         self.password = self.password_secret.to_string()
+        if self.node.try_get_context("network") == "public":
+            self.connectivity = {}
+        else:
+            self.connectivity = {"vpc": self.vpc, "vpc_subnets": [{"subnets": [self.vpc.private_subnets[0]]}]}
 
     def _setup_opensearch_1_0(self) -> None:
         domain_name = "sdk-pandas-os-1-0"
@@ -62,6 +66,7 @@ class OpenSearchStack(Stack):  # type: ignore
             domain_name=domain_name,
             version=opensearch.EngineVersion.OPENSEARCH_1_0,
             capacity=opensearch.CapacityConfig(data_node_instance_type="t3.medium.search", data_nodes=1),
+            **self.connectivity,
             access_policies=[
                 iam.PolicyStatement(
                     effect=iam.Effect.ALLOW,
@@ -85,6 +90,7 @@ class OpenSearchStack(Stack):  # type: ignore
             domain_name=domain_name,
             version=opensearch.EngineVersion.ELASTICSEARCH_7_10,
             capacity=opensearch.CapacityConfig(data_node_instance_type="t3.medium.search", data_nodes=1),
+            **self.connectivity,
             access_policies=[
                 iam.PolicyStatement(
                     effect=iam.Effect.ALLOW,
