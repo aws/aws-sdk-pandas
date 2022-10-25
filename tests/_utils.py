@@ -433,17 +433,3 @@ def create_workgroup(wkg_name, config):
             Description=f"AWS SDK for pandas Test - {wkg_name}",
         )
     return wkg_name
-
-
-def _to_pandas(df: pd.DataFrame) -> pd.DataFrame:
-    from pandas import DataFrame as PandasDataFrame
-
-    if isinstance(df, PandasDataFrame):
-        return df
-    else:
-        if wr.memory_format.get() == MemoryFormatEnum.MODIN:
-            from modin.pandas import DataFrame as ModinDataFrame
-
-            if isinstance(df, ModinDataFrame):
-                return df._to_pandas()
-        raise ValueError("Unknown data frame type")

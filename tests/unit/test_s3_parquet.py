@@ -371,16 +371,14 @@ def test_range_index_recovery_simple(path, use_threads):
     assert df.reset_index(level=0).equals(df2.reset_index(level=0))
 
 
-@pytest.mark.parametrize("use_threads", [True, False, 2])
+@pytest.mark.parametrize("use_threads", [True])
 @pytest.mark.parametrize("name", [None, "foo"])
 def test_range_index_recovery_pandas(path, use_threads, name):
-    # import pandas as pd
     df = pd.DataFrame({"c0": np.arange(10, 15, 1)}, dtype="Int64", index=pd.RangeIndex(start=5, stop=30, step=5))
     df.index.name = name
     path_file = f"{path}0.parquet"
     df.to_parquet(path_file)
     df2 = wr.s3.read_parquet(path, use_threads=use_threads, pyarrow_additional_kwargs={"ignore_metadata": False})
-    # df2 = _to_pandas(df2)
     assert df.reset_index(level=0).equals(df2.reset_index(level=0))
 
 
@@ -418,7 +416,7 @@ def test_index_columns(path, use_threads, name, pandas):
         df.to_parquet(path_file, index=True)
     else:
         wr.s3.to_parquet(df, path_file, index=True)
-    df2 = wr.s3.read_parquet([path_file], columns=["c0"], use_threads=use_threads)
+    df2 = wr.s3.read_parquet(path_file, columns=["c0"], use_threads=use_threads)
     assert df[["c0"]].equals(df2)
 
 
@@ -438,7 +436,7 @@ def test_range_index_columns(path, use_threads, name, pandas, drop):
 
     name = "__index_level_0__" if name is None else name
     columns = ["c0"] if drop else [name, "c0"]
-    df2 = wr.s3.read_parquet([path_file], columns=columns, use_threads=use_threads)
+    df2 = wr.s3.read_parquet(path_file, columns=columns, use_threads=use_threads)
 
     assert df[["c0"]].reset_index(level=0, drop=drop).equals(df2.reset_index(level=0, drop=drop))
 
