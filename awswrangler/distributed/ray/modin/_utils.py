@@ -43,6 +43,12 @@ def _to_modin(
     )
 
 
+def _split_modin_frame(
+    df: modin_pd.DataFrame, splits: int  # pylint: disable=unused-argument
+) -> List["ray.ObjectRef[Any]"]:
+    return ray.data.from_modin(df).get_internal_block_refs()  # type: ignore
+
+
 def _arrow_refs_to_df(arrow_refs: List[Callable[..., Any]], kwargs: Optional[Dict[str, Any]]) -> modin_pd.DataFrame:
     return _to_modin(dataset=ray.data.from_arrow_refs(arrow_refs), to_pandas_kwargs=kwargs)
 

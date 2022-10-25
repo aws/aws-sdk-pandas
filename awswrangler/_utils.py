@@ -27,6 +27,11 @@ _logger: logging.Logger = logging.getLogger(__name__)
 Boto3PrimitivesType = Dict[str, Optional[str]]
 
 
+def flatten_list(elements: List[List[Any]]) -> List[Any]:
+    """Flatten a list of lists."""
+    return [item for sublist in elements for item in sublist]
+
+
 def ensure_session(session: Union[None, boto3.Session, Boto3PrimitivesType] = None) -> boto3.Session:
     """Ensure that a valid boto3.Session will be returned."""
     if isinstance(session, dict):  # Primitives received
@@ -406,6 +411,12 @@ def check_schema_changes(columns_types: Dict[str, str], table_input: Optional[Di
                     f"Schema change detected: Data type change on column {c} "
                     f"(Old type: {catalog_cols[c]} / New type {t})."
                 )
+
+
+@engine.dispatch_on_engine
+def split_pandas_frame(df: pd.DataFrame, splits: int) -> List[pd.DataFrame]:
+    """Split a DataFrame into n chunks."""
+    return [sub_df for sub_df in np.array_split(df, splits) if not sub_df.empty]  # type: ignore
 
 
 @engine.dispatch_on_engine
