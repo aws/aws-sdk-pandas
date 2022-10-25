@@ -6,7 +6,7 @@ import pyarrow as pa
 import ray
 
 from awswrangler._data_types import pyarrow_types_from_pandas
-from awswrangler.distributed.ray._core import ray_get, ray_remote
+from awswrangler.distributed.ray import ray_get, ray_remote
 
 
 def pyarrow_types_from_pandas_distributed(

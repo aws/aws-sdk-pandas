@@ -9,6 +9,7 @@ from pandas import DataFrame as PandasDataFrame
 
 from awswrangler._distributed import engine
 from awswrangler.distributed.ray import ray_get, ray_remote
+from awswrangler.distributed.ray.modin import modin_repartition
 from awswrangler.s3._write_concurrent import _WriteProxy
 from awswrangler.s3._write_dataset import _delete_objects, _get_bucketing_series, _to_partitions
 
@@ -22,6 +23,7 @@ def _retrieve_paths(values: Union[str, List[Any]]) -> Iterator[str]:
     yield values
 
 
+@modin_repartition
 def _to_buckets_distributed(  # pylint: disable=unused-argument
     df: pd.DataFrame,
     func: Callable[..., List[str]],
@@ -109,6 +111,7 @@ def _write_partitions_distributed(
     return prefix, df_group.name, paths
 
 
+@modin_repartition
 def _to_partitions_distributed(  # pylint: disable=unused-argument
     df: pd.DataFrame,
     func: Callable[..., List[str]],

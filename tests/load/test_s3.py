@@ -1,6 +1,11 @@
+import math
+
+import modin.config as cfg
 import modin.pandas as pd
+import numpy as np
 import pytest
 import ray
+from modin.distributed.dataframe.pandas import unwrap_partitions
 
 import awswrangler as wr
 
@@ -192,3 +197,27 @@ def test_wait_object_not_exists(path: str, benchmark_time: int) -> None:
         wr.s3.wait_objects_not_exist(file_paths, parallelism=16)
 
     assert timer.elapsed_time < benchmark_time
+
+
+@pytest.mark.parametrize("size", [(5000, 5000), (1, 5000), (5000, 1), (1, 1)])
+def test_wide_df(size, path) -> None:
+    df = pd.DataFrame(np.random.randint(0, 100, size=size))
+    df.columns = df.columns.map(str)
+
+    num_cols = size[0]
+    df["int"] = np.random.choice(["1", "2", None], num_cols)
+    df["decimal"] = np.random.choice(["1.0", "2.0", None], num_cols)
+    df["date"] = np.random.choice(["2020-01-01", "2020-01-02", None], num_cols)
+    df["par0"] = np.random.choice(["A", "B"], num_cols)
+
+    partitions_shape = np.array(unwrap_partitions(df)).shape
+    assert partitions_shape[1] == min(math.ceil(len(df.columns) / cfg.MinPartitionSize.get()), cfg.NPartitions.get())
+
+    dtype = {
+        "int": "tinyint",
+        "decimal": "double",
+        "date": "date",
+    }
+
+    result = wr.s3.to_csv(df=df, path=path, dataset=True, dtype=dtype, partition_cols=["par0"])
+    assert len(result["paths"]) == partitions_shape[0] * len(df["par0"].unique())

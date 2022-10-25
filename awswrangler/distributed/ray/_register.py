@@ -3,7 +3,7 @@
 from awswrangler._data_types import pyarrow_types_from_pandas
 from awswrangler._distributed import MemoryFormatEnum, engine, memory_format
 from awswrangler._utils import is_pandas_frame, table_refs_to_df
-from awswrangler.distributed.ray._core import ray_remote
+from awswrangler.distributed.ray import ray_remote
 from awswrangler.lakeformation._read import _get_work_unit_results
 from awswrangler.s3._delete import _delete_objects
 from awswrangler.s3._read_parquet import _read_parquet, _read_parquet_metadata_file
@@ -11,8 +11,8 @@ from awswrangler.s3._read_text import _read_text
 from awswrangler.s3._select import _select_object_content, _select_query
 from awswrangler.s3._wait import _wait_object_batch
 from awswrangler.s3._write_dataset import _to_buckets, _to_partitions
-from awswrangler.s3._write_parquet import _to_parquet, to_parquet
-from awswrangler.s3._write_text import _to_text, to_csv, to_json
+from awswrangler.s3._write_parquet import _to_parquet
+from awswrangler.s3._write_text import _to_text
 
 
 def register_ray() -> None:
@@ -28,7 +28,6 @@ def register_ray() -> None:
         engine.register_func(func, ray_remote(func))
 
     if memory_format.get() == MemoryFormatEnum.MODIN:
-        from awswrangler.distributed.ray.modin._core import modin_repartition
         from awswrangler.distributed.ray.modin._data_types import pyarrow_types_from_pandas_distributed
         from awswrangler.distributed.ray.modin._utils import _arrow_refs_to_df, _is_pandas_or_modin_frame
         from awswrangler.distributed.ray.modin.s3._read_parquet import _read_parquet_distributed
@@ -48,9 +47,6 @@ def register_ray() -> None:
             _to_parquet: _to_parquet_distributed,
             _to_partitions: _to_partitions_distributed,
             _to_text: _to_text_distributed,
-            to_csv: modin_repartition(to_csv),
-            to_json: modin_repartition(to_json),
-            to_parquet: modin_repartition(to_parquet),
             table_refs_to_df: _arrow_refs_to_df,
             is_pandas_frame: _is_pandas_or_modin_frame,
         }.items():
