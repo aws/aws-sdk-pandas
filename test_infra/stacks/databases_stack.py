@@ -355,7 +355,7 @@ class DatabasesStack(Stack):  # type: ignore
             self,
             "aws-sdk-pandas-postgresql-params",
             engine=rds.DatabaseClusterEngine.aurora_postgres(
-                version=rds.AuroraPostgresEngineVersion.VER_11_13,
+                version=rds.AuroraPostgresEngineVersion.VER_13_7,
             ),
             parameters={
                 "apg_plan_mgmt.capture_plan_baselines": "off",
@@ -366,7 +366,7 @@ class DatabasesStack(Stack):  # type: ignore
             "aws-sdk-pandas-aurora-cluster-postgresql",
             removal_policy=RemovalPolicy.DESTROY,
             engine=rds.DatabaseClusterEngine.aurora_postgres(
-                version=rds.AuroraPostgresEngineVersion.VER_11_13,
+                version=rds.AuroraPostgresEngineVersion.VER_13_7,
             ),
             cluster_identifier="postgresql-cluster-sdk-pandas",
             instances=1,
@@ -518,7 +518,7 @@ class DatabasesStack(Stack):  # type: ignore
             "aws-sdk-pandas-aurora-cluster-mysql-serverless",
             removal_policy=RemovalPolicy.DESTROY,
             engine=rds.DatabaseClusterEngine.aurora_mysql(
-                version=rds.AuroraMysqlEngineVersion.VER_5_7_12,
+                version=rds.AuroraMysqlEngineVersion.VER_2_10_2,
             ),
             cluster_identifier="mysql-serverless-cluster-sdk-pandas",
             default_database_name=database,
@@ -635,7 +635,7 @@ class DatabasesStack(Stack):  # type: ignore
             "aws-sdk-pandas-oracle-instance",
             removal_policy=RemovalPolicy.DESTROY,
             instance_identifier="oracle-instance-sdk-pandas",
-            engine=rds.DatabaseInstanceEngine.oracle_ee(version=rds.OracleEngineVersion.VER_19_0_0_0_2021_04_R1),
+            engine=rds.DatabaseInstanceEngine.oracle_ee(version=rds.OracleEngineVersion.VER_19),
             instance_type=ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE3, ec2.InstanceSize.SMALL),
             credentials=rds.Credentials.from_password(
                 username=self.db_username,
