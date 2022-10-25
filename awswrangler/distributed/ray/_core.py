@@ -146,7 +146,6 @@ def initialize_ray(
             ]
 
             ray_init_kwargs = {
-                "address": "local",
                 "num_cpus": cpu_count,
                 "num_gpus": gpu_count,
                 "include_dashboard": include_dashboard,
