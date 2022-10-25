@@ -60,20 +60,13 @@ def _get_chunk_file_path(file_counter: int, file_path: str) -> str:
 def _new_writer(
     file_path: str,
     compression: Optional[str],
-    pyarrow_additional_kwargs: Optional[Dict[str, str]],
+    pyarrow_additional_kwargs: Dict[str, str],
     schema: pa.Schema,
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
 ) -> Iterator[pyarrow.parquet.ParquetWriter]:
     writer: Optional[pyarrow.parquet.ParquetWriter] = None
-    if not pyarrow_additional_kwargs:
-        pyarrow_additional_kwargs = {}
-    if not pyarrow_additional_kwargs.get("coerce_timestamps"):
-        pyarrow_additional_kwargs["coerce_timestamps"] = "ms"
-    if "flavor" not in pyarrow_additional_kwargs:
-        pyarrow_additional_kwargs["flavor"] = "spark"
-
     with open_s3_object(
         path=file_path,
         mode="wb",
@@ -101,7 +94,7 @@ def _write_chunk(
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
     compression: Optional[str],
-    pyarrow_additional_kwargs: Optional[Dict[str, str]],
+    pyarrow_additional_kwargs: Dict[str, str],
     table: pa.Table,
     offset: int,
     chunk_size: int,
@@ -125,7 +118,7 @@ def _to_parquet_chunked(
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
     compression: Optional[str],
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]],
+    pyarrow_additional_kwargs: Dict[str, Any],
     table: pa.Table,
     max_rows_by_file: int,
     num_of_rows: int,
@@ -159,7 +152,7 @@ def _to_parquet(
     index: bool,
     compression: Optional[str],
     compression_ext: str,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]],
+    pyarrow_additional_kwargs: Dict[str, Any],
     cpus: int,
     dtype: Dict[str, str],
     boto3_session: Optional[boto3.Session],
@@ -202,7 +195,6 @@ def _to_parquet(
     return paths
 
 
-@engine.dispatch_on_engine
 @apply_configs
 def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
     df: pd.DataFrame,
@@ -561,6 +553,13 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
     cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    # Pyarrow defaults
+    if not pyarrow_additional_kwargs:
+        pyarrow_additional_kwargs = {}
+    if not pyarrow_additional_kwargs.get("coerce_timestamps"):
+        pyarrow_additional_kwargs["coerce_timestamps"] = "ms"
+    if "flavor" not in pyarrow_additional_kwargs:
+        pyarrow_additional_kwargs["flavor"] = "spark"
 
     # Sanitize table to respect Athena's standards
     if (sanitize_columns is True) or (database is not None and table is not None):

@@ -109,11 +109,13 @@ class ParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abstract-
         dtype: Optional[Dict[str, str]] = writer_args.get("dtype", None)
         index: bool = writer_args.get("index", False)
         compression: Optional[str] = writer_args.get("compression", None)
+        pyarrow_additional_kwargs: Optional[Dict[str, Any]] = writer_args.get("pyarrow_additional_kwargs", {})
 
         pa.parquet.write_table(
             _df_to_table(block.to_pandas(), schema=schema, index=index, dtype=dtype),
             f,
             compression=compression,
+            **pyarrow_additional_kwargs,
         )
 
     def _get_file_suffix(self, file_format: str, compression: Optional[str]) -> str:
