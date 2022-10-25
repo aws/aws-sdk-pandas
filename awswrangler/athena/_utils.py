@@ -16,7 +16,7 @@ import pandas as pd
 
 from awswrangler import _data_types, _utils, catalog, exceptions, s3, sts
 from awswrangler._config import apply_configs
-from awswrangler.athena._formatter import _EngineType, _format_parameters
+from awswrangler._sql_formatter import _EngineType, _format_parameters
 from awswrangler.catalog._utils import _catalog_id, _transaction_id
 
 from ._cache import _cache_manager, _CacheInfo, _check_for_cached_results, _LocalMetadataCacheManager

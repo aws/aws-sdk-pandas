@@ -2,7 +2,6 @@
 
 import csv
 import logging
-import re
 import sys
 import uuid
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
@@ -14,7 +13,7 @@ import pandas as pd
 from awswrangler import _utils, catalog, exceptions, s3
 from awswrangler._config import apply_configs
 from awswrangler._data_types import cast_pandas_with_athena_types
-from awswrangler.athena._formatter import _EngineType, _format_parameters
+from awswrangler._sql_formatter import _process_sql_params
 from awswrangler.athena._utils import (
     _apply_query_metadata,
     _empty_dataframe_response,
@@ -568,29 +567,6 @@ def _unload(
     return query_metadata
 
 
-_PATTERN = re.compile(r":([A-Za-z0-9_]+)(?![A-Za-z0-9_])")
-
-
-def _process_sql_params(sql: str, params: Optional[Dict[str, Any]]) -> str:
-    if params is None:
-        params = {}
-
-    processed_params = _format_parameters(params, engine=_EngineType.PRESTO)
-
-    def replace(match: re.Match) -> str:  # type: ignore
-        key = match.group(1)
-
-        if key not in processed_params:
-            # do not replace anything if the parameter is not provided
-            return str(match.group(0))
-
-        return str(processed_params[key])
-
-    sql = _PATTERN.sub(replace, sql)
-
-    return sql
-
-
 @apply_configs
 def get_query_results(
     query_execution_id: str,
@@ -922,7 +898,7 @@ def read_sql_query(
     >>> import awswrangler as wr
     >>> df = wr.athena.read_sql_query(
     ...     sql="SELECT * FROM my_table WHERE name=:name AND city=:city",
-    ...     params={"name": "'filtered_name'", "city": "'filtered_city'"}
+    ...     params={"name": "filtered_name", "city": "filtered_city"}
     ... )
 
     """
@@ -1303,7 +1279,7 @@ def unload(
     >>> import awswrangler as wr
     >>> res = wr.athena.unload(
     ...     sql="SELECT * FROM my_table WHERE name=:name AND city=:city",
-    ...     params={"name": "'filtered_name'", "city": "'filtered_city'"}
+    ...     params={"name": "filtered_name", "city": "filtered_city"}
     ... )
 
     """

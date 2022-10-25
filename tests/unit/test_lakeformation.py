@@ -1,13 +1,15 @@
 import calendar
+import datetime as dt
 import logging
 import time
+from decimal import Decimal
 
 import pytest
 
 import awswrangler as wr
 from awswrangler._distributed import EngineEnum, MemoryFormatEnum
 
-from .._utils import ensure_data_types, ensure_data_types_csv, get_df, get_df_csv
+from .._utils import ensure_data_types, ensure_data_types_csv, get_df, get_df_csv, get_df_list
 
 if wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN:
     import modin.pandas as pd
@@ -50,9 +52,9 @@ def test_lakeformation(path, path2, glue_database, glue_table, glue_table2, use_
 
     # Filter query
     df2 = wr.lakeformation.read_sql_query(
-        sql=f"SELECT * FROM {glue_table} WHERE iint16 = :iint16;",
+        sql=f'SELECT * FROM {glue_table} WHERE "string" = :city_name',
         database=glue_database,
-        params={"iint16": 1},
+        params={"city_name": "Washington"},
     )
     assert len(df2.index) == 1
 
@@ -145,3 +147,71 @@ def test_lakeformation_multi_transaction(path, path2, glue_database, glue_table,
 
     assert df2.shape == df4.shape
     assert df2.c1.sum() == df4.c1.sum()
+
+
+@pytest.mark.parametrize(
+    "col_name,col_value",
+    [
+        ("date", dt.date(2020, 1, 1)),
+        ("timestamp", dt.datetime(2020, 1, 1)),
+        ("bool", True),
+        ("decimal", Decimal(("1.99"))),
+        ("float", 0.0),
+        ("iint16", 1),
+    ],
+)
+def test_lakeformation_partiql_formatting(path, path2, glue_database, glue_table, glue_table2, col_name, col_value):
+    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
+    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table2)
+
+    wr.s3.to_parquet(
+        df=get_df_list(governed=True),
+        path=path,
+        index=False,
+        boto3_session=None,
+        s3_additional_kwargs=None,
+        dataset=True,
+        partition_cols=["par0", "par1"],
+        mode="overwrite",
+        table=glue_table,
+        table_type="GOVERNED",
+        database=glue_database,
+    )
+
+    # Filter query
+    df = wr.lakeformation.read_sql_query(
+        sql=f'SELECT * FROM {glue_table} WHERE "{col_name}" = :col_value',
+        database=glue_database,
+        params={"col_value": col_value},
+    )
+    assert len(df) == 1
+
+
+def test_lakeformation_partiql_formatting_escape_string(path, path2, glue_database, glue_table, glue_table2):
+    df = pd.DataFrame(
+        {
+            "id": [1, 2, 3],
+            "string": ["normal string", "'weird' string", "another normal string"],
+        }
+    )
+
+    wr.s3.to_parquet(
+        df=df,
+        path=path,
+        index=False,
+        boto3_session=None,
+        s3_additional_kwargs=None,
+        dataset=True,
+        mode="overwrite",
+        table=glue_table,
+        table_type="GOVERNED",
+        database=glue_database,
+    )
+
+    # Filter query
+    df = wr.lakeformation.read_sql_query(
+        sql=f'SELECT * FROM {glue_table} WHERE "string" = :col_value',
+        database=glue_database,
+        params={"col_value": "'weird' string"},
+    )
+    assert len(df) == 1

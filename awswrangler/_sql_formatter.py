@@ -1,13 +1,15 @@
-"""Formatting logic for Athena parameters."""
+"""Formatting logic for SQL parameters."""
 import datetime
 import decimal
+import re
 from enum import Enum
-from typing import Any, Dict, Generic, Sequence, Type, TypeVar
+from typing import Any, Dict, Generic, Optional, Sequence, Type, TypeVar
 
 
 class _EngineType(Enum):
     PRESTO = "presto"
     HIVE = "hive"
+    PARTIQL = "partiql"
 
     def __str__(self) -> str:
         return self.value
@@ -29,6 +31,9 @@ class _AbstractType(Generic[_PythonType]):
 
 class _NullType(_AbstractType[_NoneType]):
     def __str__(self) -> str:
+        if self.engine == _EngineType.PARTIQL:
+            return "null"
+
         return "NULL"
 
 
@@ -36,7 +41,7 @@ class _StringType(_AbstractType[str]):
     supported_formats = {"s", "i"}
 
     def __str__(self) -> str:
-        if self.engine == _EngineType.PRESTO:
+        if self.engine in [_EngineType.PRESTO, _EngineType.PARTIQL]:
             return f"""'{self.data.replace("'", "''")}'"""
 
         if self.engine == _EngineType.HIVE:
@@ -53,6 +58,9 @@ class _StringType(_AbstractType[str]):
 
 class _BooleanType(_AbstractType[bool]):
     def __str__(self) -> str:
+        if self.engine == _EngineType.PARTIQL:
+            return "1" if self.data else "0"
+
         return str(self.data).upper()
 
 
@@ -68,6 +76,9 @@ class _FloatType(_AbstractType[float]):
 
 class _DecimalType(_AbstractType[decimal.Decimal]):
     def __str__(self) -> str:
+        if self.engine == _EngineType.PARTIQL:
+            return f"'{self.data}'"
+
         return f"DECIMAL '{self.data:f}'"
 
 
@@ -75,21 +86,34 @@ class _TimestampType(_AbstractType[datetime.datetime]):
     def __str__(self) -> str:
         if self.data.tzinfo is not None:
             raise TypeError(f"Supports only timezone aware datatype, got {self.data}.")
+
+        if self.engine == _EngineType.PARTIQL:
+            return f"'{self.data.isoformat()}'"
+
         return f"TIMESTAMP '{self.data.isoformat(sep=' ', timespec='milliseconds')}'"
 
 
 class _DateType(_AbstractType[datetime.date]):
     def __str__(self) -> str:
+        if self.engine == _EngineType.PARTIQL:
+            return f"'{self.data.isoformat()}'"
+
         return f"DATE '{self.data.isoformat()}'"
 
 
 class _ArrayType(_AbstractType[Sequence[_PythonType]]):
     def __str__(self) -> str:
+        if self.engine == _EngineType.PARTIQL:
+            super().__str__()
+
         return f"ARRAY [{', '.join(map(str, self.data))}]"
 
 
 class _MapType(_AbstractType[Dict[_PythonType, _PythonTypeMapValue]]):
     def __str__(self) -> str:
+        if self.engine == _EngineType.PARTIQL:
+            super().__str__()
+
         if not self.data:
             return "MAP()"
 
@@ -165,3 +189,26 @@ def _format_parameters(params: Dict[str, Any], engine: _EngineType) -> Dict[str,
         processed_params[k] = str(abs_type)
 
     return processed_params
+
+
+_PATTERN = re.compile(r":([A-Za-z0-9_]+)(?![A-Za-z0-9_])")
+
+
+def _process_sql_params(sql: str, params: Optional[Dict[str, Any]], engine: _EngineType = _EngineType.PRESTO) -> str:
+    if params is None:
+        params = {}
+
+    processed_params = _format_parameters(params, engine=engine)
+
+    def replace(match: re.Match) -> str:  # type: ignore
+        key = match.group(1)
+
+        if key not in processed_params:
+            # do not replace anything if the parameter is not provided
+            return str(match.group(0))
+
+        return str(processed_params[key])
+
+    sql = _PATTERN.sub(replace, sql)
+
+    return sql
