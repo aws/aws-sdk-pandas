@@ -146,7 +146,6 @@ def initialize_ray(
             ]
 
             ray_init_kwargs = {
-                "address": "local",
                 "num_cpus": cpu_count,
                 "num_gpus": gpu_count,
                 "include_dashboard": include_dashboard,
@@ -159,5 +158,5 @@ def initialize_ray(
                     "env_vars": {var: os.environ.get(var) for var in ray_runtime_env_vars if os.environ.get(var)}
                 },
             }
-            _logger.info("Starting a local Ray cluster")
+            _logger.info("Starting a Ray cluster")
             ray.init(**ray_init_kwargs)
