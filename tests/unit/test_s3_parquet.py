@@ -432,7 +432,7 @@ def test_range_index_columns(path, use_threads, name, pandas, drop):
     if pandas:
         df.to_parquet(path_file, index=True)
     else:
-        wr.s3.to_parquet(df, path_file, index=True)
+        res = wr.s3.to_parquet(df, path_file, index=True)
 
     name = "__index_level_0__" if name is None else name
     columns = ["c0"] if drop else [name, "c0"]
