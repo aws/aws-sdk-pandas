@@ -39,7 +39,7 @@ def _to_parquet_distributed(  # pylint: disable=unused-argument
     # Create Ray Dataset
     ds = from_modin(df) if isinstance(df, ModinDataFrame) else from_pandas(df)
     # Repartition into a single block if or writing into a single key or if bucketing is enabled
-    if ds.count() > 0 and (path or bucketing):
+    if ds.count() > 0 and (path or bucketing) and not max_rows_by_file:
         _logger.warning(
             "Repartitioning frame to single partition as a strict path was defined: %s. "
             "This operation is inefficient for large datasets.",
@@ -57,7 +57,7 @@ def _to_parquet_distributed(  # pylint: disable=unused-argument
         # If user has provided a single key, use that instead of generating a path per block
         # The dataset will be repartitioned into a single block
         block_path_provider=UserProvidedKeyBlockWritePathProvider()
-        if path and not path.endswith("/")
+        if path and not path.endswith("/") and not max_rows_by_file
         else DefaultBlockWritePathProvider(),
         index=index,
         dtype=dtype,
