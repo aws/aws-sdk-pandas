@@ -158,5 +158,5 @@ def initialize_ray(
                     "env_vars": {var: os.environ.get(var) for var in ray_runtime_env_vars if os.environ.get(var)}
                 },
             }
-            _logger.info("Starting a local Ray cluster")
+            _logger.info("Starting a Ray cluster")
             ray.init(**ray_init_kwargs)
