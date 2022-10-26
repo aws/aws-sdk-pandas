@@ -5,6 +5,8 @@ from decimal import Decimal
 from timeit import default_timer as timer
 from typing import Any, Dict, Iterator
 
+from pandas import DataFrame as PandasDataFrame
+
 import boto3
 import botocore.exceptions
 
@@ -14,6 +16,7 @@ from awswrangler._utils import try_it
 
 if wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN:
     import modin.pandas as pd
+    from modin.pandas import DataFrame as ModinDataFrame
 else:
     import pandas as pd
 
@@ -433,3 +436,14 @@ def create_workgroup(wkg_name, config):
             Description=f"AWS SDK for pandas Test - {wkg_name}",
         )
     return wkg_name
+
+
+def to_pandas(df: pd.DataFrame) -> PandasDataFrame:
+    """
+    Convert Modin data frames to pandas for comparison
+    """
+    if isinstance(df, PandasDataFrame):
+        return df
+    elif wr.memory_format.get() == MemoryFormatEnum.MODIN and isinstance(df, ModinDataFrame):
+        return df._to_pandas()
+    raise ValueError("Unknown data frame type %s", type(df))
