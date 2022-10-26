@@ -43,7 +43,7 @@ class UserProvidedKeyBlockWritePathProvider(BlockWritePathProvider):
 class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstract-method
     """Pandas file based datasource, for reading and writing Pandas blocks."""
 
-    _FILE_EXTENSION: Optional[str] = None
+    _FILE_EXTENSION: str
 
     def __init__(self) -> None:
         super().__init__()
@@ -109,7 +109,7 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
 
         write_block_fn = cached_remote_fn(write_block).options(**ray_remote_args)
 
-        file_format = self._FILE_EXTENSION
+        file_suffix = self._get_file_suffix(self._FILE_EXTENSION, compression)
         write_tasks = []
 
         for block_idx, block in enumerate(blocks):
@@ -119,12 +119,15 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
                 dataset_uuid=dataset_uuid,
                 block=block,
                 block_index=block_idx,
-                file_format=f"{file_format}{_COMPRESSION_2_EXT.get(compression)}",
+                file_format=file_suffix,
             )
             write_task = write_block_fn.remote(write_path, block)
             write_tasks.append(write_task)
 
         return write_tasks
+
+    def _get_file_suffix(self, file_format: str, compression: Optional[str]) -> str:
+        return f"{file_format}{_COMPRESSION_2_EXT.get(compression)}"
 
     def _write_block(
         self,
