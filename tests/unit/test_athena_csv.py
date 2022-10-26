@@ -8,10 +8,18 @@ import pyarrow as pa
 import pytest
 
 import awswrangler as wr
+from awswrangler._distributed import EngineEnum, MemoryFormatEnum
 
 from .._utils import ensure_data_types_csv, get_df_csv
 
+if wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN:
+    import modin.pandas as pd
+else:
+    import pandas as pd
+
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
+
+pytestmark = pytest.mark.distributed
 
 
 @pytest.mark.parametrize("use_threads", [True, False])

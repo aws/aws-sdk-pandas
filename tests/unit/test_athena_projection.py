@@ -1,12 +1,20 @@
 import logging
 
-import pandas as pd
+import pytest
 
 import awswrangler as wr
+from awswrangler._distributed import EngineEnum, MemoryFormatEnum
 
 from .._utils import dt, ts
 
+if wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN:
+    import modin.pandas as pd
+else:
+    import pandas as pd
+
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
+
+pytestmark = pytest.mark.distributed
 
 
 def test_to_parquet_projection_integer(glue_database, glue_table, path):

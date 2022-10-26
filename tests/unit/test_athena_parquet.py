@@ -11,10 +11,18 @@ import pytest
 
 import awswrangler as wr
 from awswrangler._data_types import _split_fields
+from awswrangler._distributed import EngineEnum, MemoryFormatEnum
 
 from .._utils import ensure_data_types, get_df, get_df_cast, get_df_list
 
+if wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN:
+    import modin.pandas as pd
+else:
+    import pandas as pd
+
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
+
+pytestmark = pytest.mark.distributed
 
 
 def test_parquet_catalog(path, path2, glue_table, glue_table2, glue_database):
