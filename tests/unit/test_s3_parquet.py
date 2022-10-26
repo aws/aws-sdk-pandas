@@ -376,6 +376,7 @@ def test_range_index_recovery_simple(path, use_threads):
 def test_range_index_recovery_pandas(path, use_threads, name):
     # Import pandas because modin.to_parquet does not preserve index.name when writing parquet
     import pandas as pd
+
     df = pd.DataFrame({"c0": np.arange(10, 15, 1)}, dtype="Int64", index=pd.RangeIndex(start=5, stop=30, step=5))
     df.index.name = name
     path_file = f"{path}0.parquet"

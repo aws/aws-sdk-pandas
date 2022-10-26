@@ -5,10 +5,9 @@ from decimal import Decimal
 from timeit import default_timer as timer
 from typing import Any, Dict, Iterator
 
-from pandas import DataFrame as PandasDataFrame
-
 import boto3
 import botocore.exceptions
+from pandas import DataFrame as PandasDataFrame
 
 import awswrangler as wr
 from awswrangler._distributed import EngineEnum, MemoryFormatEnum
