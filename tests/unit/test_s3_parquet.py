@@ -435,6 +435,8 @@ def test_range_index_columns(path, use_threads, name, pandas, drop):
     df.index.name = name
     path_file = f"{path}0.parquet"
     if pandas:
+        # Convert to pandas because modin.to_parquet() does not preserve index name
+        df = to_pandas(df)
         df.to_parquet(path_file, index=True)
     else:
         wr.s3.to_parquet(df, path_file, index=True)
@@ -442,6 +444,8 @@ def test_range_index_columns(path, use_threads, name, pandas, drop):
     name = "__index_level_0__" if name is None else name
     columns = ["c0"] if drop else [name, "c0"]
     df2 = wr.s3.read_parquet(path_file, columns=columns, use_threads=use_threads)
+    # Convert to pandas data frames for comparison
+    df, df2 = to_pandas(df), to_pandas(df2)
     assert df[["c0"]].reset_index(level=0, drop=drop).equals(df2.reset_index(level=0, drop=drop))
 
 
