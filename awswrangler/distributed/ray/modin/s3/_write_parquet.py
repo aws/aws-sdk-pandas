@@ -63,5 +63,6 @@ def _to_parquet_distributed(  # pylint: disable=unused-argument
         dtype=dtype,
         compression=compression,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+        schema=schema,
     )
     return datasource.get_write_paths()
