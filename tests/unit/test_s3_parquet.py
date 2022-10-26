@@ -515,6 +515,8 @@ def test_empty_column(path, use_threads):
     wr.s3.to_parquet(df, path, dataset=True, partition_cols=["par"])
     df2 = wr.s3.read_parquet(path, dataset=True, use_threads=use_threads)
     df2["par"] = df2["par"].astype("string")
+    # Convert to pandas because Modin df.equals() does not work if there are empty columns
+    df, df2 = to_pandas(df), to_pandas(df2)
     assert df.equals(df2)
 
 
@@ -545,6 +547,8 @@ def test_empty_file(path, use_threads):
     boto3.client("s3").put_object(Body=b"", Bucket=bucket, Key=key)
     df2 = wr.s3.read_parquet(path, dataset=True, use_threads=use_threads)
     df2["par"] = df2["par"].astype("string")
+    # Convert to pandas because Modin df.equals() does not work if there are empty columns
+    df, df2 = to_pandas(df), to_pandas(df2)
     assert df.equals(df2)
 
 
