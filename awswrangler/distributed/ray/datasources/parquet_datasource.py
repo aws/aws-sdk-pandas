@@ -17,8 +17,9 @@ from ray.data.datasource.parquet_datasource import (
     _SerializedPiece,
 )
 
-from awswrangler._arrow import _add_table_partitions
+from awswrangler._arrow import _add_table_partitions, _df_to_table
 from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import PandasFileBasedDatasource
+from awswrangler.s3._write import _COMPRESSION_2_EXT
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -102,9 +103,25 @@ class ParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abstract-
         **writer_args: Any,
     ) -> None:
         """Write a block to S3."""
-        import pyarrow.parquet as pq  # pylint: disable=import-outside-toplevel,redefined-outer-name,reimported
+        import pyarrow as pa  # pylint: disable=import-outside-toplevel,redefined-outer-name,reimported
 
-        pq.write_table(block.to_arrow(), f)
+        schema: pa.Schema = writer_args.get("schema", None)
+        dtype: Optional[Dict[str, str]] = writer_args.get("dtype", None)
+        index: bool = writer_args.get("index", False)
+        compression: Optional[str] = writer_args.get("compression", None)
+        pyarrow_additional_kwargs: Optional[Dict[str, Any]] = writer_args.get("pyarrow_additional_kwargs", {})
+
+        pa.parquet.write_table(
+            _df_to_table(block.to_pandas(), schema=schema, index=index, dtype=dtype),
+            f,
+            compression=compression,
+            **pyarrow_additional_kwargs,
+        )
+
+    def _get_file_suffix(self, file_format: str, compression: Optional[str]) -> str:
+        if compression is not None:
+            return f"{_COMPRESSION_2_EXT.get(compression)[1:]}.{file_format}"  # type: ignore
+        return file_format
 
 
 def _resolve_kwargs(kwargs_fn: Callable[[], Dict[str, Any]], **kwargs: Any) -> Dict[str, Any]:

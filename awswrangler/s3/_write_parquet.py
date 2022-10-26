@@ -13,6 +13,7 @@ import pyarrow.lib
 import pyarrow.parquet
 
 from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation
+from awswrangler._arrow import _df_to_table
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
 from awswrangler.s3._delete import delete_objects
@@ -59,20 +60,13 @@ def _get_chunk_file_path(file_counter: int, file_path: str) -> str:
 def _new_writer(
     file_path: str,
     compression: Optional[str],
-    pyarrow_additional_kwargs: Optional[Dict[str, str]],
+    pyarrow_additional_kwargs: Dict[str, str],
     schema: pa.Schema,
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
 ) -> Iterator[pyarrow.parquet.ParquetWriter]:
     writer: Optional[pyarrow.parquet.ParquetWriter] = None
-    if not pyarrow_additional_kwargs:
-        pyarrow_additional_kwargs = {}
-    if not pyarrow_additional_kwargs.get("coerce_timestamps"):
-        pyarrow_additional_kwargs["coerce_timestamps"] = "ms"
-    if "flavor" not in pyarrow_additional_kwargs:
-        pyarrow_additional_kwargs["flavor"] = "spark"
-
     with open_s3_object(
         path=file_path,
         mode="wb",
@@ -100,7 +94,7 @@ def _write_chunk(
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
     compression: Optional[str],
-    pyarrow_additional_kwargs: Optional[Dict[str, str]],
+    pyarrow_additional_kwargs: Dict[str, str],
     table: pa.Table,
     offset: int,
     chunk_size: int,
@@ -124,7 +118,7 @@ def _to_parquet_chunked(
     boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
     compression: Optional[str],
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]],
+    pyarrow_additional_kwargs: Dict[str, Any],
     table: pa.Table,
     max_rows_by_file: int,
     num_of_rows: int,
@@ -158,7 +152,7 @@ def _to_parquet(
     index: bool,
     compression: Optional[str],
     compression_ext: str,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]],
+    pyarrow_additional_kwargs: Dict[str, Any],
     cpus: int,
     dtype: Dict[str, str],
     boto3_session: Optional[boto3.Session],
@@ -173,15 +167,7 @@ def _to_parquet(
         path_root=path_root, path=path, filename_prefix=filename_prefix, compression_ext=compression_ext
     )
     _logger.debug("file_path: %s", file_path)
-    table: pa.Table = pyarrow.Table.from_pandas(df=df, schema=schema, nthreads=cpus, preserve_index=index, safe=True)
-    for col_name, col_type in dtype.items():
-        if col_name in table.column_names:
-            col_index = table.column_names.index(col_name)
-            pyarrow_dtype = _data_types.athena2pyarrow(col_type)
-            field = pa.field(name=col_name, type=pyarrow_dtype)
-            table = table.set_column(col_index, field, table.column(col_name).cast(pyarrow_dtype))
-            _logger.debug("Casting column %s (%s) to %s (%s)", col_name, col_index, col_type, pyarrow_dtype)
-
+    table: pa.Table = _df_to_table(df, schema, index, dtype)
     if max_rows_by_file is not None and max_rows_by_file > 0:
         paths: List[str] = _to_parquet_chunked(
             file_path=file_path,
@@ -209,7 +195,6 @@ def _to_parquet(
     return paths
 
 
-@engine.dispatch_on_engine
 @apply_configs
 def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
     df: pd.DataFrame,
@@ -568,6 +553,13 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
     cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    # Pyarrow defaults
+    if not pyarrow_additional_kwargs:
+        pyarrow_additional_kwargs = {}
+    if not pyarrow_additional_kwargs.get("coerce_timestamps"):
+        pyarrow_additional_kwargs["coerce_timestamps"] = "ms"
+    if "flavor" not in pyarrow_additional_kwargs:
+        pyarrow_additional_kwargs["flavor"] = "spark"
 
     # Sanitize table to respect Athena's standards
     if (sanitize_columns is True) or (database is not None and table is not None):
