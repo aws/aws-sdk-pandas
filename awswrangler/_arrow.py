@@ -3,7 +3,8 @@
 import datetime
 import json
 import logging
-from typing import Any, Dict, Optional, Tuple, cast
+import warnings
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 import pandas as pd
 import pyarrow as pa
@@ -47,6 +48,38 @@ def _add_table_partitions(
     return table
 
 
+def _apply_index(df: pd.DataFrame, metadata: Dict[str, Any]) -> pd.DataFrame:
+    index_columns: List[Any] = metadata["index_columns"]
+    ignore_index: bool = True
+    _logger.debug("df.columns: %s", df.columns)
+
+    if index_columns:
+        if isinstance(index_columns[0], str):
+            indexes: List[str] = [i for i in index_columns if i in df.columns]
+            if indexes:
+                df = df.set_index(keys=indexes, drop=True, inplace=False, verify_integrity=False)
+                ignore_index = False
+        elif isinstance(index_columns[0], dict) and index_columns[0]["kind"] == "range":
+            col = index_columns[0]
+            if col["kind"] == "range":
+                df.index = pd.RangeIndex(start=col["start"], stop=col["stop"], step=col["step"])
+                ignore_index = False
+                col_name: Optional[str] = None
+                if "name" in col and col["name"] is not None:
+                    col_name = str(col["name"])
+                elif "field_name" in col and col["field_name"] is not None:
+                    col_name = str(col["field_name"])
+                if col_name is not None and col_name.startswith("__index_level_") is False:
+                    df.index.name = col_name
+
+        df.index.names = [None if n is not None and n.startswith("__index_level_") else n for n in df.index.names]
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=UserWarning)
+        df._awswrangler_ignore_index = ignore_index  # pylint: disable=protected-access
+    return df
+
+
 def _apply_timezone(df: pd.DataFrame, metadata: Dict[str, Any]) -> pd.DataFrame:
     for c in metadata["columns"]:
         if "field_name" in c and c["field_name"] is not None:
@@ -78,9 +111,18 @@ def _table_to_df(
 
     df = table.to_pandas(**kwargs)
 
+    # Ensure df is mutable
+    for column in df.columns.to_list():
+        if hasattr(df[column].values, "flags") is True:
+            if df[column].values.flags.writeable is False:
+                s: pd.Series = df[column]
+                df[column] = None
+                df[column] = s
+
     if metadata:
         _logger.debug("metadata: %s", metadata)
         df = _apply_timezone(df=df, metadata=metadata)
+        df = _apply_index(df=df, metadata=metadata)
     return df
 
 
