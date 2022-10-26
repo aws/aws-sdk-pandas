@@ -423,13 +423,14 @@ def test_index_columns(path, use_threads, name, pandas):
     assert df[["c0"]].equals(df2)
 
 
-@pytest.mark.xfail(raises=KeyError, reason="Modin index not saved as a named column")
 @pytest.mark.xfail(raises=AssertionError, reason="Index equality regression")
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 @pytest.mark.parametrize("name", [None, "foo"])
 @pytest.mark.parametrize("pandas", [True, False])
 @pytest.mark.parametrize("drop", [True, False])
 def test_range_index_columns(path, use_threads, name, pandas, drop):
+    if wr.memory_format.get() == MemoryFormatEnum.MODIN and not pandas:
+        pytest.skip("Skip due to Modin data frame index not saved as a named column")
     df = pd.DataFrame({"c0": [0, 1], "c1": [2, 3]}, dtype="Int64", index=pd.RangeIndex(start=5, stop=7, step=1))
     df.index.name = name
     path_file = f"{path}0.parquet"
