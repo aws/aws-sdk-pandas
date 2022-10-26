@@ -113,11 +113,11 @@ As a result existing scripts can run on significantly larger datasets with no co
 
 | Service     | API                                                           | Implementation |
 |-------------------|:------------------------------------------------------------------------------------:|:---------------:|
-|  `S3`    | `read_parquet`                                               | 🅿️ |
+|  `S3`    | `read_parquet`                                               | ✅ |
 |    | `read_csv`                                               | ✅ |
 |    | `read_json`                                               | ✅ |
 |    | `read_fwf`                                               | ✅ |
-|    | `to_parquet`                                               | 🅿️ |
+|    | `to_parquet`                                               | ✅ |
 |    | `to_csv`                                               | ✅ |
 |    | `to_json`                                               | ✅ |
 |    | `select_query`                                               | ✅ |
@@ -129,8 +129,6 @@ As a result existing scripts can run on significantly larger datasets with no co
 |  `Athena`    | `read_sql_query`                                               | ✅ |
 |  `LakeFormation`    | `read_sql_query`                                               | ✅ |
 </p>
-
-🅿️: stands for partial (i.e. some input arguments might not be supported)
 
 ## [Read The Docs](https://aws-sdk-pandas.readthedocs.io/)
 
