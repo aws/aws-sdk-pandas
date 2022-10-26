@@ -27,11 +27,6 @@ _logger: logging.Logger = logging.getLogger(__name__)
 Boto3PrimitivesType = Dict[str, Optional[str]]
 
 
-def flatten_list(elements: List[List[Any]]) -> List[Any]:
-    """Flatten a list of lists."""
-    return [item for sublist in elements for item in sublist]
-
-
 def ensure_session(session: Union[None, boto3.Session, Boto3PrimitivesType] = None) -> boto3.Session:
     """Ensure that a valid boto3.Session will be returned."""
     if isinstance(session, dict):  # Primitives received

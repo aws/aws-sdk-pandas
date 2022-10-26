@@ -17,6 +17,10 @@ from awswrangler.distributed.ray import ray_get
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
+def _flatten_list(elements: List[List[Any]]) -> List[Any]:
+    return [item for sublist in elements for item in sublist]
+
+
 def _df2list(df: pd.DataFrame) -> List[List[Any]]:
     """Extract Parameters."""
     parameters: List[List[Any]] = df.values.tolist()
@@ -275,7 +279,7 @@ def write(
     _logger.debug("len(dfs): %s", len(dfs))
 
     executor = _get_executor(use_threads=use_threads)
-    errors = _utils.flatten_list(
+    errors = _flatten_list(
         ray_get(
             [
                 _write_df(
@@ -293,7 +297,7 @@ def write(
             ]
         )
     )
-    return _utils.flatten_list(ray_get(errors))
+    return _flatten_list(ray_get(errors))
 
 
 def query(
