@@ -5,7 +5,7 @@ import pytest
 import awswrangler as wr
 from awswrangler._distributed import EngineEnum, MemoryFormatEnum
 
-from .._utils import dt, ts
+from .._utils import dt, to_pandas, ts
 
 if wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN:
     import modin.pandas as pd
@@ -105,6 +105,8 @@ def test_to_parquet_projection_injected(glue_database, glue_table, path):
 
 
 def test_to_parquet_storage_location(glue_database, glue_table, path):
+    from pandas.testing import assert_frame_equal
+
     df1 = pd.DataFrame({"c0": [0], "c1": ["foo"], "c2": ["0"]})
     df2 = pd.DataFrame({"c0": [1], "c1": ["foo"], "c2": ["1"]})
     df3 = pd.DataFrame({"c0": [2], "c1": ["boo"], "c2": ["2"]})
@@ -126,4 +128,8 @@ def test_to_parquet_storage_location(glue_database, glue_table, path):
     )
 
     df5 = wr.athena.read_sql_query(f"SELECT * FROM {glue_table} WHERE c1='foo' AND c2='0'", glue_database)
-    pd.testing.assert_frame_equal(df1, df5, check_dtype=False)
+    assert_frame_equal(
+        to_pandas(df1),
+        to_pandas(df5),
+        check_dtype=False,
+    )

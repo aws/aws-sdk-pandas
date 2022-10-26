@@ -5,6 +5,7 @@ import string
 import boto3
 import numpy as np
 import pytest
+from pandas import DataFrame as PandasDataFrame
 
 import awswrangler as wr
 from awswrangler._distributed import EngineEnum, MemoryFormatEnum
@@ -19,6 +20,7 @@ from .._utils import (
     get_df_list,
     get_df_txt,
     get_time_str_with_random_suffix,
+    pandas_equals,
 )
 
 if wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN:
@@ -828,13 +830,13 @@ def test_bucketing_parquet_dataset(path, glue_database, glue_table, bucketing_da
 
     first_bucket_df = wr.s3.read_parquet(path=[r["paths"][0]])
     assert len(first_bucket_df) == 2
-    assert pd.Series([bucketing_data[0], bucketing_data[2]], dtype=dtype).equals(first_bucket_df["c0"])
-    assert pd.Series(["foo", "baz"], dtype=pd.StringDtype()).equals(first_bucket_df["c1"])
+    assert pandas_equals(pd.Series([bucketing_data[0], bucketing_data[2]], dtype=dtype), first_bucket_df["c0"])
+    assert pandas_equals(pd.Series(["foo", "baz"], dtype=pd.StringDtype()), first_bucket_df["c1"])
 
     second_bucket_df = wr.s3.read_parquet(path=[r["paths"][1]])
     assert len(second_bucket_df) == 1
-    assert pd.Series([bucketing_data[1]], dtype=dtype).equals(second_bucket_df["c0"])
-    assert pd.Series(["bar"], dtype=pd.StringDtype()).equals(second_bucket_df["c1"])
+    assert pandas_equals(pd.Series([bucketing_data[1]], dtype=dtype), second_bucket_df["c0"])
+    assert pandas_equals(pd.Series(["bar"], dtype=pd.StringDtype()), second_bucket_df["c1"])
 
     loaded_dfs = [
         wr.s3.read_parquet(path=path),
@@ -910,13 +912,13 @@ def test_bucketing_csv_dataset(path, glue_database, glue_table, bucketing_data, 
 
     first_bucket_df = wr.s3.read_csv(path=[r["paths"][0]], header=None, names=["c0", "c1"])
     assert len(first_bucket_df) == 2
-    assert pd.Series([bucketing_data[0], bucketing_data[2]]).equals(first_bucket_df["c0"])
-    assert pd.Series(["foo", "baz"]).equals(first_bucket_df["c1"])
+    assert pandas_equals(pd.Series([bucketing_data[0], bucketing_data[2]]), first_bucket_df["c0"])
+    assert pandas_equals(pd.Series(["foo", "baz"]), first_bucket_df["c1"])
 
     second_bucket_df = wr.s3.read_csv(path=[r["paths"][1]], header=None, names=["c0", "c1"])
     assert len(second_bucket_df) == 1
-    assert pd.Series([bucketing_data[1]]).equals(second_bucket_df["c0"])
-    assert pd.Series(["bar"]).equals(second_bucket_df["c1"])
+    assert pandas_equals(pd.Series([bucketing_data[1]]), second_bucket_df["c0"])
+    assert pandas_equals(pd.Series(["bar"]), second_bucket_df["c1"])
 
     loaded_dfs = [
         wr.s3.read_csv(path=path, header=None, names=["c0", "c1"]),
@@ -967,23 +969,23 @@ def test_combined_bucketing_partitioning_parquet_dataset(path, glue_database, gl
 
     bucket_df = wr.s3.read_parquet(path=[r["paths"][0]])
     assert len(bucket_df) == 1
-    assert pd.Series([bucketing_data[0]], dtype=dtype).equals(bucket_df["c0"])
-    assert pd.Series(["foo"], dtype=pd.StringDtype()).equals(bucket_df["c1"])
+    assert pandas_equals(pd.Series([bucketing_data[0]], dtype=dtype), bucket_df["c0"])
+    assert pandas_equals(pd.Series(["foo"], dtype=pd.StringDtype()), bucket_df["c1"])
 
     bucket_df = wr.s3.read_parquet(path=[r["paths"][1]])
     assert len(bucket_df) == 1
-    assert pd.Series([bucketing_data[1]], dtype=dtype).equals(bucket_df["c0"])
-    assert pd.Series(["bar"], dtype=pd.StringDtype()).equals(bucket_df["c1"])
+    assert pandas_equals(pd.Series([bucketing_data[1]], dtype=dtype), bucket_df["c0"])
+    assert pandas_equals(pd.Series(["bar"], dtype=pd.StringDtype()), bucket_df["c1"])
 
     bucket_df = wr.s3.read_parquet(path=[r["paths"][2]])
     assert len(bucket_df) == 1
-    assert pd.Series([bucketing_data[2]], dtype=dtype).equals(bucket_df["c0"])
-    assert pd.Series(["baz"], dtype=pd.StringDtype()).equals(bucket_df["c1"])
+    assert pandas_equals(pd.Series([bucketing_data[2]], dtype=dtype), bucket_df["c0"])
+    assert pandas_equals(pd.Series(["baz"], dtype=pd.StringDtype()), bucket_df["c1"])
 
     bucket_df = wr.s3.read_parquet(path=[r["paths"][3]])
     assert len(bucket_df) == 1
-    assert pd.Series([bucketing_data[3]], dtype=dtype).equals(bucket_df["c0"])
-    assert pd.Series(["boo"], dtype=pd.StringDtype()).equals(bucket_df["c1"])
+    assert pandas_equals(pd.Series([bucketing_data[3]], dtype=dtype), bucket_df["c0"])
+    assert pandas_equals(pd.Series(["boo"], dtype=pd.StringDtype()), bucket_df["c1"])
 
     loaded_dfs = [
         wr.s3.read_parquet(path=path),
@@ -1027,23 +1029,23 @@ def test_combined_bucketing_partitioning_csv_dataset(path, glue_database, glue_t
 
     bucket_df = wr.s3.read_csv(path=[r["paths"][0]], header=None, names=["c0", "c1"])
     assert len(bucket_df) == 1
-    assert pd.Series([bucketing_data[0]]).equals(bucket_df["c0"])
-    assert pd.Series(["foo"]).equals(bucket_df["c1"])
+    assert pandas_equals(pd.Series([bucketing_data[0]]), bucket_df["c0"])
+    assert pandas_equals(pd.Series(["foo"]), bucket_df["c1"])
 
     bucket_df = wr.s3.read_csv(path=[r["paths"][1]], header=None, names=["c0", "c1"])
     assert len(bucket_df) == 1
-    assert pd.Series([bucketing_data[1]]).equals(bucket_df["c0"])
-    assert pd.Series(["bar"]).equals(bucket_df["c1"])
+    assert pandas_equals(pd.Series([bucketing_data[1]]), bucket_df["c0"])
+    assert pandas_equals(pd.Series(["bar"]), bucket_df["c1"])
 
     bucket_df = wr.s3.read_csv(path=[r["paths"][2]], header=None, names=["c0", "c1"])
     assert len(bucket_df) == 1
-    assert pd.Series([bucketing_data[2]]).equals(bucket_df["c0"])
-    assert pd.Series(["baz"]).equals(bucket_df["c1"])
+    assert pandas_equals(pd.Series([bucketing_data[2]]), bucket_df["c0"])
+    assert pandas_equals(pd.Series(["baz"]), bucket_df["c1"])
 
     bucket_df = wr.s3.read_csv(path=[r["paths"][3]], header=None, names=["c0", "c1"])
     assert len(bucket_df) == 1
-    assert pd.Series([bucketing_data[3]]).equals(bucket_df["c0"])
-    assert pd.Series(["boo"]).equals(bucket_df["c1"])
+    assert pandas_equals(pd.Series([bucketing_data[3]]), bucket_df["c0"])
+    assert pandas_equals(pd.Series(["boo"]), bucket_df["c1"])
 
     loaded_dfs = [
         wr.s3.read_csv(path=path, header=None, names=["c0", "c1"]),
@@ -1074,15 +1076,15 @@ def test_multiple_bucketing_columns_parquet_dataset(path, glue_database, glue_ta
 
     first_bucket_df = wr.s3.read_parquet(path=[r["paths"][0]])
     assert len(first_bucket_df) == 2
-    assert pd.Series([0, 3], dtype=pd.Int64Dtype()).equals(first_bucket_df["c0"])
-    assert pd.Series([4, 7], dtype=pd.Int64Dtype()).equals(first_bucket_df["c1"])
-    assert pd.Series(["foo", "boo"], dtype=pd.StringDtype()).equals(first_bucket_df["c2"])
+    assert pandas_equals(pd.Series([0, 3], dtype=pd.Int64Dtype()), first_bucket_df["c0"])
+    assert pandas_equals(pd.Series([4, 7], dtype=pd.Int64Dtype()), first_bucket_df["c1"])
+    assert pandas_equals(pd.Series(["foo", "boo"], dtype=pd.StringDtype()), first_bucket_df["c2"])
 
     second_bucket_df = wr.s3.read_parquet(path=[r["paths"][1]])
     assert len(second_bucket_df) == 2
-    assert pd.Series([1, 2], dtype=pd.Int64Dtype()).equals(second_bucket_df["c0"])
-    assert pd.Series([6, 5], dtype=pd.Int64Dtype()).equals(second_bucket_df["c1"])
-    assert pd.Series(["bar", "baz"], dtype=pd.StringDtype()).equals(second_bucket_df["c2"])
+    assert pandas_equals(pd.Series([1, 2], dtype=pd.Int64Dtype()), second_bucket_df["c0"])
+    assert pandas_equals(pd.Series([6, 5], dtype=pd.Int64Dtype()), second_bucket_df["c1"])
+    assert pandas_equals(pd.Series(["bar", "baz"], dtype=pd.StringDtype()), second_bucket_df["c2"])
 
 
 @pytest.mark.parametrize("dtype", ["int", "str", "bool"])
@@ -1223,14 +1225,14 @@ def test_get_query_results(path, glue_table, glue_database):
     )
     query_id_ctas = df_ctas.query_metadata["QueryExecutionId"]
     df_get_query_results_ctas = wr.athena.get_query_results(query_execution_id=query_id_ctas)
-    pd.testing.assert_frame_equal(df_get_query_results_ctas, df_ctas)
+    pandas_equals(df_get_query_results_ctas, df_ctas)
 
     df_unload: pd.DataFrame = wr.athena.read_sql_query(
         sql=sql, database=glue_database, ctas_approach=False, unload_approach=True, s3_output=path
     )
     query_id_unload = df_unload.query_metadata["QueryExecutionId"]
     df_get_query_results_df_unload = wr.athena.get_query_results(query_execution_id=query_id_unload)
-    pd.testing.assert_frame_equal(df_get_query_results_df_unload, df_unload)
+    pandas_equals(df_get_query_results_df_unload, df_unload)
 
     wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
     wr.s3.to_parquet(
@@ -1252,7 +1254,7 @@ def test_get_query_results(path, glue_table, glue_database):
     )
     query_id_regular = df_regular.query_metadata["QueryExecutionId"]
     df_get_query_results_df_regular = wr.athena.get_query_results(query_execution_id=query_id_regular)
-    pd.testing.assert_frame_equal(df_get_query_results_df_regular, df_regular)
+    assert pandas_equals(df_get_query_results_df_regular, df_regular)
 
 
 def test_athena_generate_create_query(path, glue_database, glue_table):
@@ -1333,13 +1335,13 @@ def test_get_query_execution(workgroup0, workgroup1):
     assert query_execution_ids
     query_execution_detail = wr.athena.get_query_execution(query_execution_id=query_execution_ids[0])
     query_executions_df = wr.athena.get_query_executions(query_execution_ids)
-    assert isinstance(query_executions_df, pd.DataFrame)
+    assert isinstance(query_executions_df, PandasDataFrame)
     assert isinstance(query_execution_detail, dict)
     assert set(query_execution_ids).intersection(set(query_executions_df["QueryExecutionId"].values.tolist()))
     query_execution_ids1 = query_execution_ids + ["aaa", "bbb"]
     query_executions_df, unprocessed_query_executions_df = wr.athena.get_query_executions(
         query_execution_ids1, return_unprocessed=True
     )
-    assert isinstance(unprocessed_query_executions_df, pd.DataFrame)
+    assert isinstance(unprocessed_query_executions_df, PandasDataFrame)
     assert set(query_execution_ids).intersection(set(query_executions_df["QueryExecutionId"].values.tolist()))
     assert {"aaa", "bbb"}.intersection(set(unprocessed_query_executions_df["QueryExecutionId"].values.tolist()))

@@ -12,7 +12,7 @@ import awswrangler as wr
 from awswrangler._data_types import _split_fields
 from awswrangler._distributed import EngineEnum, MemoryFormatEnum
 
-from .._utils import ensure_data_types, get_df, get_df_cast, get_df_list
+from .._utils import ensure_data_types, get_df, get_df_cast, get_df_list, pandas_equals
 
 if wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN:
     import modin.pandas as pd
@@ -583,9 +583,9 @@ def test_date_cast(path, glue_table, glue_database):
     )
     wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table, dtype={"c0": "date"})
     df2 = wr.s3.read_parquet(path=path)
-    assert df_expected.equals(df2)
+    assert pandas_equals(df_expected, df2)
     df3 = wr.athena.read_sql_table(database=glue_database, table=glue_table)
-    assert df_expected.equals(df3)
+    assert pandas_equals(df_expected, df3)
 
 
 @pytest.mark.parametrize("use_threads", [True, False])

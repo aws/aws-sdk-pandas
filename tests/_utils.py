@@ -3,11 +3,12 @@ import time
 from datetime import datetime
 from decimal import Decimal
 from timeit import default_timer as timer
-from typing import Any, Dict, Iterator
+from typing import Any, Dict, Iterator, Union
 
 import boto3
 import botocore.exceptions
 from pandas import DataFrame as PandasDataFrame
+from pandas import Series as PandasSeries
 
 import awswrangler as wr
 from awswrangler._distributed import EngineEnum, MemoryFormatEnum
@@ -16,6 +17,7 @@ from awswrangler._utils import try_it
 if wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN:
     import modin.pandas as pd
     from modin.pandas import DataFrame as ModinDataFrame
+    from modin.pandas import Series as ModinSeries
 else:
     import pandas as pd
 
@@ -437,13 +439,13 @@ def create_workgroup(wkg_name, config):
     return wkg_name
 
 
-def to_pandas(df: pd.DataFrame) -> PandasDataFrame:
+def to_pandas(df: Union[pd.DataFrame, pd.Series]) -> Union[PandasDataFrame, PandasSeries]:
     """
     Convert Modin data frames to pandas for comparison
     """
-    if isinstance(df, PandasDataFrame):
+    if isinstance(df, (PandasDataFrame, PandasSeries)):
         return df
-    elif wr.memory_format.get() == MemoryFormatEnum.MODIN and isinstance(df, ModinDataFrame):
+    elif wr.memory_format.get() == MemoryFormatEnum.MODIN and isinstance(df, (ModinDataFrame, ModinSeries)):
         return df._to_pandas()
     raise ValueError("Unknown data frame type %s", type(df))
 
