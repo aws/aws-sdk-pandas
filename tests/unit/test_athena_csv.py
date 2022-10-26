@@ -3,7 +3,6 @@ import logging
 from sys import version_info
 
 import boto3
-import pandas as pd
 import pyarrow as pa
 import pytest
 
