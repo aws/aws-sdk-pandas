@@ -446,3 +446,11 @@ def to_pandas(df: pd.DataFrame) -> PandasDataFrame:
     elif wr.memory_format.get() == MemoryFormatEnum.MODIN and isinstance(df, ModinDataFrame):
         return df._to_pandas()
     raise ValueError("Unknown data frame type %s", type(df))
+
+
+def pandas_equals(df1: pd.DataFrame, df2: pd.DataFrame) -> bool:
+    """
+    Check data frames for equality converting them to pandas first
+    """
+    df1, df2 = to_pandas(df1), to_pandas(df2)
+    return df1.equals(df2)

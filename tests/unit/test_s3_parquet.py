@@ -16,7 +16,7 @@ if wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatE
 else:
     import pandas as pd
 
-from .._utils import ensure_data_types, get_df_list, to_pandas
+from .._utils import ensure_data_types, get_df_list, pandas_equals, to_pandas
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -382,9 +382,7 @@ def test_range_index_recovery_pandas(path, use_threads, name):
     path_file = f"{path}0.parquet"
     df.to_parquet(path_file)
     df2 = wr.s3.read_parquet(path_file, use_threads=use_threads, pyarrow_additional_kwargs={"ignore_metadata": False})
-    # Convert to pandas data frame for comparison
-    df2 = to_pandas(df2)
-    assert df.reset_index(level=0).equals(df2.reset_index(level=0))
+    assert pandas_equals(df.reset_index(level=0), df2.reset_index(level=0))
 
 
 @pytest.mark.xfail(raises=AssertionError, reason="Index equality regression")
@@ -441,13 +439,10 @@ def test_range_index_columns(path, use_threads, name, pandas, drop):
         df.to_parquet(path_file, index=True)
     else:
         wr.s3.to_parquet(df, path_file, index=True)
-
     name = "__index_level_0__" if name is None else name
     columns = ["c0"] if drop else [name, "c0"]
     df2 = wr.s3.read_parquet(path_file, columns=columns, use_threads=use_threads)
-    # Convert to pandas data frames for comparison
-    df, df2 = to_pandas(df), to_pandas(df2)
-    assert df[["c0"]].reset_index(level=0, drop=drop).equals(df2.reset_index(level=0, drop=drop))
+    assert pandas_equals(df[["c0"]].reset_index(level=0, drop=drop), df2.reset_index(level=0, drop=drop))
 
 
 def test_to_parquet_dataset_sanitize(path):
@@ -505,9 +500,7 @@ def test_timezone_raw_values(path):
     df3 = pandas.read_parquet(path)
     df2["par"] = df2["par"].astype("string")
     df3["par"] = df3["par"].astype("string")
-    # Convert to pandas data frame for comparison
-    df2 = to_pandas(df2)
-    assert df2.equals(df3)
+    assert pandas_equals(df2, df3)
 
 
 @pytest.mark.parametrize("partition_cols", [None, ["a"], ["a", "b"]])
@@ -526,9 +519,7 @@ def test_empty_column(path, use_threads):
     wr.s3.to_parquet(df, path, dataset=True, partition_cols=["par"])
     df2 = wr.s3.read_parquet(path, dataset=True, use_threads=use_threads)
     df2["par"] = df2["par"].astype("string")
-    # Convert to pandas because Modin df.equals() does not work if there are empty columns
-    df, df2 = to_pandas(df), to_pandas(df2)
-    assert df.equals(df2)
+    assert pandas_equals(df, df2)
 
 
 def test_mixed_types_column(path) -> None:
@@ -558,9 +549,7 @@ def test_empty_file(path, use_threads):
     boto3.client("s3").put_object(Body=b"", Bucket=bucket, Key=key)
     df2 = wr.s3.read_parquet(path, dataset=True, use_threads=use_threads)
     df2["par"] = df2["par"].astype("string")
-    # Convert to pandas because Modin df.equals() does not work if there are empty columns
-    df, df2 = to_pandas(df), to_pandas(df2)
-    assert df.equals(df2)
+    assert pandas_equals(df, df2)
 
 
 def test_read_chunked(path):
