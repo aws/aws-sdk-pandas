@@ -33,86 +33,6 @@ def _df2list(df: pd.DataFrame) -> List[List[Any]]:
     return parameters
 
 
-def _cast_value(value: str, dtype: str) -> Any:  # pylint: disable=too-many-branches,too-many-return-statements
-    if dtype == "VARCHAR":
-        return value
-    if dtype in ("INTEGER", "BIGINT"):
-        return int(value)
-    if dtype == "DOUBLE":
-        return float(value)
-    if dtype == "BOOLEAN":
-        return value.lower() == "true"
-    if dtype == "TIMESTAMP":
-        return datetime.strptime(value[:-3], "%Y-%m-%d %H:%M:%S.%f")
-    if dtype == "DATE":
-        return datetime.strptime(value, "%Y-%m-%d").date()
-    if dtype == "TIME":
-        return datetime.strptime(value[:-3], "%H:%M:%S.%f").time()
-    if dtype == "ARRAY":
-        return str(value)
-    raise ValueError(f"Not supported Amazon Timestream type: {dtype}")
-
-
-def _process_row(schema: List[Dict[str, str]], row: Dict[str, Any]) -> List[Any]:
-    row_processed: List[Any] = []
-    for col_schema, col in zip(schema, row["Data"]):
-        if col.get("NullValue", False):
-            row_processed.append(None)
-        elif "ScalarValue" in col:
-            row_processed.append(_cast_value(value=col["ScalarValue"], dtype=col_schema["type"]))
-        elif "ArrayValue" in col:
-            row_processed.append(_cast_value(value=col["ArrayValue"], dtype="ARRAY"))
-        else:
-            raise ValueError(
-                f"Query with non ScalarType/ArrayColumnInfo/NullValue for column {col_schema['name']}. "
-                f"Expected {col_schema['type']} instead of {col}"
-            )
-    return row_processed
-
-
-def _rows_to_df(rows: List[List[Any]], schema: List[Dict[str, str]]) -> pd.DataFrame:
-    df = pd.DataFrame(data=rows, columns=[c["name"] for c in schema])
-    for col in schema:
-        if col["type"] == "VARCHAR":
-            df[col["name"]] = df[col["name"]].astype("string")
-    return df
-
-
-def _process_schema(page: Dict[str, Any]) -> List[Dict[str, str]]:
-    schema: List[Dict[str, str]] = []
-    for col in page["ColumnInfo"]:
-        if "ScalarType" in col["Type"]:
-            schema.append({"name": col["Name"], "type": col["Type"]["ScalarType"]})
-        elif "ArrayColumnInfo" in col["Type"]:
-            schema.append({"name": col["Name"], "type": col["Type"]["ArrayColumnInfo"]})
-        else:
-            raise ValueError(f"Query with non ScalarType or ArrayColumnInfo for column {col['Name']}: {col['Type']}")
-    return schema
-
-
-def _paginate_query(
-    sql: str, pagination_config: Optional[Dict[str, Any]], boto3_session: Optional[boto3.Session] = None
-) -> Iterator[pd.DataFrame]:
-    client: boto3.client = _utils.client(
-        service_name="timestream-query",
-        session=boto3_session,
-        botocore_config=Config(read_timeout=60, retries={"max_attempts": 10}),
-    )
-    paginator = client.get_paginator("query")
-    rows: List[List[Any]] = []
-    schema: List[Dict[str, str]] = []
-    page_iterator = paginator.paginate(QueryString=sql, PaginationConfig=pagination_config or {})
-    for page in page_iterator:
-        if not schema:
-            schema = _process_schema(page=page)
-            _logger.debug("schema: %s", schema)
-        for row in page["Rows"]:
-            rows.append(_process_row(schema=schema, row=row))
-        if len(rows) > 0:
-            yield _rows_to_df(rows, schema)
-        rows = []
-
-
 @engine.dispatch_on_engine
 def _write_batch(
     boto3_session: Optional[boto3.Session],
@@ -196,6 +116,86 @@ def _write_df(
         itertools.repeat(version),
         batches,
     )
+
+
+def _cast_value(value: str, dtype: str) -> Any:  # pylint: disable=too-many-branches,too-many-return-statements
+    if dtype == "VARCHAR":
+        return value
+    if dtype in ("INTEGER", "BIGINT"):
+        return int(value)
+    if dtype == "DOUBLE":
+        return float(value)
+    if dtype == "BOOLEAN":
+        return value.lower() == "true"
+    if dtype == "TIMESTAMP":
+        return datetime.strptime(value[:-3], "%Y-%m-%d %H:%M:%S.%f")
+    if dtype == "DATE":
+        return datetime.strptime(value, "%Y-%m-%d").date()
+    if dtype == "TIME":
+        return datetime.strptime(value[:-3], "%H:%M:%S.%f").time()
+    if dtype == "ARRAY":
+        return str(value)
+    raise ValueError(f"Not supported Amazon Timestream type: {dtype}")
+
+
+def _process_row(schema: List[Dict[str, str]], row: Dict[str, Any]) -> List[Any]:
+    row_processed: List[Any] = []
+    for col_schema, col in zip(schema, row["Data"]):
+        if col.get("NullValue", False):
+            row_processed.append(None)
+        elif "ScalarValue" in col:
+            row_processed.append(_cast_value(value=col["ScalarValue"], dtype=col_schema["type"]))
+        elif "ArrayValue" in col:
+            row_processed.append(_cast_value(value=col["ArrayValue"], dtype="ARRAY"))
+        else:
+            raise ValueError(
+                f"Query with non ScalarType/ArrayColumnInfo/NullValue for column {col_schema['name']}. "
+                f"Expected {col_schema['type']} instead of {col}"
+            )
+    return row_processed
+
+
+def _rows_to_df(rows: List[List[Any]], schema: List[Dict[str, str]]) -> pd.DataFrame:
+    df = pd.DataFrame(data=rows, columns=[c["name"] for c in schema])
+    for col in schema:
+        if col["type"] == "VARCHAR":
+            df[col["name"]] = df[col["name"]].astype("string")
+    return df
+
+
+def _process_schema(page: Dict[str, Any]) -> List[Dict[str, str]]:
+    schema: List[Dict[str, str]] = []
+    for col in page["ColumnInfo"]:
+        if "ScalarType" in col["Type"]:
+            schema.append({"name": col["Name"], "type": col["Type"]["ScalarType"]})
+        elif "ArrayColumnInfo" in col["Type"]:
+            schema.append({"name": col["Name"], "type": col["Type"]["ArrayColumnInfo"]})
+        else:
+            raise ValueError(f"Query with non ScalarType or ArrayColumnInfo for column {col['Name']}: {col['Type']}")
+    return schema
+
+
+def _paginate_query(
+    sql: str, pagination_config: Optional[Dict[str, Any]], boto3_session: Optional[boto3.Session] = None
+) -> Iterator[pd.DataFrame]:
+    client: boto3.client = _utils.client(
+        service_name="timestream-query",
+        session=boto3_session,
+        botocore_config=Config(read_timeout=60, retries={"max_attempts": 10}),
+    )
+    paginator = client.get_paginator("query")
+    rows: List[List[Any]] = []
+    schema: List[Dict[str, str]] = []
+    page_iterator = paginator.paginate(QueryString=sql, PaginationConfig=pagination_config or {})
+    for page in page_iterator:
+        if not schema:
+            schema = _process_schema(page=page)
+            _logger.debug("schema: %s", schema)
+        for row in page["Rows"]:
+            rows.append(_process_row(schema=schema, row=row))
+        if len(rows) > 0:
+            yield _rows_to_df(rows, schema)
+        rows = []
 
 
 def write(
