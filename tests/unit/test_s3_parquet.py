@@ -425,6 +425,7 @@ def test_index_columns(path, use_threads, name, pandas):
     assert df[["c0"]].equals(df2)
 
 
+@pytest.mark.xfail(raises=KeyError, reason="Modin index not saved as a named column")
 @pytest.mark.xfail(raises=AssertionError, reason="Index equality regression")
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 @pytest.mark.parametrize("name", [None, "foo"])
