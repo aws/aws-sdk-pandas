@@ -5,15 +5,22 @@ from datetime import datetime, timedelta, timezone
 
 import boto3
 import numpy as np
-import pandas as pd
 import pyarrow as pa
 import pytest
 
 import awswrangler as wr
+from awswrangler._distributed import EngineEnum, MemoryFormatEnum
 
-from .._utils import ensure_data_types, get_df_list
+if wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN:
+    import modin.pandas as pd
+else:
+    import pandas as pd
+
+from .._utils import ensure_data_types, get_df_list, pandas_equals, to_pandas
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
+
+pytestmark = pytest.mark.distributed
 
 
 @pytest.mark.parametrize("partition_cols", [None, ["c2"], ["c1", "c2"]])
@@ -367,12 +374,15 @@ def test_range_index_recovery_simple(path, use_threads):
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 @pytest.mark.parametrize("name", [None, "foo"])
 def test_range_index_recovery_pandas(path, use_threads, name):
+    # Import pandas because modin.to_parquet does not preserve index.name when writing parquet
+    import pandas as pd
+
     df = pd.DataFrame({"c0": np.arange(10, 15, 1)}, dtype="Int64", index=pd.RangeIndex(start=5, stop=30, step=5))
     df.index.name = name
     path_file = f"{path}0.parquet"
     df.to_parquet(path_file)
-    df2 = wr.s3.read_parquet([path_file], use_threads=use_threads, pyarrow_additional_kwargs={"ignore_metadata": False})
-    assert df.reset_index(level=0).equals(df2.reset_index(level=0))
+    df2 = wr.s3.read_parquet(path_file, use_threads=use_threads, pyarrow_additional_kwargs={"ignore_metadata": False})
+    assert pandas_equals(df.reset_index(level=0), df2.reset_index(level=0))
 
 
 @pytest.mark.xfail(raises=AssertionError, reason="Index equality regression")
@@ -409,7 +419,7 @@ def test_index_columns(path, use_threads, name, pandas):
         df.to_parquet(path_file, index=True)
     else:
         wr.s3.to_parquet(df, path_file, index=True)
-    df2 = wr.s3.read_parquet([path_file], columns=["c0"], use_threads=use_threads)
+    df2 = wr.s3.read_parquet(path_file, columns=["c0"], use_threads=use_threads)
     assert df[["c0"]].equals(df2)
 
 
@@ -419,19 +429,21 @@ def test_index_columns(path, use_threads, name, pandas):
 @pytest.mark.parametrize("pandas", [True, False])
 @pytest.mark.parametrize("drop", [True, False])
 def test_range_index_columns(path, use_threads, name, pandas, drop):
+    if wr.memory_format.get() == MemoryFormatEnum.MODIN and not pandas:
+        pytest.skip("Skip due to Modin data frame index not saved as a named column")
     df = pd.DataFrame({"c0": [0, 1], "c1": [2, 3]}, dtype="Int64", index=pd.RangeIndex(start=5, stop=7, step=1))
     df.index.name = name
     path_file = f"{path}0.parquet"
     if pandas:
+        # Convert to pandas because modin.to_parquet() does not preserve index name
+        df = to_pandas(df)
         df.to_parquet(path_file, index=True)
     else:
         wr.s3.to_parquet(df, path_file, index=True)
-
     name = "__index_level_0__" if name is None else name
     columns = ["c0"] if drop else [name, "c0"]
-    df2 = wr.s3.read_parquet([path_file], columns=columns, use_threads=use_threads)
-
-    assert df[["c0"]].reset_index(level=0, drop=drop).equals(df2.reset_index(level=0, drop=drop))
+    df2 = wr.s3.read_parquet(path_file, columns=columns, use_threads=use_threads)
+    assert pandas_equals(df[["c0"]].reset_index(level=0, drop=drop), df2.reset_index(level=0, drop=drop))
 
 
 def test_to_parquet_dataset_sanitize(path):
@@ -483,10 +495,13 @@ def test_timezone_raw_values(path):
     df["c4"] = pd.to_datetime(datetime(2011, 11, 4, 0, 5, 23, tzinfo=timezone(timedelta(hours=-8))))
     wr.s3.to_parquet(partition_cols=["par"], df=df, path=path, dataset=True, sanitize_columns=False)
     df2 = wr.s3.read_parquet(path, dataset=True, use_threads=False)
-    df3 = pd.read_parquet(path)
+    # Use pandas to read because of Modin "Internal Error: Internal and external indices on axis 1 do not match."
+    import pandas
+
+    df3 = pandas.read_parquet(path)
     df2["par"] = df2["par"].astype("string")
     df3["par"] = df3["par"].astype("string")
-    assert df2.equals(df3)
+    assert pandas_equals(df2, df3)
 
 
 @pytest.mark.parametrize("partition_cols", [None, ["a"], ["a", "b"]])
@@ -505,7 +520,7 @@ def test_empty_column(path, use_threads):
     wr.s3.to_parquet(df, path, dataset=True, partition_cols=["par"])
     df2 = wr.s3.read_parquet(path, dataset=True, use_threads=use_threads)
     df2["par"] = df2["par"].astype("string")
-    assert df.equals(df2)
+    assert pandas_equals(df, df2)
 
 
 def test_mixed_types_column(path) -> None:
@@ -535,7 +550,7 @@ def test_empty_file(path, use_threads):
     boto3.client("s3").put_object(Body=b"", Bucket=bucket, Key=key)
     df2 = wr.s3.read_parquet(path, dataset=True, use_threads=use_threads)
     df2["par"] = df2["par"].astype("string")
-    assert df.equals(df2)
+    assert pandas_equals(df, df2)
 
 
 def test_read_chunked(path):

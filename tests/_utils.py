@@ -7,6 +7,7 @@ from typing import Any, Dict, Iterator
 
 import boto3
 import botocore.exceptions
+from pandas import DataFrame as PandasDataFrame
 
 import awswrangler as wr
 from awswrangler._distributed import EngineEnum, MemoryFormatEnum
@@ -14,6 +15,7 @@ from awswrangler._utils import try_it
 
 if wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN:
     import modin.pandas as pd
+    from modin.pandas import DataFrame as ModinDataFrame
 else:
     import pandas as pd
 
@@ -433,3 +435,22 @@ def create_workgroup(wkg_name, config):
             Description=f"AWS SDK for pandas Test - {wkg_name}",
         )
     return wkg_name
+
+
+def to_pandas(df: pd.DataFrame) -> PandasDataFrame:
+    """
+    Convert Modin data frames to pandas for comparison
+    """
+    if isinstance(df, PandasDataFrame):
+        return df
+    elif wr.memory_format.get() == MemoryFormatEnum.MODIN and isinstance(df, ModinDataFrame):
+        return df._to_pandas()
+    raise ValueError("Unknown data frame type %s", type(df))
+
+
+def pandas_equals(df1: pd.DataFrame, df2: pd.DataFrame) -> bool:
+    """
+    Check data frames for equality converting them to pandas first
+    """
+    df1, df2 = to_pandas(df1), to_pandas(df2)
+    return df1.equals(df2)
