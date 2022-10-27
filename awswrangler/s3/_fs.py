@@ -555,7 +555,7 @@ def open_s3_object(
     newline: Optional[str] = "\n",
     encoding: Optional[str] = "utf-8",
 ) -> Iterator[Union[_S3ObjectBase, io.TextIOWrapper]]:
-    """Return a _S3Object or TextIOWrapper based in the received mode."""
+    """Return a _S3Object or TextIOWrapper based on the received mode."""
     s3obj: Optional[_S3ObjectBase] = None
     text_s3obj: Optional[io.TextIOWrapper] = None
     try:
