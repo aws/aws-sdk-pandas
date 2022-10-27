@@ -225,7 +225,7 @@ def read_csv(
         This function MUST return a bool, True to read the partition or False to ignore it.
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
-        https://aws-sdk-pandas.readthedocs.io/en/3.0.0b3/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc1/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
     parallelism : int, optional
         The requested parallelism of the read. Only used when `distributed` add-on is installed.
         Parallelism may be limited by the number of files of the dataset. 200 by default.
@@ -378,7 +378,7 @@ def read_fwf(
         This function MUST return a bool, True to read the partition or False to ignore it.
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
-        https://aws-sdk-pandas.readthedocs.io/en/3.0.0b3/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc1/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
     parallelism : int, optional
         The requested parallelism of the read. Only used when `distributed` add-on is installed.
         Parallelism may be limited by the number of files of the dataset. 200 by default.
@@ -535,7 +535,7 @@ def read_json(
         This function MUST return a bool, True to read the partition or False to ignore it.
         Ignored if `dataset=False`.
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
-        https://aws-sdk-pandas.readthedocs.io/en/3.0.0b3/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
+        https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc1/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
     parallelism : int, optional
         The requested parallelism of the read. Only used when `distributed` add-on is installed.
         Parallelism may be limited by the number of files of the dataset. 200 by default.
