@@ -20,6 +20,8 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 pytestmark = pytest.mark.distributed
 
+is_ray_modin = wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN
+
 
 @pytest.mark.parametrize("use_threads", [True, False])
 @pytest.mark.parametrize("concurrent_partitioning", [True, False])
@@ -193,6 +195,9 @@ def test_csv_overwrite_several_partitions(path, glue_database, glue_table, use_t
         assert df2["par"].sum() == df["par"].sum()
 
 
+@pytest.mark.xfail(
+    is_ray_modin, raises=wr.exceptions.InvalidArgumentCombination, reason="Ray can't load frame with no header"
+)
 def test_csv_dataset(path, glue_database):
     with pytest.raises(wr.exceptions.UndetectedType):
         wr.s3.to_csv(pd.DataFrame({"A": [None]}), path, dataset=True, database=glue_database, table="test_csv_dataset")

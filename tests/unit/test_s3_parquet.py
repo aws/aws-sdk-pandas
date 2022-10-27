@@ -22,6 +22,8 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 pytestmark = pytest.mark.distributed
 
+is_ray_modin = wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN
+
 
 @pytest.mark.parametrize("partition_cols", [None, ["c2"], ["c1", "c2"]])
 def test_parquet_metadata_partitions_dataset(path, partition_cols):
@@ -312,7 +314,7 @@ def test_parquet_with_size(path, use_threads, max_rows_by_file):
     assert df.iint8.sum() == df2.iint8.sum()
 
 
-@pytest.mark.xfail(raises=AssertionError, reason="Index equality regression")
+@pytest.mark.xfail(is_ray_modin, raises=AssertionError, reason="Index equality regression")
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_index_and_timezone(path, use_threads):
     df = pd.DataFrame({"c0": [datetime.utcnow(), datetime.utcnow()], "par": ["a", "b"]}, index=["foo", "boo"])
@@ -322,7 +324,7 @@ def test_index_and_timezone(path, use_threads):
     assert df[["c0", "c1"]].equals(df2[["c0", "c1"]])
 
 
-@pytest.mark.xfail(raises=AssertionError, reason="Index equality regression")
+@pytest.mark.xfail(is_ray_modin, raises=AssertionError, reason="Index equality regression")
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_index_recovery_simple_int(path, use_threads):
     df = pd.DataFrame({"c0": np.arange(10, 1_010, 1)}, dtype="Int64")
@@ -332,7 +334,7 @@ def test_index_recovery_simple_int(path, use_threads):
     assert df.equals(df2)
 
 
-@pytest.mark.xfail(raises=AssertionError, reason="Index equality regression")
+@pytest.mark.xfail(is_ray_modin, raises=AssertionError, reason="Index equality regression")
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_index_recovery_simple_str(path, use_threads):
     df = pd.DataFrame({"c0": [0, 1, 2, 3, 4]}, index=["a", "b", "c", "d", "e"], dtype="Int64")
@@ -342,7 +344,7 @@ def test_index_recovery_simple_str(path, use_threads):
     assert df.equals(df2)
 
 
-@pytest.mark.xfail(raises=AssertionError, reason="Index equality regression")
+@pytest.mark.xfail(is_ray_modin, raises=AssertionError, reason="Index equality regression")
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_index_recovery_partitioned_str(path, use_threads):
     df = pd.DataFrame(
