@@ -1,4 +1,4 @@
-"""Ray ParquetDatasource Module."""
+"""Ray ArrowParquetDatasource Module."""
 
 import logging
 from typing import Any, Callable, Dict, Iterator, List, Optional, Union
@@ -86,7 +86,7 @@ def _read_pieces(
 ray.data.datasource.parquet_datasource._read_pieces = _read_pieces  # pylint: disable=protected-access
 
 
-class ParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abstract-method
+class ArrowParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abstract-method
     """Parquet datasource, for reading and writing Parquet files."""
 
     _FILE_EXTENSION = "parquet"

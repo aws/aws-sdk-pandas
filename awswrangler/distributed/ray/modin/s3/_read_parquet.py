@@ -6,7 +6,7 @@ import modin.pandas as pd
 import pyarrow as pa
 from ray.data import read_datasource
 
-from awswrangler.distributed.ray.datasources import ParquetDatasource
+from awswrangler.distributed.ray.datasources import ArrowParquetDatasource
 from awswrangler.distributed.ray.modin._utils import _to_modin
 
 
@@ -27,7 +27,7 @@ def _read_parquet_distributed(  # pylint: disable=unused-argument
     if coerce_int96_timestamp_unit:
         dataset_kwargs["coerce_int96_timestamp_unit"] = coerce_int96_timestamp_unit
     dataset = read_datasource(
-        datasource=ParquetDatasource(),  # type: ignore
+        datasource=ArrowParquetDatasource(),  # type: ignore
         parallelism=parallelism,
         use_threads=use_threads,
         paths=paths,
