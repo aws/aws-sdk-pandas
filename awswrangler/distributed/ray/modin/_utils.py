@@ -8,6 +8,7 @@ import ray
 from modin.distributed.dataframe.pandas import from_partitions
 from ray.data._internal.arrow_block import ArrowBlockAccessor, ArrowRow
 from ray.data._internal.remote_fn import cached_remote_fn
+from ray.types import ObjectRef
 
 from awswrangler import exceptions
 from awswrangler._arrow import _table_to_df
@@ -41,6 +42,11 @@ def _to_modin(
         axis=0,
         index=index,
     )
+
+
+def _split_modin_frame(df: modin_pd.DataFrame, splits: int) -> List[ObjectRef[Any]]:  # pylint: disable=unused-argument
+    object_refs: List[ObjectRef[Any]] = ray.data.from_modin(df).get_internal_block_refs()
+    return object_refs
 
 
 def _arrow_refs_to_df(arrow_refs: List[Callable[..., Any]], kwargs: Optional[Dict[str, Any]]) -> modin_pd.DataFrame:

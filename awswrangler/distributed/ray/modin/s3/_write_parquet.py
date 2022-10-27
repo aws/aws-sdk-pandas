@@ -10,7 +10,7 @@ from modin.pandas import DataFrame as ModinDataFrame
 from ray.data import from_modin, from_pandas
 from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
 
-from awswrangler.distributed.ray.datasources import ParquetDatasource, UserProvidedKeyBlockWritePathProvider
+from awswrangler.distributed.ray.datasources import ArrowParquetDatasource, UserProvidedKeyBlockWritePathProvider
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -49,7 +49,7 @@ def _to_parquet_distributed(  # pylint: disable=unused-argument
     # Repartition by max_rows_by_file
     elif max_rows_by_file and (max_rows_by_file > 0):
         ds = ds.repartition(math.ceil(ds.count() / max_rows_by_file))
-    datasource = ParquetDatasource()
+    datasource = ArrowParquetDatasource()
     ds.write_datasource(
         datasource,  # type: ignore
         path=path or path_root,

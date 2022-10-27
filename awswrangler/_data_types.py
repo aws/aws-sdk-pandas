@@ -779,14 +779,12 @@ def database_types_from_pandas(
     return database_types
 
 
-def timestream_type_from_pandas(df: pd.DataFrame) -> str:
+def timestream_type_from_pandas(df: pd.DataFrame) -> List[str]:
     """Extract Amazon Timestream types from a Pandas DataFrame."""
-    pyarrow_types: Dict[str, Optional[pa.DataType]] = pyarrow_types_from_pandas(df=df, index=False, ignore_cols=[])
-    if len(pyarrow_types) != 1 or list(pyarrow_types.values())[0] is None:
-        raise RuntimeError(f"Invalid pyarrow_types: {pyarrow_types}")
-    pyarrow_type: pa.DataType = list(pyarrow_types.values())[0]
-    _logger.debug("pyarrow_type: %s", pyarrow_type)
-    return pyarrow2timestream(dtype=pyarrow_type)
+    return [
+        pyarrow2timestream(pyarrow_type)
+        for pyarrow_type in pyarrow_types_from_pandas(df=df, index=False, ignore_cols=[]).values()
+    ]
 
 
 def get_arrow_timestamp_unit(data_type: pa.lib.DataType) -> Any:
