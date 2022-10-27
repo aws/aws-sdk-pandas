@@ -62,12 +62,15 @@ jobs:
           }
           EOT
           python -m pip install --upgrade pip
-          python -m pip install poetry==1.2.2
-          poetry config virtualenvs.create false --local
+          curl -sSL https://install.python-poetry.org | python - --version 1.2.2
+          poetry env use python
+          poetry env info
+          source $(poetry env info --path)/bin/activate
           poetry install -vvv
       - name: CDK Synth
         run: |
           cd test_infra
+          source $(poetry env info --path)/bin/activate
           cdk synth
       - uses: stelligent/cfn_nag@master
         with:
