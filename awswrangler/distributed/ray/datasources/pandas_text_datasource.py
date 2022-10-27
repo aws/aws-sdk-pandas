@@ -103,7 +103,7 @@ class PandasCSVDataSource(PandasTextDatasource):  # pylint: disable=abstract-met
         pandas_kwargs: Dict[str, Any],
         **reader_args: Any,
     ) -> Iterator[pd.DataFrame]:  # type: ignore
-        pandas_header_arg = pandas_kwargs.get("header", None)
+        pandas_header_arg = pandas_kwargs.get("header", "infer")
         pandas_names_arg = pandas_kwargs.get("names", None)
 
         if pandas_header_arg is None and not pandas_names_arg:
