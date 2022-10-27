@@ -73,6 +73,12 @@ def test_parquet_catalog(path, path2, glue_table, glue_table2, glue_database):
 def test_file_size(path, glue_table, glue_database, use_threads, max_rows_by_file, partition_cols):
     df = get_df_list()
     df = pd.concat([df for _ in range(100)])
+
+    # workaround for https://github.com/modin-project/modin/issues/5164
+    if wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN:
+        vanilla_pandas = df._to_pandas()
+        df = pd.DataFrame(vanilla_pandas)
+
     paths = wr.s3.to_parquet(
         df=df,
         path=path,
