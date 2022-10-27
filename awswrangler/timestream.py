@@ -101,7 +101,7 @@ def _write_df(
     measure_cols_names: List[str],
     measure_types: List[str],
     version: int,
-    boto3_session: Optional[boto3.Session] = None,
+    boto3_session: Optional[boto3.Session],
 ) -> List[Dict[str, str]]:
     batches: List[List[Any]] = _utils.chunkify(lst=_df2list(df=df), max_length=100)
     _logger.debug("len(batches): %s", len(batches))
