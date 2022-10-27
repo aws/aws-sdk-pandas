@@ -1,12 +1,19 @@
 import logging
 from datetime import datetime
 
-import pandas as pd
 import pytest
 
 import awswrangler as wr
+from awswrangler._distributed import EngineEnum, MemoryFormatEnum
+
+if wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN:
+    import modin.pandas as pd
+else:
+    import pandas as pd
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
+
+pytestmark = pytest.mark.distributed
 
 
 @pytest.mark.parametrize("pagination", [None, {}, {"MaxItems": 3, "PageSize": 2}])
@@ -168,51 +175,6 @@ def test_versioned(timestream_database_and_table):
         """
         )
         assert df_out.shape == (3, 5)
-
-
-def test_real_csv_load_scenario(timestream_database_and_table):
-    name = timestream_database_and_table
-    df = pd.read_csv(
-        "https://raw.githubusercontent.com/awslabs/amazon-timestream-tools/mainline/sample_apps/data/sample.csv",
-        names=[
-            "ignore0",
-            "region",
-            "ignore1",
-            "az",
-            "ignore2",
-            "hostname",
-            "measure_kind",
-            "measure",
-            "ignore3",
-            "ignore4",
-            "ignore5",
-        ],
-        usecols=["region", "az", "hostname", "measure_kind", "measure"],
-    )
-    df["time"] = datetime.now()
-    df.reset_index(inplace=True, drop=False)
-    df_cpu = df[df.measure_kind == "cpu_utilization"]
-    df_memory = df[df.measure_kind == "memory_utilization"]
-    rejected_records = wr.timestream.write(
-        df=df_cpu,
-        database=name,
-        table=name,
-        time_col="time",
-        measure_col="measure",
-        dimensions_cols=["index", "region", "az", "hostname"],
-    )
-    assert len(rejected_records) == 0
-    rejected_records = wr.timestream.write(
-        df=df_memory,
-        database=name,
-        table=name,
-        time_col="time",
-        measure_col="measure",
-        dimensions_cols=["index", "region", "az", "hostname"],
-    )
-    assert len(rejected_records) == 0
-    df = wr.timestream.query(f'SELECT COUNT(*) AS counter FROM "{name}"."{name}"')
-    assert df["counter"].iloc[0] == 126_000
 
 
 def test_multimeasure_scenario(timestream_database_and_table):

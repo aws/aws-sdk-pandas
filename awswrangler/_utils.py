@@ -409,6 +409,12 @@ def check_schema_changes(columns_types: Dict[str, str], table_input: Optional[Di
 
 
 @engine.dispatch_on_engine
+def split_pandas_frame(df: pd.DataFrame, splits: int) -> List[pd.DataFrame]:
+    """Split a DataFrame into n chunks."""
+    return [sub_df for sub_df in np.array_split(df, splits) if not sub_df.empty]  # type: ignore
+
+
+@engine.dispatch_on_engine
 def table_refs_to_df(tables: List[pa.Table], kwargs: Dict[str, Any]) -> pd.DataFrame:  # type: ignore
     """Build Pandas dataframe from list of PyArrow tables."""
     return _table_to_df(pa.concat_tables(tables, promote=True), kwargs=kwargs)

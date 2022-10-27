@@ -1,6 +1,5 @@
 """Amazon Timestream Module."""
 
-import concurrent.futures
 import itertools
 import logging
 from datetime import datetime
@@ -11,8 +10,15 @@ import pandas as pd
 from botocore.config import Config
 
 from awswrangler import _data_types, _utils
+from awswrangler._distributed import engine
+from awswrangler._threading import _get_executor
+from awswrangler.distributed.ray import ray_get
 
 _logger: logging.Logger = logging.getLogger(__name__)
+
+
+def _flatten_list(elements: List[List[Any]]) -> List[Any]:
+    return [item for sublist in elements for item in sublist]
 
 
 def _df2list(df: pd.DataFrame) -> List[List[Any]]:
@@ -27,7 +33,9 @@ def _df2list(df: pd.DataFrame) -> List[List[Any]]:
     return parameters
 
 
+@engine.dispatch_on_engine
 def _write_batch(
+    boto3_session: Optional[boto3.Session],
     database: str,
     table: str,
     cols_names: List[str],
@@ -35,9 +43,7 @@ def _write_batch(
     measure_types: List[str],
     version: int,
     batch: List[Any],
-    boto3_primitives: _utils.Boto3PrimitivesType,
 ) -> List[Dict[str, str]]:
-    boto3_session: boto3.Session = _utils.boto3_from_primitives(primitives=boto3_primitives)
     client: boto3.client = _utils.client(
         service_name="timestream-write",
         session=boto3_session,
@@ -83,6 +89,33 @@ def _write_batch(
     except client.exceptions.RejectedRecordsException as ex:
         return cast(List[Dict[str, str]], ex.response["RejectedRecords"])
     return []
+
+
+@engine.dispatch_on_engine
+def _write_df(
+    df: pd.DataFrame,
+    executor: Any,
+    database: str,
+    table: str,
+    cols_names: List[str],
+    measure_cols_names: List[str],
+    measure_types: List[str],
+    version: int,
+    boto3_session: Optional[boto3.Session],
+) -> List[Dict[str, str]]:
+    batches: List[List[Any]] = _utils.chunkify(lst=_df2list(df=df), max_length=100)
+    _logger.debug("len(batches): %s", len(batches))
+    return executor.map(  # type: ignore
+        _write_batch,
+        boto3_session,
+        itertools.repeat(database),
+        itertools.repeat(table),
+        itertools.repeat(cols_names),
+        itertools.repeat(measure_cols_names),
+        itertools.repeat(measure_types),
+        itertools.repeat(version),
+        batches,
+    )
 
 
 def _cast_value(value: str, dtype: str) -> Any:  # pylint: disable=too-many-branches,too-many-return-statements
@@ -173,14 +206,18 @@ def write(
     measure_col: Union[str, List[str]],
     dimensions_cols: List[str],
     version: int = 1,
-    num_threads: int = 32,
+    use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
 ) -> List[Dict[str, str]]:
     """Store a Pandas DataFrame into a Amazon Timestream table.
 
+    Note
+    ----
+    In case `use_threads=True`, the number of threads from os.cpu_count() is used.
+
     Parameters
     ----------
-    df: pandas.DataFrame
+    df : pandas.DataFrame
         Pandas DataFrame https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
     database : str
         Amazon Timestream database name.
@@ -195,8 +232,10 @@ def write(
     version : int
         Version number used for upserts.
         Documentation https://docs.aws.amazon.com/timestream/latest/developerguide/API_WriteRecords.html.
-    num_threads : str
-        Number of thread to be used for concurrent writing.
+    use_threads : bool, int
+        True to enable concurrent writing, False to disable multiple threads.
+        If enabled, os.cpu_count() is used as the number of threads.
+        If integer is provided, specified number is used.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
 
@@ -232,29 +271,33 @@ def write(
     """
     measure_cols_names: List[str] = measure_col if isinstance(measure_col, list) else [measure_col]
     _logger.debug("measure_cols_names: %s", measure_cols_names)
-    measure_types: List[str] = [
-        _data_types.timestream_type_from_pandas(df[[measure_col_name]]) for measure_col_name in measure_cols_names
-    ]
+    measure_types: List[str] = _data_types.timestream_type_from_pandas(df.loc[:, measure_cols_names])
     _logger.debug("measure_types: %s", measure_types)
     cols_names: List[str] = [time_col] + measure_cols_names + dimensions_cols
     _logger.debug("cols_names: %s", cols_names)
-    batches: List[List[Any]] = _utils.chunkify(lst=_df2list(df=df[cols_names]), max_length=100)
-    _logger.debug("len(batches): %s", len(batches))
-    with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
-        res: List[List[Any]] = list(
-            executor.map(
-                _write_batch,
-                itertools.repeat(database),
-                itertools.repeat(table),
-                itertools.repeat(cols_names),
-                itertools.repeat(measure_cols_names),
-                itertools.repeat(measure_types),
-                itertools.repeat(version),
-                batches,
-                itertools.repeat(_utils.boto3_to_primitives(boto3_session=boto3_session)),
-            )
+    dfs = _utils.split_pandas_frame(df.loc[:, cols_names], _utils.ensure_cpu_count(use_threads=use_threads))
+    _logger.debug("len(dfs): %s", len(dfs))
+
+    executor = _get_executor(use_threads=use_threads)
+    errors = _flatten_list(
+        ray_get(
+            [
+                _write_df(
+                    df=df,
+                    executor=executor,
+                    database=database,
+                    table=table,
+                    cols_names=cols_names,
+                    measure_cols_names=measure_cols_names,
+                    measure_types=measure_types,
+                    version=version,
+                    boto3_session=boto3_session,
+                )
+                for df in dfs
+            ]
         )
-        return [item for sublist in res for item in sublist]
+    )
+    return _flatten_list(ray_get(errors))
 
 
 def query(

@@ -128,6 +128,7 @@ As a result existing scripts can run on significantly larger datasets with no co
 |    | `unload`                                               | ✅ |
 |  `Athena`    | `read_sql_query`                                               | ✅ |
 |  `LakeFormation`    | `read_sql_query`                                               | ✅ |
+|  `Timestream`    | `write`                                               | ✅ |
 </p>
 
 ## [Read The Docs](https://aws-sdk-pandas.readthedocs.io/)
