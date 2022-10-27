@@ -32,6 +32,8 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 pytestmark = pytest.mark.distributed
 
+is_ray_modin = wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN
+
 
 def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database, glue_ctas_database, kms_key):
     df = get_df_list()
@@ -212,6 +214,7 @@ def test_athena_create_ctas(path, glue_table, glue_table2, glue_database, glue_c
     ensure_athena_ctas_table(ctas_query_info=ctas_query_info, boto3_session=boto3_session)
 
 
+@pytest.mark.xfail(is_ray_modin, raises=AssertionError, reason="Index equality regression")
 def test_athena(path, glue_database, glue_table, kms_key, workgroup0, workgroup1):
     wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
     wr.s3.to_parquet(
