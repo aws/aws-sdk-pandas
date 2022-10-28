@@ -15,7 +15,7 @@ import pyarrow.parquet
 from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation
 from awswrangler._arrow import _df_to_table
 from awswrangler._config import apply_configs
-from awswrangler._distributed import engine
+from awswrangler._distributed import EngineEnum, engine
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._read_parquet import _read_parquet_metadata
@@ -593,8 +593,11 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
             commit_trans = True
 
     df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
+
+    # Index of DataFrame cannot be used when using Ray and Modin
+    parse_schema_with_index = index and engine.get() != EngineEnum.RAY
     schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(
-        df=df, index=index, ignore_cols=partition_cols, dtype=dtype
+        df=df, index=parse_schema_with_index, ignore_cols=partition_cols, dtype=dtype
     )
     _logger.debug("schema: \n%s", schema)
 
