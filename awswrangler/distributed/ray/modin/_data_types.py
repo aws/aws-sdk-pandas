@@ -9,7 +9,7 @@ from awswrangler._data_types import pyarrow_types_from_pandas
 from awswrangler.distributed.ray import ray_get, ray_remote
 
 
-def pyarrow_types_from_pandas_distributed(  # pylint: disable=unused-argument
+def pyarrow_types_from_pandas_distributed(
     df: pd.DataFrame, index: bool, ignore_cols: Optional[List[str]] = None, index_left: bool = False
 ) -> Dict[str, pa.DataType]:
     """Extract the related Pyarrow data types from a pandas DataFrame."""
@@ -18,7 +18,7 @@ def pyarrow_types_from_pandas_distributed(  # pylint: disable=unused-argument
     return ray_get(  # type: ignore
         func(
             df=first_block_object_ref,
-            index=False,  # indices don't work with distributed Wrangler anyway
+            index=index,
             ignore_cols=ignore_cols,
             index_left=index_left,
         )
