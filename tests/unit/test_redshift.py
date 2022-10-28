@@ -22,6 +22,7 @@ from .._utils import (
     get_df_category,
     is_ray_modin,
     pandas_equals,
+    to_pandas,
     ts,
 )
 
@@ -31,6 +32,8 @@ else:
     import pandas as pd
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
+
+pytestmark = pytest.mark.distributed
 
 
 @pytest.fixture(scope="function")
@@ -711,31 +714,15 @@ def test_upsert(redshift_table, redshift_con):
     assert len(df.columns) == len(df4.columns)
 
 
-def upsert_in_pandas(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
-    import modin.pandas as modin_pd
-    import pandas as pd
-
-    if is_ray_modin:
-        df1 = df1._to_pandas()
-        df2 = df2._to_pandas()
-
-    df_m = pd.merge(df1, df2, on="id", how="outer")
-    df_m["val"] = np.where(df_m["val_y"] >= df_m["val_x"], df_m["val_y"], df_m["val_x"])
-    df_m["val"] = df_m["val"].fillna(df_m["val_y"])
-    df_m = df_m.drop(columns=["val_x", "val_y"])
-
-    if is_ray_modin:
-        return modin_pd.DataFrame(df_m)
-
-    return df_m
-
-
 def test_upsert_precombine(redshift_table, redshift_con):
     df = pd.DataFrame({"id": list((range(10))), "val": list([1.0 if i % 2 == 0 else 10.0 for i in range(10)])})
     df3 = pd.DataFrame({"id": list((range(6, 14))), "val": list([10.0 if i % 2 == 0 else 1.0 for i in range(8)])})
 
-    # Do upsert in pandas. Fillna does not work in Modin, so we need to cast it to Pandas
-    df_m = upsert_in_pandas(df, df3)
+    # Do upsert in pandas
+    df_m = to_pandas(pd.merge(df, df3, on="id", how="outer"))
+    df_m["val"] = np.where(df_m["val_y"] >= df_m["val_x"], df_m["val_y"], df_m["val_x"])
+    df_m["val"] = df_m["val"].fillna(df_m["val_y"])
+    df_m = df_m.drop(columns=["val_x", "val_y"])
 
     # CREATE
     wr.redshift.to_sql(
@@ -1044,7 +1031,7 @@ def test_column_length(path, redshift_table, redshift_con, databases_parameters)
         primary_keys=["a"],
     )
     df2 = wr.redshift.read_sql_query(sql=f"SELECT * FROM public.{redshift_table}", con=redshift_con)
-    assert pandas_equals(df2, df)
+    assert pandas_equals(df, df2)
 
 
 def test_failed_keep_files(path, redshift_table, redshift_con, databases_parameters):
