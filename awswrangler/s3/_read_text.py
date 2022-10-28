@@ -28,7 +28,9 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def _get_read_details(path: str, pandas_kwargs: Dict[str, Any]) -> Tuple[str, Optional[str], Optional[str]]:
     if pandas_kwargs.get("compression", "infer") == "infer":
         pandas_kwargs["compression"] = infer_compression(path, compression="infer")
-    mode: str = "r" if pandas_kwargs.get("compression") is None else "rb"
+    mode: str = (
+        "r" if pandas_kwargs.get("compression") is None and pandas_kwargs.get("encoding_errors") != "ignore" else "rb"
+    )
     encoding: Optional[str] = pandas_kwargs.get("encoding", "utf-8")
     newline: Optional[str] = pandas_kwargs.get("lineterminator", None)
     return mode, encoding, newline
@@ -249,7 +251,7 @@ def read_csv(
         E.g ``lambda x: True if x["year"] == "2020" and x["month"] == "1" else False``
         https://aws-sdk-pandas.readthedocs.io/en/2.17.0/tutorials/023%20-%20Flexible%20Partitions%20Filter.html
     pandas_kwargs :
-        KEYWORD arguments forwarded to pandas.read_csv(). You can NOT pass `pandas_kwargs` explicit, just add valid
+        KEYWORD arguments forwarded to pandas.read_csv(). You can NOT pass `pandas_kwargs` explicitly, just add valid
         Pandas arguments in the function call and awswrangler will accept it.
         e.g. wr.s3.read_csv('s3://bucket/prefix/', sep='|', na_values=['null', 'none'], skip_blank_lines=True)
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
@@ -292,7 +294,7 @@ def read_csv(
     """
     if "pandas_kwargs" in pandas_kwargs:
         raise exceptions.InvalidArgument(
-            "You can NOT pass `pandas_kwargs` explicit, just add valid "
+            "You can NOT pass `pandas_kwargs` explicitly, just add valid "
             "Pandas arguments in the function call and awswrangler will accept it."
             "e.g. wr.s3.read_csv('s3://bucket/prefix/', sep='|', skip_blank_lines=True)"
         )
