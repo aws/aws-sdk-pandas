@@ -7,11 +7,10 @@ import pyarrow as pa
 import pytest
 
 import awswrangler as wr
-from awswrangler._distributed import EngineEnum, MemoryFormatEnum
 
-from .._utils import ensure_data_types_csv, get_df_csv
+from .._utils import ensure_data_types_csv, get_df_csv, is_ray_modin
 
-if wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN:
+if is_ray_modin:
     import modin.pandas as pd
 else:
     import pandas as pd
@@ -19,8 +18,6 @@ else:
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 pytestmark = pytest.mark.distributed
-
-is_ray_modin = wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN
 
 
 @pytest.mark.parametrize("use_threads", [True, False])
@@ -455,7 +452,6 @@ def test_csv_compressed(path, glue_table, glue_database, use_threads, concurrent
             concurrent_partitioning=concurrent_partitioning,
             compression=compression,
         )
-        print("DF SHAPE", df.shape)
         df2 = wr.athena.read_sql_table(glue_table, glue_database)
         assert df2.shape == (3, 11)
         assert df2["id"].sum() == 6

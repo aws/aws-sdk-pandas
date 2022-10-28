@@ -8,7 +8,6 @@ import pytest
 from pandas import DataFrame as PandasDataFrame
 
 import awswrangler as wr
-from awswrangler._distributed import EngineEnum, MemoryFormatEnum
 
 from .._utils import (
     ensure_athena_ctas_table,
@@ -20,10 +19,11 @@ from .._utils import (
     get_df_list,
     get_df_txt,
     get_time_str_with_random_suffix,
+    is_ray_modin,
     pandas_equals,
 )
 
-if wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN:
+if is_ray_modin:
     import modin.pandas as pd
 else:
     import pandas as pd
@@ -31,8 +31,6 @@ else:
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 pytestmark = pytest.mark.distributed
-
-is_ray_modin = wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN
 
 
 def test_athena_ctas(path, path2, path3, glue_table, glue_table2, glue_database, glue_ctas_database, kms_key):

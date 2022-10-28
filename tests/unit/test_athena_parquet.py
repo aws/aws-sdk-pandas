@@ -10,11 +10,10 @@ import pytest
 
 import awswrangler as wr
 from awswrangler._data_types import _split_fields
-from awswrangler._distributed import EngineEnum, MemoryFormatEnum
 
-from .._utils import ensure_data_types, get_df, get_df_cast, get_df_list, pandas_equals
+from .._utils import ensure_data_types, get_df, get_df_cast, get_df_list, is_ray_modin, pandas_equals
 
-if wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN:
+if is_ray_modin:
     import modin.pandas as pd
 else:
     import pandas as pd
@@ -22,8 +21,6 @@ else:
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 pytestmark = pytest.mark.distributed
-
-is_ray_modin = wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN
 
 
 @pytest.mark.xfail(is_ray_modin, raises=AssertionError, reason="Index equality regression")
@@ -78,7 +75,7 @@ def test_file_size(path, glue_table, glue_database, use_threads, max_rows_by_fil
     df = pd.concat([df for _ in range(100)])
 
     # workaround for https://github.com/modin-project/modin/issues/5164
-    if wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN:
+    if is_ray_modin:
         vanilla_pandas = df._to_pandas()
         df = pd.DataFrame(vanilla_pandas)
 

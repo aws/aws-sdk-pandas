@@ -14,7 +14,9 @@ import awswrangler as wr
 from awswrangler._distributed import EngineEnum, MemoryFormatEnum
 from awswrangler._utils import try_it
 
-if wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN:
+is_ray_modin = wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN
+
+if is_ray_modin:
     import modin.pandas as pd
     from modin.pandas import DataFrame as ModinDataFrame
     from modin.pandas import Series as ModinSeries
