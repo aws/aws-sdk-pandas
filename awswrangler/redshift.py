@@ -219,6 +219,7 @@ def _validate_parameters(
     distkey: Optional[str],
     sortstyle: str,
     sortkey: Optional[List[str]],
+    primary_keys: Optional[List[str]],
 ) -> None:
     if diststyle not in _RS_DISTSTYLES:
         raise exceptions.InvalidRedshiftDiststyle(f"diststyle must be in {_RS_DISTSTYLES}")
@@ -240,6 +241,10 @@ def _validate_parameters(
                 raise exceptions.InvalidRedshiftSortkey(
                     f"sortkey must be a List of items in the columns list: {cols}. " f"Currently value: {key}"
                 )
+    if not isinstance(primary_keys, list):
+        raise exceptions.InvalidArgumentType(
+            f"primary keys should be of type list[str]. Current value: {primary_keys} is of type {type(primary_keys)}"
+        )
 
 
 def _redshift_types_from_path(
@@ -379,6 +384,7 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-man
         distkey=distkey,
         sortstyle=sortstyle,
         sortkey=sortkey,
+        primary_keys=primary_keys,
     )
     cols_str: str = "".join([f'"{k}" {v},\n' for k, v in redshift_types.items()])[:-2]
     primary_keys_str: str = f",\nPRIMARY KEY ({', '.join(primary_keys)})" if primary_keys else ""
