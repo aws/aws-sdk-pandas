@@ -244,7 +244,10 @@ def _validate_parameters(
     if primary_keys:
         if not isinstance(primary_keys, list):
             raise exceptions.InvalidArgumentType(
-                f"primary keys should be of type list[str]. Current value: {primary_keys} is of type {type(primary_keys)}"
+                f"""
+                    primary keys should be of type list[str].
+                    Current value: {primary_keys} is of type {type(primary_keys)}
+                """
             )
 
 
