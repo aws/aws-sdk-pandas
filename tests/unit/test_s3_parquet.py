@@ -323,7 +323,9 @@ def test_index_and_timezone(path, use_threads):
 
 
 @pytest.mark.xfail(raises=AssertionError, reason="Index equality regression")
-@pytest.mark.xfail(raises=wr.exceptions.InvalidArgumentCombination, reason="Index not working with `max_rows_by_file`")
+@pytest.mark.xfail(
+    is_ray_modin, raises=wr.exceptions.InvalidArgumentCombination, reason="Index not working with `max_rows_by_file`"
+)
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_index_recovery_simple_int(path, use_threads):
     df = pd.DataFrame({"c0": np.arange(10, 1_010, 1)}, dtype="Int64")
@@ -334,7 +336,9 @@ def test_index_recovery_simple_int(path, use_threads):
 
 
 @pytest.mark.xfail(raises=AssertionError, reason="Index equality regression")
-@pytest.mark.xfail(raises=wr.exceptions.InvalidArgumentCombination, reason="Index not working with `max_rows_by_file`")
+@pytest.mark.xfail(
+    is_ray_modin, raises=wr.exceptions.InvalidArgumentCombination, reason="Index not working with `max_rows_by_file`"
+)
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_index_recovery_simple_str(path, use_threads):
     df = pd.DataFrame({"c0": [0, 1, 2, 3, 4]}, index=["a", "b", "c", "d", "e"], dtype="Int64")
@@ -391,7 +395,9 @@ def test_range_index_recovery_pandas(path, use_threads, name):
 
 
 @pytest.mark.xfail(raises=AssertionError, reason="Index equality regression")
-@pytest.mark.xfail(raises=wr.exceptions.InvalidArgumentCombination, reason="Index not working with `max_rows_by_file`")
+@pytest.mark.xfail(
+    is_ray_modin, raises=wr.exceptions.InvalidArgumentCombination, reason="Index not working with `max_rows_by_file`"
+)
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_multi_index_recovery_simple(path, use_threads):
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": ["a", "b", "c"], "c2": [True, False, True], "c3": [0, 1, 2]})
@@ -404,7 +410,9 @@ def test_multi_index_recovery_simple(path, use_threads):
 
 
 @pytest.mark.xfail(raises=AssertionError, reason="Index equality regression")
-@pytest.mark.xfail(raises=wr.exceptions.InvalidArgumentCombination, reason="Index not working with `max_rows_by_file`")
+@pytest.mark.xfail(
+    is_ray_modin, raises=wr.exceptions.InvalidArgumentCombination, reason="Index not working with `max_rows_by_file`"
+)
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_multi_index_recovery_nameless(path, use_threads):
     df = pd.DataFrame({"c0": np.arange(10, 13, 1)}, dtype="Int64")
