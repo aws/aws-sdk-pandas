@@ -595,8 +595,6 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
             commit_trans = True
 
     df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
-
-    # Index of DataFrame cannot be used when using Ray and Modin
     schema: pa.Schema = _data_types.pyarrow_schema_from_pandas(
         df=df, index=index, ignore_cols=partition_cols, dtype=dtype
     )

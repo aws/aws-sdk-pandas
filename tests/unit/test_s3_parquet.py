@@ -16,7 +16,7 @@ if wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatE
 else:
     import pandas as pd
 
-from .._utils import ensure_data_types, get_df_list, pandas_equals, to_pandas
+from .._utils import ensure_data_types, get_df_list, is_ray_modin, pandas_equals, to_pandas
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -364,7 +364,7 @@ def test_index_recovery_partitioned_str(path, use_threads):
 
 
 @pytest.mark.xfail(raises=AssertionError, reason="Index equality regression")
-@pytest.mark.xfail(raises=wr.exceptions.InvalidArgumentCombination, reason="Index not working with `max_rows_by_file`")
+@pytest.mark.xfail(is_ray_modin, raises=wr.exceptions.InvalidArgumentCombination, reason="Index not working with `max_rows_by_file`")
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 def test_range_index_recovery_simple(path, use_threads):
     df = pd.DataFrame({"c0": np.arange(10, 15, 1)}, dtype="Int64", index=pd.RangeIndex(start=5, stop=30, step=5))
