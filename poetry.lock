@@ -1299,10 +1299,10 @@ python-versions = ">=3.7.1"
 
 [package.dependencies]
 numpy = [
-    {version = ">=1.21.0", markers = "python_version >= \"3.10\""},
     {version = ">=1.17.3", markers = "platform_machine != \"aarch64\" and platform_machine != \"arm64\" and python_version < \"3.10\""},
     {version = ">=1.19.2", markers = "platform_machine == \"aarch64\" and python_version < \"3.10\""},
     {version = ">=1.20.0", markers = "platform_machine == \"arm64\" and python_version < \"3.10\""},
+    {version = ">=1.21.0", markers = "python_version >= \"3.10\""},
 ]
 python-dateutil = ">=2.7.3"
 pytz = ">=2017.3"
@@ -1359,7 +1359,7 @@ ptyprocess = ">=0.5"
 
 [[package]]
 name = "pg8000"
-version = "1.29.2"
+version = "1.29.3"
 description = "PostgreSQL interface library"
 category = "main"
 optional = false
@@ -1368,7 +1368,7 @@ python-versions = ">=3.7"
 [package.dependencies]
 importlib-metadata = {version = ">=1.0", markers = "python_version < \"3.8\""}
 python-dateutil = ">=2.8.2"
-scramp = ">=1.4.1"
+scramp = ">=1.4.3"
 
 [[package]]
 name = "pickleshare"
@@ -1910,7 +1910,7 @@ crt = ["botocore[crt] (>=1.20.29,<2.0a.0)"]
 
 [[package]]
 name = "scramp"
-version = "1.4.2"
+version = "1.4.3"
 description = "An implementation of the SCRAM protocol."
 category = "main"
 optional = false
@@ -3351,8 +3351,8 @@ pexpect = [
     {file = "pexpect-4.8.0.tar.gz", hash = "sha256:fc65a43959d153d0114afe13997d439c22823a27cefceb5ff35c2178c6784c0c"},
 ]
 pg8000 = [
-    {file = "pg8000-1.29.2-py3-none-any.whl", hash = "sha256:726ec389c0fe290c5deeb4c84c071f53bd06031686561a6cbed5c8d34bddde46"},
-    {file = "pg8000-1.29.2.tar.gz", hash = "sha256:db75c21aa0aa2e6f79a952b71a829a275eca2e2e5652756966da59d7dd9d6f24"},
+    {file = "pg8000-1.29.3-py3-none-any.whl", hash = "sha256:398097469ad5b9cf9e899653dfb4ee8b10bd7f90efc7f60404d0a116dd93f0c5"},
+    {file = "pg8000-1.29.3.tar.gz", hash = "sha256:c8c954d3c86d7fbf591bc83b00d6ece289fae176c8335a182a7570699da2bfdc"},
 ]
 pickleshare = [
     {file = "pickleshare-0.7.5-py2.py3-none-any.whl", hash = "sha256:9649af414d74d4df115d5d718f82acb59c9d418196b7b4290ed47a12ce62df56"},
@@ -3710,8 +3710,8 @@ s3transfer = [
     {file = "s3transfer-0.6.0.tar.gz", hash = "sha256:2ed07d3866f523cc561bf4a00fc5535827981b117dd7876f036b0c1aca42c947"},
 ]
 scramp = [
-    {file = "scramp-1.4.2-py3-none-any.whl", hash = "sha256:a7d9f293cf5ca17bdc6202861ea47bbbe2e0bbe223afb34d677c1c4a4cbde808"},
-    {file = "scramp-1.4.2.tar.gz", hash = "sha256:ffdbc7823f3c5cb6b95895f3e3ede3506590f35db636e79fa56a8a67a7d2e855"},
+    {file = "scramp-1.4.3-py3-none-any.whl", hash = "sha256:5807286357686a262dd38961d48ac87af41394955ec81be3b15028d84664f015"},
+    {file = "scramp-1.4.3.tar.gz", hash = "sha256:d6885e002707d12a1bcb1f6b243217f06253397afc4e9d970e1a4c009635d6cc"},
 ]
 send2trash = [
     {file = "Send2Trash-1.8.0-py3-none-any.whl", hash = "sha256:f20eaadfdb517eaca5ce077640cb261c7d2698385a6a0f072a4a5447fd49fa08"},
