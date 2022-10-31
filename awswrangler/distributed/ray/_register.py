@@ -28,7 +28,7 @@ def register_ray() -> None:
         _write_batch,
         _write_df,
     ]:
-        engine.register_func(func, ray_remote(func))
+        engine.register_func(func, ray_remote()(func))
 
     if memory_format.get() == MemoryFormatEnum.MODIN:
         from awswrangler.distributed.ray.modin._data_types import pyarrow_types_from_pandas_distributed
