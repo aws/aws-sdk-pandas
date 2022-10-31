@@ -241,10 +241,11 @@ def _validate_parameters(
                 raise exceptions.InvalidRedshiftSortkey(
                     f"sortkey must be a List of items in the columns list: {cols}. " f"Currently value: {key}"
                 )
-    if not isinstance(primary_keys, list):
-        raise exceptions.InvalidArgumentType(
-            f"primary keys should be of type list[str]. Current value: {primary_keys} is of type {type(primary_keys)}"
-        )
+    if primary_keys:
+        if not isinstance(primary_keys, list):
+            raise exceptions.InvalidArgumentType(
+                f"primary keys should be of type list[str]. Current value: {primary_keys} is of type {type(primary_keys)}"
+            )
 
 
 def _redshift_types_from_path(
