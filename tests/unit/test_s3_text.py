@@ -4,9 +4,10 @@ import boto3
 import pytest
 
 import awswrangler as wr
-from awswrangler._distributed import EngineEnum, MemoryFormatEnum
 
-if wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN:
+from .._utils import is_ray_modin
+
+if is_ray_modin:
     import modin.pandas as pd
 else:
     import pandas as pd

@@ -316,19 +316,22 @@ def _to_dataset(
     _logger.debug("paths: %s", paths)
     _logger.debug("partitions_values: %s", partitions_values)
     if (table_type == "GOVERNED") and (table is not None) and (database is not None):
-        add_objects: List[Dict[str, Any]] = lakeformation._build_table_objects(  # pylint: disable=protected-access
+        list_add_objects: List[
+            List[Dict[str, Any]]
+        ] = lakeformation._build_table_objects(  # pylint: disable=protected-access
             paths, partitions_values, use_threads=use_threads, boto3_session=boto3_session
         )
         try:
-            if add_objects:
-                lakeformation._update_table_objects(  # pylint: disable=protected-access
-                    catalog_id=catalog_id,
-                    database=database,
-                    table=table,
-                    transaction_id=transaction_id,  # type: ignore
-                    add_objects=add_objects,
-                    boto3_session=boto3_session,
-                )
+            if list_add_objects:
+                for add_objects in list_add_objects:
+                    lakeformation._update_table_objects(  # pylint: disable=protected-access
+                        catalog_id=catalog_id,
+                        database=database,
+                        table=table,
+                        transaction_id=transaction_id,  # type: ignore
+                        add_objects=add_objects,
+                        boto3_session=boto3_session,
+                    )
         except Exception as ex:
             _logger.error(ex)
             raise

@@ -44,7 +44,7 @@ def _build_table_objects(
     partitions_values: Dict[str, List[str]],
     use_threads: Union[bool, int],
     boto3_session: Optional[boto3.Session],
-) -> List[Dict[str, Any]]:
+) -> List[List[Dict[str, Any]]]:
     table_objects: List[Dict[str, Any]] = []
     paths_desc: Dict[str, Dict[str, Any]] = describe_objects(
         path=paths, use_threads=use_threads, boto3_session=boto3_session
@@ -58,7 +58,7 @@ def _build_table_objects(
         if partitions_values:
             table_object["PartitionValues"] = partitions_values[f"{path.rsplit('/', 1)[0].rstrip('/')}/"]
         table_objects.append(table_object)
-    return table_objects
+    return _utils.chunkify(table_objects, max_length=100)  # LF write operations is limited to 100 objects per call
 
 
 def _get_table_objects(

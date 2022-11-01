@@ -3,11 +3,10 @@ import logging
 import pytest
 
 import awswrangler as wr
-from awswrangler._distributed import EngineEnum, MemoryFormatEnum
 
-from .._utils import dt, to_pandas, ts
+from .._utils import dt, is_ray_modin, to_pandas, ts
 
-if wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN:
+if is_ray_modin:
     import modin.pandas as pd
 else:
     import pandas as pd
