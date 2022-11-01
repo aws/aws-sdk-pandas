@@ -4,11 +4,10 @@ from unittest.mock import patch
 import pytest
 
 import awswrangler as wr
-from awswrangler._distributed import EngineEnum, MemoryFormatEnum
 
-from .._utils import ensure_athena_query_metadata
+from .._utils import ensure_athena_query_metadata, is_ray_modin
 
-if wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN:
+if is_ray_modin:
     import modin.pandas as pd
 else:
     import pandas as pd

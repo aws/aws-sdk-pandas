@@ -6,15 +6,23 @@ from unittest.mock import patch
 
 import boto3
 import botocore
-import pandas as pd
 import pytest
 import pytz
 
 import awswrangler as wr
 
+from .._utils import is_ray_modin
+
+if is_ray_modin:
+    import modin.pandas as pd
+else:
+    import pandas as pd
+
 API_CALL = botocore.client.BaseClient._make_api_call
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
+
+pytestmark = pytest.mark.distributed
 
 
 def test_list_buckets() -> None:
@@ -69,6 +77,7 @@ def test_list_by_last_modified_date(path):
     assert len(wr.s3.read_json(path, last_modified_begin=begin_utc, last_modified_end=end_utc).index) == 6
 
 
+@pytest.mark.xfail(is_ray_modin, reason="Does not use boto3-based S3 filesystem in distributed mode")
 def test_delete_error(bucket):
     response = {"Errors": [{"Code": "AnyNonInternalError"}]}
 

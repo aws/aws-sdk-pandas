@@ -1582,7 +1582,6 @@ def copy(  # pylint: disable=too-many-arguments,too-many-locals
         e.g. s3_additional_kwargs={'ServerSideEncryption': 'aws:kms', 'SSEKMSKeyId': 'YOUR_KMS_KEY_ARN'}
     max_rows_by_file : int
         Max number of rows in each file.
-        Default is None i.e. dont split the files.
         (e.g. 33554432, 268435456)
     precombine_key : str, optional
         When there is a primary_key match during upsert, this column will change the upsert method,

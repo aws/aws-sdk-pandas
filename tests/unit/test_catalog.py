@@ -4,15 +4,21 @@ import time
 from typing import Optional
 
 import boto3
-import pandas as pd
 import pytest
 
 import awswrangler as wr
 
-from .._utils import ensure_data_types_csv, get_df_csv
+from .._utils import ensure_data_types_csv, get_df_csv, is_ray_modin
+
+if is_ray_modin:
+    import modin.pandas as pd
+else:
+    import pandas as pd
 
 logger = logging.getLogger("awswrangler")
 logger.setLevel(logging.DEBUG)
+
+pytestmark = pytest.mark.distributed
 
 
 @pytest.mark.parametrize("table_type", ["EXTERNAL_TABLE", "GOVERNED"])

@@ -349,3 +349,10 @@ def random_glue_database():
     database_name = get_time_str_with_random_suffix()
     yield database_name
     wr.catalog.delete_database(database_name)
+
+
+@pytest.fixture(scope="function")
+def redshift_con():
+    con = wr.redshift.connect("aws-sdk-pandas-redshift")
+    yield con
+    con.close()

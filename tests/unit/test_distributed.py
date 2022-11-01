@@ -1,4 +1,3 @@
-import importlib.util
 import logging
 from enum import Enum
 
@@ -7,6 +6,8 @@ import pytest
 import awswrangler as wr
 from awswrangler._distributed import EngineEnum
 from awswrangler.s3._write_parquet import _to_parquet
+
+from .._utils import is_ray_modin
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
@@ -18,7 +19,7 @@ pytestmark = pytest.mark.distributed
     [
         pytest.param(
             EngineEnum.RAY,
-            marks=pytest.mark.skip("ray not available") if not importlib.util.find_spec("ray") else [],
+            marks=pytest.mark.skip("ray not available") if not is_ray_modin else [],
         ),
     ],
 )
