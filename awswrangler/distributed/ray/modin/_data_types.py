@@ -13,7 +13,7 @@ def pyarrow_types_from_pandas_distributed(
     df: pd.DataFrame, index: bool, ignore_cols: Optional[List[str]] = None, index_left: bool = False
 ) -> Dict[str, pa.DataType]:
     """Extract the related Pyarrow data types from a pandas DataFrame."""
-    func = ray_remote()(pyarrow_types_from_pandas)
+    func = ray_remote(scheduling_strategy="PACK")(pyarrow_types_from_pandas)
     first_block_object_ref = ray.data.from_modin(df).get_internal_block_refs()[0]
     return ray_get(  # type: ignore
         func(

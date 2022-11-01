@@ -14,7 +14,7 @@ from awswrangler.distributed.ray import ray_remote
 from awswrangler._arrow import _table_to_df
 
 
-@ray_remote()
+@ray_remote(scheduling_strategy="PACK")
 def _block_to_df(
     block: Any,
     to_pandas_kwargs: Dict[str, Any],

@@ -25,10 +25,16 @@ def register_ray() -> None:
         _select_query,
         _select_object_content,
         _wait_object_batch,
+    ]:
+        # Schedule for maximum concurrency
+        engine.register_func(func, ray_remote(scheduling_strategy="SPREAD")(func))
+
+    for pack_func in [
         _write_batch,
         _write_df,
     ]:
-        engine.register_func(func, ray_remote()(func))
+        # Schedule for data locality
+        engine.register_func(pack_func, ray_remote(scheduling_strategy="PACK")(pack_func))
 
     if memory_format.get() == MemoryFormatEnum.MODIN:
         from awswrangler.distributed.ray.modin._data_types import pyarrow_types_from_pandas_distributed
