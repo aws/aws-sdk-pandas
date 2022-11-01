@@ -42,7 +42,4 @@ OpenSearchStack(
     **env,
 )
 
-RayStack(app, "aws-sdk-pandas-ray")
-
-
 app.synth()
