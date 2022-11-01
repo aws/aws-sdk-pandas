@@ -13,6 +13,8 @@ else:
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
+pytestmark = pytest.mark.distributed
+
 
 @pytest.mark.parametrize("use_threads", [True, False])
 @pytest.mark.parametrize("concurrent_partitioning", [True, False])
