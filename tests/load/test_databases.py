@@ -69,8 +69,8 @@ def test_timestream_write(benchmark_time: int, timestream_database_and_table: st
     assert df["counter"].iloc[0] == 126_000
 
 
-@pytest.mark.parametrize("benchmark_time_copy", [120])
-@pytest.mark.parametrize("benchmark_time_unload", [120])
+@pytest.mark.parametrize("benchmark_time_copy", [240])
+@pytest.mark.parametrize("benchmark_time_unload", [240])
 def test_redshift_copy_unload(
     benchmark_time_copy: int,
     benchmark_time_unload: int,
@@ -133,7 +133,7 @@ def test_athena_unload(benchmark_time: int, path: str, glue_table: str, glue_dat
     assert df.shape == df_out.shape
 
 
-@pytest.mark.parametrize("benchmark_time", [120])
+@pytest.mark.parametrize("benchmark_time", [180])
 def test_lakeformation_read(benchmark_time: int, path: str, glue_table: str, glue_database: str) -> None:
     df = wr.s3.read_parquet(path="s3://amazon-reviews-pds/parquet/product_category=Home/", dataset=True)
 
