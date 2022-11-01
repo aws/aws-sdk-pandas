@@ -1,9 +1,15 @@
 import logging
 
-import pandas as pd
 import pytest
 
 import awswrangler as wr
+
+from .._utils import is_ray_modin
+
+if is_ray_modin:
+    import modin.pandas as pd
+else:
+    import pandas as pd
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
