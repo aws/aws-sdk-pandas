@@ -10,6 +10,7 @@ from modin.pandas import DataFrame as ModinDataFrame
 from ray.data import from_modin, from_pandas
 from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
 
+from awswrangler import exceptions
 from awswrangler.distributed.ray.datasources import ArrowParquetDatasource, UserProvidedKeyBlockWritePathProvider
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -45,9 +46,20 @@ def _to_parquet_distributed(  # pylint: disable=unused-argument
             "This operation is inefficient for large datasets.",
             path,
         )
+
+        if index and df.index.name:
+            raise exceptions.InvalidArgumentCombination(
+                "Cannot write a named index when repartitioning to a single file"
+            )
+
         ds = ds.repartition(1)
     # Repartition by max_rows_by_file
     elif max_rows_by_file and (max_rows_by_file > 0):
+        if index:
+            raise exceptions.InvalidArgumentCombination(
+                "Cannot write indexed file when `max_rows_by_file` is specified"
+            )
+
         ds = ds.repartition(math.ceil(ds.count() / max_rows_by_file))
     datasource = ArrowParquetDatasource()
     ds.write_datasource(
@@ -63,5 +75,6 @@ def _to_parquet_distributed(  # pylint: disable=unused-argument
         dtype=dtype,
         compression=compression,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+        schema=schema,
     )
     return datasource.get_write_paths()

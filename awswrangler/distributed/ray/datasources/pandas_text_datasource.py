@@ -7,6 +7,7 @@ import pandas as pd
 import pyarrow
 from ray.data._internal.pandas_block import PandasBlockAccessor
 
+from awswrangler import exceptions
 from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import PandasFileBasedDatasource
 from awswrangler.s3._read_text_core import _read_text_chunked, _read_text_file
 
@@ -91,6 +92,36 @@ class PandasCSVDataSource(PandasTextDatasource):  # pylint: disable=abstract-met
     def __init__(self) -> None:
         super().__init__(pd.read_csv, pd.DataFrame.to_csv)
 
+    def _read_stream(  # type: ignore
+        self,
+        f: pyarrow.NativeFile,
+        path: str,
+        path_root: str,
+        dataset: bool,
+        version_ids: Dict[str, Optional[str]],
+        s3_additional_kwargs: Optional[Dict[str, str]],
+        pandas_kwargs: Dict[str, Any],
+        **reader_args: Any,
+    ) -> Iterator[pd.DataFrame]:  # type: ignore
+        pandas_header_arg = pandas_kwargs.get("header", "infer")
+        pandas_names_arg = pandas_kwargs.get("names", None)
+
+        if pandas_header_arg is None and not pandas_names_arg:
+            raise exceptions.InvalidArgumentCombination(
+                "Distributed read_csv cannot read CSV files without header, or a `names` parameter."
+            )
+
+        yield from super()._read_stream(
+            f,
+            path,
+            path_root,
+            dataset,
+            version_ids,
+            s3_additional_kwargs,
+            pandas_kwargs,
+            **reader_args,
+        )
+
 
 class PandasFWFDataSource(PandasTextDatasource):  # pylint: disable=abstract-method
     """Pandas FWF datasource, for reading and writing FWF files using Pandas."""
@@ -132,6 +163,7 @@ class PandasJSONDatasource(PandasTextDatasource):  # pylint: disable=abstract-me
                 version_ids,
                 s3_additional_kwargs,
                 pandas_kwargs,
+                **reader_args,
             )
         else:
             s3_path = f"s3://{path}"

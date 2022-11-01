@@ -6,7 +6,6 @@ from decimal import Decimal
 
 import boto3
 import numpy as np
-import pandas as pd
 import pyarrow as pa
 import pytest
 import redshift_connector
@@ -15,9 +14,26 @@ from redshift_connector.error import ProgrammingError
 import awswrangler as wr
 from awswrangler import _utils
 
-from .._utils import dt, ensure_data_types, ensure_data_types_category, get_df, get_df_category, ts
+from .._utils import (
+    dt,
+    ensure_data_types,
+    ensure_data_types_category,
+    get_df,
+    get_df_category,
+    is_ray_modin,
+    pandas_equals,
+    to_pandas,
+    ts,
+)
+
+if is_ray_modin:
+    import modin.pandas as pd
+else:
+    import pandas as pd
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
+
+pytestmark = pytest.mark.distributed
 
 
 @pytest.fixture(scope="function")
@@ -443,7 +459,7 @@ def test_null(redshift_table, redshift_con):
     )
     df2 = wr.redshift.read_sql_table(table=table, schema="public", con=redshift_con)
     df["id"] = df["id"].astype("Int64")
-    assert pd.concat(objs=[df, df], ignore_index=True).equals(df2)
+    assert pandas_equals(pd.concat(objs=[df, df], ignore_index=True), df2)
 
 
 def test_spectrum_long_string(path, redshift_con, glue_table, glue_database, redshift_external_schema):
@@ -703,7 +719,7 @@ def test_upsert_precombine(redshift_table, redshift_con):
     df3 = pd.DataFrame({"id": list((range(6, 14))), "val": list([10.0 if i % 2 == 0 else 1.0 for i in range(8)])})
 
     # Do upsert in pandas
-    df_m = pd.merge(df, df3, on="id", how="outer")
+    df_m = to_pandas(pd.merge(df, df3, on="id", how="outer"))
     df_m["val"] = np.where(df_m["val_y"] >= df_m["val_x"], df_m["val_y"], df_m["val_x"])
     df_m["val"] = df_m["val"].fillna(df_m["val_y"])
     df_m = df_m.drop(columns=["val_x", "val_y"])
@@ -1015,7 +1031,7 @@ def test_column_length(path, redshift_table, redshift_con, databases_parameters)
         primary_keys=["a"],
     )
     df2 = wr.redshift.read_sql_query(sql=f"SELECT * FROM public.{redshift_table}", con=redshift_con)
-    assert df2.equals(df)
+    assert pandas_equals(df, df2)
 
 
 def test_failed_keep_files(path, redshift_table, redshift_con, databases_parameters):

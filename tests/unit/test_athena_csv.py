@@ -3,15 +3,21 @@ import logging
 from sys import version_info
 
 import boto3
-import pandas as pd
 import pyarrow as pa
 import pytest
 
 import awswrangler as wr
 
-from .._utils import ensure_data_types_csv, get_df_csv
+from .._utils import ensure_data_types_csv, get_df_csv, is_ray_modin
+
+if is_ray_modin:
+    import modin.pandas as pd
+else:
+    import pandas as pd
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
+
+pytestmark = pytest.mark.distributed
 
 
 @pytest.mark.parametrize("use_threads", [True, False])
@@ -186,6 +192,9 @@ def test_csv_overwrite_several_partitions(path, glue_database, glue_table, use_t
         assert df2["par"].sum() == df["par"].sum()
 
 
+@pytest.mark.xfail(
+    is_ray_modin, raises=wr.exceptions.InvalidArgumentCombination, reason="Ray can't load frame with no header"
+)
 def test_csv_dataset(path, glue_database):
     with pytest.raises(wr.exceptions.UndetectedType):
         wr.s3.to_csv(pd.DataFrame({"A": [None]}), path, dataset=True, database=glue_database, table="test_csv_dataset")
@@ -222,6 +231,7 @@ def test_csv_dataset(path, glue_database):
     wr.s3.delete_objects(path=paths)
 
 
+@pytest.mark.xfail(is_ray_modin, raises=AssertionError, reason="Index equality regression")
 @pytest.mark.parametrize("use_threads", [True, False])
 @pytest.mark.parametrize("concurrent_partitioning", [True, False])
 def test_csv_catalog(path, glue_table, glue_database, use_threads, concurrent_partitioning):
@@ -401,6 +411,7 @@ def test_failing_catalog(path, glue_table, use_threads):
     assert len(wr.s3.list_objects(path)) == 0
 
 
+@pytest.mark.xfail(is_ray_modin, raises=AssertionError, reason="Index equality regression")
 @pytest.mark.parametrize("use_threads", [True, False])
 @pytest.mark.parametrize("concurrent_partitioning", [True, False])
 @pytest.mark.parametrize("compression", ["gzip", "bz2", None])

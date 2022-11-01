@@ -1,14 +1,21 @@
 import logging
 from unittest.mock import patch
 
-import pandas as pd
 import pytest
 
 import awswrangler as wr
+from awswrangler._distributed import EngineEnum, MemoryFormatEnum
 
 from .._utils import ensure_athena_query_metadata
 
+if wr.engine.get() == EngineEnum.RAY and wr.memory_format.get() == MemoryFormatEnum.MODIN:
+    import modin.pandas as pd
+else:
+    import pandas as pd
+
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
+
+pytestmark = pytest.mark.distributed
 
 
 def test_athena_cache(path, glue_database, glue_table, workgroup1):

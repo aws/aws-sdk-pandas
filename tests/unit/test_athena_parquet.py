@@ -5,18 +5,25 @@ from decimal import Decimal
 
 import boto3
 import numpy as np
-import pandas as pd
 import pyarrow as pa
 import pytest
 
 import awswrangler as wr
 from awswrangler._data_types import _split_fields
 
-from .._utils import ensure_data_types, get_df, get_df_cast, get_df_list
+from .._utils import ensure_data_types, get_df, get_df_cast, get_df_list, is_ray_modin, pandas_equals
+
+if is_ray_modin:
+    import modin.pandas as pd
+else:
+    import pandas as pd
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
+pytestmark = pytest.mark.distributed
 
+
+@pytest.mark.xfail(is_ray_modin, raises=AssertionError, reason="Index equality regression")
 def test_parquet_catalog(path, path2, glue_table, glue_table2, glue_database):
     with pytest.raises(wr.exceptions.UndetectedType):
         wr.s3.to_parquet(
@@ -66,6 +73,12 @@ def test_parquet_catalog(path, path2, glue_table, glue_table2, glue_database):
 def test_file_size(path, glue_table, glue_database, use_threads, max_rows_by_file, partition_cols):
     df = get_df_list()
     df = pd.concat([df for _ in range(100)])
+
+    # workaround for https://github.com/modin-project/modin/issues/5164
+    if is_ray_modin:
+        vanilla_pandas = df._to_pandas()
+        df = pd.DataFrame(vanilla_pandas)
+
     paths = wr.s3.to_parquet(
         df=df,
         path=path,
@@ -482,6 +495,7 @@ def test_glue_number_of_versions_created(path, glue_table, glue_database):
     assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 1
 
 
+@pytest.mark.xfail(is_ray_modin, raises=AssertionError, reason="Index equality regression")
 def test_sanitize_index(path, glue_table, glue_database):
     df = pd.DataFrame({"id": [1, 2], "DATE": [datetime.date(2020, 1, 1), datetime.date(2020, 1, 2)]})
     df.set_index("DATE", inplace=True, verify_integrity=True)
@@ -576,9 +590,9 @@ def test_date_cast(path, glue_table, glue_database):
     )
     wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table, dtype={"c0": "date"})
     df2 = wr.s3.read_parquet(path=path)
-    assert df_expected.equals(df2)
+    assert pandas_equals(df_expected, df2)
     df3 = wr.athena.read_sql_table(database=glue_database, table=glue_table)
-    assert df_expected.equals(df3)
+    assert pandas_equals(df_expected, df3)
 
 
 @pytest.mark.parametrize("use_threads", [True, False])

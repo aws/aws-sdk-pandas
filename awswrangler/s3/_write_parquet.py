@@ -264,6 +264,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
         Required if dataset=False or when dataset=True and creating a new dataset
     index : bool
         True to store the DataFrame index in file, otherwise False to ignore it.
+        Is not supported in conjunction with `max_rows_by_file` when running the library with Ray/Modin.
     compression: str, optional
         Compression style (``None``, ``snappy``, ``gzip``, ``zstd``).
     pyarrow_additional_kwargs : Optional[Dict[str, Any]]
@@ -274,6 +275,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
         Max number of rows in each file.
         Default is None i.e. dont split the files.
         (e.g. 33554432, 268435456)
+        Is not supported in conjuction with `index=True` when running the library with Ray/Modin.
     use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
