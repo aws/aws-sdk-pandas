@@ -10,11 +10,11 @@ from ray.data.block import BlockAccessor
 from ray.types import ObjectRef
 
 from awswrangler import exceptions
-from awswrangler.distributed.ray import ray_remote
 from awswrangler._arrow import _table_to_df
+from awswrangler.distributed.ray import ray_remote
 
 
-@ray_remote(scheduling_strategy="PACK")
+@ray_remote(scheduling_strategy="DEFAULT")
 def _block_to_df(
     block: Any,
     to_pandas_kwargs: Dict[str, Any],
@@ -27,7 +27,7 @@ def _block_to_df(
 
 
 def _to_modin(
-    dataset: Union[ray.data.Dataset["ArrowRow"], ray.data.Dataset[pd.DataFrame]],
+    dataset: Union[ray.data.Dataset[Any], ray.data.Dataset[pd.DataFrame]],
     to_pandas_kwargs: Optional[Dict[str, Any]] = None,
     ignore_index: bool = True,
 ) -> modin_pd.DataFrame:
@@ -36,8 +36,7 @@ def _to_modin(
 
     return from_partitions(
         partitions=[
-            _block_to_df(block=block, to_pandas_kwargs=_to_pandas_kwargs)
-            for block in dataset.get_internal_block_refs()
+            _block_to_df(block=block, to_pandas_kwargs=_to_pandas_kwargs) for block in dataset.get_internal_block_refs()
         ],
         axis=0,
         index=index,

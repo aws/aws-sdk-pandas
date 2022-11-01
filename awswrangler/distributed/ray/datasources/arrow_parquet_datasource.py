@@ -1,4 +1,5 @@
 """Ray ArrowParquetDatasource Module."""
+# pylint: disable=redefined-outer-name,import-outside-toplevel,reimported
 
 import logging
 import time
@@ -9,14 +10,16 @@ import numpy as np
 # fs required to implicitly trigger S3 subsystem initialization
 import pyarrow.fs  # noqa: F401 pylint: disable=unused-import
 import ray
-import ray.cloudpickle as cloudpickle
+from pyarrow.dataset import ParquetFileFragment
+from pyarrow.lib import Schema
+from ray import cloudpickle
 from ray.data._internal.output_buffer import BlockOutputBuffer
 from ray.data.block import Block, BlockAccessor
 from ray.data.context import DatasetContext
 from ray.data.datasource import Reader, ReadTask
 from ray.data.datasource.file_based_datasource import _resolve_paths_and_filesystem
 from ray.data.datasource.file_meta_provider import _handle_read_os_error
-from ray.data.datasource.parquet_datasource import (
+from ray.data.datasource.parquet_datasource import (  # type: ignore
     DefaultParquetMetadataProvider,
     ParquetMetadataProvider,
 )
@@ -66,26 +69,23 @@ PARQUET_ENCODING_RATIO_ESTIMATE_NUM_ROWS = 5
 # TODO(ekl) this is a workaround for a pyarrow serialization bug, where serializing a
 # raw pyarrow file fragment causes S3 network calls.
 class _SerializedPiece:
-    def __init__(self, frag: "ParquetFileFragment"):
-        self._data = cloudpickle.dumps(
+    def __init__(self, frag: ParquetFileFragment):
+        self._data = cloudpickle.dumps(  # type: ignore
             (frag.format, frag.path, frag.filesystem, frag.partition_expression)
         )
 
-    def deserialize(self) -> "ParquetFileFragment":
-        # Implicitly trigger S3 subsystem initialization by importing
-        # pyarrow.fs.
-        import pyarrow.fs  # noqa: F401
+    def deserialize(self) -> ParquetFileFragment:
+        """Implicitly trigger S3 subsystem initialization by importing pyarrow.fs."""
+        import pyarrow.fs  # noqa: F401 pylint: disable=unused-import
 
-        (file_format, path, filesystem, partition_expression) = cloudpickle.loads(
-            self._data
-        )
+        (file_format, path, filesystem, partition_expression) = cloudpickle.loads(self._data)
         return file_format.make_fragment(path, filesystem, partition_expression)
 
 
 # Visible for test mocking.
 def _deserialize_pieces(
     serialized_pieces: List[_SerializedPiece],
-) -> List["pyarrow._dataset.ParquetFileFragment"]:
+) -> List[ParquetFileFragment]:
     return [p.deserialize() for p in serialized_pieces]
 
 
@@ -98,21 +98,17 @@ def _deserialize_pieces(
 # Such connection failure can be restored with some waiting and retry.
 def _deserialize_pieces_with_retry(
     serialized_pieces: List[_SerializedPiece],
-) -> List["pyarrow._dataset.ParquetFileFragment"]:
-    min_interval = 0
-    final_exception = None
+) -> List[ParquetFileFragment]:
+    min_interval: float = 0
+    final_exception: Optional[Exception] = None
     for i in range(FILE_READING_RETRY):
         try:
             return _deserialize_pieces(serialized_pieces)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             import random
             import time
 
-            retry_timing = (
-                ""
-                if i == FILE_READING_RETRY - 1
-                else (f"Retry after {min_interval} sec. ")
-            )
+            retry_timing = "" if i == FILE_READING_RETRY - 1 else (f"Retry after {min_interval} sec. ")
             log_only_show_in_1st_retry = (
                 ""
                 if i
@@ -123,9 +119,10 @@ def _deserialize_pieces_with_retry(
                 )
             )
             _logger.exception(
-                f"{i + 1}th attempt to deserialize ParquetFileFragment failed. "
-                f"{retry_timing}"
-                f"{log_only_show_in_1st_retry}"
+                "%sth attempt to deserialize ParquetFileFragment failed. %s %s",
+                i + 1,
+                retry_timing,
+                log_only_show_in_1st_retry,
             )
             if not min_interval:
                 # to make retries of different process hit hdfs server
@@ -136,7 +133,7 @@ def _deserialize_pieces_with_retry(
             time.sleep(min_interval)
             min_interval = min_interval * 2
             final_exception = e
-    raise final_exception
+    raise final_exception  # type: ignore
 
 
 class ArrowParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abstract-method
@@ -146,13 +143,13 @@ class ArrowParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abst
 
     def create_reader(self, **kwargs: Dict[str, Any]) -> Reader[Any]:
         """Return a Reader for the given read arguments."""
-        return _ParquetDatasourceReader(**kwargs)  # type: ignore
+        return _ArrowParquetDatasourceReader(**kwargs)  # type: ignore
 
     def _open_input_source(
         self,
         filesystem: "pyarrow.fs.FileSystem",
         path: str,
-        **open_args,
+        **open_args: Any,
     ) -> "pyarrow.NativeFile":
         # Parquet requires `open_input_file` due to random access reads
         return filesystem.open_input_file(path, **open_args)
@@ -165,7 +162,7 @@ class ArrowParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abst
         **writer_args: Any,
     ) -> None:
         """Write a block to S3."""
-        import pyarrow as pa  # pylint: disable=import-outside-toplevel,redefined-outer-name,reimported
+        import pyarrow as pa  # pylint: disable=import-outside-toplevel,reimported
 
         schema: pa.Schema = writer_args.get("schema", None)
         dtype: Optional[Dict[str, str]] = writer_args.get("dtype", None)
@@ -186,16 +183,16 @@ class ArrowParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abst
         return file_format
 
 
-class _ParquetDatasourceReader(Reader):
+class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-instance-attributes
     def __init__(
         self,
         paths: Union[str, List[str]],
         filesystem: Optional["pyarrow.fs.FileSystem"] = None,
         columns: Optional[List[str]] = None,
-        schema: Optional[Union[type, "pyarrow.lib.Schema"]] = None,
+        schema: Optional[Schema] = None,
         meta_provider: ParquetMetadataProvider = DefaultParquetMetadataProvider(),
-        _block_udf: Optional[Callable[[Block], Block]] = None,
-        **reader_args,
+        _block_udf: Optional[Callable[[Block[Any]], Block[Any]]] = None,
+        **reader_args: Any,
     ):
         import pyarrow as pa
         import pyarrow.parquet as pq
@@ -218,9 +215,9 @@ class _ParquetDatasourceReader(Reader):
             # Try to infer dataset schema by passing dummy table through UDF.
             dummy_table = schema.empty_table()
             try:
-                inferred_schema = _block_udf(dummy_table).schema
+                inferred_schema = _block_udf(dummy_table).schema  # type: ignore
                 inferred_schema = inferred_schema.with_metadata(schema.metadata)
-            except Exception:
+            except Exception:  # pylint: disable=broad-except
                 _logger.debug(
                     "Failed to infer schema of dataset by passing dummy table "
                     "through UDF due to the following exception:",
@@ -244,12 +241,12 @@ class _ParquetDatasourceReader(Reader):
         self._encoding_ratio = self._estimate_files_encoding_ratio()
 
     def estimate_inmemory_data_size(self) -> Optional[int]:
-        total_size = 0
+        total_size: int = 0
         for file_metadata in self._metadata:
             for row_group_idx in range(file_metadata.num_row_groups):
                 row_group_metadata = file_metadata.row_group(row_group_idx)
                 total_size += row_group_metadata.total_byte_size
-        return total_size * self._encoding_ratio
+        return total_size * self._encoding_ratio  # type: ignore
 
     def get_read_tasks(self, parallelism: int) -> List[ReadTask]:
         # NOTE: We override the base class FileBasedDatasource.get_read_tasks()
@@ -257,6 +254,12 @@ class _ParquetDatasourceReader(Reader):
         # which simplifies partitioning logic. We still use
         # FileBasedDatasource's write side (do_write), however.
         read_tasks = []
+        block_udf, reader_args, columns, schema = (
+            self._block_udf,
+            self._reader_args,
+            self._columns,
+            self._schema,
+        )
         for pieces, metadata in zip(
             np.array_split(self._pq_ds.pieces, parallelism),
             np.array_split(self._metadata, parallelism),
@@ -273,15 +276,9 @@ class _ParquetDatasourceReader(Reader):
             )
             if meta.size_bytes is not None:
                 meta.size_bytes = int(meta.size_bytes * self._encoding_ratio)
-            block_udf, reader_args, columns, schema = (
-                self._block_udf,
-                self._reader_args,
-                self._columns,
-                self._schema,
-            )
             read_tasks.append(
                 ReadTask(
-                    lambda p=serialized_pieces: _read_pieces(
+                    lambda p=serialized_pieces: _read_pieces(  # type: ignore
                         block_udf,
                         reader_args,
                         columns,
@@ -330,9 +327,9 @@ class _ParquetDatasourceReader(Reader):
 
         sampling_duration = time.perf_counter() - start_time
         if sampling_duration > 5:
-            _logger.info("Parquet input size estimation took " f"{round(sampling_duration, 2)} seconds.")
-        _logger.debug(f"Estimated Parquet encoding ratio from sampling is {ratio}.")
-        return max(ratio, PARQUET_ENCODING_RATIO_ESTIMATE_LOWER_BOUND)
+            _logger.info("Parquet input size estimation took %s seconds.", round(sampling_duration, 2))
+        _logger.debug("Estimated Parquet encoding ratio from sampling is %s.", ratio)
+        return max(ratio, PARQUET_ENCODING_RATIO_ESTIMATE_LOWER_BOUND)  # type: ignore
 
 
 # Original implementation:
@@ -350,7 +347,7 @@ def _read_pieces(
     )
 
     # Deserialize after loading the filesystem class.
-    pieces: List["pyarrow._dataset.ParquetFileFragment"] = _deserialize_pieces_with_retry(serialized_pieces)
+    pieces: List[ParquetFileFragment] = _deserialize_pieces_with_retry(serialized_pieces)
 
     # Ensure that we're reading at least one dataset fragment.
     assert len(pieces) > 0
@@ -405,7 +402,7 @@ def _sample_piece(
     # If required row group index is out of boundary, sample the last row group.
     row_group_id = min(piece.num_row_groups - 1, row_group_id)
     assert (
-        row_group_id >= 0 and row_group_id <= piece.num_row_groups - 1
+        0 <= row_group_id <= piece.num_row_groups - 1
     ), f"Required row group id {row_group_id} is not in expected bound"
 
     row_group = piece.subset(row_group_ids=[row_group_id])
@@ -415,10 +412,10 @@ def _sample_piece(
         f"Sampled number of rows: {num_rows} and total number of rows: " f"{metadata.num_rows} should be positive"
     )
 
-    parquet_size = metadata.total_byte_size / metadata.num_rows
+    parquet_size: float = metadata.total_byte_size / metadata.num_rows
     # Set batch_size to num_rows will instruct Arrow Parquet reader to read exactly
     # num_rows into memory, o.w. it will read more rows by default in batch manner.
-    in_memory_size = row_group.head(num_rows, batch_size=num_rows).nbytes / num_rows
-    ratio = in_memory_size / parquet_size
-    _logger.debug(f"Estimated Parquet encoding ratio is {ratio} for piece {piece}.")
+    in_memory_size: float = row_group.head(num_rows, batch_size=num_rows).nbytes / num_rows
+    ratio: float = in_memory_size / parquet_size
+    _logger.debug("Estimated Parquet encoding ratio is %s for piece %s.", ratio, piece)
     return in_memory_size / parquet_size

@@ -53,7 +53,7 @@ def ray_logger(function: Callable[..., Any]) -> Callable[..., Any]:
 
 def ray_remote(**options: Any) -> Callable[..., Any]:
     """
-    Decorator factory supporting ray.remote(func).options()
+    Decorate with @ray.remote providing .options().
 
     Parameters
     ----------
@@ -87,6 +87,7 @@ def ray_remote(**options: Any) -> Callable[..., Any]:
             if options:
                 remote_fn = remote_fn.options(**options)
             return remote_fn.remote(*args, **kwargs)  # type: ignore
+
         return wrapper
 
     return remote_decorator
