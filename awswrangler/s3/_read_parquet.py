@@ -551,7 +551,7 @@ def _read_parquet(
     )
     if validate_schema and columns:
         for column in columns:
-            if column not in df.columns:
+            if column not in df.columns and column not in df.index.names:
                 raise exceptions.InvalidArgument(f"column: {column} does not exist")
     return df
 
