@@ -120,7 +120,7 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
                 block_index=block_idx,
                 file_format=file_suffix,
             )
-            write_task = write_block_fn.remote(write_path, block)
+            write_task = write_block_fn(write_path, block)
             write_tasks.append(write_task)
 
         return write_tasks
