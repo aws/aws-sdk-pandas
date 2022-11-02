@@ -13,9 +13,9 @@ import ray
 from pyarrow.dataset import ParquetFileFragment
 from pyarrow.lib import Schema
 from ray import cloudpickle
-from ray.data._internal.output_buffer import BlockOutputBuffer
 from ray.data.block import Block, BlockAccessor
 from ray.data.context import DatasetContext
+from ray.data.dataset import BlockOutputBuffer  # type: ignore
 from ray.data.datasource import Reader, ReadTask
 from ray.data.datasource.file_based_datasource import _resolve_paths_and_filesystem
 from ray.data.datasource.file_meta_provider import _handle_read_os_error
@@ -183,6 +183,8 @@ class ArrowParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abst
         return file_format
 
 
+# Original implementation
+# https://github.com/ray-project/ray/blob/ray-2.0.0/python/ray/data/datasource/parquet_datasource.py#L170
 class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-instance-attributes
     def __init__(
         self,
@@ -241,6 +243,7 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
         self._encoding_ratio = self._estimate_files_encoding_ratio()
 
     def estimate_inmemory_data_size(self) -> Optional[int]:
+        """Estimate data size."""
         total_size: int = 0
         for file_metadata in self._metadata:
             for row_group_idx in range(file_metadata.num_row_groups):
@@ -249,10 +252,12 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
         return total_size * self._encoding_ratio  # type: ignore
 
     def get_read_tasks(self, parallelism: int) -> List[ReadTask]:
-        # NOTE: We override the base class FileBasedDatasource.get_read_tasks()
-        # method in order to leverage pyarrow's ParquetDataset abstraction,
-        # which simplifies partitioning logic. We still use
-        # FileBasedDatasource's write side (do_write), however.
+        """Override the base class FileBasedDatasource.get_read_tasks().
+
+        Required in order to leverage pyarrow's ParquetDataset abstraction,
+        which simplifies partitioning logic. We still use
+        FileBasedDatasource's write side (do_write), however.
+        """
         read_tasks = []
         block_udf, reader_args, columns, schema = (
             self._block_udf,
