@@ -2692,14 +2692,14 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [extras]
 modin = ["modin"]
 oracle = ["oracledb"]
-ray = ["ray", "psutil"]
+ray = ["ray"]
 sparql = ["SPARQLWrapper"]
 sqlserver = ["pyodbc"]
 
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8, <4.0"
-content-hash = "8eb971fe8d4a2a3dac3025513d0e0565458ae50cde49012f32c1ec8c4f3c1fa6"
+content-hash = "2fa0d8e74bfb020c5e19226f69e440fcdeadda49587eef221a7e184f21d4ab38"
 
 [metadata.files]
 aenum = [

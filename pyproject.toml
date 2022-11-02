@@ -54,7 +54,7 @@ sqlserver = ["pyodbc"]
 oracle = ["oracledb"]
 sparql = ["SPARQLWrapper"]
 modin = ["modin"]
-ray = ["ray", "psutil"]
+ray = ["ray"]
 
 [tool.poetry.group.dev.dependencies]
 wheel = "^0.37.1"
