@@ -1,4 +1,10 @@
-"""Ray ArrowParquetDatasource Module."""
+"""Ray ArrowParquetDatasource Module.
+
+This module is pulled from Ray's [ParquetDatasource]
+(https://github.com/ray-project/ray/blob/ray-2.0.0/python/ray/data/datasource/parquet_datasource.py) with a few changes
+and customized to ensure compatibility with AWS SDK for pandas behavior. Changes from the original implementation,
+are documented in the comments and marked with (AWS SDK for pandas) prefix.
+"""
 # pylint: disable=redefined-outer-name,import-outside-toplevel,reimported
 
 import logging
@@ -18,11 +24,8 @@ from ray.data.context import DatasetContext
 from ray.data.dataset import BlockOutputBuffer  # type: ignore
 from ray.data.datasource import Reader, ReadTask
 from ray.data.datasource.file_based_datasource import _resolve_paths_and_filesystem
-from ray.data.datasource.file_meta_provider import _handle_read_os_error
-from ray.data.datasource.parquet_datasource import (  # type: ignore
-    DefaultParquetMetadataProvider,
-    ParquetMetadataProvider,
-)
+from ray.data.datasource.file_meta_provider import _handle_read_os_error  # type: ignore
+from ray.data.datasource.file_meta_provider import DefaultParquetMetadataProvider, ParquetMetadataProvider
 
 from awswrangler._arrow import _add_table_partitions, _df_to_table
 from awswrangler.distributed.ray import ray_remote
@@ -64,6 +67,51 @@ PARQUET_ENCODING_RATIO_ESTIMATE_MAX_NUM_SAMPLES = 10
 # The number of rows to read from each file for sampling. Try to keep it low to avoid
 # reading too much data into memory.
 PARQUET_ENCODING_RATIO_ESTIMATE_NUM_ROWS = 5
+
+
+class ArrowParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abstract-method
+    """(AWS SDK for pandas) Parquet datasource, for reading and writing Parquet files.
+
+    The following are the changes to the original Ray implementation:
+    1. Added handling of additional parameters `dtype`, `index`, `compression` and added the ability
+       to pass through additional `pyarrow_additional_kwargs` and `s3_additional_kwargs` for writes.
+    3. Added `dataset` and `path_root` parameters to allow user to control loading partitions
+       relative to the root S3 prefix.
+    """
+
+    _FILE_EXTENSION = "parquet"
+
+    def create_reader(self, **kwargs: Dict[str, Any]) -> Reader[Any]:
+        """Return a Reader for the given read arguments."""
+        return _ArrowParquetDatasourceReader(**kwargs)  # type: ignore
+
+    def _write_block(  # type: ignore  # pylint: disable=arguments-differ, arguments-renamed, unused-argument
+        self,
+        f: "pyarrow.NativeFile",
+        block: BlockAccessor[Any],
+        pandas_kwargs: Optional[Dict[str, Any]],
+        **writer_args: Any,
+    ) -> None:
+        """Write a block to S3."""
+        import pyarrow as pa  # pylint: disable=import-outside-toplevel,reimported
+
+        schema: pa.Schema = writer_args.get("schema", None)
+        dtype: Optional[Dict[str, str]] = writer_args.get("dtype", None)
+        index: bool = writer_args.get("index", False)
+        compression: Optional[str] = writer_args.get("compression", None)
+        pyarrow_additional_kwargs: Optional[Dict[str, Any]] = writer_args.get("pyarrow_additional_kwargs", {})
+
+        pa.parquet.write_table(
+            _df_to_table(block.to_pandas(), schema=schema, index=index, dtype=dtype),
+            f,
+            compression=compression,
+            **pyarrow_additional_kwargs,
+        )
+
+    def _get_file_suffix(self, file_format: str, compression: Optional[str]) -> str:
+        if compression is not None:
+            return f"{_COMPRESSION_2_EXT.get(compression)[1:]}.{file_format}"  # type: ignore
+        return file_format
 
 
 # TODO(ekl) this is a workaround for a pyarrow serialization bug, where serializing a
@@ -136,46 +184,6 @@ def _deserialize_pieces_with_retry(
     raise final_exception  # type: ignore
 
 
-class ArrowParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abstract-method
-    """Parquet datasource, for reading and writing Parquet files."""
-
-    _FILE_EXTENSION = "parquet"
-
-    def create_reader(self, **kwargs: Dict[str, Any]) -> Reader[Any]:
-        """Return a Reader for the given read arguments."""
-        return _ArrowParquetDatasourceReader(**kwargs)  # type: ignore
-
-    def _write_block(  # type: ignore  # pylint: disable=arguments-differ, arguments-renamed, unused-argument
-        self,
-        f: "pyarrow.NativeFile",
-        block: BlockAccessor[Any],
-        pandas_kwargs: Optional[Dict[str, Any]],
-        **writer_args: Any,
-    ) -> None:
-        """Write a block to S3."""
-        import pyarrow as pa  # pylint: disable=import-outside-toplevel,reimported
-
-        schema: pa.Schema = writer_args.get("schema", None)
-        dtype: Optional[Dict[str, str]] = writer_args.get("dtype", None)
-        index: bool = writer_args.get("index", False)
-        compression: Optional[str] = writer_args.get("compression", None)
-        pyarrow_additional_kwargs: Optional[Dict[str, Any]] = writer_args.get("pyarrow_additional_kwargs", {})
-
-        pa.parquet.write_table(
-            _df_to_table(block.to_pandas(), schema=schema, index=index, dtype=dtype),
-            f,
-            compression=compression,
-            **pyarrow_additional_kwargs,
-        )
-
-    def _get_file_suffix(self, file_format: str, compression: Optional[str]) -> str:
-        if compression is not None:
-            return f"{_COMPRESSION_2_EXT.get(compression)[1:]}.{file_format}"  # type: ignore
-        return file_format
-
-
-# Original implementation
-# https://github.com/ray-project/ray/blob/ray-2.0.0/python/ray/data/datasource/parquet_datasource.py#L170
 class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-instance-attributes
     def __init__(
         self,
@@ -328,8 +336,9 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
         return max(ratio, PARQUET_ENCODING_RATIO_ESTIMATE_LOWER_BOUND)  # type: ignore
 
 
-# Original implementation:
-# https://github.com/ray-project/ray/blob/releases/2.0.0/python/ray/data/datasource/parquet_datasource.py
+# (AWS SDK for pandas) The following are the changes to the original ray implementation:
+# 1. Use _add_table_partitions to add partition columns. The behavior is controlled by Pandas SDK
+#    native `dataset` parameter. The partitions are loaded relative to the `path_root` prefix.
 def _read_pieces(
     block_udf: Optional[Callable[[Block[Any]], Block[Any]]],
     reader_args: Any,
@@ -368,9 +377,8 @@ def _read_pieces(
             **reader_args,
         )
         for batch in batches:
-            # Table creation is wrapped inside _add_table_partitions
-            # to add columns with partition values when dataset=True
-            # and cast them to categorical
+            # (AWS SDK for pandas) Table creation is wrapped inside _add_table_partitions
+            # to add columns with partition values when dataset=True and cast them to categorical
             table = _add_table_partitions(
                 table=pa.Table.from_batches([batch], schema=schema),
                 path=f"s3://{piece.path}",
