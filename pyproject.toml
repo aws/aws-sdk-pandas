@@ -45,8 +45,6 @@ SPARQLWrapper = { version = "^2.0.0", optional = true }
 pyodbc = { version = "~4.0.32", optional = true }
 modin = { version = "~0.16.0", optional = true }
 ray = { version = "~2.0.0", extras = ["default", "data"], optional = true}
-psutil = { version = "^5.9.0", optional = true }
-tqdm = { version = "^4.64.0", optional = true }
 oracledb = { version = "~1.0.0", optional = true }
 
 [tool.poetry.extras]
@@ -54,7 +52,7 @@ sqlserver = ["pyodbc"]
 oracle = ["oracledb"]
 sparql = ["SPARQLWrapper"]
 modin = ["modin"]
-ray = ["ray", "psutil", "tqdm"]
+ray = ["ray"]
 
 [tool.poetry.group.dev.dependencies]
 wheel = "^0.37.1"
