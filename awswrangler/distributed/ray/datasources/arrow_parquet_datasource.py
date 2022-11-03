@@ -145,15 +145,6 @@ class ArrowParquetDatasource(PandasFileBasedDatasource):  # pylint: disable=abst
         """Return a Reader for the given read arguments."""
         return _ArrowParquetDatasourceReader(**kwargs)  # type: ignore
 
-    def _open_input_source(
-        self,
-        filesystem: "pyarrow.fs.FileSystem",
-        path: str,
-        **open_args: Any,
-    ) -> "pyarrow.NativeFile":
-        # Parquet requires `open_input_file` due to random access reads
-        return filesystem.open_input_file(path, **open_args)
-
     def _write_block(  # type: ignore  # pylint: disable=arguments-differ, arguments-renamed, unused-argument
         self,
         f: "pyarrow.NativeFile",
