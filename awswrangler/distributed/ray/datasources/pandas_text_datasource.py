@@ -5,7 +5,7 @@ from typing import Any, Callable, Dict, Iterator, List, Optional
 
 import pandas as pd
 import pyarrow
-from ray.data._internal.pandas_block import PandasBlockAccessor
+from ray.data.block import BlockAccessor
 
 from awswrangler import exceptions
 from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import PandasFileBasedDatasource
@@ -72,7 +72,7 @@ class PandasTextDatasource(PandasFileBasedDatasource):  # pylint: disable=abstra
     def _write_block(  # type: ignore  # pylint: disable=arguments-differ, arguments-renamed
         self,
         f: io.TextIOWrapper,
-        block: PandasBlockAccessor,
+        block: BlockAccessor[Any],
         pandas_kwargs: Optional[Dict[str, Any]],
         **writer_args: Any,
     ) -> None:

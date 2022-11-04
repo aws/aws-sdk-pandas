@@ -4,8 +4,6 @@ from typing import Any, Callable, Dict, List, Optional
 
 import pandas as pd
 import pyarrow
-from ray.data._internal.pandas_block import PandasBlockAccessor
-from ray.data._internal.remote_fn import cached_remote_fn
 from ray.data.block import Block, BlockAccessor, BlockMetadata
 from ray.data.datasource.datasource import WriteResult
 from ray.data.datasource.file_based_datasource import (
@@ -15,6 +13,7 @@ from ray.data.datasource.file_based_datasource import (
 )
 from ray.types import ObjectRef
 
+from awswrangler.distributed.ray import ray_remote
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._write import _COMPRESSION_2_EXT
 
@@ -100,14 +99,14 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
             ) as f:
                 _write_block_to_file(
                     f,
-                    PandasBlockAccessor(block),
+                    BlockAccessor.for_block(block),
                     pandas_kwargs=pandas_kwargs,
                     compression=compression,
                     **write_args,
                 )
                 return write_path
 
-        write_block_fn = cached_remote_fn(write_block).options(**ray_remote_args)
+        write_block_fn = ray_remote(**ray_remote_args)(write_block)
 
         file_suffix = self._get_file_suffix(self._FILE_EXTENSION, compression)
         write_tasks = []
@@ -121,7 +120,7 @@ class PandasFileBasedDatasource(FileBasedDatasource):  # pylint: disable=abstrac
                 block_index=block_idx,
                 file_format=file_suffix,
             )
-            write_task = write_block_fn.remote(write_path, block)
+            write_task = write_block_fn(write_path, block)
             write_tasks.append(write_task)
 
         return write_tasks

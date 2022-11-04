@@ -140,7 +140,7 @@ def _to_partitions_distributed(  # pylint: disable=unused-argument
         _to_partitions_func = engine.dispatch_func(_to_partitions, PandasDataFrame)
         func = engine.dispatch_func(func, PandasDataFrame)
 
-        @ray_remote
+        @ray_remote()
         def write_partitions(df: pd.DataFrame, block_index: int) -> Tuple[List[str], Dict[str, List[str]]]:
             paths, partitions_values = _to_partitions_func(
                 # Passing a copy of the data frame because data in ray object store is immutable

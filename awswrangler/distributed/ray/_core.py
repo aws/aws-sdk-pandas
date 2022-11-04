@@ -51,27 +51,46 @@ def ray_logger(function: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
-def ray_remote(function: Callable[..., Any]) -> Callable[..., Any]:
+def ray_remote(**options: Any) -> Callable[..., Any]:
     """
-    Decorate callable to wrap within ray.remote.
+    Decorate with @ray.remote providing .options().
 
     Parameters
     ----------
-    function : Callable[..., Any]
-        Callable as input to ray.remote.
+    options : Any
+        Ray remote options
 
     Returns
     -------
     Callable[..., Any]
     """
-    # Access the source function if it exists
-    function = getattr(function, "_source_func", function)
 
-    @wraps(function)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        return ray.remote(ray_logger(function)).remote(*args, **kwargs)  # type: ignore
+    def remote_decorator(function: Callable[..., Any]) -> Callable[..., Any]:
+        """
+        Decorate callable to wrap within ray.remote.
 
-    return wrapper
+        Parameters
+        ----------
+        function : Callable[..., Any]
+            Callable as input to ray.remote.
+
+        Returns
+        -------
+        Callable[..., Any]
+        """
+        # Access the source function if it exists
+        function = getattr(function, "_source_func", function)
+
+        @wraps(function)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            remote_fn = ray.remote(ray_logger(function))
+            if options:
+                remote_fn = remote_fn.options(**options)
+            return remote_fn.remote(*args, **kwargs)  # type: ignore
+
+        return wrapper
+
+    return remote_decorator
 
 
 def ray_get(futures: Union["ray.ObjectRef[Any]", List["ray.ObjectRef[Any]"]]) -> Any:
