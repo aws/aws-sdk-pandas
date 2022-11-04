@@ -1,5 +1,6 @@
 """Amazon S3 Describe Module (INTERNAL)."""
 
+import concurrent.futures
 import datetime
 import itertools
 import logging
@@ -8,19 +9,15 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import boto3
 
 from awswrangler import _utils
-from awswrangler._distributed import engine
-from awswrangler._threading import _get_executor
-from awswrangler.distributed.ray import ray_get
 from awswrangler.s3 import _fs
 from awswrangler.s3._list import _path2list
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-@engine.dispatch_on_engine
 def _describe_object(
-    boto3_session: boto3.Session,
     path: str,
+    boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, Any]],
     version_id: Optional[str] = None,
 ) -> Tuple[str, Dict[str, Any]]:
@@ -41,6 +38,18 @@ def _describe_object(
         f=client_s3.head_object, ex=client_s3.exceptions.NoSuchKey, Bucket=bucket, Key=key, **extra_kwargs
     )
     return path, desc
+
+
+def _describe_object_concurrent(
+    path: str,
+    boto3_primitives: _utils.Boto3PrimitivesType,
+    s3_additional_kwargs: Optional[Dict[str, Any]],
+    version_id: Optional[str] = None,
+) -> Tuple[str, Dict[str, Any]]:
+    boto3_session = _utils.boto3_from_primitives(primitives=boto3_primitives)
+    return _describe_object(
+        path=path, boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs, version_id=version_id
+    )
 
 
 def describe_objects(
@@ -118,22 +127,41 @@ def describe_objects(
         last_modified_end=last_modified_end,
         s3_additional_kwargs=s3_additional_kwargs,
     )
-
     if len(paths) < 1:
         return {}
     resp_list: List[Tuple[str, Dict[str, Any]]]
-
-    executor = _get_executor(use_threads=use_threads)
-    resp_list = ray_get(
-        executor.map(
-            _describe_object,
-            boto3_session,
-            paths,
-            itertools.repeat(s3_additional_kwargs),
-            [version_id.get(p) if isinstance(version_id, dict) else version_id for p in paths],
-        )
-    )
-
+    if len(paths) == 1:
+        resp_list = [
+            _describe_object(
+                path=paths[0],
+                version_id=version_id.get(paths[0]) if isinstance(version_id, dict) else version_id,
+                boto3_session=boto3_session,
+                s3_additional_kwargs=s3_additional_kwargs,
+            )
+        ]
+    elif use_threads is False:
+        resp_list = [
+            _describe_object(
+                path=p,
+                version_id=version_id.get(p) if isinstance(version_id, dict) else version_id,
+                boto3_session=boto3_session,
+                s3_additional_kwargs=s3_additional_kwargs,
+            )
+            for p in paths
+        ]
+    else:
+        cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
+        versions = [version_id.get(p) if isinstance(version_id, dict) else version_id for p in paths]
+        with concurrent.futures.ThreadPoolExecutor(max_workers=cpus) as executor:
+            resp_list = list(
+                executor.map(
+                    _describe_object_concurrent,
+                    paths,
+                    versions,
+                    itertools.repeat(_utils.boto3_to_primitives(boto3_session=boto3_session)),
+                    itertools.repeat(s3_additional_kwargs),
+                )
+            )
     desc_dict: Dict[str, Dict[str, Any]] = dict(resp_list)
     return desc_dict
 
