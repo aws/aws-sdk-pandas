@@ -6,6 +6,7 @@ from awswrangler._utils import is_pandas_frame, split_pandas_frame, table_refs_t
 from awswrangler.distributed.ray import ray_remote
 from awswrangler.lakeformation._read import _get_work_unit_results
 from awswrangler.s3._delete import _delete_objects
+from awswrangler.s3._describe import _describe_object
 from awswrangler.s3._read_parquet import _read_parquet, _read_parquet_metadata_file
 from awswrangler.s3._read_text import _read_text
 from awswrangler.s3._select import _select_object_content, _select_query
@@ -20,6 +21,7 @@ def register_ray() -> None:
     """Register dispatched Ray and Modin (on Ray) methods."""
     for func in [
         _get_work_unit_results,
+        _describe_object,
         _delete_objects,
         _read_parquet_metadata_file,
         _select_query,
