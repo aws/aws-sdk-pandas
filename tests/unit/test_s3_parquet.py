@@ -598,3 +598,21 @@ def test_read_parquet_versioned(path) -> None:
         df_temp = wr.s3.read_parquet(path_file, version_id=version_id)
         assert df_temp.equals(df)
         assert version_id == wr.s3.describe_objects(path=path_file, version_id=version_id)[path_file]["VersionId"]
+
+
+def test_read_parquet_schema_validation_with_index_column(path) -> None:
+    path_file = f"{path}file.parquet"
+    df = pd.DataFrame({"idx": [1], "col": [2]})
+    df0 = df.set_index("idx")
+    wr.s3.to_parquet(
+        df=df0,
+        path=path_file,
+        index=True,
+    )
+    df1 = wr.s3.read_parquet(
+        path=path_file,
+        ignore_index=False,
+        columns=["idx", "col"],
+        validate_schema=True,
+    )
+    assert df0.shape == df1.shape

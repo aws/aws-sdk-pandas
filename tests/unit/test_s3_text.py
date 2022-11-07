@@ -47,6 +47,25 @@ def test_csv_encoding(path, encoding, strings, wrong_encoding, exception, line_t
         assert df.equals(df2)
 
 
+@pytest.mark.parametrize(
+    "encoding,strings,wrong_encoding",
+    [
+        ("utf-8", ["漢字", "ãóú", "г, д, ж, з, к, л"], "ascii"),
+        ("ISO-8859-15", ["Ö, ö, Ü, ü", "ãóú", "øe"], "ascii"),
+    ],
+)
+def test_csv_ignore_encoding_errors(path, encoding, strings, wrong_encoding):
+    file_path = f"{path}0.csv"
+    df = pd.DataFrame({"c0": [1, 2, 3], "c1": strings})
+    wr.s3.to_csv(df, file_path, index=False, encoding=encoding)
+    with pytest.raises(UnicodeDecodeError):
+        df2 = wr.s3.read_csv(file_path, encoding=wrong_encoding)
+    df2 = wr.s3.read_csv(file_path, encoding=wrong_encoding, encoding_errors="ignore")
+    if isinstance(df2, pd.DataFrame) is False:
+        df2 = pd.concat(df2, ignore_index=True)
+        assert df2.shape == (3, 4)
+
+
 @pytest.mark.parametrize("use_threads", [True, False, 2])
 @pytest.mark.parametrize("chunksize", [None, 1])
 def test_read_partitioned_json_paths(path, use_threads, chunksize):

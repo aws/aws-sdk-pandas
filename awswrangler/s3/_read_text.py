@@ -230,7 +230,7 @@ def read_csv(
         The requested parallelism of the read. Only used when `distributed` add-on is installed.
         Parallelism may be limited by the number of files of the dataset. 200 by default.
     pandas_kwargs :
-        KEYWORD arguments forwarded to pandas.read_csv(). You can NOT pass `pandas_kwargs` explicit, just add valid
+        KEYWORD arguments forwarded to pandas.read_csv(). You can NOT pass `pandas_kwargs` explicitly, just add valid
         Pandas arguments in the function call and awswrangler will accept it.
         e.g. wr.s3.read_csv('s3://bucket/prefix/', sep='|', na_values=['null', 'none'], skip_blank_lines=True)
         https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html
@@ -273,7 +273,7 @@ def read_csv(
     """
     if "pandas_kwargs" in pandas_kwargs:
         raise exceptions.InvalidArgument(
-            "You can NOT pass `pandas_kwargs` explicit, just add valid "
+            "You can NOT pass `pandas_kwargs` explicitly, just add valid "
             "Pandas arguments in the function call and awswrangler will accept it."
             "e.g. wr.s3.read_csv('s3://bucket/prefix/', sep='|', skip_blank_lines=True)"
         )
