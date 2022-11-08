@@ -30,7 +30,10 @@ boto3 = "^1.24.11"
 botocore = "^1.27.11"
 pandas = "^1.2.0, <=1.5.1, !=1.5.0" # Exclusion per: https://github.com/aws/aws-sdk-pandas/issues/1678
 numpy = "^1.22.4"
-pyarrow = ">=6.0.0, <8.1.0"
+pyarrow = [
+    { version = ">=6.0.1, <8.0.0", markers = "extra == 'ray' or 'ray' in extra" },
+    { version = ">=6.0.0, <10.1.0", markers = "extra != 'ray' and 'ray' not in extra"}
+]
 redshift-connector = "~2.0.889"
 pymysql = "^1.0.0"
 pg8000 = "^1.29.0"
@@ -52,7 +55,7 @@ sqlserver = ["pyodbc"]
 oracle = ["oracledb"]
 sparql = ["SPARQLWrapper"]
 modin = ["modin"]
-ray = ["ray"]
+ray = ["ray", "pyarrow (>=6.0.1, <8.0.0)"]
 
 [tool.poetry.group.dev.dependencies]
 wheel = "^0.37.1"
