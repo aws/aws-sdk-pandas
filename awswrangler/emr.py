@@ -159,7 +159,9 @@ def _build_cluster_args(**pars: Any) -> Dict[str, Any]:  # pylint: disable=too-m
             extra_public_registries: List[str] = []
         else:
             extra_public_registries = pars["extra_public_registries"]
-        registries: str = f"local,centos,{account_id}.dkr.ecr.{region}.amazonaws.com,{','.join(extra_public_registries)}"
+        registries: str = (
+            f"local,centos,{account_id}.dkr.ecr.{region}.amazonaws.com,{','.join(extra_public_registries)}"
+        )
         registries = registries[:-1] if registries.endswith(",") else registries
         args["Configurations"].append(
             {
