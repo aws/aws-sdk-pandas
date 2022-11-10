@@ -155,11 +155,13 @@ def _build_cluster_args(**pars: Any) -> Dict[str, Any]:  # pylint: disable=too-m
         {"Classification": "spark-log4j", "Properties": {"log4j.rootCategory": f"{pars['spark_log_level']}, console"}}
     ]
     if pars["docker"] is True:
-        if pars.get("extra_registries") is None:
-            extra_registries: List[str] = []
+        if pars.get("extra_public_registries") is None:
+            extra_public_registries: List[str] = []
         else:
-            extra_registries = pars["extra_registries"]
-        registries: str = f"local,centos,{account_id}.dkr.ecr.{region}.amazonaws.com,{','.join(extra_registries)}"
+            extra_public_registries = pars["extra_public_registries"]
+        registries: str = (
+            f"local,centos,{account_id}.dkr.ecr.{region}.amazonaws.com,{','.join(extra_public_registries)}"
+        )
         registries = registries[:-1] if registries.endswith(",") else registries
         args["Configurations"].append(
             {
