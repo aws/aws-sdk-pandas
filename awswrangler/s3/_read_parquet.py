@@ -715,7 +715,7 @@ def read_parquet(
     Reading in chunks (Chunk by 1MM rows)
 
     >>> import awswrangler as wr
-    >>> dfs = wr.s3.read_parquet(path=['s3://bucket/filename0.parquet', 's3://bucket/filename1.parquet'], chunked=1_000_000)
+    >>> dfs = wr.s3.read_parquet(path=['s3://bucket/filename0.parquet', 's3://bucket/filename1.parquet'], chunked=1_000_000)  # pylint: disable=line-too-long
     >>> for df in dfs:
     >>>     print(df)  # 1MM Pandas DataFrame
 
@@ -725,7 +725,7 @@ def read_parquet(
     >>> my_filter = lambda x: True if x["city"].startswith("new") else False
     >>> df = wr.s3.read_parquet(path, dataset=True, partition_filter=my_filter)
 
-    """
+    """  # noqa: E501
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     paths: List[str] = _path2list(
         path=path,
@@ -849,7 +849,7 @@ def read_parquet_table(
         Suffix or List of suffixes to be read (e.g. [".gz.parquet", ".snappy.parquet"]).
         If None, will try to read all files. (default)
     filename_ignore_suffix: Union[str, List[str], None]
-        Suffix or List of suffixes for S3 keys to be ignored.(e.g. [".parquet", "_SUCCESS"]).
+        Suffix or List of suffixes for S3 keys to be ignored.(e.g. [".csv", "_SUCCESS"]).
         If None, will try to read all files. (default)
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
