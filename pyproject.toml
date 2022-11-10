@@ -31,7 +31,7 @@ boto3 = "^1.24.11"
 botocore = "^1.27.11"
 pandas = "^1.2.0, <=1.5.1, !=1.5.0" # Exclusion per: https://github.com/aws/aws-sdk-pandas/issues/1678
 numpy = "^1.21.0"
-pyarrow = ">=2.0.0, <8.1.0"
+pyarrow = ">=2.0.0,<10.1.0"
 redshift-connector = "~2.0.889"
 pymysql = "^1.0.0"
 pg8000 = "^1.20.0"
