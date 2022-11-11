@@ -708,14 +708,17 @@ def read_parquet(
     Reading in chunks (Chunk by file)
 
     >>> import awswrangler as wr
-    >>> dfs = wr.s3.read_parquet(path=['s3://bucket/filename0.csv', 's3://bucket/filename1.csv'], chunked=True)
+    >>> dfs = wr.s3.read_parquet(path=['s3://bucket/filename0.parquet', 's3://bucket/filename1.parquet'], chunked=True)
     >>> for df in dfs:
     >>>     print(df)  # Smaller Pandas DataFrame
 
     Reading in chunks (Chunk by 1MM rows)
 
     >>> import awswrangler as wr
-    >>> dfs = wr.s3.read_parquet(path=['s3://bucket/filename0.csv', 's3://bucket/filename1.csv'], chunked=1_000_000)
+    >>> dfs = wr.s3.read_parquet(
+    ...     path=['s3://bucket/filename0.parquet', 's3://bucket/filename1.parquet'],
+    ...     chunked=1_000_000
+    ... )
     >>> for df in dfs:
     >>>     print(df)  # 1MM Pandas DataFrame
 
