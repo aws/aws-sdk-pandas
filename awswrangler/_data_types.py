@@ -54,7 +54,7 @@ def pyarrow2athena(  # pylint: disable=too-many-branches,too-many-return-stateme
     if pa.types.is_struct(dtype):
         return f"struct<{','.join([f'{f.name}:{pyarrow2athena(dtype=f.type)}' for f in dtype])}>"
     if pa.types.is_map(dtype):
-        return f"map<{pyarrow2athena(dtype=dtype.key_type)}, {pyarrow2athena(dtype=dtype.item_type)}>"
+        return f"map<{pyarrow2athena(dtype=dtype.key_type)},{pyarrow2athena(dtype=dtype.item_type)}>"
     if dtype == pa.null():
         if ignore_null:
             return ""
