@@ -26,7 +26,6 @@ pushd arrow/cpp/build
 cmake \
     -DCMAKE_INSTALL_PREFIX=$ARROW_HOME \
     -DCMAKE_INSTALL_LIBDIR=lib \
-    -DCMAKE_CXX_FLAGS=-std=c++17 \
     -DARROW_PYTHON=ON \
     -DARROW_PARQUET=ON \
     -DARROW_WITH_SNAPPY=ON \
