@@ -23,6 +23,7 @@ API Reference
 * `AWS Secrets Manager`_
 * `Amazon Chime`_
 * `Global Configurations`_
+* `Distributed - Ray`_
 
 Amazon S3
 ---------
@@ -429,3 +430,17 @@ Global Configurations
 
     reset
     to_pandas
+
+Distributed - Ray
+---------------------
+
+.. currentmodule:: awswrangler.distributed.ray
+
+.. autosummary::
+    :toctree: stubs
+
+    RayLogger
+    initialize_ray
+    ray_get
+    ray_logger
+    ray_remote
