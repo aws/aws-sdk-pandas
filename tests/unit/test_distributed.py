@@ -1,5 +1,4 @@
 import logging
-from enum import Enum
 
 import pytest
 
@@ -14,6 +13,7 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 pytestmark = pytest.mark.distributed
 
 
+@pytest.mark.skipif(condition=not is_ray_modin, reason="ray not available")
 def test_engine_lazy_initialization(path: str) -> None:
     assert not wr.engine._registry
 
@@ -24,27 +24,29 @@ def test_engine_lazy_initialization(path: str) -> None:
     assert wr.engine._registry
 
 
+@pytest.mark.skipif(condition=not is_ray_modin, reason="ray not available")
 def test_engine_explicit_eager_initialization(path: str) -> None:
     wr.engine.register(EngineEnum.RAY.value)
 
     assert wr.engine._registry
 
 
-@pytest.mark.parametrize(
-    "engine_enum",
-    [
-        pytest.param(
-            EngineEnum.RAY,
-            marks=pytest.mark.skip("ray not available") if not is_ray_modin else [],
-        ),
-    ],
-)
-def test_engine(engine_enum: Enum) -> None:
-    assert wr.engine.get_installed() == engine_enum
-    assert wr.engine.get() == engine_enum
+@pytest.mark.skipif(condition=not is_ray_modin, reason="ray not available")
+def test_engine_ray() -> None:
+    assert wr.engine.get_installed() == EngineEnum.RAY
+    assert wr.engine.get() == EngineEnum.RAY
 
-    wr.engine.register(engine_enum.value)
+    wr.engine.register(EngineEnum.RAY.value)
 
     assert wr.engine._registry
     assert wr.engine.dispatch_func(_to_parquet).__name__.endswith("distributed")
     assert not wr.engine.dispatch_func(_to_parquet, "python").__name__.endswith("distributed")
+
+
+def test_engine_python() -> None:
+    wr.engine.register(EngineEnum.PYTHON.value)
+
+    assert wr.engine.get() == EngineEnum.PYTHON
+
+    assert not wr.engine._registry
+    assert not wr.engine.dispatch_func(_to_parquet).__name__.endswith("distributed")
