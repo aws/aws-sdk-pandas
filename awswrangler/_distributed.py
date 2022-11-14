@@ -30,6 +30,7 @@ class Engine:
 
     _enum: Optional[Enum] = None
     _registry: Dict[str, Dict[str, Callable[..., Any]]] = defaultdict(dict)
+    _is_initialized: bool = False
 
     @classmethod
     def get_installed(cls) -> Enum:
@@ -84,6 +85,9 @@ class Engine:
 
         @wraps(func)
         def wrapper(*args: Any, **kw: Dict[str, Any]) -> Any:
+            if not cls._is_initialized:
+                cls.initialize()
+
             return cls.dispatch_func(func)(*args, **kw)
 
         # Save the original function
@@ -111,6 +115,7 @@ class Engine:
 
             initialize_ray()
         cls.register(engine_name)
+        cls._is_initialized = True
 
 
 class MemoryFormat:

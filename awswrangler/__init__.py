@@ -34,8 +34,6 @@ from awswrangler.__metadata__ import __description__, __license__, __title__, __
 from awswrangler._config import config  # noqa
 from awswrangler._distributed import engine, memory_format  # noqa
 
-engine.initialize()
-
 __all__ = [
     "athena",
     "catalog",
