@@ -68,6 +68,9 @@ class Engine:
     @classmethod
     def dispatch_func(cls, source_func: Callable[..., Any], value: Optional[Any] = None) -> Callable[..., Any]:
         """Dispatch a func based on value or the distribution engine and the source function."""
+        if not cls._is_initialized:
+            cls.initialize()
+
         try:
             return cls._registry[value or cls.get().value][source_func.__name__]
         except KeyError:
