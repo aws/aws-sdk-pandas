@@ -600,6 +600,11 @@ def test_read_parquet_versioned(path) -> None:
         assert version_id == wr.s3.describe_objects(path=path_file, version_id=version_id)[path_file]["VersionId"]
 
 
+@pytest.mark.xfail(
+    is_ray_modin,
+    raises=wr.exceptions.InvalidArgumentCombination,
+    reason="Index not working when repartitioning to a single file",
+)
 def test_read_parquet_schema_validation_with_index_column(path) -> None:
     path_file = f"{path}file.parquet"
     df = pd.DataFrame({"idx": [1], "col": [2]})
