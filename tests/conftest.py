@@ -252,6 +252,18 @@ def redshift_table():
 
 
 @pytest.fixture(scope="function")
+def redshift_table_with_hyphenated_name():
+    name = f"tbl-{get_time_str_with_random_suffix()}"
+    print(f"Table name: {name}")
+    yield name
+    con = wr.redshift.connect("aws-sdk-pandas-redshift")
+    with con.cursor() as cursor:
+        cursor.execute(f'DROP TABLE IF EXISTS public."{name}"')
+    con.commit()
+    con.close()
+
+
+@pytest.fixture(scope="function")
 def postgresql_table():
     name = f"tbl_{get_time_str_with_random_suffix()}"
     print(f"Table name: {name}")
