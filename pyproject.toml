@@ -52,7 +52,7 @@ oracle = ["oracledb"]
 sparql = ["SPARQLWrapper"]
 
 [tool.poetry.dev-dependencies]
-wheel = "^0.37.1"
+wheel = "^0.38.4"
 isort = "^5.9.2"
 black = "^22.1.0"
 pylint = "^2.11.1"
