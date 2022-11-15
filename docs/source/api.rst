@@ -439,8 +439,4 @@ Distributed - Ray
 .. autosummary::
     :toctree: stubs
 
-    RayLogger
     initialize_ray
-    ray_get
-    ray_logger
-    ray_remote
