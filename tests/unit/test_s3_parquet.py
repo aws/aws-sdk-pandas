@@ -600,6 +600,7 @@ def test_read_parquet_versioned(path) -> None:
         assert version_id == wr.s3.describe_objects(path=path_file, version_id=version_id)[path_file]["VersionId"]
 
 
+# TODO https://github.com/aws/aws-sdk-pandas/issues/1775
 @pytest.mark.xfail(reason="The `ignore_index` is not implemented")
 def test_read_parquet_schema_validation_with_index_column(path) -> None:
     path_file = f"{path}file.parquet"
