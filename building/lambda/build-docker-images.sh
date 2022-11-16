@@ -14,6 +14,7 @@ if [ "${ARCH}" != "aarch64" ]; then
     --pull \
     --tag awswrangler-build-py37 \
     --build-arg base_image=public.ecr.aws/lambda/python:3.7 \
+    -f ./docker_py37/Dockerfile \
     .
 fi
 
