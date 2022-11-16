@@ -8,7 +8,8 @@ import os
 import random
 import time
 from concurrent.futures import FIRST_COMPLETED, Future, wait
-from typing import Any, Callable, Dict, Generator, List, Optional, Sequence, Tuple, Union, cast
+from functools import partial, wraps
+from typing import Any, Callable, Dict, Generator, List, Optional, Sequence, Tuple, Type, Union, cast
 
 import boto3
 import botocore.config
@@ -333,9 +334,42 @@ def check_duplicated_columns(df: pd.DataFrame) -> Any:
         )
 
 
+def retry(
+    ex: Type[Exception],
+    ex_code: Optional[str] = None,
+    base: float = 1.0,
+    max_num_tries: int = 3,
+) -> Callable[..., Any]:
+    """
+    Decorate function with decorrelated Jitter retries.
+
+    Parameters
+    ----------
+    ex : Exception
+        Exception to retry on
+    ex_code : Optional[str]
+        Response error code
+    base : float
+        Base delay
+    max_num_tries : int
+        Maximum number of retries
+
+    Returns
+    -------
+    Callable[..., Any]
+        Function
+    """
+
+    def wrapper(f: Callable[..., Any]) -> Any:
+        return wraps(f)(partial(try_it, f, ex, ex_code=ex_code, base=base, max_num_tries=max_num_tries))
+
+    return wrapper
+
+
 def try_it(
     f: Callable[..., Any],
     ex: Any,
+    *args: Any,
     ex_code: Optional[str] = None,
     base: float = 1.0,
     max_num_tries: int = 3,
@@ -348,7 +382,7 @@ def try_it(
     delay: float = base
     for i in range(max_num_tries):
         try:
-            return f(**kwargs)
+            return f(*args, **kwargs)
         except ex as exception:
             if ex_code is not None and hasattr(exception, "response"):
                 if exception.response["Error"]["Code"] != ex_code:
