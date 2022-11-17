@@ -28,12 +28,12 @@ class MemoryFormatEnum(Enum):
 class Engine:
     """Execution engine configuration class."""
 
-    _enum: Optional[Enum] = None
+    _enum: Optional[EngineEnum] = None
+    _initialized_engine: Optional[EngineEnum] = None
     _registry: Dict[str, Dict[str, Callable[..., Any]]] = defaultdict(dict)
-    _is_initialized: bool = False
 
     @classmethod
-    def get_installed(cls) -> Enum:
+    def get_installed(cls) -> EngineEnum:
         """Get the installed distribution engine.
 
         This is the engine that can be imported.
@@ -48,7 +48,7 @@ class Engine:
         return EngineEnum.PYTHON
 
     @classmethod
-    def get(cls) -> Enum:
+    def get(cls) -> EngineEnum:
         """Get the configured distribution engine.
 
         This is the engine currently configured. If None, the installed engine is returned.
@@ -63,13 +63,13 @@ class Engine:
     @classmethod
     def set(cls, name: str) -> None:
         """Set the distribution engine."""
-        cls._enum = EngineEnum._member_map_[name.upper()]  # pylint: disable=protected-access,no-member
+        cls._enum = EngineEnum._member_map_[name.upper()]  # type: ignore  # pylint: disable=protected-access,no-member
 
     @classmethod
     def dispatch_func(cls, source_func: Callable[..., Any], value: Optional[Any] = None) -> Callable[..., Any]:
         """Dispatch a func based on value or the distribution engine and the source function."""
-        if not cls._is_initialized:
-            cls.initialize()
+        if not cls.is_initialized(cls.get().value):
+            cls.initialize(cls.get().value)
 
         try:
             return cls._registry[value or cls.get().value][source_func.__name__]
@@ -88,8 +88,8 @@ class Engine:
 
         @wraps(func)
         def wrapper(*args: Any, **kw: Dict[str, Any]) -> Any:
-            if not cls._is_initialized:
-                cls.initialize()
+            if not cls.is_initialized(cls.get().value):
+                cls.initialize(cls.get().value)
 
             return cls.dispatch_func(func)(*args, **kw)
 
@@ -118,7 +118,15 @@ class Engine:
 
             initialize_ray()
         cls.register(engine_name)
-        cls._is_initialized = True
+
+    @classmethod
+    def is_initialized(cls, name: Optional[str] = None) -> bool:
+        """Check if the distribution engine is initialized."""
+        engine_name = cls.get_installed().value if not name else name
+        if cls._initialized_engine is None:
+            return False
+
+        return cls._initialized_engine.value == engine_name
 
 
 class MemoryFormat:
