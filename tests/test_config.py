@@ -119,16 +119,12 @@ def test_basics(path, glue_database, glue_table, workgroup0, workgroup1):
     wr.config.athena_endpoint_url = f"https://athena.{region}.amazonaws.com"
     wr.config.glue_endpoint_url = f"https://glue.{region}.amazonaws.com"
     wr.config.secretsmanager_endpoint_url = f"https://secretsmanager.{region}.amazonaws.com"
-    wr.config.timestream_write_endpoint_url = f"https://ingest.timestream.{region}.amazonaws.com"
-    wr.config.timestream_query_endpoint_url = f"https://query.timestream.{region}.amazonaws.com"
     _urls_test(glue_database)
     os.environ["WR_STS_ENDPOINT_URL"] = f"https://sts.{region}.amazonaws.com"
     os.environ["WR_S3_ENDPOINT_URL"] = f"https://s3.{region}.amazonaws.com"
     os.environ["WR_ATHENA_ENDPOINT_URL"] = f"https://athena.{region}.amazonaws.com"
     os.environ["WR_GLUE_ENDPOINT_URL"] = f"https://glue.{region}.amazonaws.com"
     os.environ["WR_SECRETSMANAGER_ENDPOINT_URL"] = f"https://secretsmanager.{region}.amazonaws.com"
-    os.environ["WR_TIMESTREAM_WRITE_ENDPOINT_URL"] = f"https://ingest.timestream.{region}.amazonaws.com"
-    os.environ["WR_TIMESTREAM_QUERY_ENDPOINT_URL"] = f"https://query.timestream.{region}.amazonaws.com"
     wr.config.reset()
     _urls_test(glue_database)
 
