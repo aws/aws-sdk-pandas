@@ -8,9 +8,6 @@ import awswrangler as wr
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
-pytestmark = pytest.mark.skip("Tests are causing timeout issues at the moment.")
-
-
 @pytest.mark.parametrize("use_threads", [True, False])
 @pytest.mark.parametrize("concurrent_partitioning", [True, False])
 @pytest.mark.parametrize("table_type", ["EXTERNAL_TABLE", "GOVERNED"])
