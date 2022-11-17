@@ -14,7 +14,7 @@ if [ "${ARCH}" != "aarch64" ]; then
     --pull \
     --tag awswrangler-build-py37 \
     --build-arg base_image=public.ecr.aws/lambda/python:3.7 \
-    --build-arg python_version=python37
+    --build-arg python_version=python37 \
     .
 fi
 
