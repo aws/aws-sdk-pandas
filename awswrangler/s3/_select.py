@@ -35,6 +35,9 @@ def _gen_scan_range(obj_size: int, scan_range_chunk_size: Optional[int] = None) 
 
 
 @engine.dispatch_on_engine
+@_utils.retry(
+    ex=exceptions.S3SelectRequestIncomplete,
+)
 def _select_object_content(
     boto3_session: Optional[boto3.Session],
     args: Dict[str, Any],
@@ -64,7 +67,9 @@ def _select_object_content(
             request_complete = True
     # If the End Event is not received, the results may be incomplete
     if not request_complete:
-        raise Exception(f"S3 Select request for path {args['Key']} is incomplete as End Event was not received")
+        raise exceptions.S3SelectRequestIncomplete(
+            f"S3 Select request for path {args['Key']} is incomplete as End Event was not received"
+        )
 
     return _utils.list_to_arrow_table(mapping=payload_records)
 

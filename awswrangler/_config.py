@@ -408,7 +408,12 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
 
     @property
     def timestream_query_endpoint_url(self) -> Optional[str]:
-        """Property timestream_query_endpoint_url."""
+        """
+        Property timestream_query_endpoint_url.
+
+        Before setting this endpoint, consult the documentation for DescribeEndpoints.
+        https://docs.aws.amazon.com/timestream/latest/developerguide/API_DescribeEndpoints.html
+        """
         return cast(Optional[str], self["timestream_query_endpoint_url"])
 
     @timestream_query_endpoint_url.setter
@@ -417,7 +422,12 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
 
     @property
     def timestream_write_endpoint_url(self) -> Optional[str]:
-        """Property timestream_write_endpoint_url."""
+        """
+        Property timestream_write_endpoint_url.
+
+        Before setting this endpoint, consult the documentation for DescribeEndpoints.
+        https://docs.aws.amazon.com/timestream/latest/developerguide/API_DescribeEndpoints.html
+        """
         return cast(Optional[str], self["timestream_write_endpoint_url"])
 
     @timestream_write_endpoint_url.setter
