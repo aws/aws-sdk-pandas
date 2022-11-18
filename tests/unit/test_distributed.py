@@ -21,20 +21,20 @@ def wr() -> Iterable[ModuleType]:
 
 @pytest.mark.skipif(condition=not is_ray_modin, reason="ray not available")
 def test_engine_lazy_initialization(wr: ModuleType, path: str) -> None:
-    assert not wr.engine._registry
+    assert not wr.engine.is_initialized()
 
     # any function which dispatches based on engine will
     # initialize the engine
     wr.s3.wait_objects_not_exist([path])
 
-    assert wr.engine._registry
+    assert wr.engine.is_initialized()
 
 
 @pytest.mark.skipif(condition=not is_ray_modin, reason="ray not available")
 def test_engine_explicit_eager_initialization(wr: ModuleType, path: str) -> None:
     wr.engine.initialize()
 
-    assert wr.engine._registry
+    assert wr.engine.is_initialized()
 
 
 @pytest.mark.skipif(condition=not is_ray_modin, reason="ray not available")
@@ -60,5 +60,4 @@ def test_engine_python(wr: ModuleType) -> None:
 
     assert wr.engine.get() == EngineEnum.PYTHON
 
-    assert not wr.engine._registry
     assert not wr.engine.dispatch_func(_to_parquet).__name__.endswith("distributed")

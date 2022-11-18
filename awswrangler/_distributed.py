@@ -118,6 +118,7 @@ class Engine:
 
             initialize_ray()
         cls.register(engine_name)
+        cls._initialized_engine = cls.get()
 
     @classmethod
     def is_initialized(cls, name: Optional[str] = None) -> bool:
