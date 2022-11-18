@@ -48,8 +48,8 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "lakeformation_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
     "dynamodb_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
     "secretsmanager_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
-    "timestream_query_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
-    "timestream_write_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True),
+    "timestream_query_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
+    "timestream_write_endpoint_url": _ConfigArg(dtype=str, nullable=True, enforced=True, loaded=True),
     # Botocore config
     "botocore_config": _ConfigArg(dtype=botocore.config.Config, nullable=True),
     "verify": _ConfigArg(dtype=str, nullable=True, loaded=True),
