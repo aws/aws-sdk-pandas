@@ -323,8 +323,8 @@ def describe_log_streams(
 def _filter_log_events(
     log_group_name: str,
     log_stream_names: List[str],
-    start_timestamp: int,
-    end_timestamp: int,
+    start_timestamp: Optional[int] = None,
+    end_timestamp: Optional[int] = None,
     filter_pattern: Optional[str] = None,
     limit: Optional[int] = 10000,
     boto3_session: Optional[boto3.Session] = None,
@@ -335,9 +335,11 @@ def _filter_log_events(
         "logGroupName": log_group_name,
         "logStreamNames": log_stream_names,
         "limit": limit,
-        "startTime": start_timestamp,
-        "endTime": end_timestamp,
     }
+    if start_timestamp:
+        args["startTime"] = start_timestamp
+    if end_timestamp:
+        args["endTime"] = start_timestamp
     if filter_pattern:
         args["filterPattern"] = filter_pattern
     response: Dict[str, Any] = client_logs.filter_log_events(**args)
@@ -347,7 +349,7 @@ def _filter_log_events(
             **args,
             nextToken=response["nextToken"],
         )
-        events += response["logStreams"]
+        events += response["events"]
     return events
 
 
@@ -356,8 +358,8 @@ def filter_log_events(
     log_stream_name_prefix: Optional[str] = None,
     log_stream_names: Optional[List[str]] = None,
     filter_pattern: Optional[str] = None,
-    start_time: datetime.datetime = datetime.datetime(year=1970, month=1, day=1, tzinfo=datetime.timezone.utc),
-    end_time: datetime.datetime = datetime.datetime.utcnow(),
+    start_time: Optional[datetime.datetime] = None,
+    end_time: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> pd.DataFrame:
     """Lists log events from the specified log group. The results are returned as Pandas DataFrame.
@@ -404,9 +406,6 @@ def filter_log_events(
             "Cannot call filter_log_events with both log_stream_names and log_stream_name_prefix"
         )
     _logger.debug("log_group_name: %s", log_group_name)
-    start_timestamp: int = int(1000 * start_time.timestamp())
-    end_timestamp: int = int(1000 * end_time.timestamp())
-    _validate_args(start_timestamp=start_timestamp, end_timestamp=end_timestamp)
 
     events: List[Dict[str, Any]] = []
     if log_stream_name_prefix and not log_stream_names:
@@ -416,10 +415,11 @@ def filter_log_events(
     assert log_stream_names is not None
     args: Dict[str, Any] = {
         "log_group_name": log_group_name,
-        "start_timestamp": start_timestamp,
-        "end_timestamp": end_timestamp,
     }
-
+    if start_time:
+        args["start_timestamp"] = int(1000 * start_time.timestamp())
+    if end_time:
+        args["end_timestamp"] = int(1000 * end_time.timestamp())
     if filter_pattern:
         args["filter_pattern"] = filter_pattern
     if boto3_session:
