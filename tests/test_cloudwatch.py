@@ -61,7 +61,10 @@ def test_describe_log_streams_and_filter_log_events(loggroup):
         "aws_sdk_pandas_log_stream_four",
     ]
     for log_stream in log_stream_names:
-        cloudwatch_log_client.create_log_stream(logGroupName=loggroup, logStreamName=log_stream)
+        try:
+            cloudwatch_log_client.create_log_stream(logGroupName=loggroup, logStreamName=log_stream)
+        except cloudwatch_log_client.Client.exceptions.ResourceAlreadyExistsException:
+            continue
     log_streams_df = wr.cloudwatch.describe_log_streams(
         log_group_name=loggroup, order_by="LastEventTime", descending=False
     )
