@@ -3,7 +3,7 @@
 import datetime
 import logging
 import time
-from typing import Any, Dict, List, Literal, Optional, Union, cast
+from typing import Any, Dict, List, Optional, cast
 
 import boto3
 import pandas as pd
