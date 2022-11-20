@@ -1,3 +1,4 @@
+from datetime import datetime
 import logging
 
 import boto3
@@ -49,3 +50,47 @@ def test_read_logs(loggroup):
     )
     assert len(df.index) == 5
     assert len(df.columns) == 3
+
+
+def test_describe_log_streams_and_filter_log_events(loggroup):
+    cloudwatch_log_client = boto3.client("logs")
+    log_stream_names = [
+        "aws_sdk_pandas_log_stream_one",
+        "aws_sdk_pandas_log_stream_two",
+        "aws_sdk_pandas_log_stream_three",
+        "aws_sdk_pandas_log_stream_four",
+    ]
+    for log_stream in log_stream_names:
+        cloudwatch_log_client.create_log_stream(logGroupName=loggroup, logStreamName=log_stream)
+    log_streams_df = wr.cloudwatch.describe_log_streams(
+        log_group_name=loggroup, order_by="LastEventTime", descending=False
+    )
+    assert len(log_streams_df.index) >= 4
+    assert "logGroupName" in log_streams_df.columns
+    for log_stream in log_streams_df.to_dict("records"):
+        events = []
+        token = log_stream.get("uploadSequenceToken")
+        for i, event_message in enumerate(["REPORT", "DURATION", "key:value", "START", "END"]):
+            events.append({"timestamp": int(1000 * datetime.now().timestamp()), "message": f"{i}_{event_message}"})
+        args = {
+            "logGroupName": log_stream["logGroupName"],
+            "logStreamName": log_stream["logStreamName"],
+            "logEvents": events,
+        }
+        if token:
+            args["sequenceToken"] = token
+        try:
+            cloudwatch_log_client.put_log_events(**args)
+        except cloudwatch_log_client.exceptions.DataAlreadyAcceptedException:
+            pass  # Concurrency
+
+    log_events_df = wr.cloudwatch.filter_log_events(
+        log_group_name=loggroup, log_stream_name_prefix="aws_sdk_pandas_log_stream"
+    )
+    assert len(set(log_events_df["logStreamName"].tolist())) >= 4
+
+    filtered_log_events_df = wr.cloudwatch.filter_log_events(
+        log_group_name=loggroup, log_stream_names=log_stream_names, filter_pattern='"REPORT"'
+    )
+    assert len(filtered_log_events_df.index) >= 4
+    assert set(log_events_df["logStreamName"].tolist()) == set(log_stream_names)
