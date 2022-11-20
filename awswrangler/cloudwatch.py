@@ -3,7 +3,7 @@
 import datetime
 import logging
 import time
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Dict, List, Literal, Optional, Union, cast
 
 import boto3
 import pandas as pd
@@ -245,3 +245,76 @@ def read_logs(
     if "timestamp" in df.columns:
         df["timestamp"] = pd.to_datetime(df["timestamp"])
     return df
+
+
+def describe_log_streams(
+    log_group_name: str,
+    log_stream_name_prefix: Optional[str] = None,
+    order_by: Optional[Union[Literal["LogStreamName"], Literal["LastEventTime"]]] = "LogStreamName",
+    descending: Optional[bool] = False,
+    limit: Optional[int] = 50,
+    boto3_session: Optional[boto3.Session] = None,
+) -> pd.DataFrame:
+    """Lists the log streams for the specified log group, return results as a Pandas DataFrame
+
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/logs.html#CloudWatchLogs.Client.describe_log_streams
+
+    Parameters
+    ----------
+    log_group_name : str
+        The name of the log group.
+    log_stream_name_prefix : str
+        The prefix to match log streams' name
+    order_by : str
+        If the value is LogStreamName , the results are ordered by log stream name.
+        If the value is LastEventTime , the results are ordered by the event time.
+        The default value is LogStreamName .
+    descending : bool
+        If the value is True, results are returned in descending order.
+        If the value is to False, results are returned in ascending order.
+        The default value is False.
+    limit : Optional[int]
+         The maximum number of items returned. The default is up to 50 items.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Result as a Pandas DataFrame.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> df = wr.cloudwatch.describe_log_streams(
+    ...     log_group_name="loggroup",
+    ...     log_stream_name_prefix="test",
+    ... )
+
+    """
+    client_logs: boto3.client = _utils.client(service_name="logs", session=boto3_session)
+    args: Dict[str, Any] = {
+        "logGroupName": log_group_name,
+        "descending": descending,
+        "orderBy": order_by,
+        "limit": limit,
+    }
+    if log_stream_name_prefix and order_by == "LogStreamName":
+        args["logStreamNamePrefix"] = log_stream_name_prefix
+    elif log_stream_name_prefix and order_by == "LastEventTime":
+        raise exceptions.InvalidArgumentCombination(
+            "you cannot specify `log_stream_name_prefix` with order_by equal to 'LastEventTime' "
+        )
+    log_streams: List[Dict[str, Any]] = []
+    response: Dict[str, Any] = client_logs.describe_log_streams(**args)
+
+    log_streams += response["logStreams"]
+    while "nextToken" in response:
+        response = client_logs.describe_log_streams(
+            **args,
+            nextToken=response["nextToken"],
+        )
+        log_streams += response["logStreams"]
+    log_streams_df: pd.DataFrame = pd.DataFrame(log_streams)
+    log_streams_df["logGroupName"] = log_group_name
+    return log_streams_df
