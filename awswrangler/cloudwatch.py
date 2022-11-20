@@ -303,7 +303,7 @@ def describe_log_streams(
         args["logStreamNamePrefix"] = log_stream_name_prefix
     elif log_stream_name_prefix and order_by == "LastEventTime":
         raise exceptions.InvalidArgumentCombination(
-            "you cannot specify `log_stream_name_prefix` with order_by equal to 'LastEventTime' "
+            "Cannot call describe_log_streams with both `log_stream_name_prefix` and order_by equal 'LastEventTime'"
         )
     log_streams: List[Dict[str, Any]] = []
     response: Dict[str, Any] = client_logs.describe_log_streams(**args)
@@ -315,6 +315,122 @@ def describe_log_streams(
             nextToken=response["nextToken"],
         )
         log_streams += response["logStreams"]
-    log_streams_df: pd.DataFrame = pd.DataFrame(log_streams)
-    log_streams_df["logGroupName"] = log_group_name
-    return log_streams_df
+    df: pd.DataFrame = pd.DataFrame(log_streams)
+    df["logGroupName"] = log_group_name
+    return df
+
+
+def _filter_log_events(
+    log_group_name: str,
+    log_stream_names: List[str],
+    start_timestamp: int,
+    end_timestamp: int,
+    filter_pattern: Optional[str] = None,
+    limit: Optional[int] = 10000,
+    boto3_session: Optional[boto3.Session] = None,
+) -> List[Dict[str, Any]]:
+    client_logs: boto3.client = _utils.client(service_name="logs", session=boto3_session)
+    events: List[Dict[str, Any]] = []
+    args: Dict[str, Any] = {
+        "logGroupName": log_group_name,
+        "logStreamNames": log_stream_names,
+        "limit": limit,
+        "startTime": start_timestamp,
+        "endTime": end_timestamp,
+    }
+    if filter_pattern:
+        args["filterPattern"] = filter_pattern
+    response: Dict[str, Any] = client_logs.filter_log_events(**args)
+    events += response["events"]
+    while "nextToken" in response:
+        response = client_logs.filter_log_events(
+            **args,
+            nextToken=response["nextToken"],
+        )
+        events += response["logStreams"]
+    return events
+
+
+def filter_log_events(
+    log_group_name: str,
+    log_stream_name_prefix: Optional[str] = None,
+    log_stream_names: Optional[List[str]] = None,
+    filter_pattern: Optional[str] = None,
+    start_time: datetime.datetime = datetime.datetime(year=1970, month=1, day=1, tzinfo=datetime.timezone.utc),
+    end_time: datetime.datetime = datetime.datetime.utcnow(),
+    boto3_session: Optional[boto3.Session] = None,
+) -> pd.DataFrame:
+    """Lists log events from the specified log group. The results are returned as Pandas DataFrame.
+
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/logs.html#CloudWatchLogs.Client.filter_log_events
+
+    Note
+    ----
+    Cannot call filter_log_events with both log_stream_names and log_stream_name_prefix.
+
+    Parameters
+    ----------
+    log_group_name : str
+        The name of the log group.
+    log_stream_name_prefix : str
+        Filters the results to include only events from log streams that have names starting with this prefix.
+    log_stream_names: List[str]
+        Filters the results to only logs from the log streams in this list.
+    filter_pattern : str
+        The filter pattern to use. If not provided, all the events are matched.
+    start_time : datetime.datetime
+        Events with a timestamp before this time are not returned.
+    end_time : datetime.datetime
+        Events with a timestamp later than this time are not returned.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Result as a Pandas DataFrame.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> df = wr.cloudwatch.filter_log_events(
+    ...     log_group_name="loggroup",
+    ...     log_stream_name_prefix="test",
+    ... )
+
+    """
+    if log_stream_name_prefix and log_stream_names:
+        raise exceptions.InvalidArgumentCombination(
+            "Cannot call filter_log_events with both log_stream_names and log_stream_name_prefix"
+        )
+    _logger.debug("log_group_name: %s", log_group_name)
+    start_timestamp: int = int(1000 * start_time.timestamp())
+    end_timestamp: int = int(1000 * end_time.timestamp())
+    _validate_args(start_timestamp=start_timestamp, end_timestamp=end_timestamp)
+
+    events: List[Dict[str, Any]] = []
+    if log_stream_name_prefix and not log_stream_names:
+        log_stream_names = describe_log_streams(
+            log_group_name=log_group_name, log_stream_name_prefix=log_stream_name_prefix, boto3_session=boto3_session
+        )["logStreamName"].tolist()
+    assert log_stream_names is not None
+    args: Dict[str, Any] = {
+        "log_group_name": log_group_name,
+        "start_timestamp": start_timestamp,
+        "end_timestamp": end_timestamp,
+    }
+
+    if filter_pattern:
+        args["filter_pattern"] = filter_pattern
+    if boto3_session:
+        args["boto3_session"] = boto3_session
+    chunked_log_streams_size: int = 50
+
+    for i in range(0, len(log_stream_names), chunked_log_streams_size):
+        log_streams = log_stream_names[i : i + chunked_log_streams_size]
+        events += _filter_log_events(**args, log_stream_names=log_streams)
+    if events:
+        df: pd.DataFrame = pd.DataFrame(events)
+        df["logGroupName"] = log_group_name
+        return df
+    return pd.DataFrame()
