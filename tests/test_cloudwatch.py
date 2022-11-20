@@ -71,6 +71,7 @@ def test_describe_log_streams_and_filter_log_events(loggroup):
     assert len(log_streams_df.index) >= 4
     assert "logGroupName" in log_streams_df.columns
 
+    log_streams_df.dropna(inplace=True)
     for log_stream in log_streams_df.to_dict("records"):
         events = []
         token = log_stream.get("uploadSequenceToken")
