@@ -255,7 +255,7 @@ def describe_log_streams(
     limit: Optional[int] = 50,
     boto3_session: Optional[boto3.Session] = None,
 ) -> pd.DataFrame:
-    """Lists the log streams for the specified log group, return results as a Pandas DataFrame
+    """List the log streams for the specified log group, return results as a Pandas DataFrame.
 
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/logs.html#CloudWatchLogs.Client.describe_log_streams
 
@@ -362,7 +362,7 @@ def filter_log_events(
     end_time: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> pd.DataFrame:
-    """Lists log events from the specified log group. The results are returned as Pandas DataFrame.
+    """List log events from the specified log group. The results are returned as Pandas DataFrame.
 
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/logs.html#CloudWatchLogs.Client.filter_log_events
 
