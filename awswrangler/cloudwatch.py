@@ -287,8 +287,8 @@ def describe_log_streams(
     --------
     >>> import awswrangler as wr
     >>> df = wr.cloudwatch.describe_log_streams(
-    ...     log_group_name="loggroup",
-    ...     log_stream_name_prefix="test",
+    ...     log_group_name="aws_sdk_pandas_log_group",
+    ...     log_stream_name_prefix="aws_sdk_pandas_log_stream",
     ... )
 
     """
@@ -394,10 +394,23 @@ def filter_log_events(
 
     Examples
     --------
+    Get all log events from log group 'aws_sdk_pandas_log_group' that have log stream prefix 'aws_sdk_pandas_log_stream'
+
     >>> import awswrangler as wr
     >>> df = wr.cloudwatch.filter_log_events(
-    ...     log_group_name="loggroup",
-    ...     log_stream_name_prefix="test",
+    ...     log_group_name="aws_sdk_pandas_log_group",
+    ...     log_stream_name_prefix="aws_sdk_pandas_log_stream",
+    ... )
+
+    Get all log events contains 'REPORT' from log stream
+    'aws_sdk_pandas_log_stream_one' and 'aws_sdk_pandas_log_stream_two'
+    from log group 'aws_sdk_pandas_log_group'
+
+    >>> import awswrangler as wr
+    >>> df = wr.cloudwatch.filter_log_events(
+    ...     log_group_name="aws_sdk_pandas_log_group",
+    ...     log_stream_names=["aws_sdk_pandas_log_stream_one","aws_sdk_pandas_log_stream_two"],
+    ...     filter_pattern='REPORT',
     ... )
 
     """
