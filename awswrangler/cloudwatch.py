@@ -250,7 +250,7 @@ def read_logs(
 def describe_log_streams(
     log_group_name: str,
     log_stream_name_prefix: Optional[str] = None,
-    order_by: Optional[Union[Literal["LogStreamName"], Literal["LastEventTime"]]] = "LogStreamName",
+    order_by: Optional[str] = "LogStreamName",
     descending: Optional[bool] = False,
     limit: Optional[int] = 50,
     boto3_session: Optional[boto3.Session] = None,
