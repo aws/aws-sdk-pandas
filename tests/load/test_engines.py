@@ -32,6 +32,19 @@ def test_engine_explicit_eager_initialization(path: str) -> None:
 
 
 @pytest.mark.skipif(condition=not is_ray_modin, reason="ray not available")
+def test_engine_python() -> None:
+    import awswrangler as wr
+    from awswrangler._distributed import EngineEnum
+    from awswrangler.s3._write_parquet import _to_parquet
+
+    wr.engine.initialize(EngineEnum.PYTHON.value)
+
+    assert wr.engine.get() == EngineEnum.PYTHON
+
+    assert not wr.engine.dispatch_func(_to_parquet).__name__.endswith("distributed")
+
+
+@pytest.mark.skipif(condition=not is_ray_modin, reason="ray not available")
 def test_engine_ray() -> None:
     import awswrangler as wr
     from awswrangler._distributed import EngineEnum
@@ -45,16 +58,3 @@ def test_engine_ray() -> None:
     assert wr.engine._registry
     assert wr.engine.dispatch_func(_to_parquet).__name__.endswith("distributed")
     assert not wr.engine.dispatch_func(_to_parquet, "python").__name__.endswith("distributed")
-
-
-@pytest.mark.skipif(condition=not is_ray_modin, reason="ray not available")
-def test_engine_python() -> None:
-    import awswrangler as wr
-    from awswrangler._distributed import EngineEnum
-    from awswrangler.s3._write_parquet import _to_parquet
-
-    wr.engine.initialize(EngineEnum.PYTHON.value)
-
-    assert wr.engine.get() == EngineEnum.PYTHON
-
-    assert not wr.engine.dispatch_func(_to_parquet).__name__.endswith("distributed")
