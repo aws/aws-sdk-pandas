@@ -87,7 +87,7 @@ def test_describe_log_streams_and_filter_log_events(loggroup):
         try:
             cloudwatch_log_client.put_log_events(**args)
         except cloudwatch_log_client.exceptions.DataAlreadyAcceptedException:
-            pass  # Concurrency
+            pass
 
     log_events_df = wr.cloudwatch.filter_log_events(
         log_group_name=loggroup, log_stream_name_prefix="aws_sdk_pandas_log_stream"
