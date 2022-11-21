@@ -180,6 +180,7 @@ As a result existing scripts can run on significantly larger datasets with no co
   - [033 - Amazon Neptune](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/033%20-%20Amazon%20Neptune.ipynb)
   - [034 - Distributing Calls Using Ray](https://github.com/aws/aws-sdk-pandas/blob/release-3.0.0rc2/tutorials/034%20-%20Distributing%20Calls%20using%20Ray.ipynb)
   - [035 - Distributing Calls on Ray Remote Cluster](https://github.com/aws/aws-sdk-pandas/blob/release-3.0.0rc2/tutorials/035%20-%20Distributing%20Calls%20on%20Ray%20Remote%20Cluster.ipynb)
+  - [036 - Distributing Calls with Glue Interactive Sessions on Ray](https://github.com/aws/aws-sdk-pandas/blob/release-3.0.0rc2/tutorials/036%20-%20Distributing%20Calls%20with%20Glue%20Interactive%20Sessions%20On%Ray.ipynb)
 - [**API Reference**](https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/api.html)
   - [Amazon S3](https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/api.html#amazon-s3)
   - [AWS Glue Catalog](https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/api.html#aws-glue-catalog)
