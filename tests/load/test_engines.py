@@ -16,11 +16,16 @@ pytestmark = pytest.mark.distributed
 def wr() -> Iterator[ModuleType]:
     import awswrangler
 
+    def clear_engine() -> None:
+        awswrangler.engine.__class__._enum = None
+        awswrangler.engine.__class__._initialized_engine = None
+        awswrangler.engine.__class__._registry.clear()
+
+    clear_engine()
+
     yield reload(awswrangler)
 
-    awswrangler.engine.__class__._enum = None
-    awswrangler.engine.__class__._initialized_engine = None
-    awswrangler.engine.__class__._registry.clear()
+    clear_engine()
 
 
 @pytest.mark.skipif(condition=not is_ray_modin, reason="ray not available")
