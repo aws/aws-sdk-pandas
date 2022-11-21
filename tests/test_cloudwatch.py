@@ -89,9 +89,7 @@ def test_describe_log_streams_and_filter_log_events(loggroup):
         except cloudwatch_log_client.exceptions.DataAlreadyAcceptedException:
             pass
 
-    log_events_df = wr.cloudwatch.filter_log_events(
-        log_group_name=loggroup, log_stream_name_prefix="aws_sdk_pandas_log_stream"
-    )
+    log_events_df = wr.cloudwatch.filter_log_events(log_group_name=loggroup)
     assert len(log_events_df.index) >= 4
 
     filtered_log_events_df = wr.cloudwatch.filter_log_events(
