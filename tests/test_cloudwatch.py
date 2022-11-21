@@ -92,10 +92,9 @@ def test_describe_log_streams_and_filter_log_events(loggroup):
     log_events_df = wr.cloudwatch.filter_log_events(
         log_group_name=loggroup, log_stream_name_prefix="aws_sdk_pandas_log_stream"
     )
-    assert len(set(log_events_df["logStreamName"].tolist())) >= 4
+    assert len(log_events_df.index) >= 4
 
     filtered_log_events_df = wr.cloudwatch.filter_log_events(
         log_group_name=loggroup, log_stream_names=log_stream_names, filter_pattern='"REPORT"'
     )
     assert len(filtered_log_events_df.index) >= 4
-    assert set(log_events_df["logStreamName"].tolist()) == set(log_stream_names)
