@@ -421,7 +421,14 @@ def filter_log_events(
     _logger.debug("log_group_name: %s", log_group_name)
 
     events: List[Dict[str, Any]] = []
-    if log_stream_name_prefix and not log_stream_names:
+    if not log_stream_names:
+        describe_log_streams_args: Dict[str, Any] = {
+            "log_group_name": log_group_name,
+        }
+        if boto3_session:
+            describe_log_streams_args["boto3_session"] = boto3_session
+        if log_stream_name_prefix:
+            describe_log_streams_args["log_stream_name_prefix"] = log_stream_name_prefix
         log_stream_names = describe_log_streams(
             log_group_name=log_group_name, log_stream_name_prefix=log_stream_name_prefix, boto3_session=boto3_session
         )["logStreamName"].tolist()
