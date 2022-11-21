@@ -1,6 +1,4 @@
 import logging
-from types import ModuleType
-from typing import Iterable
 
 import pytest
 
@@ -11,16 +9,10 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 pytestmark = pytest.mark.distributed
 
 
-@pytest.fixture(scope="function")
-def wr() -> Iterable[ModuleType]:
-    import awswrangler
-
-    yield awswrangler
-    del awswrangler
-
-
 @pytest.mark.skipif(condition=not is_ray_modin, reason="ray not available")
-def test_engine_lazy_initialization(wr: ModuleType, path: str) -> None:
+def test_engine_lazy_initialization(path: str) -> None:
+    import awswrangler as wr
+
     assert not wr.engine.is_initialized()
 
     # any function which dispatches based on engine will
@@ -31,14 +23,17 @@ def test_engine_lazy_initialization(wr: ModuleType, path: str) -> None:
 
 
 @pytest.mark.skipif(condition=not is_ray_modin, reason="ray not available")
-def test_engine_explicit_eager_initialization(wr: ModuleType, path: str) -> None:
+def test_engine_explicit_eager_initialization(path: str) -> None:
+    import awswrangler as wr
+
     wr.engine.initialize()
 
     assert wr.engine.is_initialized()
 
 
 @pytest.mark.skipif(condition=not is_ray_modin, reason="ray not available")
-def test_engine_ray(wr: ModuleType) -> None:
+def test_engine_ray() -> None:
+    import awswrangler as wr
     from awswrangler._distributed import EngineEnum
     from awswrangler.s3._write_parquet import _to_parquet
 
@@ -52,7 +47,9 @@ def test_engine_ray(wr: ModuleType) -> None:
     assert not wr.engine.dispatch_func(_to_parquet, "python").__name__.endswith("distributed")
 
 
-def test_engine_python(wr: ModuleType) -> None:
+@pytest.mark.skipif(condition=not is_ray_modin, reason="ray not available")
+def test_engine_python() -> None:
+    import awswrangler as wr
     from awswrangler._distributed import EngineEnum
     from awswrangler.s3._write_parquet import _to_parquet
 
