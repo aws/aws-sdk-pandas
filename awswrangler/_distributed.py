@@ -28,7 +28,7 @@ class MemoryFormatEnum(Enum):
 class Engine:
     """Execution engine configuration class."""
 
-    _enum: Optional[EngineEnum] = None
+    _engine: Optional[EngineEnum] = None
     _initialized_engine: Optional[EngineEnum] = None
     _registry: Dict[str, Dict[str, Callable[..., Any]]] = defaultdict(dict)
 
@@ -58,12 +58,14 @@ class Engine:
         str
             The distribution engine configured.
         """
-        return cls._enum if cls._enum else cls.get_installed()
+        return cls._engine if cls._engine else cls.get_installed()
 
     @classmethod
     def set(cls, name: str) -> None:
         """Set the distribution engine."""
-        cls._enum = EngineEnum._member_map_[name.upper()]  # type: ignore  # pylint: disable=protected-access,no-member
+        cls._engine = EngineEnum._member_map_[  # pylint: disable=protected-access,no-member
+            name.upper()
+        ]  # type: ignore
 
     @classmethod
     def dispatch_func(cls, source_func: Callable[..., Any], value: Optional[Any] = None) -> Callable[..., Any]:
@@ -100,7 +102,7 @@ class Engine:
     @classmethod
     def register(cls, name: Optional[str] = None) -> None:
         """Register the distribution engine dispatch methods."""
-        engine_name = cls.get_installed().value if not name else name
+        engine_name = name or cls.get_installed().value
         cls.set(engine_name)
         cls._registry.clear()
 
@@ -112,7 +114,7 @@ class Engine:
     @classmethod
     def initialize(cls, name: Optional[str] = None) -> None:
         """Initialize the distribution engine."""
-        engine_name = cls.get_installed().value if not name else name
+        engine_name = name or cls.get_installed().value
         if engine_name == EngineEnum.RAY.value:
             from awswrangler.distributed.ray import initialize_ray
 
@@ -123,11 +125,9 @@ class Engine:
     @classmethod
     def is_initialized(cls, name: Optional[str] = None) -> bool:
         """Check if the distribution engine is initialized."""
-        engine_name = cls.get_installed().value if not name else name
-        if cls._initialized_engine is None:
-            return False
+        engine_name = name or cls.get_installed().value
 
-        return cls._initialized_engine.value == engine_name
+        return False if not cls._initialized_engine else cls._initialized_engine.value == engine_name
 
 
 class MemoryFormat:
