@@ -65,9 +65,11 @@ def test_describe_log_streams_and_filter_log_events(loggroup):
             cloudwatch_log_client.create_log_stream(logGroupName=loggroup, logStreamName=log_stream)
         except cloudwatch_log_client.exceptions.ResourceAlreadyExistsException:
             continue
+
     log_streams_df = wr.cloudwatch.describe_log_streams(
         log_group_name=loggroup, order_by="LastEventTime", descending=False
     )
+
     assert len(log_streams_df.index) >= 4
     assert "logGroupName" in log_streams_df.columns
 
