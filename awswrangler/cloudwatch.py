@@ -315,9 +315,11 @@ def describe_log_streams(
             nextToken=response["nextToken"],
         )
         log_streams += response["logStreams"]
-    df: pd.DataFrame = pd.DataFrame(log_streams)
-    df["logGroupName"] = log_group_name
-    return df
+    if log_streams:
+        df: pd.DataFrame = pd.DataFrame(log_streams)
+        df["logGroupName"] = log_group_name
+        return df
+    return pd.DataFrame()
 
 
 def _filter_log_events(
