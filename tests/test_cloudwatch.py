@@ -66,6 +66,14 @@ def test_describe_log_streams_and_filter_log_events(loggroup):
         except cloudwatch_log_client.exceptions.ResourceAlreadyExistsException:
             continue
 
+    with pytest.raises(exceptions.InvalidArgumentCombination):
+        wr.cloudwatch.describe_log_streams(
+            log_group_name=loggroup,
+            log_stream_name_prefix="aws_sdk_pandas_log_stream",
+            order_by="LastEventTime",
+            descending=False,
+        )
+
     log_streams_df = wr.cloudwatch.describe_log_streams(
         log_group_name=loggroup, order_by="LastEventTime", descending=False
     )
@@ -90,6 +98,13 @@ def test_describe_log_streams_and_filter_log_events(loggroup):
             cloudwatch_log_client.put_log_events(**args)
         except cloudwatch_log_client.exceptions.DataAlreadyAcceptedException:
             pass
+
+    with pytest.raises(exceptions.InvalidArgumentCombination):
+        wr.cloudwatch.filter_log_events(
+            log_group_name=loggroup,
+            log_stream_name_prefix="aws_sdk_pandas_log_stream",
+            log_stream_names=log_streams_df["logStreamName"].tolist(),
+        )
 
     log_events_df = wr.cloudwatch.filter_log_events(log_group_name=loggroup)
     assert len(log_events_df.index) >= 4
