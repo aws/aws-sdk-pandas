@@ -431,10 +431,9 @@ def filter_log_events(
             describe_log_streams_args["boto3_session"] = boto3_session
         if log_stream_name_prefix:
             describe_log_streams_args["log_stream_name_prefix"] = log_stream_name_prefix
-        log_stream_names = describe_log_streams(
-            log_group_name=log_group_name, log_stream_name_prefix=log_stream_name_prefix, boto3_session=boto3_session
-        )["logStreamName"].tolist()
-    assert log_stream_names is not None
+        log_streams = describe_log_streams(**describe_log_streams_args)
+        log_stream_names = log_streams["logStreamName"].tolist() if len(log_streams.index) else []
+
     args: Dict[str, Any] = {
         "log_group_name": log_group_name,
     }
