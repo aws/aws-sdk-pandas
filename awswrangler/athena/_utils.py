@@ -472,9 +472,11 @@ def start_query_execution(
         max_cache_query_inspections=max_cache_query_inspections,
         max_remote_cache_entries=max_remote_cache_entries,
     )
+    _logger.debug("cache_info:\n%s", cache_info)
 
     if cache_info.has_valid_cache and cache_info.query_execution_id is not None:
         query_execution_id = cache_info.query_execution_id
+        _logger.debug("Valid cache found. Retrieving...")
     else:
         wg_config: _WorkGroupConfig = _get_workgroup_config(session=session, workgroup=workgroup)
         query_execution_id = _start_query_execution(
