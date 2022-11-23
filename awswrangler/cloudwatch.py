@@ -339,7 +339,7 @@ def _filter_log_events(
     if start_timestamp:
         args["startTime"] = start_timestamp
     if end_timestamp:
-        args["endTime"] = start_timestamp
+        args["endTime"] = end_timestamp
     if filter_pattern:
         args["filterPattern"] = filter_pattern
     response: Dict[str, Any] = client_logs.filter_log_events(**args)
