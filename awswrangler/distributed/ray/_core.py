@@ -18,18 +18,23 @@ class RayLogger:
 
     def __init__(
         self,
-        log_level: int = logging.INFO,
+        logging_level: int = logging.INFO,
         format: str = "%(asctime)s::%(levelname)-2s::%(name)s::%(message)s",  # pylint: disable=redefined-builtin
         datefmt: str = "%Y-%m-%d %H:%M:%S",
     ):
-        logging.basicConfig(level=log_level, format=format, datefmt=datefmt)
+        logging.basicConfig(level=logging_level, format=format, datefmt=datefmt)
 
     def get_logger(self, name: Union[str, Any] = None) -> Optional[logging.Logger]:
         """Return logger object."""
         return logging.getLogger(name)
 
 
-def ray_logger(function: Callable[..., Any]) -> Callable[..., Any]:
+@apply_configs
+def ray_logger(
+    function: Callable[..., Any],
+    configure_logging: bool = True,
+    logging_level: int = logging.INFO,
+) -> Callable[..., Any]:
     """
     Decorate callable to add RayLogger.
 
@@ -45,7 +50,8 @@ def ray_logger(function: Callable[..., Any]) -> Callable[..., Any]:
 
     @wraps(function)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
-        RayLogger().get_logger(name=function.__name__)
+        if configure_logging:
+            RayLogger(logging_level=logging_level).get_logger(name=function.__name__)
         return function(*args, **kwargs)
 
     return wrapper
@@ -117,7 +123,9 @@ def initialize_ray(
     redis_password: Optional[str] = None,
     ignore_reinit_error: bool = True,
     include_dashboard: Optional[bool] = False,
+    configure_logging: bool = True,
     log_to_driver: bool = False,
+    logging_level: int = logging.INFO,
     object_store_memory: Optional[int] = None,
     cpu_count: Optional[int] = None,
     gpu_count: Optional[int] = None,
@@ -135,8 +143,12 @@ def initialize_ray(
         If true, Ray suppress errors from calling ray.init() twice, by default True
     include_dashboard : Optional[bool]
         Boolean flag indicating whether or not to start the Ray dashboard, by default False
+    configure_logging : Optional[bool]
+        Boolean flag indicating whether or not to enable logging, by default True
     log_to_driver : bool
         Boolean flag to enable routing of all worker logs to the driver, by default False
+    logging_level : int
+        Logging level, defaults to logging.INFO. Ignored unless "configure_logging" is True
     object_store_memory : Optional[int]
         The amount of memory (in bytes) to start the object store with, by default None
     cpu_count : Optional[int]
@@ -157,7 +169,9 @@ def initialize_ray(
                 address=address,
                 include_dashboard=include_dashboard,
                 ignore_reinit_error=ignore_reinit_error,
+                configure_logging=configure_logging,
                 log_to_driver=log_to_driver,
+                logging_level=logging_level,
             )
         else:
             ray_runtime_env_vars = [
@@ -169,7 +183,9 @@ def initialize_ray(
                 "num_gpus": gpu_count,
                 "include_dashboard": include_dashboard,
                 "ignore_reinit_error": ignore_reinit_error,
+                "configure_logging": configure_logging,
                 "log_to_driver": log_to_driver,
+                "logging_level": logging_level,
                 "object_store_memory": object_store_memory,
                 "_redis_password": redis_password,
                 "_memory": object_store_memory,
