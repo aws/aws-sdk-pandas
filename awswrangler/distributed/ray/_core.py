@@ -18,7 +18,7 @@ class RayLogger:
 
     def __init__(
         self,
-        log_level: int = logging.DEBUG,
+        log_level: int = logging.INFO,
         format: str = "%(asctime)s::%(levelname)-2s::%(name)s::%(message)s",  # pylint: disable=redefined-builtin
         datefmt: str = "%Y-%m-%d %H:%M:%S",
     ):
