@@ -98,7 +98,9 @@ FROM "sampleDB"."sampleTable" ORDER BY time DESC LIMIT 3
 ```
 
 ## At scale
-AWS SDK for pandas can also run your workflows at scale by leveraging [modin](https://modin.readthedocs.io/en/stable/) and [ray](https://www.ray.io/). Both projects aim to speed up data workloads (pandas workloads in particular in the case of modin) by distributing processing over a cluster of workers.
+AWS SDK for pandas can also run your workflows at scale by leveraging [Modin](https://modin.readthedocs.io/en/stable/) and [Ray](https://www.ray.io/). Both projects aim to speed up data workloads by distributing processing over a cluster of workers.
+
+The quickest way to get started is to use AWS Glue with Ray. Read our [blog](https://aws.amazon.com/blogs/big-data/scale-aws-sdk-for-pandas-workloads-with-aws-glue-with-ray/) to learn about it, then head to our latest [tutorials](https://github.com/aws/aws-sdk-pandas/blob/release-3.0.0rc2/tutorials/) to discover even more features.
 
 ### Installation
 ```
