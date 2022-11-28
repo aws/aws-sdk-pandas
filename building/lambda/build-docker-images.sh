@@ -9,11 +9,11 @@ export DOCKER_BUILDKIT=1
 ARCH=$(arch)
 
 if [ "${ARCH}" != "aarch64" ]; then
-  # Python 3.7
+  # Python 3.7 (using public.ecr.aws/lambda/python:3.8 is intentional)
   docker build \
     --pull \
     --tag awswrangler-build-py37 \
-    --build-arg base_image=public.ecr.aws/lambda/python:3.7 \
+    --build-arg base_image=public.ecr.aws/lambda/python:3.8 \
     --build-arg python_version=python37 \
     .
 fi
