@@ -19,7 +19,7 @@ RUN yum install -y \
 WORKDIR /root
 
 FROM base AS python37
-# python projects
+# Install C devtools & Python37
 ARG PYTHON_VERSION="3.7.15"
 RUN yum -y group install "C Development Tools and Libraries" "Development Tools" \
     && yum -y install openssl openssl-devel libffi-devel bzip2-devel \
