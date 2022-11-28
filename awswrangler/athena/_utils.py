@@ -16,7 +16,7 @@ import pandas as pd
 
 from awswrangler import _data_types, _utils, catalog, exceptions, s3, sts
 from awswrangler._config import apply_configs
-from awswrangler._sql_formatter import _EngineType, _format_parameters
+from awswrangler._sql_formatter import _process_sql_params
 from awswrangler.catalog._utils import _catalog_id, _transaction_id
 
 from ._cache import _cache_manager, _CacheInfo, _check_for_cached_results, _LocalMetadataCacheManager
@@ -456,11 +456,8 @@ def start_query_execution(
     >>> query_exec_id = wr.athena.start_query_execution(sql='...', database='...', data_source='...')
 
     """
-    if params is None:
-        params = {}
-    params = _format_parameters(params, engine=_EngineType.PRESTO)
-    for key, value in params.items():
-        sql = sql.replace(f":{key}", str(value))
+    sql = _process_sql_params(sql, params)
+
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
     max_remote_cache_entries = min(max_remote_cache_entries, max_local_cache_entries)
