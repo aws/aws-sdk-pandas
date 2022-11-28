@@ -70,9 +70,6 @@ class Engine:
     @classmethod
     def dispatch_func(cls, source_func: Callable[..., Any], value: Optional[Any] = None) -> Callable[..., Any]:
         """Dispatch a func based on value or the distribution engine and the source function."""
-        if not cls.is_initialized(cls.get().value):
-            cls.initialize(cls.get().value)
-
         try:
             return cls._registry[value or cls.get().value][source_func.__name__]
         except KeyError:
@@ -90,9 +87,6 @@ class Engine:
 
         @wraps(func)
         def wrapper(*args: Any, **kw: Dict[str, Any]) -> Any:
-            if not cls.is_initialized(cls.get().value):
-                cls.initialize(cls.get().value)
-
             return cls.dispatch_func(func)(*args, **kw)
 
         # Save the original function
