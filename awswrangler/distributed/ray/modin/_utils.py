@@ -4,6 +4,7 @@ from typing import Any, Callable, Dict, List, Optional, Set, Union
 
 import modin.pandas as modin_pd
 import pandas as pd
+import pyarrow as pa
 import ray
 from modin.distributed.dataframe.pandas import from_partitions
 from ray.data.block import BlockAccessor
@@ -11,7 +12,7 @@ from ray.types import ObjectRef
 
 from awswrangler import exceptions
 from awswrangler._arrow import _table_to_df
-from awswrangler.distributed.ray import ray_remote
+from awswrangler.distributed.ray import ray_get, ray_remote
 
 
 @ray_remote()
@@ -49,7 +50,15 @@ def _split_modin_frame(df: modin_pd.DataFrame, splits: int) -> List[ObjectRef[An
 
 
 def _arrow_refs_to_df(arrow_refs: List[Callable[..., Any]], kwargs: Optional[Dict[str, Any]]) -> modin_pd.DataFrame:
-    return _to_modin(dataset=ray.data.from_arrow_refs(arrow_refs), to_pandas_kwargs=kwargs)
+    @ray_remote()
+    def _is_not_empty(table: pa.Table) -> bool:
+        return len(table) > 0
+
+    ref_rows: List[bool] = ray_get([_is_not_empty(arrow_ref) for arrow_ref in arrow_refs])
+    refs: List[Callable[..., Any]] = [ref for ref_rows, ref in zip(ref_rows, arrow_refs) if ref_rows]
+    return _to_modin(
+        dataset=ray.data.from_arrow_refs(refs if len(refs) > 0 else [pa.Table.from_arrays([])]), to_pandas_kwargs=kwargs
+    )
 
 
 def _is_pandas_or_modin_frame(obj: Any) -> bool:
