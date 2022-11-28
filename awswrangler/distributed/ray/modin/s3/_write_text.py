@@ -4,8 +4,6 @@ from typing import Any, Dict, List, Optional, Union
 
 import boto3
 import modin.pandas as pd
-from modin.pandas import DataFrame as ModinDataFrame
-from ray.data import from_modin, from_pandas
 from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
 
 from awswrangler import exceptions
@@ -16,7 +14,7 @@ from awswrangler.distributed.ray.datasources import (  # pylint: disable=ungroup
     UserProvidedKeyBlockWritePathProvider,
 )
 from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import PandasFileBasedDatasource
-from awswrangler.distributed.ray.modin._utils import ParamConfig, _check_parameters
+from awswrangler.distributed.ray.modin._utils import ParamConfig, _check_parameters, _from_df
 from awswrangler.s3._write import _COMPRESSION_2_EXT
 from awswrangler.s3._write_text import _get_write_details
 
@@ -98,7 +96,7 @@ def _to_text_distributed(  # pylint: disable=unused-argument
         raise RuntimeError("path and path_root received at the same time.")
 
     # Create Ray Dataset
-    ds = from_modin(df) if isinstance(df, ModinDataFrame) else from_pandas(df)
+    ds = _from_df(df)
 
     # Repartition into a single block if or writing into a single key or if bucketing is enabled
     if ds.count() > 0 and path:

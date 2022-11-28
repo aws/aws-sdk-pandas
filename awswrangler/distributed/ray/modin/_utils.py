@@ -6,6 +6,7 @@ import modin.pandas as modin_pd
 import pandas as pd
 import ray
 from modin.distributed.dataframe.pandas import from_partitions
+from ray.data import Dataset, from_modin, from_pandas
 from ray.data.block import BlockAccessor
 from ray.types import ObjectRef
 
@@ -26,6 +27,14 @@ def _block_to_df(
     return _table_to_df(table=block._table, kwargs=to_pandas_kwargs)  # pylint: disable=protected-access
 
 
+def _from_df(df: Union[pd.DataFrame, modin_pd.DataFrame]) -> Dataset[Any]:
+    if isinstance(df, modin_pd.DataFrame):
+        return from_modin(df)  # type: ignore
+    if isinstance(df, pd.DataFrame):
+        return from_pandas(df)  # type: ignore
+    raise ValueError(f"Unknown DataFrame type: {type(df)}")
+
+
 def _to_modin(
     dataset: Union[ray.data.Dataset[Any], ray.data.Dataset[pd.DataFrame]],
     to_pandas_kwargs: Optional[Dict[str, Any]] = None,
@@ -44,7 +53,7 @@ def _to_modin(
 
 
 def _split_modin_frame(df: modin_pd.DataFrame, splits: int) -> List[ObjectRef[Any]]:  # pylint: disable=unused-argument
-    object_refs: List[ObjectRef[Any]] = ray.data.from_modin(df).get_internal_block_refs()
+    object_refs: List[ObjectRef[Any]] = _from_df(df).get_internal_block_refs()
     return object_refs
 
 

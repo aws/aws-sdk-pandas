@@ -4,12 +4,12 @@ from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 import boto3
 import modin.pandas as pd
 import numpy as np
-import ray
 from pandas import DataFrame as PandasDataFrame
 
 from awswrangler._distributed import engine
 from awswrangler.distributed.ray import ray_get, ray_remote
 from awswrangler.distributed.ray.modin import modin_repartition
+from awswrangler.distributed.ray.modin._utils import _from_df
 from awswrangler.s3._write_concurrent import _WriteProxy
 from awswrangler.s3._write_dataset import _delete_objects, _get_bucketing_series, _to_partitions
 
@@ -165,7 +165,7 @@ def _to_partitions_distributed(  # pylint: disable=unused-argument
             )
             return paths, partitions_values
 
-        block_object_refs = ray.data.from_modin(df).get_internal_block_refs()
+        block_object_refs = _from_df(df).get_internal_block_refs()
         result = ray_get(
             [write_partitions(object_ref, block_index) for block_index, object_ref in enumerate(block_object_refs)]
         )
