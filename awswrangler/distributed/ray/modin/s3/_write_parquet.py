@@ -10,7 +10,7 @@ from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvi
 
 from awswrangler import exceptions
 from awswrangler.distributed.ray.datasources import ArrowParquetDatasource, UserProvidedKeyBlockWritePathProvider
-from awswrangler.distributed.ray.modin._utils import _from_df
+from awswrangler.distributed.ray.modin._utils import _ray_dataset_from_df
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ def _to_parquet_distributed(  # pylint: disable=unused-argument
         # Add bucket id to the prefix
         path = f"{path_root}{filename_prefix}_bucket-{df.name:05d}{compression_ext}.parquet"
     # Create Ray Dataset
-    ds = _from_df(df)
+    ds = _ray_dataset_from_df(df)
     # Repartition into a single block if or writing into a single key or if bucketing is enabled
     if ds.count() > 0 and (path or bucketing) and not max_rows_by_file:
         _logger.warning(

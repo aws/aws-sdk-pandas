@@ -14,7 +14,7 @@ from awswrangler.distributed.ray.datasources import (  # pylint: disable=ungroup
     UserProvidedKeyBlockWritePathProvider,
 )
 from awswrangler.distributed.ray.datasources.pandas_file_based_datasource import PandasFileBasedDatasource
-from awswrangler.distributed.ray.modin._utils import ParamConfig, _check_parameters, _from_df
+from awswrangler.distributed.ray.modin._utils import ParamConfig, _check_parameters, _ray_dataset_from_df
 from awswrangler.s3._write import _COMPRESSION_2_EXT
 from awswrangler.s3._write_text import _get_write_details
 
@@ -96,7 +96,7 @@ def _to_text_distributed(  # pylint: disable=unused-argument
         raise RuntimeError("path and path_root received at the same time.")
 
     # Create Ray Dataset
-    ds = _from_df(df)
+    ds = _ray_dataset_from_df(df)
 
     # Repartition into a single block if or writing into a single key or if bucketing is enabled
     if ds.count() > 0 and path:
