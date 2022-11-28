@@ -15,7 +15,7 @@ export LD_LIBRARY_PATH=$(pwd)/dist/lib:$LD_LIBRARY_PATH
 
 git clone \
   --depth 1 \
-  --branch apache-arrow-8.0.0 \
+  --branch apache-arrow-10.0.0 \
   --single-branch \
   https://github.com/apache/arrow.git
 
@@ -50,6 +50,7 @@ popd
 
 pushd arrow/python
 
+export CMAKE_PREFIX_PATH=${ARROW_HOME}${CMAKE_PREFIX_PATH:+:${CMAKE_PREFIX_PATH}}
 export ARROW_PRE_0_15_IPC_FORMAT=0
 export PYARROW_WITH_HDFS=0
 export PYARROW_WITH_FLIGHT=0

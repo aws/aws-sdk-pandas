@@ -45,10 +45,10 @@ def _extract_partitions_metadata_from_paths(
             raise exceptions.InvalidArgumentValue(f"Object {p} is not under the root path ({path}).")
         path_wo_filename: str = p.rpartition("/")[0] + "/"
         if path_wo_filename not in partitions_values:
-            path_wo_prefix: str = path_wo_filename.replace(f"{path}/", "")
-            dirs: Tuple[str, ...] = tuple(x for x in path_wo_prefix.split("/") if (x != "") and (x.count("=") == 1))
+            path_wo_prefix: str = path_wo_filename.replace(f"{path}", "")
+            dirs: Tuple[str, ...] = tuple(x for x in path_wo_prefix.split("/") if (x != "") and (x.count("=") > 0))
             if dirs:
-                values_tups = cast(Tuple[Tuple[str, str]], tuple(tuple(x.split("=")[:2]) for x in dirs))
+                values_tups = cast(Tuple[Tuple[str, str]], tuple(tuple(x.split("=", maxsplit=1)[:2]) for x in dirs))
                 values_dics: Dict[str, str] = dict(values_tups)
                 p_values: List[str] = list(values_dics.values())
                 p_types: Dict[str, str] = {x: "string" for x in values_dics.keys()}

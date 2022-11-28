@@ -3,6 +3,7 @@ import logging
 import random
 import string
 from decimal import Decimal
+from typing import Any, Dict
 
 import boto3
 import numpy as np
@@ -180,7 +181,12 @@ def test_copy_unload(path, redshift_table, redshift_con, databases_parameters):
         ensure_data_types(df=chunk, has_list=False)
 
 
-def test_copy_upsert(path, redshift_table, redshift_con, databases_parameters):
+def generic_test_copy_upsert(
+    path: str,
+    redshift_table: str,
+    redshift_con: redshift_connector.Connection,
+    databases_parameters: Dict[str, Any],
+) -> None:
     df = pd.DataFrame({"id": list((range(1_000))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(1_000)])})
     df3 = pd.DataFrame(
         {"id": list((range(1_000, 1_500))), "val": list(["foo" if i % 2 == 0 else "boo" for i in range(500)])}
@@ -201,7 +207,7 @@ def test_copy_upsert(path, redshift_table, redshift_con, databases_parameters):
     )
     path = f"{path}upsert/test_redshift_copy_upsert2/"
     df2 = wr.redshift.unload(
-        sql=f"SELECT * FROM public.{redshift_table}",
+        sql=f'SELECT * FROM public."{redshift_table}"',
         con=redshift_con,
         iam_role=databases_parameters["redshift"]["role"],
         path=path,
@@ -225,7 +231,7 @@ def test_copy_upsert(path, redshift_table, redshift_con, databases_parameters):
     )
     path = f"{path}upsert/test_redshift_copy_upsert4/"
     df4 = wr.redshift.unload(
-        sql=f"SELECT * FROM public.{redshift_table}",
+        sql=f'SELECT * FROM public."{redshift_table}"',
         con=redshift_con,
         iam_role=databases_parameters["redshift"]["role"],
         path=path,
@@ -248,7 +254,7 @@ def test_copy_upsert(path, redshift_table, redshift_con, databases_parameters):
     )
     path = f"{path}upsert/test_redshift_copy_upsert4/"
     df4 = wr.redshift.unload(
-        sql=f"SELECT * FROM public.{redshift_table}",
+        sql=f'SELECT * FROM public."{redshift_table}"',
         con=redshift_con,
         iam_role=databases_parameters["redshift"]["role"],
         path=path,
@@ -256,6 +262,14 @@ def test_copy_upsert(path, redshift_table, redshift_con, databases_parameters):
     )
     assert len(df.index) + len(df3.index) == len(df4.index)
     assert len(df.columns) == len(df4.columns)
+
+
+def test_copy_upsert(path, redshift_table, redshift_con, databases_parameters):
+    generic_test_copy_upsert(path, redshift_table, redshift_con, databases_parameters)
+
+
+def test_copy_upsert_hyphenated_name(path, redshift_table_with_hyphenated_name, redshift_con, databases_parameters):
+    generic_test_copy_upsert(path, redshift_table_with_hyphenated_name, redshift_con, databases_parameters)
 
 
 @pytest.mark.parametrize(

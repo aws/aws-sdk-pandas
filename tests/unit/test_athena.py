@@ -1,6 +1,7 @@
 import datetime
 import logging
 import string
+from unittest.mock import patch
 
 import boto3
 import numpy as np
@@ -1346,3 +1347,34 @@ def test_get_query_execution(workgroup0, workgroup1):
     assert isinstance(unprocessed_query_executions_df, PandasDataFrame)
     assert set(query_execution_ids).intersection(set(query_executions_df["QueryExecutionId"].values.tolist()))
     assert {"aaa", "bbb"}.intersection(set(unprocessed_query_executions_df["QueryExecutionId"].values.tolist()))
+
+
+@pytest.mark.parametrize("compression", [None, "snappy", "gzip"])
+def test_read_sql_query_ctas_write_compression(path, glue_database, glue_table, compression):
+    wr.catalog.delete_table_if_exists(database=glue_database, table=glue_table)
+    wr.s3.to_parquet(
+        df=get_df(),
+        path=path,
+        index=True,
+        use_threads=True,
+        dataset=True,
+        mode="overwrite",
+        database=glue_database,
+        table=glue_table,
+        partition_cols=["par0", "par1"],
+    )
+
+    with patch(
+        "awswrangler.athena._read.create_ctas_table", wraps=wr.athena.create_ctas_table
+    ) as mock_create_ctas_table:
+        wr.athena.read_sql_query(
+            sql=f"SELECT * FROM {glue_table}",
+            database=glue_database,
+            ctas_approach=True,
+            ctas_write_compression=compression,
+        )
+
+        mock_create_ctas_table.assert_called_once()
+
+        create_ctas_table_args = mock_create_ctas_table.call_args.kwargs
+        create_ctas_table_args["compression"] = compression
