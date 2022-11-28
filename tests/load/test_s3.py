@@ -48,13 +48,14 @@ def _modin_repartition(df: pd.DataFrame, num_blocks: int) -> pd.DataFrame:
 def test_s3_select(benchmark_time):
     path = "s3://ursa-labs-taxi-data/2018/1*.parquet"
     with ExecutionTimer("elapsed time of wr.s3.select_query()") as timer:
-        wr.s3.select_query(
+        df = wr.s3.select_query(
             sql="SELECT * FROM s3object",
             path=path,
             input_serialization="Parquet",
             input_serialization_params={},
             scan_range_chunk_size=16 * 1024 * 1024,
         )
+        assert df.shape == (25139500, 17)
 
     assert timer.elapsed_time < benchmark_time
 
