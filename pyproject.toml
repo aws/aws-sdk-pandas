@@ -82,7 +82,6 @@ python-Levenshtein = "^0.12.2"
 bump2version = "^1.0.1"
 setuptools = "*"
 
-
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
