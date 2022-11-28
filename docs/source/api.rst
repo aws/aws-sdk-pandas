@@ -338,6 +338,8 @@ Amazon CloudWatch Logs
     run_query
     start_query
     wait_query
+    describe_log_streams
+    filter_log_events
 
 Amazon QuickSight
 -----------------
