@@ -15,7 +15,6 @@ pytestmark = pytest.mark.distributed
 @pytest.fixture(scope="function")
 def wr() -> Iterator[ModuleType]:
     import awswrangler
-    from awswrangler._distributed import EngineEnum
 
     awswrangler.engine.__class__._engine = None
     awswrangler.engine.__class__._initialized_engine = None
@@ -23,8 +22,8 @@ def wr() -> Iterator[ModuleType]:
 
     yield reload(awswrangler)
 
-    # Reset to Ray for future tests
-    awswrangler.engine.initialize(EngineEnum.RAY.value)
+    # Reset for future tests
+    awswrangler.engine.initialize()
 
 
 @pytest.mark.skipif(condition=not is_ray_modin, reason="ray not available")
