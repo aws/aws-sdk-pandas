@@ -100,7 +100,14 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     parameters: Optional[Dict[str, str]] = None,
     columns_comments: Optional[Dict[str, str]] = None,
     regular_partitions: bool = True,
-    projection_params: Optional[Dict[str, Any]] = None,
+    projection_enabled: bool = False,
+    projection_types: Optional[Dict[str, str]] = None,
+    projection_ranges: Optional[Dict[str, str]] = None,
+    projection_values: Optional[Dict[str, str]] = None,
+    projection_intervals: Optional[Dict[str, str]] = None,
+    projection_digits: Optional[Dict[str, str]] = None,
+    projection_formats: Optional[Dict[str, str]] = None,
+    projection_storage_location_template: Optional[str] = None,
     catalog_id: Optional[str] = None,
     **pandas_kwargs: Any,
 ) -> Dict[str, Union[List[str], Dict[str, List[str]]]]:
@@ -158,7 +165,8 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         If True store as a dataset instead of ordinary file(s)
         If True, enable all follow arguments:
         partition_cols, mode, database, table, description, parameters, columns_comments, concurrent_partitioning,
-        catalog_versioning, projection_params, catalog_id, schema_evolution.
+        catalog_versioning, projection_enabled, projection_types, projection_ranges, projection_values,
+        projection_intervals, projection_digits, catalog_id, schema_evolution.
     filename_prefix: str, optional
         If dataset=True, add a filename prefix to the output files.
     partition_cols: List[str], optional
@@ -206,40 +214,38 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         Disable when you will work only with Partition Projection.
         Keep enabled even when working with projections is useful to keep
         Redshift Spectrum working with the regular partitions.
-    projection_params : Optional[Dict[str, Any]]
+    projection_enabled : bool
         Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
-        Following projection parameters are supported:
-
-        projection_types : Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections types.
-            Valid types: "enum", "integer", "date", "injected"
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_name': 'enum', 'col2_name': 'integer'})
-        projection_ranges: Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections ranges.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_name': '0,10', 'col2_name': '-1,8675309'})
-        projection_values: Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections values.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_name': 'A,B,Unknown', 'col2_name': 'foo,boo,bar'})
-        projection_intervals: Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections intervals.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_name': '1', 'col2_name': '5'})
-        projection_digits: Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections digits.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_name': '1', 'col2_name': '2'})
-        projection_formats: Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections formats.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_date': 'yyyy-MM-dd', 'col2_timestamp': 'yyyy-MM-dd HH:mm:ss'})
-        projection_storage_location_template: Optional[str]
-            Value which is allows Athena to properly map partition values if the S3 file locations do not follow
-            a typical `.../column=value/...` pattern.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-setting-up.html
-            (e.g. s3://bucket/table_root/a=${a}/${b}/some_static_subdirectory/${c}/)
+    projection_types : Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections types.
+        Valid types: "enum", "integer", "date", "injected"
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': 'enum', 'col2_name': 'integer'})
+    projection_ranges: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections ranges.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': '0,10', 'col2_name': '-1,8675309'})
+    projection_values: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections values.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': 'A,B,Unknown', 'col2_name': 'foo,boo,bar'})
+    projection_intervals: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections intervals.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': '1', 'col2_name': '5'})
+    projection_digits: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections digits.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': '1', 'col2_name': '2'})
+    projection_formats: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections formats.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_date': 'yyyy-MM-dd', 'col2_timestamp': 'yyyy-MM-dd HH:mm:ss'})
+    projection_storage_location_template: Optional[str]
+        Value which is allows Athena to properly map partition values if the S3 file locations do not follow
+        a typical `.../column=value/...` pattern.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-setting-up.html
+        (e.g. s3://bucket/table_root/a=${a}/${b}/some_static_subdirectory/${c}/)
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
@@ -545,7 +551,14 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                 "schema_evolution": schema_evolution,
                 "catalog_versioning": catalog_versioning,
                 "sep": sep,
-                "projection_params": projection_params,
+                "projection_enabled": projection_enabled,
+                "projection_types": projection_types,
+                "projection_ranges": projection_ranges,
+                "projection_values": projection_values,
+                "projection_intervals": projection_intervals,
+                "projection_digits": projection_digits,
+                "projection_formats": projection_formats,
+                "projection_storage_location_template": projection_storage_location_template,
                 "catalog_table_input": catalog_table_input,
                 "catalog_id": catalog_id,
                 "compression": pandas_kwargs.get("compression"),
@@ -660,7 +673,14 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
     parameters: Optional[Dict[str, str]] = None,
     columns_comments: Optional[Dict[str, str]] = None,
     regular_partitions: bool = True,
-    projection_params: Optional[Dict[str, Any]] = None,
+    projection_enabled: bool = False,
+    projection_types: Optional[Dict[str, str]] = None,
+    projection_ranges: Optional[Dict[str, str]] = None,
+    projection_values: Optional[Dict[str, str]] = None,
+    projection_intervals: Optional[Dict[str, str]] = None,
+    projection_digits: Optional[Dict[str, str]] = None,
+    projection_formats: Optional[Dict[str, str]] = None,
+    projection_storage_location_template: Optional[str] = None,
     catalog_id: Optional[str] = None,
     **pandas_kwargs: Any,
 ) -> Union[List[str], Dict[str, Union[List[str], Dict[str, List[str]]]]]:
@@ -701,7 +721,8 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         If True store as a dataset instead of ordinary file(s)
         If True, enable all follow arguments:
         partition_cols, mode, database, table, description, parameters, columns_comments, concurrent_partitioning,
-        catalog_versioning, projection_params, catalog_id, schema_evolution.
+        catalog_versioning, projection_enabled, projection_types, projection_ranges, projection_values,
+        projection_intervals, projection_digits, catalog_id, schema_evolution.
     filename_prefix: str, optional
         If dataset=True, add a filename prefix to the output files.
     partition_cols: List[str], optional
@@ -749,40 +770,38 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         Disable when you will work only with Partition Projection.
         Keep enabled even when working with projections is useful to keep
         Redshift Spectrum working with the regular partitions.
-    projection_params : Optional[Dict[str, Any]]
+    projection_enabled : bool
         Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
-        Following projection parameters are supported:
-
-        projection_types : Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections types.
-            Valid types: "enum", "integer", "date", "injected"
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_name': 'enum', 'col2_name': 'integer'})
-        projection_ranges: Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections ranges.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_name': '0,10', 'col2_name': '-1,8675309'})
-        projection_values: Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections values.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_name': 'A,B,Unknown', 'col2_name': 'foo,boo,bar'})
-        projection_intervals: Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections intervals.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_name': '1', 'col2_name': '5'})
-        projection_digits: Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections digits.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_name': '1', 'col2_name': '2'})
-        projection_formats: Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections formats.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_date': 'yyyy-MM-dd', 'col2_timestamp': 'yyyy-MM-dd HH:mm:ss'})
-        projection_storage_location_template: Optional[str]
-            Value which is allows Athena to properly map partition values if the S3 file locations do not follow
-            a typical `.../column=value/...` pattern.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-setting-up.html
-            (e.g. s3://bucket/table_root/a=${a}/${b}/some_static_subdirectory/${c}/)
+    projection_types : Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections types.
+        Valid types: "enum", "integer", "date", "injected"
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': 'enum', 'col2_name': 'integer'})
+    projection_ranges: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections ranges.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': '0,10', 'col2_name': '-1,8675309'})
+    projection_values: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections values.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': 'A,B,Unknown', 'col2_name': 'foo,boo,bar'})
+    projection_intervals: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections intervals.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': '1', 'col2_name': '5'})
+    projection_digits: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections digits.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_name': '1', 'col2_name': '2'})
+    projection_formats: Optional[Dict[str, str]]
+        Dictionary of partitions names and Athena projections formats.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+        (e.g. {'col_date': 'yyyy-MM-dd', 'col2_timestamp': 'yyyy-MM-dd HH:mm:ss'})
+    projection_storage_location_template: Optional[str]
+        Value which is allows Athena to properly map partition values if the S3 file locations do not follow
+        a typical `.../column=value/...` pattern.
+        https://docs.aws.amazon.com/athena/latest/ug/partition-projection-setting-up.html
+        (e.g. s3://bucket/table_root/a=${a}/${b}/some_static_subdirectory/${c}/)
     catalog_id : str, optional
         The ID of the Data Catalog from which to retrieve Databases.
         If none is provided, the AWS account ID is used by default.
@@ -943,7 +962,14 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
             "transaction_id": transaction_id,
             "catalog_versioning": catalog_versioning,
             "schema_evolution": schema_evolution,
-            "projection_params": projection_params,
+            "projection_enabled": projection_enabled,
+            "projection_types": projection_types,
+            "projection_ranges": projection_ranges,
+            "projection_values": projection_values,
+            "projection_intervals": projection_intervals,
+            "projection_digits": projection_digits,
+            "projection_formats": projection_formats,
+            "projection_storage_location_template": projection_storage_location_template,
             "catalog_table_input": catalog_table_input,
             "catalog_id": catalog_id,
             "compression": compression,
