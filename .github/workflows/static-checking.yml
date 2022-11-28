@@ -35,7 +35,7 @@ jobs:
           poetry config virtualenvs.create false --local
           poetry install --extras "sqlserver sparql modin ray" -vvv
       - name: mypy check
-        run: mypy --install-types --non-interactive awswrangler
+        run: mypy --install-types --non-interactive --show-traceback awswrangler
       - name: Flake8 Lint
         run: flake8 .
       - name: Pylint Lint
