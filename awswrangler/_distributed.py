@@ -28,11 +28,12 @@ class MemoryFormatEnum(Enum):
 class Engine:
     """Execution engine configuration class."""
 
-    _enum: Optional[Enum] = None
+    _engine: Optional[EngineEnum] = None
+    _initialized_engine: Optional[EngineEnum] = None
     _registry: Dict[str, Dict[str, Callable[..., Any]]] = defaultdict(dict)
 
     @classmethod
-    def get_installed(cls) -> Enum:
+    def get_installed(cls) -> EngineEnum:
         """Get the installed distribution engine.
 
         This is the engine that can be imported.
@@ -47,7 +48,7 @@ class Engine:
         return EngineEnum.PYTHON
 
     @classmethod
-    def get(cls) -> Enum:
+    def get(cls) -> EngineEnum:
         """Get the configured distribution engine.
 
         This is the engine currently configured. If None, the installed engine is returned.
@@ -57,12 +58,14 @@ class Engine:
         str
             The distribution engine configured.
         """
-        return cls._enum if cls._enum else cls.get_installed()
+        return cls._engine if cls._engine else cls.get_installed()
 
     @classmethod
     def set(cls, name: str) -> None:
         """Set the distribution engine."""
-        cls._enum = EngineEnum._member_map_[name.upper()]  # pylint: disable=protected-access,no-member
+        cls._engine = EngineEnum._member_map_[  # pylint: disable=protected-access,no-member
+            name.upper()
+        ]  # type: ignore
 
     @classmethod
     def dispatch_func(cls, source_func: Callable[..., Any], value: Optional[Any] = None) -> Callable[..., Any]:
@@ -93,7 +96,7 @@ class Engine:
     @classmethod
     def register(cls, name: Optional[str] = None) -> None:
         """Register the distribution engine dispatch methods."""
-        engine_name = cls.get_installed().value if not name else name
+        engine_name = name or cls.get_installed().value
         cls.set(engine_name)
         cls._registry.clear()
 
@@ -105,12 +108,20 @@ class Engine:
     @classmethod
     def initialize(cls, name: Optional[str] = None) -> None:
         """Initialize the distribution engine."""
-        engine_name = cls.get_installed().value if not name else name
+        engine_name = name or cls.get_installed().value
         if engine_name == EngineEnum.RAY.value:
             from awswrangler.distributed.ray import initialize_ray
 
             initialize_ray()
         cls.register(engine_name)
+        cls._initialized_engine = cls.get()
+
+    @classmethod
+    def is_initialized(cls, name: Optional[str] = None) -> bool:
+        """Check if the distribution engine is initialized."""
+        engine_name = name or cls.get_installed().value
+
+        return False if not cls._initialized_engine else cls._initialized_engine.value == engine_name
 
 
 class MemoryFormat:
