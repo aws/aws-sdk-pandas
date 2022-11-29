@@ -265,6 +265,7 @@ def _resolve_query_without_cache_ctas(
     alt_database: Optional[str],
     name: Optional[str],
     ctas_bucketing_info: Optional[Tuple[List[str], int]],
+    ctas_write_compression: Optional[str],
     use_threads: Union[bool, int],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
@@ -280,6 +281,7 @@ def _resolve_query_without_cache_ctas(
         s3_output=s3_output,
         workgroup=workgroup,
         encryption=encryption,
+        write_compression=ctas_write_compression,
         kms_key=kms_key,
         wait=True,
         boto3_session=boto3_session,
@@ -413,6 +415,7 @@ def _resolve_query_without_cache(
     ctas_database: Optional[str],
     ctas_temp_table_name: Optional[str],
     ctas_bucketing_info: Optional[Tuple[List[str], int]],
+    ctas_write_compression: Optional[str],
     use_threads: Union[bool, int],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     boto3_session: boto3.Session,
@@ -443,6 +446,7 @@ def _resolve_query_without_cache(
                 alt_database=ctas_database,
                 name=name,
                 ctas_bucketing_info=ctas_bucketing_info,
+                ctas_write_compression=ctas_write_compression,
                 use_threads=use_threads,
                 s3_additional_kwargs=s3_additional_kwargs,
                 boto3_session=boto3_session,
@@ -658,7 +662,7 @@ def get_query_results(
 
 
 @apply_configs
-def read_sql_query(
+def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
     sql: str,
     database: str,
     ctas_approach: bool = True,
@@ -674,6 +678,7 @@ def read_sql_query(
     ctas_database: Optional[str] = None,
     ctas_temp_table_name: Optional[str] = None,
     ctas_bucketing_info: Optional[Tuple[List[str], int]] = None,
+    ctas_write_compression: Optional[str] = None,
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     max_cache_seconds: int = 0,
@@ -840,6 +845,9 @@ def read_sql_query(
         Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
         second element.
         Only `str`, `int` and `bool` are supported as column data types for bucketing.
+    ctas_write_compression: str, optional
+        Write compression for the temporary table where the CTAS result is stored.
+        Corresponds to the `write_compression` parameters for CREATE TABLE AS statement in Athena.
     use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -964,6 +972,7 @@ def read_sql_query(
         ctas_database=ctas_database,
         ctas_temp_table_name=ctas_temp_table_name,
         ctas_bucketing_info=ctas_bucketing_info,
+        ctas_write_compression=ctas_write_compression,
         use_threads=use_threads,
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=session,
@@ -988,6 +997,7 @@ def read_sql_table(
     ctas_database: Optional[str] = None,
     ctas_temp_table_name: Optional[str] = None,
     ctas_bucketing_info: Optional[Tuple[List[str], int]] = None,
+    ctas_write_compression: Optional[str] = None,
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     max_cache_seconds: int = 0,
@@ -1132,6 +1142,9 @@ def read_sql_table(
         Tuple consisting of the column names used for bucketing as the first element and the number of buckets as the
         second element.
         Only `str`, `int` and `bool` are supported as column data types for bucketing.
+    ctas_write_compression: str, optional
+        Write compression for the temporary table where the CTAS result is stored.
+        Corresponds to the `write_compression` parameters for CREATE TABLE AS statement in Athena.
     use_threads : bool, int
         True to enable concurrent requests, False to disable multiple threads.
         If enabled os.cpu_count() will be used as the max number of threads.
@@ -1203,6 +1216,7 @@ def read_sql_table(
         ctas_database=ctas_database,
         ctas_temp_table_name=ctas_temp_table_name,
         ctas_bucketing_info=ctas_bucketing_info,
+        ctas_write_compression=ctas_write_compression,
         use_threads=use_threads,
         boto3_session=boto3_session,
         max_cache_seconds=max_cache_seconds,

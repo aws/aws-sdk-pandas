@@ -67,6 +67,16 @@ def _new_writer(
     use_threads: Union[bool, int],
 ) -> Iterator[pyarrow.parquet.ParquetWriter]:
     writer: Optional[pyarrow.parquet.ParquetWriter] = None
+    if not pyarrow_additional_kwargs:
+        pyarrow_additional_kwargs = {}
+    if not pyarrow_additional_kwargs.get("coerce_timestamps"):
+        pyarrow_additional_kwargs["coerce_timestamps"] = "ms"
+    if "flavor" not in pyarrow_additional_kwargs:
+        pyarrow_additional_kwargs["flavor"] = "spark"
+    if "version" not in pyarrow_additional_kwargs:
+        # By default, use version 1.0 logical type set to maximize compatibility
+        pyarrow_additional_kwargs["version"] = "1.0"
+
     with open_s3_object(
         path=file_path,
         mode="wb",
