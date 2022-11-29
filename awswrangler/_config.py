@@ -58,7 +58,9 @@ _CONFIG_ARGS: Dict[str, _ConfigArg] = {
     "redis_password": _ConfigArg(dtype=str, nullable=True),
     "ignore_reinit_error": _ConfigArg(dtype=bool, nullable=True),
     "include_dashboard": _ConfigArg(dtype=bool, nullable=True),
+    "configure_logging": _ConfigArg(dtype=bool, nullable=True),
     "log_to_driver": _ConfigArg(dtype=bool, nullable=True),
+    "logging_level": _ConfigArg(dtype=int, nullable=True),
     "object_store_memory": _ConfigArg(dtype=int, nullable=True),
     "cpu_count": _ConfigArg(dtype=int, nullable=True),
     "gpu_count": _ConfigArg(dtype=int, nullable=True),
@@ -489,6 +491,15 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
         self._set_config_value(key="redis_password", value=value)
 
     @property
+    def configure_logging(self) -> Optional[bool]:
+        """Property configure_logging."""
+        return cast(Optional[bool], self["configure_logging"])
+
+    @configure_logging.setter
+    def configure_logging(self, value: Optional[bool]) -> None:
+        self._set_config_value(key="configure_logging", value=value)
+
+    @property
     def log_to_driver(self) -> Optional[bool]:
         """Property log_to_driver."""
         return cast(Optional[bool], self["log_to_driver"])
@@ -496,6 +507,15 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
     @log_to_driver.setter
     def log_to_driver(self, value: Optional[bool]) -> None:
         self._set_config_value(key="log_to_driver", value=value)
+
+    @property
+    def logging_level(self) -> int:
+        """Property logging_level."""
+        return cast(int, self["logging_level"])
+
+    @logging_level.setter
+    def logging_level(self, value: int) -> None:
+        self._set_config_value(key="logging_level", value=value)
 
     @property
     def object_store_memory(self) -> int:
