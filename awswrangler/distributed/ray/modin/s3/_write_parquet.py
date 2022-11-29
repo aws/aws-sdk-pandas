@@ -6,12 +6,11 @@ from typing import Any, Dict, List, Optional, Union
 import boto3
 import modin.pandas as pd
 import pyarrow as pa
-from modin.pandas import DataFrame as ModinDataFrame
-from ray.data import from_modin, from_pandas
 from ray.data.datasource.file_based_datasource import DefaultBlockWritePathProvider
 
 from awswrangler import exceptions
 from awswrangler.distributed.ray.datasources import ArrowParquetDatasource, UserProvidedKeyBlockWritePathProvider
+from awswrangler.distributed.ray.modin._utils import _ray_dataset_from_df
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -38,7 +37,7 @@ def _to_parquet_distributed(  # pylint: disable=unused-argument
         # Add bucket id to the prefix
         path = f"{path_root}{filename_prefix}_bucket-{df.name:05d}{compression_ext}.parquet"
     # Create Ray Dataset
-    ds = from_modin(df) if isinstance(df, ModinDataFrame) else from_pandas(df)
+    ds = _ray_dataset_from_df(df)
     # Repartition into a single block if or writing into a single key or if bucketing is enabled
     if ds.count() > 0 and (path or bucketing) and not max_rows_by_file:
         _logger.warning(
