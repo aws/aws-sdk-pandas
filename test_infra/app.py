@@ -4,6 +4,7 @@ import os
 from aws_cdk import App, Environment
 from stacks.base_stack import BaseStack
 from stacks.databases_stack import DatabasesStack
+from stacks.glueray_stack import GlueRayStack
 from stacks.lakeformation_stack import LakeFormationStack
 from stacks.opensearch_stack import OpenSearchStack
 
@@ -38,6 +39,12 @@ OpenSearchStack(
     base.get_vpc,
     base.get_bucket,
     base.get_key,
+    **env,
+)
+
+GlueRayStack(
+    app,
+    "aws-sdk-pandas-glueray",
     **env,
 )
 
