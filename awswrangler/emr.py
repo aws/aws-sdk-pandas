@@ -1070,6 +1070,7 @@ def submit_spark_step(
         Script path. (e.g. s3://bucket/app.py)
     args : List[str], optional
         CLI args to use with script
+        eg. args = ["--name", "hello-world"]
     deploy_mode : str
         "cluster" | "client"
     docker_image : str, optional
