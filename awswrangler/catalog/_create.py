@@ -679,41 +679,52 @@ def create_parquet_table(
     transaction_id: str, optional
         The ID of the transaction (i.e. used with GOVERNED tables).
     projection_params : Optional[Dict[str, Any]]
-        Enable Partition Projection parameters on Athena
-        (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
-
+        Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
         Following projection parameters are supported:
 
-        projection_types : Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections types.
-            Valid types: "enum", "integer", "date", "injected"
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_name': 'enum', 'col2_name': 'integer'})
-        projection_ranges: Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections ranges.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_name': '0,10', 'col2_name': '-1,8675309'})
-        projection_values: Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections values.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_name': 'A,B,Unknown', 'col2_name': 'foo,boo,bar'})
-        projection_intervals: Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections intervals.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_name': '1', 'col2_name': '5'})
-        projection_digits: Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections digits.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_name': '1', 'col2_name': '2'})
-        projection_formats: Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections formats.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_date': 'yyyy-MM-dd', 'col2_timestamp': 'yyyy-MM-dd HH:mm:ss'})
-        projection_storage_location_template: Optional[str]
-            Value which is allows Athena to properly map partition values if the S3 file locations do not follow
-            a typical `.../column=value/...` pattern.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-setting-up.html
-            (e.g. s3://bucket/table_root/a=${a}/${b}/some_static_subdirectory/${c}/)
+        .. list-table:: Projection Parameters
+           :header-rows: 1
+
+           * - Name
+             - Type
+             - Description
+           * - projection_types
+             - Optional[Dict[str, str]]
+             - Dictionary of partitions names and Athena projections types.
+               Valid types: "enum", "integer", "date", "injected"
+               https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+               (e.g. {'col_name': 'enum', 'col2_name': 'integer'})
+           * - projection_ranges
+             - Optional[Dict[str, str]]
+             - Dictionary of partitions names and Athena projections ranges.
+               https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+               (e.g. {'col_name': '0,10', 'col2_name': '-1,8675309'})
+           * - projection_values
+             - Optional[Dict[str, str]]
+             - Dictionary of partitions names and Athena projections values.
+               https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+               (e.g. {'col_name': 'A,B,Unknown', 'col2_name': 'foo,boo,bar'})
+           * - projection_intervals
+             - Optional[Dict[str, str]]
+             - Dictionary of partitions names and Athena projections intervals.
+               https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+               (e.g. {'col_name': '1', 'col2_name': '5'})
+           * - projection_digits
+             - Optional[Dict[str, str]]
+             - Dictionary of partitions names and Athena projections digits.
+               https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+               (e.g. {'col_name': '1', 'col2_name': '2'})
+           * - projection_formats
+             - Optional[Dict[str, str]]
+             - Dictionary of partitions names and Athena projections formats.
+               https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+               (e.g. {'col_date': 'yyyy-MM-dd', 'col2_timestamp': 'yyyy-MM-dd HH:mm:ss'})
+           * - projection_storage_location_template
+             - Optional[str]
+             - Value which is allows Athena to properly map partition values if the S3 file locations do not follow
+               a typical `.../column=value/...` pattern.
+               https://docs.aws.amazon.com/athena/latest/ug/partition-projection-setting-up.html
+               (e.g. s3://bucket/table_root/a=${a}/${b}/some_static_subdirectory/${c}/)
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
 
@@ -842,41 +853,52 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     transaction_id: str, optional
         The ID of the transaction (i.e. used with GOVERNED tables).
     projection_params : Optional[Dict[str, Any]]
-        Enable Partition Projection parameters on Athena
-        (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
-
+        Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
         Following projection parameters are supported:
 
-        projection_types : Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections types.
-            Valid types: "enum", "integer", "date", "injected"
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_name': 'enum', 'col2_name': 'integer'})
-        projection_ranges: Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections ranges.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_name': '0,10', 'col2_name': '-1,8675309'})
-        projection_values: Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections values.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_name': 'A,B,Unknown', 'col2_name': 'foo,boo,bar'})
-        projection_intervals: Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections intervals.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_name': '1', 'col2_name': '5'})
-        projection_digits: Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections digits.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_name': '1', 'col2_name': '2'})
-        projection_formats: Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections formats.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_date': 'yyyy-MM-dd', 'col2_timestamp': 'yyyy-MM-dd HH:mm:ss'})
-        projection_storage_location_template: Optional[str]
-            Value which is allows Athena to properly map partition values if the S3 file locations do not follow
-            a typical `.../column=value/...` pattern.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-setting-up.html
-            (e.g. s3://bucket/table_root/a=${a}/${b}/some_static_subdirectory/${c}/)
+        .. list-table:: Projection Parameters
+           :header-rows: 1
+
+           * - Name
+             - Type
+             - Description
+           * - projection_types
+             - Optional[Dict[str, str]]
+             - Dictionary of partitions names and Athena projections types.
+               Valid types: "enum", "integer", "date", "injected"
+               https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+               (e.g. {'col_name': 'enum', 'col2_name': 'integer'})
+           * - projection_ranges
+             - Optional[Dict[str, str]]
+             - Dictionary of partitions names and Athena projections ranges.
+               https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+               (e.g. {'col_name': '0,10', 'col2_name': '-1,8675309'})
+           * - projection_values
+             - Optional[Dict[str, str]]
+             - Dictionary of partitions names and Athena projections values.
+               https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+               (e.g. {'col_name': 'A,B,Unknown', 'col2_name': 'foo,boo,bar'})
+           * - projection_intervals
+             - Optional[Dict[str, str]]
+             - Dictionary of partitions names and Athena projections intervals.
+               https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+               (e.g. {'col_name': '1', 'col2_name': '5'})
+           * - projection_digits
+             - Optional[Dict[str, str]]
+             - Dictionary of partitions names and Athena projections digits.
+               https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+               (e.g. {'col_name': '1', 'col2_name': '2'})
+           * - projection_formats
+             - Optional[Dict[str, str]]
+             - Dictionary of partitions names and Athena projections formats.
+               https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+               (e.g. {'col_date': 'yyyy-MM-dd', 'col2_timestamp': 'yyyy-MM-dd HH:mm:ss'})
+           * - projection_storage_location_template
+             - Optional[str]
+             - Value which is allows Athena to properly map partition values if the S3 file locations do not follow
+               a typical `.../column=value/...` pattern.
+               https://docs.aws.amazon.com/athena/latest/ug/partition-projection-setting-up.html
+               (e.g. s3://bucket/table_root/a=${a}/${b}/some_static_subdirectory/${c}/)
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     catalog_id : str, optional
@@ -1007,41 +1029,52 @@ def create_json_table(  # pylint: disable=too-many-arguments
     transaction_id: str, optional
         The ID of the transaction (i.e. used with GOVERNED tables).
     projection_params : Optional[Dict[str, Any]]
-        Enable Partition Projection parameters on Athena
-        (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
-
+        Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
         Following projection parameters are supported:
 
-        projection_types : Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections types.
-            Valid types: "enum", "integer", "date", "injected"
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_name': 'enum', 'col2_name': 'integer'})
-        projection_ranges: Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections ranges.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_name': '0,10', 'col2_name': '-1,8675309'})
-        projection_values: Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections values.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_name': 'A,B,Unknown', 'col2_name': 'foo,boo,bar'})
-        projection_intervals: Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections intervals.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_name': '1', 'col2_name': '5'})
-        projection_digits: Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections digits.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_name': '1', 'col2_name': '2'})
-        projection_formats: Optional[Dict[str, str]]
-            Dictionary of partitions names and Athena projections formats.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
-            (e.g. {'col_date': 'yyyy-MM-dd', 'col2_timestamp': 'yyyy-MM-dd HH:mm:ss'})
-        projection_storage_location_template: Optional[str]
-            Value which is allows Athena to properly map partition values if the S3 file locations do not follow
-            a typical `.../column=value/...` pattern.
-            https://docs.aws.amazon.com/athena/latest/ug/partition-projection-setting-up.html
-            (e.g. s3://bucket/table_root/a=${a}/${b}/some_static_subdirectory/${c}/)
+        .. list-table:: Projection Parameters
+           :header-rows: 1
+
+           * - Name
+             - Type
+             - Description
+           * - projection_types
+             - Optional[Dict[str, str]]
+             - Dictionary of partitions names and Athena projections types.
+               Valid types: "enum", "integer", "date", "injected"
+               https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+               (e.g. {'col_name': 'enum', 'col2_name': 'integer'})
+           * - projection_ranges
+             - Optional[Dict[str, str]]
+             - Dictionary of partitions names and Athena projections ranges.
+               https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+               (e.g. {'col_name': '0,10', 'col2_name': '-1,8675309'})
+           * - projection_values
+             - Optional[Dict[str, str]]
+             - Dictionary of partitions names and Athena projections values.
+               https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+               (e.g. {'col_name': 'A,B,Unknown', 'col2_name': 'foo,boo,bar'})
+           * - projection_intervals
+             - Optional[Dict[str, str]]
+             - Dictionary of partitions names and Athena projections intervals.
+               https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+               (e.g. {'col_name': '1', 'col2_name': '5'})
+           * - projection_digits
+             - Optional[Dict[str, str]]
+             - Dictionary of partitions names and Athena projections digits.
+               https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+               (e.g. {'col_name': '1', 'col2_name': '2'})
+           * - projection_formats
+             - Optional[Dict[str, str]]
+             - Dictionary of partitions names and Athena projections formats.
+               https://docs.aws.amazon.com/athena/latest/ug/partition-projection-supported-types.html
+               (e.g. {'col_date': 'yyyy-MM-dd', 'col2_timestamp': 'yyyy-MM-dd HH:mm:ss'})
+           * - projection_storage_location_template
+             - Optional[str]
+             - Value which is allows Athena to properly map partition values if the S3 file locations do not follow
+               a typical `.../column=value/...` pattern.
+               https://docs.aws.amazon.com/athena/latest/ug/partition-projection-setting-up.html
+               (e.g. s3://bucket/table_root/a=${a}/${b}/some_static_subdirectory/${c}/)
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
     catalog_id : str, optional
