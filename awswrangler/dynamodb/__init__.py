@@ -13,5 +13,5 @@ __all__ = [
     "put_df",
     "put_items",
     "put_json",
-    "read_partiql_query"
+    "read_partiql_query",
 ]

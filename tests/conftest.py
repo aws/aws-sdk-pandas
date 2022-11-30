@@ -196,6 +196,20 @@ def db_password():
 
 
 @pytest.fixture(scope="function")
+def dynamodb_table(params) -> None:
+    name = f"tbl_{get_time_str_with_random_suffix()}"
+    print(f"Table name: {name}")
+    params.update({"TableName": name, "BillingMode": "PAY_PER_REQUEST"})
+    dynamodb_resource = boto3.resource("dynamodb")
+    table = dynamodb_resource.create_table(**params)
+    table.wait_until_exists()
+    yield name
+    table.delete()
+    table.wait_until_not_exists()
+    print(f"Table {name} deleted.")
+
+
+@pytest.fixture(scope="function")
 def glue_ctas_database():
     name = f"db_{get_time_str_with_random_suffix()}"
     print(f"Database name: {name}")
