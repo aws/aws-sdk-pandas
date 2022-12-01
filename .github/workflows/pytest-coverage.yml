@@ -4,6 +4,8 @@ on:
   pull_request:
     branches:
       - main
+    types:
+        - labeled
 
 permissions:
   contents: read
@@ -11,6 +13,7 @@ permissions:
 
 jobs:
   Check:
+    if: ${{ github.event.label.name == 'coverage' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
