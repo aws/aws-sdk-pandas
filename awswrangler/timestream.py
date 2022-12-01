@@ -9,16 +9,10 @@ from typing import Any, Dict, Iterator, List, Optional, Union, cast
 import boto3
 import pandas as pd
 from botocore.config import Config
-from botocore.loaders import Loader
-from botocore.model import ServiceModel
 
 from awswrangler import _data_types, _utils
 
 _logger: logging.Logger = logging.getLogger(__name__)
-
-_BOTOCORE_LOADER = Loader()
-_TIMESTREAM_JSON_MODEL = _BOTOCORE_LOADER.load_service_model(service_name="timestream-write", type_name="service-2")
-_TIMESTREAM_SERVICE_MODEL = ServiceModel(_TIMESTREAM_JSON_MODEL, service_name="timestream-write")
 
 
 def _df2list(df: pd.DataFrame) -> List[List[Any]]:
@@ -391,17 +385,6 @@ def delete_database(
     client.delete_database(DatabaseName=database)
 
 
-def _snake_to_camel_case(s: str) -> str:
-    return "".join(c.title() for c in s.split("_"))
-
-
-def get_botocore_valid_kwargs(function_name: str, timestream_additional_kwargs: Dict[str, Any]) -> Dict[str, Any]:
-    """Filter and keep only the valid botocore key arguments."""
-    timestream_operation_model = _TIMESTREAM_SERVICE_MODEL.operation_model(_snake_to_camel_case(function_name))
-    allowed_kwargs = timestream_operation_model.input_shape.members.keys()  # pylint: disable=E1101
-    return {k: v for k, v in timestream_additional_kwargs.items() if k in allowed_kwargs}
-
-
 def create_table(
     database: str,
     table: str,
@@ -458,11 +441,7 @@ def create_table(
 
     """
     client: boto3.client = _utils.client(service_name="timestream-write", session=boto3_session)
-    boto3_kwargs = {}
-    if timestream_additional_kwargs:
-        boto3_kwargs = get_botocore_valid_kwargs(
-            function_name="create_table", timestream_additional_kwargs=timestream_additional_kwargs
-        )
+    timestream_additional_kwargs = {} if timestream_additional_kwargs is None else timestream_additional_kwargs
     args: Dict[str, Any] = {
         "DatabaseName": database,
         "TableName": table,
@@ -470,7 +449,7 @@ def create_table(
             "MemoryStoreRetentionPeriodInHours": memory_retention_hours,
             "MagneticStoreRetentionPeriodInDays": magnetic_retention_days,
         },
-        **boto3_kwargs,
+        **timestream_additional_kwargs,
     }
     if tags is not None:
         args["Tags"] = [{"Key": k, "Value": v} for k, v in tags.items()]
