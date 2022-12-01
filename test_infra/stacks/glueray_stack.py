@@ -1,10 +1,9 @@
-from aws_cdk import RemovalPolicy, Stack
+from aws_cdk import CfnOutput, RemovalPolicy, Stack
 from aws_cdk import aws_athena as athena
 from aws_cdk import aws_glue as glue
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_s3 as s3
 from aws_cdk import aws_s3_assets as s3_assets
-from aws_cdk import custom_resources as cr
 from constructs import Construct
 
 
@@ -70,11 +69,27 @@ class GlueRayStack(Stack):  # type: ignore
         )
         amazon_reviews_pds_bucket.grant_read(self.glue_service_role)
 
-        # Deploy AWS SDK for pandas ZIP onto S3
-        self.wrangler_asset_path = self._deploy_wrangler_zip("AWS SDK for pandas")
+        # Where should the ZIP be uploaded
+        self.wrangler_asset_path = self.script_bucket.s3_url_for_object("awswrangler.zip")
 
         # Create Glue Job
-        self._create_glue_job(id="Glue Job 1", script_path="glue_scripts/glue_example_1.py")
+        glue_job1 = self._create_glue_job(id="Glue Job 1", script_path="glue_scripts/glue_example_1.py")
+
+        # CFN outputs
+        CfnOutput(
+            self,
+            "AWS SDK for pandas ZIP Location",
+            value=self.wrangler_asset_path,
+            export_name="WranglerZipLocation",
+        )
+
+        CfnOutput(
+            self,
+            "Glue Job 1 Name",
+            value=glue_job1.ref,
+            export_name="GlueJob1Name",
+        )
+
 
     def _deploy_glue_asset(self, id: str, path: str) -> s3_assets.Asset:
         return s3_assets.Asset(
@@ -83,37 +98,6 @@ class GlueRayStack(Stack):  # type: ignore
             path=path,
             readers=[self.glue_service_role],
         )
-
-    def _deploy_wrangler_zip(self, id: str) -> str:
-        destination_key = "awswrangler.zip"
-        asset_location = s3_assets.Asset(self, id, path="../awswrangler")
-
-        call = cr.AwsSdkCall(
-            service="S3",
-            action="copyObject",
-            parameters={
-                "CopySource": f"{asset_location.s3_bucket_name}/{asset_location.s3_object_key}",
-                "Bucket": self.script_bucket.bucket_name,
-                "Key": destination_key,
-            },
-            physical_resource_id=cr.PhysicalResourceId.of(
-                destination_key,
-            ),
-        )
-
-        custom_resource = cr.AwsCustomResource(
-            self,
-            f"{id} Copy Action",
-            on_create=call,
-            on_update=call,
-            policy=cr.AwsCustomResourcePolicy.from_sdk_calls(
-                resources=cr.AwsCustomResourcePolicy.ANY_RESOURCE,
-            ),
-        )
-        asset_location.grant_read(custom_resource)
-        self.script_bucket.grant_put(custom_resource, objects_key_pattern=destination_key)
-
-        return self.script_bucket.s3_url_for_object(destination_key)
 
     def _create_glue_job(self, id: str, script_path: str) -> glue.CfnJob:
         glue_job_script = self._deploy_glue_asset(f"{id} Script Asset", script_path)
@@ -127,7 +111,7 @@ class GlueRayStack(Stack):  # type: ignore
                 script_location=glue_job_script.s3_object_url,
             ),
             default_arguments={
-                "--extra-py-files": self.wrangler_asset_path,
+                "--additional-python-modules": self.wrangler_asset_path,
                 "--auto-scaling-ray-min-workers": "5",
                 "--glue-ray-data-bucket": self.data_bucket.bucket_name,
                 "--athena-workgroup": self.athena_workgroup.ref,
