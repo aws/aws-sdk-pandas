@@ -1,9 +1,6 @@
 name: PyTest Coverage
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
     branches:
       - main
@@ -14,8 +11,6 @@ permissions:
 jobs:
   Check:
     runs-on: ubuntu-latest
-    env:
-      AWS_DEFAULT_REGION: us-east-1
     strategy:
       matrix:
         python-version: [3.8]
@@ -33,6 +28,6 @@ jobs:
           poetry install -vvv
       - name: Build coverage file
         run: |
-          pytest --cache-clear --cov awswrangler tests/ > pytest-coverage.txt
+          pytest --cache-clear --cov awswrangler tests/ > pytest-coverage.txt || true
       - name: Comment coverage
         uses: coroo/pytest-coverage-commentator@v1.0.2
