@@ -45,6 +45,7 @@ OpenSearchStack(
 GlueRayStack(
     app,
     "aws-sdk-pandas-glueray",
+    base.get_bucket,
     **env,
 )
 

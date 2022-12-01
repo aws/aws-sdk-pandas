@@ -1,4 +1,4 @@
-from aws_cdk import CfnOutput, RemovalPolicy, Stack
+from aws_cdk import CfnOutput, Duration, RemovalPolicy, Stack
 from aws_cdk import aws_athena as athena
 from aws_cdk import aws_glue as glue
 from aws_cdk import aws_iam as iam
@@ -12,20 +12,10 @@ class GlueRayStack(Stack):  # type: ignore
         self,
         scope: Construct,
         construct_id: str,
+        bucket: s3.Bucket,
         **kwargs: str,
     ) -> None:
-        """
-        AWS SDK for pandas Development Databases Infrastructure.
-        Includes Redshift, Aurora PostgreSQL, Aurora MySQL, Microsoft SQL Server, Oracle Database.
-        """
         super().__init__(scope, construct_id, **kwargs)
-
-        self.data_bucket = s3.Bucket(
-            self,
-            "Data Bucket",
-            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
-            removal_policy=RemovalPolicy.DESTROY,
-        )
 
         self.script_bucket = s3.Bucket(
             self,
@@ -40,7 +30,7 @@ class GlueRayStack(Stack):  # type: ignore
             state="ENABLED",
             work_group_configuration=athena.CfnWorkGroup.WorkGroupConfigurationProperty(
                 result_configuration=athena.CfnWorkGroup.ResultConfigurationProperty(
-                    output_location=self.data_bucket.s3_url_for_object("unload/"),
+                    output_location=bucket.s3_url_for_object(""),
                 ),
             ),
             description="AWS SDK for pandas with Glue on Ray",
@@ -58,7 +48,7 @@ class GlueRayStack(Stack):  # type: ignore
             ],
         )
 
-        self.data_bucket.grant_read_write(self.glue_service_role)
+        bucket.grant_read_write(self.glue_service_role)
         self.script_bucket.grant_read(self.glue_service_role)
 
         # Grant data permissions to Glue job
@@ -90,7 +80,6 @@ class GlueRayStack(Stack):  # type: ignore
             export_name="GlueJob1Name",
         )
 
-
     def _deploy_glue_asset(self, id: str, path: str) -> s3_assets.Asset:
         return s3_assets.Asset(
             self,
@@ -113,7 +102,6 @@ class GlueRayStack(Stack):  # type: ignore
             default_arguments={
                 "--additional-python-modules": self.wrangler_asset_path,
                 "--auto-scaling-ray-min-workers": "5",
-                "--glue-ray-data-bucket": self.data_bucket.bucket_name,
                 "--athena-workgroup": self.athena_workgroup.ref,
             },
             glue_version="4.0",

@@ -3,14 +3,12 @@ import os
 import awswrangler as wr
 
 
-bucket_name = os.environ["glue-ray-data-bucket"]
 workgroup_name = os.environ["athena-workgroup"]
-category = "toys"
-glue_database = "amzn_reviews"
-glue_table = f"{category}_5_stars"
+output_path = os.environ["output-path"]
+glue_database = os.environ["glue-database"]
+glue_table = os.environ["glue-table"]
 
-wr.catalog.create_database(name=glue_database, exist_ok=True)
-wr.s3.delete_objects(f"s3://{bucket_name}/")
+category = "toys"
 
 # Read Parquet data (1.2 Gb parquet compressed)
 df = wr.s3.read_parquet(
@@ -26,7 +24,7 @@ df5 = df[df["star_rating"] == 5]
 # Write partitioned five stars reviews to S3 in Parquet format
 wr.s3.to_parquet(
     df5,
-    path=f"s3://{bucket_name}/{category}/",
+    path=f"{output_path}output/{category}/",
     partition_cols=["year", "marketplace"],
     dataset=True,
     database=glue_database,
@@ -40,5 +38,5 @@ df5_athena = wr.athena.read_sql_query(
     ctas_approach=False,
     unload_approach=True,
     workgroup=workgroup_name,
-    s3_output=f"s3://{bucket_name}/unload/{category}/",
+    s3_output=f"{output_path}unload/{category}/",
 )
