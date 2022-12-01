@@ -987,6 +987,7 @@ def submit_ecr_credentials_refresh(
 
 def build_spark_step(
     path: str,
+    args: Optional[List[str]] = None,
     deploy_mode: str = "cluster",
     docker_image: Optional[str] = None,
     name: str = "my-step",
@@ -1000,6 +1001,8 @@ def build_spark_step(
     ----------
     path : str
         Script path. (e.g. s3://bucket/app.py)
+    args : List[str], optional
+        CLI args to use with script
     deploy_mode : str
         "cluster" | "client"
     docker_image : str, optional
@@ -1029,8 +1032,9 @@ def build_spark_step(
     >>> )
 
     """
+    script_args = " ".join(args) if args else ""
     if docker_image is None:
-        cmd: str = f"spark-submit --deploy-mode {deploy_mode} {path}"
+        cmd: str = f"spark-submit --deploy-mode {deploy_mode} {path} {script_args}"
     else:
         config: str = "hdfs:///user/hadoop/config.json"
         cmd = (
@@ -1043,7 +1047,7 @@ def build_spark_step(
             f"--conf spark.yarn.appMasterEnv.YARN_CONTAINER_RUNTIME_DOCKER_IMAGE={docker_image} "
             f"--conf spark.yarn.appMasterEnv.YARN_CONTAINER_RUNTIME_DOCKER_CLIENT_CONFIG={config} "
             f"--conf spark.yarn.appMasterEnv.YARN_CONTAINER_RUNTIME_DOCKER_MOUNTS=/etc/passwd:/etc/passwd:ro "
-            f"{path}"
+            f"{path} {script_args}"
         )
     return build_step(
         command=cmd,
@@ -1058,6 +1062,7 @@ def build_spark_step(
 def submit_spark_step(
     cluster_id: str,
     path: str,
+    args: Optional[List[str]] = None,
     deploy_mode: str = "cluster",
     docker_image: Optional[str] = None,
     name: str = "my-step",
@@ -1073,6 +1078,9 @@ def submit_spark_step(
         Cluster ID.
     path : str
         Script path. (e.g. s3://bucket/app.py)
+    args : List[str], optional
+        CLI args to use with script
+        eg. args = ["--name", "hello-world"]
     deploy_mode : str
         "cluster" | "client"
     docker_image : str, optional
@@ -1103,6 +1111,7 @@ def submit_spark_step(
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     step = build_spark_step(
         path=path,
+        args=args,
         deploy_mode=deploy_mode,
         docker_image=docker_image,
         name=name,
