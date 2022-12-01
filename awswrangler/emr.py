@@ -977,7 +977,7 @@ def submit_ecr_credentials_refresh(
 
 def build_spark_step(
     path: str,
-    args: Optional[List[str]],
+    args: Optional[List[str]] = None,
     deploy_mode: str = "cluster",
     docker_image: Optional[str] = None,
     name: str = "my-step",
@@ -1052,7 +1052,7 @@ def build_spark_step(
 def submit_spark_step(
     cluster_id: str,
     path: str,
-    args: Optional[List[str]],
+    args: Optional[List[str]] = None,
     deploy_mode: str = "cluster",
     docker_image: Optional[str] = None,
     name: str = "my-step",
