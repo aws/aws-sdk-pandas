@@ -1,0 +1,38 @@
+name: PyTest Coverage
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  Check:
+    runs-on: ubuntu-latest
+    env:
+      AWS_DEFAULT_REGION: us-east-1
+    strategy:
+      matrix:
+        python-version: [3.8]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install Requirements
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install poetry
+          poetry config virtualenvs.create false --local
+          poetry install -vvv
+      - name: Build coverage file
+        run: |
+          pytest --cache-clear --cov awswrangler tests/ > pytest-coverage.txt
+      - name: Comment coverage
+        uses: coroo/pytest-coverage-commentator@v1.0.2
