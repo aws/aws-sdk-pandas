@@ -402,6 +402,7 @@ def create_table(
     memory_retention_hours: int,
     magnetic_retention_days: int,
     tags: Optional[Dict[str, str]] = None,
+    timestream_additional_kwargs: Optional[Dict[str, Any]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
     """Create a new Timestream database.
@@ -426,6 +427,9 @@ def create_table(
         Tags enable you to categorize databases and/or tables, for example,
         by purpose, owner, or environment.
         e.g. {"foo": "boo", "bar": "xoo"})
+    timestream_additional_kwargs : Optional[Dict[str, Any]]
+        Forwarded to botocore requests.
+        e.g. timestream_additional_kwargs={'MagneticStoreWriteProperties': {'EnableMagneticStoreWrites': True}}
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
 
@@ -448,6 +452,7 @@ def create_table(
 
     """
     client: boto3.client = _utils.client(service_name="timestream-write", session=boto3_session)
+    timestream_additional_kwargs = {} if timestream_additional_kwargs is None else timestream_additional_kwargs
     args: Dict[str, Any] = {
         "DatabaseName": database,
         "TableName": table,
@@ -455,6 +460,7 @@ def create_table(
             "MemoryStoreRetentionPeriodInHours": memory_retention_hours,
             "MagneticStoreRetentionPeriodInDays": magnetic_retention_days,
         },
+        **timestream_additional_kwargs,
     }
     if tags is not None:
         args["Tags"] = [{"Key": k, "Value": v} for k, v in tags.items()]
