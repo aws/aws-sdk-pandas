@@ -48,6 +48,7 @@ def test_basic_scenario(timestream_database_and_table, pagination):
         pagination_config=pagination,
     )
     assert df.shape == (3, 8)
+    assert df.attrs == {}
 
 
 @pytest.mark.parametrize("chunked", [False, True])
@@ -115,6 +116,7 @@ def test_chunked_scenario(timestream_database_and_table):
         ),
         shapes,
     ):
+        assert "QueryId" in df.attrs
         assert df.shape == shape
 
 
