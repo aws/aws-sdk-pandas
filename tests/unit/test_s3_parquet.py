@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 import boto3
 import numpy as np
 import pyarrow as pa
+import pyarrow.parquet as pq
 import pytest
 
 import awswrangler as wr
@@ -569,6 +570,24 @@ def test_empty_file(path, use_threads):
     df2 = wr.s3.read_parquet(path, dataset=True, use_threads=use_threads)
     df2["par"] = df2["par"].astype("string")
     assert pandas_equals(df, df2)
+
+
+@pytest.mark.xfail(
+    is_ray_modin,
+    raises=AssertionError,
+    reason=(
+        "Ray currently ignores empty blocks when fetching dataset schema:"
+        "(ExecutionPlan)[https://github.com/ray-project/ray/blob/ray-2.0.1/python/ray/data/_internal/plan.py#L253]"
+    ),
+)
+def test_empty_parquet(path):
+    path = f"{path}file.parquet"
+    s = pa.schema([pa.field("a", pa.int64())])
+    pq.write_table(s.empty_table(), path)
+
+    df = wr.s3.read_parquet(path)
+    assert len(df) == 0
+    assert len(df.columns) > 0
 
 
 def test_read_chunked(path):
