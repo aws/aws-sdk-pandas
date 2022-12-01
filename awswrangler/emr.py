@@ -130,6 +130,10 @@ def _build_cluster_args(**pars: Any) -> Dict[str, Any]:  # pylint: disable=too-m
         "StepConcurrencyLevel": pars["step_concurrency_level"],
     }
 
+    # Auto Termination Policy
+    if pars["auto_termination_policy"] is not None:
+        args["AutoTerminationPolicy"] = pars["auto_termination_policy"]
+
     # Custom AMI
     if pars["custom_ami_id"] is not None:
         args["CustomAmiId"] = pars["custom_ami_id"]
@@ -452,6 +456,7 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
     step_concurrency_level: int = 1,
     keep_cluster_alive_when_no_steps: bool = True,
     termination_protected: bool = False,
+    auto_termination_policy: Optional[Dict[str, int]] = None,
     tags: Optional[Dict[str, str]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
@@ -604,6 +609,11 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
         Specifies whether the Amazon EC2 instances in the cluster are
         protected from termination by API calls, user intervention,
         or in the event of a job-flow error.
+    auto_termination_policy: Optional[Dict[str, int]]
+        Specifies the auto-termination policy that is attached to an Amazon EMR cluster
+        eg. auto_termination_policy = {'IdleTimeout': 123}
+        IdleTimeout specifies the amount of idle time in seconds after which the cluster automatically terminates.
+        You can specify a minimum of 60 seconds and a maximum of 604800 seconds (seven days).
     tags : Dict[str, str], optional
         Key/Value collection to put on the Cluster.
         e.g. {"foo": "boo", "bar": "xoo"})
