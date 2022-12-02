@@ -19,8 +19,8 @@ def read_deltalake(
     columns: Optional[List[str]] = None,
     filesystem: Optional[Union[str, pa_fs.FileSystem]] = None,
 ) -> pd.DataFrame:
-    """
-    Load data from Deltalake.
+    """Load data from Deltalake.
+
     This function requires the `deltalake package
     <https://delta-io.github.io/delta-rs/python>`__.
     See the `How to load a Delta table
@@ -77,8 +77,8 @@ def read_deltalake_from_glue(
     columns: Optional[List[str]] = None,
     filesystem: Optional[Union[str, pa_fs.FileSystem]] = None,
 ) -> pd.DataFrame:
-    """
-    Load data from Deltalake from AWS Glue.
+    """Load data from Deltalake from AWS Glue.
+
     This function requires the `deltalake package
     <https://delta-io.github.io/delta-rs/python>`__.
     See the `How to load a Delta table

@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
 
+import boto3
 import pandas as pd
 import pytest
 
@@ -47,6 +48,7 @@ def test_basic_scenario(timestream_database_and_table, pagination):
         pagination_config=pagination,
     )
     assert df.shape == (3, 8)
+    assert df.attrs == {}
 
 
 @pytest.mark.parametrize("chunked", [False, True])
@@ -114,6 +116,7 @@ def test_chunked_scenario(timestream_database_and_table):
         ),
         shapes,
     ):
+        assert "QueryId" in df.attrs
         assert df.shape == shape
 
 
@@ -282,3 +285,30 @@ def test_list_tables(timestream_database_and_table):
 
     tables_in_db = wr.timestream.list_tables(database=timestream_database_and_table)
     assert f"{timestream_database_and_table}_2" not in tables_in_db
+
+
+@pytest.mark.parametrize(
+    "timestream_additional_kwargs",
+    [None, {"MagneticStoreWriteProperties": {"EnableMagneticStoreWrites": True}}],
+)
+def test_create_table_additional_kwargs(timestream_database_and_table, timestream_additional_kwargs):
+    client_timestream = boto3.client("timestream-write")
+    wr.timestream.create_table(
+        database=timestream_database_and_table,
+        table=f"{timestream_database_and_table}_3",
+        memory_retention_hours=1,
+        magnetic_retention_days=1,
+        timestream_additional_kwargs=timestream_additional_kwargs,
+    )
+
+    desc = client_timestream.describe_table(
+        DatabaseName=timestream_database_and_table, TableName=f"{timestream_database_and_table}_3"
+    )["Table"]
+    if timestream_additional_kwargs is None:
+        assert desc["MagneticStoreWriteProperties"].get("EnableMagneticStoreWrites") is False
+    elif timestream_additional_kwargs["MagneticStoreWriteProperties"]["EnableMagneticStoreWrites"] is True:
+        assert desc["MagneticStoreWriteProperties"].get("EnableMagneticStoreWrites") is True
+
+    wr.timestream.delete_table(database=timestream_database_and_table, table=f"{timestream_database_and_table}_3")
+    tables_in_db = wr.timestream.list_tables(database=timestream_database_and_table)
+    assert f"{timestream_database_and_table}_3" not in tables_in_db
