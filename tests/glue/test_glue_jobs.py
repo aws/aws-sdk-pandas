@@ -23,6 +23,7 @@ def run_glue_job_get_status(job_name: str, arguments: Dict[str, str] = {}) -> st
             return status
 
 
+@pytest.mark.skip(reason="Skipping until we make the required change to CodeBuild")
 @pytest.mark.timeout(300)
 def test_glue_job_1(path: str, glue_table: str, glue_database: str, glue_job1: str) -> None:
     state = run_glue_job_get_status(
