@@ -6,6 +6,7 @@ from awswrangler.s3._describe import describe_objects, get_bucket_region, size_o
 from awswrangler.s3._download import download  # noqa
 from awswrangler.s3._list import does_object_exist, list_buckets, list_directories, list_objects  # noqa
 from awswrangler.s3._merge_upsert_table import merge_upsert_table  # noqa
+from awswrangler.s3._read_deltalake import read_deltalake, read_deltalake_from_glue  # noqa
 from awswrangler.s3._read_excel import read_excel  # noqa
 from awswrangler.s3._read_parquet import read_parquet, read_parquet_metadata, read_parquet_table  # noqa
 from awswrangler.s3._read_text import read_csv, read_fwf, read_json  # noqa
@@ -27,6 +28,8 @@ __all__ = [
     "list_buckets",
     "list_directories",
     "list_objects",
+    "read_deltalake",
+    "read_deltalake_from_glue",
     "read_parquet",
     "read_parquet_metadata",
     "read_parquet_table",
