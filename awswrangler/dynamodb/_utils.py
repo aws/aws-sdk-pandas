@@ -1,7 +1,7 @@
 """Amazon DynamoDB Utils Module (PRIVATE)."""
 
 import logging
-from typing import Any, Dict, List, Mapping, Optional, Union
+from typing import Any, Dict, Iterator, List, Mapping, Optional, Union
 
 import boto3
 from botocore.exceptions import ClientError
@@ -38,11 +38,44 @@ def get_table(
     return dynamodb_table
 
 
+def _execute_statement(
+    kwargs: Dict[str, Union[str, bool, List[Any]]],
+    boto3_session: Optional[boto3.Session],
+) -> Dict[str, Any]:
+    dynamodb_resource = _utils.resource(service_name="dynamodb", session=boto3_session)
+    try:
+        response: Dict[str, Any] = dynamodb_resource.meta.client.execute_statement(**kwargs)
+    except ClientError as err:
+        if err.response["Error"]["Code"] == "ResourceNotFoundException":
+            _logger.error("Couldn't execute PartiQL: '%s' because the table does not exist.", kwargs["Statement"])
+        else:
+            _logger.error(
+                "Couldn't execute PartiQL: '%s'. %s: %s",
+                kwargs["Statement"],
+                err.response["Error"]["Code"],
+                err.response["Error"]["Message"],
+            )
+        raise
+    return response
+
+
+def _read_execute_statement(
+    kwargs: Dict[str, Union[str, bool, List[Any]]], boto3_session: Optional[boto3.Session]
+) -> Iterator[Dict[str, Any]]:
+    next_token: str = "init_token"  # Dummy token
+    while next_token:
+        response = _execute_statement(kwargs=kwargs, boto3_session=boto3_session)
+        next_token = response.get("NextToken", None)
+        kwargs["NextToken"] = next_token
+        yield response["Items"]
+
+
 def execute_statement(
     statement: str,
     parameters: Optional[List[Any]] = None,
+    consistent_read: bool = True,
     boto3_session: Optional[boto3.Session] = None,
-) -> List[Optional[Dict[str, Any]]]:
+) -> Optional[Iterator[Dict[str, Any]]]:
     """Run a PartiQL statement against a DynamoDB table.
 
     Parameters
@@ -51,13 +84,15 @@ def execute_statement(
         The PartiQL statement.
     parameters : Optional[List[Any]]
         The list of PartiQL parameters. These are applied to the statement in the order they are listed.
+    consistent_read: bool
+        The consistency of a read operation. If `True` (by default), then a strongly consistent read is used.
     boto3_session : Optional[boto3.Session]
         Boto3 Session. If None, the default boto3 Session is used.
 
     Returns
     -------
-    List[Optional[Dict[str, Any]]]
-        The items from the statement response, if any.
+    Optional[Iterator[Dict[str, Any]]]
+        An iterator of the items from the statement response, if any.
 
     Examples
     --------
@@ -90,33 +125,14 @@ def execute_statement(
     ...     parameters=[title, year],
     ... )
     """
-    dynamodb_resource = _utils.resource(service_name="dynamodb", session=boto3_session)
-    kwargs: Dict[str, Union[str, Optional[List[Any]]]] = {"Statement": statement}
+    kwargs: Dict[str, Union[str, bool, List[Any]]] = {"Statement": statement, "ConsistentRead": consistent_read}
     if parameters:
         kwargs["Parameters"] = parameters
-    next_token: str = "init_token"  # Dummy token
-    items: List[Optional[Dict[str, Any]]] = []
 
-    while next_token:
-        try:
-            response: Dict[str, Any] = dynamodb_resource.meta.client.execute_statement(**kwargs)
-        except ClientError as err:
-            if err.response["Error"]["Code"] == "ResourceNotFoundException":
-                _logger.error("Couldn't execute PartiQL '%s' because the table does not exist.", statement)
-            else:
-                _logger.error(
-                    "Couldn't execute PartiQL '%s'. %s: %s",
-                    statement,
-                    err.response["Error"]["Code"],
-                    err.response["Error"]["Message"],
-                )
-            raise
-        else:
-            if "Items" in response:
-                items.extend(response["Items"])
-            next_token = response.get("NextToken", None)
-            kwargs["NextToken"] = next_token
-    return items
+    if not statement.startswith("SELECT"):
+        _execute_statement(kwargs=kwargs, boto3_session=boto3_session)
+        return None
+    return _read_execute_statement(kwargs=kwargs, boto3_session=boto3_session)
 
 
 def _validate_items(

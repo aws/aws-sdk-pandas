@@ -1,3 +1,4 @@
+import tempfile
 from datetime import datetime
 from decimal import Decimal
 
@@ -5,6 +6,45 @@ import pandas as pd
 import pytest
 
 import awswrangler as wr
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {
+            "KeySchema": [{"AttributeName": "title", "KeyType": "HASH"}, {"AttributeName": "year", "KeyType": "RANGE"}],
+            "AttributeDefinitions": [
+                {"AttributeName": "title", "AttributeType": "S"},
+                {"AttributeName": "year", "AttributeType": "N"},
+            ],
+        }
+    ],
+)
+def test_write(params, dynamodb_table):
+    df = pd.DataFrame(
+        {
+            "title": ["Titanic", "Snatch", "The Godfather"],
+            "year": [1997, 2000, 1972],
+            "genre": ["drama", "caper story", "crime"],
+        }
+    )
+    path = tempfile.gettempdir()
+    query = f'SELECT * FROM "{dynamodb_table}"'
+
+    # JSON
+    file_path = f"{path}/movies.json"
+    df.to_json(file_path, orient="records")
+    wr.dynamodb.put_json(file_path, dynamodb_table)
+    df2 = wr.dynamodb.read_partiql_query(query)
+    assert df.shape == df2.shape
+
+    # CSV
+    wr.dynamodb.delete_items(items=df.to_dict("records"), table_name=dynamodb_table)
+    file_path = f"{path}/movies.csv"
+    df.to_csv(file_path, index=False)
+    wr.dynamodb.put_csv(file_path, dynamodb_table)
+    df3 = wr.dynamodb.read_partiql_query(query)
+    assert df.shape == df3.shape
 
 
 @pytest.mark.parametrize(
@@ -44,6 +84,9 @@ def test_read_partiql(params, dynamodb_table):
         parameters=[2, "b"],
     )
     assert df3.shape == (1, len(df.columns))
+
+    dfs = wr.dynamodb.read_partiql_query(query, chunked=True)
+    assert df.shape == pd.concat(dfs).shape
 
 
 @pytest.mark.parametrize(
@@ -86,7 +129,7 @@ def test_execute_statement(params, dynamodb_table):
         statement=f'SELECT * FROM "{dynamodb_table}" WHERE title=? AND year=?',
         parameters=[title, year],
     )
-    assert len(items) == 1
+    assert len(list(items)) == 1
 
     # Update items
     wr.dynamodb.execute_statement(
