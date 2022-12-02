@@ -2,7 +2,6 @@ import logging
 from datetime import datetime
 
 import boto3
-import pandas as pd
 import pytest
 
 import awswrangler as wr
