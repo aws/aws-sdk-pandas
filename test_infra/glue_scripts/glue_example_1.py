@@ -2,7 +2,6 @@ import os
 
 import awswrangler as wr
 
-
 workgroup_name = os.environ["athena-workgroup"]
 output_path = os.environ["output-path"]
 glue_database = os.environ["glue-database"]

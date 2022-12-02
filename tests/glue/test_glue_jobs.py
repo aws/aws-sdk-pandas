@@ -1,7 +1,7 @@
-import pytest
 from typing import Dict
 
 import boto3
+import pytest
 
 
 @pytest.fixture(scope="session")
@@ -31,6 +31,6 @@ def test_glue_job_1(path: str, glue_table: str, glue_database: str, glue_job1: s
             "--output-path": path,
             "--glue-database": glue_database,
             "--glue-table": glue_table,
-        }
+        },
     )
     assert state == "SUCCEEDED"
