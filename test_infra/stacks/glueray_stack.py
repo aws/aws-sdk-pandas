@@ -91,7 +91,7 @@ class GlueRayStack(Stack):  # type: ignore
     def _create_glue_job(self, id: str, script_path: str) -> glue.CfnJob:
         glue_job_script = self._deploy_glue_asset(f"{id} Script Asset", script_path)
 
-        return glue.CfnJob(
+        glue_job = glue.CfnJob(
             self,
             id,
             command=glue.CfnJob.JobCommandProperty(
@@ -109,3 +109,8 @@ class GlueRayStack(Stack):  # type: ignore
             worker_type="Z.2X",
             number_of_workers=5,
         )
+
+        glue_job_script.grant_read(self.glue_service_role)
+        glue_job_script.bucket.grant_write(self.glue_service_role, f"jobs/{glue_job.ref}/*")
+
+        return glue_job
