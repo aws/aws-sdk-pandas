@@ -130,6 +130,10 @@ def _build_cluster_args(**pars: Any) -> Dict[str, Any]:  # pylint: disable=too-m
         "StepConcurrencyLevel": pars["step_concurrency_level"],
     }
 
+    # Auto Termination Policy
+    if pars["auto_termination_policy"] is not None:
+        args["AutoTerminationPolicy"] = pars["auto_termination_policy"]
+
     # Custom AMI
     if pars["custom_ami_id"] is not None:
         args["CustomAmiId"] = pars["custom_ami_id"]
@@ -452,6 +456,7 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
     step_concurrency_level: int = 1,
     keep_cluster_alive_when_no_steps: bool = True,
     termination_protected: bool = False,
+    auto_termination_policy: Optional[Dict[str, int]] = None,
     tags: Optional[Dict[str, str]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
@@ -604,6 +609,11 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
         Specifies whether the Amazon EC2 instances in the cluster are
         protected from termination by API calls, user intervention,
         or in the event of a job-flow error.
+    auto_termination_policy: Optional[Dict[str, int]]
+        Specifies the auto-termination policy that is attached to an Amazon EMR cluster
+        eg. auto_termination_policy = {'IdleTimeout': 123}
+        IdleTimeout specifies the amount of idle time in seconds after which the cluster automatically terminates.
+        You can specify a minimum of 60 seconds and a maximum of 604800 seconds (seven days).
     tags : Dict[str, str], optional
         Key/Value collection to put on the Cluster.
         e.g. {"foo": "boo", "bar": "xoo"})
@@ -977,6 +987,7 @@ def submit_ecr_credentials_refresh(
 
 def build_spark_step(
     path: str,
+    args: Optional[List[str]] = None,
     deploy_mode: str = "cluster",
     docker_image: Optional[str] = None,
     name: str = "my-step",
@@ -990,6 +1001,8 @@ def build_spark_step(
     ----------
     path : str
         Script path. (e.g. s3://bucket/app.py)
+    args : List[str], optional
+        CLI args to use with script
     deploy_mode : str
         "cluster" | "client"
     docker_image : str, optional
@@ -1019,8 +1032,9 @@ def build_spark_step(
     >>> )
 
     """
+    script_args = " ".join(args) if args else ""
     if docker_image is None:
-        cmd: str = f"spark-submit --deploy-mode {deploy_mode} {path}"
+        cmd: str = f"spark-submit --deploy-mode {deploy_mode} {path} {script_args}"
     else:
         config: str = "hdfs:///user/hadoop/config.json"
         cmd = (
@@ -1033,7 +1047,7 @@ def build_spark_step(
             f"--conf spark.yarn.appMasterEnv.YARN_CONTAINER_RUNTIME_DOCKER_IMAGE={docker_image} "
             f"--conf spark.yarn.appMasterEnv.YARN_CONTAINER_RUNTIME_DOCKER_CLIENT_CONFIG={config} "
             f"--conf spark.yarn.appMasterEnv.YARN_CONTAINER_RUNTIME_DOCKER_MOUNTS=/etc/passwd:/etc/passwd:ro "
-            f"{path}"
+            f"{path} {script_args}"
         )
     return build_step(
         command=cmd,
@@ -1048,6 +1062,7 @@ def build_spark_step(
 def submit_spark_step(
     cluster_id: str,
     path: str,
+    args: Optional[List[str]] = None,
     deploy_mode: str = "cluster",
     docker_image: Optional[str] = None,
     name: str = "my-step",
@@ -1063,6 +1078,9 @@ def submit_spark_step(
         Cluster ID.
     path : str
         Script path. (e.g. s3://bucket/app.py)
+    args : List[str], optional
+        CLI args to use with script
+        eg. args = ["--name", "hello-world"]
     deploy_mode : str
         "cluster" | "client"
     docker_image : str, optional
@@ -1093,6 +1111,7 @@ def submit_spark_step(
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     step = build_spark_step(
         path=path,
+        args=args,
         deploy_mode=deploy_mode,
         docker_image=docker_image,
         name=name,
