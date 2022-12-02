@@ -200,7 +200,7 @@ def create_athena_dataset(
     database: Optional[str] = None,
     table: Optional[str] = None,
     sql: Optional[str] = None,
-    sql_name: str = "CustomSQL",
+    sql_name: Optional[str] = None,
     data_source_name: Optional[str] = None,
     data_source_arn: Optional[str] = None,
     import_mode: str = "DIRECT_QUERY",
@@ -240,7 +240,7 @@ def create_athena_dataset(
         Athena's table name.
     sql : str
         Use a SQL query to define your table.
-    sql_name : str
+    sql_name : str, optional
         Query name.
     data_source_name : str, optional
         QuickSight data source name.
@@ -312,7 +312,7 @@ def create_athena_dataset(
         physical_table: Dict[str, Dict[str, Any]] = {
             "CustomSql": {
                 "DataSourceArn": data_source_arn,
-                "Name": sql_name,
+                "Name": sql_name if sql_name else f"CustomSQL-{uuid.uuid4().hex[:8]}",
                 "SqlQuery": sql,
                 "Columns": extract_athena_query_columns(
                     sql=sql,
