@@ -218,6 +218,7 @@ def _read_parquet_file(
     columns: Optional[List[str]],
     coerce_int96_timestamp_unit: Optional[str],
     s3_additional_kwargs: Optional[Dict[str, str]],
+    arrow_kwargs: Optional[Dict[str, Any]],
     use_threads: Union[bool, int],
     version_id: Optional[str] = None,
 ) -> pa.Table:
@@ -231,14 +232,16 @@ def _read_parquet_file(
         s3_additional_kwargs=s3_additional_kwargs,
         boto3_session=boto3_session,
     ) as f:
-        pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(
-            source=f,
+        table = pyarrow.parquet.read_table(
+            f,
+            columns=columns,
+            use_threads=False,
+            use_pandas_metadata=False,
+            schema=arrow_kwargs.get("schema"),
             coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
         )
-        if pq_file is None:
-            raise exceptions.InvalidFile(f"Invalid Parquet file: {path}")
         return _add_table_partitions(
-            table=pq_file.read(columns=columns, use_threads=False, use_pandas_metadata=False),
+            table=table,
             path=path,
             path_root=path_root,
         )
@@ -314,7 +317,7 @@ def _read_parquet(  # pylint: disable=W0613
     parallelism: int,
     version_ids: Optional[Dict[str, str]],
     s3_additional_kwargs: Optional[Dict[str, Any]],
-    arrow_kwargs: Dict[str, Any],
+    arrow_kwargs: Optional[Dict[str, Any]],
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     executor = _get_executor(use_threads=use_threads)
     tables = executor.map(
@@ -325,6 +328,7 @@ def _read_parquet(  # pylint: disable=W0613
         itertools.repeat(columns),
         itertools.repeat(coerce_int96_timestamp_unit),
         itertools.repeat(s3_additional_kwargs),
+        itertools.repeat(arrow_kwargs),
         itertools.repeat(use_threads),
         [version_ids.get(p) if isinstance(version_ids, dict) else None for p in paths],
     )
@@ -445,7 +449,7 @@ def read_parquet(
         Forward to S3 botocore requests.
     pyarrow_additional_kwargs : Dict[str, Any], optional
         Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
-        Valid values include "split_blocks", "self_destruct", "ignore_metadata".
+        Valid values include "split_blocks", "self_destruct", "ignore_metadata", "safe", "categories".
         e.g. pyarrow_additional_kwargs={'split_blocks': True}.
 
     Returns

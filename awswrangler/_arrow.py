@@ -76,6 +76,9 @@ def _table_to_df(
     if table.schema.metadata is not None and b"pandas" in table.schema.metadata:
         metadata = json.loads(table.schema.metadata[b"pandas"])
 
+    if "schema" in kwargs:
+        kwargs.pop("schema")
+
     df = table.to_pandas(**kwargs)
 
     if metadata:
