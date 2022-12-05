@@ -44,6 +44,7 @@ extensions = [
     "nbsphinx",
     "nbsphinx_link",
     "copy_tutorials",
+    "IPython.sphinxext.ipython_console_highlighting",
 ]
 
 language = None
