@@ -288,6 +288,8 @@ DynamoDB
 
     delete_items
     get_table
+    execute_statement
+    read_partiql_query
     put_csv
     put_df
     put_items
