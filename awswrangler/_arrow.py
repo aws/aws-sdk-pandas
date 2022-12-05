@@ -75,12 +75,7 @@ def _table_to_df(
     metadata: Dict[str, Any] = {}
     if table.schema.metadata is not None and b"pandas" in table.schema.metadata:
         metadata = json.loads(table.schema.metadata[b"pandas"])
-
-    if "schema" in kwargs:
-        kwargs.pop("schema")
-
     df = table.to_pandas(**kwargs)
-
     if metadata:
         _logger.debug("metadata: %s", metadata)
         df = _apply_timezone(df=df, metadata=metadata)
