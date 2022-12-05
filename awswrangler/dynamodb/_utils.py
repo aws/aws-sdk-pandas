@@ -129,7 +129,7 @@ def execute_statement(
     if parameters:
         kwargs["Parameters"] = parameters
 
-    if not statement.startswith("SELECT"):
+    if not statement.strip().upper().startswith("SELECT"):
         _execute_statement(kwargs=kwargs, boto3_session=boto3_session)
         return None
     return _read_execute_statement(kwargs=kwargs, boto3_session=boto3_session)
