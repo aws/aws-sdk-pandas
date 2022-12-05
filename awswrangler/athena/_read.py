@@ -604,13 +604,9 @@ def get_query_results(
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
     pyarrow_additional_kwargs : Optional[Dict[str, Any]]
-        Forward to the ParquetFile class or converting an Arrow table to Pandas, currently only an
-        "coerce_int96_timestamp_unit" or "timestamp_as_object" argument will be considered. If reading parquet
-        files where you cannot convert a timestamp to pandas Timestamp[ns] consider setting timestamp_as_object=True,
-        to allow for timestamp units larger than "ns". If reading parquet data that still uses INT96 (like Athena
-        outputs) you can use coerce_int96_timestamp_unit to specify what timestamp unit to encode INT96 to (by default
-        this is "ns", if you know the output parquet came from a system that encodes timestamp to a particular unit
-        then set this to that same unit e.g. coerce_int96_timestamp_unit="ms").
+        Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
+        Valid values include "split_blocks", "self_destruct", "ignore_metadata".
+        e.g. pyarrow_additional_kwargs={'split_blocks': True}.
 
     Returns
     -------
@@ -884,13 +880,9 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
     pyarrow_additional_kwargs : Optional[Dict[str, Any]]
-        Forward to the ParquetFile class or converting an Arrow table to Pandas, currently only an
-        "coerce_int96_timestamp_unit" or "timestamp_as_object" argument will be considered. If reading parquet
-        files where you cannot convert a timestamp to pandas Timestamp[ns] consider setting timestamp_as_object=True,
-        to allow for timestamp units larger than "ns". If reading parquet data that still uses INT96 (like Athena
-        outputs) you can use coerce_int96_timestamp_unit to specify what timestamp unit to encode INT96 to (by default
-        this is "ns", if you know the output parquet came from a system that encodes timestamp to a particular unit
-        then set this to that same unit e.g. coerce_int96_timestamp_unit="ms").
+        Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
+        Valid values include "split_blocks", "self_destruct", "ignore_metadata".
+        e.g. pyarrow_additional_kwargs={'split_blocks': True}.
 
     Returns
     -------
@@ -1177,14 +1169,9 @@ def read_sql_table(
         Forwarded to botocore requests.
         e.g. s3_additional_kwargs={'RequestPayer': 'requester'}
     pyarrow_additional_kwargs : Optional[Dict[str, Any]]
-        Forward to the ParquetFile class or converting an Arrow table to Pandas, currently only an
-        "coerce_int96_timestamp_unit" or "timestamp_as_object" argument will be considered. If
-        reading parquet fileswhere you cannot convert a timestamp to pandas Timestamp[ns] consider
-        setting timestamp_as_object=True, to allow for timestamp units > NS. If reading parquet data that
-        still uses INT96 (like Athena outputs) you can use coerce_int96_timestamp_unit to specify what
-        timestamp unit to encode INT96 to (by default this is "ns", if you know the output parquet came from
-        a system that encodes timestamp to a particular unit then set this to that same unit e.g.
-        coerce_int96_timestamp_unit="ms").
+        Forwarded to `to_pandas` method converting from PyArrow tables to Pandas DataFrame.
+        Valid values include "split_blocks", "self_destruct", "ignore_metadata".
+        e.g. pyarrow_additional_kwargs={'split_blocks': True}.
 
     Returns
     -------
