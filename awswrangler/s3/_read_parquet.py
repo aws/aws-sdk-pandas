@@ -217,8 +217,8 @@ def _read_parquet_file(
     path_root: Optional[str],
     columns: Optional[List[str]],
     coerce_int96_timestamp_unit: Optional[str],
+    schema: Optional[pa.schema],
     s3_additional_kwargs: Optional[Dict[str, str]],
-    arrow_kwargs: Optional[Dict[str, Any]],
     use_threads: Union[bool, int],
     version_id: Optional[str] = None,
 ) -> pa.Table:
@@ -236,9 +236,8 @@ def _read_parquet_file(
             f,
             columns=columns,
             use_threads=False,
-            use_pandas_metadata=False,
-            schema=arrow_kwargs.get("schema"),
             coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
+            schema=schema,
         )
         return _add_table_partitions(
             table=table,
@@ -278,7 +277,6 @@ def _read_parquet_chunked(
             )
             if pq_file is None:
                 continue
-
             use_threads_flag: bool = use_threads if isinstance(use_threads, bool) else bool(use_threads > 1)
             chunks = pq_file.iter_batches(
                 batch_size=batch_size, columns=columns, use_threads=use_threads_flag, use_pandas_metadata=False
@@ -309,7 +307,7 @@ def _read_parquet_chunked(
 def _read_parquet(  # pylint: disable=W0613
     paths: List[str],
     path_root: Optional[str],
-    schema: pa.schema,
+    schema: Optional[pa.schema],
     columns: Optional[List[str]],
     coerce_int96_timestamp_unit: Optional[str],
     boto3_session: Optional[boto3.Session],
@@ -327,8 +325,8 @@ def _read_parquet(  # pylint: disable=W0613
         itertools.repeat(path_root),
         itertools.repeat(columns),
         itertools.repeat(coerce_int96_timestamp_unit),
+        itertools.repeat(schema),
         itertools.repeat(s3_additional_kwargs),
-        itertools.repeat(arrow_kwargs),
         itertools.repeat(use_threads),
         [version_ids.get(p) if isinstance(version_ids, dict) else None for p in paths],
     )
@@ -346,6 +344,7 @@ def read_parquet(
     columns: Optional[List[str]] = None,
     validate_schema: bool = False,
     coerce_int96_timestamp_unit: Optional[str] = None,
+    schema: Optional[pa.Schema] = None,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     version_id: Optional[Union[str, Dict[str, str]]] = None,
@@ -422,6 +421,8 @@ def read_parquet(
     coerce_int96_timestamp_unit : str, optional
         Cast timestamps that are stored in INT96 format to a particular resolution (e.g. "ms").
         Setting to None is equivalent to "ns" and therefore INT96 timestamps are inferred as in nanoseconds.
+    schema : pa.Schema, optional
+        Schrema to use whem reading the file
     last_modified_begin : datetime, optional
         Filter S3 objects by Last modified date.
         Filter is only applied after listing all objects.
@@ -510,35 +511,32 @@ def read_parquet(
     if len(paths) < 1:
         raise exceptions.NoFilesFound(f"No files Found on: {path}.")
     _logger.debug("paths:\n%s", paths)
-
     version_ids: Optional[Dict[str, str]] = (
         version_id if isinstance(version_id, dict) else {paths[0]: version_id} if isinstance(version_id, str) else None
     )
-
-    # Create PyArrow schema based on file metadata, columns filter, and partitions
-    schema = _validate_schemas_from_files(
-        validate_schema=validate_schema,
-        paths=paths,
-        sampling=1.0,
-        use_threads=use_threads,
-        boto3_session=boto3_session,
-        s3_additional_kwargs=s3_additional_kwargs,
-        coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
-        version_ids=version_ids,
-    )
-    if path_root:
-        partition_types, _ = _extract_partitions_metadata_from_paths(path=path_root, paths=paths)
-        if partition_types:
-            partition_schema = pa.schema(
-                fields={k: _data_types.athena2pyarrow(dtype=v) for k, v in partition_types.items()}
-            )
-            schema = pa.unify_schemas([schema, partition_schema])
-    if columns:
-        schema = pa.schema([schema.field(column) for column in columns], schema.metadata)
-    _logger.debug("schema:\n%s", schema)
-
+    if not schema:
+        # Create PyArrow schema based on file metadata, columns filter, and partitions
+        schema = _validate_schemas_from_files(
+            validate_schema=validate_schema,
+            paths=paths,
+            sampling=1.0,
+            use_threads=use_threads,
+            boto3_session=boto3_session,
+            s3_additional_kwargs=s3_additional_kwargs,
+            coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
+            version_ids=version_ids,
+        )
+        if path_root:
+            partition_types, _ = _extract_partitions_metadata_from_paths(path=path_root, paths=paths)
+            if partition_types:
+                partition_schema = pa.schema(
+                    fields={k: _data_types.athena2pyarrow(dtype=v) for k, v in partition_types.items()}
+                )
+                schema = pa.unify_schemas([schema, partition_schema])
+        if columns:
+            schema = pa.schema([schema.field(column) for column in columns], schema.metadata)
+        _logger.debug("schema:\n%s", schema)
     arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=pyarrow_additional_kwargs)
-
     if chunked:
         return _read_parquet_chunked(
             boto3_session=boto3_session,
