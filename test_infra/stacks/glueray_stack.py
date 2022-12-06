@@ -58,28 +58,33 @@ class GlueRayStack(Stack):  # type: ignore
             self,
             "Script Bucket Name",
             value=self.script_bucket.bucket_name,
+            export_name="ScriptBucketName",
         )
 
         CfnOutput(
             self,
             "AWS SDK for pandas ZIP Key",
             value=zip_key,
+            export_name="AWSSDKforpandasZIPKey",
         )
 
         CfnOutput(
             self,
             "AWS SDK for pandas ZIP Location",
             value=self.wrangler_asset_path,
+            export_name="AWSSDKforpandasZIPLocation",
         )
 
         CfnOutput(
             self,
             "Glue Job Role Arn",
             value=self.glue_service_role.role_arn,
+            export_name="GlueRayJobRoleArn",
         )
 
         CfnOutput(
             self,
             "Glue Ray Athena Workgroup Name",
             value=self.athena_workgroup.ref,
+            export_name="GlueRayAthenaWorkgroupName",
         )
