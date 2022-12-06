@@ -1,6 +1,6 @@
 import time
 import uuid
-from typing import Dict, Iterable
+from typing import Any, Dict, Iterable
 
 import boto3
 import pytest
@@ -21,13 +21,15 @@ def glue_ray_athena_workgroup_name(cloudformation_outputs: Dict[str, str]) -> st
     return cloudformation_outputs["GlueRayAthenaWorkgroupName"]
 
 
-@pytest.fixture(scope="function")
-def glue_job1(
+@pytest.fixture(scope="function", params=["glue_example_1"])
+def glue_job(
+    request: Any,
     path: str,
     wrangler_zip_location: str,
     glue_job_role_arn: str,
     glue_ray_athena_workgroup_name: str,
 ) -> Iterable[str]:
+    glue_script_name = request.param
     session = boto3.session.Session()
 
     s3_client = session.client("s3")
@@ -37,12 +39,12 @@ def glue_job1(
 
     bucket, key = tuple(script_path[len("s3://") :].split("/", 1))
     s3_client.upload_file(
-        "test_infra/glue_scripts/glue_example_1.py",
+        f"test_infra/glue_scripts/{glue_script_name}.py",
         bucket,
         key,
     )
 
-    glue_job_name = f"GlueJob1_{uuid.uuid4()}"
+    glue_job_name = f"{glue_script_name}_{uuid.uuid4()}"
     glue_client.create_job(
         Name=glue_job_name,
         Role=glue_job_role_arn,
@@ -82,11 +84,10 @@ def run_glue_job_get_status(job_name: str, arguments: Dict[str, str] = {}) -> st
         time.sleep(5)
 
 
-@pytest.mark.skip(reason="Skipping until we make the required change to CodeBuild")
 @pytest.mark.timeout(300)
-def test_glue_job_1(path: str, glue_table: str, glue_database: str, glue_job1: str) -> None:
+def test_glue_job(path: str, glue_table: str, glue_database: str, glue_job: str) -> None:
     state = run_glue_job_get_status(
-        job_name=glue_job1,
+        job_name=glue_job,
         arguments={
             "--output-path": path,
             "--glue-database": glue_database,
