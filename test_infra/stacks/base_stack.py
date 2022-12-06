@@ -20,6 +20,13 @@ class BaseStack(Stack):  # type: ignore
             enable_dns_support=True,
         )
         Tags.of(self.vpc).add("Name", "aws-sdk-pandas")
+
+        for public_subnet in self.vpc.public_subnets:
+            elastic_ip: ec2.CfnEIP = public_subnet.node.find_child("EIP")  # type:ignore
+            CfnOutput(
+                self, f"{public_subnet.node.id} EIP", value=elastic_ip.ref, export_name=f"{public_subnet.node.id}EIP"
+            )
+
         self.key = kms.Key(
             self,
             id="aws-sdk-pandas-key",
