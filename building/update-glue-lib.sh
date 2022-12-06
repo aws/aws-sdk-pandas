@@ -19,7 +19,7 @@ dir_name=$(ls | head -n 1)
 zip -r awswrangler.zip $dir_name
 
 # Upload the ZIP file
-s3_location=$(aws cloudformation describe-stacks --stack-name aws-sdk-pandas-glueray --query "Stacks[0].Outputs[?ExportName=='WranglerZipLocation'].OutputValue" --output text)
+s3_location=$(aws cloudformation describe-stacks --stack-name aws-sdk-pandas-glueray --query "Stacks[0].Outputs[?OutputKey=='AWSSDKforpandasZIPLocation'].OutputValue" --output text)
 aws s3 cp awswrangler.zip $s3_location
 
 popd
