@@ -39,7 +39,7 @@ def glue_job(
 
     bucket, key = tuple(script_path[len("s3://") :].split("/", 1))
     s3_client.upload_file(
-        f"test_infra/glue_scripts/{glue_script_name}.py",
+        f"tests/glue_scripts/{glue_script_name}.py",
         bucket,
         key,
     )
