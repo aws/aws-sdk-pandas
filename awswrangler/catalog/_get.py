@@ -242,7 +242,7 @@ def get_tables(
 
     Note
     ----
-    Please, does not filter using name_contains and name_prefix/name_suffix at the same time.
+    Please, do not filter using name_contains and name_prefix/name_suffix at the same time.
     Only name_prefix and name_suffix can be combined together.
 
     Parameters
@@ -279,7 +279,7 @@ def get_tables(
     args: Dict[str, str] = {}
     if (name_prefix is not None) and (name_suffix is not None) and (name_contains is not None):
         raise exceptions.InvalidArgumentCombination(
-            "Please, does not filter using name_contains and "
+            "Please, do not filter using name_contains and "
             "name_prefix/name_suffix at the same time. Only "
             "name_prefix and name_suffix can be combined together."
         )
