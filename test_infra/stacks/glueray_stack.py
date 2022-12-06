@@ -50,9 +50,22 @@ class GlueRayStack(Stack):  # type: ignore
         bucket.grant_read_write(self.glue_service_role)
 
         # Where should the ZIP be uploaded
-        self.wrangler_asset_path = self.script_bucket.s3_url_for_object("awswrangler.zip")
+        zip_key = "awswrangler.zip"
+        self.wrangler_asset_path = self.script_bucket.s3_url_for_object(zip_key)
 
         # CFN outputs
+        CfnOutput(
+            self,
+            "Script Bucket Name",
+            value=self.script_bucket.bucket_name,
+        )
+
+        CfnOutput(
+            self,
+            "AWS SDK for pandas ZIP Key",
+            value=zip_key,
+        )
+
         CfnOutput(
             self,
             "AWS SDK for pandas ZIP Location",
