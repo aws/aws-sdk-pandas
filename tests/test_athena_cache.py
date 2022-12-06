@@ -172,8 +172,7 @@ def test_paginated_remote_cache(path, glue_database, glue_table, workgroup1):
     assert df.c0.sum() == df2.c0.sum()
 
 
-@pytest.mark.parametrize("data_source", [None, "AwsDataCatalog"])
-def test_cache_start_query(path, glue_database, glue_table, data_source):
+def test_cache_start_query(path, glue_database, glue_table):
     df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
     wr.s3.to_parquet(
         df=df,
