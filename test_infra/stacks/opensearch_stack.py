@@ -109,4 +109,4 @@ class OpenSearchStack(Stack):  # type: ignore
             removal_policy=RemovalPolicy.DESTROY,
         )
 
-        CfnOutput(self, f"DomainEndpoint-{domain_name}", value=domain.domain_endpoint)
+        CfnOutput(self, f"DomainEndpoint-sdkpandases710fgac", value=domain.domain_endpoint)

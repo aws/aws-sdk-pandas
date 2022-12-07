@@ -141,7 +141,7 @@ def domain_endpoint_opensearch_1_0(cloudformation_outputs):
 
 @pytest.fixture(scope="session")
 def domain_endpoint_elasticsearch_7_10_fgac(cloudformation_outputs):
-    return cloudformation_outputs["DomainEndpointsdkpandases710fgac"]
+    return cloudformation_outputs["DomainEndpoint-sdkpandases710fgac"]
 
 
 def test_connection_opensearch_1_0(domain_endpoint_opensearch_1_0):
