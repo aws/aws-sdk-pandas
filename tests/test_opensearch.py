@@ -136,7 +136,7 @@ def opensearch_password():
 
 @pytest.fixture(scope="session")
 def domain_endpoint_opensearch_1_0(cloudformation_outputs):
-    return cloudformation_outputs["DomainEndpointsdkpandasos10"]
+    return cloudformation_outputs["DomainEndpoint-sdk-pandas-os-1"]
 
 
 @pytest.fixture(scope="session")
