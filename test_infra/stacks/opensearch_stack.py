@@ -78,7 +78,7 @@ class OpenSearchStack(Stack):  # type: ignore
             removal_policy=RemovalPolicy.DESTROY,
         )
 
-        CfnOutput(self, f"DomainEndpoint-sdk-pandas-os-1", value=domain.domain_endpoint)
+        CfnOutput(self, "DomainEndpoint-sdk-pandas-os-1", value=domain.domain_endpoint)
 
     def _setup_elasticsearch_7_10_fgac(self) -> None:
         domain_name = "sdk-pandas-es-7-10-fgac"
@@ -109,4 +109,4 @@ class OpenSearchStack(Stack):  # type: ignore
             removal_policy=RemovalPolicy.DESTROY,
         )
 
-        CfnOutput(self, f"DomainEndpoint-sdkpandases710fgac", value=domain.domain_endpoint)
+        CfnOutput(self, "DomainEndpoint-sdkpandases710fgac", value=domain.domain_endpoint)
