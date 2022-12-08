@@ -75,6 +75,11 @@ class OpenSearchStack(Stack):  # type: ignore
                     resources=[f"{domain_arn}/*"],
                 )
             ],
+            enforce_https=True,
+            node_to_node_encryption=True,
+            encryption_at_rest=opensearch.EncryptionAtRestOptions(
+                enabled=True,
+            ),
             removal_policy=RemovalPolicy.DESTROY,
         )
 
