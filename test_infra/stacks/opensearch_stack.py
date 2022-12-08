@@ -75,10 +75,17 @@ class OpenSearchStack(Stack):  # type: ignore
                     resources=[f"{domain_arn}/*"],
                 )
             ],
+            enforce_https=True,
+            node_to_node_encryption=True,
+            encryption_at_rest=opensearch.EncryptionAtRestOptions(
+                enabled=True,
+            ),
             removal_policy=RemovalPolicy.DESTROY,
         )
 
-        CfnOutput(self, f"DomainEndpoint-{domain_name}", value=domain.domain_endpoint)
+        CfnOutput(self, "DomainEndpointsdkpandasos1", value=domain.domain_endpoint).override_logical_id(
+            "DomainEndpointsdkpandasos1"
+        )
 
     def _setup_elasticsearch_7_10_fgac(self) -> None:
         domain_name = "sdk-pandas-es-7-10-fgac"
@@ -109,4 +116,6 @@ class OpenSearchStack(Stack):  # type: ignore
             removal_policy=RemovalPolicy.DESTROY,
         )
 
-        CfnOutput(self, f"DomainEndpoint-{domain_name}", value=domain.domain_endpoint)
+        CfnOutput(self, "DomainEndpointsdkpandases710fgac", value=domain.domain_endpoint).override_logical_id(
+            "DomainEndpointsdkpandases710fgac"
+        )
