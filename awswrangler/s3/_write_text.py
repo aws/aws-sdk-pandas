@@ -611,7 +611,11 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                 create_table_args["serde_library"] = serde_info.get("SerializationLibrary", None)
                 create_table_args["serde_parameters"] = serde_info.get("Parameters", None)
                 catalog._create_csv_table(**create_table_args)  # pylint: disable=protected-access
-                if partitions_values and (glue_catalog_parameters.regular_partitions is True) and (glue_catalog_parameters.table_type != "GOVERNED"):
+                if (
+                    partitions_values
+                    and (glue_catalog_parameters.regular_partitions is True)
+                    and (glue_catalog_parameters.table_type != "GOVERNED")
+                ):
                     _logger.debug("partitions_values:\n%s", partitions_values)
                     catalog.add_csv_partitions(
                         database=glue_catalog_parameters.database,
@@ -1013,7 +1017,11 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
             create_table_args["serde_library"] = serde_info.get("SerializationLibrary", None)
             create_table_args["serde_parameters"] = serde_info.get("Parameters", None)
             catalog._create_json_table(**create_table_args)  # pylint: disable=protected-access
-            if partitions_values and (glue_catalog_parameters.regular_partitions is True) and (glue_catalog_parameters.table_type != "GOVERNED"):
+            if (
+                partitions_values
+                and (glue_catalog_parameters.regular_partitions is True)
+                and (glue_catalog_parameters.table_type != "GOVERNED")
+            ):
                 _logger.debug("partitions_values:\n%s", partitions_values)
                 catalog.add_json_partitions(
                     database=glue_catalog_parameters.database,
