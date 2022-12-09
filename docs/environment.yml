@@ -10,5 +10,6 @@ dependencies:
     - nbsphinx-link
     - sphinx
     - sphinx_bootstrap_theme
+    - sphinx-copybutton
     - IPython
     - ..
