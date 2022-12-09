@@ -44,6 +44,7 @@ Amazon S3
     merge_datasets
     merge_upsert_table
     read_csv
+    read_deltalake
     read_excel
     read_fwf
     read_json

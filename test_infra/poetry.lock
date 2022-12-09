@@ -13,103 +13,61 @@ tests = ["cloudpickle", "coverage[toml] (>=5.0.2)", "hypothesis", "mypy (>=0.900
 tests-no-zope = ["cloudpickle", "coverage[toml] (>=5.0.2)", "hypothesis", "mypy (>=0.900,!=0.940)", "pympler", "pytest (>=4.3.0)", "pytest-mypy-plugins"]
 
 [[package]]
-name = "aws-cdk-asset-awscli-v1"
-version = "2.2.25"
-description = "A library that contains the AWS CLI for use in Lambda Layers"
-category = "main"
-optional = false
-python-versions = "~=3.7"
-
-[package.dependencies]
-jsii = ">=1.71.0,<2.0.0"
-publication = ">=0.0.3"
-typeguard = ">=2.13.3,<2.14.0"
-
-[[package]]
-name = "aws-cdk-asset-kubectl-v20"
-version = "2.1.1"
-description = "A library that contains kubectl for use in Lambda Layers"
-category = "main"
-optional = false
-python-versions = "~=3.7"
-
-[package.dependencies]
-jsii = ">=1.70.0,<2.0.0"
-publication = ">=0.0.3"
-typeguard = ">=2.13.3,<2.14.0"
-
-[[package]]
-name = "aws-cdk-asset-node-proxy-agent-v5"
-version = "2.0.31"
-description = "@aws-cdk/asset-node-proxy-agent-v5"
-category = "main"
-optional = false
-python-versions = "~=3.7"
-
-[package.dependencies]
-jsii = ">=1.71.0,<2.0.0"
-publication = ">=0.0.3"
-typeguard = ">=2.13.3,<2.14.0"
-
-[[package]]
 name = "aws-cdk-aws-glue-alpha"
-version = "2.53.0a0"
+version = "2.47.0a0"
 description = "The CDK Construct Library for AWS::Glue"
 category = "main"
 optional = false
 python-versions = "~=3.7"
 
 [package.dependencies]
-aws-cdk-lib = ">=2.53.0,<3.0.0"
+aws-cdk-lib = ">=2.47.0,<3.0.0"
 constructs = ">=10.0.0,<11.0.0"
-jsii = ">=1.71.0,<2.0.0"
+jsii = ">=1.69.0,<2.0.0"
 publication = ">=0.0.3"
 typeguard = ">=2.13.3,<2.14.0"
 
 [[package]]
 name = "aws-cdk-aws-neptune-alpha"
-version = "2.53.0a0"
+version = "2.47.0a0"
 description = "The CDK Construct Library for AWS::Neptune"
 category = "main"
 optional = false
 python-versions = "~=3.7"
 
 [package.dependencies]
-aws-cdk-lib = ">=2.53.0,<3.0.0"
+aws-cdk-lib = ">=2.47.0,<3.0.0"
 constructs = ">=10.0.0,<11.0.0"
-jsii = ">=1.71.0,<2.0.0"
+jsii = ">=1.69.0,<2.0.0"
 publication = ">=0.0.3"
 typeguard = ">=2.13.3,<2.14.0"
 
 [[package]]
 name = "aws-cdk-aws-redshift-alpha"
-version = "2.53.0a0"
+version = "2.47.0a0"
 description = "The CDK Construct Library for AWS::Redshift"
 category = "main"
 optional = false
 python-versions = "~=3.7"
 
 [package.dependencies]
-aws-cdk-lib = ">=2.53.0,<3.0.0"
+aws-cdk-lib = ">=2.47.0,<3.0.0"
 constructs = ">=10.0.0,<11.0.0"
-jsii = ">=1.71.0,<2.0.0"
+jsii = ">=1.69.0,<2.0.0"
 publication = ">=0.0.3"
 typeguard = ">=2.13.3,<2.14.0"
 
 [[package]]
 name = "aws-cdk-lib"
-version = "2.53.0"
+version = "2.47.0"
 description = "Version 2 of the AWS Cloud Development Kit library"
 category = "main"
 optional = false
 python-versions = "~=3.7"
 
 [package.dependencies]
-"aws-cdk.asset-awscli-v1" = ">=2.2.9,<3.0.0"
-"aws-cdk.asset-kubectl-v20" = ">=2.1.1,<3.0.0"
-"aws-cdk.asset-node-proxy-agent-v5" = ">=2.0.15,<3.0.0"
 constructs = ">=10.0.0,<11.0.0"
-jsii = ">=1.71.0,<2.0.0"
+jsii = ">=1.69.0,<2.0.0"
 publication = ">=0.0.3"
 typeguard = ">=2.13.3,<2.14.0"
 
@@ -128,20 +86,20 @@ typing_extensions = {version = "*", markers = "python_version < \"3.8\""}
 
 [[package]]
 name = "constructs"
-version = "10.1.177"
+version = "10.1.134"
 description = "A programming model for software-defined state"
 category = "main"
 optional = false
 python-versions = "~=3.7"
 
 [package.dependencies]
-jsii = ">=1.71.0,<2.0.0"
+jsii = ">=1.70.0,<2.0.0"
 publication = ">=0.0.3"
 typeguard = ">=2.13.3,<2.14.0"
 
 [[package]]
 name = "exceptiongroup"
-version = "1.0.4"
+version = "1.0.0rc9"
 description = "Backport of PEP 654 (exception groups)"
 category = "main"
 optional = false
@@ -152,7 +110,7 @@ test = ["pytest (>=6)"]
 
 [[package]]
 name = "jsii"
-version = "1.71.0"
+version = "1.70.0"
 description = "Python client for jsii runtime"
 category = "main"
 optional = false
@@ -223,49 +181,37 @@ attrs = [
     {file = "attrs-22.1.0-py2.py3-none-any.whl", hash = "sha256:86efa402f67bf2df34f51a335487cf46b1ec130d02b8d39fd248abfd30da551c"},
     {file = "attrs-22.1.0.tar.gz", hash = "sha256:29adc2665447e5191d0e7c568fde78b21f9672d344281d0c6e1ab085429b22b6"},
 ]
-aws-cdk-asset-awscli-v1 = [
-    {file = "aws-cdk.asset-awscli-v1-2.2.25.tar.gz", hash = "sha256:292b0a664d71302090fe29b4dcdca622d026ea76cbe0b8de4cad1b82403ff5b2"},
-    {file = "aws_cdk.asset_awscli_v1-2.2.25-py3-none-any.whl", hash = "sha256:617f3438a58c4ffc618a76c6a93b4d2a7aed71ba193705e873aa9214547d33a6"},
-]
-aws-cdk-asset-kubectl-v20 = [
-    {file = "aws-cdk.asset-kubectl-v20-2.1.1.tar.gz", hash = "sha256:9834cdb150c5590aea4e5eba6de2a89b4c60617451181c524810c5a75154565c"},
-    {file = "aws_cdk.asset_kubectl_v20-2.1.1-py3-none-any.whl", hash = "sha256:a2fad1a5a35a94a465efe60859f91e45dacc33261fb9bbf1cf9bbc6e2f70e9d6"},
-]
-aws-cdk-asset-node-proxy-agent-v5 = [
-    {file = "aws-cdk.asset-node-proxy-agent-v5-2.0.31.tar.gz", hash = "sha256:c9724a9dd85f1a10016f78562ab20d0030eec5213782eedca67f8290e0875058"},
-    {file = "aws_cdk.asset_node_proxy_agent_v5-2.0.31-py3-none-any.whl", hash = "sha256:c370f6a04a34f7a8a6418922886fb9402d57ad4431354d3ce1c7b3acc5a498b7"},
-]
 aws-cdk-aws-glue-alpha = [
-    {file = "aws-cdk.aws-glue-alpha-2.53.0a0.tar.gz", hash = "sha256:cc92e383c203d6c1529c3b0807b0d3fe92082db6e059bbd4b0c90fe6c4f253b3"},
-    {file = "aws_cdk.aws_glue_alpha-2.53.0a0-py3-none-any.whl", hash = "sha256:0e21547910a0d2680276d88f98e1efd0ffe8f801623d23a0135af7d26699502b"},
+    {file = "aws-cdk.aws-glue-alpha-2.47.0a0.tar.gz", hash = "sha256:176793bfee548dd15dbbcaebeee773d2179ecbb811470260dd96061937e54486"},
+    {file = "aws_cdk.aws_glue_alpha-2.47.0a0-py3-none-any.whl", hash = "sha256:9decde5316d16eaf4d2ffd4237f472db859bb0da474de54af590f0da000f5923"},
 ]
 aws-cdk-aws-neptune-alpha = [
-    {file = "aws-cdk.aws-neptune-alpha-2.53.0a0.tar.gz", hash = "sha256:fc704fe11cedcfefc3cd243d654877e91ad7c7a05647a8f56d401c05b2a527e8"},
-    {file = "aws_cdk.aws_neptune_alpha-2.53.0a0-py3-none-any.whl", hash = "sha256:0a67f0edba56824e4a2c236dacf175454697329c780f16261c985edfa8b28fd0"},
+    {file = "aws-cdk.aws-neptune-alpha-2.47.0a0.tar.gz", hash = "sha256:3e37f8e314a6218a6b6bf2d98e09183f8c224bb546891a277c47076e70701fb3"},
+    {file = "aws_cdk.aws_neptune_alpha-2.47.0a0-py3-none-any.whl", hash = "sha256:a6cd73084762b937e518862257339c1b6a3a957f88f9f8e06f620b335af46a15"},
 ]
 aws-cdk-aws-redshift-alpha = [
-    {file = "aws-cdk.aws-redshift-alpha-2.53.0a0.tar.gz", hash = "sha256:ccbac0533a4779593ae211d55f1c5dd2a6f185c830443f830dc7e8bd4fdab418"},
-    {file = "aws_cdk.aws_redshift_alpha-2.53.0a0-py3-none-any.whl", hash = "sha256:aff390f807768dbc6617b3eebb435794961ea4d7e54ea7a8f3a3228b59db4928"},
+    {file = "aws-cdk.aws-redshift-alpha-2.47.0a0.tar.gz", hash = "sha256:852494fb4295a40947750cc46c93a12245ab464e05bcd5d7bb048bc5643e5685"},
+    {file = "aws_cdk.aws_redshift_alpha-2.47.0a0-py3-none-any.whl", hash = "sha256:a8956bc4a3e91f59b5412d1565dde1366199d67836018152ec252f8d1d9cae47"},
 ]
 aws-cdk-lib = [
-    {file = "aws-cdk-lib-2.53.0.tar.gz", hash = "sha256:6c4df94b74176ffdb7072d2be383608567816c918978f006f984299c04beb141"},
-    {file = "aws_cdk_lib-2.53.0-py3-none-any.whl", hash = "sha256:7fafb2ef55a66467e77dd44f03d533e8abde3729b247916dfdc5cf4ce1fe516d"},
+    {file = "aws-cdk-lib-2.47.0.tar.gz", hash = "sha256:c9b1626c7afc42ceaee547558efe88439dd1447b18c7837db153e03fb8186167"},
+    {file = "aws_cdk_lib-2.47.0-py3-none-any.whl", hash = "sha256:1f1a2e2309625d304a14b388ee0fedb0dffc15eef14dac65e33b10f6c73bf75c"},
 ]
 cattrs = [
     {file = "cattrs-22.2.0-py3-none-any.whl", hash = "sha256:bc12b1f0d000b9f9bee83335887d532a1d3e99a833d1bf0882151c97d3e68c21"},
     {file = "cattrs-22.2.0.tar.gz", hash = "sha256:f0eed5642399423cf656e7b66ce92cdc5b963ecafd041d1b24d136fdde7acf6d"},
 ]
 constructs = [
-    {file = "constructs-10.1.177-py3-none-any.whl", hash = "sha256:c7e40391aed81539a4f1e591c5f5a1078399131f28b77128181dfeae00112fac"},
-    {file = "constructs-10.1.177.tar.gz", hash = "sha256:d1e51cbc6b39476da9e6ac263728be3b605f0a822d5e43a6f0302b44e41c5e3e"},
+    {file = "constructs-10.1.134-py3-none-any.whl", hash = "sha256:b3f05ad138af83473cc9bd5f8949558bd31d38fb32c09fcc56d0de9057c2e61d"},
+    {file = "constructs-10.1.134.tar.gz", hash = "sha256:4ab253a74e62a2c918456d20dff42ec0abb2e4393a6bab0218c81c09e19c1a41"},
 ]
 exceptiongroup = [
-    {file = "exceptiongroup-1.0.4-py3-none-any.whl", hash = "sha256:542adf9dea4055530d6e1279602fa5cb11dab2395fa650b8674eaec35fc4a828"},
-    {file = "exceptiongroup-1.0.4.tar.gz", hash = "sha256:bd14967b79cd9bdb54d97323216f8fdf533e278df937aa2a90089e7d6e06e5ec"},
+    {file = "exceptiongroup-1.0.0rc9-py3-none-any.whl", hash = "sha256:2e3c3fc1538a094aab74fad52d6c33fc94de3dfee3ee01f187c0e0c72aec5337"},
+    {file = "exceptiongroup-1.0.0rc9.tar.gz", hash = "sha256:9086a4a21ef9b31c72181c77c040a074ba0889ee56a7b289ff0afb0d97655f96"},
 ]
 jsii = [
-    {file = "jsii-1.71.0-py3-none-any.whl", hash = "sha256:0f081498d9f2a12850577caedebe604e4b6e98e7fb20c3bbcca05a5ab8bd0f0b"},
-    {file = "jsii-1.71.0.tar.gz", hash = "sha256:e8fedaf077c192917f1d43100b2bbb5d107e4393b713f8ca2814d7653d64a026"},
+    {file = "jsii-1.70.0-py3-none-any.whl", hash = "sha256:d0867c0d2f60ceda1664c026033ae34ea36178c7027315e577ded13043827664"},
+    {file = "jsii-1.70.0.tar.gz", hash = "sha256:9fc57ff37868364ba3417b26dc97189cd0cc71282196a3f4765768c067354be0"},
 ]
 publication = [
     {file = "publication-0.0.3-py2.py3-none-any.whl", hash = "sha256:0248885351febc11d8a1098d5c8e3ab2dabcf3e8c0c96db1e17ecd12b53afbe6"},
