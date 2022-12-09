@@ -12,7 +12,6 @@ class GlueCatalogParameters:  # pylint: disable=too-many-instance-attributes
     table: str
     table_type: Optional[str] = None
     transaction_id: Optional[str] = None
-    dtype: Optional[Dict[str, str]] = None
     description: Optional[str] = None
     parameters: Optional[Dict[str, str]] = None
     columns_comments: Optional[Dict[str, str]] = None

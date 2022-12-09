@@ -227,6 +227,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     catalog_versioning: bool = False,
     schema_evolution: bool = True,
     glue_catalog_parameters: Optional[Union[GlueCatalogParameters, Dict[str, Any]]] = None,
+    dtype: Optional[Dict[str, str]] = None,
     projection_params: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Union[List[str], Dict[str, List[str]]]]:
     """Write Parquet file or dataset on Amazon S3.
@@ -557,7 +558,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
 
     # Initializing defaults
     partition_cols = partition_cols if partition_cols else []
-    dtype = glue_catalog_parameters.dtype if glue_catalog_parameters and glue_catalog_parameters.dtype else {}
+    dtype = dtype if dtype else {}
     partitions_values: Dict[str, List[str]] = {}
     mode = "append" if mode is None else mode
     commit_trans: bool = False
@@ -590,6 +591,8 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
         if catalog_table_input:
             table_type = catalog_table_input["TableType"]
             catalog_path = catalog_table_input["StorageDescriptor"]["Location"]
+        else:
+            table_type = glue_catalog_parameters.table_type
         if path is None:
             if catalog_path:
                 path = catalog_path
@@ -602,7 +605,8 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
                 raise exceptions.InvalidArgumentValue(
                     f"The specified path: {path}, does not match the existing Glue catalog table path: {catalog_path}"
                 )
-        if (table_type == "GOVERNED") and (not glue_catalog_parameters.transaction_id):
+        transaction_id = glue_catalog_parameters.transaction_id
+        if (table_type == "GOVERNED") and (not transaction_id):
             _logger.debug("`transaction_id` not specified for GOVERNED table, starting transaction")
             transaction_id = lakeformation.start_transaction(read_only=False, boto3_session=boto3_session)
             commit_trans = True
