@@ -420,9 +420,9 @@ def _read_parquet_iterator(
     s3_additional_kwargs: Optional[Dict[str, str]],
     pyarrow_additional_kwargs: Optional[Dict[str, Any]],
 ) -> Iterator[pd.DataFrame]:
-    dfs: Iterator[pd.DataFrame] = s3.read_parquet(
+    dfs: Iterator[pd.DataFrame] = s3.read_parquet_chunked(
         path=path,
-        chunked=chunked,
+        chunk_size=chunked,
         dataset=False,
         use_threads=use_threads,
         boto3_session=boto3_session,
@@ -1223,7 +1223,6 @@ def unload(
     if chunked is False:
         df: pd.DataFrame = s3.read_parquet(
             path=path,
-            chunked=chunked,
             dataset=False,
             use_threads=use_threads,
             boto3_session=session,

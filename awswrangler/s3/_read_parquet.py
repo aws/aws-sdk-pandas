@@ -351,6 +351,7 @@ def read_parquet_chunked(
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Iterator[pd.DataFrame]:
+    """Read Parquet file(s) in chunks and return an iterator."""
     paths: List[str] = _path2list(
         path=path,
         boto3_session=boto3_session,

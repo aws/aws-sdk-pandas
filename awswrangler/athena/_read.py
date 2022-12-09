@@ -121,16 +121,22 @@ def _fetch_parquet_result(
         if categories:
             pyarrow_additional_kwargs["categories"] = categories
 
-    ret = s3.read_parquet(
-        path=paths,
-        use_threads=use_threads,
-        boto3_session=boto3_session,
-        chunked=chunked,
-        pyarrow_additional_kwargs=pyarrow_additional_kwargs,
-    )
     if chunked is False:
+        ret = s3.read_parquet(
+            path=paths,
+            use_threads=use_threads,
+            boto3_session=boto3_session,
+            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+        )
         ret = _apply_query_metadata(df=ret, query_metadata=query_metadata)
     else:
+        ret = s3.read_parquet_chunked(
+            path=paths,
+            use_threads=use_threads,
+            boto3_session=boto3_session,
+            chunk_size=chunked if isinstance(chunked, int) else None,
+            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+        )
         ret = _add_query_metadata_generator(dfs=ret, query_metadata=query_metadata)
     paths_delete: List[str] = paths + [manifest_path, metadata_path]
     _logger.debug("type(ret): %s", type(ret))
