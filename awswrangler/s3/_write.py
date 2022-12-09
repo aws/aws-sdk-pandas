@@ -8,6 +8,7 @@ import pandas as pd
 
 from awswrangler import _data_types, _utils, catalog, exceptions
 from awswrangler._distributed import EngineEnum
+from awswrangler._typing import GlueCatalogParameters
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -86,6 +87,50 @@ def _validate_args(
             "the Glue Catalog, please ensure you are passing both."
         )
     elif all(x is None for x in [path, database, table]):
+        raise exceptions.InvalidArgumentCombination(
+            "You must specify a `path` if dataset is True and database/table are not enabled."
+        )
+    elif bucketing_info and bucketing_info[1] <= 0:
+        raise exceptions.InvalidArgumentValue(
+            "Please pass a value greater than 1 for the number of buckets for bucketing."
+        )
+
+
+def _validate_args2(
+    df: pd.DataFrame,
+    glue_parameters: Optional[GlueCatalogParameters],
+    dataset: bool,
+    path: Optional[str],
+    partition_cols: Optional[List[str]],
+    bucketing_info: Optional[Tuple[List[str], int]],
+    mode: Optional[str],
+    execution_engine: Enum,
+) -> None:
+    if df.empty is True:
+        raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
+    if dataset is False:
+        if path is None:
+            raise exceptions.InvalidArgumentValue("If dataset is False, the `path` argument must be passed.")
+        if execution_engine == EngineEnum.PYTHON and path.endswith("/"):
+            raise exceptions.InvalidArgumentValue(
+                "If <dataset=False>, the argument <path> should be a key, not a prefix."
+            )
+        if partition_cols:
+            raise exceptions.InvalidArgumentCombination("Please, pass dataset=True to be able to use partition_cols.")
+        if bucketing_info:
+            raise exceptions.InvalidArgumentCombination("Please, pass dataset=True to be able to use bucketing_info.")
+        if mode is not None:
+            raise exceptions.InvalidArgumentCombination("Please pass dataset=True to be able to use mode.")
+        if glue_parameters:
+            raise exceptions.InvalidArgumentCombination(
+                "Please pass dataset=True in order to use any of the Glue catalog arguments.",
+            )
+    elif glue_parameters and ((glue_parameters.database is None) != (glue_parameters.table is None)):
+        raise exceptions.InvalidArgumentCombination(
+            "Arguments database and table must be passed together. If you want to store your dataset metadata in "
+            "the Glue Catalog, please ensure you are passing both."
+        )
+    elif all(x is None for x in [path, glue_parameters]):
         raise exceptions.InvalidArgumentCombination(
             "You must specify a `path` if dataset is True and database/table are not enabled."
         )

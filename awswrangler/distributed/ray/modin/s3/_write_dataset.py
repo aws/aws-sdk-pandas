@@ -7,6 +7,7 @@ import numpy as np
 from pandas import DataFrame as PandasDataFrame
 
 from awswrangler._distributed import engine
+from awswrangler._typing import GlueCatalogParameters
 from awswrangler.distributed.ray import ray_get, ray_remote
 from awswrangler.distributed.ray.modin import modin_repartition
 from awswrangler.distributed.ray.modin._utils import _ray_dataset_from_df
@@ -63,11 +64,7 @@ def _write_partitions_distributed(
     mode: str,
     partition_cols: List[str],
     partitions_types: Optional[Dict[str, str]],
-    catalog_id: Optional[str],
-    database: Optional[str],
-    table: Optional[str],
-    table_type: Optional[str],
-    transaction_id: Optional[str],
+    glue_parameters: Optional[GlueCatalogParameters],
     filename_prefix: str,
     bucketing_info: Optional[Tuple[List[str], int]],
     boto3_session: Optional["boto3.Session"] = None,
@@ -80,11 +77,7 @@ def _write_partitions_distributed(
         mode=mode,
         partition_cols=partition_cols,
         partitions_types=partitions_types,
-        catalog_id=catalog_id,
-        database=database,
-        table=table,
-        table_type=table_type,
-        transaction_id=transaction_id,
+        glue_parameters=glue_parameters,
         boto3_session=boto3_session,
         **func_kwargs,
     )
