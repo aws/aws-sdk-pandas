@@ -7,12 +7,12 @@ import numpy as np
 from pandas import DataFrame as PandasDataFrame
 
 from awswrangler._distributed import engine
-from awswrangler._typing import GlueCatalogParameters
 from awswrangler.distributed.ray import ray_get, ray_remote
 from awswrangler.distributed.ray.modin import modin_repartition
 from awswrangler.distributed.ray.modin._utils import _ray_dataset_from_df
 from awswrangler.s3._write_concurrent import _WriteProxy
 from awswrangler.s3._write_dataset import _delete_objects, _get_bucketing_series, _to_partitions
+from awswrangler.typing import GlueCatalogParameters
 
 
 def _retrieve_paths(values: Union[str, List[Any]]) -> Iterator[str]:

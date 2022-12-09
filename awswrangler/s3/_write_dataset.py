@@ -9,9 +9,9 @@ import pandas as pd
 
 from awswrangler import exceptions, lakeformation
 from awswrangler._distributed import engine
-from awswrangler._typing import GlueCatalogParameters
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._write_concurrent import _WriteProxy
+from awswrangler.typing import GlueCatalogParameters
 
 _logger: logging.Logger = logging.getLogger(__name__)
 

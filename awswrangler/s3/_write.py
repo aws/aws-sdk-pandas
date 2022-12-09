@@ -8,7 +8,7 @@ import pandas as pd
 
 from awswrangler import _data_types, _utils, catalog, exceptions
 from awswrangler._distributed import EngineEnum
-from awswrangler._typing import GlueCatalogParameters
+from awswrangler.typing import GlueCatalogParameters
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
