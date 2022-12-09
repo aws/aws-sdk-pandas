@@ -48,56 +48,6 @@ def _apply_dtype(
 
 def _validate_args(
     df: pd.DataFrame,
-    table: Optional[str],
-    database: Optional[str],
-    dataset: bool,
-    path: Optional[str],
-    partition_cols: Optional[List[str]],
-    bucketing_info: Optional[Tuple[List[str], int]],
-    mode: Optional[str],
-    description: Optional[str],
-    parameters: Optional[Dict[str, str]],
-    columns_comments: Optional[Dict[str, str]],
-    execution_engine: Enum,
-) -> None:
-    if df.empty is True:
-        raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
-    if dataset is False:
-        if path is None:
-            raise exceptions.InvalidArgumentValue("If dataset is False, the `path` argument must be passed.")
-        if execution_engine == EngineEnum.PYTHON and path.endswith("/"):
-            raise exceptions.InvalidArgumentValue(
-                "If <dataset=False>, the argument <path> should be a key, not a prefix."
-            )
-        if partition_cols:
-            raise exceptions.InvalidArgumentCombination("Please, pass dataset=True to be able to use partition_cols.")
-        if bucketing_info:
-            raise exceptions.InvalidArgumentCombination("Please, pass dataset=True to be able to use bucketing_info.")
-        if mode is not None:
-            raise exceptions.InvalidArgumentCombination("Please pass dataset=True to be able to use mode.")
-        if any(arg is not None for arg in (table, description, parameters, columns_comments)):
-            raise exceptions.InvalidArgumentCombination(
-                "Please pass dataset=True to be able to use any one of these "
-                "arguments: database, table, description, parameters, "
-                "columns_comments."
-            )
-    elif (database is None) != (table is None):
-        raise exceptions.InvalidArgumentCombination(
-            "Arguments database and table must be passed together. If you want to store your dataset metadata in "
-            "the Glue Catalog, please ensure you are passing both."
-        )
-    elif all(x is None for x in [path, database, table]):
-        raise exceptions.InvalidArgumentCombination(
-            "You must specify a `path` if dataset is True and database/table are not enabled."
-        )
-    elif bucketing_info and bucketing_info[1] <= 0:
-        raise exceptions.InvalidArgumentValue(
-            "Please pass a value greater than 1 for the number of buckets for bucketing."
-        )
-
-
-def _validate_args2(
-    df: pd.DataFrame,
     glue_parameters: Optional[GlueCatalogParameters],
     dataset: bool,
     path: Optional[str],

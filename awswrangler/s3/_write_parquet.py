@@ -19,7 +19,7 @@ from awswrangler._distributed import engine
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._read_parquet import _read_parquet_metadata
-from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args2
+from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_concurrent import _WriteProxy
 from awswrangler.s3._write_dataset import _to_dataset
 from awswrangler.typing import GlueCatalogParameters
@@ -540,7 +540,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
 
     glue_catalog_parameters = cast(Optional[GlueCatalogParameters], glue_catalog_parameters)
 
-    _validate_args2(
+    _validate_args(
         df=df,
         glue_parameters=glue_catalog_parameters,
         dataset=dataset,
@@ -589,10 +589,8 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
         )
         catalog_path: Optional[str] = None
         if catalog_table_input:
-            table_type = catalog_table_input["TableType"]
+            glue_catalog_parameters.table_type = catalog_table_input["TableType"]
             catalog_path = catalog_table_input["StorageDescriptor"]["Location"]
-        else:
-            table_type = glue_catalog_parameters.table_type
         if path is None:
             if catalog_path:
                 path = catalog_path
@@ -605,10 +603,12 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
                 raise exceptions.InvalidArgumentValue(
                     f"The specified path: {path}, does not match the existing Glue catalog table path: {catalog_path}"
                 )
-        transaction_id = glue_catalog_parameters.transaction_id
-        if (table_type == "GOVERNED") and (not transaction_id):
+        if (glue_catalog_parameters.table_type == "GOVERNED") and (not glue_catalog_parameters.transaction_id):
             _logger.debug("`transaction_id` not specified for GOVERNED table, starting transaction")
-            transaction_id = lakeformation.start_transaction(read_only=False, boto3_session=boto3_session)
+            glue_catalog_parameters.transaction_id = lakeformation.start_transaction(
+                read_only=False,
+                boto3_session=boto3_session,
+            )
             commit_trans = True
 
     df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
@@ -649,7 +649,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
                 "table": glue_catalog_parameters.table,
                 "path": path,
                 "columns_types": columns_types,
-                "table_type": table_type,
+                "table_type": glue_catalog_parameters.table_type,
                 "partitions_types": partitions_types,
                 "bucketing_info": bucketing_info,
                 "compression": compression,
@@ -658,20 +658,20 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
                 "columns_comments": glue_catalog_parameters.columns_comments,
                 "boto3_session": session,
                 "mode": mode,
-                "transaction_id": transaction_id,
+                "transaction_id": glue_catalog_parameters.transaction_id,
                 "catalog_versioning": catalog_versioning,
                 "projection_params": projection_params,
                 "catalog_id": glue_catalog_parameters.catalog_id,
                 "catalog_table_input": catalog_table_input,
             }
 
-            if (catalog_table_input is None) and (table_type == "GOVERNED"):
+            if (catalog_table_input is None) and (glue_catalog_parameters.table_type == "GOVERNED"):
                 catalog._create_parquet_table(**create_table_args)  # pylint: disable=protected-access
                 create_table_args["catalog_table_input"] = catalog._get_table_input(  # pylint: disable=protected-access
                     database=glue_catalog_parameters.database,
                     table=glue_catalog_parameters.table,
                     boto3_session=session,
-                    transaction_id=transaction_id,
+                    transaction_id=glue_catalog_parameters.transaction_id,
                     catalog_id=glue_catalog_parameters.catalog_id,
                 )
 
@@ -719,7 +719,8 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
                     )
                 if commit_trans:
                     lakeformation.commit_transaction(
-                        transaction_id=transaction_id, boto3_session=boto3_session  # type: ignore
+                        transaction_id=glue_catalog_parameters.transaction_id,  # type: ignore
+                        boto3_session=boto3_session,
                     )
             except Exception:
                 _logger.debug("Catalog write failed, cleaning up S3 (paths: %s).", paths)
