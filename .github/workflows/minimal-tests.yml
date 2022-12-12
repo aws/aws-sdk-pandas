@@ -32,7 +32,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install poetry==1.2.2
           poetry config virtualenvs.create false --local
-          poetry install --extras "sqlserver" -vvv
+          poetry install --extras "sqlserver deltalake" -vvv
       - name: Test Metadata
         run: pytest tests/test_metadata.py
       - name: Test Session
