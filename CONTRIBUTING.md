@@ -104,7 +104,7 @@ or
 
 * Install dependencies:
 
-``poetry install --extras "sqlserver oracle sparql"``
+``poetry install --extras "sqlserver oracle sparql deltalake"``
 
 * Run the validation script:
 
@@ -135,7 +135,7 @@ or
 
 * Install dependencies:
 
-``poetry install --extras "sqlserver oracle sparql"``
+``poetry install --extras "sqlserver oracle sparql deltalake"``
 
 * Go to the ``test_infra`` directory
 
