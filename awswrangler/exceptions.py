@@ -115,3 +115,7 @@ class FailedQualityCheck(Exception):
 
 class AlreadyExists(Exception):
     """AlreadyExists."""
+
+
+class ResourceDoesNotExist(Exception):
+    """ResourceDoesNotExist."""
