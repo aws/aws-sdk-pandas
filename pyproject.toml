@@ -126,7 +126,7 @@ skip_gitignore = true
 python_version = 3.8
 strict = true
 ignore_missing_imports = true
-warn_unused_ignores = false
+warn_unused_ignores = true
 
 [tool.pytest.ini_options]
 log_cli = false
