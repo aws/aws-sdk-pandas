@@ -1,18 +1,15 @@
 """Amazon S3 Read Delta Lake Module (PRIVATE)."""
 import importlib.util
-import logging
 from typing import Any, Dict, List, Optional, Tuple
 
 import boto3
 import pandas as pd
 
-from awswrangler import _utils, exceptions
+from awswrangler import _utils
 
 _deltalake_found = importlib.util.find_spec("deltalake")
 if _deltalake_found:
-    from deltalake import DataCatalog, DeltaTable  # pylint: disable=import-error
-
-_logger: logging.Logger = logging.getLogger(__name__)
+    from deltalake import DeltaTable  # pylint: disable=import-error
 
 
 def _set_default_storage_options_kwargs(
@@ -28,9 +25,6 @@ def _set_default_storage_options_kwargs(
 
 def read_deltalake(
     path: Optional[str] = None,
-    database: Optional[str] = None,
-    table: Optional[str] = None,
-    catalog_id: Optional[str] = None,
     version: Optional[int] = None,
     partitions: Optional[List[Tuple[str, str, Any]]] = None,
     columns: Optional[List[str]] = None,
@@ -39,7 +33,7 @@ def read_deltalake(
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> pd.DataFrame:
-    """Load data from Deltalake Table from an S3 path or Glue catalog database and table.
+    """Load a Deltalake table data from an S3 path.
 
     This function requires the `deltalake package
     <https://delta-io.github.io/delta-rs/python>`__.
@@ -47,18 +41,10 @@ def read_deltalake(
     <https://delta-io.github.io/delta-rs/python/usage.html#loading-a-delta-table>`__
     guide for loading instructions.
 
-    Note: One of `path` or both `database` and `table` input arguments must be supplied.
-
     Parameters
     ----------
     path: Optional[str]
-        The path of the DeltaTable. Required if `database` and `table` are not supplied.
-    database: Optional[str]
-        Glue/Athena catalog: Database name. Use in combination with `table`.
-    table: Optional[str]
-        Glue/Athena catalog: Table name. Use in combination with `database`.
-    catalog_id: Optional[str]
-        The Glue catalog id.
+        The path of the DeltaTable.
     version: Optional[int]
         The version of the DeltaTable.
     partitions: Optional[List[Tuple[str, str, Any]]
@@ -86,24 +72,16 @@ def read_deltalake(
     --------
     deltalake.DeltaTable : Create a DeltaTable instance with the deltalake library.
     """
-    delta_table_args: Dict[str, Any] = {"version": version}
     pyarrow_additional_kwargs = pyarrow_additional_kwargs or {}  # TODO: Use defaults in 3.0.0 # pylint: disable=fixme
+    storage_options = _set_default_storage_options_kwargs(_utils.ensure_session(boto3_session), s3_additional_kwargs)
 
-    if path:
-        storage_options = _set_default_storage_options_kwargs(
-            _utils.ensure_session(boto3_session), s3_additional_kwargs
+    return (
+        DeltaTable(
+            table_uri=path,
+            version=version,
+            storage_options=storage_options,
+            without_files=without_files,
         )
-        delta_table_args.update({"table_uri": path, "storage_options": storage_options, "without_files": without_files})
-        delta_table = DeltaTable(**delta_table_args)
-    elif database and table:
-        delta_table_args.update(
-            {"data_catalog": DataCatalog.AWS.value, "database": database, "table": table, "catalog_id": catalog_id}
-        )
-        delta_table = DeltaTable.from_data_catalog(**delta_table_args)
-    else:
-        raise exceptions.InvalidArgumentCombination(
-            "Either `path` or both `database` and `table` arguments must be supplied."
-        )
-    _logger.debug("delta table args: %s", delta_table_args)
-
-    return delta_table.to_pyarrow_table(partitions=partitions, columns=columns).to_pandas(**pyarrow_additional_kwargs)
+        .to_pyarrow_table(partitions=partitions, columns=columns)
+        .to_pandas(**pyarrow_additional_kwargs)
+    )

@@ -16,11 +16,6 @@ def test_read_deltalake(path, s3_additional_kwargs, pyarrow_additional_kwargs, s
     df = pd.DataFrame({"c0": [1, 2, 3], "c1": ["foo", None, "bar"], "c2": [3.0, 4.0, 5.0], "c3": [True, False, None]})
     write_deltalake(table_or_uri=path, data=df, storage_options=storage_options)
 
-    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.s3.read_deltalake(
-            s3_additional_kwargs=s3_additional_kwargs, pyarrow_additional_kwargs=pyarrow_additional_kwargs
-        )
-
     df2 = wr.s3.read_deltalake(
         path=path, s3_additional_kwargs=s3_additional_kwargs, pyarrow_additional_kwargs=pyarrow_additional_kwargs
     )
