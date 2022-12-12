@@ -84,7 +84,7 @@ def _fetch_parquet_result(
     query_metadata: _QueryMetadata,
     keep_files: bool,
     categories: Optional[List[str]],
-    chunksize: Optional[int],
+    chunksize: Optional[Union[bool, int]],
     use_threads: Union[bool, int],
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, Any]],
@@ -134,7 +134,7 @@ def _fetch_parquet_result(
             path=paths,
             use_threads=use_threads,
             boto3_session=boto3_session,
-            chunk_size=chunked if isinstance(chunked, int) else None,
+            chunk_size=chunked if isinstance(chunked, int) and not isinstance(chunked, bool) else None,
             pyarrow_additional_kwargs=pyarrow_additional_kwargs,
         )
         ret = _add_query_metadata_generator(dfs=ret, query_metadata=query_metadata)
