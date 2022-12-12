@@ -210,7 +210,7 @@ lxml = ["lxml"]
 
 [[package]]
 name = "black"
-version = "22.10.0"
+version = "22.12.0"
 description = "The uncompromising code formatter."
 category = "dev"
 optional = false
@@ -261,14 +261,14 @@ wcwidth = ">=0.1.4"
 
 [[package]]
 name = "boto3"
-version = "1.26.25"
+version = "1.26.26"
 description = "The AWS SDK for Python"
 category = "main"
 optional = false
 python-versions = ">= 3.7"
 
 [package.dependencies]
-botocore = ">=1.29.25,<1.30.0"
+botocore = ">=1.29.26,<1.30.0"
 jmespath = ">=0.7.1,<2.0.0"
 s3transfer = ">=0.6.0,<0.7.0"
 
@@ -277,7 +277,7 @@ crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "botocore"
-version = "1.29.25"
+version = "1.29.26"
 description = "Low-level, data-driven core of boto 3."
 category = "main"
 optional = false
@@ -289,7 +289,7 @@ python-dateutil = ">=2.1,<3.0.0"
 urllib3 = ">=1.25.4,<1.27"
 
 [package.extras]
-crt = ["awscrt (==0.14.0)"]
+crt = ["awscrt (==0.15.3)"]
 
 [[package]]
 name = "bump2version"
@@ -437,6 +437,22 @@ description = "XML bomb protection for Python stdlib modules"
 category = "dev"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
+
+[[package]]
+name = "deltalake"
+version = "0.5.8"
+description = "Native Delta Lake Python binding based on delta-rs with Pandas integration"
+category = "main"
+optional = true
+python-versions = ">=3.6"
+
+[package.dependencies]
+pyarrow = ">=4"
+
+[package.extras]
+devel = ["black", "isort", "mypy", "pytest", "pytest-cov", "pytest-mock", "pytest-timeout", "sphinx (<=4.5)", "sphinx-rtd-theme", "toml", "typing-extensions"]
+pandas = ["pandas", "types-dataclasses"]
+pyspark = ["delta-spark", "pyspark"]
 
 [[package]]
 name = "dill"
@@ -2366,6 +2382,21 @@ optional = false
 python-versions = "*"
 
 [[package]]
+name = "sphinx-copybutton"
+version = "0.5.1"
+description = "Add a copy button to each of your code cells."
+category = "dev"
+optional = false
+python-versions = ">=3.7"
+
+[package.dependencies]
+sphinx = ">=1.8"
+
+[package.extras]
+code-style = ["pre-commit (==2.12.1)"]
+rtd = ["ipython", "myst-nb", "sphinx", "sphinx-book-theme", "sphinx-examples"]
+
+[[package]]
 name = "sphinxcontrib-applehelp"
 version = "1.0.2"
 description = "sphinxcontrib-applehelp is a sphinx extension which outputs Apple help books"
@@ -2535,7 +2566,7 @@ testing = ["flaky (>=3.4.0)", "freezegun (>=0.3.11)", "pathlib2 (>=2.3.3)", "psu
 
 [[package]]
 name = "traitlets"
-version = "5.6.0"
+version = "5.7.0"
 description = "Traitlets Python configuration system"
 category = "dev"
 optional = false
@@ -2543,7 +2574,9 @@ python-versions = ">=3.7"
 
 [package.extras]
 docs = ["myst-parser", "pydata-sphinx-theme", "sphinx"]
+lint = ["black (>=22.6.0)", "mdformat (>0.7)", "ruff (>=0.0.156)"]
 test = ["pre-commit", "pytest"]
+typing = ["mypy (>=0.990)"]
 
 [[package]]
 name = "types-toml"
@@ -2686,6 +2719,7 @@ docs = ["furo", "jaraco.packaging (>=9)", "jaraco.tidelift (>=1.4)", "rst.linker
 testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools", "more-itertools", "pytest (>=6)", "pytest-black (>=0.3.7)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=1.3)", "pytest-flake8", "pytest-mypy (>=0.9.1)"]
 
 [extras]
+deltalake = ["deltalake"]
 modin = ["modin"]
 oracle = ["oracledb"]
 ray = ["ray"]
@@ -2695,7 +2729,7 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8, <4.0"
-content-hash = "82dfcc4d3ccb702f7b005d5aa5b46e5fdafbd9e5abe6360cdd6a94de9be09704"
+content-hash = "c25936f36ade9762df29625d7916f313d31ab17ea5d008afdc73d560dc19c5c7"
 
 [metadata.files]
 aenum = [
@@ -2861,27 +2895,18 @@ beautifulsoup4 = [
     {file = "beautifulsoup4-4.11.1.tar.gz", hash = "sha256:ad9aa55b65ef2808eb405f46cf74df7fcb7044d5cbc26487f96eb2ef2e436693"},
 ]
 black = [
-    {file = "black-22.10.0-1fixedarch-cp310-cp310-macosx_11_0_x86_64.whl", hash = "sha256:5cc42ca67989e9c3cf859e84c2bf014f6633db63d1cbdf8fdb666dcd9e77e3fa"},
-    {file = "black-22.10.0-1fixedarch-cp311-cp311-macosx_11_0_x86_64.whl", hash = "sha256:5d8f74030e67087b219b032aa33a919fae8806d49c867846bfacde57f43972ef"},
-    {file = "black-22.10.0-1fixedarch-cp37-cp37m-macosx_10_16_x86_64.whl", hash = "sha256:197df8509263b0b8614e1df1756b1dd41be6738eed2ba9e9769f3880c2b9d7b6"},
-    {file = "black-22.10.0-1fixedarch-cp38-cp38-macosx_10_16_x86_64.whl", hash = "sha256:2644b5d63633702bc2c5f3754b1b475378fbbfb481f62319388235d0cd104c2d"},
-    {file = "black-22.10.0-1fixedarch-cp39-cp39-macosx_11_0_x86_64.whl", hash = "sha256:e41a86c6c650bcecc6633ee3180d80a025db041a8e2398dcc059b3afa8382cd4"},
-    {file = "black-22.10.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:2039230db3c6c639bd84efe3292ec7b06e9214a2992cd9beb293d639c6402edb"},
-    {file = "black-22.10.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:14ff67aec0a47c424bc99b71005202045dc09270da44a27848d534600ac64fc7"},
-    {file = "black-22.10.0-cp310-cp310-win_amd64.whl", hash = "sha256:819dc789f4498ecc91438a7de64427c73b45035e2e3680c92e18795a839ebb66"},
-    {file = "black-22.10.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:5b9b29da4f564ba8787c119f37d174f2b69cdfdf9015b7d8c5c16121ddc054ae"},
-    {file = "black-22.10.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b8b49776299fece66bffaafe357d929ca9451450f5466e997a7285ab0fe28e3b"},
-    {file = "black-22.10.0-cp311-cp311-win_amd64.whl", hash = "sha256:21199526696b8f09c3997e2b4db8d0b108d801a348414264d2eb8eb2532e540d"},
-    {file = "black-22.10.0-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:1e464456d24e23d11fced2bc8c47ef66d471f845c7b7a42f3bd77bf3d1789650"},
-    {file = "black-22.10.0-cp37-cp37m-win_amd64.whl", hash = "sha256:9311e99228ae10023300ecac05be5a296f60d2fd10fff31cf5c1fa4ca4b1988d"},
-    {file = "black-22.10.0-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:fba8a281e570adafb79f7755ac8721b6cf1bbf691186a287e990c7929c7692ff"},
-    {file = "black-22.10.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:915ace4ff03fdfff953962fa672d44be269deb2eaf88499a0f8805221bc68c87"},
-    {file = "black-22.10.0-cp38-cp38-win_amd64.whl", hash = "sha256:444ebfb4e441254e87bad00c661fe32df9969b2bf224373a448d8aca2132b395"},
-    {file = "black-22.10.0-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:974308c58d057a651d182208a484ce80a26dac0caef2895836a92dd6ebd725e0"},
-    {file = "black-22.10.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:72ef3925f30e12a184889aac03d77d031056860ccae8a1e519f6cbb742736383"},
-    {file = "black-22.10.0-cp39-cp39-win_amd64.whl", hash = "sha256:432247333090c8c5366e69627ccb363bc58514ae3e63f7fc75c54b1ea80fa7de"},
-    {file = "black-22.10.0-py3-none-any.whl", hash = "sha256:c957b2b4ea88587b46cf49d1dc17681c1e672864fd7af32fc1e9664d572b3458"},
-    {file = "black-22.10.0.tar.gz", hash = "sha256:f513588da599943e0cde4e32cc9879e825d58720d6557062d1098c5ad80080e1"},
+    {file = "black-22.12.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:9eedd20838bd5d75b80c9f5487dbcb06836a43833a37846cf1d8c1cc01cef59d"},
+    {file = "black-22.12.0-cp310-cp310-win_amd64.whl", hash = "sha256:159a46a4947f73387b4d83e87ea006dbb2337eab6c879620a3ba52699b1f4351"},
+    {file = "black-22.12.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d30b212bffeb1e252b31dd269dfae69dd17e06d92b87ad26e23890f3efea366f"},
+    {file = "black-22.12.0-cp311-cp311-win_amd64.whl", hash = "sha256:7412e75863aa5c5411886804678b7d083c7c28421210180d67dfd8cf1221e1f4"},
+    {file = "black-22.12.0-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c116eed0efb9ff870ded8b62fe9f28dd61ef6e9ddd28d83d7d264a38417dcee2"},
+    {file = "black-22.12.0-cp37-cp37m-win_amd64.whl", hash = "sha256:1f58cbe16dfe8c12b7434e50ff889fa479072096d79f0a7f25e4ab8e94cd8350"},
+    {file = "black-22.12.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:77d86c9f3db9b1bf6761244bc0b3572a546f5fe37917a044e02f3166d5aafa7d"},
+    {file = "black-22.12.0-cp38-cp38-win_amd64.whl", hash = "sha256:82d9fe8fee3401e02e79767016b4907820a7dc28d70d137eb397b92ef3cc5bfc"},
+    {file = "black-22.12.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:101c69b23df9b44247bd88e1d7e90154336ac4992502d4197bdac35dd7ee3320"},
+    {file = "black-22.12.0-cp39-cp39-win_amd64.whl", hash = "sha256:559c7a1ba9a006226f09e4916060982fd27334ae1998e7a38b3f33a37f7a2148"},
+    {file = "black-22.12.0-py3-none-any.whl", hash = "sha256:436cc9167dd28040ad90d3b404aec22cedf24a6e4d7de221bec2730ec0c97bcf"},
+    {file = "black-22.12.0.tar.gz", hash = "sha256:229351e5a18ca30f447bf724d007f890f97e13af070bb6ad4c0a441cd7596a2f"},
 ]
 bleach = [
     {file = "bleach-5.0.1-py3-none-any.whl", hash = "sha256:085f7f33c15bd408dd9b17a4ad77c577db66d76203e5984b1bd59baeee948b2a"},
@@ -2892,12 +2917,12 @@ blessed = [
     {file = "blessed-1.19.1.tar.gz", hash = "sha256:9a0d099695bf621d4680dd6c73f6ad547f6a3442fbdbe80c4b1daa1edbc492fc"},
 ]
 boto3 = [
-    {file = "boto3-1.26.25-py3-none-any.whl", hash = "sha256:7048335b099473816240046753d77ef0953ce5a037b93b2848477dcf036d3849"},
-    {file = "boto3-1.26.25.tar.gz", hash = "sha256:e0ba3620feb430e31926270ea3dc0bb94df55a0fd2b209bd91f7904f2f2166ef"},
+    {file = "boto3-1.26.26-py3-none-any.whl", hash = "sha256:b1d2521bd2239c4d2d8ee2a79d932bc64bf4779521ecc60c1074ae8a5d88adaa"},
+    {file = "boto3-1.26.26.tar.gz", hash = "sha256:a2349d436db6f6aa1e0def5501e4884572eb6f008f35063a359a6fa8ba3539b7"},
 ]
 botocore = [
-    {file = "botocore-1.29.25-py3-none-any.whl", hash = "sha256:cb489ca8fbc043cd9bf901e3e105f0dec316ed438ee883e55c9f9c77bd0f6a2d"},
-    {file = "botocore-1.29.25.tar.gz", hash = "sha256:a204140c9d7adadf3919d8024d79278f1865a20c869e4f216eaea599ca3a1743"},
+    {file = "botocore-1.29.26-py3-none-any.whl", hash = "sha256:2ca26983156fe0846a87b9325205af6bc56268fb99b8b4b9decccf50203ff3b4"},
+    {file = "botocore-1.29.26.tar.gz", hash = "sha256:f71220fe5a5d393c391ed81a291c0d0985f147568c56da236453043f93727a34"},
 ]
 bump2version = [
     {file = "bump2version-1.0.1-py2.py3-none-any.whl", hash = "sha256:37f927ea17cde7ae2d7baf832f8e80ce3777624554a653006c9144f8017fe410"},
@@ -3104,6 +3129,14 @@ decorator = [
 defusedxml = [
     {file = "defusedxml-0.7.1-py2.py3-none-any.whl", hash = "sha256:a352e7e428770286cc899e2542b6cdaedb2b4953ff269a210103ec58f6198a61"},
     {file = "defusedxml-0.7.1.tar.gz", hash = "sha256:1bb3032db185915b62d7c6209c5a8792be6a32ab2fedacc84e01b52c51aa3e69"},
+]
+deltalake = [
+    {file = "deltalake-0.5.8-cp37-abi3-macosx_10_7_x86_64.whl", hash = "sha256:a9bfdcf252cc697e7ca6cb16be270b2fe7aed7689eefd49b187e813ce6c3f39b"},
+    {file = "deltalake-0.5.8-cp37-abi3-macosx_11_0_arm64.whl", hash = "sha256:d516c53b3a1acc6b3a39009394ae5f75abafd5a1045a1f6cf8f24e165210581e"},
+    {file = "deltalake-0.5.8-cp37-abi3-manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:25da93fc520e60b3b5e97469ddd532da9ee0c1c00938b8df826eebd794559636"},
+    {file = "deltalake-0.5.8-cp37-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:5f93bea8c7a25c343b9783ba09230a1205145463ab4c546a69469b3da7b97592"},
+    {file = "deltalake-0.5.8-cp37-abi3-win_amd64.whl", hash = "sha256:ef36fd94162a9ed234c3ae8487479fa58994729c038a8ee6599d1bd6d91628fa"},
+    {file = "deltalake-0.5.8.tar.gz", hash = "sha256:b386422fcc9c151b794748c9cef3fbb33debd4475bbabc6e9e288ef23ab3b87e"},
 ]
 dill = [
     {file = "dill-0.3.6-py3-none-any.whl", hash = "sha256:a07ffd2351b8c678dfc4a856a3005f8067aea51d6ba6c700796a4d9e280f39f0"},
@@ -4443,6 +4476,10 @@ sphinx-bootstrap-theme = [
     {file = "sphinx-bootstrap-theme-0.8.1.tar.gz", hash = "sha256:683e3b735448dadd0149f76edecf95ff4bd9157787e9e77e0d048ca6f1d680df"},
     {file = "sphinx_bootstrap_theme-0.8.1-py2.py3-none-any.whl", hash = "sha256:6ef36206c211846ea6cbdb45bc85645578e7c62d0a883361181708f8b6ea743b"},
 ]
+sphinx-copybutton = [
+    {file = "sphinx-copybutton-0.5.1.tar.gz", hash = "sha256:366251e28a6f6041514bfb5439425210418d6c750e98d3a695b73e56866a677a"},
+    {file = "sphinx_copybutton-0.5.1-py3-none-any.whl", hash = "sha256:0842851b5955087a7ec7fc870b622cb168618ad408dee42692e9a5c97d071da8"},
+]
 sphinxcontrib-applehelp = [
     {file = "sphinxcontrib-applehelp-1.0.2.tar.gz", hash = "sha256:a072735ec80e7675e3f432fcae8610ecf509c5f1869d17e2eecff44389cdbc58"},
     {file = "sphinxcontrib_applehelp-1.0.2-py2.py3-none-any.whl", hash = "sha256:806111e5e962be97c29ec4c1e7fe277bfd19e9652fb1a4392105b43e01af885a"},
@@ -4509,8 +4546,8 @@ tox = [
     {file = "tox-3.27.1.tar.gz", hash = "sha256:b2a920e35a668cc06942ffd1cf3a4fb221a4d909ca72191fb6d84b0b18a7be04"},
 ]
 traitlets = [
-    {file = "traitlets-5.6.0-py3-none-any.whl", hash = "sha256:1410755385d778aed847d68deb99b3ba30fbbf489e17a1e8cbb753060d5cce73"},
-    {file = "traitlets-5.6.0.tar.gz", hash = "sha256:10b6ed1c9cedee83e795db70a8b9c2db157bb3778ec4587a349ecb7ef3b1033b"},
+    {file = "traitlets-5.7.0-py3-none-any.whl", hash = "sha256:61832ea7b7f910f5745e27e9bb269a181fd15af76027d99560299209d5b17c94"},
+    {file = "traitlets-5.7.0.tar.gz", hash = "sha256:bd0fca5c890a09bf66b33cce67ca14156b080429bc39c7ef26b075a4bd4f9fc3"},
 ]
 types-toml = [
     {file = "types-toml-0.10.8.1.tar.gz", hash = "sha256:171bdb3163d79a520560f24ba916a9fc9bff81659c5448a9fea89240923722be"},
