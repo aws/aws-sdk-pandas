@@ -105,9 +105,42 @@ def evaluate_ruleset(
     table: Optional[str] = None,
     catalog_id: Optional[str] = None,
     connection: Optional[str] = None,
-    additional_options: Optional[Dict[str, str]] = None,
+    additional_run_options: Optional[Dict[str, str]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ):
+    """Evaluate Data Quality ruleset.
+
+    Parameters
+    ----------
+    name : str
+        Ruleset name.
+    iam_role_arn : str
+        IAM Role.
+    number_of_workers: int, optional
+        The number of G.1X workers to be used in the run. The default is 5.
+    timeout: int, optional
+        The timeout for a run in minutes. The default is 2880 (48 hours).
+    database : str, optional
+        Glue database name. Database associated with the ruleset will be used if not provided.
+    table : str, optinal
+        Glue table name. Table associated with the ruleset will be used if not provided.
+    catalog_id : str, optional
+        Glue Catalog id.
+    connection : str, optional
+        Glue connection.
+    additional_run_options : Dict[str, str], optional
+        Additional run options.
+    boto3_session : boto3.Session, optional
+        Ruleset description.
+
+    Examples
+    --------
+    >>> import awswrangler as wr
+    >>> wr.data_quality.evaluate_ruleset(
+    >>>     name="ruleset",
+    >>>     iam_role_arn=glue_data_quality_role,
+    >>> )
+    """
     run_id: str = _start_ruleset_evaluation_run(
         ruleset_names=[name],
         iam_role_arn=iam_role_arn,
@@ -117,7 +150,7 @@ def evaluate_ruleset(
         table=table,
         catalog_id=catalog_id,
         connection=connection,
-        additional_options=additional_options,
+        additional_options=additional_run_options,
         boto3_session=boto3_session,
     )
     _logger.debug("run_id: %s", run_id)
