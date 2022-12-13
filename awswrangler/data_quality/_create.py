@@ -2,7 +2,7 @@
 
 import logging
 import uuid
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 import boto3
 import pandas as pd
@@ -10,7 +10,7 @@ import pandas as pd
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
 from awswrangler.data_quality._utils import (
-    _create_datasource,
+    _get_data_quality_results,
     _start_ruleset_evaluation_run,
     _wait_ruleset_evaluation_run,
 )
@@ -105,6 +105,7 @@ def evaluate_ruleset(
     table: Optional[str] = None,
     catalog_id: Optional[str] = None,
     connection: Optional[str] = None,
+    additional_options: Optional[Dict[str, str]] = None,
     additional_run_options: Optional[Dict[str, str]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ):
@@ -128,8 +129,15 @@ def evaluate_ruleset(
         Glue Catalog id.
     connection : str, optional
         Glue connection.
+    additional_options : Dict[str, str], optional
+        Additional options for the table. Supported keys:
+        `pushDownPredicate`: to filter on partitions without having to list and read all the files in your dataset.
+         `catalogPartitionPredicate`: to use server-side partition pruning using partition indexes in the
+         Glue Data Catalog.
     additional_run_options : Dict[str, str], optional
-        Additional run options.
+        Additional run options. Supported keys:
+        `CloudWatchMetricsEnabled`: whether to enable CloudWatch metrics.
+        `ResultsS3Prefix`: prefix for Amazon S3 to store results.
     boto3_session : boto3.Session, optional
         Ruleset description.
 
@@ -150,8 +158,10 @@ def evaluate_ruleset(
         table=table,
         catalog_id=catalog_id,
         connection=connection,
-        additional_options=additional_run_options,
+        additional_options=additional_options,
+        additional_run_options=additional_run_options,
         boto3_session=boto3_session,
     )
     _logger.debug("run_id: %s", run_id)
-    return _wait_ruleset_evaluation_run(run_id=run_id, boto3_session=boto3_session)
+    result_ids: List[str] = _wait_ruleset_evaluation_run(run_id=run_id, boto3_session=boto3_session)
+    return _get_data_quality_results(result_ids=result_ids, boto3_session=boto3_session)
