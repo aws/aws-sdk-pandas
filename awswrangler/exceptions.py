@@ -115,3 +115,11 @@ class FailedQualityCheck(Exception):
 
 class AlreadyExists(Exception):
     """AlreadyExists."""
+
+
+class NotImplemented(Exception):
+    """AlreadyExists."""
+
+
+class InvalidRulesetDefinition(Exception):
+    """AlreadyExists."""
