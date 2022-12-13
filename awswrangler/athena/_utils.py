@@ -675,7 +675,7 @@ def create_ctas_table(  # pylint: disable=too-many-locals
     ----------
     sql : str
         SELECT SQL query.
-    database : str
+    database : Optional[str], optional
         The name of the database where the original table is stored.
     ctas_table : Optional[str], optional
         The name of the CTAS table.
