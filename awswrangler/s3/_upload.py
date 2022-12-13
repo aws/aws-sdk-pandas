@@ -71,7 +71,7 @@ def upload(
         if isinstance(local_file, str):
             _logger.debug("Uploading local_file: %s", local_file)
             with open(file=local_file, mode="rb") as local_f:
-                s3_f.write(local_f.read())
+                s3_f.write(local_f.read())  # type: ignore
         else:
             _logger.debug("Uploading file-like object.")
             s3_f.write(local_file.read())

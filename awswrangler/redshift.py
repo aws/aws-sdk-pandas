@@ -254,7 +254,7 @@ def _validate_parameters(
 
 
 def _redshift_types_from_path(
-    path: Optional[Union[str, List[str]]],
+    path: Union[str, List[str]],
     varchar_lengths_default: int,
     varchar_lengths: Optional[Dict[str, int]],
     parquet_infer_sampling: float,
