@@ -9,7 +9,7 @@ from modin.distributed.dataframe.pandas import unwrap_partitions
 
 import awswrangler as wr
 
-from .._utils import ExecutionTimer
+from .._utils import ExecutionTimer, publish_benchmark_data
 
 
 @pytest.fixture(scope="function")
@@ -47,7 +47,9 @@ def _modin_repartition(df: pd.DataFrame, num_blocks: int) -> pd.DataFrame:
 @pytest.mark.parametrize("benchmark_time", [180])
 def test_s3_select(benchmark_time):
     path = "s3://ursa-labs-taxi-data/2018/1*.parquet"
-    with ExecutionTimer("elapsed time of wr.s3.select_query()") as timer:
+    with ExecutionTimer(
+        "elapsed time of wr.s3.select_query()", test_name=publish_benchmark_data(test_s3_select.__name__)
+    ) as timer:
         df = wr.s3.select_query(
             sql="SELECT * FROM s3object",
             path=path,

@@ -382,3 +382,15 @@ def redshift_con():
     con = wr.redshift.connect("aws-sdk-pandas-redshift")
     yield con
     con.close()
+
+
+@pytest.fixture
+def globals():
+    pytest.metric_namespace = "load_test_benchmarks"
+    pytest.metric_name = "sdk_pandas_load_test_benchmark_data"
+
+
+@pytest.fixture(scope="function")
+def metric():
+    cloudwatch = boto3.resource("cloudwatch")
+    return cloudwatch.Metric(pytest.metric_namespace, pytest.metric_name)

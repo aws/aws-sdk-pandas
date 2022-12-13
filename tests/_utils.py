@@ -1,12 +1,14 @@
+import os
 import random
 import time
 from datetime import datetime
 from decimal import Decimal
 from timeit import default_timer as timer
-from typing import Any, Dict, Iterator, Union
+from typing import Any, Dict, Iterator, Optional, Union
 
 import boto3
 import botocore.exceptions
+import pytest
 from pandas import DataFrame as PandasDataFrame
 from pandas import Series as PandasSeries
 
@@ -28,11 +30,33 @@ ts = lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S.%f")  # noqa
 dt = lambda x: datetime.strptime(x, "%Y-%m-%d").date()  # noqa
 
 CFN_VALID_STATUS = ["CREATE_COMPLETE", "ROLLBACK_COMPLETE", "UPDATE_COMPLETE", "UPDATE_ROLLBACK_COMPLETE"]
+cloudwatch_client = boto3.client("cloudwatch")
+
+
+def publish_benchmark_data(function_name: str):
+    return function_name if os.environ.get("PUBLISH_BENCHMARK_DATA") else None
 
 
 class ExecutionTimer:
-    def __init__(self, msg="elapsed time"):
+    def __init__(self, msg="elapsed time", test_name: Optional[str] = None):
         self.msg = msg
+        self.test_name = test_name
+
+    def _publish_metric(self, namespace, metric_name, test_name, value, unit_type="None"):
+        cloudwatch_client.put_metric_data(
+            Namespace=namespace,
+            MetricData=[
+                {
+                    "MetricName": metric_name,
+                    "Value": value,
+                    "Unit": unit_type,
+                    "Dimensions": [
+                        {"Name": "Test Name", "Value": test_name},
+                        {"Name": "Version", "Value": wr.__version__},
+                    ],
+                },
+            ],
+        )
 
     def __enter__(self):
         self.before = timer()
@@ -41,6 +65,14 @@ class ExecutionTimer:
     def __exit__(self, type, value, traceback):
         self.elapsed_time = round((timer() - self.before), 3)
         print(f"{self.msg}: {self.elapsed_time:.3f} sec")
+        if self.test_name:
+            self._publish_metric(
+                pytest.metric_namespace,
+                pytest.metric_name,
+                self.test_name,
+                self.elapsed_time,
+                unit_type="Seconds",
+            )
         return None
 
 
