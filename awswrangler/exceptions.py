@@ -116,8 +116,10 @@ class FailedQualityCheck(Exception):
 class AlreadyExists(Exception):
     """AlreadyExists."""
 
+
 class ResourceDoesNotExist(Exception):
     """ResourceDoesNotExist."""
+
 
 class InvalidRulesetDefinition(Exception):
     """InvalidRulesetDefinition."""
