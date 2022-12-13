@@ -33,10 +33,6 @@ CFN_VALID_STATUS = ["CREATE_COMPLETE", "ROLLBACK_COMPLETE", "UPDATE_COMPLETE", "
 cloudwatch_client = boto3.client("cloudwatch")
 
 
-def publish_benchmark_data(function_name: str):
-    return function_name if os.environ.get("PUBLISH_BENCHMARK_DATA") else None
-
-
 class ExecutionTimer:
     def __init__(self, msg="elapsed time", test_name: Optional[str] = None):
         self.msg = msg
@@ -74,6 +70,10 @@ class ExecutionTimer:
                 unit_type="Seconds",
             )
         return None
+
+
+def publish_benchmark_data(function_name: str):
+    return function_name if os.environ.get("PUBLISH_BENCHMARK_DATA") else None
 
 
 def get_df(governed=False):
