@@ -77,6 +77,9 @@ def _generate_empty_frame_for_table(
     boto3_session: Optional[boto3.Session] = None,
 ) -> pandas.DataFrame:
     type_dict = wr.catalog.get_table_types(database=database, table=table, boto3_session=boto3_session)
+    if type_dict is None:
+        raise wr.exceptions.ResourceDoesNotExist(f"Table {table} from database {database} does not exist.")
+
     empty_frame = pandas.DataFrame(columns=type_dict.keys())
     return _data_types.cast_pandas_with_athena_types(empty_frame, type_dict)
 

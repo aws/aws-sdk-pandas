@@ -555,7 +555,7 @@ https://opendistro.github.io/for-elasticsearch-docs/docs/elasticsearch/rest-api-
                 **kwargs,
             )
             success += _success
-            errors += _errors  # type: ignore
+            errors += _errors
             _logger.debug("indexed %s documents (%s/%s)", _success, success, total_documents)
             progress_bar.update(success, force=True)
     except TransportError as e:

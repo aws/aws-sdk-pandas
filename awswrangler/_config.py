@@ -3,7 +3,7 @@
 import inspect
 import logging
 import os
-from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple, Type, Union, cast
+from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple, Type, TypeVar, Union, cast
 
 import botocore.config
 import pandas as pd
@@ -466,7 +466,10 @@ def _inject_config_doc(doc: Optional[str], available_configs: Tuple[str, ...]) -
     return _insert_str(text=doc, token="\n    Parameters", insert=insertion)
 
 
-def apply_configs(function: Callable[..., Any]) -> Callable[..., Any]:
+FunctionType = TypeVar("FunctionType", bound=Callable[..., Any])
+
+
+def apply_configs(function: FunctionType) -> FunctionType:
     """Decorate some function with configs."""
     signature = inspect.signature(function)
     args_names: Tuple[str, ...] = tuple(signature.parameters.keys())
@@ -495,7 +498,7 @@ def apply_configs(function: Callable[..., Any]) -> Callable[..., Any]:
     wrapper.__doc__ = _inject_config_doc(doc=function.__doc__, available_configs=available_configs)
     wrapper.__name__ = function.__name__
     wrapper.__setattr__("__signature__", signature)  # pylint: disable=no-member
-    return wrapper
+    return wrapper  # type: ignore
 
 
 config: _Config = _Config()

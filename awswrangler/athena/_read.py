@@ -106,6 +106,9 @@ def _fetch_parquet_result(
 
         database, temp_table_name = map(lambda x: x.replace('"', ""), temp_table_fqn.split("."))
         dtype_dict = catalog.get_table_types(database=database, table=temp_table_name, boto3_session=boto3_session)
+        if dtype_dict is None:
+            raise exceptions.ResourceDoesNotExist(f"Temp table {temp_table_fqn} not found.")
+
         df = pd.DataFrame(columns=list(dtype_dict.keys()))
         df = cast_pandas_with_athena_types(df=df, dtype=dtype_dict)
         df = _apply_query_metadata(df=df, query_metadata=query_metadata)
