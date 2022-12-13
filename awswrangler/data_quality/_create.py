@@ -20,16 +20,14 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 def _create_dqdl(
     df_rules: pd.DataFrame,
-):
+) -> str:
     """Create DQDL from pandas data frame."""
     rules = []
     for rule_type, parameter, expression in df_rules.itertuples(index=False):
         parameter_str = f' "{parameter}" ' if parameter else " "
         expression_str = expression if expression else ""
         rules.append(f"{rule_type}{parameter_str}{expression_str}")
-
-    rules_str = "Rules = [ " + ", ".join(rules) + " ]"
-    return rules_str
+    return "Rules = [ " + ", ".join(rules) + " ]"
 
 
 @apply_configs
@@ -67,11 +65,32 @@ def create_ruleset(
     Examples
     --------
     >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>>
+    >>> df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 0, 1]})
+    >>> wr.s3.to_parquet(df, path, dataset=True, database="database", table="table")
     >>> wr.data_quality.create_ruleset(
     >>>     name="ruleset",
-    >>>     database="db",
+    >>>     database="database",
     >>>     table="table",
-    >>>     dqdl_rules=dqdl_rules,
+    >>>     dqdl_rules="Rules = [ RowCount between 1 and 3 ]",
+    >>>)
+
+    >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>>
+    >>> df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 0, 1]})
+    >>> df_rules = pd.DataFrame({
+    >>>        "rule_type": ["RowCount", "IsComplete", "Uniqueness"],
+    >>>        "parameter": [None, "c0", "c0"],
+    >>>        "expression": ["between 1 and 6", None, "> 0.95"],
+    >>> })
+    >>> wr.s3.to_parquet(df, path, dataset=True, database="database", table="table")
+    >>> wr.data_quality.create_ruleset(
+    >>>     name="ruleset",
+    >>>     database="database",
+    >>>     table="table",
+    >>>     df_rules=df_rules,
     >>>)
     """
     if df_rules is not None and dqdl_rules:
@@ -108,7 +127,7 @@ def evaluate_ruleset(
     additional_options: Optional[Dict[str, str]] = None,
     additional_run_options: Optional[Dict[str, str]] = None,
     boto3_session: Optional[boto3.Session] = None,
-):
+) -> pd.DataFrame:
     """Evaluate Data Quality ruleset.
 
     Parameters
@@ -144,6 +163,16 @@ def evaluate_ruleset(
     Examples
     --------
     >>> import awswrangler as wr
+    >>> import pandas as pd
+    >>>
+    >>> df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 0, 1]})
+    >>> wr.s3.to_parquet(df, path, dataset=True, database="database", table="table")
+    >>> wr.data_quality.create_ruleset(
+    >>>     name="ruleset",
+    >>>     database="database",
+    >>>     table="table",
+    >>>     dqdl_rules="Rules = [ RowCount between 1 and 3 ]",
+    >>>)
     >>> wr.data_quality.evaluate_ruleset(
     >>>     name="ruleset",
     >>>     iam_role_arn=glue_data_quality_role,

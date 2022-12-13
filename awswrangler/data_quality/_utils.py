@@ -23,7 +23,7 @@ def _create_datasource(
     connection: Optional[str] = None,
     additional_options: Optional[Dict[str, str]] = None,
 ) -> Dict[str, Dict[str, str]]:
-    datasource: Dict[str, Dict[str, str]] = {
+    datasource: Dict[str, Dict[str, Any]] = {
         "GlueTable": {
             "DatabaseName": database,
             "TableName": table,
@@ -51,13 +51,13 @@ def _start_ruleset_evaluation_run(
     additional_run_options: Optional[Dict[str, str]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
-    boto3_session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    boto3_session = _utils.ensure_session(session=boto3_session)
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
 
     if not database or not table:
         ruleset: Dict[str, Dict[str, str]] = _get_ruleset(ruleset_name=ruleset_names[0], boto3_session=boto3_session)
-        database: str = ruleset["TargetTable"]["DatabaseName"]
-        table: str = ruleset["TargetTable"]["TableName"]
+        database = ruleset["TargetTable"]["DatabaseName"]
+        table = ruleset["TargetTable"]["TableName"]
     datasource: Dict[str, Dict[str, str]] = _create_datasource(
         database=database,
         table=table,
@@ -85,10 +85,9 @@ def _get_ruleset_evaluation_run(
     run_id: str,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, Any]:
-    boto3_session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    boto3_session = _utils.ensure_session(session=boto3_session)
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    response: Dict[str, Any] = client_glue.get_data_quality_ruleset_evaluation_run(RunId=run_id)
-    return cast(Dict[str, Any], response)
+    return cast(Dict[str, Any], client_glue.get_data_quality_ruleset_evaluation_run(RunId=run_id))
 
 
 def _wait_ruleset_evaluation_run(
@@ -107,33 +106,32 @@ def _wait_ruleset_evaluation_run(
         raise exceptions.QueryFailed(response.get("ErrorString"))
     if status == "STOPPED":
         raise exceptions.QueryCancelled("Ruleset execution stopped")
-    return response["ResultIds"]
+    return cast(List[str], response["ResultIds"])
 
 
 def _get_ruleset(
     ruleset_name: str,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, Any]:
-    boto3_session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    boto3_session = _utils.ensure_session(session=boto3_session)
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    response: Dict[str, Any] = client_glue.get_data_quality_ruleset(Name=ruleset_name)
-    return cast(Dict[str, Any], response)
+    return cast(Dict[str, Any], client_glue.get_data_quality_ruleset(Name=ruleset_name))
 
 
 def _get_data_quality_results(
     result_ids: List[str],
     boto3_session: Optional[boto3.Session] = None,
 ) -> pd.DataFrame:
-    boto3_session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    boto3_session = _utils.ensure_session(session=boto3_session)
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
 
-    results: Dict[str, Any] = client_glue.batch_get_data_quality_result(
+    results: List[Dict[str, Any]] = client_glue.batch_get_data_quality_result(
         ResultIds=result_ids,
     )["Results"]
     rule_results: List[Dict[str, Any]] = []
     for result in results:
-        rules = result["RuleResults"]
+        rules: List[Dict[str, str]] = result["RuleResults"]
         for rule in rules:
             rule["ResultId"] = result["ResultId"]
         rule_results.extend(rules)
-    return pd.json_normalize(rule_results)
+    return cast(pd.DataFrame, pd.json_normalize(rule_results))
