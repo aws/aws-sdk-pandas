@@ -1,4 +1,3 @@
-import os
 import random
 import time
 from datetime import datetime
@@ -73,20 +72,6 @@ class ExecutionTimer:
                 unit_type="Seconds",
             )
         return None
-
-
-def publish_benchmark_data(
-    function_name: str, cloudwatch_metric_parameters: Dict[str, str]
-) -> Union[Dict[str, str], Any]:
-    return (
-        {
-            "test_name": function_name,
-            "metric_namespace": cloudwatch_metric_parameters["metric_namespace"],
-            "metric_name": cloudwatch_metric_parameters["metric_name"],
-        }
-        if os.environ.get("PUBLISH_BENCHMARK_DATA")
-        else None
-    )
 
 
 def get_df(governed=False):

@@ -9,7 +9,7 @@ from modin.distributed.dataframe.pandas import unwrap_partitions
 
 import awswrangler as wr
 
-from .._utils import ExecutionTimer, publish_benchmark_data
+from .._utils import ExecutionTimer
 
 
 @pytest.fixture(scope="function")
@@ -49,9 +49,7 @@ def test_s3_select(benchmark_time, cloudwatch_metric_data):
     path = "s3://ursa-labs-taxi-data/2018/1*.parquet"
     with ExecutionTimer(
         "elapsed time of wr.s3.select_query()",
-        cloudwatch_metric_data=publish_benchmark_data(
-            test_s3_select.__name__, cloudwatch_metric_parameters=cloudwatch_metric_data
-        ),
+        cloudwatch_metric_data=dict({"test_name": test_s3_select.__name__}, **cloudwatch_metric_data),
     ) as timer:
         df = wr.s3.select_query(
             sql="SELECT * FROM s3object",
