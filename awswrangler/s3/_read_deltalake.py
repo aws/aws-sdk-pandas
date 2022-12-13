@@ -28,7 +28,6 @@ def read_deltalake(
     version: Optional[int] = None,
     partitions: Optional[List[Tuple[str, str, Any]]] = None,
     columns: Optional[List[str]] = None,
-    without_files: bool = False,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -53,9 +52,6 @@ def read_deltalake(
     columns: Optional[List[str]]
         The columns to project. This can be a list of column names to include
         (order and duplicates are preserved).
-    without_files: bool
-        If True, load the table without tracking files (memory-friendly).
-        Some append-only applications might not need to track files.
     boto3_session: Optional[boto3.Session()]
         Boto3 Session. If None, the default boto3 session is used.
     s3_additional_kwargs: Optional[Dict[str, str]]
@@ -80,7 +76,6 @@ def read_deltalake(
             table_uri=path,
             version=version,
             storage_options=storage_options,
-            without_files=without_files,
         )
         .to_pyarrow_table(partitions=partitions, columns=columns)
         .to_pandas(**pyarrow_additional_kwargs)
