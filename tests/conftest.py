@@ -384,10 +384,9 @@ def redshift_con():
     con.close()
 
 
-@pytest.fixture
-def globals():
-    pytest.metric_namespace = "load_test_benchmarks"
-    pytest.metric_name = "sdk_pandas_load_test_benchmark_data"
+@pytest.fixture(scope="module")
+def cloudwatch_metric_data():
+    return {"metric_namespace": "load_test_benchmarks", "metric_name": "sdk_pandas_load_test_benchmark_data"}
 
 
 @pytest.fixture(scope="function")

@@ -8,7 +8,6 @@ from typing import Any, Dict, Iterator, Optional, Union
 
 import boto3
 import botocore.exceptions
-import pytest
 from pandas import DataFrame as PandasDataFrame
 from pandas import Series as PandasSeries
 
@@ -34,9 +33,13 @@ cloudwatch_client = boto3.client("cloudwatch")
 
 
 class ExecutionTimer:
-    def __init__(self, msg="elapsed time", test_name: Optional[str] = None):
+    def __init__(self, msg="elapsed time", cloudwatch_metric_data: Optional[Dict[str, str]] = None):
         self.msg = msg
-        self.test_name = test_name
+        if cloudwatch_metric_data:
+            self.publish_metrics = True
+            self.test_name = cloudwatch_metric_data["test_name"]
+            self.metric_namespace = cloudwatch_metric_data["metric_namespace"]
+            self.metric_name = cloudwatch_metric_data["metric_name"]
 
     def _publish_metric(self, namespace, metric_name, test_name, value, unit_type="None"):
         cloudwatch_client.put_metric_data(
@@ -61,10 +64,10 @@ class ExecutionTimer:
     def __exit__(self, type, value, traceback):
         self.elapsed_time = round((timer() - self.before), 3)
         print(f"{self.msg}: {self.elapsed_time:.3f} sec")
-        if self.test_name:
+        if self.publish_metrics:
             self._publish_metric(
-                pytest.metric_namespace,
-                pytest.metric_name,
+                self.metric_namespace,
+                self.metric_name,
                 self.test_name,
                 self.elapsed_time,
                 unit_type="Seconds",
@@ -72,8 +75,18 @@ class ExecutionTimer:
         return None
 
 
-def publish_benchmark_data(function_name: str):
-    return function_name if os.environ.get("PUBLISH_BENCHMARK_DATA") else None
+def publish_benchmark_data(
+    function_name: str, cloudwatch_metric_parameters: Dict[str, str]
+) -> Union[Dict[str, str], Any]:
+    return (
+        {
+            "test_name": function_name,
+            "metric_namespace": cloudwatch_metric_parameters["metric_namespace"],
+            "metric_name": cloudwatch_metric_parameters["metric_name"],
+        }
+        if os.environ.get("PUBLISH_BENCHMARK_DATA")
+        else None
+    )
 
 
 def get_df(governed=False):

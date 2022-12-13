@@ -45,10 +45,13 @@ def _modin_repartition(df: pd.DataFrame, num_blocks: int) -> pd.DataFrame:
 
 @pytest.mark.repeat(1)
 @pytest.mark.parametrize("benchmark_time", [180])
-def test_s3_select(benchmark_time):
+def test_s3_select(benchmark_time, cloudwatch_metric_data):
     path = "s3://ursa-labs-taxi-data/2018/1*.parquet"
     with ExecutionTimer(
-        "elapsed time of wr.s3.select_query()", test_name=publish_benchmark_data(test_s3_select.__name__)
+        "elapsed time of wr.s3.select_query()",
+        cloudwatch_metric_data=publish_benchmark_data(
+            test_s3_select.__name__, cloudwatch_metric_parameters=cloudwatch_metric_data
+        ),
     ) as timer:
         df = wr.s3.select_query(
             sql="SELECT * FROM s3object",
