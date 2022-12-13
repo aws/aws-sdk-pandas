@@ -1,7 +1,7 @@
 """Amazon S3 Download Module (PRIVATE)."""
 
 import logging
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Union, cast
 
 import boto3
 
@@ -76,7 +76,7 @@ def download(
         if isinstance(local_file, str):
             _logger.debug("Downloading local_file: %s", local_file)
             with open(file=local_file, mode="wb") as local_f:
-                local_f.write(s3_f.read())
+                local_f.write(cast(bytes, s3_f.read()))
         else:
             _logger.debug("Downloading file-like object.")
             local_file.write(s3_f.read())

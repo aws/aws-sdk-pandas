@@ -228,7 +228,7 @@ class _S3ObjectBase(io.RawIOBase):  # pylint: disable=too-many-instance-attribut
         else:
             raise RuntimeError(f"Invalid mode: {self._mode}")
 
-    def __enter__(self) -> Union["_S3ObjectBase"]:
+    def __enter__(self) -> "_S3ObjectBase":
         return self
 
     def __exit__(self, exc_type: Any, exc_value: Any, exc_traceback: Any) -> None:

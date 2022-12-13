@@ -554,15 +554,18 @@ def repair_table(
     if (database is not None) and (not database.startswith("`")):
         database = f"`{database}`"
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    query_id = start_query_execution(
-        sql=query,
-        database=database,
-        data_source=data_source,
-        s3_output=s3_output,
-        workgroup=workgroup,
-        encryption=encryption,
-        kms_key=kms_key,
-        boto3_session=session,
+    query_id = cast(
+        str,
+        start_query_execution(
+            sql=query,
+            database=database,
+            data_source=data_source,
+            s3_output=s3_output,
+            workgroup=workgroup,
+            encryption=encryption,
+            kms_key=kms_key,
+            boto3_session=session,
+        ),
     )
     response: Dict[str, Any] = wait_query(query_execution_id=query_id, boto3_session=session)
     return cast(str, response["Status"]["State"])
@@ -624,14 +627,17 @@ def describe_table(
     if (database is not None) and (not database.startswith("`")):
         database = f"`{database}`"
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    query_id = start_query_execution(
-        sql=query,
-        database=database,
-        s3_output=s3_output,
-        workgroup=workgroup,
-        encryption=encryption,
-        kms_key=kms_key,
-        boto3_session=session,
+    query_id = cast(
+        str,
+        start_query_execution(
+            sql=query,
+            database=database,
+            s3_output=s3_output,
+            workgroup=workgroup,
+            encryption=encryption,
+            kms_key=kms_key,
+            boto3_session=session,
+        ),
     )
     query_metadata: _QueryMetadata = _get_query_metadata(query_execution_id=query_id, boto3_session=session)
     raw_result = _fetch_txt_result(
@@ -643,7 +649,7 @@ def describe_table(
 @apply_configs
 def create_ctas_table(  # pylint: disable=too-many-locals
     sql: str,
-    database: str,
+    database: Optional[str] = None,
     ctas_table: Optional[str] = None,
     ctas_database: Optional[str] = None,
     s3_output: Optional[str] = None,
@@ -669,7 +675,7 @@ def create_ctas_table(  # pylint: disable=too-many-locals
     ----------
     sql : str
         SELECT SQL query.
-    database : str
+    database : Optional[str], optional
         The name of the database where the original table is stored.
     ctas_table : Optional[str], optional
         The name of the CTAS table.
@@ -756,6 +762,10 @@ def create_ctas_table(  # pylint: disable=too-many-locals
     """
     ctas_table = catalog.sanitize_table_name(ctas_table) if ctas_table else f"temp_table_{uuid.uuid4().hex}"
     ctas_database = ctas_database if ctas_database else database
+
+    if ctas_database is None:
+        raise exceptions.InvalidArgumentCombination("Either ctas_database or database must be defined.")
+
     fully_qualified_name = f'"{ctas_database}"."{ctas_table}"'
 
     wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
@@ -904,14 +914,17 @@ def show_create_table(
     if (database is not None) and (not database.startswith("`")):
         database = f"`{database}`"
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    query_id = start_query_execution(
-        sql=query,
-        database=database,
-        s3_output=s3_output,
-        workgroup=workgroup,
-        encryption=encryption,
-        kms_key=kms_key,
-        boto3_session=session,
+    query_id = cast(
+        str,
+        start_query_execution(
+            sql=query,
+            database=database,
+            s3_output=s3_output,
+            workgroup=workgroup,
+            encryption=encryption,
+            kms_key=kms_key,
+            boto3_session=session,
+        ),
     )
     query_metadata: _QueryMetadata = _get_query_metadata(query_execution_id=query_id, boto3_session=session)
     raw_result = _fetch_txt_result(

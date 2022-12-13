@@ -1,7 +1,7 @@
 """Internal (private) Amazon QuickSight Utilities Module."""
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 import boto3
 
@@ -29,7 +29,9 @@ def extract_athena_query_columns(
     data_source: Dict[str, Any] = [x for x in data_sources if x["Arn"] == data_source_arn][0]
     workgroup: str = data_source["DataSourceParameters"]["AthenaParameters"]["WorkGroup"]
     sql_wrapped: str = f"/* QuickSight */\nSELECT ds.* FROM ( {sql} ) ds LIMIT 0"
-    query_id: str = athena.start_query_execution(sql=sql_wrapped, workgroup=workgroup, boto3_session=boto3_session)
+    query_id = cast(
+        str, athena.start_query_execution(sql=sql_wrapped, workgroup=workgroup, boto3_session=boto3_session)
+    )
     athena.wait_query(query_execution_id=query_id, boto3_session=boto3_session)
     dtypes: Dict[str, str] = athena.get_query_columns_types(query_execution_id=query_id, boto3_session=boto3_session)
     return [{"Name": name, "Type": _data_types.athena2quicksight(dtype=dtype)} for name, dtype in dtypes.items()]
