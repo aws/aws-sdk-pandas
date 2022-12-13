@@ -1,4 +1,4 @@
-"""Data Quality module."""
+"""AWS Glue Data Quality Utils module."""
 
 import logging
 import pprint
@@ -15,16 +15,60 @@ _RULESET_EVALUATION_FINAL_STATUSES: List[str] = ["STOPPED", "SUCCEEDED", "FAILED
 _RULESET_EVALUATION_WAIT_POLLING_DELAY: float = 0.25  # SECONDS
 
 
+def _create_datasource(
+    database: str,
+    table: str,
+    catalog_id: Optional[str] = None,
+    connection: Optional[str] = None,
+    additional_options: Optional[Dict[str, str]] = None,
+) -> Dict[str, Dict[str, str]]:
+    datasource: Dict[str, Dict[str, str]] = {
+        "GlueTable": {
+            "DatabaseName": database,
+            "TableName": table,
+        }
+    }
+    if catalog_id:
+        datasource["GlueTable"]["CatalogId"] = catalog_id
+    if connection:
+        datasource["GlueTable"]["ConnectionName"] = connection
+    if additional_options:
+        datasource["GlueTable"]["AdditionalOptions"] = additional_options
+    return datasource
+
+
 def _start_ruleset_evaluation_run(
     ruleset_names: Union[str, List[str]],
+    iam_role_arn: str,
+    number_of_workers: int = 5,
+    timeout: int = 2880,
+    database: Optional[str] = None,
+    table: Optional[str] = None,
+    catalog_id: Optional[str] = None,
+    connection: Optional[str] = None,
+    additional_options: Optional[Dict[str, str]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
     boto3_session: boto3.Session = _utils.ensure_session(session=boto3_session)
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
 
+    if not database or not table:
+        ruleset: Dict[str, Dict[str, str]] = _get_ruleset(ruleset_name=ruleset_names[0], boto3_session=boto3_session)
+        database: str = ruleset["TargetTable"]["DatabaseName"]
+        table: str = ruleset["TargetTable"]["TableName"]
+    datasource: Dict[str, Dict[str, str]] = _create_datasource(
+        database=database,
+        table=table,
+        catalog_id=catalog_id,
+        connection=connection,
+        additional_options=additional_options,
+    )
     args: Dict[str, Any] = {
         "RulesetNames": ruleset_names if isinstance(ruleset_names, list) else [ruleset_names],
-        "DataSource": data_source,
+        "DataSource": datasource,
+        "Role": iam_role_arn,
+        "NumberOfWorkers": number_of_workers,
+        "Timeout": timeout,
     }
 
     _logger.debug("args: \n%s", pprint.pformat(args))
@@ -83,19 +127,3 @@ def _get_data_quality_result(
     rule_results: Dict[str, Any] = client_glue.get_data_quality_result(
         ResultId=result_id,
     )["RuleResults"]
-
-
-def _evaluate_ruleset(
-    ruleset_names: Union[str, List[str]],
-    boto3_session: Optional[boto3.Session] = None,
-):
-    run_id: str = _start_ruleset_evaluation_run(
-        ruleset_names=ruleset_names,
-        boto3_session=boto3_session,
-    )
-    _logger.debug("query_id: %s", run_id)
-
-    result_ids: List[str] = _wait_ruleset_evaluation_run(
-        run_id=run_id,
-        boto3_session=boto3_session,
-    )

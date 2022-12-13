@@ -7,7 +7,7 @@ import awswrangler as wr
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
-def test_create_ruleset_df(path, glue_database, glue_table, glue_ruleset):
+def test_ruleset_df(path, glue_database, glue_table, glue_ruleset, glue_data_quality_role):
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 0, 1]})
     wr.s3.to_parquet(df, path, dataset=True, database=glue_database, table=glue_table)
     df_rules = pd.DataFrame(
@@ -23,9 +23,13 @@ def test_create_ruleset_df(path, glue_database, glue_table, glue_ruleset):
         table=glue_table,
         df_rules=df_rules,
     )
+    wr.data_quality.evaluate_ruleset(
+        name=glue_ruleset,
+        iam_role_arn=glue_data_quality_role,
+    )
 
 
-def test_create_ruleset_dqdl(path, glue_database, glue_table, glue_ruleset):
+def test_ruleset_dqdl(path, glue_database, glue_table, glue_ruleset, glue_data_quality_role):
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 0, 1]})
     wr.s3.to_parquet(df, path, dataset=True, database=glue_database, table=glue_table)
     dqdl_rules = (
@@ -46,4 +50,8 @@ def test_create_ruleset_dqdl(path, glue_database, glue_table, glue_ruleset):
         database=glue_database,
         table=glue_table,
         dqdl_rules=dqdl_rules,
+    )
+    wr.data_quality.evaluate_ruleset(
+        name=glue_ruleset,
+        iam_role_arn=glue_data_quality_role,
     )

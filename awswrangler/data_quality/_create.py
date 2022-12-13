@@ -1,13 +1,19 @@
-"""Data Quality module."""
+"""AWS Glue Data Quality Create module."""
 
 import logging
 import uuid
-from typing import Optional
+from typing import Dict, List, Optional, Union
 
 import boto3
 import pandas as pd
 
 from awswrangler import _utils, exceptions
+from awswrangler._config import apply_configs
+from awswrangler.data_quality._utils import (
+    _create_datasource,
+    _start_ruleset_evaluation_run,
+    _wait_ruleset_evaluation_run,
+)
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -26,6 +32,7 @@ def _create_dqdl(
     return rules_str
 
 
+@apply_configs
 def create_ruleset(
     name: str,
     database: str,
@@ -86,3 +93,32 @@ def create_ruleset(
         )
     except client_glue.exceptions.AlreadyExistsException:
         raise exceptions.AlreadyExists(f"Ruleset {name} already exists.")
+
+
+@apply_configs
+def evaluate_ruleset(
+    name: str,
+    iam_role_arn: str,
+    number_of_workers: int = 5,
+    timeout: int = 2880,
+    database: Optional[str] = None,
+    table: Optional[str] = None,
+    catalog_id: Optional[str] = None,
+    connection: Optional[str] = None,
+    additional_options: Optional[Dict[str, str]] = None,
+    boto3_session: Optional[boto3.Session] = None,
+):
+    run_id: str = _start_ruleset_evaluation_run(
+        ruleset_names=[name],
+        iam_role_arn=iam_role_arn,
+        number_of_workers=number_of_workers,
+        timeout=timeout,
+        database=database,
+        table=table,
+        catalog_id=catalog_id,
+        connection=connection,
+        additional_options=additional_options,
+        boto3_session=boto3_session,
+    )
+    _logger.debug("run_id: %s", run_id)
+    return _wait_ruleset_evaluation_run(run_id=run_id, boto3_session=boto3_session)

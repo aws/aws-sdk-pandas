@@ -368,3 +368,8 @@ def glue_ruleset() -> str:
     name = f"ruleset_{get_time_str_with_random_suffix()}"
     print(f"Ruleset name: {name}")
     yield name
+
+
+@pytest.fixture(scope="session")
+def glue_data_quality_role(cloudformation_outputs):
+    return cloudformation_outputs["GlueDataQualityRole"]
