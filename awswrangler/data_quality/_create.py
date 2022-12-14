@@ -2,7 +2,7 @@
 
 import logging
 import uuid
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import boto3
 import pandas as pd
@@ -116,7 +116,7 @@ def create_ruleset(
 
 @apply_configs
 def evaluate_ruleset(
-    name: str,
+    name: Union[str, List[str]],
     iam_role_arn: str,
     number_of_workers: int = 5,
     timeout: int = 2880,
@@ -126,6 +126,7 @@ def evaluate_ruleset(
     connection: Optional[str] = None,
     additional_options: Optional[Dict[str, str]] = None,
     additional_run_options: Optional[Dict[str, str]] = None,
+    client_token: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> pd.DataFrame:
     """Evaluate Data Quality ruleset.
@@ -157,6 +158,8 @@ def evaluate_ruleset(
         Additional run options. Supported keys:
         `CloudWatchMetricsEnabled`: whether to enable CloudWatch metrics.
         `ResultsS3Prefix`: prefix for Amazon S3 to store results.
+    client_token : str, optional
+        Random id used for idempotency. Will be automatically generated if not provided.
     boto3_session : boto3.Session, optional
         Ruleset description.
 
@@ -179,7 +182,7 @@ def evaluate_ruleset(
     >>> )
     """
     run_id: str = _start_ruleset_evaluation_run(
-        ruleset_names=[name],
+        ruleset_names=[name] if isinstance(name, str) else name,
         iam_role_arn=iam_role_arn,
         number_of_workers=number_of_workers,
         timeout=timeout,
@@ -189,6 +192,7 @@ def evaluate_ruleset(
         connection=connection,
         additional_options=additional_options,
         additional_run_options=additional_run_options,
+        client_token=client_token if client_token else uuid.uuid4().hex,
         boto3_session=boto3_session,
     )
     _logger.debug("run_id: %s", run_id)

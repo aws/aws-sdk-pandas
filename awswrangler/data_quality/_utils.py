@@ -49,6 +49,7 @@ def _start_ruleset_evaluation_run(
     connection: Optional[str] = None,
     additional_options: Optional[Dict[str, str]] = None,
     additional_run_options: Optional[Dict[str, str]] = None,
+    client_token: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
     boto3_session = _utils.ensure_session(session=boto3_session)
@@ -71,6 +72,7 @@ def _start_ruleset_evaluation_run(
         "Role": iam_role_arn,
         "NumberOfWorkers": number_of_workers,
         "Timeout": timeout,
+        "ClientToken": client_token,
     }
     if additional_run_options:
         args["AdditionalRunOptions"] = additional_run_options
