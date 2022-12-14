@@ -75,3 +75,22 @@ def test_ruleset_fail(df, path, glue_database, glue_table, glue_ruleset, glue_da
         iam_role_arn=glue_data_quality_role,
     )
     assert df_results["Result"][0] == "FAIL"
+
+
+def test_ruleset_pushdown_predicate(path, glue_database, glue_table, glue_ruleset, glue_data_quality_role):
+    df = pd.DataFrame({"c0": [0, 1, 2, 3], "c1": [0, 1, 2, 3], "c2": [0, 0, 1, 1]})
+    wr.s3.to_parquet(df, path, dataset=True, database=glue_database, table=glue_table, partition_cols=["c2"])
+    wr.data_quality.create_ruleset(
+        name=glue_ruleset,
+        database=glue_database,
+        table=glue_table,
+        dqdl_rules="Rules = [ RowCount between 1 and 3 ]",
+    )
+    df_results = wr.data_quality.evaluate_ruleset(
+        name=glue_ruleset,
+        iam_role_arn=glue_data_quality_role,
+        additional_options={
+            "pushDownPredicate": "(c2 == '0')",
+        },
+    )
+    assert df_results["Result"].eq("PASS").all()
