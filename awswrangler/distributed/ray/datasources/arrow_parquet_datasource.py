@@ -326,7 +326,7 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
             # Use SPREAD scheduling strategy to avoid packing many sampling tasks on
             # same machine to cause OOM issue, as sampling can be memory-intensive.
             futures.append(_sample_piece(_SerializedPiece(sample), idx))
-        sample_ratios = ray.get(futures)
+        sample_ratios = ray.get(futures)  # type: ignore[attr-defined]
         ratio = np.mean(sample_ratios)
 
         sampling_duration = time.perf_counter() - start_time
