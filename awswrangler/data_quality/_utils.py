@@ -12,7 +12,7 @@ from awswrangler import _utils, exceptions
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
-_RULESET_EVALUATION_FINAL_STATUSES: List[str] = ["STOPPED", "SUCCEEDED", "FAILED"]
+_RULESET_EVALUATION_FINAL_STATUSES: List[str] = ["STOPPED", "SUCCEEDED", "FAILED", "TIMEOUT"]
 _RULESET_EVALUATION_WAIT_POLLING_DELAY: float = 0.25  # SECONDS
 
 
