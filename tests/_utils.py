@@ -39,6 +39,8 @@ class ExecutionTimer:
             self.test_name = cloudwatch_metric_data["test_name"]
             self.metric_namespace = cloudwatch_metric_data["metric_namespace"]
             self.metric_name = cloudwatch_metric_data["metric_name"]
+        else:
+            self.publish_metrics = False
 
     def _publish_metric(self, namespace, metric_name, test_name, value, unit_type="None"):
         cloudwatch_client.put_metric_data(
