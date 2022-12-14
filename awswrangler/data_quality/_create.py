@@ -115,6 +115,61 @@ def create_ruleset(
 
 
 @apply_configs
+def update_ruleset(
+    name: str,
+    updated_name: Optional[str] = None,
+    df_rules: Optional[pd.DataFrame] = None,
+    dqdl_rules: Optional[str] = None,
+    description: str = "",
+    client_token: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
+) -> None:
+    """Update Data Quality ruleset.
+
+    Parameters
+    ----------
+    name : str
+        Ruleset name.
+    updated_name : str
+        New ruleset name if renaming an existing ruleset.
+    df_rules : str, optional
+        Data frame with `rule_type`, `parameter`, and `expression` columns.
+    dqdl_rules : str, optional
+        Data Quality Definition Language definition.
+    description : str
+        Ruleset description.
+    client_token : str, optional
+        Random id used for idempotency. Will be automatically generated if not provided.
+    boto3_session : boto3.Session, optional
+        Ruleset description.
+
+    Examples
+    --------
+    >>> wr.data_quality.update_ruleset(
+    >>>     name="ruleset",
+    >>>     new_name="my_ruleset",
+    >>>     dqdl_rules="Rules = [ RowCount between 1 and 3 ]",
+    >>>)
+    """
+    if df_rules is not None and dqdl_rules:
+        raise exceptions.InvalidArgumentCombination("You must pass either ruleset `df_rules` or `dqdl_rules`.")
+
+    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    dqdl_rules = _create_dqdl(df_rules) if df_rules is not None else dqdl_rules
+
+    try:
+        client_glue.update_data_quality_ruleset(
+            Name=name,
+            UpdatedName=updated_name,
+            Description=description,
+            Ruleset=dqdl_rules,
+            ClientToken=client_token if client_token else uuid.uuid4().hex,
+        )
+    except client_glue.exceptions.EntityNotFoundException:
+        raise exceptions.ResourceDoesNotExist(f"Ruleset {name} does not exist.")
+
+
+@apply_configs
 def evaluate_ruleset(
     name: Union[str, List[str]],
     iam_role_arn: str,
