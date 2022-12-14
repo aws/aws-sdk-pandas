@@ -82,6 +82,16 @@ class BaseStack(Stack):  # type: ignore
                 iam.ManagedPolicy.from_aws_managed_policy_name("AmazonS3FullAccess"),
                 iam.ManagedPolicy.from_aws_managed_policy_name("AWSGlueConsoleFullAccess"),
             ],
+            inline_policies={
+                "GetDataAccess": iam.PolicyDocument(
+                    statements=[
+                        iam.PolicyStatement(
+                            actions=["lakeformation:GetDataAccess"],
+                            resources=["*"],
+                        ),
+                    ]
+                ),
+            },
         )
         glue_db = glue.Database(
             self,
