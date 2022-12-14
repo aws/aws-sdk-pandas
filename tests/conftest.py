@@ -372,4 +372,4 @@ def glue_ruleset() -> str:
 
 @pytest.fixture(scope="session")
 def glue_data_quality_role(cloudformation_outputs):
-    return cloudformation_outputs["GlueDataQualityRole"]
+    return "arn:aws:iam::331141425201:role/AWSGlueServiceRole-Deequ"
