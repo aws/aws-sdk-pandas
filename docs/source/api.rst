@@ -12,6 +12,7 @@ API Reference
 * `Oracle`_
 * `Data API Redshift`_
 * `Data API RDS`_
+* `AWS Glue Data Quality`_
 * `OpenSearch`_
 * `Amazon Neptune`_
 * `DynamoDB`_
@@ -243,6 +244,20 @@ Data API RDS
     RdsDataApi
     connect
     read_sql_query
+
+AWS Glue Data Quality
+---------------------
+
+.. currentmodule:: awswrangler.data_quality
+
+.. autosummary::
+    :toctree: stubs
+
+    create_recommendation_ruleset
+    create_ruleset
+    evaluate_ruleset
+    get_ruleset
+    update_ruleset
 
 OpenSearch
 ----------

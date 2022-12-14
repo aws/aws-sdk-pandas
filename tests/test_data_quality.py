@@ -17,9 +17,9 @@ def df(path, glue_database, glue_table):
 def test_ruleset_df(df, path, glue_database, glue_table, glue_ruleset, glue_data_quality_role):
     df_rules = pd.DataFrame(
         {
-            "rule_type": ["RowCount", "IsComplete", "Uniqueness"],
-            "parameter": [None, "c0", "c0"],
-            "expression": ["between 1 and 6", None, "> 0.95"],
+            "rule_type": ["RowCount", "IsComplete", "Uniqueness", "ColumnValues"],
+            "parameter": [None, "c0", "c0", "c1"],
+            "expression": ["between 1 and 6", None, "> 0.95", "in [0, 1, 2]"],
         }
     )
     wr.data_quality.create_ruleset(
@@ -28,11 +28,15 @@ def test_ruleset_df(df, path, glue_database, glue_table, glue_ruleset, glue_data
         table=glue_table,
         df_rules=df_rules,
     )
+    df_ruleset = wr.data_quality.get_ruleset(name=glue_ruleset)
+    assert df_rules.equals(df_ruleset)
+
     df_results = wr.data_quality.evaluate_ruleset(
         name=glue_ruleset,
         iam_role_arn=glue_data_quality_role,
+        number_of_workers=2,
     )
-    assert df_results.shape == (3, 4)
+    assert df_results.shape == (4, 4)
     assert df_results["Result"].eq("PASS").all()
 
 
@@ -59,6 +63,31 @@ def test_ruleset_dqdl(df, path, glue_database, glue_table, glue_ruleset, glue_da
     df_results = wr.data_quality.evaluate_ruleset(
         name=glue_ruleset,
         iam_role_arn=glue_data_quality_role,
+        number_of_workers=2,
+    )
+    assert df_results["Result"].eq("PASS").all()
+
+
+def test_recommendation_ruleset(df, path, glue_database, glue_table, glue_ruleset, glue_data_quality_role):
+    df_recommended_ruleset = wr.data_quality.create_recommendation_ruleset(
+        database=glue_database,
+        table=glue_table,
+        iam_role_arn=glue_data_quality_role,
+        number_of_workers=2,
+    )
+    df_rules = df_recommended_ruleset.append(
+        {"rule_type": "ColumnValues", "parameter": "c2", "expression": "in [0, 1, 2]"}, ignore_index=True
+    )
+    wr.data_quality.create_ruleset(
+        name=glue_ruleset,
+        database=glue_database,
+        table=glue_table,
+        df_rules=df_rules,
+    )
+    df_results = wr.data_quality.evaluate_ruleset(
+        name=glue_ruleset,
+        iam_role_arn=glue_data_quality_role,
+        number_of_workers=2,
     )
     assert df_results["Result"].eq("PASS").all()
 
@@ -73,6 +102,7 @@ def test_ruleset_fail(df, path, glue_database, glue_table, glue_ruleset, glue_da
     df_results = wr.data_quality.evaluate_ruleset(
         name=glue_ruleset,
         iam_role_arn=glue_data_quality_role,
+        number_of_workers=2,
     )
     assert df_results["Result"][0] == "FAIL"
 
