@@ -36,7 +36,7 @@ def _parse_rules(rules: List[str]) -> List[Tuple[str, Optional[str], Optional[st
 def _rules_to_df(rules: str) -> pd.DataFrame:
     rules = re.sub(r"^\s*Rules\s*=\s*\[\s*", "", rules)  # remove Rules = [\n
     rules = re.sub(r"\s*\]\s*$", "", rules)  # remove \n]
-    rules = re.sub(r"\s*,\s*", "', '", rules)
+    rules = re.sub(r"\s*,\s*(?![^[]*])", "', '", rules)
     list_rules = ast.literal_eval(f"['{rules}']")
     return pd.DataFrame(_parse_rules(list_rules), columns=["rule_type", "parameter", "expression"])
 

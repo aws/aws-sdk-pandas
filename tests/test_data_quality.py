@@ -17,9 +17,9 @@ def df(path, glue_database, glue_table):
 def test_ruleset_df(df, path, glue_database, glue_table, glue_ruleset, glue_data_quality_role):
     df_rules = pd.DataFrame(
         {
-            "rule_type": ["RowCount", "IsComplete", "Uniqueness"],
-            "parameter": [None, "c0", "c0"],
-            "expression": ["between 1 and 6", None, "> 0.95"],
+            "rule_type": ["RowCount", "IsComplete", "Uniqueness", "ColumnValues"],
+            "parameter": [None, "c0", "c0", "c1"],
+            "expression": ["between 1 and 6", None, "> 0.95", "in [0, 1, 2]"],
         }
     )
     wr.data_quality.create_ruleset(
@@ -36,7 +36,7 @@ def test_ruleset_df(df, path, glue_database, glue_table, glue_ruleset, glue_data
         iam_role_arn=glue_data_quality_role,
         number_of_workers=2,
     )
-    assert df_results.shape == (3, 4)
+    assert df_results.shape == (4, 4)
     assert df_results["Result"].eq("PASS").all()
 
 
@@ -76,7 +76,7 @@ def test_recommendation_ruleset(df, path, glue_database, glue_table, glue_rulese
         number_of_workers=2,
     )
     df_rules = df_recommended_ruleset.append(
-        {"rule_type": "Sum", "parameter": "c1", "expression": "< 4"}, ignore_index=True
+        {"rule_type": "ColumnValues", "parameter": "c2", "expression": "in [0, 1, 2]"}, ignore_index=True
     )
     wr.data_quality.create_ruleset(
         name=glue_ruleset,
