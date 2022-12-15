@@ -119,6 +119,7 @@ def test_ruleset_pushdown_predicate(path, glue_database, glue_table, glue_rulese
     df_results = wr.data_quality.evaluate_ruleset(
         name=glue_ruleset,
         iam_role_arn=glue_data_quality_role,
+        number_of_workers=2,
         additional_options={
             "pushDownPredicate": "(c2 == '0')",
         },
