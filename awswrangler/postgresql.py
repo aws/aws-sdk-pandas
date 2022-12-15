@@ -407,7 +407,7 @@ def to_sql(
                 conflict_columns = ", ".join(upsert_conflict_columns)  # type: ignore
                 upsert_str = f" ON CONFLICT ({conflict_columns}) DO UPDATE SET {upsert_columns}"
             if mode == "append" and insert_conflict_columns:
-                conflict_columns = ", ".join(insert_conflict_columns)  # type: ignore
+                conflict_columns = ", ".join(insert_conflict_columns)
                 upsert_str = f" ON CONFLICT ({conflict_columns}) DO NOTHING"
             placeholder_parameter_pair_generator = _db_utils.generate_placeholder_parameter_pairs(
                 df=df, column_placeholders=column_placeholders, chunksize=chunksize

@@ -97,7 +97,7 @@ You can choose from three different environments to test your fixes/changes, bas
 
 * Install dependencies:
 
-``poetry install --extras "sqlserver oracle sparql"``
+``poetry install --extras "sqlserver oracle sparql deltalake"``
 
 * Run the validation script:
 
@@ -121,7 +121,7 @@ You can choose from three different environments to test your fixes/changes, bas
 
 * Install dependencies:
 
-``poetry install --extras "sqlserver oracle sparql"``
+``poetry install --extras "sqlserver oracle sparql deltalake"``
 
 * Go to the ``test_infra`` directory
 

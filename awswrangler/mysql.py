@@ -401,7 +401,7 @@ def to_sql(
     _db_utils.validate_mode(mode=mode, allowed_modes=allowed_modes)
     _validate_connection(con=con)
     try:
-        with con.cursor(cursor=cursorclass) as cursor:  # type: ignore
+        with con.cursor(cursor=cursorclass) as cursor:
             _create_table(
                 df=df,
                 cursor=cursor,
