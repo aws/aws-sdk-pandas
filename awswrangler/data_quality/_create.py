@@ -124,7 +124,6 @@ def update_ruleset(
     df_rules: Optional[pd.DataFrame] = None,
     dqdl_rules: Optional[str] = None,
     description: str = "",
-    client_token: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> None:
     """Update Data Quality ruleset.
@@ -141,8 +140,6 @@ def update_ruleset(
         Data Quality Definition Language definition.
     description : str
         Ruleset description.
-    client_token : str, optional
-        Random id used for idempotency. Is automatically generated if not provided.
     boto3_session : boto3.Session, optional
         Boto3 Session. If none, the default boto3 session is used.
 
@@ -166,7 +163,6 @@ def update_ruleset(
             UpdatedName=updated_name,
             Description=description,
             Ruleset=dqdl_rules,
-            ClientToken=client_token if client_token else uuid.uuid4().hex,
         )
     except client_glue.exceptions.EntityNotFoundException as not_found:
         raise exceptions.ResourceDoesNotExist(f"Ruleset {name} does not exist.") from not_found

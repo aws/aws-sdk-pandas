@@ -9,9 +9,10 @@ logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
 @pytest.fixture()
-def df(path, glue_database, glue_table):
+def df(path: str, glue_database: str, glue_table: str) -> pd.DataFrame:
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 0, 1]})
     wr.s3.to_parquet(df, path, dataset=True, database=glue_database, table=glue_table)
+    return df
 
 
 def test_ruleset_df(df, path, glue_database, glue_table, glue_ruleset, glue_data_quality_role):
@@ -125,3 +126,73 @@ def test_ruleset_pushdown_predicate(path, glue_database, glue_table, glue_rulese
         },
     )
     assert df_results["Result"].eq("PASS").all()
+
+
+def test_create_ruleset_already_exists(
+    df: pd.DataFrame,
+    glue_database: str,
+    glue_table: str,
+    glue_ruleset: str,
+) -> None:
+    wr.data_quality.create_ruleset(
+        name=glue_ruleset,
+        database=glue_database,
+        table=glue_table,
+        dqdl_rules="Rules = [ RowCount between 1 and 3 ]",
+    )
+
+    with pytest.raises(wr.exceptions.AlreadyExists):
+        wr.data_quality.create_ruleset(
+            name=glue_ruleset,
+            database=glue_database,
+            table=glue_table,
+            dqdl_rules="Rules = [ RowCount between 1 and 3 ]",
+        )
+
+
+def test_update_ruleset(df: pd.DataFrame, glue_database: str, glue_table: str, glue_ruleset: str) -> None:
+    df_rules = pd.DataFrame(
+        {
+            "rule_type": ["RowCount", "IsComplete", "Uniqueness", "ColumnValues"],
+            "parameter": [None, "c0", "c0", "c1"],
+            "expression": ["between 1 and 6", None, "> 0.95", "in [0, 1, 2]"],
+        }
+    )
+    wr.data_quality.create_ruleset(
+        name=glue_ruleset,
+        database=glue_database,
+        table=glue_table,
+        df_rules=df_rules,
+    )
+
+    df_rules = df_rules.append(
+        {"rule_type": "ColumnValues", "parameter": "c2", "expression": "in [0, 1, 2]"}, ignore_index=True
+    )
+
+    new_glue_ruleset_name = f"{glue_ruleset} 2.0"
+    wr.data_quality.update_ruleset(
+        name=glue_ruleset,
+        updated_name=new_glue_ruleset_name,
+        df_rules=df_rules,
+    )
+
+    df_ruleset = wr.data_quality.get_ruleset(name=new_glue_ruleset_name)
+
+    assert df_rules.equals(df_ruleset)
+
+
+def test_update_ruleset_does_not_exists(df: pd.DataFrame, glue_ruleset: str) -> None:
+    df_rules = pd.DataFrame(
+        {
+            "rule_type": ["RowCount"],
+            "parameter": [None],
+            "expression": ["between 1 and 6"],
+        }
+    )
+
+    with pytest.raises(wr.exceptions.ResourceDoesNotExist):
+        wr.data_quality.update_ruleset(
+            name=glue_ruleset,
+            updated_name=f"{glue_ruleset} 2.0",
+            df_rules=df_rules,
+        )
