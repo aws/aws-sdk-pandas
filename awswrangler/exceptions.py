@@ -119,3 +119,7 @@ class AlreadyExists(Exception):
 
 class ResourceDoesNotExist(Exception):
     """ResourceDoesNotExist."""
+
+
+class InvalidRulesetDefinition(Exception):
+    """InvalidRulesetDefinition."""

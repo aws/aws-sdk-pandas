@@ -74,6 +74,25 @@ class BaseStack(Stack):  # type: ignore
             ],
             versioned=True,
         )
+        glue_data_quality_role = iam.Role(
+            self,
+            "aws-sdk-pandas-glue-data-quality-role",
+            assumed_by=iam.ServicePrincipal("glue.amazonaws.com"),
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonS3FullAccess"),
+                iam.ManagedPolicy.from_aws_managed_policy_name("AWSGlueConsoleFullAccess"),
+            ],
+            inline_policies={
+                "GetDataAccess": iam.PolicyDocument(
+                    statements=[
+                        iam.PolicyStatement(
+                            actions=["lakeformation:GetDataAccess"],
+                            resources=["*"],
+                        ),
+                    ]
+                ),
+            },
+        )
         glue_db = glue.Database(
             self,
             id="aws_sdk_pandas_glue_database",
@@ -134,6 +153,7 @@ class BaseStack(Stack):  # type: ignore
             export_name="aws-sdk-pandas-base-BucketName",
         )
         CfnOutput(self, "GlueDatabaseName", value=glue_db.database_name)
+        CfnOutput(self, "GlueDataQualityRole", value=glue_data_quality_role.role_arn)
         CfnOutput(self, "LogGroupName", value=log_group.log_group_name)
         CfnOutput(self, "LogStream", value=log_stream.log_stream_name)
 
