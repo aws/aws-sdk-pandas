@@ -787,7 +787,7 @@ def read_parquet(
             paths=paths,
             version_ids=versions,
             sampling=1.0,
-            use_threads=True,
+            use_threads=use_threads,
             boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
         )
