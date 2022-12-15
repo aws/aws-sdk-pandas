@@ -33,7 +33,7 @@ numpy = [
     { version = ">=1.21.0 <=1.23.4", markers = "python_full_version >= '3.7.1' and python_full_version < '3.11.0'" },
     { version = "^1.23.5", markers = "python_full_version >= '3.11.0'" },
 ]
-pyarrow = ">=6.0.0, <10.1.0"
+pyarrow = ">=7.0.0, <10.1.0"
 redshift-connector = "~2.0.889"
 pymysql = "^1.0.0"
 pg8000 = "^1.29.0"
@@ -47,7 +47,7 @@ backoff = ">=2.0.0,<3.0.0"
 SPARQLWrapper = { version = "^2.0.0", optional = true }
 pyodbc = { version = "~4.0.32", optional = true }
 modin = { version = "~0.16.0", optional = true }
-ray = { version = "~2.0.0", extras = ["default", "data"], optional = true}
+ray = { version = ">=2.0.0,<2.3.0", extras = ["default", "data"], optional = true}
 oracledb = { version = "~1.0.0", optional = true }
 
 [tool.poetry.extras]
