@@ -3,7 +3,7 @@
 import logging
 import re
 from functools import wraps
-from typing import Any, Dict, List, Optional, Tuple, Callable, Sequence, Union, TypeVar
+from typing import Any, Dict, List, Optional, Tuple, Callable, Sequence, Union, TypeVar, cast
 
 import boto3
 import pandas as pd
@@ -173,9 +173,7 @@ def _get_invalid_kwarg(msg: str) -> Optional[str]:
 
 
 # SEE: https://stackoverflow.com/a/72295070
-CustomCallable = TypeVar(
-    "CustomCallable", bound=Callable[[str, Optional[boto3.Session], Any], Sequence[Dict[str, Any]]]
-)
+CustomCallable = TypeVar("CustomCallable", bound=Callable[[Any], Sequence[Dict[str, Any]]])
 
 
 def _handle_reserved_keyword_error(func: CustomCallable) -> CustomCallable:
@@ -185,9 +183,9 @@ def _handle_reserved_keyword_error(func: CustomCallable) -> CustomCallable:
     """
 
     @wraps(func)
-    def wrapper(table_name: str, boto3_session: Optional[boto3.Session], **kwargs: Any) -> Sequence[Dict[str, Any]]:
+    def wrapper(*args: Any, **kwargs: Any) -> Sequence[Dict[str, Any]]:
         try:
-            return func(table_name, boto3_session, **kwargs)
+            return func(*args, **kwargs)
         except ClientError as e:
             error_code, error_message = (e.response["Error"]["Code"], e.response["Error"]["Message"])
             # Check catched error to verify its message
@@ -202,12 +200,13 @@ def _handle_reserved_keyword_error(func: CustomCallable) -> CustomCallable:
                 }
                 # SEE: recursive approach guarantees that each reserved keyword will be properly replaced,
                 # even if it will require as many calls as the reserved keywords involved (not so efficient...)
-                return wrapper(table_name, boto3_session, **kwargs)
+                return wrapper(*args, **kwargs)
             # Otherwise raise it
             else:
                 raise e
 
-    return wrapper
+    # SEE: https://github.com/python/mypy/issues/3157#issue-221120895
+    return cast(CustomCallable, wrapper)
 
 
 @_handle_reserved_keyword_error
