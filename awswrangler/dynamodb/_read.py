@@ -173,7 +173,9 @@ def _get_invalid_kwarg(msg: str) -> Optional[str]:
 
 
 # SEE: https://stackoverflow.com/a/72295070
-CustomCallable = TypeVar("CustomCallable", bound=Callable[[Any], Sequence[Dict[str, Any]]])
+CustomCallable = TypeVar(
+    "CustomCallable", bound=Callable[[str, Optional[boto3.Session], Any], Sequence[Dict[str, Any]]]
+)
 
 
 def _handle_reserved_keyword_error(func: CustomCallable) -> CustomCallable:
@@ -183,9 +185,9 @@ def _handle_reserved_keyword_error(func: CustomCallable) -> CustomCallable:
     """
 
     @wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Sequence[Dict[str, Any]]:
+    def wrapper(table_name: str, boto3_session: Optional[boto3.Session], **kwargs: Any) -> Sequence[Dict[str, Any]]:
         try:
-            return func(*args, **kwargs)
+            return func(table_name, boto3_session, **kwargs)
         except ClientError as e:
             error_code, error_message = (e.response["Error"]["Code"], e.response["Error"]["Message"])
             # Check catched error to verify its message
@@ -200,7 +202,7 @@ def _handle_reserved_keyword_error(func: CustomCallable) -> CustomCallable:
                 }
                 # SEE: recursive approach guarantees that each reserved keyword will be properly replaced,
                 # even if it will require as many calls as the reserved keywords involved (not so efficient...)
-                return wrapper(*args, **kwargs)
+                return wrapper(table_name, boto3_session, **kwargs)
             # Otherwise raise it
             else:
                 raise e
