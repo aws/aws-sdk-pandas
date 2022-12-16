@@ -1491,6 +1491,7 @@ def copy(  # pylint: disable=too-many-arguments,too-many-locals
     keep_files: bool = False,
     use_threads: Union[bool, int] = True,
     lock: bool = False,
+    commit_transaction: bool = True,
     sql_copy_extra_params: Optional[List[str]] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
@@ -1584,6 +1585,8 @@ def copy(  # pylint: disable=too-many-arguments,too-many-locals
         If integer is provided, specified number is used.
     lock : bool
         True to execute LOCK command inside the transaction to force serializable isolation.
+    commit_transaction : bool
+        Whether to commit the transaction. True by default.
     sql_copy_extra_params : Optional[List[str]]
         Additional copy parameters to pass to the command. For example: ["STATUPDATE ON"]
     boto3_session : boto3.Session(), optional
@@ -1668,6 +1671,7 @@ def copy(  # pylint: disable=too-many-arguments,too-many-locals
             serialize_to_json=serialize_to_json,
             use_threads=use_threads,
             lock=lock,
+            commit_transaction=commit_transaction,
             boto3_session=session,
             s3_additional_kwargs=s3_additional_kwargs,
             sql_copy_extra_params=sql_copy_extra_params,
