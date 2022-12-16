@@ -168,23 +168,24 @@ def _get_invalid_kwarg(msg: str) -> Optional[str]:
     for kwarg in ("ProjectionExpression", "KeyConditionExpression", "FilterExpression"):
         if msg.startswith(f"Invalid {kwarg}: Attribute name is a reserved keyword; reserved keyword: "):
             return kwarg
-    return
+    else:
+        return
 
 
-def _handle_reserved_keyword_error(func: Callable[[str, Optional[boto3.Session]], Sequence]) -> Callable[[Any], Any]:
+def _handle_reserved_keyword_error(func: Callable[[str, Optional[boto3.Session]], Sequence[Mapping[str, Any]]], **kwargs: Any) -> Callable[[Any], Any]:
     """Handle automatic replacement of DynamoDB reserved keywords.
 
     For reserved keywords reference: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ReservedWords.html.
     """
 
     @wraps(func)
-    def wrapper(*args: Any, **kwargs: Any):
+    def wrapper(*args: Any, **kwargs: Any) -> Callable[[Any], Any]:
         try:
             return func(*args, **kwargs)
         except ClientError as e:
             error_code, error_message = (
                 e.response["Error"]["Code"],
-                e.response["Error"]["Message"],
+                e.response["Error"]["Message"]
             )
             # Check catched error to verify its message
             kwarg = _get_invalid_kwarg(error_message)
@@ -439,7 +440,7 @@ def read_items(
         return
 
     # Build kwargs shared by read methods
-    kwargs = {"ConsistentRead": consistent}
+    kwargs: Mapping[str, Any] = {"ConsistentRead": consistent}
     if partition_values:
         if sort_key is None:
             keys = [{partition_key: pv} for pv in partition_values]
