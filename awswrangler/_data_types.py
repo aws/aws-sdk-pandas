@@ -263,6 +263,12 @@ def pyarrow2timestream(dtype: pa.DataType) -> str:  # pylint: disable=too-many-b
         return "BOOLEAN"
     if pa.types.is_string(dtype):
         return "VARCHAR"
+    if pa.types.is_date(dtype):
+        return "DATE"
+    if pa.types.is_time(dtype):
+        return "TIME"
+    if pa.types.is_timestamp(dtype):
+        return "TIMESTAMP"
     raise exceptions.UnsupportedType(f"Unsupported Amazon Timestream measure type: {dtype}")
 
 
