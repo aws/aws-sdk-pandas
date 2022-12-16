@@ -1,17 +1,30 @@
 import logging
+from importlib import reload
+from types import ModuleType
+from typing import Iterator
 from unittest.mock import patch
 
 import pandas as pd
 import pytest
-
-import awswrangler as wr
 
 from ._utils import ensure_athena_query_metadata
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
 
 
-def test_athena_cache(path, glue_database, glue_table, workgroup1):
+@pytest.fixture(scope="function")
+def wr() -> Iterator[ModuleType]:
+    import awswrangler
+
+    awswrangler.config.reset()
+
+    yield reload(awswrangler)
+
+    # Reset for future tests
+    awswrangler.config.reset()
+
+
+def test_athena_cache(wr, path, glue_database, glue_table, workgroup1):
     df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
     wr.s3.to_parquet(df=df, path=path, dataset=True, mode="overwrite", database=glue_database, table=glue_table)
 
@@ -34,7 +47,7 @@ def test_athena_cache(path, glue_database, glue_table, workgroup1):
 
 
 @pytest.mark.parametrize("data_source", [None, "AwsDataCatalog"])
-def test_cache_query_ctas_approach_true(path, glue_database, glue_table, data_source):
+def test_cache_query_ctas_approach_true(wr, path, glue_database, glue_table, data_source):
     df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
     wr.s3.to_parquet(
         df=df,
@@ -70,7 +83,7 @@ def test_cache_query_ctas_approach_true(path, glue_database, glue_table, data_so
 
 
 @pytest.mark.parametrize("data_source", [None, "AwsDataCatalog"])
-def test_cache_query_ctas_approach_false(path, glue_database, glue_table, data_source):
+def test_cache_query_ctas_approach_false(wr, path, glue_database, glue_table, data_source):
     df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
     wr.s3.to_parquet(
         df=df,
@@ -105,7 +118,7 @@ def test_cache_query_ctas_approach_false(path, glue_database, glue_table, data_s
         ensure_athena_query_metadata(df=df3, ctas_approach=False, encrypted=False)
 
 
-def test_cache_query_semicolon(path, glue_database, glue_table):
+def test_cache_query_semicolon(wr, path, glue_database, glue_table):
     df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
     wr.s3.to_parquet(df=df, path=path, dataset=True, mode="overwrite", database=glue_database, table=glue_table)
 
@@ -129,7 +142,7 @@ def test_cache_query_semicolon(path, glue_database, glue_table):
         assert df.c0.sum() == df3.c0.sum()
 
 
-def test_local_cache(path, glue_database, glue_table):
+def test_local_cache(wr, path, glue_database, glue_table):
     wr.config.max_local_cache_entries = 1
 
     df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
@@ -160,7 +173,7 @@ def test_local_cache(path, glue_database, glue_table):
         assert second_query_id in wr.athena._read._cache_manager
 
 
-def test_paginated_remote_cache(path, glue_database, glue_table, workgroup1):
+def test_paginated_remote_cache(wr, path, glue_database, glue_table, workgroup1):
     wr.config.max_remote_cache_entries = 100
     df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
     wr.s3.to_parquet(df=df, path=path, dataset=True, mode="overwrite", database=glue_database, table=glue_table)
@@ -173,7 +186,7 @@ def test_paginated_remote_cache(path, glue_database, glue_table, workgroup1):
 
 
 @pytest.mark.parametrize("data_source", [None, "AwsDataCatalog"])
-def test_cache_start_query(path, glue_database, glue_table, data_source):
+def test_cache_start_query(wr, path, glue_database, glue_table, data_source):
     df = pd.DataFrame({"c0": [0, None]}, dtype="Int64")
     wr.s3.to_parquet(
         df=df,
