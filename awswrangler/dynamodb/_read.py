@@ -3,17 +3,17 @@
 import logging
 import re
 from functools import wraps
-from typing import Any, Dict, List, Optional, Tuple, Callable, Sequence, Union, TypeVar, cast
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, TypeVar, Union, cast
 
 import boto3
 import pandas as pd
+from boto3.dynamodb.conditions import ConditionBase
 from boto3.dynamodb.types import TypeDeserializer
+from botocore.exceptions import ClientError
 
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
 from awswrangler.dynamodb._utils import get_table
-from boto3.dynamodb.conditions import ConditionBase
-from botocore.exceptions import ClientError
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -179,7 +179,8 @@ CustomCallable = TypeVar("CustomCallable", bound=Callable[[Any], Sequence[Dict[s
 def _handle_reserved_keyword_error(func: CustomCallable) -> CustomCallable:
     """Handle automatic replacement of DynamoDB reserved keywords.
 
-    For reserved keywords reference: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ReservedWords.html.
+    For reserved keywords reference:
+    https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ReservedWords.html.
     """
 
     @wraps(func)
@@ -309,13 +310,15 @@ def read_items(
     filter_expression : Union[ConditionBase, str], optional
         Filter expression as string or combinations of boto3.dynamodb.conditions.Attr conditions. Defaults to None.
     key_condition_expression : Union[ConditionBase, str], optional
-        Key condition expression as string or combinations of boto3.dynamodb.conditions.Key conditions. Defaults to None.
+        Key condition expression as string or combinations of boto3.dynamodb.conditions.Key conditions.
+        Defaults to None.
     expression_attribute_names : Mapping[str, str], optional
         Mapping of placeholder and target attributes. Defaults to None.
     expression_attribute_values : Mapping[str, str], optional
         Mapping of placeholder and target values. Defaults to None.
     consistent : bool
-        If True, ensure that the performed read operation is strongly consistent, otherwise eventually consistent. Defaults to False.
+        If True, ensure that the performed read operation is strongly consistent, otherwise eventually consistent.
+        Defaults to False.
     columns : Sequence[str], optional
         Attributes to retain in the returned items. Defaults to None (all attributes).
     allow_full_scan : bool
@@ -332,7 +335,8 @@ def read_items(
     exceptions.InvalidArgumentType
         When the specified table has also a sort key but only the partition values are specified.
     exceptions.InvalidArgumentCombination
-        When both partition and sort values sequences are specified but they have different lengths, or when provided parameters are not enough informative to proceed with a read operation.
+        When both partition and sort values sequences are specified but they have different lengths,
+        or when provided parameters are not enough informative to proceed with a read operation.
 
     Returns
     -------
@@ -360,7 +364,8 @@ def read_items(
     ...     sort_values=['sv_1', 'sv_2']
     ... )
 
-    Reading items while retaining only specified attributes, automatically handling possible collision with DynamoDB reserved keywords
+    Reading items while retaining only specified attributes, automatically handling possible collision
+    with DynamoDB reserved keywords
 
     >>> import awswrangler as wr
     >>> df = wr.dynamodb.read_items(
@@ -470,9 +475,14 @@ def read_items(
         items = _read_items(table_name, boto3_session, **kwargs)
     # Raise otherwise
     else:
-        raise exceptions.InvalidArgumentCombination(
-            f"Please provide at least one between partition_values, key_condition_expression, filter_expression, allow_full_scan or max_items_evaluated."
+        _args = (
+            "partition_values",
+            "key_condition_expression",
+            "filter_expression",
+            "allow_full_scan",
+            "max_items_evaluated",
         )
+        raise exceptions.InvalidArgumentCombination(f"Please provide at least one between {', '.join(_args)}.")
 
     # Enforce DataFrame type if requested
     if as_dataframe:
