@@ -477,6 +477,4 @@ def read_items(
         raise exceptions.InvalidArgumentCombination(f"Please provide at least one between {', '.join(_args)}.")
 
     # Enforce DataFrame type if requested
-    if as_dataframe:
-        return pd.DataFrame(items)
-    return items
+    return pd.DataFrame(items) if as_dataframe else items
