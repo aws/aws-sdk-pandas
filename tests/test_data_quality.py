@@ -196,3 +196,46 @@ def test_update_ruleset_does_not_exists(df: pd.DataFrame, glue_ruleset: str) -> 
             updated_name=f"{glue_ruleset} 2.0",
             df_rules=df_rules,
         )
+
+
+def test_two_evaluations_at_once(
+    df: pd.DataFrame, glue_database: str, glue_table: str, glue_ruleset: str, glue_data_quality_role: str
+) -> None:
+    df_rules1 = pd.DataFrame(
+        [
+            {
+                "rule_type": "RowCount",
+                "parameter": None,
+                "expression": "between 1 and 6",
+            }
+        ]
+    )
+    df_rules2 = pd.DataFrame(
+        [
+            {
+                "rule_type": "IsComplete",
+                "parameter": "c0",
+                "expression": None,
+            }
+        ]
+    )
+
+    wr.data_quality.create_ruleset(
+        name=glue_ruleset,
+        database=glue_database,
+        table=glue_table,
+        df_rules=df_rules1,
+    )
+    wr.data_quality.create_ruleset(
+        name=f"{glue_ruleset}2",
+        database=glue_database,
+        table=glue_table,
+        df_rules=df_rules2,
+    )
+
+    df_results = wr.data_quality.evaluate_ruleset(
+        name=[glue_ruleset, f"{glue_ruleset}2"],
+        iam_role_arn=glue_data_quality_role,
+        number_of_workers=2,
+    )
+    assert df_results["Result"].eq("PASS").all()
