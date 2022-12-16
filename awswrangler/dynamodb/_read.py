@@ -186,7 +186,8 @@ def _handle_reserved_keyword_error(func: Callable) -> Any:
                 e.response["Error"]["Message"],
             )
             # Check catched error to verify its message
-            if (error_code == "ValidationException") and (kwarg := _get_invalid_kwarg(error_message)):
+            kwarg = _get_invalid_kwarg(error_message)
+            if (error_code == "ValidationException") and kwarg:
                 reserved_keyword = error_message.split("keyword: ")[-1]
                 sanitized_keyword = f"#{reserved_keyword}"
                 kwargs[kwarg] = kwargs[kwarg].replace(reserved_keyword, sanitized_keyword)
