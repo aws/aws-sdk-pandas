@@ -3,7 +3,7 @@
 import logging
 import re
 from functools import wraps
-from typing import Any, Dict, List, Optional, Tuple, Callable, Sequence, Union
+from typing import Any, Dict, List, Optional, Tuple, Callable, Sequence, Union, TypeVar
 
 import boto3
 import pandas as pd
@@ -172,7 +172,11 @@ def _get_invalid_kwarg(msg: str) -> Optional[str]:
         return None
 
 
-def _handle_reserved_keyword_error(func: Callable[[Any], Sequence[Dict[str, Any]]]) -> Callable[[Any], Sequence[Dict[str, Any]]]:
+# SEE: https://stackoverflow.com/a/72295070
+CustomCallable = TypeVar("CustomCallable", bound=Callable[[Any], Sequence[Dict[str, Any]]])
+
+
+def _handle_reserved_keyword_error(func: CustomCallable) -> CustomCallable:
     """Handle automatic replacement of DynamoDB reserved keywords.
 
     For reserved keywords reference: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ReservedWords.html.
@@ -183,10 +187,7 @@ def _handle_reserved_keyword_error(func: Callable[[Any], Sequence[Dict[str, Any]
         try:
             return func(*args, **kwargs)
         except ClientError as e:
-            error_code, error_message = (
-                e.response["Error"]["Code"],
-                e.response["Error"]["Message"]
-            )
+            error_code, error_message = (e.response["Error"]["Code"], e.response["Error"]["Message"])
             # Check catched error to verify its message
             kwarg = _get_invalid_kwarg(error_message)
             if (error_code == "ValidationException") and kwarg:
@@ -208,7 +209,9 @@ def _handle_reserved_keyword_error(func: Callable[[Any], Sequence[Dict[str, Any]
 
 
 @_handle_reserved_keyword_error
-def _read_items(table_name: str, boto3_session: Optional[boto3.Session] = None, **kwargs: Any) -> Sequence[Dict[str, Any]]:
+def _read_items(
+    table_name: str, boto3_session: Optional[boto3.Session] = None, **kwargs: Any
+) -> Sequence[Dict[str, Any]]:
     """Read items from given DynamoDB table.
 
     This function set the optimal reading strategy based on the received kwargs.
