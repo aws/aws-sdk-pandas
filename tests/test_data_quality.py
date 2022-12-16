@@ -198,6 +198,45 @@ def test_update_ruleset_does_not_exists(df: pd.DataFrame, glue_ruleset: str) -> 
         )
 
 
+def test_upsert_ruleset(df: pd.DataFrame, glue_database: str, glue_table: str, glue_ruleset: str) -> None:
+    df_rules = pd.DataFrame(
+        {
+            "rule_type": ["RowCount", "IsComplete", "Uniqueness", "ColumnValues"],
+            "parameter": [None, "c0", "c0", "c1"],
+            "expression": ["between 1 and 6", None, "> 0.95", "in [0, 1, 2]"],
+        }
+    )
+    wr.data_quality.create_ruleset(
+        name=glue_ruleset,
+        database=glue_database,
+        table=glue_table,
+        df_rules=df_rules,
+    )
+
+    df_upsert = pd.DataFrame(
+        {
+            "rule_type": ["RowCount", "IsComplete", "Uniqueness", "ColumnValues"],
+            "parameter": [None, "c0", "c0", "c0"],
+            "expression": ["between 2 and 8", None, "> 0.95", "in [0, 1, 2]"],
+        }
+    )
+
+    new_glue_ruleset_name = f"{glue_ruleset} 2.0"
+    wr.data_quality.update_ruleset(
+        name=glue_ruleset,
+        updated_name=new_glue_ruleset_name,
+        mode="upsert",
+        df_rules=df_upsert,
+    )
+
+    df_ruleset = wr.data_quality.get_ruleset(name=new_glue_ruleset_name)
+
+    assert df_ruleset.shape == (5, 3)
+    row_count = df_ruleset.loc[df_ruleset["rule_type"] == "RowCount"]
+    assert len(row_count) == 1
+    assert row_count.iloc[0]["expression"] == "between 2 and 8"
+
+
 def test_two_evaluations_at_once(
     df: pd.DataFrame, glue_database: str, glue_table: str, glue_ruleset: str, glue_data_quality_role: str
 ) -> None:
@@ -233,8 +272,13 @@ def test_two_evaluations_at_once(
         df_rules=df_rules2,
     )
 
+    ruleset_names = [glue_ruleset, f"{glue_ruleset}2"]
+    df_rulesets = wr.data_quality.get_ruleset(name=ruleset_names)
+    assert df_rulesets.shape == (2, 4)
+    assert df_rulesets["ruleset"].isin(ruleset_names).all()
+
     df_results = wr.data_quality.evaluate_ruleset(
-        name=[glue_ruleset, f"{glue_ruleset}2"],
+        name=ruleset_names,
         iam_role_arn=glue_data_quality_role,
         number_of_workers=2,
     )

@@ -8,6 +8,7 @@ import time
 from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import boto3
+import botocore.exceptions
 import pandas as pd
 
 from awswrangler import _utils, exceptions
@@ -115,10 +116,18 @@ def _get_ruleset_run(
 ) -> Dict[str, Any]:
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     client_glue: boto3.client = _utils.client(service_name="glue", session=session)
-    if run_type == "recommendation":
-        response = client_glue.get_data_quality_rule_recommendation_run(RunId=run_id)
-    elif run_type == "evaluation":
-        response = client_glue.get_data_quality_ruleset_evaluation_run(RunId=run_id)
+    f = (
+        client_glue.get_data_quality_rule_recommendation_run
+        if run_type == "recommendation"
+        else client_glue.get_data_quality_ruleset_evaluation_run
+    )
+    response = _utils.try_it(
+        f=f,
+        ex=botocore.exceptions.ClientError,
+        ex_code="ThrottlingException",
+        max_num_tries=5,
+        RunId=run_id,
+    )
     return cast(Dict[str, Any], response)
 
 
@@ -148,7 +157,14 @@ def _get_ruleset(
 ) -> Dict[str, Any]:
     boto3_session = _utils.ensure_session(session=boto3_session)
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    return cast(Dict[str, Any], client_glue.get_data_quality_ruleset(Name=ruleset_name))
+    response = _utils.try_it(
+        f=client_glue.get_data_quality_ruleset,
+        ex=botocore.exceptions.ClientError,
+        ex_code="ThrottlingException",
+        max_num_tries=5,
+        Name=ruleset_name,
+    )
+    return cast(Dict[str, Any], response)
 
 
 def _get_data_quality_results(

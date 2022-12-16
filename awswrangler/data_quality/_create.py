@@ -10,6 +10,7 @@ import pandas as pd
 
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
+from awswrangler.data_quality._get import get_ruleset
 from awswrangler.data_quality._utils import (
     _create_datasource,
     _get_data_quality_results,
@@ -121,6 +122,7 @@ def create_ruleset(
 def update_ruleset(
     name: str,
     updated_name: Optional[str] = None,
+    mode: str = "overwrite",
     df_rules: Optional[pd.DataFrame] = None,
     dqdl_rules: Optional[str] = None,
     description: str = "",
@@ -134,6 +136,8 @@ def update_ruleset(
         Ruleset name.
     updated_name : str
         New ruleset name if renaming an existing ruleset.
+    mode : str
+        overwrite (default) or upsert.
     df_rules : str, optional
         Data frame with `rule_type`, `parameter`, and `expression` columns.
     dqdl_rules : str, optional
@@ -145,18 +149,36 @@ def update_ruleset(
 
     Examples
     --------
+    Overwrite rules in the existing ruleset.
     >>> wr.data_quality.update_ruleset(
     >>>     name="ruleset",
     >>>     new_name="my_ruleset",
     >>>     dqdl_rules="Rules = [ RowCount between 1 and 3 ]",
     >>>)
+
+    Update or insert rules in the existing ruleset.
+    >>> wr.data_quality.update_ruleset(
+    >>>     name="ruleset",
+    >>>     mode="insert",
+    >>>     dqdl_rules="Rules = [ RowCount between 1 and 3 ]",
+    >>>)
     """
     if (df_rules is not None and dqdl_rules) or (df_rules is None and not dqdl_rules):
         raise exceptions.InvalidArgumentCombination("You must pass either ruleset `df_rules` or `dqdl_rules`.")
+    if mode not in ["overwrite", "upsert"]:
+        raise exceptions.InvalidArgumentValue("`mode` must be one of 'overwrite' or 'upsert'.")
+
+    if mode == "upsert":
+        df_existing = get_ruleset(name=name, boto3_session=boto3_session)
+        df_existing = df_existing.set_index(keys=["rule_type", "parameter"], drop=False, verify_integrity=True)
+        df_updated = _rules_to_df(dqdl_rules) if dqdl_rules is not None else df_rules
+        df_updated = df_updated.set_index(keys=["rule_type", "parameter"], drop=False, verify_integrity=True)
+        merged_df = pd.concat([df_existing[~df_existing.index.isin(df_updated.index)], df_updated])
+        dqdl_rules = _create_dqdl(merged_df.reset_index(drop=True))
+    else:
+        dqdl_rules = _create_dqdl(df_rules) if df_rules is not None else dqdl_rules
 
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    dqdl_rules = _create_dqdl(df_rules) if df_rules is not None else dqdl_rules
-
     try:
         client_glue.update_data_quality_ruleset(
             Name=name,
