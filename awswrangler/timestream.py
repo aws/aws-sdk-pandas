@@ -27,6 +27,14 @@ def _df2list(df: pd.DataFrame) -> List[List[Any]]:
     return parameters
 
 
+def _format_measure(measure_name: str, measure_value: Any, measure_type: str) -> Dict[str, str]:
+    return {
+        "Name": measure_name,
+        "Value": str(round(measure_value.timestamp() * 1_000) if measure_type == "TIMESTAMP" else measure_value),
+        "Type": measure_type,
+    }
+
+
 def _write_batch(
     database: str,
     table: str,
@@ -66,7 +74,7 @@ def _write_batch(
                 record["MeasureName"] = measure_cols_names[0]
                 record["MeasureValueType"] = "MULTI"
                 record["MeasureValues"] = [
-                    {"Name": measure_name, "Value": str(measure_value), "Type": measure_value_type}
+                    _format_measure(measure_name, measure_value, measure_value_type)
                     for measure_name, measure_value, measure_value_type in zip(
                         measure_cols_names, rec[measure_cols_loc:dimensions_cols_loc], measure_types
                     )

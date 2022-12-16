@@ -1,3 +1,4 @@
+import datetime as dt
 import logging
 from datetime import datetime
 
@@ -312,3 +313,34 @@ def test_create_table_additional_kwargs(timestream_database_and_table, timestrea
     wr.timestream.delete_table(database=timestream_database_and_table, table=f"{timestream_database_and_table}_3")
     tables_in_db = wr.timestream.list_tables(database=timestream_database_and_table)
     assert f"{timestream_database_and_table}_3" not in tables_in_db
+
+
+def test_timestamp_measure_column(timestream_database_and_table):
+    df = pd.DataFrame(
+        {
+            "time": [datetime.now()] * 3,
+            "dim0": ["foo", "boo", "bar"],
+            "dim1": [1, 2, 3],
+            "measure_f": [1.1, 1.2, 1.3],
+            "measure_t": [datetime.now(dt.timezone.utc)] * 3,
+        }
+    )
+
+    rejected_records = wr.timestream.write(
+        df=df,
+        database=timestream_database_and_table,
+        table=timestream_database_and_table,
+        time_col="time",
+        measure_col=["measure_f", "measure_t"],
+        dimensions_cols=["dim0", "dim1"],
+    )
+    assert len(rejected_records) == 0
+
+    df = wr.timestream.query(
+        f"""
+        SELECT
+            *
+        FROM "{timestream_database_and_table}"."{timestream_database_and_table}"
+        """,
+    )
+    assert df["measure_t"].dtype == "datetime64[ns]"
