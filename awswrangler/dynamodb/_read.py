@@ -6,7 +6,6 @@ from typing import Any, Dict, Iterator, List, Optional, Union
 import boto3
 import pandas as pd
 
-from awswrangler._config import apply_configs
 from awswrangler.dynamodb._utils import execute_statement
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -17,7 +16,6 @@ def _read_chunked(iterator: Iterator[Dict[str, Any]], dtype: Optional[Dict[str, 
         yield pd.DataFrame(item).astype(dtype=dtype) if dtype else pd.DataFrame(item)
 
 
-@apply_configs
 def read_partiql_query(
     query: str,
     parameters: Optional[List[Any]] = None,
