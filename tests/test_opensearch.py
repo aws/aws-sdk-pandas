@@ -234,15 +234,13 @@ def test_index_documents(client):
 
 
 def test_index_documents_id_keys(client):
-    response = wr.opensearch.index_documents(
+    wr.opensearch.index_documents(
         client, documents=inspections_documents, index="test_index_documents_id_keys", id_keys=["inspection_id"]
     )
 
 
 def test_index_documents_no_id_keys(client):
-    response = wr.opensearch.index_documents(
-        client, documents=inspections_documents, index="test_index_documents_no_id_keys"
-    )
+    wr.opensearch.index_documents(client, documents=inspections_documents, index="test_index_documents_no_id_keys")
 
 
 def test_search(client):
