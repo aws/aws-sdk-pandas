@@ -201,7 +201,6 @@ def test_delete_index(client):
     index = "test_delete_index"
     wr.opensearch.create_index(client, index=index)
     response = wr.opensearch.delete_index(client, index=index)
-    print(response)
     assert response.get("acknowledged", False) is True
 
 
@@ -211,7 +210,6 @@ def test_index_df(client):
         df=pd.DataFrame([{"_id": "1", "name": "John"}, {"_id": "2", "name": "George"}, {"_id": "3", "name": "Julia"}]),
         index="test_index_df1",
     )
-    print(response)
     assert response.get("success", 0) == 3
 
 
@@ -223,7 +221,6 @@ def test_index_df_with_array(client):
         ),
         index="test_index_df1",
     )
-    print(response)
     assert response.get("success", 0) == 2
 
 
@@ -233,22 +230,17 @@ def test_index_documents(client):
         documents=[{"_id": "1", "name": "John"}, {"_id": "2", "name": "George"}, {"_id": "3", "name": "Julia"}],
         index="test_index_documents1",
     )
-    print(response)
     assert response.get("success", 0) == 3
 
 
 def test_index_documents_id_keys(client):
-    response = wr.opensearch.index_documents(
+    wr.opensearch.index_documents(
         client, documents=inspections_documents, index="test_index_documents_id_keys", id_keys=["inspection_id"]
     )
-    print(response)
 
 
 def test_index_documents_no_id_keys(client):
-    response = wr.opensearch.index_documents(
-        client, documents=inspections_documents, index="test_index_documents_no_id_keys"
-    )
-    print(response)
+    wr.opensearch.index_documents(client, documents=inspections_documents, index="test_index_documents_no_id_keys")
 
 
 def test_search(client):
@@ -262,10 +254,13 @@ def test_search(client):
         search_body={"query": {"match": {"business_name": "soup"}}},
         _source=["inspection_id", "business_name", "business_location"],
     )
-
-    print("")
-    print(df.to_string())
     assert df.shape[0] == 3
+    df = wr.opensearch.search(
+        client,
+        index=index,
+        search_body={"query": {"match": {"business_name": "message"}}},
+    )
+    assert df.shape == (0, 0)
 
 
 def test_search_filter_path(client):
@@ -280,9 +275,6 @@ def test_search_filter_path(client):
         _source=["inspection_id", "business_name", "business_location"],
         filter_path=["hits.hits._source"],
     )
-
-    print("")
-    print(df.to_string())
     assert df.shape[0] == 3
 
 
@@ -294,9 +286,6 @@ def test_search_scroll(client):
     df = wr.opensearch.search(
         client, index=index, is_scroll=True, _source=["inspection_id", "business_name", "business_location"]
     )
-
-    print("")
-    print(df.to_string())
     assert df.shape[0] == 5
 
 
@@ -306,9 +295,6 @@ def test_search_sql(client):
         client, documents=inspections_documents, index=index, id_keys=["inspection_id"], refresh="wait_for"
     )
     df = wr.opensearch.search_by_sql(client, sql_query=f"select * from {index}")
-
-    print("")
-    print(df.to_string())
     assert df.shape[0] == 5
 
 
@@ -318,7 +304,6 @@ def test_index_json_local(client):
         for doc in inspections_documents:
             filehandle.write("%s\n" % json.dumps(doc))
     response = wr.opensearch.index_json(client, index="test_index_json_local", path=file_path)
-    print(response)
     assert response.get("success", 0) == 6
 
 
@@ -332,7 +317,6 @@ def test_index_json_s3(client, path):
     bucket, key = wr._utils.parse_path(path)
     s3.upload_file(file_path, bucket, key)
     response = wr.opensearch.index_json(client, index="test_index_json_s3", path=path)
-    print(response)
     assert response.get("success", 0) == 6
 
 
@@ -342,7 +326,6 @@ def test_index_csv_local(client):
     df = pd.DataFrame(inspections_documents)
     df.to_csv(file_path, index=False)
     response = wr.opensearch.index_csv(client, path=file_path, index=index)
-    print(response)
     assert response.get("success", 0) == 6
 
 
@@ -356,7 +339,6 @@ def test_index_csv_s3(client, path):
     bucket, key = wr._utils.parse_path(path)
     s3.upload_file(file_path, bucket, key)
     response = wr.opensearch.index_csv(client, path=path, index=index)
-    print(response)
     assert response.get("success", 0) == 6
 
 
@@ -366,5 +348,4 @@ def test_index_json_s3_large_file(client):
     response = wr.opensearch.index_json(
         client, index="test_index_json_s3_large_file", path=path, json_path="Filings2011", id_keys=["EIN"], bulk_size=20
     )
-    print(response)
     assert response.get("success", 0) > 0
