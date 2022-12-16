@@ -168,16 +168,17 @@ def _get_invalid_kwarg(msg: str) -> Optional[str]:
     for kwarg in ("ProjectionExpression", "KeyConditionExpression", "FilterExpression"):
         if msg.startswith(f"Invalid {kwarg}: Attribute name is a reserved keyword; reserved keyword: "):
             return kwarg
+    return
 
 
-def _handle_reserved_keyword_error(func: Callable) -> Any:
+def _handle_reserved_keyword_error(func: Callable[[str, Optional[boto3.Session]], Sequence]) -> Callable[[Any], Any]:
     """Handle automatic replacement of DynamoDB reserved keywords.
 
     For reserved keywords reference: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ReservedWords.html.
     """
 
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any):
         try:
             return func(*args, **kwargs)
         except ClientError as e:
@@ -206,7 +207,7 @@ def _handle_reserved_keyword_error(func: Callable) -> Any:
 
 
 @_handle_reserved_keyword_error
-def _read_items(table_name: str, boto3_session: Optional[boto3.Session] = None, **kwargs) -> Sequence:
+def _read_items(table_name: str, boto3_session: Optional[boto3.Session] = None, **kwargs: Any) -> Sequence[Mapping[str, Any]]:
     """Read items from given DynamoDB table.
 
     This function set the optimal reading strategy based on the received kwargs.
@@ -220,7 +221,7 @@ def _read_items(table_name: str, boto3_session: Optional[boto3.Session] = None, 
 
     Returns
     -------
-    Sequence
+    Sequence[Mapping[str, Any]]
         Retrieved items.
     """
     # Get DynamoDB resource and Table instance
@@ -270,19 +271,19 @@ def _read_items(table_name: str, boto3_session: Optional[boto3.Session] = None, 
 def read_items(
     *,
     table_name: str,
-    partition_values: Optional[Sequence[Any]] = None,
-    sort_values: Optional[Sequence[Any]] = None,
+    partition_values: Sequence[Any] = [],
+    sort_values: Sequence[Any] = [],
     filter_expression: Optional[Union[ConditionBase, str]] = None,
     key_condition_expression: Optional[Union[ConditionBase, str]] = None,
-    expression_attribute_names: Optional[Mapping] = None,
-    expression_attribute_values: Optional[Mapping] = None,
+    expression_attribute_names: Optional[Mapping[str, str]] = None,
+    expression_attribute_values: Optional[Mapping[str, str]] = None,
     consistent: bool = False,
-    columns: Optional[Sequence] = None,
+    columns: Optional[Sequence[str]] = None,
     allow_full_scan: bool = False,
     max_items_evaluated: Optional[int] = None,
     as_dataframe: bool = True,
     boto3_session: Optional[boto3.Session] = None,
-) -> Union[pd.DataFrame, List]:
+) -> Union[pd.DataFrame, List[Mapping[str, Any]]]:
     """Read items from given DynamoDB table.
 
     This function aims to gracefully handle (some of) the complexity of read actions
@@ -297,20 +298,20 @@ def read_items(
     table_name : str
         DynamoDB table name.
     partition_values : Sequence[Any], optional
-        Partition key values to retrieve. Defaults to None.
+        Partition key values to retrieve. Defaults to [].
     sort_values : Sequence[Any], optional
-        Sort key values to retrieve. Defaults to None.
+        Sort key values to retrieve. Defaults to [].
     filter_expression : Union[ConditionBase, str], optional
         Filter expression as string or combinations of boto3.dynamodb.conditions.Attr conditions. Defaults to None.
     key_condition_expression : Union[ConditionBase, str], optional
         Key condition expression as string or combinations of boto3.dynamodb.conditions.Key conditions. Defaults to None.
-    expression_attribute_names : Mapping, optional
+    expression_attribute_names : Mapping[str, str], optional
         Mapping of placeholder and target attributes. Defaults to None.
-    expression_attribute_values : Mapping, optional
+    expression_attribute_values : Mapping[str, str], optional
         Mapping of placeholder and target values. Defaults to None.
     consistent : bool
         If True, ensure that the performed read operation is strongly consistent, otherwise eventually consistent. Defaults to False.
-    columns : Sequence, optional
+    columns : Sequence[str], optional
         Attributes to retain in the returned items. Defaults to None (all attributes).
     allow_full_scan : bool
         If True, allow full table scan without any filtering. Defaults to False.
@@ -330,7 +331,7 @@ def read_items(
 
     Returns
     -------
-    Union[pd.DataFrame, List, Mapping]
+    Union[pd.DataFrame, List[Mapping[str, Any]]]
         A Dataframe containing the retrieved items, or sequence of raw items or directly the only item retrieved.
 
     Examples
@@ -428,13 +429,14 @@ def read_items(
         )
 
     # Handy checker
-    def ensure_coherency():
+    def ensure_coherency() -> None:
         if not sort_values:
             raise exceptions.InvalidArgumentType(
                 f"Kwarg sort_values must be specified: table {table_name} has {sort_key} as sort key."
             )
         elif len(sort_values) != len(partition_values):
             raise exceptions.InvalidArgumentCombination("Partition and sort values must have the same length.")
+        return
 
     # Build kwargs shared by read methods
     kwargs = {"ConsistentRead": consistent}
