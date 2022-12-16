@@ -168,8 +168,7 @@ def _get_invalid_kwarg(msg: str) -> Optional[str]:
     for kwarg in ("ProjectionExpression", "KeyConditionExpression", "FilterExpression"):
         if msg.startswith(f"Invalid {kwarg}: Attribute name is a reserved keyword; reserved keyword: "):
             return kwarg
-    else:
-        return None
+    return None
 
 
 # SEE: https://stackoverflow.com/a/72295070
@@ -203,8 +202,7 @@ def _handle_reserved_keyword_error(func: CustomCallable) -> CustomCallable:
                 # even if it will require as many calls as the reserved keywords involved (not so efficient...)
                 return wrapper(*args, **kwargs)
             # Otherwise raise it
-            else:
-                raise e
+            raise e
 
     # SEE: https://github.com/python/mypy/issues/3157#issue-221120895
     return cast(CustomCallable, wrapper)
@@ -277,8 +275,8 @@ def _read_items(
 def read_items(
     *,
     table_name: str,
-    partition_values: Sequence[Any] = [],
-    sort_values: Sequence[Any] = [],
+    partition_values: Optional[Sequence[Any]] = None,
+    sort_values: Optional[Sequence[Any]] = None,
     filter_expression: Optional[Union[ConditionBase, str]] = None,
     key_condition_expression: Optional[Union[ConditionBase, str]] = None,
     expression_attribute_names: Optional[Dict[str, str]] = None,
@@ -304,9 +302,9 @@ def read_items(
     table_name : str
         DynamoDB table name.
     partition_values : Sequence[Any], optional
-        Partition key values to retrieve. Defaults to [].
+        Partition key values to retrieve. Defaults to None.
     sort_values : Sequence[Any], optional
-        Sort key values to retrieve. Defaults to [].
+        Sort key values to retrieve. Defaults to None.
     filter_expression : Union[ConditionBase, str], optional
         Filter expression as string or combinations of boto3.dynamodb.conditions.Attr conditions. Defaults to None.
     key_condition_expression : Union[ConditionBase, str], optional
@@ -438,23 +436,18 @@ def read_items(
             next(filter(lambda x: x["KeyType"] == "RANGE", table_key_schema))["AttributeName"],
         )
 
-    # Handy checker
-    def ensure_coherency() -> None:
-        if not sort_values:
-            raise exceptions.InvalidArgumentType(
-                f"Kwarg sort_values must be specified: table {table_name} has {sort_key} as sort key."
-            )
-        elif len(sort_values) != len(partition_values):
-            raise exceptions.InvalidArgumentCombination("Partition and sort values must have the same length.")
-        return
-
     # Build kwargs shared by read methods
     kwargs: Dict[str, Any] = {"ConsistentRead": consistent}
     if partition_values:
         if sort_key is None:
             keys = [{partition_key: pv} for pv in partition_values]
         else:
-            ensure_coherency()
+            if not sort_values:
+                raise exceptions.InvalidArgumentType(
+                    f"Kwarg sort_values must be specified: table {table_name} has {sort_key} as sort key."
+                )
+            if len(sort_values) != len(partition_values):
+                raise exceptions.InvalidArgumentCombination("Partition and sort values must have the same length.")
             keys = [{partition_key: pv, sort_key: sv} for pv, sv in zip(partition_values, sort_values)]
         kwargs["Keys"] = keys
     if key_condition_expression:
@@ -487,5 +480,4 @@ def read_items(
     # Enforce DataFrame type if requested
     if as_dataframe:
         return pd.DataFrame(items)
-    else:
-        return items
+    return items
