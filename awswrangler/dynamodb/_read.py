@@ -273,7 +273,6 @@ def _read_items(
 
 @apply_configs
 def read_items(
-    *,
     table_name: str,
     partition_values: Optional[Sequence[Any]] = None,
     sort_values: Optional[Sequence[Any]] = None,
