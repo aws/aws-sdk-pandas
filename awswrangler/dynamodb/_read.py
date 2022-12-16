@@ -3,7 +3,7 @@
 import logging
 import re
 from functools import wraps
-from typing import Any, Dict, List, Optional, Tuple, Callable, Sequence, Mapping, Union
+from typing import Any, Dict, List, Optional, Tuple, Callable, Sequence, Union
 
 import boto3
 import pandas as pd
@@ -169,17 +169,17 @@ def _get_invalid_kwarg(msg: str) -> Optional[str]:
         if msg.startswith(f"Invalid {kwarg}: Attribute name is a reserved keyword; reserved keyword: "):
             return kwarg
     else:
-        return
+        return None
 
 
-def _handle_reserved_keyword_error(func: Callable[[str, Optional[boto3.Session]], Sequence[Mapping[str, Any]]], **kwargs: Any) -> Callable[[Any], Any]:
+def _handle_reserved_keyword_error(func: Callable[[Any], Sequence[Dict[str, Any]]]) -> Callable[[Any], Sequence[Dict[str, Any]]]:
     """Handle automatic replacement of DynamoDB reserved keywords.
 
     For reserved keywords reference: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ReservedWords.html.
     """
 
     @wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Callable[[Any], Any]:
+    def wrapper(*args: Any, **kwargs: Any) -> Sequence[Dict[str, Any]]:
         try:
             return func(*args, **kwargs)
         except ClientError as e:
@@ -208,7 +208,7 @@ def _handle_reserved_keyword_error(func: Callable[[str, Optional[boto3.Session]]
 
 
 @_handle_reserved_keyword_error
-def _read_items(table_name: str, boto3_session: Optional[boto3.Session] = None, **kwargs: Any) -> Sequence[Mapping[str, Any]]:
+def _read_items(table_name: str, boto3_session: Optional[boto3.Session] = None, **kwargs: Any) -> Sequence[Dict[str, Any]]:
     """Read items from given DynamoDB table.
 
     This function set the optimal reading strategy based on the received kwargs.
@@ -276,15 +276,15 @@ def read_items(
     sort_values: Sequence[Any] = [],
     filter_expression: Optional[Union[ConditionBase, str]] = None,
     key_condition_expression: Optional[Union[ConditionBase, str]] = None,
-    expression_attribute_names: Optional[Mapping[str, str]] = None,
-    expression_attribute_values: Optional[Mapping[str, str]] = None,
+    expression_attribute_names: Optional[Dict[str, str]] = None,
+    expression_attribute_values: Optional[Dict[str, str]] = None,
     consistent: bool = False,
     columns: Optional[Sequence[str]] = None,
     allow_full_scan: bool = False,
     max_items_evaluated: Optional[int] = None,
     as_dataframe: bool = True,
     boto3_session: Optional[boto3.Session] = None,
-) -> Union[pd.DataFrame, List[Mapping[str, Any]]]:
+) -> Union[pd.DataFrame, List[Dict[str, Any]]]:
     """Read items from given DynamoDB table.
 
     This function aims to gracefully handle (some of) the complexity of read actions
@@ -440,7 +440,7 @@ def read_items(
         return
 
     # Build kwargs shared by read methods
-    kwargs: Mapping[str, Any] = {"ConsistentRead": consistent}
+    kwargs: Dict[str, Any] = {"ConsistentRead": consistent}
     if partition_values:
         if sort_key is None:
             keys = [{partition_key: pv} for pv in partition_values]
