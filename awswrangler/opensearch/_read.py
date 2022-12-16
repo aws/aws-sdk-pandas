@@ -33,7 +33,7 @@ def _hit_to_row(hit: Mapping[str, Any]) -> Mapping[str, Any]:
 
 
 def _search_response_to_documents(response: Mapping[str, Any]) -> List[Mapping[str, Any]]:
-    return [_hit_to_row(hit) for hit in response["hits"]["hits"]]
+    return [_hit_to_row(hit) for hit in response.get("hits", {}).get("hits", [])]
 
 
 def _search_response_to_df(response: Union[Mapping[str, Any], Any]) -> pd.DataFrame:
