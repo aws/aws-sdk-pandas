@@ -1383,7 +1383,7 @@ ptyprocess = ">=0.5"
 
 [[package]]
 name = "pg8000"
-version = "1.29.3"
+version = "1.29.4"
 description = "PostgreSQL interface library"
 category = "main"
 optional = false
@@ -3441,8 +3441,8 @@ pexpect = [
     {file = "pexpect-4.8.0.tar.gz", hash = "sha256:fc65a43959d153d0114afe13997d439c22823a27cefceb5ff35c2178c6784c0c"},
 ]
 pg8000 = [
-    {file = "pg8000-1.29.3-py3-none-any.whl", hash = "sha256:398097469ad5b9cf9e899653dfb4ee8b10bd7f90efc7f60404d0a116dd93f0c5"},
-    {file = "pg8000-1.29.3.tar.gz", hash = "sha256:c8c954d3c86d7fbf591bc83b00d6ece289fae176c8335a182a7570699da2bfdc"},
+    {file = "pg8000-1.29.4-py3-none-any.whl", hash = "sha256:3264e481857752023eb968016d1b55cceedc0261133cf7a37c87623e465b0146"},
+    {file = "pg8000-1.29.4.tar.gz", hash = "sha256:76d2aa1757a30bc71e0307dae18c374e336a69123e6b046e206a96611fa2a330"},
 ]
 pickleshare = [
     {file = "pickleshare-0.7.5-py2.py3-none-any.whl", hash = "sha256:9649af414d74d4df115d5d718f82acb59c9d418196b7b4290ed47a12ce62df56"},
