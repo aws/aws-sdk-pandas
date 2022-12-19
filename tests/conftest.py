@@ -393,7 +393,7 @@ def cloudwatch_metric_data():
     return (
         {"metric_namespace": "load_test_benchmarks", "metric_name": "sdk_pandas_load_test_benchmark_data"}
         if os.environ.get("PUBLISH_BENCHMARK_DATA")
-        else None
+        else {}
     )
 
 
