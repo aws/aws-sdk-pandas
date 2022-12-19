@@ -10,6 +10,7 @@ import pandas as pd
 
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
+from awswrangler.data_quality._get import get_ruleset
 from awswrangler.data_quality._utils import (
     _create_datasource,
     _get_data_quality_results,
@@ -27,7 +28,7 @@ def _create_dqdl(
     """Create DQDL from pandas data frame."""
     rules = []
     for rule_type, parameter, expression in df_rules.itertuples(index=False):
-        parameter_str = f' "{parameter}" ' if parameter else " "
+        parameter_str = f" {parameter} " if parameter else " "
         expression_str = expression if expression else ""
         rules.append(f"{rule_type}{parameter_str}{expression_str}")
     return "Rules = [ " + ", ".join(rules) + " ]"
@@ -85,7 +86,7 @@ def create_ruleset(
     >>> df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 0, 1]})
     >>> df_rules = pd.DataFrame({
     >>>        "rule_type": ["RowCount", "IsComplete", "Uniqueness"],
-    >>>        "parameter": [None, "c0", "c0"],
+    >>>        "parameter": [None, '"c0"', '"c0"'],
     >>>        "expression": ["between 1 and 6", None, "> 0.95"],
     >>> })
     >>> wr.s3.to_parquet(df, path, dataset=True, database="database", table="table")
@@ -121,6 +122,7 @@ def create_ruleset(
 def update_ruleset(
     name: str,
     updated_name: Optional[str] = None,
+    mode: str = "overwrite",
     df_rules: Optional[pd.DataFrame] = None,
     dqdl_rules: Optional[str] = None,
     description: str = "",
@@ -134,6 +136,8 @@ def update_ruleset(
         Ruleset name.
     updated_name : str
         New ruleset name if renaming an existing ruleset.
+    mode : str
+        overwrite (default) or upsert.
     df_rules : str, optional
         Data frame with `rule_type`, `parameter`, and `expression` columns.
     dqdl_rules : str, optional
@@ -145,25 +149,46 @@ def update_ruleset(
 
     Examples
     --------
+    Overwrite rules in the existing ruleset.
     >>> wr.data_quality.update_ruleset(
     >>>     name="ruleset",
     >>>     new_name="my_ruleset",
     >>>     dqdl_rules="Rules = [ RowCount between 1 and 3 ]",
     >>>)
+
+    Update or insert rules in the existing ruleset.
+    >>> wr.data_quality.update_ruleset(
+    >>>     name="ruleset",
+    >>>     mode="insert",
+    >>>     dqdl_rules="Rules = [ RowCount between 1 and 3 ]",
+    >>>)
     """
     if (df_rules is not None and dqdl_rules) or (df_rules is None and not dqdl_rules):
         raise exceptions.InvalidArgumentCombination("You must pass either ruleset `df_rules` or `dqdl_rules`.")
+    if mode not in ["overwrite", "upsert"]:
+        raise exceptions.InvalidArgumentValue("`mode` must be one of 'overwrite' or 'upsert'.")
+
+    if mode == "upsert":
+        df_existing = get_ruleset(name=name, boto3_session=boto3_session)
+        df_existing = df_existing.set_index(keys=["rule_type", "parameter"], drop=False, verify_integrity=True)
+        df_updated = _rules_to_df(dqdl_rules) if dqdl_rules is not None else df_rules
+        df_updated = df_updated.set_index(keys=["rule_type", "parameter"], drop=False, verify_integrity=True)
+        merged_df = pd.concat([df_existing[~df_existing.index.isin(df_updated.index)], df_updated])
+        dqdl_rules = _create_dqdl(merged_df.reset_index(drop=True))
+    else:
+        dqdl_rules = _create_dqdl(df_rules) if df_rules is not None else dqdl_rules
+
+    args = {
+        "Name": name,
+        "Description": description,
+        "Ruleset": dqdl_rules,
+    }
+    if updated_name:
+        args["UpdatedName"] = updated_name
 
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    dqdl_rules = _create_dqdl(df_rules) if df_rules is not None else dqdl_rules
-
     try:
-        client_glue.update_data_quality_ruleset(
-            Name=name,
-            UpdatedName=updated_name,
-            Description=description,
-            Ruleset=dqdl_rules,
-        )
+        client_glue.update_data_quality_ruleset(**args)
     except client_glue.exceptions.EntityNotFoundException as not_found:
         raise exceptions.ResourceDoesNotExist(f"Ruleset {name} does not exist.") from not_found
 
@@ -327,7 +352,7 @@ def evaluate_ruleset(
     >>>     dqdl_rules="Rules = [ RowCount between 1 and 3 ]",
     >>>)
     >>> df_ruleset_results = wr.data_quality.evaluate_ruleset(
-    >>>     name=["ruleset1", "rulseset2"],
+    >>>     name="ruleset",
     >>>     iam_role_arn=glue_data_quality_role,
     >>> )
     """
