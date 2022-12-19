@@ -33,6 +33,14 @@ def _df2list(df: pd.DataFrame) -> List[List[Any]]:
     return parameters
 
 
+def _format_measure(measure_name: str, measure_value: Any, measure_type: str) -> Dict[str, str]:
+    return {
+        "Name": measure_name,
+        "Value": str(round(measure_value.timestamp() * 1_000) if measure_type == "TIMESTAMP" else measure_value),
+        "Type": measure_type,
+    }
+
+
 @engine.dispatch_on_engine
 def _write_batch(
     boto3_session: Optional[boto3.Session],
@@ -72,7 +80,7 @@ def _write_batch(
                 record["MeasureName"] = measure_cols_names[0]
                 record["MeasureValueType"] = "MULTI"
                 record["MeasureValues"] = [
-                    {"Name": measure_name, "Value": str(measure_value), "Type": measure_value_type}
+                    _format_measure(measure_name, measure_value, measure_value_type)
                     for measure_name, measure_value, measure_value_type in zip(
                         measure_cols_names, rec[measure_cols_loc:dimensions_cols_loc], measure_types
                     )
@@ -579,8 +587,14 @@ def list_databases(
 
     """
     client: boto3.client = _utils.client(service_name="timestream-write", session=boto3_session)
-    dbs = client.list_databases()
-    return [db["DatabaseName"] for db in dbs["Databases"]]
+
+    response: Dict[str, Any] = client.list_databases()
+    dbs: List[str] = [db["DatabaseName"] for db in response["Databases"]]
+    while "nextToken" in response:
+        response = client.list_databases(nextToken=response["nextToken"])
+        dbs += [db["DatabaseName"] for db in response["Databases"]]
+
+    return dbs
 
 
 def list_tables(database: Optional[str] = None, boto3_session: Optional[boto3.Session] = None) -> List[str]:
@@ -616,9 +630,11 @@ def list_tables(database: Optional[str] = None, boto3_session: Optional[boto3.Se
 
     """
     client: boto3.client = _utils.client(service_name="timestream-write", session=boto3_session)
-    if database:
-        tables = client.list_tables(DatabaseName=database)
-    else:
-        tables = client.list_tables()
+    args = {} if database is None else {"DatabaseName": database}
+    response: Dict[str, Any] = client.list_tables(**args)
+    tables: List[str] = [tbl["TableName"] for tbl in response["Tables"]]
+    while "nextToken" in response:
+        response = client.list_tables(**args, nextToken=response["nextToken"])
+        tables += [tbl["TableName"] for tbl in response["Tables"]]
 
-    return [tbl["TableName"] for tbl in tables["Tables"]]
+    return tables

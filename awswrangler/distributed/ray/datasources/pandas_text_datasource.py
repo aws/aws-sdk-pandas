@@ -33,7 +33,7 @@ class PandasTextDatasource(PandasFileBasedDatasource):  # pylint: disable=abstra
 
         self._write_paths: List[str] = []
 
-    def _read_stream(  # type: ignore  # pylint: disable=arguments-differ
+    def _read_stream(  # type: ignore[override]  # pylint: disable=arguments-differ
         self,
         f: pyarrow.NativeFile,  # Refactor reader to use wr.open_s3_object
         path: str,
@@ -102,7 +102,7 @@ class PandasCSVDataSource(PandasTextDatasource):  # pylint: disable=abstract-met
         s3_additional_kwargs: Optional[Dict[str, str]],
         pandas_kwargs: Dict[str, Any],
         **reader_args: Any,
-    ) -> Iterator[pd.DataFrame]:  # type: ignore
+    ) -> Iterator[pd.DataFrame]:
         pandas_header_arg = pandas_kwargs.get("header", "infer")
         pandas_names_arg = pandas_kwargs.get("names", None)
 
@@ -150,7 +150,7 @@ class PandasJSONDatasource(PandasTextDatasource):  # pylint: disable=abstract-me
         s3_additional_kwargs: Optional[Dict[str, str]],
         pandas_kwargs: Dict[str, Any],
         **reader_args: Any,
-    ) -> Iterator[pd.DataFrame]:  # type: ignore
+    ) -> Iterator[pd.DataFrame]:
         read_text_func = self.read_text_func
 
         pandas_lines = pandas_kwargs.get("lines", False)

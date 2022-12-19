@@ -31,9 +31,9 @@ def _block_to_df(
 def _ray_dataset_from_df(df: Union[pd.DataFrame, modin_pd.DataFrame]) -> Dataset[Any]:
     """Create Ray dataset from supported types of data frames."""
     if isinstance(df, modin_pd.DataFrame):
-        return from_modin(df)  # type: ignore
+        return from_modin(df)  # type: ignore[no-any-return]
     if isinstance(df, pd.DataFrame):
-        return from_pandas(df)  # type: ignore
+        return from_pandas(df)  # type: ignore[no-any-return]
     raise ValueError(f"Unknown DataFrame type: {type(df)}")
 
 

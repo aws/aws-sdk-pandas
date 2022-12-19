@@ -119,3 +119,11 @@ class AlreadyExists(Exception):
 
 class S3SelectRequestIncomplete(Exception):
     """S3SelectRequestIncomplete."""
+
+
+class ResourceDoesNotExist(Exception):
+    """ResourceDoesNotExist."""
+
+
+class InvalidRulesetDefinition(Exception):
+    """InvalidRulesetDefinition."""

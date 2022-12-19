@@ -113,7 +113,7 @@ def ray_get(futures: Union["ray.ObjectRef[Any]", List["ray.ObjectRef[Any]"]]) ->
     List[Any]
     """
     if engine.get() == EngineEnum.RAY:
-        return ray.get(futures)
+        return ray.get(futures)  # type: ignore[attr-defined]
     return futures
 
 

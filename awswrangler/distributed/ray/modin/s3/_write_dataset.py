@@ -39,7 +39,7 @@ def _to_buckets_distributed(  # pylint: disable=unused-argument
     paths: List[str] = []
 
     df_paths = df_groups.apply(
-        engine.dispatch_func(func),  # type: ignore
+        engine.dispatch_func(func),
         path_root=path_root,
         filename_prefix=filename_prefix,
         boto3_session=None,
@@ -100,7 +100,7 @@ def _write_partitions_distributed(
             **func_kwargs,
         )
     else:
-        paths = write_func(  # type: ignore
+        paths = write_func(
             df_group.drop(partition_cols, axis="columns"),
             path_root=prefix,
             filename_prefix=filename_prefix,

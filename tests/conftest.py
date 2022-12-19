@@ -221,7 +221,7 @@ def glue_ctas_database():
 
 
 @pytest.fixture(scope="function")
-def glue_table(glue_database: str) -> None:
+def glue_table(glue_database: str) -> str:
     name = f"tbl_{get_time_str_with_random_suffix()}"
     print(f"Table name: {name}")
     wr.catalog.delete_table_if_exists(database=glue_database, table=name)
@@ -231,7 +231,7 @@ def glue_table(glue_database: str) -> None:
 
 
 @pytest.fixture(scope="function")
-def glue_table2(glue_database):
+def glue_table2(glue_database) -> str:
     name = f"tbl_{get_time_str_with_random_suffix()}"
     print(f"Table name: {name}")
     wr.catalog.delete_table_if_exists(database=glue_database, table=name)
@@ -398,3 +398,15 @@ def cloudwatch_metric_data():
 def metric():
     cloudwatch = boto3.resource("cloudwatch")
     return cloudwatch.Metric(pytest.metric_namespace, pytest.metric_name)
+
+
+@pytest.fixture(scope="function")
+def glue_ruleset() -> str:
+    name = f"ruleset_{get_time_str_with_random_suffix()}"
+    print(f"Ruleset name: {name}")
+    yield name
+
+
+@pytest.fixture(scope="session")
+def glue_data_quality_role(cloudformation_outputs):
+    return cloudformation_outputs["GlueDataQualityRole"]

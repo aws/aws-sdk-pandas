@@ -33,7 +33,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install poetry==1.2.2
           poetry config virtualenvs.create false --local
-          poetry install --extras "sqlserver sparql modin ray" -vvv
+          poetry install --extras "sqlserver deltalake sparql modin ray" -vvv
       - name: mypy check
         run: mypy --install-types --non-interactive awswrangler
       - name: Flake8 Lint

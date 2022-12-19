@@ -27,7 +27,7 @@ def _read_parquet_distributed(  # pylint: disable=unused-argument
     if coerce_int96_timestamp_unit:
         dataset_kwargs["coerce_int96_timestamp_unit"] = coerce_int96_timestamp_unit
     dataset = read_datasource(
-        datasource=ArrowParquetDatasource(),  # type: ignore
+        datasource=ArrowParquetDatasource(),
         parallelism=parallelism,
         use_threads=use_threads,
         paths=paths,
