@@ -1,7 +1,4 @@
 import logging
-from importlib import reload
-from types import ModuleType
-from typing import Iterator
 from unittest.mock import patch
 
 import pandas as pd
@@ -10,18 +7,6 @@ import pytest
 from ._utils import ensure_athena_query_metadata
 
 logging.getLogger("awswrangler").setLevel(logging.DEBUG)
-
-
-@pytest.fixture(scope="function")
-def wr() -> Iterator[ModuleType]:
-    import awswrangler
-
-    awswrangler.config.reset()
-
-    yield reload(awswrangler)
-
-    # Reset for future tests
-    awswrangler.config.reset()
 
 
 def test_athena_cache(wr, path, glue_database, glue_table, workgroup1):
