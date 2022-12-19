@@ -19,7 +19,7 @@ def test_ruleset_df(df, path, glue_database, glue_table, glue_ruleset, glue_data
     df_rules = pd.DataFrame(
         {
             "rule_type": ["RowCount", "IsComplete", "Uniqueness", "ColumnValues"],
-            "parameter": [None, "c0", "c0", "c1"],
+            "parameter": [None, '"c0"', '"c0"', '"c1"'],
             "expression": ["between 1 and 6", None, "> 0.95", "in [0, 1, 2]"],
         }
     )
@@ -76,8 +76,9 @@ def test_recommendation_ruleset(df, path, glue_database, glue_table, glue_rulese
         iam_role_arn=glue_data_quality_role,
         number_of_workers=2,
     )
+    print(glue_data_quality_role)
     df_rules = df_recommended_ruleset.append(
-        {"rule_type": "ColumnValues", "parameter": "c2", "expression": "in [0, 1, 2]"}, ignore_index=True
+        {"rule_type": "ColumnValues", "parameter": '"c2"', "expression": "in [0, 1, 2]"}, ignore_index=True
     )
     wr.data_quality.create_ruleset(
         name=glue_ruleset,
@@ -154,7 +155,7 @@ def test_update_ruleset(df: pd.DataFrame, glue_database: str, glue_table: str, g
     df_rules = pd.DataFrame(
         {
             "rule_type": ["RowCount", "IsComplete", "Uniqueness", "ColumnValues"],
-            "parameter": [None, "c0", "c0", "c1"],
+            "parameter": [None, '"c0"', '"c0"', '"c1"'],
             "expression": ["between 1 and 6", None, "> 0.95", "in [0, 1, 2]"],
         }
     )
@@ -166,7 +167,7 @@ def test_update_ruleset(df: pd.DataFrame, glue_database: str, glue_table: str, g
     )
 
     df_rules = df_rules.append(
-        {"rule_type": "ColumnValues", "parameter": "c2", "expression": "in [0, 1, 2]"}, ignore_index=True
+        {"rule_type": "ColumnValues", "parameter": '"c2"', "expression": "in [0, 1, 2]"}, ignore_index=True
     )
 
     new_glue_ruleset_name = f"{glue_ruleset} 2.0"
@@ -202,7 +203,7 @@ def test_upsert_ruleset(df: pd.DataFrame, glue_database: str, glue_table: str, g
     df_rules = pd.DataFrame(
         {
             "rule_type": ["RowCount", "IsComplete", "Uniqueness", "ColumnValues"],
-            "parameter": [None, "c0", "c0", "c1"],
+            "parameter": [None, '"c0"', '"c0"', '"c1"'],
             "expression": ["between 1 and 6", None, "> 0.95", "in [0, 1, 2]"],
         }
     )
@@ -216,7 +217,7 @@ def test_upsert_ruleset(df: pd.DataFrame, glue_database: str, glue_table: str, g
     df_upsert = pd.DataFrame(
         {
             "rule_type": ["RowCount", "IsComplete", "Uniqueness", "ColumnValues"],
-            "parameter": [None, "c0", "c0", "c0"],
+            "parameter": [None, '"c0"', '"c0"', '"c0"'],
             "expression": ["between 2 and 8", None, "> 0.95", "in [0, 1, 2]"],
         }
     )
@@ -253,7 +254,7 @@ def test_two_evaluations_at_once(
         [
             {
                 "rule_type": "IsComplete",
-                "parameter": "c0",
+                "parameter": '"c0"',
                 "expression": None,
             }
         ]
@@ -283,3 +284,71 @@ def test_two_evaluations_at_once(
         number_of_workers=2,
     )
     assert df_results["Result"].eq("PASS").all()
+
+
+@pytest.mark.parametrize("prefix", ["Rules=[", " Rules = [", "Rules =[\n"])
+@pytest.mark.parametrize("suffix", ["]", " ] \n"])
+def test_parse_rules(df, path, prefix, suffix, glue_database: str, glue_table: str, glue_ruleset: str) -> None:
+    dqdl_rules = (
+        " RowCount  between 1 and 6 ,"
+        'ColumnCorrelation "height" "weight" > 0.8,'
+        'ColumnLength "Postal_Code" = 5,'
+        'ColumnValues "Country" in [ "US", "CA", "UK" ], '
+        'ColumnValues "First_Name" matches "[a-ZA-Z]*",'
+        'ColumnValues "Load_Date" > (now() - 3 days),'
+        '  ColumnValues  "Customer_ID" between 1 and 2000,'
+        'Completeness "First_Name" > 0.95,'
+        'CustomSql "select count(*) from primary" between 10 and 20 , '
+        'DataFreshness "Order_Date" <= 24 hours,'
+        'DataFreshness "Order_Date" between 2 days and 5 days,'
+        'DistinctValuesCount "State" > 3,'
+        'Entropy "Star_Rating" > 1,  '
+        'IsComplete  "email",'
+        'IsPrimaryKey "Customer_ID",'
+        'IsUnique "email"  ,'
+        'Mean "Star_Rating"   > 3,'
+        'StandardDeviation "Star_Rating" < 1.5,'
+        'Sum "transaction_total" > 500000,'
+        'Uniqueness "email" = 1.0,  '
+        'UniqueValueRatio "test_score" between 0 and 0.5'
+    )
+
+    wr.data_quality.create_ruleset(
+        name=glue_ruleset,
+        database=glue_database,
+        table=glue_table,
+        dqdl_rules=prefix + dqdl_rules + suffix,
+    )
+
+    df_ruleset = wr.data_quality.get_ruleset(name=glue_ruleset)
+    assert df_ruleset.shape == (21, 3)
+    assert (
+        df_ruleset["rule_type"]
+        .isin(
+            [
+                "RowCount",
+                "ColumnCorrelation",
+                "ColumnLength",
+                "ColumnValues",
+                "Completeness",
+                "CustomSql",
+                "DataFreshness",
+                "DistinctValuesCount",
+                "Entropy",
+                "IsComplete",
+                "IsPrimaryKey",
+                "IsUnique",
+                "Mean",
+                "StandardDeviation",
+                "Sum",
+                "Uniqueness",
+                "UniqueValueRatio",
+            ]
+        )
+        .all()
+    )
+    assert (
+        df_ruleset["parameter"].str.startswith('"', na=True).all()
+        and df_ruleset["parameter"].str.endswith('"', na=True).all()
+    )
+    assert df_ruleset["expression"].str.startswith((">", "<", "=", "between", "matches", "in"), na=True).all()

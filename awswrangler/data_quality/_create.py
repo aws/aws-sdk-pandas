@@ -28,7 +28,7 @@ def _create_dqdl(
     """Create DQDL from pandas data frame."""
     rules = []
     for rule_type, parameter, expression in df_rules.itertuples(index=False):
-        parameter_str = f' "{parameter}" ' if parameter else " "
+        parameter_str = f" {parameter} " if parameter else " "
         expression_str = expression if expression else ""
         rules.append(f"{rule_type}{parameter_str}{expression_str}")
     return "Rules = [ " + ", ".join(rules) + " ]"
@@ -86,7 +86,7 @@ def create_ruleset(
     >>> df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 0, 1]})
     >>> df_rules = pd.DataFrame({
     >>>        "rule_type": ["RowCount", "IsComplete", "Uniqueness"],
-    >>>        "parameter": [None, "c0", "c0"],
+    >>>        "parameter": [None, '"c0"', '"c0"'],
     >>>        "expression": ["between 1 and 6", None, "> 0.95"],
     >>> })
     >>> wr.s3.to_parquet(df, path, dataset=True, database="database", table="table")
@@ -178,14 +178,17 @@ def update_ruleset(
     else:
         dqdl_rules = _create_dqdl(df_rules) if df_rules is not None else dqdl_rules
 
+    args = {
+        "Name": name,
+        "Description": description,
+        "Ruleset": dqdl_rules,
+    }
+    if updated_name:
+        args["UpdatedName"] = updated_name
+
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
     try:
-        client_glue.update_data_quality_ruleset(
-            Name=name,
-            UpdatedName=updated_name,
-            Description=description,
-            Ruleset=dqdl_rules,
-        )
+        client_glue.update_data_quality_ruleset(**args)
     except client_glue.exceptions.EntityNotFoundException as not_found:
         raise exceptions.ResourceDoesNotExist(f"Ruleset {name} does not exist.") from not_found
 
@@ -349,7 +352,7 @@ def evaluate_ruleset(
     >>>     dqdl_rules="Rules = [ RowCount between 1 and 3 ]",
     >>>)
     >>> df_ruleset_results = wr.data_quality.evaluate_ruleset(
-    >>>     name=["ruleset1", "rulseset2"],
+    >>>     name="ruleset",
     >>>     iam_role_arn=glue_data_quality_role,
     >>> )
     """

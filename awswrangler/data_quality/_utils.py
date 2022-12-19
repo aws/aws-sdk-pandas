@@ -24,12 +24,13 @@ def _parse_rules(rules: List[str]) -> List[Tuple[str, Optional[str], Optional[st
     for rule in rules:
         rule_type, remainder = tuple(rule.split(maxsplit=1))
         if remainder.startswith('"'):
-            remainder_split = remainder.split(maxsplit=1)
-            parameter = remainder_split[0].strip('"')
-            expression = None if len(remainder_split) == 1 else remainder_split[1]
+            expression_regex = r"\s+(?:[=><]|between\s+.+\s+and\s+|in\s+\[.+\]|matches\s+).*"
+            expression_matches = re.findall(expression_regex, remainder)
+            expression = None if len(expression_matches) == 0 else expression_matches[0].strip()
+            parameter = remainder.split(expression)[0].strip() if expression else remainder
         else:
-            parameter = None
             expression = remainder
+            parameter = None
         parsed_rules.append((rule_type, parameter, expression))
     return parsed_rules
 
