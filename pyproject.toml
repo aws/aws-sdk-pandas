@@ -138,3 +138,10 @@ addopts = "--log-cli-format \"[%(name)s][%(funcName)s] %(message)s\" --verbose -
 markers = [
     "distributed: tests againsts methods with distributed functionality",
 ]
+
+[tool.coverage.run]
+branch = true
+omit = ["awswrangler/distributed/*"]
+
+[tool.coverage.report]
+show_missing = true

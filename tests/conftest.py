@@ -1,8 +1,11 @@
 from datetime import datetime
+from importlib import reload
+from types import ModuleType
+from typing import Iterator
 
-import boto3  # type: ignore
+import boto3
 import botocore.exceptions
-import pytest  # type: ignore
+import pytest
 
 import awswrangler as wr
 
@@ -394,3 +397,15 @@ def glue_ruleset() -> str:
 @pytest.fixture(scope="session")
 def glue_data_quality_role(cloudformation_outputs):
     return cloudformation_outputs["GlueDataQualityRole"]
+
+
+@pytest.fixture(scope="function", name="wr")
+def awswrangler_import() -> Iterator[ModuleType]:
+    import awswrangler
+
+    awswrangler.config.reset()
+
+    yield reload(awswrangler)
+
+    # Reset for future tests
+    awswrangler.config.reset()
