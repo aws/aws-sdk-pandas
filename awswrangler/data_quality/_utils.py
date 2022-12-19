@@ -8,6 +8,7 @@ import time
 from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import boto3
+import botocore.exceptions
 import pandas as pd
 
 from awswrangler import _utils, exceptions
@@ -23,12 +24,13 @@ def _parse_rules(rules: List[str]) -> List[Tuple[str, Optional[str], Optional[st
     for rule in rules:
         rule_type, remainder = tuple(rule.split(maxsplit=1))
         if remainder.startswith('"'):
-            remainder_split = remainder.split(maxsplit=1)
-            parameter = remainder_split[0].strip('"')
-            expression = None if len(remainder_split) == 1 else remainder_split[1]
+            expression_regex = r"\s+(?:[=><]|between\s+.+\s+and\s+|in\s+\[.+\]|matches\s+).*"
+            expression_matches = re.findall(expression_regex, remainder)
+            expression = None if len(expression_matches) == 0 else expression_matches[0].strip()
+            parameter = remainder.split(expression)[0].strip() if expression else remainder
         else:
-            parameter = None
             expression = remainder
+            parameter = None
         parsed_rules.append((rule_type, parameter, expression))
     return parsed_rules
 
@@ -115,10 +117,18 @@ def _get_ruleset_run(
 ) -> Dict[str, Any]:
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
     client_glue: boto3.client = _utils.client(service_name="glue", session=session)
-    if run_type == "recommendation":
-        response = client_glue.get_data_quality_rule_recommendation_run(RunId=run_id)
-    elif run_type == "evaluation":
-        response = client_glue.get_data_quality_ruleset_evaluation_run(RunId=run_id)
+    f = (
+        client_glue.get_data_quality_rule_recommendation_run
+        if run_type == "recommendation"
+        else client_glue.get_data_quality_ruleset_evaluation_run
+    )
+    response = _utils.try_it(
+        f=f,
+        ex=botocore.exceptions.ClientError,
+        ex_code="ThrottlingException",
+        max_num_tries=5,
+        RunId=run_id,
+    )
     return cast(Dict[str, Any], response)
 
 
@@ -148,7 +158,14 @@ def _get_ruleset(
 ) -> Dict[str, Any]:
     boto3_session = _utils.ensure_session(session=boto3_session)
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    return cast(Dict[str, Any], client_glue.get_data_quality_ruleset(Name=ruleset_name))
+    response = _utils.try_it(
+        f=client_glue.get_data_quality_ruleset,
+        ex=botocore.exceptions.ClientError,
+        ex_code="ThrottlingException",
+        max_num_tries=5,
+        Name=ruleset_name,
+    )
+    return cast(Dict[str, Any], response)
 
 
 def _get_data_quality_results(
