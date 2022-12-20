@@ -16,7 +16,7 @@ from awswrangler import _utils, exceptions
 _logger: logging.Logger = logging.getLogger(__name__)
 
 _RULESET_EVALUATION_FINAL_STATUSES: List[str] = ["STOPPED", "SUCCEEDED", "FAILED", "TIMEOUT"]
-_RULESET_EVALUATION_WAIT_POLLING_DELAY: float = 0.25  # SECONDS
+_RULESET_EVALUATION_WAIT_POLLING_DELAY: float = 1.0  # SECONDS
 
 
 def _parse_rules(rules: List[str]) -> List[Tuple[str, Optional[str], Optional[str]]]:
