@@ -22,7 +22,7 @@ from awswrangler.catalog._utils import _catalog_id, _transaction_id
 from ._cache import _cache_manager, _CacheInfo, _check_for_cached_results, _LocalMetadataCacheManager
 
 _QUERY_FINAL_STATES: List[str] = ["FAILED", "SUCCEEDED", "CANCELLED"]
-_QUERY_WAIT_POLLING_DELAY: float = 0.25  # SECONDS
+_QUERY_WAIT_POLLING_DELAY: float = 1.0  # SECONDS
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
