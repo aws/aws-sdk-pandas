@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 from importlib import reload
 from types import ModuleType
@@ -397,6 +398,18 @@ def glue_ruleset() -> str:
 @pytest.fixture(scope="session")
 def glue_data_quality_role(cloudformation_outputs):
     return cloudformation_outputs["GlueDataQualityRole"]
+
+
+@pytest.fixture(scope="function")
+def local_filename() -> Iterator[str]:
+    filename = os.path.join(".", f"{get_time_str_with_random_suffix()}.data")
+
+    yield filename
+
+    try:
+        os.remove(filename)
+    except OSError:
+        pass
 
 
 @pytest.fixture(scope="function", name="wr")

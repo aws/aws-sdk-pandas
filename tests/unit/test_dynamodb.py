@@ -1,6 +1,7 @@
 import tempfile
 from datetime import datetime
 from decimal import Decimal
+from typing import Any, Dict
 
 import pandas as pd
 import pytest
@@ -150,3 +151,39 @@ def test_execute_statement(params, dynamodb_table):
     )
     df3 = wr.dynamodb.read_partiql_query(f'SELECT * FROM "{dynamodb_table}"')
     assert df.shape == df3.shape
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {
+            "KeySchema": [{"AttributeName": "par0", "KeyType": "HASH"}, {"AttributeName": "par1", "KeyType": "RANGE"}],
+            "AttributeDefinitions": [
+                {"AttributeName": "par0", "AttributeType": "N"},
+                {"AttributeName": "par1", "AttributeType": "S"},
+            ],
+        }
+    ],
+)
+@pytest.mark.parametrize("format", ["csv", "json"])
+def test_dynamodb_put_from_file(format: str, params: Dict[str, Any], dynamodb_table: str, local_filename: str) -> None:
+    df = pd.DataFrame({"par0": [1, 2], "par1": ["foo", "boo"]})
+
+    if format == "csv":
+        df.to_csv(local_filename, index=False)
+        wr.dynamodb.put_csv(
+            path=local_filename,
+            table_name=dynamodb_table,
+        )
+    elif format == "json":
+        df.to_json(local_filename, orient="records")
+        wr.dynamodb.put_json(
+            path=local_filename,
+            table_name=dynamodb_table,
+        )
+    else:
+        raise RuntimeError(f"Unknown format {format}")
+
+    df2 = wr.dynamodb.read_partiql_query(query=f"SELECT * FROM {dynamodb_table}")
+
+    assert df.shape == df2.shape
