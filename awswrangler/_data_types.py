@@ -589,7 +589,7 @@ def process_not_inferred_array(ex: pa.ArrowInvalid, values: Any) -> pa.Array:
     """Infer `pyarrow.array` from PyArrow inference exception."""
     dtype = process_not_inferred_dtype(ex=ex)
     if dtype == pa.string():
-        array: pa.Array = pa.array(obj=[str(x) for x in values], type=dtype, safe=True)
+        array: pa.Array = pa.array(obj=[str(x) if x is not None else None for x in values], type=dtype, safe=True)
     else:
         raise ex
     return array
