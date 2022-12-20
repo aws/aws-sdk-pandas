@@ -69,14 +69,15 @@ def test_ruleset_dqdl(df, path, glue_database, glue_table, glue_ruleset, glue_da
     assert df_results["Result"].eq("PASS").all()
 
 
-def test_recommendation_ruleset(df, path, glue_database, glue_table, glue_ruleset, glue_data_quality_role):
+@pytest.mark.parametrize("name", [False, True])
+def test_recommendation_ruleset(df, path, name, glue_database, glue_table, glue_ruleset, glue_data_quality_role):
     df_recommended_ruleset = wr.data_quality.create_recommendation_ruleset(
+        name=f"{glue_ruleset}_recommended" if name else None,
         database=glue_database,
         table=glue_table,
         iam_role_arn=glue_data_quality_role,
         number_of_workers=2,
     )
-    print(glue_data_quality_role)
     df_rules = df_recommended_ruleset.append(
         {"rule_type": "ColumnValues", "parameter": '"c2"', "expression": "in [0, 1, 2]"}, ignore_index=True
     )
@@ -90,11 +91,12 @@ def test_recommendation_ruleset(df, path, glue_database, glue_table, glue_rulese
         name=glue_ruleset,
         iam_role_arn=glue_data_quality_role,
         number_of_workers=2,
+        additional_run_options={"CloudWatchMetricsEnabled": False},
     )
     assert df_results["Result"].eq("PASS").all()
 
 
-def test_ruleset_fail(df, path, glue_database, glue_table, glue_ruleset, glue_data_quality_role):
+def test_ruleset_fail(df, path, glue_database, glue_table, glue_ruleset, glue_data_quality_role, account_id):
     wr.data_quality.create_ruleset(
         name=glue_ruleset,
         database=glue_database,
@@ -105,6 +107,7 @@ def test_ruleset_fail(df, path, glue_database, glue_table, glue_ruleset, glue_da
         name=glue_ruleset,
         iam_role_arn=glue_data_quality_role,
         number_of_workers=2,
+        catalog_id=account_id,
     )
     assert df_results["Result"][0] == "FAIL"
 
@@ -135,6 +138,13 @@ def test_create_ruleset_already_exists(
     glue_table: str,
     glue_ruleset: str,
 ) -> None:
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.data_quality.create_ruleset(
+            name=glue_ruleset,
+            database=glue_database,
+            table=glue_table,
+        )
+
     wr.data_quality.create_ruleset(
         name=glue_ruleset,
         database=glue_database,
@@ -182,7 +192,7 @@ def test_update_ruleset(df: pd.DataFrame, glue_database: str, glue_table: str, g
     assert df_rules.equals(df_ruleset)
 
 
-def test_update_ruleset_does_not_exists(df: pd.DataFrame, glue_ruleset: str) -> None:
+def test_update_ruleset_exceptions(df: pd.DataFrame, glue_ruleset: str) -> None:
     df_rules = pd.DataFrame(
         {
             "rule_type": ["RowCount"],
@@ -197,6 +207,12 @@ def test_update_ruleset_does_not_exists(df: pd.DataFrame, glue_ruleset: str) -> 
             updated_name=f"{glue_ruleset} 2.0",
             df_rules=df_rules,
         )
+
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.data_quality.update_ruleset(name=glue_ruleset, df_rules=df_rules, mode="append")
+
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.data_quality.update_ruleset(name=glue_ruleset)
 
 
 def test_upsert_ruleset(df: pd.DataFrame, glue_database: str, glue_table: str, glue_ruleset: str) -> None:
@@ -222,15 +238,13 @@ def test_upsert_ruleset(df: pd.DataFrame, glue_database: str, glue_table: str, g
         }
     )
 
-    new_glue_ruleset_name = f"{glue_ruleset} 2.0"
     wr.data_quality.update_ruleset(
         name=glue_ruleset,
-        updated_name=new_glue_ruleset_name,
         mode="upsert",
         df_rules=df_upsert,
     )
 
-    df_ruleset = wr.data_quality.get_ruleset(name=new_glue_ruleset_name)
+    df_ruleset = wr.data_quality.get_ruleset(name=glue_ruleset)
 
     assert df_ruleset.shape == (5, 3)
     row_count = df_ruleset.loc[df_ruleset["rule_type"] == "RowCount"]
