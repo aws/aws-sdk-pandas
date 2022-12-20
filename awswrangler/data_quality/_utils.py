@@ -75,7 +75,7 @@ def _start_ruleset_evaluation_run(
     catalog_id: Optional[str] = None,
     connection_name: Optional[str] = None,
     additional_options: Optional[Dict[str, str]] = None,
-    additional_run_options: Optional[Dict[str, str]] = None,
+    additional_run_options: Optional[Dict[str, Union[str, bool]]] = None,
     client_token: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:

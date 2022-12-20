@@ -295,7 +295,7 @@ def evaluate_ruleset(
     catalog_id: Optional[str] = None,
     connection_name: Optional[str] = None,
     additional_options: Optional[Dict[str, str]] = None,
-    additional_run_options: Optional[Dict[str, str]] = None,
+    additional_run_options: Optional[Dict[str, Union[str, bool]]] = None,
     client_token: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> pd.DataFrame:
@@ -324,7 +324,7 @@ def evaluate_ruleset(
         `pushDownPredicate`: to filter on partitions without having to list and read all the files in your dataset.
         `catalogPartitionPredicate`: to use server-side partition pruning using partition indexes in the
         Glue Data Catalog.
-    additional_run_options : Dict[str, str], optional
+    additional_run_options : Dict[str, Union[str, bool]], optional
         Additional run options. Supported keys:
         `CloudWatchMetricsEnabled`: whether to enable CloudWatch metrics.
         `ResultsS3Prefix`: prefix for Amazon S3 to store results.

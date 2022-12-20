@@ -1045,7 +1045,6 @@ def test_bucketing_csv_saving(path, glue_database, glue_table, dtype):
     df3 = wr.athena.read_sql_query(query, database=glue_database, params=query_params, ctas_approach=False)
     scanned_bucketed = df3.query_metadata["Statistics"]["DataScannedInBytes"]
 
-    print(scanned_bucketed)
     assert df2.equals(df3)
     assert scanned_regular >= scanned_bucketed * saving_factor
 
