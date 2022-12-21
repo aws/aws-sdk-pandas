@@ -69,6 +69,19 @@ def test_list_by_last_modified_date(path):
     assert len(wr.s3.read_json(path, last_modified_begin=begin_utc, last_modified_end=end_utc).index) == 6
 
 
+@pytest.mark.parametrize("use_threads", [True, False])
+def test_delete_objects_multiple_chunks(bucket: str, path: str, use_threads: bool) -> None:
+    df = pd.DataFrame({"FooBoo": [1, 2, 3]})
+
+    file_paths = [f"{path}data.csv{i}" for i in range(10)]
+    for file_path in file_paths:
+        wr.s3.to_csv(df, file_path)
+
+    with patch("awswrangler._utils.chunkify") as chunkify_function:
+        chunkify_function.return_value = [[p] for p in file_paths]
+        wr.s3.delete_objects(path=file_paths, use_threads=use_threads)
+
+
 def test_delete_internal_error(bucket):
     response = {
         "Errors": [
