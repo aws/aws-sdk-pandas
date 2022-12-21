@@ -88,9 +88,8 @@ def _apply_partitions(df: pd.DataFrame, dataset: bool, path: str, path_root: Opt
 
 def _extract_partitions_dtypes_from_table_details(response: Dict[str, Any]) -> Dict[str, str]:
     dtypes: Dict[str, str] = {}
-    if "PartitionKeys" in response["Table"]:
-        for par in response["Table"]["PartitionKeys"]:
-            dtypes[par["Name"]] = par["Type"]
+    for par in response["Table"].get("PartitionKeys", []):
+        dtypes[par["Name"]] = par["Type"]
     return dtypes
 
 
