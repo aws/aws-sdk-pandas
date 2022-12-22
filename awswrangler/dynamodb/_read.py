@@ -12,7 +12,6 @@ from boto3.dynamodb.types import TypeDeserializer
 from botocore.exceptions import ClientError
 
 from awswrangler import _utils, exceptions
-from awswrangler._config import apply_configs
 from awswrangler.dynamodb._utils import get_table
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -101,7 +100,6 @@ def _parse_dynamodb_items(
     return df.astype(dtype=dtype) if dtype else df
 
 
-@apply_configs
 def read_partiql_query(
     query: str,
     dtype: Optional[Dict[str, str]] = None,
@@ -271,7 +269,6 @@ def _read_items(
     return items
 
 
-@apply_configs
 def read_items(
     table_name: str,
     partition_values: Optional[Sequence[Any]] = None,
@@ -338,7 +335,7 @@ def read_items(
     Returns
     -------
     Union[pd.DataFrame, List[Mapping[str, Any]]]
-        A Dataframe containing the retrieved items, or sequence of raw items or directly the only item retrieved.
+        A Data frame containing the retrieved items, or a dictionary of returned items.
 
     Examples
     --------
@@ -463,7 +460,7 @@ def read_items(
         kwargs["Limit"] = max_items_evaluated
 
     # If kwargs are sufficiently informative, proceed with actual read op
-    if partition_values or key_condition_expression or filter_expression or allow_full_scan or max_items_evaluated:
+    if any((partition_values, key_condition_expression, filter_expression, allow_full_scan, max_items_evaluated)):
         items = _read_items(table_name, boto3_session, **kwargs)
     # Raise otherwise
     else:
@@ -474,7 +471,9 @@ def read_items(
             "allow_full_scan",
             "max_items_evaluated",
         )
-        raise exceptions.InvalidArgumentCombination(f"Please provide at least one between {', '.join(_args)}.")
+        raise exceptions.InvalidArgumentCombination(
+            f"Please provide at least one of these arguments: {', '.join(_args)}."
+        )
 
     # Enforce DataFrame type if requested
     return pd.DataFrame(items) if as_dataframe else items
