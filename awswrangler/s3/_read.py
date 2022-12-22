@@ -9,7 +9,6 @@ from pandas.api.types import union_categoricals
 
 from awswrangler import exceptions
 from awswrangler._arrow import _extract_partitions_from_path
-from awswrangler._utils import boto3_to_primitives, ensure_cpu_count
 from awswrangler.s3._list import _prefix_cleanup
 
 _logger: logging.Logger = logging.getLogger(__name__)
