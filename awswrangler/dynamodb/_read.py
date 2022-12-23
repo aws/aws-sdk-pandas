@@ -276,7 +276,7 @@ def read_items(
     filter_expression: Optional[Union[ConditionBase, str]] = None,
     key_condition_expression: Optional[Union[ConditionBase, str]] = None,
     expression_attribute_names: Optional[Dict[str, str]] = None,
-    expression_attribute_values: Optional[Dict[str, str]] = None,
+    expression_attribute_values: Optional[Dict[str, Any]] = None,
     consistent: bool = False,
     columns: Optional[Sequence[str]] = None,
     allow_full_scan: bool = False,
@@ -308,7 +308,7 @@ def read_items(
         Defaults to None.
     expression_attribute_names : Mapping[str, str], optional
         Mapping of placeholder and target attributes. Defaults to None.
-    expression_attribute_values : Mapping[str, str], optional
+    expression_attribute_values : Mapping[str, Any], optional
         Mapping of placeholder and target values. Defaults to None.
     consistent : bool
         If True, ensure that the performed read operation is strongly consistent, otherwise eventually consistent.
@@ -379,7 +379,7 @@ def read_items(
     >>> from boto3.dynamodb.conditions import Key
     >>> df = wr.dynamodb.read_items(
     ...     table_name='my-table',
-    ...     key_condition_expression=Key('key_1').eq('val_1') and Key('key_2').eq('val_2')
+    ...     key_condition_expression=(Key('key_1').eq('val_1') & Key('key_2').eq('val_2'))
     ... )
 
     Same as above, but with KeyConditionExpression as string
@@ -459,6 +459,7 @@ def read_items(
     if max_items_evaluated:
         kwargs["Limit"] = max_items_evaluated
 
+    _logger.debug("kwargs: %s", kwargs)
     # If kwargs are sufficiently informative, proceed with actual read op
     if any((partition_values, key_condition_expression, filter_expression, allow_full_scan, max_items_evaluated)):
         items = _read_items(table_name, boto3_session, **kwargs)
