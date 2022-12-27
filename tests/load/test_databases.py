@@ -44,7 +44,7 @@ def test_timestream_write(benchmark_time: int, timestream_database_and_table: st
     df_cpu = df[df.measure_kind == "cpu_utilization"]
     df_memory = df[df.measure_kind == "memory_utilization"]
 
-    with ExecutionTimer("elapsed time of wr.timestream.write()") as timer:
+    with ExecutionTimer("elapsed time of wr.timestream.write()", "timestream_write") as timer:
         rejected_records = wr.timestream.write(
             df=df_cpu,
             database=name,
@@ -81,7 +81,7 @@ def test_redshift_copy_unload(
 ) -> None:
     df = wr.s3.read_parquet(path="s3://ursa-labs-taxi-data/2018/1*")
 
-    with ExecutionTimer("elapsed time of wr.redshift.copy()") as timer:
+    with ExecutionTimer("elapsed time of wr.redshift.copy()", "redshift_copy") as timer:
         wr.redshift.copy(
             df=df,
             path=path,
@@ -93,7 +93,7 @@ def test_redshift_copy_unload(
         )
     assert timer.elapsed_time < benchmark_time_copy
 
-    with ExecutionTimer("elapsed time of wr.redshift.unload()") as timer:
+    with ExecutionTimer("elapsed time of wr.redshift.unload()", "redshift_unload") as timer:
         df2 = wr.redshift.unload(
             sql=f"SELECT * FROM public.{redshift_table}",
             con=redshift_con,
@@ -119,7 +119,7 @@ def test_athena_unload(benchmark_time: int, path: str, glue_table: str, glue_dat
         partition_cols=["year", "marketplace"],
     )
 
-    with ExecutionTimer("elapsed time of wr.athena.read_sql_query()") as timer:
+    with ExecutionTimer("elapsed time of wr.athena.read_sql_query()", "athena_unload") as timer:
         df_out = wr.athena.read_sql_query(
             sql=f"SELECT * FROM {glue_table}",
             database=glue_database,
@@ -148,7 +148,7 @@ def test_lakeformation_read(benchmark_time: int, path: str, glue_table: str, glu
         partition_cols=["year", "marketplace"],
     )
 
-    with ExecutionTimer("elapsed time of wr.lakeformation.read_sql_table()") as timer:
+    with ExecutionTimer("elapsed time of wr.lakeformation.read_sql_table()", "lakeformation_read") as timer:
         df_out = wr.lakeformation.read_sql_table(
             table=glue_table,
             database=glue_database,
