@@ -57,7 +57,7 @@ sparql = ["SPARQLWrapper"]
 deltalake = ["deltalake"]
 
 [tool.poetry.dev-dependencies]
-wheel = "^0.37.1"
+wheel = "^0.38.1"
 isort = "^5.9.2"
 black = "^22.1.0"
 pylint = "^2.11.1"
