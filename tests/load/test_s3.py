@@ -43,6 +43,13 @@ def _modin_repartition(df: pd.DataFrame, num_blocks: int) -> pd.DataFrame:
     return dataset.to_modin()
 
 
+def test_example():
+    import time, random
+    with ExecutionTimer("elapsed time of wr.s3.select_query()", "example"):
+        time.sleep(random.randint(1,10))
+
+    assert True 
+
 @pytest.mark.repeat(1)
 @pytest.mark.parametrize("benchmark_time", [180])
 def test_s3_select(benchmark_time):
