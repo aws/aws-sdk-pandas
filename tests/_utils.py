@@ -1,3 +1,4 @@
+import json
 import random
 import time
 from datetime import datetime
@@ -29,11 +30,6 @@ dt = lambda x: datetime.strptime(x, "%Y-%m-%d").date()  # noqa
 
 CFN_VALID_STATUS = ["CREATE_COMPLETE", "ROLLBACK_COMPLETE", "UPDATE_COMPLETE", "UPDATE_ROLLBACK_COMPLETE"]
 
-# Need to get these dynamically (e.g. SSM Parameter in tests-infra)
-glue_database = "githubloadtestsanalyticsdatabase78d628b2"
-glue_table = "githubloadtestsanalyticstableb54b6dc9"
-load_tests_path = f"s3://githubloadtests-analyticsbucket99427767-1jtlxn0w1vkdv/"
-
 
 class ExecutionTimer:
     def __init__(self, msg="elapsed time", test=None):
@@ -44,26 +40,36 @@ class ExecutionTimer:
         self.before = timer()
         return self
 
+    def _get_analytics_resources(self):
+        try:
+            ssm_parameter = boto3.client("ssm").get_parameter(Name="/SDKPandas/Analytics/Resources")
+        except botocore.exceptions.ClientError:
+            self.analytics_resources = None
+            return
+        self.analytics_resources = json.loads(ssm_parameter["Parameter"]["Value"])
+
     def __exit__(self, type, value, traceback):
         self.elapsed_time = round((timer() - self.before), 3)
         print(f"{self.msg}: {self.elapsed_time:.3f} sec")
-        df = pd.DataFrame(
-            {
-                "date": [datetime.now()],
-                "test": [self.test],
-                "version": [wr.__version__],
-                "elapsed_time": [self.elapsed_time],
-            }
-        )
-        wr.s3.to_parquet(
-            df=df,
-            path=load_tests_path,
-            dataset=True,
-            mode="append",
-            partition_cols=["test"],
-            database=glue_database,
-            table=glue_table,
-        )
+        self._get_analytics_resources()
+        if self.analytics_resources:
+            df = pd.DataFrame(
+                {
+                    "date": [datetime.now()],
+                    "test": [self.test],
+                    "version": [wr.__version__],
+                    "elapsed_time": [self.elapsed_time],
+                }
+            )
+            wr.s3.to_parquet(
+                df=df,
+                path=f"s3://{self.analytics_resources['bucket']}/",
+                dataset=True,
+                mode="append",
+                partition_cols=["test"],
+                database=self.analytics_resources["database"],
+                table=self.analytics_resources["table"],
+            )
         return None
 
 

@@ -44,7 +44,8 @@ def _modin_repartition(df: pd.DataFrame, num_blocks: int) -> pd.DataFrame:
 
 
 def test_example():
-    import time, random
+    import random
+    import time
 
     with ExecutionTimer("elapsed time of wr.s3.select_query()", "example"):
         time.sleep(random.randint(1, 10))
