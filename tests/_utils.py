@@ -34,6 +34,7 @@ glue_database = "githubloadtestsanalyticsdatabase78d628b2"
 glue_table = "githubloadtestsanalyticstableb54b6dc9"
 load_tests_path = f"s3://githubloadtests-analyticsbucket99427767-1jtlxn0w1vkdv/"
 
+
 class ExecutionTimer:
     def __init__(self, msg="elapsed time", test=None):
         self.msg = msg
@@ -46,13 +47,14 @@ class ExecutionTimer:
     def __exit__(self, type, value, traceback):
         self.elapsed_time = round((timer() - self.before), 3)
         print(f"{self.msg}: {self.elapsed_time:.3f} sec")
-        df = pd.DataFrame({
-            "date": [datetime.now()],
-            "test": [self.test],
-            "version": [wr.__version__],
-            "elapsed_time": [self.elapsed_time]
-        })
-        print(df)
+        df = pd.DataFrame(
+            {
+                "date": [datetime.now()],
+                "test": [self.test],
+                "version": [wr.__version__],
+                "elapsed_time": [self.elapsed_time],
+            }
+        )
         wr.s3.to_parquet(
             df=df,
             path=load_tests_path,
