@@ -1,5 +1,7 @@
-import json
+import os
 import random
+import re
+import subprocess
 import time
 from datetime import datetime
 from decimal import Decimal
@@ -32,44 +34,36 @@ CFN_VALID_STATUS = ["CREATE_COMPLETE", "ROLLBACK_COMPLETE", "UPDATE_COMPLETE", "
 
 
 class ExecutionTimer:
-    def __init__(self, msg="elapsed time", test=None):
-        self.msg = msg
-        self.test = test if test else "undefined"
+    def __init__(self, request: Any, name_override=None):
+        self.test = name_override or request.node.originalname
+        try:
+            self.scenario = re.search(r"\[(.+?)\]", request.node.name).group(1)
+        except AttributeError:
+            self.scenario = None
 
     def __enter__(self):
         self.before = timer()
         return self
 
-    def _get_analytics_resources(self):
-        try:
-            ssm_parameter = boto3.client("ssm").get_parameter(Name="/SDKPandas/Analytics/Resources")
-        except botocore.exceptions.ClientError:
-            self.analytics_resources = None
-            return
-        self.analytics_resources = json.loads(ssm_parameter["Parameter"]["Value"])
+    def _get_commit_info(self, cmd: str) -> str:
+        return subprocess.check_output(cmd.split()).decode("utf-8").strip()
 
     def __exit__(self, type, value, traceback):
         self.elapsed_time = round((timer() - self.before), 3)
-        print(f"{self.msg}: {self.elapsed_time:.3f} sec")
-        self._get_analytics_resources()
-        if self.analytics_resources:
-            df = pd.DataFrame(
-                {
-                    "date": [datetime.now()],
-                    "test": [self.test],
-                    "version": [wr.__version__],
-                    "elapsed_time": [self.elapsed_time],
-                }
-            )
-            wr.s3.to_parquet(
-                df=df,
-                path=f"s3://{self.analytics_resources['bucket']}/",
-                dataset=True,
-                mode="append",
-                partition_cols=["test"],
-                database=self.analytics_resources["database"],
-                table=self.analytics_resources["table"],
-            )
+        print(f"Elapsed time ({self.test}[{self.scenario}]): {self.elapsed_time:.3f} sec")
+        output_path = "load.csv"
+
+        pd.DataFrame(
+            {
+                "date": [datetime.now()],
+                "branch": [self._get_commit_info("git rev-parse --abbrev-ref HEAD")],
+                "hash": [self._get_commit_info("git rev-parse HEAD")],
+                "test": [self.test],
+                "scenario": [self.scenario],
+                "version": [wr.__version__],
+                "elapsed_time": [self.elapsed_time],
+            }
+        ).to_csv(output_path, mode="a", index=False, header=not os.path.exists(output_path))
         return None
 
 
