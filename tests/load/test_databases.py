@@ -106,6 +106,49 @@ def test_redshift_copy_unload(
     assert df.shape == df2.shape
 
 
+@pytest.mark.parametrize("benchmark_time_copy", [240])
+@pytest.mark.parametrize("benchmark_time_read_sql_query", [240])
+@pytest.mark.parametrize("unload_manifest", [False, True])
+@pytest.mark.parametrize("unload_max_file_size", [None, 128.0, 256.0, 512.0, 1024.0])
+def test_redshift_copy_read_sql_query(
+    benchmark_time_copy: int,
+    benchmark_time_read_sql_query: int,
+    path: str,
+    redshift_table: str,
+    redshift_con: Connection,
+    databases_parameters: Dict[str, str],
+    unload_manifest,
+    unload_max_file_size,
+) -> None:
+    # df = wr.s3.read_parquet(path="s3://ursa-labs-taxi-data/2018/1*")
+    df = wr.s3.read_parquet(path="s3://ursa-labs-taxi-data/2010/02/data.parquet")  # 100000 rows
+
+    with ExecutionTimer("elapsed time of wr.redshift.copy()") as timer:
+        wr.redshift.copy(
+            df=df,
+            path=path,
+            con=redshift_con,
+            schema="public",
+            table=redshift_table,
+            mode="overwrite",
+            iam_role=databases_parameters["redshift"]["role"],
+        )
+    assert timer.elapsed_time < benchmark_time_copy
+
+    with ExecutionTimer("elapsed time of wr.redshift.unload()") as timer:
+        df2 = wr.redshift.read_sql_query(
+            sql=f"SELECT * FROM public.{redshift_table}",
+            con=redshift_con,
+            iam_role=databases_parameters["redshift"]["role"],
+            unload_path=path,
+            unload_manifest=unload_manifest,
+            unload_max_file_size=unload_max_file_size,
+        )
+    assert timer.elapsed_time < benchmark_time_read_sql_query
+
+    assert df.shape == df2.shape
+
+
 @pytest.mark.parametrize("benchmark_time", [120])
 def test_athena_unload(benchmark_time: int, path: str, glue_table: str, glue_database: str) -> None:
     df = wr.s3.read_parquet(path="s3://amazon-reviews-pds/parquet/product_category=Toys/", dataset=True)

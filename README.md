@@ -113,24 +113,25 @@ As a result existing scripts can run on significantly larger datasets with no co
 
 <p align="center">
 
-| Service     | API                                                           | Implementation |
-|-------------------|:------------------------------------------------------------------------------------:|:---------------:|
-|  `S3`    | `read_parquet`                                               | ✅ |
-|    | `read_csv`                                               | ✅ |
-|    | `read_json`                                               | ✅ |
-|    | `read_fwf`                                               | ✅ |
-|    | `to_parquet`                                               | ✅ |
-|    | `to_csv`                                               | ✅ |
-|    | `to_json`                                               | ✅ |
-|    | `select_query`                                               | ✅ |
-|    | `delete`                                               | ✅ |
-|    | `copy`                                               | ✅ |
-|    | `wait`                                               | ✅ |
-|  `Redshift`    | `copy`                                               | ✅ |
-|    | `unload`                                               | ✅ |
-|  `Athena`    | `read_sql_query`                                               | ✅ |
-|  `LakeFormation`    | `read_sql_query`                                               | ✅ |
-|  `Timestream`    | `write`                                               | ✅ |
+| Service     |       API        | Implementation |
+|-------------------|:----------------:|:---------------:|
+|  `S3`    |  `read_parquet`  | ✅ |
+|    |    `read_csv`    | ✅ |
+|    |   `read_json`    | ✅ |
+|    |    `read_fwf`    | ✅ |
+|    |   `to_parquet`   | ✅ |
+|    |     `to_csv`     | ✅ |
+|    |    `to_json`     | ✅ |
+|    |  `select_query`  | ✅ |
+|    |     `delete`     | ✅ |
+|    |      `copy`      | ✅ |
+|    |      `wait`      | ✅ |
+|  `Redshift`    |      `copy`      | ✅ |
+|    |     `unload`     | ✅ |
+|    | `read_sql_query` | ✅ |
+|  `Athena`    | `read_sql_query` | ✅ |
+|  `LakeFormation`    | `read_sql_query` | ✅ |
+|  `Timestream`    |     `write`      | ✅ |
 </p>
 
 ## [Read The Docs](https://aws-sdk-pandas.readthedocs.io/)

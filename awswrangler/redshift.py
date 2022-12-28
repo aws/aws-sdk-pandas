@@ -16,6 +16,7 @@ from awswrangler import _data_types
 from awswrangler import _databases as _db_utils
 from awswrangler import _utils, exceptions, s3
 from awswrangler._config import apply_configs
+from awswrangler._distributed import EngineEnum, engine
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -648,6 +649,34 @@ def connect_temp(
     )
 
 
+@engine.dispatch_on_engine
+def _read_sql_query(  # pylint: disable=unused-argument
+    sql: str,
+    con: redshift_connector.Connection,
+    index_col: Optional[Union[str, List[str]]] = None,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
+    chunksize: Optional[int] = None,
+    dtype: Optional[Dict[str, pa.DataType]] = None,
+    safe: bool = True,
+    timestamp_as_object: bool = False,
+    parallelism: int = -1,
+    unload_path: Optional[str] = None,
+    unload_manifest: bool = False,
+    unload_max_file_size: Optional[float] = None,
+    unload_iam_role: Optional[str] = None,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    return _db_utils.read_sql_query(
+        sql=sql,
+        con=con,
+        index_col=index_col,
+        params=params,
+        chunksize=chunksize,
+        dtype=dtype,
+        safe=safe,
+        timestamp_as_object=timestamp_as_object,
+    )
+
+
 def read_sql_query(
     sql: str,
     con: redshift_connector.Connection,
@@ -657,6 +686,11 @@ def read_sql_query(
     dtype: Optional[Dict[str, pa.DataType]] = None,
     safe: bool = True,
     timestamp_as_object: bool = False,
+    parallelism: int = -1,
+    unload_path: Optional[str] = None,
+    unload_manifest: bool = False,
+    unload_max_file_size: Optional[float] = None,
+    unload_iam_role: Optional[str] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Return a DataFrame corresponding to the result set of the query string.
 
@@ -707,7 +741,7 @@ def read_sql_query(
 
     """
     _validate_connection(con=con)
-    return _db_utils.read_sql_query(
+    return _read_sql_query(
         sql=sql,
         con=con,
         index_col=index_col,
@@ -716,6 +750,11 @@ def read_sql_query(
         dtype=dtype,
         safe=safe,
         timestamp_as_object=timestamp_as_object,
+        parallelism=parallelism,
+        unload_path=unload_path,
+        unload_manifest=unload_manifest,
+        unload_max_file_size=unload_max_file_size,
+        unload_iam_role=unload_iam_role,
     )
 
 
@@ -1020,7 +1059,7 @@ def unload_to_files(
     max_file_size : float, optional
         Specifies the maximum size (MB) of files that UNLOAD creates in Amazon S3.
         Specify a decimal value between 5.0 MB and 6200.0 MB. If None, the default
-        maximum file size is 6200.0 MB.
+        maximum file size is 6200.0 MB. In distributed mode, defaults to 256.0 MB.
     kms_key_id : str, optional
         Specifies the key ID for an AWS Key Management Service (AWS KMS) key to be
         used to encrypt data files on Amazon S3.
@@ -1163,7 +1202,7 @@ def unload(
     max_file_size : float, optional
         Specifies the maximum size (MB) of files that UNLOAD creates in Amazon S3.
         Specify a decimal value between 5.0 MB and 6200.0 MB. If None, the default
-        maximum file size is 6200.0 MB.
+        maximum file size is 6200.0 MB. In distributed mode, defaults to 256.0 MB.
     kms_key_id : str, optional
         Specifies the key ID for an AWS Key Management Service (AWS KMS) key to be
         used to encrypt data files on Amazon S3.
