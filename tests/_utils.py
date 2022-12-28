@@ -1,6 +1,7 @@
 import os
 import random
 import re
+import subprocess
 import time
 from datetime import datetime
 from decimal import Decimal
@@ -44,6 +45,9 @@ class ExecutionTimer:
         self.before = timer()
         return self
 
+    def _get_commit_info(self, cmd: str) -> str:
+        return subprocess.check_output(cmd.split()).decode("utf-8").strip()
+
     def __exit__(self, type, value, traceback):
         self.elapsed_time = round((timer() - self.before), 3)
         print(f"Elapsed time ({self.test}[{self.scenario}]): {self.elapsed_time:.3f} sec")
@@ -52,7 +56,8 @@ class ExecutionTimer:
         pd.DataFrame(
             {
                 "date": [datetime.now()],
-                "build_id": [os.environ["CODEBUILD_BUILD_ID"]],
+                "branch": [self._get_commit_info("git rev-parse --abbrev-ref HEAD")],
+                "hash": [self._get_commit_info("git rev-parse HEAD")],
                 "test": [self.test],
                 "scenario": [self.scenario],
                 "version": [wr.__version__],
