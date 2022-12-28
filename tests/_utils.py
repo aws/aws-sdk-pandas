@@ -53,7 +53,6 @@ class ExecutionTimer:
         print(f"{self.msg}: {self.elapsed_time:.3f} sec")
         self._get_analytics_resources()
         if self.analytics_resources:
-            print("analytics enabled") # Debug
             df = pd.DataFrame(
                 {
                     "date": [datetime.now()],
@@ -71,9 +70,6 @@ class ExecutionTimer:
                 database=self.analytics_resources["database"],
                 table=self.analytics_resources["table"],
             )
-        else:
-            # Debug
-            print("analytics not enabled")
         return None
 
 
