@@ -51,7 +51,7 @@ class ExecutionTimer:
 
         pd.DataFrame(
             {
-                "date": [datetime.now()],
+                "datetime": [datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
                 "test": [self.test],
                 "scenario": [self.scenario],
                 "elapsed_time": [self.elapsed_time],
