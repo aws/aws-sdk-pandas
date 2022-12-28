@@ -109,11 +109,13 @@ def test_redshift_copy_unload(
 
 @pytest.mark.parametrize("benchmark_time_copy", [240])
 @pytest.mark.parametrize("benchmark_time_read_sql_query", [240])
+@pytest.mark.parametrize("benchmark_time_read_sql_table", [240])
 @pytest.mark.parametrize("unload_manifest", [False, True])
-@pytest.mark.parametrize("unload_max_file_size", [None, 128.0, 256.0, 512.0, 1024.0])
-def test_redshift_copy_read_sql_query(
+@pytest.mark.parametrize("unload_max_file_size", [None, 128.0, 512.0, 1024.0])
+def test_redshift_copy_read_sql(
     benchmark_time_copy: int,
     benchmark_time_read_sql_query: int,
+    benchmark_time_read_sql_table: int,
     path: str,
     redshift_table: str,
     redshift_con: Connection,
@@ -136,7 +138,7 @@ def test_redshift_copy_read_sql_query(
         )
     assert timer.elapsed_time < benchmark_time_copy
 
-    with ExecutionTimer("elapsed time of wr.redshift.unload()") as timer:
+    with ExecutionTimer("elapsed time of wr.redshift.read_sql_query()") as timer:
         df2 = wr.redshift.read_sql_query(
             sql=f"SELECT * FROM public.{redshift_table}",
             con=redshift_con,
@@ -150,6 +152,21 @@ def test_redshift_copy_read_sql_query(
     assert timer.elapsed_time < benchmark_time_read_sql_query
 
     assert df.shape == df2.shape
+
+    with ExecutionTimer("elapsed time of wr.redshift.read_sql_table()") as timer:
+        df3 = wr.redshift.read_sql_table(
+            table=redshift_table,
+            con=redshift_con,
+            unload_params={
+                "path": path,
+                "manifest": unload_manifest,
+                "iam_role": iam_role,
+                "max_file_size": unload_max_file_size,
+            },
+        )
+    assert timer.elapsed_time < benchmark_time_read_sql_table
+
+    assert df.shape == df3.shape
 
 
 @pytest.mark.parametrize("benchmark_time", [120])
