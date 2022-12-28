@@ -52,8 +52,7 @@ class ExecutionTimer:
         pd.DataFrame(
             {
                 "date": [datetime.now()],
-                "branch": [os.environ["CODEBUILD_SOURCE_VERSION"]],
-                "hash": [os.environ["CODEBUILD_RESOLVED_SOURCE_VERSION"]],
+                "build_id": [os.environ["CODEBUILD_BUILD_ID"]],
                 "test": [self.test],
                 "scenario": [self.scenario],
                 "version": [wr.__version__],
