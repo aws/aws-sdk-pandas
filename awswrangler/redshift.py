@@ -660,10 +660,7 @@ def _read_sql_query(  # pylint: disable=unused-argument
     safe: bool = True,
     timestamp_as_object: bool = False,
     parallelism: int = -1,
-    unload_path: Optional[str] = None,
-    unload_manifest: bool = False,
-    unload_max_file_size: Optional[float] = None,
-    unload_iam_role: Optional[str] = None,
+    unload_params: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     return _db_utils.read_sql_query(
         sql=sql,
@@ -687,12 +684,14 @@ def read_sql_query(
     safe: bool = True,
     timestamp_as_object: bool = False,
     parallelism: int = -1,
-    unload_path: Optional[str] = None,
-    unload_manifest: bool = False,
-    unload_max_file_size: Optional[float] = None,
-    unload_iam_role: Optional[str] = None,
+    unload_params: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Return a DataFrame corresponding to the result set of the query string.
+
+    Note
+    ----
+    When running in a Ray cluster, the results of the SQL query will be unloaded as Paquet files and read from S3.
+    `unload_params` is required to provide S3 path to write stage files and other parameters of the `UNLOAD` operation.
 
     Note
     ----
@@ -721,6 +720,32 @@ def read_sql_query(
         Check for overflows or other unsafe data type conversions.
     timestamp_as_object : bool
         Cast non-nanosecond timestamps (np.datetime64) to objects.
+    parallelism : int, optional
+        The requested parallelism of the read. Only used when `ray` add-on is installed.
+        Parallelism may be limited by the number of files of the dataset. -1 (autodetect) by default.
+    unload_params: Dict[str, Any], optional
+        Following UNLOAD parameters are supported:
+
+        .. list-table:: UNLOAD Parameters
+           :header-rows: 1
+
+           * - Name
+             - Type
+             - Description
+           * - path
+             - str
+             - S3 path to write stage files (e.g. s3://bucket_name/any_name/).
+           * - manifest
+             - bool
+             - Whether to unload a manifest file on S3. `False` by default.
+           * - max_file_size
+             - Optional[float]
+             - Specifies the maximum size (MB) of files that UNLOAD creates in Amazon S3.
+               Specify a decimal value between 5.0 MB and 6200.0 MB. If None, the default
+               maximum file size is 6200.0 MB. In distributed mode, defaults to 512.0 MB.
+           * - iam_role
+             - Optional[str]
+             - AWS IAM role with the related permissions.
 
     Returns
     -------
@@ -751,10 +776,7 @@ def read_sql_query(
         safe=safe,
         timestamp_as_object=timestamp_as_object,
         parallelism=parallelism,
-        unload_path=unload_path,
-        unload_manifest=unload_manifest,
-        unload_max_file_size=unload_max_file_size,
-        unload_iam_role=unload_iam_role,
+        unload_params=unload_params,
     )
 
 
@@ -1059,7 +1081,7 @@ def unload_to_files(
     max_file_size : float, optional
         Specifies the maximum size (MB) of files that UNLOAD creates in Amazon S3.
         Specify a decimal value between 5.0 MB and 6200.0 MB. If None, the default
-        maximum file size is 6200.0 MB. In distributed mode, defaults to 256.0 MB.
+        maximum file size is 6200.0 MB.
     kms_key_id : str, optional
         Specifies the key ID for an AWS Key Management Service (AWS KMS) key to be
         used to encrypt data files on Amazon S3.
@@ -1202,7 +1224,7 @@ def unload(
     max_file_size : float, optional
         Specifies the maximum size (MB) of files that UNLOAD creates in Amazon S3.
         Specify a decimal value between 5.0 MB and 6200.0 MB. If None, the default
-        maximum file size is 6200.0 MB. In distributed mode, defaults to 256.0 MB.
+        maximum file size is 6200.0 MB.
     kms_key_id : str, optional
         Specifies the key ID for an AWS Key Management Service (AWS KMS) key to be
         used to encrypt data files on Amazon S3.

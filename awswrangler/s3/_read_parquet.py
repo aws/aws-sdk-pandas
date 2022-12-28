@@ -437,7 +437,7 @@ def read_parquet(
         If enabled, os.cpu_count() is used as the max number of threads.
         If integer is provided, specified number is used.
     parallelism : int, optional
-        The requested parallelism of the read. Only used when `distributed` add-on is installed.
+        The requested parallelism of the read. Only used when `ray` add-on is installed.
         Parallelism may be limited by the number of files of the dataset. -1 (autodetect) by default.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session is used if None is received.
@@ -577,7 +577,7 @@ def read_parquet_table(
     coerce_int96_timestamp_unit: Optional[str] = None,
     chunked: Union[bool, int] = False,
     use_threads: Union[bool, int] = True,
-    parallelism: int = 200,
+    parallelism: int = -1,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
@@ -643,8 +643,8 @@ def read_parquet_table(
         If enabled, os.cpu_count() is used as the max number of threads.
         If integer is provided, specified number is used.
     parallelism : int, optional
-        The requested parallelism of the read. Only used when `distributed` add-on is installed.
-        Parallelism may be limited by the number of files of the dataset. 200 by default.
+        The requested parallelism of the read. Only used when `ray` add-on is installed.
+        Parallelism may be limited by the number of files of the dataset. -1 (autodetect) by default.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session is used if None is received.
     s3_additional_kwargs : Optional[Dict[str, Any]]

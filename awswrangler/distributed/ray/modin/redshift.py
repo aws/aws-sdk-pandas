@@ -25,29 +25,29 @@ def _read_sql_query_distributed(  # pylint: disable=unused-argument
     safe: bool = True,
     timestamp_as_object: bool = False,
     parallelism: int = -1,
-    unload_path: Optional[str] = None,
-    unload_manifest: bool = False,
-    unload_max_file_size: Optional[float] = None,
-    unload_iam_role: Optional[str] = None,
+    unload_params: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    if not unload_path:
-        raise exceptions.InvalidArgumentValue("<unload_path> argument must be provided when using Ray")
-    if not unload_max_file_size:
-        unload_max_file_size = 512.0
+    path = unload_params.get("path")
+    if not path:
+        raise exceptions.InvalidArgumentValue("<unload_params.path> argument must be provided when using Ray")
+    max_file_size = unload_params.get("max_file_size")
+    if not max_file_size:
+        max_file_size = 512.0
         _logger.warning(
             "Unload `MAXFILESIZE` is not specified. "
             "Defaulting to `512.0 MB` corresponding to the recommended Ray target block size."
         )
+    manifest = unload_params.get("manifest")
     unload_to_files(
         sql=sql,
-        path=unload_path,
+        path=path,
         con=con,
         unload_format="PARQUET",
-        manifest=unload_manifest,
-        max_file_size=unload_max_file_size,
-        iam_role=unload_iam_role,
+        manifest=manifest,
+        max_file_size=max_file_size,
+        iam_role=unload_params.get("iam_role"),
     )
     return read_parquet(
-        path=_get_paths_from_manifest(f"{unload_path}manifest") if unload_manifest else unload_path,
+        path=_get_paths_from_manifest(f"{path}manifest") if manifest else path,
         parallelism=parallelism,
     )

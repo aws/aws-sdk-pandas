@@ -79,6 +79,7 @@ def test_redshift_copy_unload(
     redshift_con: Connection,
     databases_parameters: Dict[str, str],
 ) -> None:
+    iam_role = databases_parameters["redshift"]["role"]
     df = wr.s3.read_parquet(path="s3://ursa-labs-taxi-data/2018/1*")
 
     with ExecutionTimer("elapsed time of wr.redshift.copy()") as timer:
@@ -89,7 +90,7 @@ def test_redshift_copy_unload(
             schema="public",
             table=redshift_table,
             mode="overwrite",
-            iam_role=databases_parameters["redshift"]["role"],
+            iam_role=iam_role,
         )
     assert timer.elapsed_time < benchmark_time_copy
 
@@ -97,7 +98,7 @@ def test_redshift_copy_unload(
         df2 = wr.redshift.unload(
             sql=f"SELECT * FROM public.{redshift_table}",
             con=redshift_con,
-            iam_role=databases_parameters["redshift"]["role"],
+            iam_role=iam_role,
             path=path,
             keep_files=False,
         )
@@ -120,8 +121,8 @@ def test_redshift_copy_read_sql_query(
     unload_manifest,
     unload_max_file_size,
 ) -> None:
-    # df = wr.s3.read_parquet(path="s3://ursa-labs-taxi-data/2018/1*")
-    df = wr.s3.read_parquet(path="s3://ursa-labs-taxi-data/2010/02/data.parquet")  # 100000 rows
+    iam_role = databases_parameters["redshift"]["role"]
+    df = wr.s3.read_parquet(path="s3://ursa-labs-taxi-data/2018/1*")
 
     with ExecutionTimer("elapsed time of wr.redshift.copy()") as timer:
         wr.redshift.copy(
@@ -131,7 +132,7 @@ def test_redshift_copy_read_sql_query(
             schema="public",
             table=redshift_table,
             mode="overwrite",
-            iam_role=databases_parameters["redshift"]["role"],
+            iam_role=iam_role,
         )
     assert timer.elapsed_time < benchmark_time_copy
 
@@ -139,10 +140,12 @@ def test_redshift_copy_read_sql_query(
         df2 = wr.redshift.read_sql_query(
             sql=f"SELECT * FROM public.{redshift_table}",
             con=redshift_con,
-            iam_role=databases_parameters["redshift"]["role"],
-            unload_path=path,
-            unload_manifest=unload_manifest,
-            unload_max_file_size=unload_max_file_size,
+            unload_params={
+                "path": path,
+                "manifest": unload_manifest,
+                "iam_role": iam_role,
+                "max_file_size": unload_max_file_size,
+            },
         )
     assert timer.elapsed_time < benchmark_time_read_sql_query
 
