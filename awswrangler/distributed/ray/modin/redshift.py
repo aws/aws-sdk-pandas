@@ -8,7 +8,7 @@ import pandas as pd
 import pyarrow as pa
 import redshift_connector
 
-from awswrangler import _utils, exceptions, s3
+from awswrangler import exceptions
 from awswrangler.redshift import _get_paths_from_manifest, unload_to_files
 from awswrangler.s3 import read_parquet
 
@@ -27,17 +27,19 @@ def _read_sql_query_distributed(  # pylint: disable=unused-argument
     parallelism: int = -1,
     unload_params: Optional[Dict[str, Any]] = None,
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
-    path = unload_params.get("path")
+    if not unload_params:
+        unload_params = {}
+    path: Optional[str] = unload_params.get("path")
     if not path:
         raise exceptions.InvalidArgumentValue("<unload_params.path> argument must be provided when using Ray")
-    max_file_size = unload_params.get("max_file_size")
+    max_file_size: Optional[float] = unload_params.get("max_file_size")
     if not max_file_size:
         max_file_size = 512.0
         _logger.warning(
             "Unload `MAXFILESIZE` is not specified. "
             "Defaulting to `512.0 MB` corresponding to the recommended Ray target block size."
         )
-    manifest = unload_params.get("manifest")
+    manifest: bool = unload_params.get("manifest", False)
     unload_to_files(
         sql=sql,
         path=path,
