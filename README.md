@@ -129,6 +129,7 @@ As a result existing scripts can run on significantly larger datasets with no co
 |  `Redshift`    |      `copy`      | ✅ |
 |    |     `unload`     | ✅ |
 |    | `read_sql_query` | ✅ |
+|    |     `to_sql`     | ✅ |
 |  `Athena`    | `read_sql_query` | ✅ |
 |  `LakeFormation`    | `read_sql_query` | ✅ |
 |  `Timestream`    |     `write`      | ✅ |
