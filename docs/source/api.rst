@@ -306,6 +306,7 @@ DynamoDB
     get_table
     execute_statement
     read_partiql_query
+    read_items
     put_csv
     put_df
     put_items

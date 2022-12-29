@@ -59,8 +59,8 @@ modin = ["modin"]
 ray = ["ray"]
 deltalake = ["deltalake"]
 
-[tool.poetry.group.dev.dependencies]
-wheel = "^0.37.1"
+[tool.poetry.dev-dependencies]
+wheel = "^0.38.1"
 isort = "^5.9.2"
 black = "^22.1.0"
 pylint = "^2.11.1"
@@ -141,7 +141,7 @@ markers = [
 
 [tool.coverage.run]
 branch = true
-omit = ["awswrangler/distributed/*"]
+omit = ["awswrangler/distributed/*", "awswrangler/neptune/_utils.py"]
 
 [tool.coverage.report]
 show_missing = true
