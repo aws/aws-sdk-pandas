@@ -19,10 +19,10 @@ def test_quicksight(path, glue_database, glue_table):
         df=df, path=path, dataset=True, database=glue_database, table=glue_table, partition_cols=["par0", "par1"]
     )
 
-    wr.quicksight.delete_all_dashboards(filter="test.*")
-    wr.quicksight.delete_all_datasets(filter="test.*")
-    wr.quicksight.delete_all_data_sources(filter="test.*")
-    wr.quicksight.delete_all_templates(filter="test.*")
+    wr.quicksight.delete_all_dashboards(regex_filter="test.*")
+    wr.quicksight.delete_all_datasets(regex_filter="test.*")
+    wr.quicksight.delete_all_data_sources(regex_filter="test.*")
+    wr.quicksight.delete_all_templates(regex_filter="test.*")
 
     wr.quicksight.create_athena_data_source(
         name="test", allowed_to_manage=[wr.sts.get_current_identity_name()], tags={"Env": "aws-sdk-pandas"}
@@ -78,16 +78,16 @@ def test_quicksight(path, glue_database, glue_table):
     wr.quicksight.get_dataset_ids("test-sql")
     wr.quicksight.get_data_source_ids("test")
 
-    wr.quicksight.delete_all_datasets(filter="test.*")
-    wr.quicksight.delete_all_data_sources(filter="test.*")
+    wr.quicksight.delete_all_datasets(regex_filter="test.*")
+    wr.quicksight.delete_all_data_sources(regex_filter="test.*")
 
 
 def test_quicksight_delete_all_datasources():
-    wr.quicksight.delete_all_data_sources(filter="test.*")
+    wr.quicksight.delete_all_data_sources(regex_filter="test.*")
     resource_name = "test-delete"
     wr.quicksight.create_athena_data_source(
         name=resource_name, allowed_to_manage=[wr.sts.get_current_identity_name()], tags={"Env": "aws-sdk-pandas"}
     )
-    wr.quicksight.delete_all_data_sources(filter="test.*")
+    wr.quicksight.delete_all_data_sources(regex_filter="test.*")
 
     assert len(wr.quicksight.get_dataset_ids(resource_name)) == 0
