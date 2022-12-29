@@ -1,0 +1,41 @@
+name: Mutation Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  Check:
+
+    runs-on: ubuntu-latest
+    env:
+      AWS_DEFAULT_REGION: us-east-1
+    strategy:
+      matrix:
+        python-version: [3.7]
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install Requirements
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install poetry==1.2.2
+          poetry config virtualenvs.create false --local
+          poetry install --extras "sqlserver deltalake" -vvv
+      - name: Mutation Testing S3 List Module (example)
+        run: mutmut run --paths-to-mutate=awswrangler/s3/_list.py --runner="pytest -n 8 tests/test_moto.py"
+      - name: Print Results
+        run: mutmut results
+      - name: Generate HTML Report
+        run: mutmut html
