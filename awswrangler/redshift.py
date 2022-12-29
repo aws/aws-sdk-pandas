@@ -12,10 +12,11 @@ import pandas as pd
 import pyarrow as pa
 import redshift_connector
 
-from awswrangler import EngineEnum, _data_types
+from awswrangler import _data_types
 from awswrangler import _databases as _db_utils
-from awswrangler import _utils, engine, exceptions, s3
+from awswrangler import _utils, exceptions, s3
 from awswrangler._config import apply_configs
+from awswrangler._distributed import EngineEnum, engine
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
