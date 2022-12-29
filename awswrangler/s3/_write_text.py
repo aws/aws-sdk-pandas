@@ -430,6 +430,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             "Pandas arguments in the function call and awswrangler will accept it."
             "e.g. wr.s3.to_csv(df, path, sep='|', na_rep='NULL', decimal=',', compression='gzip')"
         )
+
     _validate_args(
         df=df,
         table=table,
@@ -865,6 +866,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
             "Pandas arguments in the function call and awswrangler will accept it."
             "e.g. wr.s3.to_json(df, path, lines=True, date_format='iso')"
         )
+
     _validate_args(
         df=df,
         table=table,
