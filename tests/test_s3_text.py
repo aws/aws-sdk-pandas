@@ -378,3 +378,33 @@ def test_to_csv_schema_evolution(path, glue_database, glue_table) -> None:
         wr.s3.to_csv(
             df=df, path=path_file, dataset=True, database=glue_database, table=glue_table, schema_evolution=False
         )
+
+
+def test_exceptions(path):
+    with pytest.raises(wr.exceptions.EmptyDataFrame):
+        wr.s3.to_json(df=pd.DataFrame(), path=path)
+
+    with pytest.raises(wr.exceptions.EmptyDataFrame):
+        wr.s3.to_csv(df=pd.DataFrame(), path=path)
+
+    df = pd.DataFrame({"c0": [1, 2], "c1": ["a", "b"]})
+    with pytest.raises(wr.exceptions.InvalidArgument):
+        wr.s3.to_csv(df=df, path=path, pandas_kwargs={})
+
+    with pytest.raises(wr.exceptions.InvalidArgument):
+        wr.s3.to_json(df=df, path=path, pandas_kwargs={})
+
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.s3.to_csv(df=df, path=path, dataset=False)
+
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.s3.to_json(df=df, path=f"{path}test.pq", dataset=False, bucketing_info=(["c0"], 2))
+
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.s3.to_csv(df=df, path=f"{path}test.pq", dataset=True, bucketing_info=(["c0"], -1))
+
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.s3.to_json(df=df, path=f"{path}test.pq", dataset=True, database=None, table="test")
+
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.s3.to_csv(df=df, dataset=True)
