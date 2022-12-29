@@ -12,7 +12,7 @@ from awswrangler import _utils, exceptions
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
-_QUERY_WAIT_POLLING_DELAY: float = 0.2  # SECONDS
+_QUERY_WAIT_POLLING_DELAY: float = 1.0  # SECONDS
 
 
 def _validate_args(
