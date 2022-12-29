@@ -132,3 +132,6 @@ warn_unused_ignores = true
 log_cli = false
 filterwarnings = "ignore::DeprecationWarning"
 addopts = "--log-cli-format \"[%(name)s][%(funcName)s] %(message)s\" --verbose --capture=sys"
+
+[tool.coverage.run]
+omit = ["awswrangler/neptune/_utils.py"]
