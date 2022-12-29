@@ -303,6 +303,7 @@ DynamoDB
 
     delete_items
     get_table
+    read_items
     put_csv
     put_df
     put_items
