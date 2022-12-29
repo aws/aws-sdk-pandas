@@ -12,9 +12,9 @@ import pandas as pd
 import pyarrow as pa
 import redshift_connector
 
-from awswrangler import _data_types
+from awswrangler import EngineEnum, _data_types
 from awswrangler import _databases as _db_utils
-from awswrangler import _utils, exceptions, s3
+from awswrangler import _utils, engine, exceptions, s3
 from awswrangler._config import apply_configs
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -1057,6 +1057,12 @@ def unload_to_files(
         partition_str: str = f"\nPARTITION BY ({','.join(partition_cols)})" if partition_cols else ""
         manifest_str: str = "\nmanifest" if manifest is True else ""
         region_str: str = f"\nREGION AS '{region}'" if region is not None else ""
+        if not max_file_size and engine.get() == EngineEnum.RAY:
+            _logger.warning(
+                "Unload `MAXFILESIZE` is not specified. "
+                "Defaulting to `512.0 MB` corresponding to the recommended Ray target block size."
+            )
+            max_file_size = 512.0
         max_file_size_str: str = f"\nMAXFILESIZE AS {max_file_size} MB" if max_file_size is not None else ""
         kms_key_id_str: str = f"\nKMS_KEY_ID '{kms_key_id}'" if kms_key_id is not None else ""
 
