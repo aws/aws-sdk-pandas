@@ -137,3 +137,4 @@ addopts = "--log-cli-format \"[%(name)s][%(funcName)s] %(message)s\" --verbose -
 [tool.mutmut]
 paths_to_mutate = "awswrangler/"
 backup = false
+runner = "pytest -n 8 tests/test_moto.py"
