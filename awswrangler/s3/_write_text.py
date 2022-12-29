@@ -3,7 +3,6 @@
 import csv
 import logging
 import uuid
-from distutils.version import LooseVersion
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import boto3
@@ -420,11 +419,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             "Pandas arguments in the function call and awswrangler will accept it."
             "e.g. wr.s3.to_csv(df, path, sep='|', na_rep='NULL', decimal=',', compression='gzip')"
         )
-    if pandas_kwargs.get("compression") and str(pd.__version__) < LooseVersion("1.2.0"):
-        raise exceptions.InvalidArgument(
-            f"CSV compression on S3 is not supported for Pandas version {pd.__version__}. "
-            "The minimum acceptable version to achive it is Pandas 1.2.0 that requires Python >=3.7.1."
-        )
+
     _validate_args(
         df=df,
         table=table,
@@ -884,11 +879,6 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
             "You can NOT pass `pandas_kwargs` explicit, just add valid "
             "Pandas arguments in the function call and awswrangler will accept it."
             "e.g. wr.s3.to_json(df, path, lines=True, date_format='iso')"
-        )
-    if pandas_kwargs.get("compression") and str(pd.__version__) < LooseVersion("1.2.0"):
-        raise exceptions.InvalidArgument(
-            f"JSON compression on S3 is not supported for Pandas version {pd.__version__}. "
-            "The minimum acceptable version to achive it is Pandas 1.2.0 that requires Python >=3.7.1."
         )
 
     _validate_args(
