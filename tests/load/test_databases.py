@@ -107,19 +107,21 @@ def test_redshift_copy_unload(
     assert df.shape == df2.shape
 
 
-@pytest.mark.parametrize("benchmark_time_copy", [240])
+@pytest.mark.parametrize("benchmark_time_to_sql", [240])
 @pytest.mark.parametrize("benchmark_time_read_sql_query", [240])
 @pytest.mark.parametrize("benchmark_time_read_sql_table", [240])
+@pytest.mark.parametrize("copy_manifest", [False, True])
 @pytest.mark.parametrize("unload_manifest", [False, True])
 @pytest.mark.parametrize("unload_max_file_size", [None, 128.0, 512.0, 1024.0])
-def test_redshift_copy_read_sql(
-    benchmark_time_copy: int,
+def test_redshift_to_sql_read_sql(
+    benchmark_time_to_sql: int,
     benchmark_time_read_sql_query: int,
     benchmark_time_read_sql_table: int,
     path: str,
     redshift_table: str,
     redshift_con: Connection,
     databases_parameters: Dict[str, str],
+    copy_manifest,
     unload_manifest,
     unload_max_file_size,
 ) -> None:
@@ -127,23 +129,26 @@ def test_redshift_copy_read_sql(
     df = wr.s3.read_parquet(path="s3://ursa-labs-taxi-data/2018/1*")
 
     with ExecutionTimer("elapsed time of wr.redshift.copy()") as timer:
-        wr.redshift.copy(
+        wr.redshift.to_sql(
             df=df,
-            path=path,
             con=redshift_con,
             schema="public",
             table=redshift_table,
             mode="overwrite",
-            iam_role=iam_role,
+            copy_params={
+                "path": path,
+                "manifest": copy_manifest,
+                "iam_role": iam_role,
+            },
         )
-    assert timer.elapsed_time < benchmark_time_copy
+    assert timer.elapsed_time < benchmark_time_to_sql
 
     with ExecutionTimer("elapsed time of wr.redshift.read_sql_query()") as timer:
         df2 = wr.redshift.read_sql_query(
             sql=f"SELECT * FROM public.{redshift_table}",
             con=redshift_con,
             unload_params={
-                "path": path,
+                "path": f"{path}unload_query/",
                 "manifest": unload_manifest,
                 "iam_role": iam_role,
                 "max_file_size": unload_max_file_size,
@@ -158,7 +163,7 @@ def test_redshift_copy_read_sql(
             table=redshift_table,
             con=redshift_con,
             unload_params={
-                "path": path,
+                "path": f"{path}unload_table/",
                 "manifest": unload_manifest,
                 "iam_role": iam_role,
                 "max_file_size": unload_max_file_size,

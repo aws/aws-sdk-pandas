@@ -5,7 +5,7 @@ from awswrangler._distributed import MemoryFormatEnum, engine, memory_format
 from awswrangler._utils import is_pandas_frame, split_pandas_frame, table_refs_to_df
 from awswrangler.distributed.ray import ray_remote
 from awswrangler.lakeformation._read import _get_work_unit_results
-from awswrangler.redshift import _read_sql_query
+from awswrangler.redshift import _insert, _read_sql_query
 from awswrangler.s3._delete import _delete_objects
 from awswrangler.s3._read_parquet import _read_parquet, _read_parquet_metadata_file
 from awswrangler.s3._read_text import _read_text
@@ -43,7 +43,7 @@ def register_ray() -> None:
             _is_pandas_or_modin_frame,
             _split_modin_frame,
         )
-        from awswrangler.distributed.ray.modin.redshift import _read_sql_query_distributed
+        from awswrangler.distributed.ray.modin.redshift import _insert_distributed, _read_sql_query_distributed
         from awswrangler.distributed.ray.modin.s3._read_parquet import _read_parquet_distributed
         from awswrangler.distributed.ray.modin.s3._read_text import _read_text_distributed
         from awswrangler.distributed.ray.modin.s3._write_dataset import (
@@ -65,5 +65,6 @@ def register_ray() -> None:
             split_pandas_frame: _split_modin_frame,
             table_refs_to_df: _arrow_refs_to_df,
             _read_sql_query: _read_sql_query_distributed,
+            _insert: _insert_distributed,
         }.items():
             engine.register_func(o_f, d_f)  # type: ignore

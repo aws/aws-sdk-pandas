@@ -88,6 +88,23 @@ def _get_paths_from_manifest(path: str, boto3_session: Optional[boto3.Session] =
     return [path["url"] for path in manifest_content["entries"]]
 
 
+def _write_manifest(path_root: str, boto3_session: Optional[boto3.Session] = None) -> str:
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
+    manifest = {
+        "entries": [
+            {"url": key, "meta": {"content_length": int(obj["ResponseMetadata"]["HTTPHeaders"]["content-length"])}}
+            for key, obj in s3.describe_objects(path=path_root).items()
+        ],
+    }
+    if path_root.endswith("/"):
+        manifest_path = f"{path_root}manifest"
+    else:
+        manifest_path = f"{path_root}/manifest"
+    bucket, key = _utils.parse_path(manifest_path)
+    s3_client.put_object(Body=json.dumps(manifest), Bucket=bucket, Key=key)
+    return manifest_path
+
+
 def _make_s3_auth_string(
     aws_access_key_id: Optional[str] = None,
     aws_secret_access_key: Optional[str] = None,
@@ -413,7 +430,7 @@ def _create_table(  # pylint: disable=too-many-locals,too-many-arguments,too-man
 
 
 def _read_parquet_iterator(
-    path: str,
+    path: Union[str, List[str]],
     keep_files: bool,
     use_threads: Union[bool, int],
     chunked: Union[bool, int],
@@ -653,14 +670,14 @@ def connect_temp(
 def _read_sql_query(  # pylint: disable=unused-argument
     sql: str,
     con: redshift_connector.Connection,
-    index_col: Optional[Union[str, List[str]]] = None,
-    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
-    chunksize: Optional[int] = None,
-    dtype: Optional[Dict[str, pa.DataType]] = None,
-    safe: bool = True,
-    timestamp_as_object: bool = False,
-    parallelism: int = -1,
-    unload_params: Optional[Dict[str, Any]] = None,
+    index_col: Optional[Union[str, List[str]]],
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]],
+    chunksize: Optional[int],
+    dtype: Optional[Dict[str, pa.DataType]],
+    safe: bool,
+    timestamp_as_object: bool,
+    parallelism: int,
+    unload_params: Optional[Dict[str, Any]],
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     return _db_utils.read_sql_query(
         sql=sql,
@@ -886,8 +903,35 @@ def read_sql_table(
         dtype=dtype,
         safe=safe,
         timestamp_as_object=timestamp_as_object,
+        parallelism=parallelism,
         unload_params=unload_params,
     )
+
+
+@engine.dispatch_on_engine
+def _insert(  # pylint: disable=unused-argument
+    df: pd.DataFrame,
+    cursor: redshift_connector.Cursor,
+    table: str,
+    schema: str,
+    mode: str,
+    column_names: List[str],
+    use_column_names: bool,
+    chunksize: int,
+    copy_params: Optional[Dict[str, Any]],
+) -> None:
+    column_placeholders: str = ", ".join(["%s"] * len(column_names))
+    schema_str = f'"{schema}".' if schema else ""
+    insertion_columns = ""
+    if use_column_names:
+        insertion_columns = f"({', '.join(column_names)})"
+    placeholder_parameter_pair_generator = _db_utils.generate_placeholder_parameter_pairs(
+        df=df, column_placeholders=column_placeholders, chunksize=chunksize
+    )
+    for placeholders, parameters in placeholder_parameter_pair_generator:
+        sql: str = f'INSERT INTO {schema_str}"{table}" {insertion_columns} VALUES {placeholders}'
+        _logger.debug("sql: %s", sql)
+        cursor.executemany(sql, (parameters,))
 
 
 @apply_configs
@@ -912,6 +956,7 @@ def to_sql(  # pylint: disable=too-many-locals
     chunksize: int = 200,
     commit_transaction: bool = True,
     precombine_key: Optional[str] = None,
+    copy_params: Optional[Dict[str, Any]] = None,
 ) -> None:
     """Write records stored in a DataFrame into Redshift.
 
@@ -978,6 +1023,24 @@ def to_sql(  # pylint: disable=too-many-locals
         When there is a primary_key match during upsert, this column will change the upsert method,
         comparing the values of the specified column from source and target, and keeping the
         larger of the two. Will only work when mode = upsert.
+    copy_params: Dict[str, Any], optional
+        Following UNLOAD parameters are supported:
+
+        .. list-table:: UNLOAD Parameters
+           :header-rows: 1
+
+           * - Name
+             - Type
+             - Description
+           * - path
+             - str
+             - S3 path to write stage files (e.g. s3://bucket_name/any_name/).
+           * - manifest
+             - bool
+             - Whether to create a manifest file. `False` by default.
+           * - iam_role
+             - Optional[str]
+             - AWS IAM role with the related permissions.
 
     Returns
     -------
@@ -1029,18 +1092,17 @@ def to_sql(  # pylint: disable=too-many-locals
             if index:
                 df.reset_index(level=df.index.names, inplace=True)
             column_names = [f'"{column}"' for column in df.columns]
-            column_placeholders: str = ", ".join(["%s"] * len(column_names))
-            schema_str = f'"{created_schema}".' if created_schema else ""
-            insertion_columns = ""
-            if use_column_names:
-                insertion_columns = f"({', '.join(column_names)})"
-            placeholder_parameter_pair_generator = _db_utils.generate_placeholder_parameter_pairs(
-                df=df, column_placeholders=column_placeholders, chunksize=chunksize
+            _insert(
+                df=df,
+                cursor=cursor,
+                table=created_table,
+                schema=created_schema,
+                mode=mode,
+                column_names=column_names,
+                use_column_names=use_column_names,
+                chunksize=chunksize,
+                copy_params=copy_params,
             )
-            for placeholders, parameters in placeholder_parameter_pair_generator:
-                sql: str = f'INSERT INTO {schema_str}"{created_table}" {insertion_columns} VALUES {placeholders}'
-                _logger.debug("sql: %s", sql)
-                cursor.executemany(sql, (parameters,))
             if table != created_table:  # upsert
                 _upsert(
                     cursor=cursor,
@@ -1192,6 +1254,7 @@ def unload(
     region: Optional[str] = None,
     max_file_size: Optional[float] = None,
     kms_key_id: Optional[str] = None,
+    manifest: bool = False,
     chunked: Union[bool, int] = False,
     keep_files: bool = False,
     use_threads: Union[bool, int] = True,
@@ -1262,6 +1325,8 @@ def unload(
     kms_key_id : str, optional
         Specifies the key ID for an AWS Key Management Service (AWS KMS) key to be
         used to encrypt data files on Amazon S3.
+    manifest : bool
+        Unload a manifest file on S3.
     keep_files : bool
         Should keep stage files?
     chunked : Union[int, bool]
@@ -1312,14 +1377,14 @@ def unload(
         region=region,
         max_file_size=max_file_size,
         kms_key_id=kms_key_id,
-        manifest=False,
+        manifest=manifest,
         boto3_session=session,
     )
+    paths: Union[str, List[str]] = _get_paths_from_manifest(f"{path}manifest") if manifest else path
     if chunked is False:
         df: pd.DataFrame = s3.read_parquet(
-            path=path,
+            path=paths,
             chunked=chunked,
-            dataset=False,
             use_threads=use_threads,
             boto3_session=session,
             s3_additional_kwargs=s3_additional_kwargs,
@@ -1327,11 +1392,11 @@ def unload(
         )
         if keep_files is False:
             s3.delete_objects(
-                path=path, use_threads=use_threads, boto3_session=session, s3_additional_kwargs=s3_additional_kwargs
+                path=paths, use_threads=use_threads, boto3_session=session, s3_additional_kwargs=s3_additional_kwargs
             )
         return df
     return _read_parquet_iterator(
-        path=path,
+        path=paths,
         chunked=chunked,
         use_threads=use_threads,
         boto3_session=session,
