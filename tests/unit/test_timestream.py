@@ -240,6 +240,7 @@ def test_list_tables(timestream_database_and_table):
         table=f"{timestream_database_and_table}_2",
         memory_retention_hours=1,
         magnetic_retention_days=1,
+        tags={"foo": "boo", "bar": "xoo"},
     )
 
     tables_in_db = wr.timestream.list_tables(database=timestream_database_and_table)
@@ -283,7 +284,7 @@ def test_timestamp_measure_column(timestream_database_and_table):
         {
             "time": [datetime.now()] * 3,
             "dim0": ["foo", "boo", "bar"],
-            "dim1": [1, 2, 3],
+            "dim1": [1, None, 3],
             "measure_f": [1.1, 1.2, 1.3],
             "measure_t": [datetime.now(dt.timezone.utc)] * 3,
         }

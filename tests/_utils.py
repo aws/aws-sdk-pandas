@@ -1,4 +1,6 @@
+import os
 import random
+import re
 import time
 from datetime import datetime
 from decimal import Decimal
@@ -31,8 +33,12 @@ CFN_VALID_STATUS = ["CREATE_COMPLETE", "ROLLBACK_COMPLETE", "UPDATE_COMPLETE", "
 
 
 class ExecutionTimer:
-    def __init__(self, msg="elapsed time"):
-        self.msg = msg
+    def __init__(self, request: Any, name_override=None):
+        self.test = name_override or request.node.originalname
+        try:
+            self.scenario = re.search(r"\[(.+?)\]", request.node.name).group(1)
+        except AttributeError:
+            self.scenario = None
 
     def __enter__(self):
         self.before = timer()
@@ -40,7 +46,17 @@ class ExecutionTimer:
 
     def __exit__(self, type, value, traceback):
         self.elapsed_time = round((timer() - self.before), 3)
-        print(f"{self.msg}: {self.elapsed_time:.3f} sec")
+        print(f"Elapsed time ({self.test}[{self.scenario}]): {self.elapsed_time:.3f} sec")
+        output_path = "load.csv"
+
+        pd.DataFrame(
+            {
+                "datetime": [datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
+                "test": [self.test],
+                "scenario": [self.scenario],
+                "elapsed_time": [self.elapsed_time],
+            }
+        ).to_csv(output_path, mode="a", index=False, header=not os.path.exists(output_path))
         return None
 
 

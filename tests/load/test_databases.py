@@ -12,7 +12,7 @@ from .._utils import ExecutionTimer
 
 
 @pytest.mark.parametrize("benchmark_time", [60])
-def test_timestream_write(benchmark_time: int, timestream_database_and_table: str) -> None:
+def test_timestream_write(benchmark_time: int, timestream_database_and_table: str, request) -> None:
     name = timestream_database_and_table
     df = (
         ray.data.read_csv(
@@ -44,7 +44,7 @@ def test_timestream_write(benchmark_time: int, timestream_database_and_table: st
     df_cpu = df[df.measure_kind == "cpu_utilization"]
     df_memory = df[df.measure_kind == "memory_utilization"]
 
-    with ExecutionTimer("elapsed time of wr.timestream.write()") as timer:
+    with ExecutionTimer(request) as timer:
         rejected_records = wr.timestream.write(
             df=df_cpu,
             database=name,
@@ -78,10 +78,11 @@ def test_redshift_copy_unload(
     redshift_table: str,
     redshift_con: Connection,
     databases_parameters: Dict[str, str],
+    request,
 ) -> None:
     df = wr.s3.read_parquet(path="s3://ursa-labs-taxi-data/2018/1*")
 
-    with ExecutionTimer("elapsed time of wr.redshift.copy()") as timer:
+    with ExecutionTimer(request, "redshift_copy") as timer:
         wr.redshift.copy(
             df=df,
             path=path,
@@ -93,7 +94,7 @@ def test_redshift_copy_unload(
         )
     assert timer.elapsed_time < benchmark_time_copy
 
-    with ExecutionTimer("elapsed time of wr.redshift.unload()") as timer:
+    with ExecutionTimer(request, "redshift_unload") as timer:
         df2 = wr.redshift.unload(
             sql=f"SELECT * FROM public.{redshift_table}",
             con=redshift_con,
@@ -107,7 +108,7 @@ def test_redshift_copy_unload(
 
 
 @pytest.mark.parametrize("benchmark_time", [40])
-def test_athena_unload(benchmark_time: int, path: str, glue_table: str, glue_database: str) -> None:
+def test_athena_unload(benchmark_time: int, path: str, glue_table: str, glue_database: str, request) -> None:
     df = wr.s3.read_parquet(path="s3://amazon-reviews-pds/parquet/product_category=Toys/", dataset=True)
 
     wr.s3.to_parquet(
@@ -119,7 +120,7 @@ def test_athena_unload(benchmark_time: int, path: str, glue_table: str, glue_dat
         partition_cols=["year", "marketplace"],
     )
 
-    with ExecutionTimer("elapsed time of wr.athena.read_sql_query()") as timer:
+    with ExecutionTimer(request) as timer:
         df_out = wr.athena.read_sql_query(
             sql=f"SELECT * FROM {glue_table}",
             database=glue_database,
@@ -134,7 +135,7 @@ def test_athena_unload(benchmark_time: int, path: str, glue_table: str, glue_dat
 
 
 @pytest.mark.parametrize("benchmark_time", [60])
-def test_lakeformation_read(benchmark_time: int, path: str, glue_table: str, glue_database: str) -> None:
+def test_lakeformation_read(benchmark_time: int, path: str, glue_table: str, glue_database: str, request) -> None:
     df = wr.s3.read_parquet(path="s3://amazon-reviews-pds/parquet/product_category=Home/", dataset=True)
 
     wr.s3.to_parquet(
@@ -148,7 +149,7 @@ def test_lakeformation_read(benchmark_time: int, path: str, glue_table: str, glu
         partition_cols=["year", "marketplace"],
     )
 
-    with ExecutionTimer("elapsed time of wr.lakeformation.read_sql_table()") as timer:
+    with ExecutionTimer(request) as timer:
         df_out = wr.lakeformation.read_sql_table(
             table=glue_table,
             database=glue_database,
