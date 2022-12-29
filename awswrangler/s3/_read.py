@@ -1,8 +1,6 @@
 """Amazon S3 Read Module (PRIVATE)."""
 
-import concurrent.futures
 import logging
-from functools import partial
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union, cast
 
 import numpy as np
@@ -11,7 +9,6 @@ from pandas.api.types import union_categoricals
 
 from awswrangler import exceptions
 from awswrangler._arrow import _extract_partitions_from_path
-from awswrangler._utils import boto3_to_primitives, ensure_cpu_count
 from awswrangler.s3._list import _prefix_cleanup
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -90,48 +87,15 @@ def _apply_partitions(df: pd.DataFrame, dataset: bool, path: str, path_root: Opt
 
 def _extract_partitions_dtypes_from_table_details(response: Dict[str, Any]) -> Dict[str, str]:
     dtypes: Dict[str, str] = {}
-    if "PartitionKeys" in response["Table"]:
-        for par in response["Table"]["PartitionKeys"]:
-            dtypes[par["Name"]] = par["Type"]
+    for par in response["Table"].get("PartitionKeys", []):
+        dtypes[par["Name"]] = par["Type"]
     return dtypes
 
 
-def _union(dfs: List[pd.DataFrame], ignore_index: Optional[bool]) -> pd.DataFrame:
-    if ignore_index is None:
-        ignore_index = False
-        for df in dfs:
-            if hasattr(df, "_awswrangler_ignore_index"):
-                if df._awswrangler_ignore_index is True:  # pylint: disable=protected-access
-                    ignore_index = True
-                    break
+def _union(dfs: List[pd.DataFrame], ignore_index: bool) -> pd.DataFrame:
     cats: Tuple[Set[str], ...] = tuple(set(df.select_dtypes(include="category").columns) for df in dfs)
     for col in set.intersection(*cats):
         cat = union_categoricals([df[col] for df in dfs])
         for df in dfs:
             df[col] = pd.Categorical(df[col].values, categories=cat.categories)
     return pd.concat(objs=dfs, sort=False, copy=False, ignore_index=ignore_index)
-
-
-def _read_dfs_from_multiple_paths(
-    read_func: Callable[..., pd.DataFrame],
-    paths: List[str],
-    version_ids: Optional[Dict[str, str]],
-    use_threads: Union[bool, int],
-    kwargs: Dict[str, Any],
-) -> List[pd.DataFrame]:
-    cpus = ensure_cpu_count(use_threads)
-    if cpus < 2:
-        return [
-            read_func(
-                path,
-                version_id=version_ids.get(path) if version_ids else None,
-                **kwargs,
-            )
-            for path in paths
-        ]
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=ensure_cpu_count(use_threads)) as executor:
-        kwargs["boto3_session"] = boto3_to_primitives(kwargs["boto3_session"])
-        partial_read_func = partial(read_func, **kwargs)
-        versions = [version_ids.get(p) if isinstance(version_ids, dict) else None for p in paths]
-        return list(df for df in executor.map(partial_read_func, paths, versions))

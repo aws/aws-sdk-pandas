@@ -360,3 +360,33 @@ def test_wait_object_exists(bucket: str, path: str, use_threads: bool) -> None:
 def test_wait_object_not_exists(bucket: str, path: str, use_threads: bool) -> None:
     file_paths = [f"{path}{i}.txt" for i in range(10)]
     wr.s3.wait_objects_not_exist(file_paths, use_threads=use_threads)
+
+
+def test_delete_with_invalid_list(path: str) -> None:
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        wr.s3.delete_objects(path=[path], last_modified_begin=datetime.datetime.utcnow())
+
+
+def test_list_objects_invalid_start_time(path: str) -> None:
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.s3.list_objects(
+            path=path,
+            last_modified_begin=datetime.datetime.now(),
+        )
+
+
+def test_list_objects_invalid_end_time(path: str) -> None:
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.s3.list_objects(
+            path=path,
+            last_modified_end=datetime.datetime.now(),
+        )
+
+
+def test_list_objects_end_time_after_start_time(path: str) -> None:
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        wr.s3.list_objects(
+            path=path,
+            last_modified_begin=datetime.datetime.now() + datetime.timedelta(days=1),
+            last_modified_end=datetime.datetime.now(),
+        )
