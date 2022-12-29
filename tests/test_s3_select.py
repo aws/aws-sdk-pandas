@@ -22,6 +22,7 @@ def test_full_table(path, use_threads):
         input_serialization="Parquet",
         input_serialization_params={},
         use_threads=use_threads,
+        s3_additional_kwargs={"RequestProgress": {"Enabled": False}},
     )
     assert df.equals(df2)
 
@@ -164,3 +165,23 @@ def test_encryption(path, kms_key_id, s3_additional_kwargs):
         use_threads=False,
     )
     assert df.equals(df2)
+
+
+def test_exceptions(path):
+    args = {
+        "sql": "select * from s3object",
+        "path": f"{path}/test.pq",
+        "input_serialization_params": {},
+    }
+
+    with pytest.raises(wr.exceptions.InvalidArgumentValue):
+        args.update({"input_serialization": "ORC"})
+        wr.s3.select_query(**args)
+
+    with pytest.raises(wr.exceptions.InvalidCompression):
+        args.update({"input_serialization": "Parquet", "compression": "zip"})
+        wr.s3.select_query(**args)
+
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
+        args.update({"compression": "gzip"})
+        wr.s3.select_query(**args)
