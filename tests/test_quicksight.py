@@ -90,4 +90,26 @@ def test_quicksight_delete_all_datasources():
     )
     wr.quicksight.delete_all_data_sources(regex_filter="test.*")
 
+    assert len(wr.quicksight.get_data_source_ids(resource_name)) == 0
+
+
+def test_quicksight_delete_all_datasets(glue_database, glue_table):
+    wr.quicksight.delete_all_datasets(regex_filter="test.*")
+    wr.quicksight.delete_all_data_sources(regex_filter="test.*")
+
+    resource_name = "test-delete"
+    wr.quicksight.create_athena_data_source(
+        name=resource_name, allowed_to_manage=[wr.sts.get_current_identity_name()], tags={"Env": "aws-sdk-pandas"}
+    )
+    wr.quicksight.create_athena_dataset(
+        name="test-sql",
+        sql=f"SELECT * FROM {glue_database}.{glue_table}",
+        data_source_name=resource_name,
+        import_mode="SPICE",
+        allowed_to_use=[wr.sts.get_current_identity_name()],
+        allowed_to_manage=[wr.sts.get_current_identity_name()],
+    )
+    wr.quicksight.delete_all_datasets(regex_filter="test.*")
+    wr.quicksight.delete_all_data_sources(regex_filter="test.*")
+
     assert len(wr.quicksight.get_dataset_ids(resource_name)) == 0
