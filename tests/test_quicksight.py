@@ -107,7 +107,11 @@ def test_quicksight_delete_all_datasources_filter():
     assert len(wr.quicksight.get_data_source_ids(resource_name)) == 0
 
 
-def test_quicksight_delete_all_datasets(glue_database, glue_table):
+def test_quicksight_delete_all_datasets(path, glue_database, glue_table):
+    df = get_df_quicksight()
+    wr.s3.to_parquet(
+        df=df, path=path, dataset=True, database=glue_database, table=glue_table, partition_cols=["par0", "par1"]
+    )
     wr.quicksight.delete_all_datasets(regex_filter="test.*")
     wr.quicksight.delete_all_data_sources(regex_filter="test.*")
 
@@ -122,6 +126,10 @@ def test_quicksight_delete_all_datasets(glue_database, glue_table):
         import_mode="SPICE",
         allowed_to_use=[wr.sts.get_current_identity_name()],
         allowed_to_manage=[wr.sts.get_current_identity_name()],
+        rename_columns={"iint16": "new_col"},
+        cast_columns_types={"new_col": "STRING"},
+        tag_columns={"string": [{"ColumnGeographicRole": "CITY"}, {"ColumnDescription": {"Text": "some description"}}]},
+        tags={"foo": "boo"},
     )
     wr.quicksight.delete_all_datasets(regex_filter="test.*")
     wr.quicksight.delete_all_data_sources(regex_filter="test.*")
