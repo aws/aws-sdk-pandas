@@ -41,7 +41,7 @@ def test_quicksight(path, glue_database, glue_table):
         name=dataset_name,
         database=glue_database,
         table=glue_table,
-        data_source_name="resource_name",
+        data_source_name=resource_name,
         allowed_to_manage=[wr.sts.get_current_identity_name()],
         rename_columns={"iint16": "new_col"},
         cast_columns_types={"new_col": "STRING"},
