@@ -33,7 +33,7 @@ from awswrangler import (  # noqa
 )
 from awswrangler.__metadata__ import __description__, __license__, __title__, __version__  # noqa
 from awswrangler._config import config  # noqa
-from awswrangler._distributed import engine, memory_format  # noqa
+from awswrangler._distributed import EngineEnum, MemoryFormatEnum, engine, memory_format  # noqa
 
 engine.initialize()
 
@@ -67,6 +67,8 @@ __all__ = [
     "__license__",
     "__title__",
     "__version__",
+    "EngineEnum",
+    "MemoryFormatEnum",
 ]
 
 
