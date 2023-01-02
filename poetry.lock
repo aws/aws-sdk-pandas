@@ -261,7 +261,7 @@ crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "botocore"
-version = "1.29.37"
+version = "1.29.41"
 description = "Low-level, data-driven core of boto 3."
 category = "main"
 optional = false
@@ -1323,10 +1323,10 @@ python-versions = ">=3.7.1"
 
 [package.dependencies]
 numpy = [
-    {version = ">=1.21.0", markers = "python_version >= \"3.10\""},
     {version = ">=1.17.3", markers = "platform_machine != \"aarch64\" and platform_machine != \"arm64\" and python_version < \"3.10\""},
     {version = ">=1.19.2", markers = "platform_machine == \"aarch64\" and python_version < \"3.10\""},
     {version = ">=1.20.0", markers = "platform_machine == \"arm64\" and python_version < \"3.10\""},
+    {version = ">=1.21.0", markers = "python_version >= \"3.10\""},
 ]
 python-dateutil = ">=2.7.3"
 pytz = ">=2017.3"
@@ -2579,8 +2579,8 @@ boto3 = [
     {file = "boto3-1.26.37.tar.gz", hash = "sha256:82b790b1dabd0746b028d2013b5d4d636a41f3aaf25520081f4c173cb6eb395d"},
 ]
 botocore = [
-    {file = "botocore-1.29.37-py3-none-any.whl", hash = "sha256:18ab8e95345a6d0d2653ce65d261a0aef6fef8a57a35a89e3cea6ffe315e92fc"},
-    {file = "botocore-1.29.37.tar.gz", hash = "sha256:3afa4fec9f7713caa05116563b38f81bec7bd20585d517155484d3f25efab5aa"},
+    {file = "botocore-1.29.41-py3-none-any.whl", hash = "sha256:b670b7f8958a2908167081efb6ea39794bf61d618be729984629a63d85cf8bfe"},
+    {file = "botocore-1.29.41.tar.gz", hash = "sha256:78761227d986d393956b6d08fdadcfe142748828e0e9db33f2f4c42a482dcd35"},
 ]
 bump2version = [
     {file = "bump2version-1.0.1-py2.py3-none-any.whl", hash = "sha256:37f927ea17cde7ae2d7baf832f8e80ce3777624554a653006c9144f8017fe410"},
