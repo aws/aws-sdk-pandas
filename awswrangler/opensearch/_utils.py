@@ -2,15 +2,20 @@
 
 import logging
 import re
-from typing import Any, Optional
+import time
+from typing import Any, Dict, List, Optional
 
 import boto3
+import botocore
 from opensearchpy import OpenSearch, RequestsHttpConnection
 from requests_aws4auth import AWS4Auth
 
 from awswrangler import _utils, exceptions
 
 _logger: logging.Logger = logging.getLogger(__name__)
+
+_CREATE_COLLECTION_FINAL_STATUSES: List[str] = ["ACTIVE", "FAILED"]
+_CREATE_COLLECTION_WAIT_POLLING_DELAY: float = 0.25  # SECONDS
 
 
 def _get_distribution(client: OpenSearch) -> Any:
@@ -126,3 +131,57 @@ def connect(
         _logger.error("Error connecting to Opensearch cluster. Please verify authentication details")
         raise e
     return es
+
+
+def create_collection(
+    name: str,
+    type: str = "SEARCH",
+    description: str = "",
+    boto3_session: Optional[boto3.Session] = None,
+) -> Dict[str, Any]:
+    """Create Amazon OpenSearch Serverless collection.
+
+    Parameters
+    ----------
+    name : str
+        Collection name.
+    description : str
+        Collection description.
+    type : str
+        Collection type. Allowed values are `SEARCH`, and `TIMESERIES`.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
+
+    Returns
+    -------
+    Collection details : Dict[str, Any]
+        Collection details
+    """
+    if type not in ["SEARCH", "TIMESERIES"]:
+        raise exceptions.InvalidArgumentValue("Collection `type` must be either 'SEARCH' or 'TIMESERIES'.")
+
+    client: boto3.client = _utils.client(service_name="opensearchserverless", session=boto3_session)
+    try:
+        client.create_collection(
+            name=name,
+            type=type,
+            description=description,
+        )
+        # Get collection details
+        status: Optional[str] = None
+        response: Optional[Dict[str, Any]] = {}
+        while status not in _CREATE_COLLECTION_FINAL_STATUSES:
+            time.sleep(_CREATE_COLLECTION_WAIT_POLLING_DELAY)
+            response = client.batch_get_collection(names=[name])
+            status = response["collectionDetails"][0]["status"]
+
+        if status == "FAILED":
+            error_details: str = response.get("collectionErrorDetails")[0]
+            raise exceptions.QueryFailed(f"Failed to create collection `{name}`: {error_details}.")
+
+        return response["collectionDetails"][0]
+    except botocore.exceptions.ClientError as error:
+        if error.response["Error"]["Code"] == "ConflictException":
+            raise exceptions.AlreadyExists(f"A collection with name `{name}` already exists.") from error
+        else:
+            raise error
