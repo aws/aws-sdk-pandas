@@ -14,10 +14,14 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _get_distribution(client: OpenSearch) -> Any:
+    if getattr(client, "_serverless", False):
+        return "opensearch"
     return client.info().get("version", {}).get("distribution", "elasticsearch")
 
 
 def _get_version(client: OpenSearch) -> Any:
+    if getattr(client, "_serverless", False):
+        return None
     return client.info().get("version", {}).get("number")
 
 
@@ -26,6 +30,10 @@ def _get_version_major(client: OpenSearch) -> Any:
     if version:
         return int(version.split(".")[0])
     return None
+
+
+def _get_service(endpoint: str) -> str:
+    return "aoss" if "aoss" in endpoint else "es"
 
 
 def _strip_endpoint(endpoint: str) -> str:
@@ -44,6 +52,7 @@ def connect(
     region: Optional[str] = None,
     username: Optional[str] = None,
     password: Optional[str] = None,
+    service: Optional[str] = None,
 ) -> OpenSearch:
     """Create a secure connection to the specified Amazon OpenSearch domain.
 
@@ -63,12 +72,15 @@ def connect(
         OpenSearch Service only accepts connections over port 80 (HTTP) or 443 (HTTPS)
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
-    region :
+    region : str, optional
         AWS region of the Amazon OS domain. If not provided will be extracted from boto3_session.
-    username :
+    username : str, optional
         Fine-grained access control username. Mandatory if OS Cluster uses Fine Grained Access Control.
-    password :
+    password : str, optional
         Fine-grained access control password. Mandatory if OS Cluster uses Fine Grained Access Control.
+    service : str, optional
+        Service id. Supported values are `es`, corresponding to opensearch cluster,
+        and `aoss` for serverless opensearch. By default, service will be parsed from the host URI.
 
     Returns
     -------
@@ -80,6 +92,9 @@ def connect(
 
     if port not in valid_ports:
         raise ValueError(f"results: port must be one of {valid_ports}")
+
+    if not service:
+        service = _get_service(host)
 
     if username and password:
         http_auth = (username, password)
@@ -93,7 +108,7 @@ def connect(
                 "given. Unable to find ACCESS_KEY_ID and SECRET_ACCESS_KEY in boto3 "
                 "session."
             )
-        http_auth = AWS4Auth(creds.access_key, creds.secret_key, region, "es", session_token=creds.token)
+        http_auth = AWS4Auth(creds.access_key, creds.secret_key, region, service, session_token=creds.token)
     try:
         es = OpenSearch(
             host=_strip_endpoint(host),
@@ -106,6 +121,7 @@ def connect(
             max_retries=10,
             retry_on_timeout=True,
         )
+        es._serverless = True if service == "aoss" else False  # type: ignore
     except Exception as e:
         _logger.error("Error connecting to Opensearch cluster. Please verify authentication details")
         raise e
