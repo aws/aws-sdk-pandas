@@ -71,7 +71,6 @@ def _to_text(  # pylint: disable=unused-argument
     return [file_path]
 
 
-@engine.dispatch_on_engine
 @apply_configs
 def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-statements,too-many-branches
     df: pd.DataFrame,
@@ -646,7 +645,6 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     return {"paths": paths, "partitions_values": partitions_values}
 
 
-@engine.dispatch_on_engine
 @apply_configs
 def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-statements,too-many-branches
     df: pd.DataFrame,
