@@ -11,7 +11,7 @@ import awswrangler as wr
 from .._utils import ExecutionTimer
 
 
-@pytest.mark.parametrize("benchmark_time", [180])
+@pytest.mark.parametrize("benchmark_time", [60])
 def test_timestream_write(benchmark_time: int, timestream_database_and_table: str, request) -> None:
     name = timestream_database_and_table
     df = (
@@ -69,8 +69,8 @@ def test_timestream_write(benchmark_time: int, timestream_database_and_table: st
     assert df["counter"].iloc[0] == 126_000
 
 
-@pytest.mark.parametrize("benchmark_time_copy", [240])
-@pytest.mark.parametrize("benchmark_time_unload", [240])
+@pytest.mark.parametrize("benchmark_time_copy", [150])
+@pytest.mark.parametrize("benchmark_time_unload", [150])
 def test_redshift_copy_unload(
     benchmark_time_copy: int,
     benchmark_time_unload: int,
@@ -107,7 +107,7 @@ def test_redshift_copy_unload(
     assert df.shape == df2.shape
 
 
-@pytest.mark.parametrize("benchmark_time", [120])
+@pytest.mark.parametrize("benchmark_time", [40])
 def test_athena_unload(benchmark_time: int, path: str, glue_table: str, glue_database: str, request) -> None:
     df = wr.s3.read_parquet(path="s3://amazon-reviews-pds/parquet/product_category=Toys/", dataset=True)
 
@@ -134,7 +134,7 @@ def test_athena_unload(benchmark_time: int, path: str, glue_table: str, glue_dat
     assert df.shape == df_out.shape
 
 
-@pytest.mark.parametrize("benchmark_time", [180])
+@pytest.mark.parametrize("benchmark_time", [60])
 def test_lakeformation_read(benchmark_time: int, path: str, glue_table: str, glue_database: str, request) -> None:
     df = wr.s3.read_parquet(path="s3://amazon-reviews-pds/parquet/product_category=Home/", dataset=True)
 

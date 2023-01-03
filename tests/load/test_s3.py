@@ -44,7 +44,7 @@ def _modin_repartition(df: pd.DataFrame, num_blocks: int) -> pd.DataFrame:
 
 
 @pytest.mark.repeat(1)
-@pytest.mark.parametrize("benchmark_time", [180])
+@pytest.mark.parametrize("benchmark_time", [150])
 def test_s3_select(benchmark_time, request):
     path = "s3://ursa-labs-taxi-data/2018/1*.parquet"
     with ExecutionTimer(request) as timer:
@@ -60,7 +60,7 @@ def test_s3_select(benchmark_time, request):
     assert timer.elapsed_time < benchmark_time
 
 
-@pytest.mark.parametrize("benchmark_time", [90])
+@pytest.mark.parametrize("benchmark_time", [40])
 def test_s3_read_parquet_simple(benchmark_time, request):
     path = "s3://ursa-labs-taxi-data/2018/"
     with ExecutionTimer(request) as timer:
@@ -69,7 +69,7 @@ def test_s3_read_parquet_simple(benchmark_time, request):
     assert timer.elapsed_time < benchmark_time
 
 
-@pytest.mark.parametrize("benchmark_time", [240])
+@pytest.mark.parametrize("benchmark_time", [30])
 def test_s3_read_parquet_partition_filter(benchmark_time, request):
     path = "s3://amazon-reviews-pds/parquet/"
     with ExecutionTimer(request) as timer:
@@ -79,7 +79,7 @@ def test_s3_read_parquet_partition_filter(benchmark_time, request):
     assert timer.elapsed_time < benchmark_time
 
 
-@pytest.mark.parametrize("benchmark_time", [10])
+@pytest.mark.parametrize("benchmark_time", [5])
 @pytest.mark.parametrize("path_suffix", [None, "df.parquet"])
 def test_s3_write_parquet_simple(df_s, path, path_suffix, benchmark_time, request):
     # Write into either a key or a prefix
@@ -93,7 +93,7 @@ def test_s3_write_parquet_simple(df_s, path, path_suffix, benchmark_time, reques
     assert timer.elapsed_time < benchmark_time
 
 
-@pytest.mark.parametrize("benchmark_time", [200])
+@pytest.mark.parametrize("benchmark_time", [30])
 @pytest.mark.parametrize("partition_cols", [None, ["payment_type"], ["payment_type", "passenger_count"]])
 @pytest.mark.parametrize("bucketing_info", [None, (["vendor_id"], 2), (["vendor_id", "rate_code_id"], 2)])
 def test_s3_write_parquet_dataset(df_s, path, partition_cols, bucketing_info, benchmark_time, request):
@@ -103,7 +103,7 @@ def test_s3_write_parquet_dataset(df_s, path, partition_cols, bucketing_info, be
     assert timer.elapsed_time < benchmark_time
 
 
-@pytest.mark.parametrize("benchmark_time", [200])
+@pytest.mark.parametrize("benchmark_time", [5])
 @pytest.mark.parametrize("partition_cols", [None, ["payment_type"]])
 @pytest.mark.parametrize("num_blocks", [None, 1, 5])
 def test_s3_write_parquet_blocks(df_s, path, partition_cols, num_blocks, benchmark_time, request):
@@ -133,7 +133,7 @@ def test_s3_delete_objects(path, path2, benchmark_time, request):
     assert len(wr.s3.list_objects(f"{path2}delete-test*")) == 0
 
 
-@pytest.mark.parametrize("benchmark_time", [30])
+@pytest.mark.parametrize("benchmark_time", [20])
 def test_s3_read_csv_simple(benchmark_time, request):
     path = "s3://nyc-tlc/csv_backup/yellow_tripdata_2021-0*.csv"
     with ExecutionTimer(request) as timer:
@@ -142,7 +142,7 @@ def test_s3_read_csv_simple(benchmark_time, request):
     assert timer.elapsed_time < benchmark_time
 
 
-@pytest.mark.parametrize("benchmark_time", [30])
+@pytest.mark.parametrize("benchmark_time", [15])
 def test_s3_read_json_simple(benchmark_time, request):
     path = "s3://covid19-lake/covid_knowledge_graph/json/edges/paper_to_concept/*.json"
     with ExecutionTimer(request) as timer:
@@ -151,7 +151,7 @@ def test_s3_read_json_simple(benchmark_time, request):
     assert timer.elapsed_time < benchmark_time
 
 
-@pytest.mark.parametrize("benchmark_time", [15])
+@pytest.mark.parametrize("benchmark_time", [5])
 def test_s3_write_csv(path: str, big_modin_df: pd.DataFrame, benchmark_time: int, request):
     with ExecutionTimer(request) as timer:
         wr.s3.to_csv(big_modin_df, path, dataset=True)
@@ -161,7 +161,7 @@ def test_s3_write_csv(path: str, big_modin_df: pd.DataFrame, benchmark_time: int
     assert timer.elapsed_time < benchmark_time
 
 
-@pytest.mark.parametrize("benchmark_time", [15])
+@pytest.mark.parametrize("benchmark_time", [5])
 def test_s3_write_json(path: str, big_modin_df: pd.DataFrame, benchmark_time: int, request):
     with ExecutionTimer(request) as timer:
         wr.s3.to_json(big_modin_df, path, dataset=True, lines=True, orient="records")
@@ -172,7 +172,7 @@ def test_s3_write_json(path: str, big_modin_df: pd.DataFrame, benchmark_time: in
 
 
 @pytest.mark.timeout(300)
-@pytest.mark.parametrize("benchmark_time", [30])
+@pytest.mark.parametrize("benchmark_time", [15])
 def test_wait_object_exists(path: str, benchmark_time: int, request) -> None:
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5]})
 
@@ -189,7 +189,7 @@ def test_wait_object_exists(path: str, benchmark_time: int, request) -> None:
 
 
 @pytest.mark.timeout(60)
-@pytest.mark.parametrize("benchmark_time", [30])
+@pytest.mark.parametrize("benchmark_time", [15])
 def test_wait_object_not_exists(path: str, benchmark_time: int, request) -> None:
     num_objects = 200
     file_paths = [f"{path}{i}.txt" for i in range(num_objects)]
