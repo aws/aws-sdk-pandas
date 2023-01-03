@@ -94,7 +94,7 @@ def test_quicksight_delete_all_datasources_filter():
 
     assert len(wr.quicksight.get_data_source_ids(resource_name)) == 1
 
-    wr.quicksight.delete_all_data_sources(regex_filter="test-no.*")
+    wr.quicksight.delete_all_data_sources(regex_filter="test-delete.*")
     assert len(wr.quicksight.get_data_source_ids(resource_name)) == 0
 
 
