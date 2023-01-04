@@ -4,19 +4,19 @@ import json
 import logging
 import re
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import boto3
 import botocore
 from opensearchpy import OpenSearch, RequestsHttpConnection
 from requests_aws4auth import AWS4Auth
 
-from awswrangler import _utils, exceptions, sts
+from awswrangler import _utils, exceptions
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 _CREATE_COLLECTION_FINAL_STATUSES: List[str] = ["ACTIVE", "FAILED"]
-_CREATE_COLLECTION_WAIT_POLLING_DELAY: float = 0.25  # SECONDS
+_CREATE_COLLECTION_WAIT_POLLING_DELAY: float = 1.0  # SECONDS
 
 
 def _get_distribution(client: OpenSearch) -> Any:
@@ -39,7 +39,7 @@ def _get_version_major(client: OpenSearch) -> Any:
 
 
 def _get_service(endpoint: str) -> str:
-    return "aoss" if "aoss" in endpoint else "es"
+    return "aoss" if "aoss.amazonaws.com" in endpoint else "es"
 
 
 def _strip_endpoint(endpoint: str) -> str:
@@ -51,8 +51,8 @@ def _is_https(port: int) -> bool:
     return port == 443
 
 
-def _get_default_encryption_policy(collection_name: str) -> Dict[str, Any]:
-    return {
+def _get_default_encryption_policy(collection_name: str, kms_key_arn: Optional[str]) -> Dict[str, Any]:
+    policy: Dict[str, Any] = {
         "Rules": [
             {
                 "ResourceType": "collection",
@@ -61,12 +61,16 @@ def _get_default_encryption_policy(collection_name: str) -> Dict[str, Any]:
                 ],
             }
         ],
-        "AWSOwnedKey": True,
     }
+    if kms_key_arn:
+        policy["KmsARN"] = kms_key_arn
+    else:
+        policy["AWSOwnedKey"] = True
+    return policy
 
 
-def _get_default_network_policy(collection_name: str) -> List[Dict[str, Any]]:
-    return [
+def _get_default_network_policy(collection_name: str, vpc_endpoints: Optional[List[str]]) -> List[Dict[str, Any]]:
+    policy: List[Dict[str, Any]] = [
         {
             "Rules": [
                 {
@@ -82,79 +86,40 @@ def _get_default_network_policy(collection_name: str) -> List[Dict[str, Any]]:
                     ],
                 },
             ],
-            "AllowFromPublic": True,
             "Description": f"Default network policy for collection '{collection_name}'.",
         }
     ]
+    if vpc_endpoints:
+        policy[0]["SourceVPCEs"] = vpc_endpoints
+    else:
+        policy[0]["AllowFromPublic"] = True
+    return policy
 
 
-def _get_default_data_policy(collection_name: str) -> List[Dict[str, Any]]:
-    return [
-        {
-            "Rules": [
-                {
-                    "ResourceType": "index",
-                    "Resource": [
-                        "index/*",
-                    ],
-                    "Permission": [
-                        "aoss:CreateIndex",
-                        "aoss:DeleteIndex",
-                        "aoss:UpdateIndex",
-                        "aoss:DescribeIndex",
-                        "aoss:ReadDocument",
-                        "aoss:WriteDocument",
-                    ],
-                },
-                {
-                    "ResourceType": "collection",
-                    "Resource": [
-                        f"collection/{collection_name}",
-                    ],
-                    "Permission": [
-                        "aoss:CreateCollectionItems",
-                    ],
-                },
-            ],
-            "Principal": [
-                sts.get_current_identity_arn(),
-            ],
-        }
-    ]
-
-
-def _create_security_policy(collection_name: str, policy: Dict[str, Any], type: str, client: boto3.client) -> None:
+def _create_security_policy(
+    collection_name: str,
+    policy: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]],
+    type: str,
+    client: boto3.client,
+    **kwargs: Any,
+) -> None:
+    if not kwargs:
+        kwargs = {}
     if type == "encryption" and not policy:
-        policy = _get_default_encryption_policy(collection_name)
+        policy = _get_default_encryption_policy(collection_name, kwargs.get("kms_key_arn"))
     elif type == "network" and not policy:
-        policy = _get_default_network_policy(collection_name)
+        policy = _get_default_network_policy(collection_name, kwargs.get("vpc_endpoints"))
     else:
         raise exceptions.InvalidArgument(f"Invalid policy type '{type}'.")
 
     policy_kwargs = {
-        "name": f"{collection_name}-policy",
+        "name": f"{collection_name}-{type}-policy",
         "policy": json.dumps(policy),
         "type": type,
         "description": f"Default {type} policy for collection '{collection_name}'.",
     }
     try:
         client.create_security_policy(**policy_kwargs)
-    except botocore.exceptions.ClientError as error:
-        if error.response["Error"]["Code"] == "ConflictException":
-            raise exceptions.Conflict("The policy name or rules conflict with an existing policy.") from error
-        else:
-            raise error
-
-
-def _create_data_policy(collection_name: str, policy: Dict[str, Any], client: boto3.client) -> None:
-    policy_kwargs = {
-        "name": f"{collection_name}-policy",
-        "policy": json.dumps(policy if policy else _get_default_data_policy(collection_name)),
-        "type": "data",
-        "description": f"Default data policy for collection '{collection_name}'.",
-    }
-    try:
-        client.create_access_policy(**policy_kwargs)
     except botocore.exceptions.ClientError as error:
         if error.response["Error"]["Code"] == "ConflictException":
             raise exceptions.Conflict("The policy name or rules conflict with an existing policy.") from error
@@ -250,8 +215,9 @@ def create_collection(
     type: str = "SEARCH",
     description: str = "",
     encryption_policy: Optional[Dict[str, Any]] = None,
+    kms_key_arn: Optional[str] = None,
     network_policy: Optional[Dict[str, Any]] = None,
-    data_policy: Optional[Dict[str, Any]] = None,
+    vpc_endpoints: Optional[List[str]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, Any]:
     """Create Amazon OpenSearch Serverless collection.
@@ -263,10 +229,18 @@ def create_collection(
     ----------
     name : str
         Collection name.
-    description : str
-        Collection description.
     type : str
         Collection type. Allowed values are `SEARCH`, and `TIMESERIES`.
+    description : str
+        Collection description.
+    encryption_policy : Dict[str, Any], optional
+        Encryption policy of a form: { "Rules": [...] }
+    kms_key_arn: str, optional
+        Encryption key.
+    network_policy : Dict[str, Any], optional
+        Network policy of a form: [{ "Rules": [...] }]
+    vpc_endpoints : List[str], optional
+        List of VPC endpoints for access to non-public collection.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
 
@@ -279,29 +253,35 @@ def create_collection(
         raise exceptions.InvalidArgumentValue("Collection `type` must be either 'SEARCH' or 'TIMESERIES'.")
 
     client: boto3.client = _utils.client(service_name="opensearchserverless", session=boto3_session)
-
-    _create_security_policy(collection_name=name, policy=encryption_policy, type="encryption", client=client)
-    _create_security_policy(collection_name=name, policy=network_policy, type="network", client=client)
-    _create_data_policy(collection_name=name, policy=data_policy, client=client)
-
+    _create_security_policy(
+        collection_name=name,
+        policy=encryption_policy,
+        type="encryption",
+        client=client,
+        kms_key_arn=kms_key_arn,
+    )
+    _create_security_policy(
+        collection_name=name, policy=network_policy, type="network", client=client, vpc_endpoints=vpc_endpoints
+    )
     try:
         client.create_collection(
             name=name,
             type=type,
             description=description,
         )
+
         status: Optional[str] = None
         response: Optional[Dict[str, Any]] = {}
         while status not in _CREATE_COLLECTION_FINAL_STATUSES:
             time.sleep(_CREATE_COLLECTION_WAIT_POLLING_DELAY)
             response = client.batch_get_collection(names=[name])
-            status = response["collectionDetails"][0]["status"]
+            status = response["collectionDetails"][0]["status"]  # type: ignore
 
         if status == "FAILED":
-            error_details: str = response.get("collectionErrorDetails")[0]
+            error_details: str = response.get("collectionErrorDetails")[0]  # type: ignore
             raise exceptions.QueryFailed(f"Failed to create collection `{name}`: {error_details}.")
 
-        return response["collectionDetails"][0]
+        return response["collectionDetails"][0]  # type: ignore
     except botocore.exceptions.ClientError as error:
         if error.response["Error"]["Code"] == "ConflictException":
             raise exceptions.AlreadyExists(f"A collection with name `{name}` already exists.") from error

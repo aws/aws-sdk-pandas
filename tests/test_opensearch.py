@@ -2,10 +2,13 @@ import json
 import logging
 import tempfile
 import time
+import uuid
+from typing import Any, Dict
 
 import boto3
 import pandas as pd
 import pytest  # type: ignore
+import opensearchpy
 
 import awswrangler as wr
 
@@ -144,6 +147,67 @@ def domain_endpoint_elasticsearch_7_10_fgac(cloudformation_outputs):
     return cloudformation_outputs["DomainEndpointsdkpandases710fgac"]
 
 
+def _create_opensearch_data_access_policy(collection_name: str, client: boto3.client) -> None:
+    policy = [
+        {
+            "Rules": [
+                {
+                    "ResourceType": "index",
+                    "Resource": [
+                        "index/*/*",
+                    ],
+                    "Permission": [
+                        "aoss:CreateIndex",
+                        "aoss:DeleteIndex",
+                        "aoss:UpdateIndex",
+                        "aoss:DescribeIndex",
+                        "aoss:ReadDocument",
+                        "aoss:WriteDocument",
+                    ],
+                },
+                {
+                    "ResourceType": "collection",
+                    "Resource": [
+                        f"collection/{collection_name}",
+                    ],
+                    "Permission": [
+                        "aoss:CreateCollectionItems",
+                    ],
+                },
+            ],
+            "Principal": [
+                wr.sts.get_current_identity_arn(),
+            ],
+        }
+    ]
+    client.create_access_policy(
+        name=f"{collection_name}-data-policy",
+        policy=json.dumps(policy),
+        type="data",
+    )
+
+
+@pytest.fixture(scope="session")
+def opensearch_serverless_collection_endpoint() -> str:
+    # Create collection and get the endpoint
+    collection_name: str = f"col-{str(uuid.uuid4())[:8]}"
+    collection: Dict[str, Any] = wr.opensearch.create_collection(name=collection_name)
+    collection_endpoint: str = collection["collectionEndpoint"]
+    collection_id: str = collection["id"]
+
+    # Create data access policy
+    client: boto3.client = boto3.client(service_name="opensearchserverless")
+    _create_opensearch_data_access_policy(collection_name=collection_name, client=client)
+
+    yield collection_endpoint
+
+    # Cleanup collection
+    client.delete_collection(id=collection_id)
+    client.delete_security_policy(name=f"{collection_name}-encryption-policy", type="encryption")
+    client.delete_security_policy(name=f"{collection_name}-network-policy", type="network")
+    client.delete_access_policy(name=f"{collection_name}-data-policy", type="data")
+
+
 def test_connection_opensearch_1_0(domain_endpoint_opensearch_1_0):
     client = wr.opensearch.connect(host=domain_endpoint_opensearch_1_0)
     assert len(client.info()) > 0
@@ -152,6 +216,13 @@ def test_connection_opensearch_1_0(domain_endpoint_opensearch_1_0):
 def test_connection_opensearch_1_0_https(domain_endpoint_opensearch_1_0):
     client = wr.opensearch.connect(host=f"https://{domain_endpoint_opensearch_1_0}")
     assert len(client.info()) > 0
+
+
+def test_connection_opensearch_serverless(opensearch_serverless_collection_endpoint):
+    client = wr.opensearch.connect(host=opensearch_serverless_collection_endpoint)
+    # Info endpoint is not available in opensearch serverless
+    with pytest.raises(opensearchpy.exceptions.NotFoundError):
+        client.info()
 
 
 def test_connection_elasticsearch_7_10_fgac(domain_endpoint_elasticsearch_7_10_fgac, opensearch_password):
@@ -175,8 +246,14 @@ def elasticsearch_7_10_fgac_client(domain_endpoint_elasticsearch_7_10_fgac, open
     return client
 
 
+@pytest.fixture(scope="session")
+def opensearch_serverless_client(opensearch_serverless_collection_endpoint):
+    client = wr.opensearch.connect(host=opensearch_serverless_collection_endpoint)
+    return client
+
+
 # testing multiple versions
-@pytest.fixture(params=["opensearch_1_0_client", "elasticsearch_7_10_fgac_client"])
+@pytest.fixture(params=["opensearch_1_0_client", "elasticsearch_7_10_fgac_client", "opensearch_serverless_client"])
 def client(request):
     return request.getfixturevalue(request.param)
 
