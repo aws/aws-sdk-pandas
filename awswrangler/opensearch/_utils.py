@@ -111,15 +111,13 @@ def _create_security_policy(
         policy = _get_default_network_policy(collection_name, kwargs.get("vpc_endpoints"))
     else:
         raise exceptions.InvalidArgument(f"Invalid policy type '{type}'.")
-
-    policy_kwargs = {
-        "name": f"{collection_name}-{type}-policy",
-        "policy": json.dumps(policy),
-        "type": type,
-        "description": f"Default {type} policy for collection '{collection_name}'.",
-    }
     try:
-        client.create_security_policy(**policy_kwargs)
+        client.create_security_policy(
+            name=f"{collection_name}-{type}-policy",
+            policy=json.dumps(policy),
+            type=type,
+            description=f"Default {type} policy for collection '{collection_name}'.",
+        )
     except botocore.exceptions.ClientError as error:
         if error.response["Error"]["Code"] == "ConflictException":
             raise exceptions.Conflict("The policy name or rules conflict with an existing policy.") from error
@@ -234,10 +232,16 @@ def create_collection(
         Collection description.
     encryption_policy : Dict[str, Any], optional
         Encryption policy of a form: { "Rules": [...] }
+
+        If not provided, default policy using AWS-managed KMS key will be created. To use user-defined key,
+        provide `kms_key_arn`.
     kms_key_arn: str, optional
         Encryption key.
     network_policy : Dict[str, Any], optional
         Network policy of a form: [{ "Rules": [...] }]
+
+        If not provided, default network policy allowing public access to the collection will be created.
+        To create the collection in the VPC, provide `vpc_endpoints`.
     vpc_endpoints : List[str], optional
         List of VPC endpoints for access to non-public collection.
     boto3_session : boto3.Session(), optional

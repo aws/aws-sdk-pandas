@@ -6,9 +6,9 @@ import uuid
 from typing import Any, Dict
 
 import boto3
+import opensearchpy
 import pandas as pd
 import pytest  # type: ignore
-import opensearchpy
 
 import awswrangler as wr
 
