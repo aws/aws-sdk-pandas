@@ -99,7 +99,7 @@ def _get_default_network_policy(collection_name: str, vpc_endpoints: Optional[Li
 def _create_security_policy(
     collection_name: str,
     policy: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]],
-    type: str,
+    type: str,  # pylint: disable=redefined-builtin
     client: boto3.client,
     **kwargs: Any,
 ) -> None:
@@ -123,8 +123,7 @@ def _create_security_policy(
     except botocore.exceptions.ClientError as error:
         if error.response["Error"]["Code"] == "ConflictException":
             raise exceptions.Conflict("The policy name or rules conflict with an existing policy.") from error
-        else:
-            raise error
+        raise error
 
 
 def connect(
@@ -203,7 +202,7 @@ def connect(
             max_retries=10,
             retry_on_timeout=True,
         )
-        es._serverless = True if service == "aoss" else False  # type: ignore
+        es._serverless = service == "aoss"  # type: ignore # pylint: disable=protected-access
     except Exception as e:
         _logger.error("Error connecting to Opensearch cluster. Please verify authentication details")
         raise e
@@ -212,7 +211,7 @@ def connect(
 
 def create_collection(
     name: str,
-    type: str = "SEARCH",
+    type: str = "SEARCH",  # pylint: disable=redefined-builtin
     description: str = "",
     encryption_policy: Optional[Dict[str, Any]] = None,
     kms_key_arn: Optional[str] = None,
@@ -285,5 +284,4 @@ def create_collection(
     except botocore.exceptions.ClientError as error:
         if error.response["Error"]["Code"] == "ConflictException":
             raise exceptions.AlreadyExists(f"A collection with name `{name}` already exists.") from error
-        else:
-            raise error
+        raise error
