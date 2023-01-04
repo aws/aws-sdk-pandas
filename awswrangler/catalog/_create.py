@@ -857,6 +857,11 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
 
     'https://docs.aws.amazon.com/athena/latest/ug/data-types.html'
 
+    Note
+    ----
+    Athena requires the columns in the underlying CSV files in S3 to be in the same order
+    as the columns in the Glue data catalog.
+
     Parameters
     ----------
     database : str
