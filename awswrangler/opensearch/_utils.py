@@ -1,5 +1,6 @@
 """Amazon OpenSearch Utils Module (PRIVATE)."""
 
+import json
 import logging
 import re
 import time
@@ -10,7 +11,7 @@ import botocore
 from opensearchpy import OpenSearch, RequestsHttpConnection
 from requests_aws4auth import AWS4Auth
 
-from awswrangler import _utils, exceptions
+from awswrangler import _utils, exceptions, sts
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -48,6 +49,117 @@ def _strip_endpoint(endpoint: str) -> str:
 
 def _is_https(port: int) -> bool:
     return port == 443
+
+
+def _get_default_encryption_policy(collection_name: str) -> Dict[str, Any]:
+    return {
+        "Rules": [
+            {
+                "ResourceType": "collection",
+                "Resource": [
+                    f"collection/{collection_name}",
+                ],
+            }
+        ],
+        "AWSOwnedKey": True,
+    }
+
+
+def _get_default_network_policy(collection_name: str) -> List[Dict[str, Any]]:
+    return [
+        {
+            "Rules": [
+                {
+                    "ResourceType": "dashboard",
+                    "Resource": [
+                        f"collection/{collection_name}",
+                    ],
+                },
+                {
+                    "ResourceType": "collection",
+                    "Resource": [
+                        f"collection/{collection_name}",
+                    ],
+                },
+            ],
+            "AllowFromPublic": True,
+            "Description": f"Default network policy for collection '{collection_name}'.",
+        }
+    ]
+
+
+def _get_default_data_policy(collection_name: str) -> List[Dict[str, Any]]:
+    return [
+        {
+            "Rules": [
+                {
+                    "ResourceType": "index",
+                    "Resource": [
+                        "index/*",
+                    ],
+                    "Permission": [
+                        "aoss:CreateIndex",
+                        "aoss:DeleteIndex",
+                        "aoss:UpdateIndex",
+                        "aoss:DescribeIndex",
+                        "aoss:ReadDocument",
+                        "aoss:WriteDocument",
+                    ],
+                },
+                {
+                    "ResourceType": "collection",
+                    "Resource": [
+                        f"collection/{collection_name}",
+                    ],
+                    "Permission": [
+                        "aoss:CreateCollectionItems",
+                    ],
+                },
+            ],
+            "Principal": [
+                sts.get_current_identity_arn(),
+            ],
+        }
+    ]
+
+
+def _create_security_policy(collection_name: str, policy: Dict[str, Any], type: str, client: boto3.client) -> None:
+    if type == "encryption" and not policy:
+        policy = _get_default_encryption_policy(collection_name)
+    elif type == "network" and not policy:
+        policy = _get_default_network_policy(collection_name)
+    else:
+        raise exceptions.InvalidArgument(f"Invalid policy type '{type}'.")
+
+    policy_kwargs = {
+        "name": f"{collection_name}-policy",
+        "policy": json.dumps(policy),
+        "type": type,
+        "description": f"Default {type} policy for collection '{collection_name}'.",
+    }
+    try:
+        client.create_security_policy(**policy_kwargs)
+    except botocore.exceptions.ClientError as error:
+        if error.response["Error"]["Code"] == "ConflictException":
+            raise exceptions.Conflict("The policy name or rules conflict with an existing policy.") from error
+        else:
+            raise error
+
+
+def _create_data_policy(collection_name: str, policy: Dict[str, Any], client: boto3.client) -> None:
+    policy_kwargs = {
+        "name": f"{collection_name}-policy",
+        "policy": json.dumps(policy if policy else _get_default_data_policy(collection_name)),
+        "type": "data",
+        "description": f"Default data policy for collection '{collection_name}'.",
+    }
+    try:
+        client.create_access_policy(**policy_kwargs)
+    except botocore.exceptions.ClientError as error:
+        if error.response["Error"]["Code"] == "ConflictException":
+            raise exceptions.Conflict("The policy name or rules conflict with an existing policy.") from error
+        else:
+            raise error
 
 
 def connect(
@@ -137,9 +249,15 @@ def create_collection(
     name: str,
     type: str = "SEARCH",
     description: str = "",
+    encryption_policy: Optional[Dict[str, Any]] = None,
+    network_policy: Optional[Dict[str, Any]] = None,
+    data_policy: Optional[Dict[str, Any]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, Any]:
     """Create Amazon OpenSearch Serverless collection.
+
+    More in [Amazon OpenSearch Serverless (preview)]
+    (https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless.html)
 
     Parameters
     ----------
@@ -161,13 +279,17 @@ def create_collection(
         raise exceptions.InvalidArgumentValue("Collection `type` must be either 'SEARCH' or 'TIMESERIES'.")
 
     client: boto3.client = _utils.client(service_name="opensearchserverless", session=boto3_session)
+
+    _create_security_policy(collection_name=name, policy=encryption_policy, type="encryption", client=client)
+    _create_security_policy(collection_name=name, policy=network_policy, type="network", client=client)
+    _create_data_policy(collection_name=name, policy=data_policy, client=client)
+
     try:
         client.create_collection(
             name=name,
             type=type,
             description=description,
         )
-        # Get collection details
         status: Optional[str] = None
         response: Optional[Dict[str, Any]] = {}
         while status not in _CREATE_COLLECTION_FINAL_STATUSES:

@@ -123,3 +123,7 @@ class ResourceDoesNotExist(Exception):
 
 class InvalidRulesetDefinition(Exception):
     """InvalidRulesetDefinition."""
+
+
+class Conflict(Exception):
+    """Conflict."""
