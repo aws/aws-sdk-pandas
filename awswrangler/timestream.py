@@ -67,8 +67,8 @@ def _write_batch(
                 "TimeUnit": "MILLISECONDS",
                 "Version": version,
             }
-            if len(measure_cols_names) == 1 and not measure_name:
-                record["MeasureName"] = measure_cols_names[0]
+            if len(measure_cols_names) == 1:
+                record["MeasureName"] = measure_name if measure_name else measure_cols_names[0]
                 record["MeasureValueType"] = measure_types[0]
                 record["MeasureValue"] = str(rec[measure_cols_loc])
             else:

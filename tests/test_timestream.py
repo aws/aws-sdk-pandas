@@ -347,7 +347,7 @@ def test_timestamp_measure_column(timestream_database_and_table):
     assert df["measure_t"].dtype == "datetime64[ns]"
 
 
-def test_measure_name(timestream_database_and_table):
+def test_measure_name_multi(timestream_database_and_table):
     df = pd.DataFrame(
         {
             "time": [datetime.now()] * 3,
@@ -366,6 +366,37 @@ def test_measure_name(timestream_database_and_table):
         measure_col=["measure_0", "measure_1"],
         measure_name="example",
         dimensions_cols=["dim0", "dim1"],
+    )
+    assert len(rejected_records) == 0
+
+    df = wr.timestream.query(
+        f"""
+        SELECT
+            *
+        FROM "{timestream_database_and_table}"."{timestream_database_and_table}"
+        """,
+    )
+    for measure_name in df["measure_name"].tolist():
+        assert measure_name == "example"
+
+
+def test_measure_name_scalar(timestream_database_and_table):
+    df = pd.DataFrame(
+        {
+            "time": [datetime.now()] * 3,
+            "dim": ["foo", "boo", "bar"],
+            "measure": [1.1, 1.2, 1.3],
+        }
+    )
+
+    rejected_records = wr.timestream.write(
+        df=df,
+        database=timestream_database_and_table,
+        table=timestream_database_and_table,
+        time_col="time",
+        measure_col=["measure"],
+        measure_name="example",
+        dimensions_cols=["dim"],
     )
     assert len(rejected_records) == 0
 
