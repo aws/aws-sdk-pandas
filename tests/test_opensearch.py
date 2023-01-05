@@ -11,6 +11,7 @@ import pandas as pd
 import pytest  # type: ignore
 
 import awswrangler as wr
+from awswrangler.opensearch._utils import _is_serverless
 
 from ._utils import extract_cloudformation_outputs
 
@@ -163,7 +164,7 @@ def _get_opensearch_data_access_policy() -> List[Dict[str, Any]]:
                 {
                     "ResourceType": "collection",
                     "Resource": [
-                        f"collection/*",
+                        "collection/*",
                     ],
                     "Permission": [
                         "aoss:*",
@@ -181,22 +182,24 @@ def _get_opensearch_data_access_policy() -> List[Dict[str, Any]]:
 def opensearch_serverless_collection_endpoint() -> str:
     # Create collection and get the endpoint
     collection_name: str = f"col-{str(uuid.uuid4())[:8]}"
-    collection: Dict[str, Any] = wr.opensearch.create_collection(
-        name=collection_name,
-        data_policy=_get_opensearch_data_access_policy(),
-    )
-    collection_endpoint: str = collection["collectionEndpoint"]
-    collection_id: str = collection["id"]
+    try:
+        collection: Dict[str, Any] = wr.opensearch.create_collection(
+            name=collection_name,
+            data_policy=_get_opensearch_data_access_policy(),
+        )
+        collection_endpoint: str = collection["collectionEndpoint"]
+        collection_id: str = collection["id"]
 
-    yield collection_endpoint
+        yield collection_endpoint
 
-    client: boto3.client = boto3.client(service_name="opensearchserverless")
+    finally:
+        client: boto3.client = boto3.client(service_name="opensearchserverless")
 
-    # Cleanup collection
-    client.delete_collection(id=collection_id)
-    client.delete_security_policy(name=f"{collection_name}-encryption-policy", type="encryption")
-    client.delete_security_policy(name=f"{collection_name}-network-policy", type="network")
-    client.delete_access_policy(name=f"{collection_name}-data-policy", type="data")
+        # Cleanup collection
+        client.delete_collection(id=collection_id)
+        client.delete_security_policy(name=f"{collection_name}-encryption-policy", type="encryption")
+        client.delete_security_policy(name=f"{collection_name}-network-policy", type="network")
+        client.delete_access_policy(name=f"{collection_name}-data-policy", type="data")
 
 
 def test_connection_opensearch_1_0(domain_endpoint_opensearch_1_0):
@@ -311,7 +314,14 @@ def test_index_documents_no_id_keys(client):
 
 def test_search(client):
     index = "test_search"
-    wr.opensearch.index_documents(client, documents=inspections_documents, index=index, id_keys=["inspection_id"])
+    kwargs = {} if _is_serverless(client) else {"refresh": "wait_for"}
+    wr.opensearch.index_documents(
+        client, documents=inspections_documents, index=index, id_keys=["inspection_id"], **kwargs
+    )
+    if _is_serverless(client):
+        # The refresh interval for serverless OpenSearch is between 10 and 30 seconds
+        # depending on the size of the request.
+        time.sleep(30)
     df = wr.opensearch.search(
         client,
         index=index,
@@ -329,7 +339,14 @@ def test_search(client):
 
 def test_search_filter_path(client):
     index = "test_search"
-    wr.opensearch.index_documents(client, documents=inspections_documents, index=index, id_keys=["inspection_id"])
+    kwargs = {} if _is_serverless(client) else {"refresh": "wait_for"}
+    wr.opensearch.index_documents(
+        client, documents=inspections_documents, index=index, id_keys=["inspection_id"], **kwargs
+    )
+    if _is_serverless(client):
+        # The refresh interval for serverless OpenSearch is between 10 and 30 seconds
+        # depending on the size of the request.
+        time.sleep(30)
     df = wr.opensearch.search(
         client,
         index=index,
@@ -343,7 +360,14 @@ def test_search_filter_path(client):
 @pytest.mark.xfail(raises=wr.exceptions.NotFound, reason="Scroll not available for OpenSearch Serverless.")
 def test_search_scroll(client):
     index = "test_search_scroll"
-    wr.opensearch.index_documents(client, documents=inspections_documents, index=index, id_keys=["inspection_id"])
+    kwargs = {} if _is_serverless(client) else {"refresh": "wait_for"}
+    wr.opensearch.index_documents(
+        client, documents=inspections_documents, index=index, id_keys=["inspection_id"], **kwargs
+    )
+    if _is_serverless(client):
+        # The refresh interval for serverless OpenSearch is between 10 and 30 seconds
+        # depending on the size of the request.
+        time.sleep(30)
     df = wr.opensearch.search(
         client, index=index, is_scroll=True, _source=["inspection_id", "business_name", "business_location"]
     )
@@ -353,7 +377,10 @@ def test_search_scroll(client):
 @pytest.mark.xfail(raises=wr.exceptions.NotFound, reason="SQL plugin not available for OpenSearch Serverless.")
 def test_search_sql(client):
     index = "test_search_sql"
-    wr.opensearch.index_documents(client, documents=inspections_documents, index=index, id_keys=["inspection_id"])
+    kwargs = {} if _is_serverless(client) else {"refresh": "wait_for"}
+    wr.opensearch.index_documents(
+        client, documents=inspections_documents, index=index, id_keys=["inspection_id"], **kwargs
+    )
     df = wr.opensearch.search_by_sql(client, sql_query=f"select * from {index}")
     assert df.shape[0] == 5
 
