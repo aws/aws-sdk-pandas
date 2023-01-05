@@ -13,6 +13,7 @@ from ray.types import ObjectRef
 
 from awswrangler import exceptions
 from awswrangler._arrow import _table_to_df
+from awswrangler._utils import copy_df_shallow
 from awswrangler.distributed.ray import ray_get, ray_remote
 
 
@@ -73,6 +74,13 @@ def _arrow_refs_to_df(arrow_refs: List[Callable[..., Any]], kwargs: Optional[Dic
 
 def _is_pandas_or_modin_frame(obj: Any) -> bool:
     return isinstance(obj, (pd.DataFrame, modin_pd.DataFrame))
+
+
+def _copy_modin_df_shallow(frame: Union[pd.DataFrame, modin_pd.DataFrame]) -> Union[pd.DataFrame, modin_pd.DataFrame]:
+    if isinstance(frame, pd.DataFrame):
+        copy_df_shallow(frame)
+
+    return modin_pd.DataFrame(frame, copy=False)
 
 
 @dataclass
