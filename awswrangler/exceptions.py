@@ -127,3 +127,7 @@ class InvalidRulesetDefinition(Exception):
 
 class Conflict(Exception):
     """Conflict."""
+
+
+class NotFound(Exception):
+    """NotFound."""

@@ -147,7 +147,7 @@ def domain_endpoint_elasticsearch_7_10_fgac(cloudformation_outputs):
     return cloudformation_outputs["DomainEndpointsdkpandases710fgac"]
 
 
-def _get_opensearch_data_access_policy(collection_name: str) -> List[Dict[str, Any]]:
+def _get_opensearch_data_access_policy() -> List[Dict[str, Any]]:
     return [
         {
             "Rules": [
@@ -157,21 +157,16 @@ def _get_opensearch_data_access_policy(collection_name: str) -> List[Dict[str, A
                         "index/*/*",
                     ],
                     "Permission": [
-                        "aoss:CreateIndex",
-                        "aoss:DeleteIndex",
-                        "aoss:UpdateIndex",
-                        "aoss:DescribeIndex",
-                        "aoss:ReadDocument",
-                        "aoss:WriteDocument",
+                        "aoss:*",
                     ],
                 },
                 {
                     "ResourceType": "collection",
                     "Resource": [
-                        f"collection/{collection_name}",
+                        f"collection/*",
                     ],
                     "Permission": [
-                        "aoss:CreateCollectionItems",
+                        "aoss:*",
                     ],
                 },
             ],
@@ -188,9 +183,7 @@ def opensearch_serverless_collection_endpoint() -> str:
     collection_name: str = f"col-{str(uuid.uuid4())[:8]}"
     collection: Dict[str, Any] = wr.opensearch.create_collection(
         name=collection_name,
-        data_policy=_get_opensearch_data_access_policy(
-            collection_name=collection_name,
-        ),
+        data_policy=_get_opensearch_data_access_policy(),
     )
     collection_endpoint: str = collection["collectionEndpoint"]
     collection_id: str = collection["id"]
@@ -252,7 +245,7 @@ def opensearch_serverless_client(opensearch_serverless_collection_endpoint):
 
 # testing multiple versions
 @pytest.fixture(params=["opensearch_1_0_client", "elasticsearch_7_10_fgac_client", "opensearch_serverless_client"])
-def client(request):
+def client(request, opensearch_1_0_client, elasticsearch_7_10_fgac_client, opensearch_serverless_client):
     time.sleep(30)  # temp wait until collection is created
     return request.getfixturevalue(request.param)
 
@@ -318,9 +311,7 @@ def test_index_documents_no_id_keys(client):
 
 def test_search(client):
     index = "test_search"
-    wr.opensearch.index_documents(
-        client, documents=inspections_documents, index=index, id_keys=["inspection_id"], refresh="wait_for"
-    )
+    wr.opensearch.index_documents(client, documents=inspections_documents, index=index, id_keys=["inspection_id"])
     df = wr.opensearch.search(
         client,
         index=index,
@@ -338,9 +329,7 @@ def test_search(client):
 
 def test_search_filter_path(client):
     index = "test_search"
-    wr.opensearch.index_documents(
-        client, documents=inspections_documents, index=index, id_keys=["inspection_id"], refresh="wait_for"
-    )
+    wr.opensearch.index_documents(client, documents=inspections_documents, index=index, id_keys=["inspection_id"])
     df = wr.opensearch.search(
         client,
         index=index,
@@ -351,22 +340,20 @@ def test_search_filter_path(client):
     assert df.shape[0] == 3
 
 
+@pytest.mark.xfail(raises=wr.exceptions.NotFound, reason="Scroll not available for OpenSearch Serverless.")
 def test_search_scroll(client):
     index = "test_search_scroll"
-    wr.opensearch.index_documents(
-        client, documents=inspections_documents, index=index, id_keys=["inspection_id"], refresh="wait_for"
-    )
+    wr.opensearch.index_documents(client, documents=inspections_documents, index=index, id_keys=["inspection_id"])
     df = wr.opensearch.search(
         client, index=index, is_scroll=True, _source=["inspection_id", "business_name", "business_location"]
     )
     assert df.shape[0] == 5
 
 
+@pytest.mark.xfail(raises=wr.exceptions.NotFound, reason="SQL plugin not available for OpenSearch Serverless.")
 def test_search_sql(client):
     index = "test_search_sql"
-    wr.opensearch.index_documents(
-        client, documents=inspections_documents, index=index, id_keys=["inspection_id"], refresh="wait_for"
-    )
+    wr.opensearch.index_documents(client, documents=inspections_documents, index=index, id_keys=["inspection_id"])
     df = wr.opensearch.search_by_sql(client, sql_query=f"select * from {index}")
     assert df.shape[0] == 5
 

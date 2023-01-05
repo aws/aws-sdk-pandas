@@ -20,13 +20,13 @@ _CREATE_COLLECTION_WAIT_POLLING_DELAY: float = 1.0  # SECONDS
 
 
 def _get_distribution(client: OpenSearch) -> Any:
-    if getattr(client, "_serverless", False):
+    if _is_serverless(client):
         return "opensearch"
     return client.info().get("version", {}).get("distribution", "elasticsearch")
 
 
 def _get_version(client: OpenSearch) -> Any:
-    if getattr(client, "_serverless", False):
+    if _is_serverless(client):
         return None
     return client.info().get("version", {}).get("number")
 
@@ -36,6 +36,10 @@ def _get_version_major(client: OpenSearch) -> Any:
     if version:
         return int(version.split(".")[0])
     return None
+
+
+def _is_serverless(client: OpenSearch) -> bool:
+    return getattr(client, "_serverless", False)
 
 
 def _get_service(endpoint: str) -> str:
