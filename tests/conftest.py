@@ -1,4 +1,5 @@
 import os
+import uuid
 from datetime import datetime
 from importlib import reload
 from types import ModuleType
@@ -240,6 +241,26 @@ def glue_table2(glue_database) -> str:
     wr.catalog.delete_table_if_exists(database=glue_database, table=name)
     yield name
     wr.catalog.delete_table_if_exists(database=glue_database, table=name)
+
+
+@pytest.fixture(scope="function")
+def quicksight_datasource() -> str:
+    name = f"test{str(uuid.uuid4())[:8]}"
+    print(f"Quicksight Data Source: {name}")
+    wr.quicksight.delete_all_data_sources(regex_filter=name)
+    yield name
+    wr.quicksight.delete_all_data_sources(regex_filter=name)
+    print(f"Quicksight Data Source: {name} deleted")
+
+
+@pytest.fixture(scope="function")
+def quicksight_dataset() -> str:
+    name = f"test{str(uuid.uuid4())[:8]}"
+    print(f"Quicksight Dataset: {name}")
+    wr.quicksight.delete_all_datasets(regex_filter=name)
+    yield name
+    wr.quicksight.delete_all_datasets(regex_filter=name)
+    print(f"Quicksight Dataset: {name} deleted")
 
 
 @pytest.fixture(scope="function")
