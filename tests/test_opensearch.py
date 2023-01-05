@@ -364,10 +364,6 @@ def test_search_scroll(client):
     wr.opensearch.index_documents(
         client, documents=inspections_documents, index=index, id_keys=["inspection_id"], **kwargs
     )
-    if _is_serverless(client):
-        # The refresh interval for serverless OpenSearch is between 10 and 30 seconds
-        # depending on the size of the request.
-        time.sleep(30)
     df = wr.opensearch.search(
         client, index=index, is_scroll=True, _source=["inspection_id", "business_name", "business_location"]
     )
