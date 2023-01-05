@@ -99,24 +99,38 @@ def _get_default_network_policy(collection_name: str, vpc_endpoints: Optional[Li
 def _create_security_policy(
     collection_name: str,
     policy: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]],
-    type: str,  # pylint: disable=redefined-builtin
+    policy_type: str,
     client: boto3.client,
     **kwargs: Any,
 ) -> None:
     if not kwargs:
         kwargs = {}
-    if type == "encryption" and not policy:
+    if policy_type == "encryption" and not policy:
         policy = _get_default_encryption_policy(collection_name, kwargs.get("kms_key_arn"))
-    elif type == "network" and not policy:
+    elif policy_type == "network" and not policy:
         policy = _get_default_network_policy(collection_name, kwargs.get("vpc_endpoints"))
     else:
-        raise exceptions.InvalidArgument(f"Invalid policy type '{type}'.")
+        raise exceptions.InvalidArgument(f"Invalid policy type '{policy_type}'.")
     try:
         client.create_security_policy(
-            name=f"{collection_name}-{type}-policy",
+            name=f"{collection_name}-{policy_type}-policy",
             policy=json.dumps(policy),
-            type=type,
-            description=f"Default {type} policy for collection '{collection_name}'.",
+            type=policy_type,
+            description=f"Default {policy_type} policy for collection '{collection_name}'.",
+        )
+    except botocore.exceptions.ClientError as error:
+        if error.response["Error"]["Code"] == "ConflictException":
+            raise exceptions.Conflict("The policy name or rules conflict with an existing policy.") from error
+        raise error
+
+
+def _create_data_policy(collection_name: str, policy: List[Dict[str, Any]], client: boto3.client) -> None:
+    try:
+        client.create_access_policy(
+            name=f"{collection_name}-data-policy",
+            policy=json.dumps(policy),
+            type="data",
+            description=f"Default data policy for collection '{collection_name}'.",
         )
     except botocore.exceptions.ClientError as error:
         if error.response["Error"]["Code"] == "ConflictException":
@@ -209,15 +223,19 @@ def connect(
 
 def create_collection(
     name: str,
-    type: str = "SEARCH",  # pylint: disable=redefined-builtin
+    collection_type: str = "SEARCH",
     description: str = "",
-    encryption_policy: Optional[Dict[str, Any]] = None,
+    encryption_policy: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None,
     kms_key_arn: Optional[str] = None,
-    network_policy: Optional[Dict[str, Any]] = None,
+    network_policy: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None,
     vpc_endpoints: Optional[List[str]] = None,
+    data_policy: Optional[List[Dict[str, Any]]] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, Any]:
     """Create Amazon OpenSearch Serverless collection.
+
+    Creates Amazon OpenSearch Serverless collection, corresponding encryption and network
+    policies, and data policy, if `data_policy` provided.
 
     More in [Amazon OpenSearch Serverless (preview)]
     (https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless.html)
@@ -226,24 +244,26 @@ def create_collection(
     ----------
     name : str
         Collection name.
-    type : str
+    collection_type : str
         Collection type. Allowed values are `SEARCH`, and `TIMESERIES`.
     description : str
         Collection description.
-    encryption_policy : Dict[str, Any], optional
+    encryption_policy : Union[Dict[str, Any], List[Dict[str, Any]]], optional
         Encryption policy of a form: { "Rules": [...] }
 
         If not provided, default policy using AWS-managed KMS key will be created. To use user-defined key,
         provide `kms_key_arn`.
     kms_key_arn: str, optional
         Encryption key.
-    network_policy : Dict[str, Any], optional
+    network_policy : Union[Dict[str, Any], List[Dict[str, Any]]], optional
         Network policy of a form: [{ "Rules": [...] }]
 
         If not provided, default network policy allowing public access to the collection will be created.
         To create the collection in the VPC, provide `vpc_endpoints`.
     vpc_endpoints : List[str], optional
         List of VPC endpoints for access to non-public collection.
+    data_policy : Union[Dict[str, Any], List[Dict[str, Any]]], optional
+        Data policy of a form: [{ "Rules": [...] }]
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
 
@@ -252,27 +272,35 @@ def create_collection(
     Collection details : Dict[str, Any]
         Collection details
     """
-    if type not in ["SEARCH", "TIMESERIES"]:
+    if collection_type not in ["SEARCH", "TIMESERIES"]:
         raise exceptions.InvalidArgumentValue("Collection `type` must be either 'SEARCH' or 'TIMESERIES'.")
 
     client: boto3.client = _utils.client(service_name="opensearchserverless", session=boto3_session)
+    # Create encryption and network policies
     _create_security_policy(
         collection_name=name,
         policy=encryption_policy,
-        type="encryption",
+        policy_type="encryption",
         client=client,
         kms_key_arn=kms_key_arn,
     )
     _create_security_policy(
-        collection_name=name, policy=network_policy, type="network", client=client, vpc_endpoints=vpc_endpoints
+        collection_name=name, policy=network_policy, policy_type="network", client=client, vpc_endpoints=vpc_endpoints
     )
+    # Create data policy if provided
+    if data_policy:
+        _create_data_policy(
+            collection_name=name,
+            policy=data_policy,
+            client=client,
+        )
     try:
         client.create_collection(
             name=name,
-            type=type,
+            type=collection_type,
             description=description,
         )
-
+        # Wait for the collection to become active
         status: Optional[str] = None
         response: Optional[Dict[str, Any]] = {}
         while status not in _CREATE_COLLECTION_FINAL_STATUSES:

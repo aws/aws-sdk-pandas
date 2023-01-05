@@ -3,7 +3,7 @@ import logging
 import tempfile
 import time
 import uuid
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import boto3
 import opensearchpy
@@ -147,8 +147,8 @@ def domain_endpoint_elasticsearch_7_10_fgac(cloudformation_outputs):
     return cloudformation_outputs["DomainEndpointsdkpandases710fgac"]
 
 
-def _create_opensearch_data_access_policy(collection_name: str, client: boto3.client) -> None:
-    policy = [
+def _get_opensearch_data_access_policy(collection_name: str) -> List[Dict[str, Any]]:
+    return [
         {
             "Rules": [
                 {
@@ -180,26 +180,24 @@ def _create_opensearch_data_access_policy(collection_name: str, client: boto3.cl
             ],
         }
     ]
-    client.create_access_policy(
-        name=f"{collection_name}-data-policy",
-        policy=json.dumps(policy),
-        type="data",
-    )
 
 
 @pytest.fixture(scope="session")
 def opensearch_serverless_collection_endpoint() -> str:
     # Create collection and get the endpoint
     collection_name: str = f"col-{str(uuid.uuid4())[:8]}"
-    collection: Dict[str, Any] = wr.opensearch.create_collection(name=collection_name)
+    collection: Dict[str, Any] = wr.opensearch.create_collection(
+        name=collection_name,
+        data_policy=_get_opensearch_data_access_policy(
+            collection_name=collection_name,
+        ),
+    )
     collection_endpoint: str = collection["collectionEndpoint"]
     collection_id: str = collection["id"]
 
-    # Create data access policy
-    client: boto3.client = boto3.client(service_name="opensearchserverless")
-    _create_opensearch_data_access_policy(collection_name=collection_name, client=client)
-
     yield collection_endpoint
+
+    client: boto3.client = boto3.client(service_name="opensearchserverless")
 
     # Cleanup collection
     client.delete_collection(id=collection_id)
@@ -255,6 +253,7 @@ def opensearch_serverless_client(opensearch_serverless_collection_endpoint):
 # testing multiple versions
 @pytest.fixture(params=["opensearch_1_0_client", "elasticsearch_7_10_fgac_client", "opensearch_serverless_client"])
 def client(request):
+    time.sleep(30)  # temp wait until collection is created
     return request.getfixturevalue(request.param)
 
 
