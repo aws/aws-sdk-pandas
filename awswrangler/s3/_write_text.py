@@ -939,7 +939,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
     df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
 
     if dataset is False:
-        return _to_text(  # type: ignore
+        return _to_text(
             df,
             file_format="json",
             path=path,
