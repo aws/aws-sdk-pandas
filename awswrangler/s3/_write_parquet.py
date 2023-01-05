@@ -16,6 +16,7 @@ from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation
 from awswrangler._arrow import _df_to_table
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
+from awswrangler._utils import copy_df_shallow
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._read_parquet import _read_parquet_metadata
@@ -583,7 +584,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     # Sanitize table to respect Athena's standards
     if (sanitize_columns is True) or (database is not None and table is not None):
         df, dtype, partition_cols = _sanitize(
-            df=df.copy(deep=False),
+            df=copy_df_shallow(df),
             dtype=dtype,
             partition_cols=partition_cols,
         )

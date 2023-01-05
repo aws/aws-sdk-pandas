@@ -6,7 +6,7 @@ import importlib.util
 from collections import defaultdict
 from enum import Enum, unique
 from functools import wraps
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, TypeVar
 
 
 @unique
@@ -23,6 +23,9 @@ class MemoryFormatEnum(Enum):
 
     MODIN = "modin"
     PANDAS = "pandas"
+
+
+FunctionType = TypeVar("FunctionType", bound=Callable[..., Any])
 
 
 class Engine:
@@ -68,10 +71,10 @@ class Engine:
         ]  # type: ignore
 
     @classmethod
-    def dispatch_func(cls, source_func: Callable[..., Any], value: Optional[Any] = None) -> Callable[..., Any]:
+    def dispatch_func(cls, source_func: FunctionType, value: Optional[Any] = None) -> FunctionType:
         """Dispatch a func based on value or the distribution engine and the source function."""
         try:
-            return cls._registry[value or cls.get().value][source_func.__name__]
+            return cls._registry[value or cls.get().value][source_func.__name__]  # type: ignore[return-value]
         except KeyError:
             return getattr(source_func, "_source_func", source_func)
 
@@ -82,7 +85,7 @@ class Engine:
         return destination_func
 
     @classmethod
-    def dispatch_on_engine(cls, func: Callable[..., Any]) -> Callable[..., Any]:
+    def dispatch_on_engine(cls, func: FunctionType) -> FunctionType:
         """Dispatch on engine function decorator."""
 
         @wraps(func)
@@ -91,7 +94,7 @@ class Engine:
 
         # Save the original function
         wrapper._source_func = func  # type: ignore  # pylint: disable=protected-access
-        return wrapper
+        return wrapper  # type: ignore[return-value]
 
     @classmethod
     def register(cls, name: Optional[str] = None) -> None:

@@ -463,6 +463,12 @@ def is_pandas_frame(obj: Any) -> bool:
     return isinstance(obj, pd.DataFrame)
 
 
+@engine.dispatch_on_engine
+def copy_df_shallow(df: pd.DataFrame) -> pd.DataFrame:
+    """Create a shallow copy of the Pandas DataFrame."""
+    return df.copy(deep=False)
+
+
 def list_to_arrow_table(
     mapping: List[Dict[str, Any]],
     schema: Optional[pa.Schema] = None,
