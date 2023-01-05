@@ -253,7 +253,6 @@ def write(
     >>> assert len(rejected_records) == 0
 
     """
-
     measure_cols_names = measure_col if isinstance(measure_col, list) else [measure_col]
     _logger.debug("measure_cols_names: %s", measure_cols_names)
 
