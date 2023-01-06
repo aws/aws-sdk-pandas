@@ -150,6 +150,10 @@ def connect(
     username: Optional[str] = None,
     password: Optional[str] = None,
     service: Optional[str] = None,
+    timeout: int = 30,
+    max_retries: int = 10,
+    retry_on_timeout: bool = True,
+    retry_on_status: Optional[List[int]] = None,
 ) -> OpenSearch:
     """Create a secure connection to the specified Amazon OpenSearch domain.
 
@@ -178,6 +182,14 @@ def connect(
     service : str, optional
         Service id. Supported values are `es`, corresponding to opensearch cluster,
         and `aoss` for serverless opensearch. By default, service will be parsed from the host URI.
+    timeout : int
+        Operation timeout. `30` by default.
+    max_retries : int
+        Maximum number of retries before an exception is propagated. `10` by default.
+    retry_on_timeout : bool
+        Should timeout trigger a retry on different node. `True` by default.
+    retry_on_status : List[int], optional
+        Set of HTTP status codes on which we should retry on a different node. Defaults to [500, 502, 503, 504].
 
     Returns
     -------
@@ -192,6 +204,11 @@ def connect(
 
     if not service:
         service = _get_service(host)
+
+    if not retry_on_status:
+        # Default retry on (502, 503, 504)
+        # Add 500 to retry on BulkIndexError
+        retry_on_status = [500, 502, 503, 504]
 
     if username and password:
         http_auth = (username, password)
@@ -214,9 +231,10 @@ def connect(
             use_ssl=_is_https(port),
             verify_certs=_is_https(port),
             connection_class=RequestsHttpConnection,
-            timeout=30,
-            max_retries=10,
-            retry_on_timeout=True,
+            timeout=timeout,
+            max_retries=max_retries,
+            retry_on_timeout=retry_on_timeout,
+            retry_on_status=retry_on_status,
         )
         es._serverless = service == "aoss"  # type: ignore # pylint: disable=protected-access
     except Exception as e:
