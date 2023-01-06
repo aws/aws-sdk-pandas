@@ -44,6 +44,7 @@ def _write_batch(
     version: int,
     batch: List[Any],
     boto3_primitives: _utils.Boto3PrimitivesType,
+    measure_name: Optional[str] = None,
 ) -> List[Dict[str, str]]:
     boto3_session: boto3.Session = _utils.boto3_from_primitives(primitives=boto3_primitives)
     client: boto3.client = _utils.client(
@@ -67,11 +68,11 @@ def _write_batch(
                 "Version": version,
             }
             if len(measure_cols_names) == 1:
-                record["MeasureName"] = measure_cols_names[0]
+                record["MeasureName"] = measure_name if measure_name else measure_cols_names[0]
                 record["MeasureValueType"] = measure_types[0]
                 record["MeasureValue"] = str(rec[measure_cols_loc])
             else:
-                record["MeasureName"] = measure_cols_names[0]
+                record["MeasureName"] = measure_name if measure_name else measure_cols_names[0]
                 record["MeasureValueType"] = "MULTI"
                 record["MeasureValues"] = [
                     _format_measure(measure_name, measure_value, measure_value_type)
@@ -192,6 +193,7 @@ def write(
     dimensions_cols: List[str],
     version: int = 1,
     num_threads: int = 32,
+    measure_name: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> List[Dict[str, str]]:
     """Store a Pandas DataFrame into a Amazon Timestream table.
@@ -213,6 +215,9 @@ def write(
     version : int
         Version number used for upserts.
         Documentation https://docs.aws.amazon.com/timestream/latest/developerguide/API_WriteRecords.html.
+    measure_name : Optional[str]
+        Name that represents the data attribute of the time series.
+        Overrides ``measure_col`` if specified.
     num_threads : str
         Number of thread to be used for concurrent writing.
     boto3_session : boto3.Session(), optional
@@ -248,8 +253,9 @@ def write(
     >>> assert len(rejected_records) == 0
 
     """
-    measure_cols_names: List[str] = measure_col if isinstance(measure_col, list) else [measure_col]
+    measure_cols_names = measure_col if isinstance(measure_col, list) else [measure_col]
     _logger.debug("measure_cols_names: %s", measure_cols_names)
+
     measure_types: List[str] = [
         _data_types.timestream_type_from_pandas(df[[measure_col_name]]) for measure_col_name in measure_cols_names
     ]
@@ -270,6 +276,7 @@ def write(
                 itertools.repeat(version),
                 batches,
                 itertools.repeat(_utils.boto3_to_primitives(boto3_session=boto3_session)),
+                itertools.repeat(measure_name),
             )
         )
         return [item for sublist in res for item in sublist]
