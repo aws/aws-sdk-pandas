@@ -231,13 +231,22 @@ def test_csv_dataset(path, glue_database):
             ),
         )
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.s3.to_csv(df, path + "0", dataset=False, glue_catalog_parameters=wr.typing.GlueCatalogParameters(database=None, table="test_csv_dataset"))
+        wr.s3.to_csv(
+            df,
+            path + "0",
+            dataset=False,
+            glue_catalog_parameters=wr.typing.GlueCatalogParameters(database=None, table="test_csv_dataset"),
+        )
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
         wr.s3.to_csv(df=df, path=path + "0", mode="append")
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
         wr.s3.to_csv(df=df, path=path + "0", partition_cols=["col2"])
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.s3.to_csv(df=df, path=path + "0", glue_catalog_parameters=wr.typing.GlueCatalogParameters(database=None, table=None, description="foo"))
+        wr.s3.to_csv(
+            df=df,
+            path=path + "0",
+            glue_catalog_parameters=wr.typing.GlueCatalogParameters(database=None, table=None, description="foo"),
+        )
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.s3.to_csv(df=df, path=path + "0", partition_cols=["col2"], dataset=True, mode="WRONG")
     paths = wr.s3.to_csv(
