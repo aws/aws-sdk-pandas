@@ -43,7 +43,6 @@ def _format_measure(measure_name: str, measure_value: Any, measure_type: str) ->
 
 @engine.dispatch_on_engine
 def _write_batch(
-    boto3_session: Optional[boto3.Session],
     database: str,
     table: str,
     cols_names: List[str],
@@ -54,6 +53,7 @@ def _write_batch(
     boto3_primitives: _utils.Boto3PrimitivesType,
     measure_name: Optional[str] = None,
 ) -> List[Dict[str, str]]:
+    boto3_session: boto3.Session = _utils.boto3_from_primitives(primitives=boto3_primitives)
     client: boto3.client = _utils.client(
         service_name="timestream-write",
         session=boto3_session,
@@ -118,7 +118,6 @@ def _write_df(
     _logger.debug("len(batches): %s", len(batches))
     return executor.map(  # type: ignore
         _write_batch,
-        boto3_session,
         itertools.repeat(database),
         itertools.repeat(table),
         itertools.repeat(cols_names),
