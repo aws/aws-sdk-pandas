@@ -73,7 +73,7 @@ def _read_execute_statement(
 def execute_statement(
     statement: str,
     parameters: Optional[List[Any]] = None,
-    consistent_read: bool = True,
+    consistent_read: bool = False,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Optional[Iterator[Dict[str, Any]]]:
     """Run a PartiQL statement against a DynamoDB table.
@@ -85,7 +85,7 @@ def execute_statement(
     parameters : Optional[List[Any]]
         The list of PartiQL parameters. These are applied to the statement in the order they are listed.
     consistent_read: bool
-        The consistency of a read operation. If `True` (by default), then a strongly consistent read is used.
+        The consistency of a read operation. If `True`, then a strongly consistent read is used. False by default.
     boto3_session : Optional[boto3.Session]
         Boto3 Session. If None, the default boto3 Session is used.
 

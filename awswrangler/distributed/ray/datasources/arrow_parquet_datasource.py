@@ -24,8 +24,11 @@ from ray.data.context import DatasetContext
 from ray.data.dataset import BlockOutputBuffer  # type: ignore
 from ray.data.datasource import Reader, ReadTask
 from ray.data.datasource.file_based_datasource import _resolve_paths_and_filesystem
-from ray.data.datasource.file_meta_provider import _handle_read_os_error  # type: ignore
-from ray.data.datasource.file_meta_provider import DefaultParquetMetadataProvider, ParquetMetadataProvider
+from ray.data.datasource.file_meta_provider import (
+    DefaultParquetMetadataProvider,
+    ParquetMetadataProvider,
+    _handle_read_os_error,
+)
 
 from awswrangler._arrow import _add_table_partitions, _df_to_table
 from awswrangler.distributed.ray import ray_remote
@@ -326,7 +329,7 @@ class _ArrowParquetDatasourceReader(Reader[Any]):  # pylint: disable=too-many-in
             # Use SPREAD scheduling strategy to avoid packing many sampling tasks on
             # same machine to cause OOM issue, as sampling can be memory-intensive.
             futures.append(_sample_piece(_SerializedPiece(sample), idx))
-        sample_ratios = ray.get(futures)
+        sample_ratios = ray.get(futures)  # type: ignore[attr-defined]
         ratio = np.mean(sample_ratios)
 
         sampling_duration = time.perf_counter() - start_time

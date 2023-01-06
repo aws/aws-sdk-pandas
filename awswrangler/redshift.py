@@ -16,6 +16,7 @@ from awswrangler import _data_types
 from awswrangler import _databases as _db_utils
 from awswrangler import _utils, exceptions, s3
 from awswrangler._config import apply_configs
+from awswrangler._distributed import EngineEnum, engine
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -1057,6 +1058,12 @@ def unload_to_files(
         partition_str: str = f"\nPARTITION BY ({','.join(partition_cols)})" if partition_cols else ""
         manifest_str: str = "\nmanifest" if manifest is True else ""
         region_str: str = f"\nREGION AS '{region}'" if region is not None else ""
+        if not max_file_size and engine.get() == EngineEnum.RAY:
+            _logger.warning(
+                "Unload `MAXFILESIZE` is not specified. "
+                "Defaulting to `512.0 MB` corresponding to the recommended Ray target block size."
+            )
+            max_file_size = 512.0
         max_file_size_str: str = f"\nMAXFILESIZE AS {max_file_size} MB" if max_file_size is not None else ""
         kms_key_id_str: str = f"\nKMS_KEY_ID '{kms_key_id}'" if kms_key_id is not None else ""
 
@@ -1491,6 +1498,7 @@ def copy(  # pylint: disable=too-many-arguments,too-many-locals
     keep_files: bool = False,
     use_threads: Union[bool, int] = True,
     lock: bool = False,
+    commit_transaction: bool = True,
     sql_copy_extra_params: Optional[List[str]] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, str]] = None,
@@ -1584,6 +1592,8 @@ def copy(  # pylint: disable=too-many-arguments,too-many-locals
         If integer is provided, specified number is used.
     lock : bool
         True to execute LOCK command inside the transaction to force serializable isolation.
+    commit_transaction : bool
+        Whether to commit the transaction. True by default.
     sql_copy_extra_params : Optional[List[str]]
         Additional copy parameters to pass to the command. For example: ["STATUPDATE ON"]
     boto3_session : boto3.Session(), optional
@@ -1667,6 +1677,7 @@ def copy(  # pylint: disable=too-many-arguments,too-many-locals
             serialize_to_json=serialize_to_json,
             use_threads=use_threads,
             lock=lock,
+            commit_transaction=commit_transaction,
             boto3_session=session,
             s3_additional_kwargs=s3_additional_kwargs,
             sql_copy_extra_params=sql_copy_extra_params,

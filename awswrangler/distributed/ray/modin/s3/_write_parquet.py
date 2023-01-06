@@ -62,7 +62,7 @@ def _to_parquet_distributed(  # pylint: disable=unused-argument
         ds = ds.repartition(math.ceil(ds.count() / max_rows_by_file))
     datasource = ArrowParquetDatasource()
     ds.write_datasource(
-        datasource,  # type: ignore
+        datasource,
         path=path or path_root,
         dataset_uuid=filename_prefix,
         # If user has provided a single key, use that instead of generating a path per block

@@ -12,6 +12,7 @@ from pandas.io.common import infer_compression
 from awswrangler import _data_types, _utils, catalog, exceptions, lakeformation
 from awswrangler._config import apply_configs
 from awswrangler._distributed import engine
+from awswrangler._utils import copy_df_shallow
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
@@ -72,7 +73,6 @@ def _to_text(  # pylint: disable=unused-argument
     return [file_path]
 
 
-@engine.dispatch_on_engine
 @apply_configs
 def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-statements,too-many-branches
     df: pd.DataFrame,
@@ -452,7 +452,11 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
 
     # Sanitize table to respect Athena's standards
     if (sanitize_columns is True) or (glue_catalog_parameters is not None):
-        df, dtype, partition_cols = _sanitize(df=df, dtype=dtype, partition_cols=partition_cols)
+        df, dtype, partition_cols = _sanitize(
+            df=copy_df_shallow(df),
+            dtype=dtype,
+            partition_cols=partition_cols,
+        )
 
     # Evaluating dtype
     catalog_table_input: Optional[Dict[str, Any]] = None
@@ -647,7 +651,6 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     return {"paths": paths, "partitions_values": partitions_values}
 
 
-@engine.dispatch_on_engine
 @apply_configs
 def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-statements,too-many-branches
     df: pd.DataFrame,
@@ -888,7 +891,11 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
 
     # Sanitize table to respect Athena's standards
     if (sanitize_columns is True) or (glue_catalog_parameters is not None):
-        df, dtype, partition_cols = _sanitize(df=df, dtype=dtype, partition_cols=partition_cols)
+        df, dtype, partition_cols = _sanitize(
+            df=copy_df_shallow(df),
+            dtype=dtype,
+            partition_cols=partition_cols,
+        )
 
     # Evaluating dtype
     catalog_table_input: Optional[Dict[str, Any]] = None
@@ -932,7 +939,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
     df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
 
     if dataset is False:
-        return _to_text(  # type: ignore
+        return _to_text(
             df,
             file_format="json",
             path=path,

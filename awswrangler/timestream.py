@@ -33,6 +33,14 @@ def _df2list(df: pd.DataFrame) -> List[List[Any]]:
     return parameters
 
 
+def _format_measure(measure_name: str, measure_value: Any, measure_type: str) -> Dict[str, str]:
+    return {
+        "Name": measure_name,
+        "Value": str(round(measure_value.timestamp() * 1_000) if measure_type == "TIMESTAMP" else measure_value),
+        "Type": measure_type,
+    }
+
+
 @engine.dispatch_on_engine
 def _write_batch(
     boto3_session: Optional[boto3.Session],
@@ -43,6 +51,7 @@ def _write_batch(
     measure_types: List[str],
     version: int,
     batch: List[Any],
+    measure_name: Optional[str] = None,
 ) -> List[Dict[str, str]]:
     client: boto3.client = _utils.client(
         service_name="timestream-write",
@@ -65,14 +74,14 @@ def _write_batch(
                 "Version": version,
             }
             if len(measure_cols_names) == 1:
-                record["MeasureName"] = measure_cols_names[0]
+                record["MeasureName"] = measure_name if measure_name else measure_cols_names[0]
                 record["MeasureValueType"] = measure_types[0]
                 record["MeasureValue"] = str(rec[measure_cols_loc])
             else:
-                record["MeasureName"] = measure_cols_names[0]
+                record["MeasureName"] = measure_name if measure_name else measure_cols_names[0]
                 record["MeasureValueType"] = "MULTI"
                 record["MeasureValues"] = [
-                    {"Name": measure_name, "Value": str(measure_value), "Type": measure_value_type}
+                    _format_measure(measure_name, measure_value, measure_value_type)
                     for measure_name, measure_value, measure_value_type in zip(
                         measure_cols_names, rec[measure_cols_loc:dimensions_cols_loc], measure_types
                     )
@@ -102,6 +111,7 @@ def _write_df(
     measure_types: List[str],
     version: int,
     boto3_session: Optional[boto3.Session],
+    measure_name: Optional[str] = None,
 ) -> List[Dict[str, str]]:
     batches: List[List[Any]] = _utils.chunkify(lst=_df2list(df=df), max_length=100)
     _logger.debug("len(batches): %s", len(batches))
@@ -115,6 +125,7 @@ def _write_df(
         itertools.repeat(measure_types),
         itertools.repeat(version),
         batches,
+        itertools.repeat(measure_name),
     )
 
 
@@ -217,6 +228,7 @@ def write(
     dimensions_cols: List[str],
     version: int = 1,
     use_threads: Union[bool, int] = True,
+    measure_name: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> List[Dict[str, str]]:
     """Store a Pandas DataFrame into a Amazon Timestream table.
@@ -246,6 +258,9 @@ def write(
         True to enable concurrent writing, False to disable multiple threads.
         If enabled, os.cpu_count() is used as the number of threads.
         If integer is provided, specified number is used.
+    measure_name : Optional[str]
+        Name that represents the data attribute of the time series.
+        Overrides ``measure_col`` if specified.
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
 
@@ -279,7 +294,7 @@ def write(
     >>> assert len(rejected_records) == 0
 
     """
-    measure_cols_names: List[str] = measure_col if isinstance(measure_col, list) else [measure_col]
+    measure_cols_names = measure_col if isinstance(measure_col, list) else [measure_col]
     _logger.debug("measure_cols_names: %s", measure_cols_names)
     measure_types: List[str] = _data_types.timestream_type_from_pandas(df.loc[:, measure_cols_names])
     _logger.debug("measure_types: %s", measure_types)
@@ -302,6 +317,7 @@ def write(
                     measure_types=measure_types,
                     version=version,
                     boto3_session=boto3_session,
+                    measure_name=measure_name,
                 )
                 for df in dfs
             ]
@@ -579,8 +595,14 @@ def list_databases(
 
     """
     client: boto3.client = _utils.client(service_name="timestream-write", session=boto3_session)
-    dbs = client.list_databases()
-    return [db["DatabaseName"] for db in dbs["Databases"]]
+
+    response: Dict[str, Any] = client.list_databases()
+    dbs: List[str] = [db["DatabaseName"] for db in response["Databases"]]
+    while "nextToken" in response:
+        response = client.list_databases(nextToken=response["nextToken"])
+        dbs += [db["DatabaseName"] for db in response["Databases"]]
+
+    return dbs
 
 
 def list_tables(database: Optional[str] = None, boto3_session: Optional[boto3.Session] = None) -> List[str]:
@@ -616,9 +638,11 @@ def list_tables(database: Optional[str] = None, boto3_session: Optional[boto3.Se
 
     """
     client: boto3.client = _utils.client(service_name="timestream-write", session=boto3_session)
-    if database:
-        tables = client.list_tables(DatabaseName=database)
-    else:
-        tables = client.list_tables()
+    args = {} if database is None else {"DatabaseName": database}
+    response: Dict[str, Any] = client.list_tables(**args)
+    tables: List[str] = [tbl["TableName"] for tbl in response["Tables"]]
+    while "nextToken" in response:
+        response = client.list_tables(**args, nextToken=response["nextToken"])
+        tables += [tbl["TableName"] for tbl in response["Tables"]]
 
-    return [tbl["TableName"] for tbl in tables["Tables"]]
+    return tables

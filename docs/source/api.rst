@@ -12,6 +12,7 @@ API Reference
 * `Oracle`_
 * `Data API Redshift`_
 * `Data API RDS`_
+* `AWS Glue Data Quality`_
 * `OpenSearch`_
 * `Amazon Neptune`_
 * `DynamoDB`_
@@ -45,6 +46,7 @@ Amazon S3
     merge_datasets
     merge_upsert_table
     read_csv
+    read_deltalake
     read_excel
     read_fwf
     read_json
@@ -244,6 +246,20 @@ Data API RDS
     connect
     read_sql_query
 
+AWS Glue Data Quality
+---------------------
+
+.. currentmodule:: awswrangler.data_quality
+
+.. autosummary::
+    :toctree: stubs
+
+    create_recommendation_ruleset
+    create_ruleset
+    evaluate_ruleset
+    get_ruleset
+    update_ruleset
+
 OpenSearch
 ----------
 
@@ -290,6 +306,7 @@ DynamoDB
     get_table
     execute_statement
     read_partiql_query
+    read_items
     put_csv
     put_df
     put_items

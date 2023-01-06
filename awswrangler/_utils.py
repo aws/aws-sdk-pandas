@@ -250,7 +250,7 @@ def chunkify(lst: List[Any], num_chunks: int = 1, max_length: Optional[int] = No
     if not lst:
         return []
     n: int = num_chunks if max_length is None else int(math.ceil((float(len(lst)) / float(max_length))))
-    np_chunks = np.array_split(lst, n)  # type: ignore
+    np_chunks = np.array_split(lst, n)
     return [arr.tolist() for arr in np_chunks if len(arr) > 0]
 
 
@@ -452,7 +452,7 @@ def split_pandas_frame(df: pd.DataFrame, splits: int) -> List[pd.DataFrame]:
 
 
 @engine.dispatch_on_engine
-def table_refs_to_df(tables: List[pa.Table], kwargs: Dict[str, Any]) -> pd.DataFrame:  # type: ignore
+def table_refs_to_df(tables: List[pa.Table], kwargs: Dict[str, Any]) -> pd.DataFrame:
     """Build Pandas dataframe from list of PyArrow tables."""
     return _table_to_df(pa.concat_tables(tables, promote=True), kwargs=kwargs)
 
@@ -461,6 +461,12 @@ def table_refs_to_df(tables: List[pa.Table], kwargs: Dict[str, Any]) -> pd.DataF
 def is_pandas_frame(obj: Any) -> bool:
     """Check if the passed objected is a Pandas DataFrame."""
     return isinstance(obj, pd.DataFrame)
+
+
+@engine.dispatch_on_engine
+def copy_df_shallow(df: pd.DataFrame) -> pd.DataFrame:
+    """Create a shallow copy of the Pandas DataFrame."""
+    return df.copy(deep=False)
 
 
 def list_to_arrow_table(

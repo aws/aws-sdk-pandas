@@ -30,7 +30,7 @@ class _ThreadPoolExecutor:
             args = (itertools.repeat(boto3_primitives), *iterables)
             return list(self._exec.map(func, *args))
         # Single-threaded
-        return list(map(func, *(itertools.repeat(boto3_session), *iterables)))  # type: ignore
+        return list(map(func, *(itertools.repeat(boto3_session), *iterables)))
 
 
 def _get_executor(use_threads: Union[bool, int]) -> _ThreadPoolExecutor:

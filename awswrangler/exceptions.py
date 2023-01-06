@@ -123,3 +123,7 @@ class S3SelectRequestIncomplete(Exception):
 
 class ResourceDoesNotExist(Exception):
     """ResourceDoesNotExist."""
+
+
+class InvalidRulesetDefinition(Exception):
+    """InvalidRulesetDefinition."""
