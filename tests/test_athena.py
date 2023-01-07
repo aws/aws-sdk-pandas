@@ -10,7 +10,6 @@ import pytest
 
 import awswrangler as wr
 
-
 from ._utils import (
     ensure_athena_ctas_table,
     ensure_athena_query_metadata,
