@@ -4,7 +4,7 @@ import json
 import logging
 import re
 import time
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 import boto3
 import botocore
@@ -153,7 +153,7 @@ def connect(
     timeout: int = 30,
     max_retries: int = 10,
     retry_on_timeout: bool = True,
-    retry_on_status: Optional[List[int]] = None,
+    retry_on_status: Optional[Sequence[int]] = None,
 ) -> OpenSearch:
     """Create a secure connection to the specified Amazon OpenSearch domain.
 
@@ -208,7 +208,7 @@ def connect(
     if not retry_on_status:
         # Default retry on (502, 503, 504)
         # Add 500 to retry on BulkIndexError
-        retry_on_status = [500, 502, 503, 504]
+        retry_on_status = (500, 502, 503, 504)
 
     if username and password:
         http_auth = (username, password)

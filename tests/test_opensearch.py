@@ -432,3 +432,26 @@ def test_index_json_s3_large_file(client):
         client, index="test_index_json_s3_large_file", path=path, json_path="Filings2011", id_keys=["EIN"], bulk_size=20
     )
     assert response.get("success", 0) > 0
+
+
+def test_opensearch_serverless_create_collection(opensearch_serverless_client) -> str:
+    collection_name: str = f"col-{str(uuid.uuid4())[:8]}"
+    client: boto3.client = boto3.client(service_name="opensearchserverless")
+
+    collection: Dict[str, Any] = wr.opensearch.create_collection(
+        name=collection_name,
+        data_policy=_get_opensearch_data_access_policy(),
+    )
+    collection_id: str = collection["id"]
+
+    response = client.batch_get_collection(ids=[collection_id])["collectionDetails"][0]
+
+    assert response["id"] == collection_id
+    assert response["status"] == "ACTIVE"
+    assert response["type"] == "SEARCH"
+
+    # Cleanup collection resources
+    client.delete_collection(id=collection_id)
+    client.delete_security_policy(name=f"{collection_name}-encryption-policy", type="encryption")
+    client.delete_security_policy(name=f"{collection_name}-network-policy", type="network")
+    client.delete_access_policy(name=f"{collection_name}-data-policy", type="data")
