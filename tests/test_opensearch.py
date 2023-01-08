@@ -337,7 +337,8 @@ def test_search(client):
     assert df.shape == (0, 0)
 
 
-def test_search_filter_path(client):
+@pytest.mark.parametrize("filter_path", [None, "hits.hits._source", ["hits.hits._source"]])
+def test_search_filter_path(client, filter_path):
     index = "test_search"
     kwargs = {} if _is_serverless(client) else {"refresh": "wait_for"}
     wr.opensearch.index_documents(
@@ -352,7 +353,7 @@ def test_search_filter_path(client):
         index=index,
         search_body={"query": {"match": {"business_name": "soup"}}},
         _source=["inspection_id", "business_name", "business_location"],
-        filter_path=["hits.hits._source"],
+        filter_path=filter_path,
     )
     assert df.shape[0] == 3
 
