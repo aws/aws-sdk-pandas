@@ -1,3 +1,4 @@
+import boto3
 import pandas as pd
 import pytest
 from deltalake import DeltaTable, write_deltalake
@@ -7,7 +8,13 @@ import awswrangler as wr
 
 @pytest.fixture(scope="session")
 def storage_options():
-    return {"AWS_S3_ALLOW_UNSAFE_RENAME": "TRUE"}
+    credentials = boto3.Session().get_credentials().get_frozen_credentials()
+    return {
+        "AWS_S3_ALLOW_UNSAFE_RENAME": "TRUE",
+        "AWS_ACCESS_KEY_ID": credentials.access_key,
+        "AWS_SECRET_ACCESS_KEY": credentials.secret_key,
+        "AWS_SESSION_TOKEN": credentials.token,
+    }
 
 
 @pytest.mark.parametrize("s3_additional_kwargs", [None, {"ServerSideEncryption": "AES256"}])
