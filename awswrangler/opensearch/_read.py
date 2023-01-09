@@ -104,7 +104,7 @@ def search(
 
     """
     if is_scroll and _is_serverless(client):
-        raise exceptions.NotFound("Scrolled search is not currently available for OpenSearch Serverless.")
+        raise exceptions.NotSupported("Scrolled search is not currently available for OpenSearch Serverless.")
 
     if doc_type:
         kwargs["doc_type"] = doc_type
@@ -156,7 +156,7 @@ def search_by_sql(client: OpenSearch, sql_query: str, **kwargs: Any) -> pd.DataF
 
     """
     if _is_serverless(client):
-        raise exceptions.NotFound("SQL plugin is not currently available for OpenSearch Serverless.")
+        raise exceptions.NotSupported("SQL plugin is not currently available for OpenSearch Serverless.")
 
     if _get_distribution(client) == "opensearch":
         url = "/_plugins/_sql"

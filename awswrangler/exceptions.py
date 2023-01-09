@@ -125,9 +125,9 @@ class InvalidRulesetDefinition(Exception):
     """InvalidRulesetDefinition."""
 
 
-class Conflict(Exception):
-    """Conflict."""
+class PolicyResourceConflict(Exception):
+    """PolicyResourceConflict."""
 
 
-class NotFound(Exception):
-    """NotFound."""
+class NotSupported(Exception):
+    """NotSupported."""

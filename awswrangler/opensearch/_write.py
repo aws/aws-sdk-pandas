@@ -520,7 +520,7 @@ https://opendistro.github.io/for-elasticsearch-docs/docs/elasticsearch/rest-api-
     ... )
     """
     if "refresh" in kwargs and _is_serverless(client):
-        raise exceptions.NotFound("Refresh policy not supported in OpenSearch Serverless.")
+        raise exceptions.NotSupported("Refresh policy not supported in OpenSearch Serverless.")
 
     if not isinstance(documents, list):
         documents = list(documents)

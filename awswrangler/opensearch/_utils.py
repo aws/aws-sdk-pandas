@@ -124,7 +124,9 @@ def _create_security_policy(
         )
     except botocore.exceptions.ClientError as error:
         if error.response["Error"]["Code"] == "ConflictException":
-            raise exceptions.Conflict("The policy name or rules conflict with an existing policy.") from error
+            raise exceptions.PolicyResourceConflict(
+                "The policy name or rules conflict with an existing policy."
+            ) from error
         raise error
 
 
@@ -138,7 +140,9 @@ def _create_data_policy(collection_name: str, policy: List[Dict[str, Any]], clie
         )
     except botocore.exceptions.ClientError as error:
         if error.response["Error"]["Code"] == "ConflictException":
-            raise exceptions.Conflict("The policy name or rules conflict with an existing policy.") from error
+            raise exceptions.PolicyResourceConflict(
+                "The policy name or rules conflict with an existing policy."
+            ) from error
         raise error
 
 
