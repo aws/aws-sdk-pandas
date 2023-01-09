@@ -191,8 +191,6 @@ def opensearch_serverless_collection_endpoint() -> str:
         collection_id: str = collection["id"]
 
         yield collection_endpoint
-    except Exception as e:
-        raise e
     finally:
         client: boto3.client = boto3.client(service_name="opensearchserverless")
 
@@ -359,7 +357,7 @@ def test_search_filter_path(client, filter_path):
     assert df.shape[0] == 3
 
 
-@pytest.mark.xfail(raises=wr.exceptions.NotFound, reason="Scroll not available for OpenSearch Serverless.")
+@pytest.mark.xfail(raises=wr.exceptions.NotSupported, reason="Scroll not available for OpenSearch Serverless.")
 def test_search_scroll(client):
     index = "test_search_scroll"
     kwargs = {} if _is_serverless(client) else {"refresh": "wait_for"}
@@ -372,7 +370,7 @@ def test_search_scroll(client):
     assert df.shape[0] == 5
 
 
-@pytest.mark.xfail(raises=wr.exceptions.NotFound, reason="SQL plugin not available for OpenSearch Serverless.")
+@pytest.mark.xfail(raises=wr.exceptions.NotSupported, reason="SQL plugin not available for OpenSearch Serverless.")
 @pytest.mark.parametrize("fetch_size", [None, 1000, 10000])
 @pytest.mark.parametrize("fetch_size_param_name", ["size", "fetch_size"])
 def test_search_sql(client, fetch_size, fetch_size_param_name):
