@@ -143,6 +143,7 @@ FROM "sampleDB"."sampleTable" ORDER BY time DESC LIMIT 3
   - [031 - OpenSearch](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/031%20-%20OpenSearch.ipynb)
   - [032 - Lake Formation Governed Tables](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/032%20-%20Lake%20Formation%20Governed%20Tables.ipynb)
   - [033 - Amazon Neptune](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/033%20-%20Amazon%20Neptune.ipynb)
+  - [034 - Glue Data Quality](https://github.com/aws/aws-sdk-pandas/blob/main/tutorials/034%20-Glue%20%20Data%20Quality.ipynb)
 - [**API Reference**](https://aws-sdk-pandas.readthedocs.io/en/2.19.0/api.html)
   - [Amazon S3](https://aws-sdk-pandas.readthedocs.io/en/2.19.0/api.html#amazon-s3)
   - [AWS Glue Catalog](https://aws-sdk-pandas.readthedocs.io/en/2.19.0/api.html#aws-glue-catalog)
