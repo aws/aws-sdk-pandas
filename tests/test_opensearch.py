@@ -371,14 +371,19 @@ def test_search_scroll(client):
     assert df.shape[0] == 5
 
 
-@pytest.mark.xfail(raises=wr.exceptions.NotFound, reason="SQL plugin not available for OpenSearch Serverless.")
-def test_search_sql(client):
+@pytest.mark.parametrize("fetch_size", [None, 1000, 10000])
+@pytest.mark.parametrize("fetch_size_param_name", ["size", "fetch_size"])
+def test_search_sql(client, fetch_size, fetch_size_param_name):
+    if _is_serverless(client):
+        pytest.skip("SQL plugin not available for OpenSearch Serverless.")
+
     index = "test_search_sql"
     kwargs = {} if _is_serverless(client) else {"refresh": "wait_for"}
     wr.opensearch.index_documents(
         client, documents=inspections_documents, index=index, id_keys=["inspection_id"], **kwargs
     )
-    df = wr.opensearch.search_by_sql(client, sql_query=f"select * from {index}")
+    search_kwargs = {fetch_size_param_name: fetch_size} if fetch_size else {}
+    df = wr.opensearch.search_by_sql(client, sql_query=f"select * from {index}", **search_kwargs)
     assert df.shape[0] == 5
 
 
