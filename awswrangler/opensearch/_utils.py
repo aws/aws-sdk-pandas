@@ -51,7 +51,7 @@ def _strip_endpoint(endpoint: str) -> str:
     return uri_schema.sub("", endpoint).strip().strip("/")
 
 
-def _is_https(port: int) -> bool:
+def _is_https(port: Optional[int]) -> bool:
     return port == 443
 
 
@@ -151,7 +151,7 @@ def connect(
     password: Optional[str] = None,
     service: Optional[str] = None,
     timeout: int = 30,
-    max_retries: int = 10,
+    max_retries: int = 5,
     retry_on_timeout: bool = True,
     retry_on_status: Optional[Sequence[int]] = None,
 ) -> OpenSearch:
@@ -197,11 +197,6 @@ def connect(
         OpenSearch low-level client.
         https://github.com/opensearch-project/opensearch-py/blob/main/opensearchpy/client/__init__.py
     """
-    valid_ports = {80, 443}
-
-    if port not in valid_ports:
-        raise ValueError(f"results: port must be one of {valid_ports}")
-
     if not service:
         service = _get_service(host)
 

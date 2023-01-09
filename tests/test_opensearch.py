@@ -375,7 +375,7 @@ def test_search_scroll(client):
 @pytest.mark.parametrize("fetch_size_param_name", ["size", "fetch_size"])
 def test_search_sql(client, fetch_size, fetch_size_param_name):
     if _is_serverless(client):
-        pytest.skip("SQL plugin not available for OpenSearch Serverless.")
+        pytest.mark.xfail(raises=wr.exceptions.NotFound, reason="SQL plugin not available for OpenSearch Serverless.")
 
     index = "test_search_sql"
     kwargs = {} if _is_serverless(client) else {"refresh": "wait_for"}
