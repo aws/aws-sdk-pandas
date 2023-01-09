@@ -38,9 +38,7 @@ def test_read_deltalake_versioned(path):
     assert df2.equals(df)
 
     df["c2"] = [True, False, True]
-    write_deltalake(
-        table_or_uri=table, data=df, mode="overwrite", overwrite_schema=True, storage_options=storage_options
-    )
+    write_deltalake(table_or_uri=table, data=df, mode="overwrite", overwrite_schema=True)
 
     df3 = wr.s3.read_deltalake(path=path, version=0)
     assert df3.equals(df.drop("c2", axis=1))
