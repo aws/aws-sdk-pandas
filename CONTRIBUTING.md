@@ -192,7 +192,7 @@ or
 
 * Then run the command bellow to install all dependencies:
 
-``poetry install --extras "sqlserver oracle sparql"``
+``poetry install --extras "sqlserver oracle sparql deltalake"``
 
 * Go to the ``test_infra`` directory
 
