@@ -1605,8 +1605,8 @@ python-versions = ">=3.8"
 
 [package.dependencies]
 numpy = [
-    {version = ">=1.21.0", markers = "python_version >= \"3.10\""},
     {version = ">=1.20.3", markers = "python_version < \"3.10\""},
+    {version = ">=1.21.0", markers = "python_version >= \"3.10\""},
 ]
 python-dateutil = ">=2.8.1"
 pytz = ">=2020.1"
@@ -2153,15 +2153,15 @@ frozenlist = "*"
 fsspec = {version = "*", optional = true, markers = "extra == \"data\""}
 gpustat = {version = ">=1.0.0", optional = true, markers = "extra == \"default\""}
 grpcio = [
-    {version = ">=1.42.0", markers = "python_version >= \"3.10\""},
     {version = ">=1.32.0", markers = "python_version < \"3.10\""},
+    {version = ">=1.42.0", markers = "python_version >= \"3.10\""},
 ]
 jsonschema = "*"
 msgpack = ">=1.0.0,<2.0.0"
 numpy = [
+    {version = ">=1.16", markers = "python_version < \"3.9\""},
     {version = ">=1.19.3", markers = "python_version >= \"3.9\""},
     {version = ">=1.20", optional = true, markers = "extra == \"data\""},
-    {version = ">=1.16", markers = "python_version < \"3.9\""},
 ]
 opencensus = {version = "*", optional = true, markers = "extra == \"default\""}
 packaging = {version = "*", markers = "python_version >= \"3.10\""}
@@ -2858,7 +2858,7 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8, <4.0"
-content-hash = "62b17d4481ee980905d8c5d6df67ac3a25d791db047b4a3f42c7cd3fe8752f2e"
+content-hash = "41e3398394248fae0ae346b5e5622a6930ec6d84b7defb107ec1a7ce6c386bc6"
 
 [metadata.files]
 aenum = [
@@ -4541,7 +4541,6 @@ ray = [
     {file = "ray-2.2.0-cp310-cp310-macosx_10_15_universal2.whl", hash = "sha256:f46ff124c566aa55db99b395a28d3972ae15c6f2f0bfefee90f0f390defce788"},
     {file = "ray-2.2.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:505d0021aa82f05638de757e2ed166c8d57dfcb9f54d4cd2d82fc5d495dafe5e"},
     {file = "ray-2.2.0-cp310-cp310-manylinux2014_x86_64.whl", hash = "sha256:656768c6f7c15e9ae32cc624b065dfdc99e1a12a0b9aa787602cbcaf8308ab20"},
-    {file = "ray-2.2.0-cp310-cp310-win_amd64.whl", hash = "sha256:4c4bc1573803da3215718325c3454021f79c3c503f834f63040593a2bb90e848"},
     {file = "ray-2.2.0-cp36-cp36m-macosx_10_15_intel.whl", hash = "sha256:f722648fb5f799c158f52b4517ea9f2c343bc344ee1bd570279faa636e3cd88b"},
     {file = "ray-2.2.0-cp36-cp36m-manylinux2014_x86_64.whl", hash = "sha256:b089c7fe56a7a48f462861af133eeed09cd276f4c5ae395a52495f53321da732"},
     {file = "ray-2.2.0-cp37-cp37m-macosx_10_15_intel.whl", hash = "sha256:a14e7e6e0818854453bbb3cb95d0d3e6ca687bd5d71654c15e45d91b491475f3"},
