@@ -250,14 +250,14 @@ def _read_parquet_chunked(
     path_root: Optional[str],
     columns: Optional[List[str]],
     coerce_int96_timestamp_unit: Optional[str],
-    chunk_size: Optional[int],
+    chunked: Union[int, bool],
     use_threads: Union[bool, int],
     s3_additional_kwargs: Optional[Dict[str, str]],
     arrow_kwargs: Dict[str, Any],
     version_ids: Optional[Dict[str, str]] = None,
 ) -> Iterator[pd.DataFrame]:
     next_slice: Optional[pd.DataFrame] = None
-    batch_size = BATCH_READ_BLOCK_SIZE if chunk_size is None else chunk_size
+    batch_size = BATCH_READ_BLOCK_SIZE if chunked is True else chunked
 
     for path in paths:
         with open_s3_object(
@@ -286,14 +286,14 @@ def _read_parquet_chunked(
                 path_root=path_root,
             )
             df = _table_to_df(table=table, kwargs=arrow_kwargs)
-            if chunk_size is None:
+            if chunked is True:
                 yield df
             else:
                 if next_slice is not None:
                     df = pd.concat(objs=[next_slice, df], sort=False, copy=False)
-                while len(df.index) >= chunk_size:
-                    yield df.iloc[:chunk_size, :].copy()
-                    df = df.iloc[chunk_size:, :]
+                while len(df.index) >= chunked:
+                    yield df.iloc[:chunked, :].copy()
+                    df = df.iloc[chunked:, :]
                 if df.empty:
                     next_slice = None
                 else:
@@ -331,87 +331,6 @@ def _read_parquet(  # pylint: disable=W0613
     return _utils.table_refs_to_df(tables, kwargs=arrow_kwargs)
 
 
-def read_parquet_chunked(
-    path: Union[str, List[str]],
-    path_root: Optional[str] = None,
-    dataset: bool = False,
-    path_suffix: Union[str, List[str], None] = None,
-    path_ignore_suffix: Union[str, List[str], None] = None,
-    ignore_empty: bool = True,
-    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
-    columns: Optional[List[str]] = None,
-    validate_schema: bool = False,
-    coerce_int96_timestamp_unit: Optional[str] = None,
-    last_modified_begin: Optional[datetime.datetime] = None,
-    last_modified_end: Optional[datetime.datetime] = None,
-    version_id: Optional[Union[str, Dict[str, str]]] = None,
-    chunk_size: Optional[int] = None,
-    use_threads: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = None,
-    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
-) -> Iterator[pd.DataFrame]:
-    """Read Parquet file(s) in chunks and return an iterator."""
-    paths: List[str] = _path2list(
-        path=path,
-        boto3_session=boto3_session,
-        suffix=path_suffix,
-        ignore_suffix=_get_path_ignore_suffix(path_ignore_suffix=path_ignore_suffix),
-        last_modified_begin=last_modified_begin,
-        last_modified_end=last_modified_end,
-        ignore_empty=ignore_empty,
-        s3_additional_kwargs=s3_additional_kwargs,
-    )
-    if not path_root:
-        path_root = _get_path_root(path=path, dataset=dataset)
-    if path_root and partition_filter:
-        paths = _apply_partition_filter(path_root=path_root, paths=paths, filter_func=partition_filter)
-    if len(paths) < 1:
-        raise exceptions.NoFilesFound(f"No files Found on: {path}.")
-    _logger.debug("paths:\n%s", paths)
-
-    version_ids: Optional[Dict[str, str]] = (
-        version_id if isinstance(version_id, dict) else {paths[0]: version_id} if isinstance(version_id, str) else None
-    )
-
-    # Create PyArrow schema based on file metadata, columns filter, and partitions
-    schema = _validate_schemas_from_files(
-        validate_schema=validate_schema,
-        paths=paths,
-        sampling=1.0,
-        use_threads=use_threads,
-        boto3_session=boto3_session,
-        s3_additional_kwargs=s3_additional_kwargs,
-        coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
-        version_ids=version_ids,
-    )
-    if path_root:
-        partition_types, _ = _extract_partitions_metadata_from_paths(path=path_root, paths=paths)
-        if partition_types:
-            partition_schema = pa.schema(
-                fields={k: _data_types.athena2pyarrow(dtype=v) for k, v in partition_types.items()}
-            )
-            schema = pa.unify_schemas([schema, partition_schema])
-    if columns:
-        schema = pa.schema([schema.field(column) for column in columns], schema.metadata)
-    _logger.debug("schema:\n%s", schema)
-
-    arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=pyarrow_additional_kwargs)
-
-    return _read_parquet_chunked(
-        boto3_session=boto3_session,
-        paths=paths,
-        path_root=path_root,
-        columns=columns,
-        coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
-        chunk_size=chunk_size,
-        use_threads=use_threads,
-        s3_additional_kwargs=s3_additional_kwargs,
-        arrow_kwargs=arrow_kwargs,
-        version_ids=version_ids,
-    )
-
-
 def read_parquet(
     path: Union[str, List[str]],
     path_root: Optional[str] = None,
@@ -426,12 +345,13 @@ def read_parquet(
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     version_id: Optional[Union[str, Dict[str, str]]] = None,
+    chunked: Union[bool, int] = False,
     use_threads: Union[bool, int] = True,
     parallelism: int = -1,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,
-) -> pd.DataFrame:
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read Parquet file(s) from an S3 prefix or list of S3 objects paths.
 
     The concept of `dataset` enables more complex features like partitioning
@@ -615,6 +535,20 @@ def read_parquet(
 
     arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=pyarrow_additional_kwargs)
 
+    if chunked:
+        return _read_parquet_chunked(
+            boto3_session=boto3_session,
+            paths=paths,
+            path_root=path_root,
+            columns=columns,
+            coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
+            chunked=chunked,
+            use_threads=use_threads,
+            s3_additional_kwargs=s3_additional_kwargs,
+            arrow_kwargs=arrow_kwargs,
+            version_ids=version_ids,
+        )
+
     return _read_parquet(
         paths,
         path_root=path_root,
@@ -780,36 +714,21 @@ def read_parquet_table(
                     s3_additional_kwargs=s3_additional_kwargs,
                 )
 
-    if chunked:
-        df = read_parquet_chunked(
-            path=paths,
-            path_root=path_root,
-            dataset=True,
-            path_suffix=filename_suffix if path_root is None else None,
-            path_ignore_suffix=filename_ignore_suffix if path_root is None else None,
-            columns=columns,
-            validate_schema=validate_schema,
-            coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
-            chunk_size=None if chunked is True else chunked,
-            use_threads=use_threads,
-            boto3_session=boto3_session,
-            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
-        )
-    else:
-        df = read_parquet(
-            path=paths,
-            path_root=path_root,
-            dataset=True,
-            path_suffix=filename_suffix if path_root is None else None,
-            path_ignore_suffix=filename_ignore_suffix if path_root is None else None,
-            columns=columns,
-            validate_schema=validate_schema,
-            coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
-            use_threads=use_threads,
-            parallelism=parallelism,
-            boto3_session=boto3_session,
-            pyarrow_additional_kwargs=pyarrow_additional_kwargs,
-        )
+    df = read_parquet(
+        path=paths,
+        path_root=path_root,
+        dataset=True,
+        path_suffix=filename_suffix if path_root is None else None,
+        path_ignore_suffix=filename_ignore_suffix if path_root is None else None,
+        columns=columns,
+        validate_schema=validate_schema,
+        coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
+        chunked=chunked,
+        use_threads=use_threads,
+        parallelism=parallelism,
+        boto3_session=boto3_session,
+        pyarrow_additional_kwargs=pyarrow_additional_kwargs,
+    )
 
     partial_cast_function = functools.partial(
         _data_types.cast_pandas_with_athena_types, dtype=_extract_partitions_dtypes_from_table_details(response=res)
