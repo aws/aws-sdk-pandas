@@ -271,6 +271,8 @@ def _to_dataset(
             path_root=path_root,
             use_threads=use_threads,
             mode=mode,
+            database=database,
+            table=table,
             glue_parameters=glue_parameters,
             bucketing_info=bucketing_info,
             filename_prefix=filename_prefix,

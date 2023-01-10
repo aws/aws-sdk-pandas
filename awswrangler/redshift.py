@@ -1230,6 +1230,7 @@ def unload(
     if chunked is False:
         df: pd.DataFrame = s3.read_parquet(
             path=path,
+            chunked=chunked,
             dataset=False,
             use_threads=use_threads,
             boto3_session=session,
