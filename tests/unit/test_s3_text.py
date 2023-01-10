@@ -154,10 +154,8 @@ def test_csv_dataset_header(path, header, glue_database, glue_table):
         df=df0,
         path=path0,
         dataset=True,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            database=glue_database,
-            table=glue_table,
-        ),
+        database=glue_database,
+        table=glue_table,
         index=False,
         header=header,
     )
@@ -179,10 +177,8 @@ def test_csv_dataset_header_modes(path, mode, glue_database, glue_table):
             df=df,
             path=path0,
             dataset=True,
-            glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-                database=glue_database,
-                table=glue_table,
-            ),
+            database=glue_database,
+            table=glue_table,
             mode=mode,
             index=False,
             header=True,
@@ -223,10 +219,8 @@ def test_to_json_partitioned(path, glue_database, glue_table):
         df,
         path,
         dataset=True,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            database=glue_database,
-            table=glue_table,
-        ),
+        database=glue_database,
+        table=glue_table,
         partition_cols=["c0"],
     )
     assert len(partitions["paths"]) == 3
@@ -403,24 +397,21 @@ def test_read_csv_versioned(path) -> None:
 def test_to_csv_schema_evolution(path, glue_database, glue_table) -> None:
     path_file = f"{path}0.csv"
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5]})
-    glue_catalog_parameters = wr.typing.GlueCatalogParameters(
-        database=glue_database,
-        table=glue_table,
-    )
-    wr.s3.to_csv(df=df, path=path_file, dataset=True, glue_catalog_parameters=glue_catalog_parameters)
+    wr.s3.to_csv(df=df, path=path_file, dataset=True, database=glue_database, table=glue_table)
     df["c2"] = [6, 7, 8]
     wr.s3.to_csv(
         df=df,
         path=path_file,
         dataset=True,
-        glue_catalog_parameters=glue_catalog_parameters,
+        database=glue_database,
+        table=glue_table,
         mode="overwrite",
         schema_evolution=True,
     )
     df["c3"] = [9, 10, 11]
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.s3.to_csv(
-            df=df, path=path_file, dataset=True, glue_catalog_parameters=glue_catalog_parameters, schema_evolution=False
+            df=df, path=path_file, dataset=True, database=glue_database, table=glue_table, schema_evolution=False
         )
 
 

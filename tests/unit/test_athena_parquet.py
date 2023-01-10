@@ -30,7 +30,8 @@ def test_parquet_catalog(path, path2, glue_table, glue_table2, glue_database):
             df=pd.DataFrame({"A": [None]}),
             path=path,
             dataset=True,
-            glue_catalog_parameters=wr.typing.GlueCatalogParameters(database=glue_database, table=glue_table),
+            database=glue_database,
+            table=glue_table,
         )
     df = get_df_list()
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
@@ -40,7 +41,8 @@ def test_parquet_catalog(path, path2, glue_table, glue_table2, glue_database):
             use_threads=True,
             dataset=False,
             mode="overwrite",
-            glue_catalog_parameters=wr.typing.GlueCatalogParameters(database=glue_database, table=glue_table),
+            database=glue_database,
+            table=glue_table,
         )
     wr.s3.to_parquet(
         df=df,
@@ -48,9 +50,9 @@ def test_parquet_catalog(path, path2, glue_table, glue_table2, glue_database):
         use_threads=True,
         dataset=True,
         mode="overwrite",
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(database=glue_database, table=glue_table),
+        database=glue_database,
+        table=glue_table,
     )
-    glue_catalog_params2 = wr.typing.GlueCatalogParameters(database=glue_database, table=glue_table2)
     wr.s3.to_parquet(
         df=df,
         path=path2,
@@ -58,7 +60,8 @@ def test_parquet_catalog(path, path2, glue_table, glue_table2, glue_database):
         use_threads=True,
         dataset=True,
         mode="overwrite",
-        glue_catalog_parameters=glue_catalog_params2,
+        database=glue_database,
+        table=glue_table2,
         partition_cols=["iint8", "iint16"],
     )
     columns_types, partitions_types = wr.s3.read_parquet_metadata(path=path2, dataset=True)
@@ -91,10 +94,8 @@ def test_file_size(path, glue_table, glue_database, use_threads, max_rows_by_fil
         path=path,
         index=False,
         dataset=True,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            database=glue_database,
-            table=glue_table,
-        ),
+        database=glue_database,
+        table=glue_table,
         max_rows_by_file=max_rows_by_file,
         use_threads=use_threads,
         partition_cols=partition_cols,
@@ -120,10 +121,8 @@ def test_parquet_catalog_duplicated(path, glue_table, glue_database):
             index=False,
             dataset=True,
             mode="overwrite",
-            glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-                database=glue_database,
-                table=glue_table,
-            ),
+            database=glue_database,
+            table=glue_table,
         )
 
 
@@ -134,10 +133,8 @@ def test_parquet_catalog_casting(path, glue_database, glue_table):
         index=False,
         dataset=True,
         mode="overwrite",
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            database=glue_database,
-            table=glue_table,
-        ),
+        database=glue_database,
+        table=glue_table,
         dtype={
             "iint8": "tinyint",
             "iint16": "smallint",
@@ -176,10 +173,8 @@ def test_parquet_catalog_casting_to_string_with_null(path, glue_table, glue_data
         df,
         path,
         dataset=True,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            database=glue_database,
-            table=glue_table,
-        ),
+        database=glue_database,
+        table=glue_table,
         dtype={"A": "string", "B": "string"},
     )
     df = wr.s3.read_parquet(path=path)
@@ -205,10 +200,8 @@ def test_parquet_compress(path, glue_table, glue_database, compression):
         path=path,
         compression=compression,
         dataset=True,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            database=glue_database,
-            table=glue_table,
-        ),
+        database=glue_database,
+        table=glue_table,
         mode="overwrite",
     )
     df2 = wr.athena.read_sql_table(glue_table, glue_database)
@@ -227,10 +220,8 @@ def test_parquet_char_length(path, glue_database, glue_table):
         df=df,
         path=path,
         dataset=True,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            database=glue_database,
-            table=glue_table,
-        ),
+        database=glue_database,
+        table=glue_table,
         mode="overwrite",
         partition_cols=["date"],
         dtype={"cchar": "char(3)"},
@@ -258,10 +249,8 @@ def test_parquet_chunked(path, glue_database, glue_table, col2, chunk_size):
         path,
         index=False,
         dataset=True,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            database=glue_database,
-            table=glue_table,
-        ),
+        database=glue_database,
+        table=glue_table,
         partition_cols=["col2"],
         mode="overwrite",
     )
@@ -298,10 +287,8 @@ def test_unsigned_parquet(path, glue_database, glue_table):
         df=df,
         path=path,
         dataset=True,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            database=glue_database,
-            table=glue_table,
-        ),
+        database=glue_database,
+        table=glue_table,
         mode="overwrite",
     )
     df = wr.athena.read_sql_table(table=glue_table, database=glue_database)
@@ -324,10 +311,8 @@ def test_unsigned_parquet(path, glue_database, glue_table):
             df=df,
             path=path,
             dataset=True,
-            glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-                database=glue_database,
-                table=glue_table,
-            ),
+            database=glue_database,
+            table=glue_table,
             mode="overwrite",
         )
 
@@ -341,10 +326,8 @@ def test_parquet_overwrite_partition_cols(path, glue_database, glue_table):
         df=df,
         path=path,
         dataset=True,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            database=glue_database,
-            table=glue_table,
-        ),
+        database=glue_database,
+        table=glue_table,
         mode="overwrite",
         partition_cols=["c2"],
     )
@@ -359,10 +342,8 @@ def test_parquet_overwrite_partition_cols(path, glue_database, glue_table):
         df=df,
         path=path,
         dataset=True,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            database=glue_database,
-            table=glue_table,
-        ),
+        database=glue_database,
+        table=glue_table,
         mode="overwrite",
         partition_cols=["c1", "c2"],
     )
@@ -416,10 +397,8 @@ def test_to_parquet_reverse_partitions(glue_database, glue_table, path, partitio
         df=df,
         path=path,
         dataset=True,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            database=glue_database,
-            table=glue_table,
-        ),
+        database=glue_database,
+        table=glue_table,
         partition_cols=partition_cols,
     )
     df2 = wr.athena.read_sql_table(table=glue_table, database=glue_database)
@@ -440,12 +419,11 @@ def test_to_parquet_nested_append(glue_database, glue_table, path):
             "c5": [{"a": {"b": {"c": [1, 2]}}}, {"a": {"b": {"c": [3, 4]}}}],
         }
     )
-    glue_catalog_params = wr.typing.GlueCatalogParameters(database=glue_database, table=glue_table)
-    wr.s3.to_parquet(df=df, path=path, dataset=True, glue_catalog_parameters=glue_catalog_params)
+    wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table)
     df2 = wr.athena.read_sql_query(sql=f"SELECT c0, c1, c2, c4 FROM {glue_table}", database=glue_database)
     assert len(df2.index) == 2
     assert len(df2.columns) == 4
-    wr.s3.to_parquet(df=df, path=path, dataset=True, glue_catalog_parameters=glue_catalog_params)
+    wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table)
     df2 = wr.athena.read_sql_query(sql=f"SELECT c0, c1, c2, c4 FROM {glue_table}", database=glue_database)
     assert len(df2.index) == 4
     assert len(df2.columns) == 4
@@ -453,16 +431,16 @@ def test_to_parquet_nested_append(glue_database, glue_table, path):
 
 def test_to_parquet_nested_cast(glue_database, glue_table, path):
     df = pd.DataFrame({"c0": [[1, 2, 3], [4, 5, 6]], "c1": [[], []], "c2": [{"a": 1, "b": 2}, {"a": 3, "b": 4}]})
-    glue_catalog_params = wr.typing.GlueCatalogParameters(database=glue_database, table=glue_table)
     wr.s3.to_parquet(
         df=df,
         path=path,
         dataset=True,
-        glue_catalog_parameters=glue_catalog_params,
+        database=glue_database,
+        table=glue_table,
         dtype={"c0": "array<double>", "c1": "array<string>", "c2": "struct<a:bigint, b:double>"},
     )
     df = pd.DataFrame({"c0": [[1, 2, 3], [4, 5, 6]], "c1": [["a"], ["b"]], "c2": [{"a": 1, "b": 2}, {"a": 3, "b": 4}]})
-    wr.s3.to_parquet(df=df, path=path, dataset=True, glue_catalog_parameters=glue_catalog_params)
+    wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table)
     df2 = wr.athena.read_sql_query(sql=f"SELECT c0, c2 FROM {glue_table}", database=glue_database)
     assert len(df2.index) == 4
     assert len(df2.columns) == 2
@@ -476,10 +454,8 @@ def test_parquet_catalog_casting_to_string(path, glue_table, glue_database):
             index=False,
             dataset=True,
             mode="overwrite",
-            glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-                database=glue_database,
-                table=glue_table,
-            ),
+            database=glue_database,
+            table=glue_table,
             dtype={
                 "iint8": "string",
                 "iint16": "string",
@@ -523,10 +499,8 @@ def test_read_parquet_filter_partitions(path, glue_table, glue_database, use_thr
         dataset=True,
         partition_cols=partition_cols,
         use_threads=use_threads,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            database=glue_database,
-            table=glue_table,
-        ),
+        database=glue_database,
+        table=glue_table,
     )
     for i in range(3):
         df2 = wr.s3.read_parquet_table(
@@ -556,10 +530,8 @@ def test_glue_number_of_versions_created(path, glue_table, glue_database):
             df,
             path,
             dataset=True,
-            glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-                table=glue_table,
-                database=glue_database,
-            ),
+            table=glue_table,
+            database=glue_database,
         )
     assert wr.catalog.get_table_number_of_versions(table=glue_table, database=glue_database) == 1
 
@@ -568,11 +540,10 @@ def test_glue_number_of_versions_created(path, glue_table, glue_database):
 def test_sanitize_index(path, glue_table, glue_database):
     df = pd.DataFrame({"id": [1, 2], "DATE": [datetime.date(2020, 1, 1), datetime.date(2020, 1, 2)]})
     df.set_index("DATE", inplace=True, verify_integrity=True)
-    glue_catalog_params = wr.typing.GlueCatalogParameters(database=glue_database, table=glue_table)
-    wr.s3.to_parquet(df, path, dataset=True, index=True, glue_catalog_parameters=glue_catalog_params, mode="overwrite")
+    wr.s3.to_parquet(df, path, dataset=True, index=True, database=glue_database, table=glue_table, mode="overwrite")
     df = pd.DataFrame({"id": [1, 2], "DATE": [datetime.date(2020, 1, 1), datetime.date(2020, 1, 2)]})
     df.set_index("DATE", inplace=True, verify_integrity=True)
-    wr.s3.to_parquet(df, path, dataset=True, index=True, glue_catalog_parameters=glue_catalog_params, mode="append")
+    wr.s3.to_parquet(df, path, dataset=True, index=True, database=glue_database, table=glue_table, mode="append")
     df2 = wr.athena.read_sql_table(database=glue_database, table=glue_table)
     assert df2.shape == (4, 2)
     assert df2.id.sum() == 6
@@ -600,10 +571,8 @@ def test_schema_evolution_disabled(path, glue_table, glue_database):
         df=pd.DataFrame({"c0": [1]}),
         path=path,
         dataset=True,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            table=glue_table,
-            database=glue_database,
-        ),
+        table=glue_table,
+        database=glue_database,
         schema_evolution=False,
     )
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
@@ -611,20 +580,16 @@ def test_schema_evolution_disabled(path, glue_table, glue_database):
             df=pd.DataFrame({"c0": [2], "c1": [2]}),
             path=path,
             dataset=True,
-            glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-                table=glue_table,
-                database=glue_database,
-            ),
+            table=glue_table,
+            database=glue_database,
             schema_evolution=False,
         )
     wr.s3.to_parquet(
         df=pd.DataFrame({"c0": [2]}),
         path=path,
         dataset=True,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            table=glue_table,
-            database=glue_database,
-        ),
+        table=glue_table,
+        database=glue_database,
         schema_evolution=False,
     )
     df2 = wr.athena.read_sql_table(database=glue_database, table=glue_table)
@@ -665,8 +630,7 @@ def test_date_cast(path, glue_table, glue_database):
             ]
         }
     )
-    glue_catalog_params = wr.typing.GlueCatalogParameters(database=glue_database, table=glue_table)
-    wr.s3.to_parquet(df=df, path=path, dataset=True, glue_catalog_parameters=glue_catalog_params, dtype={"c0": "date"})
+    wr.s3.to_parquet(df=df, path=path, dataset=True, database=glue_database, table=glue_table, dtype={"c0": "date"})
     df2 = wr.s3.read_parquet(path=path)
     assert pandas_equals(df_expected, df2)
     df3 = wr.athena.read_sql_table(database=glue_database, table=glue_table)
@@ -681,10 +645,8 @@ def test_partitions_overwrite(path, glue_table, glue_database, use_threads, part
         df=df,
         path=path,
         dataset=True,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            database=glue_database,
-            table=glue_table,
-        ),
+        database=glue_database,
+        table=glue_table,
         use_threads=use_threads,
         partition_cols=partition_cols,
         mode="overwrite_partitions",
@@ -693,10 +655,8 @@ def test_partitions_overwrite(path, glue_table, glue_database, use_threads, part
         df=df,
         path=path,
         dataset=True,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            database=glue_database,
-            table=glue_table,
-        ),
+        database=glue_database,
+        table=glue_table,
         use_threads=use_threads,
         partition_cols=partition_cols,
         mode="overwrite_partitions",
@@ -713,10 +673,8 @@ def test_empty_dataframe(path, glue_database, glue_table):
         df=df,
         path=path,
         dataset=True,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            database=glue_database,
-            table=glue_table,
-        ),
+        database=glue_database,
+        table=glue_table,
     )
     sql = f"SELECT * FROM {glue_table} WHERE par0 = :par0"
     df_uncached = wr.athena.read_sql_query(sql=sql, database=glue_database, ctas_approach=True, params={"par0": 999})
@@ -736,10 +694,8 @@ def test_empty_column(path, glue_table, glue_database, use_threads):
             path,
             dataset=True,
             use_threads=use_threads,
-            glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-                database=glue_database,
-                table=glue_table,
-            ),
+            database=glue_database,
+            table=glue_table,
             partition_cols=["par"],
         )
 
@@ -755,10 +711,8 @@ def test_mixed_types_column(path, glue_table, glue_database, use_threads):
             path,
             dataset=True,
             use_threads=use_threads,
-            glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-                database=glue_database,
-                table=glue_table,
-            ),
+            database=glue_database,
+            table=glue_table,
             partition_cols=["par"],
         )
 
@@ -773,10 +727,8 @@ def test_failing_catalog(path, glue_table, use_threads):
             use_threads=use_threads,
             max_rows_by_file=1,
             dataset=True,
-            glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-                database="foo",
-                table=glue_table,
-            ),
+            database="foo",
+            table=glue_table,
         )
     except boto3.client("glue").exceptions.EntityNotFoundException:
         pass
@@ -791,10 +743,8 @@ def test_cast_decimal(path, glue_table, glue_database):
         df=df,
         path=path,
         dataset=True,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            database=glue_database,
-            table=glue_table,
-        ),
+        database=glue_database,
+        table=glue_table,
         dtype={"c0": "decimal(4,1)", "c1": "decimal(4,1)", "c2": "decimal(4,1)", "c3": "string"},
     )
     df2 = wr.athena.read_sql_table(table=glue_table, database=glue_database)
@@ -833,10 +783,8 @@ def test_to_parquet_nested_structs(glue_database, glue_table, path):
         df=df,
         path=path,
         dataset=True,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            database=glue_database,
-            table=glue_table,
-        ),
+        database=glue_database,
+        table=glue_table,
     )
     df2 = wr.athena.read_sql_query(sql=f"SELECT * FROM {glue_table}", database=glue_database)
     assert df2.shape == (1, 2)
@@ -844,10 +792,8 @@ def test_to_parquet_nested_structs(glue_database, glue_table, path):
         df=df,
         path=path,
         dataset=True,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            database=glue_database,
-            table=glue_table,
-        ),
+        database=glue_database,
+        table=glue_table,
     )
     df3 = wr.athena.read_sql_query(sql=f"SELECT * FROM {glue_table}", database=glue_database)
     assert df3.shape == (2, 2)
@@ -860,10 +806,8 @@ def test_ignore_empty_files(glue_database, glue_table, path):
         df=df,
         path=path,
         dataset=True,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            database=glue_database,
-            table=glue_table,
-        ),
+        database=glue_database,
+        table=glue_table,
     )
     boto3.client("s3").put_object(Body=b"", Bucket=bucket, Key=f"{directory}to_be_ignored")
     df2 = wr.athena.read_sql_query(sql=f"SELECT * FROM {glue_table}", database=glue_database)
@@ -879,10 +823,8 @@ def test_suffix(glue_database, glue_table, path):
         df=df,
         path=path,
         dataset=True,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            database=glue_database,
-            table=glue_table,
-        ),
+        database=glue_database,
+        table=glue_table,
     )
     boto3.client("s3").put_object(Body=b"garbage", Bucket=bucket, Key=f"{directory}to_be_ignored")
     df2 = wr.s3.read_parquet_table(database=glue_database, table=glue_table, filename_suffix=".parquet")
@@ -896,10 +838,8 @@ def test_ignore_suffix(glue_database, glue_table, path):
         df=df,
         path=path,
         dataset=True,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            database=glue_database,
-            table=glue_table,
-        ),
+        database=glue_database,
+        table=glue_table,
     )
     boto3.client("s3").put_object(Body=b"garbage", Bucket=bucket, Key=f"{directory}to_be_ignored")
     df2 = wr.s3.read_parquet_table(database=glue_database, table=glue_table, filename_ignore_suffix="ignored")
@@ -927,10 +867,8 @@ def test_unload(path, glue_table, glue_database, file_format, partitioned_by):
         df,
         path,
         dataset=True,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            table=glue_table,
-            database=glue_database,
-        ),
+        table=glue_table,
+        database=glue_database,
     )
     query_metadata = wr.athena.unload(
         sql=f"SELECT * FROM {glue_database}.{glue_table}",
@@ -949,10 +887,8 @@ def test_read_sql_query_unload(path, glue_table, glue_database, file_format):
         df,
         path,
         dataset=True,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            table=glue_table,
-            database=glue_database,
-        ),
+        table=glue_table,
+        database=glue_database,
     )
     df_out = wr.athena.read_sql_table(
         table=glue_table,

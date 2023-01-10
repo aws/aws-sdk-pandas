@@ -97,7 +97,8 @@ def test_read_parquet_table(path, glue_database, glue_table):
         df,
         path,
         dataset=True,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(database=glue_database, table=glue_table),
+        database=glue_database,
+        table=glue_table,
     )
     df_out = wr.s3.read_parquet_table(table=glue_table, database=glue_database)
     assert df_out.shape == (3, 3)
@@ -110,7 +111,8 @@ def test_read_parquet_table_filter_partitions(path, glue_database, glue_table):
         path,
         dataset=True,
         partition_cols=["c1", "c2"],
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(database=glue_database, table=glue_table),
+        database=glue_database,
+        table=glue_table,
     )
     df_out = wr.s3.read_parquet_table(
         table=glue_table,

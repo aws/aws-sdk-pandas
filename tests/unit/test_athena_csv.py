@@ -31,9 +31,9 @@ def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_p
         path=path,
         dataset=True,
         mode="overwrite",
+        database=glue_database,
+        table=glue_table,
         glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            database=glue_database,
-            table=glue_table,
             description="c0",
             parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
             columns_comments={"c0": "0"},
@@ -60,9 +60,9 @@ def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_p
         df=df,
         dataset=True,
         mode="overwrite",
+        database=glue_database,
+        table=glue_table,
         glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            database=glue_database,
-            table=glue_table,
             description="c1",
             parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
             columns_comments={"c1": "1"},
@@ -90,9 +90,9 @@ def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_p
         path=path,
         dataset=True,
         mode="append",
+        database=glue_database,
+        table=glue_table,
         glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            database=glue_database,
-            table=glue_table,
             description="c1",
             parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index) * 2)},
             columns_comments={"c1": "1"},
@@ -120,9 +120,9 @@ def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_p
         df=df,
         dataset=True,
         mode="overwrite",
+        database=glue_database,
+        table=glue_table,
         glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            database=glue_database,
-            table=glue_table,
             description="c0+c1",
             parameters={"num_cols": "2", "num_rows": "2"},
             columns_comments={"c0": "zero", "c1": "one"},
@@ -152,9 +152,9 @@ def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_p
         path=path,
         dataset=True,
         mode="overwrite_partitions",
+        database=glue_database,
+        table=glue_table,
         glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            database=glue_database,
-            table=glue_table,
             description="c0+c1",
             parameters={"num_cols": "2", "num_rows": "3"},
             columns_comments={"c0": "zero", "c1": "one"},
@@ -192,10 +192,8 @@ def test_csv_overwrite_several_partitions(path, glue_database, glue_table, use_t
             dataset=True,
             partition_cols=["par"],
             mode="overwrite",
-            glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-                database=glue_database,
-                table=glue_table,
-            ),
+            database=glue_database,
+            table=glue_table,
             concurrent_partitioning=True,
         )
         df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
@@ -213,10 +211,8 @@ def test_csv_dataset(path, glue_database):
             pd.DataFrame({"A": [None]}),
             path,
             dataset=True,
-            glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-                database=glue_database,
-                table="test_csv_dataset",
-            ),
+            database=glue_database,
+            table="test_csv_dataset",
         )
     df = get_df_csv()
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
@@ -225,17 +221,16 @@ def test_csv_dataset(path, glue_database):
             path + "0",
             dataset=False,
             mode="overwrite",
-            glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-                database=glue_database,
-                table="test_csv_dataset",
-            ),
+            database=glue_database,
+            table="test_csv_dataset",
         )
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
         wr.s3.to_csv(
             df,
             path + "0",
             dataset=False,
-            glue_catalog_parameters=wr.typing.GlueCatalogParameters(database=None, table="test_csv_dataset"),
+            database=None,
+            table="test_csv_dataset",
         )
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
         wr.s3.to_csv(df=df, path=path + "0", mode="append")
@@ -245,7 +240,9 @@ def test_csv_dataset(path, glue_database):
         wr.s3.to_csv(
             df=df,
             path=path + "0",
-            glue_catalog_parameters=wr.typing.GlueCatalogParameters(database=None, table=None, description="foo"),
+            database=None,
+            table=None,
+            glue_catalog_parameters=wr.typing.GlueCatalogParameters(description="foo"),
         )
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.s3.to_csv(df=df, path=path + "0", partition_cols=["col2"], dataset=True, mode="WRONG")
@@ -285,10 +282,8 @@ def test_csv_catalog(path, glue_table, glue_database, use_threads, concurrent_pa
         dataset=True,
         partition_cols=["par0", "par1"],
         mode="overwrite",
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            table=glue_table,
-            database=glue_database,
-        ),
+        table=glue_table,
+        database=glue_database,
         concurrent_partitioning=concurrent_partitioning,
     )
     df2 = wr.athena.read_sql_table(glue_table, glue_database)
@@ -314,10 +309,8 @@ def test_csv_catalog_columns(path, glue_database, glue_table, use_threads, concu
         dataset=True,
         partition_cols=["par0", "par1"],
         mode="overwrite",
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            table=glue_table,
-            database=glue_database,
-        ),
+        table=glue_table,
+        database=glue_database,
         concurrent_partitioning=concurrent_partitioning,
     )
     df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
@@ -337,10 +330,8 @@ def test_csv_catalog_columns(path, glue_database, glue_table, use_threads, concu
         dataset=True,
         partition_cols=["par0", "par1"],
         mode="overwrite_partitions",
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-            table=glue_table,
-            database=glue_database,
-        ),
+        table=glue_table,
+        database=glue_database,
         concurrent_partitioning=concurrent_partitioning,
     )
     df2 = wr.athena.read_sql_table(glue_table, glue_database, use_threads=use_threads)
@@ -421,10 +412,8 @@ def test_empty_column(path, glue_table, glue_database, use_threads):
             index=False,
             dataset=True,
             use_threads=use_threads,
-            glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-                table=glue_table,
-                database=glue_database,
-            ),
+            table=glue_table,
+            database=glue_database,
             partition_cols=["par"],
         )
 
@@ -441,10 +430,8 @@ def test_mixed_types_column(path, glue_table, glue_database, use_threads):
             use_threads=use_threads,
             index=False,
             dataset=True,
-            glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-                table=glue_table,
-                database=glue_database,
-            ),
+            table=glue_table,
+            database=glue_database,
             partition_cols=["par"],
         )
 
@@ -458,10 +445,8 @@ def test_failing_catalog(path, glue_table, use_threads):
             path,
             use_threads=use_threads,
             dataset=True,
-            glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-                table=glue_table,
-                database="foo",
-            ),
+            table=glue_table,
+            database="foo",
         )
     except boto3.client("glue").exceptions.EntityNotFoundException:
         pass
@@ -487,10 +472,8 @@ def test_csv_compressed(path, glue_table, glue_database, use_threads, concurrent
                 dataset=True,
                 partition_cols=["par0", "par1"],
                 mode="overwrite",
-                glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-                    table=glue_table,
-                    database=glue_database,
-                ),
+                table=glue_table,
+                database=glue_database,
                 concurrent_partitioning=concurrent_partitioning,
                 compression=compression,
             )
@@ -506,10 +489,8 @@ def test_csv_compressed(path, glue_table, glue_database, use_threads, concurrent
             dataset=True,
             partition_cols=["par0", "par1"],
             mode="overwrite",
-            glue_catalog_parameters=wr.typing.GlueCatalogParameters(
-                table=glue_table,
-                database=glue_database,
-            ),
+            table=glue_table,
+            database=glue_database,
             concurrent_partitioning=concurrent_partitioning,
             compression=compression,
         )

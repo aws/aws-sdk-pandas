@@ -48,7 +48,9 @@ def _apply_dtype(
 
 def _validate_args(
     df: pd.DataFrame,
-    glue_parameters: Optional[GlueCatalogParameters],
+    table: Optional[str],
+    database: Optional[str],
+    glue_parameters: GlueCatalogParameters,
     dataset: bool,
     path: Optional[str],
     partition_cols: Optional[List[str]],
@@ -71,16 +73,16 @@ def _validate_args(
             raise exceptions.InvalidArgumentCombination("Please, pass dataset=True to be able to use bucketing_info.")
         if mode is not None:
             raise exceptions.InvalidArgumentCombination("Please pass dataset=True to be able to use mode.")
-        if glue_parameters:
+        if any(arg is not None for arg in [database, table] + list(glue_parameters.keys())):
             raise exceptions.InvalidArgumentCombination(
                 "Please pass dataset=True in order to use any of the Glue catalog arguments.",
             )
-    elif glue_parameters and ((glue_parameters.database is None) != (glue_parameters.table is None)):
+    elif (database is None) != (table is None):
         raise exceptions.InvalidArgumentCombination(
             "Arguments database and table must be passed together. If you want to store your dataset metadata in "
             "the Glue Catalog, please ensure you are passing both."
         )
-    elif all(x is None for x in [path, glue_parameters]):
+    elif all(x is None for x in [path, database, table]):
         raise exceptions.InvalidArgumentCombination(
             "You must specify a `path` if dataset is True and database/table are not enabled."
         )

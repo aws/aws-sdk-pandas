@@ -227,7 +227,9 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     mode: Optional[str] = None,
     catalog_versioning: bool = False,
     schema_evolution: bool = True,
-    glue_catalog_parameters: Optional[Union[GlueCatalogParameters, Dict[str, Any]]] = None,
+    database: Optional[str] = None,
+    table: Optional[str] = None,
+    glue_catalog_parameters: Optional[GlueCatalogParameters] = None,
     dtype: Optional[Dict[str, str]] = None,
     projection_params: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Union[List[str], Dict[str, List[str]]]]:
@@ -535,14 +537,15 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     }
 
     """
-    if glue_catalog_parameters:
-        if isinstance(glue_catalog_parameters, dict):
-            glue_catalog_parameters = GlueCatalogParameters(**glue_catalog_parameters)
-
-    glue_catalog_parameters = cast(Optional[GlueCatalogParameters], glue_catalog_parameters)
+    glue_catalog_parameters = cast(
+        GlueCatalogParameters,
+        glue_catalog_parameters if glue_catalog_parameters else {},
+    )
 
     _validate_args(
         df=df,
+        table=table,
+        database=database,
         glue_parameters=glue_catalog_parameters,
         dataset=dataset,
         path=path,
@@ -563,6 +566,9 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     partitions_values: Dict[str, List[str]] = {}
     mode = "append" if mode is None else mode
     commit_trans: bool = False
+    if glue_catalog_parameters.get("transaction_id"):
+        glue_catalog_parameters["table_type"] = "GOVERNED"
+
     filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
     cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
@@ -575,7 +581,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
         pyarrow_additional_kwargs["flavor"] = "spark"
 
     # Sanitize table to respect Athena's standards
-    if (sanitize_columns is True) or glue_catalog_parameters is not None:
+    if (sanitize_columns is True) or (database is not None and table is not None):
         df, dtype, partition_cols = _sanitize(
             df=copy_df_shallow(df),
             dtype=dtype,
@@ -584,17 +590,17 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
 
     # Evaluating dtype
     catalog_table_input: Optional[Dict[str, Any]] = None
-    if glue_catalog_parameters is not None:
+    if database is not None and table is not None:
         catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
-            database=glue_catalog_parameters.database,
-            table=glue_catalog_parameters.table,
-            transaction_id=glue_catalog_parameters.transaction_id,
-            catalog_id=glue_catalog_parameters.catalog_id,
+            database=database,
+            table=table,
+            transaction_id=glue_catalog_parameters.get("transaction_id"),
+            catalog_id=glue_catalog_parameters.get("catalog_id"),
             boto3_session=session,
         )
         catalog_path: Optional[str] = None
         if catalog_table_input:
-            glue_catalog_parameters.table_type = catalog_table_input["TableType"]
+            glue_catalog_parameters["table_type"] = catalog_table_input["TableType"]
             catalog_path = catalog_table_input["StorageDescriptor"]["Location"]
         if path is None:
             if catalog_path:
@@ -608,9 +614,11 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
                 raise exceptions.InvalidArgumentValue(
                     f"The specified path: {path}, does not match the existing Glue catalog table path: {catalog_path}"
                 )
-        if (glue_catalog_parameters.table_type == "GOVERNED") and (not glue_catalog_parameters.transaction_id):
+        if (glue_catalog_parameters.get("table_type") == "GOVERNED") and (
+            not glue_catalog_parameters.get("transaction_id")
+        ):
             _logger.debug("`transaction_id` not specified for GOVERNED table, starting transaction")
-            glue_catalog_parameters.transaction_id = lakeformation.start_transaction(
+            glue_catalog_parameters["transaction_id"] = lakeformation.start_transaction(
                 read_only=False,
                 boto3_session=boto3_session,
             )
@@ -642,7 +650,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     else:
         columns_types: Dict[str, str] = {}
         partitions_types: Dict[str, str] = {}
-        if glue_catalog_parameters is not None:
+        if (database is not None) and (table is not None):
             columns_types, partitions_types = _data_types.athena_types_from_pandas_partitioned(
                 df=df, index=index, partition_cols=partition_cols, dtype=dtype
             )
@@ -650,34 +658,34 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
                 _utils.check_schema_changes(columns_types=columns_types, table_input=catalog_table_input, mode=mode)
 
             create_table_args: Dict[str, Any] = {
-                "database": glue_catalog_parameters.database,
-                "table": glue_catalog_parameters.table,
+                "database": database,
+                "table": table,
                 "path": path,
                 "columns_types": columns_types,
-                "table_type": glue_catalog_parameters.table_type,
+                "table_type": glue_catalog_parameters.get("table_type"),
                 "partitions_types": partitions_types,
                 "bucketing_info": bucketing_info,
                 "compression": compression,
-                "description": glue_catalog_parameters.description,
-                "parameters": glue_catalog_parameters.parameters,
-                "columns_comments": glue_catalog_parameters.columns_comments,
+                "description": glue_catalog_parameters.get("description"),
+                "parameters": glue_catalog_parameters.get("parameters"),
+                "columns_comments": glue_catalog_parameters.get("columns_comments"),
                 "boto3_session": session,
                 "mode": mode,
-                "transaction_id": glue_catalog_parameters.transaction_id,
+                "transaction_id": glue_catalog_parameters.get("transaction_id"),
                 "catalog_versioning": catalog_versioning,
                 "projection_params": projection_params,
-                "catalog_id": glue_catalog_parameters.catalog_id,
+                "catalog_id": glue_catalog_parameters.get("catalog_id"),
                 "catalog_table_input": catalog_table_input,
             }
 
-            if (catalog_table_input is None) and (glue_catalog_parameters.table_type == "GOVERNED"):
+            if (catalog_table_input is None) and (glue_catalog_parameters.get("table_type") == "GOVERNED"):
                 catalog._create_parquet_table(**create_table_args)  # pylint: disable=protected-access
                 create_table_args["catalog_table_input"] = catalog._get_table_input(  # pylint: disable=protected-access
-                    database=glue_catalog_parameters.database,
-                    table=glue_catalog_parameters.table,
+                    database=database,
+                    table=table,
                     boto3_session=session,
-                    transaction_id=glue_catalog_parameters.transaction_id,
-                    catalog_id=glue_catalog_parameters.catalog_id,
+                    transaction_id=glue_catalog_parameters.get("transaction_id"),
+                    catalog_id=glue_catalog_parameters.get("catalog_id"),
                 )
 
         paths, partitions_values = _to_dataset(
@@ -689,6 +697,8 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
             index=index,
             compression=compression,
             compression_ext=compression_ext,
+            database=database,
+            table=table,
             glue_parameters=glue_catalog_parameters,
             pyarrow_additional_kwargs=pyarrow_additional_kwargs,
             cpus=cpus,
@@ -703,28 +713,28 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
             schema=schema,
             max_rows_by_file=max_rows_by_file,
         )
-        if glue_catalog_parameters:
+        if (database is not None) and (table is not None):
             try:
                 catalog._create_parquet_table(**create_table_args)  # pylint: disable=protected-access
                 if (
                     partitions_values
-                    and (glue_catalog_parameters.regular_partitions is True)
-                    and (glue_catalog_parameters.table_type != "GOVERNED")
+                    and (glue_catalog_parameters.get("regular_partitions", True) is True)
+                    and (glue_catalog_parameters.get("table_type") != "GOVERNED")
                 ):
                     _logger.debug("partitions_values:\n%s", partitions_values)
                     catalog.add_parquet_partitions(
-                        database=glue_catalog_parameters.database,
-                        table=glue_catalog_parameters.table,
+                        database=database,
+                        table=table,
                         partitions_values=partitions_values,
                         bucketing_info=bucketing_info,
                         compression=compression,
                         boto3_session=session,
-                        catalog_id=glue_catalog_parameters.catalog_id,
+                        catalog_id=glue_catalog_parameters.get("catalog_id"),
                         columns_types=columns_types,
                     )
                 if commit_trans:
                     lakeformation.commit_transaction(
-                        transaction_id=glue_catalog_parameters.transaction_id,  # type: ignore
+                        transaction_id=glue_catalog_parameters.get("transaction_id"),  # type: ignore
                         boto3_session=boto3_session,
                     )
             except Exception:
