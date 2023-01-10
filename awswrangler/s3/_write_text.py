@@ -524,7 +524,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         paths = [path]  # type: ignore
     else:
         compression: Optional[str] = pandas_kwargs.get("compression", None)
-        if glue_catalog_parameters:
+        if database and table:
             quoting: Optional[int] = csv.QUOTE_NONE
             escapechar: Optional[str] = "\\"
             header: Union[bool, List[str]] = pandas_kwargs.get("header", False)

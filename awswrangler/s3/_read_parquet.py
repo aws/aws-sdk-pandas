@@ -4,7 +4,7 @@ import datetime
 import functools
 import itertools
 import logging
-from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Literal, Optional, Tuple, Union, overload
 
 import boto3
 import pandas as pd
@@ -331,8 +331,109 @@ def _read_parquet(  # pylint: disable=W0613
     return _utils.table_refs_to_df(tables, kwargs=arrow_kwargs)
 
 
+@overload
 def read_parquet(
     path: Union[str, List[str]],
+    chunked: Literal[False] = ...,
+    path_root: Optional[str] = ...,
+    dataset: bool = ...,
+    path_suffix: Union[str, List[str], None] = ...,
+    path_ignore_suffix: Union[str, List[str], None] = ...,
+    ignore_empty: bool = ...,
+    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
+    columns: Optional[List[str]] = ...,
+    validate_schema: bool = ...,
+    coerce_int96_timestamp_unit: Optional[str] = ...,
+    last_modified_begin: Optional[datetime.datetime] = ...,
+    last_modified_end: Optional[datetime.datetime] = ...,
+    version_id: Optional[Union[str, Dict[str, str]]] = ...,
+    use_threads: Union[bool, int] = ...,
+    parallelism: int = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def read_parquet(
+    path: Union[str, List[str]],
+    chunked: Literal[True],
+    path_root: Optional[str] = ...,
+    dataset: bool = ...,
+    path_suffix: Union[str, List[str], None] = ...,
+    path_ignore_suffix: Union[str, List[str], None] = ...,
+    ignore_empty: bool = ...,
+    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
+    columns: Optional[List[str]] = ...,
+    validate_schema: bool = ...,
+    coerce_int96_timestamp_unit: Optional[str] = ...,
+    last_modified_begin: Optional[datetime.datetime] = ...,
+    last_modified_end: Optional[datetime.datetime] = ...,
+    version_id: Optional[Union[str, Dict[str, str]]] = ...,
+    use_threads: Union[bool, int] = ...,
+    parallelism: int = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+@overload
+def read_parquet(
+    path: Union[str, List[str]],
+    chunked: bool,
+    path_root: Optional[str] = ...,
+    dataset: bool = ...,
+    path_suffix: Union[str, List[str], None] = ...,
+    path_ignore_suffix: Union[str, List[str], None] = ...,
+    ignore_empty: bool = ...,
+    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
+    columns: Optional[List[str]] = ...,
+    validate_schema: bool = ...,
+    coerce_int96_timestamp_unit: Optional[str] = ...,
+    last_modified_begin: Optional[datetime.datetime] = ...,
+    last_modified_end: Optional[datetime.datetime] = ...,
+    version_id: Optional[Union[str, Dict[str, str]]] = ...,
+    use_threads: Union[bool, int] = ...,
+    parallelism: int = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ...
+
+
+@overload
+def read_parquet(
+    path: Union[str, List[str]],
+    chunked: int,
+    path_root: Optional[str] = ...,
+    dataset: bool = ...,
+    path_suffix: Union[str, List[str], None] = ...,
+    path_ignore_suffix: Union[str, List[str], None] = ...,
+    ignore_empty: bool = ...,
+    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
+    columns: Optional[List[str]] = ...,
+    validate_schema: bool = ...,
+    coerce_int96_timestamp_unit: Optional[str] = ...,
+    last_modified_begin: Optional[datetime.datetime] = ...,
+    last_modified_end: Optional[datetime.datetime] = ...,
+    version_id: Optional[Union[str, Dict[str, str]]] = ...,
+    use_threads: Union[bool, int] = ...,
+    parallelism: int = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+def read_parquet(
+    path: Union[str, List[str]],
+    chunked: Union[bool, int] = False,
     path_root: Optional[str] = None,
     dataset: bool = False,
     path_suffix: Union[str, List[str], None] = None,
@@ -345,7 +446,6 @@ def read_parquet(
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
     version_id: Optional[Union[str, Dict[str, str]]] = None,
-    chunked: Union[bool, int] = False,
     use_threads: Union[bool, int] = True,
     parallelism: int = -1,
     boto3_session: Optional[boto3.Session] = None,
@@ -564,10 +664,95 @@ def read_parquet(
     )
 
 
+@overload
+def read_parquet_table(
+    table: str,
+    database: str,
+    chunked: Literal[False] = ...,
+    filename_suffix: Union[str, List[str], None] = ...,
+    filename_ignore_suffix: Union[str, List[str], None] = ...,
+    catalog_id: Optional[str] = ...,
+    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
+    columns: Optional[List[str]] = ...,
+    validate_schema: bool = ...,
+    coerce_int96_timestamp_unit: Optional[str] = ...,
+    use_threads: Union[bool, int] = ...,
+    parallelism: int = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def read_parquet_table(
+    table: str,
+    database: str,
+    chunked: Literal[True],
+    filename_suffix: Union[str, List[str], None] = ...,
+    filename_ignore_suffix: Union[str, List[str], None] = ...,
+    catalog_id: Optional[str] = ...,
+    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
+    columns: Optional[List[str]] = ...,
+    validate_schema: bool = ...,
+    coerce_int96_timestamp_unit: Optional[str] = ...,
+    use_threads: Union[bool, int] = ...,
+    parallelism: int = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+@overload
+def read_parquet_table(
+    table: str,
+    database: str,
+    chunked: bool,
+    filename_suffix: Union[str, List[str], None] = ...,
+    filename_ignore_suffix: Union[str, List[str], None] = ...,
+    catalog_id: Optional[str] = ...,
+    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
+    columns: Optional[List[str]] = ...,
+    validate_schema: bool = ...,
+    coerce_int96_timestamp_unit: Optional[str] = ...,
+    use_threads: Union[bool, int] = ...,
+    parallelism: int = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ...
+
+
+@overload
+def read_parquet_table(
+    table: str,
+    database: str,
+    chunked: int,
+    filename_suffix: Union[str, List[str], None] = ...,
+    filename_ignore_suffix: Union[str, List[str], None] = ...,
+    catalog_id: Optional[str] = ...,
+    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
+    columns: Optional[List[str]] = ...,
+    validate_schema: bool = ...,
+    coerce_int96_timestamp_unit: Optional[str] = ...,
+    use_threads: Union[bool, int] = ...,
+    parallelism: int = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
 @apply_configs
 def read_parquet_table(
     table: str,
     database: str,
+    chunked: Union[bool, int] = False,
     filename_suffix: Union[str, List[str], None] = None,
     filename_ignore_suffix: Union[str, List[str], None] = None,
     catalog_id: Optional[str] = None,
@@ -575,7 +760,6 @@ def read_parquet_table(
     columns: Optional[List[str]] = None,
     validate_schema: bool = True,
     coerce_int96_timestamp_unit: Optional[str] = None,
-    chunked: Union[bool, int] = False,
     use_threads: Union[bool, int] = True,
     parallelism: int = 200,
     boto3_session: Optional[boto3.Session] = None,
