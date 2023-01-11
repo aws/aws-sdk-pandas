@@ -149,7 +149,7 @@ def _read_text_format(
 @overload
 def read_csv(
     path: Union[str, List[str]],
-    chunksize: None = ...,
+    *,
     path_suffix: Union[str, List[str], None] = ...,
     path_ignore_suffix: Union[str, List[str], None] = ...,
     version_id: Optional[Union[str, Dict[str, str]]] = ...,
@@ -159,6 +159,7 @@ def read_csv(
     last_modified_end: Optional[datetime.datetime] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    chunksize: None = ...,
     dataset: bool = ...,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
     parallelism: int = ...,
@@ -170,7 +171,7 @@ def read_csv(
 @overload
 def read_csv(
     path: Union[str, List[str]],
-    chunksize: int,
+    *,
     path_suffix: Union[str, List[str], None] = ...,
     path_ignore_suffix: Union[str, List[str], None] = ...,
     version_id: Optional[Union[str, Dict[str, str]]] = ...,
@@ -180,6 +181,7 @@ def read_csv(
     last_modified_end: Optional[datetime.datetime] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    chunksize: int,
     dataset: bool = ...,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
     parallelism: int = ...,
@@ -191,7 +193,7 @@ def read_csv(
 @overload
 def read_csv(
     path: Union[str, List[str]],
-    chunksize: Optional[int],
+    *,
     path_suffix: Union[str, List[str], None] = ...,
     path_ignore_suffix: Union[str, List[str], None] = ...,
     version_id: Optional[Union[str, Dict[str, str]]] = ...,
@@ -201,6 +203,7 @@ def read_csv(
     last_modified_end: Optional[datetime.datetime] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    chunksize: Optional[int],
     dataset: bool = ...,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
     parallelism: int = ...,
@@ -211,7 +214,6 @@ def read_csv(
 
 def read_csv(
     path: Union[str, List[str]],
-    chunksize: Optional[int] = None,
     path_suffix: Union[str, List[str], None] = None,
     path_ignore_suffix: Union[str, List[str], None] = None,
     version_id: Optional[Union[str, Dict[str, str]]] = None,
@@ -221,6 +223,7 @@ def read_csv(
     last_modified_end: Optional[datetime.datetime] = None,
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
+    chunksize: Optional[int] = None,
     dataset: bool = False,
     partition_filter: Optional[Callable[[Dict[str, str]], bool]] = None,
     parallelism: int = 200,

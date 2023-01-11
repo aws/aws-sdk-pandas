@@ -12,7 +12,6 @@ from awswrangler.distributed.ray.modin import modin_repartition
 from awswrangler.distributed.ray.modin._utils import _ray_dataset_from_df
 from awswrangler.s3._write_concurrent import _WriteProxy
 from awswrangler.s3._write_dataset import _delete_objects, _get_bucketing_series, _to_partitions
-from awswrangler.typing import GlueCatalogParameters
 
 
 def _retrieve_paths(values: Union[str, List[Any]]) -> Iterator[str]:
@@ -64,9 +63,11 @@ def _write_partitions_distributed(
     mode: str,
     partition_cols: List[str],
     partitions_types: Optional[Dict[str, str]],
+    catalog_id: Optional[str],
     database: Optional[str],
     table: Optional[str],
-    glue_parameters: GlueCatalogParameters,
+    table_type: Optional[str],
+    transaction_id: Optional[str],
     filename_prefix: str,
     bucketing_info: Optional[Tuple[List[str], int]],
     boto3_session: Optional["boto3.Session"] = None,
@@ -79,9 +80,11 @@ def _write_partitions_distributed(
         mode=mode,
         partition_cols=partition_cols,
         partitions_types=partitions_types,
+        catalog_id=catalog_id,
         database=database,
         table=table,
-        glue_parameters=glue_parameters,
+        table_type=table_type,
+        transaction_id=transaction_id,
         boto3_session=boto3_session,
         **func_kwargs,
     )
@@ -118,9 +121,11 @@ def _to_partitions_distributed(  # pylint: disable=unused-argument
     mode: str,
     partition_cols: List[str],
     partitions_types: Optional[Dict[str, str]],
+    catalog_id: Optional[str],
     database: Optional[str],
     table: Optional[str],
-    glue_parameters: GlueCatalogParameters,
+    table_type: Optional[str],
+    transaction_id: Optional[str],
     bucketing_info: Optional[Tuple[List[str], int]],
     filename_prefix: str,
     boto3_session: "boto3.Session",
@@ -146,9 +151,11 @@ def _to_partitions_distributed(  # pylint: disable=unused-argument
                 path_root=path_root,
                 use_threads=use_threads,
                 mode=mode,
+                catalog_id=catalog_id,
                 database=database,
                 table=table,
-                glue_parameters=glue_parameters,
+                table_type=table_type,
+                transaction_id=transaction_id,
                 bucketing_info=None,
                 filename_prefix=f"{filename_prefix}_{block_index:05d}",
                 partition_cols=partition_cols,
@@ -176,9 +183,11 @@ def _to_partitions_distributed(  # pylint: disable=unused-argument
         mode=mode,
         partition_cols=partition_cols,
         partitions_types=partitions_types,
+        catalog_id=catalog_id,
         database=database,
         table=table,
-        glue_parameters=glue_parameters,
+        table_type=table_type,
+        transaction_id=transaction_id,
         filename_prefix=filename_prefix,
         bucketing_info=bucketing_info,
         boto3_session=None,

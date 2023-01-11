@@ -373,7 +373,6 @@ def create_athena_bucket(boto3_session: Optional[boto3.Session] = None) -> str:
 @overload
 def start_query_execution(
     sql: str,
-    wait: Literal[False] = ...,
     database: Optional[str] = ...,
     s3_output: Optional[str] = ...,
     workgroup: Optional[str] = ...,
@@ -386,6 +385,7 @@ def start_query_execution(
     max_remote_cache_entries: int = ...,
     max_local_cache_entries: int = ...,
     data_source: Optional[str] = ...,
+    wait: Literal[False] = ...,
 ) -> str:
     ...
 
@@ -393,7 +393,7 @@ def start_query_execution(
 @overload
 def start_query_execution(
     sql: str,
-    wait: Literal[True],
+    *,
     database: Optional[str] = ...,
     s3_output: Optional[str] = ...,
     workgroup: Optional[str] = ...,
@@ -406,6 +406,7 @@ def start_query_execution(
     max_remote_cache_entries: int = ...,
     max_local_cache_entries: int = ...,
     data_source: Optional[str] = ...,
+    wait: Literal[True],
 ) -> Dict[str, Any]:
     ...
 
@@ -413,7 +414,7 @@ def start_query_execution(
 @overload
 def start_query_execution(
     sql: str,
-    wait: bool,
+    *,
     database: Optional[str] = ...,
     s3_output: Optional[str] = ...,
     workgroup: Optional[str] = ...,
@@ -426,6 +427,7 @@ def start_query_execution(
     max_remote_cache_entries: int = ...,
     max_local_cache_entries: int = ...,
     data_source: Optional[str] = ...,
+    wait: bool,
 ) -> Union[str, Dict[str, Any]]:
     ...
 
@@ -433,7 +435,6 @@ def start_query_execution(
 @apply_configs
 def start_query_execution(
     sql: str,
-    wait: bool = False,
     database: Optional[str] = None,
     s3_output: Optional[str] = None,
     workgroup: Optional[str] = None,
@@ -446,6 +447,7 @@ def start_query_execution(
     max_remote_cache_entries: int = 50,
     max_local_cache_entries: int = 100,
     data_source: Optional[str] = None,
+    wait: bool = False,
 ) -> Union[str, Dict[str, Any]]:
     """Start a SQL Query against AWS Athena.
 
