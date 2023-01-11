@@ -11,11 +11,7 @@ Easy integration with Athena, Glue, Redshift, Timestream, OpenSearch, Neptune, Q
 
 > An [AWS Professional Service](https://aws.amazon.com/professional-services/) open source initiative | aws-proserve-opensource@amazon.com
 
-<<<<<<< HEAD
 [![Release](https://img.shields.io/badge/release-3.0.0rc2-brightgreen.svg)](https://pypi.org/project/awswrangler/)
-=======
-[![Release](https://img.shields.io/badge/release-2.19.0-brightgreen.svg)](https://pypi.org/project/awswrangler/)
->>>>>>> main
 [![Python Version](https://img.shields.io/badge/python-3.7%20%7C%203.8%20%7C%203.9%20%7C%203.10-brightgreen.svg)](https://anaconda.org/conda-forge/awswrangler)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -30,11 +26,7 @@ Easy integration with Athena, Glue, Redshift, Timestream, OpenSearch, Neptune, Q
 | **[PyPi](https://pypi.org/project/awswrangler/)**  | [![PyPI Downloads](https://pepy.tech/badge/awswrangler)](https://pypi.org/project/awswrangler/) | `pip install awswrangler` |
 | **[Conda](https://anaconda.org/conda-forge/awswrangler)** | [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/awswrangler.svg)](https://anaconda.org/conda-forge/awswrangler) | `conda install -c conda-forge awswrangler` |
 
-<<<<<<< HEAD
 > ⚠️ **For platforms without PyArrow 3 support (e.g. [EMR](https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/install.html#emr-cluster), [Glue PySpark Job](https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/install.html#aws-glue-pyspark-jobs), MWAA):**<br>
-=======
-> ⚠️ **For platforms without PyArrow 3 support (e.g. [EMR](https://aws-sdk-pandas.readthedocs.io/en/2.19.0/install.html#emr-cluster), [Glue PySpark Job](https://aws-sdk-pandas.readthedocs.io/en/2.19.0/install.html#aws-glue-pyspark-jobs), MWAA):**<br>
->>>>>>> main
 ➡️ `pip install pyarrow==2 awswrangler`
 
 Powered By [<img src="https://arrow.apache.org/img/arrow.png" width="200">](https://arrow.apache.org/powered_by/)
@@ -53,11 +45,7 @@ Powered By [<img src="https://arrow.apache.org/img/arrow.png" width="200">](http
 
 Installation command: `pip install awswrangler`
 
-<<<<<<< HEAD
 > ⚠️ **For platforms without PyArrow 3 support (e.g. [EMR](https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/install.html#emr-cluster), [Glue PySpark Job](https://aws-sdk-pandas.readthedocs.io/en/3.0.0rc2/install.html#aws-glue-pyspark-jobs), MWAA):**<br>
-=======
-> ⚠️ **For platforms without PyArrow 3 support (e.g. [EMR](https://aws-sdk-pandas.readthedocs.io/en/2.19.0/install.html#emr-cluster), [Glue PySpark Job](https://aws-sdk-pandas.readthedocs.io/en/2.19.0/install.html#aws-glue-pyspark-jobs), MWAA):**<br>
->>>>>>> main
 ➡️`pip install pyarrow==2 awswrangler`
 
 ```py3
