@@ -1,7 +1,7 @@
 """Module with parameter types."""
 
 from dataclasses import dataclass
-from typing import Dict, TypedDict
+from typing import Dict, Literal, TypedDict
 
 from typing_extensions import NotRequired
 
@@ -10,7 +10,7 @@ from typing_extensions import NotRequired
 class GlueCatalogParameters(TypedDict):
     """Class defining the parameters for writing to a Glue Catalogue."""
 
-    table_type: NotRequired[str]
+    table_type: NotRequired[Literal["EXTERNAL_TABLE", "GOVERNED"]]
     transaction_id: NotRequired[str]
     description: NotRequired[str]
     parameters: NotRequired[Dict[str, str]]

@@ -25,7 +25,9 @@ def test_to_parquet_projection_integer(glue_database, glue_table, path):
         database=glue_database,
         table=glue_table,
         partition_cols=["c1", "c2", "c3"],
-        regular_partitions=False,
+        glue_catalog_parameters={
+            "regular_partitions": False,
+        },
         projection_params={
             "projection_types": {"c1": "integer", "c2": "integer", "c3": "integer"},
             "projection_ranges": {"c1": "0,2", "c2": "0,200", "c3": "0,2"},
@@ -50,7 +52,9 @@ def test_to_parquet_projection_enum(glue_database, glue_table, path):
         database=glue_database,
         table=glue_table,
         partition_cols=["c1", "c2"],
-        regular_partitions=False,
+        glue_catalog_parameters={
+            "regular_partitions": False,
+        },
         projection_params={
             "projection_types": {"c1": "enum", "c2": "enum"},
             "projection_values": {"c1": "1,2,3", "c2": "foo,boo,bar"},
@@ -77,7 +81,9 @@ def test_to_parquet_projection_date(glue_database, glue_table, path):
         database=glue_database,
         table=glue_table,
         partition_cols=["c1", "c2"],
-        regular_partitions=False,
+        glue_catalog_parameters={
+            "regular_partitions": False,
+        },
         projection_params={
             "projection_types": {"c1": "date", "c2": "date"},
             "projection_ranges": {"c1": "2020-01-01,2020-01-03", "c2": "2020-01-01 01:01:00,2020-01-01 01:01:03"},
@@ -97,7 +103,9 @@ def test_to_parquet_projection_injected(glue_database, glue_table, path):
         database=glue_database,
         table=glue_table,
         partition_cols=["c1", "c2"],
-        regular_partitions=False,
+        glue_catalog_parameters={
+            "regular_partitions": False,
+        },
         projection_params={
             "projection_types": {"c1": "injected", "c2": "injected"},
         },

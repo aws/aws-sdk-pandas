@@ -255,7 +255,7 @@ def test_parquet_chunked(path, glue_database, glue_table, col2, chunk_size):
         mode="overwrite",
     )
 
-    dfs = list(wr.s3.read_parquet_chunked(path=path, dataset=True, chunk_size=chunk_size))
+    dfs = list(wr.s3.read_parquet(path=path, dataset=True, chunk_size=chunk_size))
     assert sum(values) == pd.concat(dfs, ignore_index=True).col1.sum()
     if chunk_size is not None:
         assert len(dfs) == int(math.ceil(len(df) / chunk_size))

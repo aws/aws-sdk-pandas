@@ -35,8 +35,10 @@ def test_lakeformation(path, path2, glue_database, glue_table, glue_table2, use_
         partition_cols=["par0", "par1"],
         mode="overwrite",
         table=glue_table,
-        table_type="GOVERNED",
         database=glue_database,
+        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+            table_type="GOVERNED",
+        ),
     )
 
     df = wr.lakeformation.read_sql_table(
@@ -67,8 +69,10 @@ def test_lakeformation(path, path2, glue_database, glue_table, glue_table2, use_
         partition_cols=["par0", "par1"],
         mode="append",
         table=glue_table2,
-        table_type="GOVERNED",
         database=glue_database,
+        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+            table_type="GOVERNED",
+        ),
     )
     # Read within a transaction
     transaction_id = wr.lakeformation.start_transaction(read_only=True)
@@ -105,11 +109,13 @@ def test_lakeformation_multi_transaction(path, path2, glue_database, glue_table,
         mode="append",
         database=glue_database,
         table=glue_table,
-        table_type="GOVERNED",
-        transaction_id=transaction_id,
-        description="c0",
-        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
-        columns_comments={"c0": "0"},
+        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+            table_type="GOVERNED",
+            transaction_id=transaction_id,
+            description="c0",
+            parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
+            columns_comments={"c0": "0"},
+        ),
         use_threads=use_threads,
     )
 
@@ -121,11 +127,13 @@ def test_lakeformation_multi_transaction(path, path2, glue_database, glue_table,
         mode="append",
         database=glue_database,
         table=glue_table2,
-        table_type="GOVERNED",
-        transaction_id=transaction_id,
-        description="c1",
-        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
-        columns_comments={"c1": "1"},
+        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+            table_type="GOVERNED",
+            transaction_id=transaction_id,
+            description="c1",
+            parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
+            columns_comments={"c1": "1"},
+        ),
         use_threads=use_threads,
     )
     wr.lakeformation.commit_transaction(transaction_id=transaction_id)
@@ -173,8 +181,10 @@ def test_lakeformation_partiql_formatting(path, path2, glue_database, glue_table
         partition_cols=["par0", "par1"],
         mode="overwrite",
         table=glue_table,
-        table_type="GOVERNED",
         database=glue_database,
+        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+            table_type="GOVERNED",
+        ),
     )
 
     # Filter query
@@ -203,8 +213,10 @@ def test_lakeformation_partiql_formatting_escape_string(path, path2, glue_databa
         dataset=True,
         mode="overwrite",
         table=glue_table,
-        table_type="GOVERNED",
         database=glue_database,
+        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+            table_type="GOVERNED",
+        ),
     )
 
     # Filter query

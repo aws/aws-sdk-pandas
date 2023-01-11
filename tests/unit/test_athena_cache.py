@@ -47,9 +47,11 @@ def test_cache_query_ctas_approach_true(wr, path, glue_database, glue_table, dat
         mode="overwrite",
         database=glue_database,
         table=glue_table,
-        description="c0",
-        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
-        columns_comments={"c0": "0"},
+        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+            description="c0",
+            parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
+            columns_comments={"c0": "0"},
+        ),
     )
 
     with patch(
@@ -83,9 +85,11 @@ def test_cache_query_ctas_approach_false(wr, path, glue_database, glue_table, da
         mode="overwrite",
         database=glue_database,
         table=glue_table,
-        description="c0",
-        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
-        columns_comments={"c0": "0"},
+        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+            description="c0",
+            parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
+            columns_comments={"c0": "0"},
+        ),
     )
 
     with patch(
@@ -186,9 +190,11 @@ def test_cache_start_query(wr, path, glue_database, glue_table, data_source):
         mode="overwrite",
         database=glue_database,
         table=glue_table,
-        description="c0",
-        parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
-        columns_comments={"c0": "0"},
+        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+            description="c0",
+            parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
+            columns_comments={"c0": "0"},
+        ),
     )
 
     with patch(
