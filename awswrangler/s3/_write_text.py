@@ -3,7 +3,7 @@
 import csv
 import logging
 import uuid
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union, cast, overload
 
 import boto3
 import pandas as pd
@@ -17,7 +17,7 @@ from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_dataset import _to_dataset
-from awswrangler.typing import GlueCatalogParameters
+from awswrangler.typing import GlueCatalogParameters, S3WriteDataReturnValue
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -98,7 +98,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     glue_catalog_parameters: Optional[GlueCatalogParameters] = None,
     projection_params: Optional[Dict[str, Any]] = None,
     **pandas_kwargs: Any,
-) -> Dict[str, Union[List[str], Dict[str, List[str]]]]:
+) -> S3WriteDataReturnValue:
     """Write CSV file or dataset on Amazon S3.
 
     The concept of Dataset goes beyond the simple idea of ordinary files and enable more
@@ -661,9 +661,94 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     return {"paths": paths, "partitions_values": partitions_values}
 
 
+@overload
+def to_json(
+    df: pd.DataFrame,
+    dataset: Literal[False] = ...,
+    path: Optional[str] = ...,
+    index: bool = ...,
+    columns: Optional[List[str]] = ...,
+    use_threads: Union[bool, int] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    sanitize_columns: bool = ...,
+    filename_prefix: Optional[str] = ...,
+    partition_cols: Optional[List[str]] = ...,
+    bucketing_info: Optional[Tuple[List[str], int]] = ...,
+    concurrent_partitioning: bool = ...,
+    mode: Optional[str] = ...,
+    catalog_versioning: bool = ...,
+    schema_evolution: bool = ...,
+    dtype: Optional[Dict[str, str]] = ...,
+    database: Optional[str] = ...,
+    table: Optional[str] = ...,
+    glue_catalog_parameters: Optional[GlueCatalogParameters] = ...,
+    projection_params: Optional[Dict[str, Any]] = ...,
+    **pandas_kwargs: Any,
+) -> List[str]:
+    ...
+
+
+@overload
+def to_json(
+    df: pd.DataFrame,
+    dataset: Literal[True],
+    path: Optional[str] = ...,
+    index: bool = ...,
+    columns: Optional[List[str]] = ...,
+    use_threads: Union[bool, int] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    sanitize_columns: bool = ...,
+    filename_prefix: Optional[str] = ...,
+    partition_cols: Optional[List[str]] = ...,
+    bucketing_info: Optional[Tuple[List[str], int]] = ...,
+    concurrent_partitioning: bool = ...,
+    mode: Optional[str] = ...,
+    catalog_versioning: bool = ...,
+    schema_evolution: bool = ...,
+    dtype: Optional[Dict[str, str]] = ...,
+    database: Optional[str] = ...,
+    table: Optional[str] = ...,
+    glue_catalog_parameters: Optional[GlueCatalogParameters] = ...,
+    projection_params: Optional[Dict[str, Any]] = ...,
+    **pandas_kwargs: Any,
+) -> S3WriteDataReturnValue:
+    ...
+
+
+@overload
+def to_json(
+    df: pd.DataFrame,
+    dataset: bool,
+    path: Optional[str] = ...,
+    index: bool = ...,
+    columns: Optional[List[str]] = ...,
+    use_threads: Union[bool, int] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    sanitize_columns: bool = ...,
+    filename_prefix: Optional[str] = ...,
+    partition_cols: Optional[List[str]] = ...,
+    bucketing_info: Optional[Tuple[List[str], int]] = ...,
+    concurrent_partitioning: bool = ...,
+    mode: Optional[str] = ...,
+    catalog_versioning: bool = ...,
+    schema_evolution: bool = ...,
+    dtype: Optional[Dict[str, str]] = ...,
+    database: Optional[str] = ...,
+    table: Optional[str] = ...,
+    glue_catalog_parameters: Optional[GlueCatalogParameters] = ...,
+    projection_params: Optional[Dict[str, Any]] = ...,
+    **pandas_kwargs: Any,
+) -> Union[List[str], S3WriteDataReturnValue]:
+    ...
+
+
 @apply_configs
 def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-statements,too-many-branches
     df: pd.DataFrame,
+    dataset: bool = False,
     path: Optional[str] = None,
     index: bool = True,
     columns: Optional[List[str]] = None,
@@ -671,7 +756,6 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     sanitize_columns: bool = False,
-    dataset: bool = False,
     filename_prefix: Optional[str] = None,
     partition_cols: Optional[List[str]] = None,
     bucketing_info: Optional[Tuple[List[str], int]] = None,
@@ -685,7 +769,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
     glue_catalog_parameters: Optional[GlueCatalogParameters] = None,
     projection_params: Optional[Dict[str, Any]] = None,
     **pandas_kwargs: Any,
-) -> Union[List[str], Dict[str, Union[List[str], Dict[str, List[str]]]]]:
+) -> Union[List[str], S3WriteDataReturnValue]:
     """Write JSON file on Amazon S3.
 
     Note

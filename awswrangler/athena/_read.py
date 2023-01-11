@@ -4,7 +4,7 @@ import csv
 import logging
 import sys
 import uuid
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, List, Literal, Optional, Tuple, Union, overload
 
 import boto3
 import botocore.exceptions
@@ -976,15 +976,139 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
     )
 
 
+@overload
+def read_sql_table(
+    table: str,
+    database: str,
+    chunksize: Union[None, Literal[False]] = ...,
+    ctas_approach: bool = ...,
+    unload_approach: bool = ...,
+    unload_parameters: Optional[Dict[str, Any]] = ...,
+    categories: Optional[List[str]] = ...,
+    s3_output: Optional[str] = ...,
+    workgroup: Optional[str] = ...,
+    encryption: Optional[str] = ...,
+    kms_key: Optional[str] = ...,
+    keep_files: bool = ...,
+    ctas_database: Optional[str] = ...,
+    ctas_temp_table_name: Optional[str] = ...,
+    ctas_bucketing_info: Optional[Tuple[List[str], int]] = ...,
+    ctas_write_compression: Optional[str] = ...,
+    use_threads: Union[bool, int] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    max_cache_seconds: int = ...,
+    max_cache_query_inspections: int = ...,
+    max_remote_cache_entries: int = ...,
+    max_local_cache_entries: int = ...,
+    data_source: Optional[str] = ...,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def read_sql_table(
+    table: str,
+    database: str,
+    chunksize: Literal[True],
+    ctas_approach: bool = ...,
+    unload_approach: bool = ...,
+    unload_parameters: Optional[Dict[str, Any]] = ...,
+    categories: Optional[List[str]] = ...,
+    s3_output: Optional[str] = ...,
+    workgroup: Optional[str] = ...,
+    encryption: Optional[str] = ...,
+    kms_key: Optional[str] = ...,
+    keep_files: bool = ...,
+    ctas_database: Optional[str] = ...,
+    ctas_temp_table_name: Optional[str] = ...,
+    ctas_bucketing_info: Optional[Tuple[List[str], int]] = ...,
+    ctas_write_compression: Optional[str] = ...,
+    use_threads: Union[bool, int] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    max_cache_seconds: int = ...,
+    max_cache_query_inspections: int = ...,
+    max_remote_cache_entries: int = ...,
+    max_local_cache_entries: int = ...,
+    data_source: Optional[str] = ...,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+@overload
+def read_sql_table(
+    table: str,
+    database: str,
+    chunksize: bool,
+    ctas_approach: bool = ...,
+    unload_approach: bool = ...,
+    unload_parameters: Optional[Dict[str, Any]] = ...,
+    categories: Optional[List[str]] = ...,
+    s3_output: Optional[str] = ...,
+    workgroup: Optional[str] = ...,
+    encryption: Optional[str] = ...,
+    kms_key: Optional[str] = ...,
+    keep_files: bool = ...,
+    ctas_database: Optional[str] = ...,
+    ctas_temp_table_name: Optional[str] = ...,
+    ctas_bucketing_info: Optional[Tuple[List[str], int]] = ...,
+    ctas_write_compression: Optional[str] = ...,
+    use_threads: Union[bool, int] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    max_cache_seconds: int = ...,
+    max_cache_query_inspections: int = ...,
+    max_remote_cache_entries: int = ...,
+    max_local_cache_entries: int = ...,
+    data_source: Optional[str] = ...,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ...
+
+
+@overload
+def read_sql_table(
+    table: str,
+    database: str,
+    chunksize: int,
+    ctas_approach: bool = ...,
+    unload_approach: bool = ...,
+    unload_parameters: Optional[Dict[str, Any]] = ...,
+    categories: Optional[List[str]] = ...,
+    s3_output: Optional[str] = ...,
+    workgroup: Optional[str] = ...,
+    encryption: Optional[str] = ...,
+    kms_key: Optional[str] = ...,
+    keep_files: bool = ...,
+    ctas_database: Optional[str] = ...,
+    ctas_temp_table_name: Optional[str] = ...,
+    ctas_bucketing_info: Optional[Tuple[List[str], int]] = ...,
+    ctas_write_compression: Optional[str] = ...,
+    use_threads: Union[bool, int] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    max_cache_seconds: int = ...,
+    max_cache_query_inspections: int = ...,
+    max_remote_cache_entries: int = ...,
+    max_local_cache_entries: int = ...,
+    data_source: Optional[str] = ...,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]] = ...,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
 @apply_configs
 def read_sql_table(
     table: str,
     database: str,
+    chunksize: Optional[Union[int, bool]] = None,
     ctas_approach: bool = True,
     unload_approach: bool = False,
     unload_parameters: Optional[Dict[str, Any]] = None,
     categories: Optional[List[str]] = None,
-    chunksize: Optional[Union[int, bool]] = None,
     s3_output: Optional[str] = None,
     workgroup: Optional[str] = None,
     encryption: Optional[str] = None,

@@ -23,7 +23,7 @@ from awswrangler.s3._read_parquet import _read_parquet_metadata
 from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_concurrent import _WriteProxy
 from awswrangler.s3._write_dataset import _to_dataset
-from awswrangler.typing import GlueCatalogParameters
+from awswrangler.typing import GlueCatalogParameters, S3WriteDataReturnValue
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -232,7 +232,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     glue_catalog_parameters: Optional[GlueCatalogParameters] = None,
     dtype: Optional[Dict[str, str]] = None,
     projection_params: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Union[List[str], Dict[str, List[str]]]]:
+) -> S3WriteDataReturnValue:
     """Write Parquet file or dataset on Amazon S3.
 
     The concept of Dataset goes beyond the simple idea of ordinary files and enable more
