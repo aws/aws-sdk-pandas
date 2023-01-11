@@ -2,7 +2,7 @@
 
 import logging
 from functools import wraps
-from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, TypeVar, Union, cast
+from typing import Any, Callable, Dict, Iterator, List, Literal, Optional, Sequence, TypeVar, Union, cast, overload
 
 import boto3
 import pandas as pd
@@ -194,6 +194,65 @@ def _read_items(
             items.extend(response.get("Items", []))
 
     return items
+
+
+@overload
+def read_items(
+    table_name: str,
+    partition_values: Optional[Sequence[Any]] = ...,
+    sort_values: Optional[Sequence[Any]] = ...,
+    filter_expression: Optional[Union[ConditionBase, str]] = ...,
+    key_condition_expression: Optional[Union[ConditionBase, str]] = ...,
+    expression_attribute_names: Optional[Dict[str, str]] = ...,
+    expression_attribute_values: Optional[Dict[str, Any]] = ...,
+    consistent: bool = ...,
+    columns: Optional[Sequence[str]] = ...,
+    allow_full_scan: bool = ...,
+    max_items_evaluated: Optional[int] = ...,
+    as_dataframe: Literal[True] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def read_items(
+    table_name: str,
+    *,
+    partition_values: Optional[Sequence[Any]] = ...,
+    sort_values: Optional[Sequence[Any]] = ...,
+    filter_expression: Optional[Union[ConditionBase, str]] = ...,
+    key_condition_expression: Optional[Union[ConditionBase, str]] = ...,
+    expression_attribute_names: Optional[Dict[str, str]] = ...,
+    expression_attribute_values: Optional[Dict[str, Any]] = ...,
+    consistent: bool = ...,
+    columns: Optional[Sequence[str]] = ...,
+    allow_full_scan: bool = ...,
+    max_items_evaluated: Optional[int] = ...,
+    as_dataframe: Literal[False],
+    boto3_session: Optional[boto3.Session] = ...,
+) -> List[Dict[str, Any]]:
+    ...
+
+
+@overload
+def read_items(
+    table_name: str,
+    *,
+    partition_values: Optional[Sequence[Any]] = ...,
+    sort_values: Optional[Sequence[Any]] = ...,
+    filter_expression: Optional[Union[ConditionBase, str]] = ...,
+    key_condition_expression: Optional[Union[ConditionBase, str]] = ...,
+    expression_attribute_names: Optional[Dict[str, str]] = ...,
+    expression_attribute_values: Optional[Dict[str, Any]] = ...,
+    consistent: bool = ...,
+    columns: Optional[Sequence[str]] = ...,
+    allow_full_scan: bool = ...,
+    max_items_evaluated: Optional[int] = ...,
+    as_dataframe: bool,
+    boto3_session: Optional[boto3.Session] = ...,
+) -> Union[pd.DataFrame, List[Dict[str, Any]]]:
+    ...
 
 
 def read_items(
