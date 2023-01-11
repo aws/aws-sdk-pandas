@@ -239,8 +239,8 @@ def test_parquet_char_length(path, glue_database, glue_table):
 
 
 @pytest.mark.parametrize("col2", [[1, 1, 1, 1, 1], [1, 2, 3, 4, 5], [1, 1, 1, 1, 2], [1, 2, 2, 2, 2]])
-@pytest.mark.parametrize("chunk_size", [None, 1, 2, 100])
-def test_parquet_chunked(path, glue_database, glue_table, col2, chunk_size):
+@pytest.mark.parametrize("chunked", [True, 1, 2, 100])
+def test_parquet_chunked(path, glue_database, glue_table, col2, chunked):
     wr.s3.delete_objects(path=path)
     values = list(range(5))
     df = pd.DataFrame({"col1": values, "col2": col2})
@@ -255,17 +255,16 @@ def test_parquet_chunked(path, glue_database, glue_table, col2, chunk_size):
         mode="overwrite",
     )
 
-    dfs = list(wr.s3.read_parquet(path=path, dataset=True, chunked=chunk_size))
+    dfs = list(wr.s3.read_parquet(path=path, dataset=True, chunked=chunked))
     assert sum(values) == pd.concat(dfs, ignore_index=True).col1.sum()
-    if chunk_size is not None:
-        assert len(dfs) == int(math.ceil(len(df) / chunk_size))
+    if chunked is not True:
+        assert len(dfs) == int(math.ceil(len(df) / chunked))
         for df2 in dfs[:-1]:
-            assert chunk_size == len(df2)
-        assert chunk_size >= len(dfs[-1])
+            assert chunked == len(df2)
+        assert chunked >= len(dfs[-1])
     else:
         assert len(dfs) == len(set(col2))
 
-    chunked = True if chunk_size is None else chunk_size
     dfs = list(wr.athena.read_sql_table(database=glue_database, table=glue_table, chunksize=chunked))
     assert sum(values) == pd.concat(dfs, ignore_index=True).col1.sum()
     if chunked is not True:

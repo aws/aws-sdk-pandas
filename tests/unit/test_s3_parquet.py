@@ -143,7 +143,7 @@ def test_parquet(path):
         wr.s3.to_parquet(df=df_file, path=path_file, compression="WRONG")
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
         wr.s3.to_parquet(df=df_dataset, path=path_dataset, partition_cols=["col2"])
-    with pytest.raises(TypeError):
+    with pytest.raises(wr.exceptions.InvalidArgumentCombination):
         wr.s3.to_parquet(df=df_dataset, path=path_dataset, glue_catalog_parameters={"description": "foo"})
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.s3.to_parquet(df=df_dataset, path=path_dataset, partition_cols=["col2"], dataset=True, mode="WRONG")
@@ -610,7 +610,7 @@ def test_read_chunked(path):
     path = f"{path}file.parquet"
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [None, None, None]})
     wr.s3.to_parquet(df, path)
-    df2 = next(wr.s3.read_parquet(path))
+    df2 = next(wr.s3.read_parquet(path, chunked=True))
     assert df.shape == df2.shape
 
 
@@ -620,7 +620,7 @@ def test_read_chunked_validation_exception2(path):
     df = pd.DataFrame({"c1": [0, 1, 2]})
     wr.s3.to_parquet(df, f"{path}file1.parquet")
     with pytest.raises(wr.exceptions.InvalidSchemaConvergence):
-        for _ in wr.s3.read_parquet(path, dataset=True, validate_schema=True):
+        for _ in wr.s3.read_parquet(path, dataset=True, chunked=True, validate_schema=True):
             pass
 
 
