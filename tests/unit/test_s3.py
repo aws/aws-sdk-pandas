@@ -57,11 +57,11 @@ def test_list_by_last_modified_date(path):
 
     begin_utc = pytz.utc.localize(datetime.datetime.utcnow())
     time.sleep(5)
-    wr.s3.to_json(df, path0)
+    wr.s3.to_json(df, path=path0)
     time.sleep(5)
     mid_utc = pytz.utc.localize(datetime.datetime.utcnow())
     time.sleep(5)
-    wr.s3.to_json(df, path1)
+    wr.s3.to_json(df, path=path1)
     time.sleep(5)
     end_utc = pytz.utc.localize(datetime.datetime.utcnow())
 

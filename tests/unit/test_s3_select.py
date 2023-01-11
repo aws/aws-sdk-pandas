@@ -56,7 +56,7 @@ def test_full_table(path, use_threads):
     assert df.shape == df3.shape
 
     # JSON
-    wr.s3.to_json(df, path, dataset=True, orient="records")
+    wr.s3.to_json(df, path=path, dataset=True, orient="records")
     df4 = wr.s3.select_query(
         sql="select * from s3object[*][*]",
         path=path,
@@ -87,7 +87,7 @@ def test_push_down(path, use_threads):
     assert df2.c0.sum() == 1
 
     file_path = f"{path}test_empty_file.gzip.parquet"
-    wr.s3.to_parquet(df, file_path, compression="gzip")
+    wr.s3.to_parquet(df, path=file_path, compression="gzip")
     df_empty = wr.s3.select_query(
         sql='select * from s3object s where s."c0" = 99',
         path=file_path,
@@ -98,7 +98,7 @@ def test_push_down(path, use_threads):
     assert df_empty.empty
 
     file_path = f"{path}test_csv_file.csv"
-    wr.s3.to_csv(df, file_path, header=False, index=False)
+    wr.s3.to_csv(df, path=file_path, header=False, index=False)
     df3 = wr.s3.select_query(
         sql='select s."_1" from s3object s limit 2',
         path=file_path,
@@ -142,7 +142,7 @@ def test_compression(path, compression):
 
     # JSON
     file_path = f"{path}test_json_file.json"
-    wr.s3.to_json(df, file_path, orient="records", compression=compression)
+    wr.s3.to_json(df, path=file_path, orient="records", compression=compression)
     df3 = wr.s3.select_query(
         sql="select * from s3object[*][*]",
         path=file_path,

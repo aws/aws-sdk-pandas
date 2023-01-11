@@ -666,7 +666,6 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
 @overload
 def to_json(
     df: pd.DataFrame,
-    dataset: Literal[False] = ...,
     path: Optional[str] = ...,
     index: bool = ...,
     columns: Optional[List[str]] = ...,
@@ -674,6 +673,7 @@ def to_json(
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     sanitize_columns: bool = ...,
+    dataset: Literal[False] = ...,
     filename_prefix: Optional[str] = ...,
     partition_cols: Optional[List[str]] = ...,
     bucketing_info: Optional[Tuple[List[str], int]] = ...,
@@ -694,7 +694,7 @@ def to_json(
 @overload
 def to_json(
     df: pd.DataFrame,
-    dataset: Literal[True],
+    *,
     path: Optional[str] = ...,
     index: bool = ...,
     columns: Optional[List[str]] = ...,
@@ -702,6 +702,7 @@ def to_json(
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     sanitize_columns: bool = ...,
+    dataset: Literal[True],
     filename_prefix: Optional[str] = ...,
     partition_cols: Optional[List[str]] = ...,
     bucketing_info: Optional[Tuple[List[str], int]] = ...,
@@ -722,7 +723,7 @@ def to_json(
 @overload
 def to_json(
     df: pd.DataFrame,
-    dataset: bool,
+    *,
     path: Optional[str] = ...,
     index: bool = ...,
     columns: Optional[List[str]] = ...,
@@ -730,6 +731,7 @@ def to_json(
     boto3_session: Optional[boto3.Session] = ...,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     sanitize_columns: bool = ...,
+    dataset: bool,
     filename_prefix: Optional[str] = ...,
     partition_cols: Optional[List[str]] = ...,
     bucketing_info: Optional[Tuple[List[str], int]] = ...,
@@ -750,7 +752,6 @@ def to_json(
 @apply_configs
 def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-statements,too-many-branches
     df: pd.DataFrame,
-    dataset: bool = False,
     path: Optional[str] = None,
     index: bool = True,
     columns: Optional[List[str]] = None,
@@ -758,6 +759,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
     boto3_session: Optional[boto3.Session] = None,
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
     sanitize_columns: bool = False,
+    dataset: bool = False,
     filename_prefix: Optional[str] = None,
     partition_cols: Optional[List[str]] = None,
     bucketing_info: Optional[Tuple[List[str], int]] = None,
