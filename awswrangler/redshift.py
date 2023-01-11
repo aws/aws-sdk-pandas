@@ -4,7 +4,7 @@
 import json
 import logging
 import uuid
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union, overload
 
 import boto3
 import botocore
@@ -649,12 +649,54 @@ def connect_temp(
     )
 
 
+@overload
 def read_sql_query(
     sql: str,
     con: redshift_connector.Connection,
+    chunksize: None = ...,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def read_sql_query(
+    sql: str,
+    con: redshift_connector.Connection,
+    chunksize: int,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+@overload
+def read_sql_query(
+    sql: str,
+    con: redshift_connector.Connection,
+    chunksize: Optional[int],
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ...
+
+
+def read_sql_query(
+    sql: str,
+    con: redshift_connector.Connection,
+    chunksize: Optional[int] = None,
     index_col: Optional[Union[str, List[str]]] = None,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
-    chunksize: Optional[int] = None,
     dtype: Optional[Dict[str, pa.DataType]] = None,
     safe: bool = True,
     timestamp_as_object: bool = False,
@@ -720,13 +762,58 @@ def read_sql_query(
     )
 
 
+@overload
 def read_sql_table(
     table: str,
     con: redshift_connector.Connection,
+    chunksize: None = ...,
+    schema: Optional[str] = None,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def read_sql_table(
+    table: str,
+    con: redshift_connector.Connection,
+    chunksize: int,
+    schema: Optional[str] = None,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+@overload
+def read_sql_table(
+    table: str,
+    con: redshift_connector.Connection,
+    chunksize: Optional[int],
+    schema: Optional[str] = None,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ...
+
+
+def read_sql_table(
+    table: str,
+    con: redshift_connector.Connection,
+    chunksize: Optional[int] = None,
     schema: Optional[str] = None,
     index_col: Optional[Union[str, List[str]]] = None,
     params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = None,
-    chunksize: Optional[int] = None,
     dtype: Optional[Dict[str, pa.DataType]] = None,
     safe: bool = True,
     timestamp_as_object: bool = False,
