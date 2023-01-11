@@ -431,16 +431,26 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         glue_catalog_parameters if glue_catalog_parameters else {},
     )
 
+    table_type = glue_catalog_parameters.get("table_type")
+    transaction_id = glue_catalog_parameters.get("transaction_id")
+    description = glue_catalog_parameters.get("description")
+    parameters = glue_catalog_parameters.get("parameters")
+    columns_comments = glue_catalog_parameters.get("columns_comments")
+    catalog_id = glue_catalog_parameters.get("catalog_id")
+    regular_partitions = glue_catalog_parameters.get("regular_partitions", True)
+
     _validate_args(
         df=df,
         table=table,
         database=database,
-        glue_parameters=glue_catalog_parameters,
         dataset=dataset,
         path=path,
         partition_cols=partition_cols,
         bucketing_info=bucketing_info,
         mode=mode,
+        description=description,
+        parameters=parameters,
+        columns_comments=columns_comments,
         execution_engine=engine.get(),
     )
 
@@ -450,8 +460,8 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     partitions_values: Dict[str, List[str]] = {}
     mode = "append" if mode is None else mode
     commit_trans: bool = False
-    if glue_catalog_parameters.get("transaction_id"):
-        glue_catalog_parameters["table_type"] = "GOVERNED"
+    if transaction_id:
+        table_type = "GOVERNED"
 
     filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
@@ -468,16 +478,12 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     catalog_table_input: Optional[Dict[str, Any]] = None
     if database and table:
         catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
-            database=database,
-            table=table,
-            transaction_id=glue_catalog_parameters.get("transaction_id"),
-            catalog_id=glue_catalog_parameters.get("catalog_id"),
-            boto3_session=session,
+            database=database, table=table, boto3_session=session, transaction_id=transaction_id, catalog_id=catalog_id
         )
 
         catalog_path: Optional[str] = None
         if catalog_table_input:
-            glue_catalog_parameters["table_type"] = catalog_table_input["TableType"]
+            table_type = catalog_table_input["TableType"]
             catalog_path = catalog_table_input.get("StorageDescriptor", {}).get("Location")
         if path is None:
             if catalog_path:
@@ -495,11 +501,9 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             raise exceptions.InvalidArgumentCombination(
                 "If database and table are given, you must use one of these compressions: gzip, bz2 or None."
             )
-        if (glue_catalog_parameters.get("table_type") == "GOVERNED") and (
-            not glue_catalog_parameters.get("transaction_id")
-        ):
+        if (table_type == "GOVERNED") and (not transaction_id):
             _logger.debug("`transaction_id` not specified for GOVERNED table, starting transaction")
-            glue_catalog_parameters["transaction_id"] = lakeformation.start_transaction(
+            transaction_id = lakeformation.start_transaction(
                 read_only=False,
                 boto3_session=boto3_session,
             )
@@ -559,35 +563,35 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                 "table": table,
                 "path": path,
                 "columns_types": columns_types,
-                "table_type": glue_catalog_parameters.get("table_type"),
+                "table_type": table_type,
                 "partitions_types": partitions_types,
                 "bucketing_info": bucketing_info,
-                "description": glue_catalog_parameters.get("description"),
-                "parameters": glue_catalog_parameters.get("parameters"),
-                "columns_comments": glue_catalog_parameters.get("columns_comments"),
+                "description": description,
+                "parameters": parameters,
+                "columns_comments": columns_comments,
                 "boto3_session": session,
                 "mode": mode,
-                "transaction_id": glue_catalog_parameters.get("transaction_id"),
+                "transaction_id": transaction_id,
                 "schema_evolution": schema_evolution,
                 "catalog_versioning": catalog_versioning,
                 "sep": sep,
                 "projection_params": projection_params,
                 "catalog_table_input": catalog_table_input,
-                "catalog_id": glue_catalog_parameters.get("catalog_id"),
+                "catalog_id": catalog_id,
                 "compression": pandas_kwargs.get("compression"),
                 "skip_header_line_count": True if header else None,
                 "serde_library": None,
                 "serde_parameters": None,
             }
 
-            if (catalog_table_input is None) and (glue_catalog_parameters.get("table_type") == "GOVERNED"):
+            if (catalog_table_input is None) and (table_type == "GOVERNED"):
                 catalog._create_csv_table(**create_table_args)  # pylint: disable=protected-access
                 catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
                     database=database,
                     table=table,
                     boto3_session=session,
-                    transaction_id=glue_catalog_parameters.get("transaction_id"),
-                    catalog_id=glue_catalog_parameters.get("catalog_id"),
+                    transaction_id=transaction_id,
+                    catalog_id=catalog_id,
                 )
                 create_table_args["catalog_table_input"] = catalog_table_input
 
@@ -599,9 +603,11 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             index=index,
             sep=sep,
             compression=compression,
+            catalog_id=catalog_id,
             database=database,
             table=table,
-            glue_parameters=glue_catalog_parameters,
+            table_type=table_type,
+            transaction_id=transaction_id,
             filename_prefix=filename_prefix,
             use_threads=use_threads,
             partition_cols=partition_cols,
@@ -625,11 +631,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                 create_table_args["serde_library"] = serde_info.get("SerializationLibrary", None)
                 create_table_args["serde_parameters"] = serde_info.get("Parameters", None)
                 catalog._create_csv_table(**create_table_args)  # pylint: disable=protected-access
-                if (
-                    partitions_values
-                    and (glue_catalog_parameters.get("regular_partitions", True) is True)
-                    and (glue_catalog_parameters.get("table_type") != "GOVERNED")
-                ):
+                if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
                     _logger.debug("partitions_values:\n%s", partitions_values)
                     catalog.add_csv_partitions(
                         database=database,
@@ -640,13 +642,13 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                         sep=sep,
                         serde_library=create_table_args["serde_library"],
                         serde_parameters=create_table_args["serde_parameters"],
-                        catalog_id=glue_catalog_parameters.get("catalog_id"),
+                        catalog_id=catalog_id,
                         columns_types=columns_types,
                         compression=pandas_kwargs.get("compression"),
                     )
                 if commit_trans:
                     lakeformation.commit_transaction(
-                        transaction_id=glue_catalog_parameters.get("transaction_id"),  # type: ignore
+                        transaction_id=transaction_id,  # type: ignore
                         boto3_session=boto3_session,
                     )
             except Exception:
@@ -964,16 +966,26 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         glue_catalog_parameters if glue_catalog_parameters else {},
     )
 
+    table_type = glue_catalog_parameters.get("table_type")
+    transaction_id = glue_catalog_parameters.get("transaction_id")
+    description = glue_catalog_parameters.get("description")
+    parameters = glue_catalog_parameters.get("parameters")
+    columns_comments = glue_catalog_parameters.get("columns_comments")
+    catalog_id = glue_catalog_parameters.get("catalog_id")
+    regular_partitions = glue_catalog_parameters.get("regular_partitions", True)
+
     _validate_args(
         df=df,
         table=table,
         database=database,
-        glue_parameters=glue_catalog_parameters,
         dataset=dataset,
         path=path,
         partition_cols=partition_cols,
         bucketing_info=bucketing_info,
         mode=mode,
+        description=description,
+        parameters=parameters,
+        columns_comments=columns_comments,
         execution_engine=engine.get(),
     )
 
@@ -983,14 +995,14 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
     partitions_values: Dict[str, List[str]] = {}
     mode = "append" if mode is None else mode
     commit_trans: bool = False
-    if glue_catalog_parameters.get("transaction_id"):
-        glue_catalog_parameters["table_type"] = "GOVERNED"
+    if transaction_id:
+        table_type = "GOVERNED"
 
     filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
     # Sanitize table to respect Athena's standards
-    if (sanitize_columns is True) or (glue_catalog_parameters is not None):
+    if (sanitize_columns is True) or (database is not None and table is not None):
         df, dtype, partition_cols = _sanitize(
             df=copy_df_shallow(df),
             dtype=dtype,
@@ -1002,15 +1014,11 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
 
     if database and table:
         catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
-            database=database,
-            table=table,
-            transaction_id=glue_catalog_parameters.get("transaction_id"),
-            catalog_id=glue_catalog_parameters.get("catalog_id"),
-            boto3_session=session,
+            database=database, table=table, boto3_session=session, transaction_id=transaction_id, catalog_id=catalog_id
         )
         catalog_path: Optional[str] = None
         if catalog_table_input:
-            glue_catalog_parameters["table_type"] = catalog_table_input["TableType"]
+            table_type = catalog_table_input["TableType"]
             catalog_path = catalog_table_input.get("StorageDescriptor", {}).get("Location")
         if path is None:
             if catalog_path:
@@ -1028,11 +1036,9 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
             raise exceptions.InvalidArgumentCombination(
                 "If database and table are given, you must use one of these compressions: gzip, bz2 or None."
             )
-        if (glue_catalog_parameters.get("table_type") == "GOVERNED") and (
-            not glue_catalog_parameters.get("transaction_id")
-        ):
+        if (table_type == "GOVERNED") and (not transaction_id):
             _logger.debug("`transaction_id` not specified for GOVERNED table, starting transaction")
-            glue_catalog_parameters["transaction_id"] = lakeformation.start_transaction(
+            transaction_id = lakeformation.start_transaction(
                 read_only=False,
                 boto3_session=boto3_session,
             )
@@ -1069,33 +1075,33 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
             "table": table,
             "path": path,
             "columns_types": columns_types,
-            "table_type": glue_catalog_parameters.get("table_type"),
+            "table_type": table_type,
             "partitions_types": partitions_types,
             "bucketing_info": bucketing_info,
-            "description": glue_catalog_parameters.get("description"),
-            "parameters": glue_catalog_parameters.get("parameters"),
-            "columns_comments": glue_catalog_parameters.get("columns_comments"),
+            "description": description,
+            "parameters": parameters,
+            "columns_comments": columns_comments,
             "boto3_session": session,
             "mode": mode,
-            "transaction_id": glue_catalog_parameters.get("transaction_id"),
+            "transaction_id": transaction_id,
             "catalog_versioning": catalog_versioning,
             "schema_evolution": schema_evolution,
             "projection_params": projection_params,
             "catalog_table_input": catalog_table_input,
-            "catalog_id": glue_catalog_parameters.get("catalog_id"),
+            "catalog_id": catalog_id,
             "compression": compression,
             "serde_library": None,
             "serde_parameters": None,
         }
 
-        if (catalog_table_input is None) and (glue_catalog_parameters.get("table_type") == "GOVERNED"):
+        if (catalog_table_input is None) and (table_type == "GOVERNED"):
             catalog._create_json_table(**create_table_args)  # pylint: disable=protected-access
             catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
                 database=database,
                 table=table,
                 boto3_session=session,
-                transaction_id=glue_catalog_parameters.get("transaction_id"),
-                catalog_id=glue_catalog_parameters.get("catalog_id"),
+                transaction_id=transaction_id,
+                catalog_id=catalog_id,
             )
             create_table_args["catalog_table_input"] = catalog_table_input
 
@@ -1107,9 +1113,11 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         filename_prefix=filename_prefix,
         index=index,
         compression=compression,
+        catalog_id=catalog_id,
         database=database,
         table=table,
-        glue_parameters=glue_catalog_parameters,
+        table_type=table_type,
+        transaction_id=transaction_id,
         use_threads=use_threads,
         partition_cols=partition_cols,
         partitions_types=partitions_types,
@@ -1128,11 +1136,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
             create_table_args["serde_library"] = serde_info.get("SerializationLibrary", None)
             create_table_args["serde_parameters"] = serde_info.get("Parameters", None)
             catalog._create_json_table(**create_table_args)  # pylint: disable=protected-access
-            if (
-                partitions_values
-                and (glue_catalog_parameters.get("regular_partitions", True) is True)
-                and (glue_catalog_parameters.get("table_type") != "GOVERNED")
-            ):
+            if partitions_values and (regular_partitions is True) and (table_type != "GOVERNED"):
                 _logger.debug("partitions_values:\n%s", partitions_values)
                 catalog.add_json_partitions(
                     database=database,
@@ -1142,13 +1146,13 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
                     boto3_session=session,
                     serde_library=create_table_args["serde_library"],
                     serde_parameters=create_table_args["serde_parameters"],
-                    catalog_id=glue_catalog_parameters.get("catalog_id"),
+                    catalog_id=catalog_id,
                     columns_types=columns_types,
                     compression=compression,
                 )
                 if commit_trans:
                     lakeformation.commit_transaction(
-                        transaction_id=glue_catalog_parameters.get("transaction_id"),  # type: ignore
+                        transaction_id=transaction_id,  # type: ignore
                         boto3_session=boto3_session,
                     )
         except Exception:

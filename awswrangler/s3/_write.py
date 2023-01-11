@@ -8,7 +8,6 @@ import pandas as pd
 
 from awswrangler import _data_types, _utils, catalog, exceptions
 from awswrangler._distributed import EngineEnum
-from awswrangler.typing import GlueCatalogParameters
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -50,12 +49,14 @@ def _validate_args(
     df: pd.DataFrame,
     table: Optional[str],
     database: Optional[str],
-    glue_parameters: GlueCatalogParameters,
     dataset: bool,
     path: Optional[str],
     partition_cols: Optional[List[str]],
     bucketing_info: Optional[Tuple[List[str], int]],
     mode: Optional[str],
+    description: Optional[str],
+    parameters: Optional[Dict[str, str]],
+    columns_comments: Optional[Dict[str, str]],
     execution_engine: Enum,
 ) -> None:
     if df.empty is True:
@@ -73,9 +74,11 @@ def _validate_args(
             raise exceptions.InvalidArgumentCombination("Please, pass dataset=True to be able to use bucketing_info.")
         if mode is not None:
             raise exceptions.InvalidArgumentCombination("Please pass dataset=True to be able to use mode.")
-        if any(arg is not None for arg in [database, table] + list(glue_parameters.keys())):
+        if any(arg is not None for arg in (table, description, parameters, columns_comments)):
             raise exceptions.InvalidArgumentCombination(
-                "Please pass dataset=True in order to use any of the Glue catalog arguments.",
+                "Please pass dataset=True to be able to use any one of these "
+                "arguments: database, table, description, parameters, "
+                "columns_comments."
             )
     elif (database is None) != (table is None):
         raise exceptions.InvalidArgumentCombination(

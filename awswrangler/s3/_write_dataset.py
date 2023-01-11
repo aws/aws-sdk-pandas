@@ -11,7 +11,6 @@ from awswrangler import exceptions, lakeformation
 from awswrangler._distributed import engine
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._write_concurrent import _WriteProxy
-from awswrangler.typing import GlueCatalogParameters
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -81,9 +80,11 @@ def _delete_objects(
     mode: str,
     partition_cols: List[str],
     partitions_types: Optional[Dict[str, str]],
+    catalog_id: Optional[str],
     database: Optional[str],
     table: Optional[str],
-    glue_parameters: GlueCatalogParameters,
+    table_type: Optional[str],
+    transaction_id: Optional[str],
     boto3_session: Optional[boto3.Session] = None,
     **func_kwargs: Any,
 ) -> str:
@@ -91,12 +92,12 @@ def _delete_objects(
     keys = (keys,) if not isinstance(keys, tuple) else keys
     prefix = _get_subgroup_prefix(keys, partition_cols, path_root)
     if mode == "overwrite_partitions":
-        if (glue_parameters.get("table_type") == "GOVERNED") and (table is not None) and (database is not None):
+        if (table_type == "GOVERNED") and (table is not None) and (database is not None):
             del_objects: List[Dict[str, Any]] = lakeformation._get_table_objects(  # pylint: disable=protected-access
-                catalog_id=glue_parameters.get("catalog_id"),
+                catalog_id=catalog_id,
                 database=database,
                 table=table,
-                transaction_id=glue_parameters.get("transaction_id"),  # type: ignore
+                transaction_id=transaction_id,  # type: ignore
                 partition_cols=partition_cols,
                 partitions_values=keys,  # type: ignore
                 partitions_types=partitions_types,
@@ -104,10 +105,10 @@ def _delete_objects(
             )
             if del_objects:
                 lakeformation._update_table_objects(  # pylint: disable=protected-access
-                    catalog_id=glue_parameters.get("catalog_id"),
+                    catalog_id=catalog_id,
                     database=database,
                     table=table,
-                    transaction_id=glue_parameters.get("transaction_id"),  # type: ignore
+                    transaction_id=transaction_id,  # type: ignore
                     del_objects=del_objects,
                     boto3_session=boto3_session,
                 )
@@ -131,9 +132,11 @@ def _to_partitions(
     mode: str,
     partition_cols: List[str],
     partitions_types: Optional[Dict[str, str]],
+    catalog_id: Optional[str],
     database: Optional[str],
     table: Optional[str],
-    glue_parameters: GlueCatalogParameters,
+    table_type: Optional[str],
+    transaction_id: Optional[str],
     bucketing_info: Optional[Tuple[List[str], int]],
     filename_prefix: str,
     boto3_session: boto3.Session,
@@ -153,9 +156,11 @@ def _to_partitions(
             mode=mode,
             partition_cols=partition_cols,
             partitions_types=partitions_types,
+            catalog_id=catalog_id,
             database=database,
             table=table,
-            glue_parameters=glue_parameters,
+            table_type=table_type,
+            transaction_id=transaction_id,
             boto3_session=boto3_session,
             **func_kwargs,
         )
@@ -226,9 +231,11 @@ def _to_dataset(
     mode: str,
     partition_cols: Optional[List[str]],
     partitions_types: Optional[Dict[str, str]],
+    catalog_id: Optional[str],
     database: Optional[str],
     table: Optional[str],
-    glue_parameters: GlueCatalogParameters,
+    table_type: Optional[str],
+    transaction_id: Optional[str],
     bucketing_info: Optional[Tuple[List[str], int]],
     boto3_session: boto3.Session,
     **func_kwargs: Any,
@@ -240,20 +247,20 @@ def _to_dataset(
             f"{mode} is a invalid mode, please use append, overwrite or overwrite_partitions."
         )
     if (mode == "overwrite") or ((mode == "overwrite_partitions") and (not partition_cols)):
-        if (table is not None) and (database is not None) and glue_parameters.get("table_type") == "GOVERNED":
+        if (table_type == "GOVERNED") and (table is not None) and (database is not None):
             del_objects: List[Dict[str, Any]] = lakeformation._get_table_objects(  # pylint: disable=protected-access
-                catalog_id=glue_parameters.get("catalog_id"),
+                catalog_id=catalog_id,
                 database=database,
                 table=table,
-                transaction_id=glue_parameters.get("transaction_id"),  # type: ignore
+                transaction_id=transaction_id,  # type: ignore
                 boto3_session=boto3_session,
             )
             if del_objects:
                 lakeformation._update_table_objects(  # pylint: disable=protected-access
-                    catalog_id=glue_parameters.get("catalog_id"),
+                    catalog_id=catalog_id,
                     database=database,
                     table=table,
-                    transaction_id=glue_parameters.get("transaction_id"),  # type: ignore
+                    transaction_id=transaction_id,  # type: ignore
                     del_objects=del_objects,
                     boto3_session=boto3_session,
                 )
@@ -271,9 +278,11 @@ def _to_dataset(
             path_root=path_root,
             use_threads=use_threads,
             mode=mode,
+            catalog_id=catalog_id,
             database=database,
             table=table,
-            glue_parameters=glue_parameters,
+            table_type=table_type,
+            transaction_id=transaction_id,
             bucketing_info=bucketing_info,
             filename_prefix=filename_prefix,
             partition_cols=partition_cols,
@@ -306,7 +315,7 @@ def _to_dataset(
         )
     _logger.debug("paths: %s", paths)
     _logger.debug("partitions_values: %s", partitions_values)
-    if (table is not None) and (database is not None) and glue_parameters.get("table_type") == "GOVERNED":
+    if (table_type == "GOVERNED") and (table is not None) and (database is not None):
         list_add_objects: List[
             List[Dict[str, Any]]
         ] = lakeformation._build_table_objects(  # pylint: disable=protected-access
@@ -316,10 +325,10 @@ def _to_dataset(
             if list_add_objects:
                 for add_objects in list_add_objects:
                     lakeformation._update_table_objects(  # pylint: disable=protected-access
-                        catalog_id=glue_parameters.get("catalog_id"),
+                        catalog_id=catalog_id,
                         database=database,
                         table=table,
-                        transaction_id=glue_parameters.get("transaction_id"),  # type: ignore
+                        transaction_id=transaction_id,  # type: ignore
                         add_objects=add_objects,
                         boto3_session=boto3_session,
                     )
