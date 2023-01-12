@@ -39,7 +39,7 @@ def _get_file_path(file_counter: int, file_path: str) -> str:
 def _new_writer(
     file_path: str,
     compression: Optional[str],
-    pyarrow_additional_kwargs: Optional[Dict[str, str]],
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]],
     schema: pa.Schema,
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
