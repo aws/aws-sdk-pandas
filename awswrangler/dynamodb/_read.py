@@ -20,6 +20,38 @@ def _read_chunked(iterator: Iterator[Dict[str, Any]]) -> Iterator[pd.DataFrame]:
         yield pd.DataFrame(item)
 
 
+@overload
+def read_partiql_query(
+    query: str,
+    parameters: Optional[List[Any]] = ...,
+    chunked: Literal[False] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def read_partiql_query(
+    query: str,
+    *,
+    parameters: Optional[List[Any]] = ...,
+    chunked: Literal[True],
+    boto3_session: Optional[boto3.Session] = ...,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+@overload
+def read_partiql_query(
+    query: str,
+    *,
+    parameters: Optional[List[Any]] = ...,
+    chunked: bool,
+    boto3_session: Optional[boto3.Session] = ...,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ...
+
+
 def read_partiql_query(
     query: str,
     parameters: Optional[List[Any]] = None,
