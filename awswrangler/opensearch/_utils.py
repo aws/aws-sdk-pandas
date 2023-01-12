@@ -338,3 +338,31 @@ def create_collection(
         if error.response["Error"]["Code"] == "ConflictException":
             raise exceptions.AlreadyExists(f"A collection with name `{name}` already exists.") from error
         raise error
+
+
+def delete_collection(
+    name: str,
+    boto3_session: Optional[boto3.Session] = None,
+) -> None:
+    """Delete Amazon OpenSearch Serverless collection.
+
+    Parameters
+    ----------
+    name : str
+        Collection name.
+    boto3_session : boto3.Session(), optional
+        Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
+    """
+    client: boto3.client = _utils.client(service_name="opensearchserverless", session=boto3_session)
+
+    try:
+        response = client.batch_get_collection(names=[name])
+
+        if "collectionDetails" not in response or len(response["collectionDetails"]) == 0:
+            raise exceptions.ResourceDoesNotExist(f"A collection with name `{name}` not found.")
+
+        client.delete_collection(id=response["collectionDetails"][0]["id"])
+    except botocore.exceptions.ClientError as error:
+        if error.response["Error"]["Code"] == "ResourceNotFoundException":
+            raise exceptions.ResourceDoesNotExist(f"A collection with name `{name}` not found.") from error
+        raise error

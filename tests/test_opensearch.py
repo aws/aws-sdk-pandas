@@ -188,14 +188,13 @@ def opensearch_serverless_collection_endpoint() -> str:
             data_policy=_get_opensearch_data_access_policy(),
         )
         collection_endpoint: str = collection["collectionEndpoint"]
-        collection_id: str = collection["id"]
 
         yield collection_endpoint
     finally:
         client: boto3.client = boto3.client(service_name="opensearchserverless")
 
         # Cleanup collection
-        client.delete_collection(id=collection_id)
+        wr.opensearch.delete_collection(name=collection_name)
         client.delete_security_policy(name=f"{collection_name}-encryption-policy", type="encryption")
         client.delete_security_policy(name=f"{collection_name}-network-policy", type="network")
         client.delete_access_policy(name=f"{collection_name}-data-policy", type="data")
@@ -437,7 +436,7 @@ def test_index_json_s3_large_file(client):
     assert response.get("success", 0) > 0
 
 
-def test_opensearch_serverless_create_collection(opensearch_serverless_client) -> str:
+def test_collection(opensearch_serverless_client):
     collection_name: str = f"col-{str(uuid.uuid4())[:8]}"
     client: boto3.client = boto3.client(service_name="opensearchserverless")
 
@@ -445,16 +444,16 @@ def test_opensearch_serverless_create_collection(opensearch_serverless_client) -
         name=collection_name,
         data_policy=_get_opensearch_data_access_policy(),
     )
-    collection_id: str = collection["id"]
 
-    response = client.batch_get_collection(ids=[collection_id])["collectionDetails"][0]
-
-    assert response["id"] == collection_id
-    assert response["status"] == "ACTIVE"
-    assert response["type"] == "SEARCH"
+    assert collection["status"] == "ACTIVE"
+    assert collection["type"] == "SEARCH"
 
     # Cleanup collection resources
-    client.delete_collection(id=collection_id)
+    wr.opensearch.delete_collection(name=collection_name)
     client.delete_security_policy(name=f"{collection_name}-encryption-policy", type="encryption")
     client.delete_security_policy(name=f"{collection_name}-network-policy", type="network")
     client.delete_access_policy(name=f"{collection_name}-data-policy", type="data")
+
+    # Delete collection that doesn't exist
+    with pytest.raises(wr.exceptions.ResourceDoesNotExist):
+        wr.opensearch.delete_collection(name=collection_name)
