@@ -22,7 +22,7 @@ def test_routine_0(glue_database, glue_table, table_type, path, use_threads, con
         mode="overwrite",
         database=glue_database,
         table=glue_table,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+        glue_table_settings=wr.typing.GlueTableSettings(
             table_type=table_type,
             description="c0",
             parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
@@ -54,7 +54,7 @@ def test_routine_0(glue_database, glue_table, table_type, path, use_threads, con
         mode="overwrite",
         database=glue_database,
         table=glue_table,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+        glue_table_settings=wr.typing.GlueTableSettings(
             description="c1",
             parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
             columns_comments={"c1": "1"},
@@ -86,7 +86,7 @@ def test_routine_0(glue_database, glue_table, table_type, path, use_threads, con
         mode="append",
         database=glue_database,
         table=glue_table,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+        glue_table_settings=wr.typing.GlueTableSettings(
             description="c1",
             parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index) * 2)},
             columns_comments={"c1": "1"},
@@ -118,7 +118,7 @@ def test_routine_0(glue_database, glue_table, table_type, path, use_threads, con
         mode="append",
         database=glue_database,
         table=glue_table,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+        glue_table_settings=wr.typing.GlueTableSettings(
             description="c1+c2",
             parameters={"num_cols": "2", "num_rows": "9"},
             columns_comments={"c1": "1", "c2": "2"},
@@ -152,7 +152,7 @@ def test_routine_0(glue_database, glue_table, table_type, path, use_threads, con
         mode="append",
         database=glue_database,
         table=glue_table,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+        glue_table_settings=wr.typing.GlueTableSettings(
             description="c1+c2+c3",
             parameters={"num_cols": "3", "num_rows": "10"},
             columns_comments={"c1": "1!", "c2": "2!", "c3": "3"},
@@ -194,7 +194,7 @@ def test_routine_1(glue_database, glue_table, table_type, path, use_threads, con
         database=glue_database,
         table=glue_table,
         partition_cols=["c1"],
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+        glue_table_settings=wr.typing.GlueTableSettings(
             table_type=table_type,
             description="c0+c1",
             parameters={"num_cols": "2", "num_rows": "2"},
@@ -228,7 +228,7 @@ def test_routine_1(glue_database, glue_table, table_type, path, use_threads, con
         database=glue_database,
         table=glue_table,
         partition_cols=["c1"],
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+        glue_table_settings=wr.typing.GlueTableSettings(
             description="c0+c1",
             parameters={"num_cols": "2", "num_rows": "3"},
             columns_comments={"c0": "zero", "c1": "one"},
@@ -262,7 +262,7 @@ def test_routine_1(glue_database, glue_table, table_type, path, use_threads, con
         database=glue_database,
         table=glue_table,
         partition_cols=["c1"],
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+        glue_table_settings=wr.typing.GlueTableSettings(
             description="c0+c1+c2",
             parameters={"num_cols": "3", "num_rows": "4"},
             columns_comments={"c0": "zero", "c1": "one", "c2": "two"},

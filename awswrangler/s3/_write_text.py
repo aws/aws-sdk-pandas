@@ -17,7 +17,7 @@ from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_dataset import _to_dataset
-from awswrangler.typing import GlueCatalogParameters, S3WriteDataReturnValue
+from awswrangler.typing import GlueTableSettings, S3WriteDataReturnValue
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -95,8 +95,9 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     dtype: Optional[Dict[str, str]] = None,
     database: Optional[str] = None,
     table: Optional[str] = None,
-    glue_catalog_parameters: Optional[GlueCatalogParameters] = None,
+    glue_table_settings: Optional[GlueTableSettings] = None,
     projection_params: Optional[Dict[str, Any]] = None,
+    catalog_id: Optional[str] = None,
     **pandas_kwargs: Any,
 ) -> S3WriteDataReturnValue:
     """Write CSV file or dataset on Amazon S3.
@@ -426,18 +427,17 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             "e.g. wr.s3.to_csv(df, path, sep='|', na_rep='NULL', decimal=',', compression='gzip')"
         )
 
-    glue_catalog_parameters = cast(
-        GlueCatalogParameters,
-        glue_catalog_parameters if glue_catalog_parameters else {},
+    glue_table_settings = cast(
+        GlueTableSettings,
+        glue_table_settings if glue_table_settings else {},
     )
 
-    table_type = glue_catalog_parameters.get("table_type")
-    transaction_id = glue_catalog_parameters.get("transaction_id")
-    description = glue_catalog_parameters.get("description")
-    parameters = glue_catalog_parameters.get("parameters")
-    columns_comments = glue_catalog_parameters.get("columns_comments")
-    catalog_id = glue_catalog_parameters.get("catalog_id")
-    regular_partitions = glue_catalog_parameters.get("regular_partitions", True)
+    table_type = glue_table_settings.get("table_type")
+    transaction_id = glue_table_settings.get("transaction_id")
+    description = glue_table_settings.get("description")
+    parameters = glue_table_settings.get("parameters")
+    columns_comments = glue_table_settings.get("columns_comments")
+    regular_partitions = glue_table_settings.get("regular_partitions", True)
 
     _validate_args(
         df=df,
@@ -684,8 +684,9 @@ def to_json(
     dtype: Optional[Dict[str, str]] = ...,
     database: Optional[str] = ...,
     table: Optional[str] = ...,
-    glue_catalog_parameters: Optional[GlueCatalogParameters] = ...,
+    glue_table_settings: Optional[GlueTableSettings] = ...,
     projection_params: Optional[Dict[str, Any]] = ...,
+    catalog_id: Optional[str] = ...,
     **pandas_kwargs: Any,
 ) -> List[str]:
     ...
@@ -713,8 +714,9 @@ def to_json(
     dtype: Optional[Dict[str, str]] = ...,
     database: Optional[str] = ...,
     table: Optional[str] = ...,
-    glue_catalog_parameters: Optional[GlueCatalogParameters] = ...,
+    glue_table_settings: Optional[GlueTableSettings] = ...,
     projection_params: Optional[Dict[str, Any]] = ...,
+    catalog_id: Optional[str] = ...,
     **pandas_kwargs: Any,
 ) -> S3WriteDataReturnValue:
     ...
@@ -742,8 +744,9 @@ def to_json(
     dtype: Optional[Dict[str, str]] = ...,
     database: Optional[str] = ...,
     table: Optional[str] = ...,
-    glue_catalog_parameters: Optional[GlueCatalogParameters] = ...,
+    glue_table_settings: Optional[GlueTableSettings] = ...,
     projection_params: Optional[Dict[str, Any]] = ...,
+    catalog_id: Optional[str] = ...,
     **pandas_kwargs: Any,
 ) -> Union[List[str], S3WriteDataReturnValue]:
     ...
@@ -770,8 +773,9 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
     dtype: Optional[Dict[str, str]] = None,
     database: Optional[str] = None,
     table: Optional[str] = None,
-    glue_catalog_parameters: Optional[GlueCatalogParameters] = None,
+    glue_table_settings: Optional[GlueTableSettings] = None,
     projection_params: Optional[Dict[str, Any]] = None,
+    catalog_id: Optional[str] = None,
     **pandas_kwargs: Any,
 ) -> Union[List[str], S3WriteDataReturnValue]:
     """Write JSON file on Amazon S3.
@@ -963,18 +967,17 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
             "e.g. wr.s3.to_json(df, path, lines=True, date_format='iso')"
         )
 
-    glue_catalog_parameters = cast(
-        GlueCatalogParameters,
-        glue_catalog_parameters if glue_catalog_parameters else {},
+    glue_table_settings = cast(
+        GlueTableSettings,
+        glue_table_settings if glue_table_settings else {},
     )
 
-    table_type = glue_catalog_parameters.get("table_type")
-    transaction_id = glue_catalog_parameters.get("transaction_id")
-    description = glue_catalog_parameters.get("description")
-    parameters = glue_catalog_parameters.get("parameters")
-    columns_comments = glue_catalog_parameters.get("columns_comments")
-    catalog_id = glue_catalog_parameters.get("catalog_id")
-    regular_partitions = glue_catalog_parameters.get("regular_partitions", True)
+    table_type = glue_table_settings.get("table_type")
+    transaction_id = glue_table_settings.get("transaction_id")
+    description = glue_table_settings.get("description")
+    parameters = glue_table_settings.get("parameters")
+    columns_comments = glue_table_settings.get("columns_comments")
+    regular_partitions = glue_table_settings.get("regular_partitions", True)
 
     _validate_args(
         df=df,

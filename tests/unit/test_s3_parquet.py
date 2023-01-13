@@ -144,7 +144,7 @@ def test_parquet(path):
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
         wr.s3.to_parquet(df=df_dataset, path=path_dataset, partition_cols=["col2"])
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.s3.to_parquet(df=df_dataset, path=path_dataset, glue_catalog_parameters={"description": "foo"})
+        wr.s3.to_parquet(df=df_dataset, path=path_dataset, glue_table_settings={"description": "foo"})
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.s3.to_parquet(df=df_dataset, path=path_dataset, partition_cols=["col2"], dataset=True, mode="WRONG")
     wr.s3.to_parquet(df=df_file, path=path_file)

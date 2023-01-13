@@ -5,7 +5,7 @@ from typing import Dict, List, Literal, TypedDict
 from typing_extensions import NotRequired, Required
 
 
-class GlueCatalogParameters(TypedDict):
+class GlueTableSettings(TypedDict):
     """Class defining the parameters for writing to a Glue Catalogue."""
 
     table_type: NotRequired[Literal["EXTERNAL_TABLE", "GOVERNED"]]
@@ -13,7 +13,6 @@ class GlueCatalogParameters(TypedDict):
     description: NotRequired[str]
     parameters: NotRequired[Dict[str, str]]
     columns_comments: NotRequired[Dict[str, str]]
-    catalog_id: NotRequired[str]
     regular_partitions: NotRequired[bool]
 
 

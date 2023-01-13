@@ -23,7 +23,7 @@ from awswrangler.s3._read_parquet import _read_parquet_metadata
 from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_concurrent import _WriteProxy
 from awswrangler.s3._write_dataset import _to_dataset
-from awswrangler.typing import GlueCatalogParameters, S3WriteDataReturnValue
+from awswrangler.typing import GlueTableSettings, S3WriteDataReturnValue
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -229,9 +229,10 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     schema_evolution: bool = True,
     database: Optional[str] = None,
     table: Optional[str] = None,
-    glue_catalog_parameters: Optional[GlueCatalogParameters] = None,
+    glue_table_settings: Optional[GlueTableSettings] = None,
     dtype: Optional[Dict[str, str]] = None,
     projection_params: Optional[Dict[str, Any]] = None,
+    catalog_id: Optional[str] = None,
 ) -> S3WriteDataReturnValue:
     """Write Parquet file or dataset on Amazon S3.
 
@@ -537,18 +538,17 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     }
 
     """
-    glue_catalog_parameters = cast(
-        GlueCatalogParameters,
-        glue_catalog_parameters if glue_catalog_parameters else {},
+    glue_table_settings = cast(
+        GlueTableSettings,
+        glue_table_settings if glue_table_settings else {},
     )
 
-    table_type = glue_catalog_parameters.get("table_type")
-    transaction_id = glue_catalog_parameters.get("transaction_id")
-    description = glue_catalog_parameters.get("description")
-    parameters = glue_catalog_parameters.get("parameters")
-    columns_comments = glue_catalog_parameters.get("columns_comments")
-    catalog_id = glue_catalog_parameters.get("catalog_id")
-    regular_partitions = glue_catalog_parameters.get("regular_partitions", True)
+    table_type = glue_table_settings.get("table_type")
+    transaction_id = glue_table_settings.get("transaction_id")
+    description = glue_table_settings.get("description")
+    parameters = glue_table_settings.get("parameters")
+    columns_comments = glue_table_settings.get("columns_comments")
+    regular_partitions = glue_table_settings.get("regular_partitions", True)
 
     _validate_args(
         df=df,

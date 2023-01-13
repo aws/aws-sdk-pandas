@@ -25,7 +25,7 @@ def test_to_parquet_projection_integer(glue_database, glue_table, path):
         database=glue_database,
         table=glue_table,
         partition_cols=["c1", "c2", "c3"],
-        glue_catalog_parameters={
+        glue_table_settings={
             "regular_partitions": False,
         },
         projection_params={
@@ -52,7 +52,7 @@ def test_to_parquet_projection_enum(glue_database, glue_table, path):
         database=glue_database,
         table=glue_table,
         partition_cols=["c1", "c2"],
-        glue_catalog_parameters={
+        glue_table_settings={
             "regular_partitions": False,
         },
         projection_params={
@@ -81,7 +81,7 @@ def test_to_parquet_projection_date(glue_database, glue_table, path):
         database=glue_database,
         table=glue_table,
         partition_cols=["c1", "c2"],
-        glue_catalog_parameters={
+        glue_table_settings={
             "regular_partitions": False,
         },
         projection_params={
@@ -103,7 +103,7 @@ def test_to_parquet_projection_injected(glue_database, glue_table, path):
         database=glue_database,
         table=glue_table,
         partition_cols=["c1", "c2"],
-        glue_catalog_parameters={
+        glue_table_settings={
             "regular_partitions": False,
         },
         projection_params={

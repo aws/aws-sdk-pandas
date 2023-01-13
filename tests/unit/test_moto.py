@@ -360,7 +360,7 @@ def test_to_csv_invalid_argument_combination_raise_when_dataset_false_succeed(mo
             dataset=False,
             database=None,
             table=None,
-            glue_catalog_parameters=wr.typing.GlueCatalogParameters(description="raise exception"),
+            glue_table_settings=wr.typing.GlueTableSettings(description="raise exception"),
         )
 
     with pytest.raises(InvalidArgumentCombination):
@@ -371,7 +371,7 @@ def test_to_csv_invalid_argument_combination_raise_when_dataset_false_succeed(mo
             dataset=False,
             database=None,
             table=None,
-            glue_catalog_parameters=wr.typing.GlueCatalogParameters(parameters={"key": "value"}),
+            glue_table_settings=wr.typing.GlueTableSettings(parameters={"key": "value"}),
         )
 
     with pytest.raises(InvalidArgumentCombination):
@@ -382,7 +382,7 @@ def test_to_csv_invalid_argument_combination_raise_when_dataset_false_succeed(mo
             dataset=False,
             database=None,
             table=None,
-            glue_catalog_parameters=wr.typing.GlueCatalogParameters(columns_comments={"col0": "test"}),
+            glue_table_settings=wr.typing.GlueTableSettings(columns_comments={"col0": "test"}),
         )
 
 

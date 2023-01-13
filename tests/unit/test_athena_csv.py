@@ -33,7 +33,7 @@ def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_p
         mode="overwrite",
         database=glue_database,
         table=glue_table,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+        glue_table_settings=wr.typing.GlueTableSettings(
             description="c0",
             parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
             columns_comments={"c0": "0"},
@@ -62,7 +62,7 @@ def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_p
         mode="overwrite",
         database=glue_database,
         table=glue_table,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+        glue_table_settings=wr.typing.GlueTableSettings(
             description="c1",
             parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index))},
             columns_comments={"c1": "1"},
@@ -92,7 +92,7 @@ def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_p
         mode="append",
         database=glue_database,
         table=glue_table,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+        glue_table_settings=wr.typing.GlueTableSettings(
             description="c1",
             parameters={"num_cols": str(len(df.columns)), "num_rows": str(len(df.index) * 2)},
             columns_comments={"c1": "1"},
@@ -122,7 +122,7 @@ def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_p
         mode="overwrite",
         database=glue_database,
         table=glue_table,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+        glue_table_settings=wr.typing.GlueTableSettings(
             description="c0+c1",
             parameters={"num_cols": "2", "num_rows": "2"},
             columns_comments={"c0": "zero", "c1": "one"},
@@ -154,7 +154,7 @@ def test_to_csv_modes(glue_database, glue_table, path, use_threads, concurrent_p
         mode="overwrite_partitions",
         database=glue_database,
         table=glue_table,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+        glue_table_settings=wr.typing.GlueTableSettings(
             description="c0+c1",
             parameters={"num_cols": "2", "num_rows": "3"},
             columns_comments={"c0": "zero", "c1": "one"},
@@ -242,7 +242,7 @@ def test_csv_dataset(path, glue_database):
             path=path + "0",
             database=None,
             table=None,
-            glue_catalog_parameters=wr.typing.GlueCatalogParameters(description="foo"),
+            glue_table_settings=wr.typing.GlueTableSettings(description="foo"),
         )
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.s3.to_csv(df=df, path=path + "0", partition_cols=["col2"], dataset=True, mode="WRONG")

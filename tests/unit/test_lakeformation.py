@@ -36,7 +36,7 @@ def test_lakeformation(path, path2, glue_database, glue_table, glue_table2, use_
         mode="overwrite",
         table=glue_table,
         database=glue_database,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+        glue_table_settings=wr.typing.GlueTableSettings(
             table_type="GOVERNED",
         ),
     )
@@ -70,7 +70,7 @@ def test_lakeformation(path, path2, glue_database, glue_table, glue_table2, use_
         mode="append",
         table=glue_table2,
         database=glue_database,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+        glue_table_settings=wr.typing.GlueTableSettings(
             table_type="GOVERNED",
         ),
     )
@@ -109,7 +109,7 @@ def test_lakeformation_multi_transaction(path, path2, glue_database, glue_table,
         mode="append",
         database=glue_database,
         table=glue_table,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+        glue_table_settings=wr.typing.GlueTableSettings(
             table_type="GOVERNED",
             transaction_id=transaction_id,
             description="c0",
@@ -127,7 +127,7 @@ def test_lakeformation_multi_transaction(path, path2, glue_database, glue_table,
         mode="append",
         database=glue_database,
         table=glue_table2,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+        glue_table_settings=wr.typing.GlueTableSettings(
             table_type="GOVERNED",
             transaction_id=transaction_id,
             description="c1",
@@ -182,7 +182,7 @@ def test_lakeformation_partiql_formatting(path, path2, glue_database, glue_table
         mode="overwrite",
         table=glue_table,
         database=glue_database,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+        glue_table_settings=wr.typing.GlueTableSettings(
             table_type="GOVERNED",
         ),
     )
@@ -214,7 +214,7 @@ def test_lakeformation_partiql_formatting_escape_string(path, path2, glue_databa
         mode="overwrite",
         table=glue_table,
         database=glue_database,
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+        glue_table_settings=wr.typing.GlueTableSettings(
             table_type="GOVERNED",
         ),
     )

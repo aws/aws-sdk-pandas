@@ -342,7 +342,7 @@ def test_catalog_parameters(path: str, glue_database: str, glue_table: str) -> N
         database=glue_database,
         table=glue_table,
         mode="overwrite",
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+        glue_table_settings=wr.typing.GlueTableSettings(
             parameters={"a": "1", "b": "2"},
         ),
     )
@@ -374,7 +374,7 @@ def test_catalog_parameters(path: str, glue_database: str, glue_table: str) -> N
         database=glue_database,
         table=glue_table,
         mode="append",
-        glue_catalog_parameters=wr.typing.GlueCatalogParameters(
+        glue_table_settings=wr.typing.GlueTableSettings(
             parameters={"e": "5"},
         ),
     )
