@@ -6,7 +6,7 @@ from typing_extensions import NotRequired, Required
 
 
 class GlueTableSettings(TypedDict):
-    """Class defining the parameters for writing to a Glue Catalogue."""
+    """Class defining the settings for the Glue table."""
 
     table_type: NotRequired[Literal["EXTERNAL_TABLE", "GOVERNED"]]
     transaction_id: NotRequired[str]
