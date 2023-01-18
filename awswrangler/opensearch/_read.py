@@ -6,7 +6,8 @@ import pandas as pd
 from opensearchpy import OpenSearch
 from opensearchpy.helpers import scan
 
-from awswrangler.opensearch._utils import _get_distribution
+from awswrangler import exceptions
+from awswrangler.opensearch._utils import _get_distribution, _is_serverless
 
 
 def _resolve_fields(row: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -102,6 +103,9 @@ def search(
 
 
     """
+    if is_scroll and _is_serverless(client):
+        raise exceptions.NotSupported("Scrolled search is not currently available for OpenSearch Serverless.")
+
     if doc_type:
         kwargs["doc_type"] = doc_type
 
@@ -151,6 +155,9 @@ def search_by_sql(client: OpenSearch, sql_query: str, **kwargs: Any) -> pd.DataF
 
 
     """
+    if _is_serverless(client):
+        raise exceptions.NotSupported("SQL plugin is not currently available for OpenSearch Serverless.")
+
     if _get_distribution(client) == "opensearch":
         url = "/_plugins/_sql"
     else:
