@@ -127,3 +127,11 @@ class ResourceDoesNotExist(Exception):
 
 class InvalidRulesetDefinition(Exception):
     """InvalidRulesetDefinition."""
+
+
+class PolicyResourceConflict(Exception):
+    """PolicyResourceConflict."""
+
+
+class NotSupported(Exception):
+    """NotSupported."""

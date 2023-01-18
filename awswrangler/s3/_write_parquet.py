@@ -61,7 +61,7 @@ def _get_chunk_file_path(file_counter: int, file_path: str) -> str:
 def _new_writer(
     file_path: str,
     compression: Optional[str],
-    pyarrow_additional_kwargs: Dict[str, str],
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]],
     schema: pa.Schema,
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
@@ -77,6 +77,10 @@ def _new_writer(
     if "version" not in pyarrow_additional_kwargs:
         # By default, use version 1.0 logical type set to maximize compatibility
         pyarrow_additional_kwargs["version"] = "1.0"
+    if not pyarrow_additional_kwargs.get("use_dictionary"):
+        pyarrow_additional_kwargs["use_dictionary"] = True
+    if not pyarrow_additional_kwargs.get("write_statistics"):
+        pyarrow_additional_kwargs["write_statistics"] = True
 
     with open_s3_object(
         path=file_path,
@@ -88,8 +92,6 @@ def _new_writer(
         try:
             writer = pyarrow.parquet.ParquetWriter(
                 where=f,
-                write_statistics=True,
-                use_dictionary=True,
                 compression="NONE" if compression is None else compression,
                 schema=schema,
                 **pyarrow_additional_kwargs,
