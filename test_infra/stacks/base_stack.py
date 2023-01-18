@@ -77,6 +77,7 @@ class BaseStack(Stack):  # type: ignore
         glue_data_quality_role = iam.Role(
             self,
             "aws-sdk-pandas-glue-data-quality-role",
+            role_name="GlueDataQualityRole",
             assumed_by=iam.ServicePrincipal("glue.amazonaws.com"),
             managed_policies=[
                 iam.ManagedPolicy.from_aws_managed_policy_name("AmazonS3FullAccess"),

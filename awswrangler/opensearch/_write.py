@@ -13,12 +13,13 @@ import progressbar
 from jsonpath_ng import parse
 from jsonpath_ng.exceptions import JsonPathParserError
 from opensearchpy import OpenSearch, TransportError
-from opensearchpy.exceptions import NotFoundError
+from opensearchpy.exceptions import NotFoundError, RequestError
 from opensearchpy.helpers import bulk
 from pandas import notna
 
+from awswrangler import exceptions
 from awswrangler._utils import parse_path
-from awswrangler.opensearch._utils import _get_distribution, _get_version_major
+from awswrangler.opensearch._utils import _get_distribution, _get_version_major, _is_serverless
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -120,15 +121,16 @@ def _get_refresh_interval(client: OpenSearch, index: str) -> Any:
         refresh_interval = index_settings.get("refresh_interval", _DEFAULT_REFRESH_INTERVAL)
         return refresh_interval
     except NotFoundError:
-        return None
+        return _DEFAULT_REFRESH_INTERVAL
 
 
 def _set_refresh_interval(client: OpenSearch, index: str, refresh_interval: Optional[Any]) -> Any:
     url = f"/{index}/_settings"
     body = {"index": {"refresh_interval": refresh_interval}}
-    response = client.transport.perform_request("PUT", url, headers={"Content-Type": "application/json"}, body=body)
-
-    return response
+    try:
+        return client.transport.perform_request("PUT", url, headers={"Content-Type": "application/json"}, body=body)
+    except RequestError:
+        return None
 
 
 def _disable_refresh_interval(
@@ -517,6 +519,9 @@ https://opendistro.github.io/for-elasticsearch-docs/docs/elasticsearch/rest-api-
     ...     index='sample-index1'
     ... )
     """
+    if "refresh" in kwargs and _is_serverless(client):
+        raise exceptions.NotSupported("Refresh policy not supported in OpenSearch Serverless.")
+
     if not isinstance(documents, list):
         documents = list(documents)
     total_documents = len(documents)
