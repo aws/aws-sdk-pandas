@@ -1,8 +1,13 @@
 """Module with parameter types."""
 
+import sys
 from typing import Dict, List, Literal, TypedDict
 
-from typing_extensions import NotRequired, Required
+
+if sys.version_info >= (3, 11):
+    from typing import NotRequired, Required
+else:
+    from typing_extensions import NotRequired, Required
 
 
 class GlueTableSettings(TypedDict):
