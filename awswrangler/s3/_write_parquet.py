@@ -39,7 +39,7 @@ def _get_file_path(file_counter: int, file_path: str) -> str:
 def _new_writer(
     file_path: str,
     compression: Optional[str],
-    pyarrow_additional_kwargs: Optional[Dict[str, str]],
+    pyarrow_additional_kwargs: Optional[Dict[str, Any]],
     schema: pa.Schema,
     boto3_session: boto3.Session,
     s3_additional_kwargs: Optional[Dict[str, str]],
@@ -55,6 +55,10 @@ def _new_writer(
     if "version" not in pyarrow_additional_kwargs:
         # By default, use version 1.0 logical type set to maximize compatibility
         pyarrow_additional_kwargs["version"] = "1.0"
+    if not pyarrow_additional_kwargs.get("use_dictionary"):
+        pyarrow_additional_kwargs["use_dictionary"] = True
+    if not pyarrow_additional_kwargs.get("write_statistics"):
+        pyarrow_additional_kwargs["write_statistics"] = True
 
     with open_s3_object(
         path=file_path,
@@ -66,8 +70,6 @@ def _new_writer(
         try:
             writer = pyarrow.parquet.ParquetWriter(
                 where=f,
-                write_statistics=True,
-                use_dictionary=True,
                 compression="NONE" if compression is None else compression,
                 schema=schema,
                 **pyarrow_additional_kwargs,
@@ -302,18 +304,18 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     concurrent_partitioning: bool
         If True will increase the parallelism level during the partitions writing. It will decrease the
         writing time and increase the memory usage.
-        https://aws-sdk-pandas.readthedocs.io/en/2.18.0/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
+        https://aws-sdk-pandas.readthedocs.io/en/2.19.0/tutorials/022%20-%20Writing%20Partitions%20Concurrently.html
     mode: str, optional
         ``append`` (Default), ``overwrite``, ``overwrite_partitions``. Only takes effect if dataset=True.
         For details check the related tutorial:
-        https://aws-sdk-pandas.readthedocs.io/en/2.18.0/tutorials/004%20-%20Parquet%20Datasets.html
+        https://aws-sdk-pandas.readthedocs.io/en/2.19.0/tutorials/004%20-%20Parquet%20Datasets.html
     catalog_versioning : bool
         If True and `mode="overwrite"`, creates an archived version of the table catalog before updating it.
     schema_evolution : bool
         If True allows schema evolution (new or missing columns), otherwise a exception will be raised. True by default.
         (Only considered if dataset=True and mode in ("append", "overwrite_partitions"))
         Related tutorial:
-        https://aws-sdk-pandas.readthedocs.io/en/2.18.0/tutorials/014%20-%20Schema%20Evolution.html
+        https://aws-sdk-pandas.readthedocs.io/en/2.19.0/tutorials/014%20-%20Schema%20Evolution.html
     database : str, optional
         Glue/Athena catalog: Database name.
     table : str, optional

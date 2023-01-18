@@ -155,9 +155,16 @@ def _build_cluster_args(**pars: Any) -> Dict[str, Any]:  # pylint: disable=too-m
         args["Instances"]["ServiceAccessSecurityGroup"] = pars["security_group_service_access"]
 
     # Configurations
-    args["Configurations"] = [
-        {"Classification": "spark-log4j", "Properties": {"log4j.rootCategory": f"{pars['spark_log_level']}, console"}}
-    ]
+    args["Configurations"] = (
+        [
+            {
+                "Classification": "spark-log4j",
+                "Properties": {"log4j.rootCategory": f"{pars['spark_log_level']}, console"},
+            }
+        ]
+        if not pars["configurations"]
+        else pars["configurations"]
+    )
     if pars["docker"] is True:
         if pars.get("extra_public_registries") is None:
             extra_public_registries: List[str] = []
@@ -459,6 +466,7 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
     auto_termination_policy: Optional[Dict[str, int]] = None,
     tags: Optional[Dict[str, str]] = None,
     boto3_session: Optional[boto3.Session] = None,
+    configurations: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
     """Create a EMR cluster with instance fleets configuration.
 
@@ -619,7 +627,11 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
         e.g. {"foo": "boo", "bar": "xoo"})
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    configurations: List[Dict[str, Any]], optional
+        The list of configurations supplied for an EMR cluster instance group.
 
+        By default, adds log4j config as follows:
+        `{"Classification": "spark-log4j", "Properties": {"log4j.rootCategory": f"{pars['spark_log_level']}, console"}}`
     Returns
     -------
     str

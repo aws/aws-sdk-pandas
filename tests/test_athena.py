@@ -1280,5 +1280,5 @@ def test_read_sql_query_ctas_write_compression(path, glue_database, glue_table, 
 
         mock_create_ctas_table.assert_called_once()
 
-        create_ctas_table_args = mock_create_ctas_table.call_args.kwargs
-        create_ctas_table_args["compression"] = compression
+        if compression:
+            assert mock_create_ctas_table.call_args[1]["write_compression"] == compression
