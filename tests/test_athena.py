@@ -4,6 +4,7 @@ import string
 from unittest.mock import patch
 
 import boto3
+import botocore
 import numpy as np
 import pandas as pd
 import pytest
@@ -608,7 +609,7 @@ def test_read_sql_query_wo_results_chunked(path, glue_database, glue_table, ctas
     assert counter == 1
 
 
-@pytest.mark.xfail()
+@pytest.mark.xfail(raises=botocore.exceptions.ClientError)
 def test_read_sql_query_wo_results_ctas(path, glue_database, glue_table):
     wr.catalog.create_parquet_table(database=glue_database, table=glue_table, path=path, columns_types={"c0": "int"})
     sql = f"ALTER TABLE {glue_database}.{glue_table} SET LOCATION '{path}dir/'"
