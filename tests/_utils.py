@@ -2,17 +2,17 @@ import os
 import random
 import re
 import time
-from datetime import datetime, date
+from datetime import date, datetime
 from decimal import Decimal
-from pytest import FixtureRequest
 from timeit import default_timer as timer
 from types import TracebackType
-from typing import Any, Dict, Iterator, List, Optional, Union, Type
+from typing import Any, Dict, Iterator, List, Optional, Type, Union
 
 import boto3
 import botocore.exceptions
 from pandas import DataFrame as PandasDataFrame
 from pandas import Series as PandasSeries
+from pytest import FixtureRequest
 
 import awswrangler as wr
 from awswrangler._distributed import EngineEnum, MemoryFormatEnum
@@ -84,7 +84,7 @@ class ExecutionTimer:
                 "scenario": [self.scenario],
                 "elapsed_time": [self.elapsed_time],
                 "data_path": [self._stringify_paths(self.data_paths)],
-                "data_size": [self._calculate_data_size(self.data_paths)]
+                "data_size": [self._calculate_data_size(self.data_paths)],
             }
         ).to_csv(output_path, mode="a", index=False, header=not os.path.exists(output_path))
         return None
