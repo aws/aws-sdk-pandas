@@ -172,7 +172,7 @@ def test_s3_read_json_simple(benchmark_time: float, request: pytest.FixtureReque
 def test_s3_write_csv(
     path: str, big_modin_df: pd.DataFrame, benchmark_time: int, request: pytest.FixtureRequest
 ) -> None:
-    with ExecutionTimer(request) as timer:
+    with ExecutionTimer(request, data_paths=path) as timer:
         wr.s3.to_csv(big_modin_df, path, dataset=True)
 
     objects = wr.s3.list_objects(path)
@@ -184,7 +184,7 @@ def test_s3_write_csv(
 def test_s3_write_json(
     path: str, big_modin_df: pd.DataFrame, benchmark_time: int, request: pytest.FixtureRequest
 ) -> None:
-    with ExecutionTimer(request) as timer:
+    with ExecutionTimer(request, data_paths=path) as timer:
         wr.s3.to_json(big_modin_df, path, dataset=True, lines=True, orient="records")
 
     objects = wr.s3.list_objects(path)
