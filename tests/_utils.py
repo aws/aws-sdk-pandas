@@ -2,10 +2,12 @@ import os
 import random
 import re
 import time
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal
+from pytest import FixtureRequest
 from timeit import default_timer as timer
-from typing import Any, Dict, Iterator, Union
+from types import TracebackType
+from typing import Any, Dict, Iterator, List, Optional, Union, Type
 
 import boto3
 import botocore.exceptions
@@ -26,25 +28,51 @@ else:
     import pandas as pd
 
 
-ts = lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S.%f")  # noqa
-dt = lambda x: datetime.strptime(x, "%Y-%m-%d").date()  # noqa
-
 CFN_VALID_STATUS = ["CREATE_COMPLETE", "ROLLBACK_COMPLETE", "UPDATE_COMPLETE", "UPDATE_ROLLBACK_COMPLETE"]
 
 
 class ExecutionTimer:
-    def __init__(self, request: Any, name_override=None):
+    def __init__(
+        self,
+        request: FixtureRequest,
+        name_override: Optional[str] = None,
+        data_paths: Optional[Union[str, List[str]]] = None,
+    ):
         self.test = name_override or request.node.originalname
-        try:
-            self.scenario = re.search(r"\[(.+?)\]", request.node.name).group(1)
-        except AttributeError:
-            self.scenario = None
 
-    def __enter__(self):
+        self.scenario: Optional[str] = None
+        match = re.search(r"\[(.+?)\]", request.node.name)
+        if match:
+            self.scenario = match.group(1)
+
+        self.data_paths = data_paths
+
+    def _stringify_paths(self, data_paths: Optional[Union[str, List[str]]]) -> Optional[str]:
+        if data_paths is None:
+            return None
+
+        if isinstance(data_paths, list):
+            return ", ".join(data_paths)
+
+        return data_paths
+
+    def _calculate_data_size(self, data_paths: Optional[Union[str, List[str]]]) -> Optional[int]:
+        if data_paths is None:
+            return None
+
+        sizes = [size for size in wr.s3.size_objects(data_paths).values() if size]
+        return sum(sizes)
+
+    def __enter__(self) -> "ExecutionTimer":
         self.before = timer()
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(
+        self,
+        type: Optional[Type[BaseException]],
+        value: Optional[BaseException],
+        traceback: Optional[TracebackType],
+    ) -> Optional[bool]:
         self.elapsed_time = round((timer() - self.before), 3)
         print(f"Elapsed time ({self.test}[{self.scenario}]): {self.elapsed_time:.3f} sec")
         output_path = "load.csv"
@@ -55,9 +83,19 @@ class ExecutionTimer:
                 "test": [self.test],
                 "scenario": [self.scenario],
                 "elapsed_time": [self.elapsed_time],
+                "data_path": [self._stringify_paths(self.data_paths)],
+                "data_size": [self._calculate_data_size(self.data_paths)]
             }
         ).to_csv(output_path, mode="a", index=False, header=not os.path.exists(output_path))
         return None
+
+
+def ts(x: str) -> datetime:
+    return datetime.strptime(x, "%Y-%m-%d %H:%M:%S.%f")
+
+
+def dt(x: str) -> date:
+    return datetime.strptime(x, "%Y-%m-%d").date()
 
 
 def get_df(governed=False):
