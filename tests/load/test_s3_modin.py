@@ -1,6 +1,7 @@
 from typing import List, Optional
 
 import modin.pandas as pd
+import ray
 import pytest
 
 from .._utils import ExecutionTimer
@@ -9,14 +10,16 @@ from .._utils import ExecutionTimer
 @pytest.fixture(scope="function")
 def df_s() -> pd.DataFrame:
     # Data frame with 100000 rows
-    return pd.read_parquet("s3://ursa-labs-taxi-data/2010/02/data.parquet")
+    ray_ds = ray.data.read_parquet("s3://ursa-labs-taxi-data/2010/02/data.parquet")
+    return ray_ds.to_modin()
 
 
 @pytest.mark.parametrize("benchmark_time", [40])
 def test_modin_s3_read_parquet_simple(benchmark_time: float, request: pytest.FixtureRequest) -> None:
     path = "s3://ursa-labs-taxi-data/2018/"
     with ExecutionTimer(request, data_paths=path) as timer:
-        pd.read_parquet(path)
+        ray_ds = ray.data.read_parquet(path)
+        ray_ds.to_modin()
 
     assert timer.elapsed_time < benchmark_time
 
