@@ -1,9 +1,7 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 import modin.pandas as pd
 import pytest
-
-import awswrangler as wr
 
 from .._utils import ExecutionTimer
 
