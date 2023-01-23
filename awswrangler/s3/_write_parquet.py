@@ -41,7 +41,7 @@ def _new_writer(
     compression: Optional[str],
     pyarrow_additional_kwargs: Optional[Dict[str, Any]],
     schema: pa.Schema,
-    boto3_session: boto3.Session,
+    s3_client: boto3.client,
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
 ) -> Iterator[pyarrow.parquet.ParquetWriter]:
@@ -65,7 +65,7 @@ def _new_writer(
         mode="wb",
         use_threads=use_threads,
         s3_additional_kwargs=s3_additional_kwargs,
-        boto3_session=boto3_session,
+        s3_client=s3_client,
     ) as f:
         try:
             writer = pyarrow.parquet.ParquetWriter(
@@ -82,7 +82,7 @@ def _new_writer(
 
 def _write_chunk(
     file_path: str,
-    boto3_session: Optional[boto3.Session],
+    s3_client: boto3.client,
     s3_additional_kwargs: Optional[Dict[str, str]],
     compression: Optional[str],
     pyarrow_additional_kwargs: Optional[Dict[str, str]],
@@ -96,7 +96,7 @@ def _write_chunk(
         compression=compression,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,
         schema=table.schema,
-        boto3_session=boto3_session,
+        s3_client=s3_client,
         s3_additional_kwargs=s3_additional_kwargs,
         use_threads=use_threads,
     ) as writer:
@@ -106,7 +106,7 @@ def _write_chunk(
 
 def _to_parquet_chunked(
     file_path: str,
-    boto3_session: Optional[boto3.Session],
+    s3_client: boto3.client,
     s3_additional_kwargs: Optional[Dict[str, str]],
     compression: Optional[str],
     pyarrow_additional_kwargs: Optional[Dict[str, Any]],
@@ -124,7 +124,7 @@ def _to_parquet_chunked(
         proxy.write(
             func=_write_chunk,
             file_path=write_path,
-            boto3_session=boto3_session,
+            s3_client=s3_client,
             s3_additional_kwargs=s3_additional_kwargs,
             compression=compression,
             pyarrow_additional_kwargs=pyarrow_additional_kwargs,
@@ -145,7 +145,7 @@ def _to_parquet(
     pyarrow_additional_kwargs: Optional[Dict[str, Any]],
     cpus: int,
     dtype: Dict[str, str],
-    boto3_session: Optional[boto3.Session],
+    s3_client: boto3.client,
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
     path: Optional[str] = None,
@@ -171,7 +171,7 @@ def _to_parquet(
     if max_rows_by_file is not None and max_rows_by_file > 0:
         paths: List[str] = _to_parquet_chunked(
             file_path=file_path,
-            boto3_session=boto3_session,
+            s3_client=s3_client,
             s3_additional_kwargs=s3_additional_kwargs,
             compression=compression,
             pyarrow_additional_kwargs=pyarrow_additional_kwargs,
@@ -186,7 +186,7 @@ def _to_parquet(
             compression=compression,
             pyarrow_additional_kwargs=pyarrow_additional_kwargs,
             schema=table.schema,
-            boto3_session=boto3_session,
+            s3_client=s3_client,
             s3_additional_kwargs=s3_additional_kwargs,
             use_threads=use_threads,
         ) as writer:
@@ -552,6 +552,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
     cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
 
     # Sanitize table to respect Athena's standards
     if (sanitize_columns is True) or (database is not None and table is not None):
@@ -599,7 +600,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
             compression=compression,
             compression_ext=compression_ext,
             pyarrow_additional_kwargs=pyarrow_additional_kwargs,
-            boto3_session=session,
+            s3_client=s3_client,
             s3_additional_kwargs=s3_additional_kwargs,
             dtype=dtype,
             max_rows_by_file=max_rows_by_file,

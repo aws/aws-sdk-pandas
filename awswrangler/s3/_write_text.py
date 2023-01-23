@@ -32,13 +32,14 @@ def _to_text(
     file_format: str,
     df: pd.DataFrame,
     use_threads: Union[bool, int],
-    boto3_session: Optional[boto3.Session],
+    s3_client: boto3.client,
     s3_additional_kwargs: Optional[Dict[str, str]],
     path: Optional[str] = None,
     path_root: Optional[str] = None,
     filename_prefix: Optional[str] = uuid.uuid4().hex,
     **pandas_kwargs: Any,
 ) -> List[str]:
+
     if df.empty is True:
         raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
     if path is None and path_root is not None:
@@ -55,8 +56,8 @@ def _to_text(
         path=file_path,
         mode=mode,
         use_threads=use_threads,
+        s3_client=s3_client,
         s3_additional_kwargs=s3_additional_kwargs,
-        boto3_session=boto3_session,
         encoding=encoding,
         newline=newline,
     ) as f:
@@ -419,7 +420,6 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             "Pandas arguments in the function call and awswrangler will accept it."
             "e.g. wr.s3.to_csv(df, path, sep='|', na_rep='NULL', decimal=',', compression='gzip')"
         )
-
     _validate_args(
         df=df,
         table=table,
@@ -444,6 +444,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         table_type = "GOVERNED"
     filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
 
     # Sanitize table to respect Athena's standards
     if (sanitize_columns is True) or (database is not None and table is not None):
@@ -493,7 +494,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             df=df,
             use_threads=use_threads,
             path=path,
-            boto3_session=session,
+            s3_client=s3_client,
             s3_additional_kwargs=s3_additional_kwargs,
             **pandas_kwargs,
         )
@@ -905,6 +906,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         table_type = "GOVERNED"
     filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
 
     # Sanitize table to respect Athena's standards
     if (sanitize_columns is True) or (database is not None and table is not None):
@@ -950,7 +952,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
             df=df,
             path=path,
             use_threads=use_threads,
-            boto3_session=session,
+            s3_client=s3_client,
             s3_additional_kwargs=s3_additional_kwargs,
             **pandas_kwargs,
         )

@@ -16,7 +16,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 def _path2list(
     path: Union[str, Sequence[str]],
-    boto3_session: boto3.Session,
+    s3_client: boto3.client,
     s3_additional_kwargs: Optional[Dict[str, Any]],
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
@@ -28,16 +28,20 @@ def _path2list(
     _suffix: Optional[List[str]] = [suffix] if isinstance(suffix, str) else suffix
     _ignore_suffix: Optional[List[str]] = [ignore_suffix] if isinstance(ignore_suffix, str) else ignore_suffix
     if isinstance(path, str):  # prefix
-        paths: List[str] = list_objects(  # type: ignore
-            path=path,
-            suffix=_suffix,
-            ignore_suffix=_ignore_suffix,
-            boto3_session=boto3_session,
-            last_modified_begin=last_modified_begin,
-            last_modified_end=last_modified_end,
-            ignore_empty=ignore_empty,
-            s3_additional_kwargs=s3_additional_kwargs,
-        )
+        paths: List[str] = [
+            path
+            for paths in _list_objects(  # type: ignore
+                path=path,
+                s3_client=s3_client,
+                suffix=_suffix,
+                ignore_suffix=_ignore_suffix,
+                last_modified_begin=last_modified_begin,
+                last_modified_end=last_modified_end,
+                ignore_empty=ignore_empty,
+                s3_additional_kwargs=s3_additional_kwargs,
+            )
+            for path in paths
+        ]
     elif isinstance(path, list):
         if last_modified_begin or last_modified_end:
             raise exceptions.InvalidArgumentCombination(
@@ -71,13 +75,13 @@ def _prefix_cleanup(prefix: str) -> str:
 
 def _list_objects(  # pylint: disable=too-many-branches
     path: str,
+    s3_client: boto3.client,
     s3_additional_kwargs: Optional[Dict[str, Any]],
     delimiter: Optional[str] = None,
     suffix: Union[str, List[str], None] = None,
     ignore_suffix: Union[str, List[str], None] = None,
     last_modified_begin: Optional[datetime.datetime] = None,
     last_modified_end: Optional[datetime.datetime] = None,
-    boto3_session: Optional[boto3.Session] = None,
     ignore_empty: bool = False,
 ) -> Iterator[List[str]]:
     bucket: str
@@ -86,7 +90,6 @@ def _list_objects(  # pylint: disable=too-many-branches
     prefix: str = _prefix_cleanup(prefix=prefix_original)
     _suffix: Union[List[str], None] = [suffix] if isinstance(suffix, str) else suffix
     _ignore_suffix: Union[List[str], None] = [ignore_suffix] if isinstance(ignore_suffix, str) else ignore_suffix
-    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     default_pagination: Dict[str, int] = {"PageSize": 1000}
     extra_kwargs: Dict[str, Any] = {"PaginationConfig": default_pagination}
     if s3_additional_kwargs:
@@ -98,7 +101,7 @@ def _list_objects(  # pylint: disable=too-many-branches
             if "PaginationConfig" in s3_additional_kwargs
             else default_pagination
         )
-    paginator = client_s3.get_paginator("list_objects_v2")
+    paginator = s3_client.get_paginator("list_objects_v2")
     args: Dict[str, Any] = {"Bucket": bucket, "Prefix": prefix, **extra_kwargs}
     if delimiter is not None:
         args["Delimiter"] = delimiter
@@ -188,7 +191,7 @@ def does_object_exist(
     False
 
     """
-    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     bucket: str
     key: str
     bucket, key = _utils.parse_path(path=path)
@@ -201,7 +204,7 @@ def does_object_exist(
     try:
         if version_id:
             extra_kwargs["VersionId"] = version_id
-        client_s3.head_object(Bucket=bucket, Key=key, **extra_kwargs)
+        s3_client.head_object(Bucket=bucket, Key=key, **extra_kwargs)
         return True
     except botocore.exceptions.ClientError as ex:
         if ex.response["ResponseMetadata"]["HTTPStatusCode"] == 404:
@@ -256,10 +259,11 @@ def list_directories(
     ['s3://bucket/prefix/dir0/', 's3://bucket/prefix/dir1/', 's3://bucket/prefix/dir2/']
 
     """
+    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     result_iterator = _list_objects(
         path=path,
         delimiter="/",
-        boto3_session=boto3_session,
+        s3_client=s3_client,
         s3_additional_kwargs=s3_additional_kwargs,
     )
     if chunked:
@@ -335,6 +339,7 @@ def list_objects(
     ['s3://bucket/prefix0', 's3://bucket/prefix1', 's3://bucket/prefix2']
 
     """
+    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     # On top of user provided ignore_suffix input, add "/"
     ignore_suffix_acc = set("/")
     if isinstance(ignore_suffix, str):
@@ -344,13 +349,12 @@ def list_objects(
 
     result_iterator = _list_objects(
         path=path,
-        delimiter=None,
         suffix=suffix,
         ignore_suffix=list(ignore_suffix_acc),
-        boto3_session=boto3_session,
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
         ignore_empty=ignore_empty,
+        s3_client=s3_client,
         s3_additional_kwargs=s3_additional_kwargs,
     )
     if chunked:

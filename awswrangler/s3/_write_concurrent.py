@@ -4,7 +4,6 @@ import concurrent.futures
 import logging
 from typing import Any, Callable, Dict, List, Optional, Union
 
-import boto3
 import pandas as pd
 
 from awswrangler import _utils
@@ -24,15 +23,11 @@ class _WriteProxy:
             self._exec = None
 
     @staticmethod
-    def _caller(
-        func: Callable[..., pd.DataFrame], boto3_primitives: _utils.Boto3PrimitivesType, func_kwargs: Dict[str, Any]
-    ) -> pd.DataFrame:
-        boto3_session: boto3.Session = _utils.boto3_from_primitives(primitives=boto3_primitives)
-        func_kwargs["boto3_session"] = boto3_session
+    def _caller(func: Callable[..., pd.DataFrame], func_kwargs: Dict[str, Any]) -> pd.DataFrame:
         _logger.debug("Calling: %s", func)
         return func(**func_kwargs)
 
-    def write(self, func: Callable[..., List[str]], boto3_session: boto3.Session, **func_kwargs: Any) -> None:
+    def write(self, func: Callable[..., List[str]], **func_kwargs: Any) -> None:
         """Write File."""
         if self._exec is not None:
             _utils.block_waiting_available_thread(seq=self._futures, max_workers=self._cpus)
@@ -40,12 +35,11 @@ class _WriteProxy:
             future = self._exec.submit(
                 _WriteProxy._caller,
                 func=func,
-                boto3_primitives=_utils.boto3_to_primitives(boto3_session=boto3_session),
                 func_kwargs=func_kwargs,
             )
             self._futures.append(future)
         else:
-            self._results += func(boto3_session=boto3_session, **func_kwargs)
+            self._results += func(**func_kwargs)
 
     def close(self) -> List[str]:
         """Close the proxy."""
