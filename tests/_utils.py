@@ -69,13 +69,14 @@ class ExecutionTimer:
 
     def __exit__(
         self,
-        type: Optional[Type[BaseException]],
-        value: Optional[BaseException],
+        exception_type: Optional[Type[BaseException]],
+        exception_value: Optional[BaseException],
         traceback: Optional[TracebackType],
     ) -> Optional[bool]:
         self.elapsed_time = round((timer() - self.before), 3)
         print(f"Elapsed time ({self.test}[{self.scenario}]): {self.elapsed_time:.3f} sec")
         output_path = "load.csv"
+        is_success = exception_value is None
 
         pd.DataFrame(
             {
@@ -83,6 +84,7 @@ class ExecutionTimer:
                 "test": [self.test],
                 "scenario": [self.scenario],
                 "elapsed_time": [self.elapsed_time],
+                "is_success": [is_success],
                 "data_path": [self._stringify_paths(self.data_paths)],
                 "data_size": [self._calculate_data_size(self.data_paths)],
             }
