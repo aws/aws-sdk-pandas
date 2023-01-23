@@ -17,7 +17,7 @@ from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_dataset import _to_dataset
-from awswrangler.typing import GlueTableSettings, S3WriteDataReturnValue
+from awswrangler.typing import GlueTableSettings, _S3WriteDataReturnValue
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -99,7 +99,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     projection_params: Optional[Dict[str, Any]] = None,
     catalog_id: Optional[str] = None,
     **pandas_kwargs: Any,
-) -> S3WriteDataReturnValue:
+) -> _S3WriteDataReturnValue:
     """Write CSV file or dataset on Amazon S3.
 
     The concept of Dataset goes beyond the simple idea of ordinary files and enable more
@@ -718,7 +718,7 @@ def to_json(
     projection_params: Optional[Dict[str, Any]] = ...,
     catalog_id: Optional[str] = ...,
     **pandas_kwargs: Any,
-) -> S3WriteDataReturnValue:
+) -> _S3WriteDataReturnValue:
     ...
 
 
@@ -748,7 +748,7 @@ def to_json(
     projection_params: Optional[Dict[str, Any]] = ...,
     catalog_id: Optional[str] = ...,
     **pandas_kwargs: Any,
-) -> Union[List[str], S3WriteDataReturnValue]:
+) -> Union[List[str], _S3WriteDataReturnValue]:
     ...
 
 
@@ -777,7 +777,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
     projection_params: Optional[Dict[str, Any]] = None,
     catalog_id: Optional[str] = None,
     **pandas_kwargs: Any,
-) -> Union[List[str], S3WriteDataReturnValue]:
+) -> Union[List[str], _S3WriteDataReturnValue]:
     """Write JSON file on Amazon S3.
 
     Note

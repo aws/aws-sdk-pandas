@@ -20,7 +20,7 @@ class GlueTableSettings(TypedDict):
     regular_partitions: NotRequired[bool]
 
 
-class S3WriteDataReturnValue(TypedDict):
+class _S3WriteDataReturnValue(TypedDict):
     """Class defining the dictionary returned by S3 write functions."""
 
     paths: Required[List[str]]
