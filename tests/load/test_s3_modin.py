@@ -47,3 +47,43 @@ def test_modin_s3_write_parquet_dataset(
         df_s.to_parquet(path, partition_cols=partition_cols)
 
     assert timer.elapsed_time < benchmark_time
+
+
+@pytest.mark.parametrize("benchmark_time", [20])
+def test_modin_s3_read_csv_simple(benchmark_time: float, request: pytest.FixtureRequest) -> None:
+    path = "s3://nyc-tlc/csv_backup/yellow_tripdata_2021-0*.csv"
+    with ExecutionTimer(request, data_paths=path) as timer:
+        ray_ds = ray.data.read_csv(path)
+        ray_ds.to_modin()
+
+    assert timer.elapsed_time < benchmark_time
+
+
+@pytest.mark.parametrize("benchmark_time", [15])
+def test_modin_s3_read_json_simple(benchmark_time: float, request: pytest.FixtureRequest) -> None:
+    path = "s3://covid19-lake/covid_knowledge_graph/json/edges/paper_to_concept/*.json"
+    with ExecutionTimer(request, data_paths=path) as timer:
+        ray_ds = ray.data.read_json(path)
+        ray_ds.to_modin()
+
+    assert timer.elapsed_time < benchmark_time
+
+
+@pytest.mark.parametrize("benchmark_time", [5])
+def test_modin_s3_write_csv(
+    path: str, big_modin_df: pd.DataFrame, benchmark_time: int, request: pytest.FixtureRequest
+) -> None:
+    with ExecutionTimer(request, data_paths=path) as timer:
+        big_modin_df.to_csv(path)
+
+    assert timer.elapsed_time < benchmark_time
+
+
+@pytest.mark.parametrize("benchmark_time", [5])
+def test_modin_s3_write_json(
+    path: str, big_modin_df: pd.DataFrame, benchmark_time: int, request: pytest.FixtureRequest
+) -> None:
+    with ExecutionTimer(request, data_paths=path) as timer:
+        big_modin_df.to_json(path, lines=True, orient="records")
+
+    assert timer.elapsed_time < benchmark_time
