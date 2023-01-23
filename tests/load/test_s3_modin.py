@@ -1,8 +1,8 @@
 from typing import List, Optional
 
 import modin.pandas as pd
-import ray
 import pytest
+import ray
 
 from .._utils import ExecutionTimer
 
