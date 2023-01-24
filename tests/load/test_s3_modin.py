@@ -14,6 +14,18 @@ def df_s() -> pd.DataFrame:
     return ray_ds.to_modin()
 
 
+@pytest.fixture(scope="function")
+def big_modin_df() -> pd.DataFrame:
+    pandas_refs = ray.data.range_table(100_000).to_pandas_refs()
+    dataset = ray.data.from_pandas_refs(pandas_refs)
+
+    frame = dataset.to_modin()
+    frame["foo"] = frame.value * 2
+    frame["bar"] = frame.value % 2
+
+    return frame
+
+
 @pytest.mark.parametrize("benchmark_time", [40])
 def test_modin_s3_read_parquet_simple(benchmark_time: float, request: pytest.FixtureRequest) -> None:
     path = "s3://ursa-labs-taxi-data/2018/"
