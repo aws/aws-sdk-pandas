@@ -194,8 +194,7 @@ def read_sql_query(
     ... )
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
+    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
     commit_trans: bool = False
     if params is None:
         params = {}
@@ -204,7 +203,7 @@ def read_sql_query(
 
     if not any([transaction_id, query_as_of_time]):
         _logger.debug("Neither `transaction_id` nor `query_as_of_time` were specified, starting transaction")
-        transaction_id = start_transaction(read_only=True, boto3_session=session)
+        transaction_id = start_transaction(read_only=True, boto3_session=boto3_session)
         commit_trans = True
     args: Dict[str, Optional[str]] = _catalog_id(
         catalog_id=catalog_id,
@@ -217,7 +216,7 @@ def read_sql_query(
         safe=safe,
         map_types=map_types,
         use_threads=use_threads,
-        boto3_session=session,
+        boto3_session=boto3_session,
     )
     if commit_trans:
         commit_transaction(transaction_id=transaction_id)  # type: ignore

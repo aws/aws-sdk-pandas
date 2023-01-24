@@ -731,8 +731,7 @@ def read_parquet(
     >>> df = wr.s3.read_parquet(path, dataset=True, partition_filter=my_filter)
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    s3_client: boto3.client = _utils.client(service_name="s3", session=session)
+    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     paths: List[str] = _path2list(
         path=path,
         s3_client=s3_client,
@@ -1119,7 +1118,7 @@ def read_parquet_metadata(
         dataset=dataset,
         use_threads=use_threads,
         s3_additional_kwargs=s3_additional_kwargs,
-        boto3_session=_utils.ensure_session(session=boto3_session),
+        boto3_session=boto3_session,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,
     )[:2]
 

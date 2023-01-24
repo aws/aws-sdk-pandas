@@ -72,8 +72,7 @@ def _get_table_objects(
     partitions_values: Optional[List[str]] = None,
 ) -> List[Dict[str, Any]]:
     """Get Governed Table Objects from Lake Formation Engine."""
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
+    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
 
     scan_kwargs: Dict[str, Union[str, int]] = _catalog_id(
         catalog_id=catalog_id,
@@ -115,8 +114,7 @@ def _update_table_objects(
     del_objects: Optional[List[Dict[str, Any]]] = None,
 ) -> None:
     """Register Governed Table Objects changes to Lake Formation Engine."""
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
+    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
 
     update_kwargs: Dict[str, Union[str, int, List[Dict[str, Dict[str, Any]]]]] = _catalog_id(
         catalog_id=catalog_id, **_transaction_id(transaction_id=transaction_id, DatabaseName=database, TableName=table)
@@ -171,8 +169,7 @@ def describe_transaction(transaction_id: str, boto3_session: Optional[boto3.Sess
     >>> status = wr.lakeformation.describe_transaction(transaction_id="...")
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
+    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
     details: Dict[str, Any] = client_lakeformation.describe_transaction(TransactionId=transaction_id)[
         "TransactionDescription"
     ]
@@ -200,8 +197,7 @@ def cancel_transaction(transaction_id: str, boto3_session: Optional[boto3.Sessio
     >>> wr.lakeformation.cancel_transaction(transaction_id="...")
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
+    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
 
     client_lakeformation.cancel_transaction(TransactionId=transaction_id)
 
@@ -235,8 +231,7 @@ def start_transaction(
     >>> transaction_id = wr.lakeformation.start_transaction(read_only=False)
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
+    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
     transaction_type: str = "READ_ONLY" if read_only else "READ_AND_WRITE"
     transaction_id: str = client_lakeformation.start_transaction(TransactionType=transaction_type)["TransactionId"]
     # Extend the transaction while in "active" state in a separate thread
@@ -303,8 +298,7 @@ def extend_transaction(transaction_id: str, boto3_session: Optional[boto3.Sessio
     >>> wr.lakeformation.extend_transaction(transaction_id="...")
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
+    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
 
     client_lakeformation.extend_transaction(TransactionId=transaction_id)
 
@@ -330,8 +324,7 @@ def wait_query(query_id: str, boto3_session: Optional[boto3.Session] = None) -> 
     >>> res = wr.lakeformation.wait_query(query_id='query-id')
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
+    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
 
     response: Dict[str, Any] = client_lakeformation.get_query_state(QueryId=query_id)
     state: str = response["State"]

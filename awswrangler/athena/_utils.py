@@ -67,11 +67,10 @@ def _start_query_execution(
     boto3_session: Optional[boto3.Session] = None,
 ) -> str:
     args: Dict[str, Any] = {"QueryString": sql}
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
     # s3_output
     args["ResultConfiguration"] = {
-        "OutputLocation": _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=session)
+        "OutputLocation": _get_s3_output(s3_output=s3_output, wg_config=wg_config, boto3_session=boto3_session)
     }
 
     # encryption
@@ -96,7 +95,7 @@ def _start_query_execution(
     if workgroup is not None:
         args["WorkGroup"] = workgroup
 
-    client_athena: boto3.client = _utils.client(service_name="athena", session=session)
+    client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
     _logger.debug("args: \n%s", pprint.pformat(args))
     response: Dict[str, Any] = _utils.try_it(
         f=client_athena.start_query_execution,
@@ -287,9 +286,7 @@ def get_named_query_statement(
     str
         The named query statement string
     """
-    client_athena: boto3.client = _utils.client(
-        service_name="athena", session=_utils.ensure_session(session=boto3_session)
-    )
+    client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
     return client_athena.get_named_query(NamedQueryId=named_query_id)["NamedQuery"]["QueryString"]  # type: ignore
 
 
@@ -317,9 +314,7 @@ def get_query_columns_types(query_execution_id: str, boto3_session: Optional[bot
     {'col0': 'int', 'col1': 'double'}
 
     """
-    client_athena: boto3.client = _utils.client(
-        service_name="athena", session=_utils.ensure_session(session=boto3_session)
-    )
+    client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
     response: Dict[str, Any] = client_athena.get_query_results(QueryExecutionId=query_execution_id, MaxResults=1)
     col_info: List[Dict[str, str]] = response["ResultSet"]["ResultSetMetadata"]["ColumnInfo"]
     return dict(
@@ -350,12 +345,11 @@ def create_athena_bucket(boto3_session: Optional[boto3.Session] = None) -> str:
     's3://aws-athena-query-results-ACCOUNT-REGION/'
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    account_id: str = sts.get_account_id(boto3_session=session)
-    region_name: str = str(session.region_name).lower()
+    account_id: str = sts.get_account_id(boto3_session=boto3_session)
+    region_name: str = _utils.get_region_from_session(boto3_session=boto3_session).lower()
     bucket_name = f"aws-athena-query-results-{account_id}-{region_name}"
     path = f"s3://{bucket_name}/"
-    resource = _utils.resource(service_name="s3", session=session)
+    resource = _utils.resource(service_name="s3", session=boto3_session)
     bucket = resource.Bucket(bucket_name)
     args = {} if region_name == "us-east-1" else {"CreateBucketConfiguration": {"LocationConstraint": region_name}}
     try:
@@ -459,14 +453,13 @@ def start_query_execution(
         params = {}
     for key, value in params.items():
         sql = sql.replace(f":{key};", str(value))
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
     max_remote_cache_entries = min(max_remote_cache_entries, max_local_cache_entries)
 
     _cache_manager.max_cache_size = max_local_cache_entries
     cache_info: _CacheInfo = _check_for_cached_results(
         sql=sql,
-        boto3_session=session,
+        boto3_session=boto3_session,
         workgroup=workgroup,
         max_cache_seconds=max_cache_seconds,
         max_cache_query_inspections=max_cache_query_inspections,
@@ -478,7 +471,7 @@ def start_query_execution(
         query_execution_id = cache_info.query_execution_id
         _logger.debug("Valid cache found. Retrieving...")
     else:
-        wg_config: _WorkGroupConfig = _get_workgroup_config(session=session, workgroup=workgroup)
+        wg_config: _WorkGroupConfig = _get_workgroup_config(session=boto3_session, workgroup=workgroup)
         query_execution_id = _start_query_execution(
             sql=sql,
             wg_config=wg_config,
@@ -488,10 +481,10 @@ def start_query_execution(
             workgroup=workgroup,
             encryption=encryption,
             kms_key=kms_key,
-            boto3_session=session,
+            boto3_session=boto3_session,
         )
     if wait:
-        return wait_query(query_execution_id=query_execution_id, boto3_session=session)
+        return wait_query(query_execution_id=query_execution_id, boto3_session=boto3_session)
 
     return query_execution_id
 
@@ -553,7 +546,6 @@ def repair_table(
     query = f"MSCK REPAIR TABLE `{table}`;"
     if (database is not None) and (not database.startswith("`")):
         database = f"`{database}`"
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     query_id = cast(
         str,
         start_query_execution(
@@ -564,10 +556,10 @@ def repair_table(
             workgroup=workgroup,
             encryption=encryption,
             kms_key=kms_key,
-            boto3_session=session,
+            boto3_session=boto3_session,
         ),
     )
-    response: Dict[str, Any] = wait_query(query_execution_id=query_id, boto3_session=session)
+    response: Dict[str, Any] = wait_query(query_execution_id=query_id, boto3_session=boto3_session)
     return cast(str, response["Status"]["State"])
 
 
@@ -626,7 +618,6 @@ def describe_table(
     query = f"DESCRIBE `{table}`;"
     if (database is not None) and (not database.startswith("`")):
         database = f"`{database}`"
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     query_id = cast(
         str,
         start_query_execution(
@@ -636,12 +627,15 @@ def describe_table(
             workgroup=workgroup,
             encryption=encryption,
             kms_key=kms_key,
-            boto3_session=session,
+            boto3_session=boto3_session,
         ),
     )
-    query_metadata: _QueryMetadata = _get_query_metadata(query_execution_id=query_id, boto3_session=session)
+    query_metadata: _QueryMetadata = _get_query_metadata(query_execution_id=query_id, boto3_session=boto3_session)
     raw_result = _fetch_txt_result(
-        query_metadata=query_metadata, keep_files=True, boto3_session=session, s3_additional_kwargs=s3_additional_kwargs
+        query_metadata=query_metadata,
+        keep_files=True,
+        boto3_session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,
     )
     return _parse_describe_table(raw_result)
 
@@ -913,7 +907,6 @@ def show_create_table(
     query = f"SHOW CREATE TABLE `{table}`;"
     if (database is not None) and (not database.startswith("`")):
         database = f"`{database}`"
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     query_id = cast(
         str,
         start_query_execution(
@@ -923,12 +916,15 @@ def show_create_table(
             workgroup=workgroup,
             encryption=encryption,
             kms_key=kms_key,
-            boto3_session=session,
+            boto3_session=boto3_session,
         ),
     )
-    query_metadata: _QueryMetadata = _get_query_metadata(query_execution_id=query_id, boto3_session=session)
+    query_metadata: _QueryMetadata = _get_query_metadata(query_execution_id=query_id, boto3_session=boto3_session)
     raw_result = _fetch_txt_result(
-        query_metadata=query_metadata, keep_files=True, boto3_session=session, s3_additional_kwargs=s3_additional_kwargs
+        query_metadata=query_metadata,
+        keep_files=True,
+        boto3_session=boto3_session,
+        s3_additional_kwargs=s3_additional_kwargs,
     )
     return cast(str, raw_result.createtab_stmt.str.strip().str.cat(sep=" "))
 
@@ -1111,12 +1107,11 @@ def wait_query(query_execution_id: str, boto3_session: Optional[boto3.Session] =
     >>> res = wr.athena.wait_query(query_execution_id='query-execution-id')
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    response: Dict[str, Any] = get_query_execution(query_execution_id=query_execution_id, boto3_session=session)
+    response: Dict[str, Any] = get_query_execution(query_execution_id=query_execution_id, boto3_session=boto3_session)
     state: str = response["Status"]["State"]
     while state not in _QUERY_FINAL_STATES:
         time.sleep(_QUERY_WAIT_POLLING_DELAY)
-        response = get_query_execution(query_execution_id=query_execution_id, boto3_session=session)
+        response = get_query_execution(query_execution_id=query_execution_id, boto3_session=boto3_session)
         state = response["Status"]["State"]
     _logger.debug("state: %s", state)
     _logger.debug("StateChangeReason: %s", response["Status"].get("StateChangeReason"))

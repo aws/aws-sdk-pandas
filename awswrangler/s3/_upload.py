@@ -58,7 +58,6 @@ def upload(
     >>>     wr.s3.upload(local_file=local_f, path='s3://bucket/key')
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     _logger.debug("path: %s", path)
     with open_s3_object(
         path=path,
@@ -66,7 +65,7 @@ def upload(
         use_threads=use_threads,
         s3_block_size=-1,  # One shot download
         s3_additional_kwargs=s3_additional_kwargs,
-        boto3_session=session,
+        boto3_session=boto3_session,
     ) as s3_f:
         if isinstance(local_file, str):
             _logger.debug("Uploading local_file: %s", local_file)

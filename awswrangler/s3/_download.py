@@ -62,7 +62,6 @@ def download(
     >>>     wr.s3.download(path='s3://bucket/key', local_file=local_f)
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     _logger.debug("path: %s", path)
     with open_s3_object(
         path=path,
@@ -71,7 +70,7 @@ def download(
         version_id=version_id,
         s3_block_size=-1,  # One shot download
         s3_additional_kwargs=s3_additional_kwargs,
-        boto3_session=session,
+        boto3_session=boto3_session,
     ) as s3_f:
         if isinstance(local_file, str):
             _logger.debug("Downloading local_file: %s", local_file)

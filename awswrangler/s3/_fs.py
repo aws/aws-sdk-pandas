@@ -555,8 +555,7 @@ def open_s3_object(
     """Return a _S3Object or TextIOWrapper based on the received mode."""
     s3obj: Optional[_S3ObjectBase] = None
     text_s3obj: Optional[io.TextIOWrapper] = None
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    s3_client = _utils.client(service_name="s3", session=session) if not s3_client else s3_client
+    s3_client = _utils.client(service_name="s3", session=boto3_session) if not s3_client else s3_client
     try:
         s3obj = _S3ObjectBase(
             path=path,

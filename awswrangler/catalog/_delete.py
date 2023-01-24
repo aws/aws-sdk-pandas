@@ -179,10 +179,9 @@ def delete_all_partitions(
     ...     database='awswrangler_test',
     ... )
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     _logger.debug("Fetching existing partitions...")
     partitions_values: List[List[str]] = list(
-        _get_partitions(database=database, table=table, boto3_session=session, catalog_id=catalog_id).values()
+        _get_partitions(database=database, table=table, boto3_session=boto3_session, catalog_id=catalog_id).values()
     )
     _logger.debug("Number of old partitions: %s", len(partitions_values))
     _logger.debug("Deleting existing partitions...")
