@@ -143,10 +143,12 @@ def test_lakeformation_read(benchmark_time: int, path: str, glue_table: str, glu
         path,
         index=False,
         dataset=True,
-        table_type="GOVERNED",
         table=glue_table,
         database=glue_database,
         partition_cols=["year", "marketplace"],
+        glue_table_settings={
+            "table_type": "GOVERNED",
+        },
     )
 
     with ExecutionTimer(request) as timer:
