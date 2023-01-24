@@ -182,26 +182,12 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         Glue/Athena catalog: Database name.
     table : str, optional
         Glue/Athena catalog: Table name.
-    table_type: str, optional
-        The type of the Glue Table. Set to EXTERNAL_TABLE if None
-    transaction_id: str, optional
-        The ID of the transaction when writing to a Governed Table.
+    glue_table_settings: dict (GlueTableSettings), optional
+        Settings for writing to the Glue table.
     dtype : Dict[str, str], optional
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined or mixed data types.
         (e.g. {'col name': 'bigint', 'col2 name': 'int'})
-    description : str, optional
-        Glue/Athena catalog: Table description
-    parameters : Dict[str, str], optional
-        Glue/Athena catalog: Key/value pairs to tag the table.
-    columns_comments : Dict[str, str], optional
-        Glue/Athena catalog:
-        Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
-    regular_partitions : bool
-        Create regular partitions (Non projected partitions) on Glue Catalog.
-        Disable when you will work only with Partition Projection.
-        Keep enabled even when working with projections is useful to keep
-        Redshift Spectrum working with the regular partitions.
     projection_params : Optional[Dict[str, Any]]
         Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
         Following projection parameters are supported:
@@ -260,7 +246,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
 
     Returns
     -------
-    Dict[str, Union[List[str], Dict[str, List[str]]]]
+    wr.typing._S3WriteDataReturnValue
         Dictionary with:
         'paths': List of all stored files paths on S3.
         'partitions_values': Dictionary of partitions added with keys as S3 path locations
@@ -390,8 +376,10 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     ...     mode='append',
     ...     database='default',  # Athena/Glue database
     ...     table='my_table',  # Athena/Glue table
-    ...     table_type='GOVERNED',
-    ...     transaction_id="xxx",
+    ...     glue_table_settings=wr.typing.GlueTableSettings(
+    ...         table_type="GOVERNED",
+    ...         transaction_id="xxx",
+    ...     ),
     ... )
     {
         'paths': ['s3://.../x.csv'],
@@ -843,26 +831,12 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         Glue/Athena catalog: Database name.
     table : str, optional
         Glue/Athena catalog: Table name.
-    table_type: str, optional
-        The type of the Glue Table. Set to EXTERNAL_TABLE if None
-    transaction_id: str, optional
-        The ID of the transaction when writing to a Governed Table.
+    glue_table_settings: dict (GlueTableSettings), optional
+        Settings for writing to the Glue table.
     dtype : Dict[str, str], optional
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined or mixed data types.
         (e.g. {'col name': 'bigint', 'col2 name': 'int'})
-    description : str, optional
-        Glue/Athena catalog: Table description
-    parameters : Dict[str, str], optional
-        Glue/Athena catalog: Key/value pairs to tag the table.
-    columns_comments : Dict[str, str], optional
-        Glue/Athena catalog:
-        Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
-    regular_partitions : bool
-        Create regular partitions (Non projected partitions) on Glue Catalog.
-        Disable when you will work only with Partition Projection.
-        Keep enabled even when working with projections is useful to keep
-        Redshift Spectrum working with the regular partitions.
     projection_params : Optional[Dict[str, Any]]
         Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
         Following projection parameters are supported:
