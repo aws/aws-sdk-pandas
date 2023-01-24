@@ -5,7 +5,6 @@ from typing import Any, Dict, Optional, Union, cast
 
 import boto3
 
-from awswrangler import _utils
 from awswrangler.s3._fs import open_s3_object
 
 _logger: logging.Logger = logging.getLogger(__name__)

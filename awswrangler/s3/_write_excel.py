@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional, Union
 import boto3
 import pandas as pd
 
-from awswrangler import _utils, exceptions
+from awswrangler import exceptions
 from awswrangler.s3._fs import open_s3_object
 
 _logger: logging.Logger = logging.getLogger(__name__)
