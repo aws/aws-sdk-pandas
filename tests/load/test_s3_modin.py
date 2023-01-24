@@ -4,6 +4,8 @@ import modin.pandas as pd
 import pytest
 import ray
 
+import awswrangler as wr
+
 from .._utils import ExecutionTimer
 
 
@@ -65,7 +67,8 @@ def test_modin_s3_write_parquet_dataset(
 def test_modin_s3_read_csv_simple(benchmark_time: float, request: pytest.FixtureRequest) -> None:
     path = "s3://nyc-tlc/csv_backup/yellow_tripdata_2021-0*.csv"
     with ExecutionTimer(request, data_paths=path) as timer:
-        ray_ds = ray.data.read_csv(path)
+        file_paths = wr.s3.list_objects(path)
+        ray_ds = ray.data.read_csv(file_paths)
         ray_ds.to_modin()
 
     assert timer.elapsed_time < benchmark_time
@@ -75,7 +78,8 @@ def test_modin_s3_read_csv_simple(benchmark_time: float, request: pytest.Fixture
 def test_modin_s3_read_json_simple(benchmark_time: float, request: pytest.FixtureRequest) -> None:
     path = "s3://covid19-lake/covid_knowledge_graph/json/edges/paper_to_concept/*.json"
     with ExecutionTimer(request, data_paths=path) as timer:
-        ray_ds = ray.data.read_json(path)
+        file_paths = wr.s3.list_objects(path)
+        ray_ds = ray.data.read_json(file_paths)
         ray_ds.to_modin()
 
     assert timer.elapsed_time < benchmark_time
