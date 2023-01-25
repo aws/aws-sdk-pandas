@@ -8,7 +8,7 @@ import time
 import uuid
 import warnings
 from decimal import Decimal
-from typing import Any, Dict, Generator, List, NamedTuple, Optional, Tuple, Union, cast
+from typing import Any, Dict, Generator, List, Literal, NamedTuple, Optional, Tuple, Union, cast, overload
 
 import boto3
 import botocore.exceptions
@@ -370,6 +370,68 @@ def create_athena_bucket(boto3_session: Optional[boto3.Session] = None) -> str:
     return path
 
 
+@overload
+def start_query_execution(
+    sql: str,
+    database: Optional[str] = ...,
+    s3_output: Optional[str] = ...,
+    workgroup: Optional[str] = ...,
+    encryption: Optional[str] = ...,
+    kms_key: Optional[str] = ...,
+    params: Optional[Dict[str, Any]] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    max_cache_seconds: int = ...,
+    max_cache_query_inspections: int = ...,
+    max_remote_cache_entries: int = ...,
+    max_local_cache_entries: int = ...,
+    data_source: Optional[str] = ...,
+    wait: Literal[False] = ...,
+) -> str:
+    ...
+
+
+@overload
+def start_query_execution(
+    sql: str,
+    *,
+    database: Optional[str] = ...,
+    s3_output: Optional[str] = ...,
+    workgroup: Optional[str] = ...,
+    encryption: Optional[str] = ...,
+    kms_key: Optional[str] = ...,
+    params: Optional[Dict[str, Any]] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    max_cache_seconds: int = ...,
+    max_cache_query_inspections: int = ...,
+    max_remote_cache_entries: int = ...,
+    max_local_cache_entries: int = ...,
+    data_source: Optional[str] = ...,
+    wait: Literal[True],
+) -> Dict[str, Any]:
+    ...
+
+
+@overload
+def start_query_execution(
+    sql: str,
+    *,
+    database: Optional[str] = ...,
+    s3_output: Optional[str] = ...,
+    workgroup: Optional[str] = ...,
+    encryption: Optional[str] = ...,
+    kms_key: Optional[str] = ...,
+    params: Optional[Dict[str, Any]] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    max_cache_seconds: int = ...,
+    max_cache_query_inspections: int = ...,
+    max_remote_cache_entries: int = ...,
+    max_local_cache_entries: int = ...,
+    data_source: Optional[str] = ...,
+    wait: bool,
+) -> Union[str, Dict[str, Any]]:
+    ...
+
+
 @apply_configs
 def start_query_execution(
     sql: str,
@@ -553,18 +615,15 @@ def repair_table(
     if (database is not None) and (not database.startswith("`")):
         database = f"`{database}`"
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    query_id = cast(
-        str,
-        start_query_execution(
-            sql=query,
-            database=database,
-            data_source=data_source,
-            s3_output=s3_output,
-            workgroup=workgroup,
-            encryption=encryption,
-            kms_key=kms_key,
-            boto3_session=session,
-        ),
+    query_id = start_query_execution(
+        sql=query,
+        database=database,
+        data_source=data_source,
+        s3_output=s3_output,
+        workgroup=workgroup,
+        encryption=encryption,
+        kms_key=kms_key,
+        boto3_session=session,
     )
     response: Dict[str, Any] = wait_query(query_execution_id=query_id, boto3_session=session)
     return cast(str, response["Status"]["State"])
@@ -626,17 +685,14 @@ def describe_table(
     if (database is not None) and (not database.startswith("`")):
         database = f"`{database}`"
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    query_id = cast(
-        str,
-        start_query_execution(
-            sql=query,
-            database=database,
-            s3_output=s3_output,
-            workgroup=workgroup,
-            encryption=encryption,
-            kms_key=kms_key,
-            boto3_session=session,
-        ),
+    query_id = start_query_execution(
+        sql=query,
+        database=database,
+        s3_output=s3_output,
+        workgroup=workgroup,
+        encryption=encryption,
+        kms_key=kms_key,
+        boto3_session=session,
     )
     query_metadata: _QueryMetadata = _get_query_metadata(query_execution_id=query_id, boto3_session=session)
     raw_result = _fetch_txt_result(
@@ -913,17 +969,14 @@ def show_create_table(
     if (database is not None) and (not database.startswith("`")):
         database = f"`{database}`"
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    query_id = cast(
-        str,
-        start_query_execution(
-            sql=query,
-            database=database,
-            s3_output=s3_output,
-            workgroup=workgroup,
-            encryption=encryption,
-            kms_key=kms_key,
-            boto3_session=session,
-        ),
+    query_id = start_query_execution(
+        sql=query,
+        database=database,
+        s3_output=s3_output,
+        workgroup=workgroup,
+        encryption=encryption,
+        kms_key=kms_key,
+        boto3_session=session,
     )
     query_metadata: _QueryMetadata = _get_query_metadata(query_execution_id=query_id, boto3_session=session)
     raw_result = _fetch_txt_result(

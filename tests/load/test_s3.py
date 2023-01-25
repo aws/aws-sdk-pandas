@@ -185,7 +185,7 @@ def test_s3_write_json(
     path: str, big_modin_df: pd.DataFrame, benchmark_time: int, request: pytest.FixtureRequest
 ) -> None:
     with ExecutionTimer(request, data_paths=path) as timer:
-        wr.s3.to_json(big_modin_df, path, dataset=True, lines=True, orient="records")
+        wr.s3.to_json(big_modin_df, path=path, dataset=True, lines=True, orient="records")
 
     objects = wr.s3.list_objects(path)
     assert len(objects) > 1

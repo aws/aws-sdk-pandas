@@ -124,7 +124,7 @@ def test_partitioned_json(path, compression, chunksize):
         with pytest.raises(wr.exceptions.InvalidArgument):
             wr.s3.to_json(
                 df,
-                path,
+                path=path,
                 orient="records",
                 lines=True,
                 compression=compression,
@@ -134,7 +134,7 @@ def test_partitioned_json(path, compression, chunksize):
     else:
         wr.s3.to_json(
             df,
-            path,
+            path=path,
             orient="records",
             lines=True,
             compression=compression,

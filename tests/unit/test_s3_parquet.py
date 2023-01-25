@@ -1,3 +1,5 @@
+# mypy: disable-error-code=no-untyped-def
+
 import itertools
 import logging
 import math
@@ -93,14 +95,27 @@ def test_read_parquet_filter_partitions(path, use_threads):
 
 def test_read_parquet_table(path, glue_database, glue_table):
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 0, 1]})
-    wr.s3.to_parquet(df, path, dataset=True, database=glue_database, table=glue_table)
+    wr.s3.to_parquet(
+        df,
+        path,
+        dataset=True,
+        database=glue_database,
+        table=glue_table,
+    )
     df_out = wr.s3.read_parquet_table(table=glue_table, database=glue_database)
     assert df_out.shape == (3, 3)
 
 
 def test_read_parquet_table_filter_partitions(path, glue_database, glue_table):
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [0, 1, 2], "c2": [0, 0, 1]})
-    wr.s3.to_parquet(df, path, dataset=True, partition_cols=["c1", "c2"], database=glue_database, table=glue_table)
+    wr.s3.to_parquet(
+        df,
+        path,
+        dataset=True,
+        partition_cols=["c1", "c2"],
+        database=glue_database,
+        table=glue_table,
+    )
     df_out = wr.s3.read_parquet_table(
         table=glue_table,
         database=glue_database,
@@ -129,7 +144,7 @@ def test_parquet(path):
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
         wr.s3.to_parquet(df=df_dataset, path=path_dataset, partition_cols=["col2"])
     with pytest.raises(wr.exceptions.InvalidArgumentCombination):
-        wr.s3.to_parquet(df=df_dataset, path=path_dataset, description="foo")
+        wr.s3.to_parquet(df=df_dataset, path=path_dataset, glue_table_settings={"description": "foo"})
     with pytest.raises(wr.exceptions.InvalidArgumentValue):
         wr.s3.to_parquet(df=df_dataset, path=path_dataset, partition_cols=["col2"], dataset=True, mode="WRONG")
     wr.s3.to_parquet(df=df_file, path=path_file)
