@@ -342,7 +342,9 @@ def test_catalog_parameters(path: str, glue_database: str, glue_table: str) -> N
         database=glue_database,
         table=glue_table,
         mode="overwrite",
-        parameters={"a": "1", "b": "2"},
+        glue_table_settings=wr.typing.GlueTableSettings(
+            parameters={"a": "1", "b": "2"},
+        ),
     )
     pars = wr.catalog.get_table_parameters(database=glue_database, table=glue_table)
     assert pars["a"] == "1"
@@ -372,7 +374,9 @@ def test_catalog_parameters(path: str, glue_database: str, glue_table: str) -> N
         database=glue_database,
         table=glue_table,
         mode="append",
-        parameters={"e": "5"},
+        glue_table_settings=wr.typing.GlueTableSettings(
+            parameters={"e": "5"},
+        ),
     )
     pars = wr.catalog.get_table_parameters(database=glue_database, table=glue_table)
     assert pars.get("a") is None

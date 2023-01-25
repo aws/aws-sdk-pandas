@@ -3,7 +3,7 @@
 import csv
 import logging
 import uuid
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union, cast, overload
 
 import boto3
 import pandas as pd
@@ -17,6 +17,7 @@ from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_dataset import _to_dataset
+from awswrangler.typing import GlueTableSettings, _S3WriteDataReturnValue
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -91,19 +92,14 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     mode: Optional[str] = None,
     catalog_versioning: bool = False,
     schema_evolution: bool = False,
+    dtype: Optional[Dict[str, str]] = None,
     database: Optional[str] = None,
     table: Optional[str] = None,
-    table_type: Optional[str] = None,
-    transaction_id: Optional[str] = None,
-    dtype: Optional[Dict[str, str]] = None,
-    description: Optional[str] = None,
-    parameters: Optional[Dict[str, str]] = None,
-    columns_comments: Optional[Dict[str, str]] = None,
-    regular_partitions: bool = True,
+    glue_table_settings: Optional[GlueTableSettings] = None,
     projection_params: Optional[Dict[str, Any]] = None,
     catalog_id: Optional[str] = None,
     **pandas_kwargs: Any,
-) -> Dict[str, Union[List[str], Dict[str, List[str]]]]:
+) -> _S3WriteDataReturnValue:
     """Write CSV file or dataset on Amazon S3.
 
     The concept of Dataset goes beyond the simple idea of ordinary files and enable more
@@ -186,26 +182,12 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         Glue/Athena catalog: Database name.
     table : str, optional
         Glue/Athena catalog: Table name.
-    table_type: str, optional
-        The type of the Glue Table. Set to EXTERNAL_TABLE if None
-    transaction_id: str, optional
-        The ID of the transaction when writing to a Governed Table.
+    glue_table_settings: dict (GlueTableSettings), optional
+        Settings for writing to the Glue table.
     dtype : Dict[str, str], optional
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined or mixed data types.
         (e.g. {'col name': 'bigint', 'col2 name': 'int'})
-    description : str, optional
-        Glue/Athena catalog: Table description
-    parameters : Dict[str, str], optional
-        Glue/Athena catalog: Key/value pairs to tag the table.
-    columns_comments : Dict[str, str], optional
-        Glue/Athena catalog:
-        Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
-    regular_partitions : bool
-        Create regular partitions (Non projected partitions) on Glue Catalog.
-        Disable when you will work only with Partition Projection.
-        Keep enabled even when working with projections is useful to keep
-        Redshift Spectrum working with the regular partitions.
     projection_params : Optional[Dict[str, Any]]
         Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
         Following projection parameters are supported:
@@ -264,7 +246,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
 
     Returns
     -------
-    Dict[str, Union[List[str], Dict[str, List[str]]]]
+    wr.typing._S3WriteDataReturnValue
         Dictionary with:
         'paths': List of all stored files paths on S3.
         'partitions_values': Dictionary of partitions added with keys as S3 path locations
@@ -394,8 +376,10 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     ...     mode='append',
     ...     database='default',  # Athena/Glue database
     ...     table='my_table',  # Athena/Glue table
-    ...     table_type='GOVERNED',
-    ...     transaction_id="xxx",
+    ...     glue_table_settings=wr.typing.GlueTableSettings(
+    ...         table_type="GOVERNED",
+    ...         transaction_id="xxx",
+    ...     ),
     ... )
     {
         'paths': ['s3://.../x.csv'],
@@ -431,6 +415,18 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             "e.g. wr.s3.to_csv(df, path, sep='|', na_rep='NULL', decimal=',', compression='gzip')"
         )
 
+    glue_table_settings = cast(
+        GlueTableSettings,
+        glue_table_settings if glue_table_settings else {},
+    )
+
+    table_type = glue_table_settings.get("table_type")
+    transaction_id = glue_table_settings.get("transaction_id")
+    description = glue_table_settings.get("description")
+    parameters = glue_table_settings.get("parameters")
+    columns_comments = glue_table_settings.get("columns_comments")
+    regular_partitions = glue_table_settings.get("regular_partitions", True)
+
     _validate_args(
         df=df,
         table=table,
@@ -454,6 +450,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     commit_trans: bool = False
     if transaction_id:
         table_type = "GOVERNED"
+
     filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
@@ -494,7 +491,10 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             )
         if (table_type == "GOVERNED") and (not transaction_id):
             _logger.debug("`transaction_id` not specified for GOVERNED table, starting transaction")
-            transaction_id = lakeformation.start_transaction(read_only=False, boto3_session=boto3_session)
+            transaction_id = lakeformation.start_transaction(
+                read_only=False,
+                boto3_session=boto3_session,
+            )
             commit_trans = True
 
     df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
@@ -636,7 +636,8 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                     )
                 if commit_trans:
                     lakeformation.commit_transaction(
-                        transaction_id=transaction_id, boto3_session=boto3_session  # type: ignore
+                        transaction_id=transaction_id,  # type: ignore
+                        boto3_session=boto3_session,
                     )
             except Exception:
                 _logger.debug("Catalog write failed, cleaning up S3 (paths: %s).", paths)
@@ -648,6 +649,95 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                 )
                 raise
     return {"paths": paths, "partitions_values": partitions_values}
+
+
+@overload
+def to_json(
+    df: pd.DataFrame,
+    path: Optional[str] = ...,
+    index: bool = ...,
+    columns: Optional[List[str]] = ...,
+    use_threads: Union[bool, int] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    sanitize_columns: bool = ...,
+    dataset: Literal[False] = ...,
+    filename_prefix: Optional[str] = ...,
+    partition_cols: Optional[List[str]] = ...,
+    bucketing_info: Optional[Tuple[List[str], int]] = ...,
+    concurrent_partitioning: bool = ...,
+    mode: Optional[str] = ...,
+    catalog_versioning: bool = ...,
+    schema_evolution: bool = ...,
+    dtype: Optional[Dict[str, str]] = ...,
+    database: Optional[str] = ...,
+    table: Optional[str] = ...,
+    glue_table_settings: Optional[GlueTableSettings] = ...,
+    projection_params: Optional[Dict[str, Any]] = ...,
+    catalog_id: Optional[str] = ...,
+    **pandas_kwargs: Any,
+) -> List[str]:
+    ...
+
+
+@overload
+def to_json(
+    df: pd.DataFrame,
+    *,
+    path: Optional[str] = ...,
+    index: bool = ...,
+    columns: Optional[List[str]] = ...,
+    use_threads: Union[bool, int] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    sanitize_columns: bool = ...,
+    dataset: Literal[True],
+    filename_prefix: Optional[str] = ...,
+    partition_cols: Optional[List[str]] = ...,
+    bucketing_info: Optional[Tuple[List[str], int]] = ...,
+    concurrent_partitioning: bool = ...,
+    mode: Optional[str] = ...,
+    catalog_versioning: bool = ...,
+    schema_evolution: bool = ...,
+    dtype: Optional[Dict[str, str]] = ...,
+    database: Optional[str] = ...,
+    table: Optional[str] = ...,
+    glue_table_settings: Optional[GlueTableSettings] = ...,
+    projection_params: Optional[Dict[str, Any]] = ...,
+    catalog_id: Optional[str] = ...,
+    **pandas_kwargs: Any,
+) -> _S3WriteDataReturnValue:
+    ...
+
+
+@overload
+def to_json(
+    df: pd.DataFrame,
+    *,
+    path: Optional[str] = ...,
+    index: bool = ...,
+    columns: Optional[List[str]] = ...,
+    use_threads: Union[bool, int] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    sanitize_columns: bool = ...,
+    dataset: bool,
+    filename_prefix: Optional[str] = ...,
+    partition_cols: Optional[List[str]] = ...,
+    bucketing_info: Optional[Tuple[List[str], int]] = ...,
+    concurrent_partitioning: bool = ...,
+    mode: Optional[str] = ...,
+    catalog_versioning: bool = ...,
+    schema_evolution: bool = ...,
+    dtype: Optional[Dict[str, str]] = ...,
+    database: Optional[str] = ...,
+    table: Optional[str] = ...,
+    glue_table_settings: Optional[GlueTableSettings] = ...,
+    projection_params: Optional[Dict[str, Any]] = ...,
+    catalog_id: Optional[str] = ...,
+    **pandas_kwargs: Any,
+) -> Union[List[str], _S3WriteDataReturnValue]:
+    ...
 
 
 @apply_configs
@@ -668,19 +758,14 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
     mode: Optional[str] = None,
     catalog_versioning: bool = False,
     schema_evolution: bool = True,
+    dtype: Optional[Dict[str, str]] = None,
     database: Optional[str] = None,
     table: Optional[str] = None,
-    table_type: Optional[str] = None,
-    transaction_id: Optional[str] = None,
-    dtype: Optional[Dict[str, str]] = None,
-    description: Optional[str] = None,
-    parameters: Optional[Dict[str, str]] = None,
-    columns_comments: Optional[Dict[str, str]] = None,
-    regular_partitions: bool = True,
+    glue_table_settings: Optional[GlueTableSettings] = None,
     projection_params: Optional[Dict[str, Any]] = None,
     catalog_id: Optional[str] = None,
     **pandas_kwargs: Any,
-) -> Union[List[str], Dict[str, Union[List[str], Dict[str, List[str]]]]]:
+) -> Union[List[str], _S3WriteDataReturnValue]:
     """Write JSON file on Amazon S3.
 
     Note
@@ -746,26 +831,12 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         Glue/Athena catalog: Database name.
     table : str, optional
         Glue/Athena catalog: Table name.
-    table_type: str, optional
-        The type of the Glue Table. Set to EXTERNAL_TABLE if None
-    transaction_id: str, optional
-        The ID of the transaction when writing to a Governed Table.
+    glue_table_settings: dict (GlueTableSettings), optional
+        Settings for writing to the Glue table.
     dtype : Dict[str, str], optional
         Dictionary of columns names and Athena/Glue types to be casted.
         Useful when you have columns with undetermined or mixed data types.
         (e.g. {'col name': 'bigint', 'col2 name': 'int'})
-    description : str, optional
-        Glue/Athena catalog: Table description
-    parameters : Dict[str, str], optional
-        Glue/Athena catalog: Key/value pairs to tag the table.
-    columns_comments : Dict[str, str], optional
-        Glue/Athena catalog:
-        Columns names and the related comments (e.g. {'col0': 'Column 0.', 'col1': 'Column 1.', 'col2': 'Partition.'}).
-    regular_partitions : bool
-        Create regular partitions (Non projected partitions) on Glue Catalog.
-        Disable when you will work only with Partition Projection.
-        Keep enabled even when working with projections is useful to keep
-        Redshift Spectrum working with the regular partitions.
     projection_params : Optional[Dict[str, Any]]
         Enable Partition Projection on Athena (https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
         Following projection parameters are supported:
@@ -870,6 +941,18 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
             "e.g. wr.s3.to_json(df, path, lines=True, date_format='iso')"
         )
 
+    glue_table_settings = cast(
+        GlueTableSettings,
+        glue_table_settings if glue_table_settings else {},
+    )
+
+    table_type = glue_table_settings.get("table_type")
+    transaction_id = glue_table_settings.get("transaction_id")
+    description = glue_table_settings.get("description")
+    parameters = glue_table_settings.get("parameters")
+    columns_comments = glue_table_settings.get("columns_comments")
+    regular_partitions = glue_table_settings.get("regular_partitions", True)
+
     _validate_args(
         df=df,
         table=table,
@@ -893,6 +976,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
     commit_trans: bool = False
     if transaction_id:
         table_type = "GOVERNED"
+
     filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
     session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
@@ -933,7 +1017,10 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
             )
         if (table_type == "GOVERNED") and (not transaction_id):
             _logger.debug("`transaction_id` not specified for GOVERNED table, starting transaction")
-            transaction_id = lakeformation.start_transaction(read_only=False, boto3_session=boto3_session)
+            transaction_id = lakeformation.start_transaction(
+                read_only=False,
+                boto3_session=boto3_session,
+            )
             commit_trans = True
 
     df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
@@ -1044,7 +1131,8 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
                 )
                 if commit_trans:
                     lakeformation.commit_transaction(
-                        transaction_id=transaction_id, boto3_session=boto3_session  # type: ignore
+                        transaction_id=transaction_id,  # type: ignore
+                        boto3_session=boto3_session,
                     )
         except Exception:
             _logger.debug("Catalog write failed, cleaning up S3 (paths: %s).", paths)

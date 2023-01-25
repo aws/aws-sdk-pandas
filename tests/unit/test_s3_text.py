@@ -72,7 +72,7 @@ def test_read_partitioned_json_paths(path, use_threads, chunksize):
     df = pd.DataFrame({"c0": [0, 1], "c1": ["foo", "boo"]})
     paths = [f"{path}year={y}/month={m}/0.json" for y, m in [(2020, 1), (2020, 2), (2021, 1)]]
     for p in paths:
-        wr.s3.to_json(df, p, orient="records", lines=True)
+        wr.s3.to_json(df, path=p, orient="records", lines=True)
     df2 = wr.s3.read_json(path, dataset=True, use_threads=use_threads, chunksize=chunksize)
     if chunksize is None:
         assert df2.shape == (6, 4)
@@ -215,7 +215,14 @@ def test_json_lines(path):
 
 def test_to_json_partitioned(path, glue_database, glue_table):
     df = pd.DataFrame({"c0": [0, 1, 2], "c1": [3, 4, 5], "c2": [6, 7, 8]})
-    partitions = wr.s3.to_json(df, path, dataset=True, database=glue_database, table=glue_table, partition_cols=["c0"])
+    partitions = wr.s3.to_json(
+        df,
+        path,
+        dataset=True,
+        database=glue_database,
+        table=glue_table,
+        partition_cols=["c0"],
+    )
     assert len(partitions["paths"]) == 3
     assert len(partitions["partitions_values"]) == 3
 

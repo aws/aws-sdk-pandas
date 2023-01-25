@@ -30,6 +30,7 @@ from awswrangler import (  # noqa
     sqlserver,
     sts,
     timestream,
+    typing,
 )
 from awswrangler.__metadata__ import __description__, __license__, __title__, __version__  # noqa
 from awswrangler._config import config  # noqa
@@ -63,6 +64,7 @@ __all__ = [
     "engine",
     "memory_format",
     "timestream",
+    "typing",
     "__description__",
     "__license__",
     "__title__",
