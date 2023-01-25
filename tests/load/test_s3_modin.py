@@ -100,6 +100,8 @@ def test_modin_s3_write_json(
     path: str, big_modin_df: pd.DataFrame, benchmark_time: int, request: pytest.FixtureRequest
 ) -> None:
     with ExecutionTimer(request, data_paths=path) as timer:
-        big_modin_df.to_json(path, lines=True, orient="records")
+        # modin.DataFrame.to_json does not support PandasOnRay yet
+        ray_ds = ray.data.from_modin(big_modin_df)
+        ray_ds.write_json(path)
 
     assert timer.elapsed_time < benchmark_time
