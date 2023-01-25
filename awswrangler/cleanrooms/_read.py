@@ -8,7 +8,7 @@ import pandas as pd
 
 from awswrangler import _utils, s3
 from awswrangler._sql_formatter import _process_sql_params
-from awswrangler.cleanrooms import wait_query
+from awswrangler.cleanrooms._utils import wait_query
 
 _logger: logging.Logger = logging.getLogger(__name__)
 

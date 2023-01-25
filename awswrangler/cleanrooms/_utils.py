@@ -39,7 +39,7 @@ def wait_query(membership_id: str, query_id: str, boto3_session: Optional[boto3.
     >>> import awswrangler as wr
     >>> res = wr.cleanrooms.wait_query(membership_id='membership-id', query_id='query-id')
     """
-    client_cleanrooms: boto3.client = _utils.client(service_name="cleanrooms", session=boto3_session)
+    client_cleanrooms = _utils.client(service_name="cleanrooms", session=boto3_session)
     state: str = "SUBMITTED"
 
     while state not in _QUERY_FINAL_STATES:
