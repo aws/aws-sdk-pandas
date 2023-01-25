@@ -17,6 +17,7 @@ API Reference
 * `Amazon Neptune`_
 * `DynamoDB`_
 * `Amazon Timestream`_
+* `AWS Clean Rooms`_
 * `Amazon EMR`_
 * `Amazon CloudWatch Logs`_
 * `Amazon QuickSight`_
@@ -326,6 +327,17 @@ Amazon Timestream
     delete_table
     query
     write
+
+AWS Clean Rooms
+-----------------
+
+.. currentmodule:: awswrangler.cleanrooms
+
+.. autosummary::
+    :toctree: stubs
+
+    read_sql_query
+    wait_query
 
 Amazon EMR
 ----------
