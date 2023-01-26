@@ -25,7 +25,6 @@ class _ThreadPoolExecutor:
         """Map iterables to multi-threaded function."""
         _logger.debug("Map: %s", func)
         if self._exec is not None:
-            # Deserialize boto3 session into pickable object
             args = (itertools.repeat(boto3_client), *iterables)
             return list(self._exec.map(func, *args))
         # Single-threaded
