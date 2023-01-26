@@ -230,8 +230,9 @@ def _read_items(
     resource = _utils.resource(service_name="dynamodb", session=boto3_session)
     table = get_table(table_name=table_name, boto3_session=boto3_session)
 
-    # Extract 'Keys' from provided kwargs: if needed, will be reinserted later on
+    # Extract 'Keys' and 'IndexName' from provided kwargs: if needed, will be reinserted later on
     keys = kwargs.pop("Keys", None)
+    index = kwargs.pop("IndexName", None)
 
     # Conditionally define optimal reading strategy
     use_get_item = (keys is not None) and (len(keys) == 1)
@@ -256,6 +257,8 @@ def _read_items(
             response = resource.batch_get_item(RequestItems={table_name: kwargs})
             items.extend(response.get("Responses", {table_name: []}).get(table_name, []))
     elif use_query or use_scan:
+        if index:
+            kwargs["IndexName"] = index
         _read_method = table.query if use_query else table.scan
         response = _read_method(**kwargs)
         items = response.get("Items", [])
@@ -269,8 +272,9 @@ def _read_items(
     return items
 
 
-def read_items(
+def read_items(  # pylint: disable=too-many-branches
     table_name: str,
+    index_name: Optional[str] = None,
     partition_values: Optional[Sequence[Any]] = None,
     sort_values: Optional[Sequence[Any]] = None,
     filter_expression: Optional[Union[ConditionBase, str]] = None,
@@ -297,6 +301,8 @@ def read_items(
     ----------
     table_name : str
         DynamoDB table name.
+    index_name : str, optional
+        Name of the secondary global or local index on the table. Defaults to None.
     partition_values : Sequence[Any], optional
         Partition key values to retrieve. Defaults to None.
     sort_values : Sequence[Any], optional
@@ -446,6 +452,8 @@ def read_items(
                 raise exceptions.InvalidArgumentCombination("Partition and sort values must have the same length.")
             keys = [{partition_key: pv, sort_key: sv} for pv, sv in zip(partition_values, sort_values)]
         kwargs["Keys"] = keys
+    if index_name:
+        kwargs["IndexName"] = index_name
     if key_condition_expression:
         kwargs["KeyConditionExpression"] = key_condition_expression
     if filter_expression:
