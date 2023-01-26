@@ -295,6 +295,11 @@ def write(
     >>> assert len(rejected_records) == 0
 
     """
+    timestream_client: boto3.client = _utils.client(
+        service_name="timestream-write",
+        session=boto3_session,
+        botocore_config=Config(read_timeout=20, max_pool_connections=5000, retries={"max_attempts": 10}),
+    )
     measure_cols_names = measure_col if isinstance(measure_col, list) else [measure_col]
     _logger.debug("measure_cols_names: %s", measure_cols_names)
     measure_types: List[str] = _data_types.timestream_type_from_pandas(df.loc[:, measure_cols_names])
