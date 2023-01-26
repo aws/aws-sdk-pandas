@@ -91,14 +91,6 @@ def read_partiql_query(
     >>> wr.dynamodb.read_partiql_query(
     ...     query="SELECT id FROM table"
     ... )
-
-    Select all contents with dtype set and chunked
-
-    >>> wr.dynamodb.read_partiql_query(
-    ...     query="SELECT * FROM table",
-    ...     chunked=True,
-    ...     dtype={'key': int},
-    ... )
     """
     _logger.debug("Reading results for PartiQL query:  '%s'", query)
     iterator: Iterator[Dict[str, Any]] = execute_statement(  # type: ignore
