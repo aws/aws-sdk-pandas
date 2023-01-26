@@ -196,8 +196,9 @@ def _read_items(
     return items
 
 
-def read_items(
+def read_items(  # pylint: disable=too-many-branches
     table_name: str,
+    index_name: Optional[str] = None,
     partition_values: Optional[Sequence[Any]] = None,
     sort_values: Optional[Sequence[Any]] = None,
     filter_expression: Optional[Union[ConditionBase, str]] = None,
@@ -224,6 +225,8 @@ def read_items(
     ----------
     table_name : str
         DynamoDB table name.
+    index_name : str, optional
+        Name of the secondary global or local index on the table. Defaults to None.
     partition_values : Sequence[Any], optional
         Partition key values to retrieve. Defaults to None.
     sort_values : Sequence[Any], optional
@@ -373,6 +376,8 @@ def read_items(
                 raise exceptions.InvalidArgumentCombination("Partition and sort values must have the same length.")
             keys = [{partition_key: pv, sort_key: sv} for pv, sv in zip(partition_values, sort_values)]
         kwargs["Keys"] = keys
+    if index_name:
+        kwargs["IndexName"] = index_name
     if key_condition_expression:
         kwargs["KeyConditionExpression"] = key_condition_expression
     if filter_expression:
