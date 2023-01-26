@@ -1,5 +1,4 @@
 import os
-import uuid
 from datetime import datetime
 from importlib import reload
 from types import ModuleType
@@ -244,26 +243,6 @@ def glue_table2(glue_database) -> str:
 
 
 @pytest.fixture(scope="function")
-def quicksight_datasource() -> str:
-    name = f"test{str(uuid.uuid4())[:8]}"
-    print(f"Quicksight Data Source: {name}")
-    wr.quicksight.delete_all_data_sources(regex_filter=name)
-    yield name
-    wr.quicksight.delete_all_data_sources(regex_filter=name)
-    print(f"Quicksight Data Source: {name} deleted")
-
-
-@pytest.fixture(scope="function")
-def quicksight_dataset() -> str:
-    name = f"test{str(uuid.uuid4())[:8]}"
-    print(f"Quicksight Dataset: {name}")
-    wr.quicksight.delete_all_datasets(regex_filter=name)
-    yield name
-    wr.quicksight.delete_all_datasets(regex_filter=name)
-    print(f"Quicksight Dataset: {name} deleted")
-
-
-@pytest.fixture(scope="function")
 def path(bucket):
     yield from path_generator(bucket)
 
@@ -400,6 +379,13 @@ def random_glue_database():
     database_name = get_time_str_with_random_suffix()
     yield database_name
     wr.catalog.delete_database(database_name)
+
+
+@pytest.fixture(scope="function")
+def redshift_con():
+    con = wr.redshift.connect("aws-sdk-pandas-redshift")
+    yield con
+    con.close()
 
 
 @pytest.fixture(scope="function")

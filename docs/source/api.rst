@@ -24,6 +24,7 @@ API Reference
 * `AWS Secrets Manager`_
 * `Amazon Chime`_
 * `Global Configurations`_
+* `Distributed - Ray`_
 
 Amazon S3
 ---------
@@ -303,6 +304,8 @@ DynamoDB
 
     delete_items
     get_table
+    execute_statement
+    read_partiql_query
     read_items
     put_csv
     put_df
@@ -448,3 +451,13 @@ Global Configurations
 
     reset
     to_pandas
+
+Distributed - Ray
+---------------------
+
+.. currentmodule:: awswrangler.distributed.ray
+
+.. autosummary::
+    :toctree: stubs
+
+    initialize_ray
