@@ -32,11 +32,10 @@ def _split_paths_by_bucket(paths: List[str]) -> Dict[str, List[str]]:
 def _delete_objects(
     bucket: str,
     keys: List[str],
-    boto3_session: boto3.Session,
+    s3_client: boto3.client,
     s3_additional_kwargs: Optional[Dict[str, Any]],
     attempt: int = 1,
 ) -> None:
-    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     _logger.debug("len(keys): %s", len(keys))
     batch: List[Dict[str, str]] = [{"Key": key} for key in keys]
     if s3_additional_kwargs:
@@ -45,7 +44,7 @@ def _delete_objects(
         )
     else:
         extra_kwargs = {}
-    res = client_s3.delete_objects(Bucket=bucket, Delete={"Objects": batch}, **extra_kwargs)
+    res = s3_client.delete_objects(Bucket=bucket, Delete={"Objects": batch}, **extra_kwargs)
     deleted: List[Dict[str, Any]] = res.get("Deleted", [])
     for obj in deleted:
         _logger.debug("s3://%s/%s has been deleted.", bucket, obj.get("Key"))
@@ -63,7 +62,7 @@ def _delete_objects(
         _delete_objects(
             bucket=bucket,
             keys=internal_errors,
-            boto3_session=boto3_session,
+            s3_client=s3_client,
             s3_additional_kwargs=s3_additional_kwargs,
             attempt=(attempt + 1),
         )
@@ -72,13 +71,10 @@ def _delete_objects(
 def _delete_objects_concurrent(
     bucket: str,
     keys: List[str],
+    s3_client: boto3.client,
     s3_additional_kwargs: Optional[Dict[str, Any]],
-    boto3_primitives: _utils.Boto3PrimitivesType,
 ) -> None:
-    boto3_session = _utils.boto3_from_primitives(primitives=boto3_primitives)
-    return _delete_objects(
-        bucket=bucket, keys=keys, boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs
-    )
+    return _delete_objects(bucket=bucket, keys=keys, s3_client=s3_client, s3_additional_kwargs=s3_additional_kwargs)
 
 
 def delete_objects(
@@ -139,11 +135,12 @@ def delete_objects(
     >>> wr.s3.delete_objects('s3://bucket/prefix')  # Delete all objects under the received prefix
 
     """
+    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     paths: List[str] = _path2list(
         path=path,
-        boto3_session=boto3_session,
         last_modified_begin=last_modified_begin,
         last_modified_end=last_modified_end,
+        s3_client=s3_client,
         s3_additional_kwargs=s3_additional_kwargs,
     )
     if len(paths) < 1:
@@ -153,12 +150,12 @@ def delete_objects(
         chunks: List[List[str]] = _utils.chunkify(lst=keys, max_length=1_000)
         if len(chunks) == 1:
             _delete_objects(
-                bucket=bucket, keys=chunks[0], boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs
+                bucket=bucket, keys=chunks[0], s3_client=s3_client, s3_additional_kwargs=s3_additional_kwargs
             )
         elif use_threads is False:
             for chunk in chunks:
                 _delete_objects(
-                    bucket=bucket, keys=chunk, boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs
+                    bucket=bucket, keys=chunk, s3_client=s3_client, s3_additional_kwargs=s3_additional_kwargs
                 )
         else:
             cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
@@ -168,7 +165,7 @@ def delete_objects(
                         _delete_objects_concurrent,
                         itertools.repeat(bucket),
                         chunks,
+                        itertools.repeat(s3_client),
                         itertools.repeat(s3_additional_kwargs),
-                        itertools.repeat(_utils.boto3_to_primitives(boto3_session=boto3_session)),
                     )
                 )

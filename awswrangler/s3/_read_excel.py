@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional, Union
 import boto3
 import pandas as pd
 
-from awswrangler import _utils, exceptions
+from awswrangler import exceptions
 from awswrangler.s3._fs import open_s3_object
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -77,7 +77,6 @@ def read_excel(
             "Pandas arguments in the function call and awswrangler will accept it."
             "e.g. wr.s3.read_excel('s3://bucket/key.xlsx', na_rep='', verbose=True)"
         )
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     with open_s3_object(
         path=path,
         mode="rb",
@@ -85,7 +84,7 @@ def read_excel(
         use_threads=use_threads,
         s3_block_size=-1,  # One shot download
         s3_additional_kwargs=s3_additional_kwargs,
-        boto3_session=session,
+        boto3_session=boto3_session,
     ) as f:
         _logger.debug("pandas_kwargs: %s", pandas_kwargs)
         return pd.read_excel(f, **pandas_kwargs)

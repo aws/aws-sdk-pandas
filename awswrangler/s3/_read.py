@@ -10,7 +10,7 @@ import pandas as pd
 from pandas.api.types import union_categoricals
 
 from awswrangler import exceptions
-from awswrangler._utils import boto3_to_primitives, ensure_cpu_count
+from awswrangler._utils import ensure_cpu_count
 from awswrangler.s3._list import _prefix_cleanup
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -145,7 +145,6 @@ def _read_dfs_from_multiple_paths(
         ]
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=ensure_cpu_count(use_threads)) as executor:
-        kwargs["boto3_session"] = boto3_to_primitives(kwargs["boto3_session"])
         partial_read_func = partial(read_func, **kwargs)
         versions = [version_ids.get(p) if isinstance(version_ids, dict) else None for p in paths]
         return list(df for df in executor.map(partial_read_func, paths, versions))

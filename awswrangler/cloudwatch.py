@@ -169,16 +169,15 @@ def run_query(
     ... )
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     query_id: str = start_query(
         query=query,
         log_group_names=log_group_names,
         start_time=start_time,
         end_time=end_time,
         limit=limit,
-        boto3_session=session,
+        boto3_session=boto3_session,
     )
-    response: Dict[str, Any] = wait_query(query_id=query_id, boto3_session=session)
+    response: Dict[str, Any] = wait_query(query_id=query_id, boto3_session=boto3_session)
     return cast(List[List[Dict[str, str]]], response["results"])
 
 

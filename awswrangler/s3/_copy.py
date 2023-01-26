@@ -123,10 +123,9 @@ def merge_datasets(
     """
     source_path = source_path[:-1] if source_path[-1] == "/" else source_path
     target_path = target_path[:-1] if target_path[-1] == "/" else target_path
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
 
     paths: List[str] = list_objects(  # type: ignore
-        path=f"{source_path}/", ignore_empty=ignore_empty, boto3_session=session
+        path=f"{source_path}/", ignore_empty=ignore_empty, boto3_session=boto3_session
     )
     _logger.debug("len(paths): %s", len(paths))
     if len(paths) < 1:
@@ -134,7 +133,7 @@ def merge_datasets(
 
     if mode == "overwrite":
         _logger.debug("Deleting to overwrite: %s/", target_path)
-        delete_objects(path=f"{target_path}/", use_threads=use_threads, boto3_session=session)
+        delete_objects(path=f"{target_path}/", use_threads=use_threads, boto3_session=boto3_session)
     elif mode == "overwrite_partitions":
         paths_wo_prefix: List[str] = [x.replace(f"{source_path}/", "") for x in paths]
         paths_wo_filename: List[str] = [f"{x.rpartition('/')[0]}/" for x in paths_wo_prefix]
@@ -142,7 +141,7 @@ def merge_datasets(
         target_partitions_paths = [f"{target_path}/{x}" for x in partitions_paths]
         for path in target_partitions_paths:
             _logger.debug("Deleting to overwrite_partitions: %s", path)
-            delete_objects(path=path, use_threads=use_threads, boto3_session=session)
+            delete_objects(path=path, use_threads=use_threads, boto3_session=boto3_session)
     elif mode != "append":
         raise exceptions.InvalidArgumentValue(f"{mode} is a invalid mode option.")
 
@@ -151,7 +150,7 @@ def merge_datasets(
         source_path=source_path,
         target_path=target_path,
         use_threads=use_threads,
-        boto3_session=session,
+        boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
     )
     _logger.debug("len(new_objects): %s", len(new_objects))
@@ -231,7 +230,6 @@ def copy_objects(
         return []
     source_path = source_path[:-1] if source_path[-1] == "/" else source_path
     target_path = target_path[:-1] if target_path[-1] == "/" else target_path
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     batch: List[Tuple[str, str]] = []
     new_objects: List[str] = []
     for path in paths:
@@ -250,6 +248,6 @@ def copy_objects(
         batch.append((path, path_final))
     _logger.debug("len(new_objects): %s", len(new_objects))
     _copy_objects(
-        batch=batch, use_threads=use_threads, boto3_session=session, s3_additional_kwargs=s3_additional_kwargs
+        batch=batch, use_threads=use_threads, boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs
     )
     return new_objects
