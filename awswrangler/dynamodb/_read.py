@@ -293,7 +293,7 @@ def read_items(
     ...
 
 
-def read_items(
+def read_items(  # pylint: disable=too-many-branches
     table_name: str,
     index_name: Optional[str] = None,
     partition_values: Optional[Sequence[Any]] = None,
