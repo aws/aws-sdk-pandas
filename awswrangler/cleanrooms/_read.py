@@ -7,7 +7,7 @@ import boto3
 import pandas as pd
 
 from awswrangler import _utils, s3
-from awswrangler._sql_formatter import _process_sql_params
+from awswrangler._sql_formatter import _EngineType, _process_sql_params
 from awswrangler.cleanrooms._utils import wait_query
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -88,7 +88,7 @@ def read_sql_query(
     query_id: str = client_cleanrooms.start_protected_query(
         type="SQL",
         membershipIdentifier=membership_id,
-        sqlParameters={"queryString": _process_sql_params(sql, params)},
+        sqlParameters={"queryString": _process_sql_params(sql, params, engine=_EngineType.PARTIQL)},
         resultConfiguration={
             "outputConfiguration": {
                 "s3": {
