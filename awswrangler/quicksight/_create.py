@@ -167,10 +167,9 @@ def create_athena_data_source(
     ...     allowed_to_manage=["john"]
     ... )
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    client: boto3.client = _utils.client(service_name="quicksight", session=session)
+    client: boto3.client = _utils.client(service_name="quicksight", session=boto3_session)
     if account_id is None:
-        account_id = sts.get_account_id(boto3_session=session)
+        account_id = sts.get_account_id(boto3_session=boto3_session)
     args: Dict[str, Any] = {
         "AwsAccountId": account_id,
         "DataSourceId": name,
@@ -182,7 +181,7 @@ def create_athena_data_source(
     permissions: List[Dict[str, Union[str, List[str]]]] = _generate_permissions(
         resource="data_source",
         account_id=account_id,
-        boto3_session=session,
+        boto3_session=boto3_session,
         allowed_to_use=allowed_to_use,
         allowed_to_manage=allowed_to_manage,
         namespace=namespace,
@@ -302,12 +301,11 @@ def create_athena_dataset(
             "If you provide sql argument, please include the database name inside the sql statement."
             "Do NOT pass in with database argument."
         )
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    client: boto3.client = _utils.client(service_name="quicksight", session=session)
+    client: boto3.client = _utils.client(service_name="quicksight", session=boto3_session)
     if account_id is None:
-        account_id = sts.get_account_id(boto3_session=session)
+        account_id = sts.get_account_id(boto3_session=boto3_session)
     if (data_source_arn is None) and (data_source_name is not None):
-        data_source_arn = get_data_source_arn(name=data_source_name, account_id=account_id, boto3_session=session)
+        data_source_arn = get_data_source_arn(name=data_source_name, account_id=account_id, boto3_session=boto3_session)
     if sql is not None:
         physical_table: Dict[str, Dict[str, Any]] = {
             "CustomSql": {
@@ -318,7 +316,7 @@ def create_athena_dataset(
                     sql=sql,
                     data_source_arn=data_source_arn,  # type: ignore
                     account_id=account_id,
-                    boto3_session=session,
+                    boto3_session=boto3_session,
                 ),
             }
         }
@@ -331,7 +329,7 @@ def create_athena_dataset(
                 "InputColumns": extract_athena_table_columns(
                     database=database,  # type: ignore
                     table=table,  # type: ignore
-                    boto3_session=session,
+                    boto3_session=boto3_session,
                 ),
             }
         }
@@ -353,7 +351,7 @@ def create_athena_dataset(
     permissions: List[Dict[str, Union[str, List[str]]]] = _generate_permissions(
         resource="dataset",
         account_id=account_id,
-        boto3_session=session,
+        boto3_session=boto3_session,
         allowed_to_use=allowed_to_use,
         allowed_to_manage=allowed_to_manage,
         namespace=namespace,
@@ -403,16 +401,15 @@ def create_ingestion(
     >>> import awswrangler as wr
     >>> status = wr.quicksight.create_ingestion("my_dataset")
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if account_id is None:
-        account_id = sts.get_account_id(boto3_session=session)
+        account_id = sts.get_account_id(boto3_session=boto3_session)
     if (dataset_name is None) and (dataset_id is None):
         raise exceptions.InvalidArgument("You must pass a not None dataset_name or dataset_id argument.")
     if (dataset_id is None) and (dataset_name is not None):
-        dataset_id = get_dataset_id(name=dataset_name, account_id=account_id, boto3_session=session)
+        dataset_id = get_dataset_id(name=dataset_name, account_id=account_id, boto3_session=boto3_session)
     if ingestion_id is None:
         ingestion_id = uuid.uuid4().hex
-    client: boto3.client = _utils.client(service_name="quicksight", session=session)
+    client: boto3.client = _utils.client(service_name="quicksight", session=boto3_session)
     response: Dict[str, Any] = client.create_ingestion(
         DataSetId=dataset_id, IngestionId=ingestion_id, AwsAccountId=account_id
     )

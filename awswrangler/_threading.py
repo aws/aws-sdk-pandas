@@ -21,16 +21,15 @@ class _ThreadPoolExecutor:
         if self._cpus > 1:
             self._exec = concurrent.futures.ThreadPoolExecutor(max_workers=self._cpus)  # pylint: disable=R1732
 
-    def map(self, func: Callable[..., Any], boto3_session: boto3.Session, *iterables: Any) -> List[Any]:
+    def map(self, func: Callable[..., Any], boto3_client: boto3.client, *iterables: Any) -> List[Any]:
         """Map iterables to multi-threaded function."""
         _logger.debug("Map: %s", func)
         if self._exec is not None:
             # Deserialize boto3 session into pickable object
-            boto3_primitives = _utils.boto3_to_primitives(boto3_session=boto3_session)
-            args = (itertools.repeat(boto3_primitives), *iterables)
+            args = (itertools.repeat(boto3_client), *iterables)
             return list(self._exec.map(func, *args))
         # Single-threaded
-        return list(map(func, *(itertools.repeat(boto3_session), *iterables)))
+        return list(map(func, *(itertools.repeat(boto3_client), *iterables)))
 
 
 def _get_executor(use_threads: Union[bool, int]) -> _ThreadPoolExecutor:

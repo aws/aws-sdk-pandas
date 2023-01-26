@@ -1,6 +1,5 @@
 """Internal (private) Utilities Module."""
 
-import copy
 import itertools
 import logging
 import math
@@ -28,10 +27,8 @@ _logger: logging.Logger = logging.getLogger(__name__)
 Boto3PrimitivesType = Dict[str, Optional[str]]
 
 
-def ensure_session(session: Union[None, boto3.Session, Boto3PrimitivesType] = None) -> boto3.Session:
+def ensure_session(session: Union[None, boto3.Session] = None) -> boto3.Session:
     """Ensure that a valid boto3.Session will be returned."""
-    if isinstance(session, dict):  # Primitives received
-        return boto3_from_primitives(primitives=session)
     if session is not None:
         return session
     # Ensure the boto3's default session is used so that its parameters can be
@@ -52,17 +49,6 @@ def boto3_to_primitives(boto3_session: Optional[boto3.Session] = None) -> Boto3P
         "region_name": _boto3_session.region_name,
         "profile_name": _boto3_session.profile_name,
     }
-
-
-def boto3_from_primitives(primitives: Optional[Boto3PrimitivesType] = None) -> boto3.Session:
-    """Convert Python primitives to Boto3 Session."""
-    if primitives is None:
-        return ensure_session()
-    _primitives: Boto3PrimitivesType = copy.deepcopy(primitives)
-    profile_name: Optional[str] = _primitives.get("profile_name", None)
-    _primitives["profile_name"] = None if profile_name in (None, "default") else profile_name
-    args: Dict[str, str] = {k: v for k, v in _primitives.items() if v is not None}
-    return boto3.Session(**args)
 
 
 def default_botocore_config() -> botocore.config.Config:

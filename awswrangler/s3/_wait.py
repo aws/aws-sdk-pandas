@@ -14,11 +14,8 @@ from awswrangler.distributed.ray import ray_get
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _wait_object(
-    boto3_session: Optional[boto3.Session], path: str, waiter_name: str, delay: int, max_attempts: int
-) -> None:
-    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
-    waiter = client_s3.get_waiter(waiter_name)
+def _wait_object(s3_client: boto3.client, path: str, waiter_name: str, delay: int, max_attempts: int) -> None:
+    waiter = s3_client.get_waiter(waiter_name)
 
     bucket, key = _utils.parse_path(path=path)
     waiter.wait(Bucket=bucket, Key=key, WaiterConfig={"Delay": delay, "MaxAttempts": max_attempts})
@@ -26,10 +23,11 @@ def _wait_object(
 
 @engine.dispatch_on_engine
 def _wait_object_batch(
-    boto3_session: Optional[boto3.Session], paths: List[str], waiter_name: str, delay: int, max_attempts: int
+    s3_client: Optional[boto3.client], paths: List[str], waiter_name: str, delay: int, max_attempts: int
 ) -> None:
+    s3_client = s3_client if s3_client else _utils.client(service_name="s3")
     for path in paths:
-        _wait_object(boto3_session, path, waiter_name, delay, max_attempts)
+        _wait_object(s3_client, path, waiter_name, delay, max_attempts)
 
 
 def _wait_objects(
@@ -39,7 +37,7 @@ def _wait_objects(
     max_attempts: Optional[int],
     use_threads: Union[bool, int],
     parallelism: Optional[int],
-    boto3_session: Optional[boto3.Session],
+    s3_client: boto3.client,
 ) -> None:
     delay = 5 if delay is None else delay
     max_attempts = 20 if max_attempts is None else max_attempts
@@ -58,7 +56,7 @@ def _wait_objects(
     ray_get(
         executor.map(
             _wait_object_batch,
-            boto3_session,
+            s3_client,
             path_batches,
             itertools.repeat(waiter_name),
             itertools.repeat(int(delay)),
@@ -117,6 +115,7 @@ def wait_objects_exist(
     >>> wr.s3.wait_objects_exist(['s3://bucket/key0', 's3://bucket/key1'])  # wait both objects
 
     """
+    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     return _wait_objects(
         waiter_name="object_exists",
         paths=paths,
@@ -124,7 +123,7 @@ def wait_objects_exist(
         max_attempts=max_attempts,
         use_threads=use_threads,
         parallelism=parallelism,
-        boto3_session=boto3_session,
+        s3_client=s3_client,
     )
 
 
@@ -176,6 +175,7 @@ def wait_objects_not_exist(
     >>> wr.s3.wait_objects_not_exist(['s3://bucket/key0', 's3://bucket/key1'])  # wait both objects not exist
 
     """
+    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     return _wait_objects(
         waiter_name="object_not_exists",
         paths=paths,
@@ -183,5 +183,5 @@ def wait_objects_not_exist(
         max_attempts=max_attempts,
         use_threads=use_threads,
         parallelism=parallelism,
-        boto3_session=boto3_session,
+        s3_client=s3_client,
     )

@@ -83,7 +83,7 @@ def _read_text_distributed(  # pylint: disable=unused-argument
     version_id_dict: Dict[str, Optional[str]],
     pandas_kwargs: Dict[str, Any],
     use_threads: Union[bool, int],
-    boto3_session: Optional["boto3.Session"],
+    s3_client: Optional[boto3.client],
 ) -> pd.DataFrame:
     try:
         read_options, parse_options, convert_options = _parse_configuration(

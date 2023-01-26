@@ -24,7 +24,7 @@ def _to_parquet_distributed(  # pylint: disable=unused-argument
     pyarrow_additional_kwargs: Optional[Dict[str, Any]],
     cpus: int,
     dtype: Dict[str, str],
-    boto3_session: Optional["boto3.Session"],
+    s3_client: Optional["boto3.client"],
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
     path: Optional[str] = None,

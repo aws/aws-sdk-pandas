@@ -62,7 +62,7 @@ def _pyarrow_parquet_file_wrapper(
 
 @engine.dispatch_on_engine
 def _read_parquet_metadata_file(
-    boto3_session: boto3.Session,
+    s3_client: Optional[boto3.client],
     path: str,
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
@@ -74,9 +74,9 @@ def _read_parquet_metadata_file(
         mode="rb",
         version_id=version_id,
         use_threads=use_threads,
+        s3_client=s3_client,
         s3_block_size=METADATA_READ_S3_BLOCK_SIZE,
         s3_additional_kwargs=s3_additional_kwargs,
-        boto3_session=boto3_session,
     ) as f:
         pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(
             source=f, coerce_int96_timestamp_unit=coerce_int96_timestamp_unit
@@ -90,7 +90,7 @@ def _read_schemas_from_files(
     paths: List[str],
     sampling: float,
     use_threads: Union[bool, int],
-    boto3_session: boto3.Session,
+    s3_client: boto3.client,
     s3_additional_kwargs: Optional[Dict[str, str]],
     version_ids: Optional[Dict[str, str]] = None,
     coerce_int96_timestamp_unit: Optional[str] = None,
@@ -101,7 +101,7 @@ def _read_schemas_from_files(
     schemas = ray_get(
         executor.map(
             _read_parquet_metadata_file,
-            boto3_session,
+            s3_client,
             paths,
             itertools.repeat(s3_additional_kwargs),
             itertools.repeat(use_threads),
@@ -131,7 +131,7 @@ def _validate_schemas_from_files(
     paths: List[str],
     sampling: float,
     use_threads: Union[bool, int],
-    boto3_session: boto3.Session,
+    s3_client: boto3.client,
     s3_additional_kwargs: Optional[Dict[str, str]],
     version_ids: Optional[Dict[str, str]] = None,
     coerce_int96_timestamp_unit: Optional[str] = None,
@@ -140,7 +140,7 @@ def _validate_schemas_from_files(
         paths=paths,
         sampling=sampling,
         use_threads=use_threads,
-        boto3_session=boto3_session,
+        s3_client=s3_client,
         s3_additional_kwargs=s3_additional_kwargs,
         version_ids=version_ids,
         coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
@@ -164,11 +164,11 @@ def _read_parquet_metadata(
     coerce_int96_timestamp_unit: Optional[str] = None,
 ) -> Tuple[Dict[str, str], Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]:
     """Handle wr.s3.read_parquet_metadata internally."""
-    boto3_session = _utils.ensure_session(session=boto3_session)
+    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     path_root: Optional[str] = _get_path_root(path=path, dataset=dataset)
     paths: List[str] = _path2list(
         path=path,
-        boto3_session=boto3_session,
+        s3_client=s3_client,
         suffix=path_suffix,
         ignore_suffix=_get_path_ignore_suffix(path_ignore_suffix=path_ignore_suffix),
         ignore_empty=ignore_empty,
@@ -183,7 +183,7 @@ def _read_parquet_metadata(
         paths=paths,
         sampling=sampling,
         use_threads=use_threads,
-        boto3_session=boto3_session,
+        s3_client=s3_client,
         s3_additional_kwargs=s3_additional_kwargs,
         version_ids=version_ids,
         coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
@@ -212,7 +212,7 @@ def _read_parquet_metadata(
 
 
 def _read_parquet_file(
-    boto3_session: boto3.Session,
+    s3_client: Optional[boto3.client],
     path: str,
     path_root: Optional[str],
     columns: Optional[List[str]],
@@ -229,7 +229,7 @@ def _read_parquet_file(
         use_threads=use_threads,
         s3_block_size=s3_block_size,
         s3_additional_kwargs=s3_additional_kwargs,
-        boto3_session=boto3_session,
+        s3_client=s3_client,
     ) as f:
         pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(
             source=f,
@@ -245,7 +245,7 @@ def _read_parquet_file(
 
 
 def _read_parquet_chunked(
-    boto3_session: boto3.Session,
+    s3_client: Optional[boto3.client],
     paths: List[str],
     path_root: Optional[str],
     columns: Optional[List[str]],
@@ -265,9 +265,9 @@ def _read_parquet_chunked(
             version_id=version_ids.get(path) if version_ids else None,
             mode="rb",
             use_threads=use_threads,
+            s3_client=s3_client,
             s3_block_size=CHUNKED_READ_S3_BLOCK_SIZE,
             s3_additional_kwargs=s3_additional_kwargs,
-            boto3_session=boto3_session,
         ) as f:
             pq_file: Optional[pyarrow.parquet.ParquetFile] = _pyarrow_parquet_file_wrapper(
                 source=f,
@@ -309,17 +309,17 @@ def _read_parquet(  # pylint: disable=W0613
     schema: pa.schema,
     columns: Optional[List[str]],
     coerce_int96_timestamp_unit: Optional[str],
-    boto3_session: Optional[boto3.Session],
     use_threads: Union[bool, int],
     parallelism: int,
     version_ids: Optional[Dict[str, str]],
+    s3_client: Optional[boto3.client],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     arrow_kwargs: Dict[str, Any],
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     executor = _get_executor(use_threads=use_threads)
     tables = executor.map(
         _read_parquet_file,
-        boto3_session,
+        s3_client,
         paths,
         itertools.repeat(path_root),
         itertools.repeat(columns),
@@ -592,9 +592,10 @@ def read_parquet(
     >>> df = wr.s3.read_parquet(path, dataset=True, partition_filter=my_filter)
 
     """
+    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     paths: List[str] = _path2list(
         path=path,
-        boto3_session=boto3_session,
+        s3_client=s3_client,
         suffix=path_suffix,
         ignore_suffix=_get_path_ignore_suffix(path_ignore_suffix=path_ignore_suffix),
         last_modified_begin=last_modified_begin,
@@ -620,7 +621,7 @@ def read_parquet(
         paths=paths,
         sampling=1.0,
         use_threads=use_threads,
-        boto3_session=boto3_session,
+        s3_client=s3_client,
         s3_additional_kwargs=s3_additional_kwargs,
         coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
         version_ids=version_ids,
@@ -640,7 +641,7 @@ def read_parquet(
 
     if chunked:
         return _read_parquet_chunked(
-            boto3_session=boto3_session,
+            s3_client=s3_client,
             paths=paths,
             path_root=path_root,
             columns=columns,
@@ -660,7 +661,7 @@ def read_parquet(
         coerce_int96_timestamp_unit=coerce_int96_timestamp_unit,
         use_threads=use_threads,
         parallelism=parallelism,
-        boto3_session=boto3_session,
+        s3_client=s3_client,
         s3_additional_kwargs=s3_additional_kwargs,
         arrow_kwargs=arrow_kwargs,
         version_ids=version_ids,
@@ -872,6 +873,7 @@ def read_parquet_table(
 
     """
     client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     res: Dict[str, Any] = client_glue.get_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table))
     try:
         location: str = res["Table"]["StorageDescriptor"]["Location"]
@@ -899,7 +901,7 @@ def read_parquet_table(
             for partition in partitions:
                 paths += _path2list(
                     path=partition,
-                    boto3_session=boto3_session,
+                    s3_client=s3_client,
                     suffix=filename_suffix,
                     ignore_suffix=_get_path_ignore_suffix(path_ignore_suffix=filename_ignore_suffix),
                     s3_additional_kwargs=s3_additional_kwargs,

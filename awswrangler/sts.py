@@ -29,8 +29,7 @@ def get_account_id(boto3_session: Optional[boto3.Session] = None) -> str:
     >>> account_id = wr.sts.get_account_id()
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    return cast(str, _utils.client(service_name="sts", session=session).get_caller_identity().get("Account"))
+    return cast(str, _utils.client(service_name="sts", session=boto3_session).get_caller_identity().get("Account"))
 
 
 def get_current_identity_arn(boto3_session: Optional[boto3.Session] = None) -> str:
@@ -52,8 +51,7 @@ def get_current_identity_arn(boto3_session: Optional[boto3.Session] = None) -> s
     >>> arn = wr.sts.get_current_identity_arn()
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    return cast(str, _utils.client(service_name="sts", session=session).get_caller_identity().get("Arn"))
+    return cast(str, _utils.client(service_name="sts", session=boto3_session).get_caller_identity().get("Arn"))
 
 
 def get_current_identity_name(boto3_session: Optional[boto3.Session] = None) -> str:

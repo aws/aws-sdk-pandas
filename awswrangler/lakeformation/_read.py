@@ -20,13 +20,12 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 @engine.dispatch_on_engine
 def _get_work_unit_results(
-    boto3_session: Optional[boto3.Session],
+    client_lakeformation: Optional[boto3.client],
     query_id: str,
     token_work_unit: Tuple[str, int],
 ) -> Table:
     _logger.debug("Query id: %s Token work unit: %s", query_id, token_work_unit)
-    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
-
+    client_lakeformation = client_lakeformation if client_lakeformation else _utils.client(service_name="lakeformation")
     token, work_unit = token_work_unit
     messages: NativeFile = client_lakeformation.get_work_unit_results(
         QueryId=query_id, WorkUnitToken=token, WorkUnitId=work_unit
@@ -67,7 +66,7 @@ def _resolve_sql_query(
 
     tables = executor.map(
         _get_work_unit_results,
-        boto3_session,
+        client_lakeformation,
         itertools.repeat(query_id),
         token_work_units,
     )
@@ -162,15 +161,14 @@ def read_sql_query(
     ... )
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=session)
+    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
     commit_trans: bool = False
 
     sql = _process_sql_params(sql, params, engine=_EngineType.PARTIQL)
 
     if not any([transaction_id, query_as_of_time]):
         _logger.debug("Neither `transaction_id` nor `query_as_of_time` were specified, starting transaction")
-        transaction_id = start_transaction(read_only=True, boto3_session=session)
+        transaction_id = start_transaction(read_only=True, boto3_session=boto3_session)
         commit_trans = True
     args: Dict[str, Optional[str]] = _catalog_id(
         catalog_id=catalog_id,
@@ -181,7 +179,7 @@ def read_sql_query(
     df = _resolve_sql_query(
         query_id=query_id,
         use_threads=use_threads,
-        boto3_session=session,
+        boto3_session=boto3_session,
         arrow_kwargs=arrow_kwargs,
     )
     if commit_trans:
