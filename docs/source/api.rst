@@ -302,12 +302,14 @@ DynamoDB
     :toctree: stubs
 
     delete_items
+    execute_statement
     get_table
-    read_items
     put_csv
     put_df
     put_items
     put_json
+    read_items
+    read_partiql_query
 
 Amazon Timestream
 -----------------

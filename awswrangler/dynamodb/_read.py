@@ -1,124 +1,79 @@
 """Amazon DynamoDB Read Module (PRIVATE)."""
 
 import logging
-import re
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, TypeVar, Union, cast
+from typing import Any, Callable, Dict, Iterator, List, Literal, Optional, Sequence, TypeVar, Union, cast, overload
 
 import boto3
 import pandas as pd
 from boto3.dynamodb.conditions import ConditionBase
-from boto3.dynamodb.types import TypeDeserializer
 from botocore.exceptions import ClientError
 
 from awswrangler import _utils, exceptions
-from awswrangler.dynamodb._utils import get_table
+from awswrangler.dynamodb._utils import execute_statement, get_table
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _get_terms_groups(terms: List[str]) -> Tuple[List[str], List[str], List[str]]:
-    """Determine to which group of a PartiQL query each term belongs, e.g. it describes a column, table or filter."""
-    is_select_term = False
-    is_from_term = False
-    is_where_term = False
-    select_terms, from_terms, where_terms = [], [], []
-    for term in terms:
-        if term.upper() == "SELECT":
-            is_select_term = True
-            continue
-        if term.upper() == "FROM":
-            is_select_term = False
-            is_from_term = True
-            continue
-        if term.upper() == "WHERE":
-            is_from_term = False
-            is_where_term = True
-            continue
-        if is_select_term:
-            select_terms.append(term)
-        if is_from_term:
-            from_terms.append(term)
-        if is_where_term:
-            where_terms.append(term)
-    return select_terms, from_terms, where_terms
+def _read_chunked(iterator: Iterator[Dict[str, Any]]) -> Iterator[pd.DataFrame]:
+    for item in iterator:
+        yield pd.DataFrame(item)
 
 
-def _get_scan_response(
-    table_name: str, select_terms: List[str], boto3_session: Optional[boto3.Session] = None
-) -> List[Dict[str, Any]]:
-    """Perform a scan to the Dynamo DB table and returns the data fetched."""
-    client_dynamodb = _utils.client(service_name="dynamodb", session=boto3_session)
-    scan_config: Dict[str, Any] = {"TableName": table_name}
-    if len(select_terms) > 1 or select_terms[0] != "*":
-        scan_config["AttributesToGet"] = select_terms
-    # get all responses even if pagination is necessary
-    response = client_dynamodb.scan(**scan_config)
-    data: List[Dict[str, Any]] = response["Items"]
-    while "LastEvaluatedKey" in response:
-        scan_config["ExclusiveStartKey"] = response["LastEvaluatedKey"]
-        response = client_dynamodb.scan(**scan_config)
-        data.extend(response["Items"])
-    return data
-
-
-def _get_items(query: str, boto3_session: Optional[boto3.Session] = None) -> List[Dict[str, Any]]:
-    # clean input query from possible excessive whitespace
-    query = re.sub(" +", " ", query).strip()
-    # generate terms list from query
-    terms = re.split(" |,", query)
-    if terms[0].upper() != "SELECT":
-        raise ValueError("The PartiQL query does not start with a 'SELECT'.")
-    select_terms, from_terms, _ = _get_terms_groups(terms)
-    if len(from_terms) > 1:
-        raise ValueError("The PartiQL query contains multiple tables but only one needed.")
-    if len(from_terms) == 0:
-        raise ValueError("The PartiQL query contains no tables.")
-    table_name = from_terms[0]
-    return _get_scan_response(table_name=table_name, select_terms=select_terms, boto3_session=boto3_session)
-
-
-def _deserialize_value(value: Any) -> Any:
-    if not pd.isna(value):
-        return TypeDeserializer().deserialize(value)
-    return value
-
-
-def _deserialize_data(df: pd.DataFrame, columns: pd.Index) -> pd.DataFrame:
-    if df.shape[0] > 0:
-        for column in columns:
-            df[column] = df[column].apply(_deserialize_value)
-    return df
-
-
-def _parse_dynamodb_items(
-    items: List[Dict[str, Any]],
-    dtype: Optional[Dict[str, str]] = None,
+@overload
+def read_partiql_query(
+    query: str,
+    parameters: Optional[List[Any]] = ...,
+    chunked: Literal[False] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
 ) -> pd.DataFrame:
-    df = pd.DataFrame(items)
-    df = _deserialize_data(df, df.columns)
-    return df.astype(dtype=dtype) if dtype else df
+    ...
+
+
+@overload
+def read_partiql_query(
+    query: str,
+    *,
+    parameters: Optional[List[Any]] = ...,
+    chunked: Literal[True],
+    boto3_session: Optional[boto3.Session] = ...,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+@overload
+def read_partiql_query(
+    query: str,
+    *,
+    parameters: Optional[List[Any]] = ...,
+    chunked: bool,
+    boto3_session: Optional[boto3.Session] = ...,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ...
 
 
 def read_partiql_query(
     query: str,
-    dtype: Optional[Dict[str, str]] = None,
+    parameters: Optional[List[Any]] = None,
+    chunked: bool = False,
     boto3_session: Optional[boto3.Session] = None,
-) -> pd.DataFrame:
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     """Read data from a DynamoDB table via a PartiQL query.
 
     Parameters
     ----------
     query : str
-        The PartiQL query that will be executed.
-    dtype : Dict, optional
-        The data types of the DataFrame columns.
-    boto3_session : boto3.Session(), optional
-        Boto3 Session. The default boto3 Session will be used if boto3_session receive None.
+        The PartiQL statement.
+    parameters : Optional[List[Any]]
+        The list of PartiQL parameters. These are applied to the statement in the order they are listed.
+    chunked : bool
+        If `True` an iterable of DataFrames is returned. False by default.
+    boto3_session : Optional[boto3.Session]
+        Boto3 Session. If None, the default boto3 Session is used.
 
     Returns
     -------
-    pd.DataFrame
+    Union[pd.DataFrame, Iterator[pd.DataFrame]]
         Result as Pandas DataFrame.
 
     Examples
@@ -127,27 +82,23 @@ def read_partiql_query(
 
     >>> import awswrangler as wr
     >>> wr.dynamodb.read_partiql_query(
-    ...     query='SELECT * FROM table'
+    ...     query="SELECT * FROM my_table WHERE title=? AND year=?",
+    ...     parameters=[title, year],
     ... )
 
     Select specific columns from a table
 
-    >>> import awswrangler as wr
     >>> wr.dynamodb.read_partiql_query(
-    ...     query='SELECT key FROM table'
-    ... )
-
-    Select all contents with dtype set
-
-    >>> import awswrangler as wr
-    >>> wr.dynamodb.read_partiql_query(
-    ...     query='SELECT * FROM table',
-    ...     dtype={'key': int}
+    ...     query="SELECT id FROM table"
     ... )
     """
-    _logger.debug("Reading results for PartiQL query:  %s", query)
-    items = _get_items(query=query, boto3_session=boto3_session)
-    return _parse_dynamodb_items(items=items, dtype=dtype)
+    _logger.debug("Reading results for PartiQL query:  '%s'", query)
+    iterator: Iterator[Dict[str, Any]] = execute_statement(  # type: ignore
+        query, parameters=parameters, boto3_session=boto3_session
+    )
+    if chunked:
+        return _read_chunked(iterator=iterator)
+    return pd.DataFrame([item for sublist in iterator for item in sublist])
 
 
 def _get_invalid_kwarg(msg: str) -> Optional[str]:
@@ -270,6 +221,68 @@ def _read_items(
             items.extend(response.get("Items", []))
 
     return items
+
+
+@overload
+def read_items(
+    table_name: str,
+    index_name: Optional[str] = ...,
+    partition_values: Optional[Sequence[Any]] = ...,
+    sort_values: Optional[Sequence[Any]] = ...,
+    filter_expression: Optional[Union[ConditionBase, str]] = ...,
+    key_condition_expression: Optional[Union[ConditionBase, str]] = ...,
+    expression_attribute_names: Optional[Dict[str, str]] = ...,
+    expression_attribute_values: Optional[Dict[str, Any]] = ...,
+    consistent: bool = ...,
+    columns: Optional[Sequence[str]] = ...,
+    allow_full_scan: bool = ...,
+    max_items_evaluated: Optional[int] = ...,
+    as_dataframe: Literal[True] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def read_items(
+    table_name: str,
+    *,
+    index_name: Optional[str] = ...,
+    partition_values: Optional[Sequence[Any]] = ...,
+    sort_values: Optional[Sequence[Any]] = ...,
+    filter_expression: Optional[Union[ConditionBase, str]] = ...,
+    key_condition_expression: Optional[Union[ConditionBase, str]] = ...,
+    expression_attribute_names: Optional[Dict[str, str]] = ...,
+    expression_attribute_values: Optional[Dict[str, Any]] = ...,
+    consistent: bool = ...,
+    columns: Optional[Sequence[str]] = ...,
+    allow_full_scan: bool = ...,
+    max_items_evaluated: Optional[int] = ...,
+    as_dataframe: Literal[False],
+    boto3_session: Optional[boto3.Session] = ...,
+) -> List[Dict[str, Any]]:
+    ...
+
+
+@overload
+def read_items(
+    table_name: str,
+    *,
+    index_name: Optional[str] = ...,
+    partition_values: Optional[Sequence[Any]] = ...,
+    sort_values: Optional[Sequence[Any]] = ...,
+    filter_expression: Optional[Union[ConditionBase, str]] = ...,
+    key_condition_expression: Optional[Union[ConditionBase, str]] = ...,
+    expression_attribute_names: Optional[Dict[str, str]] = ...,
+    expression_attribute_values: Optional[Dict[str, Any]] = ...,
+    consistent: bool = ...,
+    columns: Optional[Sequence[str]] = ...,
+    allow_full_scan: bool = ...,
+    max_items_evaluated: Optional[int] = ...,
+    as_dataframe: bool,
+    boto3_session: Optional[boto3.Session] = ...,
+) -> Union[pd.DataFrame, List[Dict[str, Any]]]:
+    ...
 
 
 def read_items(  # pylint: disable=too-many-branches

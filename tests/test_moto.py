@@ -1,6 +1,5 @@
 import logging
 import os
-from typing import Any
 from unittest import mock
 from unittest.mock import ANY
 
@@ -513,52 +512,9 @@ def test_dynamodb_basic_usage(moto_dynamodb):
     table = wr.dynamodb.get_table(table_name=table_name)
     assert table.item_count == len(items)
 
-    query: str = "SELECT * FROM table"
-    df = wr.dynamodb.read_partiql_query(query)
-    assert df.shape[0] == len(items)
-
     wr.dynamodb.delete_items(items=items, table_name=table_name)
     table = wr.dynamodb.get_table(table_name=table_name)
     assert table.item_count == 0
-
-
-@pytest.mark.parametrize("format", ["csv", "json"])
-def test_dynamodb_put_from_file(moto_dynamodb: Any, local_filename: str, format: str) -> None:
-    table_name = "table"
-    df = pd.DataFrame({"key": [1, 2], "value": ["foo", "boo"]})
-
-    if format == "csv":
-        df.to_csv(local_filename, index=False)
-        wr.dynamodb.put_csv(
-            path=local_filename,
-            table_name=table_name,
-        )
-    elif format == "json":
-        df.to_json(local_filename, orient="records")
-        wr.dynamodb.put_json(
-            path=local_filename,
-            table_name=table_name,
-        )
-    else:
-        raise RuntimeError(f"Unknown format {format}")
-
-    df2 = wr.dynamodb.read_partiql_query(query="SELECT * FROM table")
-
-    assert df.shape == df2.shape
-
-
-def test_dynamodb_partiql(moto_dynamodb):
-    table_name = "table"
-    items = [{"key": 1}, {"key": 2, "my_value": "Hello"}]
-
-    wr.dynamodb.put_items(items=items, table_name=table_name)
-    query: str = "SELECT * FROM table"
-    df = wr.dynamodb.read_partiql_query(query)
-    assert df.shape[0] == len(items)
-
-    dtype = {"key": int, "my_value": str}
-    df = wr.dynamodb.read_partiql_query(query, dtype=dtype)
-    assert df.shape[0] == len(items)
 
 
 def test_dynamodb_fail_on_invalid_items(moto_dynamodb):
