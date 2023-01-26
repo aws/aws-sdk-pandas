@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional, Union
 import boto3
 import pandas as pd
 
-from awswrangler import _utils, exceptions
+from awswrangler import exceptions
 from awswrangler.s3._fs import open_s3_object
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -79,13 +79,12 @@ def to_excel(
             "e.g. wr.s3.to_excel(df, path, na_rep="
             ", index=False)"
         )
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     with open_s3_object(
         path=path,
         mode="wb",
         use_threads=use_threads,
         s3_additional_kwargs=s3_additional_kwargs,
-        boto3_session=session,
+        boto3_session=boto3_session,
     ) as f:
         _logger.debug("pandas_kwargs: %s", pandas_kwargs)
         df.to_excel(f, **pandas_kwargs)

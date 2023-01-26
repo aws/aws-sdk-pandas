@@ -924,7 +924,6 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
     if unload_parameters and unload_parameters.get("file_format") not in (None, "PARQUET"):
         raise exceptions.InvalidArgumentCombination("Only PARQUET file format is supported if unload_approach=True")
     chunksize = sys.maxsize if ctas_approach is False and chunksize is True else chunksize
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     if params is None:
         params = {}
     for key, value in params.items():
@@ -935,7 +934,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
     _cache_manager.max_cache_size = max_local_cache_entries
     cache_info: _CacheInfo = _check_for_cached_results(
         sql=sql,
-        boto3_session=session,
+        boto3_session=boto3_session,
         workgroup=workgroup,
         max_cache_seconds=max_cache_seconds,
         max_cache_query_inspections=max_cache_query_inspections,
@@ -950,7 +949,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
                 categories=categories,
                 chunksize=chunksize,
                 use_threads=use_threads,
-                session=session,
+                session=boto3_session,
                 s3_additional_kwargs=s3_additional_kwargs,
                 pyarrow_additional_kwargs=pyarrow_additional_kwargs,
             )
@@ -977,7 +976,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
         ctas_write_compression=ctas_write_compression,
         use_threads=use_threads,
         s3_additional_kwargs=s3_additional_kwargs,
-        boto3_session=session,
+        boto3_session=boto3_session,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,
     )
 
@@ -1299,7 +1298,6 @@ def unload(
     ... )
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     # Substitute query parameters
     if params is None:
         params = {}
@@ -1316,6 +1314,6 @@ def unload(
         database=database,
         encryption=encryption,
         kms_key=kms_key,
-        boto3_session=session,
+        boto3_session=boto3_session,
         data_source=data_source,
     )

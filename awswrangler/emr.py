@@ -65,7 +65,6 @@ def _get_default_logging_path(
 
     """
     if account_id is None:
-        boto3_session = _utils.ensure_session(session=boto3_session)
         _account_id: str = sts.get_account_id(boto3_session=boto3_session)
     else:
         _account_id = account_id
@@ -712,7 +711,6 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
 
     """
     applications = ["Spark"] if applications is None else applications
-    boto3_session = _utils.ensure_session(session=boto3_session)
     args: Dict[str, Any] = _build_cluster_args(**locals())
     client_emr: boto3.client = _utils.client(service_name="emr", session=boto3_session)
     response: Dict[str, Any] = client_emr.run_job_flow(**args)
@@ -852,11 +850,10 @@ def submit_step(
     ...     script=True)
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     step: Dict[str, Any] = build_step(
-        name=name, command=command, action_on_failure=action_on_failure, script=script, boto3_session=session
+        name=name, command=command, action_on_failure=action_on_failure, script=script, boto3_session=boto3_session
     )
-    client_emr: boto3.client = _utils.client(service_name="emr", session=session)
+    client_emr: boto3.client = _utils.client(service_name="emr", session=boto3_session)
     response: Dict[str, Any] = client_emr.add_job_flow_steps(JobFlowId=cluster_id, Steps=[step])
     _logger.debug("response: \n%s", pprint.pformat(response))
     return cast(str, response["StepIds"][0])
@@ -979,8 +976,7 @@ def submit_ecr_credentials_refresh(
     """
     path = path[:-1] if path.endswith("/") else path
     path_script: str = f"{path}/ecr_credentials_refresh.py"
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    client_s3: boto3.client = _utils.client(service_name="s3", session=session)
+    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     bucket, key = _utils.parse_path(path=path_script)
     region: str = _utils.get_region_from_session(boto3_session=boto3_session)
     client_s3.put_object(
@@ -989,9 +985,9 @@ def submit_ecr_credentials_refresh(
     command: str = f"spark-submit --deploy-mode cluster {path_script}"
     name: str = "ECR Credentials Refresh"
     step: Dict[str, Any] = build_step(
-        name=name, command=command, action_on_failure=action_on_failure, script=False, boto3_session=session
+        name=name, command=command, action_on_failure=action_on_failure, script=False, boto3_session=boto3_session
     )
-    client_emr: boto3.client = _utils.client(service_name="emr", session=session)
+    client_emr: boto3.client = _utils.client(service_name="emr", session=boto3_session)
     response: Dict[str, Any] = client_emr.add_job_flow_steps(JobFlowId=cluster_id, Steps=[step])
     _logger.debug("response: \n%s", pprint.pformat(response))
     return cast(str, response["StepIds"][0])
@@ -1120,7 +1116,6 @@ def submit_spark_step(
     >>> )
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     step = build_spark_step(
         path=path,
         args=args,
@@ -1129,6 +1124,6 @@ def submit_spark_step(
         name=name,
         action_on_failure=action_on_failure,
         region=region,
-        boto3_session=session,
+        boto3_session=boto3_session,
     )
-    return submit_steps(cluster_id=cluster_id, steps=[step], boto3_session=session)[0]
+    return submit_steps(cluster_id=cluster_id, steps=[step], boto3_session=boto3_session)[0]

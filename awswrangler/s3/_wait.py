@@ -13,30 +13,30 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _wait_object(
-    path: Tuple[str, str], waiter_name: str, delay: int, max_attempts: int, boto3_session: boto3.Session
+    path: Tuple[str, str], waiter_name: str, delay: int, max_attempts: int, s3_client: boto3.client
 ) -> None:
-    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
-    waiter = client_s3.get_waiter(waiter_name)
+    waiter = s3_client.get_waiter(waiter_name)
     bucket, key = path
     waiter.wait(Bucket=bucket, Key=key, WaiterConfig={"Delay": delay, "MaxAttempts": max_attempts})
 
 
 def _wait_object_concurrent(
-    path: Tuple[str, str], waiter_name: str, delay: int, max_attempts: int, boto3_primitives: _utils.Boto3PrimitivesType
+    path: Tuple[str, str],
+    waiter_name: str,
+    delay: int,
+    max_attempts: int,
+    s3_client: boto3.client,
 ) -> None:
-    boto3_session = _utils.boto3_from_primitives(primitives=boto3_primitives)
-    _wait_object(
-        path=path, waiter_name=waiter_name, delay=delay, max_attempts=max_attempts, boto3_session=boto3_session
-    )
+    _wait_object(path=path, waiter_name=waiter_name, delay=delay, max_attempts=max_attempts, s3_client=s3_client)
 
 
 def _wait_objects(
     waiter_name: str,
     paths: List[str],
+    s3_client: boto3.client,
     delay: Optional[float] = None,
     max_attempts: Optional[int] = None,
     use_threads: Union[bool, int] = True,
-    boto3_session: Optional[boto3.Session] = None,
 ) -> None:
     delay = 5 if delay is None else delay
     max_attempts = 20 if max_attempts is None else max_attempts
@@ -50,12 +50,12 @@ def _wait_objects(
             waiter_name=waiter_name,
             delay=_delay,
             max_attempts=max_attempts,
-            boto3_session=boto3_session,
+            s3_client=s3_client,
         )
     elif use_threads is False:
         for path in _paths:
             _wait_object(
-                path=path, waiter_name=waiter_name, delay=_delay, max_attempts=max_attempts, boto3_session=boto3_session
+                path=path, waiter_name=waiter_name, delay=_delay, max_attempts=max_attempts, s3_client=s3_client
             )
     else:
         cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
@@ -67,7 +67,7 @@ def _wait_objects(
                     itertools.repeat(waiter_name),
                     itertools.repeat(_delay),
                     itertools.repeat(max_attempts),
-                    itertools.repeat(_utils.boto3_to_primitives(boto3_session=boto3_session)),
+                    itertools.repeat(s3_client),
                 )
             )
     return None
@@ -117,13 +117,14 @@ def wait_objects_exist(
     >>> wr.s3.wait_objects_exist(['s3://bucket/key0', 's3://bucket/key1'])  # wait both objects
 
     """
+    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     return _wait_objects(
         waiter_name="object_exists",
         paths=paths,
         delay=delay,
         max_attempts=max_attempts,
         use_threads=use_threads,
-        boto3_session=boto3_session,
+        s3_client=s3_client,
     )
 
 
@@ -171,11 +172,12 @@ def wait_objects_not_exist(
     >>> wr.s3.wait_objects_not_exist(['s3://bucket/key0', 's3://bucket/key1'])  # wait both objects not exist
 
     """
+    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     return _wait_objects(
         waiter_name="object_not_exists",
         paths=paths,
         delay=delay,
         max_attempts=max_attempts,
         use_threads=use_threads,
-        boto3_session=boto3_session,
+        s3_client=s3_client,
     )
