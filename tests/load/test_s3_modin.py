@@ -32,8 +32,7 @@ def big_modin_df() -> pd.DataFrame:
 def test_modin_s3_read_parquet_simple(benchmark_time: float, request: pytest.FixtureRequest) -> None:
     path = "s3://ursa-labs-taxi-data/2018/"
     with ExecutionTimer(request, data_paths=path) as timer:
-        ray_ds = ray.data.read_parquet(path)
-        ray_ds.to_modin()
+        pd.read_parquet(path)
 
     assert timer.elapsed_time < benchmark_time
 
