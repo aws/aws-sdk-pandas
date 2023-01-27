@@ -195,10 +195,10 @@ def opensearch_serverless_collection_endpoint() -> str:
         client: boto3.client = boto3.client(service_name="opensearchserverless")
 
         # Cleanup collection
-        client.delete_collection(id=collection_id)
         client.delete_security_policy(name=f"{collection_name}-encryption-policy", type="encryption")
         client.delete_security_policy(name=f"{collection_name}-network-policy", type="network")
         client.delete_access_policy(name=f"{collection_name}-data-policy", type="data")
+        client.delete_collection(id=collection_id)
 
 
 def test_connection_opensearch_1_0(domain_endpoint_opensearch_1_0):
