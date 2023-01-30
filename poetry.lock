@@ -312,6 +312,7 @@ mypy-boto3-rds = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extr
 mypy-boto3-redshift = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"redshift\""}
 mypy-boto3-redshift-data = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"redshift-data\""}
 mypy-boto3-s3 = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"s3\""}
+mypy-boto3-secretsmanager = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"secretsmanager\""}
 mypy-boto3-ssm = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"ssm\""}
 mypy-boto3-sts = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"sts\""}
 mypy-boto3-timestream-write = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"timestream-write\""}
@@ -1856,6 +1857,17 @@ typing-extensions = ">=4.1.0"
 name = "mypy-boto3-s3"
 version = "1.26.0.post1"
 description = "Type annotations for boto3.S3 1.26.0 service generated with mypy-boto3-builder 7.11.10"
+category = "dev"
+optional = false
+python-versions = ">=3.7"
+
+[package.dependencies]
+typing-extensions = ">=4.1.0"
+
+[[package]]
+name = "mypy-boto3-secretsmanager"
+version = "1.26.49"
+description = "Type annotations for boto3.SecretsManager 1.26.49 service generated with mypy-boto3-builder 7.12.3"
 category = "dev"
 optional = false
 python-versions = ">=3.7"
@@ -3463,7 +3475,7 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8, <4.0"
-content-hash = "099e0382314835867bfe7dba460a1e347388a271394e8181eb5f46fba713ced3"
+content-hash = "2b312dac6f4b56ad632a5e896b721be28a13c1dd19d27b8c2abd8588d19195dd"
 
 [metadata.files]
 aenum = [
@@ -4585,6 +4597,10 @@ mypy-boto3-redshift-data = [
 mypy-boto3-s3 = [
     {file = "mypy-boto3-s3-1.26.0.post1.tar.gz", hash = "sha256:6d7079f8c739dc993cbedad0736299c413b297814b73795a3855a79169ecc938"},
     {file = "mypy_boto3_s3-1.26.0.post1-py3-none-any.whl", hash = "sha256:7de2792ff0cc541b84cd46ff3a6aa2b6e5f267217f2203f27f6e4016bddc644d"},
+]
+mypy-boto3-secretsmanager = [
+    {file = "mypy-boto3-secretsmanager-1.26.49.tar.gz", hash = "sha256:bd5bda2a8b65bf799793bad67c66bcb2662b182b8632ae1561aecc1bd30ac04d"},
+    {file = "mypy_boto3_secretsmanager-1.26.49-py3-none-any.whl", hash = "sha256:2adbf9b5a32975c97479f12bbb5d98ceea30feb6a16012d308eee46fc3dd8b17"},
 ]
 mypy-boto3-ssm = [
     {file = "mypy-boto3-ssm-1.26.43.tar.gz", hash = "sha256:674f8bf771a5361960ef19825301ea44eed3c4078bfd427ea5c390a16ee1e5a0"},

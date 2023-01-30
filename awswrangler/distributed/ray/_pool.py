@@ -2,9 +2,10 @@
 
 import itertools
 import logging
-from typing import Any, Callable, List
+from typing import TYPE_CHECKING, Any, Callable, List
 
-import boto3
+if TYPE_CHECKING:
+    from botocore.client import BaseClient
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -13,7 +14,7 @@ class _RayPoolExecutor:
     def __init__(self) -> None:
         pass
 
-    def map(self, func: Callable[..., Any], _: boto3.client, *args: Any) -> List[Any]:
+    def map(self, func: Callable[..., Any], _: BaseClient, *args: Any) -> List[Any]:
         """Map func and return ray futures."""
         _logger.debug("Ray map: %s", func)
         # Discard boto3 client

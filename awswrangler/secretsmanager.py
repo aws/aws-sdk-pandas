@@ -34,8 +34,8 @@ def get_secret(name: str, boto3_session: Optional[boto3.Session] = None) -> Unio
     >>> value = wr.secretsmanager.get_secret("my-secret")
 
     """
-    client: boto3.client = _utils.client(service_name="secretsmanager", session=boto3_session)
-    response: Dict[str, Any] = client.get_secret_value(SecretId=name)
+    client = _utils.client(service_name="secretsmanager", session=boto3_session)
+    response = client.get_secret_value(SecretId=name)
     if "SecretString" in response:
         return cast(str, response["SecretString"])
     return base64.b64decode(response["SecretBinary"])
@@ -63,5 +63,5 @@ def get_secret_json(name: str, boto3_session: Optional[boto3.Session] = None) ->
     >>> value = wr.secretsmanager.get_secret_json("my-secret-with-json-content")
 
     """
-    value: Union[str, bytes] = get_secret(name=name, boto3_session=boto3_session)
+    value = get_secret(name=name, boto3_session=boto3_session)
     return cast(Dict[str, Any], json.loads(value))

@@ -24,12 +24,12 @@ def _get_table_input(
     transaction_id: Optional[str] = None,
     catalog_id: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client("glue", session=boto3_session)
     args: Dict[str, Any] = _catalog_id(
         catalog_id=catalog_id, **_transaction_id(transaction_id=transaction_id, DatabaseName=database, Name=table)
     )
     try:
-        response: Dict[str, Any] = client_glue.get_table(**args)
+        response = client_glue.get_table(**args)
     except client_glue.exceptions.EntityNotFoundException:
         return None
     table_input: Dict[str, Any] = {}
@@ -74,7 +74,7 @@ def _get_partitions(
     catalog_id: Optional[str] = None,
     boto3_session: Optional[boto3.Session] = None,
 ) -> Dict[str, List[str]]:
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client("glue", session=boto3_session)
 
     args: Dict[str, Any] = _catalog_id(
         catalog_id=catalog_id,
@@ -90,7 +90,7 @@ def _get_partitions(
     partitions_values: Dict[str, List[str]] = {}
     _logger.debug("Starting pagination...")
 
-    response: Dict[str, Any] = client_glue.get_partitions(**args)
+    response = client_glue.get_partitions(**args)
     token: Optional[str] = _append_partitions(partitions_values=partitions_values, response=response)
     while token is not None:
         args["NextToken"] = response["NextToken"]
@@ -145,7 +145,7 @@ def get_table_types(
     {'col0': 'int', 'col1': double}
 
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
     try:
         response: Dict[str, Any] = client_glue.get_table(
             **_catalog_id(
@@ -184,7 +184,7 @@ def get_databases(
     >>> dbs = wr.catalog.get_databases()
 
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client("glue", session=boto3_session)
     paginator = client_glue.get_paginator("get_databases")
     response_iterator = paginator.paginate(**_catalog_id(catalog_id=catalog_id))
     for page in response_iterator:
@@ -219,7 +219,7 @@ def databases(
     >>> df_dbs = wr.catalog.databases()
 
     """
-    database_iter: Iterator[Dict[str, Any]] = get_databases(catalog_id=catalog_id, boto3_session=boto3_session)
+    database_iter = get_databases(catalog_id=catalog_id, boto3_session=boto3_session)
     dbs = itertools.islice(database_iter, limit)
     df_dict: Dict[str, List[str]] = {"Database": [], "Description": []}
     for db in dbs:
@@ -274,7 +274,7 @@ def get_tables(
     >>> tables = wr.catalog.get_tables()
 
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client("glue", session=boto3_session)
     paginator = client_glue.get_paginator("get_tables")
     args: Dict[str, str] = {}
     if (name_prefix is not None) and (name_suffix is not None) and (name_contains is not None):
@@ -437,16 +437,16 @@ def search_tables(
     >>> df_tables = wr.catalog.search_tables(text='my_property')
 
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client("glue", session=boto3_session)
     args: Dict[str, Any] = _catalog_id(catalog_id=catalog_id, SearchText=text)
-    response: Dict[str, Any] = client_glue.search_tables(**args)
+    response = client_glue.search_tables(**args)
     for tbl in response["TableList"]:
-        yield tbl
+        yield cast(Dict[str, Any], tbl)
     while "NextToken" in response:
         args["NextToken"] = response["NextToken"]
         response = client_glue.search_tables(**args)
         for tbl in response["TableList"]:
-            yield tbl
+            yield cast(Dict[str, Any], tbl)
 
 
 @apply_configs
@@ -492,7 +492,7 @@ def table(
     >>> df_table = wr.catalog.table(database='default', table='my_table')
 
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
     tbl = client_glue.get_table(
         **_catalog_id(
             catalog_id=catalog_id,
@@ -567,8 +567,8 @@ def get_table_location(
     's3://bucket/prefix/'
 
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    res: Dict[str, Any] = client_glue.get_table(
+    client_glue = _utils.client("glue", session=boto3_session)
+    res = client_glue.get_table(
         **_catalog_id(
             catalog_id=catalog_id,
             **_transaction_id(
@@ -609,7 +609,7 @@ def get_connection(
     >>> res = wr.catalog.get_connection(name='my_connection')
 
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client("glue", session=boto3_session)
 
     res = _utils.try_it(
         f=client_glue.get_connection,
@@ -880,8 +880,8 @@ def get_table_parameters(
     >>> pars = wr.catalog.get_table_parameters(database="...", table="...")
 
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    response: Dict[str, Any] = client_glue.get_table(
+    client_glue = _utils.client("glue", session=boto3_session)
+    response = client_glue.get_table(
         **_catalog_id(
             catalog_id=catalog_id,
             **_transaction_id(
@@ -935,8 +935,8 @@ def get_table_description(
     >>> desc = wr.catalog.get_table_description(database="...", table="...")
 
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    response: Dict[str, Any] = client_glue.get_table(
+    client_glue = _utils.client("glue", session=boto3_session)
+    response = client_glue.get_table(
         **_catalog_id(
             catalog_id=catalog_id,
             **_transaction_id(
@@ -991,7 +991,7 @@ def get_columns_comments(
     >>> pars = wr.catalog.get_columns_comments(database="...", table="...")
 
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client("glue", session=boto3_session)
     response: Dict[str, Any] = client_glue.get_table(
         **_catalog_id(
             catalog_id=catalog_id,
@@ -1039,7 +1039,7 @@ def get_table_versions(
     >>> tables_versions = wr.catalog.get_table_versions(database="...", table="...")
 
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client("glue", session=boto3_session)
     paginator = client_glue.get_paginator("get_table_versions")
     versions: List[Dict[str, Any]] = []
     response_iterator = paginator.paginate(**_catalog_id(DatabaseName=database, TableName=table, catalog_id=catalog_id))
@@ -1078,7 +1078,7 @@ def get_table_number_of_versions(
     >>> num = wr.catalog.get_table_number_of_versions(database="...", table="...")
 
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
     paginator = client_glue.get_paginator("get_table_versions")
     count: int = 0
     response_iterator = paginator.paginate(**_catalog_id(DatabaseName=database, TableName=table, catalog_id=catalog_id))

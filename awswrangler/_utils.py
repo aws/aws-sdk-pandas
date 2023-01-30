@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from mypy_boto3_ec2 import EC2Client
     from mypy_boto3_glue import GlueClient
     from mypy_boto3_s3 import S3Client, S3ServiceResource
+    from mypy_boto3_secretsmanager import SecretsManagerClient
     from mypy_boto3_sts.client import STSClient
     from typing_extensions import Literal
 
@@ -157,6 +158,16 @@ def client(
     botocore_config: Optional[Config] = None,
     verify: Optional[Union[str, bool]] = None,
 ) -> "S3Client":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["secretsmanager"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "SecretsManagerClient":
     ...
 
 

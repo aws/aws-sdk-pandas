@@ -61,7 +61,7 @@ class NeptuneClient:
         raise exceptions.InvalidArgument("There is no region_name defined on boto3, please configure it.")
 
     @staticmethod
-    def __ensure_session(session: boto3.Session = None) -> boto3.Session:
+    def __ensure_session(session: Optional[boto3.Session] = None) -> boto3.Session:
         """Ensure that a valid boto3.Session will be returned."""
         if session is not None:
             return session

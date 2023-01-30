@@ -21,8 +21,8 @@ def _copy_objects(
     s3_additional_kwargs: Optional[Dict[str, Any]],
 ) -> None:
     _logger.debug("len(batch): %s", len(batch))
-    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
-    resource_s3: boto3.resource = _utils.resource(service_name="s3", session=boto3_session)
+    client_s3 = _utils.client(service_name="s3", session=boto3_session)
+    resource_s3 = _utils.resource(service_name="s3", session=boto3_session)
     if s3_additional_kwargs is None:
         boto3_kwargs: Optional[Dict[str, Any]] = None
     else:
