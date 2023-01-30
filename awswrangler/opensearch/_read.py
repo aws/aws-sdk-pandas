@@ -170,7 +170,7 @@ def search_by_sql(client: OpenSearch, sql_query: str, **kwargs: Any) -> pd.DataF
             body["fetch_size"] = kwargs[size_att]
             del kwargs[size_att]  # unrecognized parameter
     response = client.transport.perform_request(
-        "POST", url, headers={"Content-Type": "application/json"}, body=body, params=kwargs
+        "POST", url, headers={"content-type": "application/json"}, body=body, params=kwargs
     )
     df = _search_response_to_df(response)
     return df
