@@ -5,7 +5,7 @@ import itertools
 import json
 import logging
 import pprint
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import boto3
 import pandas as pd
@@ -18,6 +18,9 @@ from awswrangler.distributed.ray import ray_get
 from awswrangler.s3._describe import size_objects
 from awswrangler.s3._list import _path2list
 from awswrangler.s3._read import _get_path_ignore_suffix
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -39,11 +42,11 @@ def _gen_scan_range(obj_size: int, scan_range_chunk_size: Optional[int] = None) 
     ex=exceptions.S3SelectRequestIncomplete,
 )
 def _select_object_content(
-    s3_client: Optional[boto3.client],
+    s3_client: Optional["S3Client"],
     args: Dict[str, Any],
     scan_range: Optional[Tuple[int, int]] = None,
 ) -> pa.Table:
-    client_s3: boto3.client = s3_client if s3_client else _utils.client(service_name="s3")
+    client_s3: "S3Client" = s3_client if s3_client else _utils.client(service_name="s3")
     if scan_range:
         _logger.debug("scan_range: %s, key: %s", scan_range, args["Key"])
         response = client_s3.select_object_content(**args, ScanRange={"Start": scan_range[0], "End": scan_range[1]})

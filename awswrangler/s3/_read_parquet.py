@@ -4,7 +4,20 @@ import datetime
 import functools
 import itertools
 import logging
-from typing import Any, Callable, Dict, Iterable, Iterator, List, Literal, Optional, Tuple, Union, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    Union,
+    overload,
+)
 
 import boto3
 import pandas as pd
@@ -29,6 +42,9 @@ from awswrangler.s3._read import (
     _get_path_ignore_suffix,
     _get_path_root,
 )
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
 
 BATCH_READ_BLOCK_SIZE = 65_536
 CHUNKED_READ_S3_BLOCK_SIZE = 10_485_760  # 10 MB (20 * 2**20)
@@ -90,7 +106,7 @@ def _read_schemas_from_files(
     paths: List[str],
     sampling: float,
     use_threads: Union[bool, int],
-    s3_client: boto3.client,
+    s3_client: "S3Client",
     s3_additional_kwargs: Optional[Dict[str, str]],
     version_ids: Optional[Dict[str, str]] = None,
     coerce_int96_timestamp_unit: Optional[str] = None,
@@ -131,7 +147,7 @@ def _validate_schemas_from_files(
     paths: List[str],
     sampling: float,
     use_threads: Union[bool, int],
-    s3_client: boto3.client,
+    s3_client: "S3Client",
     s3_additional_kwargs: Optional[Dict[str, str]],
     version_ids: Optional[Dict[str, str]] = None,
     coerce_int96_timestamp_unit: Optional[str] = None,

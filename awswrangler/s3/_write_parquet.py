@@ -4,7 +4,7 @@ import logging
 import math
 import uuid
 from contextlib import contextmanager
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union, cast
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union, cast
 
 import boto3
 import pandas as pd
@@ -24,6 +24,9 @@ from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _
 from awswrangler.s3._write_concurrent import _WriteProxy
 from awswrangler.s3._write_dataset import _to_dataset
 from awswrangler.typing import GlueTableSettings, _S3WriteDataReturnValue
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -64,7 +67,7 @@ def _new_writer(
     compression: Optional[str],
     pyarrow_additional_kwargs: Optional[Dict[str, Any]],
     schema: pa.Schema,
-    s3_client: boto3.client,
+    s3_client: "S3Client",
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
 ) -> Iterator[pyarrow.parquet.ParquetWriter]:
@@ -105,7 +108,7 @@ def _new_writer(
 
 def _write_chunk(
     file_path: str,
-    s3_client: boto3.client,
+    s3_client: "S3Client",
     s3_additional_kwargs: Optional[Dict[str, str]],
     compression: Optional[str],
     pyarrow_additional_kwargs: Dict[str, str],
@@ -129,7 +132,7 @@ def _write_chunk(
 
 def _to_parquet_chunked(
     file_path: str,
-    s3_client: boto3.client,
+    s3_client: "S3Client",
     s3_additional_kwargs: Optional[Dict[str, str]],
     compression: Optional[str],
     pyarrow_additional_kwargs: Dict[str, Any],

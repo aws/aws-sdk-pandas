@@ -2,7 +2,7 @@
 
 import itertools
 import logging
-from typing import List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Union
 
 import boto3
 
@@ -11,10 +11,13 @@ from awswrangler._distributed import engine
 from awswrangler._threading import _get_executor
 from awswrangler.distributed.ray import ray_get
 
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
+
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _wait_object(s3_client: boto3.client, path: str, waiter_name: str, delay: int, max_attempts: int) -> None:
+def _wait_object(s3_client: "S3Client", path: str, waiter_name: str, delay: int, max_attempts: int) -> None:
     waiter = s3_client.get_waiter(waiter_name)
 
     bucket, key = _utils.parse_path(path=path)
@@ -23,7 +26,7 @@ def _wait_object(s3_client: boto3.client, path: str, waiter_name: str, delay: in
 
 @engine.dispatch_on_engine
 def _wait_object_batch(
-    s3_client: Optional[boto3.client], paths: List[str], waiter_name: str, delay: int, max_attempts: int
+    s3_client: Optional["S3Client"], paths: List[str], waiter_name: str, delay: int, max_attempts: int
 ) -> None:
     s3_client = s3_client if s3_client else _utils.client(service_name="s3")
     for path in paths:
@@ -37,7 +40,7 @@ def _wait_objects(
     max_attempts: Optional[int],
     use_threads: Union[bool, int],
     parallelism: Optional[int],
-    s3_client: boto3.client,
+    s3_client: "S3Client",
 ) -> None:
     delay = 5 if delay is None else delay
     max_attempts = 20 if max_attempts is None else max_attempts
