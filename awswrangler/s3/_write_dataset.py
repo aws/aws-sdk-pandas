@@ -9,6 +9,7 @@ import pandas as pd
 
 from awswrangler import exceptions, lakeformation
 from awswrangler._distributed import engine
+from awswrangler._utils import client
 from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._write_concurrent import _WriteProxy
 
@@ -144,7 +145,7 @@ def _to_partitions(
 ) -> Tuple[List[str], Dict[str, List[str]]]:
     partitions_values: Dict[str, List[str]] = {}
     proxy: _WriteProxy = _WriteProxy(use_threads=concurrent_partitioning)
-
+    s3_client: boto3.client = client(service_name="s3", session=boto3_session)
     for keys, subgroup in df.groupby(by=partition_cols, observed=True):
         # Keys are either a primitive type or a tuple if partitioning by multiple cols
         keys = (keys,) if not isinstance(keys, tuple) else keys
@@ -179,10 +180,10 @@ def _to_partitions(
         else:
             proxy.write(
                 func,
-                boto3_session,
                 subgroup,
                 path_root=prefix,
                 filename_prefix=filename_prefix,
+                s3_client=s3_client,
                 use_threads=use_threads,
                 **func_kwargs,
             )
@@ -204,14 +205,15 @@ def _to_buckets(
     **func_kwargs: Any,
 ) -> List[str]:
     _proxy: _WriteProxy = proxy if proxy else _WriteProxy(use_threads=False)
+    s3_client: boto3.client = client(service_name="s3", session=boto3_session)
     for bucket_number, subgroup in df.groupby(by=_get_bucketing_series(df=df, bucketing_info=bucketing_info)):
         _proxy.write(
             func,
-            boto3_session,
             subgroup,
             path_root=path_root,
             filename_prefix=f"{filename_prefix}_bucket-{bucket_number:05d}",
             use_threads=use_threads,
+            s3_client=s3_client,
             **func_kwargs,
         )
     if proxy:
@@ -304,13 +306,14 @@ def _to_dataset(
             **func_kwargs,
         )
     else:
+        s3_client: boto3.client = client(service_name="s3", session=boto3_session)
         paths = func(
             df,
             path_root=path_root,
             filename_prefix=filename_prefix,
             use_threads=use_threads,
-            boto3_session=boto3_session,
             index=index,
+            s3_client=s3_client,
             **func_kwargs,
         )
     _logger.debug("paths: %s", paths)

@@ -3463,7 +3463,7 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8, <4.0"
-content-hash = "3d4b777ddf89c637ec0525856f90246a6a01b6586c8dfef1e1abfb1777a5c59e"
+content-hash = "099e0382314835867bfe7dba460a1e347388a271394e8181eb5f46fba713ced3"
 
 [metadata.files]
 aenum = [
@@ -5239,19 +5239,24 @@ pyzmq = [
 ray = [
     {file = "ray-2.2.0-cp310-cp310-macosx_10_15_universal2.whl", hash = "sha256:f46ff124c566aa55db99b395a28d3972ae15c6f2f0bfefee90f0f390defce788"},
     {file = "ray-2.2.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:505d0021aa82f05638de757e2ed166c8d57dfcb9f54d4cd2d82fc5d495dafe5e"},
+    {file = "ray-2.2.0-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:81c971fc2a8ff20e339840d95a3e90432d5dac95162006df484aa9d8b3f5de8f"},
     {file = "ray-2.2.0-cp310-cp310-manylinux2014_x86_64.whl", hash = "sha256:656768c6f7c15e9ae32cc624b065dfdc99e1a12a0b9aa787602cbcaf8308ab20"},
     {file = "ray-2.2.0-cp310-cp310-win_amd64.whl", hash = "sha256:4c4bc1573803da3215718325c3454021f79c3c503f834f63040593a2bb90e848"},
     {file = "ray-2.2.0-cp36-cp36m-macosx_10_15_intel.whl", hash = "sha256:f722648fb5f799c158f52b4517ea9f2c343bc344ee1bd570279faa636e3cd88b"},
+    {file = "ray-2.2.0-cp36-cp36m-manylinux2014_aarch64.whl", hash = "sha256:8dec0a26138014705f7eafdd3ac4efc2cd91c45e1c36349674d30f5bc2cfff5e"},
     {file = "ray-2.2.0-cp36-cp36m-manylinux2014_x86_64.whl", hash = "sha256:b089c7fe56a7a48f462861af133eeed09cd276f4c5ae395a52495f53321da732"},
     {file = "ray-2.2.0-cp37-cp37m-macosx_10_15_intel.whl", hash = "sha256:a14e7e6e0818854453bbb3cb95d0d3e6ca687bd5d71654c15e45d91b491475f3"},
+    {file = "ray-2.2.0-cp37-cp37m-manylinux2014_aarch64.whl", hash = "sha256:fea824f38444a58aa32ced5361f860416b1b555a900f7cbe34b672ff1356528b"},
     {file = "ray-2.2.0-cp37-cp37m-manylinux2014_x86_64.whl", hash = "sha256:65db7e8bdcac21b39ee3503e52fca340e2a07f643fa2a9a31fbb4a14312196fd"},
     {file = "ray-2.2.0-cp37-cp37m-win_amd64.whl", hash = "sha256:c13adcdff8660d1389f7ff79ee64fbf8e5ea927eec399627939e65c64d9dc16e"},
     {file = "ray-2.2.0-cp38-cp38-macosx_10_15_x86_64.whl", hash = "sha256:221662e50838b848503ea8b6cfdb95a18bc0ce819857f106e8c55bc871a4b4a8"},
     {file = "ray-2.2.0-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:5e6e86bd81af938db7e9973f6c126d0d0bd31bc472afee7e8a76548809e9e99b"},
+    {file = "ray-2.2.0-cp38-cp38-manylinux2014_aarch64.whl", hash = "sha256:018dbdadd1fe7773327f7d9ea34d6831ddaf89d637d71e72f4e05d81aea5063c"},
     {file = "ray-2.2.0-cp38-cp38-manylinux2014_x86_64.whl", hash = "sha256:a5e51883ea0f733371fef79a8aefb3bc3ea3c5b60b8abce142772a5aba6ea5a0"},
     {file = "ray-2.2.0-cp38-cp38-win_amd64.whl", hash = "sha256:38ea2a1e306088c5d3c40e81171389e829766c98a1d92918f91fca02bf66e63c"},
     {file = "ray-2.2.0-cp39-cp39-macosx_10_15_x86_64.whl", hash = "sha256:9c54e71524da5745fecfb8f2618d9e414611374306111c6168225d45f751c842"},
     {file = "ray-2.2.0-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:4961b2572ee3f441acadf5d8c129d56c246dd2f71bbe0082c16e3ecd47d5df08"},
+    {file = "ray-2.2.0-cp39-cp39-manylinux2014_aarch64.whl", hash = "sha256:d8baeb71d3e3c5d621dd12e71db29989832dcc58b2c2037be1637d7a6ce60109"},
     {file = "ray-2.2.0-cp39-cp39-manylinux2014_x86_64.whl", hash = "sha256:141885d72242e4a782cc1c9e22c7a5466c6287c3cc7564f04377de10bf774d53"},
     {file = "ray-2.2.0-cp39-cp39-win_amd64.whl", hash = "sha256:23e46c18b33f2e0a10e7a62e14a4e07d6a22ac287dc357b09df2382edc4b3fd7"},
 ]

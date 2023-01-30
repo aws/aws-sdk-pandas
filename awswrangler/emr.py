@@ -65,7 +65,6 @@ def _get_default_logging_path(
 
     """
     if account_id is None:
-        boto3_session = _utils.ensure_session(session=boto3_session)
         _account_id: str = sts.get_account_id(boto3_session=boto3_session)
     else:
         _account_id = account_id
@@ -155,9 +154,16 @@ def _build_cluster_args(**pars: Any) -> Dict[str, Any]:  # pylint: disable=too-m
         args["Instances"]["ServiceAccessSecurityGroup"] = pars["security_group_service_access"]
 
     # Configurations
-    args["Configurations"] = [
-        {"Classification": "spark-log4j", "Properties": {"log4j.rootCategory": f"{pars['spark_log_level']}, console"}}
-    ]
+    args["Configurations"] = (
+        [
+            {
+                "Classification": "spark-log4j",
+                "Properties": {"log4j.rootCategory": f"{pars['spark_log_level']}, console"},
+            }
+        ]
+        if not pars["configurations"]
+        else pars["configurations"]
+    )
     if pars["docker"] is True:
         if pars.get("extra_public_registries") is None:
             extra_public_registries: List[str] = []
@@ -459,6 +465,7 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
     auto_termination_policy: Optional[Dict[str, int]] = None,
     tags: Optional[Dict[str, str]] = None,
     boto3_session: Optional[boto3.Session] = None,
+    configurations: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
     """Create a EMR cluster with instance fleets configuration.
 
@@ -619,7 +626,11 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
         e.g. {"foo": "boo", "bar": "xoo"})
     boto3_session : boto3.Session(), optional
         Boto3 Session. The default boto3 session will be used if boto3_session receive None.
+    configurations: List[Dict[str, Any]], optional
+        The list of configurations supplied for an EMR cluster instance group.
 
+        By default, adds log4j config as follows:
+        `{"Classification": "spark-log4j", "Properties": {"log4j.rootCategory": f"{pars['spark_log_level']}, console"}}`
     Returns
     -------
     str
@@ -700,7 +711,6 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
 
     """
     applications = ["Spark"] if applications is None else applications
-    boto3_session = _utils.ensure_session(session=boto3_session)
     args: Dict[str, Any] = _build_cluster_args(**locals())
     client_emr: boto3.client = _utils.client(service_name="emr", session=boto3_session)
     response: Dict[str, Any] = client_emr.run_job_flow(**args)
@@ -840,11 +850,10 @@ def submit_step(
     ...     script=True)
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     step: Dict[str, Any] = build_step(
-        name=name, command=command, action_on_failure=action_on_failure, script=script, boto3_session=session
+        name=name, command=command, action_on_failure=action_on_failure, script=script, boto3_session=boto3_session
     )
-    client_emr: boto3.client = _utils.client(service_name="emr", session=session)
+    client_emr: boto3.client = _utils.client(service_name="emr", session=boto3_session)
     response: Dict[str, Any] = client_emr.add_job_flow_steps(JobFlowId=cluster_id, Steps=[step])
     _logger.debug("response: \n%s", pprint.pformat(response))
     return cast(str, response["StepIds"][0])
@@ -967,8 +976,7 @@ def submit_ecr_credentials_refresh(
     """
     path = path[:-1] if path.endswith("/") else path
     path_script: str = f"{path}/ecr_credentials_refresh.py"
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    client_s3: boto3.client = _utils.client(service_name="s3", session=session)
+    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     bucket, key = _utils.parse_path(path=path_script)
     region: str = _utils.get_region_from_session(boto3_session=boto3_session)
     client_s3.put_object(
@@ -977,9 +985,9 @@ def submit_ecr_credentials_refresh(
     command: str = f"spark-submit --deploy-mode cluster {path_script}"
     name: str = "ECR Credentials Refresh"
     step: Dict[str, Any] = build_step(
-        name=name, command=command, action_on_failure=action_on_failure, script=False, boto3_session=session
+        name=name, command=command, action_on_failure=action_on_failure, script=False, boto3_session=boto3_session
     )
-    client_emr: boto3.client = _utils.client(service_name="emr", session=session)
+    client_emr: boto3.client = _utils.client(service_name="emr", session=boto3_session)
     response: Dict[str, Any] = client_emr.add_job_flow_steps(JobFlowId=cluster_id, Steps=[step])
     _logger.debug("response: \n%s", pprint.pformat(response))
     return cast(str, response["StepIds"][0])
@@ -1108,7 +1116,6 @@ def submit_spark_step(
     >>> )
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     step = build_spark_step(
         path=path,
         args=args,
@@ -1117,6 +1124,6 @@ def submit_spark_step(
         name=name,
         action_on_failure=action_on_failure,
         region=region,
-        boto3_session=session,
+        boto3_session=boto3_session,
     )
-    return submit_steps(cluster_id=cluster_id, steps=[step], boto3_session=session)[0]
+    return submit_steps(cluster_id=cluster_id, steps=[step], boto3_session=boto3_session)[0]

@@ -5,7 +5,7 @@ import boto3
 
 def _path2list(
     path: Union[str, Sequence[str]],
-    boto3_session: boto3.Session,
+    s3_client: boto3.client,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     last_modified_begin: Optional[datetime.datetime] = ...,
     last_modified_end: Optional[datetime.datetime] = ...,
@@ -53,13 +53,20 @@ def list_directories(
 def list_objects(
     path: str,
     chunked: Literal[False],
+    ignore_suffix: Union[str, List[str], None] = ...,
+    last_modified_begin: Optional[datetime.datetime] = ...,
+    last_modified_end: Optional[datetime.datetime] = ...,
+    ignore_empty: bool = ...,
     s3_additional_kwargs: Union[Dict[str, Any], Dict[str, str], None] = ...,
     boto3_session: Optional[boto3.Session] = ...,
 ) -> List[str]: ...
 @overload
 def list_objects(
     path: str,
-    *,
+    ignore_suffix: Union[str, List[str], None] = ...,
+    last_modified_begin: Optional[datetime.datetime] = ...,
+    last_modified_end: Optional[datetime.datetime] = ...,
+    ignore_empty: bool = ...,
     s3_additional_kwargs: Union[Dict[str, Any], Dict[str, str], None] = ...,
     boto3_session: Optional[boto3.Session] = ...,
 ) -> List[str]: ...
@@ -67,6 +74,10 @@ def list_objects(
 def list_objects(
     path: str,
     chunked: Literal[True],
+    ignore_suffix: Union[str, List[str], None] = ...,
+    last_modified_begin: Optional[datetime.datetime] = ...,
+    last_modified_end: Optional[datetime.datetime] = ...,
+    ignore_empty: bool = ...,
     s3_additional_kwargs: Union[Dict[str, Any], Dict[str, str], None] = ...,
     boto3_session: Optional[boto3.Session] = ...,
 ) -> Iterator[List[str]]: ...
@@ -74,6 +85,10 @@ def list_objects(
 def list_objects(
     path: str,
     chunked: bool,
+    ignore_suffix: Union[str, List[str], None] = ...,
+    last_modified_begin: Optional[datetime.datetime] = ...,
+    last_modified_end: Optional[datetime.datetime] = ...,
+    ignore_empty: bool = ...,
     s3_additional_kwargs: Union[Dict[str, Any], Dict[str, str], None] = ...,
     boto3_session: Optional[boto3.Session] = ...,
 ) -> Union[List[str], Iterator[List[str]]]: ...

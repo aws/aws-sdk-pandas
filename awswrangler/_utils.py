@@ -1,6 +1,5 @@
 """Internal (private) Utilities Module."""
 
-import copy
 import itertools
 import logging
 import math
@@ -9,27 +8,14 @@ import random
 import time
 from concurrent.futures import FIRST_COMPLETED, Future, wait
 from functools import partial, wraps
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    Generator,
-    List,
-    Optional,
-    Sequence,
-    Tuple,
-    Type,
-    Union,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, List, Optional, Sequence, Tuple, Type, Union, overload
 
 import boto3
 import botocore.credentials
 import numpy as np
 import pandas as pd
 import pyarrow as pa
-from botocore.config import _RetryDict, Config
+from botocore.config import Config, _RetryDict
 
 from awswrangler import _config, exceptions
 from awswrangler.__metadata__ import __version__
@@ -54,10 +40,8 @@ _logger: logging.Logger = logging.getLogger(__name__)
 Boto3PrimitivesType = Dict[str, Optional[str]]
 
 
-def ensure_session(session: Union[None, boto3.Session, Boto3PrimitivesType] = None) -> boto3.Session:
+def ensure_session(session: Union[None, boto3.Session] = None) -> boto3.Session:
     """Ensure that a valid boto3.Session will be returned."""
-    if isinstance(session, dict):  # Primitives received
-        return boto3_from_primitives(primitives=session)
     if session is not None:
         return session
     # Ensure the boto3's default session is used so that its parameters can be
@@ -80,18 +64,7 @@ def boto3_to_primitives(boto3_session: Optional[boto3.Session] = None) -> Boto3P
     }
 
 
-def boto3_from_primitives(primitives: Optional[Boto3PrimitivesType] = None) -> boto3.Session:
-    """Convert Python primitives to Boto3 Session."""
-    if primitives is None:
-        return ensure_session()
-    _primitives: Boto3PrimitivesType = copy.deepcopy(primitives)
-    profile_name: Optional[str] = _primitives.get("profile_name", None)
-    _primitives["profile_name"] = None if profile_name in (None, "default") else profile_name
-    args: Dict[str, str] = {k: v for k, v in _primitives.items() if v is not None}
-    return boto3.Session(**args)
-
-
-def default_botocore_config() -> Config:
+def default_botocore_config() -> botocore.config.Config:
     """Botocore configuration."""
     retries_config: _RetryDict = {
         "max_attempts": int(os.getenv("AWS_MAX_ATTEMPTS", "5")),

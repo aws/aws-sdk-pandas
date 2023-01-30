@@ -289,6 +289,55 @@ def test_read_items_reserved(params, dynamodb_table):
     "params",
     [
         {
+            "KeySchema": [
+                {"AttributeName": "Author", "KeyType": "HASH"},
+                {"AttributeName": "Title", "KeyType": "RANGE"},
+            ],
+            "AttributeDefinitions": [
+                {"AttributeName": "Author", "AttributeType": "S"},
+                {"AttributeName": "Title", "AttributeType": "S"},
+                {"AttributeName": "Category", "AttributeType": "S"},
+            ],
+            "GlobalSecondaryIndexes": [
+                {
+                    "IndexName": "CategoryIndex",
+                    "KeySchema": [{"AttributeName": "Category", "KeyType": "HASH"}],
+                    "Projection": {"ProjectionType": "ALL"},
+                }
+            ],
+        }
+    ],
+)
+def test_read_items_index(params, dynamodb_table):
+    df = pd.DataFrame(
+        {
+            "Author": ["John Grisham", "John Grisham", "James Patterson"],
+            "Title": ["The Rainmaker", "The Firm", "Along Came a Spider"],
+            "Category": ["Suspense", "Suspense", "Suspense"],
+            "Formats": [
+                {"Hardcover": "J4SUKVGU", "Paperback": "D7YF4FCX"},
+                {"Hardcover": "Q7QWE3U2", "Paperback": "ZVZAYY4F", "Audiobook": "DJ9KS9NM"},
+                {"Hardcover": "C9NR6RJ7", "Paperback": "37JVGDZG", "Audiobook": "6348WX3U"},
+            ],
+        }
+    )
+    wr.dynamodb.put_df(df=df, table_name=dynamodb_table)
+
+    df2 = wr.dynamodb.read_items(
+        table_name=dynamodb_table,
+        key_condition_expression=Key("Category").eq("Suspense"),
+        index_name="CategoryIndex",
+    )
+    assert df2.shape == df.shape
+
+    df3 = wr.dynamodb.read_items(table_name=dynamodb_table, allow_full_scan=True, index_name="CategoryIndex")
+    assert df3.shape == df.shape
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {
             "KeySchema": [{"AttributeName": "par0", "KeyType": "HASH"}, {"AttributeName": "par1", "KeyType": "RANGE"}],
             "AttributeDefinitions": [
                 {"AttributeName": "par0", "AttributeType": "N"},

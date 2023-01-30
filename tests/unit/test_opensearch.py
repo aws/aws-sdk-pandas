@@ -2,12 +2,16 @@ import json
 import logging
 import tempfile
 import time
+import uuid
+from typing import Any, Dict, List
 
 import boto3
+import opensearchpy
 import pandas as pd
 import pytest  # type: ignore
 
 import awswrangler as wr
+from awswrangler.opensearch._utils import _is_serverless
 
 from .._utils import extract_cloudformation_outputs
 
@@ -144,6 +148,59 @@ def domain_endpoint_elasticsearch_7_10_fgac(cloudformation_outputs):
     return cloudformation_outputs["DomainEndpointsdkpandases710fgac"]
 
 
+def _get_opensearch_data_access_policy() -> List[Dict[str, Any]]:
+    return [
+        {
+            "Rules": [
+                {
+                    "ResourceType": "index",
+                    "Resource": [
+                        "index/*/*",
+                    ],
+                    "Permission": [
+                        "aoss:*",
+                    ],
+                },
+                {
+                    "ResourceType": "collection",
+                    "Resource": [
+                        "collection/*",
+                    ],
+                    "Permission": [
+                        "aoss:*",
+                    ],
+                },
+            ],
+            "Principal": [
+                wr.sts.get_current_identity_arn(),
+            ],
+        }
+    ]
+
+
+@pytest.fixture(scope="session")
+def opensearch_serverless_collection_endpoint() -> str:
+    # Create collection and get the endpoint
+    collection_name: str = f"col-{str(uuid.uuid4())[:8]}"
+    try:
+        collection: Dict[str, Any] = wr.opensearch.create_collection(
+            name=collection_name,
+            data_policy=_get_opensearch_data_access_policy(),
+        )
+        collection_endpoint: str = collection["collectionEndpoint"]
+        collection_id: str = collection["id"]
+
+        yield collection_endpoint
+    finally:
+        client: boto3.client = boto3.client(service_name="opensearchserverless")
+
+        # Cleanup collection
+        client.delete_security_policy(name=f"{collection_name}-encryption-policy", type="encryption")
+        client.delete_security_policy(name=f"{collection_name}-network-policy", type="network")
+        client.delete_access_policy(name=f"{collection_name}-data-policy", type="data")
+        client.delete_collection(id=collection_id)
+
+
 def test_connection_opensearch_1_0(domain_endpoint_opensearch_1_0):
     client = wr.opensearch.connect(host=domain_endpoint_opensearch_1_0)
     assert len(client.info()) > 0
@@ -152,6 +209,13 @@ def test_connection_opensearch_1_0(domain_endpoint_opensearch_1_0):
 def test_connection_opensearch_1_0_https(domain_endpoint_opensearch_1_0):
     client = wr.opensearch.connect(host=f"https://{domain_endpoint_opensearch_1_0}")
     assert len(client.info()) > 0
+
+
+def test_connection_opensearch_serverless(opensearch_serverless_collection_endpoint):
+    client = wr.opensearch.connect(host=opensearch_serverless_collection_endpoint)
+    # Info endpoint is not available in opensearch serverless
+    with pytest.raises(opensearchpy.exceptions.NotFoundError):
+        client.info()
 
 
 def test_connection_elasticsearch_7_10_fgac(domain_endpoint_elasticsearch_7_10_fgac, opensearch_password):
@@ -175,9 +239,16 @@ def elasticsearch_7_10_fgac_client(domain_endpoint_elasticsearch_7_10_fgac, open
     return client
 
 
+@pytest.fixture(scope="session")
+def opensearch_serverless_client(opensearch_serverless_collection_endpoint):
+    client = wr.opensearch.connect(host=opensearch_serverless_collection_endpoint)
+    return client
+
+
 # testing multiple versions
-@pytest.fixture(params=["opensearch_1_0_client", "elasticsearch_7_10_fgac_client"])
-def client(request):
+@pytest.fixture(params=["opensearch_1_0_client", "elasticsearch_7_10_fgac_client", "opensearch_serverless_client"])
+def client(request, opensearch_1_0_client, elasticsearch_7_10_fgac_client, opensearch_serverless_client):
+    time.sleep(30)  # temp wait until collection is created
     return request.getfixturevalue(request.param)
 
 
@@ -242,9 +313,14 @@ def test_index_documents_no_id_keys(client):
 
 def test_search(client):
     index = "test_search"
+    kwargs = {} if _is_serverless(client) else {"refresh": "wait_for"}
     wr.opensearch.index_documents(
-        client, documents=inspections_documents, index=index, id_keys=["inspection_id"], refresh="wait_for"
+        client, documents=inspections_documents, index=index, id_keys=["inspection_id"], **kwargs
     )
+    if _is_serverless(client):
+        # The refresh interval for serverless OpenSearch is between 10 and 30 seconds
+        # depending on the size of the request.
+        time.sleep(30)
     df = wr.opensearch.search(
         client,
         index=index,
@@ -260,25 +336,33 @@ def test_search(client):
     assert df.shape == (0, 0)
 
 
-def test_search_filter_path(client):
+@pytest.mark.parametrize("filter_path", [None, "hits.hits._source", ["hits.hits._source"]])
+def test_search_filter_path(client, filter_path):
     index = "test_search"
+    kwargs = {} if _is_serverless(client) else {"refresh": "wait_for"}
     wr.opensearch.index_documents(
-        client, documents=inspections_documents, index=index, id_keys=["inspection_id"], refresh="wait_for"
+        client, documents=inspections_documents, index=index, id_keys=["inspection_id"], **kwargs
     )
+    if _is_serverless(client):
+        # The refresh interval for serverless OpenSearch is between 10 and 30 seconds
+        # depending on the size of the request.
+        time.sleep(30)
     df = wr.opensearch.search(
         client,
         index=index,
         search_body={"query": {"match": {"business_name": "soup"}}},
         _source=["inspection_id", "business_name", "business_location"],
-        filter_path=["hits.hits._source"],
+        filter_path=filter_path,
     )
     assert df.shape[0] == 3
 
 
+@pytest.mark.xfail(raises=wr.exceptions.NotSupported, reason="Scroll not available for OpenSearch Serverless.")
 def test_search_scroll(client):
     index = "test_search_scroll"
+    kwargs = {} if _is_serverless(client) else {"refresh": "wait_for"}
     wr.opensearch.index_documents(
-        client, documents=inspections_documents, index=index, id_keys=["inspection_id"], refresh="wait_for"
+        client, documents=inspections_documents, index=index, id_keys=["inspection_id"], **kwargs
     )
     df = wr.opensearch.search(
         client, index=index, is_scroll=True, _source=["inspection_id", "business_name", "business_location"]
@@ -286,12 +370,17 @@ def test_search_scroll(client):
     assert df.shape[0] == 5
 
 
-def test_search_sql(client):
+@pytest.mark.xfail(raises=wr.exceptions.NotSupported, reason="SQL plugin not available for OpenSearch Serverless.")
+@pytest.mark.parametrize("fetch_size", [None, 1000, 10000])
+@pytest.mark.parametrize("fetch_size_param_name", ["size", "fetch_size"])
+def test_search_sql(client, fetch_size, fetch_size_param_name):
     index = "test_search_sql"
+    kwargs = {} if _is_serverless(client) else {"refresh": "wait_for"}
     wr.opensearch.index_documents(
-        client, documents=inspections_documents, index=index, id_keys=["inspection_id"], refresh="wait_for"
+        client, documents=inspections_documents, index=index, id_keys=["inspection_id"], **kwargs
     )
-    df = wr.opensearch.search_by_sql(client, sql_query=f"select * from {index}")
+    search_kwargs = {fetch_size_param_name: fetch_size} if fetch_size else {}
+    df = wr.opensearch.search_by_sql(client, sql_query=f"select * from {index}", **search_kwargs)
     assert df.shape[0] == 5
 
 
@@ -346,3 +435,26 @@ def test_index_json_s3_large_file(client):
         client, index="test_index_json_s3_large_file", path=path, json_path="Filings2011", id_keys=["EIN"], bulk_size=20
     )
     assert response.get("success", 0) > 0
+
+
+def test_opensearch_serverless_create_collection(opensearch_serverless_client) -> str:
+    collection_name: str = f"col-{str(uuid.uuid4())[:8]}"
+    client: boto3.client = boto3.client(service_name="opensearchserverless")
+
+    collection: Dict[str, Any] = wr.opensearch.create_collection(
+        name=collection_name,
+        data_policy=_get_opensearch_data_access_policy(),
+    )
+    collection_id: str = collection["id"]
+
+    response = client.batch_get_collection(ids=[collection_id])["collectionDetails"][0]
+
+    assert response["id"] == collection_id
+    assert response["status"] == "ACTIVE"
+    assert response["type"] == "SEARCH"
+
+    # Cleanup collection resources
+    client.delete_collection(id=collection_id)
+    client.delete_security_policy(name=f"{collection_name}-encryption-policy", type="encryption")
+    client.delete_security_policy(name=f"{collection_name}-network-policy", type="network")
+    client.delete_access_policy(name=f"{collection_name}-data-policy", type="data")

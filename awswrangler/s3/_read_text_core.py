@@ -8,7 +8,7 @@ import pandas as pd
 import pandas.io.parsers
 from pandas.io.common import infer_compression
 
-from awswrangler import _utils, exceptions
+from awswrangler import exceptions
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._read import _apply_partitions
 
@@ -31,7 +31,7 @@ def _read_text_chunked(
     chunksize: int,
     parser_func: Callable[..., pd.DataFrame],
     path_root: Optional[str],
-    boto3_session: boto3.Session,
+    s3_client: boto3.client,
     pandas_kwargs: Dict[str, Any],
     s3_additional_kwargs: Optional[Dict[str, str]],
     dataset: bool,
@@ -46,9 +46,9 @@ def _read_text_chunked(
         s3_block_size=10 * 1024 * 1024,  # 10 MB (10 * 2**20)
         encoding=encoding,
         use_threads=use_threads,
+        s3_client=s3_client,
         s3_additional_kwargs=s3_additional_kwargs,
         newline=newline,
-        boto3_session=boto3_session,
     ) as f:
         reader: pandas.io.parsers.TextFileReader = parser_func(f, chunksize=chunksize, **pandas_kwargs)
         for df in reader:
@@ -60,7 +60,7 @@ def _read_text_files_chunked(
     chunksize: int,
     parser_func: Callable[..., pd.DataFrame],
     path_root: Optional[str],
-    boto3_session: boto3.Session,
+    s3_client: boto3.client,
     pandas_kwargs: Dict[str, Any],
     s3_additional_kwargs: Optional[Dict[str, str]],
     dataset: bool,
@@ -75,7 +75,7 @@ def _read_text_files_chunked(
             chunksize=chunksize,
             parser_func=parser_func,
             path_root=path_root,
-            boto3_session=boto3_session,
+            s3_client=s3_client,
             pandas_kwargs=pandas_kwargs,
             s3_additional_kwargs=s3_additional_kwargs,
             dataset=dataset,
@@ -85,7 +85,7 @@ def _read_text_files_chunked(
 
 
 def _read_text_file(
-    boto3_session: Union[boto3.Session, _utils.Boto3PrimitivesType],
+    s3_client: boto3.client,
     path: str,
     version_id: Optional[str],
     parser_func: Callable[..., pd.DataFrame],
@@ -94,7 +94,6 @@ def _read_text_file(
     s3_additional_kwargs: Optional[Dict[str, str]],
     dataset: bool,
 ) -> pd.DataFrame:
-    boto3_session = _utils.ensure_session(boto3_session)
     mode, encoding, newline = _get_read_details(path=path, pandas_kwargs=pandas_kwargs)
     try:
         with open_s3_object(
@@ -104,9 +103,9 @@ def _read_text_file(
             use_threads=False,
             s3_block_size=-1,  # One shot download
             encoding=encoding,
+            s3_client=s3_client,
             s3_additional_kwargs=s3_additional_kwargs,
             newline=newline,
-            boto3_session=boto3_session,
         ) as f:
             df: pd.DataFrame = parser_func(f, **pandas_kwargs)
     except botocore.exceptions.ClientError as e:

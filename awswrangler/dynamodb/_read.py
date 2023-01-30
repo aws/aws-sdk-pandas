@@ -2,7 +2,7 @@
 
 import logging
 from functools import wraps
-from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, TypeVar, Union, cast
+from typing import Any, Callable, Dict, Iterator, List, Literal, Optional, Sequence, TypeVar, Union, cast, overload
 
 import boto3
 import pandas as pd
@@ -18,6 +18,38 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def _read_chunked(iterator: Iterator[Dict[str, Any]]) -> Iterator[pd.DataFrame]:
     for item in iterator:
         yield pd.DataFrame(item)
+
+
+@overload
+def read_partiql_query(
+    query: str,
+    parameters: Optional[List[Any]] = ...,
+    chunked: Literal[False] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def read_partiql_query(
+    query: str,
+    *,
+    parameters: Optional[List[Any]] = ...,
+    chunked: Literal[True],
+    boto3_session: Optional[boto3.Session] = ...,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+@overload
+def read_partiql_query(
+    query: str,
+    *,
+    parameters: Optional[List[Any]] = ...,
+    chunked: bool,
+    boto3_session: Optional[boto3.Session] = ...,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ...
 
 
 def read_partiql_query(
@@ -58,14 +90,6 @@ def read_partiql_query(
 
     >>> wr.dynamodb.read_partiql_query(
     ...     query="SELECT id FROM table"
-    ... )
-
-    Select all contents with dtype set and chunked
-
-    >>> wr.dynamodb.read_partiql_query(
-    ...     query="SELECT * FROM table",
-    ...     chunked=True,
-    ...     dtype={'key': int},
     ... )
     """
     _logger.debug("Reading results for PartiQL query:  '%s'", query)
@@ -157,8 +181,9 @@ def _read_items(
     resource = _utils.resource(service_name="dynamodb", session=boto3_session)
     table = get_table(table_name=table_name, boto3_session=boto3_session)
 
-    # Extract 'Keys' from provided kwargs: if needed, will be reinserted later on
+    # Extract 'Keys' and 'IndexName' from provided kwargs: if needed, will be reinserted later on
     keys = kwargs.pop("Keys", None)
+    index = kwargs.pop("IndexName", None)
 
     # Conditionally define optimal reading strategy
     use_get_item = (keys is not None) and (len(keys) == 1)
@@ -183,6 +208,8 @@ def _read_items(
             response = resource.batch_get_item(RequestItems={table_name: kwargs})
             items.extend(response.get("Responses", {table_name: []}).get(table_name, []))
     elif use_query or use_scan:
+        if index:
+            kwargs["IndexName"] = index
         _read_method = table.query if use_query else table.scan
         response = _read_method(**kwargs)
         items = response.get("Items", [])
@@ -196,8 +223,71 @@ def _read_items(
     return items
 
 
+@overload
 def read_items(
     table_name: str,
+    index_name: Optional[str] = ...,
+    partition_values: Optional[Sequence[Any]] = ...,
+    sort_values: Optional[Sequence[Any]] = ...,
+    filter_expression: Optional[Union[ConditionBase, str]] = ...,
+    key_condition_expression: Optional[Union[ConditionBase, str]] = ...,
+    expression_attribute_names: Optional[Dict[str, str]] = ...,
+    expression_attribute_values: Optional[Dict[str, Any]] = ...,
+    consistent: bool = ...,
+    columns: Optional[Sequence[str]] = ...,
+    allow_full_scan: bool = ...,
+    max_items_evaluated: Optional[int] = ...,
+    as_dataframe: Literal[True] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def read_items(
+    table_name: str,
+    *,
+    index_name: Optional[str] = ...,
+    partition_values: Optional[Sequence[Any]] = ...,
+    sort_values: Optional[Sequence[Any]] = ...,
+    filter_expression: Optional[Union[ConditionBase, str]] = ...,
+    key_condition_expression: Optional[Union[ConditionBase, str]] = ...,
+    expression_attribute_names: Optional[Dict[str, str]] = ...,
+    expression_attribute_values: Optional[Dict[str, Any]] = ...,
+    consistent: bool = ...,
+    columns: Optional[Sequence[str]] = ...,
+    allow_full_scan: bool = ...,
+    max_items_evaluated: Optional[int] = ...,
+    as_dataframe: Literal[False],
+    boto3_session: Optional[boto3.Session] = ...,
+) -> List[Dict[str, Any]]:
+    ...
+
+
+@overload
+def read_items(
+    table_name: str,
+    *,
+    index_name: Optional[str] = ...,
+    partition_values: Optional[Sequence[Any]] = ...,
+    sort_values: Optional[Sequence[Any]] = ...,
+    filter_expression: Optional[Union[ConditionBase, str]] = ...,
+    key_condition_expression: Optional[Union[ConditionBase, str]] = ...,
+    expression_attribute_names: Optional[Dict[str, str]] = ...,
+    expression_attribute_values: Optional[Dict[str, Any]] = ...,
+    consistent: bool = ...,
+    columns: Optional[Sequence[str]] = ...,
+    allow_full_scan: bool = ...,
+    max_items_evaluated: Optional[int] = ...,
+    as_dataframe: bool,
+    boto3_session: Optional[boto3.Session] = ...,
+) -> Union[pd.DataFrame, List[Dict[str, Any]]]:
+    ...
+
+
+def read_items(  # pylint: disable=too-many-branches
+    table_name: str,
+    index_name: Optional[str] = None,
     partition_values: Optional[Sequence[Any]] = None,
     sort_values: Optional[Sequence[Any]] = None,
     filter_expression: Optional[Union[ConditionBase, str]] = None,
@@ -224,6 +314,8 @@ def read_items(
     ----------
     table_name : str
         DynamoDB table name.
+    index_name : str, optional
+        Name of the secondary global or local index on the table. Defaults to None.
     partition_values : Sequence[Any], optional
         Partition key values to retrieve. Defaults to None.
     sort_values : Sequence[Any], optional
@@ -373,6 +465,8 @@ def read_items(
                 raise exceptions.InvalidArgumentCombination("Partition and sort values must have the same length.")
             keys = [{partition_key: pv, sort_key: sv} for pv, sv in zip(partition_values, sort_values)]
         kwargs["Keys"] = keys
+    if index_name:
+        kwargs["IndexName"] = index_name
     if key_condition_expression:
         kwargs["KeyConditionExpression"] = key_condition_expression
     if filter_expression:

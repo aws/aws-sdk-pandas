@@ -34,8 +34,7 @@ def get_secret(name: str, boto3_session: Optional[boto3.Session] = None) -> Unio
     >>> value = wr.secretsmanager.get_secret("my-secret")
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    client: boto3.client = _utils.client(service_name="secretsmanager", session=session)
+    client: boto3.client = _utils.client(service_name="secretsmanager", session=boto3_session)
     response: Dict[str, Any] = client.get_secret_value(SecretId=name)
     if "SecretString" in response:
         return cast(str, response["SecretString"])

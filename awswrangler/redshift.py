@@ -4,7 +4,7 @@
 import json
 import logging
 import uuid
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union, overload
 
 import boto3
 import botocore
@@ -267,7 +267,6 @@ def _redshift_types_from_path(
 ) -> Dict[str, str]:
     """Extract Redshift data types from a Pandas DataFrame."""
     _varchar_lengths: Dict[str, int] = {} if varchar_lengths is None else varchar_lengths
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     _logger.debug("Scanning parquet schemas on s3...")
     athena_types, _ = s3.read_parquet_metadata(
         path=path,
@@ -276,7 +275,7 @@ def _redshift_types_from_path(
         path_ignore_suffix=path_ignore_suffix,
         dataset=False,
         use_threads=use_threads,
-        boto3_session=session,
+        boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
     )
     _logger.debug("athena_types: %s", athena_types)
@@ -649,6 +648,50 @@ def connect_temp(
     )
 
 
+@overload
+def read_sql_query(
+    sql: str,
+    con: redshift_connector.Connection,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: None = ...,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def read_sql_query(
+    sql: str,
+    con: redshift_connector.Connection,
+    *,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: int,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+@overload
+def read_sql_query(
+    sql: str,
+    con: redshift_connector.Connection,
+    *,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: Optional[int],
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ...
+
+
 def read_sql_query(
     sql: str,
     con: redshift_connector.Connection,
@@ -718,6 +761,54 @@ def read_sql_query(
         safe=safe,
         timestamp_as_object=timestamp_as_object,
     )
+
+
+@overload
+def read_sql_table(
+    table: str,
+    con: redshift_connector.Connection,
+    *,
+    schema: Optional[str] = None,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: None = ...,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def read_sql_table(
+    table: str,
+    con: redshift_connector.Connection,
+    *,
+    schema: Optional[str] = None,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: int,
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+@overload
+def read_sql_table(
+    table: str,
+    con: redshift_connector.Connection,
+    *,
+    schema: Optional[str] = None,
+    index_col: Optional[Union[str, List[str]]] = ...,
+    params: Optional[Union[List[Any], Tuple[Any, ...], Dict[Any, Any]]] = ...,
+    chunksize: Optional[int],
+    dtype: Optional[Dict[str, pa.DataType]] = ...,
+    safe: bool = ...,
+    timestamp_as_object: bool = ...,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ...
 
 
 def read_sql_table(
@@ -1052,7 +1143,6 @@ def unload_to_files(
     """
     if unload_format not in [None, "CSV", "PARQUET"]:
         raise exceptions.InvalidArgumentValue("<unload_format> argument must be 'CSV' or 'PARQUET'")
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     with con.cursor() as cursor:
         format_str: str = unload_format or "PARQUET"
         partition_str: str = f"\nPARTITION BY ({','.join(partition_cols)})" if partition_cols else ""
@@ -1072,7 +1162,7 @@ def unload_to_files(
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
             aws_session_token=aws_session_token,
-            boto3_session=session,
+            boto3_session=boto3_session,
         )
 
         sql = (
@@ -1212,7 +1302,6 @@ def unload(
 
     """
     path = path if path.endswith("/") else f"{path}/"
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     unload_to_files(
         sql=sql,
         path=path,
@@ -1225,7 +1314,7 @@ def unload(
         max_file_size=max_file_size,
         kms_key_id=kms_key_id,
         manifest=False,
-        boto3_session=session,
+        boto3_session=boto3_session,
     )
     if chunked is False:
         df: pd.DataFrame = s3.read_parquet(
@@ -1233,20 +1322,23 @@ def unload(
             chunked=chunked,
             dataset=False,
             use_threads=use_threads,
-            boto3_session=session,
+            boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
             pyarrow_additional_kwargs=pyarrow_additional_kwargs,
         )
         if keep_files is False:
             s3.delete_objects(
-                path=path, use_threads=use_threads, boto3_session=session, s3_additional_kwargs=s3_additional_kwargs
+                path=path,
+                use_threads=use_threads,
+                boto3_session=boto3_session,
+                s3_additional_kwargs=s3_additional_kwargs,
             )
         return df
     return _read_parquet_iterator(
         path=path,
         chunked=chunked,
         use_threads=use_threads,
-        boto3_session=session,
+        boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
         keep_files=keep_files,
         pyarrow_additional_kwargs=pyarrow_additional_kwargs,
@@ -1638,8 +1730,7 @@ def copy(  # pylint: disable=too-many-arguments,too-many-locals
     path = path[:-1] if path.endswith("*") else path
     path = path if path.endswith("/") else f"{path}/"
     column_names = [f'"{column}"' for column in df.columns] if use_column_names else []
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    if s3.list_objects(path=path, boto3_session=session, s3_additional_kwargs=s3_additional_kwargs):
+    if s3.list_objects(path=path, boto3_session=boto3_session, s3_additional_kwargs=s3_additional_kwargs):
         raise exceptions.InvalidArgument(
             f"The received S3 path ({path}) is not empty. "
             "Please, provide a different path or use wr.s3.delete_objects() to clean up the current one."
@@ -1653,7 +1744,7 @@ def copy(  # pylint: disable=too-many-arguments,too-many-locals
             mode="append",
             dtype=dtype,
             use_threads=use_threads,
-            boto3_session=session,
+            boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
             max_rows_by_file=max_rows_by_file,
         )
@@ -1679,7 +1770,7 @@ def copy(  # pylint: disable=too-many-arguments,too-many-locals
             use_threads=use_threads,
             lock=lock,
             commit_transaction=commit_transaction,
-            boto3_session=session,
+            boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
             sql_copy_extra_params=sql_copy_extra_params,
             precombine_key=precombine_key,
@@ -1688,5 +1779,8 @@ def copy(  # pylint: disable=too-many-arguments,too-many-locals
     finally:
         if keep_files is False:
             s3.delete_objects(
-                path=path, use_threads=use_threads, boto3_session=session, s3_additional_kwargs=s3_additional_kwargs
+                path=path,
+                use_threads=use_threads,
+                boto3_session=boto3_session,
+                s3_additional_kwargs=s3_additional_kwargs,
             )

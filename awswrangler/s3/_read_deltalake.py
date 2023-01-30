@@ -13,9 +13,9 @@ if _deltalake_found:
 
 
 def _set_default_storage_options_kwargs(
-    session: boto3.Session, s3_additional_kwargs: Optional[Dict[str, Any]]
+    boto3_session: boto3.Session, s3_additional_kwargs: Optional[Dict[str, Any]]
 ) -> Dict[str, Any]:
-    defaults = {key.upper(): value for key, value in _utils.boto3_to_primitives(boto3_session=session).items()}
+    defaults = {key.upper(): value for key, value in _utils.boto3_to_primitives(boto3_session=boto3_session).items()}
     s3_additional_kwargs = s3_additional_kwargs or {}
     return {
         **defaults,
@@ -73,8 +73,7 @@ def read_deltalake(
     deltalake.DeltaTable : Create a DeltaTable instance with the deltalake library.
     """
     pyarrow_additional_kwargs = pyarrow_additional_kwargs or {}  # TODO: Use defaults in 3.0.0 # pylint: disable=fixme
-    storage_options = _set_default_storage_options_kwargs(_utils.ensure_session(boto3_session), s3_additional_kwargs)
-
+    storage_options = _set_default_storage_options_kwargs(boto3_session, s3_additional_kwargs)
     return (
         DeltaTable(
             table_uri=path,

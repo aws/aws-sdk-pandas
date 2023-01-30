@@ -3,7 +3,7 @@
 import itertools
 import logging
 from datetime import datetime
-from typing import Any, Dict, Iterator, List, Optional, Union, cast
+from typing import Any, Dict, Iterator, List, Literal, Optional, Union, cast, overload
 
 import boto3
 import pandas as pd
@@ -43,7 +43,7 @@ def _format_measure(measure_name: str, measure_value: Any, measure_type: str) ->
 
 @engine.dispatch_on_engine
 def _write_batch(
-    boto3_session: Optional[boto3.Session],
+    timestream_client: Optional[boto3.client],
     database: str,
     table: str,
     cols_names: List[str],
@@ -53,11 +53,7 @@ def _write_batch(
     batch: List[Any],
     measure_name: Optional[str] = None,
 ) -> List[Dict[str, str]]:
-    client: boto3.client = _utils.client(
-        service_name="timestream-write",
-        session=boto3_session,
-        botocore_config=Config(read_timeout=20, max_pool_connections=5000, retries={"max_attempts": 10}),
-    )
+    timestream_client = timestream_client if timestream_client else _utils.client(service_name="timestream-write")
     try:
         time_loc = 0
         measure_cols_loc = 1
@@ -88,14 +84,14 @@ def _write_batch(
                 ]
             records.append(record)
         _utils.try_it(
-            f=client.write_records,
-            ex=(client.exceptions.ThrottlingException, client.exceptions.InternalServerException),
+            f=timestream_client.write_records,
+            ex=(timestream_client.exceptions.ThrottlingException, timestream_client.exceptions.InternalServerException),
             max_num_tries=5,
             DatabaseName=database,
             TableName=table,
             Records=records,
         )
-    except client.exceptions.RejectedRecordsException as ex:
+    except timestream_client.exceptions.RejectedRecordsException as ex:
         return cast(List[Dict[str, str]], ex.response["RejectedRecords"])
     return []
 
@@ -113,11 +109,16 @@ def _write_df(
     boto3_session: Optional[boto3.Session],
     measure_name: Optional[str] = None,
 ) -> List[Dict[str, str]]:
+    timestream_client: boto3.client = _utils.client(
+        service_name="timestream-write",
+        session=boto3_session,
+        botocore_config=Config(read_timeout=20, max_pool_connections=5000, retries={"max_attempts": 10}),
+    )
     batches: List[List[Any]] = _utils.chunkify(lst=_df2list(df=df), max_length=100)
     _logger.debug("len(batches): %s", len(batches))
     return executor.map(  # type: ignore
         _write_batch,
-        boto3_session,
+        timestream_client,
         itertools.repeat(database),
         itertools.repeat(table),
         itertools.repeat(cols_names),
@@ -324,6 +325,36 @@ def write(
         )
     )
     return _flatten_list(ray_get(errors))
+
+
+@overload
+def query(
+    sql: str,
+    chunked: Literal[False] = ...,
+    pagination_config: Optional[Dict[str, Any]] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def query(
+    sql: str,
+    chunked: Literal[True],
+    pagination_config: Optional[Dict[str, Any]] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+@overload
+def query(
+    sql: str,
+    chunked: bool,
+    pagination_config: Optional[Dict[str, Any]] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ...
 
 
 def query(
