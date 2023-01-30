@@ -71,7 +71,8 @@ def test_modin_s3_write_csv(
     path: str, big_modin_df: pd.DataFrame, benchmark_time: int, request: pytest.FixtureRequest
 ) -> None:
     with ExecutionTimer(request, data_paths=path) as timer:
-        big_modin_df.to_csv(path)
+        ray_ds = ray.data.from_modin(big_modin_df)
+        ray_ds.write_csv(path)
 
     assert timer.elapsed_time < benchmark_time
 
