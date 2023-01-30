@@ -3,7 +3,7 @@
 import csv
 import logging
 import uuid
-from typing import Any, Dict, List, Literal, Optional, Tuple, Union, cast, overload
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import boto3
 import pandas as pd
@@ -36,7 +36,7 @@ def _to_text(  # pylint: disable=unused-argument
     df: pd.DataFrame,
     file_format: str,
     use_threads: Union[bool, int],
-    boto3_session: Optional[boto3.Session],
+    s3_client: Optional[boto3.client],
     s3_additional_kwargs: Optional[Dict[str, str]],
     path: Optional[str] = None,
     path_root: Optional[str] = None,
@@ -44,6 +44,7 @@ def _to_text(  # pylint: disable=unused-argument
     bucketing: bool = False,
     **pandas_kwargs: Any,
 ) -> List[str]:
+    s3_client = s3_client if s3_client else _utils.client(service_name="s3")
     if df.empty is True:
         raise exceptions.EmptyDataFrame("DataFrame cannot be empty.")
     if path is None and path_root is not None:
@@ -60,8 +61,8 @@ def _to_text(  # pylint: disable=unused-argument
         path=file_path,
         mode=mode,
         use_threads=use_threads,
+        s3_client=s3_client,
         s3_additional_kwargs=s3_additional_kwargs,
-        boto3_session=boto3_session,
         encoding=encoding,
         newline=newline,
     ) as f:
@@ -452,7 +453,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
         table_type = "GOVERNED"
 
     filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
 
     # Sanitize table to respect Athena's standards
     if (sanitize_columns is True) or (database is not None and table is not None):
@@ -466,7 +467,11 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     catalog_table_input: Optional[Dict[str, Any]] = None
     if database and table:
         catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
-            database=database, table=table, boto3_session=session, transaction_id=transaction_id, catalog_id=catalog_id
+            database=database,
+            table=table,
+            boto3_session=boto3_session,
+            transaction_id=transaction_id,
+            catalog_id=catalog_id,
         )
 
         catalog_path: Optional[str] = None
@@ -509,7 +514,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             file_format="csv",
             use_threads=use_threads,
             path=path,
-            boto3_session=session,
+            s3_client=s3_client,
             s3_additional_kwargs=s3_additional_kwargs,
             **pandas_kwargs,
         )
@@ -557,7 +562,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                 "description": description,
                 "parameters": parameters,
                 "columns_comments": columns_comments,
-                "boto3_session": session,
+                "boto3_session": boto3_session,
                 "mode": mode,
                 "transaction_id": transaction_id,
                 "schema_evolution": schema_evolution,
@@ -577,7 +582,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                 catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
                     database=database,
                     table=table,
-                    boto3_session=session,
+                    boto3_session=boto3_session,
                     transaction_id=transaction_id,
                     catalog_id=catalog_id,
                 )
@@ -602,7 +607,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
             partitions_types=partitions_types,
             bucketing_info=bucketing_info,
             mode=mode,
-            boto3_session=session,
+            boto3_session=boto3_session,
             s3_additional_kwargs=s3_additional_kwargs,
             file_format="csv",
             quoting=quoting,
@@ -626,7 +631,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                         table=table,
                         partitions_values=partitions_values,
                         bucketing_info=bucketing_info,
-                        boto3_session=session,
+                        boto3_session=boto3_session,
                         sep=sep,
                         serde_library=create_table_args["serde_library"],
                         serde_parameters=create_table_args["serde_parameters"],
@@ -644,100 +649,11 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
                 delete_objects(
                     path=paths,
                     use_threads=use_threads,
-                    boto3_session=session,
+                    boto3_session=boto3_session,
                     s3_additional_kwargs=s3_additional_kwargs,
                 )
                 raise
     return {"paths": paths, "partitions_values": partitions_values}
-
-
-@overload
-def to_json(
-    df: pd.DataFrame,
-    path: Optional[str] = ...,
-    index: bool = ...,
-    columns: Optional[List[str]] = ...,
-    use_threads: Union[bool, int] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    sanitize_columns: bool = ...,
-    dataset: Literal[False] = ...,
-    filename_prefix: Optional[str] = ...,
-    partition_cols: Optional[List[str]] = ...,
-    bucketing_info: Optional[Tuple[List[str], int]] = ...,
-    concurrent_partitioning: bool = ...,
-    mode: Optional[str] = ...,
-    catalog_versioning: bool = ...,
-    schema_evolution: bool = ...,
-    dtype: Optional[Dict[str, str]] = ...,
-    database: Optional[str] = ...,
-    table: Optional[str] = ...,
-    glue_table_settings: Optional[GlueTableSettings] = ...,
-    projection_params: Optional[Dict[str, Any]] = ...,
-    catalog_id: Optional[str] = ...,
-    **pandas_kwargs: Any,
-) -> List[str]:
-    ...
-
-
-@overload
-def to_json(
-    df: pd.DataFrame,
-    *,
-    path: Optional[str] = ...,
-    index: bool = ...,
-    columns: Optional[List[str]] = ...,
-    use_threads: Union[bool, int] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    sanitize_columns: bool = ...,
-    dataset: Literal[True],
-    filename_prefix: Optional[str] = ...,
-    partition_cols: Optional[List[str]] = ...,
-    bucketing_info: Optional[Tuple[List[str], int]] = ...,
-    concurrent_partitioning: bool = ...,
-    mode: Optional[str] = ...,
-    catalog_versioning: bool = ...,
-    schema_evolution: bool = ...,
-    dtype: Optional[Dict[str, str]] = ...,
-    database: Optional[str] = ...,
-    table: Optional[str] = ...,
-    glue_table_settings: Optional[GlueTableSettings] = ...,
-    projection_params: Optional[Dict[str, Any]] = ...,
-    catalog_id: Optional[str] = ...,
-    **pandas_kwargs: Any,
-) -> _S3WriteDataReturnValue:
-    ...
-
-
-@overload
-def to_json(
-    df: pd.DataFrame,
-    *,
-    path: Optional[str] = ...,
-    index: bool = ...,
-    columns: Optional[List[str]] = ...,
-    use_threads: Union[bool, int] = ...,
-    boto3_session: Optional[boto3.Session] = ...,
-    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
-    sanitize_columns: bool = ...,
-    dataset: bool,
-    filename_prefix: Optional[str] = ...,
-    partition_cols: Optional[List[str]] = ...,
-    bucketing_info: Optional[Tuple[List[str], int]] = ...,
-    concurrent_partitioning: bool = ...,
-    mode: Optional[str] = ...,
-    catalog_versioning: bool = ...,
-    schema_evolution: bool = ...,
-    dtype: Optional[Dict[str, str]] = ...,
-    database: Optional[str] = ...,
-    table: Optional[str] = ...,
-    glue_table_settings: Optional[GlueTableSettings] = ...,
-    projection_params: Optional[Dict[str, Any]] = ...,
-    catalog_id: Optional[str] = ...,
-    **pandas_kwargs: Any,
-) -> Union[List[str], _S3WriteDataReturnValue]:
-    ...
 
 
 @apply_configs
@@ -765,7 +681,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
     projection_params: Optional[Dict[str, Any]] = None,
     catalog_id: Optional[str] = None,
     **pandas_kwargs: Any,
-) -> Union[List[str], _S3WriteDataReturnValue]:
+) -> _S3WriteDataReturnValue:
     """Write JSON file on Amazon S3.
 
     Note
@@ -895,8 +811,11 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
 
     Returns
     -------
-    List[str]
-        List of written files.
+    wr.typing._S3WriteDataReturnValue
+        Dictionary with:
+        'paths': List of all stored files paths on S3.
+        'partitions_values': Dictionary of partitions added with keys as S3 path locations
+        and values as a list of partitions values as str.
 
     Examples
     --------
@@ -978,7 +897,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         table_type = "GOVERNED"
 
     filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
+    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
 
     # Sanitize table to respect Athena's standards
     if (sanitize_columns is True) or (database is not None and table is not None):
@@ -993,7 +912,11 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
 
     if database and table:
         catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
-            database=database, table=table, boto3_session=session, transaction_id=transaction_id, catalog_id=catalog_id
+            database=database,
+            table=table,
+            boto3_session=boto3_session,
+            transaction_id=transaction_id,
+            catalog_id=catalog_id,
         )
         catalog_path: Optional[str] = None
         if catalog_table_input:
@@ -1026,15 +949,16 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
     df = _apply_dtype(df=df, dtype=dtype, catalog_table_input=catalog_table_input, mode=mode)
 
     if dataset is False:
-        return _to_text(
+        output_paths = _to_text(
             df,
             file_format="json",
             path=path,
             use_threads=use_threads,
-            boto3_session=session,
+            s3_client=s3_client,
             s3_additional_kwargs=s3_additional_kwargs,
             **pandas_kwargs,
         )
+        return {"paths": output_paths, "partitions_values": {}}
 
     compression: Optional[str] = pandas_kwargs.pop("compression", None)
     df = df[columns] if columns else df
@@ -1060,7 +984,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
             "description": description,
             "parameters": parameters,
             "columns_comments": columns_comments,
-            "boto3_session": session,
+            "boto3_session": boto3_session,
             "mode": mode,
             "transaction_id": transaction_id,
             "catalog_versioning": catalog_versioning,
@@ -1078,7 +1002,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
             catalog_table_input = catalog._get_table_input(  # pylint: disable=protected-access
                 database=database,
                 table=table,
-                boto3_session=session,
+                boto3_session=boto3_session,
                 transaction_id=transaction_id,
                 catalog_id=catalog_id,
             )
@@ -1102,7 +1026,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
         partitions_types=partitions_types,
         bucketing_info=bucketing_info,
         mode=mode,
-        boto3_session=session,
+        boto3_session=boto3_session,
         s3_additional_kwargs=s3_additional_kwargs,
         file_format="json",
         **pandas_kwargs,
@@ -1122,7 +1046,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
                     table=table,
                     partitions_values=partitions_values,
                     bucketing_info=bucketing_info,
-                    boto3_session=session,
+                    boto3_session=boto3_session,
                     serde_library=create_table_args["serde_library"],
                     serde_parameters=create_table_args["serde_parameters"],
                     catalog_id=catalog_id,
@@ -1139,7 +1063,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
             delete_objects(
                 path=paths,
                 use_threads=use_threads,
-                boto3_session=session,
+                boto3_session=boto3_session,
                 s3_additional_kwargs=s3_additional_kwargs,
             )
             raise

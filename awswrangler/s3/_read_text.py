@@ -41,7 +41,7 @@ def _read_text(  # pylint: disable=W0613
     paths: List[str],
     path_root: Optional[str],
     use_threads: Union[bool, int],
-    boto3_session: Optional[boto3.Session],
+    s3_client: boto3.client,
     s3_additional_kwargs: Optional[Dict[str, str]],
     dataset: bool,
     ignore_index: bool,
@@ -53,7 +53,7 @@ def _read_text(  # pylint: disable=W0613
     executor = _get_executor(use_threads=use_threads)
     tables = executor.map(
         _read_text_file,
-        boto3_session,
+        s3_client,
         paths,
         [version_id_dict[path] for path in paths],
         itertools.repeat(parser_func),
@@ -74,7 +74,7 @@ def _read_text_format(
     use_threads: Union[bool, int],
     last_modified_begin: Optional[datetime.datetime],
     last_modified_end: Optional[datetime.datetime],
-    boto3_session: Optional[boto3.Session],
+    s3_client: boto3.client,
     s3_additional_kwargs: Optional[Dict[str, str]],
     chunksize: Optional[int],
     dataset: bool,
@@ -86,11 +86,9 @@ def _read_text_format(
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     if "iterator" in pandas_kwargs:
         raise exceptions.InvalidArgument("Please, use the chunksize argument instead of iterator.")
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-
     paths: List[str] = _path2list(
         path=path,
-        boto3_session=session,
+        s3_client=s3_client,
         suffix=path_suffix,
         ignore_suffix=_get_path_ignore_suffix(path_ignore_suffix=path_ignore_suffix),
         ignore_empty=ignore_empty,
@@ -114,7 +112,7 @@ def _read_text_format(
 
     args: Dict[str, Any] = {
         "parser_func": _resolve_format(read_format),
-        "boto3_session": boto3_session,
+        "s3_client": s3_client,
         "dataset": dataset,
         "path_root": path_root,
         "pandas_kwargs": pandas_kwargs,
@@ -136,7 +134,7 @@ def _read_text_format(
         paths=paths,
         path_root=path_root,
         use_threads=use_threads,
-        boto3_session=session,
+        s3_client=s3_client,
         s3_additional_kwargs=s3_additional_kwargs,
         dataset=dataset,
         ignore_index=ignore_index,
@@ -343,6 +341,7 @@ def read_csv(
             "Pandas arguments in the function call and awswrangler will accept it."
             "e.g. wr.s3.read_csv('s3://bucket/prefix/', sep='|', skip_blank_lines=True)"
         )
+    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     ignore_index: bool = "index_col" not in pandas_kwargs
     return _read_text_format(
         read_format="csv",
@@ -352,7 +351,7 @@ def read_csv(
         version_id=version_id,
         ignore_empty=ignore_empty,
         use_threads=use_threads,
-        boto3_session=boto3_session,
+        s3_client=s3_client,
         s3_additional_kwargs=s3_additional_kwargs,
         chunksize=chunksize,
         dataset=dataset,
@@ -363,6 +362,71 @@ def read_csv(
         parallelism=parallelism,
         **pandas_kwargs,
     )
+
+
+@overload
+def read_fwf(
+    path: Union[str, List[str]],
+    path_suffix: Union[str, List[str], None] = ...,
+    path_ignore_suffix: Union[str, List[str], None] = ...,
+    version_id: Optional[Union[str, Dict[str, str]]] = ...,
+    ignore_empty: bool = ...,
+    use_threads: Union[bool, int] = ...,
+    last_modified_begin: Optional[datetime.datetime] = ...,
+    last_modified_end: Optional[datetime.datetime] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    chunksize: None = ...,
+    dataset: bool = ...,
+    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
+    parallelism: int = ...,
+    **pandas_kwargs: Any,
+) -> pd.DataFrame:
+    ...
+
+
+@overload
+def read_fwf(
+    path: Union[str, List[str]],
+    *,
+    path_suffix: Union[str, List[str], None] = ...,
+    path_ignore_suffix: Union[str, List[str], None] = ...,
+    version_id: Optional[Union[str, Dict[str, str]]] = ...,
+    ignore_empty: bool = ...,
+    use_threads: Union[bool, int] = ...,
+    last_modified_begin: Optional[datetime.datetime] = ...,
+    last_modified_end: Optional[datetime.datetime] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    chunksize: int,
+    dataset: bool = ...,
+    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
+    parallelism: int = ...,
+    **pandas_kwargs: Any,
+) -> Iterator[pd.DataFrame]:
+    ...
+
+
+@overload
+def read_fwf(
+    path: Union[str, List[str]],
+    *,
+    path_suffix: Union[str, List[str], None] = ...,
+    path_ignore_suffix: Union[str, List[str], None] = ...,
+    version_id: Optional[Union[str, Dict[str, str]]] = ...,
+    ignore_empty: bool = ...,
+    use_threads: Union[bool, int] = ...,
+    last_modified_begin: Optional[datetime.datetime] = ...,
+    last_modified_end: Optional[datetime.datetime] = ...,
+    boto3_session: Optional[boto3.Session] = ...,
+    s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
+    chunksize: Optional[int],
+    dataset: bool = ...,
+    partition_filter: Optional[Callable[[Dict[str, str]], bool]] = ...,
+    parallelism: int = ...,
+    **pandas_kwargs: Any,
+) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
+    ...
 
 
 def read_fwf(
@@ -496,6 +560,7 @@ def read_fwf(
             "Pandas arguments in the function call and awswrangler will accept it."
             "e.g. wr.s3.read_fwf(path, widths=[1, 3], names=['c0', 'c1'])"
         )
+    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     return _read_text_format(
         read_format="fwf",
         path=path,
@@ -504,7 +569,7 @@ def read_fwf(
         version_id=version_id,
         ignore_empty=ignore_empty,
         use_threads=use_threads,
-        boto3_session=boto3_session,
+        s3_client=s3_client,
         s3_additional_kwargs=s3_additional_kwargs,
         chunksize=chunksize,
         dataset=dataset,
@@ -653,6 +718,7 @@ def read_json(
             "Pandas arguments in the function call and awswrangler will accept it."
             "e.g. wr.s3.read_json(path, lines=True, keep_default_dates=True)"
         )
+    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     if (dataset is True) and ("lines" not in pandas_kwargs):
         pandas_kwargs["lines"] = True
     pandas_kwargs["orient"] = orient
@@ -665,7 +731,7 @@ def read_json(
         version_id=version_id,
         ignore_empty=ignore_empty,
         use_threads=use_threads,
-        boto3_session=boto3_session,
+        s3_client=s3_client,
         s3_additional_kwargs=s3_additional_kwargs,
         chunksize=chunksize,
         dataset=dataset,

@@ -18,10 +18,10 @@ def _read_parquet_distributed(  # pylint: disable=unused-argument
     coerce_int96_timestamp_unit: Optional[str],
     use_threads: Union[bool, int],
     parallelism: int,
-    arrow_kwargs: Dict[str, Any],
-    boto3_session: Optional["boto3.Session"],
     version_ids: Optional[Dict[str, str]],
+    s3_client: Optional[boto3.client],
     s3_additional_kwargs: Optional[Dict[str, Any]],
+    arrow_kwargs: Dict[str, Any],
 ) -> Union[pd.DataFrame, Iterator[pd.DataFrame]]:
     dataset_kwargs = {}
     if coerce_int96_timestamp_unit:

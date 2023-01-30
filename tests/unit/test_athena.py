@@ -4,6 +4,7 @@ import string
 from unittest.mock import patch
 
 import boto3
+import botocore
 import numpy as np
 import pytest
 from pandas import DataFrame as PandasDataFrame
@@ -368,10 +369,9 @@ def test_read_sql_query_parameter_formatting_null(path, glue_database, glue_tabl
     assert len(df.index) == 1
 
 
-@pytest.mark.xfail()
 def test_athena_query_cancelled(glue_database):
     query_execution_id = wr.athena.start_query_execution(
-        sql="SELECT " + "rand(), " * 2000 + "rand()", database=glue_database
+        sql="SELECT " + "rand(), " * 10000 + "rand()", database=glue_database
     )
     wr.athena.stop_query_execution(query_execution_id=query_execution_id)
     with pytest.raises(wr.exceptions.QueryCancelled):
@@ -703,7 +703,7 @@ def test_read_sql_query_wo_results_chunked(path, glue_database, glue_table, ctas
     assert counter == 1
 
 
-@pytest.mark.xfail()
+@pytest.mark.xfail(raises=botocore.exceptions.ClientError)
 def test_read_sql_query_wo_results_ctas(path, glue_database, glue_table):
     wr.catalog.create_parquet_table(database=glue_database, table=glue_table, path=path, columns_types={"c0": "int"})
     sql = f"ALTER TABLE {glue_database}.{glue_table} SET LOCATION '{path}dir/'"

@@ -5,7 +5,7 @@ import boto3
 
 def _path2list(
     path: Union[str, Sequence[str]],
-    boto3_session: boto3.Session,
+    s3_client: boto3.client,
     s3_additional_kwargs: Optional[Dict[str, Any]] = ...,
     last_modified_begin: Optional[datetime.datetime] = ...,
     last_modified_end: Optional[datetime.datetime] = ...,

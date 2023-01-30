@@ -39,12 +39,11 @@ def _gen_scan_range(obj_size: int, scan_range_chunk_size: Optional[int] = None) 
     ex=exceptions.S3SelectRequestIncomplete,
 )
 def _select_object_content(
-    boto3_session: Optional[boto3.Session],
+    s3_client: Optional[boto3.client],
     args: Dict[str, Any],
     scan_range: Optional[Tuple[int, int]] = None,
 ) -> pa.Table:
-    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
-
+    client_s3: boto3.client = s3_client if s3_client else _utils.client(service_name="s3")
     if scan_range:
         _logger.debug("scan_range: %s, key: %s", scan_range, args["Key"])
         response = client_s3.select_object_content(**args, ScanRange={"Start": scan_range[0], "End": scan_range[1]})
@@ -87,7 +86,7 @@ def _select_query(
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> List[pa.Table]:
     bucket, key = _utils.parse_path(path)
-
+    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     args: Dict[str, Any] = {
         "Bucket": bucket,
         "Key": key,
@@ -126,7 +125,7 @@ def _select_query(
         # and JSON objects (in LINES mode only)
         scan_ranges = [None]  # type: ignore
 
-    return executor.map(_select_object_content, boto3_session, itertools.repeat(args), scan_ranges)  # type: ignore
+    return executor.map(_select_object_content, s3_client, itertools.repeat(args), scan_ranges)  # type: ignore
 
 
 def select_query(
@@ -248,10 +247,10 @@ def select_query(
         raise exceptions.InvalidArgumentCombination(
             "'gzip' or 'bzip2' are only valid for input 'CSV' or 'JSON' objects."
         )
-
+    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
     paths: List[str] = _path2list(
         path=path,
-        boto3_session=boto3_session,
+        s3_client=s3_client,
         suffix=path_suffix,
         ignore_suffix=_get_path_ignore_suffix(path_ignore_suffix=path_ignore_suffix),
         ignore_empty=ignore_empty,

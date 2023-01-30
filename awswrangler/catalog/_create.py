@@ -124,8 +124,7 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-
 
     _logger.debug("table_input: %s", table_input)
 
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
-    client_glue: boto3.client = _utils.client(service_name="glue", session=session)
+    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
     skip_archive: bool = not catalog_versioning
     if mode not in ("overwrite", "append", "overwrite_partitions", "update"):
         raise exceptions.InvalidArgument(
@@ -144,7 +143,9 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-
         args["SkipArchive"] = skip_archive
         if mode == "overwrite":
             if table_type != "GOVERNED":
-                delete_all_partitions(table=table, database=database, catalog_id=catalog_id, boto3_session=session)
+                delete_all_partitions(
+                    table=table, database=database, catalog_id=catalog_id, boto3_session=boto3_session
+                )
             client_glue.update_table(**args)
         elif mode == "update":
             client_glue.update_table(**args)
@@ -489,16 +490,19 @@ def upsert_table_parameters(
     ...     table="...")
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     table_input: Optional[Dict[str, str]] = _get_table_input(
-        database=database, table=table, boto3_session=session, transaction_id=transaction_id, catalog_id=catalog_id
+        database=database,
+        table=table,
+        boto3_session=boto3_session,
+        transaction_id=transaction_id,
+        catalog_id=catalog_id,
     )
     if table_input is None:
         raise exceptions.InvalidArgumentValue(f"Table {database}.{table} does not exist.")
     return _upsert_table_parameters(
         parameters=parameters,
         database=database,
-        boto3_session=session,
+        boto3_session=boto3_session,
         transaction_id=transaction_id,
         catalog_id=catalog_id,
         table_input=table_input,
@@ -550,9 +554,12 @@ def overwrite_table_parameters(
     ...     table="...")
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     table_input: Optional[Dict[str, Any]] = _get_table_input(
-        database=database, table=table, transaction_id=transaction_id, catalog_id=catalog_id, boto3_session=session
+        database=database,
+        table=table,
+        transaction_id=transaction_id,
+        catalog_id=catalog_id,
+        boto3_session=boto3_session,
     )
     if table_input is None:
         raise exceptions.InvalidTable(f"Table {table} does not exist on database {database}.")
@@ -562,7 +569,7 @@ def overwrite_table_parameters(
         catalog_id=catalog_id,
         transaction_id=transaction_id,
         table_input=table_input,
-        boto3_session=session,
+        boto3_session=boto3_session,
         catalog_versioning=catalog_versioning,
     )
 
@@ -749,9 +756,12 @@ def create_parquet_table(
     ... )
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     catalog_table_input: Optional[Dict[str, Any]] = _get_table_input(
-        database=database, table=table, boto3_session=session, transaction_id=transaction_id, catalog_id=catalog_id
+        database=database,
+        table=table,
+        boto3_session=boto3_session,
+        transaction_id=transaction_id,
+        catalog_id=catalog_id,
     )
     _create_parquet_table(
         database=database,
@@ -931,9 +941,12 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     ... )
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     catalog_table_input: Optional[Dict[str, Any]] = _get_table_input(
-        database=database, table=table, boto3_session=session, transaction_id=transaction_id, catalog_id=catalog_id
+        database=database,
+        table=table,
+        boto3_session=boto3_session,
+        transaction_id=transaction_id,
+        catalog_id=catalog_id,
     )
     _create_csv_table(
         database=database,
@@ -1106,9 +1119,8 @@ def create_json_table(  # pylint: disable=too-many-arguments
     ... )
 
     """
-    session: boto3.Session = _utils.ensure_session(session=boto3_session)
     catalog_table_input: Optional[Dict[str, Any]] = _get_table_input(
-        database=database, table=table, boto3_session=session, catalog_id=catalog_id
+        database=database, table=table, boto3_session=boto3_session, catalog_id=catalog_id
     )
     _create_json_table(
         database=database,

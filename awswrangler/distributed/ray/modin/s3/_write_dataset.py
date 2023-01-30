@@ -6,6 +6,7 @@ import modin.pandas as pd
 import numpy as np
 from pandas import DataFrame as PandasDataFrame
 
+from awswrangler import _utils
 from awswrangler._distributed import engine
 from awswrangler.distributed.ray import ray_get, ray_remote
 from awswrangler.distributed.ray.modin import modin_repartition
@@ -42,7 +43,7 @@ def _to_buckets_distributed(  # pylint: disable=unused-argument
         engine.dispatch_func(func),
         path_root=path_root,
         filename_prefix=filename_prefix,
-        boto3_session=None,
+        s3_client=None,
         use_threads=False,
         bucketing=True,
         **func_kwargs,
@@ -100,11 +101,12 @@ def _write_partitions_distributed(
             **func_kwargs,
         )
     else:
+        s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
         paths = write_func(
             df_group.drop(partition_cols, axis="columns"),
             path_root=prefix,
             filename_prefix=filename_prefix,
-            boto3_session=boto3_session,
+            s3_client=s3_client,
             use_threads=use_threads,
             **func_kwargs,
         )
@@ -128,7 +130,7 @@ def _to_partitions_distributed(  # pylint: disable=unused-argument
     transaction_id: Optional[str],
     bucketing_info: Optional[Tuple[List[str], int]],
     filename_prefix: str,
-    boto3_session: "boto3.Session",
+    boto3_session: Optional["boto3.Session"],
     **func_kwargs: Any,
 ) -> Tuple[List[str], Dict[str, List[str]]]:
     paths: List[str]

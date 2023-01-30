@@ -235,7 +235,7 @@ def test_to_text_filename_prefix(compare_filename_prefix, path, filename_prefix,
 
     # If Dataset is False, csv/json file should never start with prefix
     file_path = f"{path}0.json"
-    filename = wr.s3.to_json(df=df, path=file_path, use_threads=use_threads)[0].split("/")[-1]
+    filename = wr.s3.to_json(df=df, path=file_path, use_threads=use_threads)["paths"][0].split("/")[-1]
     assert not filename.startswith(test_prefix)
     file_path = f"{path}0.csv"
     filename = wr.s3.to_csv(
