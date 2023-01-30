@@ -46,7 +46,7 @@ class RdsDataApi(connector.DataApiConnector):
         self.database = database
         self.secret_arn = secret_arn
         self.wait_config = connector.WaitConfig(sleep, backoff, retries)
-        self.client: boto3.client = _utils.client(service_name="rds-data", session=boto3_session)
+        self.client = _utils.client(service_name="rds-data", session=boto3_session)
         self.results: Dict[str, Dict[str, Any]] = {}
         logger: logging.Logger = logging.getLogger(__name__)
         super().__init__(self.client, logger)

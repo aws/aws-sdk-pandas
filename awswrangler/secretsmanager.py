@@ -37,7 +37,7 @@ def get_secret(name: str, boto3_session: Optional[boto3.Session] = None) -> Unio
     client = _utils.client(service_name="secretsmanager", session=boto3_session)
     response = client.get_secret_value(SecretId=name)
     if "SecretString" in response:
-        return cast(str, response["SecretString"])
+        return response["SecretString"]
     return base64.b64decode(response["SecretBinary"])
 
 

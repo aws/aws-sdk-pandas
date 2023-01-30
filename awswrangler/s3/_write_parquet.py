@@ -572,7 +572,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
 
     filename_prefix = filename_prefix + uuid.uuid4().hex if filename_prefix else uuid.uuid4().hex
     cpus: int = _utils.ensure_cpu_count(use_threads=use_threads)
-    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
     # Pyarrow defaults
     if not pyarrow_additional_kwargs:
         pyarrow_additional_kwargs = {}

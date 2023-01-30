@@ -129,7 +129,7 @@ def _get_last_query_infos(
     workgroup: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """Return an iterator of `query_execution_info`s run by the workgroup in Athena."""
-    client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
+    client_athena = _utils.client(service_name="athena", session=boto3_session)
     page_size = 50
     args: Dict[str, Union[str, Dict[str, int]]] = {
         "PaginationConfig": {"MaxItems": max_remote_cache_entries, "PageSize": page_size}

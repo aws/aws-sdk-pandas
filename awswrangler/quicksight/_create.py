@@ -167,7 +167,7 @@ def create_athena_data_source(
     ...     allowed_to_manage=["john"]
     ... )
     """
-    client: boto3.client = _utils.client(service_name="quicksight", session=boto3_session)
+    client = _utils.client(service_name="quicksight", session=boto3_session)
     if account_id is None:
         account_id = sts.get_account_id(boto3_session=boto3_session)
     args: Dict[str, Any] = {
@@ -301,7 +301,7 @@ def create_athena_dataset(
             "If you provide sql argument, please include the database name inside the sql statement."
             "Do NOT pass in with database argument."
         )
-    client: boto3.client = _utils.client(service_name="quicksight", session=boto3_session)
+    client = _utils.client(service_name="quicksight", session=boto3_session)
     if account_id is None:
         account_id = sts.get_account_id(boto3_session=boto3_session)
     if (data_source_arn is None) and (data_source_name is not None):
@@ -409,7 +409,7 @@ def create_ingestion(
         dataset_id = get_dataset_id(name=dataset_name, account_id=account_id, boto3_session=boto3_session)
     if ingestion_id is None:
         ingestion_id = uuid.uuid4().hex
-    client: boto3.client = _utils.client(service_name="quicksight", session=boto3_session)
+    client = _utils.client(service_name="quicksight", session=boto3_session)
     response: Dict[str, Any] = client.create_ingestion(
         DataSetId=dataset_id, IngestionId=ingestion_id, AwsAccountId=account_id
     )

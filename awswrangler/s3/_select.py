@@ -86,7 +86,7 @@ def _select_query(
     s3_additional_kwargs: Optional[Dict[str, Any]] = None,
 ) -> List[pa.Table]:
     bucket, key = _utils.parse_path(path)
-    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
     args: Dict[str, Any] = {
         "Bucket": bucket,
         "Key": key,
@@ -247,7 +247,7 @@ def select_query(
         raise exceptions.InvalidArgumentCombination(
             "'gzip' or 'bzip2' are only valid for input 'CSV' or 'JSON' objects."
         )
-    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
     paths: List[str] = _path2list(
         path=path,
         s3_client=s3_client,

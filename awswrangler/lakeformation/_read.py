@@ -39,7 +39,7 @@ def _resolve_sql_query(
     boto3_session: boto3.Session,
     arrow_kwargs: Dict[str, Any],
 ) -> pd.DataFrame:
-    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
+    client_lakeformation = _utils.client(service_name="lakeformation", session=boto3_session)
 
     wait_query(query_id=query_id, boto3_session=boto3_session)
 
@@ -161,7 +161,7 @@ def read_sql_query(
     ... )
 
     """
-    client_lakeformation: boto3.client = _utils.client(service_name="lakeformation", session=boto3_session)
+    client_lakeformation = _utils.client(service_name="lakeformation", session=boto3_session)
     commit_trans: bool = False
 
     sql = _process_sql_params(sql, params, engine=_EngineType.PARTIQL)

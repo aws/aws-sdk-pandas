@@ -124,7 +124,7 @@ def _create_table(  # pylint: disable=too-many-branches,too-many-statements,too-
 
     _logger.debug("table_input: %s", table_input)
 
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
     skip_archive: bool = not catalog_versioning
     if mode not in ("overwrite", "append", "overwrite_partitions", "update"):
         raise exceptions.InvalidArgument(
@@ -234,7 +234,7 @@ def _overwrite_table_parameters(
     boto3_session: Optional[boto3.Session],
 ) -> Dict[str, str]:
     table_input["Parameters"] = parameters
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
     skip_archive: bool = not catalog_versioning
     client_glue.update_table(
         **_catalog_id(
@@ -611,7 +611,7 @@ def create_database(
     ...     name='awswrangler_test'
     ... )
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
     args: Dict[str, str] = {"Name": name}
     if description is not None:
         args["Description"] = description

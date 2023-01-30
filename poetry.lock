@@ -305,6 +305,7 @@ mypy-boto3-ec2 = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extr
 mypy-boto3-emr = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"emr\""}
 mypy-boto3-glue = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"glue\""}
 mypy-boto3-lakeformation = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"lakeformation\""}
+mypy-boto3-logs = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"logs\""}
 mypy-boto3-neptune = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"neptune\""}
 mypy-boto3-opensearch = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"opensearch\""}
 mypy-boto3-quicksight = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"quicksight\""}
@@ -315,6 +316,7 @@ mypy-boto3-s3 = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra
 mypy-boto3-secretsmanager = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"secretsmanager\""}
 mypy-boto3-ssm = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"ssm\""}
 mypy-boto3-sts = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"sts\""}
+mypy-boto3-timestream-query = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"timestream-query\""}
 mypy-boto3-timestream-write = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"timestream-write\""}
 types-s3transfer = "*"
 typing-extensions = ">=4.1.0"
@@ -1788,6 +1790,17 @@ python-versions = ">=3.7"
 typing-extensions = ">=4.1.0"
 
 [[package]]
+name = "mypy-boto3-logs"
+version = "1.26.53"
+description = "Type annotations for boto3.CloudWatchLogs 1.26.53 service generated with mypy-boto3-builder 7.12.3"
+category = "dev"
+optional = false
+python-versions = ">=3.7"
+
+[package.dependencies]
+typing-extensions = ">=4.1.0"
+
+[[package]]
 name = "mypy-boto3-neptune"
 version = "1.26.0.post1"
 description = "Type annotations for boto3.Neptune 1.26.0 service generated with mypy-boto3-builder 7.11.10"
@@ -1890,6 +1903,17 @@ typing-extensions = ">=4.1.0"
 name = "mypy-boto3-sts"
 version = "1.26.12"
 description = "Type annotations for boto3.STS 1.26.12 service generated with mypy-boto3-builder 7.11.10"
+category = "dev"
+optional = false
+python-versions = ">=3.7"
+
+[package.dependencies]
+typing-extensions = ">=4.1.0"
+
+[[package]]
+name = "mypy-boto3-timestream-query"
+version = "1.26.0.post1"
+description = "Type annotations for boto3.TimestreamQuery 1.26.0 service generated with mypy-boto3-builder 7.11.10"
 category = "dev"
 optional = false
 python-versions = ">=3.7"
@@ -3475,7 +3499,7 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8, <4.0"
-content-hash = "2b312dac6f4b56ad632a5e896b721be28a13c1dd19d27b8c2abd8588d19195dd"
+content-hash = "8b583dfb4a93f1c9e7d38357861c8070e814b56071863ab616cb0469554cf339"
 
 [metadata.files]
 aenum = [
@@ -4570,6 +4594,10 @@ mypy-boto3-lakeformation = [
     {file = "mypy-boto3-lakeformation-1.26.9.tar.gz", hash = "sha256:d97915e5e95b7a89dbe041bd5a5ba11856589a88e666d8cce506d24b3e0b2ca2"},
     {file = "mypy_boto3_lakeformation-1.26.9-py3-none-any.whl", hash = "sha256:d9525a9c4b498a95f1340cf510859d5176a87a57ccc7586d528ea727ed2968d5"},
 ]
+mypy-boto3-logs = [
+    {file = "mypy-boto3-logs-1.26.53.tar.gz", hash = "sha256:9b2d70e9a8f33e5f141ebf4abd3a78c50e80b60152eb400e69a23b5085f50ce0"},
+    {file = "mypy_boto3_logs-1.26.53-py3-none-any.whl", hash = "sha256:d40de12136ef71b1effe2e00f5d608c3cd7c89796d830867617ae9e9f3668fc4"},
+]
 mypy-boto3-neptune = [
     {file = "mypy-boto3-neptune-1.26.0.post1.tar.gz", hash = "sha256:df9353e982df9904a84f791c60a1df7de9f813eb424e41ab9958051ab61a2543"},
     {file = "mypy_boto3_neptune-1.26.0.post1-py3-none-any.whl", hash = "sha256:79bf880a608a8664d84c5df1e8c9a6500bd5ee476bfdd964999052493349766d"},
@@ -4609,6 +4637,10 @@ mypy-boto3-ssm = [
 mypy-boto3-sts = [
     {file = "mypy-boto3-sts-1.26.12.tar.gz", hash = "sha256:e40f10fd848cee911e8ef9c4bf5b66d7dab298cbadbfda75a57c0ccc6b26ab61"},
     {file = "mypy_boto3_sts-1.26.12-py3-none-any.whl", hash = "sha256:2d0ebc9f5af8346fd52a81c2826718fea8a8320c80d3d2dd3c5bf12860f94915"},
+]
+mypy-boto3-timestream-query = [
+    {file = "mypy-boto3-timestream-query-1.26.0.post1.tar.gz", hash = "sha256:5aead815254c0baa8ff97ee1f861080e35f01fe1f872fe5f00c89d60924594c6"},
+    {file = "mypy_boto3_timestream_query-1.26.0.post1-py3-none-any.whl", hash = "sha256:b7e10c4383b52b62ed152a94822ba9f92f1877c8bdeb8c423a9cd65c5f7a70c2"},
 ]
 mypy-boto3-timestream-write = [
     {file = "mypy-boto3-timestream-write-1.26.0.post1.tar.gz", hash = "sha256:4bde2e52cebe17b2295481c9f540122f2304d48f3f222678abb5c918604faefb"},

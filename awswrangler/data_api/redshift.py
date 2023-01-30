@@ -1,7 +1,7 @@
 """Redshift Data API Connector."""
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import boto3
 import pandas as pd
@@ -57,7 +57,7 @@ class RedshiftDataApi(connector.DataApiConnector):
         self.workgroup_name = workgroup_name
         self.secret_arn = secret_arn
         self.db_user = db_user
-        self.client: boto3.client = _utils.client(service_name="redshift-data", session=boto3_session)
+        self.client = _utils.client(service_name="redshift-data", session=boto3_session)
         self.waiter = RedshiftDataApiWaiter(self.client, sleep, backoff, retries)
         logger: logging.Logger = logging.getLogger(__name__)
         super().__init__(self.client, logger)
@@ -90,7 +90,7 @@ class RedshiftDataApi(connector.DataApiConnector):
             redshift_target = {"WorkgroupName": self.workgroup_name}
 
         self.logger.debug("Executing %s", sql)
-        response: Dict[str, Any] = self.client.execute_statement(
+        response = self.client.execute_statement(
             **redshift_target,
             Database=database,
             Sql=sql,

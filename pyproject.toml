@@ -88,7 +88,7 @@ s3fs = "0.4.2"
 python-Levenshtein = "^0.12.2"
 bump2version = "^1.0.1"
 setuptools = "*"
-boto3-stubs = {version = "1.26.47", extras = ["athena", "chime", "cloudwatch", "dynamodb", "ec2", "emr", "glue", "lakeformation", "neptune", "opensearch", "quicksight", "rds", "redshift", "redshift-data", "s3", "secretsmanager", "ssm", "sts", "timestream-write"]}
+boto3-stubs = {version = "1.26.47", extras = ["athena", "chime", "cloudwatch", "dynamodb", "ec2", "emr", "glue", "lakeformation", "logs", "neptune", "opensearch", "quicksight", "rds", "redshift", "redshift-data", "s3", "secretsmanager", "ssm", "sts", "timestream-query", "timestream-write"]}
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

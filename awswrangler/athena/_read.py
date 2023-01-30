@@ -35,7 +35,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def _extract_ctas_manifest_paths(path: str, boto3_session: Optional[boto3.Session] = None) -> List[str]:
     """Get the list of paths of the generated files."""
     bucket_name, key_path = _utils.parse_path(path)
-    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    client_s3 = _utils.client(service_name="s3", session=boto3_session)
     body: bytes = client_s3.get_object(Bucket=bucket_name, Key=key_path)["Body"].read()
     return [x for x in body.decode("utf-8").split("\n") if x != ""]
 
@@ -687,7 +687,7 @@ def get_query_results(
         categories=categories,
         metadata_cache_manager=_cache_manager,
     )
-    client_athena: boto3.client = _utils.client(service_name="athena", session=boto3_session)
+    client_athena = _utils.client(service_name="athena", session=boto3_session)
     query_info: Dict[str, Any] = client_athena.get_query_execution(QueryExecutionId=query_execution_id)[
         "QueryExecution"
     ]

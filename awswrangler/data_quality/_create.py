@@ -100,7 +100,7 @@ def create_ruleset(
     if (df_rules is not None and dqdl_rules) or (df_rules is None and not dqdl_rules):
         raise exceptions.InvalidArgumentCombination("You must pass either ruleset `df_rules` or `dqdl_rules`.")
 
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
     dqdl_rules = _create_dqdl(df_rules) if df_rules is not None else dqdl_rules
 
     try:
@@ -186,7 +186,7 @@ def update_ruleset(
     if updated_name:
         args["UpdatedName"] = updated_name
 
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
     try:
         client_glue.update_data_quality_ruleset(**args)
     except client_glue.exceptions.EntityNotFoundException as not_found:
@@ -252,7 +252,7 @@ def create_recommendation_ruleset(
     >>>     iam_role_arn="arn:...",
     >>>)
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
 
     args: Dict[str, Any] = {
         "DataSource": _create_datasource(

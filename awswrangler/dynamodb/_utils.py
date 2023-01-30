@@ -1,13 +1,16 @@
 """Amazon DynamoDB Utils Module (PRIVATE)."""
 
 import logging
-from typing import Any, Dict, Iterator, List, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Mapping, Optional, Union
 
 import boto3
 from botocore.exceptions import ClientError
 
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
+
+if TYPE_CHECKING:
+    from mypy_boto3_dynamodb.service_resource import Table
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -16,7 +19,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 def get_table(
     table_name: str,
     boto3_session: Optional[boto3.Session] = None,
-) -> boto3.resource:
+) -> "Table":
     """Get DynamoDB table object for specified table name.
 
     Parameters
@@ -44,7 +47,7 @@ def _execute_statement(
 ) -> Dict[str, Any]:
     dynamodb_resource = _utils.resource(service_name="dynamodb", session=boto3_session)
     try:
-        response: Dict[str, Any] = dynamodb_resource.meta.client.execute_statement(**kwargs)
+        response = dynamodb_resource.meta.client.execute_statement(**kwargs)
     except ClientError as err:
         if err.response["Error"]["Code"] == "ResourceNotFoundException":
             _logger.error("Couldn't execute PartiQL: '%s' because the table does not exist.", kwargs["Statement"])
@@ -135,9 +138,7 @@ def execute_statement(
     return _read_execute_statement(kwargs=kwargs, boto3_session=boto3_session)
 
 
-def _validate_items(
-    items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]], dynamodb_table: boto3.resource
-) -> None:
+def _validate_items(items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]], dynamodb_table: "Table") -> None:
     """Validate if all items have the required keys for the Amazon DynamoDB table.
 
     Parameters

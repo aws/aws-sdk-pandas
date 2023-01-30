@@ -101,7 +101,7 @@ def _write_partitions_distributed(
             **func_kwargs,
         )
     else:
-        s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+        s3_client = _utils.client(service_name="s3", session=boto3_session)
         paths = write_func(
             df_group.drop(partition_cols, axis="columns"),
             path_root=prefix,

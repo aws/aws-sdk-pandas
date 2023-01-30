@@ -712,7 +712,7 @@ def create_cluster(  # pylint: disable=too-many-arguments,too-many-locals,unused
     """
     applications = ["Spark"] if applications is None else applications
     args: Dict[str, Any] = _build_cluster_args(**locals())
-    client_emr: boto3.client = _utils.client(service_name="emr", session=boto3_session)
+    client_emr = _utils.client(service_name="emr", session=boto3_session)
     response: Dict[str, Any] = client_emr.run_job_flow(**args)
     _logger.debug("response: \n%s", pprint.pformat(response))
     return cast(str, response["JobFlowId"])
@@ -743,7 +743,7 @@ def get_cluster_state(cluster_id: str, boto3_session: Optional[boto3.Session] = 
     >>> state = wr.emr.get_cluster_state("cluster-id")
 
     """
-    client_emr: boto3.client = _utils.client(service_name="emr", session=boto3_session)
+    client_emr = _utils.client(service_name="emr", session=boto3_session)
     response: Dict[str, Any] = client_emr.describe_cluster(ClusterId=cluster_id)
     _logger.debug("response: \n%s", pprint.pformat(response))
     return cast(str, response["Cluster"]["Status"]["State"])
@@ -770,7 +770,7 @@ def terminate_cluster(cluster_id: str, boto3_session: Optional[boto3.Session] = 
     >>> wr.emr.terminate_cluster("cluster-id")
 
     """
-    client_emr: boto3.client = _utils.client(service_name="emr", session=boto3_session)
+    client_emr = _utils.client(service_name="emr", session=boto3_session)
     response: Dict[str, Any] = client_emr.terminate_job_flows(JobFlowIds=[cluster_id])
     _logger.debug("response: \n%s", pprint.pformat(response))
 
@@ -802,7 +802,7 @@ def submit_steps(
     >>> wr.emr.submit_steps(cluster_id="cluster-id", steps=steps)
 
     """
-    client_emr: boto3.client = _utils.client(service_name="emr", session=boto3_session)
+    client_emr = _utils.client(service_name="emr", session=boto3_session)
     response: Dict[str, Any] = client_emr.add_job_flow_steps(JobFlowId=cluster_id, Steps=steps)
     _logger.debug("response: \n%s", pprint.pformat(response))
     return cast(List[str], response["StepIds"])
@@ -853,7 +853,7 @@ def submit_step(
     step: Dict[str, Any] = build_step(
         name=name, command=command, action_on_failure=action_on_failure, script=script, boto3_session=boto3_session
     )
-    client_emr: boto3.client = _utils.client(service_name="emr", session=boto3_session)
+    client_emr = _utils.client(service_name="emr", session=boto3_session)
     response: Dict[str, Any] = client_emr.add_job_flow_steps(JobFlowId=cluster_id, Steps=[step])
     _logger.debug("response: \n%s", pprint.pformat(response))
     return cast(str, response["StepIds"][0])
@@ -941,7 +941,7 @@ def get_step_state(cluster_id: str, step_id: str, boto3_session: Optional[boto3.
     >>> state = wr.emr.get_step_state("cluster-id", "step-id")
 
     """
-    client_emr: boto3.client = _utils.client(service_name="emr", session=boto3_session)
+    client_emr = _utils.client(service_name="emr", session=boto3_session)
     response: Dict[str, Any] = client_emr.describe_step(ClusterId=cluster_id, StepId=step_id)
     _logger.debug("response: \n%s", pprint.pformat(response))
     return cast(str, response["Step"]["Status"]["State"])
@@ -976,7 +976,7 @@ def submit_ecr_credentials_refresh(
     """
     path = path[:-1] if path.endswith("/") else path
     path_script: str = f"{path}/ecr_credentials_refresh.py"
-    client_s3: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    client_s3 = _utils.client(service_name="s3", session=boto3_session)
     bucket, key = _utils.parse_path(path=path_script)
     region: str = _utils.get_region_from_session(boto3_session=boto3_session)
     client_s3.put_object(
@@ -987,7 +987,7 @@ def submit_ecr_credentials_refresh(
     step: Dict[str, Any] = build_step(
         name=name, command=command, action_on_failure=action_on_failure, script=False, boto3_session=boto3_session
     )
-    client_emr: boto3.client = _utils.client(service_name="emr", session=boto3_session)
+    client_emr = _utils.client(service_name="emr", session=boto3_session)
     response: Dict[str, Any] = client_emr.add_job_flow_steps(JobFlowId=cluster_id, Steps=[step])
     _logger.debug("response: \n%s", pprint.pformat(response))
     return cast(str, response["StepIds"][0])

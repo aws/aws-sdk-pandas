@@ -31,9 +31,15 @@ if TYPE_CHECKING:
     from mypy_boto3_dynamodb import DynamoDBClient, DynamoDBServiceResource
     from mypy_boto3_ec2 import EC2Client
     from mypy_boto3_glue import GlueClient
+    from mypy_boto3_lakeformation.client import LakeFormationClient
+    from mypy_boto3_logs.client import CloudWatchLogsClient
+    from mypy_boto3_redshift.client import RedshiftClient
+    from mypy_boto3_redshift_data.client import RedshiftDataAPIServiceClient
     from mypy_boto3_s3 import S3Client, S3ServiceResource
     from mypy_boto3_secretsmanager import SecretsManagerClient
     from mypy_boto3_sts.client import STSClient
+    from mypy_boto3_timestream_query.client import TimestreamQueryClient
+    from mypy_boto3_timestream_write.client import TimestreamWriteClient
     from typing_extensions import Literal
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -123,6 +129,26 @@ def client(
 
 @overload
 def client(
+    service_name: 'Literal["lakeformation"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "LakeFormationClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["logs"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "CloudWatchLogsClient":
+    ...
+
+
+@overload
+def client(
     service_name: 'Literal["dynamodb"]',
     session: Optional[boto3.Session] = None,
     botocore_config: Optional[Config] = None,
@@ -153,6 +179,26 @@ def client(
 
 @overload
 def client(
+    service_name: 'Literal["redshift"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "RedshiftClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["redshift-data"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "RedshiftDataAPIServiceClient":
+    ...
+
+
+@overload
+def client(
     service_name: 'Literal["s3"]',
     session: Optional[boto3.Session] = None,
     botocore_config: Optional[Config] = None,
@@ -178,6 +224,36 @@ def client(
     botocore_config: Optional[Config] = None,
     verify: Optional[Union[str, bool]] = None,
 ) -> "STSClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["timestream-query"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "TimestreamQueryClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["timestream-write"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "TimestreamWriteClient":
+    ...
+
+
+@overload
+def client(
+    service_name: "ServiceName",
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "BaseClient":
     ...
 
 

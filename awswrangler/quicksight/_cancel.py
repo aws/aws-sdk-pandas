@@ -53,5 +53,5 @@ def cancel_ingestion(
         account_id = sts.get_account_id(boto3_session=boto3_session)
     if (dataset_id is None) and (dataset_name is not None):
         dataset_id = get_dataset_id(name=dataset_name, account_id=account_id, boto3_session=boto3_session)
-    client: boto3.client = _utils.client(service_name="quicksight", session=boto3_session)
+    client = _utils.client(service_name="quicksight", session=boto3_session)
     client.cancel_ingestion(IngestionId=ingestion_id, AwsAccountId=account_id, DataSetId=dataset_id)

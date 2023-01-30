@@ -115,7 +115,7 @@ def wait_objects_exist(
     >>> wr.s3.wait_objects_exist(['s3://bucket/key0', 's3://bucket/key1'])  # wait both objects
 
     """
-    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
     return _wait_objects(
         waiter_name="object_exists",
         paths=paths,
@@ -175,7 +175,7 @@ def wait_objects_not_exist(
     >>> wr.s3.wait_objects_not_exist(['s3://bucket/key0', 's3://bucket/key1'])  # wait both objects not exist
 
     """
-    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
     return _wait_objects(
         waiter_name="object_not_exists",
         paths=paths,

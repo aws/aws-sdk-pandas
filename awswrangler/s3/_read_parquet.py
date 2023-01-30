@@ -164,7 +164,7 @@ def _read_parquet_metadata(
     coerce_int96_timestamp_unit: Optional[str] = None,
 ) -> Tuple[Dict[str, str], Optional[Dict[str, str]], Optional[Dict[str, List[str]]]]:
     """Handle wr.s3.read_parquet_metadata internally."""
-    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
     path_root: Optional[str] = _get_path_root(path=path, dataset=dataset)
     paths: List[str] = _path2list(
         path=path,
@@ -872,8 +872,8 @@ def read_parquet_table(
     >>> df = wr.s3.read_parquet_table(path, dataset=True, partition_filter=my_filter)
 
     """
-    client_glue: boto3.client = _utils.client(service_name="glue", session=boto3_session)
-    s3_client: boto3.client = _utils.client(service_name="s3", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
+    s3_client = _utils.client(service_name="s3", session=boto3_session)
     res: Dict[str, Any] = client_glue.get_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table))
     try:
         location: str = res["Table"]["StorageDescriptor"]["Location"]
