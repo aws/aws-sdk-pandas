@@ -128,7 +128,7 @@ def _set_refresh_interval(client: OpenSearch, index: str, refresh_interval: Opti
     url = f"/{index}/_settings"
     body = {"index": {"refresh_interval": refresh_interval}}
     try:
-        return client.transport.perform_request("PUT", url, headers={"Content-Type": "application/json"}, body=body)
+        return client.transport.perform_request("PUT", url, headers={"content-type": "application/json"}, body=body)
     except RequestError:
         return None
 
