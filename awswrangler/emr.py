@@ -3,7 +3,7 @@
 
 import logging
 import pprint
-from typing import Any, Dict, List, Optional, Union, cast
+from typing import Any, Dict, List, Optional, Union
 
 import boto3
 

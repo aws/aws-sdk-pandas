@@ -165,7 +165,10 @@ class _Config:  # pylint: disable=too-many-instance-attributes,too-many-public-m
                 f"{key} is not a valid configuration. Please use: {list(_CONFIG_ARGS.keys())}"
             )
         value_casted: _ConfigValueType = self._apply_type(
-            name=key, value=value, dtype=_CONFIG_ARGS[key].dtype, nullable=_CONFIG_ARGS[key].nullable  # type: ignore[arg-type]
+            name=key,
+            value=value,
+            dtype=_CONFIG_ARGS[key].dtype,  # type: ignore[arg-type]
+            nullable=_CONFIG_ARGS[key].nullable,
         )
         self._loaded_values[key] = value_casted
 

@@ -1,7 +1,7 @@
 """Redshift Data API Connector."""
 import logging
 import time
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import boto3
 import pandas as pd

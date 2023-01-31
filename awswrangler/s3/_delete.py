@@ -47,7 +47,11 @@ def _delete_objects(
         extra_kwargs = {}
     bucket = _utils.parse_path(path=paths[0])[0]
     batch: List[Dict[str, str]] = [{"Key": _utils.parse_path(path)[1]} for path in paths]
-    res = s3_client.delete_objects(Bucket=bucket, Delete={"Objects": batch}, **extra_kwargs)  # type: ignore[typeddict-item]
+    res = s3_client.delete_objects(
+        Bucket=bucket,
+        Delete={"Objects": batch},  # type: ignore[typeddict-item]
+        **extra_kwargs,
+    )
     deleted = res.get("Deleted", [])
     for obj in deleted:
         _logger.debug("s3://%s/%s has been deleted.", bucket, obj.get("Key"))

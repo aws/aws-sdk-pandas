@@ -5,16 +5,13 @@ import logging
 import pprint
 import re
 import time
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import boto3
 import botocore.exceptions
 import pandas as pd
 
 from awswrangler import _utils, exceptions
-
-if TYPE_CHECKING:
-    from mypy_boto3_glue import GlueClient
 
 _logger: logging.Logger = logging.getLogger(__name__)
 

@@ -302,7 +302,7 @@ def create_collection(
     """
     if collection_type not in ["SEARCH", "TIMESERIES"]:
         raise exceptions.InvalidArgumentValue("Collection `type` must be either 'SEARCH' or 'TIMESERIES'.")
-    collection_type = cast(CollectionTypeType, collection_type)
+    collection_type = cast("CollectionTypeType", collection_type)
 
     client = _utils.client(service_name="opensearchserverless", session=boto3_session)
     # Create encryption and network policies

@@ -1,7 +1,6 @@
 """Modin on Ray S3 read parquet module (PRIVATE)."""
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Union
 
-import boto3
 import modin.pandas as pd
 import pyarrow as pa
 from ray.data import read_datasource

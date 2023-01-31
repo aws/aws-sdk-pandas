@@ -177,7 +177,10 @@ def read_sql_query(
         catalog_id=catalog_id,
         **_transaction_id(transaction_id=transaction_id, query_as_of_time=query_as_of_time, DatabaseName=database),
     )
-    result = client_lakeformation.start_query_planning(QueryString=sql, QueryPlanningContext=args)  # type: ignore[arg-type]
+    result = client_lakeformation.start_query_planning(
+        QueryString=sql,
+        QueryPlanningContext=args,  # type: ignore[arg-type]
+    )
     query_id: str = result["QueryId"]
     arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=pyarrow_additional_kwargs)
     df = _resolve_sql_query(
