@@ -140,7 +140,7 @@ def _to_partitions(
     transaction_id: Optional[str],
     bucketing_info: Optional[Tuple[List[str], int]],
     filename_prefix: str,
-    boto3_session: boto3.Session,
+    boto3_session: Optional[boto3.Session],
     **func_kwargs: Any,
 ) -> Tuple[List[str], Dict[str, List[str]]]:
     partitions_values: Dict[str, List[str]] = {}
@@ -199,7 +199,7 @@ def _to_buckets(
     path_root: str,
     bucketing_info: Tuple[List[str], int],
     filename_prefix: str,
-    boto3_session: boto3.Session,
+    boto3_session: Optional[boto3.Session],
     use_threads: Union[bool, int],
     proxy: Optional[_WriteProxy] = None,
     **func_kwargs: Any,
@@ -239,7 +239,7 @@ def _to_dataset(
     table_type: Optional[str],
     transaction_id: Optional[str],
     bucketing_info: Optional[Tuple[List[str], int]],
-    boto3_session: boto3.Session,
+    boto3_session: Optional[boto3.Session],
     **func_kwargs: Any,
 ) -> Tuple[List[str], Dict[str, List[str]]]:
     path_root = path_root if path_root.endswith("/") else f"{path_root}/"

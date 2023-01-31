@@ -178,8 +178,8 @@ def _get_data_quality_results(
     )["Results"]
     rule_results: List[Dict[str, Any]] = []
     for result in results:
-        rules: List[Dict[str, str]] = result["RuleResults"]
+        rules = result["RuleResults"]
         for rule in rules:
-            rule["ResultId"] = result["ResultId"]
-        rule_results.extend(rules)
+            rule["ResultId"] = result["ResultId"]  # type: ignore[typeddict-item]
+        rule_results.extend(cast(List[Dict[str, Any]], rules))
     return pd.json_normalize(rule_results)

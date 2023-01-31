@@ -304,6 +304,7 @@ mypy-boto3-dynamodb = {version = ">=1.26.0,<1.27.0", optional = true, markers = 
 mypy-boto3-ec2 = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"ec2\""}
 mypy-boto3-emr = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"emr\""}
 mypy-boto3-glue = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"glue\""}
+mypy-boto3-kms = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"kms\""}
 mypy-boto3-lakeformation = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"lakeformation\""}
 mypy-boto3-logs = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"logs\""}
 mypy-boto3-neptune = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"neptune\""}
@@ -1772,6 +1773,17 @@ typing-extensions = ">=4.1.0"
 name = "mypy-boto3-glue"
 version = "1.26.31"
 description = "Type annotations for boto3.Glue 1.26.31 service generated with mypy-boto3-builder 7.12.0"
+category = "dev"
+optional = false
+python-versions = ">=3.7"
+
+[package.dependencies]
+typing-extensions = ">=4.1.0"
+
+[[package]]
+name = "mypy-boto3-kms"
+version = "1.26.25"
+description = "Type annotations for boto3.KMS 1.26.25 service generated with mypy-boto3-builder 7.11.11"
 category = "dev"
 optional = false
 python-versions = ">=3.7"
@@ -3511,7 +3523,7 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8, <4.0"
-content-hash = "04950385dbb30d0a6943b665093baa93d9867c474a67c57de8e6ee468e588c71"
+content-hash = "45b3e1a9d470d7f281c840d33339cf22aaa021882e528f9cf4d43c872a113b2a"
 
 [metadata.files]
 aenum = [
@@ -4601,6 +4613,10 @@ mypy-boto3-emr = [
 mypy-boto3-glue = [
     {file = "mypy-boto3-glue-1.26.31.tar.gz", hash = "sha256:b77581c49e9dfd6cb020f94e90d5fd29bcff29586cded5fb29c073ec7aa63897"},
     {file = "mypy_boto3_glue-1.26.31-py3-none-any.whl", hash = "sha256:469d61d7915d20ad7316d8360de84393601fd3e1556046ff6ac57664986947ea"},
+]
+mypy-boto3-kms = [
+    {file = "mypy-boto3-kms-1.26.25.tar.gz", hash = "sha256:6afa3da65914606e7bd8a0fae2518e8b18bb20b8de39eef72e1436390ff8adf4"},
+    {file = "mypy_boto3_kms-1.26.25-py3-none-any.whl", hash = "sha256:479dc1b6d099f3cbabd42ce31b514361ceabb52e8a1b5408dcae32d71c23ee37"},
 ]
 mypy-boto3-lakeformation = [
     {file = "mypy-boto3-lakeformation-1.26.9.tar.gz", hash = "sha256:d97915e5e95b7a89dbe041bd5a5ba11856589a88e666d8cce506d24b3e0b2ca2"},

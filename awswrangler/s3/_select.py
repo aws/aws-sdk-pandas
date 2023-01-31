@@ -58,7 +58,7 @@ def _select_object_content(
     request_complete: bool = False
     for event in response["Payload"]:
         if "Records" in event:
-            records = event["Records"]["Payload"].decode(encoding="utf-8", errors="ignore").split("\n")
+            records = event["Records"]["Payload"].decode(encoding="utf-8", errors="ignore").split("\n")  # type: ignore[attr-defined,index]
             records[0] = partial_record + records[0]
             # Record end can either be a partial record or a return char
             partial_record = records.pop()

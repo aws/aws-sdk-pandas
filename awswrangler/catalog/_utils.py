@@ -3,13 +3,16 @@ import logging
 import re
 import unicodedata
 import warnings
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import boto3
 import pandas as pd
 
 from awswrangler import _data_types, _utils, exceptions
 from awswrangler._config import apply_configs
+
+if TYPE_CHECKING:
+    from mypy_boto3_glue.type_defs import GetTableResponseTypeDef
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -39,7 +42,7 @@ def _sanitize_name(name: str) -> str:
     return re.sub("[^A-Za-z0-9_]+", "_", name).lower()  # Replacing non alphanumeric characters by underscore
 
 
-def _extract_dtypes_from_table_details(response: Dict[str, Any]) -> Dict[str, str]:
+def _extract_dtypes_from_table_details(response: "GetTableResponseTypeDef") -> Dict[str, str]:
     dtypes: Dict[str, str] = {}
     for col in response["Table"]["StorageDescriptor"]["Columns"]:
         dtypes[col["Name"]] = col["Type"]

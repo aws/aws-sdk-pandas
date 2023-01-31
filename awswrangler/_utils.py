@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from mypy_boto3_ec2 import EC2Client
     from mypy_boto3_emr.client import EMRClient
     from mypy_boto3_glue import GlueClient
+    from mypy_boto3_kms.client import KMSClient
     from mypy_boto3_lakeformation.client import LakeFormationClient
     from mypy_boto3_logs.client import CloudWatchLogsClient
     from mypy_boto3_opensearch.client import OpenSearchServiceClient
@@ -188,6 +189,16 @@ def client(
     botocore_config: Optional[Config] = None,
     verify: Optional[Union[str, bool]] = None,
 ) -> "GlueClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["kms"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "KMSClient":
     ...
 
 

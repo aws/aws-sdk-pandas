@@ -197,7 +197,7 @@ def _read_items(
         items = [table.get_item(**kwargs).get("Item", {})]
     elif use_batch_get_item:
         kwargs["Keys"] = keys
-        response = resource.batch_get_item(RequestItems={table_name: kwargs})
+        response = resource.batch_get_item(RequestItems={table_name: kwargs})  # type: ignore[dict-item]
         items = response.get("Responses", {table_name: []}).get(table_name, [])
         # SEE: handle possible unprocessed keys. As suggested in Boto3 docs,
         # this approach should involve exponential backoff, but this should be
@@ -205,20 +205,20 @@ def _read_items(
         # [here](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html)
         while response["UnprocessedKeys"]:
             kwargs["Keys"] = response["UnprocessedKeys"][table_name]["Keys"]
-            response = resource.batch_get_item(RequestItems={table_name: kwargs})
+            response = resource.batch_get_item(RequestItems={table_name: kwargs})  # type: ignore[dict-item]
             items.extend(response.get("Responses", {table_name: []}).get(table_name, []))
     elif use_query or use_scan:
         if index:
             kwargs["IndexName"] = index
         _read_method = table.query if use_query else table.scan
-        response = _read_method(**kwargs)
-        items = response.get("Items", [])
+        response = _read_method(**kwargs)  # type: ignore[operator]
+        items = response.get("Items", [])  # type: ignore[assignment]
 
         # Handle pagination
         while "LastEvaluatedKey" in response:
-            kwargs["ExclusiveStartKey"] = response["LastEvaluatedKey"]
-            response = _read_method(**kwargs)
-            items.extend(response.get("Items", []))
+            kwargs["ExclusiveStartKey"] = response["LastEvaluatedKey"]  # type: ignore[typeddict-item]
+            response = _read_method(**kwargs)  # type: ignore[operator]
+            items.extend(response.get("Items", []))  # type: ignore[arg-type]
 
     return items
 

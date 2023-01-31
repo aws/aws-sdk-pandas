@@ -33,7 +33,7 @@ def _read_text_chunked(
     chunksize: int,
     parser_func: Callable[..., pd.DataFrame],
     path_root: Optional[str],
-    s3_client: "S3Client",
+    s3_client: Optional["S3Client"],
     pandas_kwargs: Dict[str, Any],
     s3_additional_kwargs: Optional[Dict[str, str]],
     dataset: bool,
@@ -87,7 +87,7 @@ def _read_text_files_chunked(
 
 
 def _read_text_file(
-    s3_client: "S3Client",
+    s3_client: Optional["S3Client"],
     path: str,
     version_id: Optional[str],
     parser_func: Callable[..., pd.DataFrame],

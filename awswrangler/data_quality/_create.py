@@ -107,7 +107,7 @@ def create_ruleset(
         client_glue.create_data_quality_ruleset(
             Name=name,
             Description=description,
-            Ruleset=dqdl_rules,
+            Ruleset=cast(str, dqdl_rules),
             TargetTable={
                 "TableName": table,
                 "DatabaseName": database,
@@ -188,7 +188,7 @@ def update_ruleset(
 
     client_glue = _utils.client(service_name="glue", session=boto3_session)
     try:
-        client_glue.update_data_quality_ruleset(**args)
+        client_glue.update_data_quality_ruleset(**args)  # type: ignore[arg-type]
     except client_glue.exceptions.EntityNotFoundException as not_found:
         raise exceptions.ResourceDoesNotExist(f"Ruleset {name} does not exist.") from not_found
 
@@ -270,7 +270,7 @@ def create_recommendation_ruleset(
     if name:
         args["CreatedRulesetName"] = name
     _logger.debug("args: \n%s", pprint.pformat(args))
-    run_id: str = cast(str, client_glue.start_data_quality_rule_recommendation_run(**args)["RunId"])
+    run_id: str = client_glue.start_data_quality_rule_recommendation_run(**args)["RunId"]
 
     _logger.debug("run_id: %s", run_id)
     dqdl_recommended_rules: str = cast(

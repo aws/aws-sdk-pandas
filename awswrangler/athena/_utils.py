@@ -153,7 +153,7 @@ def _get_workgroup_config(session: Optional[boto3.Session] = None, workgroup: Op
 def _fetch_txt_result(
     query_metadata: _QueryMetadata,
     keep_files: bool,
-    boto3_session: boto3.Session,
+    boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
 ) -> pd.DataFrame:
     if query_metadata.output_location is None or query_metadata.output_location.endswith(".txt") is False:

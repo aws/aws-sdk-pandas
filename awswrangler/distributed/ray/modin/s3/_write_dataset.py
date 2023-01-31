@@ -31,7 +31,7 @@ def _to_buckets_distributed(  # pylint: disable=unused-argument
     path_root: str,
     bucketing_info: Tuple[List[str], int],
     filename_prefix: str,
-    boto3_session: "boto3.Session",
+    boto3_session: Optional["boto3.Session"],
     use_threads: Union[bool, int],
     proxy: Optional[_WriteProxy] = None,
     **func_kwargs: Any,

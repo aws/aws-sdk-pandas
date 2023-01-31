@@ -174,7 +174,7 @@ def _read_parquet_metadata(
     sampling: float,
     dataset: bool,
     use_threads: Union[bool, int],
-    boto3_session: boto3.Session,
+    boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, str]],
     version_id: Optional[Union[str, Dict[str, str]]] = None,
     coerce_int96_timestamp_unit: Optional[str] = None,
@@ -890,7 +890,7 @@ def read_parquet_table(
     """
     client_glue = _utils.client(service_name="glue", session=boto3_session)
     s3_client = _utils.client(service_name="s3", session=boto3_session)
-    res: Dict[str, Any] = client_glue.get_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table))
+    res = client_glue.get_table(**_catalog_id(catalog_id=catalog_id, DatabaseName=database, Name=table))
     try:
         location: str = res["Table"]["StorageDescriptor"]["Location"]
         path: str = location if location.endswith("/") else f"{location}/"

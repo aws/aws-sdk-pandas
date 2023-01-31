@@ -128,7 +128,7 @@ def _copy(
     aws_access_key_id: Optional[str] = None,
     aws_secret_access_key: Optional[str] = None,
     aws_session_token: Optional[str] = None,
-    boto3_session: Optional[str] = None,
+    boto3_session: Optional[boto3.Session] = None,
     schema: Optional[str] = None,
     manifest: Optional[bool] = False,
     sql_copy_extra_params: Optional[List[str]] = None,
@@ -631,8 +631,8 @@ def connect_temp(
         args["DbGroups"] = db_groups
     else:
         db_groups = []
-    res: Dict[str, Any] = client_redshift.get_cluster_credentials(**args)
-    cluster: Dict[str, Any] = client_redshift.describe_clusters(ClusterIdentifier=cluster_identifier)["Clusters"][0]
+    res = client_redshift.get_cluster_credentials(**args)
+    cluster = client_redshift.describe_clusters(ClusterIdentifier=cluster_identifier)["Clusters"][0]
     return redshift_connector.connect(
         user=res["DbUser"],
         database=database if database else cluster["DBName"],

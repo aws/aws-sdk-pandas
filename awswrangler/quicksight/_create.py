@@ -60,7 +60,7 @@ def _generate_permissions(
     resource: str,
     namespace: str,
     account_id: str,
-    boto3_session: boto3.Session,
+    boto3_session: Optional[boto3.Session],
     allowed_to_use: Optional[List[str]] = None,
     allowed_to_manage: Optional[List[str]] = None,
 ) -> List[Dict[str, Union[str, List[str]]]]:
@@ -314,7 +314,7 @@ def create_athena_dataset(
                 "SqlQuery": sql,
                 "Columns": extract_athena_query_columns(
                     sql=sql,
-                    data_source_arn=data_source_arn,  # type: ignore
+                    data_source_arn=data_source_arn,  # type: ignore[arg-type]
                     account_id=account_id,
                     boto3_session=boto3_session,
                 ),
@@ -327,8 +327,8 @@ def create_athena_dataset(
                 "Schema": database,
                 "Name": table,
                 "InputColumns": extract_athena_table_columns(
-                    database=database,  # type: ignore
-                    table=table,  # type: ignore
+                    database=database,  # type: ignore[arg-type]
+                    table=table,  # type: ignore[arg-type]
                     boto3_session=boto3_session,
                 ),
             }
@@ -409,8 +409,9 @@ def create_ingestion(
         dataset_id = get_dataset_id(name=dataset_name, account_id=account_id, boto3_session=boto3_session)
     if ingestion_id is None:
         ingestion_id = uuid.uuid4().hex
+
     client = _utils.client(service_name="quicksight", session=boto3_session)
-    response: Dict[str, Any] = client.create_ingestion(
-        DataSetId=dataset_id, IngestionId=ingestion_id, AwsAccountId=account_id
-    )
-    return cast(str, response["IngestionId"])
+    dataset_id = cast(str, dataset_id)
+
+    response = client.create_ingestion(DataSetId=dataset_id, IngestionId=ingestion_id, AwsAccountId=account_id)
+    return response["IngestionId"]

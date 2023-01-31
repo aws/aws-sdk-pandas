@@ -70,8 +70,8 @@ def _read_execute_statement(
     while next_token:
         response = _execute_statement(kwargs=kwargs, boto3_session=boto3_session)
         next_token = response.get("NextToken", None)
-        kwargs["NextToken"] = next_token
-        yield response["Items"]
+        kwargs["NextToken"] = next_token  # type: ignore[assignment]
+        yield response["Items"]  # type: ignore[misc]
 
 
 def execute_statement(

@@ -4,7 +4,7 @@
 import base64
 import itertools
 import logging
-from typing import Any, Dict, Iterator, List, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Union, cast
 
 import boto3
 import botocore.exceptions
@@ -13,6 +13,9 @@ import pandas as pd
 from awswrangler import _utils, exceptions
 from awswrangler._config import apply_configs
 from awswrangler.catalog._utils import _catalog_id, _extract_dtypes_from_table_details, _transaction_id
+
+if TYPE_CHECKING:
+    from mypy_boto3_glue.type_defs import GetPartitionsResponseTypeDef
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -53,7 +56,9 @@ def _get_table_input(
     return table_input
 
 
-def _append_partitions(partitions_values: Dict[str, List[str]], response: Dict[str, Any]) -> Optional[str]:
+def _append_partitions(
+    partitions_values: Dict[str, List[str]], response: "GetPartitionsResponseTypeDef"
+) -> Optional[str]:
     _logger.debug("response: %s", response)
     token: Optional[str] = response.get("NextToken", None)
     if (response is not None) and ("Partitions" in response):
@@ -147,7 +152,7 @@ def get_table_types(
     """
     client_glue = _utils.client(service_name="glue", session=boto3_session)
     try:
-        response: Dict[str, Any] = client_glue.get_table(
+        response = client_glue.get_table(
             **_catalog_id(
                 catalog_id=catalog_id,
                 **_transaction_id(
@@ -189,7 +194,7 @@ def get_databases(
     response_iterator = paginator.paginate(**_catalog_id(catalog_id=catalog_id))
     for page in response_iterator:
         for db in page["DatabaseList"]:
-            yield db
+            yield cast(Dict[str, Any], db)
 
 
 @apply_configs
@@ -274,7 +279,7 @@ def get_tables(
     >>> tables = wr.catalog.get_tables()
 
     """
-    client_glue = _utils.client("glue", session=boto3_session)
+    client_glue = _utils.client(service_name="glue", session=boto3_session)
     paginator = client_glue.get_paginator("get_tables")
     args: Dict[str, str] = {}
     if (name_prefix is not None) and (name_suffix is not None) and (name_contains is not None):
@@ -303,7 +308,7 @@ def get_tables(
         try:
             for page in response_iterator:
                 for tbl in page["TableList"]:
-                    yield tbl
+                    yield cast(Dict[str, Any], tbl)
         except client_glue.exceptions.EntityNotFoundException:
             continue
 
@@ -577,7 +582,7 @@ def get_table_location(
         )
     )
     try:
-        return cast(str, res["Table"]["StorageDescriptor"]["Location"])
+        return res["Table"]["StorageDescriptor"]["Location"]
     except KeyError as ex:
         raise exceptions.InvalidTable(f"{database}.{table}") from ex
 
@@ -992,7 +997,7 @@ def get_columns_comments(
 
     """
     client_glue = _utils.client("glue", session=boto3_session)
-    response: Dict[str, Any] = client_glue.get_table(
+    response = client_glue.get_table(
         **_catalog_id(
             catalog_id=catalog_id,
             **_transaction_id(
@@ -1002,10 +1007,10 @@ def get_columns_comments(
     )
     comments: Dict[str, str] = {}
     for c in response["Table"]["StorageDescriptor"]["Columns"]:
-        comments[c["Name"]] = c.get("Comment")
+        comments[c["Name"]] = c["Comment"]
     if "PartitionKeys" in response["Table"]:
         for p in response["Table"]["PartitionKeys"]:
-            comments[p["Name"]] = p.get("Comment")
+            comments[p["Name"]] = p["Comment"]
     return comments
 
 
@@ -1045,7 +1050,7 @@ def get_table_versions(
     response_iterator = paginator.paginate(**_catalog_id(DatabaseName=database, TableName=table, catalog_id=catalog_id))
     for page in response_iterator:
         for tbl in page["TableVersions"]:
-            versions.append(tbl)
+            versions.append(cast(Dict[str, Any], tbl))
     return versions
 
 

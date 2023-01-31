@@ -39,8 +39,8 @@ def _copy_objects(
             Bucket=target_bucket,
             Key=target_key,
             SourceClient=client_s3,
-            ExtraArgs=boto3_kwargs,
-            Config=TransferConfig(num_download_attempts=10, use_threads=use_threads),
+            ExtraArgs=boto3_kwargs,  # type: ignore[arg-type]
+            Config=TransferConfig(num_download_attempts=10, use_threads=use_threads),  # type: ignore[arg-type]
         )
 
 

@@ -3,7 +3,7 @@ import logging
 import time
 from math import inf
 from threading import Thread
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import boto3
 import botocore.exceptions
@@ -127,7 +127,7 @@ def _update_table_objects(
         write_operations.extend({"DeleteObject": _without_keys(obj, ["Size"])} for obj in del_objects)
     update_kwargs["WriteOperations"] = write_operations
 
-    client_lakeformation.update_table_objects(**update_kwargs)
+    client_lakeformation.update_table_objects(**update_kwargs)  # type: ignore[arg-type]
 
 
 def _monitor_transaction(transaction_id: str, time_out: float, boto3_session: Optional[boto3.Session] = None) -> None:
@@ -230,7 +230,7 @@ def start_transaction(
 
     """
     client_lakeformation = _utils.client(service_name="lakeformation", session=boto3_session)
-    transaction_type = "READ_ONLY" if read_only else "READ_AND_WRITE"
+    transaction_type: Literal["READ_AND_WRITE", "READ_ONLY"] = "READ_ONLY" if read_only else "READ_AND_WRITE"
     transaction_id: str = client_lakeformation.start_transaction(TransactionType=transaction_type)["TransactionId"]
     # Extend the transaction while in "active" state in a separate thread
     t = Thread(target=_monitor_transaction, args=(transaction_id, time_out, boto3_session))
@@ -333,4 +333,4 @@ def wait_query(query_id: str, boto3_session: Optional[boto3.Session] = None) -> 
     _logger.debug("state: %s", state)
     if state == "ERROR":
         raise exceptions.QueryFailed(response.get("Error"))
-    return response
+    return response  # type: ignore[return-value]

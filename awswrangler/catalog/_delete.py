@@ -237,7 +237,7 @@ def delete_column(
     ... )
     """
     client_glue = _utils.client(service_name="glue", session=boto3_session)
-    table_res: Dict[str, Any] = client_glue.get_table(
+    table_res = client_glue.get_table(
         **_catalog_id(
             catalog_id=catalog_id,
             **_transaction_id(transaction_id=transaction_id, DatabaseName=database, Name=table),

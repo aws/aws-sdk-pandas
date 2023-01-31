@@ -803,7 +803,7 @@ def submit_steps(
 
     """
     client_emr = _utils.client(service_name="emr", session=boto3_session)
-    response = client_emr.add_job_flow_steps(JobFlowId=cluster_id, Steps=steps)
+    response = client_emr.add_job_flow_steps(JobFlowId=cluster_id, Steps=steps)  # type: ignore[arg-type]
     _logger.debug("response: \n%s", pprint.pformat(response))
     return response["StepIds"]
 
@@ -854,7 +854,7 @@ def submit_step(
         name=name, command=command, action_on_failure=action_on_failure, script=script, boto3_session=boto3_session
     )
     client_emr = _utils.client(service_name="emr", session=boto3_session)
-    response = client_emr.add_job_flow_steps(JobFlowId=cluster_id, Steps=[step])
+    response = client_emr.add_job_flow_steps(JobFlowId=cluster_id, Steps=[step])  # type: ignore[list-item]
     _logger.debug("response: \n%s", pprint.pformat(response))
     return response["StepIds"][0]
 
@@ -988,7 +988,7 @@ def submit_ecr_credentials_refresh(
         name=name, command=command, action_on_failure=action_on_failure, script=False, boto3_session=boto3_session
     )
     client_emr = _utils.client(service_name="emr", session=boto3_session)
-    response = client_emr.add_job_flow_steps(JobFlowId=cluster_id, Steps=[step])
+    response = client_emr.add_job_flow_steps(JobFlowId=cluster_id, Steps=[step])  # type: ignore[list-item]
     _logger.debug("response: \n%s", pprint.pformat(response))
     return response["StepIds"][0]
 

@@ -48,7 +48,7 @@ def _format_measure(measure_name: str, measure_value: Any, measure_type: str) ->
 
 @engine.dispatch_on_engine
 def _write_batch(
-    timestream_client: Optional[TimestreamWriteClient],
+    timestream_client: Optional["TimestreamWriteClient"],
     database: str,
     table: str,
     cols_names: List[str],
