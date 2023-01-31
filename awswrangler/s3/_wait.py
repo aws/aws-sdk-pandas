@@ -18,7 +18,7 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _wait_object(s3_client: "S3Client", path: str, waiter_name: str, delay: int, max_attempts: int) -> None:
-    waiter = s3_client.get_waiter(waiter_name)
+    waiter = s3_client.get_waiter(waiter_name)  # type: ignore[call-overload]
 
     bucket, key = _utils.parse_path(path=path)
     waiter.wait(Bucket=bucket, Key=key, WaiterConfig={"Delay": delay, "MaxAttempts": max_attempts})

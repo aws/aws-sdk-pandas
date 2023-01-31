@@ -87,7 +87,7 @@ def _fetch_parquet_result(
     categories: Optional[List[str]],
     chunksize: Optional[int],
     use_threads: Union[bool, int],
-    boto3_session: boto3.Session,
+    boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, Any]],
     temp_table_fqn: Optional[str] = None,
     pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None,

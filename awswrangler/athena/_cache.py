@@ -158,7 +158,7 @@ def _get_last_query_infos(
 
 def _check_for_cached_results(
     sql: str,
-    boto3_session: boto3.Session,
+    boto3_session: Optional[boto3.Session],
     workgroup: Optional[str],
     max_cache_seconds: int,
     max_cache_query_inspections: int,

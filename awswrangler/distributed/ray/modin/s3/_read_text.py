@@ -1,8 +1,7 @@
 """Modin on Ray S3 read text module (PRIVATE)."""
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
-import boto3
 import modin.pandas as pd
 from pyarrow import csv
 from ray.data import read_datasource
@@ -15,6 +14,9 @@ from awswrangler.distributed.ray.datasources import (
     PandasJSONDatasource,
 )
 from awswrangler.distributed.ray.modin._utils import ParamConfig, _check_parameters, _to_modin
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -83,7 +85,7 @@ def _read_text_distributed(  # pylint: disable=unused-argument
     version_id_dict: Dict[str, Optional[str]],
     pandas_kwargs: Dict[str, Any],
     use_threads: Union[bool, int],
-    s3_client: Optional[boto3.client],
+    s3_client: Optional["S3Client"],
 ) -> pd.DataFrame:
     try:
         read_options, parse_options, convert_options = _parse_configuration(

@@ -172,7 +172,7 @@ def _to_parquet(
     pyarrow_additional_kwargs: Dict[str, Any],
     cpus: int,
     dtype: Dict[str, str],
-    s3_client: Optional[boto3.client],
+    s3_client: Optional["S3Client"],
     s3_additional_kwargs: Optional[Dict[str, str]],
     use_threads: Union[bool, int],
     path: Optional[str] = None,

@@ -15,7 +15,7 @@ import botocore.credentials
 import numpy as np
 import pandas as pd
 import pyarrow as pa
-from botocore.config import Config, _RetryDict
+from botocore.config import Config
 
 from awswrangler import _config, exceptions
 from awswrangler.__metadata__ import __version__
@@ -30,9 +30,13 @@ if TYPE_CHECKING:
     from mypy_boto3_athena.literals import ServiceName
     from mypy_boto3_dynamodb import DynamoDBClient, DynamoDBServiceResource
     from mypy_boto3_ec2 import EC2Client
+    from mypy_boto3_emr.client import EMRClient
     from mypy_boto3_glue import GlueClient
     from mypy_boto3_lakeformation.client import LakeFormationClient
     from mypy_boto3_logs.client import CloudWatchLogsClient
+    from mypy_boto3_opensearch.client import OpenSearchServiceClient
+    from mypy_boto3_opensearchserverless.client import OpenSearchServiceServerlessClient
+    from mypy_boto3_quicksight.client import QuickSightClient
     from mypy_boto3_redshift.client import RedshiftClient
     from mypy_boto3_redshift_data.client import RedshiftDataAPIServiceClient
     from mypy_boto3_s3 import S3Client, S3ServiceResource
@@ -73,14 +77,14 @@ def boto3_to_primitives(boto3_session: Optional[boto3.Session] = None) -> Boto3P
 
 def default_botocore_config() -> botocore.config.Config:
     """Botocore configuration."""
-    retries_config: _RetryDict = {
+    retries_config: Dict[str, Union[str, int]] = {
         "max_attempts": int(os.getenv("AWS_MAX_ATTEMPTS", "5")),
     }
     mode = os.getenv("AWS_RETRY_MODE")
     if mode:
-        retries_config["mode"] = mode  # type: ignore
+        retries_config["mode"] = mode
     return Config(
-        retries=retries_config,
+        retries=retries_config,  # type: ignore[arg-type]
         connect_timeout=10,
         max_pool_connections=10,
         user_agent_extra=f"awswrangler/{__version__}",
@@ -169,11 +173,51 @@ def client(
 
 @overload
 def client(
+    service_name: 'Literal["emr"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "EMRClient":
+    ...
+
+
+@overload
+def client(
     service_name: 'Literal["glue"]',
     session: Optional[boto3.Session] = None,
     botocore_config: Optional[Config] = None,
     verify: Optional[Union[str, bool]] = None,
 ) -> "GlueClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["opensearch"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "OpenSearchServiceClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["opensearchserverless"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "OpenSearchServiceServerlessClient":
+    ...
+
+
+@overload
+def client(
+    service_name: 'Literal["quicksight"]',
+    session: Optional[boto3.Session] = None,
+    botocore_config: Optional[Config] = None,
+    verify: Optional[Union[str, bool]] = None,
+) -> "QuickSightClient":
     ...
 
 

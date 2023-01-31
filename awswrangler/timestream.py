@@ -637,8 +637,8 @@ def list_databases(
 
     response = client.list_databases()
     dbs: List[str] = [db["DatabaseName"] for db in response["Databases"]]
-    while "nextToken" in response:
-        response = client.list_databases(NextToken=response["nextToken"])
+    while "NextToken" in response:
+        response = client.list_databases(NextToken=response["NextToken"])
         dbs += [db["DatabaseName"] for db in response["Databases"]]
 
     return dbs
@@ -678,10 +678,10 @@ def list_tables(database: Optional[str] = None, boto3_session: Optional[boto3.Se
     """
     client = _utils.client(service_name="timestream-write", session=boto3_session)
     args = {} if database is None else {"DatabaseName": database}
-    response = client.list_tables(**args)
+    response = client.list_tables(**args)  # type: ignore[arg-type]
     tables: List[str] = [tbl["TableName"] for tbl in response["Tables"]]
     while "nextToken" in response:
-        response = client.list_tables(**args, NextToken=response["NextToken"])
+        response = client.list_tables(**args, NextToken=response["NextToken"])  # type: ignore[arg-type]
         tables += [tbl["TableName"] for tbl in response["Tables"]]
 
     return tables

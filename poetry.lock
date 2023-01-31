@@ -308,6 +308,7 @@ mypy-boto3-lakeformation = {version = ">=1.26.0,<1.27.0", optional = true, marke
 mypy-boto3-logs = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"logs\""}
 mypy-boto3-neptune = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"neptune\""}
 mypy-boto3-opensearch = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"opensearch\""}
+mypy-boto3-opensearchserverless = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"opensearchserverless\""}
 mypy-boto3-quicksight = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"quicksight\""}
 mypy-boto3-rds = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"rds\""}
 mypy-boto3-redshift = {version = ">=1.26.0,<1.27.0", optional = true, markers = "extra == \"redshift\""}
@@ -1815,6 +1816,17 @@ typing-extensions = ">=4.1.0"
 name = "mypy-boto3-opensearch"
 version = "1.26.5"
 description = "Type annotations for boto3.OpenSearchService 1.26.5 service generated with mypy-boto3-builder 7.11.10"
+category = "dev"
+optional = false
+python-versions = ">=3.7"
+
+[package.dependencies]
+typing-extensions = ">=4.1.0"
+
+[[package]]
+name = "mypy-boto3-opensearchserverless"
+version = "1.26.19"
+description = "Type annotations for boto3.OpenSearchServiceServerless 1.26.19 service generated with mypy-boto3-builder 7.11.11"
 category = "dev"
 optional = false
 python-versions = ">=3.7"
@@ -3499,7 +3511,7 @@ sqlserver = ["pyodbc"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8, <4.0"
-content-hash = "8b583dfb4a93f1c9e7d38357861c8070e814b56071863ab616cb0469554cf339"
+content-hash = "04950385dbb30d0a6943b665093baa93d9867c474a67c57de8e6ee468e588c71"
 
 [metadata.files]
 aenum = [
@@ -4605,6 +4617,10 @@ mypy-boto3-neptune = [
 mypy-boto3-opensearch = [
     {file = "mypy-boto3-opensearch-1.26.5.tar.gz", hash = "sha256:d69e6d023ecb0d2a60521bd8f5a2d74a5234ab1c43d8a07e650b30bbaf4db494"},
     {file = "mypy_boto3_opensearch-1.26.5-py3-none-any.whl", hash = "sha256:3f4fc0bb2252ef79ca11f0da04c17b2651cf272d43ada9c4502d918b49ee15f4"},
+]
+mypy-boto3-opensearchserverless = [
+    {file = "mypy-boto3-opensearchserverless-1.26.19.tar.gz", hash = "sha256:4907f7067e98b5c2b6f9796642f6aa4e4c06f50923d70c9195f56bb781e45874"},
+    {file = "mypy_boto3_opensearchserverless-1.26.19-py3-none-any.whl", hash = "sha256:63a2c95143b0f76f6d87c560ddb383dd2a7bea656921ecbb83a4f100d23d7d1f"},
 ]
 mypy-boto3-quicksight = [
     {file = "mypy-boto3-quicksight-1.26.18.tar.gz", hash = "sha256:106159263e2a7f6d37fa15ea391ebaaf089066dd51b5bef7e11c8a2aeb8e4314"},

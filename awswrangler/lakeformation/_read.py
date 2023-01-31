@@ -1,7 +1,7 @@
 """Amazon Lake Formation Module gathering all read functions."""
 import itertools
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import boto3
 import pandas as pd
@@ -15,12 +15,15 @@ from awswrangler._threading import _get_executor
 from awswrangler.catalog._utils import _catalog_id, _transaction_id
 from awswrangler.lakeformation._utils import commit_transaction, start_transaction, wait_query
 
+if TYPE_CHECKING:
+    from mypy_boto3_lakeformation.client import LakeFormationClient
+
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
 @engine.dispatch_on_engine
 def _get_work_unit_results(
-    client_lakeformation: Optional[boto3.client],
+    client_lakeformation: Optional["LakeFormationClient"],
     query_id: str,
     token_work_unit: Tuple[str, int],
 ) -> Table:
@@ -36,7 +39,7 @@ def _get_work_unit_results(
 def _resolve_sql_query(
     query_id: str,
     use_threads: bool,
-    boto3_session: boto3.Session,
+    boto3_session: Optional[boto3.Session],
     arrow_kwargs: Dict[str, Any],
 ) -> pd.DataFrame:
     client_lakeformation = _utils.client(service_name="lakeformation", session=boto3_session)
@@ -48,10 +51,10 @@ def _resolve_sql_query(
     # One Token can span multiple work units
     # PageSize determines the size of the "Units" array in each call
     scan_kwargs: Dict[str, Union[str, int]] = {"QueryId": query_id, "PageSize": 10}
-    next_token: str = "init_token"  # Dummy token
+    next_token: Optional[str] = "init_token"  # Dummy token
     token_work_units: List[Tuple[str, int]] = []
     while next_token:
-        response = client_lakeformation.get_work_units(**scan_kwargs)
+        response = client_lakeformation.get_work_units(**scan_kwargs)  # type: ignore[arg-type]
         token_work_units.extend(  # [(Token0, WorkUnitId0), (Token0, WorkUnitId1), (Token1, WorkUnitId2) ... ]
             [
                 (unit["WorkUnitToken"], unit_id)
@@ -174,7 +177,7 @@ def read_sql_query(
         catalog_id=catalog_id,
         **_transaction_id(transaction_id=transaction_id, query_as_of_time=query_as_of_time, DatabaseName=database),
     )
-    query_id: str = client_lakeformation.start_query_planning(QueryString=sql, QueryPlanningContext=args)["QueryId"]
+    query_id: str = client_lakeformation.start_query_planning(QueryString=sql, QueryPlanningContext=args)["QueryId"]  # type: ignore[arg-type]
     arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=pyarrow_additional_kwargs)
     df = _resolve_sql_query(
         query_id=query_id,

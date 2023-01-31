@@ -2,12 +2,12 @@
 
 import importlib.util
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import boto3
 import requests
 from botocore.auth import SigV4Auth
-from botocore.awsrequest import AWSRequest
+from botocore.awsrequest import AWSPreparedRequest, AWSRequest
 from gremlin_python.driver import client
 
 from awswrangler import exceptions
@@ -98,7 +98,7 @@ class NeptuneClient:
         params: Any = None,
         headers: Any = None,
         service: str = NEPTUNE_SERVICE_NAME,
-    ) -> AWSRequest:
+    ) -> Union[AWSRequest, AWSPreparedRequest]:
         req = AWSRequest(method=method, url=url, data=data, params=params, headers=headers)
         if self.iam_enabled:
             credentials = self.boto3_session.get_credentials()

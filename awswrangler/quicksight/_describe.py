@@ -50,10 +50,12 @@ def describe_dashboard(
         account_id = sts.get_account_id(boto3_session=boto3_session)
     if (dashboard_id is None) and (name is not None):
         dashboard_id = get_dashboard_id(name=name, account_id=account_id, boto3_session=boto3_session)
+
     client = _utils.client(service_name="quicksight", session=boto3_session)
-    return cast(
-        Dict[str, Any], client.describe_dashboard(AwsAccountId=account_id, DashboardId=dashboard_id)["Dashboard"]
-    )
+    dashboard_id = cast(str, dashboard_id)
+
+    response = client.describe_dashboard(AwsAccountId=account_id, DashboardId=dashboard_id)
+    return response["Dashboard"]  # type: ignore[return-value]
 
 
 def describe_data_source(
@@ -95,10 +97,12 @@ def describe_data_source(
         account_id = sts.get_account_id(boto3_session=boto3_session)
     if (data_source_id is None) and (name is not None):
         data_source_id = get_data_source_id(name=name, account_id=account_id, boto3_session=boto3_session)
+
     client = _utils.client(service_name="quicksight", session=boto3_session)
-    return cast(
-        Dict[str, Any], client.describe_data_source(AwsAccountId=account_id, DataSourceId=data_source_id)["DataSource"]
-    )
+    data_source_id = cast(str, data_source_id)
+
+    response = client.describe_data_source(AwsAccountId=account_id, DataSourceId=data_source_id)
+    return response["DataSource"]  # type: ignore[return-value]
 
 
 def describe_data_source_permissions(
@@ -140,11 +144,12 @@ def describe_data_source_permissions(
         account_id = sts.get_account_id(boto3_session=boto3_session)
     if (data_source_id is None) and (name is not None):
         data_source_id = get_data_source_id(name=name, account_id=account_id, boto3_session=boto3_session)
+
     client = _utils.client(service_name="quicksight", session=boto3_session)
-    return cast(
-        Dict[str, Any],
-        client.describe_data_source_permissions(AwsAccountId=account_id, DataSourceId=data_source_id)["Permissions"],
-    )
+    data_source_id = cast(str, data_source_id)
+
+    response = client.describe_data_source_permissions(AwsAccountId=account_id, DataSourceId=data_source_id)
+    return response["Permissions"]  # type: ignore[return-value]
 
 
 def describe_dataset(
@@ -186,8 +191,12 @@ def describe_dataset(
         account_id = sts.get_account_id(boto3_session=boto3_session)
     if (dataset_id is None) and (name is not None):
         dataset_id = get_dataset_id(name=name, account_id=account_id, boto3_session=boto3_session)
+
     client = _utils.client(service_name="quicksight", session=boto3_session)
-    return cast(Dict[str, Any], client.describe_data_set(AwsAccountId=account_id, DataSetId=dataset_id)["DataSet"])
+    dataset_id = cast(str, dataset_id)
+
+    response = client.describe_data_set(AwsAccountId=account_id, DataSetId=dataset_id)
+    return response["DataSet"]  # type: ignore[return-value]
 
 
 def describe_ingestion(
@@ -232,8 +241,9 @@ def describe_ingestion(
         account_id = sts.get_account_id(boto3_session=boto3_session)
     if (dataset_id is None) and (dataset_name is not None):
         dataset_id = get_dataset_id(name=dataset_name, account_id=account_id, boto3_session=boto3_session)
+
     client = _utils.client(service_name="quicksight", session=boto3_session)
-    return cast(
-        Dict[str, Any],
-        client.describe_ingestion(IngestionId=ingestion_id, AwsAccountId=account_id, DataSetId=dataset_id)["Ingestion"],
-    )
+    dataset_id = cast(str, dataset_id)
+
+    response = client.describe_ingestion(IngestionId=ingestion_id, AwsAccountId=account_id, DataSetId=dataset_id)
+    return response["Ingestion"]  # type: ignore[return-value]

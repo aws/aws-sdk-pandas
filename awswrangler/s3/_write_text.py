@@ -3,7 +3,7 @@
 import csv
 import logging
 import uuid
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, cast
 
 import boto3
 import pandas as pd
@@ -18,6 +18,9 @@ from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_dataset import _to_dataset
 from awswrangler.typing import GlueTableSettings, _S3WriteDataReturnValue
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -36,7 +39,7 @@ def _to_text(  # pylint: disable=unused-argument
     df: pd.DataFrame,
     file_format: str,
     use_threads: Union[bool, int],
-    s3_client: Optional[boto3.client],
+    s3_client: Optional["S3Client"],
     s3_additional_kwargs: Optional[Dict[str, str]],
     path: Optional[str] = None,
     path_root: Optional[str] = None,

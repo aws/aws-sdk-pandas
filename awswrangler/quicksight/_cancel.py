@@ -1,7 +1,7 @@
 """Amazon QuickSight Cancel Module."""
 
 import logging
-from typing import Optional
+from typing import Optional, cast
 
 import boto3
 
@@ -54,4 +54,5 @@ def cancel_ingestion(
     if (dataset_id is None) and (dataset_name is not None):
         dataset_id = get_dataset_id(name=dataset_name, account_id=account_id, boto3_session=boto3_session)
     client = _utils.client(service_name="quicksight", session=boto3_session)
+    dataset_id = cast(str, dataset_id)
     client.cancel_ingestion(IngestionId=ingestion_id, AwsAccountId=account_id, DataSetId=dataset_id)

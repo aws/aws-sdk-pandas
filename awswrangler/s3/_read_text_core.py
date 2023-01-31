@@ -2,7 +2,6 @@
 import logging
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
-import boto3
 import botocore.exceptions
 import pandas as pd
 import pandas.io.parsers

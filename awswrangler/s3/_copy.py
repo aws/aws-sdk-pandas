@@ -1,7 +1,7 @@
 """Amazon S3 Copy Module (PRIVATE)."""
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import boto3
 from boto3.s3.transfer import TransferConfig
@@ -11,13 +11,16 @@ from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import get_botocore_valid_kwargs
 from awswrangler.s3._list import list_objects
 
+if TYPE_CHECKING:
+    from mypy_boto3_s3.type_defs import CopySourceTypeDef
+
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _copy_objects(
     batch: List[Tuple[str, str]],
     use_threads: Union[bool, int],
-    boto3_session: boto3.Session,
+    boto3_session: Optional[boto3.Session],
     s3_additional_kwargs: Optional[Dict[str, Any]],
 ) -> None:
     _logger.debug("len(batch): %s", len(batch))
@@ -29,7 +32,7 @@ def _copy_objects(
         boto3_kwargs = get_botocore_valid_kwargs(function_name="copy_object", s3_additional_kwargs=s3_additional_kwargs)
     for source, target in batch:
         source_bucket, source_key = _utils.parse_path(path=source)
-        copy_source: Dict[str, str] = {"Bucket": source_bucket, "Key": source_key}
+        copy_source: CopySourceTypeDef = {"Bucket": source_bucket, "Key": source_key}
         target_bucket, target_key = _utils.parse_path(path=target)
         resource_s3.meta.client.copy(
             CopySource=copy_source,
