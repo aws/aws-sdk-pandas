@@ -58,6 +58,13 @@ def _get_chunk_file_path(file_counter: int, file_path: str) -> str:
     return file_path
 
 
+def _get_write_table_args(pyarrow_additional_kwargs: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    write_table_args: Dict[str, Any] = {}
+    if pyarrow_additional_kwargs and "write_table_args" in pyarrow_additional_kwargs:
+        write_table_args = pyarrow_additional_kwargs.pop("write_table_args")
+    return write_table_args
+
+
 @contextmanager
 def _new_writer(
     file_path: str,
@@ -114,6 +121,7 @@ def _write_chunk(
     chunk_size: int,
     use_threads: Union[bool, int],
 ) -> List[str]:
+    write_table_args = _get_write_table_args(pyarrow_additional_kwargs)
     with _new_writer(
         file_path=file_path,
         compression=compression,
@@ -123,7 +131,7 @@ def _write_chunk(
         s3_additional_kwargs=s3_additional_kwargs,
         use_threads=use_threads,
     ) as writer:
-        writer.write_table(table.slice(offset, chunk_size))
+        writer.write_table(table.slice(offset, chunk_size), **write_table_args)
     return [file_path]
 
 
@@ -196,6 +204,7 @@ def _to_parquet(
             cpus=cpus,
         )
     else:
+        write_table_args = _get_write_table_args(pyarrow_additional_kwargs)
         with _new_writer(
             file_path=file_path,
             compression=compression,
@@ -205,7 +214,7 @@ def _to_parquet(
             s3_additional_kwargs=s3_additional_kwargs,
             use_threads=use_threads,
         ) as writer:
-            writer.write_table(table)
+            writer.write_table(table, **write_table_args)
         paths = [file_path]
     return paths
 
