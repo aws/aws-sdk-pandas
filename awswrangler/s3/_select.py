@@ -24,10 +24,6 @@ _logger: logging.Logger = logging.getLogger(__name__)
 _RANGE_CHUNK_SIZE: int = int(1024 * 1024)
 
 
-def _flatten_list(elements: List[List[Any]]) -> List[Any]:
-    return [item for sublist in elements for item in sublist]
-
-
 def _gen_scan_range(obj_size: int, scan_range_chunk_size: Optional[int] = None) -> Iterator[Tuple[int, int]]:
     chunk_size = scan_range_chunk_size or _RANGE_CHUNK_SIZE
     for i in range(0, obj_size, chunk_size):
@@ -275,5 +271,7 @@ def select_query(
 
     arrow_kwargs = _data_types.pyarrow2pandas_defaults(use_threads=use_threads, kwargs=pyarrow_additional_kwargs)
     executor = _get_executor(use_threads=use_threads)
-    tables = _flatten_list(ray_get([_select_query(path=path, executor=executor, **select_kwargs) for path in paths]))
+    tables = _utils.flatten_list(
+        ray_get([_select_query(path=path, executor=executor, **select_kwargs) for path in paths])
+    )
     return _utils.table_refs_to_df(tables, kwargs=arrow_kwargs)

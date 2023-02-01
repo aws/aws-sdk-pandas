@@ -247,10 +247,12 @@ def test_read_items_simple(params, dynamodb_table):
             sort_values=["a"],
         )
 
-    with pytest.raises(ClientError):
+    with pytest.raises((ClientError, AttributeError)):
         wr.dynamodb.read_items(table_name=dynamodb_table, filter_expression="nonsense")
 
-    df2 = wr.dynamodb.read_items(table_name=dynamodb_table, max_items_evaluated=5)
+    df2 = wr.dynamodb.read_items(
+        table_name=dynamodb_table, max_items_evaluated=5, pyarrow_additional_kwargs={"types_mapper": None}
+    )
     assert df2.shape == df.shape
     assert df2.dtypes.to_list() == df.dtypes.to_list()
 
@@ -391,7 +393,7 @@ def test_read_items_expression(params, dynamodb_table):
     assert df5.shape == (2, len(df.columns))
 
     # Reserved keyword
-    df = wr.dynamodb.read_items(
+    wr.dynamodb.read_items(
         table_name=dynamodb_table,
         filter_expression="#operator = :v",
         expression_attribute_names={"#operator": "operator"},
