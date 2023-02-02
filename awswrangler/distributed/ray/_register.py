@@ -4,6 +4,7 @@ from awswrangler._data_types import pyarrow_types_from_pandas
 from awswrangler._distributed import MemoryFormatEnum, engine, memory_format
 from awswrangler._utils import copy_df_shallow, is_pandas_frame, split_pandas_frame, table_refs_to_df
 from awswrangler.distributed.ray import ray_remote
+from awswrangler.dynamodb._read import _read_scan
 from awswrangler.lakeformation._read import _get_work_unit_results
 from awswrangler.s3._delete import _delete_objects
 from awswrangler.s3._read_parquet import _read_parquet, _read_parquet_metadata_file
@@ -22,6 +23,7 @@ def register_ray() -> None:
         _get_work_unit_results,
         _delete_objects,
         _read_parquet_metadata_file,
+        _read_scan,
         _select_query,
         _select_object_content,
         _wait_object_batch,
