@@ -164,13 +164,18 @@ def _handle_reserved_keyword_error(func: CustomCallable) -> CustomCallable:
 
 
 def _convert_items(
-    items: List[Dict[str, Any]], as_dataframe: bool, arrow_kwargs: Dict[str, Any]
+    items: List[Dict[str, Any]],
+    use_scan: bool,
+    as_dataframe: bool,
+    arrow_kwargs: Dict[str, Any],
 ) -> Union[pd.DataFrame, List[Dict[str, Any]]]:
+    if use_scan:
+        return _utils.table_refs_to_df(items, arrow_kwargs) if as_dataframe else _utils.flatten_list(ray_get(items))
     return (
         _utils.table_refs_to_df(
             [
                 _utils.list_to_arrow_table(
-                    # Must convert DynamoDb "Binary" type as it is not a native Python data type
+                    # Convert DynamoDB "Binary" type to native Python data type
                     mapping=[{k: v.value if isinstance(v, Binary) else v for k, v in d.items()} for d in items]
                 )
             ],
@@ -203,7 +208,7 @@ def _read_scan(
         _logger.debug("segment: %s", segment)
         response = _handle_reserved_keyword_error(client_dynamodb.scan)(**kwargs, Segment=segment)
         # Unlike a resource, the DynamoDB client returns serialized results, so they must be deserialized
-        # Must convert DynamoDb "Binary" type as it is not a native Python data type
+        # Additionally, the DynamoDB "Binary" type is converted to a native Python data type
         # SEE: https://boto3.amazonaws.com/v1/documentation/api/latest/_modules/boto3/dynamodb/types.html
         items.extend(
             [
@@ -271,36 +276,42 @@ def _read_items(
     use_get_item = (keys is not None) and (len(keys) == 1)
     use_batch_get_item = (keys is not None) and (len(keys) > 1)
     use_query = (keys is None) and ("KeyConditionExpression" in kwargs)
+    use_scan = (keys is None) and ("KeyConditionExpression" not in kwargs)
 
     # Single Item
     if use_get_item:
         kwargs["Key"] = keys[0]
-        return _convert_items(_read_item(table_name, boto3_session, **kwargs), as_dataframe, arrow_kwargs)
+        items = _read_item(table_name, boto3_session, **kwargs)
 
     # Batch of Items
-    if use_batch_get_item:
+    elif use_batch_get_item:
         kwargs["Keys"] = keys
-        return _convert_items(_read_batch_items(table_name, boto3_session, **kwargs), as_dataframe, arrow_kwargs)
+        items = _read_batch_items(table_name, boto3_session, **kwargs)
 
-    if index:
-        kwargs["IndexName"] = index
+    elif use_query or use_scan:
+        if index:
+            kwargs["IndexName"] = index
 
-    # Query
-    if use_query:
-        return _convert_items(_read_query(table_name, boto3_session, **kwargs), as_dataframe, arrow_kwargs)
+        if use_query:
+            # Query
+            items = _read_query(table_name, boto3_session, **kwargs)
+        else:
+            # Last resort use Parallel Scan
+            executor = _get_executor(use_threads=use_threads)
+            dynamodb_client = _utils.client(service_name="dynamodb", session=boto3_session)
+            total_segments = _utils.ensure_cpu_count(use_threads=use_threads)
+            kwargs = _serialize_kwargs(kwargs)
+            kwargs["TableName"] = table_name
+            kwargs["TotalSegments"] = total_segments
 
-    # Last resort use Parallel Scan
-    executor = _get_executor(use_threads=use_threads)
-    dynamodb_client = _utils.client(service_name="dynamodb", session=boto3_session)
-    total_segments = _utils.ensure_cpu_count(use_threads=use_threads)
-    kwargs = _serialize_kwargs(kwargs)
-    kwargs["TableName"] = table_name
-    kwargs["TotalSegments"] = total_segments
-
-    items = executor.map(
-        _read_scan, dynamodb_client, itertools.repeat(as_dataframe), itertools.repeat(kwargs), range(total_segments)
-    )
-    return _utils.table_refs_to_df(items, arrow_kwargs) if as_dataframe else _utils.flatten_list(ray_get(items))
+            items = executor.map(
+                _read_scan,
+                dynamodb_client,
+                itertools.repeat(as_dataframe),
+                itertools.repeat(kwargs),
+                range(total_segments),
+            )
+    return _convert_items(items=items, use_scan=use_scan, as_dataframe=as_dataframe, arrow_kwargs=arrow_kwargs)
 
 
 @overload
@@ -400,7 +411,7 @@ def read_items(  # pylint: disable=too-many-branches
 
     Note
     ----
-    Parallel Scans are used based on specified `use_threads`.
+    Number of Parallel Scan segments is based on the `use_threads` argument.
     A parallel scan with a large number of workers could consume all the provisioned throughput
     of the table or index.
     See: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Scan.html#Scan.ParallelScan

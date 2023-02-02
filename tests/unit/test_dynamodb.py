@@ -2,12 +2,20 @@ import tempfile
 from datetime import datetime
 from decimal import Decimal
 
-import pandas as pd
 import pytest
 from boto3.dynamodb.conditions import Attr, Key
 from botocore.exceptions import ClientError
 
 import awswrangler as wr
+
+from .._utils import is_ray_modin
+
+if is_ray_modin:
+    import modin.pandas as pd
+else:
+    import pandas as pd
+
+pytestmark = pytest.mark.distributed
 
 
 @pytest.mark.parametrize(
@@ -332,7 +340,9 @@ def test_read_items_index(params, dynamodb_table):
     )
     assert df2.shape == df.shape
 
-    df3 = wr.dynamodb.read_items(table_name=dynamodb_table, allow_full_scan=True, index_name="CategoryIndex")
+    df3 = wr.dynamodb.read_items(
+        table_name=dynamodb_table, allow_full_scan=True, index_name="CategoryIndex", use_threads=1
+    )
     assert df3.shape == df.shape
 
 
@@ -393,9 +403,10 @@ def test_read_items_expression(params, dynamodb_table):
     assert df5.shape == (2, len(df.columns))
 
     # Reserved keyword
-    wr.dynamodb.read_items(
+    df6 = wr.dynamodb.read_items(
         table_name=dynamodb_table,
         filter_expression="#operator = :v",
         expression_attribute_names={"#operator": "operator"},
         expression_attribute_values={":v": "Eido"},
     )
+    assert df6.shape == (1, len(df.columns))
