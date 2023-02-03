@@ -612,6 +612,7 @@ TryItOutputType = TypeVar("TryItOutputType")
 def try_it(
     f: Callable[..., TryItOutputType],
     ex: Any,
+    *args: Any,
     ex_code: Optional[str] = None,
     base: float = 1.0,
     max_num_tries: int = 3,
@@ -624,7 +625,7 @@ def try_it(
     delay: float = base
     for i in range(max_num_tries):
         try:
-            return f(**kwargs)
+            return f(*args, **kwargs)
         except ex as exception:
             if ex_code is not None and hasattr(exception, "response"):
                 if exception.response["Error"]["Code"] != ex_code:
