@@ -2,7 +2,7 @@
 # pylint: disable=import-outside-toplevel
 import logging
 from functools import wraps
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, TypeVar
 
 import numpy as np
 import pandas as pd
@@ -30,7 +30,10 @@ def _validate_partition_shape(df: pd.DataFrame) -> bool:
     return partitions_shape[1] == 1
 
 
-def modin_repartition(function: Callable[..., Any]) -> Callable[..., Any]:
+FunctionType = TypeVar("FunctionType", bound=Callable[..., Any])
+
+
+def modin_repartition(function: FunctionType) -> FunctionType:
     """
     Decorate callable to repartition Modin data frame.
 
