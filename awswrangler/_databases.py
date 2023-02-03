@@ -60,11 +60,19 @@ def _get_connection_attributes_from_catalog(
                     f"No CA certificate found at {ssl_cert_path}."
                 )
         ssl_context = ssl.create_default_context(cadata=ssl_cadata)
-
+    print("CONNECTION DETAILS", details)
+    if details.has_key("USERNAME"):
+        user = details["USERNAME"]
+    else:
+        user = details["username"]
+    if details.has_key("PASSWORD"):
+        user = details["PASSWORD"]
+    else:
+        user = details["password"]
     return ConnectionAttributes(
         kind=details["JDBC_CONNECTION_URL"].split(":")[1].lower(),
-        user=details["USERNAME"],
-        password=details["PASSWORD"],
+        user=user,
+        password=password,
         host=details["JDBC_CONNECTION_URL"].split(":")[-2].replace("/", "").replace("@", ""),
         port=int(port),
         database=dbname if dbname is not None else database,
