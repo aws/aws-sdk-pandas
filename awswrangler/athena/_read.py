@@ -5,13 +5,13 @@ import csv
 import logging
 import sys
 import uuid
-from typing import Any, Dict, Iterator, List, Literal, Optional, Tuple, Union, overload
+from typing import Any, Dict, Iterator, List, Literal, Optional, Union, overload
 
 import boto3
 import botocore.exceptions
 import pandas as pd
 
-from awswrangler import _utils, catalog, exceptions, s3
+from awswrangler import _utils, catalog, exceptions, s3, typing
 from awswrangler._config import apply_configs
 from awswrangler._data_types import cast_pandas_with_athena_types
 from awswrangler._sql_formatter import _process_sql_params
@@ -269,7 +269,7 @@ def _resolve_query_without_cache_ctas(
     kms_key: Optional[str],
     alt_database: Optional[str],
     name: Optional[str],
-    ctas_bucketing_info: Optional[Tuple[List[str], int]],
+    ctas_bucketing_info: Optional[typing.BucketingInfoTuple],
     ctas_write_compression: Optional[str],
     use_threads: Union[bool, int],
     s3_additional_kwargs: Optional[Dict[str, Any]],
@@ -419,7 +419,7 @@ def _resolve_query_without_cache(
     keep_files: bool,
     ctas_database: Optional[str],
     ctas_temp_table_name: Optional[str],
-    ctas_bucketing_info: Optional[Tuple[List[str], int]],
+    ctas_bucketing_info: Optional[typing.BucketingInfoTuple],
     ctas_write_compression: Optional[str],
     use_threads: Union[bool, int],
     s3_additional_kwargs: Optional[Dict[str, Any]],
@@ -729,10 +729,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments
     encryption: Optional[str] = ...,
     kms_key: Optional[str] = ...,
     keep_files: bool = ...,
-    ctas_database: Optional[str] = ...,
-    ctas_temp_table_name: Optional[str] = ...,
-    ctas_bucketing_info: Optional[Tuple[List[str], int]] = ...,
-    ctas_write_compression: Optional[str] = ...,
+    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     max_cache_seconds: int = ...,
@@ -762,10 +759,7 @@ def read_sql_query(
     encryption: Optional[str] = ...,
     kms_key: Optional[str] = ...,
     keep_files: bool = ...,
-    ctas_database: Optional[str] = ...,
-    ctas_temp_table_name: Optional[str] = ...,
-    ctas_bucketing_info: Optional[Tuple[List[str], int]] = ...,
-    ctas_write_compression: Optional[str] = ...,
+    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     max_cache_seconds: int = ...,
@@ -795,10 +789,7 @@ def read_sql_query(
     encryption: Optional[str] = ...,
     kms_key: Optional[str] = ...,
     keep_files: bool = ...,
-    ctas_database: Optional[str] = ...,
-    ctas_temp_table_name: Optional[str] = ...,
-    ctas_bucketing_info: Optional[Tuple[List[str], int]] = ...,
-    ctas_write_compression: Optional[str] = ...,
+    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     max_cache_seconds: int = ...,
@@ -828,10 +819,7 @@ def read_sql_query(
     encryption: Optional[str] = ...,
     kms_key: Optional[str] = ...,
     keep_files: bool = ...,
-    ctas_database: Optional[str] = ...,
-    ctas_temp_table_name: Optional[str] = ...,
-    ctas_bucketing_info: Optional[Tuple[List[str], int]] = ...,
-    ctas_write_compression: Optional[str] = ...,
+    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     max_cache_seconds: int = ...,
@@ -861,10 +849,7 @@ def read_sql_query(
     encryption: Optional[str] = ...,
     kms_key: Optional[str] = ...,
     keep_files: bool = ...,
-    ctas_database: Optional[str] = ...,
-    ctas_temp_table_name: Optional[str] = ...,
-    ctas_bucketing_info: Optional[Tuple[List[str], int]] = ...,
-    ctas_write_compression: Optional[str] = ...,
+    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     max_cache_seconds: int = ...,
@@ -893,10 +878,7 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
     keep_files: bool = True,
-    ctas_database: Optional[str] = None,
-    ctas_temp_table_name: Optional[str] = None,
-    ctas_bucketing_info: Optional[Tuple[List[str], int]] = None,
-    ctas_write_compression: Optional[str] = None,
+    ctas_settings: Optional[typing.AthenaCTASSettings] = None,
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     max_cache_seconds: int = 0,
@@ -1168,6 +1150,13 @@ def read_sql_query(  # pylint: disable=too-many-arguments,too-many-locals
         except Exception as e:  # pylint: disable=broad-except
             _logger.error(e)  # if there is anything wrong with the cache, just fallback to the usual path
             _logger.debug("Corrupted cache. Continuing to execute query...")
+
+    ctas_settings = ctas_settings if ctas_settings else {}
+    ctas_database = ctas_settings.get("ctas_database")
+    ctas_temp_table_name = ctas_settings.get("ctas_temp_table_name")
+    ctas_bucketing_info = ctas_settings.get("ctas_bucketing_info")
+    ctas_write_compression = ctas_settings.get("ctas_write_compression")
+
     return _resolve_query_without_cache(
         sql=sql,
         database=database,
@@ -1207,10 +1196,7 @@ def read_sql_table(
     encryption: Optional[str] = ...,
     kms_key: Optional[str] = ...,
     keep_files: bool = ...,
-    ctas_database: Optional[str] = ...,
-    ctas_temp_table_name: Optional[str] = ...,
-    ctas_bucketing_info: Optional[Tuple[List[str], int]] = ...,
-    ctas_write_compression: Optional[str] = ...,
+    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     max_cache_seconds: int = ...,
@@ -1239,10 +1225,7 @@ def read_sql_table(
     encryption: Optional[str] = ...,
     kms_key: Optional[str] = ...,
     keep_files: bool = ...,
-    ctas_database: Optional[str] = ...,
-    ctas_temp_table_name: Optional[str] = ...,
-    ctas_bucketing_info: Optional[Tuple[List[str], int]] = ...,
-    ctas_write_compression: Optional[str] = ...,
+    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     max_cache_seconds: int = ...,
@@ -1271,10 +1254,7 @@ def read_sql_table(
     encryption: Optional[str] = ...,
     kms_key: Optional[str] = ...,
     keep_files: bool = ...,
-    ctas_database: Optional[str] = ...,
-    ctas_temp_table_name: Optional[str] = ...,
-    ctas_bucketing_info: Optional[Tuple[List[str], int]] = ...,
-    ctas_write_compression: Optional[str] = ...,
+    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     max_cache_seconds: int = ...,
@@ -1303,10 +1283,7 @@ def read_sql_table(
     encryption: Optional[str] = ...,
     kms_key: Optional[str] = ...,
     keep_files: bool = ...,
-    ctas_database: Optional[str] = ...,
-    ctas_temp_table_name: Optional[str] = ...,
-    ctas_bucketing_info: Optional[Tuple[List[str], int]] = ...,
-    ctas_write_compression: Optional[str] = ...,
+    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     max_cache_seconds: int = ...,
@@ -1335,10 +1312,7 @@ def read_sql_table(
     encryption: Optional[str] = ...,
     kms_key: Optional[str] = ...,
     keep_files: bool = ...,
-    ctas_database: Optional[str] = ...,
-    ctas_temp_table_name: Optional[str] = ...,
-    ctas_bucketing_info: Optional[Tuple[List[str], int]] = ...,
-    ctas_write_compression: Optional[str] = ...,
+    ctas_settings: Optional[typing.AthenaCTASSettings] = ...,
     use_threads: Union[bool, int] = ...,
     boto3_session: Optional[boto3.Session] = ...,
     max_cache_seconds: int = ...,
@@ -1366,10 +1340,7 @@ def read_sql_table(
     encryption: Optional[str] = None,
     kms_key: Optional[str] = None,
     keep_files: bool = True,
-    ctas_database: Optional[str] = None,
-    ctas_temp_table_name: Optional[str] = None,
-    ctas_bucketing_info: Optional[Tuple[List[str], int]] = None,
-    ctas_write_compression: Optional[str] = None,
+    ctas_settings: Optional[typing.AthenaCTASSettings] = None,
     use_threads: Union[bool, int] = True,
     boto3_session: Optional[boto3.Session] = None,
     max_cache_seconds: int = 0,
@@ -1580,10 +1551,7 @@ def read_sql_table(
         encryption=encryption,
         kms_key=kms_key,
         keep_files=keep_files,
-        ctas_database=ctas_database,
-        ctas_temp_table_name=ctas_temp_table_name,
-        ctas_bucketing_info=ctas_bucketing_info,
-        ctas_write_compression=ctas_write_compression,
+        ctas_settings=ctas_settings,
         use_threads=use_threads,
         boto3_session=boto3_session,
         max_cache_seconds=max_cache_seconds,

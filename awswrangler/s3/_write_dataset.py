@@ -7,7 +7,7 @@ import boto3
 import numpy as np
 import pandas as pd
 
-from awswrangler import exceptions, lakeformation
+from awswrangler import exceptions, lakeformation, typing
 from awswrangler._distributed import engine
 from awswrangler._utils import client
 from awswrangler.s3._delete import delete_objects
@@ -16,7 +16,7 @@ from awswrangler.s3._write_concurrent import _WriteProxy
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-def _get_bucketing_series(df: pd.DataFrame, bucketing_info: Tuple[List[str], int]) -> pd.Series:
+def _get_bucketing_series(df: pd.DataFrame, bucketing_info: typing.BucketingInfoTuple) -> pd.Series:
     bucket_number_series = (
         df[bucketing_info[0]]
         # Prevent "upcasting" mixed types by casting to object
@@ -138,7 +138,7 @@ def _to_partitions(
     table: Optional[str],
     table_type: Optional[str],
     transaction_id: Optional[str],
-    bucketing_info: Optional[Tuple[List[str], int]],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
     filename_prefix: str,
     boto3_session: Optional[boto3.Session],
     **func_kwargs: Any,
@@ -197,7 +197,7 @@ def _to_buckets(
     df: pd.DataFrame,
     func: Callable[..., List[str]],
     path_root: str,
-    bucketing_info: Tuple[List[str], int],
+    bucketing_info: typing.BucketingInfoTuple,
     filename_prefix: str,
     boto3_session: Optional[boto3.Session],
     use_threads: Union[bool, int],
@@ -238,7 +238,7 @@ def _to_dataset(
     table: Optional[str],
     table_type: Optional[str],
     transaction_id: Optional[str],
-    bucketing_info: Optional[Tuple[List[str], int]],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
     boto3_session: Optional[boto3.Session],
     **func_kwargs: Any,
 ) -> Tuple[List[str], Dict[str, List[str]]]:

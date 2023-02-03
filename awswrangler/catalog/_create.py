@@ -1,11 +1,11 @@
 """AWS Glue Catalog Module."""
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 import boto3
 
-from awswrangler import _utils, exceptions
+from awswrangler import _utils, exceptions, typing
 from awswrangler._config import apply_configs
 from awswrangler.catalog._definitions import _csv_table_definition, _json_table_definition, _parquet_table_definition
 from awswrangler.catalog._delete import delete_all_partitions, delete_table_if_exists
@@ -257,7 +257,7 @@ def _create_parquet_table(
     columns_types: Dict[str, str],
     table_type: Optional[str],
     partitions_types: Optional[Dict[str, str]],
-    bucketing_info: Optional[Tuple[List[str], int]],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
     catalog_id: Optional[str],
     compression: Optional[str],
     description: Optional[str],
@@ -324,7 +324,7 @@ def _create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     columns_types: Dict[str, str],
     table_type: Optional[str],
     partitions_types: Optional[Dict[str, str]],
-    bucketing_info: Optional[Tuple[List[str], int]],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
     description: Optional[str],
     compression: Optional[str],
     parameters: Optional[Dict[str, str]],
@@ -392,7 +392,7 @@ def _create_json_table(  # pylint: disable=too-many-arguments
     columns_types: Dict[str, str],
     table_type: Optional[str],
     partitions_types: Optional[Dict[str, str]],
-    bucketing_info: Optional[Tuple[List[str], int]],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
     description: Optional[str],
     compression: Optional[str],
     parameters: Optional[Dict[str, str]],
@@ -637,7 +637,7 @@ def create_parquet_table(
     columns_types: Dict[str, str],
     table_type: Optional[str] = None,
     partitions_types: Optional[Dict[str, str]] = None,
-    bucketing_info: Optional[Tuple[List[str], int]] = None,
+    bucketing_info: Optional[typing.BucketingInfoTuple] = None,
     catalog_id: Optional[str] = None,
     compression: Optional[str] = None,
     description: Optional[str] = None,
@@ -796,7 +796,7 @@ def create_csv_table(  # pylint: disable=too-many-arguments,too-many-locals
     columns_types: Dict[str, str],
     table_type: Optional[str] = None,
     partitions_types: Optional[Dict[str, str]] = None,
-    bucketing_info: Optional[Tuple[List[str], int]] = None,
+    bucketing_info: Optional[typing.BucketingInfoTuple] = None,
     compression: Optional[str] = None,
     description: Optional[str] = None,
     parameters: Optional[Dict[str, str]] = None,
@@ -986,7 +986,7 @@ def create_json_table(  # pylint: disable=too-many-arguments
     columns_types: Dict[str, str],
     table_type: Optional[str] = None,
     partitions_types: Optional[Dict[str, str]] = None,
-    bucketing_info: Optional[Tuple[List[str], int]] = None,
+    bucketing_info: Optional[typing.BucketingInfoTuple] = None,
     compression: Optional[str] = None,
     description: Optional[str] = None,
     parameters: Optional[Dict[str, str]] = None,

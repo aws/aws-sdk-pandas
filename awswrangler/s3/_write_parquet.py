@@ -23,7 +23,7 @@ from awswrangler.s3._read_parquet import _read_parquet_metadata
 from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_concurrent import _WriteProxy
 from awswrangler.s3._write_dataset import _to_dataset
-from awswrangler.typing import GlueTableSettings, _S3WriteDataReturnValue
+from awswrangler.typing import BucketingInfoTuple, GlueTableSettings, _S3WriteDataReturnValue
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
@@ -237,7 +237,7 @@ def to_parquet(  # pylint: disable=too-many-arguments,too-many-locals,too-many-b
     dataset: bool = False,
     filename_prefix: Optional[str] = None,
     partition_cols: Optional[List[str]] = None,
-    bucketing_info: Optional[Tuple[List[str], int]] = None,
+    bucketing_info: Optional[BucketingInfoTuple] = None,
     concurrent_partitioning: bool = False,
     mode: Optional[str] = None,
     catalog_versioning: bool = False,

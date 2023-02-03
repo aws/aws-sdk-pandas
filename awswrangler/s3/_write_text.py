@@ -17,7 +17,7 @@ from awswrangler.s3._delete import delete_objects
 from awswrangler.s3._fs import open_s3_object
 from awswrangler.s3._write import _COMPRESSION_2_EXT, _apply_dtype, _sanitize, _validate_args
 from awswrangler.s3._write_dataset import _to_dataset
-from awswrangler.typing import GlueTableSettings, _S3WriteDataReturnValue
+from awswrangler.typing import BucketingInfoTuple, GlueTableSettings, _S3WriteDataReturnValue
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
@@ -91,7 +91,7 @@ def to_csv(  # pylint: disable=too-many-arguments,too-many-locals,too-many-state
     dataset: bool = False,
     filename_prefix: Optional[str] = None,
     partition_cols: Optional[List[str]] = None,
-    bucketing_info: Optional[Tuple[List[str], int]] = None,
+    bucketing_info: Optional[BucketingInfoTuple] = None,
     concurrent_partitioning: bool = False,
     mode: Optional[str] = None,
     catalog_versioning: bool = False,
@@ -672,7 +672,7 @@ def to_json(  # pylint: disable=too-many-arguments,too-many-locals,too-many-stat
     dataset: bool = False,
     filename_prefix: Optional[str] = None,
     partition_cols: Optional[List[str]] = None,
-    bucketing_info: Optional[Tuple[List[str], int]] = None,
+    bucketing_info: Optional[BucketingInfoTuple] = None,
     concurrent_partitioning: bool = False,
     mode: Optional[str] = None,
     catalog_versioning: bool = False,

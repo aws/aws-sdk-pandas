@@ -1,7 +1,9 @@
 """AWS Glue Catalog Delete Module."""
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
+from awswrangler import typing
 
 if TYPE_CHECKING:
     from mypy_boto3_glue.type_defs import GetTableResponseTypeDef
@@ -36,7 +38,7 @@ def _parquet_table_definition(
     columns_types: Dict[str, str],
     table_type: Optional[str],
     partitions_types: Dict[str, str],
-    bucketing_info: Optional[Tuple[List[str], int]],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
     compression: Optional[str],
 ) -> Dict[str, Any]:
     compressed: bool = compression is not None
@@ -72,7 +74,7 @@ def _parquet_table_definition(
 def _parquet_partition_definition(
     location: str,
     values: List[str],
-    bucketing_info: Optional[Tuple[List[str], int]],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
     compression: Optional[str],
     columns_types: Optional[Dict[str, str]],
     partitions_parameters: Optional[Dict[str, str]],
@@ -108,7 +110,7 @@ def _csv_table_definition(
     columns_types: Dict[str, str],
     table_type: Optional[str],
     partitions_types: Dict[str, str],
-    bucketing_info: Optional[Tuple[List[str], int]],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
     compression: Optional[str],
     sep: str,
     skip_header_line_count: Optional[int],
@@ -156,7 +158,7 @@ def _csv_table_definition(
 def _csv_partition_definition(
     location: str,
     values: List[str],
-    bucketing_info: Optional[Tuple[List[str], int]],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
     compression: Optional[str],
     sep: str,
     serde_library: Optional[str],
@@ -198,7 +200,7 @@ def _json_table_definition(
     columns_types: Dict[str, str],
     table_type: Optional[str],
     partitions_types: Dict[str, str],
-    bucketing_info: Optional[Tuple[List[str], int]],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
     compression: Optional[str],
     serde_library: Optional[str],
     serde_parameters: Optional[Dict[str, str]],
@@ -237,7 +239,7 @@ def _json_table_definition(
 def _json_partition_definition(
     location: str,
     values: List[str],
-    bucketing_info: Optional[Tuple[List[str], int]],
+    bucketing_info: Optional[typing.BucketingInfoTuple],
     compression: Optional[str],
     serde_library: Optional[str],
     serde_parameters: Optional[Dict[str, str]],
