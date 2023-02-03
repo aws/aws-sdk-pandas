@@ -61,14 +61,14 @@ def _get_connection_attributes_from_catalog(
                 )
         ssl_context = ssl.create_default_context(cadata=ssl_cadata)
     print("CONNECTION DETAILS", details)
-    if details.get("USERNAME"):
-        user = details["USERNAME"]
-    else:
+    if details.get("USERNAME") == None:
         user = details["username"]
-    if details.get("PASSWORD"):
-        password = details["PASSWORD"]
     else:
+        user = details["USERNAME"]
+    if details.get("PASSWORD") == None:
         password = details["password"]
+    else:
+        password = details["PASSWORD"]
     return ConnectionAttributes(
         kind=details["JDBC_CONNECTION_URL"].split(":")[1].lower(),
         user=user,
