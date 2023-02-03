@@ -33,7 +33,7 @@ def _path2list(
     if isinstance(path, str):  # prefix
         paths: List[str] = [
             path
-            for paths in _list_objects(  # type: ignore
+            for paths in _list_objects(
                 path=path,
                 s3_client=s3_client,
                 suffix=_suffix,
@@ -115,7 +115,7 @@ def _list_objects(  # pylint: disable=too-many-branches
 
     for page in response_iterator:  # pylint: disable=too-many-nested-blocks
         if delimiter is None:
-            contents: Optional[List[Dict[str, Any]]] = page.get("Contents")
+            contents = page.get("Contents")
             if contents is not None:
                 for content in contents:
                     key: str = content["Key"]
@@ -131,7 +131,7 @@ def _list_objects(  # pylint: disable=too-many-branches
                                     continue
                             paths.append(f"s3://{bucket}/{key}")
         else:
-            prefixes: Optional[List[Optional[Dict[str, str]]]] = page.get("CommonPrefixes")
+            prefixes = page.get("CommonPrefixes")
             if prefixes is not None:
                 for pfx in prefixes:
                     if (pfx is not None) and ("Prefix" in pfx):

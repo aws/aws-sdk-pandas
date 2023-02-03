@@ -8,7 +8,21 @@ import random
 import time
 from concurrent.futures import FIRST_COMPLETED, Future, wait
 from functools import partial, wraps
-from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, List, Optional, Sequence, Tuple, Type, Union, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Generator,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    overload,
+)
 
 import boto3
 import botocore.credentials
@@ -592,15 +606,17 @@ def retry(
     return wrapper
 
 
+TryItOutputType = TypeVar("TryItOutputType")
+
+
 def try_it(
-    f: Callable[..., Any],
+    f: Callable[..., TryItOutputType],
     ex: Any,
-    *args: Any,
     ex_code: Optional[str] = None,
     base: float = 1.0,
     max_num_tries: int = 3,
     **kwargs: Any,
-) -> Any:
+) -> TryItOutputType:
     """Run function with decorrelated Jitter.
 
     Reference: https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
@@ -608,7 +624,7 @@ def try_it(
     delay: float = base
     for i in range(max_num_tries):
         try:
-            return f(*args, **kwargs)
+            return f(**kwargs)
         except ex as exception:
             if ex_code is not None and hasattr(exception, "response"):
                 if exception.response["Error"]["Code"] != ex_code:
