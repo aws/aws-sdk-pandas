@@ -66,9 +66,9 @@ def _get_connection_attributes_from_catalog(
     else:
         user = details["username"]
     if details.has_key("PASSWORD"):
-        user = details["PASSWORD"]
+        password = details["PASSWORD"]
     else:
-        user = details["password"]
+        password = details["password"]
     return ConnectionAttributes(
         kind=details["JDBC_CONNECTION_URL"].split(":")[1].lower(),
         user=user,
