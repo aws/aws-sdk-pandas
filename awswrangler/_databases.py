@@ -61,11 +61,11 @@ def _get_connection_attributes_from_catalog(
                 )
         ssl_context = ssl.create_default_context(cadata=ssl_cadata)
     print("CONNECTION DETAILS", details)
-    if details.get("USERNAME") == None:
+    if details.get("USERNAME") is None:
         user = details["username"]
     else:
         user = details["USERNAME"]
-    if details.get("PASSWORD") == None:
+    if details.get("PASSWORD") is None:
         password = details["password"]
     else:
         password = details["PASSWORD"]
