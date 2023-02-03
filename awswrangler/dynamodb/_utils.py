@@ -4,6 +4,7 @@ import logging
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Mapping, Optional, Union
 
 import boto3
+from boto3.dynamodb.conditions import ConditionExpressionBuilder
 from botocore.exceptions import ClientError
 
 from awswrangler import _utils, exceptions
@@ -137,6 +138,47 @@ def execute_statement(
         _execute_statement(kwargs=kwargs, boto3_session=boto3_session)
         return None
     return _read_execute_statement(kwargs=kwargs, boto3_session=boto3_session)
+
+
+def _serialize_kwargs(kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    """Serialize a DynamoDB input arguments dictionary.
+
+    Parameters
+    ----------
+    kwargs : Dict[str, Any]
+        Dictionary to serialize.
+
+    Returns
+    -------
+    Dict[str, Any]
+        Serialized dictionary.
+    """
+    names: Dict[str, Any] = {}
+    values: Dict[str, Any] = {}
+    serializer = boto3.dynamodb.types.TypeSerializer()
+
+    if "FilterExpression" in kwargs and not isinstance(kwargs["FilterExpression"], str):
+        builder = ConditionExpressionBuilder()
+        exp_string, names, values = builder.build_expression(kwargs["FilterExpression"], False)  # type: ignore
+        kwargs["FilterExpression"] = exp_string
+
+    if "ExpressionAttributeNames" in kwargs:
+        kwargs["ExpressionAttributeNames"].update(names)
+    else:
+        if names:
+            kwargs["ExpressionAttributeNames"] = names
+
+    values = {k: serializer.serialize(v) for k, v in values.items()}
+    if "ExpressionAttributeValues" in kwargs:
+        kwargs["ExpressionAttributeValues"] = {
+            k: serializer.serialize(v) for k, v in kwargs["ExpressionAttributeValues"].items()
+        }
+        kwargs["ExpressionAttributeValues"].update(values)
+    else:
+        if values:
+            kwargs["ExpressionAttributeValues"] = values
+
+    return kwargs
 
 
 def _validate_items(items: Union[List[Dict[str, Any]], List[Mapping[str, Any]]], dynamodb_table: "Table") -> None:
